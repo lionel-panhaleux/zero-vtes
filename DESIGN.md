@@ -403,6 +403,31 @@ Recorded so nobody mistakes them for oversights:
 - **P4 — league & 5p**: exploiters, PFSP, deck/seat sampling, evaluation vs humans.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer.
 
+## Outlook: deck building (post-v1)
+
+Once engine + pilot agent work, deck building is the natural extension — and the
+project's architecture is deliberately ready for it: fast simulator + competent
+pilot = the deck-evaluation oracle every prior deckbuilding-AI attempt lacked;
+pointer-style policy means new decklists are data, not network changes; engine
+pool ⊃ training roster means the search space is already implemented.
+
+- **Formulation**: not "find the best deck" but co-evolve a metagame — deck
+  fitness is relative to the field, archetypes cycle, so use population /
+  quality-diversity search (archetype descriptors as diversity axes) with
+  fitness = expected tournament score vs the current population.
+- **Known hard problem — pilot–deck chicken-and-egg**: candidate decks score
+  through the pilot; unfamiliar archetypes yield false negatives that steer
+  search away from novelty. Mitigations: decklist-conditioned policy (planned
+  from v1), per-candidate fine-tuning before scoring, full co-evolution (pilot's
+  training distribution = builder's population).
+- **Unique assets**: the TWDA (~4k tournament-winning decklists, machine-readable
+  via KRCG) as a generative prior / mutation bias; deck legality validation
+  already solved in krcg.
+- **Bridge study — precon tuning**: frozen pilot, ≤10 card swaps from a precon,
+  hill-climb. Cheap, exercises the whole loop, measures pilot bias, and a
+  measurably improved precon is a community artifact by itself. Can start as
+  soon as the P3/P4 bot is decent.
+
 ## Resolved questions (2026-08-02)
 
 - **v1 training roster**: the 14 full-size precons (379 unique cards). New Blood
