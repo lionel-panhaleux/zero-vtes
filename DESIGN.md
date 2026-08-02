@@ -1,0 +1,433 @@
+# zero-vtes — Design Document
+
+A rules-enforcing VTES engine and a self-play deep-RL agent for the V5 card pool.
+
+This document records the design decisions discussed and settled before implementation.
+Every structural claim traces to a source: the [VEKN rulebook](https://www.vekn.net/rulebook),
+[vtes-advanced-rules](https://github.com/vtes-biased/vtes-advanced-rules) (judge-level semantics),
+the [play procedures draft](https://gist.github.com/lionel-panhaleux/766eedd27ff26ae30169508ddc6bf95c)
+(shortcuts, declarations, free-for-all mechanics), the
+[jol-rebuild](https://github.com/VTES-JOL/jol-rebuild) timing-window taxonomy (studied, not reused),
+and card data from [KRCG](https://static.krcg.org/data/vtes.json).
+
+---
+
+## 1. Vision
+
+Build, in order:
+
+1. **A fast, rules-enforcing V5 game engine** (Rust) — the first of its kind. A community
+   artifact in its own right: deterministic, replayable, exposing a serializable
+   decision protocol any client can drive.
+2. **A self-play trained agent** (PyTorch, AlphaStar-style scaled down) that plays
+   legal, competent, eventually strong VTES on 4–5 player tables with the V5
+   preconstructed decks.
+3. **A pluggable bot**: the trained policy behind the engine-as-rules-oracle, usable
+   by the community as a training partner in online play.
+
+Explicit non-goals (v1): open deck building, negotiation/table talk (the agent plays
+"silent VTES" — signals only through actions and votes), legacy card pool (the
+architecture must not preclude it; the implementation does not attempt it).
+
+## 2. Prior art — what we take and what we reject
+
+| Source | Take | Reject |
+|---|---|---|
+| **AlphaZero** | Self-play + policy/value net spirit | MCTS on true state (hidden info), two-player zero-sum assumptions |
+| **AlphaStar** | Entity-transformer encoding, auto-regressive factored actions with masking, asymmetric critic (omniscient value net, legal-view policy), league training (main + exploiters + snapshots, PFSP opponent sampling) | Imitation bootstrap (no VTES replay corpus exists), TPU-scale compute |
+| **Pluribus** | License to proceed without multiplayer equilibrium guarantees; fixed non-adapting strategy stance; cheap-compute mindset | CFR/blueprint method (needs short horizons and information abstraction VTES doesn't have) |
+| **jol-rebuild** | Window taxonomy + anchor-card method, mechanics coverage checklist, convergent validation of impulse/sequencing primitives | Client-first architecture, legality-as-guards (vs enumeration), permissive/enforced dual mode, card-text parsing for behavior |
+
+Key structural advantages over the games above: turn-based, engine-enumerable legal
+actions, low per-decision branching. Key structural burden: rules complexity — the
+engine is ~70% of the project.
+
+## 3. Scope: the V5 pool
+
+Pool = union of official V5-era products (per KRCG set data):
+Fifth Edition, Fifth Edition (Anarch), Fifth Edition (Companion), New Blood,
+New Blood II, New Blood III, Fall of London, Shadows of Berlin, Echoes of Gehenna.
+
+Measured from `vtes.json` (2026-08):
+
+- **621 unique cards**: 200 crypt (all vampires), 421 library.
+- Library by type: Master 124, Combat 63, Action 59, Action Modifier 53, Reaction 40,
+  Equipment 23, Event 20, Ally 19, Political Action 19, Retainer 12 (multi-type cards
+  counted once per type).
+- Decklists: the official preconstructed decks from these products (fixed, public).
+
+**Engine pool vs training roster.** The engine implements the **full 621-card pool
+in v1** — including all 20 Events and their machinery (conditional delayed
+replacement "do not replace until X", token entities, global capacity-cap and
+sect-override layers, randomness beyond shuffles, mandatory per-minion unlock
+decisions). Events are less special than they look: playing one is an optional
+discard-phase action (discard a card, *or* play an event; each event once per game
+per player), so nothing about them distorts the decision protocol — they simply
+stress the effects framework, which must express them before it freezes.
+
+The **v1 training roster** is the 14 full-size preconstructed decks
+(Fifth Edition 7 · Anarch 4 · Companion 3), reconstructible from KRCG `_set`
+bundle codes: a union of **379 unique cards** (138 crypt, 241 library), 17–41
+uniques per deck. The 14 New Blood mini-starters and the 67 singles-only cards
+(Fall of London, Echoes of Gehenna, 7 of Shadows of Berlin — all events among
+them) are implemented but appear in no v1 decklist; they enter play via community
+constructed decks and later training phases.
+
+Consequences probed against actual card text (see §6 for the window census):
+
+- **In scope**: referendums with interactive terms, bleed redirection, wakes,
+  action-cancel-as-announced, card-cancel-as-played, out-of-turn masters
+  (Archon Investigation interrupts mid-action on a bleed-amount threshold),
+  action continuation (Form of Mist), combat-end replacement (Telepathic Tracking),
+  additional strikes, presses, prevention, Events (global ongoing effects),
+  diablerie + blood hunt (basic rulebook action on torpor vampires — card-independent),
+  contested cards and titles, Anarch mechanics.
+- **Deferred — zero V5 tenants** (hooks designed, windows never opened in v1):
+  torpor-replacement (`WOULD_GO_TO_TORPOR`, Amaranth-style combat diablerie),
+  burn-replacement (`WOULD_BE_BURNED`), bidding free-for-alls.
+
+The set list is configuration, not code: extending toward legacy means adding cards
+and enabling deferred windows, not changing the framework.
+
+## 4. Engine architecture
+
+### 4.1 The core inversion: decision requests
+
+The engine is a resumable state machine. It advances deterministically until some
+player must choose, then emits a **decision request**:
+
+```
+DecisionRequest {
+  player,             // who must answer
+  kind,               // e.g. ChooseAction, BlockOrPass, CastVotes, ChooseStrike…
+  options: [Option],  // enumerated legal choices, each with feature data
+  observation,        // requester's legal view of the game state
+}
+```
+
+The answer is an index into `options`. This is the entire agent interface for every
+choice in the game — for the neural net, scripted bots, the fuzzer, and human clients.
+
+**Factoring rule**: combinatorial choices are decomposed into unit choices
+(allocate 1 pool at a time, pick one target at a time, confirm terms stepwise).
+No decision ever enumerates a product space. This matches the auto-regressive policy
+head *and* the tournament declaration protocol (play procedures §X.1: announce
+discipline level, X cost, targets, amounts — our decision sequence is that protocol
+at machine speed).
+
+**Determinism & replay**: a game is fully determined by `(seed, [answers])`. The
+decision log is the replay format: compact, resimulable, bisectable, and a future
+imitation-learning corpus. Rewind = truncate log + resimulate (this is also the
+mechanism behind human-facing shortcut interrupts, §8).
+
+### 4.2 Two window primitives
+
+Everything with timing in VTES instantiates one of exactly two primitives
+(plus deterministic auto-steps):
+
+**Ordered window (impulse/sequencing)** — rulebook Sequencing: offers rotate in a
+defined order (acting Methuselah first; directed → defender first; undirected →
+prey, predator; then clockwise). Any play returns the impulse to the acting
+Methuselah. Closes when all pass consecutively. Parameterized by:
+- ordering (who is offered, in what sequence),
+- legality filter (which effects are playable: reactions+modifiers during actions,
+  combat cards at a given step, wakes+cancels only during as-played windows, …).
+
+**Unordered commitment window (polling; bidding when it returns)** — no priority
+holder, no reset. Repeated rotations; on each offer a player may commit an
+**irrevocable** contribution (votes/ballots: all from one source agree; cast votes
+cannot be changed) or pass **without forfeiting** — they may still commit on a later
+rotation. Closes when a full rotation passes consecutively. Rotations start at the
+acting Methuselah and proceed clockwise: this matches table practice (the caller
+typically opens — "N in favour, anyone opposed?") and the play-procedures rule that
+the acting player controls the pace. Because closure requires a *full* rotation of
+consecutive passes, every commitment reopens a response opportunity for every other
+player before tally — nobody can be locked out of reacting to the latest vote.
+
+They **interleave**: during the polling step, casting votes uses the unordered
+window, but *playing cards and effects* stays ordered (normal sequencing).
+Witness in pool: **Scalpel Tongue** — an ordered card play during polling whose
+legal targets are "vampires who *have cast* votes in this referendum". Therefore:
+- per-vampire vote-cast state is first-class, queryable by card predicates;
+- "referendum passing automatically" is engine-visible state (Scalpel Tongue ruling:
+  unusable then);
+- committing early vs late is strategically live, so serialization is a modeling
+  decision we make explicitly: the rotation scheme above preserves the option to
+  wait, at the cost of a positional artifact within each rotation. In tabletop play
+  vote order has near-zero impact in the common case; we accept the artifact and
+  document it (§10).
+
+### 4.3 Window elision — the formal analog of human shortcuts
+
+Human play survives VTES's window density via binding shortcuts (play procedures
+§X.2). The simulator is omniscient, so it can do the same *provably*:
+
+> **Elision rule**: a decision request is emitted only if the player has at least
+> one legal option besides pass. Otherwise the engine auto-passes. Forced moves
+> (single mandatory option) are auto-played.
+
+Soundness condition: an auto-pass must be **observationally identical** to a chosen
+pass from every other seat's perspective (opponents see "passed" either way; no
+information about hidden hands leaks into the observation stream). This must hold as
+an invariant, and be tested.
+
+This is not an optimization garnish — it is what makes self-play viable. Without it,
+a 4-player game is tens of thousands of decision points, each a network inference;
+with it, only the live choices remain (est. >90% reduction), and RL credit
+assignment shortens accordingly.
+
+The play-procedures document also defines the *human-facing* shortcut protocol
+(binding shortcuts, interrupt-and-rewind, preemptive impulse requests = MTGO-style
+"stops"). That protocol is a client-layer concern implemented on top of the decision
+log (§8); the training path never sees it.
+
+### 4.4 Workflow state machines
+
+The rulebook's own structures are taken literally as nested state machines. Each
+state either performs deterministic bookkeeping or hosts a window instance:
+
+- **Turn**: Unlock → Master → Minion → Influence → Discard, with phase-scoped
+  budgets (MPA, transfers ramp 1/2/3/4, discard actions) and unlock-phase
+  sub-steps (contest/title upkeep and yields, Edge pool option, burn-option
+  discards, "during unlock" effects). The non-minion play windows are first-class
+  hosts of the same primitives: the Master phase is an offer window (master card
+  plays, master-phase-action effects, cancel-as-played sub-windows, out-of-turn
+  interactions) and the Discard phase likewise (discard-or-event as the discard
+  phase action, once-per-game event tracking per player).
+  **Contest upkeep factoring**: each Methuselah resolves *their side* of each
+  contest during *their own* unlock phase — self-contest is impossible, so no
+  player ever orders both sides of a contest, and no cross-player simultaneity
+  exists. Iterate the unlocking player's contested objects in canonical arena
+  order; each is a binary unit decision — pay upkeep (1 pool for a contested card,
+  1 blood for a contesting titled vampire) or yield. Forced yields (no resource;
+  vampire in torpor) are auto-played under the elision rule; "gains another title
+  while contesting → immediately yields the contested one" is deterministic
+  bookkeeping. Two broke Princes resolve naturally: whoever's unlock phase comes
+  first is force-yielded (elided), leaving the survivor sole claimant, titled
+  again once uncontested. Cards yielded burn with everything on them; a card whose
+  rivals all yielded unlocks face-up on its controller's next unlock phase.
+- **Action** (rulebook "Detailed action flow", A/B/C verbatim): declare (lock acting
+  minion, announce card+choices) → as-announced window → block loop
+  {A: no attempt / B: ongoing attempt / C: all declined} with sequencing inside each
+  state, reopening on target change (Deflection-class redirects) → resolution
+  (success: pay cost, apply effects) or block resolution (blocker locks + combat) →
+  after-resolution window (Freak Drive) → possible **action continuation**
+  (Form of Mist: re-enter the block loop with preserved stealth/intercept context).
+- **Combat**: rounds of {before-range → determine range (alternating maneuvers) →
+  before-strikes → strike declaration (acting first; maneuver-from-strike-card
+  commits the strike) → strike resolution (simultaneous pairs; first strike;
+  prevention windows inside damage resolution) → additional strikes → press step →
+  end-of-round} with would-end replacement (Telepathic Tracking) and about-to-end
+  queueing hooks; combat ends immediately when a combatant is not ready.
+- **Referendum**: terms confirmation (stepwise, factored) → before-votes window →
+  polling (unordered votes + ordered card plays interleaved) → tally → outcome
+  windows → back to action resolution.
+- **Diablerie / blood hunt**: diablerie sequence owned by one workflow regardless of
+  entry path (v1 entry: the basic action on torpor vampires); blood hunt as a
+  restricted referendum (vote sources only, no modifier/reaction windows).
+
+Window inventory: start from the census in §6; names are specific
+(`ACTION_AS_ANNOUNCED`, not "interrupt") — one name per legality filter.
+
+### 4.5 Cards and effects: one representation, two derivations
+
+The framework rule that everything else depends on:
+
+> **Playability and execution derive from the same card representation.**
+> There is no hand-written `can_play` separate from `execute`. The legal-action
+> mask is *generated*, and therefore cannot drift from behavior.
+
+- **Static data** (name, types, cost, disciplines, clan, capacity, group, title,
+  requirements, burn option) is generated from KRCG data — never hand-typed.
+- **Behavior** is a composition of effect primitives from a Rust library
+  (pay-cost, require-discipline-level, add-stealth, bleed-modifier, inflict-damage,
+  prevent, add-votes, put-counter, search, …) plus declarative playability:
+  window(s), actor constraints, target predicates (e.g. "vampire who has cast votes
+  this referendum"), once-per tracking (per action / combat / round / turn /
+  referendum — play procedures and rulebook wording templates §1.2 of
+  vtes-advanced-rules map nearly 1:1 onto these primitives).
+- Genuinely weird cards get custom code behind the same interface. The framework is
+  sized against the stress set (§6), not the median card.
+- **Modifier scopes**: effects live in explicit scopes — strike, round, combat,
+  action, phase, turn, permanent-while-in-play — on a scope stack popped wholesale
+  when the scope ends (the rulebook's own model: stealth/intercept "persist for
+  action duration then reset"). Events and in-play cards contribute persistent
+  layers. Interrupt classes get explicit hook points: prevention (order-sensitive),
+  cancel-as-played, replacement draws, cost reducers (usable at play or resolution).
+
+Semantics authority for the tricky parts (requirements vs costs, cancellation vs
+replacement, cumulative/stacking, simultaneity ordering, NRA, changing acting
+minion): **vtes-advanced-rules**, which doubles as the spec for this layer.
+
+### 4.6 State representation
+
+Flat, arena-style, plainly cloneable (search later, fuzzing now), no interior
+mutability. Zones per rulebook: ready / controlled / uncontrolled / torpor /
+ash heap / hand / library / crypt (+ set-aside, removed). Counters, Edge, pool,
+labels (contested, merged, Anarch, titles) as plain data. Cheap hashing for
+transposition/debugging. No allocation in the hot loop; card behaviors resolved to
+static function tables at load.
+
+## 5. RL-facing surface
+
+- **Dual observations, natively**: every decision request carries the decider's
+  legal view; the training pipeline can additionally request the omniscient view
+  (all hands, libraries) for the asymmetric critic. Nothing omniscient ever reaches
+  the policy.
+- **Options as feature vectors**: the policy scores the options presented
+  (pointer-network style), not indices into a fixed action vocabulary. Card pool
+  growth changes data, not network output shape — this is the V5→legacy path on the
+  ML side.
+- **Batched stepping**: `GamePool::step_until_decisions()` advances N games and
+  returns a batch of `(game, player, obs, mask)` for a single GPU inference call.
+  Exposed to Python via PyO3 with zero-copy tensors; the serialized protocol is for
+  clients, not the training hot path.
+- **Encoding sketch** (training phase, not engine concern): entity tokens
+  (players with relative-seat/predator-prey encoding, minions, cards in hand,
+  in-play cards), transformer trunk, auto-regressive head over decision options;
+  reward = tournament scoring (VPs per oust, GW bonus), small survival shaping
+  early; league = current agent + frozen snapshots + exploiters + scripted bots,
+  PFSP sampling; decks × seats sampled per episode; policy conditioned on own
+  decklist identity.
+
+## 6. Window census (V5 pool, measured)
+
+Text-pattern probe of the 421 library cards (indicative tenant counts; to be
+refined into the per-card implementation matrix):
+
+| Window / mechanism | V5 tenants | Examples |
+|---|---|---|
+| Card cancel as played | 9 | Sudden Reversal, Anticipation, The Line |
+| Action cancel / as announced | 6 | Consign to Oblivion, Seduction, Form of the Cobra |
+| Out-of-turn master | 2 | **Archon Investigation** (mid-action, bleed-amount trigger), Sudden Reversal |
+| Wake (react as if unlocked) | 5 | Eyes of Argus, Forced Awakening, On the Qui Vive |
+| Bleed redirect (blocks declined) | 5 | Deflection, My Enemy's Enemy, Telepathic Misdirection |
+| Stealth/intercept exchange | many | Resist Earth's Grasp, Eagle's Sight |
+| Press step | 18 | Flash, Hidden Strength, Rat's Warning |
+| Additional strike | 11 | Blur, Pursuit, AK-47 |
+| Strike: combat ends | 10 | Majesty, Earth Meld, Form of Mist |
+| Combat would-end replacement / continue | 5 | Telepathic Tracking, Form of Mist (continue as unblocked), Immortal Grapple |
+| Damage prevention | 30 | Indomitability, Hidden Strength, Flesh of Marble |
+| Referendum/polling cards | 47 | Kine Resources Contested, Bewitching Oration, **Scalpel Tongue**, Amici Noctis, Banishment |
+| Events (global ongoing) | 20 | Anarch Revolt, Fall of the Camarilla, Thirst |
+| Diablerie-referencing cards | 4 | The Slow Withering, Carver's Meat Packing |
+| Torpor/burn replacement | **0** | *deferred* |
+| Bidding | **0** | *deferred* |
+
+A generated per-card draft of this census lives in
+[`data/window-matrix-draft.csv`](data/window-matrix-draft.csv)
+(regenerate with [`scripts/window_matrix.py`](scripts/window_matrix.py)):
+421 library cards classified by initial window plus flags (delayed replacement,
+out-of-turn, continues-action, refers-to-votes-cast, …), 17 flagged for hand
+review. Hand-reviewing it into the authoritative implementation matrix is a P1
+deliverable.
+
+**Stress set** (the framework must express these before it is frozen):
+Archon Investigation · Scalpel Tongue · Form of Mist · Telepathic Tracking ·
+Deflection · Eyes of Argus · Sudden Reversal · Consign to Oblivion ·
+Immortal Grapple · Blur · Villein (trifle) · Homunculus (unlock-phase effect) ·
+Anarch Revolt (event, ongoing global) · Kine Resources Contested (interactive terms)
+· one contested unique + one contested title scenario.
+
+## 7. Testing strategy
+
+The engine's value is trust; trust is measured, not asserted.
+
+1. **Rulings as tests**: vtes-rulings YAML (machine-readable, card-keyed) filtered
+   to the V5 pool; each applicable ruling becomes a scenario test. Scenario format =
+   decision scripts with KRCG card names, readable as annotated game transcripts.
+2. **Property fuzzing**: millions of random-legal games; invariants — counter/pool
+   conservation modulo explicit sources, no negative resources, capacity ceilings,
+   every window terminates (paranoid step budget), elision observational-equivalence
+   (§4.3), contested-state consistency, decision-log resimulation reproduces
+   identical state hashes.
+3. **Golden replays** pinned across refactors.
+4. **Coverage checklist**: every row of the mechanics inventory (superset of
+   jol-rebuild's gap analysis: named counters, limited effects, prevention ordering,
+   simultaneous ousts, NRA on blocked and resolved paths, contest upkeep, master
+   accounting, withdrawal/timeout) answers "where is this handled, where is it
+   tested".
+5. **Perft-style counts** on scripted positions (number of legal decision sequences
+   to depth k) to catch legality regressions numerically.
+
+## 8. Community surface
+
+- **Wire protocol**: the same decision requests/answers, serialized (JSON/msgpack),
+  over socket/WebSocket. Any client — including a future rules-enforcing online
+  client, or a bot adapter for existing platforms — drives the engine through it.
+  Non-enforcing platforms (JOL, Succubus Club) can host the bot only with the engine
+  embedded as its rules oracle.
+- **Human ergonomics layer** (not in the engine core): binding shortcuts with
+  interrupt-and-rewind (log truncation + resimulation), preemptive impulse
+  requests ("stops"), pace defaults — the play-procedures document is the spec.
+- Bot inference service: engine + ONNX-exported policy, CPU-friendly (Pluribus
+  precedent: play-time compute is cheap).
+
+## 9. Performance targets
+
+- Engine step: µs-scale; a full 4p random-legal game in low single-digit ms.
+- Self-play throughput: thousands of concurrent games per box, NN inference the
+  bottleneck (as it should be), batch sizes in the thousands.
+- Full determinism under fixed `(seed, answers)` across platforms.
+
+## 10. Explicit modeling decisions
+
+Recorded so nobody mistakes them for oversights:
+
+1. **Polling serialization**: free-for-all vote casting is serialized as repeated
+   no-forfeit rotations starting at the acting Methuselah, clockwise (§4.2).
+   Order-dependent edge cases (Scalpel Tongue timing) are preserved; the pure
+   simultaneity of a live table is not.
+2. **Silent VTES**: no negotiation channel; deals are social, never mechanical.
+3. **Elision**: provably-empty windows are skipped by the omniscient engine;
+   observational equivalence is an invariant, and live-play pacing tells are a
+   client-layer concern.
+4. **Deferred windows**: torpor/burn replacement and bidding — hooks exist, nothing
+   opens them in the V5 pool.
+5. **Fixed decklists**: the official precons; deck building is out of scope for v1.
+6. **Tournament scoring as reward**: VPs + GW, timeout/withdrawal rules included so
+   the agent learns real endgame incentives.
+
+## 11. Phasing
+
+- **P0 — skeleton**: state arena, decision loop, two window primitives, turn/phase
+  machine, vanilla actions (bleed/hunt/equip/…), no cards; random-legal agents;
+  fuzzer + invariants running in CI from the first week.
+- **P1 — stress set**: effects framework sized against §6's stress set; the A/B/C
+  block loop, combat, referendum machines complete; rulings-as-tests harness.
+- **P2 — full engine pool**: all 621 cards including Events and their machinery;
+  the 14 training decklists plus the New Blood minis as data; perft baselines;
+  protocol server; scripted reference bots (aggro-bleed, wall, vote).
+- **P3 — training loop**: PyO3 batched stepping, encoder, PPO self-play at 4p;
+  evaluation ladder vs scripted bots and frozen snapshots.
+- **P4 — league & 5p**: exploiters, PFSP, deck/seat sampling, evaluation vs humans.
+- **P5 — community**: bot service, client adapter, human-ergonomics layer.
+
+## Resolved questions (2026-08-02)
+
+- **v1 training roster**: the 14 full-size precons (379 unique cards). New Blood
+  minis and singles are implemented but not in the v1 deck mix.
+- **Polling rotation order**: starts at the acting Methuselah, clockwise; closure
+  on a full rotation of consecutive passes guarantees universal response
+  opportunity to every commitment (§4.2). Confirmed.
+- **Events**: implemented in v1 with the rest of the engine pool. Playing one is
+  an optional discard-phase action (discard a card, *or* play an event; each event
+  once per game per player) — nothing forces an event play, an event in hand can
+  always simply be discarded. The general lesson absorbed into §4.4: the
+  non-minion play windows (Master phase, Discard phase) are first-class offer
+  windows, not afterthoughts.
+- **Contest upkeep factoring**: each Methuselah resolves their side of a contest
+  during their own unlock phase (self-contest impossible → no player ever orders
+  both sides); per-object binary pay/yield decisions in canonical order; forced
+  yields elided (§4.4).
+- **Window census vs per-card reality**: draft matrix generated for all 421
+  library cards (`data/window-matrix-draft.csv`), 17 cards flagged for hand
+  review. Process decided: Claude does the full card-by-card review pass; the
+  project owner arbitrates, especially flagged and unusual cards.
+
+## Process: rules Q&A pass
+
+Design-level rules understanding is de-risked through a running Q&A with the
+project owner (VEKN judge): batched questions organized by subsystem, answers
+recorded in `docs/rules-qa.md`, each answer eventually backed by a scenario test
+so the engine's behavior and the recorded ruling can never drift apart.
