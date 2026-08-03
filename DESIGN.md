@@ -135,9 +135,14 @@ Methuselah. Closes when all pass consecutively. Parameterized by:
 
 **Unordered commitment window (polling; bidding when it returns)** — no priority
 holder, no reset. Repeated rotations; on each offer a player may commit an
-**irrevocable** contribution (votes/ballots: all from one source agree; cast votes
-cannot be changed) or pass **without forfeiting** — they may still commit on a later
-rotation. Closes when a full rotation passes consecutively. Rotations start at the
+**irrevocable** contribution or pass **without forfeiting** — they may still commit
+on a later rotation. The atomic unit is the **source** (rules-qa 1.1): a source is
+a vampire or a Methuselah (Edge and card-discard ballots are Methuselah-sourced;
+card effects vary — most add to a vampire's votes, some grant Methuselah votes); a
+source casts all its votes at once, all agreeing, and is then spent for the
+referendum. Sources are independent: they may be committed on different rotations,
+and a Methuselah's own ballots (Edge, each discard, each Methuselah-vote effect)
+need not agree with each other. Closes when a full rotation passes consecutively. Rotations start at the
 acting Methuselah and proceed clockwise: this matches table practice (the caller
 typically opens — "N in favour, anyone opposed?") and the play-procedures rule that
 the acting player controls the pace. Because closure requires a *full* rotation of
@@ -206,19 +211,46 @@ state either performs deterministic bookkeeping or hosts a window instance:
   first is force-yielded (elided), leaving the survivor sole claimant, titled
   again once uncontested. Cards yielded burn with everything on them; a card whose
   rivals all yielded unlocks face-up on its controller's next unlock phase.
-- **Action** (rulebook "Detailed action flow", A/B/C verbatim): declare (lock acting
-  minion, announce card+choices) → as-announced window → block loop
-  {A: no attempt / B: ongoing attempt / C: all declined} with sequencing inside each
-  state, reopening on target change (Deflection-class redirects) → resolution
-  (success: pay cost, apply effects) or block resolution (blocker locks + combat) →
-  after-resolution window (Freak Drive) → possible **action continuation**
-  (Form of Mist: re-enter the block loop with preserved stealth/intercept context).
+- **Action** (rulebook "Detailed action flow"; block-loop semantics per rules-qa
+  1.3): declare (lock acting minion, announce card+choices) → as-announced window
+  → block loop → resolution (success: pay cost, apply effects) or block resolution
+  (blocker locks + combat) → after-resolution window (Freak Drive) → possible
+  **action continuation** (Form of Mist: re-enter the block loop with preserved
+  stealth/intercept context).
+  **Block loop**: one ordered window, not a success/failure checkpoint. A declared
+  attempt has no stealth ≥ intercept test of its own — it stays pending until the
+  window closes on all-pass-consecutively, with any play voiding prior passes
+  (impulse-reset), so third parties can still feed intercept (KRCG News Radio) or
+  strip stealth (Draba, Night Terrors) after the attempting Methuselah passes. At
+  closure: intercept ≥ stealth → block resolves (blocker locks, combat); otherwise
+  the block fails and the action proceeds. A Methuselah's pass with **no ongoing
+  attempt is a final decline** — nothing reopens it except a change of the
+  action's target (bounces: Deflection, Telepathic Misdirection; *not* the card
+  "Change of Target", which terminates the action). Consequence for elision and
+  ordering: a would-be third-party helper needs the defender to *attempt first* —
+  impulse only reaches them after the target passes, and a target passing without
+  an attempt has declined for good.
+  **NRA (no-repeat-action), per rules-qa 1.4**: enforced in legal-action
+  generation. Lock triggers on *resolution* (blocked counts; canceled-as-announced
+  does not). Identity: card **name** per minion for played cards; card **copy**
+  for cards in play (two Anarch Revolts = two distinct actions). Special caps
+  independent of cards: one bleed and one political action per minion per turn;
+  other rulebook actions (hunt, leave/rescue from torpor, equip…) unrestricted.
+  Card texts like "cannot take the same action" extend to the exempt rulebook
+  actions too.
 - **Combat**: rounds of {before-range → determine range (alternating maneuvers) →
   before-strikes → strike declaration (acting first; maneuver-from-strike-card
   commits the strike) → strike resolution (simultaneous pairs; first strike;
   prevention windows inside damage resolution) → additional strikes → press step →
   end-of-round} with would-end replacement (Telepathic Tracking) and about-to-end
   queueing hooks; combat ends immediately when a combatant is not ready.
+  Per rules-qa 1.2: within a step, impulse-reset applies (any play returns first
+  opportunity to the acting side; step closes on consecutive declines). "Acting
+  minion" = the minion performing the action, blocked or rushed alike; the other
+  combatant is a "blocker" only if it actually blocked. Combats with **no acting
+  minion** exist (Taunt the Caged Beast, Siren's Lure, the Slave rule): first
+  opportunity then goes to the acting Methuselah's minion, else clockwise from
+  the acting Methuselah.
 - **Referendum**: terms confirmation (stepwise, factored) → before-votes window →
   polling (unordered votes + ordered card plays interleaved) → tally → outcome
   windows → back to action resolution.
@@ -344,7 +376,8 @@ The engine's value is trust; trust is measured, not asserted.
 3. **Golden replays** pinned across refactors.
 4. **Coverage checklist**: every row of the mechanics inventory (superset of
    jol-rebuild's gap analysis: named counters, limited effects, prevention ordering,
-   simultaneous ousts, NRA on blocked and resolved paths, contest upkeep, master
+   simultaneous ousts, NRA on resolution incl. blocked (not on cancellation),
+   contest upkeep, master
    accounting, withdrawal/timeout) answers "where is this handled, where is it
    tested".
 5. **Perft-style counts** on scripted positions (number of legal decision sequences
