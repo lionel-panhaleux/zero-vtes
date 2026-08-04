@@ -1,0 +1,422 @@
+id,name,types,disciplines,in_precon,windows,flags,needs_review,review
+100001,.44 Magnum,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
+102217,47th Street Royals,Ally,,yes,ACTION_DECLARE_RECRUIT,,,ok
+100032,AK-47,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
+100011,Absimiliard's Army,Event,,no,DISCARD_PHASE,delayed_replacement;token_entity,,ok
+100015,Academic Hunting Ground,Master,,yes,MASTER_PHASE,,,ok
+102286,Aggressive Corpse,Ally,,yes,ACTION_DECLARE_RECRUIT,in_play_action,,corrected
+100029,Aid from Bats,Combat,ani,yes,COMBAT_STRIKE_DECLARATION;COMBAT_DETERMINE_RANGE,maneuver_rider,yes,corrected
+100031,Aire of Elation,Action Modifier,pre,yes,ACTION_DURING,,,ok
+100037,Alamut,Master,,yes,MASTER_PHASE,,,ok
+102274,Amici Noctis,Action Modifier,,yes,ACTION_AFTER_RESOLUTION,,,corrected
+100054,Anarch Railroad,Master,,yes,MASTER_PHASE,,,ok
+100055,Anarch Revolt,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+100056,Anarch Salon,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
+100058,Anarch Troublemaker,Master,,yes,MASTER_PHASE,,,ok
+100059,Anarchist Uprising,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
+100065,Ancilla Empowerment,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
+102349,Angel's Gift,Combat,,yes,COMBAT_BEFORE_RANGE,,,corrected
+102350,Anticipation,Combat,aus,yes,COMBAT_STRIKE_DECLARATION;CARD_AS_PLAYED,cancel_as_played,,corrected
+100077,Apportation,Combat,tha,yes,COMBAT_DETERMINE_RANGE;COMBAT_PRESS,,,ok
+100079,"Aranthebes, The Immortal",Action,,yes,ACTION_DECLARE,in_play_action,,corrected
+100081,Arcane Library,Master,,yes,MASTER_PHASE,,,ok
+100084,Archon,Political Action,,yes,ACTION_DECLARE_POLITICAL,in_play_action,,corrected
+100085,Archon Investigation,Master,,yes,ACTION_BLOCKS_DECLINED,out_of_turn,,corrected
+102275,Arms of Ahriman,Combat,obl,yes,COMBAT_ADDITIONAL_STRIKE;COMBAT_STRIKE_DECLARATION,,,ok
+100093,Army of Rats,Action,ani,yes,ACTION_DECLARE,in_play_action,,corrected
+100095,Art Museum,Master,,yes,MASTER_PHASE,,,ok
+100107,Assault Rifle,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
+100108,Asylum Hunting Ground,Master,,yes,MASTER_PHASE,,,ok
+100126,Backways,Master,,yes,MASTER_PHASE,,,ok
+102218,Bait and Switch,Reaction,,yes,ACTION_BLOCKS_DECLINED,bounce,,corrected
+100131,Banishment,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
+100145,Bear's Skin,Combat,ani/pro,yes,COMBAT_BEFORE_RANGE,,,corrected
+100146,Beast Meld,Action Modifier,ani/pro,yes,ACTION_STEALTH_INTERCEPT;ACTION_AS_ANNOUNCED,,,corrected
+100157,Bewitching Oration,Action Modifier,pre,yes,REFERENDUM,,,ok
+102287,Biotech Company Hunting Ground,Master,,yes,MASTER_PHASE,,,ok
+100162,Biothaumaturgic Experiment,Action,tha,yes,ACTION_DECLARE,,,ok
+102351,Black Market Cache,Master,,yes,MASTER_PHASE,draw_replacement,,corrected
+100199,Blood Doll,Master,,yes,MASTER_PHASE,,,ok
+100201,Blood Fury,Combat,tha,yes,COMBAT_STRIKE_DECLARATION,,,ok
+100208,Blood Rage,Combat,tha,yes,COMBAT_STRIKE_DECLARATION,,,ok
+100215,Blood Trade,Event,,no,DISCARD_PHASE,,,ok
+100217,Blood Weakens,Event,,no,DISCARD_PHASE,delayed_replacement,,ok
+100227,Blur,Combat,cel,yes,COMBAT_ADDITIONAL_STRIKE,,,ok
+100230,Body Flare,Combat,pro,yes,COMBAT_STRIKE_DECLARATION,,,ok
+100236,Bonding,Action Modifier,dom,yes,ACTION_DURING;ACTION_STEALTH_INTERCEPT,,,corrected
+102293,Bone Shambler,Ally,obl,yes,ACTION_DECLARE_RECRUIT,,,ok
+100243,Bowl of Convergence,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
+102247,Break the Bonds,Action,ani/obf/pre,yes,ACTION_DECLARE,,,ok
+100260,Brujah Debate,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+102270,Camarilla's Iron Fist,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
+102298,Cappadocian Crypt,Master,,yes,MASTER_PHASE,,,ok
+100297,Carfax Abbey,Master,,yes,MASTER_PHASE,,,ok
+100301,Carrion Crows,Combat,ani,yes,COMBAT_BEFORE_RANGE,,,ok
+100303,Carver's Meat Packing and Storage,Master,,yes,MASTER_PHASE,,,ok
+100308,Cats' Guidance,Reaction,ani,yes,ACTION_AFTER_COMBAT;ACTION_STEALTH_INTERCEPT,,,question
+100311,Cave of Apples,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+100312,Celerity,Master,,yes,MASTER_PHASE,,,ok
+100323,Change of Target,Action Modifier,,yes,ACTION_BLOCKED,,,corrected
+100327,Channel 10,Master,,yes,MASTER_PHASE,,,ok
+100329,Chantry,Master,,yes,MASTER_PHASE,,,ok
+100332,Charisma,Master,,yes,MASTER_PHASE,,,ok
+102246,Childe of the Revolution,Action,,yes,ACTION_DECLARE,token_entity,,corrected
+102234,City Star Taxi,Ally,,yes,ACTION_DECLARE_RECRUIT,,,ok
+100356,Claws of the Dead,Combat,pro,yes,COMBAT_UNTIMED;COMBAT_DETERMINE_RANGE,,,question
+100362,Cloak the Gathering,Action Modifier,obf,yes,ACTION_STEALTH_INTERCEPT,,,ok
+100364,Closed Session,Action Modifier,,yes,REFERENDUM,,,ok
+100366,Club Illusion,Master,,yes,MASTER_PHASE,,,ok
+100374,Codex of the Edenic Groundskeepers,Equipment,,yes,ACTION_DECLARE_EQUIP,in_play_action,,corrected
+100391,Conceal,Action,obf,yes,ACTION_DECLARE,,,ok
+100401,Conditioning,Action Modifier,dom,yes,ACTION_DURING,,,ok
+100409,Conquest of Humanity,Event,,no,DISCARD_PHASE,delayed_replacement,,ok
+100410,Consanguineous Boon,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
+100414,Conservative Agitation,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
+102288,Consign to Oblivion,Action Modifier,obl,yes,ACTION_AS_ANNOUNCED,,,ok
+100416,Constant Revolution,Action,,yes,ACTION_DECLARE,randomness;in_play_action,,corrected
+102352,Contraband,Combat,obf,yes,COMBAT_BEFORE_RANGE,,,ok
+102213,Creeping Sabotage,Action,,yes,ACTION_DECLARE,in_play_action,,corrected
+100444,Creepshow Casino,Master,,yes,MASTER_PHASE,,,ok
+100476,Crypt's Sons,Retainer,,yes,ACTION_DECLARE_EMPLOY,continues_action,,ok
+100485,Dabbler,Master,,yes,MASTER_PHASE,trifle,,corrected
+100492,Daring the Dawn,Action Modifier,for,yes,ACTION_DURING,,,ok
+100501,Dawn Operation,Action Modifier,for,yes,ACTION_DURING,,,ok
+102299,Dead Pool,Master,,yes,MASTER_PHASE,,,ok
+102219,Deep Ecology,Reaction,ani/for/pro,yes,ACTION_STEALTH_INTERCEPT;REACTION_DURING_ACTION,,,corrected
+100515,Deep Song,Action,ani,yes,ACTION_DECLARE,,,ok
+100518,Deflection,Reaction,dom,yes,ACTION_BLOCKS_DECLINED,bounce,,corrected
+100519,Delaying Tactics,Reaction,,yes,REFERENDUM,,,ok
+100549,Disarm,Combat,pot,yes,COMBAT_END_OF_ROUND,,yes,corrected
+100557,Disputed Territory,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
+100563,Diversion,Combat,cel/for/tha,yes,COMBAT_ADDITIONAL_STRIKE;COMBAT_DAMAGE_PREVENTION;COMBAT_STRIKE_DECLARATION;COMBAT_DETERMINE_RANGE,maneuver_rider,yes,corrected
+100568,Dog Pack,Retainer,,yes,ACTION_DECLARE_EMPLOY,,,ok
+102353,Dogged Pursuit,Reaction,ani,yes,WAKE,,,corrected
+100570,Domain Challenge,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
+100572,Dominate,Master,,yes,MASTER_PHASE,,,ok
+100573,Dominate Kine,Action,dom,yes,ACTION_DECLARE,,,ok
+102220,Double Deuce,Ally,,yes,ACTION_DECLARE_RECRUIT,,,ok
+100588,Dreams of the Sphinx,Master,,yes,MASTER_PHASE,,,ok
+100594,Dummy Corporation,Master,,yes,MASTER_PHASE,,,ok
+100597,Dust Up,Combat,ani/cel/pot,yes,COMBAT_STRIKE_DECLARATION,,,corrected
+102237,ECTU Operative,Ally,,no,ACTION_DECLARE_RECRUIT,in_play_action,,corrected
+100598,Eagle's Sight,Reaction,aus,yes,ACTION_STEALTH_INTERCEPT,,,ok
+100600,Earth Control,Action Modifier,pro,yes,ACTION_STEALTH_INTERCEPT,,,ok
+100601,Earth Meld,Combat,pro,yes,COMBAT_STRIKE_DECLARATION,,,ok
+100609,Ecoterrorists,Master,,yes,MASTER_PHASE,,,ok
+100617,Elder Impersonation,Action Modifier,obf,yes,ACTION_STEALTH_INTERCEPT;ACTION_BLOCK_ATTEMPT,,,corrected
+100618,Elder Intervention,Reaction,,yes,ACTION_STEALTH_INTERCEPT,delayed_replacement,,ok
+100620,Elder Library,Master,,yes,MASTER_PHASE,,,ok
+100629,Elysian Fields,Master,,yes,MASTER_PHASE,,,ok
+100632,Elysium: The Palace of Versailles,Master,,yes,MASTER_PHASE,,,ok
+100640,Enchant Kindred,Action,pre,yes,ACTION_DECLARE,,,ok
+102221,Enchanting Gaze,Action Modifier,pre/pro,yes,ACTION_STEALTH_INTERCEPT,,,ok
+102238,Enhanced Coagulant,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+100644,Enhanced Senses,Reaction,aus,yes,ACTION_STEALTH_INTERCEPT,,,ok
+100652,Entrancement,Action,pre,yes,ACTION_DECLARE,,,ok
+102276,Expulsion,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
+100680,Eyes of Argus,Reaction,aus,yes,WAKE;ACTION_STEALTH_INTERCEPT,,,ok
+102222,Eyes of the Wild,Reaction,,yes,WAKE,,,corrected
+100709,FBI Special Affairs Division,Event,,no,DISCARD_PHASE,,,ok
+100687,Faceless Night,Action Modifier,obf,yes,ACTION_STEALTH_INTERCEPT,,,ok
+100695,Fall of the Camarilla,Event,,no,DISCARD_PHASE,delayed_replacement,,ok
+100696,Fall of the Sabbat,Event,,no,DISCARD_PHASE,delayed_replacement,,ok
+100698,Fame,Master,,yes,MASTER_PHASE,,,ok
+102289,Family Gathering,Master,,yes,MASTER_PHASE,trifle,,corrected
+100703,Far Mastery,Action,dom,yes,ACTION_DECLARE,,,ok
+102248,Feast of the Soul's Secrets,Action,dom,yes,ACTION_DECLARE,,,ok
+100712,Fee Stake: Boston,Action,,no,ACTION_DECLARE,in_play_action,,corrected
+100715,Fee Stake: New York,Action,,no,ACTION_DECLARE,in_play_action,,corrected
+100717,Fee Stake: Seattle,Action,,no,ACTION_DECLARE,in_play_action,,corrected
+100720,Femur of Toomler,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
+102249,Feral Hound,Retainer,ani,yes,ACTION_DECLARE_EMPLOY,,,ok
+100722,Ferraille,Master,,yes,MASTER_PHASE,,,ok
+100727,Fifth Tradition: Hospitality,Action,,yes,ACTION_DECLARE,,,ok
+100742,Flamethrower,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
+100743,Flaming Candle,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
+100744,Flash,Combat,cel,yes,COMBAT_DETERMINE_RANGE;COMBAT_PRESS,,,ok
+100747,Fleetness,Action,cel,yes,ACTION_DECLARE,,,ok
+100749,Flesh of Marble,Combat,pro,yes,COMBAT_BEFORE_RANGE,,,ok
+102354,Fleshforge Chamber,Master,,yes,MASTER_PHASE,alt_hand_source,,corrected
+100760,Forced Awakening,Reaction,,yes,WAKE,,,ok
+102250,Forced Confessional,Action Modifier,dom,yes,ACTION_BLOCK_ATTEMPT,,,corrected
+100762,Forced Vigilance,Reaction,for,yes,ACTION_AFTER_COMBAT;WAKE,,yes,corrected
+100765,Foreshadowing Destruction,Action Modifier,dom,yes,ACTION_DURING,,,ok
+100769,Forgotten Labyrinth,Action Modifier,obf,yes,ACTION_STEALTH_INTERCEPT,,,ok
+100771,Form of Mist,Combat,pro,yes,COMBAT_STRIKE_DECLARATION,continues_action,,ok
+102223,Form of the Bat,Action Modifier/Reaction,pro,yes,ACTION_BLOCK_ATTEMPT;ACTION_STEALTH_INTERCEPT,,,corrected
+102224,Form of the Cobra,Action Modifier/Combat,pro,yes,COMBAT_STRIKE_DECLARATION;ACTION_AS_ANNOUNCED,,yes,corrected
+102225,Form of the Wolf,Combat,pro,yes,COMBAT_BEFORE_RANGE,,,corrected
+100777,Fortune Teller Shop,Master,,yes,MASTER_PHASE,,,ok
+100782,Fourth Tradition: The Accounting,Action,,yes,ACTION_DECLARE,,,ok
+100785,Fragment of the Book of Nod,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+100788,Freak Drive,Action Modifier,for,yes,ACTION_AFTER_RESOLUTION,,,ok
+100794,Frontal Assault,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+100796,Fueled by Heart's Blood,Event,,no,DISCARD_PHASE,delayed_replacement,,ok
+100807,Gangrel Revel,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+100809,Garibaldi-Meucci Museum,Master,,yes,MASTER_PHASE,,,ok
+100824,Giant's Blood,Master,,yes,MASTER_PHASE,,,ok
+102355,Go-getter,Action Modifier,obf,yes,ACTION_STEALTH_INTERCEPT;ACTION_AFTER_RESOLUTION,continues_action,,ok
+100842,Golconda: Inner Peace,Master,,yes,MASTER_PHASE,cancel_as_played,,ok
+100845,Govern the Unaligned,Action,dom,yes,ACTION_DECLARE,,,ok
+100852,Graverobbing,Action,dom,yes,ACTION_DECLARE,,,ok
+100860,Grooming the Protégé,Master,,yes,MASTER_PHASE,,,ok
+100863,Guard Dogs,Reaction,ani,yes,WAKE,,yes,corrected
+100866,Guardian Angel,Master,,yes,MASTER_PHASE,,,ok
+102226,Haqim's Law: Retribution,Master,,yes,MASTER_PHASE,,,ok
+100897,Haven Uncovered,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+100903,Heart of Nizchetus,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
+100904,Heart of the City,Action,pre,yes,ACTION_DECLARE,,,ok
+100913,Heroic Might,Action,pot,yes,ACTION_DECLARE,,,ok
+100918,Hidden Strength,Combat,for,yes,COMBAT_DAMAGE_PREVENTION,,,corrected
+100921,Hide the Mind,Action Modifier/Combat,obf,yes,CARD_AS_PLAYED,cancel_as_played,yes,corrected
+100932,Homunculus,Retainer,pro,yes,ACTION_DECLARE_EMPLOY,,,ok
+102227,Hunger of Marduk,Combat,tha,yes,COMBAT_BEFORE_RANGE,,,ok
+102228,Hunter's Mark,Action,cel/tha,yes,ACTION_DECLARE,,,ok
+102356,Hunting the Beast,Action,aus,yes,ACTION_DECLARE,,,ok
+100959,Immortal Grapple,Combat,pot,yes,COMBAT_BEFORE_STRIKES,,,corrected
+100973,Indomitability,Combat,for,yes,COMBAT_DAMAGE_PREVENTION;COMBAT_PRESS,,,ok
+100984,Information Highway,Master,,yes,MASTER_PHASE,,,ok
+100995,Instinctive Reaction,Reaction,ani,yes,ACTION_STEALTH_INTERCEPT,,,ok
+100999,Intimidation,Action,pre,yes,ACTION_DECLARE,,,ok
+102251,Invigorate,Action Modifier,ani/dom/pro,yes,ACTION_DURING,,,ok
+101014,Ivory Bow,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
+101028,Judgment: Camarilla Segregation,Action,,yes,ACTION_DECLARE,,,ok
+101067,KRCG News Radio,Master,,yes,MASTER_PHASE,,,ok
+101032,Kali's Fang,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
+101040,Kevlar Vest,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
+101043,Khabar: Glory,Action,,yes,ACTION_DECLARE,,,ok
+101056,Kine Resources Contested,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
+101068,Kumpania,Master,,yes,MASTER_PHASE,,,ok
+101100,Libertas,Master,,yes,MASTER_PHASE,,,ok
+101102,Library Hunting Ground,Master,,yes,MASTER_PHASE,,,ok
+101104,Life in the City,Master,,yes,MASTER_PHASE,trifle,,corrected
+101107,Lightning Reflexes,Combat,cel,yes,COMBAT_ADDITIONAL_STRIKE,,,ok
+102229,Line Brawl,Action,cel/pot/pre,yes,ACTION_DECLARE,,,ok
+101114,Living Manse,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
+101125,Lost in Crowds,Action Modifier,obf,yes,ACTION_STEALTH_INTERCEPT,,,ok
+101143,Magic of the Smith,Action,tha,yes,ACTION_DECLARE,,,ok
+101144,Majesty,Combat,pre,yes,COMBAT_STRIKE_DECLARATION,,,ok
+101147,Make the Misere,Action,cel/obf/pot,yes,ACTION_DECLARE,,,ok
+101154,Malkavian Justicar,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
+101171,Market Square,Master,,yes,MASTER_PHASE,,,ok
+101175,Martyr's Resilience,Combat,aus/for,yes,COMBAT_DAMAGE_PREVENTION,,,ok
+102252,Meditative Grove,Master,,yes,MASTER_PHASE,cancel_as_played,,ok
+101195,Melange,Reaction,aus,yes,ACTION_STEALTH_INTERCEPT,,,ok
+102239,"Michael Harris, the Incinerator",Ally,,no,ACTION_DECLARE_RECRUIT,in_play_action,,corrected
+101211,Mind Numb,Action,pre,yes,ACTION_DECLARE,,,ok
+101217,Minion Tap,Master,,yes,MASTER_PHASE,,,ok
+101223,Mirror Walk,Action Modifier,tha,yes,ACTION_STEALTH_INTERCEPT,delayed_replacement,,ok
+101225,Misdirection,Master,,yes,MASTER_PHASE,,,ok
+102241,Mithraic Cultist,Master,,no,MASTER_PHASE,trifle,,corrected
+101229,Mob Connections,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+102242,"Mobile HQ, Operation Antigen",Master,,no,MASTER_PHASE,in_play_action;cancel_as_played,,corrected
+101239,Monkey Wrench,Action Modifier,,yes,ACTION_DURING,,,ok
+101242,Monster,Master,,yes,MASTER_PHASE,,,ok
+102253,Monstrous Form,Action/Combat,dom/pro,yes,ACTION_DECLARE;COMBAT_BEFORE_RANGE,,yes,corrected
+101249,Mr. Winthrop,Retainer,,yes,ACTION_DECLARE_EMPLOY,,,ok
+101254,Murder of Crows,Retainer,ani,yes,ACTION_DECLARE_EMPLOY,,,ok
+101259,My Enemy's Enemy,Reaction,aus,yes,ACTION_BLOCKS_DECLINED;ACTION_STEALTH_INTERCEPT,bounce,,corrected
+101265,Narrow Minds,Event,,no,DISCARD_PHASE,delayed_replacement,,ok
+101271,Neonate Breach,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
+101277,New Carthage,Master,,yes,MASTER_PHASE,,,ok
+102254,Night Terrors,Reaction,obf/pre,yes,REACTION_DURING_ACTION,,yes,corrected
+101285,Nightmares upon Nightmares,Event,,no,DISCARD_PHASE,delayed_replacement,,ok
+101292,No Trace,Combat,obf,yes,COMBAT_STRIKE_DECLARATION,,,ok
+102255,Obedient Flesh,Action Modifier/Combat,dom/pro,yes,ACTION_STEALTH_INTERCEPT;COMBAT_BEFORE_RANGE,,yes,corrected
+101310,Obfuscate,Master,,yes,MASTER_PHASE,,,ok
+102277,Oblivion,Master,,yes,MASTER_PHASE,,,ok
+101318,Old Friends,Action Modifier,obf,yes,ACTION_DURING;REFERENDUM,delayed_replacement,,corrected
+102278,Ominous Chorus,Action Modifier/Reaction,,yes,REFERENDUM,,,ok
+101321,On the Qui Vive,Reaction,,yes,WAKE,,,ok
+102256,One With the Land,Reaction,pro,yes,ACTION_STEALTH_INTERCEPT;WAKE,,,corrected
+101324,Open War,Action,,yes,ACTION_DECLARE,in_play_action,,corrected
+101326,Opium Den,Master,,yes,MASTER_PHASE,,,ok
+102230,Organized Resistance,Reaction,,yes,WAKE;ACTION_STEALTH_INTERCEPT,,,corrected
+101340,Owl Companion,Retainer,ani,yes,ACTION_DECLARE_EMPLOY,,,ok
+101341,"Oxford University, England",Master,,yes,MASTER_PHASE,,,ok
+101342,Pack Alpha,Combat,ani,yes,COMBAT_BEFORE_RANGE;COMBAT_UNTIMED,,,question
+101350,Papillon,Master,,yes,MASTER_PHASE,,,ok
+101353,Parity Shift,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
+101354,Park Hunting Ground,Master,,yes,MASTER_PHASE,,,ok
+102231,Party Out Of Bounds,Reaction,obf/pre/pro,yes,ACTION_STEALTH_INTERCEPT;REFERENDUM;REACTION_DURING_ACTION,,,corrected
+102279,Pass Through Shadow,Combat,obl,yes,COMBAT_STRIKE_DECLARATION,,,ok
+102300,Paths in Two Worlds,Action Modifier,obl,yes,ACTION_AS_ANNOUNCED,,,corrected
+101384,Pentex™ Subversion,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+101387,Perfect Paragon,Action Modifier,pre,yes,REFERENDUM;ACTION_DURING,,,corrected
+101388,Perfectionist,Master,,yes,MASTER_PHASE,,,ok
+102358,Phantasmagoria,Action,pre,yes,ACTION_DECLARE,in_play_action,,corrected
+101401,Piper,Master,,yes,MASTER_PHASE,,,ok
+102291,Pit of Contemplation,Action,,yes,ACTION_DECLARE,in_play_action,,corrected
+101411,Political Ally,Ally,,yes,ACTION_DECLARE_RECRUIT,,,ok
+101415,Political Hunting Ground,Master,,yes,MASTER_PHASE,,,ok
+101424,Potence,Master,,yes,MASTER_PHASE,,,ok
+101430,Power Structure,Master,,yes,MASTER_PHASE,,,ok
+101435,Powerbase: Los Angeles,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+101439,Powerbase: Montreal,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+102301,Powerbase: Munich,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+101475,Precognition,Reaction,aus,yes,ACTION_STEALTH_INTERCEPT,,,ok
+101483,Preternatural Strength,Action,pot,yes,ACTION_DECLARE,,,ok
+101487,Priority Contract,Master,,yes,MASTER_PHASE,in_play_action;trifle,,corrected
+101495,Propaganda,Action,pre,yes,ACTION_DECLARE,,,ok
+101498,Protean,Master,,yes,MASTER_PHASE,,,ok
+102214,Protected District,Reaction,,yes,REFERENDUM;REACTION_DURING_ACTION,,,corrected
+101501,Protection Racket,Reaction,,yes,ACTION_STEALTH_INTERCEPT,,,ok
+102302,Psychophagia,Action,,yes,ACTION_DECLARE,,,ok
+101513,Public Trust,Action,pre,yes,ACTION_DECLARE,,,ok
+101215,Puppet Master,Action,dom,yes,ACTION_DECLARE,,,ok
+101523,Pursuit,Combat,cel,yes,COMBAT_DETERMINE_RANGE;COMBAT_ADDITIONAL_STRIKE,,,ok
+101532,Quickness,Combat,cel,yes,COMBAT_ADDITIONAL_STRIKE,,,ok
+102303,Raising the Portcullis,Political Action,,yes,ACTION_DECLARE_POLITICAL,in_play_action,,corrected
+101542,Rapid Change,Action Modifier/Combat,pro,yes,COMBAT_STRIKE_DECLARATION;ACTION_STEALTH_INTERCEPT,,,ok
+101545,Raptor,Retainer,ani,yes,ACTION_DECLARE_EMPLOY,,,ok
+101547,Rat's Warning,Reaction,ani,yes,WAKE,,yes,corrected
+101550,Raven Spy,Retainer,ani,yes,ACTION_DECLARE_EMPLOY,,,ok
+101552,Ravnos Cache,Master,,yes,MASTER_PHASE,,,ok
+101553,Ravnos Carnival,Master,,yes,MASTER_PHASE,,,ok
+101564,Rebel,Master,,yes,MASTER_PHASE,trifle,,corrected
+101566,Recalled to the Founder,Event,,no,DISCARD_PHASE,delayed_replacement,,ok
+101567,Reckless Agitation,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
+101578,Redirection,Reaction,dom,yes,ACTION_BLOCKS_DECLINED,bounce,,corrected
+101588,Rego Motum,Combat,tha,yes,COMBAT_DAMAGE_PREVENTION,,,ok
+101610,Resist Earth's Grasp,Action Modifier/Combat,cel,yes,COMBAT_DETERMINE_RANGE;COMBAT_PRESS;ACTION_STEALTH_INTERCEPT,,yes,ok
+101613,Restoration,Action,for,yes,ACTION_DECLARE,,,ok
+101614,Restricted Vitae,Event,,no,DISCARD_PHASE,in_play_action,,corrected
+102233,Revelation of the Serpent,Action Modifier,pre/pro,yes,ACTION_DURING;ACTION_STEALTH_INTERCEPT,,,corrected
+101627,Revelations,Action,aus,yes,ACTION_DECLARE,in_play_action,,corrected
+101628,Revenant,Retainer,,yes,ACTION_DECLARE_EMPLOY,,,ok
+101631,Revolutionary Council,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
+101632,Rewilding,Action,,yes,ACTION_DECLARE,,,ok
+102359,Righteous Blade,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
+101639,Rise of the Nephtali,Event,,no,DISCARD_PHASE,in_play_action,,corrected
+102243,Ritual Goblet,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+101649,Rolling with the Punches,Combat,for,yes,COMBAT_DAMAGE_PREVENTION,,,ok
+102304,Rotting Behemoth,Ally,obl,yes,ACTION_DECLARE_RECRUIT,in_play_action,,corrected
+102215,Roundhouse,Combat,pot,yes,COMBAT_STRIKE_DECLARATION,,,ok
+101664,Rutor's Hand,Action,tha,yes,ACTION_DECLARE,,,ok
+102257,Saulot's Avenging Fist,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+102258,Saulot's Guiding Wisdom,Master,,yes,MASTER_PHASE,,,ok
+102259,Saulot's Healing Touch,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+101686,Scalpel Tongue,Action Modifier/Reaction,cel/pre,yes,REFERENDUM,refers_votes_cast,,ok
+101692,Scorn of Adonis,Action Modifier,,yes,REFERENDUM,,,ok
+101698,Scouting Mission,Action,dom,yes,ACTION_DECLARE,,,ok
+102292,Screamer,Ally,,yes,ACTION_DECLARE_RECRUIT,,,ok
+102260,Sculpt the Flesh,Combat,pro,yes,COMBAT_STRIKE_DECLARATION,in_play_action,,corrected
+101706,Second Tradition: Domain,Reaction,,yes,ACTION_STEALTH_INTERCEPT;WAKE,,,corrected
+101711,Secure Haven,Master,,yes,MASTER_PHASE,,,ok
+101712,Seduction,Action Modifier,dom,yes,ACTION_AS_ANNOUNCED,,,ok
+101717,Sense the Savage Way,Reaction,ani,yes,ACTION_STEALTH_INTERCEPT;WAKE,,,corrected
+102280,Shadow Cast,Action Modifier,obl,yes,ACTION_STEALTH_INTERCEPT;ACTION_AFTER_RESOLUTION,,,ok
+102281,Shadow Cloak,Action Modifier,obl,yes,ACTION_STEALTH_INTERCEPT;ACTION_AFTER_RESOLUTION,,,ok
+102294,Shadow Sentinel,Reaction,obl,yes,WAKE,,,ok
+102305,Shadow Shift,Combat,obl,yes,COMBAT_DETERMINE_RANGE;COMBAT_ADDITIONAL_STRIKE,,,ok
+101767,Shilmulo Tarot,Equipment,,yes,ACTION_DECLARE_EQUIP,draw_replacement,,corrected
+101772,Show of Force,Action,pot/pre,yes,ACTION_DECLARE,,,ok
+102295,Shroud of Decay,Action,obl,yes,ACTION_DECLARE,,,ok
+101778,Side Strike,Combat,cel,yes,COMBAT_ADDITIONAL_STRIKE;COMBAT_STRIKE_DECLARATION,,,ok
+101780,Sight Beyond Sight,Master,,yes,MASTER_PHASE,,,ok
+101798,Slam,Combat,pot,yes,COMBAT_STRIKE_DECLARATION;COMBAT_DETERMINE_RANGE,maneuver_rider,,corrected
+101801,Slaughtering the Herd,Action,dom,yes,ACTION_DECLARE,,,ok
+101808,Slum Hunting Ground,Master,,yes,MASTER_PHASE,,,ok
+101811,"Smiling Jack, The Anarch",Master,,yes,MASTER_PHASE,in_play_action,,corrected
+101816,Sniper Rifle,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
+101817,Soak,Combat,for,yes,COMBAT_DAMAGE_PREVENTION,,,ok
+101819,Social Charm,Action,pre,yes,ACTION_DECLARE,,,ok
+101821,Society Hunting Ground,Master,,yes,MASTER_PHASE,,,ok
+101829,Soul Burn,Combat,tha,yes,COMBAT_STRIKE_DECLARATION,,,ok
+102296,Spectral Servitor,Ally,obl,yes,ACTION_DECLARE_RECRUIT,,,ok
+101850,Spirit's Touch,Reaction,aus,yes,ACTION_STEALTH_INTERCEPT,,,ok
+102297,Split the Veil,Action,,yes,ACTION_DECLARE,token_entity,,ok
+101856,Sport Bike,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
+101857,Spying Mission,Action Modifier,obf,yes,ACTION_STEALTH_INTERCEPT;ACTION_WOULD_BE_SUCCESSFUL,,,corrected
+101872,Stolen Police Cruiser,Equipment,,yes,ACTION_DECLARE_EQUIP,in_play_action,,corrected
+102282,Stygian Shroud,Action Modifier,obl,yes,ACTION_BLOCK_ATTEMPT,,,corrected
+101896,Sudden Reversal,Master,,yes,CARD_AS_PLAYED,out_of_turn;cancel_as_played,,corrected
+101913,Swallowed by the Night,Action Modifier/Combat,obf,yes,COMBAT_DETERMINE_RANGE;ACTION_STEALTH_INTERCEPT,,,ok
+102261,Sword of the Archangel,Equipment,,yes,ACTION_DECLARE_EQUIP,cancel_as_played,,ok
+102360,Szlachta Assistant,Retainer,,yes,ACTION_DECLARE_EMPLOY,,,ok
+102361,Szlachta Bodyguard,Retainer,,yes,ACTION_DECLARE_EMPLOY,,,ok
+101945,Taste of Vitae,Combat,,yes,COMBAT_END_OF_ROUND,,yes,corrected
+101948,Telepathic Counter,Reaction,aus,yes,REACTION_DURING_ACTION,,yes,corrected
+101949,Telepathic Misdirection,Reaction,aus,yes,ACTION_BLOCKS_DECLINED;ACTION_STEALTH_INTERCEPT,bounce,,corrected
+101950,Telepathic Tracking,Combat,aus,yes,COMBAT_PRESS;COMBAT_WOULD_END,,,corrected
+101951,Telepathic Vote Counting,Action Modifier,aus,yes,REFERENDUM,,,ok
+101953,Temple Hunting Ground,Master,,yes,MASTER_PHASE,,,ok
+101958,Tension in the Ranks,Master,,yes,MASTER_PHASE,,,ok
+101960,Terror Frenzy,Combat,ani,yes,COMBAT_BEFORE_RANGE,,yes,corrected
+100052,The Anarch Free Press,Master,,yes,MASTER_PHASE,,,ok
+100135,The Barrens,Master,,yes,MASTER_PHASE,,,ok
+100172,The Black Throne,Master,,yes,MASTER_PHASE,,,ok
+102236,"The British Museum, London",Master,,no,MASTER_PHASE,,,ok
+100435,The Coven,Master,,yes,MASTER_PHASE,trifle,,corrected
+100781,The Fourth Cycle,Event,,no,DISCARD_PHASE,,,ok
+102290,The Gate of Acheron,Action,,yes,ACTION_DECLARE,randomness;in_play_action,,corrected
+101042,The Khabar: Community,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+101070,The Labyrinth,Master,,yes,MASTER_PHASE,,,ok
+101110,The Line,Master,,no,MASTER_PHASE,in_play_action,,corrected
+102240,"The Mithraeum, London",Master,,no,MASTER_PHASE,,,ok
+101279,The New Inquisition,Event,,no,DISCARD_PHASE,in_play_action,,corrected
+101355,The Parthenon,Master,,no,MASTER_PHASE,,,ok
+102232,The Platinum Protocol,Action,obf/pre/pro,yes,ACTION_DECLARE,,,ok
+101536,The Rack,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+101662,"The Rumor Mill, Tabloid Newspaper",Master,,yes,MASTER_PHASE,,,ok
+102244,"The Shard, London",Master,,no,MASTER_PHASE,in_play_action,,corrected
+101805,The Sleeping Mind,Action Modifier,dom,yes,ACTION_AS_ANNOUNCED,,,ok
+101807,The Slow Withering,Event,,no,DISCARD_PHASE,delayed_replacement,,ok
+102057,The Uncoiling,Event,,no,DISCARD_PHASE,delayed_replacement;randomness,,ok
+102363,The Vozhd of Gravesend,Ally,,yes,ACTION_DECLARE_RECRUIT,cancel_as_played;in_play_action,,corrected
+102364,The Vozhd of Juiz de Fora,Ally,,yes,ACTION_DECLARE_RECRUIT,in_play_action,,corrected
+102267,The Vozhd of Sofia,Ally,,yes,ACTION_DECLARE_RECRUIT,in_play_action,,corrected
+102365,The Vozhd of Szczecin,Ally,,yes,ACTION_DECLARE_RECRUIT,in_play_action,,corrected
+102216,The Warrens,Reaction,,yes,ACTION_STEALTH_INTERCEPT,,,ok
+101966,Theft of Vitae,Combat,tha,yes,COMBAT_STRIKE_DECLARATION,,yes,corrected
+101972,Thing,Action,,yes,ACTION_DECLARE,,,ok
+101974,Thirst,Event,,no,DISCARD_PHASE,,,ok
+101978,Threats,Action Modifier,dom,yes,ACTION_DURING,,,ok
+101984,Tier of Souls,Action,ani,yes,ACTION_DECLARE,in_play_action,,corrected
+101989,Toreador Grand Ball,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+101990,Toreador Justicar,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
+101993,Torn Signpost,Combat,pot,yes,COMBAT_BEFORE_RANGE,,,ok
+101994,Torpid Blood,Event,,no,DISCARD_PHASE,delayed_replacement,,ok
+102283,Touch of Oblivion,Combat,obl,yes,COMBAT_STRIKE_DECLARATION,,,ok
+102262,Touch of Valeren,Action/Combat,for,yes,ACTION_DECLARE;COMBAT_DAMAGE_PREVENTION,,,ok
+102362,Tranquility Shield,Combat,for,yes,COMBAT_BEFORE_RANGE,,,corrected
+102015,Treasured Samadji,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
+102041,True Love's Face,Action Modifier,obf/pre,yes,ACTION_DURING;ACTION_BLOCK_ATTEMPT,cancel_as_played,,corrected
+102284,Truth in Darkness,Reaction,obl,yes,ACTION_STEALTH_INTERCEPT,,,ok
+102049,Twilight Camp,Master,,no,MASTER_PHASE,,,ok
+102306,Umbrous Clutch,Action,obl,yes,ACTION_DECLARE,,,ok
+102065,Underbridge Stray,Ally,ani,yes,ACTION_DECLARE_RECRUIT,,,ok
+102066,Underworld Hunting Ground,Master,,yes,MASTER_PHASE,,,ok
+102263,Unleashing the Bestial Soul,Action Modifier,dom,yes,ACTION_AS_ANNOUNCED,,,ok
+102078,Unlicensed Taxicab,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
+102084,Uptown Hunting Ground,Master,,yes,MASTER_PHASE,,,ok
+102087,Vagabond Mystic,Ally,,yes,ACTION_DECLARE_RECRUIT,,,ok
+102245,"Valerie Diaz, Antigen Commander",Ally,,no,ACTION_DECLARE_RECRUIT,,,ok
+102092,Vast Wealth,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+102097,Veil the Legions,Action Modifier,obf,yes,ACTION_STEALTH_INTERCEPT,,,ok
+102109,Ventrue Headquarters,Master,,yes,MASTER_PHASE,,,ok
+102113,Vessel,Master,,yes,MASTER_PHASE,trifle,,corrected
+102121,Villein,Master,,yes,MASTER_PHASE,trifle,,corrected
+102264,Visions of Gehenna,Action Modifier,pre,yes,ACTION_DURING,,,ok
+102265,Visions of Zapathasura,Reaction,obf/pre,yes,REACTION_DURING_ACTION,,yes,corrected
+102126,Visit from the Capuchin,Master,,yes,MASTER_PHASE,draw_replacement,,corrected
+102266,Voracious Vermin,Combat,ani,yes,COMBAT_STRIKE_DECLARATION,,,ok
+102131,Voter Captivation,Action Modifier,pre,yes,ACTION_AFTER_RESOLUTION,,,corrected
+102189,WMRH Talk Radio,Master,,yes,MASTER_PHASE,,,ok
+102137,Wake with Evening's Freshness,Reaction,,yes,WAKE,delayed_replacement,,ok
+102139,Walk of Flame,Combat,tha,yes,COMBAT_STRIKE_DECLARATION,,,ok
+102144,War Ghoul,Ally,,yes,ACTION_DECLARE_RECRUIT,in_play_action,,corrected
+102149,Warsaw Station,Master,,yes,MASTER_PHASE,,,ok
+102150,Warzone Hunting Ground,Master,,yes,MASTER_PHASE,,,ok
+102152,"Wasserschloss Anif, Austria",Master,,yes,MASTER_PHASE,in_play_action,,corrected
+102159,Waters of Duat,Action,,yes,ACTION_DECLARE,token_entity,,corrected
+102164,Weather Control,Combat,tha,yes,COMBAT_BEFORE_RANGE,,,ok
+102166,Week of Nightmares,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+102169,Weighted Walking Stick,Combat,,yes,COMBAT_BEFORE_RANGE,,,corrected
+102285,Where the Veil Thins,Action Modifier,obl,yes,ACTION_STEALTH_INTERCEPT,,,ok
+102180,Wider View,Master,,yes,MASTER_PHASE,trifle,,corrected
+102185,Wind Dance,Combat,tha,yes,COMBAT_STRIKE_DECLARATION,,,corrected
+102190,Wolf Claws,Combat,pro,yes,COMBAT_UNTIMED;COMBAT_PRESS,,,question
+102194,Wormwood,Event,,no,DISCARD_PHASE,delayed_replacement,,ok
+102201,Yoruba Shrine,Master,,yes,MASTER_PHASE,,,ok
+102212,Zoo Hunting Ground,Master,,yes,MASTER_PHASE,,,ok
