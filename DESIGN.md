@@ -132,6 +132,14 @@ Methuselah. Closes when all pass consecutively. Parameterized by:
 - ordering (who is offered, in what sequence),
 - legality filter (which effects are playable: reactions+modifiers during actions,
   combat cards at a given step, wakes+cancels only during as-played windows, …).
+  The as-played window (rules-qa 2.4) admits *exactly* wakes and cancel-as-played
+  effects: no unlock reactions, no in-play card abilities (locking The Barrens
+  to discard is not legal there). During an action it opens after every card
+  play — a wake played there resolves before the played card's effect (e.g.
+  before Consign to Oblivion raises the wake's cost) — so under elision it is
+  non-empty whenever any Methuselah holds a wake for a locked minion. Wakes are
+  action-scoped; master-phase as-played windows admit cancels only, pending
+  rules-qa 1.5.
 
 **Unordered commitment window (polling; bidding when it returns)** — no priority
 holder, no reset. Repeated rotations; on each offer a player may commit an
@@ -214,7 +222,9 @@ state either performs deterministic bookkeeping or hosts a window instance:
 - **Action** (rulebook "Detailed action flow"; block-loop semantics per rules-qa
   1.3): declare (lock acting minion, announce card+choices) → as-announced window
   → block loop → resolution (success: pay cost, apply effects) or block resolution
-  (blocker locks + combat) → after-resolution window (Freak Drive) → possible
+  (blocker locks + combat; the after-combat window — Cats' Guidance, Forced
+  Vigilance [for] — opens once, after *all* combats queued by the action, per
+  rules-qa 2.1) → after-resolution window (Freak Drive) → possible
   **action continuation** (Form of Mist: re-enter the block loop with preserved
   stealth/intercept context).
   **Block loop**: one ordered window, not a success/failure checkpoint. A declared

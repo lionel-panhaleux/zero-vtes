@@ -53,7 +53,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 100297,Carfax Abbey,Master,,yes,MASTER_PHASE,,,ok
 100301,Carrion Crows,Combat,ani,yes,COMBAT_BEFORE_RANGE,,,ok
 100303,Carver's Meat Packing and Storage,Master,,yes,MASTER_PHASE,,,ok
-100308,Cats' Guidance,Reaction,ani,yes,ACTION_AFTER_COMBAT;ACTION_STEALTH_INTERCEPT,,,question
+100308,Cats' Guidance,Reaction,ani,yes,ACTION_AFTER_COMBAT;ACTION_STEALTH_INTERCEPT,,,corrected
 100311,Cave of Apples,Master,,yes,MASTER_PHASE,in_play_action,,corrected
 100312,Celerity,Master,,yes,MASTER_PHASE,,,ok
 100323,Change of Target,Action Modifier,,yes,ACTION_BLOCKED,,,corrected
@@ -62,7 +62,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 100332,Charisma,Master,,yes,MASTER_PHASE,,,ok
 102246,Childe of the Revolution,Action,,yes,ACTION_DECLARE,token_entity,,corrected
 102234,City Star Taxi,Ally,,yes,ACTION_DECLARE_RECRUIT,,,ok
-100356,Claws of the Dead,Combat,pro,yes,COMBAT_UNTIMED;COMBAT_DETERMINE_RANGE,,,question
+100356,Claws of the Dead,Combat,pro,yes,COMBAT_UNTIMED;COMBAT_DETERMINE_RANGE,,,corrected
 100362,Cloak the Gathering,Action Modifier,obf,yes,ACTION_STEALTH_INTERCEPT,,,ok
 100364,Closed Session,Action Modifier,,yes,REFERENDUM,,,ok
 100366,Club Illusion,Master,,yes,MASTER_PHASE,,,ok
@@ -90,7 +90,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 100557,Disputed Territory,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
 100563,Diversion,Combat,cel/for/tha,yes,COMBAT_ADDITIONAL_STRIKE;COMBAT_DAMAGE_PREVENTION;COMBAT_STRIKE_DECLARATION;COMBAT_DETERMINE_RANGE,maneuver_rider,yes,corrected
 100568,Dog Pack,Retainer,,yes,ACTION_DECLARE_EMPLOY,,,ok
-102353,Dogged Pursuit,Reaction,ani,yes,WAKE,,,corrected
+102353,Dogged Pursuit,Reaction,ani,yes,REACTION_UNLOCK_ATTEMPT,,,corrected
 100570,Domain Challenge,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
 100572,Dominate,Master,,yes,MASTER_PHASE,,,ok
 100573,Dominate Kine,Action,dom,yes,ACTION_DECLARE,,,ok
@@ -114,8 +114,8 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 100644,Enhanced Senses,Reaction,aus,yes,ACTION_STEALTH_INTERCEPT,,,ok
 100652,Entrancement,Action,pre,yes,ACTION_DECLARE,,,ok
 102276,Expulsion,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
-100680,Eyes of Argus,Reaction,aus,yes,WAKE;ACTION_STEALTH_INTERCEPT,,,ok
-102222,Eyes of the Wild,Reaction,,yes,WAKE,,,corrected
+100680,Eyes of Argus,Reaction,aus,yes,WAKE;CARD_AS_PLAYED;ACTION_STEALTH_INTERCEPT,,,corrected
+102222,Eyes of the Wild,Reaction,,yes,REACTION_UNLOCK_ATTEMPT,,,corrected
 100709,FBI Special Affairs Division,Event,,no,DISCARD_PHASE,,,ok
 100687,Faceless Night,Action Modifier,obf,yes,ACTION_STEALTH_INTERCEPT,,,ok
 100695,Fall of the Camarilla,Event,,no,DISCARD_PHASE,delayed_replacement,,ok
@@ -137,9 +137,9 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 100747,Fleetness,Action,cel,yes,ACTION_DECLARE,,,ok
 100749,Flesh of Marble,Combat,pro,yes,COMBAT_BEFORE_RANGE,,,ok
 102354,Fleshforge Chamber,Master,,yes,MASTER_PHASE,alt_hand_source,,corrected
-100760,Forced Awakening,Reaction,,yes,WAKE,,,ok
+100760,Forced Awakening,Reaction,,yes,WAKE;CARD_AS_PLAYED,,,corrected
 102250,Forced Confessional,Action Modifier,dom,yes,ACTION_BLOCK_ATTEMPT,,,corrected
-100762,Forced Vigilance,Reaction,for,yes,ACTION_AFTER_COMBAT;WAKE,,yes,corrected
+100762,Forced Vigilance,Reaction,for,yes,ACTION_AFTER_COMBAT;REACTION_UNLOCK,,yes,corrected
 100765,Foreshadowing Destruction,Action Modifier,dom,yes,ACTION_DURING,,,ok
 100769,Forgotten Labyrinth,Action Modifier,obf,yes,ACTION_STEALTH_INTERCEPT,,,ok
 100771,Form of Mist,Combat,pro,yes,COMBAT_STRIKE_DECLARATION,continues_action,,ok
@@ -160,7 +160,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 100845,Govern the Unaligned,Action,dom,yes,ACTION_DECLARE,,,ok
 100852,Graverobbing,Action,dom,yes,ACTION_DECLARE,,,ok
 100860,Grooming the Protégé,Master,,yes,MASTER_PHASE,,,ok
-100863,Guard Dogs,Reaction,ani,yes,WAKE,,yes,corrected
+100863,Guard Dogs,Reaction,ani,yes,REACTION_UNLOCK,,yes,corrected
 100866,Guardian Angel,Master,,yes,MASTER_PHASE,,,ok
 102226,Haqim's Law: Retribution,Master,,yes,MASTER_PHASE,,,ok
 100897,Haven Uncovered,Master,,yes,MASTER_PHASE,in_play_action,,corrected
@@ -227,14 +227,14 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 102277,Oblivion,Master,,yes,MASTER_PHASE,,,ok
 101318,Old Friends,Action Modifier,obf,yes,ACTION_DURING;REFERENDUM,delayed_replacement,,corrected
 102278,Ominous Chorus,Action Modifier/Reaction,,yes,REFERENDUM,,,ok
-101321,On the Qui Vive,Reaction,,yes,WAKE,,,ok
-102256,One With the Land,Reaction,pro,yes,ACTION_STEALTH_INTERCEPT;WAKE,,,corrected
+101321,On the Qui Vive,Reaction,,yes,WAKE;CARD_AS_PLAYED,,,corrected
+102256,One With the Land,Reaction,pro,yes,ACTION_STEALTH_INTERCEPT;REACTION_UNLOCK_ATTEMPT,,,corrected
 101324,Open War,Action,,yes,ACTION_DECLARE,in_play_action,,corrected
 101326,Opium Den,Master,,yes,MASTER_PHASE,,,ok
-102230,Organized Resistance,Reaction,,yes,WAKE;ACTION_STEALTH_INTERCEPT,,,corrected
+102230,Organized Resistance,Reaction,,yes,ACTION_STEALTH_INTERCEPT;REACTION_UNLOCK_ATTEMPT,usable_locked,,corrected
 101340,Owl Companion,Retainer,ani,yes,ACTION_DECLARE_EMPLOY,,,ok
 101341,"Oxford University, England",Master,,yes,MASTER_PHASE,,,ok
-101342,Pack Alpha,Combat,ani,yes,COMBAT_BEFORE_RANGE;COMBAT_UNTIMED,,,question
+101342,Pack Alpha,Combat,ani,yes,COMBAT_BEFORE_RANGE;COMBAT_UNTIMED,,,corrected
 101350,Papillon,Master,,yes,MASTER_PHASE,,,ok
 101353,Parity Shift,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
 101354,Park Hunting Ground,Master,,yes,MASTER_PHASE,,,ok
@@ -269,7 +269,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 102303,Raising the Portcullis,Political Action,,yes,ACTION_DECLARE_POLITICAL,in_play_action,,corrected
 101542,Rapid Change,Action Modifier/Combat,pro,yes,COMBAT_STRIKE_DECLARATION;ACTION_STEALTH_INTERCEPT,,,ok
 101545,Raptor,Retainer,ani,yes,ACTION_DECLARE_EMPLOY,,,ok
-101547,Rat's Warning,Reaction,ani,yes,WAKE,,yes,corrected
+101547,Rat's Warning,Reaction,ani,yes,REACTION_UNLOCK,,yes,corrected
 101550,Raven Spy,Retainer,ani,yes,ACTION_DECLARE_EMPLOY,,,ok
 101552,Ravnos Cache,Master,,yes,MASTER_PHASE,,,ok
 101553,Ravnos Carnival,Master,,yes,MASTER_PHASE,,,ok
@@ -301,13 +301,13 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 101698,Scouting Mission,Action,dom,yes,ACTION_DECLARE,,,ok
 102292,Screamer,Ally,,yes,ACTION_DECLARE_RECRUIT,,,ok
 102260,Sculpt the Flesh,Combat,pro,yes,COMBAT_STRIKE_DECLARATION,in_play_action,,corrected
-101706,Second Tradition: Domain,Reaction,,yes,ACTION_STEALTH_INTERCEPT;WAKE,,,corrected
+101706,Second Tradition: Domain,Reaction,,yes,ACTION_STEALTH_INTERCEPT;REACTION_UNLOCK_ATTEMPT,,,corrected
 101711,Secure Haven,Master,,yes,MASTER_PHASE,,,ok
 101712,Seduction,Action Modifier,dom,yes,ACTION_AS_ANNOUNCED,,,ok
-101717,Sense the Savage Way,Reaction,ani,yes,ACTION_STEALTH_INTERCEPT;WAKE,,,corrected
+101717,Sense the Savage Way,Reaction,ani,yes,ACTION_STEALTH_INTERCEPT;REACTION_UNLOCK_ATTEMPT,,,corrected
 102280,Shadow Cast,Action Modifier,obl,yes,ACTION_STEALTH_INTERCEPT;ACTION_AFTER_RESOLUTION,,,ok
 102281,Shadow Cloak,Action Modifier,obl,yes,ACTION_STEALTH_INTERCEPT;ACTION_AFTER_RESOLUTION,,,ok
-102294,Shadow Sentinel,Reaction,obl,yes,WAKE,,,ok
+102294,Shadow Sentinel,Reaction,obl,yes,WAKE;CARD_AS_PLAYED,,,corrected
 102305,Shadow Shift,Combat,obl,yes,COMBAT_DETERMINE_RANGE;COMBAT_ADDITIONAL_STRIKE,,,ok
 101767,Shilmulo Tarot,Equipment,,yes,ACTION_DECLARE_EQUIP,draw_replacement,,corrected
 101772,Show of Force,Action,pot/pre,yes,ACTION_DECLARE,,,ok
@@ -403,7 +403,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 102266,Voracious Vermin,Combat,ani,yes,COMBAT_STRIKE_DECLARATION,,,ok
 102131,Voter Captivation,Action Modifier,pre,yes,ACTION_AFTER_RESOLUTION,,,corrected
 102189,WMRH Talk Radio,Master,,yes,MASTER_PHASE,,,ok
-102137,Wake with Evening's Freshness,Reaction,,yes,WAKE,delayed_replacement,,ok
+102137,Wake with Evening's Freshness,Reaction,,yes,WAKE;CARD_AS_PLAYED,delayed_replacement,,corrected
 102139,Walk of Flame,Combat,tha,yes,COMBAT_STRIKE_DECLARATION,,,ok
 102144,War Ghoul,Ally,,yes,ACTION_DECLARE_RECRUIT,in_play_action,,corrected
 102149,Warsaw Station,Master,,yes,MASTER_PHASE,,,ok
@@ -416,7 +416,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 102285,Where the Veil Thins,Action Modifier,obl,yes,ACTION_STEALTH_INTERCEPT,,,ok
 102180,Wider View,Master,,yes,MASTER_PHASE,trifle,,corrected
 102185,Wind Dance,Combat,tha,yes,COMBAT_STRIKE_DECLARATION,,,corrected
-102190,Wolf Claws,Combat,pro,yes,COMBAT_UNTIMED;COMBAT_PRESS,,,question
+102190,Wolf Claws,Combat,pro,yes,COMBAT_UNTIMED;COMBAT_PRESS,,,corrected
 102194,Wormwood,Event,,no,DISCARD_PHASE,delayed_replacement,,ok
 102201,Yoruba Shrine,Master,,yes,MASTER_PHASE,,,ok
 102212,Zoo Hunting Ground,Master,,yes,MASTER_PHASE,,,ok

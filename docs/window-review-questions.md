@@ -1,5 +1,10 @@
 # Window-matrix review — owner arbitration queue (rules Q&A Batch 2)
 
+**Status (2026-09-02): arbitrated.** Owner rulings recorded in
+`docs/rules-qa.md` Batch 2 and applied to `data/window-matrix-reviewed.csv`
+(0 question rows left). Per-entry outcomes are marked "→ ruled" below; the
+convention notes at the end still need feeding back into the generator.
+
 Per-card questions raised by the hand review of `data/window-matrix-draft.csv`
 (output: `data/window-matrix-reviewed.csv`). Each entry: card, text quote, draft
 vs proposed classification, and the precise question. Entries marked **Q** need
@@ -30,6 +35,8 @@ header is withdrawn.
    Draft: `OUT_OF_TURN`. Proposed: window `ACTION_BLOCKS_DECLINED`, flag
    `out_of_turn` (out-of-turn is master-phase *accounting*, not a play window).
 
+    → ruled 2.3: accepted (`out_of_turn` flag; timing is card-text dependent).
+
 ## New window names introduced (owner may veto/rename)
 
 2. *note* — **Cats' Guidance** [ani]: "Only usable by a locked vampire who has
@@ -40,16 +47,22 @@ header is withdrawn.
    the [ani] mode's window is the after-combat window (not a point between
    block resolution and combat start).
 
+    → ruled 2.1: after-combat window, after *all* combats of the action.
+
 3. *note* — **Change of Target**: "Only usable if this minion is blocked,
    before block resolution." Proposed new window `ACTION_BLOCKED` (modifier
    plays legal only while a block is pending resolution) — distinct legality
    filter from the generic `ACTION_DURING`.
+
+    → ruled 2.3: accepted.
 
 4. *note* — **Claws of the Dead** [pro] ("hand strikes aggravated this round",
    no printed timing): proposed new window `COMBAT_UNTIMED` — combat effects
    with no printed step, playable at any combat impulse, deadline derived from
    the effect (§2.1.4: must precede the step they modify). **Q**: confirm this
    class exists as one window rather than per-card step assignments.
+
+    → ruled 2.2: accepted as one window with effect-derived deadline.
 
 5. *note* — **Deep Song** [ANI]: "The target vampire is considered the acting
    minion during that combat" — acting-designation override (rules-qa 1.2 /
@@ -72,6 +85,8 @@ header is withdrawn.
    sub-window, §1.8.1). Sudden Reversal: `OUT_OF_TURN` demoted to the
    `out_of_turn` flag, same treatment as Archon Investigation (entry 1).
 
+    → ruled 2.3: accepted.
+
 9. *note* — **block-loop windows split**: cards "only usable if a minion
    attempts to block" (Forced Confessional, Stygian Shroud, True Love's Face
    [OBF][PRE], Form of the Bat [pro]) get `ACTION_BLOCK_ATTEMPT` (attempt
@@ -79,6 +94,8 @@ header is withdrawn.
    of Target) get `ACTION_BLOCKED` (the successful-block-to-combat gap,
    advanced-rules §4.1.2). These are distinct legality filters per rules-qa
    1.3 semantics.
+
+    → ruled 2.3: accepted.
 
 10. *note* — **WAKE broadened**: classified as `WAKE` every reaction whose
     filter is "usable by a locked minion" — true wakes (WWEF, On the Qui Vive,
@@ -89,6 +106,16 @@ header is withdrawn.
     [FOR]). **Q**: keep one window for "locked-minion reaction plays", or
     split wake-grants from unlock-effects?
 
+    → ruled 2.4: **split**. True wakes → `WAKE;CARD_AS_PLAYED` (wakes are
+    playable in the as-played window, e.g. before Consign to Oblivion's cost
+    increase resolves). "Unlocks and attempts to block" → new
+    `REACTION_UNLOCK_ATTEMPT` (block loop only); plain "Unlock this vampire"
+    (Guard Dogs, Rat's Warning, Forced Vigilance [FOR]) → new `REACTION_UNLOCK`.
+    Neither is playable in the as-played window. *note* (owner may rename the
+    two new names): Organized Resistance mode 1 — a *locked* baron grants +1
+    intercept without unlocking — is neither wake nor unlock; classified
+    `ACTION_STEALTH_INTERCEPT` with new flag `usable_locked`.
+
 ## Question cards (review=question in the CSV)
 
 11. **Q** — **Cats' Guidance [ani] / Forced Vigilance [for]** ("Only usable by
@@ -97,12 +124,16 @@ header is withdrawn.
     with Freak Drive/Hay Ride. Confirm the play point is the after-combat
     window, not a point between block resolution and combat start.
 
+    → ruled 2.1: after-combat window, opening after all combats of the action.
+
 12. **Q** — **`COMBAT_UNTIMED` class** — Claws of the Dead [pro], Wolf Claws
     [pro] ("hand strikes aggravated this round"), Pack Alpha [ANI] (burn
     retainer to attach): combat cards with no printed step. Proposed: one
     window "any combat impulse, deadline derived from effect" rather than
     per-card step assignment. Confirm, and confirm the aggravated-hands plays
     must simply precede the strike resolution they affect.
+
+    → ruled 2.2: confirmed; aggravated-hands plays must precede strike resolution.
 
 ## Flags added by the review
 
@@ -119,6 +150,8 @@ header is withdrawn.
   Capuchin) — intercepts replacement draws.
 - `alt_hand_source` (Fleshforge Chamber) — play cards from a location as if
   from hand.
+- `usable_locked` (Organized Resistance) — reaction play whose "unlocked"
+  requirement is waived without a wake or unlock (rules-qa 2.4).
 - `token_entity` extended to cards *becoming vampires* (Childe of the
   Revolution, Waters of Duat) — the generator's regex only caught allies.
 
@@ -140,6 +173,14 @@ header is withdrawn.
   are real press-window modes and keep the window). Same principle for
   non-strike cards: riders firing after the card's own play step add no play
   window.
+- Wake regex split (rules-qa 2.4): `wakes?\b` → `WAKE` + `CARD_AS_PLAYED`;
+  `unlocks? and attempts? to block` → `REACTION_UNLOCK_ATTEMPT`; bare
+  `unlock this vampire` on a reaction → `REACTION_UNLOCK`, *except* when the
+  mode says `after block resolution` (Cats' Guidance [ani], Forced Vigilance
+  [for]) → `ACTION_AFTER_COMBAT`; the generator cannot split modes, so Forced
+  Vigilance (`ACTION_AFTER_COMBAT;REACTION_UNLOCK`) will not converge without
+  per-mode classification. Only wakes and `cancel_as_played` cards may carry
+  `CARD_AS_PLAYED`.
 - "Prevent"/"votes" regex false positives: granted prevention abilities and
   vote-mention cards are not prevention-window/referendum plays (Amici Noctis,
   Voter Captivation are after-resolution).

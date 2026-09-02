@@ -17,11 +17,12 @@ Key facts:
 - v1 scope: full 621-card V5 engine pool; training on the 14 full-size precon
   decklists (379 uniques). Stack: Rust engine + PyO3 + PyTorch training.
 - `docs/rules-qa.md`: running rules Q&A with the owner (a VEKN judge and author
-  of the KRCG library/API). Batch 1 may be awaiting answers — check before
-  assuming sequencing semantics.
+  of the KRCG library/API). Batches 1–2 are answered; later batches emerge
+  from implementation — check before assuming sequencing semantics.
 - `data/window-matrix-draft.csv` (regen: `scripts/window_matrix.py`): draft
-  per-card window classification; hand review is a P1 deliverable (Claude passes,
-  owner arbitrates).
+  per-card window classification; the hand review is done and arbitrated
+  (`data/window-matrix-reviewed.csv`, queue in `docs/window-review-questions.md`);
+  next is feeding its convention notes back into the generator.
 - Card data source: https://static.krcg.org/data/vtes.json (the `v5/` dir there
   is a *schema* version, not the V5 format).
 - Reference material: the `vtes` skill (rulebook, tournament rules, judges'

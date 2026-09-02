@@ -189,8 +189,96 @@ intercept only when stealth exceeds it.
 
 ---
 
-## Batch 2 — planned: actions & resolution (costs, targets, "as announced",
-redirects, action continuation). Batch 3 — combat (strike resolution order,
-prevention timing, presses/additional strikes). Batch 4 — politics (terms,
-Scalpel-class cards, blood hunts). Batch 5 — cards & effects (replacement,
+## Batch 2 — Window-matrix arbitration (from `docs/window-review-questions.md`)
+
+The hand review of the window matrix (`data/window-matrix-reviewed.csv`) raised
+per-card questions and introduced new window names/flags; the owner arbitrated
+them here. Entries reference the numbered items of the review queue.
+
+### 2.1 "After block resolution" plays are after-combat plays (queue 2, 11)
+
+Cats' Guidance [ani] and Forced Vigilance [for]: "Only usable by a locked
+vampire who has blocked, after block resolution. Unlock this vampire." Is the
+play point the after-combat window, or a point between block resolution and
+combat start?
+
+**A** (2026-09-02): It is after combat — and after **all** combats of the
+action, in case more are queued (e.g. Psyche!). So `ACTION_AFTER_COMBAT` opens
+once, after the last combat arising from the block, not after each one.
+
+**Test** — _pending_: `after_combat_window_after_all_combats`.
+
+### 2.2 `COMBAT_UNTIMED` — combat cards with no printed step (queue 4, 12)
+
+Claws of the Dead [pro], Wolf Claws [pro] ("hand strikes aggravated this
+round"), Pack Alpha [ANI] (burn retainer to attach): one window "any combat
+impulse, deadline derived from the effect", or per-card step assignment?
+
+**A** (2026-09-02): One window with an effect-derived deadline. The play must
+precede the step it modifies (advanced-rules §2.1.4): aggravated-hands plays
+must precede the strike resolution they affect.
+
+**Test** — _pending_: `combat_untimed_deadline_precedes_step`.
+
+### 2.3 Vocabulary introduced by the review (queue 1, 3, 8, 9)
+
+Veto/rename requested on: the `ACTION_BLOCK_ATTEMPT` (attempt pending) /
+`ACTION_BLOCKED` (blocked, before block resolution) split; `CARD_AS_PLAYED`
+(the as-played cancel sub-window); `OUT_OF_TURN` demoted from a window to the
+`out_of_turn` flag (Archon Investigation, Sudden Reversal).
+
+**A** (2026-09-02): All accepted. The split makes sense, `CARD_AS_PLAYED` too,
+and out-of-turn is rightly a flag: for those cards the timing depends on the
+card text, not on a shared window.
+
+**Test** — covered by the per-window scenario tests of P1 (no dedicated test).
+
+### 2.4 Wakes vs unlock reactions, and what the as-played window admits (queue 10)
+
+The review had classified as `WAKE` every reaction "usable by a locked minion":
+true wakes (Wake with Evening's Freshness, On the Qui Vive, Forced Awakening,
+Eyes of Argus [AUS], Shadow Sentinel) *and* unlock / unlock-and-attempt
+reactions (Dogged Pursuit, Eyes of the Wild, Guard Dogs, Rat's Warning, Second
+Tradition [2nd mode], Sense the Savage Way [ANI], One With the Land [PRO],
+Organized Resistance, Forced Vigilance [FOR]). Keep one window or split?
+
+**A** (2026-09-02): Split — keep wakes separate from unlock-and-attempt /
+unlock reactions, because their windows differ:
+
+- **Wakes are playable in the `CARD_AS_PLAYED` window** — e.g. before a card
+  is cancelled by something like Rewind Time, or, more subtly, before a
+  modifier's effect resolves: one can wake before Consign to Oblivion raises
+  the cost of the wake.
+- **Unlock-and-attempt / unlock reactions are not** playable in the as-played
+  window.
+- The as-played window admits **only wakes and cancellation effects**. Not
+  even card effects such as locking The Barrens to discard can be used there.
+
+**Applied** (2026-09-02, review — names not yet seen by the owner, veto
+welcome): the as-played window opens after *every* card play during an action,
+not only after cancellable ones, and a wake played there resolves before the
+played card's effect. Wakes are action-scoped ("until the end of the action"),
+so master-phase as-played windows admit cancels only, pending 1.5. In the
+matrix: true wakes get `WAKE;CARD_AS_PLAYED`; "unlocks and attempts to block"
+cards get `REACTION_UNLOCK_ATTEMPT` (legal only while a block attempt is
+possible, i.e. in the block loop); plain "Unlock this vampire" reactions (Guard
+Dogs, Rat's Warning, Forced Vigilance [FOR]) get `REACTION_UNLOCK` (any
+reaction window of the qualifying action). Organized Resistance's first mode (a
+*locked* baron gives an Anarch +1 intercept) is neither: it is an intercept
+play whose lock requirement is waived, flagged `usable_locked`.
+
+Cross-reference for 1.6: Second Tradition [2nd mode] and Organized Resistance
+print "attempts to block … even if intercept is not yet needed" — direct card
+evidence that "only when needed" is the default legality rule and that cards
+must opt out of it explicitly.
+
+**Test** — _pending_: `wake_playable_in_as_played_window`,
+`unlock_reaction_not_as_played`, `as_played_window_wakes_and_cancels_only`.
+
+---
+
+## Batch 3 — planned: actions & resolution (costs, targets, "as announced",
+redirects, action continuation). Batch 4 — combat (strike resolution order,
+prevention timing, presses/additional strikes). Batch 5 — politics (terms,
+Scalpel-class cards, blood hunts). Batch 6 — cards & effects (replacement,
 delayed replacement, contests, events).
