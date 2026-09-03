@@ -1,8 +1,11 @@
+use crate::cards::Layer;
 use crate::crypt::{CryptCard, Title, CRYPT};
 use crate::ids::{MinionId, SeatId};
+use crate::library::LIBRARY;
 
 pub const START_POOL: i32 = 30;
 pub const UNCONTROLLED_START: usize = 4;
+pub const HAND_SIZE: usize = 7;
 
 /// CRYPT index of the vampire with this printed name (test helper).
 pub fn find_card(name: &str) -> u16 {
@@ -10,6 +13,14 @@ pub fn find_card(name: &str) -> u16 {
         .iter()
         .position(|c| c.name == name)
         .unwrap_or_else(|| panic!("no V5 crypt card named {name:?}")) as u16
+}
+
+/// LIBRARY index of the library card with this printed name (test helper).
+pub fn find_library(name: &str) -> u16 {
+    LIBRARY
+        .iter()
+        .position(|c| c.name == name)
+        .unwrap_or_else(|| panic!("no V5 library card named {name:?}")) as u16
 }
 
 /// Contest identity of a title (rulebook "Contested Titles" / "Vampiric
@@ -38,11 +49,10 @@ pub fn title_votes(t: Title) -> u8 {
     }
 }
 
-/// A vampire in play (P0: crypt cards only, no library cards on them).
-/// `contested`: the card is contested — face down and out of play, blood
-/// kept (rulebook "Contested Cards"). `title_contested` / `title_lost`: the
-/// printed title is under contest / was yielded for the rest of the game.
-/// `bled_this_turn` is the NRA special cap (rules-qa 1.4).
+/// A vampire in play. `contested`: the card is contested — face down and out
+/// of play, blood kept (rulebook "Contested Cards"). `title_contested` /
+/// `title_lost`: the printed title is under contest / was yielded for the
+/// rest of the game. `bled_this_turn` is the NRA special cap (rules-qa 1.4).
 #[derive(Clone, Debug)]
 pub struct Minion {
     pub owner: SeatId,
@@ -101,10 +111,38 @@ impl Minion {
     }
 }
 
+/// A library card in play (a master on a vampire, a location, …).
+#[derive(Clone, Debug)]
+pub struct CardInPlay {
+    pub card: u16,
+    pub owner: SeatId,
+    /// Minion the card is on, if any.
+    pub host: Option<MinionId>,
+    pub in_play: bool,
+    pub locked: bool,
+    pub counters: u8,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CardId(pub u32);
+
+impl CardId {
+    pub fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct UncontrolledSlot {
     pub card: u16,
     pub counters: u8,
+}
+
+/// An out-of-turn master card played since the seat's last master phase
+/// (rulebook "Out-of-turn"; rules-qa 3.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct OutOfTurn {
+    pub trifle: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -118,6 +156,18 @@ pub struct Seat {
     /// Remaining crypt cards (CRYPT indices), top at the end.
     pub crypt: Vec<u16>,
     pub uncontrolled: Vec<UncontrolledSlot>,
+    /// Library (LIBRARY indices), top at the end; hand; ash heap.
+    pub library: Vec<u16>,
+    pub hand: Vec<u16>,
+    pub ash: Vec<u16>,
+    /// Master phase actions left in the current master phase.
+    pub mpa: u8,
+    /// One additional master phase action from trifles per master phase.
+    pub trifle_used: bool,
+    /// Out-of-turn master card played since the last master phase.
+    pub out_of_turn: Option<OutOfTurn>,
+    /// Discard phase actions left in the current discard phase.
+    pub dpa: u8,
     pub turns_taken: u32,
 }
 
@@ -126,6 +176,10 @@ pub struct GameState {
     pub seats: Vec<Seat>,
     /// Arena: minions are never removed, only marked out of play.
     pub minions: Vec<Minion>,
+    /// Arena of library cards in play.
+    pub cards: Vec<CardInPlay>,
+    /// Continuous effects (DESIGN §4.5 scope layers).
+    pub layers: Vec<Layer>,
     pub active: SeatId,
     /// Game turn counter, 1-based once the first turn starts.
     pub turn: u32,
@@ -257,13 +311,25 @@ impl GameState {
             mix(s.half_vps as u64);
             mix(s.has_edge as u64);
             mix(s.turns_taken as u64);
-            mix(s.crypt.len() as u64);
-            for &c in &s.crypt {
-                mix(c as u64);
+            mix(s.mpa as u64);
+            mix(s.trifle_used as u64);
+            mix(match s.out_of_turn {
+                None => 0,
+                Some(OutOfTurn { trifle }) => 1 + trifle as u64,
+            });
+            for zone in [
+                &s.crypt,
+                &s.uncontrolled_cards(),
+                &s.library,
+                &s.hand,
+                &s.ash,
+            ] {
+                mix(zone.len() as u64);
+                for &c in zone.iter() {
+                    mix(c as u64);
+                }
             }
-            mix(s.uncontrolled.len() as u64);
             for u in &s.uncontrolled {
-                mix(u.card as u64);
                 mix(u.counters as u64);
             }
         }
@@ -280,6 +346,25 @@ impl GameState {
             mix(m.title_lost as u64);
             mix(m.bled_this_turn as u64);
         }
+        mix(self.cards.len() as u64);
+        for c in &self.cards {
+            mix(c.card as u64);
+            mix(c.owner.0 as u64);
+            mix(c.host.map(|m| m.0 as u64 + 1).unwrap_or(0));
+            mix(c.in_play as u64);
+            mix(c.locked as u64);
+            mix(c.counters as u64);
+        }
+        mix(self.layers.len() as u64);
+        for l in &self.layers {
+            mix(l.hash());
+        }
         h
+    }
+}
+
+impl Seat {
+    fn uncontrolled_cards(&self) -> Vec<u16> {
+        self.uncontrolled.iter().map(|u| u.card).collect()
     }
 }

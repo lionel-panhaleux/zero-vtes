@@ -3,12 +3,17 @@
 //! and window logic lives in the sibling modules (`actions`, `contests`,
 //! `influence`, `referendum`), which extend `Engine`.
 
+use crate::cards::PlayCtx;
 use crate::crypt::PRECONS;
 use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use crate::ids::{MinionId, SeatId};
 use crate::influence::transfers_for_turn;
+use crate::library::PRECON_LIBRARIES;
+use crate::plays::PendingPlay;
 use crate::rng::Rng;
-use crate::state::{GameState, Minion, Seat, UncontrolledSlot, START_POOL, UNCONTROLLED_START};
+use crate::state::{
+    GameState, Minion, Seat, UncontrolledSlot, HAND_SIZE, START_POOL, UNCONTROLLED_START,
+};
 use crate::window::{OrderedWindow, PollingWindow};
 
 /// Time-limit stand-in (owner, 2026-09-02): a tournament game rarely exceeds
@@ -63,6 +68,20 @@ pub(crate) enum Flow {
         items: Vec<Contest>,
         at: usize,
     },
+    /// Master phase: an offer window for the active seat's master phase
+    /// actions (rulebook "Master Phase").
+    MasterPhase,
+    /// Numeric terms of a play, chosen as it is announced (rules-qa 3.5).
+    PlayTerms {
+        ctx: PlayCtx,
+        resume: Box<Flow>,
+    },
+    /// As-played windows of pending plays, innermost last; `resume` is the
+    /// flow to return to once the stack empties.
+    AsPlayed {
+        stack: Vec<PendingPlay>,
+        resume: Box<Flow>,
+    },
     /// Minion phase: offer actions for the active seat's ready minions.
     MinionPhase,
     Block(BlockCtx),
@@ -75,6 +94,8 @@ pub(crate) enum Flow {
     Influence {
         left: u8,
     },
+    /// Discard phase: an offer window for the discard phase action.
+    Discard,
     GameOver,
 }
 
@@ -101,7 +122,8 @@ impl Engine {
         let mut rng = Rng::new(seed);
         let seats = (0..n_seats)
             .map(|_| {
-                let (_, list) = PRECONS[rng.below(PRECONS.len())];
+                let precon = rng.below(PRECONS.len());
+                let (_, list) = PRECONS[precon];
                 let mut crypt: Vec<u16> = list
                     .iter()
                     .flat_map(|&(card, copies)| std::iter::repeat_n(card, copies as usize))
@@ -113,6 +135,14 @@ impl Engine {
                         counters: 0,
                     })
                     .collect();
+                // The matching precon library, shuffled; hand of 7.
+                let (_, list) = PRECON_LIBRARIES[precon];
+                let mut library: Vec<u16> = list
+                    .iter()
+                    .flat_map(|&(card, copies)| std::iter::repeat_n(card, copies as usize))
+                    .collect();
+                rng.shuffle(&mut library);
+                let hand = library.split_off(library.len() - HAND_SIZE);
                 Seat {
                     pool: START_POOL,
                     ousted: false,
@@ -120,6 +150,13 @@ impl Engine {
                     has_edge: false,
                     crypt,
                     uncontrolled,
+                    library,
+                    hand,
+                    ash: Vec::new(),
+                    mpa: 0,
+                    trifle_used: false,
+                    out_of_turn: None,
+                    dpa: 0,
                     turns_taken: 0,
                 }
             })
@@ -128,6 +165,8 @@ impl Engine {
             state: GameState {
                 seats,
                 minions: Vec::new(),
+                cards: Vec::new(),
+                layers: Vec::new(),
                 active: SeatId(0),
                 turn: 0,
             },
@@ -139,14 +178,17 @@ impl Engine {
         engine
     }
 
-    /// Test fixture: `n_seats` seats with empty crypts and uncontrolled
-    /// regions, no minions, positioned at seat 0's minion phase on turn 1.
-    /// Populate with [`Engine::add_minion`].
+    /// Test fixture: `n_seats` seats with empty crypts, uncontrolled regions,
+    /// libraries and hands, no minions, positioned at seat 0's minion phase
+    /// on turn 1. Populate with [`Engine::add_minion`] and by pushing cards
+    /// into hands.
     pub fn bare(n_seats: usize) -> Self {
         let mut e = Self::new(0, n_seats);
         for seat in &mut e.state.seats {
             seat.crypt.clear();
             seat.uncontrolled.clear();
+            seat.library.clear();
+            seat.hand.clear();
         }
         e.flow = Flow::MinionPhase;
         e
@@ -169,6 +211,12 @@ impl Engine {
             bled_this_turn: false,
         });
         MinionId(self.state.minions.len() as u32 - 1)
+    }
+
+    /// Test fixture: position the game at the active seat's master phase
+    /// (master phase actions granted per rules-qa 3.3).
+    pub fn at_master_phase(&mut self) {
+        self.start_master_phase();
     }
 
     /// Test fixture: enter the card and title contests `m` would have
@@ -227,6 +275,9 @@ impl Engine {
                 }
             }
             Flow::Contests { items, at } => self.contest_request(items, *at),
+            Flow::MasterPhase => Some(self.master_request()),
+            Flow::PlayTerms { ctx, .. } => Some(self.terms_request(ctx)),
+            Flow::AsPlayed { stack, .. } => self.as_played_request(stack),
             Flow::MinionPhase => Some(DecisionRequest {
                 seat: st.active,
                 window: WindowLabel::MinionPhase,
@@ -271,6 +322,7 @@ impl Engine {
             }
             Flow::BloodHunt(ctx) => self.blood_hunt_request(ctx),
             Flow::Influence { left } => Some(self.influence_request(*left)),
+            Flow::Discard => Some(self.discard_request()),
             Flow::GameOver => None,
         }
     }
@@ -282,6 +334,7 @@ impl Engine {
             // No Edge to consider: on to contest upkeep.
             Flow::Unlock => self.start_contests(),
             Flow::Contests { items, at } => self.contest_advance(items, at),
+            Flow::AsPlayed { stack, resume } => self.as_played_advance(stack, resume),
             Flow::Block(ctx) => {
                 debug_assert!(ctx.window.is_closed());
                 self.resolve_action(ctx);
@@ -307,6 +360,10 @@ impl Engine {
             (Flow::Contests { items, at }, c @ (Choice::PayContest | Choice::YieldContest)) => {
                 self.contest_apply(items, at, *c == Choice::PayContest)
             }
+            (Flow::MasterPhase, c) => self.master_apply(c),
+            (Flow::PlayTerms { ctx, resume }, c) => self.terms_apply(ctx, *resume, c),
+            (Flow::AsPlayed { stack, resume }, c) => self.as_played_apply(stack, resume, c),
+            (Flow::Discard, c) => self.discard_apply(c),
             (Flow::MinionPhase, Choice::Pass) => {
                 self.flow = Flow::Influence {
                     left: transfers_for_turn(self.state.turn),
@@ -348,14 +405,21 @@ impl Engine {
         }
     }
 
-    /// End of contest upkeep: the master phase has no cards in P0 → elided.
+    /// End of contest upkeep: on to the master phase.
     pub(crate) fn end_contests(&mut self) {
-        self.flow = Flow::MinionPhase;
+        self.start_master_phase();
     }
 
-    /// End of the influence phase: the discard phase has no cards in P0 →
-    /// elided.
+    /// End of the influence phase: on to the discard phase (one discard
+    /// phase action; events are a later slice).
     pub(crate) fn end_influence(&mut self) {
+        let s = self.state.active;
+        self.state.seats[s.index()].dpa = 1;
+        self.flow = Flow::Discard;
+    }
+
+    /// End of the discard phase: the turn passes.
+    pub(crate) fn end_turn(&mut self) {
         self.next_turn();
     }
 
@@ -672,7 +736,12 @@ mod tests {
         assert_eq!(transfers_for_turn(4), 4);
         assert_eq!(transfers_for_turn(9), 4);
         // Seat 1's first influence phase is game turn 2: two transfers.
+        // (Empty hands keep the master and discard phases elided.)
         let mut e = Engine::new(7, 3);
+        for seat in &mut e.state.seats {
+            seat.library.clear();
+            seat.hand.clear();
+        }
         let req = expect(&mut e, SeatId(0), WindowLabel::InfluenceTransfers);
         assert!(!req.options.contains(&Choice::DrawCrypt)); // needs 4 transfers
         pick(&mut e, Choice::Transfer { slot: 0 });

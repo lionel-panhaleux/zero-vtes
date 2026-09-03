@@ -335,8 +335,9 @@ Ergo a player can never play two out-of-turn cards between their turns.
 play is legal only while unset; at the seat's next master phase the action
 count is 1 − 1 (+1 if trifle), then the flag clears.
 
-**Test** — _pending_: `out_of_turn_consumes_next_mpa`, `out_of_turn_trifle_refunds_at_master_phase`,
-`no_two_out_of_turn_between_turns`.
+**Test** — `out_of_turn_consumes_next_mpa`, `no_two_out_of_turn_between_turns`
+(`crates/engine/tests/scenarios.rs`). _Pending_: `out_of_turn_trifle_refunds_at_master_phase`
+(no out-of-turn trifle in the V5 pool; the accounting is implemented).
 
 ### 3.4 Form of Mist continuation and earlier declines
 
@@ -369,7 +370,8 @@ referendum — after the action succeeds, before votes are cast.
 sub-decision at the `AtPlay` point (before the as-played window opens) for
 cards like Villein, and at the referendum's terms step for political cards.
 
-**Test** — _pending_: `terms_announced_at_play`, `referendum_terms_before_votes`.
+**Test** — `terms_announced_at_play` (`crates/engine/tests/scenarios.rs`).
+_Pending_: `referendum_terms_before_votes` (politics slice).
 
 ## Batch 3 — planned: actions & resolution (costs, targets, "as announced",
 redirects, action continuation). Batch 4 — combat (strike resolution order,

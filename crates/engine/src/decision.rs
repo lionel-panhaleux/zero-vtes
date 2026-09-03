@@ -23,6 +23,16 @@ pub enum Choice {
     PayContest,
     /// Unlock-phase contest: yield — the card is burned / the title is lost.
     YieldContest,
+    /// Play a card from hand: hand index, mode index, resolved target.
+    Play {
+        card: u8,
+        mode: u8,
+        target: Option<MinionId>,
+    },
+    /// Numeric terms of the play being announced (rules-qa 3.5).
+    SetX(u8),
+    /// Discard phase action: discard the card at this hand index.
+    Discard(u8),
     TakeAction {
         minion: MinionId,
         action: ActionKind,
@@ -69,11 +79,18 @@ pub enum Choice {
 pub enum WindowLabel {
     UnlockEdge,
     UnlockContest,
+    MasterPhase,
+    /// Numeric terms of a play, chosen as it is announced.
+    PlayTerms,
+    /// The as-played window of a card: cancels (and wakes, during an action)
+    /// only (rules-qa 2.4).
+    CardAsPlayed,
     MinionPhase,
     ActionBlock,
     RescueCost,
     BloodHuntPolling,
     InfluenceTransfers,
+    DiscardPhase,
 }
 
 #[derive(Clone, Debug)]

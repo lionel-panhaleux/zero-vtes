@@ -7,7 +7,7 @@ use zvtes::crypt::{Title, CRYPT};
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::find_card;
+use zvtes::state::{find_card, find_library};
 
 fn request(e: &mut Engine) -> DecisionRequest {
     match e.run() {
@@ -213,4 +213,125 @@ fn referendum_methuselah_ballots_independent() {
     assert!(!e.state.seats[1].has_edge);
     let _ = request(&mut e);
     assert!(e.state.minions[0].in_play); // 1 for, 1 against: tie fails
+}
+
+// rules-qa 3.3 — an out-of-turn master card counts against the player's
+// next master phase, even if canceled; no second out-of-turn card before it.
+#[test]
+fn out_of_turn_consumes_next_mpa() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), find_card("Abraham DuSable"), 5, false);
+    e.add_minion(SeatId(0), find_card("Abraham Mellon"), 5, false);
+    e.add_minion(SeatId(1), find_card("Abaddon"), 5, false);
+    e.state.turn = 4;
+    e.at_master_phase();
+    let villein = find_library("Villein");
+    let reversal = find_library("Sudden Reversal");
+    e.state.seats[0].hand.push(villein);
+    e.state.seats[1].hand.extend([reversal, villein]);
+    pick(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            target: Some(MinionId(0)),
+        },
+    );
+    pick(&mut e, Choice::SetX(2));
+    pick(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            target: None,
+        },
+    ); // seat 1 cancels
+       // Seat 0's turn runs out; seat 1's master phase has no action left, so
+       // its Villein is not offered and the phase elides.
+    pick(&mut e, Choice::Pass); // seat 0 minion phase
+    let req = request(&mut e);
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(1), WindowLabel::MinionPhase)
+    );
+    assert_eq!(e.state.seats[1].mpa, 0);
+    assert!(e.state.seats[1].out_of_turn.is_none());
+}
+
+#[test]
+fn no_two_out_of_turn_between_turns() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), find_card("Abraham DuSable"), 5, false);
+    e.add_minion(SeatId(0), find_card("Abraham Mellon"), 5, false);
+    e.state.turn = 4;
+    e.at_master_phase();
+    e.state.seats[0].mpa = 2; // two masters this phase
+    let villein = find_library("Villein");
+    let reversal = find_library("Sudden Reversal");
+    e.state.seats[0].hand.extend([villein, villein]);
+    e.state.seats[1].hand.extend([reversal, reversal]);
+    pick(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            target: Some(MinionId(0)),
+        },
+    );
+    pick(&mut e, Choice::SetX(2));
+    pick(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            target: None,
+        },
+    ); // first cancel
+       // Second Villein: seat 1 still holds a Sudden Reversal but may not play
+       // it before its own master phase — the as-played window elides.
+    pick(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            target: Some(MinionId(0)),
+        },
+    );
+    pick(&mut e, Choice::SetX(2));
+    let req = request(&mut e);
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(0), WindowLabel::MinionPhase)
+    );
+    assert_eq!(e.state.minions[0].blood, 3);
+    assert_eq!(e.state.seats[1].hand.len(), 1);
+}
+
+// rules-qa 3.5 — numeric terms are announced as the card is played, before
+// the as-played window opens, so a cancel is decided knowing them.
+#[test]
+fn terms_announced_at_play() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), find_card("Abraham DuSable"), 5, false);
+    e.add_minion(SeatId(0), find_card("Abraham Mellon"), 5, false);
+    e.state.turn = 4;
+    e.at_master_phase();
+    e.state.seats[0].hand.push(find_library("Villein"));
+    e.state.seats[1].hand.push(find_library("Sudden Reversal"));
+    pick(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            target: Some(MinionId(0)),
+        },
+    );
+    let req = request(&mut e);
+    assert_eq!((req.seat, req.window), (SeatId(0), WindowLabel::PlayTerms));
+    pick(&mut e, Choice::SetX(5));
+    let req = request(&mut e);
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(1), WindowLabel::CardAsPlayed)
+    );
 }

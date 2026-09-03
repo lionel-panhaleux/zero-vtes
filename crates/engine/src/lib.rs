@@ -5,6 +5,7 @@
 
 pub mod actions;
 pub mod agent;
+pub mod cards;
 pub mod contests;
 pub mod crypt;
 pub mod decision;
@@ -12,6 +13,7 @@ pub mod game;
 pub mod ids;
 pub mod influence;
 pub mod library;
+pub mod plays;
 pub mod referendum;
 pub mod rng;
 pub mod state;

@@ -486,8 +486,18 @@ Recorded so nobody mistakes them for oversights:
   pool: every undirected action is +1 stealth, so only bleeds and
   cross-controller rescue/diablerie are blockable, and a vampire enters torpor
   at 0 blood, so leave-torpor is unpayable and rescue is the only way out.
-- **P1 — stress set**: effects framework sized against §6's stress set; the A/B/C
-  block loop, combat, referendum machines complete; rulings-as-tests harness.
+- **P1 — stress set** (in progress): effects framework sized against §6's stress
+  set; the A/B/C block loop, combat, referendum machines complete;
+  rulings-as-tests harness. Slice 1 done (2026-09-03): library zones (precon
+  libraries, hand of 7, ash heap), the master phase as an offer window with
+  master-phase-action and trifle accounting, out-of-turn accounting (rules-qa
+  3.3), numeric terms at announcement (3.5), the as-played cancel window with
+  a nested cancel stack (spec §1.8), cost folded through layers, the discard
+  phase; first definitions Villein and Sudden Reversal (`cards::defs`). Next
+  slices: action modifiers/reactions on the bleed (Deflection, Eyes of Argus,
+  Consign to Oblivion, Archon Investigation), combat (Form of Mist, Telepathic
+  Tracking, Immortal Grapple, Blur), politics (Kine Resources Contested,
+  Scalpel Tongue, Anarch Revolt).
 - **P2 — full engine pool**: all 621 cards including Events and their machinery;
   the 14 training decklists plus the New Blood minis as data; perft baselines;
   protocol server; scripted reference bots (aggro-bleed, wall, vote).
