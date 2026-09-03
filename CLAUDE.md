@@ -19,12 +19,14 @@ Key facts:
 - `docs/rules-qa.md`: running rules Q&A with the owner (a VEKN judge and author
   of the KRCG library/API). Batches 1–2 are answered; later batches emerge
   from implementation — check before assuming sequencing semantics.
-- `data/window-matrix-draft.csv` (regen: `scripts/window_matrix.py`): draft
-  per-card window classification; the hand review is done and arbitrated
-  (`data/window-matrix-reviewed.csv`, queue in `docs/window-review-questions.md`);
-  next is feeding its convention notes back into the generator.
+- `data/window-matrix-reviewed.csv`: authoritative per-card window/flag matrix
+  (hand-reviewed, owner-arbitrated; queue in `docs/window-review-questions.md`).
+  `scripts/window_matrix.py` regenerates the draft and, with `--check`, verifies
+  it still reproduces the reviewed matrix — keep both in sync.
 - Card data source: https://static.krcg.org/data/vtes.json (the `v5/` dir there
-  is a *schema* version, not the V5 format).
+  is a *schema* version, not the V5 format). Engine crypt data is generated
+  from it: `scripts/gen_crypt.py` → `crates/engine/src/crypt.rs` (never edit by
+  hand; `--check` verifies).
 - Reference material: the `vtes` skill (rulebook, tournament rules, judges'
   guides); `../vtes-advanced-rules` (judge-level semantics + machine-readable
   rulings YAML — the spec for effect semantics and a scenario-test generator);

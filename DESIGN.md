@@ -334,8 +334,9 @@ static function tables at load.
 
 ## 6. Window census (V5 pool, measured)
 
-Text-pattern probe of the 421 library cards (indicative tenant counts; to be
-refined into the per-card implementation matrix):
+Text-pattern probe of the 421 library cards — the *pre-review* regex census,
+kept for scale only; per-card truth (which lost e.g. Hidden Strength and Rat's
+Warning from the press window) is the reviewed matrix below:
 
 | Window / mechanism | V5 tenants | Examples |
 |---|---|---|
@@ -359,10 +360,14 @@ refined into the per-card implementation matrix):
 A generated per-card draft of this census lives in
 [`data/window-matrix-draft.csv`](data/window-matrix-draft.csv)
 (regenerate with [`scripts/window_matrix.py`](scripts/window_matrix.py)):
-421 library cards classified by initial window plus flags (delayed replacement,
-out-of-turn, continues-action, refers-to-votes-cast, …), 17 flagged for hand
-review. Hand-reviewing it into the authoritative implementation matrix is a P1
-deliverable.
+421 library cards classified per *mode* (discipline/type line) by play window
+plus flags (delayed replacement, out-of-turn, in-play granted actions, bounce,
+…). The hand-reviewed, owner-arbitrated matrix is
+[`data/window-matrix-reviewed.csv`](data/window-matrix-reviewed.csv) (rules-qa
+Batch 2); the generator encodes the review's conventions and reproduces it
+exactly (`scripts/window_matrix.py --check data/window-matrix-reviewed.csv`),
+so the reviewed matrix is the authoritative implementation input and the
+generator is its regression check against card-data updates.
 
 **Stress set** (the framework must express these before it is frozen):
 Archon Investigation · Scalpel Tongue · Form of Mist · Telepathic Tracking ·
@@ -429,13 +434,40 @@ Recorded so nobody mistakes them for oversights:
    opens them in the V5 pool.
 5. **Fixed decklists**: the official precons; deck building is out of scope for v1.
 6. **Tournament scoring as reward**: VPs + GW, timeout/withdrawal rules included so
-   the agent learns real endgame incentives.
+   the agent learns real endgame incentives. Time limit: 100 player turns (owner,
+   2026-09-02 — a tournament game rarely exceeds 20 full rounds), 0.5 VP per
+   survivor; VPs are stored in half-points. Withdrawal (0.5 VP, an unlock-phase
+   decision) is P1.
+7. **Unlock-phase ordering**: the rulebook lets the player order unlock-phase
+   effects; the engine takes the Edge decision first, then contest upkeep in
+   arena order. The only line dropped is paying contest upkeep down to 0 pool
+   before taking the Edge's pool — self-ousting, never preferable.
 
 ## 11. Phasing
 
-- **P0 — skeleton**: state arena, decision loop, two window primitives, turn/phase
-  machine, vanilla actions (bleed/hunt/equip/…), no cards; random-legal agents;
-  fuzzer + invariants running in CI from the first week.
+- **P0 — skeleton** (done 2026-09-03): state arena, decision loop, two window
+  primitives, turn/phase machine, **real V5 crypt cards, no library cards**
+  (owner, 2026-09-02: the first pass is not an inexact game — titles and
+  contests are on the cards, so they are modeled). Generated crypt data
+  (`scripts/gen_crypt.py` → `crates/engine/src/crypt.rs`, `--check` guards
+  drift): the 200 V5 vampires with printed sect and title, and the 14
+  full-size precon crypts, dealt at setup. The card-free rulebook actions
+  (bleed, hunt, leave torpor, rescue, diablerie with the blood hunt as the
+  first polling tenant, title votes as sources); exact influence decisions
+  (transfers, withdrawals, influence-out, the 4-transfer + 1-pool crypt draw,
+  no voluntary self-contest); card contests (face down, out of play, 1 pool
+  per unlock phase or yield-and-burn) and title contests (prince/baron of one
+  city, justicar per clan; 1 blood per unlock phase or the title is lost;
+  torpor and 0 blood force the yield) settled by each Methuselah on their own
+  unlock phase in arena order; random-legal agents; fuzzer + invariants +
+  replay in CI from two starting positions (opening, seeded mid-game).
+  Carried into P1: block attempts that cannot succeed are pruned by elision
+  (P1: intercept reachability); the 100-player-turn time limit fires at the
+  turn boundary; a blocked leave-torpor (no combat, blocker may diablerise)
+  is unreachable without intercept. Two rulebook facts shape the card-less
+  pool: every undirected action is +1 stealth, so only bleeds and
+  cross-controller rescue/diablerie are blockable, and a vampire enters torpor
+  at 0 blood, so leave-torpor is unpayable and rescue is the only way out.
 - **P1 — stress set**: effects framework sized against §6's stress set; the A/B/C
   block loop, combat, referendum machines complete; rulings-as-tests harness.
 - **P2 — full engine pool**: all 621 cards including Events and their machinery;
@@ -489,9 +521,9 @@ pool ⊃ training roster means the search space is already implemented.
   both sides); per-object binary pay/yield decisions in canonical order; forced
   yields elided (§4.4).
 - **Window census vs per-card reality**: draft matrix generated for all 421
-  library cards (`data/window-matrix-draft.csv`), 17 cards flagged for hand
-  review. Process decided: Claude does the full card-by-card review pass; the
-  project owner arbitrates, especially flagged and unusual cards.
+  library cards, then hand-reviewed card by card (Claude) and arbitrated by the
+  owner (rules-qa Batch 2, 2026-09-02); the review's conventions were fed back
+  into the generator, which now converges with the reviewed matrix (§6).
 
 ## Process: rules Q&A pass
 

@@ -37,8 +37,10 @@ During polling, what is the atomic unit of an irrevocable commitment?
   each card discard, each Methuselah-vote effect) is its own independent
   commitment and may go either way.
 
-**Test** — _pending_: `referendum_source_atomicity`,
-`referendum_cross_rotation_sources`, `referendum_methuselah_ballots_independent`.
+**Test** — `referendum_source_atomicity`, `referendum_cross_rotation_sources`,
+`referendum_methuselah_ballots_independent` (P0, on the blood hunt with the Edge
+as the only Methuselah ballot; the multi-ballot case waits for card discards in
+P1) — `crates/engine/tests/scenarios.rs`.
 
 ### 1.2 Impulse inside combat
 
@@ -121,9 +123,10 @@ at every step."
   is a final decline. Once attempting, the defender need not have matching
   intercept to keep the attempt alive.
 
-**Test** — _pending_: `block_attempt_persists_until_all_pass`,
-`block_decline_is_final`, `block_third_party_intercept_after_attempt`,
-`block_reopen_only_on_bounce`, `block_no_bait_retraction`.
+**Test** — `block_decline_is_final` (P0, `crates/engine/tests/scenarios.rs`).
+_Pending P1 (need cards)_: `block_attempt_persists_until_all_pass`,
+`block_third_party_intercept_after_attempt`, `block_reopen_only_on_bounce`,
+`block_no_bait_retraction`.
 
 ### 1.4 No-repeat-action rule, precisely
 
@@ -163,9 +166,11 @@ successful or not; what matters is that the action *resolved*.**
   minion — but fetching the *same equipment* as the previous action makes it
   "the same action" for such card texts.
 
-**Test** — _pending_: `nra_resolution_not_success`, `nra_cancel_allows_retry`,
-`nra_one_bleed_one_political_per_turn`, `nra_hunt_repeatable`,
-`nra_in_play_copy_identity`, `nra_same_action_card_text_covers_hunt`.
+**Test** — `nra_resolution_not_success`, `nra_one_bleed_per_turn_hunt_repeatable`
+(P0, `crates/engine/tests/scenarios.rs`; the bleed half of the special cap and
+the hunt exemption). _Pending P1 (need cards)_: `nra_cancel_allows_retry`,
+`nra_one_political_per_turn`, `nra_in_play_copy_identity`,
+`nra_same_action_card_text_covers_hunt`.
 
 ### 1.5 Master phase structure _(open)_
 
@@ -276,6 +281,24 @@ must opt out of it explicitly.
 `unlock_reaction_not_as_played`, `as_played_window_wakes_and_cancels_only`.
 
 ---
+
+## Batch 3 — open items collected during P0 (2026-09-03)
+
+### 3.1 A contested vampire card in torpor _(open)_
+
+A vampire in torpor whose card becomes contested (another Methuselah brings out
+the same vampire) is face down and out of play for the contest. If it wins,
+the rulebook says only that the card "is unlocked and turned face up during
+your next unlock phase". Does it return to the torpor region (the engine's
+current reading: torpor state untouched through the contest) or to the ready
+region? And while contested, is it still a legal rescue/diablerie target (the
+engine says no: out of play)?
+
+Related reading, not exercised by any precon: the rulebook exempts only
+*cards* from same-controller contests, so the engine lets two vampires under
+one Methuselah contest a title (a Prince and a Baron of the same city). No V5
+precon holds both Mannheim or both Pittsburgh title holders, so nothing in
+v1 play reaches this; confirm or veto when convenient.
 
 ## Batch 3 — planned: actions & resolution (costs, targets, "as announced",
 redirects, action continuation). Batch 4 — combat (strike resolution order,
