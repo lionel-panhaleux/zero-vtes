@@ -212,7 +212,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review
 102242,"Mobile HQ, Operation Antigen",Master,,no,MASTER_PHASE,cancel_as_played;in_play_action,
 101239,Monkey Wrench,Action Modifier,,yes,ACTION_DURING,,
 101242,Monster,Master,,yes,MASTER_PHASE,,
-102253,Monstrous Form,Action/Combat,dom/pro,yes,ACTION_DECLARE;COMBAT_BEFORE_RANGE,,
+102253,Monstrous Form,Action/Combat,dom/pro,yes,COMBAT_BEFORE_RANGE;ACTION_DECLARE,,
 101249,Mr. Winthrop,Retainer,,yes,ACTION_DECLARE_EMPLOY,,
 101254,Murder of Crows,Retainer,ani,yes,ACTION_DECLARE_EMPLOY,,
 101259,My Enemy's Enemy,Reaction,aus,yes,ACTION_STEALTH_INTERCEPT;ACTION_BLOCKS_DECLINED,bounce,

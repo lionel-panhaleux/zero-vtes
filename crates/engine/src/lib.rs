@@ -8,6 +8,7 @@ pub mod crypt;
 pub mod decision;
 pub mod game;
 pub mod ids;
+pub mod library;
 pub mod rng;
 pub mod state;
 pub mod window;

@@ -1,0 +1,885 @@
+id,name,types,flags,kinds,sentence
+100001,.44 Magnum,Equipment,,label,Weapon: gun.
+100001,.44 Magnum,Equipment,,combat_grant,"Strike: 2R damage, with 1 optional maneuver each combat."
+102217,47th Street Royals,Ally,,-,"Unique mortal with 2 life. 1 strength, 0 bleed."
+102217,47th Street Royals,Ally,,burn_ability,You can burn 47th Street Royals to reduce a bleed against you by 3.
+100032,AK-47,Equipment,,label,Weapon: gun.
+100032,AK-47,Equipment,,combat_grant,"Strike: 2R damage, with 1 optional maneuver each combat."
+100032,AK-47,Equipment,,combat_grant;event_trigger,"After the bearer strikes with this gun, they get 1 optional additional strike (limited), only usable to strike with this gun, this round."
+100011,Absimiliard's Army,Event,delayed_replacement;token_entity,label,Gehenna.
+100011,Absimiliard's Army,Event,delayed_replacement;token_entity,label,Requires 1 or more other Gehenna events in play.
+100011,Absimiliard's Army,Event,delayed_replacement;token_entity,-,Do not replace until a Methuselah is ousted.
+100011,Absimiliard's Army,Event,delayed_replacement;token_entity,phase_trigger,"During each Methuselah's unlock phase, that Methuselah can put the top card of their library in play (face up); it becomes a nameless, textless ghoul ally with 2 life, 2 strength and 1 bleed."
+100011,Absimiliard's Army,Event,delayed_replacement;token_entity,-,"After that ally is burned or this event leaves play, remove that ally from the game."
+100011,Absimiliard's Army,Event,delayed_replacement;token_entity,event_trigger,"After a Methuselah is ousted, burn this card."
+100015,Academic Hunting Ground,Master,,label,Unique location.
+100015,Academic Hunting Ground,Master,,label,Hunting ground.
+100015,Academic Hunting Ground,Master,,phase_trigger,"During your unlock phase, a ready vampire you control can gain 1 blood."
+100015,Academic Hunting Ground,Master,,-,A vampire can gain blood from only one hunting ground each turn.
+102286,Aggressive Corpse,Ally,in_play_action,-,"Zombie with 3 life. 2 strength, 0 bleed."
+102286,Aggressive Corpse,Ally,in_play_action,granted_action,This ally can enter combat with a minion as a Ⓓ action.
+102286,Aggressive Corpse,Ally,in_play_action,continuous,This ally cannot be the target of directed actions requiring Dominate [dom] or Presence [pre].
+102286,Aggressive Corpse,Ally,in_play_action,-,"In combat, strikes made by this ally cannot be dodged."
+102286,Aggressive Corpse,Ally,in_play_action,replacement,"This ally cannot gain life (instead, any life it would gain goes to the blood bank)."
+100037,Alamut,Master,,label,Unique location.
+100037,Alamut,Master,,event_trigger,"After an Assamite you control successfully bleeds a Methuselah, put the pool lost by that Methuselah on this card."
+100037,Alamut,Master,,counters,"During the polling step of a political action, you can burn X counters from this card to give a vampire you control +X votes."
+100054,Anarch Railroad,Master,,label,Unique location.
+100054,Anarch Railroad,Master,,lock_ability;continuous,You can lock this card to give an Anarch +1 stealth.
+100055,Anarch Revolt,Master,in_play_action,-,Put this card in play.
+100055,Anarch Revolt,Master,in_play_action,phase_trigger,A Methuselah not controlling a ready Anarch burns 1 pool during their unlock phase.
+100055,Anarch Revolt,Master,in_play_action,granted_action;continuous,Vampires can call a referendum to burn this card as a +1 stealth political action.
+100058,Anarch Troublemaker,Master,,label,Unique.
+100058,Anarch Troublemaker,Master,,-,Put this card in play.
+100058,Anarch Troublemaker,Master,,lock_ability;phase_trigger,"During your unlock phase, you can give your prey control of the Anarch Troublemaker and either lock up to two vampires they control or burn an equipment on one of their minions."
+100079,"Aranthebes, The Immortal",Action,in_play_action,continuous,+1 stealth action.
+100079,"Aranthebes, The Immortal",Action,in_play_action,label,Unique.
+100079,"Aranthebes, The Immortal",Action,in_play_action,-,Put this card in play.
+100079,"Aranthebes, The Immortal",Action,in_play_action,lock_ability;continuous,You can lock Aranthebes to give a minion controlled by your predator -1 stealth.
+100079,"Aranthebes, The Immortal",Action,in_play_action,continuous,"While Aranthebes is unlocked, vampires with capacity 4 or less get -1 bleed against you."
+100079,"Aranthebes, The Immortal",Action,in_play_action,granted_action,Vampires with capacity 5 or more can shuffle Aranthebes into your library as a Ⓓ action.
+100081,Arcane Library,Master,,label,Unique location.
+100081,Arcane Library,Master,,lock_ability;phase_trigger,You can lock this card during your influence phase to add 1 blood to a Tremere in your uncontrolled region.
+100085,Archon Investigation,Master,out_of_turn,label,Out-of-turn.
+100085,Archon Investigation,Master,out_of_turn,event_trigger,"Only usable if a minion is bleeding you and the bleed amount is 4 or more, after blocks are declined."
+100085,Archon Investigation,Master,out_of_turn,-,Burn the acting minion. (The action is not successful.)
+100093,Army of Rats,Action,in_play_action,continuous,+1 stealth action.
+100093,Army of Rats,Action,in_play_action,-,[ani] Put this card in play.
+100093,Army of Rats,Action,in_play_action,phase_trigger,"During your unlock phase, your prey burns 1 pool."
+100093,Army of Rats,Action,in_play_action,-,You can burn only 1 pool each turn with Army of Rats cards.
+100093,Army of Rats,Action,in_play_action,granted_action,Minions can burn this card as a Ⓓ action.
+100095,Art Museum,Master,,label,Unique location.
+100095,Art Museum,Master,,lock_ability;phase_trigger,You can lock this location during your influence phase to add 1 blood to a Toreador in your uncontrolled region.
+100107,Assault Rifle,Equipment,,label,Weapon: gun.
+100107,Assault Rifle,Equipment,,combat_grant,"Strike: 4R damage, with 1 optional maneuver each combat."
+100108,Asylum Hunting Ground,Master,,label,Unique location.
+100108,Asylum Hunting Ground,Master,,label,Hunting ground.
+100108,Asylum Hunting Ground,Master,,phase_trigger,"During your unlock phase, a ready vampire you control can gain 1 blood."
+100108,Asylum Hunting Ground,Master,,-,A vampire can gain blood from only one hunting ground each turn.
+100126,Backways,Master,,label,Unique location.
+100126,Backways,Master,,lock_ability;continuous,Lock to give a Gangrel you control +1 stealth.
+102287,Biotech Company Hunting Ground,Master,,label,Unique location.
+102287,Biotech Company Hunting Ground,Master,,label,Hunting ground.
+102287,Biotech Company Hunting Ground,Master,,phase_trigger,"During your unlock phase, a ready vampire you control can gain 1 blood."
+102287,Biotech Company Hunting Ground,Master,,-,A vampire can gain blood from only one hunting ground each turn.
+100162,Biothaumaturgic Experiment,Action,,continuous,+1 stealth action.
+100162,Biothaumaturgic Experiment,Action,,-,[tha] Employ an animal retainer from your hand ignoring requirements (pay cost as normal).
+100162,Biothaumaturgic Experiment,Action,,-,[THA] Put this card on a minion you control.
+100162,Biothaumaturgic Experiment,Action,,combat_grant;continuous,The attached minion gets 1 optional maneuver each combat and +1 strength.
+102351,Black Market Cache,Master,draw_replacement,label,Unique location.
+102351,Black Market Cache,Master,draw_replacement,search,"Search your library (shuffle afterward) for up to three non-unique equipment cards and put them on this location, face up and out of play."
+102351,Black Market Cache,Master,draw_replacement,replacement,"If you would draw a card from your library, you can draw one of those cards instead."
+102351,Black Market Cache,Master,draw_replacement,-,"If this location has no cards on it, burn it."
+100199,Blood Doll,Master,,-,Put this card on a vampire you control.
+100199,Blood Doll,Master,,phase_trigger,"During their master phase, this vampire's controller can move 1 blood from this vampire to their pool or from their pool to this vampire."
+100215,Blood Trade,Event,,label,Gehenna.
+100215,Blood Trade,Event,,-,Burn all boons.
+100215,Blood Trade,Event,,-,No more boons can be put in play.
+100215,Blood Trade,Event,,phase_trigger,"During each Methuselah's unlock phase, that Methuselah can move 1 blood from a vampire they control to a vampire controlled by another Methuselah."
+100217,Blood Weakens,Event,delayed_replacement,label,Gehenna.
+100217,Blood Weakens,Event,delayed_replacement,-,Do not replace until a vampire commits diablerie.
+100217,Blood Weakens,Event,delayed_replacement,-,"During an action, cards minions play requiring 1 or more Disciplines are not replaced until the end of that action or until a Methuselah's hand is empty (whichever comes first)."
+100217,Blood Weakens,Event,delayed_replacement,-,Vampires who commit diablerie ignore this effect until a Gehenna event is played.
+102293,Bone Shambler,Ally,,-,"Zombie with 1 life. 1 strength, 1 bleed."
+102293,Bone Shambler,Ally,,-,[obl] This ally cannot have or use equipment or retainers.
+102293,Bone Shambler,Ally,,lock_ability;continuous,"During a bleed action, you can lock another copy of this ally you control to give this ally +1 bleed."
+102293,Bone Shambler,Ally,,burn_ability;continuous,"[OBL] As above, and during a bleed action, a Hecata you control can burn 1 blood to give this ally +1 bleed."
+100243,Bowl of Convergence,Equipment,,label,Unique.
+100243,Bowl of Convergence,Equipment,,continuous,The bearer with Auspex [aus] gets +1 intercept.
+100243,Bowl of Convergence,Equipment,,burn_ability;continuous,The bearer with superior Auspex [AUS] can burn 1 blood during an action to get an additional +1 intercept.
+100260,Brujah Debate,Master,in_play_action,-,Put this card in play.
+100260,Brujah Debate,Master,in_play_action,phase_trigger,"During each Methuselah's master phase, that Methuselah locks one of the oldest Brujah they control (if any)."
+100260,Brujah Debate,Master,in_play_action,combat_grant;continuous,Brujah get +1 strength and 1 optional maneuver each combat.
+100260,Brujah Debate,Master,in_play_action,granted_action,Non-Ventrue minions can burn this card as a Ⓓ action.
+102298,Cappadocian Crypt,Master,,label,Unique location.
+102298,Cappadocian Crypt,Master,,lock_ability,You can lock this location after resolution of a successful action requiring Hecata or Oblivion [obl] to add 1 blood to a Hecata you control.
+100297,Carfax Abbey,Master,,label,Requires a ready Anarch.
+100297,Carfax Abbey,Master,,label,Unique location.
+100297,Carfax Abbey,Master,,label,Hunting ground.
+100297,Carfax Abbey,Master,,phase_trigger,"During your unlock phase, a ready Anarch you control can gain 1 blood, and, if you control a ready baron, another ready Anarch you control can gain 1 blood as well."
+100297,Carfax Abbey,Master,,-,A vampire can gain blood from only one hunting ground each turn.
+100303,Carver's Meat Packing and Storage,Master,,label,Unique location.
+100303,Carver's Meat Packing and Storage,Master,,event_trigger;counters,"After a vampire with capacity 3 or less goes to torpor, put 1 hostage counter on them."
+100303,Carver's Meat Packing and Storage,Master,,counters,Vampires with any hostage counters cannot be moved to the ready region or be diablerized.
+100303,Carver's Meat Packing and Storage,Master,,lock_ability;phase_trigger;counters,"Lock during your master phase to add X blood to a ready vampire you control, where X is the number of vampires with any hostage counters."
+100303,Carver's Meat Packing and Storage,Master,,burn_ability;phase_trigger;counters,"During any unlock phase, any ready vampire can burn 2 blood to burn any vampire's hostage counters."
+100303,Carver's Meat Packing and Storage,Master,,event_trigger;counters,"After this card leaves play, burn all the hostage counters."
+100311,Cave of Apples,Master,in_play_action,label,Unique location.
+100311,Cave of Apples,Master,in_play_action,granted_action;counters,Followers of Set you control can put 1 corruption counter on an ally or younger vampire controlled by your prey as a Ⓓ action.
+100311,Cave of Apples,Master,in_play_action,counters,"If the action is successful and the number of your corruption counters on the minion equals or exceeds their capacity or cost, you can burn those counters to steal that minion."
+100312,Celerity,Master,,-,Discipline.
+100312,Celerity,Master,,-,Put this card on a vampire.
+100312,Celerity,Master,,continuous,This vampire gets +1 level of Celerity [cel] and +1 capacity.
+100312,Celerity,Master,,-,Cannot be put on a vampire with superior Celerity [CEL].
+100327,Channel 10,Master,,label,Unique location.
+100327,Channel 10,Master,,lock_ability;continuous,You can lock this card to give a minion you control +2 intercept.
+100327,Channel 10,Master,,-,Not usable during the first action in a minion phase.
+100329,Chantry,Master,,label,Unique location.
+100329,Chantry,Master,,lock_ability;phase_trigger,You can lock this card and burn 1 pool or 1 blood from a ready Tremere you control during your master phase to move a Tremere from torpor to their controller's ready region.
+100332,Charisma,Master,,label,Unique.
+100332,Charisma,Master,,-,Put this card on a ready vampire.
+100332,Charisma,Master,,continuous,Recruit ally actions cost this vampire -1 blood or pool.
+102246,Childe of the Revolution,Action,token_entity,continuous,+1 stealth action.
+102246,Childe of the Revolution,Action,token_entity,label,Requires a non-sterile baron.
+102246,Childe of the Revolution,Action,token_entity,-,Put this card in play.
+102246,Childe of the Revolution,Action,token_entity,-,It becomes a 1-capacity (non-unique) Anarch vampire of the same clan as the acting vampire and must hunt this turn.
+102246,Childe of the Revolution,Action,token_entity,search,"You can search your library (shuffle afterward), hand and/or ash heap for a Discipline master card and put it on this new vampire."
+102234,City Star Taxi,Ally,,-,"Mortal with 2 life. 0 strength, 0 bleed."
+102234,City Star Taxi,Ally,,combat_grant,This ally can strike: 1R damage.
+102234,City Star Taxi,Ally,,combat_grant,This ally gets 1 optional maneuver each combat.
+102234,City Star Taxi,Ally,,lock_ability;continuous,This ally can lock to give a Ravnos you control +1 stealth.
+100366,Club Illusion,Master,,label,Unique location.
+100366,Club Illusion,Master,,burn_ability;continuous,An Anarch can burn 1 blood once as they announce a bleed action to get +1 bleed during that action.
+100374,Codex of the Edenic Groundskeepers,Equipment,in_play_action,label,Unique.
+100374,Codex of the Edenic Groundskeepers,Equipment,in_play_action,continuous,The bearer gets -2 stealth during bleed actions.
+100374,Codex of the Edenic Groundskeepers,Equipment,in_play_action,granted_action;continuous,This vampire can bleed as a Ⓓ action that costs 1 blood; this action gets +3 bleed if the target Methuselah controls no ready unlocked minions.
+100409,Conquest of Humanity,Event,delayed_replacement,label,Gehenna.
+100409,Conquest of Humanity,Event,delayed_replacement,label,Requires 2 or more other Gehenna events in play.
+100409,Conquest of Humanity,Event,delayed_replacement,-,Do not replace until your next discard phase.
+100409,Conquest of Humanity,Event,delayed_replacement,phase_trigger,"During each Methuselah's unlock phase, that Methuselah can choose a location controlled by their prey."
+100409,Conquest of Humanity,Event,delayed_replacement,-,The chosen location is burned unless its controller burns 2 pool.
+100416,Constant Revolution,Action,randomness;in_play_action,continuous,+1 stealth action.
+100416,Constant Revolution,Action,randomness;in_play_action,label,Requires an Anarch.
+100416,Constant Revolution,Action,randomness;in_play_action,label,Unique.
+100416,Constant Revolution,Action,randomness;in_play_action,counters,Put this card in play with 1 counter.
+100416,Constant Revolution,Action,randomness;in_play_action,phase_trigger;counters,"During your unlock phase, add 1 counter to this card."
+100416,Constant Revolution,Action,randomness;in_play_action,counters,"During each other Methuselah's unlock phase, that Methuselah burns X pool and/or cards at random from their hand, where X is the number of counters on this card."
+100416,Constant Revolution,Action,randomness;in_play_action,granted_action;continuous,Vampires can burn this card as a Ⓓ action that costs 1 pool.
+102213,Creeping Sabotage,Action,in_play_action,continuous,+1 stealth action.
+102213,Creeping Sabotage,Action,in_play_action,-,X is the number of copies of this card you control.
+102213,Creeping Sabotage,Action,in_play_action,-,Put this card in play.
+102213,Creeping Sabotage,Action,in_play_action,phase_trigger,"During your unlock phase, your prey burns 1 pool."
+102213,Creeping Sabotage,Action,in_play_action,granted_action,Minions can burn this card as a Ⓓ action.
+100444,Creepshow Casino,Master,,label,Unique location.
+100444,Creepshow Casino,Master,,lock_ability;continuous,"You can lock this card as a vampire you control announces an undirected action to give that vampire +1 stealth, even if stealth is not yet needed."
+100476,Crypt's Sons,Retainer,continues_action,label,Unique mortal with 3 life.
+100476,Crypt's Sons,Retainer,continues_action,label,Requires an Anarch.
+100476,Crypt's Sons,Retainer,continues_action,burn_ability;event_trigger;continuous,"If this Anarch is blocked, they can burn 1 life from this retainer before block resolution to lock the blocking minion and continue the action as if unblocked."
+100476,Crypt's Sons,Retainer,continues_action,-,This retainer inflicts 1R damage on the opposing minion each round of combat during normal strike resolution.
+100485,Dabbler,Master,trifle,label,Archetype.
+100485,Dabbler,Master,trifle,label,Trifle.
+100485,Dabbler,Master,trifle,-,Put this card on a vampire you control.
+100485,Dabbler,Master,trifle,event_trigger,"Once each turn, after an action (successful or not) is resolved during which this vampire used 3 or more Disciplines to play cards, this vampire can either burn 1 blood to unlock or gain 1 blood."
+100485,Dabbler,Master,trifle,-,A vampire can have only one archetype.
+102299,Dead Pool,Master,,label,Unique.
+102299,Dead Pool,Master,,-,Put this card in play.
+102299,Dead Pool,Master,,event_trigger;counters,"After a vampire in combat with a Lasombra you control leaves the ready region, you can add 1 counter to this card."
+102299,Dead Pool,Master,,continuous;counters,"During a bleed action or the polling step of any referendum, a Lasombra you control can burn 1 counter from this card to get +2 bleed or +2 votes."
+100549,Disarm,Combat,,phase_trigger,Only usable at close range at the end of a round during which this vampire successfully inflicted more damage than the opposing vampire.
+100549,Disarm,Combat,,-,Not usable by a vampire being burned or going to torpor.
+100549,Disarm,Combat,,-,[pot] Put this card on the opposing vampire and send them to torpor.
+100549,Disarm,Combat,,continuous,The attached vampire gets -1 strength.
+100549,Disarm,Combat,,burn_ability,They can burn 3 blood to burn this card.
+100549,Disarm,Combat,,-,A vampire can have only one Disarm.
+100549,Disarm,Combat,,continuous,"[POT] As above, but the attached vampire gets -2 strength."
+100568,Dog Pack,Retainer,,label,Animal with 1 life.
+100568,Dog Pack,Retainer,,combat_grant,Minions in combat with the employer cannot strike: combat ends.
+102353,Dogged Pursuit,Reaction,,-,Only usable by a locked vampire.
+102353,Dogged Pursuit,Reaction,,-,[ani] This vampire unlocks and attempts to block.
+102353,Dogged Pursuit,Reaction,,-,"If this vampire does not block this action, lock them after action resolution."
+102353,Dogged Pursuit,Reaction,,-,"[ANI] As above, and if this vampire does not block this action, put this card on them after action resolution."
+102353,Dogged Pursuit,Reaction,,burn_ability;continuous,This vampire can burn this card to get +1 intercept.
+102353,Dogged Pursuit,Reaction,,-,A vampire can have only one Dogged Pursuit.
+100572,Dominate,Master,,-,Discipline.
+100572,Dominate,Master,,-,Put this card on a vampire.
+100572,Dominate,Master,,continuous,This vampire gets +1 level of Dominate [dom] and +1 capacity.
+100572,Dominate,Master,,-,Cannot be put on a vampire with superior Dominate [DOM].
+102220,Double Deuce,Ally,,-,"Unique werewolf with 3 life. 1 strength, 1 bleed."
+102220,Double Deuce,Ally,,continuous,Double Deuce has +1 stealth.
+102220,Double Deuce,Ally,,phase_trigger,"If Double Deuce has 2 or fewer life during your unlock phase, he gains 1 life."
+100588,Dreams of the Sphinx,Master,,label,Unique.
+100588,Dreams of the Sphinx,Master,,-,Put this card in play.
+100588,Dreams of the Sphinx,Master,,counters,Add 1 counter to this card each time you lock it.
+100588,Dreams of the Sphinx,Master,,lock_ability;continuous,You can lock this card to get +2 hand size until the end of the turn.
+100588,Dreams of the Sphinx,Master,,lock_ability;phase_trigger,You can lock this card during your unlock phase to gain 1 pool if you have the Edge.
+100588,Dreams of the Sphinx,Master,,lock_ability,You can lock this card to add 1 blood to a vampire in your uncontrolled region.
+100588,Dreams of the Sphinx,Master,,counters,Burn this card if it has 3 counters.
+100594,Dummy Corporation,Master,,label,Unique location.
+100594,Dummy Corporation,Master,,burn_ability;event_trigger,You can burn this card if a minion is bleeding you to reduce the bleed amount by 2.
+102237,ECTU Operative,Ally,in_play_action,-,"Mortal with 3 life. 1 strength, 0 bleed."
+102237,ECTU Operative,Ally,in_play_action,-,Operation Antigen.
+102237,ECTU Operative,Ally,in_play_action,combat_grant,ECTU Operative can strike: 1R damage.
+102237,ECTU Operative,Ally,in_play_action,combat_grant,He gets 1 optional maneuver each combat.
+102237,ECTU Operative,Ally,in_play_action,granted_action,He can burn a vampire in torpor as a Ⓓ action.
+100609,Ecoterrorists,Master,,label,Unique location.
+100609,Ecoterrorists,Master,,lock_ability;phase_trigger,Lock during your influence phase to add 1 blood to a Gangrel in your uncontrolled region.
+100620,Elder Library,Master,,continuous,Unique location. +1 hand size.
+100629,Elysian Fields,Master,,label,Unique location.
+100629,Elysian Fields,Master,,lock_ability;continuous,You can lock this location to give a Lasombra you control +1 stealth.
+100632,Elysium: The Palace of Versailles,Master,,label,Unique location.
+100632,Elysium: The Palace of Versailles,Master,,lock_ability;continuous,You can lock this location during the polling step of a political action to give each titled Camarilla vampire you control +1 vote.
+102238,Enhanced Coagulant,Equipment,,label,Weapon.
+102238,Enhanced Coagulant,Equipment,,combat_grant;continuous,"Strike: 3 unpreventable damage and put this card on the opposing vampire; it becomes a card with ""Cards requiring a Discipline cost this vampire +1 blood."
+102238,Enhanced Coagulant,Equipment,,event_trigger,"After this vampire successfully hunts, burn this card""."
+100709,FBI Special Affairs Division,Event,,-,Government.
+100709,FBI Special Affairs Division,Event,,event_trigger;counters,"If an ally is burned in combat with an acting vampire, add 1 counter to this card and inflict 2 unpreventable environmental damage on the acting vampire after the combat ends."
+100709,FBI Special Affairs Division,Event,,counters,"If this card has 4 counters, burn it."
+100695,Fall of the Camarilla,Event,delayed_replacement,label,Gehenna.
+100695,Fall of the Camarilla,Event,delayed_replacement,label,Requires 3 or more other Gehenna events in play.
+100695,Fall of the Camarilla,Event,delayed_replacement,-,Do not replace as long as this card is in play.
+100695,Fall of the Camarilla,Event,delayed_replacement,-,There is no Camarilla.
+100695,Fall of the Camarilla,Event,delayed_replacement,replacement,"Instead, Camarilla vampires are considered Independent."
+100696,Fall of the Sabbat,Event,delayed_replacement,label,Gehenna.
+100696,Fall of the Sabbat,Event,delayed_replacement,label,Requires 3 or more other Gehenna events in play.
+100696,Fall of the Sabbat,Event,delayed_replacement,event_trigger,Not usable if a ready vampire is Black Hand.
+100696,Fall of the Sabbat,Event,delayed_replacement,-,Do not replace as long as this card is in play.
+100696,Fall of the Sabbat,Event,delayed_replacement,-,There is no Sabbat.
+100696,Fall of the Sabbat,Event,delayed_replacement,replacement,"Instead, Sabbat vampires are considered Independent."
+100698,Fame,Master,,label,Unique.
+100698,Fame,Master,,-,Put this card on a ready vampire.
+100698,Fame,Master,,event_trigger,"After this vampire goes to torpor, their controller burns 3 pool."
+100698,Fame,Master,,phase_trigger;event_trigger,"During each Methuselah's unlock phase, if this vampire is in torpor, that Methuselah burns 1 pool."
+102289,Family Gathering,Master,trifle,label,Trifle.
+102289,Family Gathering,Master,trifle,-,Reveal the top card of your crypt.
+102289,Family Gathering,Master,trifle,-,"If it is a Hecata, draw it and add 1 blood to it; otherwise, move it to the bottom of your crypt."
+100712,Fee Stake: Boston,Action,in_play_action,continuous,+1 stealth action.
+100712,Fee Stake: Boston,Action,in_play_action,label,Requires an Anarch with capacity 5 or more.
+100712,Fee Stake: Boston,Action,in_play_action,label,Title.
+100712,Fee Stake: Boston,Action,in_play_action,-,Put this card on this Anarch to represent the unique Anarch title of Baron of Boston.
+100712,Fee Stake: Boston,Action,in_play_action,continuous,"While this Anarch is Toreador or Toreador antitribu, they get +1 vote during referendums they call."
+100712,Fee Stake: Boston,Action,in_play_action,granted_action;continuous,"Vampires can call a referendum to burn this card as a +1 stealth political action; during that referendum, non-Anarch titles are worth -1 vote."
+100715,Fee Stake: New York,Action,in_play_action,continuous,+1 stealth action.
+100715,Fee Stake: New York,Action,in_play_action,label,Requires an Anarch with capacity 5 or more.
+100715,Fee Stake: New York,Action,in_play_action,label,Title.
+100715,Fee Stake: New York,Action,in_play_action,-,Put this card on this Anarch to represent the unique Anarch title of Baron of New York.
+100715,Fee Stake: New York,Action,in_play_action,continuous,"While this Anarch is Brujah or Brujah antitribu, they get +1 vote during referendums they call."
+100715,Fee Stake: New York,Action,in_play_action,granted_action;continuous,"Vampires can call a referendum to burn this card as a +1 stealth political action; during that referendum, non-Anarch titles are worth -1 vote."
+100717,Fee Stake: Seattle,Action,in_play_action,continuous,+1 stealth action.
+100717,Fee Stake: Seattle,Action,in_play_action,label,Requires an Anarch with capacity 5 or more.
+100717,Fee Stake: Seattle,Action,in_play_action,label,Title.
+100717,Fee Stake: Seattle,Action,in_play_action,-,Put this card on this Anarch to represent the unique Anarch title of Baron of Seattle.
+100717,Fee Stake: Seattle,Action,in_play_action,continuous,"While this Anarch is Gangrel or Gangrel antitribu, they get +1 vote during referendums they call."
+100717,Fee Stake: Seattle,Action,in_play_action,granted_action;continuous,"Vampires can call a referendum to burn this card as a +1 stealth political action; during that referendum, non-Anarch titles are worth -1 vote."
+100720,Femur of Toomler,Equipment,,-,Unique melee weapon.
+100720,Femur of Toomler,Equipment,,combat_grant,Strike: strength+1 aggravated damage.
+102249,Feral Hound,Retainer,,label,Animal with 1 life.
+102249,Feral Hound,Retainer,,phase_trigger,"[ani] If the action to employ this retainer is successful, unlock this vampire during the next discard phase."
+102249,Feral Hound,Retainer,,lock_ability;continuous,You can lock this retainer to give the employer +1 intercept.
+102249,Feral Hound,Retainer,,replacement,"[ANI] As above, but unlock this vampire after resolution of this action instead."
+100722,Ferraille,Master,,label,Unique.
+100722,Ferraille,Master,,-,Put this card in play.
+100722,Ferraille,Master,,continuous,"Once each turn, you can burn 1 pool to get +3 votes during the polling step of any referendum."
+100742,Flamethrower,Equipment,,label,Weapon.
+100742,Flamethrower,Equipment,,combat_grant,Strike: 2R aggravated damage.
+100743,Flaming Candle,Equipment,,-,Only one Flaming Candle can be played or equipped in a game.
+100743,Flaming Candle,Equipment,,burn_ability,This vampire can burn 1 blood and the Flaming Candle as they announce an action to make that action unblockable by vampires.
+102354,Fleshforge Chamber,Master,alt_hand_source,label,Unique location.
+102354,Fleshforge Chamber,Master,alt_hand_source,phase_trigger,"During your master phase, you can put a ghoul (ally or retainer) from your hand on this location, face up and out of play."
+102354,Fleshforge Chamber,Master,alt_hand_source,continuous,Tzimisce you control can play cards from this location as if from your hand (requirements and cost apply as normal).
+100777,Fortune Teller Shop,Master,,label,Unique location.
+100777,Fortune Teller Shop,Master,,lock_ability;continuous,You can lock this card to give a Ravnos +1 stealth.
+100785,Fragment of the Book of Nod,Master,in_play_action,-,Unique Nod fragment.
+100785,Fragment of the Book of Nod,Master,in_play_action,-,Put this card in play.
+100785,Fragment of the Book of Nod,Master,in_play_action,lock_ability,You can lock this card to draw 2 cards (discard down afterward).
+100785,Fragment of the Book of Nod,Master,in_play_action,granted_action,Vampires can steal this card as a Ⓓ action.
+100794,Frontal Assault,Master,in_play_action,-,Put this card in play.
+100794,Frontal Assault,Master,in_play_action,granted_action,Each ready minion you control can enter combat with a minion controlled by your prey as a Ⓓ action.
+100794,Frontal Assault,Master,in_play_action,event_trigger,You gain 1 pool after a ready minion controlled by your prey is burned or sent to torpor.
+100794,Frontal Assault,Master,in_play_action,phase_trigger,"During your influence phase, burn this card and burn 1 pool for each ready minion controlled by your prey."
+100796,Fueled by Heart's Blood,Event,delayed_replacement,label,Gehenna.
+100796,Fueled by Heart's Blood,Event,delayed_replacement,-,Do not replace until a vampire commits diablerie.
+100796,Fueled by Heart's Blood,Event,delayed_replacement,counters,This card comes into play with 10 counters.
+100796,Fueled by Heart's Blood,Event,delayed_replacement,counters,"After another Gehenna event is played, burn 1 counter from this card."
+100796,Fueled by Heart's Blood,Event,delayed_replacement,counters,Blood hunts cannot be called on vampires with capacity greater than the number of counters on this card who diablerize a younger vampire.
+100807,Gangrel Revel,Master,in_play_action,label,Unique.
+100807,Gangrel Revel,Master,in_play_action,-,Put this card in play.
+100807,Gangrel Revel,Master,in_play_action,continuous,Gangrel you control get +1 strength.
+100807,Gangrel Revel,Master,in_play_action,granted_action,Non-Ravnos minions can burn this card as a Ⓓ action.
+100809,Garibaldi-Meucci Museum,Master,,label,Unique location.
+100809,Garibaldi-Meucci Museum,Master,,lock_ability;phase_trigger,You can lock this location and burn 1 pool during your unlock phase to exchange one card from your hand for one card in your ash heap requiring an Anarch.
+100809,Garibaldi-Meucci Museum,Master,,lock_ability,You can lock this location before range is determined to end a combat involving an Anarch you control and another Anarch.
+100824,Giant's Blood,Master,,-,Only one Giant's Blood can be played in a game.
+100824,Giant's Blood,Master,,-,Choose a vampire.
+100824,Giant's Blood,Master,,-,The chosen vampire gains enough blood to reach full capacity.
+100842,Golconda: Inner Peace,Master,cancel_as_played,-,Remove a vampire with capacity 8 or more from the game.
+100842,Golconda: Inner Peace,Master,cancel_as_played,-,Their controller gains pool equal to the vampire's capacity.
+100842,Golconda: Inner Peace,Master,cancel_as_played,cancel_as_played,Their controller can burn 2 pool to cancel this card as it is played.
+100860,Grooming the Protégé,Master,,-,Move up to 3 blood from a ready vampire you control to a younger vampire of the same clan in your uncontrolled region.
+100866,Guardian Angel,Master,,-,Put this card on a ready vampire you control.
+100866,Guardian Angel,Master,,continuous,This vampire gets +1 intercept during bleed actions directed at you.
+100866,Guardian Angel,Master,,combat_grant,This vampire can prevent 1 damage each combat.
+100866,Guardian Angel,Master,,event_trigger,"If this vampire is in torpor, burn this card."
+102226,Haqim's Law: Retribution,Master,,-,Put this card in play.
+102226,Haqim's Law: Retribution,Master,,continuous,"During a bleed action, an Assamite you control can discard a combat card to get +1 bleed."
+100897,Haven Uncovered,Master,in_play_action,-,Put this card on a ready vampire.
+100897,Haven Uncovered,Master,in_play_action,granted_action;continuous,Minions can enter combat with this vampire as a +1 stealth Ⓓ action.
+100897,Haven Uncovered,Master,in_play_action,granted_action;continuous,This vampire can burn this card as a +1 stealth Ⓓ action.
+100903,Heart of Nizchetus,Equipment,,label,Unique.
+100903,Heart of Nizchetus,Equipment,,phase_trigger,"If the bearer is ready during your unlock phase, you can draw up to 3 cards without discarding and then move the same number of cards from your hand to the bottom of your library."
+100904,Heart of the City,Action,,continuous,+1 stealth action.
+100904,Heart of the City,Action,,-,[pre] Put this card on this vampire.
+100904,Heart of the City,Action,,continuous,This vampire gets +1 bleed.
+100904,Heart of the City,Action,,-,A vampire can have only one Heart of the City.
+100904,Heart of the City,Action,,continuous,"[PRE] As above, but this vampire gets +2 bleed."
+100913,Heroic Might,Action,,continuous,+3 stealth action.
+100913,Heroic Might,Action,,-,[pot] Put this card on this vampire.
+100913,Heroic Might,Action,,continuous,This vampire gets +1 strength.
+100913,Heroic Might,Action,,combat_grant,This vampire can strike: burn equipment.
+100913,Heroic Might,Action,,event_trigger,Burn this card if this vampire is in torpor.
+100913,Heroic Might,Action,,-,A vampire can have only one Heroic Might.
+100913,Heroic Might,Action,,combat_grant;continuous,"[POT] As above, with an additional +1 strength, and this vampire can strike: 2R damage."
+100932,Homunculus,Retainer,,label,Retainer with 1 life.
+100932,Homunculus,Retainer,,burn_ability;phase_trigger,"[pro] During any Methuselah's unlock phase, the employer can burn 1 blood to unlock."
+100932,Homunculus,Retainer,,-,"[PRO] As above, but Homunculus has 2 life."
+100984,Information Highway,Master,,-,Unique location. +2 transfers.
+101014,Ivory Bow,Equipment,,label,Unique weapon.
+101014,Ivory Bow,Equipment,,combat_grant,Strike: 1R aggravated damage.
+101028,Judgment: Camarilla Segregation,Action,,continuous,+1 stealth action.
+101028,Judgment: Camarilla Segregation,Action,,label,Requires a prince or justicar.
+101028,Judgment: Camarilla Segregation,Action,,-,Put this card in play.
+101028,Judgment: Camarilla Segregation,Action,,phase_trigger,Each Methuselah controlling a non-Camarilla vampire burns 1 pool during their unlock phase.
+101028,Judgment: Camarilla Segregation,Action,,phase_trigger,Methuselahs can burn a non-Camarilla vampire they control during their master phase to burn this card.
+101067,KRCG News Radio,Master,,label,Unique location.
+101067,KRCG News Radio,Master,,lock_ability;continuous,You can lock this card to give a minion you control +1 intercept.
+101067,KRCG News Radio,Master,,lock_ability;continuous,You can lock this card and burn 1 pool to give a minion controlled by another Methuselah +1 intercept.
+101032,Kali's Fang,Equipment,,-,Unique melee weapon.
+101032,Kali's Fang,Equipment,,combat_grant,Strike: strength+1 aggravated damage.
+101040,Kevlar Vest,Equipment,,combat_grant,"Once each combat, the bearer can prevent 2 damage from gun strikes or 1 damage from any other source."
+101040,Kevlar Vest,Equipment,,-,A minion can have only one Kevlar Vest.
+101043,Khabar: Glory,Action,,continuous,+1 stealth action.
+101043,Khabar: Glory,Action,,label,Unique.
+101043,Khabar: Glory,Action,,-,Not usable if any non-mandatory actions have been performed this turn.
+101043,Khabar: Glory,Action,,-,Put this card on this Assamite and unlock them.
+101043,Khabar: Glory,Action,,continuous,This Assamite gets +1 bleed.
+101043,Khabar: Glory,Action,,-,"If your prey is ousted, you gain 4 additional pool."
+101043,Khabar: Glory,Action,,phase_trigger,Burn this card during your unlock phase.
+101068,Kumpania,Master,,label,Unique.
+101068,Kumpania,Master,,-,Put this card in play.
+101068,Kumpania,Master,,lock_ability;continuous,You can lock this card to give a Ravnos with capacity 5 or more you control +1 intercept.
+101100,Libertas,Master,,label,Requires an Anarch.
+101100,Libertas,Master,,-,Put this card on an Anarch.
+101100,Libertas,Master,,continuous,Allies cannot block this Anarch.
+101100,Libertas,Master,,continuous,"Cards requiring Dominate [dom] or Presence [pre] cost other minions +1 blood while this Anarch is acting, attempting to block or in combat."
+101102,Library Hunting Ground,Master,,label,Unique location.
+101102,Library Hunting Ground,Master,,label,Hunting ground.
+101102,Library Hunting Ground,Master,,phase_trigger,"During your unlock phase, a ready vampire you control can gain 1 blood."
+101102,Library Hunting Ground,Master,,-,A vampire can gain blood from only one hunting ground each turn.
+101104,Life in the City,Master,trifle,label,Trifle.
+101104,Life in the City,Master,trifle,-,Add 1 blood to a ready vampire.
+101114,Living Manse,Equipment,,-,Location.
+101114,Living Manse,Equipment,,-,"While in play, this card does not count as equipment."
+101114,Living Manse,Equipment,,continuous,This vampire gets +1 bleed.
+101114,Living Manse,Equipment,,burn_ability,They can burn this card before range is determined to end combat.
+101114,Living Manse,Equipment,,-,A vampire can have only one Living Manse.
+101171,Market Square,Master,,label,Unique location.
+101171,Market Square,Master,,lock_ability;continuous,Lock to give an Assamite you control +1 intercept.
+102252,Meditative Grove,Master,cancel_as_played,label,Unique location.
+102252,Meditative Grove,Master,cancel_as_played,label,Hunting ground.
+102252,Meditative Grove,Master,cancel_as_played,phase_trigger,"During your unlock phase, a ready Salubri you control can gain 1 blood."
+102252,Meditative Grove,Master,cancel_as_played,cancel_as_played;lock_ability,You can lock this card to cancel a frenzy card as it is played on a Salubri you control (cost is still paid).
+102252,Meditative Grove,Master,cancel_as_played,-,A vampire can gain blood from only one hunting ground each turn.
+101195,Melange,Reaction,,continuous,[aus] +1 intercept.
+101195,Melange,Reaction,,-,"[AUS] As above, and if this vampire blocks, put this card on the acting minion; you still control this card."
+101195,Melange,Reaction,,burn_ability;continuous,"During a bleed action against the controller of the attached minion, this reacting vampire can burn this card to get +1 bleed."
+102239,"Michael Harris, the Incinerator",Ally,in_play_action,-,"Unique mortal with 3 life. 1 strength, 1 bleed."
+102239,"Michael Harris, the Incinerator",Ally,in_play_action,-,Operation Antigen.
+102239,"Michael Harris, the Incinerator",Ally,in_play_action,granted_action;continuous;search,Michael can search your library for an equipment card and equip with it as a +1 stealth action (requirements and cost apply as normal; shuffle afterward).
+102239,"Michael Harris, the Incinerator",Ally,in_play_action,-,"If he is in combat with a vampire, you can burn 1 pool once each round before range is determined to set the range for the round."
+101217,Minion Tap,Master,,-,Move any amount of blood from a vampire you control to your pool.
+101225,Misdirection,Master,,-,Lock a minion.
+102241,Mithraic Cultist,Master,trifle,label,Trifle.
+102241,Mithraic Cultist,Master,trifle,-,Put this card on a vampire you control who is not /Mithras/.
+102241,Mithraic Cultist,Master,trifle,-,This vampire is a Mithraic Mysteries member.
+102241,Mithraic Cultist,Master,trifle,continuous,This vampire gets +1 vote while you control /Mithras/.
+102241,Mithraic Cultist,Master,trifle,continuous,This vampire gets +1 intercept during actions directed at /Mithras/ or a Mithraic Mysteries card or member.
+102241,Mithraic Cultist,Master,trifle,-,A vampire can have only one Mithraic Cultist.
+101229,Mob Connections,Master,in_play_action,label,Unique.
+101229,Mob Connections,Master,in_play_action,-,Put this card in play.
+101229,Mob Connections,Master,in_play_action,lock_ability;combat_grant,"You can lock this card to give a minion you control 1 press, only usable to continue combat."
+101229,Mob Connections,Master,in_play_action,granted_action,Minions can burn this card as a Ⓓ action.
+102242,"Mobile HQ, Operation Antigen",Master,cancel_as_played;in_play_action,label,Unique location.
+102242,"Mobile HQ, Operation Antigen",Master,cancel_as_played;in_play_action,-,Operation Antigen.
+102242,"Mobile HQ, Operation Antigen",Master,cancel_as_played;in_play_action,granted_action;lock_ability;continuous,An Operation Antigen ally you control can lock this location to attempt to enter combat with a vampire as a +1 stealth Ⓓ action.
+102242,"Mobile HQ, Operation Antigen",Master,cancel_as_played;in_play_action,lock_ability,You can lock this location to add enough life to an Operation Antigen ally you control to reach their starting life.
+102242,"Mobile HQ, Operation Antigen",Master,cancel_as_played;in_play_action,cancel_as_played;lock_ability,You can lock this location and burn 2 pool to cancel an action card that targets an Operation Antigen card you control as it is played; its cost is not paid.
+101242,Monster,Master,,label,Archetype.
+101242,Monster,Master,,-,Put this card on a ready vampire you control.
+101242,Monster,Master,,burn_ability;event_trigger,"Once each turn after a combat involving this vampire ends, this vampire can burn 1 blood to unlock if the opposing minion is not ready."
+101242,Monster,Master,,-,A vampire can have only one archetype.
+102253,Monstrous Form,Action/Combat,,-,[dom][pro] Only usable before range is determined.
+102253,Monstrous Form,Action/Combat,,continuous,This vampire gets +1 strength this combat.
+102253,Monstrous Form,Action/Combat,,-,A vampire can play only one Monstrous Form each round.
+102253,Monstrous Form,Action/Combat,,continuous,[DOM][PRO] +1 stealth action.
+102253,Monstrous Form,Action/Combat,,-,Put this card on this vampire.
+102253,Monstrous Form,Action/Combat,,lock_ability;combat_grant;continuous,"During combat, you can lock this card to give this vampire +1 strength this round, or 1 maneuver or press."
+101249,Mr. Winthrop,Retainer,,label,Unique mortal with 1 life.
+101249,Mr. Winthrop,Retainer,,continuous,The employer gets +1 intercept.
+101254,Murder of Crows,Retainer,,label,Animal with 1 life.
+101254,Murder of Crows,Retainer,,-,[ani] Murder of Crows inflicts 1R damage on the opposing minion each round of combat during normal strike resolution.
+101254,Murder of Crows,Retainer,,-,"[ANI] As above, but Murder of Crows has 2 life."
+101265,Narrow Minds,Event,delayed_replacement,-,Inconnu.
+101265,Narrow Minds,Event,delayed_replacement,-,Do not replace until your next unlock phase.
+101265,Narrow Minds,Event,delayed_replacement,continuous,Minion cards that change the target of a bleed action cost +1 blood or life.
+101277,New Carthage,Master,,label,Unique location.
+101277,New Carthage,Master,,continuous,Titled Brujah get +1 bleed and +1 vote.
+101277,New Carthage,Master,,continuous,Ventrue get -1 vote.
+101285,Nightmares upon Nightmares,Event,delayed_replacement,label,Gehenna.
+101285,Nightmares upon Nightmares,Event,delayed_replacement,-,Do not replace until your next discard phase.
+101285,Nightmares upon Nightmares,Event,delayed_replacement,phase_trigger,"During each Methuselah's unlock phase, for each minion they control, they lock that minion unless they discard a card; cards discarded this way are not replaced until the master phase."
+101285,Nightmares upon Nightmares,Event,delayed_replacement,-,Mortal allies and vampires with capacity greater than the number of Gehenna events in play ignore this effect.
+101310,Obfuscate,Master,,-,Discipline.
+101310,Obfuscate,Master,,-,Put this card on a vampire.
+101310,Obfuscate,Master,,continuous,This vampire gets +1 level of Obfuscate [obf] and +1 capacity.
+101310,Obfuscate,Master,,-,Cannot be put on a vampire with superior Obfuscate [OBF].
+102277,Oblivion,Master,,-,Discipline.
+102277,Oblivion,Master,,-,Put this card on a vampire.
+102277,Oblivion,Master,,continuous,This vampire gets +1 level of Oblivion [obl] and +1 capacity.
+102277,Oblivion,Master,,-,Cannot be put on a vampire with superior Oblivion [OBL].
+101324,Open War,Action,in_play_action,continuous,+1 stealth action.
+101324,Open War,Action,in_play_action,label,Requires a baron.
+101324,Open War,Action,in_play_action,-,Only one Open War can be played in a game.
+101324,Open War,Action,in_play_action,-,Put this card in play.
+101324,Open War,Action,in_play_action,granted_action,Anarchs can enter combat with a minion as a Ⓓ action.
+101324,Open War,Action,in_play_action,granted_action;continuous,Anarchs can burn a location as a Ⓓ action that costs 2 pool.
+101324,Open War,Action,in_play_action,counters,Methuselahs can use a master phase action to move 1 counter from their pool to this card.
+101324,Open War,Action,in_play_action,counters,"If this card has 4 counters, burn it and gain 4 pool."
+101326,Opium Den,Master,,label,Unique location.
+101326,Opium Den,Master,,lock_ability;continuous,Lock to give a Follower of Set you control +1 stealth.
+101340,Owl Companion,Retainer,,label,Animal with 1 life.
+101340,Owl Companion,Retainer,,-,"[ani] While the employer is in combat, the opposing minion's controller plays with an open hand."
+101340,Owl Companion,Retainer,,-,"[ANI] As above, but Owl Companion has 2 life."
+101341,"Oxford University, England",Master,,label,Unique location.
+101341,"Oxford University, England",Master,,lock_ability;continuous,You can lock this card and burn X pool during the polling step of a political action to get +2X votes.
+101342,Pack Alpha,Combat,,-,A vampire can play only one Pack Alpha each round.
+101342,Pack Alpha,Combat,,-,[ani] Only usable before range is determined.
+101342,Pack Alpha,Combat,,-,Employ an animal retainer from your hand (requirements and cost apply as normal).
+101342,Pack Alpha,Combat,,-,[ANI] Burn an animal retainer employed by this vampire to put this card on this vampire.
+101342,Pack Alpha,Combat,,continuous,This minion gets +1 strength.
+101342,Pack Alpha,Combat,,-,A minion can have only one Pack Alpha.
+101350,Papillon,Master,,label,Unique location.
+101350,Papillon,Master,,label,Hunting ground.
+101350,Papillon,Master,,label,Requires a ready vampire with a city title.
+101350,Papillon,Master,,phase_trigger,"During your unlock phase, a ready titled vampire you control can gain 2 blood."
+101350,Papillon,Master,,-,A vampire can gain blood from only one hunting ground each turn.
+101354,Park Hunting Ground,Master,,label,Unique location.
+101354,Park Hunting Ground,Master,,label,Hunting ground.
+101354,Park Hunting Ground,Master,,phase_trigger,"During your unlock phase, a ready vampire you control can gain 1 blood."
+101354,Park Hunting Ground,Master,,-,A vampire can gain blood from only one hunting ground each turn.
+102279,Pass Through Shadow,Combat,,combat_grant,[obl] Strike: combat ends.
+102279,Pass Through Shadow,Combat,,combat_grant,[OBL] Strike: combat ends.
+102279,Pass Through Shadow,Combat,,-,"After combat ends, put this card on this vampire."
+102279,Pass Through Shadow,Combat,,burn_ability;continuous,This vampire can burn this card to get +1 stealth.
+101384,Pentex™ Subversion,Master,in_play_action,label,Unique.
+101384,Pentex™ Subversion,Master,in_play_action,-,Put this card on a ready minion.
+101384,Pentex™ Subversion,Master,in_play_action,continuous,This minion cannot block.
+101384,Pentex™ Subversion,Master,in_play_action,granted_action,Other minions can burn this card as a Ⓓ action.
+101388,Perfectionist,Master,,label,Archetype.
+101388,Perfectionist,Master,,-,Put this card on a vampire you control.
+101388,Perfectionist,Master,,-,"Once each turn, this vampire can gain 1 blood after performing a successful action during which no reaction cards were played."
+101388,Perfectionist,Master,,-,A vampire can have only one archetype.
+102358,Phantasmagoria,Action,in_play_action,continuous,+1 stealth action.
+102358,Phantasmagoria,Action,in_play_action,-,[pre] Ⓓ Put this card on a minion; you still control this card.
+102358,Phantasmagoria,Action,in_play_action,continuous,The attached minion gets -1 stealth.
+102358,Phantasmagoria,Action,in_play_action,granted_action,Minions can burn this card as a Ⓓ action.
+102358,Phantasmagoria,Action,in_play_action,event_trigger,"[PRE] As above, and if the attached minion is blocked, they burn 1 blood or life before block resolution."
+101401,Piper,Master,,label,Requires a ready Anarch.
+101401,Piper,Master,,-,Lock a ready unlocked Anarch you control.
+101401,Piper,Master,,-,That Anarch recruits or employs an ally or retainer from your hand (requirements and cost apply as normal).
+101401,Piper,Master,,continuous,This is not an action and cannot be blocked.
+102291,Pit of Contemplation,Action,in_play_action,continuous,+1 stealth action.
+102291,Pit of Contemplation,Action,in_play_action,label,Unique.
+102291,Pit of Contemplation,Action,in_play_action,counters,Put this card in play with 1 counter.
+102291,Pit of Contemplation,Action,in_play_action,granted_action;continuous;counters,Hecata you control can add 1 counter to this card as a +1 stealth action.
+102291,Pit of Contemplation,Action,in_play_action,burn_ability;phase_trigger;counters,"During your unlock phase, you can burn this card to move a vampire controlled by your predator or prey with capacity less than X to their owner's uncontrolled region, where X is the number of counters on this card."
+102291,Pit of Contemplation,Action,in_play_action,granted_action,Vampires can burn this card as a Ⓓ action.
+101411,Political Ally,Ally,,-,"Unique mortal with 1 life. 0 strength, 3 bleed."
+101415,Political Hunting Ground,Master,,label,Unique location.
+101415,Political Hunting Ground,Master,,label,Hunting ground.
+101415,Political Hunting Ground,Master,,phase_trigger,"During your unlock phase, a ready vampire you control can gain 1 blood."
+101415,Political Hunting Ground,Master,,-,A vampire can gain blood from only one hunting ground each turn.
+101424,Potence,Master,,-,Discipline.
+101424,Potence,Master,,-,Put this card on a vampire.
+101424,Potence,Master,,continuous,This vampire gets +1 level of Potence [pot] and +1 capacity.
+101424,Potence,Master,,-,Cannot be put on a vampire with superior Potence [POT].
+101430,Power Structure,Master,,label,Unique.
+101430,Power Structure,Master,,-,Put this card in play.
+101430,Power Structure,Master,,lock_ability;continuous,"During the polling step of a political action, you can lock this card to give each Lasombra you control +1 vote."
+101435,Powerbase: Los Angeles,Master,in_play_action,label,Unique location.
+101435,Powerbase: Los Angeles,Master,in_play_action,lock_ability;phase_trigger;continuous,"During your discard phase, you can lock this location to get +1 discard phase action."
+101435,Powerbase: Los Angeles,Master,in_play_action,-,"If you use that discard phase action to discard a card requiring an Anarch or making a vampire Anarch, you can unlock a ready Anarch."
+101435,Powerbase: Los Angeles,Master,in_play_action,granted_action,Anarchs controlled by other Methuselahs can steal this location as a Ⓓ action.
+101439,Powerbase: Montreal,Master,in_play_action,label,Unique location.
+101439,Powerbase: Montreal,Master,in_play_action,phase_trigger,"During your influence phase, you can add 1 blood to a vampire in your uncontrolled region."
+101439,Powerbase: Montreal,Master,in_play_action,granted_action,Vampires can steal this location as a Ⓓ action.
+102301,Powerbase: Munich,Master,in_play_action,label,Unique location.
+102301,Powerbase: Munich,Master,in_play_action,lock_ability;phase_trigger,"During your master phase, you can lock this location to move 1 blood from a vampire with Oblivion [obl] you control to your pool or from your pool to a ready vampire with Oblivion [obl] you control."
+102301,Powerbase: Munich,Master,in_play_action,granted_action;continuous,Independent vampires can burn this location as a Ⓓ action that costs 1 blood.
+101483,Preternatural Strength,Action,,continuous,+2 stealth action.
+101483,Preternatural Strength,Action,,-,[pot] Put this card on this vampire.
+101483,Preternatural Strength,Action,,continuous,This vampire gets +1 strength.
+101483,Preternatural Strength,Action,,continuous,They cannot play cards named /Torn Signpost/.
+101483,Preternatural Strength,Action,,-,A vampire can have only one Preternatural Strength.
+101483,Preternatural Strength,Action,,continuous,"[POT] As above, but this vampire gets +2 strength."
+101487,Priority Contract,Master,trifle;in_play_action,label,Unique contract.
+101487,Priority Contract,Master,trifle;in_play_action,label,Trifle.
+101487,Priority Contract,Master,trifle;in_play_action,-,Choose a ready Assamite you control and put this card on a minion controlled by your prey.
+101487,Priority Contract,Master,trifle;in_play_action,granted_action;continuous,The chosen Assamite can enter combat with the attached minion as a +1 stealth Ⓓ action.
+101487,Priority Contract,Master,trifle;in_play_action,burn_ability;event_trigger,"If the attached minion is about to leave the ready region, you can burn this card to gain 3 pool."
+101498,Protean,Master,,-,Discipline.
+101498,Protean,Master,,-,Put this card on a vampire.
+101498,Protean,Master,,continuous,This vampire gets +1 level of Protean [pro] and +1 capacity.
+101498,Protean,Master,,-,Cannot be put on a vampire with superior Protean [PRO].
+101215,Puppet Master,Action,,continuous,[dom] Ⓓ Bleed with +2 bleed.
+101215,Puppet Master,Action,,-,[DOM] Ⓓ Put this card on a younger vampire and lock them; you still control this card.
+101215,Puppet Master,Action,,continuous,The attached vampire does not unlock as normal.
+101215,Puppet Master,Action,,burn_ability;phase_trigger,"During your next minion phase, burn this card to unlock the attached vampire and take control of them until the end of your turn."
+101545,Raptor,Retainer,,label,Animal with 1 life.
+101545,Raptor,Retainer,,continuous,[ani] The employer gets +1 intercept.
+101545,Raptor,Retainer,,continuous,"[ANI] As above, and while the employer is in combat, the opposing minion's controller gets -1 hand size."
+101550,Raven Spy,Retainer,,label,Animal with 1 life.
+101550,Raven Spy,Retainer,,continuous,[ani] The employer gets +1 intercept.
+101550,Raven Spy,Retainer,,-,"[ANI] As above, but Raven Spy has 2 life."
+101552,Ravnos Cache,Master,,label,Unique location.
+101552,Ravnos Cache,Master,,phase_trigger;counters,"During your master phase, you can move 1 counter from your pool to this location and add 1 counter (from the blood bank) to it."
+101552,Ravnos Cache,Master,,lock_ability;counters,Minions you control can lock this location to use those counters to pay some or all of the blood or pool cost of equipment they equip.
+101553,Ravnos Carnival,Master,,label,Unique location.
+101553,Ravnos Carnival,Master,,counters,This location comes into play with 1 counter for each Ravnos you control.
+101553,Ravnos Carnival,Master,,counters,Ravnos you control can use those counters to pay some or all of the blood cost of action cards they play.
+101553,Ravnos Carnival,Master,,counters,"If this location has no counters, burn it."
+101564,Rebel,Master,trifle,label,Archetype.
+101564,Rebel,Master,trifle,label,Trifle.
+101564,Rebel,Master,trifle,-,Put this card on a vampire you control.
+101564,Rebel,Master,trifle,-,"Once each turn, if they block a titled vampire or a political action, this vampire gains 1 blood before block resolution."
+101564,Rebel,Master,trifle,-,A vampire can have only one archetype.
+101566,Recalled to the Founder,Event,delayed_replacement,label,Gehenna.
+101566,Recalled to the Founder,Event,delayed_replacement,label,Requires 2 or more other Gehenna events in play.
+101566,Recalled to the Founder,Event,delayed_replacement,-,Do not replace as long as this card is in play.
+101566,Recalled to the Founder,Event,delayed_replacement,phase_trigger,"During each Methuselah's unlock phase, if that Methuselah controls 3 or more vampires of the same clan, they burn one of those vampires."
+101566,Recalled to the Founder,Event,delayed_replacement,-,"If that vampire's capacity is 6 or more, that Methuselah ignores this effect until the end of the game."
+101614,Restricted Vitae,Event,delayed_replacement;in_play_action,label,Gehenna.
+101614,Restricted Vitae,Event,delayed_replacement;in_play_action,-,Do not replace until a vampire successfully hunts.
+101614,Restricted Vitae,Event,delayed_replacement;in_play_action,continuous,Vampires cannot hunt unless they must hunt.
+101614,Restricted Vitae,Event,delayed_replacement;in_play_action,granted_action,Vampires who must hunt can steal 1 blood from a younger vampire as a Ⓓ hunt action.
+101627,Revelations,Action,in_play_action,continuous,+1 stealth action.
+101627,Revelations,Action,in_play_action,-,[aus] Ⓓ Look at your prey's hand and discard one card of your choice from it.
+101627,Revelations,Action,in_play_action,-,[AUS] Put this card in play.
+101627,Revelations,Action,in_play_action,-,Your prey plays with an open hand.
+101627,Revelations,Action,in_play_action,granted_action,Any minion can burn this card as a Ⓓ action.
+101628,Revenant,Retainer,,label,Ghoul with 2 life.
+101628,Revenant,Retainer,,continuous,The employer gets +1 intercept.
+102359,Righteous Blade,Equipment,,-,Melee weapon.
+102359,Righteous Blade,Equipment,,combat_grant;continuous,"Strike: strength+1 damage, with 1 optional press, only usable to continue combat, each combat."
+101639,Rise of the Nephtali,Event,delayed_replacement;in_play_action,label,Gehenna.
+101639,Rise of the Nephtali,Event,delayed_replacement;in_play_action,label,Requires 1 or more other Gehenna events in play.
+101639,Rise of the Nephtali,Event,delayed_replacement;in_play_action,-,Do not replace until a vampire becomes a liaison.
+101639,Rise of the Nephtali,Event,delayed_replacement;in_play_action,granted_action,Independent vampires can receive the unique Independent title of Liaison (worth 4 votes) as an action.
+101639,Rise of the Nephtali,Event,delayed_replacement;in_play_action,event_trigger;replacement,"If this title would be contested with a younger vampire, the younger vampire immediately yields instead of contesting."
+102243,Ritual Goblet,Equipment,,label,Unique.
+102243,Ritual Goblet,Equipment,,continuous,This vampire gets +1 level of Blood Sorcery [tha].
+102243,Ritual Goblet,Equipment,,continuous,Rescuing a vampire from torpor costs this vampire -1 blood.
+102243,Ritual Goblet,Equipment,,-,"Once each turn, this vampire can unlock after rescuing a vampire from torpor."
+102304,Rotting Behemoth,Ally,in_play_action,-,"Zombie with 6 life. 3 strength, 0 bleed."
+102304,Rotting Behemoth,Ally,in_play_action,event_trigger,"[obl] After this ally enters play, burn it unless you remove an ally or vampire in your ash heap from the game."
+102304,Rotting Behemoth,Ally,in_play_action,-,This ally cannot gain life.
+102304,Rotting Behemoth,Ally,in_play_action,granted_action,This ally can enter combat with a minion as a Ⓓ action that costs 1 life.
+102304,Rotting Behemoth,Ally,in_play_action,burn_ability;combat_grant,"[OBL] As above, and during the first round of each combat, this ally can burn 1 life to get 1 press."
+101664,Rutor's Hand,Action,,continuous,+1 stealth action.
+101664,Rutor's Hand,Action,,-,"[tha] Put this card on this vampire, locked; this vampire takes 1 unpreventable environmental aggravated damage."
+101664,Rutor's Hand,Action,,lock_ability;phase_trigger,"During your minion phase, this vampire can lock this card to unlock."
+101664,Rutor's Hand,Action,,-,A vampire can have only one Rutor's Hand.
+101664,Rutor's Hand,Action,,burn_ability,"[THA] As above, and this vampire can burn 3 blood to be immune to this aggravated damage."
+102257,Saulot's Avenging Fist,Master,in_play_action,label,Unique archetype.
+102257,Saulot's Avenging Fist,Master,in_play_action,-,Put this card on a Salubri you control.
+102257,Saulot's Avenging Fist,Master,in_play_action,continuous,This Salubri gets +1 strength.
+102257,Saulot's Avenging Fist,Master,in_play_action,granted_action;continuous,"This Salubri can enter combat with a non-Salubri vampire as a Ⓓ action; if that vampire is Tremere, this is a +1 stealth action."
+102257,Saulot's Avenging Fist,Master,in_play_action,-,A vampire can have only one archetype.
+102258,Saulot's Guiding Wisdom,Master,,label,Unique archetype.
+102258,Saulot's Guiding Wisdom,Master,,label,Title.
+102258,Saulot's Guiding Wisdom,Master,,-,Put this card on an Independent Salubri you control to represent a unique Independent title worth 2 votes.
+102258,Saulot's Guiding Wisdom,Master,,lock_ability,This Salubri can lock during any referendum to force a vampire to abstain.
+102258,Saulot's Guiding Wisdom,Master,,-,"Once each turn, this Salubri can lock before range is determined to end a combat involving another minion you control."
+102258,Saulot's Guiding Wisdom,Master,,-,A vampire can have only one archetype.
+102259,Saulot's Healing Touch,Master,in_play_action,label,Unique archetype.
+102259,Saulot's Healing Touch,Master,in_play_action,-,Put this card on a Salubri you control.
+102259,Saulot's Healing Touch,Master,in_play_action,continuous,"Rescuing a non-Tremere vampire from torpor costs this Salubri -2 blood, and if the action is successful, the rescued vampire gains 1 blood."
+102259,Saulot's Healing Touch,Master,in_play_action,granted_action;continuous,"This Salubri can add 1 blood or life to another ready minion, not to exceed starting life, as a +1 stealth action."
+102259,Saulot's Healing Touch,Master,in_play_action,-,A vampire can have only one archetype.
+102292,Screamer,Ally,,-,"Wraith with 1 life. 1 strength, 1 bleed."
+102292,Screamer,Ally,,burn_ability;continuous,You can burn this ally to give a minion controlled by your predator or prey -1 stealth.
+102292,Screamer,Ally,,burn_ability,You can burn this ally as an action directed at an ally you control is announced to have it fail.
+102260,Sculpt the Flesh,Combat,in_play_action,combat_grant,"[pro] Strike: hand strike, aggravated."
+102260,Sculpt the Flesh,Combat,in_play_action,combat_grant;continuous,[PRO] Strike: hand strike at +1 damage and put this card on the opposing minion.
+102260,Sculpt the Flesh,Combat,in_play_action,phase_trigger,"During their unlock phase, the attached minion burns 1 blood or life."
+102260,Sculpt the Flesh,Combat,in_play_action,granted_action;continuous,Minions can burn this card as a +1 stealth action.
+101711,Secure Haven,Master,,label,Unique location.
+101711,Secure Haven,Master,,-,Haven.
+101711,Secure Haven,Master,,-,Put this card on a minion you control.
+101711,Secure Haven,Master,,continuous,This minion cannot be the target of other Methuselahs' actions.
+101711,Secure Haven,Master,,-,Master cards targeting this minion cost 1 additional pool.
+101711,Secure Haven,Master,,event_trigger,Burn this card after this minion goes to torpor.
+101711,Secure Haven,Master,,-,A minion can have only one haven.
+102280,Shadow Cast,Action Modifier,,continuous,[obl] +1 stealth.
+102280,Shadow Cast,Action Modifier,,-,[OBL] Only usable after resolution of a successful directed action.
+102280,Shadow Cast,Action Modifier,,-,Put this card on this vampire.
+102280,Shadow Cast,Action Modifier,,burn_ability;continuous,"During an action directed at the same Methuselah or same set of Methuselahs, this vampire can burn this card to get +1 stealth."
+102281,Shadow Cloak,Action Modifier,,continuous,[obl] +1 stealth.
+102281,Shadow Cloak,Action Modifier,,-,[OBL] Only usable after resolution of a successful action.
+102281,Shadow Cloak,Action Modifier,,-,Put this card on this vampire.
+102281,Shadow Cloak,Action Modifier,,continuous,Minions without Auspex [aus] cannot perform actions directed at this vampire.
+102281,Shadow Cloak,Action Modifier,,phase_trigger,"During your unlock phase, burn this card."
+101767,Shilmulo Tarot,Equipment,draw_replacement,label,Unique.
+101767,Shilmulo Tarot,Equipment,draw_replacement,-,"Move the top 2 cards of your library to this equipment, face down and out of play (you can look at the cards at any time)."
+101767,Shilmulo Tarot,Equipment,draw_replacement,replacement,"While this Ravnos is ready, if you would draw a card from your library, you can draw one of these cards instead."
+101767,Shilmulo Tarot,Equipment,draw_replacement,phase_trigger,"During your unlock phase, you can move the top card of your library to this equipment."
+101780,Sight Beyond Sight,Master,,label,Unique.
+101780,Sight Beyond Sight,Master,,-,Put this card on a Salubri you control.
+101780,Sight Beyond Sight,Master,,continuous,This Salubri gets +1 intercept.
+101801,Slaughtering the Herd,Action,,continuous,[dom] Ⓓ Bleed with +2 bleed.
+101801,Slaughtering the Herd,Action,,continuous,Allies cannot block this action.
+101801,Slaughtering the Herd,Action,,-,[DOM] Ⓓ Put this card on a vampire controlled by your predator.
+101801,Slaughtering the Herd,Action,,-,"Each time the attached vampire announces an action, they move 1 blood from themselves to this acting vampire."
+101801,Slaughtering the Herd,Action,,burn_ability;phase_trigger,The attached vampire can burn 4 blood during their minion phase to burn this card.
+101801,Slaughtering the Herd,Action,,event_trigger,Burn this card after this acting vampire leaves the ready region.
+101808,Slum Hunting Ground,Master,,label,Unique location.
+101808,Slum Hunting Ground,Master,,label,Hunting ground.
+101808,Slum Hunting Ground,Master,,phase_trigger,"During your unlock phase, a ready vampire you control can gain 1 blood."
+101808,Slum Hunting Ground,Master,,-,A vampire can gain blood from only one hunting ground each turn.
+101811,"Smiling Jack, The Anarch",Master,in_play_action,label,Unique.
+101811,"Smiling Jack, The Anarch",Master,in_play_action,-,Put this card in play.
+101811,"Smiling Jack, The Anarch",Master,in_play_action,phase_trigger;counters,"During your unlock phase, move 1 counter from your pool to this card."
+101811,"Smiling Jack, The Anarch",Master,in_play_action,counters,"During each other Methuselah's unlock phase, for each counter on this card, that Methuselah burns 1 pool or burns 1 blood from a vampire they control."
+101811,"Smiling Jack, The Anarch",Master,in_play_action,granted_action,Vampires can burn this card as a Ⓓ action.
+101816,Sniper Rifle,Equipment,,label,Weapon: gun.
+101816,Sniper Rifle,Equipment,,combat_grant,"Strike: 2R damage, only usable at long range."
+101816,Sniper Rifle,Equipment,,event_trigger,"If the bearer blocks, they can, before range is determined, set the range for the first round of the resulting combat to long, and their initial strike that round must be with this weapon."
+101821,Society Hunting Ground,Master,,label,Unique location.
+101821,Society Hunting Ground,Master,,label,Hunting ground.
+101821,Society Hunting Ground,Master,,phase_trigger,"During your unlock phase, a ready vampire you control can gain 1 blood."
+101821,Society Hunting Ground,Master,,-,A vampire can gain blood from only one hunting ground each turn.
+102296,Spectral Servitor,Ally,,-,"Wraith with 1 life. 1 strength, 1 bleed."
+102296,Spectral Servitor,Ally,,-,[obl] This ally can perform actions the turn it is recruited.
+102296,Spectral Servitor,Ally,,-,Unlock this vampire if this is their first successful recruit ally action this turn.
+102296,Spectral Servitor,Ally,,-,This ally can play non-action cards requiring basic Oblivion [obl] as a vampire.
+102296,Spectral Servitor,Ally,,phase_trigger,"During your unlock phase, burn this ally."
+102296,Spectral Servitor,Ally,,phase_trigger;replacement,"[OBL] As above, but during your unlock phase, you can burn 1 pool instead of burning this ally."
+102297,Split the Veil,Action,token_entity,continuous,+1 stealth action.
+102297,Split the Veil,Action,token_entity,counters,Put this card in play with 2 counters.
+102297,Split the Veil,Action,token_entity,phase_trigger;counters,"During your unlock phase, you can burn 1 counter from this card."
+102297,Split the Veil,Action,token_entity,counters,You can burn counters from no more than two Split the Veil cards each unlock phase.
+102297,Split the Veil,Action,token_entity,counters,"If this card has no counters, burn it and move a wraith or zombie ally from your ash heap to your ready region with life equal to its starting life."
+101856,Sport Bike,Equipment,,label,Vehicle.
+101856,Sport Bike,Equipment,,continuous,This minion gets +1 intercept.
+101856,Sport Bike,Equipment,,-,A minion can have only one vehicle.
+101872,Stolen Police Cruiser,Equipment,in_play_action,label,Vehicle.
+101872,Stolen Police Cruiser,Equipment,in_play_action,continuous,This Anarch gets +1 bleed.
+101872,Stolen Police Cruiser,Equipment,in_play_action,continuous,Allies and younger vampires get -1 intercept against this Anarch.
+101872,Stolen Police Cruiser,Equipment,in_play_action,granted_action;phase_trigger;continuous,"Vampires can burn this card as a Ⓓ action that costs 1 pool; if that action is successful, this Anarch is locked and does not unlock as normal during their next unlock phase."
+101872,Stolen Police Cruiser,Equipment,in_play_action,-,A minion can have only one vehicle.
+101896,Sudden Reversal,Master,out_of_turn;cancel_as_played,label,Out-of-turn.
+101896,Sudden Reversal,Master,out_of_turn;cancel_as_played,cancel_as_played,"Cancel a master card as it is played by another Methuselah, and its cost is not paid."
+102261,Sword of the Archangel,Equipment,cancel_as_played,-,Unique melee weapon.
+102261,Sword of the Archangel,Equipment,cancel_as_played,combat_grant,Strike: strength+1 aggravated damage.
+102261,Sword of the Archangel,Equipment,cancel_as_played,cancel_as_played;burn_ability,"Once each combat, this Salubri can burn 1 blood to cancel a grapple or aim card as it is played by the opposing minion, and its cost is not paid."
+102261,Sword of the Archangel,Equipment,cancel_as_played,phase_trigger,"Once each turn, if the opposing vampire is burned during this weapon's strike resolution and the bearer remains ready, the bearer can unlock at the end of combat."
+102360,Szlachta Assistant,Retainer,,label,Ghoul with 2 life.
+102360,Szlachta Assistant,Retainer,,burn_ability;continuous,The employer can burn this retainer to reduce the cost of a ghoul ally requiring a Tzimisce they recruit by 2 blood or pool.
+102361,Szlachta Bodyguard,Retainer,,label,Ghoul with 2 life.
+102361,Szlachta Bodyguard,Retainer,,lock_ability;combat_grant,The employer can lock this retainer to prevent 1 damage in combat.
+102361,Szlachta Bodyguard,Retainer,,burn_ability,You can burn this retainer to have an action directed at a minion you control fail.
+101953,Temple Hunting Ground,Master,,label,Unique location.
+101953,Temple Hunting Ground,Master,,label,Hunting ground.
+101953,Temple Hunting Ground,Master,,phase_trigger,"During your unlock phase, a ready vampire you control can gain 1 blood."
+101953,Temple Hunting Ground,Master,,-,A vampire can gain blood from only one hunting ground each turn.
+101958,Tension in the Ranks,Master,,label,Unique.
+101958,Tension in the Ranks,Master,,-,Put this card in play.
+101958,Tension in the Ranks,Master,,event_trigger,"After a ready minion is burned or sent to torpor, their controller burns 1 pool."
+101958,Tension in the Ranks,Master,,-,Methuselahs can use a master phase action and discard two master cards to burn this card.
+100052,The Anarch Free Press,Master,,label,Unique.
+100052,The Anarch Free Press,Master,,label,Requires a ready Anarch.
+100052,The Anarch Free Press,Master,,-,Put this card in play.
+100052,The Anarch Free Press,Master,,lock_ability;continuous,You can lock this card to give an Anarch you control +1 intercept.
+100052,The Anarch Free Press,Master,,lock_ability;event_trigger,You can lock this card after an Anarch successfully hunts to add 1 blood to that Anarch.
+100135,The Barrens,Master,,label,Unique location.
+100135,The Barrens,Master,,lock_ability,You can lock this card to discard a card (draw up afterward).
+100172,The Black Throne,Master,,label,Unique location.
+100172,The Black Throne,Master,,lock_ability;continuous,You can lock this card during the polling step of any referendum to get +2 votes.
+100172,The Black Throne,Master,,lock_ability;event_trigger,You can lock this card after a minion with a contract for which an Assamite you control is chosen leaves the ready region to gain 1 pool.
+102236,"The British Museum, London",Master,,continuous,Unique location. +1 hand size.
+102236,"The British Museum, London",Master,,-,"Minions you control can unlock after resolution of a successful action to equip with a non-electronic, non-vehicle, non-weapon equipment card from your hand; a minion can unlock only once this way each turn."
+102236,"The British Museum, London",Master,,continuous,"Non-electronic, non-vehicle, non-weapon equipment cards cost minions you control -1 blood or pool to equip."
+100435,The Coven,Master,trifle,label,Unique.
+100435,The Coven,Master,trifle,label,Trifle.
+100435,The Coven,Master,trifle,-,Put this card in play.
+100435,The Coven,Master,trifle,lock_ability,You can lock this card to add 2 blood to a ready vampire you control.
+100435,The Coven,Master,trifle,phase_trigger,"During your discard phase, your predator takes control of The Coven."
+100781,The Fourth Cycle,Event,,label,Requires 2 or more Gehenna events in play.
+100781,The Fourth Cycle,Event,,event_trigger,"After this card enters play, burn all Gehenna events and conviction cards, then send all vampires with capacity 3 or less to torpor."
+100781,The Fourth Cycle,Event,,-,Gehenna events cannot be played.
+102290,The Gate of Acheron,Action,randomness;in_play_action,continuous,+1 stealth action.
+102290,The Gate of Acheron,Action,randomness;in_play_action,label,Unique.
+102290,The Gate of Acheron,Action,randomness;in_play_action,counters,Put this card in play with 1 counter.
+102290,The Gate of Acheron,Action,randomness;in_play_action,phase_trigger;counters,"During your unlock phase, add 1 counter to this card."
+102290,The Gate of Acheron,Action,randomness;in_play_action,phase_trigger;counters,"During your prey's unlock phase, for each counter on this card, they burn 1 pool or remove a library card at random in their ash heap from the game."
+102290,The Gate of Acheron,Action,randomness;in_play_action,granted_action;continuous;counters,Hecata you control with capacity 4 or more can add 1 counter to this card as a +1 stealth action.
+102290,The Gate of Acheron,Action,randomness;in_play_action,granted_action,Vampires can burn this card as a Ⓓ action.
+101042,The Khabar: Community,Master,in_play_action,label,Unique.
+101042,The Khabar: Community,Master,in_play_action,-,Put this card in play.
+101042,The Khabar: Community,Master,in_play_action,event_trigger;continuous,Assamites get +1 stealth when bleeding.
+101042,The Khabar: Community,Master,in_play_action,granted_action;continuous,Minions can burn this card as a Ⓓ action; Tremere get +1 stealth during that action.
+101070,The Labyrinth,Master,,label,Unique location.
+101070,The Labyrinth,Master,,lock_ability;continuous,You can lock this card to give a Nosferatu you control +1 stealth.
+101110,The Line,Master,in_play_action,label,Unique location.
+101110,The Line,Master,in_play_action,lock_ability;continuous,You can lock this location to reduce the cost of an action card a vampire you control plays by 1 blood (this location is not locked if that card is canceled as it is played).
+101110,The Line,Master,in_play_action,granted_action,Vampires can steal this location as a Ⓓ action.
+102240,"The Mithraeum, London",Master,,label,Unique location.
+102240,"The Mithraeum, London",Master,,-,Mithraic Mysteries.
+102240,"The Mithraeum, London",Master,,phase_trigger;search,"If you do not control /Mithras/ during your influence phase, you can search your crypt for 1 copy of him, reveal it, and move it to your uncontrolled region (shuffle afterward)."
+102240,"The Mithraeum, London",Master,,phase_trigger,"During your unlock phase, you can add 1 blood to /Mithras/ or a Mithraic Mysteries member (the target must be controlled)."
+101279,The New Inquisition,Event,delayed_replacement;in_play_action,label,Gehenna.
+101279,The New Inquisition,Event,delayed_replacement;in_play_action,label,Requires 1 or more other Gehenna events in play.
+101279,The New Inquisition,Event,delayed_replacement;in_play_action,-,Do not replace until a titled vampire goes to torpor.
+101279,The New Inquisition,Event,delayed_replacement;in_play_action,phase_trigger,"During each Methuselah's unlock phase, that Methuselah can choose a ready vampire controlled by their prey."
+101279,The New Inquisition,Event,delayed_replacement;in_play_action,-,The chosen vampire takes 1 unpreventable environmental damage.
+101279,The New Inquisition,Event,delayed_replacement;in_play_action,granted_action;continuous,Titled vampires can call a referendum to burn this card as a +1 stealth political action.
+101355,The Parthenon,Master,,label,Unique location.
+101355,The Parthenon,Master,,lock_ability;phase_trigger;continuous,"During your master phase, you can lock this card to get +1 master phase action."
+101536,The Rack,Master,in_play_action,label,Unique location.
+101536,The Rack,Master,in_play_action,-,"As this location is played or its controller changes, its controller chooses a ready vampire they control."
+101536,The Rack,Master,in_play_action,-,"During this location's controller's unlock phase, the chosen vampire can gain 2 blood."
+101536,The Rack,Master,in_play_action,granted_action,Vampires controlled by another Methuselah can steal this location as a Ⓓ action.
+101662,"The Rumor Mill, Tabloid Newspaper",Master,,label,Unique location.
+101662,"The Rumor Mill, Tabloid Newspaper",Master,,lock_ability;burn_ability;continuous,You can lock this card during an action to choose a vampire; the chosen vampire can burn 1 blood to get +1 intercept during that action.
+102244,"The Shard, London",Master,in_play_action,label,Unique location.
+102244,"The Shard, London",Master,in_play_action,lock_ability;continuous,"If you have the Edge, you can lock this card to reduce the cost of a card you play by 2 pool or blood."
+102244,"The Shard, London",Master,in_play_action,granted_action;continuous,Vampires can steal this location as a Ⓓ action; Ventrue get +1 stealth during that action.
+101807,The Slow Withering,Event,delayed_replacement,label,Gehenna.
+101807,The Slow Withering,Event,delayed_replacement,label,Requires 1 or more other Gehenna events in play.
+101807,The Slow Withering,Event,delayed_replacement,-,Do not replace until a vampire commits diablerie.
+101807,The Slow Withering,Event,delayed_replacement,continuous,Cards requiring 1 or more Disciplines at the superior level cost +1 blood.
+101807,The Slow Withering,Event,delayed_replacement,-,Vampires who commit diablerie ignore this effect until a Gehenna event is played.
+102057,The Uncoiling,Event,delayed_replacement;randomness,-,Do not replace as long as this card is in play.
+102057,The Uncoiling,Event,delayed_replacement;randomness,phase_trigger,"During your discard phase, burn another event at random."
+102057,The Uncoiling,Event,delayed_replacement;randomness,-,"Other Methuselahs can use a discard phase action and burn X pool to burn this card, where X is the number of other events in play."
+102363,The Vozhd of Gravesend,Ally,cancel_as_played;in_play_action,-,"Unique ghoul with 5 life. 4 strength, 0 bleed."
+102363,The Vozhd of Gravesend,Ally,cancel_as_played;in_play_action,event_trigger,"After this ally enters play, burn an ally or retainer you control."
+102363,The Vozhd of Gravesend,Ally,cancel_as_played;in_play_action,granted_action,This ally can enter combat with a vampire as a Ⓓ action.
+102363,The Vozhd of Gravesend,Ally,cancel_as_played;in_play_action,combat_grant,This ally can prevent 1 damage each round of combat.
+102363,The Vozhd of Gravesend,Ally,cancel_as_played;in_play_action,cancel_as_played;burn_ability,"During combat, this ally can burn 1 life to cancel a strike card as it is played by the opposing minion, and its cost is not paid (the minion chooses a strike again)."
+102364,The Vozhd of Juiz de Fora,Ally,in_play_action,-,"Unique ghoul with 5 life. 4 strength, 0 bleed."
+102364,The Vozhd of Juiz de Fora,Ally,in_play_action,event_trigger,"After this ally enters play, burn an ally or retainer you control."
+102364,The Vozhd of Juiz de Fora,Ally,in_play_action,granted_action,This ally can enter combat with a vampire as a Ⓓ action.
+102364,The Vozhd of Juiz de Fora,Ally,in_play_action,-,This ally can play cards requiring basic Animalism [ani] as a vampire with capacity 5.
+102364,The Vozhd of Juiz de Fora,Ally,in_play_action,phase_trigger,"During your unlock phase, this ally can steal any amount of blood (becoming life) from a Tzimisce you control, not to exceed its starting life."
+102267,The Vozhd of Sofia,Ally,in_play_action,-,"Unique ghoul with 5 life. 3 strength, 0 bleed."
+102267,The Vozhd of Sofia,Ally,in_play_action,event_trigger,"After this ally enters play, burn an ally or retainer you control."
+102267,The Vozhd of Sofia,Ally,in_play_action,combat_grant,It can strike: 3R damage.
+102267,The Vozhd of Sofia,Ally,in_play_action,granted_action,It can enter combat with a minion as a Ⓓ action.
+102267,The Vozhd of Sofia,Ally,in_play_action,phase_trigger,"During your unlock phase, you can discard an ally or retainer card to add 2 life to this ally."
+102365,The Vozhd of Szczecin,Ally,in_play_action,-,"Unique ghoul with 5 life. 4 strength, 0 bleed."
+102365,The Vozhd of Szczecin,Ally,in_play_action,event_trigger,"After this ally enters play, burn an ally or retainer you control."
+102365,The Vozhd of Szczecin,Ally,in_play_action,granted_action,This ally can enter combat with a vampire as a Ⓓ action.
+102365,The Vozhd of Szczecin,Ally,in_play_action,combat_grant,"Once each combat, this ally can discard a card requiring Protean [pro] to prevent 2 damage."
+102365,The Vozhd of Szczecin,Ally,in_play_action,lock_ability;burn_ability,"During any other Methuselah's minion phase, a Tzimisce you control can burn 1 blood to unlock this ally."
+101974,Thirst,Event,,label,Gehenna.
+101974,Thirst,Event,,event_trigger,"After each Methuselah's minion phase ends, each ready vampire controlled by that Methuselah with capacity less than the number of Gehenna events in play who did not hunt during that minion phase burns 1 blood."
+101984,Tier of Souls,Action,in_play_action,-,[ani] Ⓓ Steal 1 blood or life from a minion controlled by your prey.
+101984,Tier of Souls,Action,in_play_action,-,"[ANI] As above, and put this card on this vampire."
+101984,Tier of Souls,Action,in_play_action,continuous,This vampire gets +1 bleed against your prey.
+101984,Tier of Souls,Action,in_play_action,granted_action,Minions can burn this card as a Ⓓ action.
+101984,Tier of Souls,Action,in_play_action,-,A vampire can have only one Tier of Souls.
+101989,Toreador Grand Ball,Master,in_play_action,-,"Choose two ready Toreador you control, put this card in play, and lock one of the two."
+101989,Toreador Grand Ball,Master,in_play_action,continuous,The locked Toreador does not unlock as normal.
+101989,Toreador Grand Ball,Master,in_play_action,continuous,The other Toreador's non-bleed actions cannot be blocked.
+101989,Toreador Grand Ball,Master,in_play_action,granted_action;continuous,Minions can burn this card as a Ⓓ action; Nosferatu get -1 stealth during that action.
+101994,Torpid Blood,Event,delayed_replacement,label,Gehenna.
+101994,Torpid Blood,Event,delayed_replacement,-,Do not replace until a vampire moves from torpor to the ready region.
+101994,Torpid Blood,Event,delayed_replacement,continuous,Actions performed by vampires in torpor cost +1 blood.
+101994,Torpid Blood,Event,delayed_replacement,continuous,Rescuing an older vampire from torpor costs +1 blood.
+102283,Touch of Oblivion,Combat,,combat_grant;counters,[obl] Strike: put this card on the opposing minion with 2 counters.
+102283,Touch of Oblivion,Combat,,replacement;counters,The attached minion burns 1 counter from this card instead of unlocking as normal.
+102283,Touch of Oblivion,Combat,,counters,"If this card has no counters, burn it."
+102283,Touch of Oblivion,Combat,,combat_grant,[OBL] Strike: send the opposing vampire to torpor or burn the opposing ally.
+102015,Treasured Samadji,Equipment,,label,Unique.
+102015,Treasured Samadji,Equipment,,continuous,This Ravnos gets +1 bleed.
+102015,Treasured Samadji,Equipment,,combat_grant,"Once each combat, this Ravnos can strike: dodge."
+102049,Twilight Camp,Master,,-,Put this card in play with 4 blood.
+102049,Twilight Camp,Master,,burn_ability;event_trigger,"After you put a non-titled non-Anarch vampire in play from your uncontrolled region, you can burn 1 blood from this card to make that vampire Anarch."
+102049,Twilight Camp,Master,,-,You can use a master phase action to move 1 blood from this card to an Anarch.
+102049,Twilight Camp,Master,,-,"If this card has no blood, burn it."
+102065,Underbridge Stray,Ally,,-,"Animal with 1 life. 0 strength, 0 bleed."
+102065,Underbridge Stray,Ally,,burn_ability;combat_grant,[ani] This ally can burn 1 life to give a minion you control 1 press.
+102065,Underbridge Stray,Ally,,burn_ability,"During an action directed at you (or a card you control), you can burn this ally if it is not blocking to unlock a ready minion you control."
+102065,Underbridge Stray,Ally,,-,"[ANI] As above, but this ally has 2 life and 1 strength."
+102066,Underworld Hunting Ground,Master,,label,Unique location.
+102066,Underworld Hunting Ground,Master,,label,Hunting ground.
+102066,Underworld Hunting Ground,Master,,phase_trigger,"During your unlock phase, a ready vampire you control can gain 1 blood."
+102066,Underworld Hunting Ground,Master,,-,A vampire can gain blood from only one hunting ground each turn.
+102078,Unlicensed Taxicab,Equipment,,label,Vehicle.
+102078,Unlicensed Taxicab,Equipment,,continuous,The action to equip with this vehicle is with an additional +1 stealth.
+102078,Unlicensed Taxicab,Equipment,,continuous,"This minion gets +1 stealth during hunt, recruit and employ actions."
+102078,Unlicensed Taxicab,Equipment,,event_trigger,"If this minion is blocked by a prince or an archbishop (during any action), burn this vehicle."
+102078,Unlicensed Taxicab,Equipment,,-,A minion can have only one vehicle.
+102084,Uptown Hunting Ground,Master,,label,Unique location.
+102084,Uptown Hunting Ground,Master,,label,Hunting ground.
+102084,Uptown Hunting Ground,Master,,phase_trigger,"During your unlock phase, a ready vampire you control can gain 1 blood."
+102084,Uptown Hunting Ground,Master,,-,A vampire can gain blood from only one hunting ground each turn.
+102087,Vagabond Mystic,Ally,,-,"Unique mortal with 2 life. 0 strength, 0 bleed."
+102087,Vagabond Mystic,Ally,,lock_ability,Vagabond Mystic can lock to add 1 life to an ally you control who has fewer life than its starting life.
+102087,Vagabond Mystic,Ally,,continuous,Vagabond Mystic cannot block vampires.
+102245,"Valerie Diaz, Antigen Commander",Ally,,-,"Unique mortal with 3 life. 1 strength, 1 bleed."
+102245,"Valerie Diaz, Antigen Commander",Ally,,-,Operation Antigen.
+102245,"Valerie Diaz, Antigen Commander",Ally,,-,"If Valerie is in combat with a vampire, you can burn 1 pool once each round to make her immune to all non-aggravated damage from a strike or damaging effect."
+102245,"Valerie Diaz, Antigen Commander",Ally,,-,"Once each turn after combat involving Valerie ends, she can unlock if the opposing vampire is not ready."
+102092,Vast Wealth,Master,in_play_action,-,Put this card on a ready minion you control.
+102092,Vast Wealth,Master,in_play_action,granted_action;continuous,"If you control this minion, they can equip with the first equipment you find in your library as a +1 stealth equip action (working down from the top; requirements and cost apply as normal; shuffle afterward)."
+102109,Ventrue Headquarters,Master,,label,Unique location.
+102109,Ventrue Headquarters,Master,,lock_ability;continuous,You can lock this card during the polling step of any referendum to get +3 votes.
+102113,Vessel,Master,trifle,label,Trifle.
+102113,Vessel,Master,trifle,-,Put this card on a vampire and you can burn a card named /Blood Doll/ (if any).
+102113,Vessel,Master,trifle,phase_trigger,"During their unlock phase, this vampire's controller can move 1 blood from this vampire to their pool or from their pool to this vampire."
+102121,Villein,Master,trifle,label,Trifle.
+102121,Villein,Master,trifle,-,Put this card on a vampire you control who has any amount of blood and move 2 to 5 blood from that vampire to your pool.
+102121,Villein,Master,trifle,continuous,Cards named /Minion Tap/ cost you +1 pool to play.
+102121,Villein,Master,trifle,continuous,Villein costs +1 pool to play on this vampire.
+102126,Visit from the Capuchin,Master,draw_replacement,label,Unique.
+102126,Visit from the Capuchin,Master,draw_replacement,counters,Put this card in play with 4 counters.
+102126,Visit from the Capuchin,Master,draw_replacement,continuous;counters,You get +1 hand size for each counter on this card.
+102126,Visit from the Capuchin,Master,draw_replacement,replacement;counters,"Each time you would replace a card other than this card, instead burn 1 counter from this card."
+102126,Visit from the Capuchin,Master,draw_replacement,counters,Burn this card if it has no counters.
+102189,WMRH Talk Radio,Master,,label,Unique location.
+102189,WMRH Talk Radio,Master,,lock_ability;continuous,You can lock this card to give a minion +1 intercept.
+102189,WMRH Talk Radio,Master,,-,"If that minion does not block the action, burn 1 pool after action resolution."
+102144,War Ghoul,Ally,in_play_action,-,"Ghoul with 5 life. 4 strength, 0 bleed."
+102144,War Ghoul,Ally,in_play_action,event_trigger,"After this ally enters play, burn an ally or retainer you control."
+102144,War Ghoul,Ally,in_play_action,combat_grant,It can prevent 1 damage each round of combat.
+102144,War Ghoul,Ally,in_play_action,granted_action,It can enter combat with a vampire as a Ⓓ action.
+102144,War Ghoul,Ally,in_play_action,-,"It can lock and burn itself to burn a location, except during combat."
+102149,Warsaw Station,Master,,label,Unique location.
+102149,Warsaw Station,Master,,granted_action;lock_ability,"You can lock this card as a Nosferatu announces an undirected action; after action resolution, if that action was successful, unlock the acting Nosferatu."
+102149,Warsaw Station,Master,,burn_ability,You can burn this card (even if it is locked) to move a Nosferatu in torpor to the ready region.
+102150,Warzone Hunting Ground,Master,,label,Unique location.
+102150,Warzone Hunting Ground,Master,,label,Hunting ground.
+102150,Warzone Hunting Ground,Master,,phase_trigger,"During your unlock phase, a ready vampire you control can gain 1 blood."
+102150,Warzone Hunting Ground,Master,,-,A vampire can gain blood from only one hunting ground each turn.
+102152,"Wasserschloss Anif, Austria",Master,in_play_action,label,Unique location.
+102152,"Wasserschloss Anif, Austria",Master,in_play_action,phase_trigger,"During your master phase, a Tremere you control can move 1 blood from themselves to this card."
+102152,"Wasserschloss Anif, Austria",Master,in_play_action,lock_ability;phase_trigger;counters,Lock during your influence phase to move all counters on this card to a Tremere in your uncontrolled region.
+102152,"Wasserschloss Anif, Austria",Master,in_play_action,granted_action;continuous,Any minion can burn this card as a Ⓓ action; Malkavians get +1 stealth during that action.
+102159,Waters of Duat,Action,token_entity,continuous,+1 stealth action.
+102159,Waters of Duat,Action,token_entity,label,Requires a non-sterile Follower of Set with capacity 5 or more.
+102159,Waters of Duat,Action,token_entity,-,Put this card in play.
+102159,Waters of Duat,Action,token_entity,-,It becomes a 1-capacity (non-unique) Follower of Set and must hunt this turn.
+102159,Waters of Duat,Action,token_entity,search,"You can search your library (shuffle afterward), hand, and/or ash heap for a Discipline master card and put it on this new vampire."
+102166,Week of Nightmares,Master,in_play_action,-,Only one Week of Nightmares can be played in a game.
+102166,Week of Nightmares,Master,in_play_action,counters,Put this card in play with 10 nightmare counters.
+102166,Week of Nightmares,Master,in_play_action,continuous,Ravnos get +1 bleed and +1 strength and do not hunt as normal.
+102166,Week of Nightmares,Master,in_play_action,granted_action;continuous,Any Ravnos can steal 1 blood from another Ravnos as a +1 stealth hunt action.
+102166,Week of Nightmares,Master,in_play_action,phase_trigger;counters,"During each Methuselah's unlock phase, that Methuselah can move 1 nightmare counter from this card to a Ravnos."
+102166,Week of Nightmares,Master,in_play_action,event_trigger;counters,"If this card has no counters, each Ravnos burns 1 blood for each nightmare counter on them or is burned, then burn this card and the nightmare counters."
+102180,Wider View,Master,trifle,label,Trifle.
+102180,Wider View,Master,trifle,-,Put this card in play.
+102180,Wider View,Master,trifle,-,You can use 1 transfer to draw 1 card from your crypt and then remove a crypt card in your uncontrolled region from the game.
+102180,Wider View,Master,trifle,-,You can use 4 transfers to burn this card and gain 2 pool.
+102194,Wormwood,Event,delayed_replacement,label,Gehenna.
+102194,Wormwood,Event,delayed_replacement,label,Requires 1 or more other Gehenna events in play.
+102194,Wormwood,Event,delayed_replacement,-,Do not replace until your next discard phase.
+102194,Wormwood,Event,delayed_replacement,counters,This card comes into play with 10 counters.
+102194,Wormwood,Event,delayed_replacement,counters,"After another Gehenna event is played, burn 1 counter from this card."
+102194,Wormwood,Event,delayed_replacement,counters,"Vampires with capacity greater than X are considered vampires with capacity X (minimum of 1), where X is the number of counters on this card."
+102201,Yoruba Shrine,Master,,label,Unique location.
+102201,Yoruba Shrine,Master,,lock_ability;event_trigger,"If a ready Assamite you control is the target of a directed action or is chosen by the acting Methuselah in the terms of a referendum, you can lock this location to unlock the acting minion and have the action or referendum fail."
+102201,Yoruba Shrine,Master,,-,Only usable as the directed action is announced or during the polling step of the referendum before votes and ballots are cast.
+102212,Zoo Hunting Ground,Master,,label,Unique location.
+102212,Zoo Hunting Ground,Master,,label,Hunting ground.
+102212,Zoo Hunting Ground,Master,,phase_trigger,"During your unlock phase, a ready vampire you control can gain 1 blood."
+102212,Zoo Hunting Ground,Master,,-,A vampire can gain blood from only one hunting ground each turn.

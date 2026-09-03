@@ -145,23 +145,24 @@ ACTION_MODE = re.compile(r"^(\+\d stealth )?(Ⓓ )?action\b|^Ⓓ", re.I)
 
 
 def split_modes(text):
-    """Return (preamble, [(type_tags, mode_text), …])."""
+    """Return (preamble, [(type_tags, raw_tags, mode_text), …]). `raw_tags`
+    are the bracket tokens as printed (`dom`, `DOM`, `COMBAT`), case kept."""
     preamble, modes = [], []
     for line in text.split("\n"):
         m = MODE_LINE.match(line)
         if not m:
-            (modes[-1][1] if modes else preamble).append(line)
+            (modes[-1][2] if modes else preamble).append(line)
             continue
-        tags = {t.strip("[]").upper() for t in re.findall(r"\[[^\]]+\]", m.group(0))}
-        types = {TYPE_TAGS[t] for t in tags if t in TYPE_TAGS}
-        modes.append((types, [line[m.end():]]))
+        raw = [t.strip("[]") for t in re.findall(r"\[[^\]]+\]", m.group(0))]
+        types = {TYPE_TAGS[t.upper()] for t in raw if t.upper() in TYPE_TAGS}
+        modes.append((types, raw, [line[m.end():]]))
     if not modes:                       # no mode lines: the whole text is one mode
-        modes, preamble = [(set(), preamble)], []
+        modes, preamble = [(set(), [], preamble)], []
     pre = " ".join(preamble)
     out = []
-    for t, ls in modes:
+    for t, raw, ls in modes:
         for part in re.split(r"(?<=\.)\s+(?=Also usable )", " ".join(ls)):
-            out.append((t, part))
+            out.append((t, raw, part))
     return pre, out
 
 
@@ -185,6 +186,19 @@ def classify_mode(mtype, text, as_above=False):
 
 
 def windows_for(card):
+    """Per-card union of windows and flags (the matrix rows)."""
+    wins, flags = [], []
+    for _, mwins, mflags in modes_for(card):
+        wins += mwins
+        flags += mflags
+    return list(dict.fromkeys(wins)), list(dict.fromkeys(flags))
+
+
+def modes_for(card):
+    """Per-mode classification: [(raw tags, windows, flags)]. Card-level
+    (type) windows go on the modes of that type — the action mode of an
+    Action/Combat card, every mode of a single-type card; card-text flags go
+    on every mode."""
     types = card.get("types", [])
     text = card.get("card_text", "")
     wins = []
@@ -211,23 +225,27 @@ def windows_for(card):
     mode_types = [t for t in types if t in MODE_TABLES]
     if out_of_turn:
         mode_types.append("Reaction")   # out-of-turn masters are reaction-timed plays
-    if not mode_types:
-        return list(dict.fromkeys(wins)), flags
-
     preamble, modes = split_modes(text)
+    if not mode_types:
+        return [(raw, list(dict.fromkeys(wins)), flags) for _, raw, _ in modes]
+
     prev = []
-    for tags, mtext in modes:
-        raw = preamble + " " + mtext
-        stripped = strip_riders(raw)
+    result = []
+    for tags, raw, mtext in modes:
+        raw_text = preamble + " " + mtext
+        stripped = strip_riders(raw_text)
         as_above = bool(re.match(r"\s*as above", mtext, re.I))
         mwins = list(prev) if as_above else []
+        action_mode = False
         if tags:
             mts = [t for t in tags if t in MODE_TABLES]
+            action_mode = bool(tags & {"Action", "Political Action"})
         elif "Action" in types and ACTION_MODE.match(mtext.strip()):
             mts = []                     # the action mode of an Action/Combat card
+            action_mode = True
         else:
             mts = mode_types
-        if re.search(CANCEL_AS_PLAYED, raw, re.I) and not re.search(r"lock this", raw, re.I):
+        if re.search(CANCEL_AS_PLAYED, raw_text, re.I) and not re.search(r"lock this", raw_text, re.I):
             mwins.append("CARD_AS_PLAYED")
         else:
             for mt in mts:
@@ -235,15 +253,21 @@ def windows_for(card):
         if "WAKE" in mwins:
             mwins.append("CARD_AS_PLAYED")          # rules-qa 2.4
         if "COMBAT_STRIKE_DECLARATION" in mwins and \
-                re.search(r"with \d optional maneuver", raw, re.I):
+                re.search(r"with \d optional maneuver", raw_text, re.I):
             mwins.append("COMBAT_DETERMINE_RANGE")  # maneuver rider commits the strike
             flags.append("maneuver_rider")
-        if "Reaction" in mts and re.search(r"(?<!only )usable by a locked", raw, re.I) \
+        mflags = list(flags)
+        if "Reaction" in mts and re.search(r"(?<!only )usable by a locked", raw_text, re.I) \
                 and not ({"WAKE", "REACTION_UNLOCK", "REACTION_UNLOCK_ATTEMPT"} & set(mwins)):
-            flags.append("usable_locked")
-        wins += mwins
+            mflags.append("usable_locked")
+        # Type-level windows: on the action mode of an Action/Combat card,
+        # else on every mode (single-type cards; masters with modes).
+        multi = len(mode_types) + int("Action" in types) > 1 or (
+            "Action" in types and mode_types)
+        type_wins = wins if (action_mode or not multi) else []
+        result.append((raw, list(dict.fromkeys(type_wins + mwins)), mflags))
         prev = mwins
-    return list(dict.fromkeys(wins)), list(dict.fromkeys(flags))
+    return result
 
 
 def rows_for(cards):

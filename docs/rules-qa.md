@@ -172,7 +172,7 @@ the hunt exemption). _Pending P1 (need cards)_: `nra_cancel_allows_retry`,
 `nra_one_political_per_turn`, `nra_in_play_copy_identity`,
 `nra_same_action_card_text_covers_hunt`.
 
-### 1.5 Master phase structure _(open)_
+### 1.5 Master phase structure _(open; out-of-turn accounting answered in 3.3)_
 
 - During a Methuselah's master phase, what may *other* Methuselahs legally do,
   exhaustively? (Cancel-as-played responses, out-of-turn masters — anything
@@ -181,7 +181,7 @@ the hunt exemption). _Pending P1 (need cards)_: `nra_cancel_allows_retry`,
   its cancel window, until the player moves on" — i.e. an offer window whose only
   actor is the phase owner, punctuated by reaction sub-windows.
 
-### 1.6 "Only when needed" stealth/intercept as a legality rule _(open)_
+### 1.6 "Only when needed" stealth/intercept as a legality rule _(answered in 3.2)_
 
 Stealth may be added only when currently blocked with sufficient intercept;
 intercept only when stealth exceeds it.
@@ -299,6 +299,77 @@ Related reading, not exercised by any precon: the rulebook exempts only
 one Methuselah contest a title (a Prince and a Baron of the same city). No V5
 precon holds both Mannheim or both Pittsburgh title holders, so nothing in
 v1 play reaches this; confirm or veto when convenient.
+
+### 3.2 "Only when needed" is a mask-level rule (closes 1.6)
+
+Stealth may be added only when a block attempt is pending with intercept ≥
+stealth; surplus plays are illegal, not merely pointless. Pre-emptive stealth
+before any block attempt?
+
+**A** (2026-09-03): Stealth only when needed; no pre-emptive stealth without a
+block attempt — except when the card says so ("even if stealth is not yet
+needed": Form of the Cobra [PRO], Paths in Two Worlds, Form of Mist's
+continuation, Creepshow Casino; intercept: Organized Resistance, Second
+Tradition), or when the effect is a *permanent bonus* rather than stealth
+added to the current action — the owner's example is Loup (Toreador get +1
+stealth while it is in play), playable with no block attempt at all.
+
+**Applied**: `StealthNeeded` / `InterceptNeeded` are requirements on
+stealth/intercept-adding plays; the "not yet needed" texts waive them; put-in-
+play bonuses are layers and carry no such requirement.
+
+**Test** — _pending_: `stealth_only_when_needed`, `stealth_waived_by_card_text`.
+
+### 3.3 Out-of-turn master cards and the master phase action
+
+Archon Investigation, Sudden Reversal (and trifles such as Wash outside V5):
+what is the master-phase-action accounting?
+
+**A** (2026-09-03): An out-of-turn master card counts toward the next master
+phase of the player who plays it. An out-of-turn *trifle* also consumes that
+next master phase action, and gives an additional master phase action back
+only when the player reaches their master phase (because it is a trifle).
+Ergo a player can never play two out-of-turn cards between their turns.
+
+**Applied**: per-seat `out_of_turn_used: Option<{trifle}>`; an out-of-turn
+play is legal only while unset; at the seat's next master phase the action
+count is 1 − 1 (+1 if trifle), then the flag clears.
+
+**Test** — _pending_: `out_of_turn_consumes_next_mpa`, `out_of_turn_trifle_refunds_at_master_phase`,
+`no_two_out_of_turn_between_turns`.
+
+### 3.4 Form of Mist continuation and earlier declines
+
+On "continue the action as if unblocked", are the defenders' earlier declines
+reset?
+
+**A** (2026-09-03): There is no "earlier decline" minion by minion: a
+Methuselah declines *as a whole* if they do not block. A Form of Mist
+continuation implies there was a block. If the target had declined and another
+player blocked, then after the continuation the target's decline still stands
+and they cannot block — it is the same action.
+
+**Applied**: continuation re-enters the block loop with the action's context
+(stealth/intercept layers, `declined` set) preserved; only the pending-attempt
+state resets. Matches rules-qa 1.3 (only a target change reopens attempts).
+
+**Test** — _pending_: `continuation_keeps_declines`.
+
+### 3.5 When numeric terms are chosen
+
+Villein's "move 2 to 5 blood", Kine Resources Contested's "allocate 4 points":
+stepwise sub-decisions rather than enumerated options — when are they taken?
+
+**A** (2026-09-03): Terms are chosen and announced when the card is played
+(Villein): it matters because it can change what the other players do. For
+Kine Resources Contested the terms are announced as the terms of the
+referendum — after the action succeeds, before votes are cast.
+
+**Applied**: the play option is (card, mode, targets); numeric terms are a
+sub-decision at the `AtPlay` point (before the as-played window opens) for
+cards like Villein, and at the referendum's terms step for political cards.
+
+**Test** — _pending_: `terms_announced_at_play`, `referendum_terms_before_votes`.
 
 ## Batch 3 — planned: actions & resolution (costs, targets, "as announced",
 redirects, action continuation). Batch 4 — combat (strike resolution order,

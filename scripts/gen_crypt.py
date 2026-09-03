@@ -91,6 +91,7 @@ def generate(cards):
     out.append("    pub title: Title,")
     out.append("}")
     out.append("")
+    out.append("#[rustfmt::skip]")
     out.append(f"pub static CRYPT: [CryptCard; {len(vamps)}] = [")
     for c in vamps:
         sect, title = parse(c)
@@ -116,6 +117,7 @@ def generate(cards):
     precons = sorted(precons.items())
     out.append("/// The 14 full-size preconstructed crypts (12 cards each) as")
     out.append("/// (name, [(CRYPT index, copies)]).")
+    out.append("#[rustfmt::skip]")
     out.append(f"pub static PRECONS: [(&str, &[(u16, u8)]); {len(precons)}] = [")
     for (s, p), entries in precons:
         total = sum(k for _, k in entries)

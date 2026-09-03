@@ -297,6 +297,23 @@ The framework rule that everything else depends on:
   layers. Interrupt classes get explicit hook points: prevention (order-sensitive),
   cancel-as-played, replacement draws, cost reducers (usable at play or resolution).
 
+- **Settled shape (owner, 2026-09-03; worked examples in
+  [`docs/effects-framework.md`](docs/effects-framework.md))**: a card is a set of
+  *modes* (its printed `[dis]`/`[TYPE]` lines); a mode is `{tags, windows,
+  actor, requires, cost, targets, limit, effects, riders}`. The **legality
+  half** (`windows`, `actor`, `requires`, `cost`, `targets`, `limit`) is a
+  **closed data vocabulary** — named predicates evaluated by the engine; no
+  card decides its own legality in custom code — so the mask is enumerated
+  from data. The **execution half** (`effects`, `riders`) is interpreted
+  primitives with a `Custom` escape hatch. In-play abilities are the same
+  shape with an in-play source; continuous effects are scope layers; riders
+  and triggers bind to named hooks. Behavior is authored as **Rust data
+  tables** per card, checked by the compiler against the generated static half
+  (`crates/engine/src/library.rs`, `crypt.rs`). Numeric terms are stepwise
+  sub-decisions taken at play (Villein) or at the referendum's terms step
+  (rules-qa 3.5). Stealth/intercept-adding plays carry `StealthNeeded` /
+  `InterceptNeeded` unless the card text waives it (rules-qa 3.2).
+
 Semantics authority for the tricky parts (requirements vs costs, cancellation vs
 replacement, cumulative/stacking, simultaneity ordering, NRA, changing acting
 minion): **vtes-advanced-rules**, which doubles as the spec for this layer.
@@ -380,8 +397,9 @@ Anarch Revolt (event, ongoing global) · Kine Resources Contested (interactive t
 
 The engine's value is trust; trust is measured, not asserted.
 
-1. **Rulings as tests**: vtes-rulings YAML (machine-readable, card-keyed) filtered
-   to the V5 pool; each applicable ruling becomes a scenario test. Scenario format =
+1. **Rulings as tests**: vtes-rulings YAML (card-keyed prose with provenance,
+   so hand-translated, not generated) filtered to the V5 pool
+   (`data/rulings-v5.csv`); each applicable ruling becomes a scenario test. Scenario format =
    decision scripts with KRCG card names, readable as annotated game transcripts.
 2. **Property fuzzing**: millions of random-legal games; invariants — counter/pool
    conservation modulo explicit sources, no negative resources, capacity ceilings,
