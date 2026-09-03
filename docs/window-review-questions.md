@@ -2,8 +2,13 @@
 
 **Status (2026-09-02): arbitrated.** Owner rulings recorded in
 `docs/rules-qa.md` Batch 2 and applied to `data/window-matrix-reviewed.csv`
-(0 question rows left). Per-entry outcomes are marked "→ ruled" below; the
-convention notes at the end still need feeding back into the generator.
+(0 question rows left). Per-entry outcomes are marked "→ ruled" below. The
+convention notes at the end are fed back into `scripts/window_matrix.py`
+(per-mode classification); `scripts/window_matrix.py --check
+data/window-matrix-reviewed.csv` reports 0 divergences on all 421 cards.
+In the reviewed CSV, `needs_review` is generator-owned (">2 windows"
+heuristic, mirrored from the draft); every row is reviewed — `review` is the
+human column.
 
 Per-card questions raised by the hand review of `data/window-matrix-draft.csv`
 (output: `data/window-matrix-reviewed.csv`). Each entry: card, text quote, draft
@@ -152,8 +157,12 @@ header is withdrawn.
   from hand.
 - `usable_locked` (Organized Resistance) — reaction play whose "unlocked"
   requirement is waived without a wake or unlock (rules-qa 2.4).
-- `token_entity` extended to cards *becoming vampires* (Childe of the
-  Revolution, Waters of Duat) — the generator's regex only caught allies.
+- `token_entity` — definition sharpened by the convergence pass: an entity
+  enters play *outside its declare action* — cards becoming vampires (Childe of
+  the Revolution, Waters of Duat), events putting allies in play (Absimiliard's
+  Army), and an ally card returning from the ash heap (Split the Veil), which
+  the draft had caught by accident and the review passed; kept deliberately
+  under the sharpened definition.
 
 ## Convention notes (feed back into scripts/window_matrix.py)
 
@@ -184,6 +193,19 @@ header is withdrawn.
 - "Prevent"/"votes" regex false positives: granted prevention abilities and
   vote-mention cards are not prevention-window/referendum plays (Amici Noctis,
   Voter Captivation are after-resolution).
+- Generator convergence pass (2026-09-02) — corrections it surfaced in the
+  *reviewed* CSV: Deep Ecology [pro] ("Only usable by a locked vampire. This
+  vampire burns 1 blood to unlock.") gains `REACTION_UNLOCK` (it is a plain
+  unlock reaction, same class as Guard Dogs); Restricted Vitae, Rise of the
+  Nephtali and The New Inquisition regain `delayed_replacement` (dropped by
+  mistake when `in_play_action` was added). Narrow rules the pass had to add,
+  worth knowing when card data changes: Eagle's Sight [AUS] ("attempts to
+  block the current action") is filed as a block-loop play under
+  `ACTION_STEALTH_INTERCEPT`; "Also usable to …" sentences (Organized
+  Resistance) are split into their own mode; a mode's own timing clause
+  suppresses its generic stealth/intercept/bleed windows (Form of the Cobra
+  [PRO], Paths in Two Worlds, Second Tradition [2nd mode]); "As above" modes
+  inherit and never take a default window.
 - Oddballs worth stress-set slots: Owl Companion / Revelations (open-hand
   information effects), Spectral Servitor / Vozhd of Juiz de Fora (allies
   playing discipline cards "as a vampire"), Screamer (burn as an
