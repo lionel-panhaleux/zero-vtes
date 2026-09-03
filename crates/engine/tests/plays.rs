@@ -70,6 +70,7 @@ fn implemented_definitions_cover_the_slice() {
             "Conditioning",
             "Consign to Oblivion",
             "Deflection",
+            "Earth Control",
             "Eyes of Argus",
             "Form of the Cobra",
             "Homunculus",

@@ -183,11 +183,16 @@ impl Engine {
     /// comparison in `action_advance` is the actual semantics.
     fn intercept_reachable(&self, a: &ActionCtx, seat: SeatId, m: MinionId) -> u8 {
         let st = &self.state;
-        let mut total = 0u8;
+        // The current attempt's intercept counts when re-checking in B.
+        let mut total = match a.state {
+            ActionState::Attempt(cur) if cur == m => a.intercept,
+            _ => 0,
+        };
         for &card in &st.seats[seat.index()].hand {
             let Some(def) = cards::lookup(card) else {
                 continue;
             };
+            let mut per_card = 0u8;
             for (mi, mode) in def.modes.iter().enumerate() {
                 let tags = LIBRARY[card as usize].modes[mi].tags;
                 if !cards::has_disciplines(st, m, card, tags) {
@@ -198,12 +203,20 @@ impl Engine {
                 {
                     continue;
                 }
-                for e in mode.effects {
-                    if let Effect::AddIntercept(n) = e {
-                        total = total.max(*n);
-                    }
-                }
+                // One play per card: the best mode of each card adds.
+                let best = mode
+                    .effects
+                    .iter()
+                    .filter_map(|e| match e {
+                        Effect::AddIntercept(n) => Some(*n),
+                        _ => None,
+                    })
+                    .max()
+                    .unwrap_or(0);
+                per_card = per_card.max(best);
             }
+            total = total.saturating_add(per_card);
+            {}
         }
         total
     }

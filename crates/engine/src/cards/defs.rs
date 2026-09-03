@@ -337,9 +337,11 @@ pub static BONDING: CardDef = CardDef {
             }],
         },
         ModeDef {
+            // "+1 stealth and +1 bleed": one effect, playable whenever its
+            // bleed half applies — the stealth rides along, needed or not.
             windows: &[Window::ActionDuring, Window::ActionStealthIntercept],
             actor: Actor::ActingMinion,
-            requires: &[Requirement::IsBleed, Requirement::StealthNeeded],
+            requires: &[Requirement::IsBleed],
             target: NO_TARGET,
             terms: None,
             waives_needed: false,
@@ -355,7 +357,37 @@ pub static BONDING: CardDef = CardDef {
     abilities: &[],
 };
 
-pub static DEFS: [&CardDef; 10] = [
+/// "[pro] +1 stealth. [PRO] +2 stealth." — a pure stealth modifier: only
+/// when needed (rules-qa 3.2).
+pub static EARTH_CONTROL: CardDef = CardDef {
+    name: "Earth Control",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::ActionStealthIntercept],
+            actor: Actor::ActingMinion,
+            requires: &[Requirement::StealthNeeded],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            effects: &[Effect::AddStealth(1)],
+        },
+        ModeDef {
+            windows: &[Window::ActionStealthIntercept],
+            actor: Actor::ActingMinion,
+            requires: &[Requirement::StealthNeeded],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            effects: &[Effect::AddStealth(2)],
+        },
+    ],
+    abilities: &[],
+};
+
+pub static DEFS: [&CardDef; 11] = [
+    &EARTH_CONTROL,
     &BONDING,
     &VILLEIN,
     &SUDDEN_REVERSAL,

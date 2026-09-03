@@ -184,6 +184,7 @@ fn midgame(seed: u64) -> Engine {
     let slice: Vec<u16> = [
         "Villein",
         "Sudden Reversal",
+        "Earth Control",
         "Bonding",
         "Conditioning",
         "Consign to Oblivion",
@@ -348,6 +349,7 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "play:Villein",
             "play:Sudden Reversal",
             "play:Bonding",
+            "play:Earth Control",
             "play:Conditioning",
             "play:Consign to Oblivion",
             "play:Form of the Cobra",

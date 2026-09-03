@@ -119,20 +119,18 @@ fn table() -> Table {
     }
 }
 
-// rules-qa 3.2 — stealth only when needed: Bonding [DOM] (stealth) is masked
-// with no attempt pending and offered once an attempt has intercept ≥
-// stealth; [dom] (bleed only) is offered throughout. A failed attempt goes
-// back to A (rulebook B.4); with no intercept in hand, a new attempt is
-// pruned as unreachable and the seat's pass is the final decline.
+// rules-qa 3.2 — stealth only when needed: Earth Control is masked with no
+// attempt pending and offered once an attempt has intercept ≥ stealth. A
+// failed attempt goes back to A (rulebook B.4); with no intercept in hand a
+// new attempt is pruned as unreachable and the seat's pass is the final
+// decline.
 #[test]
 fn stealth_only_when_needed() {
     let mut t = table();
     let e = &mut t.e;
-    e.state.seats[0].hand.push(find_library("Bonding"));
-    pick(e, bleed(t.a));
-    let req = expect(e, SeatId(0), WindowLabel::ActionBlock);
-    assert_eq!(plays(&req), vec![play(0, 0, t.a)]); // [dom] only: no attempt
-    pick(e, Choice::Pass);
+    e.state.seats[0].hand.push(find_library("Earth Control"));
+    pick(e, bleed(t.p));
+    // No attempt yet: Earth Control is not offered, seat 0's window elides.
     let req = expect(e, SeatId(1), WindowLabel::ActionBlock);
     assert_eq!(
         req.options,
@@ -145,15 +143,31 @@ fn stealth_only_when_needed() {
     pick(e, Choice::DeclareBlock { minion: t.b });
     // Impulse back to seat 0: 0 intercept ≥ 0 stealth, stealth is needed.
     let req = expect(e, SeatId(0), WindowLabel::ActionBlock);
+    assert_eq!(plays(&req), vec![play(0, 0, t.p), play(0, 1, t.p)]);
+    pick(e, play(0, 1, t.p)); // +2 stealth, 1 blood
+                              // Every remaining window elides: the attempt fails at closure, back to
+                              // A, seat 1's new attempt is pruned (nothing reaches 2 intercept), C,
+                              // resolution.
+    expect(e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[1].pool, 29);
+    assert_eq!(e.state.minions[t.p.index()].blood, 5);
+    assert!(e.state.seats[0].has_edge);
+}
+
+// Bonding [DOM] is "+1 stealth and +1 bleed": one effect, playable for its
+// bleed half with no attempt pending; the limited cap then bars [dom].
+#[test]
+fn bonding_superior_is_playable_for_its_bleed_half() {
+    let mut t = table();
+    let e = &mut t.e;
+    e.state.seats[0].hand.push(find_library("Bonding"));
+    pick(e, bleed(t.a));
+    let req = expect(e, SeatId(0), WindowLabel::ActionBlock);
     assert_eq!(plays(&req), vec![play(0, 0, t.a), play(0, 1, t.a)]);
     pick(e, play(0, 1, t.a));
-    // Stealth 1, bleed 2, Bonding gone: every remaining window elides —
-    // the attempt fails at closure, back to A, seat 1's new attempt is
-    // pruned (nothing reaches 1 intercept), C, resolution.
+    // Stealth 1, bleed 2; seat 1 cannot reach 1 intercept: no attempt.
     expect(e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.seats[1].pool, 28);
-    assert_eq!(e.state.minions[t.a.index()].blood, 6);
-    assert!(e.state.seats[0].has_edge);
 }
 
 // rules-qa 3.2 — "even if stealth is not yet needed": Form of the Cobra
