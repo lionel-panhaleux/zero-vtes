@@ -233,8 +233,9 @@ state either performs deterministic bookkeeping or hosts a window instance:
   (impulse-reset), so third parties can still feed intercept (KRCG News Radio) or
   strip stealth (Draba, Night Terrors) after the attempting Methuselah passes. At
   closure: intercept ≥ stealth → block resolves (blocker locks, combat); otherwise
-  the block fails and the action proceeds. A Methuselah's pass with **no ongoing
-  attempt is a final decline** — nothing reopens it except a change of the
+  the attempt fails and the loop returns to "no attempt" (rulebook B.4), where
+  the same Methuselah may attempt again, with the same or another minion. A
+  Methuselah's pass with **no ongoing attempt is a final decline** — nothing reopens it except a change of the
   action's target (bounces: Deflection, Telepathic Misdirection; *not* the card
   "Change of Target", which terminates the action). Consequence for elision and
   ordering: a would-be third-party helper needs the defender to *attempt first* —
@@ -493,11 +494,19 @@ Recorded so nobody mistakes them for oversights:
   master-phase-action and trifle accounting, out-of-turn accounting (rules-qa
   3.3), numeric terms at announcement (3.5), the as-played cancel window with
   a nested cancel stack (spec §1.8), cost folded through layers, the discard
-  phase; first definitions Villein and Sudden Reversal (`cards::defs`). Next
-  slices: action modifiers/reactions on the bleed (Deflection, Eyes of Argus,
-  Consign to Oblivion, Archon Investigation), combat (Form of Mist, Telepathic
-  Tracking, Immortal Grapple, Blur), politics (Kine Resources Contested,
-  Scalpel Tongue, Anarch Revolt).
+  phase; first definitions Villein and Sudden Reversal (`cards::defs`). Slice
+  2 done (2026-09-03): the action as a state machine on the engine (as-announced
+  window, the block loop as rulebook states A/B/C with a failed attempt
+  returning to A, blocks-declined window), modifiers and reactions enumerated
+  from definitions with actor, discipline tags, "only when needed" (rules-qa
+  3.2) and intercept reachability replacing the P0 prune, wakes in the
+  as-played window (2.4), bounces reopening blocks (1.3), action-scoped cost
+  layers, deferred reaction replacement, the employ action with NRA by card
+  name, an unlock-phase in-play ability window; definitions Bonding,
+  Conditioning, Consign to Oblivion, Form of the Cobra [PRO], Eyes of Argus,
+  Deflection, Archon Investigation, Homunculus. Next slices: combat (Form of
+  Mist, Telepathic Tracking, Immortal Grapple, Blur), politics (Kine Resources
+  Contested, Scalpel Tongue, Anarch Revolt).
 - **P2 — full engine pool**: all 621 cards including Events and their machinery;
   the 14 training decklists plus the New Blood minis as data; perft baselines;
   protocol server; scripted reference bots (aggro-bleed, wall, vote).

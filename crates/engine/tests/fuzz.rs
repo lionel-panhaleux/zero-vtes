@@ -13,6 +13,7 @@ use zvtes::crypt::{CRYPT, PRECONS};
 use zvtes::decision::{ActionKind, Choice};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::SeatId;
+use zvtes::library::LIBRARY;
 use zvtes::rng::Rng;
 use zvtes::state::{find_card, find_library, UncontrolledSlot, HAND_SIZE};
 
@@ -109,14 +110,24 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64) {
     );
 }
 
-/// Coverage key of a chosen option: which kind of decision it was.
-fn kind(c: &Choice) -> &'static str {
+/// Coverage key of a chosen option: which kind of decision it was; card
+/// plays are keyed by the card's printed name.
+fn kind(e: &Engine, seat: SeatId, c: &Choice) -> String {
+    if let Choice::Play { card, .. } = c {
+        let id = e.state.seats[seat.index()].hand[*card as usize];
+        return format!("play:{}", LIBRARY[id as usize].name);
+    }
+    kind_of(c).to_string()
+}
+
+fn kind_of(c: &Choice) -> &'static str {
     match c {
         Choice::Pass => "pass",
         Choice::BurnEdge => "burn_edge",
         Choice::PayContest => "pay_contest",
         Choice::YieldContest => "yield_contest",
         Choice::Play { .. } => "play",
+        Choice::UseAbility { .. } => "use_ability",
         Choice::SetX(_) => "set_x",
         Choice::Discard(_) => "discard",
         Choice::TakeAction { action, .. } => match action {
@@ -125,6 +136,7 @@ fn kind(c: &Choice) -> &'static str {
             ActionKind::LeaveTorpor => "leave_torpor",
             ActionKind::Rescue => "rescue",
             ActionKind::Diablerie => "diablerie",
+            ActionKind::Employ => "employ",
         },
         Choice::DeclareBlock { .. } => "declare_block",
         Choice::PayRescue { .. } => "pay_rescue",
@@ -153,29 +165,61 @@ fn opening(seed: u64) -> Engine {
 /// vampire is only ever unlocked at 0 blood on its own turn, where it must
 /// hunt), nor an oust; this fixture exercises those paths. Deterministic in
 /// `seed`, so replay rebuilds the same start.
+/// The `nth` V5 vampire with superior `disc`, skipping `used` cards.
+fn vampire_with(disc: &str, nth: usize, used: &[u16]) -> u16 {
+    CRYPT
+        .iter()
+        .enumerate()
+        .filter(|(i, c)| c.disciplines.contains(&disc) && !used.contains(&(*i as u16)))
+        .nth(nth)
+        .map(|(i, _)| i as u16)
+        .expect("a vampire with the discipline")
+}
+
 fn midgame(seed: u64) -> Engine {
     let mut e = Engine::new(seed, 4);
     let mut rng = Rng::new(seed ^ 0x5eed);
     let shared = find_card("Alice Chen");
     let city = [find_card("Horst von Brühl"), find_card("Aline Gädeke")];
-    let villein = find_library("Villein");
-    let reversal = find_library("Sudden Reversal");
+    let slice: Vec<u16> = [
+        "Villein",
+        "Sudden Reversal",
+        "Bonding",
+        "Conditioning",
+        "Consign to Oblivion",
+        "Form of the Cobra",
+        "Eyes of Argus",
+        "Deflection",
+        "Archon Investigation",
+        "Homunculus",
+    ]
+    .iter()
+    .map(|n| find_library(n))
+    .collect();
+    let mut used = vec![shared, city[0], city[1]];
     for s in 0..4u8 {
         let seat = SeatId(s);
-        // Distinct cards for this seat: its precon's list, minus the fixture
-        // cards, so no seat ever starts with two copies of a vampire.
+        // One vampire each with DOM, AUS, PRO and OBL so the slice-2 cards
+        // are playable, plus a torpor vampire; distinct across seats.
+        e.state.seats[s as usize].pool = 2 + rng.below(8) as i32;
+        for disc in ["DOM", "AUS", "PRO", "OBL"] {
+            let card = vampire_with(disc, s as usize, &used);
+            used.push(card);
+            let blood = (1 + rng.below(4) as u8).min(CRYPT[card as usize].capacity);
+            e.add_minion(seat, card, blood, false);
+        }
         let (_, list) = PRECONS[(seed as usize + s as usize) % PRECONS.len()];
         let mut pool: Vec<u16> = list
             .iter()
             .map(|&(c, _)| c)
-            .filter(|c| *c != shared && !city.contains(c))
+            .filter(|c| !used.contains(c))
             .collect();
         rng.shuffle(&mut pool);
-        e.state.seats[s as usize].pool = 2 + rng.below(8) as i32;
-        for in_torpor in [false, false, true].iter().skip(rng.below(2)) {
+        {
             let card = pool.pop().unwrap();
-            let blood = (rng.below(4) as u8).min(CRYPT[card as usize].capacity);
-            e.add_minion(seat, card, blood, *in_torpor);
+            used.push(card);
+            let blood = (rng.below(3) as u8).min(CRYPT[card as usize].capacity);
+            e.add_minion(seat, card, blood, true);
         }
         e.state.seats[s as usize].crypt = pool.split_off(pool.len() - 3);
         e.state.seats[s as usize].uncontrolled = vec![
@@ -188,15 +232,18 @@ fn midgame(seed: u64) -> Engine {
                 counters: CRYPT[city[s as usize % 2] as usize].capacity,
             },
         ];
+        // Seven slice cards in hand, rotating the mix by seat and seed.
         let hand = &mut e.state.seats[s as usize].hand;
-        hand.truncate(HAND_SIZE - 3);
-        hand.extend([villein, villein, reversal]);
+        hand.clear();
+        for k in 0..HAND_SIZE {
+            hand.push(slice[(k + s as usize * 3 + seed as usize) % slice.len()]);
+        }
     }
     e.state.seats[rng.below(4)].has_edge = true;
     e
 }
 
-fn play(seed: u64, start: fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<&'static str>) {
+fn play(seed: u64, start: fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<String>) {
     let mut e = start(seed);
     let totals = zone_totals(&e);
     let mut agent = RandomLegal::new(seed ^ 0x00c0_ffee);
@@ -210,7 +257,7 @@ fn play(seed: u64, start: fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<&'sta
             Step::Decision(req) => {
                 invariants(&e, &totals, seed);
                 let idx = agent.choose(&req);
-                chosen.insert(kind(&req.options[idx]));
+                chosen.insert(kind(&e, req.seat, &req.options[idx]));
                 e.choose(idx);
             }
             Step::Over(vps) => return (e, vps, chosen),
@@ -218,7 +265,7 @@ fn play(seed: u64, start: fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<&'sta
     }
 }
 
-fn fuzz(start: fn(u64) -> Engine) -> HashSet<&'static str> {
+fn fuzz(start: fn(u64) -> Engine) -> HashSet<String> {
     let mut seen = HashSet::new();
     for seed in 0..SEEDS {
         let (played, vps, chosen) = play(seed, start);
@@ -254,10 +301,10 @@ fn fuzz(start: fn(u64) -> Engine) -> HashSet<&'static str> {
 
 /// Coverage: random play must actually take every listed kind of decision,
 /// or the invariants are not being exercised there.
-fn covers(seen: &HashSet<&str>, kinds: &[&str]) {
+fn covers(seen: &HashSet<String>, kinds: &[&str]) {
     for k in kinds {
         assert!(
-            seen.contains(k),
+            seen.contains(*k),
             "decision kind {k:?} never taken by random play"
         );
     }
@@ -297,8 +344,18 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "cast_edge",
             "pay_contest",
             "yield_contest",
-            "play",
             "set_x",
+            "play:Villein",
+            "play:Sudden Reversal",
+            "play:Bonding",
+            "play:Conditioning",
+            "play:Consign to Oblivion",
+            "play:Form of the Cobra",
+            "play:Eyes of Argus",
+            "play:Deflection",
+            "play:Archon Investigation",
+            "play:Homunculus",
+            "use_ability",
         ],
     );
     // Ousts and game wins happen from here: at least one game must end

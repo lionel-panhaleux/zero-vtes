@@ -1,6 +1,7 @@
+use crate::cards::Target;
 use crate::ids::{MinionId, SeatId};
 
-/// The card-less rulebook actions (rulebook "Types of Actions").
+/// Action kinds: the card-free rulebook actions, plus card actions.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ActionKind {
     Bleed,
@@ -10,6 +11,8 @@ pub enum ActionKind {
     Rescue,
     /// Diablerise a vampire in torpor (`target`); triggers the blood hunt.
     Diablerie,
+    /// Employ a retainer from hand (a card action).
+    Employ,
 }
 
 /// One indexed option inside a decision request. `Pass` is always explicit;
@@ -23,11 +26,18 @@ pub enum Choice {
     PayContest,
     /// Unlock-phase contest: yield — the card is burned / the title is lost.
     YieldContest,
-    /// Play a card from hand: hand index, mode index, resolved target.
+    /// Play a card from hand: hand index, mode index, the playing minion
+    /// (modifiers, reactions, action cards), resolved target.
     Play {
         card: u8,
         mode: u8,
-        target: Option<MinionId>,
+        actor: Option<MinionId>,
+        target: Target,
+    },
+    /// Use an in-play ability: arena index of the card, ability index.
+    UseAbility {
+        card: u32,
+        ability: u8,
     },
     /// Numeric terms of the play being announced (rules-qa 3.5).
     SetX(u8),
@@ -79,6 +89,8 @@ pub enum Choice {
 pub enum WindowLabel {
     UnlockEdge,
     UnlockContest,
+    /// In-play abilities usable during any Methuselah's unlock phase.
+    UnlockAbilities,
     MasterPhase,
     /// Numeric terms of a play, chosen as it is announced.
     PlayTerms,
@@ -86,7 +98,14 @@ pub enum WindowLabel {
     /// only (rules-qa 2.4).
     CardAsPlayed,
     MinionPhase,
+    /// "As the action is announced" plays.
+    ActionAsAnnounced,
+    /// The block loop (rulebook states A and B): attempts, modifiers,
+    /// reactions.
     ActionBlock,
+    /// Blocks declined by all (rulebook state C): redirects, Archon
+    /// Investigation, remaining modifiers.
+    ActionBlocksDeclined,
     RescueCost,
     BloodHuntPolling,
     InfluenceTransfers,

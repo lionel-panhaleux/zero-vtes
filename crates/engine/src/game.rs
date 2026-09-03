@@ -3,9 +3,10 @@
 //! and window logic lives in the sibling modules (`actions`, `contests`,
 //! `influence`, `referendum`), which extend `Engine`.
 
+use crate::actions::ActionCtx;
 use crate::cards::PlayCtx;
 use crate::crypt::PRECONS;
-use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
+use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::ids::{MinionId, SeatId};
 use crate::influence::transfers_for_turn;
 use crate::library::PRECON_LIBRARIES;
@@ -21,21 +22,6 @@ use crate::window::{OrderedWindow, PollingWindow};
 /// boundary, which stands in for the tournament rule "the game ends after the
 /// current action / at the end of the current phase".
 pub const TURN_LIMIT: u32 = 100;
-
-/// The block loop per rules-qa 1.3: one ordered window, no stealth/intercept
-/// failure checkpoint of its own. A declared attempt stays pending until the
-/// window closes; at closure the block succeeds iff intercept >= stealth. A
-/// pass with no ongoing attempt is a final decline.
-#[derive(Clone, Debug)]
-pub(crate) struct BlockCtx {
-    pub acting: MinionId,
-    pub action: ActionKind,
-    pub target: Option<MinionId>,
-    pub stealth: u8,
-    pub window: OrderedWindow,
-    pub attempt: Option<MinionId>,
-    pub declined: Vec<SeatId>,
-}
 
 /// Blood hunt referendum (rulebook "The Blood Hunt"): not an action, no
 /// modifier/reaction windows — polling only. Sources (rules-qa 1.1): each
@@ -82,14 +68,16 @@ pub(crate) enum Flow {
         stack: Vec<PendingPlay>,
         resume: Box<Flow>,
     },
+    /// In-play abilities usable during any Methuselah's unlock phase.
+    Abilities {
+        window: OrderedWindow,
+    },
     /// Minion phase: offer actions for the active seat's ready minions.
     MinionPhase,
-    Block(BlockCtx),
+    /// An action is under way (`Engine::action`).
+    Action,
     /// Rescue resolved unblocked: split the 2-blood cost (paid at resolution).
-    RescueCost {
-        acting: MinionId,
-        target: MinionId,
-    },
+    RescueCost,
     BloodHunt(BloodHuntCtx),
     Influence {
         left: u8,
@@ -111,6 +99,8 @@ pub struct Engine {
     pub log: Vec<usize>,
     pub decisions: u64,
     pub(crate) flow: Flow,
+    /// The action under way, if any (`Flow::Action` and its sub-windows).
+    pub(crate) action: Option<ActionCtx>,
     /// Set when a play's resolution ousted its player: the as-played stack
     /// must not resume the ousted seat's phase.
     pub(crate) ousted_during_play: bool,
@@ -176,6 +166,7 @@ impl Engine {
             log: Vec::new(),
             decisions: 0,
             flow: Flow::GameOver, // replaced by start_turn
+            action: None,
             ousted_during_play: false,
         };
         engine.start_turn();
@@ -213,6 +204,7 @@ impl Engine {
             title_contested: false,
             title_lost: false,
             bled_this_turn: false,
+            acted: Vec::new(),
         });
         MinionId(self.state.minions.len() as u32 - 1)
     }
@@ -287,43 +279,9 @@ impl Engine {
                 window: WindowLabel::MinionPhase,
                 options: self.minion_phase_options(),
             }),
-            Flow::Block(ctx) => {
-                let seat = ctx.window.current()?;
-                let mut options = vec![Choice::Pass];
-                // P0 elision (DESIGN §4.3; owner-approved 2026-09-02): with
-                // no intercept source in the card-less pool an attempt
-                // against stealth is provably futile, so it is pruned rather
-                // than offered. P1 replaces this with intercept
-                // reachability; the closure-time comparison in
-                // `resolve_action` is the actual semantics.
-                let intercept = 0;
-                if ctx.attempt.is_none()
-                    && !ctx.declined.contains(&seat)
-                    && intercept >= ctx.stealth
-                {
-                    for id in st.ready_unlocked(seat) {
-                        options.push(Choice::DeclareBlock { minion: id });
-                    }
-                }
-                Some(DecisionRequest {
-                    seat,
-                    window: WindowLabel::ActionBlock,
-                    options,
-                })
-            }
-            Flow::RescueCost { acting, target } => {
-                let a = st.minions[acting.index()].blood;
-                let t = st.minions[target.index()].blood;
-                let options = (0..=2u8)
-                    .filter(|&k| a >= k && t >= 2 - k)
-                    .map(|k| Choice::PayRescue { from_acting: k })
-                    .collect();
-                Some(DecisionRequest {
-                    seat: st.active,
-                    window: WindowLabel::RescueCost,
-                    options,
-                })
-            }
+            Flow::Abilities { window } => self.abilities_request(window),
+            Flow::Action => self.action_request(),
+            Flow::RescueCost => Some(self.rescue_request()),
             Flow::BloodHunt(ctx) => self.blood_hunt_request(ctx),
             Flow::Influence { left } => Some(self.influence_request(*left)),
             Flow::Discard => Some(self.discard_request()),
@@ -339,10 +297,11 @@ impl Engine {
             Flow::Unlock => self.start_contests(),
             Flow::Contests { items, at } => self.contest_advance(items, at),
             Flow::AsPlayed { stack, resume } => self.as_played_advance(stack, resume),
-            Flow::Block(ctx) => {
-                debug_assert!(ctx.window.is_closed());
-                self.resolve_action(ctx);
+            Flow::Abilities { window } => {
+                debug_assert!(window.is_closed());
+                self.start_master_phase();
             }
+            Flow::Action => self.action_advance(),
             Flow::BloodHunt(ctx) => {
                 debug_assert!(ctx.window.is_closed());
                 self.resolve_blood_hunt(ctx);
@@ -380,28 +339,23 @@ impl Engine {
                     action,
                     target,
                 },
-            ) => self.declare_action(*minion, *action, *target),
-            (Flow::Block(mut ctx), Choice::DeclareBlock { minion }) => {
-                ctx.attempt = Some(*minion);
-                // Declaring changes the window state: prior passes are void.
-                ctx.window.play();
-                self.flow = Flow::Block(ctx);
+            ) => self.declare_action(*minion, *action, *target, None),
+            (
+                Flow::MinionPhase,
+                Choice::Play {
+                    card,
+                    mode,
+                    actor,
+                    target,
+                },
+            ) => {
+                let s = self.state.active;
+                self.announce_play(s, *card, *mode, *actor, *target, Flow::MinionPhase);
             }
-            (Flow::Block(mut ctx), Choice::Pass) => {
-                let seat = ctx.window.current().expect("pass on closed window");
-                if ctx.attempt.is_none() && !ctx.declined.contains(&seat) {
-                    // rules-qa 1.3: declining to block is final.
-                    ctx.declined.push(seat);
-                }
-                ctx.window.pass();
-                self.flow = Flow::Block(ctx);
-            }
-            (Flow::RescueCost { acting, target }, Choice::PayRescue { from_acting }) => {
-                self.state.minions[acting.index()].blood -= from_acting;
-                self.state.minions[target.index()].blood -= 2 - from_acting;
-                // Rescued: to the ready region, lock state untouched.
-                self.state.minions[target.index()].in_torpor = false;
-                self.flow = Flow::MinionPhase;
+            (Flow::Abilities { window }, c) => self.abilities_apply(window, c),
+            (Flow::Action, c) => self.action_apply(c),
+            (Flow::RescueCost, Choice::PayRescue { from_acting }) => {
+                self.rescue_apply(*from_acting)
             }
             (Flow::BloodHunt(ctx), c) => self.blood_hunt_apply(ctx, c),
             (Flow::Influence { left }, c) => self.influence_apply(left, c),
@@ -409,9 +363,15 @@ impl Engine {
         }
     }
 
-    /// End of contest upkeep: on to the master phase.
+    /// End of contest upkeep: the unlock-phase abilities window (every
+    /// seat, clockwise from the active one), then the master phase. Another
+    /// player's effect during this unlock phase, so outside DESIGN §10 item
+    /// 7's ordering call.
     pub(crate) fn end_contests(&mut self) {
-        self.start_master_phase();
+        let order = self.state.clockwise_from(self.state.active);
+        self.flow = Flow::Abilities {
+            window: OrderedWindow::new(order),
+        };
     }
 
     /// End of the influence phase: on to the discard phase (one discard
@@ -466,7 +426,7 @@ impl Engine {
         let cards = &self.state.cards;
         self.state
             .layers
-            .retain(|l| cards[l.source.index()].in_play);
+            .retain(|l| l.scope == crate::cards::Scope::Action || cards[l.source.index()].in_play);
         let pred = self.state.predator(s);
         self.state.seats[pred.index()].half_vps += 2;
         self.state.seats[pred.index()].pool += 6;
@@ -502,6 +462,7 @@ impl Engine {
         for m in &mut self.state.minions {
             // Per-turn NRA flags reset each new turn.
             m.bled_this_turn = false;
+            m.acted.clear();
             // Unlock phase: the active seat's minions unlock (torpor included).
             if m.owner == s && m.in_play {
                 m.locked = false;
@@ -515,6 +476,7 @@ impl Engine {
 mod tests {
     use super::*;
     use crate::crypt::{Sect, Title, CRYPT};
+    use crate::decision::ActionKind;
     use crate::state::find_card;
 
     /// Untitled vampires for generic fixtures.

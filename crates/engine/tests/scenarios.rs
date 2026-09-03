@@ -3,6 +3,7 @@
 //! library cards (bounces, third-party intercept, political NRA, combat
 //! steps) are P1.
 
+use zvtes::cards::Target;
 use zvtes::crypt::{Title, CRYPT};
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
@@ -234,7 +235,8 @@ fn out_of_turn_consumes_next_mpa() {
         Choice::Play {
             card: 0,
             mode: 0,
-            target: Some(MinionId(0)),
+            actor: None,
+            target: Target::Minion(MinionId(0)),
         },
     );
     pick(&mut e, Choice::SetX(2));
@@ -243,7 +245,8 @@ fn out_of_turn_consumes_next_mpa() {
         Choice::Play {
             card: 0,
             mode: 0,
-            target: None,
+            actor: None,
+            target: Target::None,
         },
     ); // seat 1 cancels
        // Seat 0's turn runs out; seat 1's master phase has no action left, so
@@ -275,7 +278,8 @@ fn no_two_out_of_turn_between_turns() {
         Choice::Play {
             card: 0,
             mode: 0,
-            target: Some(MinionId(0)),
+            actor: None,
+            target: Target::Minion(MinionId(0)),
         },
     );
     pick(&mut e, Choice::SetX(2));
@@ -284,7 +288,8 @@ fn no_two_out_of_turn_between_turns() {
         Choice::Play {
             card: 0,
             mode: 0,
-            target: None,
+            actor: None,
+            target: Target::None,
         },
     ); // first cancel
        // Second Villein: seat 1 still holds a Sudden Reversal but may not play
@@ -294,7 +299,8 @@ fn no_two_out_of_turn_between_turns() {
         Choice::Play {
             card: 0,
             mode: 0,
-            target: Some(MinionId(0)),
+            actor: None,
+            target: Target::Minion(MinionId(0)),
         },
     );
     pick(&mut e, Choice::SetX(2));
@@ -323,7 +329,8 @@ fn terms_announced_at_play() {
         Choice::Play {
             card: 0,
             mode: 0,
-            target: Some(MinionId(0)),
+            actor: None,
+            target: Target::Minion(MinionId(0)),
         },
     );
     let req = request(&mut e);

@@ -3,7 +3,7 @@
 //! and out-of-turn accounting, the discard phase. Cards: Villein, Sudden
 //! Reversal.
 
-use zvtes::cards;
+use zvtes::cards::{self, Target};
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
@@ -37,7 +37,8 @@ fn play(card: u8, target: MinionId) -> Choice {
     Choice::Play {
         card,
         mode: 0,
-        target: Some(target),
+        actor: None,
+        target: Target::Minion(target),
     }
 }
 
@@ -61,7 +62,27 @@ fn implemented_definitions_cover_the_slice() {
         .filter(|(i, _)| cards::lookup(*i as u16).is_some())
         .map(|(_, c)| c.name)
         .collect();
-    assert_eq!(implemented, vec!["Sudden Reversal", "Villein"]);
+    assert_eq!(
+        implemented,
+        vec![
+            "Archon Investigation",
+            "Bonding",
+            "Conditioning",
+            "Consign to Oblivion",
+            "Deflection",
+            "Eyes of Argus",
+            "Form of the Cobra",
+            "Homunculus",
+            "Sudden Reversal",
+            "Villein"
+        ]
+    );
+    // Definition modes line up with the generated per-mode static half.
+    for (i, c) in LIBRARY.iter().enumerate() {
+        if let Some(def) = cards::lookup(i as u16) {
+            assert_eq!(def.modes.len(), c.modes.len(), "{}", c.name);
+        }
+    }
 }
 
 #[test]
@@ -146,7 +167,8 @@ fn sudden_reversal_cancels_a_master_and_its_cost_and_trifle_refund() {
             Choice::Play {
                 card: 0,
                 mode: 0,
-                target: None
+                actor: None,
+                target: Target::None
             }
         ]
     );
@@ -155,7 +177,8 @@ fn sudden_reversal_cancels_a_master_and_its_cost_and_trifle_refund() {
         Choice::Play {
             card: 0,
             mode: 0,
-            target: None,
+            actor: None,
+            target: Target::None,
         },
     );
     // The cancel's own as-played window has no takers; both settle.

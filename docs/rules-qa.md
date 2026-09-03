@@ -123,10 +123,11 @@ at every step."
   is a final decline. Once attempting, the defender need not have matching
   intercept to keep the attempt alive.
 
-**Test** — `block_decline_is_final` (P0, `crates/engine/tests/scenarios.rs`).
-_Pending P1 (need cards)_: `block_attempt_persists_until_all_pass`,
-`block_third_party_intercept_after_attempt`, `block_reopen_only_on_bounce`,
-`block_no_bait_retraction`.
+**Test** — `block_decline_is_final` (`crates/engine/tests/scenarios.rs`);
+`block_attempt_persists_until_all_pass`, `block_reopen_only_on_bounce`
+(`crates/engine/tests/bleed.rs`). _Pending_: `block_third_party_intercept_after_attempt`,
+`block_no_bait_retraction` (need a third-party intercept source such as KRCG
+News Radio: an in-play ability slice).
 
 ### 1.4 No-repeat-action rule, precisely
 
@@ -277,8 +278,9 @@ print "attempts to block … even if intercept is not yet needed" — direct car
 evidence that "only when needed" is the default legality rule and that cards
 must opt out of it explicitly.
 
-**Test** — _pending_: `wake_playable_in_as_played_window`,
-`unlock_reaction_not_as_played`, `as_played_window_wakes_and_cancels_only`.
+**Test** — `wake_playable_in_as_played_window`, `as_played_window_wakes_and_cancels_only`
+(`crates/engine/tests/bleed.rs`). _Pending_: `unlock_reaction_not_as_played`
+(needs an unlock reaction definition, e.g. Guard Dogs).
 
 ---
 
@@ -318,7 +320,8 @@ stealth while it is in play), playable with no block attempt at all.
 stealth/intercept-adding plays; the "not yet needed" texts waive them; put-in-
 play bonuses are layers and carry no such requirement.
 
-**Test** — _pending_: `stealth_only_when_needed`, `stealth_waived_by_card_text`.
+**Test** — `stealth_only_when_needed`, `stealth_waived_by_card_text`
+(`crates/engine/tests/bleed.rs`).
 
 ### 3.3 Out-of-turn master cards and the master phase action
 
