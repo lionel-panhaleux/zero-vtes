@@ -111,6 +111,9 @@ pub struct Engine {
     pub log: Vec<usize>,
     pub decisions: u64,
     pub(crate) flow: Flow,
+    /// Set when a play's resolution ousted its player: the as-played stack
+    /// must not resume the ousted seat's phase.
+    pub(crate) ousted_during_play: bool,
 }
 
 impl Engine {
@@ -173,6 +176,7 @@ impl Engine {
             log: Vec::new(),
             decisions: 0,
             flow: Flow::GameOver, // replaced by start_turn
+            ousted_during_play: false,
         };
         engine.start_turn();
         engine
@@ -446,6 +450,23 @@ impl Engine {
                 m.in_play = false;
             }
         }
+        // Rulebook "Ending the Game": all the cards the ousted Methuselah
+        // controls are removed from the game — with the layers they carried.
+        {
+            let seat = &mut self.state.seats[s.index()];
+            seat.library.clear();
+            seat.hand.clear();
+            seat.ash.clear();
+        }
+        for c in &mut self.state.cards {
+            if c.owner == s {
+                c.in_play = false;
+            }
+        }
+        let cards = &self.state.cards;
+        self.state
+            .layers
+            .retain(|l| cards[l.source.index()].in_play);
         let pred = self.state.predator(s);
         self.state.seats[pred.index()].half_vps += 2;
         self.state.seats[pred.index()].pool += 6;

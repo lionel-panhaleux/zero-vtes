@@ -138,10 +138,13 @@ pub enum Terms {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Modifier {
     /// Cards with this printed name cost `pool` more (or less) to play;
-    /// with `on_host_only`, only when played on the layer source's host.
+    /// with `on_host_only`, only when played on the layer source's host;
+    /// with `owner_only`, only for the layer source's controller ("cost
+    /// *you* +1 pool").
     CostMod {
         name: &'static str,
         on_host_only: bool,
+        owner_only: bool,
         pool: i8,
     },
 }
@@ -161,14 +164,20 @@ pub struct Layer {
 
 impl Layer {
     pub fn hash(&self) -> u64 {
-        let (n, h, p) = match self.modifier {
+        let (n, h, o, p) = match self.modifier {
             Modifier::CostMod {
                 name,
                 on_host_only,
+                owner_only,
                 pool,
-            } => (name.len() as u64, on_host_only as u64, pool as i64 as u64),
+            } => (
+                name.len() as u64,
+                on_host_only as u64,
+                owner_only as u64,
+                pool as i64 as u64,
+            ),
         };
-        (self.source.0 as u64) << 40 ^ n << 20 ^ h << 8 ^ p
+        (self.source.0 as u64) << 40 ^ n << 20 ^ h << 9 ^ o << 8 ^ p
     }
 }
 
@@ -249,9 +258,9 @@ pub fn holds_for(req: Requirement, st: &GameState, seat: SeatId, m: MinionId) ->
     }
 }
 
-/// Pool cost of playing `card` on `target`, base cost folded through the
-/// cost layers (spec §1.7.2: cost arithmetic; §1.15: copies add).
-pub fn pool_cost(st: &GameState, card: u16, target: Option<MinionId>) -> i32 {
+/// Pool cost for `payer` of playing `card` on `target`: base cost folded
+/// through the cost layers (spec §1.7.2: cost arithmetic; §1.15: copies add).
+pub fn pool_cost(st: &GameState, payer: SeatId, card: u16, target: Option<MinionId>) -> i32 {
     let def = &LIBRARY[card as usize];
     let mut cost = match def.pool_cost {
         Cost::None => 0,
@@ -262,12 +271,17 @@ pub fn pool_cost(st: &GameState, card: u16, target: Option<MinionId>) -> i32 {
         let Modifier::CostMod {
             name,
             on_host_only,
+            owner_only,
             pool,
         } = l.modifier;
         if name != def.name {
             continue;
         }
-        if on_host_only && st.cards[l.source.index()].host != target {
+        let source = &st.cards[l.source.index()];
+        if on_host_only && source.host != target {
+            continue;
+        }
+        if owner_only && source.owner != payer {
             continue;
         }
         cost += pool as i32;

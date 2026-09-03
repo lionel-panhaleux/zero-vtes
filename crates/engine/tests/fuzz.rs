@@ -31,7 +31,7 @@ fn zone_totals(e: &Engine) -> Vec<usize> {
                 .state
                 .cards
                 .iter()
-                .filter(|c| c.owner.index() == i)
+                .filter(|c| c.owner.index() == i && c.in_play)
                 .count();
             s.library.len() + s.hand.len() + s.ash.len() + in_play
         })
@@ -67,6 +67,10 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64) {
     }
     let now = zone_totals(e);
     for (i, (a, b)) in now.iter().zip(totals).enumerate() {
+        if st.seats[i].ousted {
+            assert_eq!(*a, 0, "ousted seat {i} kept library cards (seed {seed})");
+            continue;
+        }
         // Pending plays are out of every zone until they settle: allow a
         // couple of cards in flight per seat (a play and its cancel).
         assert!(

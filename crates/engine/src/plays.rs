@@ -83,7 +83,7 @@ impl Engine {
                 let pool = st.seats[seat.index()].pool;
                 match mode.target {
                     None => {
-                        if cards::pool_cost(st, card, None) <= pool {
+                        if cards::pool_cost(st, seat, card, None) <= pool {
                             out.push(Choice::Play {
                                 card: hi as u8,
                                 mode: mi as u8,
@@ -103,7 +103,7 @@ impl Engine {
                             {
                                 continue;
                             }
-                            if cards::pool_cost(st, card, Some(id)) <= pool {
+                            if cards::pool_cost(st, seat, card, Some(id)) <= pool {
                                 out.push(Choice::Play {
                                     card: hi as u8,
                                     mode: mi as u8,
@@ -169,6 +169,13 @@ impl Engine {
         };
         match def.modes[mode as usize].terms {
             Some(_) => {
+                // Terms are chosen before the as-played window opens; a
+                // nested play (inside another as-played window) keeps that
+                // window's stack as its resume point.
+                let resume = match std::mem::replace(&mut self.flow, Flow::GameOver) {
+                    outer @ Flow::AsPlayed { .. } => outer,
+                    _ => resume,
+                };
                 self.flow = Flow::PlayTerms {
                     ctx,
                     resume: Box::new(resume),
@@ -197,7 +204,14 @@ impl Engine {
         match choice {
             Choice::SetX(n) => {
                 ctx.x = *n;
-                self.open_as_played(ctx, resume);
+                // A nested play resumes the outer as-played stack it
+                // interrupted; restore it so the new window stacks on top.
+                if let Flow::AsPlayed { .. } = resume {
+                    self.flow = resume;
+                    self.open_as_played(ctx, Flow::GameOver);
+                } else {
+                    self.open_as_played(ctx, resume);
+                }
             }
             other => unreachable!("illegal terms choice {other:?}"),
         }
@@ -285,6 +299,12 @@ impl Engine {
             let p = stack.pop().expect("canceled play");
             self.settle_canceled(p.ctx);
         }
+        // Resolution may have ousted the player (pool paid down to 0), in
+        // which case the flow already moved on and must not be resumed.
+        if self.ousted_during_play {
+            self.ousted_during_play = false;
+            return;
+        }
         if stack.is_empty() {
             self.flow = *resume;
         } else {
@@ -305,7 +325,7 @@ impl Engine {
         let s = ctx.seat;
         let def = cards::lookup(ctx.card).expect("definition");
         let mode = &def.modes[ctx.mode as usize];
-        let cost = cards::pool_cost(&self.state, ctx.card, ctx.target);
+        let cost = cards::pool_cost(&self.state, s, ctx.card, ctx.target);
         self.state.seats[s.index()].pool -= cost;
         let mut in_play: Option<CardId> = None;
         for effect in mode.effects {
@@ -357,6 +377,7 @@ impl Engine {
         self.draw_to_hand_size(s);
         if self.state.seats[s.index()].pool == 0 {
             self.oust_and_pass(s);
+            self.ousted_during_play = true;
         }
     }
 

@@ -31,11 +31,13 @@ pub static VILLEIN: CardDef = CardDef {
             Effect::Layer(Modifier::CostMod {
                 name: "Minion Tap",
                 on_host_only: false,
+                owner_only: true,
                 pool: 1,
             }),
             Effect::Layer(Modifier::CostMod {
                 name: "Villein",
                 on_host_only: true,
+                owner_only: true,
                 pool: 1,
             }),
         ],

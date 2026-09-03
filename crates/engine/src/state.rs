@@ -313,6 +313,7 @@ impl GameState {
             mix(s.turns_taken as u64);
             mix(s.mpa as u64);
             mix(s.trifle_used as u64);
+            mix(s.dpa as u64);
             mix(match s.out_of_turn {
                 None => 0,
                 Some(OutOfTurn { trifle }) => 1 + trifle as u64,
