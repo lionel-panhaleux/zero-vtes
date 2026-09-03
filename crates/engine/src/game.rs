@@ -1,6 +1,12 @@
-use crate::crypt::{CRYPT, PRECONS};
+//! The decision-request engine: flow states, the run/choose loop with
+//! window elision (DESIGN §4.3), turn structure, ousting and scoring. Phase
+//! and window logic lives in the sibling modules (`actions`, `contests`,
+//! `influence`, `referendum`), which extend `Engine`.
+
+use crate::crypt::PRECONS;
 use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use crate::ids::{MinionId, SeatId};
+use crate::influence::transfers_for_turn;
 use crate::rng::Rng;
 use crate::state::{GameState, Minion, Seat, UncontrolledSlot, START_POOL, UNCONTROLLED_START};
 use crate::window::{OrderedWindow, PollingWindow};
@@ -16,14 +22,14 @@ pub const TURN_LIMIT: u32 = 100;
 /// window closes; at closure the block succeeds iff intercept >= stealth. A
 /// pass with no ongoing attempt is a final decline.
 #[derive(Clone, Debug)]
-struct BlockCtx {
-    acting: MinionId,
-    action: ActionKind,
-    target: Option<MinionId>,
-    stealth: u8,
-    window: OrderedWindow,
-    attempt: Option<MinionId>,
-    declined: Vec<SeatId>,
+pub(crate) struct BlockCtx {
+    pub acting: MinionId,
+    pub action: ActionKind,
+    pub target: Option<MinionId>,
+    pub stealth: u8,
+    pub window: OrderedWindow,
+    pub attempt: Option<MinionId>,
+    pub declined: Vec<SeatId>,
 }
 
 /// Blood hunt referendum (rulebook "The Blood Hunt"): not an action, no
@@ -31,26 +37,25 @@ struct BlockCtx {
 /// ready vampire with votes, and the Edge; each commits once, all its votes
 /// one way, and is then spent for this referendum.
 #[derive(Clone, Debug)]
-struct BloodHuntCtx {
-    diablerist: MinionId,
-    window: PollingWindow,
-    spent: Vec<MinionId>,
-    edge_spent: bool,
-    for_votes: u32,
-    against_votes: u32,
+pub(crate) struct BloodHuntCtx {
+    pub diablerist: MinionId,
+    pub window: PollingWindow,
+    pub spent: Vec<MinionId>,
+    pub edge_spent: bool,
+    pub for_votes: u32,
+    pub against_votes: u32,
 }
 
 /// One contested object of the active seat, resolved during its unlock
-/// phase (rulebook "Contested Cards" / "Contested Titles"; DESIGN §4.4
-/// factoring: each Methuselah settles their own side, in arena order).
+/// phase (rulebook "Contested Cards" / "Contested Titles").
 #[derive(Clone, Copy, Debug)]
-enum Contest {
+pub(crate) enum Contest {
     Card(MinionId),
     Title(MinionId),
 }
 
 #[derive(Clone, Debug)]
-enum Flow {
+pub(crate) enum Flow {
     /// Unlock-phase decision point: burn the Edge for 1 pool, or keep it.
     Unlock,
     /// Unlock-phase contest upkeep, one contested object at a time.
@@ -84,13 +89,7 @@ pub struct Engine {
     /// Chosen option indices for real (non-elided) decisions only.
     pub log: Vec<usize>,
     pub decisions: u64,
-    flow: Flow,
-}
-
-/// Transfers granted at the start of an influence phase: 1/2/3 on the first
-/// three turns of the game, 4 thereafter (rulebook "Influence Phase").
-pub fn transfers_for_turn(turn: u32) -> u8 {
-    turn.min(4) as u8
+    pub(crate) flow: Flow,
 }
 
 impl Engine {
@@ -227,31 +226,7 @@ impl Engine {
                     None
                 }
             }
-            Flow::Contests { items, at } => {
-                let item = *items.get(*at)?;
-                let options = match item {
-                    Contest::Card(m) if st.card_rivals(m).is_empty() => return None,
-                    Contest::Title(m) if st.title_rivals(m).is_empty() => return None,
-                    // Paying is always offered for a card: a living
-                    // Methuselah has pool, and paying down to 0 is legal.
-                    Contest::Card(_) => vec![Choice::PayContest, Choice::YieldContest],
-                    Contest::Title(m) => {
-                        let v = &st.minions[m.index()];
-                        // Only ready vampires contest titles; no blood means
-                        // a forced yield.
-                        if v.in_torpor || v.blood == 0 {
-                            vec![Choice::YieldContest]
-                        } else {
-                            vec![Choice::PayContest, Choice::YieldContest]
-                        }
-                    }
-                };
-                Some(DecisionRequest {
-                    seat: st.active,
-                    window: WindowLabel::UnlockContest,
-                    options,
-                })
-            }
+            Flow::Contests { items, at } => self.contest_request(items, *at),
             Flow::MinionPhase => Some(DecisionRequest {
                 seat: st.active,
                 window: WindowLabel::MinionPhase,
@@ -294,134 +269,10 @@ impl Engine {
                     options,
                 })
             }
-            Flow::BloodHunt(ctx) => {
-                let seat = ctx.window.current()?;
-                let mut options = vec![Choice::Pass];
-                for id in st.minions_of(seat) {
-                    // Torpor vampires must abstain; locked ready ones may
-                    // vote; contested titles carry no votes.
-                    if st.minions[id.index()].votes() > 0 && !ctx.spent.contains(&id) {
-                        options.push(Choice::CastVotes {
-                            minion: id,
-                            favor: true,
-                        });
-                        options.push(Choice::CastVotes {
-                            minion: id,
-                            favor: false,
-                        });
-                    }
-                }
-                if st.seats[seat.index()].has_edge && !ctx.edge_spent {
-                    options.push(Choice::CastEdge { favor: true });
-                    options.push(Choice::CastEdge { favor: false });
-                }
-                Some(DecisionRequest {
-                    seat,
-                    window: WindowLabel::BloodHuntPolling,
-                    options,
-                })
-            }
-            Flow::Influence { left } => {
-                let s = st.active;
-                let seat = &st.seats[s.index()];
-                let mut options = vec![Choice::Pass];
-                for (i, slot) in seat.uncontrolled.iter().enumerate() {
-                    let i = i as u8;
-                    let capacity = CRYPT[slot.card as usize].capacity;
-                    if *left >= 1 && seat.pool > 0 && slot.counters < capacity {
-                        options.push(Choice::Transfer { slot: i });
-                    }
-                    if *left >= 2 && slot.counters > 0 {
-                        options.push(Choice::Withdraw { slot: i });
-                    }
-                    // No voluntary self-contest: a second copy of a vampire
-                    // you already have in play cannot be moved out.
-                    if slot.counters >= capacity && !st.controls_copy(s, slot.card) {
-                        options.push(Choice::InfluenceOut { slot: i });
-                    }
-                }
-                if *left >= 4 && seat.pool > 0 && !seat.crypt.is_empty() {
-                    options.push(Choice::DrawCrypt);
-                }
-                Some(DecisionRequest {
-                    seat: s,
-                    window: WindowLabel::InfluenceTransfers,
-                    options,
-                })
-            }
+            Flow::BloodHunt(ctx) => self.blood_hunt_request(ctx),
+            Flow::Influence { left } => Some(self.influence_request(*left)),
             Flow::GameOver => None,
         }
-    }
-
-    /// Rulebook "Minion Phase": a ready unlocked vampire with no blood must
-    /// hunt, and no non-mandatory action may be taken while any such hunt is
-    /// pending — so the phase cannot even end.
-    fn minion_phase_options(&self) -> Vec<Choice> {
-        let st = &self.state;
-        let s = st.active;
-        let ready = st.ready_unlocked(s);
-        let starving: Vec<MinionId> = ready
-            .iter()
-            .copied()
-            .filter(|m| st.minions[m.index()].blood == 0)
-            .collect();
-        if !starving.is_empty() {
-            return starving
-                .into_iter()
-                .map(|minion| Choice::TakeAction {
-                    minion,
-                    action: ActionKind::Hunt,
-                    target: None,
-                })
-                .collect();
-        }
-        let mut options = vec![Choice::Pass];
-        let torpid = st.in_torpor();
-        for id in st.minions_of(s) {
-            let m = &st.minions[id.index()];
-            if m.locked {
-                continue;
-            }
-            if m.in_torpor {
-                // Leave torpor: the 2-blood cost must be payable.
-                if m.blood >= 2 {
-                    options.push(Choice::TakeAction {
-                        minion: id,
-                        action: ActionKind::LeaveTorpor,
-                        target: None,
-                    });
-                }
-                continue;
-            }
-            if !m.bled_this_turn {
-                options.push(Choice::TakeAction {
-                    minion: id,
-                    action: ActionKind::Bleed,
-                    target: None,
-                });
-            }
-            options.push(Choice::TakeAction {
-                minion: id,
-                action: ActionKind::Hunt,
-                target: None,
-            });
-            for &t in &torpid {
-                // Rescue: 2 blood payable by acting, rescued, or split.
-                if m.blood + st.minions[t.index()].blood >= 2 {
-                    options.push(Choice::TakeAction {
-                        minion: id,
-                        action: ActionKind::Rescue,
-                        target: Some(t),
-                    });
-                }
-                options.push(Choice::TakeAction {
-                    minion: id,
-                    action: ActionKind::Diablerie,
-                    target: Some(t),
-                });
-            }
-        }
-        options
     }
 
     /// Deterministic transitions for states with no decision to offer.
@@ -430,21 +281,7 @@ impl Engine {
         match flow {
             // No Edge to consider: on to contest upkeep.
             Flow::Unlock => self.start_contests(),
-            Flow::Contests { items, at } => match items.get(at) {
-                // A contested object with no rival left returns for free
-                // "during your next unlock phase".
-                Some(Contest::Card(m)) => {
-                    self.state.minions[m.index()].contested = false;
-                    self.enter_title_contest(*m);
-                    self.flow = Flow::Contests { items, at: at + 1 };
-                }
-                Some(Contest::Title(m)) => {
-                    self.state.minions[m.index()].title_contested = false;
-                    self.flow = Flow::Contests { items, at: at + 1 };
-                }
-                // Master phase has no cards in P0 → elided.
-                None => self.flow = Flow::MinionPhase,
-            },
+            Flow::Contests { items, at } => self.contest_advance(items, at),
             Flow::Block(ctx) => {
                 debug_assert!(ctx.window.is_closed());
                 self.resolve_action(ctx);
@@ -467,37 +304,8 @@ impl Engine {
                 self.start_contests();
             }
             (Flow::Unlock, Choice::Pass) => self.start_contests(),
-            (
-                Flow::Contests { items, at },
-                choice @ (Choice::PayContest | Choice::YieldContest),
-            ) => {
-                let s = self.state.active;
-                let pay = *choice == Choice::PayContest;
-                match items[at] {
-                    Contest::Card(m) => {
-                        if pay {
-                            self.state.seats[s.index()].pool -= 1;
-                        } else {
-                            // Yielded: burned with everything on it.
-                            let v = &mut self.state.minions[m.index()];
-                            v.in_play = false;
-                            v.blood = 0;
-                        }
-                    }
-                    Contest::Title(m) => {
-                        let v = &mut self.state.minions[m.index()];
-                        if pay {
-                            v.blood -= 1;
-                        } else {
-                            v.title_contested = false;
-                            v.title_lost = true;
-                        }
-                    }
-                }
-                self.flow = Flow::Contests { items, at: at + 1 };
-                if self.state.seats[s.index()].pool == 0 {
-                    self.oust_and_pass(s);
-                }
+            (Flow::Contests { items, at }, c @ (Choice::PayContest | Choice::YieldContest)) => {
+                self.contest_apply(items, at, *c == Choice::PayContest)
             }
             (Flow::MinionPhase, Choice::Pass) => {
                 self.flow = Flow::Influence {
@@ -534,304 +342,33 @@ impl Engine {
                 self.state.minions[target.index()].in_torpor = false;
                 self.flow = Flow::MinionPhase;
             }
-            (Flow::BloodHunt(mut ctx), Choice::Pass) => {
-                ctx.window.pass();
-                self.flow = Flow::BloodHunt(ctx);
-            }
-            (Flow::BloodHunt(mut ctx), Choice::CastVotes { minion, favor }) => {
-                let n = self.state.minions[minion.index()].votes() as u32;
-                if *favor {
-                    ctx.for_votes += n;
-                } else {
-                    ctx.against_votes += n;
-                }
-                ctx.spent.push(*minion);
-                ctx.window.commit();
-                self.flow = Flow::BloodHunt(ctx);
-            }
-            (Flow::BloodHunt(mut ctx), Choice::CastEdge { favor }) => {
-                let seat = ctx.window.current().expect("commit on closed window");
-                self.state.seats[seat.index()].has_edge = false;
-                if *favor {
-                    ctx.for_votes += 1;
-                } else {
-                    ctx.against_votes += 1;
-                }
-                ctx.edge_spent = true;
-                ctx.window.commit();
-                self.flow = Flow::BloodHunt(ctx);
-            }
-            (Flow::Influence { left }, Choice::Transfer { slot }) => {
-                let s = self.state.active;
-                let seat = &mut self.state.seats[s.index()];
-                seat.pool -= 1;
-                seat.uncontrolled[*slot as usize].counters += 1;
-                self.flow = Flow::Influence { left: left - 1 };
-                if seat.pool == 0 {
-                    self.oust_and_pass(s);
-                }
-            }
-            (Flow::Influence { left }, Choice::Withdraw { slot }) => {
-                let s = self.state.active;
-                let seat = &mut self.state.seats[s.index()];
-                seat.pool += 1;
-                seat.uncontrolled[*slot as usize].counters -= 1;
-                self.flow = Flow::Influence { left: left - 2 };
-            }
-            (Flow::Influence { left }, Choice::DrawCrypt) => {
-                let s = self.state.active;
-                let seat = &mut self.state.seats[s.index()];
-                seat.pool -= 1;
-                let card = seat.crypt.pop().expect("draw from empty crypt");
-                seat.uncontrolled
-                    .push(UncontrolledSlot { card, counters: 0 });
-                self.flow = Flow::Influence { left: left - 4 };
-                if seat.pool == 0 {
-                    self.oust_and_pass(s);
-                }
-            }
-            (Flow::Influence { left }, Choice::InfluenceOut { slot }) => {
-                let s = self.state.active;
-                let out = self.state.seats[s.index()]
-                    .uncontrolled
-                    .remove(*slot as usize);
-                // Counters become blood; excess over capacity drains off.
-                let capacity = CRYPT[out.card as usize].capacity;
-                let m = self.add_minion(s, out.card, capacity, false);
-                self.stage_contests(m);
-                self.flow = Flow::Influence { left };
-            }
-            (Flow::Influence { .. }, Choice::Pass) => {
-                // Discard phase: no cards in P0 → elided.
-                self.next_turn();
-            }
+            (Flow::BloodHunt(ctx), c) => self.blood_hunt_apply(ctx, c),
+            (Flow::Influence { left }, c) => self.influence_apply(left, c),
             (flow, choice) => unreachable!("illegal choice {choice:?} in {flow:?}"),
         }
     }
 
-    /// Unlock-phase contest upkeep for the active seat, after the Edge
-    /// decision. Ordering call (DESIGN §10): Edge first, then contests in
-    /// arena order — the only line this drops is paying oneself to 0 pool
-    /// before taking the Edge's pool.
-    fn start_contests(&mut self) {
-        let s = self.state.active;
-        let items: Vec<Contest> = self
-            .state
-            .minions
-            .iter()
-            .enumerate()
-            .filter(|(_, m)| m.owner == s && m.in_play)
-            .flat_map(|(i, m)| {
-                let id = MinionId(i as u32);
-                let card = m.contested.then_some(Contest::Card(id));
-                let title = (m.title_contested && !m.contested).then_some(Contest::Title(id));
-                card.into_iter().chain(title)
-            })
-            .collect();
-        self.flow = Flow::Contests { items, at: 0 };
-    }
-
-    /// A copy of a unique vampire entering play while another Methuselah has
-    /// one: every copy is contested (face down, out of play).
-    fn enter_card_contest(&mut self, m: MinionId) {
-        let rivals = self.state.card_rivals(m);
-        if !rivals.is_empty() {
-            self.state.minions[m.index()].contested = true;
-            for r in rivals {
-                self.state.minions[r.index()].contested = true;
-            }
-        }
-    }
-
-    /// A vampire (re-)entering play whose unique title is already claimed:
-    /// the title is contested for every claimant.
-    fn enter_title_contest(&mut self, m: MinionId) {
-        if !self.state.minions[m.index()].present() || self.state.minions[m.index()].title_lost {
-            return;
-        }
-        let rivals = self.state.title_rivals(m);
-        if !rivals.is_empty() {
-            self.state.minions[m.index()].title_contested = true;
-            for r in rivals {
-                self.state.minions[r.index()].title_contested = true;
-            }
-        }
-    }
-
-    /// Announce an action: lock the acting minion, compute stealth and the
-    /// seats entitled to block (rulebook "Who May Attempt to Block"), open
-    /// the block loop.
-    fn declare_action(&mut self, minion: MinionId, action: ActionKind, target: Option<MinionId>) {
-        self.state.minions[minion.index()].locked = true;
-        let acting_seat = self.state.active;
-        let own_target = target.map(|t| self.state.minions[t.index()].owner == acting_seat);
-        let (stealth, mut order) = match action {
-            // Directed at the prey, 0 stealth: only the defender may block.
-            ActionKind::Bleed => (0, vec![self.state.prey(acting_seat)]),
-            // Undirected, +1 stealth: prey then predator.
-            ActionKind::Hunt | ActionKind::LeaveTorpor => (
-                1,
-                vec![
-                    self.state.prey(acting_seat),
-                    self.state.predator(acting_seat),
-                ],
-            ),
-            ActionKind::Rescue | ActionKind::Diablerie => {
-                let t = target.expect("torpor target");
-                if own_target == Some(true) {
-                    (
-                        1,
-                        vec![
-                            self.state.prey(acting_seat),
-                            self.state.predator(acting_seat),
-                        ],
-                    )
-                } else {
-                    // Directed at the target's controller, 0 stealth.
-                    (0, vec![self.state.minions[t.index()].owner])
-                }
-            }
-        };
-        order.dedup();
-        self.flow = Flow::Block(BlockCtx {
-            acting: minion,
-            action,
-            target,
-            stealth,
-            window: OrderedWindow::new(order),
-            attempt: None,
-            declined: Vec::new(),
-        });
-    }
-
-    fn resolve_action(&mut self, ctx: BlockCtx) {
-        let intercept = 0u8;
-        match ctx.attempt {
-            Some(blocker) if intercept >= ctx.stealth => {
-                // Block resolution: the blocker locks and combat begins.
-                self.state.minions[blocker.index()].locked = true;
-                if ctx.action == ActionKind::Bleed {
-                    // NRA triggers on resolution, blocked included (rules-qa 1.4).
-                    self.state.minions[ctx.acting.index()].bled_this_turn = true;
-                }
-                match ctx.action {
-                    // Rulebook "Leave Torpor": a blocked leave-torpor has no
-                    // combat; a vampire blocker may diablerise instead. Never
-                    // reached in P0 (+1 stealth, no intercept source) — P1
-                    // implements the blocker's diablerie opportunity here.
-                    ActionKind::LeaveTorpor => unreachable!("leave torpor blocked in P0"),
-                    _ => self.combat(ctx.acting, blocker),
-                }
-                self.flow = Flow::MinionPhase;
-            }
-            // A pending attempt that fails at closure: the action proceeds.
-            _ => self.succeed(ctx),
-        }
-    }
-
-    fn succeed(&mut self, ctx: BlockCtx) {
-        self.flow = Flow::MinionPhase;
-        match ctx.action {
-            ActionKind::Bleed => {
-                let acting_seat = self.state.active;
-                let prey = self.state.prey(acting_seat);
-                self.state.minions[ctx.acting.index()].bled_this_turn = true;
-                self.state.seats[prey.index()].pool -= 1;
-                // Successful bleed of the prey: take the Edge.
-                for seat in &mut self.state.seats {
-                    seat.has_edge = false;
-                }
-                self.state.seats[acting_seat.index()].has_edge = true;
-                if self.state.seats[prey.index()].pool <= 0 {
-                    self.oust(prey);
-                }
-            }
-            ActionKind::Hunt => {
-                let m = &mut self.state.minions[ctx.acting.index()];
-                m.blood = (m.blood + 1).min(m.capacity());
-            }
-            ActionKind::LeaveTorpor => {
-                // Cost is paid at resolution only (a blocked action pays
-                // nothing).
-                let m = &mut self.state.minions[ctx.acting.index()];
-                m.blood -= 2;
-                m.in_torpor = false;
-            }
-            ActionKind::Rescue => {
-                self.flow = Flow::RescueCost {
-                    acting: ctx.acting,
-                    target: ctx.target.expect("rescue target"),
-                };
-            }
-            ActionKind::Diablerie => {
-                let victim = ctx.target.expect("diablerie target");
-                // Rulebook "Diablerie" steps 1–3 as a single unit: blood to
-                // the diablerist (excess drains), victim burned. Equipment
-                // and the advanced rule 4 (Discipline for an elder victim)
-                // need cards — P1.
-                let taken = self.state.minions[victim.index()].blood;
-                self.state.minions[victim.index()].blood = 0;
-                self.state.minions[victim.index()].in_play = false;
-                let d = &mut self.state.minions[ctx.acting.index()];
-                d.blood = (d.blood + taken).min(d.capacity());
-                // The blood hunt referendum follows immediately; rotation
-                // starts at the acting Methuselah, clockwise (DESIGN §4.2 —
-                // a modeling call, owner-approved 2026-09-02).
-                let order = self.state.clockwise_from(self.state.active);
-                self.flow = Flow::BloodHunt(BloodHuntCtx {
-                    diablerist: ctx.acting,
-                    window: PollingWindow::new(order),
-                    spent: Vec::new(),
-                    edge_spent: false,
-                    for_votes: 0,
-                    against_votes: 0,
-                });
-            }
-        }
-    }
-
-    fn resolve_blood_hunt(&mut self, ctx: BloodHuntCtx) {
-        // Passes only with strictly more votes for than against; ties fail.
-        if ctx.for_votes > ctx.against_votes {
-            self.state.minions[ctx.diablerist.index()].in_play = false;
-        }
+    /// End of contest upkeep: the master phase has no cards in P0 → elided.
+    pub(crate) fn end_contests(&mut self) {
         self.flow = Flow::MinionPhase;
     }
 
-    /// P0 combat: close range, one round, simultaneous hand strikes for 1.
-    /// Both combatants are ready (torpor vampires never enter combat).
-    fn combat(&mut self, a: MinionId, b: MinionId) {
-        debug_assert!(self.state.minions[a.index()].ready());
-        debug_assert!(self.state.minions[b.index()].ready());
-        self.damage(b, 1);
-        self.damage(a, 1);
-    }
-
-    /// Damage a vampire: burn blood; a vampire that cannot mend goes to
-    /// torpor, and one already in torpor is burned.
-    fn damage(&mut self, m: MinionId, n: u8) {
-        let minion = &mut self.state.minions[m.index()];
-        for _ in 0..n {
-            if minion.blood > 0 {
-                minion.blood -= 1;
-            } else if minion.in_torpor {
-                minion.in_play = false;
-            } else {
-                minion.in_torpor = true;
-            }
-        }
+    /// End of the influence phase: the discard phase has no cards in P0 →
+    /// elided.
+    pub(crate) fn end_influence(&mut self) {
+        self.next_turn();
     }
 
     /// Pool reached 0 on the seat's own turn (a transfer, a crypt draw, or
     /// contest upkeep): ousted at once, and the turn passes.
-    fn oust_and_pass(&mut self, s: SeatId) {
+    pub(crate) fn oust_and_pass(&mut self, s: SeatId) {
         self.oust(s);
         if self.state.living() > 1 {
             self.next_turn();
         }
     }
 
-    fn oust(&mut self, s: SeatId) {
+    pub(crate) fn oust(&mut self, s: SeatId) {
         {
             let seat = &mut self.state.seats[s.index()];
             seat.ousted = true;
@@ -892,7 +429,7 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::crypt::{Sect, Title};
+    use crate::crypt::{Sect, Title, CRYPT};
     use crate::state::find_card;
 
     /// Untitled vampires for generic fixtures.
