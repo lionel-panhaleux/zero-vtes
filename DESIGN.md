@@ -457,10 +457,13 @@ Recorded so nobody mistakes them for oversights:
    2026-09-02 — a tournament game rarely exceeds 20 full rounds), 0.5 VP per
    survivor; VPs are stored in half-points. Withdrawal (0.5 VP, an unlock-phase
    decision) is P1.
-7. **Unlock-phase ordering**: the rulebook lets the player order unlock-phase
-   effects; the engine takes the Edge decision first, then contest upkeep in
-   arena order. The only line dropped is paying contest upkeep down to 0 pool
-   before taking the Edge's pool — self-ousting, never preferable.
+7. **Unlock-phase ordering**: the unlock phase is one impulse sequence
+   (rules-qa 3.7): the active Methuselah settles their own effects — the engine
+   takes the Edge decision first, then contest upkeep in arena order; the only
+   line dropped is paying contest upkeep down to 0 pool before taking the
+   Edge's pool — then passes the impulse so other players' unlock-phase
+   abilities (Homunculus) can be used, the impulse returning to the active
+   player after each.
 
 ## 11. Phasing
 

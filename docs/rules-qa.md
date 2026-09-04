@@ -376,6 +376,35 @@ cards like Villein, and at the referendum's terms step for political cards.
 **Test** — `terms_announced_at_play` (`crates/engine/tests/scenarios.rs`).
 _Pending_: `referendum_terms_before_votes` (politics slice).
 
+### 3.6 Unpayable cost at resolution: the action fizzles
+
+A cost paid at resolution (rescue's 2 blood, leave torpor's 2 blood) can become
+unpayable during the action (blood spent on an as-announced modifier). The
+engine had treated the action as unsuccessful.
+
+**A** (2026-09-04): The action *fizzles*: it is successful — it was not
+blocked, so e.g. Freak Drive can be played — but it has no effect.
+
+**Applied**: `actions::Outcome::Fizzled`, distinct from `Failed` (Archon
+Investigation) and `Blocked`; after-resolution riders will read it as
+successful.
+
+**Test** — _pending_: `fizzled_action_is_successful` (needs an after-resolution
+card such as Freak Drive).
+
+### 3.7 Unlock-phase impulse and other players' abilities
+
+Where does another Methuselah's unlock-phase ability (Homunculus: "during any
+Methuselah's unlock phase") sit in the active player's unlock phase?
+
+**A** (2026-09-04): The acting player does all the effects they want, then
+passes the impulse so Homunculus can be used, then the impulse goes back to
+the acting player. It is not outside the unlock-phase ordering.
+
+**Applied**: after the active seat's Edge and contest decisions, an ordered
+window over the seats clockwise from the active one offers unlock-phase
+abilities; a use returns the impulse to the active seat (DESIGN §10 item 7).
+
 ## Batch 3 — planned: actions & resolution (costs, targets, "as announced",
 redirects, action continuation). Batch 4 — combat (strike resolution order,
 prevention timing, presses/additional strikes). Batch 5 — politics (terms,

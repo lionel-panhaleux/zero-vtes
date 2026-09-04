@@ -104,6 +104,9 @@ pub struct Engine {
     /// Set when a play's resolution ousted its player: the as-played stack
     /// must not resume the ousted seat's phase.
     pub(crate) ousted_during_play: bool,
+    /// How the most recent action ended (tests, and after-resolution
+    /// riders to come).
+    pub last_outcome: Option<crate::actions::Outcome>,
 }
 
 impl Engine {
@@ -168,6 +171,7 @@ impl Engine {
             flow: Flow::GameOver, // replaced by start_turn
             action: None,
             ousted_during_play: false,
+            last_outcome: None,
         };
         engine.start_turn();
         engine
@@ -363,10 +367,10 @@ impl Engine {
         }
     }
 
-    /// End of contest upkeep: the unlock-phase abilities window (every
-    /// seat, clockwise from the active one), then the master phase. Another
-    /// player's effect during this unlock phase, so outside DESIGN §10 item
-    /// 7's ordering call.
+    /// End of the active seat's own unlock-phase effects (Edge, contests):
+    /// the impulse rotates for other players' unlock-phase abilities
+    /// (Homunculus), returning to the active seat after each (owner,
+    /// 2026-09-04; rules-qa 3.7), then the master phase.
     pub(crate) fn end_contests(&mut self) {
         let order = self.state.clockwise_from(self.state.active);
         self.flow = Flow::Abilities {

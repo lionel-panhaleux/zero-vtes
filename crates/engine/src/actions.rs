@@ -14,6 +14,18 @@ use crate::window::{OrderedWindow, PollingWindow};
 /// Rulebook "Resolve Any Block Attempts": A (no attempt), B (an attempt is
 /// ongoing), C (blocks declined by all); plus the as-announced window that
 /// precedes them (spec §2.2).
+/// How an action ended (owner, 2026-09-04): blocked; failed (Archon
+/// Investigation: "not successful"); successful; or *fizzled* — successful
+/// (not blocked, so after-resolution effects such as Freak Drive apply) but
+/// without effect, because its cost could not be paid at resolution.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Outcome {
+    Blocked,
+    Failed,
+    Successful,
+    Fizzled,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ActionState {
     AsAnnounced,
@@ -51,6 +63,8 @@ pub struct ActionCtx {
     pub deferred_draws: Vec<SeatId>,
     /// Archon Investigation: the action is not successful.
     pub failed: bool,
+    /// Set when the action ends.
+    pub outcome: Option<Outcome>,
 }
 
 impl ActionCtx {
@@ -119,6 +133,7 @@ impl Engine {
             defer_reaction_replacement: false,
             deferred_draws: Vec::new(),
             failed: false,
+            outcome: None,
         });
         self.flow = Flow::Action;
     }
@@ -355,6 +370,7 @@ impl Engine {
             }
             ActionState::Declined => {
                 if a.failed {
+                    a.outcome = Some(Outcome::Failed);
                     self.end_action();
                 } else {
                     self.succeed();
@@ -432,12 +448,14 @@ impl Engine {
             ActionKind::LeaveTorpor => unreachable!("leave torpor blocked without intercept cards"),
             _ => self.combat(acting, blocker),
         }
+        self.action.as_mut().expect("action context").outcome = Some(Outcome::Blocked);
         self.end_action();
     }
 
     fn succeed(&mut self) {
-        let a = self.action.take().expect("action context");
+        let mut a = self.action.take().expect("action context");
         let seat = a.seat;
+        a.outcome = Some(Outcome::Successful);
         match a.kind {
             ActionKind::Bleed => {
                 let prey = a.bleed_target.expect("bleed target");
@@ -460,21 +478,29 @@ impl Engine {
             ActionKind::LeaveTorpor => {
                 // Cost is paid at resolution only (a blocked action pays
                 // nothing); blood spent during the action can leave it
-                // unpayable, in which case the action is unsuccessful.
+                // unpayable, in which case the action fizzles (rules-qa
+                // 3.6): successful, no effect.
                 let m = &mut self.state.minions[a.acting.index()];
                 if m.blood >= 2 {
                     m.blood -= 2;
                     m.in_torpor = false;
+                } else {
+                    a.outcome = Some(Outcome::Fizzled);
                 }
             }
             ActionKind::Rescue => {
                 // The 2-blood cost is paid at resolution; blood spent during
                 // the action (an as-announced modifier) can leave it
-                // unpayable, in which case the action is unsuccessful.
+                // unpayable, in which case the action fizzles (rules-qa
+                // 3.6): successful, no effect.
                 let acting = self.state.minions[a.acting.index()].blood;
                 let t = self.state.minions[a.torpor_target.expect("target").index()].blood;
+                if acting + t < 2 {
+                    a.outcome = Some(Outcome::Fizzled);
+                }
+                let payable = acting + t >= 2;
                 self.action = Some(a);
-                if acting + t >= 2 {
+                if payable {
                     self.flow = Flow::RescueCost;
                 } else {
                     self.end_action();
@@ -560,6 +586,7 @@ impl Engine {
 
     fn end_action(&mut self) {
         self.finish_action();
+        self.last_outcome = self.action.as_ref().and_then(|a| a.outcome);
         self.action = None;
         // Back to the acting seat's minion phase, unless the action ended the
         // game (an oust that left one Methuselah).
