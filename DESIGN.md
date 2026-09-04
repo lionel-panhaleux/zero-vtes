@@ -289,6 +289,10 @@ The framework rule that everything else depends on:
   this referendum"), once-per tracking (per action / combat / round / turn /
   referendum — play procedures and rulebook wording templates §1.2 of
   vtes-advanced-rules map nearly 1:1 onto these primitives).
+- **Mask policy** (owner, rules-qa 4.3): the mask removes only what the rules
+  or the card forbid — alternation, per-scope limits, "only when needed",
+  "cannot be played with no damage to prevent". A legal play with no effect
+  stays offered: playing a card just to cycle it is common and deliberate.
 - Genuinely weird cards get custom code behind the same interface. The framework is
   sized against the stress set (§6), not the median card.
 - **Modifier scopes**: effects live in explicit scopes — strike, round, combat,

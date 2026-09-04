@@ -413,7 +413,7 @@ abilities; a use returns the impulse to the active seat (DESIGN §10 item 7).
 Modeling calls made while building the combat machine, each the default the
 engine now applies; the owner's answer overrides.
 
-### 4.1 The after-combat window and the Form of Mist continuation _(open)_
+### 4.1 The after-combat window and the Form of Mist continuation
 
 Form of Mist [PRO] ("after combat ends … continue the action") and Cats'
 Guidance [ani] / Forced Vigilance [for] ("after block resolution", the
@@ -429,32 +429,57 @@ closes. Consequence: an unlocked blocker may attempt to block again after the
 continuation (rulings: "the maneuver is provided again if a second block
 happens on the same action").
 
+**A** (2026-09-04): Yes.
+
 **Test** — `continuation_keeps_declines` scripts this order.
 
-### 4.2 Mixed normal and aggravated damage: which points go unprevented _(open)_
+### 4.2 Mixed normal and aggravated damage: which points go unprevented
 
 Spec §4.5.2: "where both kinds are inflicted, the preventing minion chooses
 which points go unprevented." With a ready vampire, preventing aggravated
 first is never worse (aggravated always wounds; normal wounds only past the
-blood), so the engine allocates prevention to aggravated first automatically
-(non-aggravated-only prevention such as Soak never touches it) and offers no
-choice. Is there a case where the choice matters (a card keyed to blood burned,
-or to "wounded"), making this an elision the owner would rather not have?
+blood), so the engine allocated prevention to aggravated first automatically
+and offered no choice. Is there a case where the choice matters?
 
-### 4.3 Ineffective strikes are offered _(open)_
+**A** (2026-09-04): Yes — one might *want* to go to torpor with no blood
+lost. Super niche, but why not.
+
+**Applied**: a prevention that covers only part of mixed damage opens a
+`CombatPreventionAllocation` decision for the preventer: how many aggravated
+points it covers (`SetX`, in the feasible range); a full cover or a single
+kind needs no choice. Non-aggravated-only prevention (Soak) never touches the
+aggravated points.
+
+**Test** — `partial_prevention_of_mixed_damage_is_the_preventers_allocation`
+(unit, `combat.rs`).
+
+### 4.3 Ineffective strikes are offered
 
 The mask offers the hand strike at long range (legal, ineffective) and a
 dodge against no opposing strike, consistent with spec §1.6.5 ("futility is no
 bar") and §4.6.4. Prevention, by contrast, is masked out with no damage to
 prevent (§4.5.1). Fine as a mask policy?
 
-### 4.4 Limited additional strikes before the normal pair _(open)_
+**A** (2026-09-04): OK, although "no strike" is rare — a strike must be
+chosen, defaulting to the hand strike; it arises from a committed strike that
+can no longer be performed, or from a card that lets the minion not strike.
+Careful with these masks: playing an ineffective card just to cycle it is
+very common, so do not mask that possibility.
+
+**Applied** (principle, DESIGN §4.5): the mask removes only what the rules or
+the card forbid (alternation, limits, "cannot be played with no damage to
+prevent", "only when needed"); a legal play with no effect stays in the mask —
+cycling is a purpose.
+
+### 4.4 Limited additional strikes before the normal pair
 
 Spec §4.3.5 (Quickness): the card granting a limited additional strike may be
 played before or after the normal pair. The engine opens `COMBAT_ADDITIONAL_STRIKE`
 in the before-strikes and before-resolution windows as well as in the
 additional-strikes step, for every card with that window (Blur, Side Strike
 [CEL], Pursuit [CEL]…). Is the ruling general, or Quickness-specific?
+
+**A** (2026-09-04): Yes, general.
 
 ### 4.5 Combat cards by a combatant no longer ready _(open)_
 

@@ -141,6 +141,9 @@ pub enum WindowLabel {
     CombatBeforeResolution,
     /// Damage prevention by the minion taking damage (acting side first).
     CombatPrevention,
+    /// A partial prevention of mixed damage: how many aggravated points it
+    /// covers (`SetX`; rules-qa 4.2).
+    CombatPreventionAllocation,
     /// Additional strikes after the normal pair.
     CombatAdditionalStrikes,
     CombatPress,

@@ -39,6 +39,13 @@ pub enum Step {
     BeforeResolution,
     /// Side `i` prevents the damage pending on it.
     Prevent(usize),
+    /// A prevention of `n` covers only part of mixed damage on side `side`:
+    /// the preventer chooses how many aggravated points it covers (spec
+    /// §4.5.2; owner 2026-09-04: one may prefer torpor with blood intact).
+    Allocate {
+        side: usize,
+        n: u8,
+    },
     AdditionalStrikes,
     Press,
     EndOfRound,
@@ -64,9 +71,9 @@ impl Damage {
         }
     }
 
-    /// Prevent up to `n` points; aggravated first when allowed (it cannot
-    /// be mended, so preventing it first is never worse — an elision to
-    /// confirm with the owner, rules-qa 4.2). Returns what was prevented.
+    /// Prevent up to `n` points, aggravated first when allowed. Returns
+    /// what was prevented. Mixed damage with a partial prevention goes
+    /// through `Step::Allocate` instead (rules-qa 4.2).
     fn prevent(&mut self, n: u8, aggravated_ok: bool) -> u8 {
         let mut left = n;
         if aggravated_ok {
@@ -216,7 +223,7 @@ impl CombatCtx {
             ],
             Step::ChooseStrike(_) => vec![Window::CombatStrikeDeclaration],
             Step::BeforeResolution => vec![Window::CombatUntimed, Window::CombatAdditionalStrike],
-            Step::Prevent(_) => vec![Window::CombatDamagePrevention],
+            Step::Prevent(_) | Step::Allocate { .. } => vec![Window::CombatDamagePrevention],
             Step::AdditionalStrikes => vec![Window::CombatAdditionalStrike, Window::CombatUntimed],
             Step::Press => vec![Window::CombatPress],
             Step::EndOfRound => {
@@ -237,6 +244,7 @@ impl CombatCtx {
             Step::ChooseStrike(_) => WindowLabel::CombatStrike,
             Step::BeforeResolution => WindowLabel::CombatBeforeResolution,
             Step::Prevent(_) => WindowLabel::CombatPrevention,
+            Step::Allocate { .. } => WindowLabel::CombatPreventionAllocation,
             Step::AdditionalStrikes => WindowLabel::CombatAdditionalStrikes,
             Step::Press => WindowLabel::CombatPress,
             Step::EndOfRound => WindowLabel::CombatEndOfRound,
@@ -346,6 +354,16 @@ impl Engine {
                     options,
                 })
             }
+            Step::Allocate { side, n } => {
+                let d = c.sides[side].pending;
+                let lo = n.saturating_sub(d.normal);
+                let hi = n.min(d.aggravated);
+                Some(DecisionRequest {
+                    seat: c.sides[side].seat,
+                    window: WindowLabel::CombatPreventionAllocation,
+                    options: (lo..=hi).map(Choice::SetX).collect(),
+                })
+            }
             Step::Prevent(i) => {
                 let side = &c.sides[i];
                 if !side.preventing || side.pending.total() == 0 {
@@ -398,6 +416,13 @@ impl Engine {
             (Step::ChooseStrike(i), Choice::Play { .. }) => Some(c.sides[i].seat),
             (Step::Prevent(i), Choice::Pass) => {
                 c.sides[i].preventing = false;
+                None
+            }
+            (Step::Allocate { side, n }, Choice::SetX(k)) => {
+                let d = &mut c.sides[side].pending;
+                d.aggravated -= k;
+                d.normal -= n - k;
+                c.step = Step::Prevent(side);
                 None
             }
             (Step::Prevent(i), Choice::Play { .. }) => Some(c.sides[i].seat),
@@ -470,6 +495,7 @@ impl Engine {
                 c.sides[i].preventing = false;
                 self.after_prevention_or_next();
             }
+            Step::Allocate { .. } => unreachable!("allocation always offers a choice"),
             Step::AdditionalStrikes => {
                 if c.sides.iter().any(|s| s.additional > 0) {
                     c.begin_pair();
@@ -699,12 +725,8 @@ impl Engine {
             }
             Effect::SetStrength(n) => c.sides[i].strength_set = Some(n),
             Effect::AggravatedHands => c.sides[i].aggravated_hands = true,
-            Effect::Prevent(n) => {
-                c.sides[i].pending.prevent(n, true);
-            }
-            Effect::PreventXPlus(k) => {
-                c.sides[i].pending.prevent(play.x + k, true);
-            }
+            Effect::Prevent(n) => c.prevent(i, n),
+            Effect::PreventXPlus(k) => c.prevent(i, play.x + k),
             Effect::PreventNonAggravated(n) => {
                 c.sides[i].pending.prevent(n, false);
             }
@@ -744,6 +766,17 @@ impl CombatCtx {
             }
         }
         self.fresh_window(Step::ChooseStrike(0));
+    }
+
+    /// A prevention of `n` (aggravated allowed) on side `i`: a partial
+    /// cover of mixed damage is the preventer's allocation (rules-qa 4.2).
+    fn prevent(&mut self, i: usize, n: u8) {
+        let d = self.sides[i].pending;
+        if d.normal > 0 && d.aggravated > 0 && n < d.total() {
+            self.step = Step::Allocate { side: i, n };
+        } else {
+            self.sides[i].pending.prevent(n, true);
+        }
     }
 
     fn maneuver(&mut self, i: usize) {
@@ -845,6 +878,38 @@ mod tests {
                 burned: false
             }
         );
+    }
+
+    #[test]
+    fn partial_prevention_of_mixed_damage_is_the_preventers_allocation() {
+        // rules-qa 4.2: 2 normal + 1 aggravated pending, prevent 2 — the
+        // preventer may cover 0 or 1 aggravated point (going to torpor with
+        // blood intact is a legitimate choice).
+        let mut e = Engine::bare(2);
+        let a = e.add_minion(SeatId(0), 0, 3, false);
+        let x = e.add_minion(SeatId(1), 1, 3, false);
+        e.start_combat(a, x);
+        let c = e.combat.as_mut().unwrap();
+        c.sides[1].pending = d(2, 1);
+        c.sides[1].preventing = true;
+        c.step = Step::Prevent(1);
+        e.apply_combat_effect(
+            Effect::Prevent(2),
+            &PlayCtx {
+                seat: SeatId(1),
+                card: 0,
+                mode: 0,
+                actor: Some(x),
+                target: cards::Target::None,
+                x: 0,
+            },
+        );
+        let req = e.combat_request().unwrap();
+        assert_eq!(req.window, WindowLabel::CombatPreventionAllocation);
+        assert_eq!(req.options, vec![Choice::SetX(0), Choice::SetX(1)]);
+        e.combat_apply(&Choice::SetX(0));
+        assert_eq!(e.combat.as_ref().unwrap().sides[1].pending, d(0, 1));
+        assert_eq!(e.combat.as_ref().unwrap().step, Step::Prevent(1));
     }
 
     #[test]
