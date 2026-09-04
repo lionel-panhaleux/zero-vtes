@@ -82,6 +82,21 @@ pub enum Choice {
     InfluenceOut {
         slot: u8,
     },
+    /// Combat, choose strike: the default hand strike (rulebook "Strike
+    /// Effects").
+    HandStrike,
+    /// Combat, determine range: use a maneuver banked this round.
+    UseManeuver,
+    /// Combat, press step: use a press banked this round. Its direction
+    /// follows from the state: continue, or end the opponent's press to
+    /// continue (rulebook "Press").
+    UsePress,
+    /// After combat: continue the action as if unblocked (Form of Mist
+    /// [PRO]), paying the rider's blood.
+    ContinueAction,
+    /// A blocked leave-torpor: the blocking vampire diablerises the acting
+    /// vampire (rulebook "Leave Torpor").
+    Diablerise,
 }
 
 /// One name per legality filter (DESIGN §4.4).
@@ -106,10 +121,32 @@ pub enum WindowLabel {
     /// Blocks declined by all (rulebook state C): redirects, Archon
     /// Investigation, remaining modifiers.
     ActionBlocksDeclined,
+    /// After combat (after *all* combats of the block, rules-qa 2.1):
+    /// unlock reactions of the blocker, the Form of Mist continuation.
+    ActionAfterCombat,
+    /// A blocked leave-torpor: the blocker's diablerie opportunity.
+    TorporBlock,
     RescueCost,
     BloodHuntPolling,
     InfluenceTransfers,
     DiscardPhase,
+    /// Combat steps (rulebook "Combat Sequence"): ordered windows over the
+    /// two combatant seats, the acting minion's controller first.
+    CombatBeforeRange,
+    CombatDetermineRange,
+    CombatBeforeStrikes,
+    /// One combatant chooses its strike (acting first, then the opponent).
+    CombatStrike,
+    /// Both strikes chosen, before they resolve (spec §4.3.2).
+    CombatBeforeResolution,
+    /// Damage prevention by the minion taking damage (acting side first).
+    CombatPrevention,
+    /// Additional strikes after the normal pair.
+    CombatAdditionalStrikes,
+    CombatPress,
+    /// End of round, shared with the would-end replacement point (spec
+    /// §4.9.1).
+    CombatEndOfRound,
 }
 
 #[derive(Clone, Debug)]

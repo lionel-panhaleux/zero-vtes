@@ -146,6 +146,11 @@ fn kind_of(c: &Choice) -> &'static str {
         Choice::Withdraw { .. } => "withdraw",
         Choice::DrawCrypt => "draw_crypt",
         Choice::InfluenceOut { .. } => "influence_out",
+        Choice::HandStrike => "hand_strike",
+        Choice::UseManeuver => "use_maneuver",
+        Choice::UsePress => "use_press",
+        Choice::ContinueAction => "continue_action",
+        Choice::Diablerise => "diablerise_blocked",
     }
 }
 

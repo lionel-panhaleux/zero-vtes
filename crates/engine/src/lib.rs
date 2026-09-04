@@ -6,6 +6,7 @@
 pub mod actions;
 pub mod agent;
 pub mod cards;
+pub mod combat;
 pub mod contests;
 pub mod crypt;
 pub mod decision;

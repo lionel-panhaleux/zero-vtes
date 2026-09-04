@@ -5,6 +5,7 @@
 
 use crate::actions::ActionCtx;
 use crate::cards::PlayCtx;
+use crate::combat::CombatCtx;
 use crate::crypt::PRECONS;
 use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::ids::{MinionId, SeatId};
@@ -76,6 +77,11 @@ pub(crate) enum Flow {
     MinionPhase,
     /// An action is under way (`Engine::action`).
     Action,
+    /// A combat is under way inside the action (`Engine::combat`).
+    Combat,
+    /// A blocked leave-torpor: the blocking vampire may diablerise the
+    /// acting vampire (rulebook "Leave Torpor").
+    TorporBlock,
     /// Rescue resolved unblocked: split the 2-blood cost (paid at resolution).
     RescueCost,
     BloodHunt(BloodHuntCtx),
@@ -101,6 +107,8 @@ pub struct Engine {
     pub(crate) flow: Flow,
     /// The action under way, if any (`Flow::Action` and its sub-windows).
     pub(crate) action: Option<ActionCtx>,
+    /// The combat under way inside the action, if any (`Flow::Combat`).
+    pub(crate) combat: Option<CombatCtx>,
     /// Set when a play's resolution ousted its player: the as-played stack
     /// must not resume the ousted seat's phase.
     pub(crate) ousted_during_play: bool,
@@ -170,6 +178,7 @@ impl Engine {
             decisions: 0,
             flow: Flow::GameOver, // replaced by start_turn
             action: None,
+            combat: None,
             ousted_during_play: false,
             last_outcome: None,
         };
@@ -285,6 +294,8 @@ impl Engine {
             }),
             Flow::Abilities { window } => self.abilities_request(window),
             Flow::Action => self.action_request(),
+            Flow::Combat => self.combat_request(),
+            Flow::TorporBlock => Some(self.torpor_block_request()),
             Flow::RescueCost => Some(self.rescue_request()),
             Flow::BloodHunt(ctx) => self.blood_hunt_request(ctx),
             Flow::Influence { left } => Some(self.influence_request(*left)),
@@ -306,6 +317,7 @@ impl Engine {
                 self.start_master_phase();
             }
             Flow::Action => self.action_advance(),
+            Flow::Combat => self.combat_advance(),
             Flow::BloodHunt(ctx) => {
                 debug_assert!(ctx.window.is_closed());
                 self.resolve_blood_hunt(ctx);
@@ -358,6 +370,8 @@ impl Engine {
             }
             (Flow::Abilities { window }, c) => self.abilities_apply(window, c),
             (Flow::Action, c) => self.action_apply(c),
+            (Flow::Combat, c) => self.combat_apply(c),
+            (Flow::TorporBlock, c) => self.torpor_block_apply(c),
             (Flow::RescueCost, Choice::PayRescue { from_acting }) => {
                 self.rescue_apply(*from_acting)
             }

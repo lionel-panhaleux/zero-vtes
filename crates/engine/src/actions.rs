@@ -1,7 +1,9 @@
 //! Actions: announcement, the as-announced window, the block loop (rulebook
-//! states A/B/C, rules-qa 1.3), redirects, resolution, and P0 combat. The
-//! action context lives on the engine so that card plays resolved from the
-//! as-played stack can modify it.
+//! states A/B/C, rules-qa 1.3), redirects, block resolution (combat, or the
+//! blocker's diablerie on a leave-torpor), the after-combat window with the
+//! Form of Mist continuation, and resolution. The action context lives on
+//! the engine so that card plays resolved from the as-played stack can
+//! modify it.
 
 use crate::cards::{self, Effect, PlayCtx, Scope, Window};
 use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
@@ -32,6 +34,10 @@ pub enum ActionState {
     Open,
     Attempt(MinionId),
     Declined,
+    /// After the block's combat(s) (rules-qa 2.1): unlock reactions of the
+    /// blocker, the acting minion's continuation, then the action ends
+    /// blocked or re-enters the block loop.
+    AfterCombat,
 }
 
 #[derive(Clone, Debug)]
@@ -65,6 +71,15 @@ pub struct ActionCtx {
     pub failed: bool,
     /// Set when the action ends.
     pub outcome: Option<Outcome>,
+    /// The minion whose block resolved (for "who has blocked").
+    pub blocker: Option<MinionId>,
+    /// Form of Mist [PRO]: after combat, burn `blood` to continue with
+    /// +`stealth` as if unblocked. Lost if the combat continues.
+    pub continuation: Option<(u8, u8)>,
+    /// The continuation was taken in the after-combat window.
+    pub continued: bool,
+    /// Card names played per minion this action (`Limit::PerAction`).
+    pub played: Vec<(MinionId, &'static str)>,
 }
 
 impl ActionCtx {
@@ -134,6 +149,10 @@ impl Engine {
             deferred_draws: Vec::new(),
             failed: false,
             outcome: None,
+            blocker: None,
+            continuation: None,
+            continued: false,
+            played: Vec::new(),
         });
         self.flow = Flow::Action;
     }
@@ -269,6 +288,7 @@ impl Engine {
                     ]
                 }
             }
+            ActionState::AfterCombat => vec![Window::ActionAfterCombat],
         }
     }
 
@@ -286,11 +306,20 @@ impl Engine {
                 }
             }
         }
+        if a.state == ActionState::AfterCombat && seat == a.seat {
+            if let Some((blood, _)) = a.continuation {
+                let m = &self.state.minions[a.acting.index()];
+                if m.ready() && m.blood >= blood {
+                    options.push(Choice::ContinueAction);
+                }
+            }
+        }
         options.extend(self.play_options(seat, &Self::action_windows(a, seat), None));
         let window = match a.state {
             ActionState::AsAnnounced => WindowLabel::ActionAsAnnounced,
             ActionState::Open | ActionState::Attempt(_) => WindowLabel::ActionBlock,
             ActionState::Declined => WindowLabel::ActionBlocksDeclined,
+            ActionState::AfterCombat => WindowLabel::ActionAfterCombat,
         };
         Some(DecisionRequest {
             seat,
@@ -323,6 +352,17 @@ impl Engine {
                 a.state = ActionState::Attempt(*minion);
                 a.intercept = 0;
                 a.window.play();
+                self.flow = Flow::Action;
+            }
+            Choice::ContinueAction => {
+                // Form of Mist [PRO]: the rider's blood is a burn, not a card
+                // cost (rulings); +1 stealth "even if not yet needed" is a
+                // plain bonus here, no play to gate.
+                let (blood, stealth) = a.continuation.take().expect("continuation");
+                a.stealth_mods += stealth;
+                a.continued = true;
+                a.window.play();
+                self.state.minions[a.acting.index()].blood -= blood;
                 self.flow = Flow::Action;
             }
             Choice::Play {
@@ -376,7 +416,89 @@ impl Engine {
                     self.succeed();
                 }
             }
+            ActionState::AfterCombat => {
+                if a.continued {
+                    // Continue as if unblocked (rules-qa 3.4): back to A with
+                    // the action's context kept — modifiers, reactions and
+                    // the declines stand; only the attempt state resets.
+                    a.continued = false;
+                    a.state = ActionState::Open;
+                    a.intercept = 0;
+                    a.fresh_window();
+                    self.flow = Flow::Action;
+                } else {
+                    a.outcome = Some(Outcome::Blocked);
+                    self.end_action();
+                }
+            }
         }
+    }
+
+    /// The combat ended: open the after-combat window over the action's
+    /// order (rules-qa 2.1: once, after all combats of the block).
+    pub(crate) fn after_combat(&mut self) {
+        let a = self.action.as_mut().expect("action context");
+        a.state = ActionState::AfterCombat;
+        a.fresh_window();
+        self.flow = Flow::Action;
+    }
+
+    /// A blocked leave-torpor (rulebook "Leave Torpor"): no combat; the
+    /// blocking vampire may diablerise the acting vampire, else the action
+    /// simply fails (no cost paid).
+    pub(crate) fn torpor_block_request(&self) -> DecisionRequest {
+        let a = self.action.as_ref().expect("action context");
+        let blocker = a.blocker.expect("blocker");
+        DecisionRequest {
+            seat: self.state.minions[blocker.index()].owner,
+            window: WindowLabel::TorporBlock,
+            options: vec![Choice::Pass, Choice::Diablerise],
+        }
+    }
+
+    pub(crate) fn torpor_block_apply(&mut self, choice: &Choice) {
+        let a = self.action.as_mut().expect("action context");
+        a.outcome = Some(Outcome::Blocked);
+        let (blocker, acting) = (a.blocker.expect("blocker"), a.acting);
+        match choice {
+            Choice::Pass => self.end_action(),
+            Choice::Diablerise => {
+                self.diablerise(blocker, acting);
+                self.end_action_into_blood_hunt(blocker);
+            }
+            other => unreachable!("illegal torpor-block choice {other:?}"),
+        }
+    }
+
+    /// Rulebook "Diablerie" steps 1–3 as a single unit: blood to the
+    /// diablerist (excess drains), victim burned. Equipment and the
+    /// advanced rule 4 (a Discipline for an elder victim) need cards —
+    /// later.
+    fn diablerise(&mut self, diablerist: MinionId, victim: MinionId) {
+        let taken = self.state.minions[victim.index()].blood;
+        self.state.minions[victim.index()].blood = 0;
+        self.state.minions[victim.index()].in_play = false;
+        let d = &mut self.state.minions[diablerist.index()];
+        d.blood = (d.blood + taken).min(d.capacity());
+    }
+
+    /// The action ends and the blood hunt referendum follows immediately;
+    /// rotation starts at the acting Methuselah, clockwise (DESIGN §4.2 —
+    /// a modeling call, owner-approved 2026-09-02).
+    fn end_action_into_blood_hunt(&mut self, diablerist: MinionId) {
+        let seat = self.action.as_ref().expect("action context").seat;
+        let order = self.state.clockwise_from(seat);
+        self.finish_action();
+        self.last_outcome = self.action.as_ref().and_then(|a| a.outcome);
+        self.action = None;
+        self.flow = Flow::BloodHunt(BloodHuntCtx {
+            diablerist,
+            window: PollingWindow::new(order),
+            spent: Vec::new(),
+            edge_spent: false,
+            for_votes: 0,
+            against_votes: 0,
+        });
     }
 
     /// Effects of a modifier / reaction / master resolved during the action.
@@ -394,6 +516,9 @@ impl Engine {
             Effect::Wake => a.woken.push(play.actor.expect("waking minion")),
             Effect::LockActor => {
                 self.state.minions[play.actor.expect("actor").index()].locked = true;
+            }
+            Effect::UnlockActor => {
+                self.state.minions[play.actor.expect("actor").index()].locked = false;
             }
             Effect::RedirectBleed => {
                 let cards::Target::Seat(t) = play.target else {
@@ -433,10 +558,11 @@ impl Engine {
     }
 
     /// Block resolution: the blocker locks; combat, except a blocked
-    /// leave-torpor (no combat; the blocker may diablerise — P1 later).
+    /// leave-torpor (no combat; the blocker may diablerise).
     fn blocked(&mut self, blocker: MinionId) {
         let (acting, kind) = {
-            let a = self.action.as_ref().expect("action context");
+            let a = self.action.as_mut().expect("action context");
+            a.blocker = Some(blocker);
             (a.acting, a.kind)
         };
         self.state.minions[blocker.index()].locked = true;
@@ -445,11 +571,9 @@ impl Engine {
             self.state.minions[acting.index()].bled_this_turn = true;
         }
         match kind {
-            ActionKind::LeaveTorpor => unreachable!("leave torpor blocked without intercept cards"),
-            _ => self.combat(acting, blocker),
+            ActionKind::LeaveTorpor => self.flow = Flow::TorporBlock,
+            _ => self.start_combat(acting, blocker),
         }
-        self.action.as_mut().expect("action context").outcome = Some(Outcome::Blocked);
-        self.end_action();
     }
 
     fn succeed(&mut self) {
@@ -509,37 +633,17 @@ impl Engine {
             }
             ActionKind::Diablerie => {
                 let victim = a.torpor_target.expect("diablerie target");
-                // Rulebook "Diablerie" steps 1–3 as a single unit: blood to
-                // the diablerist (excess drains), victim burned. Equipment
-                // and the advanced rule 4 (Discipline for an elder victim)
-                // need cards — later.
-                let taken = self.state.minions[victim.index()].blood;
-                self.state.minions[victim.index()].blood = 0;
-                self.state.minions[victim.index()].in_play = false;
-                let d = &mut self.state.minions[a.acting.index()];
-                d.blood = (d.blood + taken).min(d.capacity());
-                // The blood hunt referendum follows immediately; rotation
-                // starts at the acting Methuselah, clockwise (DESIGN §4.2 —
-                // a modeling call, owner-approved 2026-09-02).
-                let order = self.state.clockwise_from(seat);
+                let diablerist = a.acting;
                 self.action = Some(a);
-                self.finish_action();
-                self.flow = Flow::BloodHunt(BloodHuntCtx {
-                    diablerist: self.action.take().expect("ctx").acting,
-                    window: PollingWindow::new(order),
-                    spent: Vec::new(),
-                    edge_spent: false,
-                    for_votes: 0,
-                    against_votes: 0,
-                });
-                self.action = None;
+                self.diablerise(diablerist, victim);
+                self.end_action_into_blood_hunt(diablerist);
                 return;
             }
             ActionKind::Employ => {
                 let play = a.card.expect("action card");
                 let def = cards::lookup(play.card).expect("definition");
                 // Cost is paid at resolution (spec §1.7.1).
-                let cost = cards::blood_cost(&self.state, play.card);
+                let cost = cards::blood_cost(&self.state, play.card, play.x);
                 self.state.minions[a.acting.index()].blood -= cost;
                 for e in def.modes[play.mode as usize].effects {
                     if let Effect::EmployRetainer { life } = e {
@@ -704,29 +808,5 @@ impl Engine {
             None,
         ));
         options
-    }
-
-    /// P0 combat: close range, one round, simultaneous hand strikes for 1.
-    /// Both combatants are ready (torpor vampires never enter combat).
-    fn combat(&mut self, a: MinionId, b: MinionId) {
-        debug_assert!(self.state.minions[a.index()].ready());
-        debug_assert!(self.state.minions[b.index()].ready());
-        self.damage(b, 1);
-        self.damage(a, 1);
-    }
-
-    /// Damage a vampire: burn blood; a vampire that cannot mend goes to
-    /// torpor, and one already in torpor is burned.
-    fn damage(&mut self, m: MinionId, n: u8) {
-        let minion = &mut self.state.minions[m.index()];
-        for _ in 0..n {
-            if minion.blood > 0 {
-                minion.blood -= 1;
-            } else if minion.in_torpor {
-                minion.in_play = false;
-            } else {
-                minion.in_torpor = true;
-            }
-        }
     }
 }

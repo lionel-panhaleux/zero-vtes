@@ -5,8 +5,10 @@
 //! through layers, replacement draws, and in-play abilities.
 
 use crate::cards::{
-    self, Actor, Effect, Layer, PlayCtx, Requirement, Scope, Target, TargetKind, Terms, Window,
+    self, Actor, Effect, Layer, Limit, PlayCtx, Requirement, Scope, Target, TargetKind, Terms,
+    Window,
 };
+use crate::combat::is_combat_effect;
 use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
@@ -91,6 +93,20 @@ impl Engine {
                 }
             }
             Actor::Host => vec![],
+            // The player's minion in the combat; ready, except in the
+            // end-of-round window (Taste of Vitae's "not usable by a vampire
+            // being burned or going to torpor" is the card's own clause).
+            Actor::Combatant => match &self.combat {
+                Some(c) => c
+                    .side_of(seat)
+                    .map(|i| c.sides[i].minion)
+                    .filter(|m| {
+                        st.minions[m.index()].ready() || c.step == crate::combat::Step::EndOfRound
+                    })
+                    .map(|m| vec![Some(m)])
+                    .unwrap_or_default(),
+                None => vec![],
+            },
         }
     }
 
@@ -106,6 +122,7 @@ impl Engine {
     ) -> Vec<Choice> {
         let st = &self.state;
         let action = self.action.as_ref();
+        let combat = self.combat.as_ref();
         let mut out = Vec::new();
         for (hi, &card) in st.seats[seat.index()].hand.iter().enumerate() {
             let Some(def) = cards::lookup(card) else {
@@ -146,12 +163,44 @@ impl Engine {
                         {
                             continue;
                         }
-                        if cards::blood_cost(st, card) > st.minions[m.index()].blood {
+                        if cards::blood_cost(st, card, 0) > st.minions[m.index()].blood {
                             continue;
+                        }
+                        // "A vampire can play only one X each round / combat /
+                        // action" (a canceled play counted at announcement).
+                        let name = LIBRARY[card as usize].name;
+                        let hit =
+                            |v: &[(MinionId, &str)]| v.iter().any(|&(a, n)| a == m && n == name);
+                        let limited = match mode.limit {
+                            None => false,
+                            Some(Limit::PerRound) => combat.is_some_and(|c| hit(&c.played_round)),
+                            Some(Limit::PerCombat) => combat.is_some_and(|c| hit(&c.played_combat)),
+                            Some(Limit::PerAction) => action.is_some_and(|a| hit(&a.played)),
+                        };
+                        if limited {
+                            continue;
+                        }
+                        // Effect-derived combat legality (alternation, the
+                        // limited additional strike, grapples).
+                        if let Some(c) = combat {
+                            if let Some(i) = c.side_of_minion(m) {
+                                if !c.allows(mode, i) {
+                                    continue;
+                                }
+                            }
                         }
                     }
                     if !mode.requires.iter().all(|&r| {
-                        cards::holds(r, st, seat, actor, played, action, mode.waives_needed)
+                        cards::holds(
+                            r,
+                            st,
+                            seat,
+                            actor,
+                            played,
+                            action,
+                            combat,
+                            mode.waives_needed,
+                        )
                     }) {
                         continue;
                     }
@@ -242,6 +291,26 @@ impl Engine {
     ) {
         let card = self.state.seats[s.index()].hand.remove(hand as usize);
         let def = cards::lookup(card).expect("played card has a definition");
+        if let (Some(limit), Some(m)) = (def.modes[mode as usize].limit, actor) {
+            let name = LIBRARY[card as usize].name;
+            match limit {
+                Limit::PerRound => {
+                    if let Some(c) = self.combat.as_mut() {
+                        c.played_round.push((m, name));
+                    }
+                }
+                Limit::PerCombat => {
+                    if let Some(c) = self.combat.as_mut() {
+                        c.played_combat.push((m, name));
+                    }
+                }
+                Limit::PerAction => {
+                    if let Some(a) = self.action.as_mut() {
+                        a.played.push((m, name));
+                    }
+                }
+            }
+        }
         if def.out_of_turn {
             self.state.seats[s.index()].out_of_turn = Some(OutOfTurn { trifle: def.trifle });
         }
@@ -277,6 +346,12 @@ impl Engine {
             // The amount is announced in the printed range; at resolution
             // you take what you can (Villein rulings, LSJ 20100216).
             Some(Terms::BloodRange { min, max }) => (min..=max).map(Choice::SetX).collect(),
+            // X may exceed what is needed but never the actor's blood
+            // (Hidden Strength rulings).
+            Some(Terms::XBlood) => {
+                let blood = self.state.minions[ctx.actor.expect("actor").index()].blood;
+                (0..=blood).map(Choice::SetX).collect()
+            }
             None => unreachable!("terms window without terms"),
         };
         DecisionRequest {
@@ -445,7 +520,7 @@ impl Engine {
         let pool = cards::pool_cost(&self.state, s, ctx.card, ctx.target);
         self.state.seats[s.index()].pool -= pool;
         if let Some(m) = ctx.actor {
-            let blood = cards::blood_cost(&self.state, ctx.card);
+            let blood = cards::blood_cost(&self.state, ctx.card, ctx.x);
             self.state.minions[m.index()].blood -= blood;
         }
         let mut in_play: Option<CardId> = None;
@@ -490,6 +565,7 @@ impl Engine {
                 }
                 Effect::DeclareAction(_) | Effect::EmployRetainer { .. } => {}
                 Effect::HostBurnBloodToUnlock => unreachable!("ability effect in a play"),
+                e if is_combat_effect(&e) => self.apply_combat_effect(e, &ctx),
                 action_effect => self.apply_action_effect(action_effect, &ctx),
             }
         }

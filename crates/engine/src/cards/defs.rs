@@ -31,6 +31,7 @@ pub static VILLEIN: CardDef = CardDef {
         }),
         terms: Some(Terms::BloodRange { min: 2, max: 5 }),
         waives_needed: false,
+        limit: None,
         effects: &[
             Effect::PutOnTarget,
             Effect::MoveBloodTargetToPoolX,
@@ -68,6 +69,7 @@ pub static SUDDEN_REVERSAL: CardDef = CardDef {
         target: NO_TARGET,
         terms: None,
         waives_needed: false,
+        limit: None,
         effects: &[Effect::CancelPlayed { refund: true }],
     }],
     abilities: &[],
@@ -87,6 +89,7 @@ pub static CONDITIONING: CardDef = CardDef {
             target: NO_TARGET,
             terms: None,
             waives_needed: false,
+            limit: None,
             effects: &[Effect::BleedMod {
                 n: 2,
                 limited: true,
@@ -99,6 +102,7 @@ pub static CONDITIONING: CardDef = CardDef {
             target: NO_TARGET,
             terms: None,
             waives_needed: false,
+            limit: None,
             effects: &[Effect::BleedMod {
                 n: 3,
                 limited: true,
@@ -123,6 +127,7 @@ pub static CONSIGN_TO_OBLIVION: CardDef = CardDef {
             target: NO_TARGET,
             terms: None,
             waives_needed: false,
+            limit: None,
             effects: &[Effect::ActionLayer(Modifier::ReactionBloodCost(1))],
         },
         ModeDef {
@@ -132,6 +137,7 @@ pub static CONSIGN_TO_OBLIVION: CardDef = CardDef {
             target: NO_TARGET,
             terms: None,
             waives_needed: false,
+            limit: None,
             effects: &[
                 Effect::ActionLayer(Modifier::ReactionBloodCost(1)),
                 Effect::DeferReactionReplacement,
@@ -157,6 +163,7 @@ pub static FORM_OF_THE_COBRA: CardDef = CardDef {
             target: NO_TARGET,
             terms: None,
             waives_needed: false,
+            limit: None,
             effects: &[],
         },
         ModeDef {
@@ -166,6 +173,7 @@ pub static FORM_OF_THE_COBRA: CardDef = CardDef {
             target: NO_TARGET,
             terms: None,
             waives_needed: true,
+            limit: None,
             effects: &[Effect::AddStealth(1)],
         },
     ],
@@ -187,6 +195,7 @@ pub static EYES_OF_ARGUS: CardDef = CardDef {
             target: NO_TARGET,
             terms: None,
             waives_needed: false,
+            limit: None,
             effects: &[Effect::AddIntercept(2)],
         },
         ModeDef {
@@ -196,6 +205,7 @@ pub static EYES_OF_ARGUS: CardDef = CardDef {
             target: NO_TARGET,
             terms: None,
             waives_needed: false,
+            limit: None,
             effects: &[Effect::Wake],
         },
     ],
@@ -226,6 +236,7 @@ pub static DEFLECTION: CardDef = CardDef {
             }),
             terms: None,
             waives_needed: false,
+            limit: None,
             effects: &[Effect::LockActor, Effect::RedirectBleed],
         },
         ModeDef {
@@ -242,6 +253,7 @@ pub static DEFLECTION: CardDef = CardDef {
             }),
             terms: None,
             waives_needed: false,
+            limit: None,
             effects: &[Effect::RedirectBleed],
         },
     ],
@@ -268,6 +280,7 @@ pub static ARCHON_INVESTIGATION: CardDef = CardDef {
         target: NO_TARGET,
         terms: None,
         waives_needed: false,
+        limit: None,
         effects: &[Effect::BurnActingMinion, Effect::ActionFails],
     }],
     abilities: &[],
@@ -288,6 +301,7 @@ pub static HOMUNCULUS: CardDef = CardDef {
             target: NO_TARGET,
             terms: None,
             waives_needed: false,
+            limit: None,
             effects: &[
                 Effect::DeclareAction(ActionKind::Employ),
                 Effect::EmployRetainer { life: 1 },
@@ -300,6 +314,7 @@ pub static HOMUNCULUS: CardDef = CardDef {
             target: NO_TARGET,
             terms: None,
             waives_needed: false,
+            limit: None,
             effects: &[
                 Effect::DeclareAction(ActionKind::Employ),
                 Effect::EmployRetainer { life: 2 },
@@ -313,6 +328,7 @@ pub static HOMUNCULUS: CardDef = CardDef {
         target: NO_TARGET,
         terms: None,
         waives_needed: false,
+        limit: None,
         effects: &[Effect::HostBurnBloodToUnlock],
     }],
 };
@@ -331,6 +347,7 @@ pub static BONDING: CardDef = CardDef {
             target: NO_TARGET,
             terms: None,
             waives_needed: false,
+            limit: None,
             effects: &[Effect::BleedMod {
                 n: 1,
                 limited: true,
@@ -345,6 +362,7 @@ pub static BONDING: CardDef = CardDef {
             target: NO_TARGET,
             terms: None,
             waives_needed: false,
+            limit: None,
             effects: &[
                 Effect::AddStealth(1),
                 Effect::BleedMod {
@@ -371,6 +389,7 @@ pub static EARTH_CONTROL: CardDef = CardDef {
             target: NO_TARGET,
             terms: None,
             waives_needed: false,
+            limit: None,
             effects: &[Effect::AddStealth(1)],
         },
         ModeDef {
@@ -380,6 +399,7 @@ pub static EARTH_CONTROL: CardDef = CardDef {
             target: NO_TARGET,
             terms: None,
             waives_needed: false,
+            limit: None,
             effects: &[Effect::AddStealth(2)],
         },
     ],
