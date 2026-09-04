@@ -488,8 +488,11 @@ impl Engine {
     /// The action resolved successfully: open the after-resolution window
     /// over the action's order (elided when nothing can be played).
     pub(crate) fn after_resolution(&mut self) {
+        let st = &self.state;
         let a = self.action.as_mut().expect("action context");
         a.state = ActionState::AfterResolution;
+        // The resolution may have ousted seats of the order.
+        a.order.retain(|s| !st.seats[s.index()].ousted);
         a.fresh_window();
         self.flow = Flow::Action;
     }
@@ -716,8 +719,15 @@ impl Engine {
             ActionKind::Employ => {
                 let play = a.card.expect("action card");
                 let def = cards::lookup(play.card).expect("definition");
-                // Cost is paid at resolution (spec §1.7.1).
+                // Cost is paid at resolution (spec §1.7.1); unpayable by
+                // then, the action fizzles (rules-qa 3.6).
                 let cost = cards::blood_cost(&self.state, play.card, play.x);
+                if self.state.minions[a.acting.index()].blood < cost {
+                    a.outcome = Some(Outcome::Fizzled);
+                    self.action = Some(a);
+                    self.after_resolution();
+                    return;
+                }
                 self.state.minions[a.acting.index()].blood -= cost;
                 for e in def.modes[play.mode as usize].effects {
                     if let Effect::EmployRetainer { life } = e {
@@ -740,8 +750,16 @@ impl Engine {
                 let def = cards::lookup(play.card).expect("definition");
                 let cost = cards::blood_cost(&self.state, play.card, play.x);
                 let m = &mut self.state.minions[a.acting.index()];
-                m.blood -= cost;
                 m.political_this_turn = true;
+                if m.blood < cost {
+                    // Unpayable by resolution: fizzles (rules-qa 3.6), no
+                    // referendum.
+                    a.outcome = Some(Outcome::Fizzled);
+                    self.action = Some(a);
+                    self.after_resolution();
+                    return;
+                }
+                m.blood -= cost;
                 let referendum = def.modes[play.mode as usize]
                     .effects
                     .iter()

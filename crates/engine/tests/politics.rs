@@ -906,3 +906,82 @@ fn ominous_chorus_requires_a_lasombra() {
     // 2 for, 1 + 3 against: fails.
     assert_eq!(pool(&e), vec![10, 10, 10]);
 }
+
+// An action cannot outlive the turn: when the caller is ousted by its own
+// referendum, the action-scoped layers (Perfect Paragon [PRE]) go with it.
+#[test]
+fn own_referendum_oust_pops_action_layers() {
+    let Table { mut e, alexa, .. } = table();
+    e.state.seats[0].pool = 2;
+    hand(&mut e, 0, &["Ancilla Empowerment", "Perfect Paragon"]);
+    pick(&mut e, play(0, 0, alexa));
+    pick(&mut e, play(0, 1, alexa));
+    let _ = request(&mut e); // the play settles
+    assert_eq!(e.state.layers.len(), 1);
+    pick(&mut e, votes(alexa, true));
+    close_polling(&mut e);
+    assert!(e.state.seats[0].ousted);
+    assert_eq!(e.state.active, SeatId(1));
+    assert!(e.state.layers.is_empty());
+}
+
+// rules-qa 3.6 — a political action whose cost became unpayable by
+// resolution fizzles: successful, no referendum, the political action
+// spent for the turn.
+#[test]
+fn unpayable_political_cost_fizzles() {
+    let Table { mut e, .. } = table();
+    let saku = e.add_minion(SeatId(0), find_card("Saku Pihlajamäki"), 5, false);
+    e.add_minion(SeatId(1), find_card("Trung Chau Pham"), 3, false);
+    hand(&mut e, 0, &["Reckless Agitation"]);
+    hand(&mut e, 1, &["Cats' Guidance"]);
+    pick(&mut e, play(0, 0, saku));
+    // The block loop is real (seat 1 could reach the stealth); blood spent
+    // meanwhile, as a card would.
+    expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    e.state.minions[saku.index()].blood = 1;
+    pick(&mut e, Choice::Pass);
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(Outcome::Fizzled));
+    assert_eq!(e.state.minions[saku.index()].blood, 1);
+    assert!(e.state.minions[saku.index()].political_this_turn);
+    assert_eq!(pool(&e), vec![10, 10, 10]);
+}
+
+// A locked vampire of another Methuselah may wake during polling (Eyes of
+// Argus [AUS]) and then react (Delaying Tactics).
+#[test]
+fn locked_minion_wakes_to_react_during_polling() {
+    let Table { mut e, alexa, .. } = table();
+    let silverson = e.add_minion(SeatId(1), find_card("Alexander Silverson"), 5, false);
+    e.state.minions[silverson.index()].locked = true;
+    hand(&mut e, 0, &["Ancilla Empowerment"]);
+    hand(&mut e, 1, &["Eyes of Argus", "Delaying Tactics"]);
+    pick(&mut e, play(0, 0, alexa));
+    // The wake is offered through the block loop too; declined there.
+    while let Step::Decision(req) = e.run() {
+        if req.window != WindowLabel::ActionBlock && req.window != WindowLabel::ActionBlocksDeclined
+        {
+            break;
+        }
+        e.choose(0);
+    }
+    pick(&mut e, votes(alexa, true));
+    // Locked: the wake, not the reaction (the unlocked vampires may react).
+    let req = expect(&mut e, SeatId(1), WindowLabel::ReferendumPolling);
+    assert!(plays(&req).contains(&play(0, 1, silverson)));
+    assert!(!plays(&req).contains(&play(1, 0, silverson)));
+    pick(&mut e, play(0, 1, silverson));
+    pick(&mut e, Choice::Pass); // seat 2
+    pick(&mut e, Choice::Pass); // seat 0 keeps its card vote
+                                // Awake: Delaying Tactics (now hand 0) is his to play.
+    let req = expect(&mut e, SeatId(1), WindowLabel::ReferendumPolling);
+    assert!(plays(&req).contains(&play(0, 0, silverson)));
+    pick(&mut e, play(0, 0, silverson));
+    let _ = request(&mut e);
+    assert_eq!(pool(&e), vec![10, 10, 10]);
+    assert_eq!(
+        e.state.seats[0].hand,
+        vec![find_library("Ancilla Empowerment")]
+    );
+}

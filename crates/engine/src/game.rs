@@ -478,6 +478,18 @@ impl Engine {
             self.flow = Flow::GameOver;
             return;
         }
+        // An action cannot outlive the turn (the acting Methuselah ousted
+        // by its own referendum or a cost): its scoped state goes with it.
+        if let Some(a) = self.action.take() {
+            for s in a.deferred_draws {
+                self.draw_to_hand_size(s);
+            }
+        }
+        self.combat = None;
+        self.referendum = None;
+        self.state
+            .layers
+            .retain(|l| l.scope != crate::cards::Scope::Action);
         self.state.active = self.state.prey(self.state.active);
         self.start_turn();
     }

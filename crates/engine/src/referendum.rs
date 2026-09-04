@@ -456,7 +456,13 @@ impl Engine {
         let window = match ctx.kind {
             RefKind::BloodHunt { .. } => WindowLabel::BloodHuntPolling,
             RefKind::Political => {
-                options.extend(self.play_options(seat, &[Window::Referendum], None));
+                // Other Methuselahs' locked minions may wake to react.
+                let windows: &[Window] = if seat == ctx.caller {
+                    &[Window::Referendum]
+                } else {
+                    &[Window::Referendum, Window::Wake]
+                };
+                options.extend(self.play_options(seat, windows, None));
                 WindowLabel::ReferendumPolling
             }
         };

@@ -262,9 +262,10 @@ state either performs deterministic bookkeeping or hosts a window instance:
   minion** exist (Taunt the Caged Beast, Siren's Lure, the Slave rule): first
   opportunity then goes to the acting Methuselah's minion, else clockwise from
   the acting Methuselah.
-- **Referendum**: terms confirmation (stepwise, factored) → before-votes window →
-  polling (unordered votes + ordered card plays interleaved) → tally → outcome
-  windows → back to action resolution.
+- **Referendum**: terms confirmation (stepwise, factored) → polling (unordered
+  votes + card plays as commitments of the same rotation; "before votes and
+  ballots are cast" is a requirement inside polling, not a window) → tally →
+  the action's after-resolution window.
 - **Diablerie / blood hunt**: diablerie sequence owned by one workflow regardless of
   entry path (v1 entry: the basic action on torpor vampires); blood hunt as a
   restricted referendum (vote sources only, no modifier/reaction windows).

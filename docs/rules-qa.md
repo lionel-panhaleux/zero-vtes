@@ -546,5 +546,13 @@ nothing can be played (Voter Captivation, later Freak Drive); for a
 political action it follows the referendum (spec §3.7.5.1). Not opened
 after a diablerie (the blood hunt follows the action directly). _Open._
 
+### 5.9 Acting minion no longer ready at resolution
+
+A political action whose acting vampire is no longer ready when the action
+would resolve (torpor from the block's combat, then a Form of Mist
+continuation) ends with no referendum (Yawp Court ruling). The engine
+still pays the card's cost at that resolution; whether it should is
+unstated. _Open._
+
 Batch 6 — cards & effects (replacement, delayed replacement, contests,
 events).
