@@ -11,8 +11,8 @@
 //! [pro].
 
 use super::{
-    Actor, CardDef, Effect, Limit, ModeDef, Modifier, Requirement, StrikeKind, TargetKind,
-    TargetSpec, Terms, Window,
+    Actor, Among, CardDef, Effect, Limit, ModeDef, Modifier, Points, RefEffect, ReferendumDef,
+    Requirement, StrikeKind, TargetKind, TargetSpec, Term, Terms, Window,
 };
 use crate::decision::ActionKind;
 
@@ -978,7 +978,205 @@ pub static FORM_OF_MIST: CardDef = CardDef {
     abilities: &[],
 };
 
-pub static DEFS: [&CardDef; 28] = [
+// ---- Politics (slice 4) -------------------------------------------------
+
+/// A political action card's single mode: declare the political action and
+/// call `r` on success.
+macro_rules! political {
+    ($name:ident, $printed:expr, $doc:expr, $requires:expr, $r:expr) => {
+        #[doc = $doc]
+        pub static $name: CardDef = CardDef {
+            name: $printed,
+            trifle: false,
+            out_of_turn: false,
+            modes: &[ModeDef {
+                windows: &[Window::ActionDeclarePolitical],
+                actor: Actor::ActingCandidate,
+                requires: $requires,
+                target: NO_TARGET,
+                terms: None,
+                waives_needed: false,
+                limit: None,
+                effects: &[
+                    Effect::DeclareAction(ActionKind::Political),
+                    Effect::CallReferendum(&$r),
+                ],
+            }],
+            abilities: &[],
+        };
+    };
+}
+
+static KRC_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::Allocate {
+        points: Points::Fixed(4),
+        among: Among::Any,
+        min_seats: 2,
+    }],
+    effect: RefEffect::BurnAllocated,
+};
+political!(
+    KINE_RESOURCES_CONTESTED,
+    "Kine Resources Contested",
+    "\"Allocate 4 points among two or more Methuselahs. Successful \
+     referendum means each Methuselah burns 1 pool for each point \
+     allocated.\" Points may go to yourself and may exceed a pool (LSJ \
+     20000622, 20020819).",
+    &[],
+    KRC_REFERENDUM
+);
+
+static CONSERVATIVE_AGITATION_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::Allocate {
+        points: Points::Methuselahs,
+        among: Among::Any,
+        min_seats: 2,
+    }],
+    effect: RefEffect::BurnAllocated,
+};
+political!(
+    CONSERVATIVE_AGITATION,
+    "Conservative Agitation",
+    "\"Allocate X points among two or more Methuselahs, where X is the \
+     number of Methuselahs in the game. Successful referendum means each \
+     Methuselah burns 1 pool for each point allocated.\"",
+    &[],
+    CONSERVATIVE_AGITATION_REFERENDUM
+);
+
+static PER_MINION_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[],
+    effect: RefEffect::BurnPerMinion { locked_only: false },
+};
+political!(
+    ANCILLA_EMPOWERMENT,
+    "Ancilla Empowerment",
+    "\"Successful referendum means each Methuselah burns 1 pool for each \
+     minion they control.\"",
+    &[],
+    PER_MINION_REFERENDUM
+);
+political!(
+    ANARCHIST_UPRISING,
+    "Anarchist Uprising",
+    "\"Successful referendum means each Methuselah burns 1 pool for each \
+     minion they control.\"",
+    &[],
+    PER_MINION_REFERENDUM
+);
+
+static PER_LOCKED_MINION_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[],
+    effect: RefEffect::BurnPerMinion { locked_only: true },
+};
+political!(
+    DOMAIN_CHALLENGE,
+    "Domain Challenge",
+    "\"Successful referendum means each Methuselah burns 1 pool for each \
+     locked minion they control.\" Locked minions are counted after the \
+     referendum is completed (RTR 19941109).",
+    &[],
+    PER_LOCKED_MINION_REFERENDUM
+);
+
+static NEONATE_BREACH_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseSeats {
+        min: 1,
+        max: u8::MAX,
+    }],
+    effect: RefEffect::BurnChosen {
+        base: 1,
+        young_bonus: 3,
+        young_cap: 4,
+    },
+};
+political!(
+    NEONATE_BREACH,
+    "Neonate Breach",
+    "\"Choose one or more Methuselahs. Successful referendum means each \
+     chosen Methuselah burns 1 pool, plus 3 additional pool if they control \
+     a ready vampire with capacity 4 or less.\"",
+    &[],
+    NEONATE_BREACH_REFERENDUM
+);
+
+/// "Only usable during the polling step of a political action. [pre] This
+/// vampire gets +2 votes. [PRE] This vampire gets +4 votes."
+pub static BEWITCHING_ORATION: CardDef = CardDef {
+    name: "Bewitching Oration",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::Referendum],
+            actor: Actor::ActingMinion,
+            requires: &[Requirement::PollingStep],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::AddVotes(2)],
+        },
+        ModeDef {
+            windows: &[Window::Referendum],
+            actor: Actor::ActingMinion,
+            requires: &[Requirement::PollingStep],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::AddVotes(4)],
+        },
+    ],
+    abilities: &[],
+};
+
+const HAS_CAST_VOTES: Option<TargetSpec> = Some(TargetSpec {
+    kind: TargetKind::Minion,
+    filter: &[Requirement::HasCastVotes],
+});
+
+/// "Only usable during the polling step of a political action. [cel][pre]
+/// Choose a vampire who has cast votes or ballots in this referendum. The
+/// chosen vampire is locked and abstains (this cancels the chosen vampire's
+/// votes and ballots). [CEL][PRE] As above, and the chosen vampire burns 1
+/// blood." Action Modifier/Reaction: the acting minion, or a reacting one.
+pub static SCALPEL_TONGUE: CardDef = CardDef {
+    name: "Scalpel Tongue",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::Referendum],
+            actor: Actor::ActingOrReactingMinion,
+            requires: &[Requirement::PollingStep],
+            target: HAS_CAST_VOTES,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Abstain {
+                lock: true,
+                burn: 0,
+            }],
+        },
+        ModeDef {
+            windows: &[Window::Referendum],
+            actor: Actor::ActingOrReactingMinion,
+            requires: &[Requirement::PollingStep],
+            target: HAS_CAST_VOTES,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Abstain {
+                lock: true,
+                burn: 1,
+            }],
+        },
+    ],
+    abilities: &[],
+};
+
+pub static DEFS: [&CardDef; 36] = [
     &EARTH_CONTROL,
     &BONDING,
     &VILLEIN,
@@ -1007,4 +1205,12 @@ pub static DEFS: [&CardDef; 28] = [
     &TELEPATHIC_TRACKING,
     &CATS_GUIDANCE,
     &FORM_OF_MIST,
+    &KINE_RESOURCES_CONTESTED,
+    &CONSERVATIVE_AGITATION,
+    &ANCILLA_EMPOWERMENT,
+    &ANARCHIST_UPRISING,
+    &DOMAIN_CHALLENGE,
+    &NEONATE_BREACH,
+    &BEWITCHING_ORATION,
+    &SCALPEL_TONGUE,
 ];

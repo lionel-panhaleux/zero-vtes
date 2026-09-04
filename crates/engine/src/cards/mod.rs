@@ -9,9 +9,11 @@ pub mod defs;
 
 use crate::actions::{ActionCtx, ActionState};
 use crate::combat::{CombatCtx, Range, Step};
+use crate::crypt::{Sect, Title};
 use crate::decision::ActionKind;
 use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, Cost, LIBRARY};
+use crate::referendum::{RefKind, RefStep, ReferendumCtx};
 use crate::state::{CardId, GameState};
 
 /// Play windows: the names of data/window-matrix-reviewed.csv, plus the
@@ -115,6 +117,34 @@ pub enum Actor {
     /// except in the end-of-round window, where a minion being burned or
     /// sent to torpor may still play unless the card excludes it.
     Combatant,
+    /// "Action Modifier/Reaction" (Scalpel Tongue, Ominous Chorus): the
+    /// acting minion for its controller, a reacting minion for anyone else.
+    ActingOrReactingMinion,
+}
+
+/// A class of printed title, for "requires a prince or justicar" style
+/// requirements.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TitleClass {
+    Any,
+    Primogen,
+    Prince,
+    Baron,
+    Justicar,
+}
+
+impl TitleClass {
+    pub fn matches(self, t: Title) -> bool {
+        match (self, t) {
+            (_, Title::None) => false,
+            (TitleClass::Any, _) => true,
+            (TitleClass::Primogen, Title::Primogen) => true,
+            (TitleClass::Prince, Title::Prince(_)) => true,
+            (TitleClass::Baron, Title::Baron(_)) => true,
+            (TitleClass::Justicar, Title::Justicar(_)) => true,
+            _ => false,
+        }
+    }
 }
 
 /// Legality predicates — the closed vocabulary (effects-framework §2.3).
@@ -180,6 +210,107 @@ pub enum Requirement {
     /// The actor is the minion that blocked this action ("who has
     /// blocked").
     ActorHasBlocked,
+    /// The actor holds a title of one of these classes ("requires a prince
+    /// or justicar"; effective title: contested or yielded titles do not
+    /// qualify).
+    ActorTitleIn(&'static [TitleClass]),
+    /// The actor belongs to one of these sects ("requires an Anarch").
+    ActorSectIn(&'static [Sect]),
+    /// The actor's capacity is at least n.
+    ActorCapacityAtLeast(u8),
+    /// The current action is a political action.
+    IsPolitical,
+    /// The polling step of a political action's referendum ("only usable
+    /// during the polling step of a political action"; not the blood hunt,
+    /// spec §3.7.5.4).
+    PollingStep,
+    /// No votes or ballots have been cast yet in this referendum.
+    NoVotesCast,
+    /// The action's referendum passed (Voter Captivation).
+    ReferendumPassed,
+    /// Target minion has cast votes or ballots in this referendum, still
+    /// standing (Scalpel Tongue).
+    HasCastVotes,
+}
+
+/// How many points a referendum allocates.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Points {
+    Fixed(u8),
+    /// "X is the number of Methuselahs in the game" (Conservative
+    /// Agitation).
+    Methuselahs,
+}
+
+/// Which Methuselahs may receive points.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Among {
+    /// Any Methuselah, the caller included.
+    Any,
+    /// Other Methuselahs only.
+    Others,
+}
+
+/// One term of a referendum, chosen stepwise by the caller once the action
+/// succeeds (rulebook "The Referendum" step 1; rules-qa 3.5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Term {
+    /// Allocate points among at least `min_seats` Methuselahs (a point
+    /// total may exceed a Methuselah's pool: KRC rulings).
+    Allocate {
+        points: Points,
+        among: Among,
+        min_seats: u8,
+    },
+    /// Choose between `min` and `max` Methuselahs.
+    ChooseSeats { min: u8, max: u8 },
+    /// Choose a clan.
+    ChooseClan,
+}
+
+/// What a passed referendum does.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RefEffect {
+    /// Each Methuselah burns 1 pool per point allocated.
+    BurnAllocated,
+    /// Each Methuselah burns 1 pool per minion they control (`locked_only`:
+    /// per locked minion, counted when the effect applies).
+    BurnPerMinion { locked_only: bool },
+    /// Each chosen Methuselah burns `base` pool, plus `young_bonus` if they
+    /// control a ready vampire with capacity `young_cap` or less.
+    BurnChosen {
+        base: u8,
+        young_bonus: u8,
+        young_cap: u8,
+    },
+}
+
+/// A political action card's referendum: its terms and its effect.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ReferendumDef {
+    pub terms: &'static [Term],
+    pub effect: RefEffect,
+}
+
+impl ReferendumDef {
+    /// Can the terms be met (LSJ 20100129: a political action cannot be
+    /// played if the conditions for its terms cannot be met)?
+    pub fn feasible(&self, st: &GameState, seat: SeatId) -> bool {
+        let others = st.living().saturating_sub(1) as u8;
+        self.terms.iter().all(|t| match *t {
+            Term::Allocate {
+                among, min_seats, ..
+            } => {
+                let eligible = match among {
+                    Among::Any => others + 1,
+                    Among::Others => others,
+                };
+                eligible >= min_seats
+            }
+            Term::ChooseSeats { min, .. } => others + 1 >= min,
+            Term::ChooseClan => true,
+        }) && !st.seats[seat.index()].ousted
+    }
 }
 
 /// A strike (rulebook "Strike Effects"), from the hands, a card or a weapon.
@@ -372,6 +503,15 @@ pub enum Effect {
     /// blocked, it may burn `blood` to continue the action with +`stealth`
     /// as if unblocked. Lost if the combat continues (spec §4.9.2).
     ContinueAfterCombat { blood: u8, stealth: u8 },
+    // Referendum effects (`referendum`).
+    /// The political action card's referendum (with `DeclareAction`).
+    CallReferendum(&'static ReferendumDef),
+    /// The actor gets +n votes in this referendum (cast on the same side as
+    /// votes it already cast).
+    AddVotes(u8),
+    /// The target vampire abstains: its cast votes and ballots are
+    /// canceled and it casts no more; `lock` locks it, `burn` burns blood.
+    Abstain { lock: bool, burn: u8 },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -459,14 +599,17 @@ pub fn holds(
     played: Option<&PlayCtx>,
     action: Option<&ActionCtx>,
     combat: Option<&CombatCtx>,
+    referendum: Option<&ReferendumCtx>,
     waives_needed: bool,
 ) -> bool {
     let side = combat.and_then(|c| actor.and_then(|m| c.side_of_minion(m)));
+    let political = referendum.filter(|r| r.kind == RefKind::Political);
     match req {
         Requirement::Controlled
         | Requirement::BloodAtLeast(_)
         | Requirement::NotActingController
-        | Requirement::NotSelf => true, // target predicates
+        | Requirement::NotSelf
+        | Requirement::HasCastVotes => true, // target predicates
         Requirement::PlayedCardIsMaster => {
             played.is_some_and(|p| LIBRARY[p.card as usize].types.contains(&CardType::Master))
         }
@@ -512,15 +655,36 @@ pub fn holds(
         Requirement::ActorHasBlocked => {
             action.is_some_and(|a| a.blocker.is_some() && a.blocker == actor)
         }
+        Requirement::ActorTitleIn(classes) => actor.is_some_and(|m| {
+            let t = st.minions[m.index()].title();
+            classes.iter().any(|c| c.matches(t))
+        }),
+        Requirement::ActorSectIn(sects) => {
+            actor.is_some_and(|m| sects.contains(&st.minions[m.index()].card().sect))
+        }
+        Requirement::ActorCapacityAtLeast(n) => {
+            actor.is_some_and(|m| st.minions[m.index()].capacity() >= n)
+        }
+        Requirement::IsPolitical => action.is_some_and(|a| a.kind == ActionKind::Political),
+        Requirement::PollingStep => political.is_some_and(|r| r.step == RefStep::Polling),
+        Requirement::NoVotesCast => political.is_some_and(|r| !r.any_cast()),
+        Requirement::ReferendumPassed => action.is_some_and(|a| a.referendum_passed),
     }
 }
 
 /// Evaluate a requirement against a candidate minion target.
-pub fn holds_for_minion(req: Requirement, st: &GameState, seat: SeatId, m: MinionId) -> bool {
+pub fn holds_for_minion(
+    req: Requirement,
+    st: &GameState,
+    seat: SeatId,
+    referendum: Option<&ReferendumCtx>,
+    m: MinionId,
+) -> bool {
     let v = &st.minions[m.index()];
     match req {
         Requirement::Controlled => v.owner == seat && v.present(),
         Requirement::BloodAtLeast(n) => v.blood >= n,
+        Requirement::HasCastVotes => referendum.is_some_and(|r| r.has_cast(m)),
         _ => true,
     }
 }

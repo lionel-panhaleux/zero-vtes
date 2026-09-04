@@ -13,6 +13,9 @@ pub enum ActionKind {
     Diablerie,
     /// Employ a retainer from hand (a card action).
     Employ,
+    /// Call a referendum with a political action card (rulebook "Political
+    /// Action": +1 stealth, undirected; one per minion per turn).
+    Political,
 }
 
 /// One indexed option inside a decision request. `Pass` is always explicit;
@@ -67,6 +70,31 @@ pub enum Choice {
     CastEdge {
         favor: bool,
     },
+    /// Polling commitment: the political action card that called the
+    /// referendum provides 1 vote for the acting Methuselah (rulebook
+    /// "Gaining Votes").
+    CastCardVote {
+        favor: bool,
+    },
+    /// Polling commitment: burn a political action card from hand (hand
+    /// index) for 1 vote; a Methuselah gains at most 1 vote from political
+    /// action cards per referendum.
+    BurnForVote {
+        card: u8,
+        favor: bool,
+    },
+    /// Referendum terms: allocate `n` points to this Methuselah (stepwise,
+    /// one seat at a time; rules-qa 3.5).
+    AllocateTo {
+        seat: SeatId,
+        n: u8,
+    },
+    /// Referendum terms: choose this Methuselah.
+    ChooseSeat(SeatId),
+    /// Referendum terms: choose this minion.
+    ChooseMinion(MinionId),
+    /// Referendum terms: choose this clan.
+    ChooseClan(&'static str),
     /// 1 transfer: move 1 pool onto an uncontrolled vampire.
     Transfer {
         slot: u8,
@@ -118,6 +146,9 @@ pub enum WindowLabel {
     /// The block loop (rulebook states A and B): attempts, modifiers,
     /// reactions.
     ActionBlock,
+    /// After resolution of a successful action (Voter Captivation, Freak
+    /// Drive); for a political action, after the referendum.
+    ActionAfterResolution,
     /// Blocks declined by all (rulebook state C): redirects, Archon
     /// Investigation, remaining modifiers.
     ActionBlocksDeclined,
@@ -127,7 +158,14 @@ pub enum WindowLabel {
     /// A blocked leave-torpor: the blocker's diablerie opportunity.
     TorporBlock,
     RescueCost,
+    /// The blood hunt: polling only, no cards (rulebook "The Blood Hunt").
     BloodHuntPolling,
+    /// Terms of a political referendum, chosen by the caller once the
+    /// action succeeds (rules-qa 3.5).
+    ReferendumTerms,
+    /// The polling step of a political referendum: votes and ballots
+    /// (unordered commitments) and card plays (rulebook "The Referendum").
+    ReferendumPolling,
     InfluenceTransfers,
     DiscardPhase,
     /// Combat steps (rulebook "Combat Sequence"): ordered windows over the

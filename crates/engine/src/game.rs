@@ -12,31 +12,18 @@ use crate::ids::{MinionId, SeatId};
 use crate::influence::transfers_for_turn;
 use crate::library::PRECON_LIBRARIES;
 use crate::plays::PendingPlay;
+use crate::referendum::ReferendumCtx;
 use crate::rng::Rng;
 use crate::state::{
     GameState, Minion, Seat, UncontrolledSlot, HAND_SIZE, START_POOL, UNCONTROLLED_START,
 };
-use crate::window::{OrderedWindow, PollingWindow};
+use crate::window::OrderedWindow;
 
 /// Time-limit stand-in (owner, 2026-09-02): a tournament game rarely exceeds
 /// 20 full rounds, so 100 player turns is ample. Checked at the turn
 /// boundary, which stands in for the tournament rule "the game ends after the
 /// current action / at the end of the current phase".
 pub const TURN_LIMIT: u32 = 100;
-
-/// Blood hunt referendum (rulebook "The Blood Hunt"): not an action, no
-/// modifier/reaction windows — polling only. Sources (rules-qa 1.1): each
-/// ready vampire with votes, and the Edge; each commits once, all its votes
-/// one way, and is then spent for this referendum.
-#[derive(Clone, Debug)]
-pub(crate) struct BloodHuntCtx {
-    pub diablerist: MinionId,
-    pub window: PollingWindow,
-    pub spent: Vec<MinionId>,
-    pub edge_spent: bool,
-    pub for_votes: u32,
-    pub against_votes: u32,
-}
 
 /// One contested object of the active seat, resolved during its unlock
 /// phase (rulebook "Contested Cards" / "Contested Titles").
@@ -84,7 +71,9 @@ pub(crate) enum Flow {
     TorporBlock,
     /// Rescue resolved unblocked: split the 2-blood cost (paid at resolution).
     RescueCost,
-    BloodHunt(BloodHuntCtx),
+    /// A referendum is under way (`Engine::referendum`): the blood hunt
+    /// after a diablerie, or a political action's (inside the action).
+    Referendum,
     Influence {
         left: u8,
     },
@@ -109,6 +98,8 @@ pub struct Engine {
     pub(crate) action: Option<ActionCtx>,
     /// The combat under way inside the action, if any (`Flow::Combat`).
     pub(crate) combat: Option<CombatCtx>,
+    /// The referendum under way, if any (`Flow::Referendum`).
+    pub(crate) referendum: Option<ReferendumCtx>,
     /// Set when a play's resolution ousted its player: the as-played stack
     /// must not resume the ousted seat's phase.
     pub(crate) ousted_during_play: bool,
@@ -179,6 +170,7 @@ impl Engine {
             flow: Flow::GameOver, // replaced by start_turn
             action: None,
             combat: None,
+            referendum: None,
             ousted_during_play: false,
             last_outcome: None,
         };
@@ -217,6 +209,7 @@ impl Engine {
             title_contested: false,
             title_lost: false,
             bled_this_turn: false,
+            political_this_turn: false,
             acted: Vec::new(),
         });
         MinionId(self.state.minions.len() as u32 - 1)
@@ -297,7 +290,7 @@ impl Engine {
             Flow::Combat => self.combat_request(),
             Flow::TorporBlock => Some(self.torpor_block_request()),
             Flow::RescueCost => Some(self.rescue_request()),
-            Flow::BloodHunt(ctx) => self.blood_hunt_request(ctx),
+            Flow::Referendum => self.referendum_request(),
             Flow::Influence { left } => Some(self.influence_request(*left)),
             Flow::Discard => Some(self.discard_request()),
             Flow::GameOver => None,
@@ -318,10 +311,7 @@ impl Engine {
             }
             Flow::Action => self.action_advance(),
             Flow::Combat => self.combat_advance(),
-            Flow::BloodHunt(ctx) => {
-                debug_assert!(ctx.window.is_closed());
-                self.resolve_blood_hunt(ctx);
-            }
+            Flow::Referendum => self.referendum_advance(),
             other => unreachable!("advance() with a pending decision: {other:?}"),
         }
     }
@@ -375,7 +365,7 @@ impl Engine {
             (Flow::RescueCost, Choice::PayRescue { from_acting }) => {
                 self.rescue_apply(*from_acting)
             }
-            (Flow::BloodHunt(ctx), c) => self.blood_hunt_apply(ctx, c),
+            (Flow::Referendum, c) => self.referendum_apply(c),
             (Flow::Influence { left }, c) => self.influence_apply(left, c),
             (flow, choice) => unreachable!("illegal choice {choice:?} in {flow:?}"),
         }
@@ -415,39 +405,25 @@ impl Engine {
     }
 
     pub(crate) fn oust(&mut self, s: SeatId) {
-        {
-            let seat = &mut self.state.seats[s.index()];
-            seat.ousted = true;
-            seat.pool = 0;
-            seat.has_edge = false;
-            seat.crypt.clear();
-            seat.uncontrolled.clear();
+        self.oust_batch(&[s]);
+    }
+
+    /// Oust these Methuselahs at once (a referendum's simultaneous pool
+    /// losses, spec §6.5.4): each predator scores the victory point even if
+    /// ousted in the same batch; the 6 pool goes only to surviving
+    /// predators, and only for their own prey.
+    pub(crate) fn oust_batch(&mut self, seats: &[SeatId]) {
+        let preds: Vec<(SeatId, SeatId)> =
+            seats.iter().map(|&s| (s, self.state.predator(s))).collect();
+        for &s in seats {
+            self.remove_seat(s);
         }
-        for m in &mut self.state.minions {
-            if m.owner == s {
-                m.in_play = false;
+        for (_, pred) in &preds {
+            self.state.seats[pred.index()].half_vps += 2;
+            if !seats.contains(pred) {
+                self.state.seats[pred.index()].pool += 6;
             }
         }
-        // Rulebook "Ending the Game": all the cards the ousted Methuselah
-        // controls are removed from the game — with the layers they carried.
-        {
-            let seat = &mut self.state.seats[s.index()];
-            seat.library.clear();
-            seat.hand.clear();
-            seat.ash.clear();
-        }
-        for c in &mut self.state.cards {
-            if c.owner == s {
-                c.in_play = false;
-            }
-        }
-        let cards = &self.state.cards;
-        self.state
-            .layers
-            .retain(|l| l.scope == crate::cards::Scope::Action || cards[l.source.index()].in_play);
-        let pred = self.state.predator(s);
-        self.state.seats[pred.index()].half_vps += 2;
-        self.state.seats[pred.index()].pool += 6;
         if self.state.living() == 1 {
             // The last Methuselah standing gains one additional VP.
             let survivor = (0..self.state.seats.len())
@@ -458,7 +434,37 @@ impl Engine {
         }
     }
 
-    fn next_turn(&mut self) {
+    /// Rulebook "Ending the Game": all the cards the ousted Methuselah
+    /// controls are removed from the game — with the layers they carried.
+    fn remove_seat(&mut self, s: SeatId) {
+        {
+            let seat = &mut self.state.seats[s.index()];
+            seat.ousted = true;
+            seat.pool = 0;
+            seat.has_edge = false;
+            seat.crypt.clear();
+            seat.uncontrolled.clear();
+            seat.library.clear();
+            seat.hand.clear();
+            seat.ash.clear();
+        }
+        for m in &mut self.state.minions {
+            if m.owner == s {
+                m.in_play = false;
+            }
+        }
+        for c in &mut self.state.cards {
+            if c.owner == s {
+                c.in_play = false;
+            }
+        }
+        let cards = &self.state.cards;
+        self.state
+            .layers
+            .retain(|l| l.scope == crate::cards::Scope::Action || cards[l.source.index()].in_play);
+    }
+
+    pub(crate) fn next_turn(&mut self) {
         if self.state.turn >= TURN_LIMIT {
             // Time limit (tournament rules 3.7): 0.5 VP per survivor.
             for seat in &mut self.state.seats {
@@ -480,6 +486,7 @@ impl Engine {
         for m in &mut self.state.minions {
             // Per-turn NRA flags reset each new turn.
             m.bled_this_turn = false;
+            m.political_this_turn = false;
             m.acted.clear();
             // Unlock phase: the active seat's minions unlock (torpor included).
             if m.owner == s && m.in_play {

@@ -13,6 +13,7 @@ use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, LIBRARY};
+use crate::referendum::is_vote_effect;
 use crate::state::{CardId, CardInPlay, OutOfTurn, HAND_SIZE};
 use crate::window::OrderedWindow;
 
@@ -68,26 +69,13 @@ impl Engine {
                 Some(a) if a.seat == seat && self.combat.is_none() => vec![Some(a.acting)],
                 _ => vec![],
             },
-            Actor::ReactingMinion => match &self.action {
-                Some(a) if a.seat != seat && self.combat.is_none() => {
-                    let needs_locked = mode.requires.contains(&Requirement::LockedActor);
-                    st.minions_of(seat)
-                        .filter(|m| {
-                            let v = &st.minions[m.index()];
-                            if v.in_torpor {
-                                return false;
-                            }
-                            let woken = a.woken.contains(m);
-                            if needs_locked {
-                                v.locked && !woken
-                            } else {
-                                !v.locked || woken
-                            }
-                        })
-                        .map(Some)
-                        .collect()
-                }
-                _ => vec![],
+            Actor::ReactingMinion => self.reacting_candidates(seat, mode),
+            // The acting minion for its controller, a reacting minion for
+            // any other Methuselah (the card's type follows the player).
+            Actor::ActingOrReactingMinion => match &self.action {
+                Some(a) if a.seat == seat && self.combat.is_none() => vec![Some(a.acting)],
+                Some(_) => self.reacting_candidates(seat, mode),
+                None => vec![],
             },
             Actor::ActingCandidate => {
                 if self.action.is_some() || st.active != seat {
@@ -114,6 +102,33 @@ impl Engine {
         }
     }
 
+    /// Ready unlocked minions of `seat` (other than the acting Methuselah's)
+    /// that may play a reaction: woken or locked-only per the mode.
+    fn reacting_candidates(&self, seat: SeatId, mode: &cards::ModeDef) -> Vec<Option<MinionId>> {
+        let st = &self.state;
+        match &self.action {
+            Some(a) if a.seat != seat && self.combat.is_none() => {
+                let needs_locked = mode.requires.contains(&Requirement::LockedActor);
+                st.minions_of(seat)
+                    .filter(|m| {
+                        let v = &st.minions[m.index()];
+                        if v.in_torpor {
+                            return false;
+                        }
+                        let woken = a.woken.contains(m);
+                        if needs_locked {
+                            v.locked && !woken
+                        } else {
+                            !v.locked || woken
+                        }
+                    })
+                    .map(Some)
+                    .collect()
+            }
+            _ => vec![],
+        }
+    }
+
     /// Every legal play of a card from `seat`'s hand in any of `windows`,
     /// enumerated from the definitions: mode windows, actor, discipline
     /// tags, requirements, target filter, costs through layers, limits,
@@ -127,6 +142,7 @@ impl Engine {
         let st = &self.state;
         let action = self.action.as_ref();
         let combat = self.combat.as_ref();
+        let referendum = self.referendum.as_ref();
         let mut out = Vec::new();
         for (hi, &card) in st.seats[seat.index()].hand.iter().enumerate() {
             let Some(def) = cards::lookup(card) else {
@@ -149,9 +165,41 @@ impl Engine {
                     continue;
                 }
                 let tags = LIBRARY[card as usize].modes[mi].tags;
+                let clans = LIBRARY[card as usize].clans;
+                // A political action card cannot be played if its terms
+                // cannot be met (LSJ 20100129).
+                if mode.effects.iter().any(|e| match e {
+                    Effect::CallReferendum(r) => !r.feasible(st, seat),
+                    _ => false,
+                }) {
+                    continue;
+                }
                 for actor in self.actor_candidates(seat, mode) {
+                    // Clan requirement: the playing minion's clan, or (a
+                    // Methuselah's card) a ready vampire of the clan.
+                    if !clans.is_empty() {
+                        let of_clan =
+                            |m: MinionId| clans.contains(&st.minions[m.index()].card().clan);
+                        let ok = match actor {
+                            Some(m) => of_clan(m),
+                            None => st
+                                .minions_of(seat)
+                                .any(|m| st.minions[m.index()].ready() && of_clan(m)),
+                        };
+                        if !ok {
+                            continue;
+                        }
+                    }
                     if let Some(m) = actor {
                         if !cards::has_disciplines(st, m, card, tags) {
+                            continue;
+                        }
+                        // One political action per minion per turn
+                        // (rulebook "Political Action").
+                        if mode.effects.contains(&Effect::DeclareAction(
+                            crate::decision::ActionKind::Political,
+                        )) && st.minions[m.index()].political_this_turn
+                        {
                             continue;
                         }
                         // NRA (rules-qa 1.4): same action card name once per
@@ -203,6 +251,7 @@ impl Engine {
                             played,
                             action,
                             combat,
+                            referendum,
                             mode.waives_needed,
                         )
                     }) {
@@ -216,10 +265,9 @@ impl Engine {
                                 .map(|i| MinionId(i as u32))
                                 .filter(|&id| {
                                     st.minions[id.index()].present()
-                                        && spec
-                                            .filter
-                                            .iter()
-                                            .all(|&r| cards::holds_for_minion(r, st, seat, id))
+                                        && spec.filter.iter().all(|&r| {
+                                            cards::holds_for_minion(r, st, seat, referendum, id)
+                                        })
                                 })
                                 .map(Target::Minion)
                                 .collect(),
@@ -567,9 +615,12 @@ impl Engine {
                         below.canceled = true;
                     }
                 }
-                Effect::DeclareAction(_) | Effect::EmployRetainer { .. } => {}
+                Effect::DeclareAction(_)
+                | Effect::EmployRetainer { .. }
+                | Effect::CallReferendum(_) => {}
                 Effect::HostBurnBloodToUnlock => unreachable!("ability effect in a play"),
                 e if is_combat_effect(&e) => self.apply_combat_effect(e, &ctx),
+                e if is_vote_effect(&e) => self.apply_vote_effect(e, &ctx),
                 action_effect => self.apply_action_effect(action_effect, &ctx),
             }
         }

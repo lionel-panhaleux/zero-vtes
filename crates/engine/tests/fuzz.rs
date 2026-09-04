@@ -137,11 +137,18 @@ fn kind_of(c: &Choice) -> &'static str {
             ActionKind::Rescue => "rescue",
             ActionKind::Diablerie => "diablerie",
             ActionKind::Employ => "employ",
+            ActionKind::Political => "political",
         },
         Choice::DeclareBlock { .. } => "declare_block",
         Choice::PayRescue { .. } => "pay_rescue",
         Choice::CastVotes { .. } => "cast_votes",
         Choice::CastEdge { .. } => "cast_edge",
+        Choice::CastCardVote { .. } => "cast_card_vote",
+        Choice::BurnForVote { .. } => "burn_for_vote",
+        Choice::AllocateTo { .. } => "allocate_to",
+        Choice::ChooseSeat(_) => "choose_seat",
+        Choice::ChooseMinion(_) => "choose_minion",
+        Choice::ChooseClan(_) => "choose_clan",
         Choice::Transfer { .. } => "transfer",
         Choice::Withdraw { .. } => "withdraw",
         Choice::DrawCrypt => "draw_crypt",
@@ -227,6 +234,14 @@ fn midgame(seed: u64) -> Engine {
         "Telepathic Tracking",
         "Cats' Guidance",
         "Form of Mist",
+        "Kine Resources Contested",
+        "Conservative Agitation",
+        "Ancilla Empowerment",
+        "Anarchist Uprising",
+        "Domain Challenge",
+        "Neonate Breach",
+        "Bewitching Oration",
+        "Scalpel Tongue",
     ]
     .iter()
     .map(|n| find_library(n))
@@ -342,12 +357,13 @@ fn fuzz(start: fn(u64) -> Engine) -> HashSet<String> {
 /// Coverage: random play must actually take every listed kind of decision,
 /// or the invariants are not being exercised there.
 fn covers(seen: &HashSet<String>, kinds: &[&str]) {
-    for k in kinds {
-        assert!(
-            seen.contains(*k),
-            "decision kind {k:?} never taken by random play"
-        );
-    }
+    let missing: Vec<&&str> = kinds.iter().filter(|k| !seen.contains(**k)).collect();
+    let mut taken: Vec<&String> = seen.iter().collect();
+    taken.sort();
+    assert!(
+        missing.is_empty(),
+        "decision kinds {missing:?} never taken by random play; taken: {taken:?}"
+    );
 }
 
 #[test]
@@ -418,6 +434,18 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "play:Archon Investigation",
             "play:Homunculus",
             "use_ability",
+            "allocate_to",
+            "choose_seat",
+            "cast_card_vote",
+            "burn_for_vote",
+            "play:Kine Resources Contested",
+            "play:Conservative Agitation",
+            "play:Ancilla Empowerment",
+            "play:Anarchist Uprising",
+            "play:Domain Challenge",
+            "play:Neonate Breach",
+            "play:Bewitching Oration",
+            "play:Scalpel Tongue",
         ],
     );
     // Ousts and game wins happen from here: at least one game must end

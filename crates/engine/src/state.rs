@@ -65,6 +65,9 @@ pub struct Minion {
     pub title_contested: bool,
     pub title_lost: bool,
     pub bled_this_turn: bool,
+    /// One political action per minion per turn (rulebook "Political
+    /// Action"; NRA on resolution, rules-qa 1.4).
+    pub political_this_turn: bool,
     /// Action cards this minion acted with this turn (NRA name identity,
     /// rules-qa 1.4).
     pub acted: Vec<u16>,
@@ -349,6 +352,7 @@ impl GameState {
             mix(m.title_contested as u64);
             mix(m.title_lost as u64);
             mix(m.bled_this_turn as u64);
+            mix(m.political_this_turn as u64);
             mix(m.acted.len() as u64);
             for &c in &m.acted {
                 mix(c as u64);

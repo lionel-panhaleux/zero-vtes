@@ -7,11 +7,12 @@
 
 use crate::cards::{self, Effect, PlayCtx, Scope, Window};
 use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
-use crate::game::{BloodHuntCtx, Engine, Flow};
+use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
 use crate::library::LIBRARY;
+use crate::referendum::RefKind;
 use crate::state::CardInPlay;
-use crate::window::{OrderedWindow, PollingWindow};
+use crate::window::OrderedWindow;
 
 /// Rulebook "Resolve Any Block Attempts": A (no attempt), B (an attempt is
 /// ongoing), C (blocks declined by all); plus the as-announced window that
@@ -38,6 +39,10 @@ pub enum ActionState {
     /// blocker, the acting minion's continuation, then the action ends
     /// blocked or re-enters the block loop.
     AfterCombat,
+    /// After resolution of a successful action (for a political action,
+    /// after its referendum: spec §3.7.5.1): Voter Captivation, Freak
+    /// Drive.
+    AfterResolution,
 }
 
 #[derive(Clone, Debug)]
@@ -80,6 +85,9 @@ pub struct ActionCtx {
     pub continued: bool,
     /// Card names played per minion this action (`Limit::PerAction`).
     pub played: Vec<(MinionId, &'static str)>,
+    /// The political action's referendum passed, by this margin.
+    pub referendum_passed: bool,
+    pub margin: u32,
 }
 
 impl ActionCtx {
@@ -117,7 +125,10 @@ impl Engine {
         let own_target = torpor_target.map(|t| self.state.minions[t.index()].owner == seat);
         let (base_stealth, bleed_target, directed_seat) = match kind {
             ActionKind::Bleed => (0, Some(self.state.prey(seat)), Some(self.state.prey(seat))),
-            ActionKind::Hunt | ActionKind::LeaveTorpor | ActionKind::Employ => (1, None, None),
+            ActionKind::Hunt
+            | ActionKind::LeaveTorpor
+            | ActionKind::Employ
+            | ActionKind::Political => (1, None, None),
             ActionKind::Rescue | ActionKind::Diablerie => {
                 let t = torpor_target.expect("torpor target");
                 if own_target == Some(true) {
@@ -153,6 +164,8 @@ impl Engine {
             continuation: None,
             continued: false,
             played: Vec::new(),
+            referendum_passed: false,
+            margin: 0,
         });
         self.flow = Flow::Action;
     }
@@ -289,6 +302,7 @@ impl Engine {
                 }
             }
             ActionState::AfterCombat => vec![Window::ActionAfterCombat],
+            ActionState::AfterResolution => vec![Window::ActionAfterResolution],
         }
     }
 
@@ -320,6 +334,7 @@ impl Engine {
             ActionState::Open | ActionState::Attempt(_) => WindowLabel::ActionBlock,
             ActionState::Declined => WindowLabel::ActionBlocksDeclined,
             ActionState::AfterCombat => WindowLabel::ActionAfterCombat,
+            ActionState::AfterResolution => WindowLabel::ActionAfterResolution,
         };
         Some(DecisionRequest {
             seat,
@@ -431,7 +446,17 @@ impl Engine {
                     self.end_action();
                 }
             }
+            ActionState::AfterResolution => self.end_action(),
         }
+    }
+
+    /// The action resolved successfully: open the after-resolution window
+    /// over the action's order (elided when nothing can be played).
+    pub(crate) fn after_resolution(&mut self) {
+        let a = self.action.as_mut().expect("action context");
+        a.state = ActionState::AfterResolution;
+        a.fresh_window();
+        self.flow = Flow::Action;
     }
 
     /// The combat ended: open the after-combat window over the action's
@@ -487,18 +512,10 @@ impl Engine {
     /// §4.2 — a modeling call, owner-approved 2026-09-02).
     fn end_action_into_blood_hunt(&mut self, diablerist: MinionId) {
         let seat = self.state.minions[diablerist.index()].owner;
-        let order = self.state.clockwise_from(seat);
         self.finish_action();
         self.last_outcome = self.action.as_ref().and_then(|a| a.outcome);
         self.action = None;
-        self.flow = Flow::BloodHunt(BloodHuntCtx {
-            diablerist,
-            window: PollingWindow::new(order),
-            spent: Vec::new(),
-            edge_spent: false,
-            for_votes: 0,
-            against_votes: 0,
-        });
+        self.start_referendum(RefKind::BloodHunt { diablerist }, seat, None);
     }
 
     /// Effects of a modifier / reaction / master resolved during the action.
@@ -566,9 +583,11 @@ impl Engine {
             (a.acting, a.kind)
         };
         self.state.minions[blocker.index()].locked = true;
-        if kind == ActionKind::Bleed {
-            // NRA triggers on resolution, blocked included (rules-qa 1.4).
-            self.state.minions[acting.index()].bled_this_turn = true;
+        // NRA triggers on resolution, blocked included (rules-qa 1.4).
+        match kind {
+            ActionKind::Bleed => self.state.minions[acting.index()].bled_this_turn = true,
+            ActionKind::Political => self.state.minions[acting.index()].political_this_turn = true,
+            _ => {}
         }
         match kind {
             ActionKind::LeaveTorpor => self.flow = Flow::TorporBlock,
@@ -658,9 +677,36 @@ impl Engine {
                     }
                 }
             }
+            ActionKind::Political => {
+                // Rulebook "The Referendum": the cost is paid and the
+                // referendum called — only if the acting minion is still
+                // ready (spec §3.7.5.1); NRA on resolution (rules-qa 1.4).
+                let play = a.card.expect("action card");
+                let def = cards::lookup(play.card).expect("definition");
+                let cost = cards::blood_cost(&self.state, play.card, play.x);
+                let m = &mut self.state.minions[a.acting.index()];
+                m.blood -= cost;
+                m.political_this_turn = true;
+                let referendum = def.modes[play.mode as usize]
+                    .effects
+                    .iter()
+                    .find_map(|e| match e {
+                        Effect::CallReferendum(r) => Some(*r),
+                        _ => None,
+                    })
+                    .expect("political action card calls a referendum");
+                let ready = self.state.minions[a.acting.index()].ready();
+                self.action = Some(a);
+                if ready {
+                    self.start_referendum(RefKind::Political, seat, Some(referendum));
+                } else {
+                    self.after_resolution();
+                }
+                return;
+            }
         }
         self.action = Some(a);
-        self.end_action();
+        self.after_resolution();
     }
 
     /// Bookkeeping at the end of an action, successful or not: action-scoped
@@ -724,7 +770,7 @@ impl Engine {
         self.state.minions[target.index()].blood -= 2 - from_acting;
         // Rescued: to the ready region, lock state untouched.
         self.state.minions[target.index()].in_torpor = false;
-        self.end_action();
+        self.after_resolution();
     }
 
     /// Rulebook "Minion Phase": a ready unlocked vampire with no blood must
@@ -801,6 +847,7 @@ impl Engine {
             s,
             &[
                 Window::ActionDeclare,
+                Window::ActionDeclarePolitical,
                 Window::ActionDeclareEquip,
                 Window::ActionDeclareRecruit,
                 Window::ActionDeclareEmploy,
