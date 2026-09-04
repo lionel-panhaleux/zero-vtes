@@ -170,15 +170,27 @@ fn opening(seed: u64) -> Engine {
 /// vampire is only ever unlocked at 0 blood on its own turn, where it must
 /// hunt), nor an oust; this fixture exercises those paths. Deterministic in
 /// `seed`, so replay rebuilds the same start.
-/// The `nth` V5 vampire with superior `disc`, skipping `used` cards.
-fn vampire_with(disc: &str, nth: usize, used: &[u16]) -> u16 {
-    CRYPT
-        .iter()
-        .enumerate()
-        .filter(|(i, c)| c.disciplines.contains(&disc) && !used.contains(&(*i as u16)))
-        .nth(nth)
-        .map(|(i, _)| i as u16)
-        .expect("a vampire with the discipline")
+/// A small set of unused V5 vampires whose superior disciplines cover
+/// `discs`: each pick is the vampire covering the most still-missing ones.
+fn cover(discs: &[&str], used: &[u16]) -> Vec<u16> {
+    let mut missing: Vec<&str> = discs.to_vec();
+    let mut picked = Vec::new();
+    while !missing.is_empty() {
+        let best = CRYPT
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| !used.contains(&(*i as u16)) && !picked.contains(&(*i as u16)))
+            .max_by_key(|(i, c)| {
+                let n = missing.iter().filter(|d| c.disciplines.contains(d)).count();
+                (n, usize::MAX - *i)
+            })
+            .map(|(i, _)| i as u16)
+            .expect("crypt");
+        let discs = CRYPT[best as usize].disciplines;
+        missing.retain(|d| !discs.contains(d));
+        picked.push(best);
+    }
+    picked
 }
 
 fn midgame(seed: u64) -> Engine {
@@ -198,6 +210,23 @@ fn midgame(seed: u64) -> Engine {
         "Deflection",
         "Archon Investigation",
         "Homunculus",
+        "Flash",
+        "Torn Signpost",
+        "Roundhouse",
+        "Body Flare",
+        "Theft of Vitae",
+        "Majesty",
+        "Side Strike",
+        "Blur",
+        "Immortal Grapple",
+        "Hidden Strength",
+        "Soak",
+        "Indomitability",
+        "Claws of the Dead",
+        "Taste of Vitae",
+        "Telepathic Tracking",
+        "Cats' Guidance",
+        "Form of Mist",
     ]
     .iter()
     .map(|n| find_library(n))
@@ -205,11 +234,16 @@ fn midgame(seed: u64) -> Engine {
     let mut used = vec![shared, city[0], city[1]];
     for s in 0..4u8 {
         let seat = SeatId(s);
-        // One vampire each with DOM, AUS, PRO and OBL so the slice-2 cards
-        // are playable, plus a torpor vampire; distinct across seats.
+        // Vampires covering (at superior) every discipline the slice cards
+        // need, picked greedily so the table stays small; distinct across
+        // seats.
         e.state.seats[s as usize].pool = 2 + rng.below(8) as i32;
-        for disc in ["DOM", "AUS", "PRO", "OBL"] {
-            let card = vampire_with(disc, s as usize, &used);
+        for card in cover(
+            &[
+                "DOM", "AUS", "PRO", "OBL", "CEL", "FOR", "POT", "PRE", "THA", "ANI",
+            ],
+            &used,
+        ) {
             used.push(card);
             let blood = (1 + rng.below(4) as u8).min(CRYPT[card as usize].capacity);
             e.add_minion(seat, card, blood, false);
@@ -358,6 +392,27 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "play:Conditioning",
             "play:Consign to Oblivion",
             "play:Form of the Cobra",
+            "hand_strike",
+            "use_maneuver",
+            "use_press",
+            "continue_action",
+            "play:Flash",
+            "play:Torn Signpost",
+            "play:Roundhouse",
+            "play:Body Flare",
+            "play:Theft of Vitae",
+            "play:Majesty",
+            "play:Side Strike",
+            "play:Blur",
+            "play:Immortal Grapple",
+            "play:Hidden Strength",
+            "play:Soak",
+            "play:Indomitability",
+            "play:Claws of the Dead",
+            "play:Taste of Vitae",
+            "play:Telepathic Tracking",
+            "play:Cats' Guidance",
+            "play:Form of Mist",
             "play:Eyes of Argus",
             "play:Deflection",
             "play:Archon Investigation",

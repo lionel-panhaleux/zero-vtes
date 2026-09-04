@@ -3,7 +3,7 @@
 //! and out-of-turn accounting, the discard phase. Cards: Villein, Sudden
 //! Reversal.
 
-use zvtes::cards::{self, Target};
+use zvtes::cards::{self, Target, Window};
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
@@ -66,22 +66,53 @@ fn implemented_definitions_cover_the_slice() {
         implemented,
         vec![
             "Archon Investigation",
+            "Blur",
+            "Body Flare",
             "Bonding",
+            "Cats' Guidance",
+            "Claws of the Dead",
             "Conditioning",
             "Consign to Oblivion",
             "Deflection",
             "Earth Control",
             "Eyes of Argus",
+            "Flash",
+            "Form of Mist",
             "Form of the Cobra",
+            "Hidden Strength",
             "Homunculus",
+            "Immortal Grapple",
+            "Indomitability",
+            "Majesty",
+            "Roundhouse",
+            "Side Strike",
+            "Soak",
             "Sudden Reversal",
+            "Taste of Vitae",
+            "Telepathic Tracking",
+            "Theft of Vitae",
+            "Torn Signpost",
             "Villein"
         ]
     );
-    // Definition modes line up with the generated per-mode static half.
+    // Definition modes line up with the generated per-mode static half:
+    // same count, and each mode's windows are exactly the reviewed
+    // matrix's (the matrix is authoritative; a definition may only add the
+    // engine's own hooks, none so far).
     for (i, c) in LIBRARY.iter().enumerate() {
         if let Some(def) = cards::lookup(i as u16) {
             assert_eq!(def.modes.len(), c.modes.len(), "{}", c.name);
+            for (mi, (dm, lm)) in def.modes.iter().zip(c.modes).enumerate() {
+                let mut want: Vec<Window> = lm
+                    .windows
+                    .iter()
+                    .map(|w| Window::from_name(w).unwrap())
+                    .collect();
+                let mut have: Vec<Window> = dm.windows.to_vec();
+                want.sort_by_key(|w| *w as u8);
+                have.sort_by_key(|w| *w as u8);
+                assert_eq!(have, want, "{} mode {mi}", c.name);
+            }
         }
     }
 }

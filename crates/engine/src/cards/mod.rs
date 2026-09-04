@@ -8,7 +8,7 @@
 pub mod defs;
 
 use crate::actions::{ActionCtx, ActionState};
-use crate::combat::{CombatCtx, Range};
+use crate::combat::{CombatCtx, Range, Step};
 use crate::decision::ActionKind;
 use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, Cost, LIBRARY};
@@ -495,12 +495,19 @@ pub fn holds(
         Requirement::BothCombatantsReady => combat.is_some_and(|c| c.both_ready(st)),
         Requirement::CombatWouldEnd => combat.is_some_and(|c| c.would_end()),
         Requirement::ActorReady => actor.is_some_and(|m| st.minions[m.index()].ready()),
-        Requirement::DamagePending => combat
-            .zip(side)
-            .is_some_and(|(c, i)| c.sides[i].pending.total() > 0),
-        Requirement::NonAggravatedDamagePending => combat
-            .zip(side)
-            .is_some_and(|(c, i)| c.sides[i].pending.normal > 0),
+        // The prevention half of a card needs damage to prevent; a mode
+        // with another window (Indomitability [FOR]'s press) is unaffected
+        // outside the prevention step.
+        Requirement::DamagePending => combat.zip(side).is_some_and(|(c, i)| match c.step {
+            Step::Prevent(p) => p == i && c.sides[i].pending.total() > 0,
+            _ => true,
+        }),
+        Requirement::NonAggravatedDamagePending => {
+            combat.zip(side).is_some_and(|(c, i)| match c.step {
+                Step::Prevent(p) => p == i && c.sides[i].pending.normal > 0,
+                _ => true,
+            })
+        }
         Requirement::NoContinuePress => combat.is_some_and(|c| !c.press_continue),
         Requirement::ActorHasBlocked => {
             action.is_some_and(|a| a.blocker.is_some() && a.blocker == actor)

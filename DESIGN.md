@@ -507,9 +507,33 @@ Recorded so nobody mistakes them for oversights:
   layers, deferred reaction replacement, the employ action with NRA by card
   name, an unlock-phase in-play ability window; definitions Bonding,
   Conditioning, Consign to Oblivion, Form of the Cobra [PRO], Eyes of Argus,
-  Deflection, Archon Investigation, Homunculus. Next slices: combat (Form of
-  Mist, Telepathic Tracking, Immortal Grapple, Blur), politics (Kine Resources
-  Contested, Scalpel Tongue, Anarch Revolt).
+  Deflection, Archon Investigation, Homunculus. Slice 3 done (2026-09-04):
+  the combat machine (`combat.rs`) — each step an ordered window over the two
+  combatant seats, acting side first with impulse-reset (rules-qa 1.2);
+  determine range and press as alternating toggles; strike choice acting
+  first; a before-resolution window (spec §4.3.2, home of `COMBAT_UNTIMED`);
+  resolution with combat-ends first, dodge, simultaneous steal-before-mend;
+  prevention per damaged side, acting first, then damage applied at once with
+  the rulebook's normal-then-aggravated resolution (its three examples are
+  unit tests); additional strikes with the one-limited-source cap; presses; a
+  shared end-of-round / would-end window with replacement (Telepathic
+  Tracking) and after-combat riders lost on continuation; the after-combat
+  window with the Form of Mist continuation re-entering the block loop with
+  declines kept (rules-qa 3.4); the blocked leave-torpor (blocker's diablerie
+  → blood hunt). Vocabulary added: `Actor::Combatant`, combat requirements,
+  `StrikeKind`, `Limit` (per round/combat/action by card name), `Terms::XBlood`
+  (Hidden Strength). Definitions: Flash, Torn Signpost, Roundhouse, Body
+  Flare, Theft of Vitae, Majesty, Side Strike, Blur, Immortal Grapple, Hidden
+  Strength, Soak, Indomitability, Claws of the Dead, Taste of Vitae,
+  Telepathic Tracking, Cats' Guidance, Form of Mist, Form of the Cobra [pro]
+  (28 defs). Known gaps: printed crypt abilities (strength, prevention,
+  maneuvers on vampire cards) are not generated yet — strength is the rulebook
+  default of 1; maneuver-from-strike-card riders (Aid from Bats, Slam, Diversion
+  [tha]); environmental / per-round damage (Carrion Crows, Weather Control);
+  first strike, weapons and equipment; cards played by minions not in the
+  combat (Martyr's Resilience, Touch of Valeren [FOR]); rush / card-created
+  combats. Batch 4 of rules-qa lists the modeling calls to confirm. Next:
+  politics (Kine Resources Contested, Scalpel Tongue, Anarch Revolt).
 - **P2 — full engine pool**: all 621 cards including Events and their machinery;
   the 14 training decklists plus the New Blood minis as data; perft baselines;
   protocol server; scripted reference bots (aggro-bleed, wall, vote).

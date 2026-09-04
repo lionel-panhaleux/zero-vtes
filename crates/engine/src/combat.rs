@@ -683,7 +683,13 @@ impl Engine {
                     c.press(i);
                 }
             }
-            Effect::OptionalPress => c.sides[i].presses += 1,
+            Effect::OptionalPress => {
+                // "Press, or prevent with 1 optional press": in the press
+                // step the card is the press itself.
+                if c.step != Step::Press {
+                    c.sides[i].presses += 1;
+                }
+            }
             Effect::NextRoundManeuver => c.sides[i].next_round_maneuvers += 1,
             Effect::AdditionalStrikes { n, limited } => {
                 c.sides[i].additional += n;

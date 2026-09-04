@@ -69,8 +69,9 @@ at every step."
   step goes to the acting Methuselah's minion; if the acting Methuselah has no
   minion in the fight, go around clockwise starting from them.
 
-**Test** — _pending_: `combat_step_impulse_reset`,
-`combat_rush_acting_minion`, `combat_no_acting_minion_ordering`.
+**Test** — _implemented_ (tests/combat.rs): `combat_step_impulse_reset`.
+_Pending_: `combat_rush_acting_minion`, `combat_no_acting_minion_ordering`
+(no card-created combat in the slice yet).
 
 ### 1.3 Block loop details
 
@@ -224,7 +225,9 @@ impulse, deadline derived from the effect", or per-card step assignment?
 precede the step it modifies (advanced-rules §2.1.4): aggravated-hands plays
 must precede the strike resolution they affect.
 
-**Test** — _pending_: `combat_untimed_deadline_precedes_step`.
+**Test** — _implemented_ (tests/combat.rs): `combat_untimed_deadline_precedes_step`
+(Claws of the Dead [pro]: offered at every impulse through the before-resolution
+window, not in the prevention window).
 
 ### 2.3 Vocabulary introduced by the review (queue 1, 3, 8, 9)
 
@@ -357,7 +360,7 @@ and they cannot block — it is the same action.
 (stealth/intercept layers, `declined` set) preserved; only the pending-attempt
 state resets. Matches rules-qa 1.3 (only a target change reopens attempts).
 
-**Test** — _pending_: `continuation_keeps_declines`.
+**Test** — _implemented_ (tests/combat.rs): `continuation_keeps_declines`.
 
 ### 3.5 When numeric terms are chosen
 
@@ -405,8 +408,61 @@ the acting player. It is not outside the unlock-phase ordering.
 window over the seats clockwise from the active one offers unlock-phase
 abilities; a use returns the impulse to the active seat (DESIGN §10 item 7).
 
-## Batch 3 — planned: actions & resolution (costs, targets, "as announced",
-redirects, action continuation). Batch 4 — combat (strike resolution order,
-prevention timing, presses/additional strikes). Batch 5 — politics (terms,
-Scalpel-class cards, blood hunts). Batch 6 — cards & effects (replacement,
-delayed replacement, contests, events).
+## Batch 4 — combat, collected during slice 3 (2026-09-04)
+
+Modeling calls made while building the combat machine, each the default the
+engine now applies; the owner's answer overrides.
+
+### 4.1 The after-combat window and the Form of Mist continuation _(open)_
+
+Form of Mist [PRO] ("after combat ends … continue the action") and Cats'
+Guidance [ani] / Forced Vigilance [for] ("after block resolution", the
+after-combat window per 2.1) occupy the same window. Does the continuation
+happen *inside* that window — occupants ordering freely (spec §2.4.1), so the
+blocker may unlock before or after it — or does taking it close the window and
+resume the action at once?
+
+**Default applied**: inside the window. The acting Methuselah has the first
+opportunity; the continuation is a play in that window (impulse returns to the
+acting seat, then rotates); the block loop resumes only when the window
+closes. Consequence: an unlocked blocker may attempt to block again after the
+continuation (rulings: "the maneuver is provided again if a second block
+happens on the same action").
+
+**Test** — `continuation_keeps_declines` scripts this order.
+
+### 4.2 Mixed normal and aggravated damage: which points go unprevented _(open)_
+
+Spec §4.5.2: "where both kinds are inflicted, the preventing minion chooses
+which points go unprevented." With a ready vampire, preventing aggravated
+first is never worse (aggravated always wounds; normal wounds only past the
+blood), so the engine allocates prevention to aggravated first automatically
+(non-aggravated-only prevention such as Soak never touches it) and offers no
+choice. Is there a case where the choice matters (a card keyed to blood burned,
+or to "wounded"), making this an elision the owner would rather not have?
+
+### 4.3 Ineffective strikes are offered _(open)_
+
+The mask offers the hand strike at long range (legal, ineffective) and a
+dodge against no opposing strike, consistent with spec §1.6.5 ("futility is no
+bar") and §4.6.4. Prevention, by contrast, is masked out with no damage to
+prevent (§4.5.1). Fine as a mask policy?
+
+### 4.4 Limited additional strikes before the normal pair _(open)_
+
+Spec §4.3.5 (Quickness): the card granting a limited additional strike may be
+played before or after the normal pair. The engine opens `COMBAT_ADDITIONAL_STRIKE`
+in the before-strikes and before-resolution windows as well as in the
+additional-strikes step, for every card with that window (Blur, Side Strike
+[CEL], Pursuit [CEL]…). Is the ruling general, or Quickness-specific?
+
+### 4.5 Combat cards by a combatant no longer ready _(open)_
+
+Taste of Vitae and Disarm print "not usable by a vampire being burned or going
+to torpor", which suggests the end-of-round window is otherwise open to such a
+vampire. The engine lets a combatant that is no longer ready play end-of-round
+combat cards unless the card excludes it, and no other combat window. Right?
+
+## Batch 5 — planned: politics (terms, Scalpel-class cards, blood hunts).
+Batch 6 — cards & effects (replacement, delayed replacement, contests,
+events).

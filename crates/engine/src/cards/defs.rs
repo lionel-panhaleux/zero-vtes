@@ -4,10 +4,15 @@
 //! primitives of `cards`. Slice 1 (master phase): Villein, Sudden Reversal.
 //! Slice 2 (the bleed): Conditioning, Consign to Oblivion, Form of the Cobra
 //! [PRO] modifier, Eyes of Argus, Deflection, Archon Investigation,
-//! Homunculus.
+//! Homunculus. Slice 3 (combat): Flash, Torn Signpost, Roundhouse, Body
+//! Flare, Theft of Vitae, Majesty, Side Strike, Blur, Immortal Grapple,
+//! Hidden Strength, Soak, Indomitability, Claws of the Dead, Taste of Vitae,
+//! Telepathic Tracking, Cats' Guidance, Form of Mist, Form of the Cobra
+//! [pro].
 
 use super::{
-    Actor, CardDef, Effect, ModeDef, Modifier, Requirement, TargetKind, TargetSpec, Terms, Window,
+    Actor, CardDef, Effect, Limit, ModeDef, Modifier, Requirement, StrikeKind, TargetKind,
+    TargetSpec, Terms, Window,
 };
 use crate::decision::ActionKind;
 
@@ -155,16 +160,19 @@ pub static FORM_OF_THE_COBRA: CardDef = CardDef {
     trifle: false,
     out_of_turn: false,
     modes: &[
-        // [pro] [COMBAT] Strike: steal 1 blood — combat slice.
+        // [pro] [COMBAT] Strike: steal 1 blood or life (becoming blood).
         ModeDef {
-            windows: &[],
-            actor: Actor::ActingMinion,
+            windows: &[Window::CombatStrikeDeclaration],
+            actor: Actor::Combatant,
             requires: &[],
             target: NO_TARGET,
             terms: None,
             waives_needed: false,
             limit: None,
-            effects: &[],
+            effects: &[Effect::Strike(StrikeKind::StealBlood {
+                n: 1,
+                ranged: false,
+            })],
         },
         ModeDef {
             windows: &[Window::ActionAsAnnounced],
@@ -406,7 +414,571 @@ pub static EARTH_CONTROL: CardDef = CardDef {
     abilities: &[],
 };
 
-pub static DEFS: [&CardDef; 11] = [
+/// "[cel] Maneuver or press. [CEL] Maneuver with 1 optional press." The
+/// effect matching the step applies (a maneuver in determine range, a
+/// press in the press step).
+pub static FLASH: CardDef = CardDef {
+    name: "Flash",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::CombatDetermineRange, Window::CombatPress],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Maneuver, Effect::Press],
+        },
+        ModeDef {
+            windows: &[Window::CombatDetermineRange],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Maneuver, Effect::OptionalPress],
+        },
+    ],
+    abilities: &[],
+};
+
+/// "Only usable before range is determined. [pot] This vampire gets a
+/// strength of 2 this combat. [POT] … strength of 3 this combat."
+pub static TORN_SIGNPOST: CardDef = CardDef {
+    name: "Torn Signpost",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::CombatBeforeRange],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::SetStrength(2)],
+        },
+        ModeDef {
+            windows: &[Window::CombatBeforeRange],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::SetStrength(3)],
+        },
+    ],
+    abilities: &[],
+};
+
+/// "[pot] Strike: hand strike at +2 damage. [POT] Strike: hand strike at
+/// +3 damage."
+pub static ROUNDHOUSE: CardDef = CardDef {
+    name: "Roundhouse",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::CombatStrikeDeclaration],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Strike(StrikeKind::Hand { bonus: 2 })],
+        },
+        ModeDef {
+            windows: &[Window::CombatStrikeDeclaration],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Strike(StrikeKind::Hand { bonus: 3 })],
+        },
+    ],
+    abilities: &[],
+};
+
+/// "[pro] Strike: 2 aggravated damage. [PRO] Strike: 2R aggravated
+/// damage." (2 blood.)
+pub static BODY_FLARE: CardDef = CardDef {
+    name: "Body Flare",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::CombatStrikeDeclaration],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Strike(StrikeKind::Damage {
+                n: 2,
+                ranged: false,
+                aggravated: true,
+            })],
+        },
+        ModeDef {
+            windows: &[Window::CombatStrikeDeclaration],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Strike(StrikeKind::Damage {
+                n: 2,
+                ranged: true,
+                aggravated: true,
+            })],
+        },
+    ],
+    abilities: &[],
+};
+
+/// "[tha] Strike, ranged: steal 1 blood or life (becoming blood). [THA]
+/// … steal 2 blood or life."
+pub static THEFT_OF_VITAE: CardDef = CardDef {
+    name: "Theft of Vitae",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::CombatStrikeDeclaration],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Strike(StrikeKind::StealBlood {
+                n: 1,
+                ranged: true,
+            })],
+        },
+        ModeDef {
+            windows: &[Window::CombatStrikeDeclaration],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Strike(StrikeKind::StealBlood {
+                n: 2,
+                ranged: true,
+            })],
+        },
+    ],
+    abilities: &[],
+};
+
+/// "[pre] Strike: combat ends. [PRE] As above, and unlock this vampire
+/// before combat ends." (1 blood.)
+pub static MAJESTY: CardDef = CardDef {
+    name: "Majesty",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::CombatStrikeDeclaration],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Strike(StrikeKind::CombatEnds { unlock: false })],
+        },
+        ModeDef {
+            windows: &[Window::CombatStrikeDeclaration],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Strike(StrikeKind::CombatEnds { unlock: true })],
+        },
+    ],
+    abilities: &[],
+};
+
+/// "[cel] Strike: dodge. [CEL] Additional strike (limited)."
+pub static SIDE_STRIKE: CardDef = CardDef {
+    name: "Side Strike",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::CombatStrikeDeclaration],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Strike(StrikeKind::Dodge)],
+        },
+        ModeDef {
+            windows: &[Window::CombatAdditionalStrike],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::AdditionalStrikes {
+                n: 1,
+                limited: true,
+            }],
+        },
+    ],
+    abilities: &[],
+};
+
+/// "[cel] Additional strike (limited). [CEL] 2 additional strikes
+/// (limited)." (1 blood.)
+pub static BLUR: CardDef = CardDef {
+    name: "Blur",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::CombatAdditionalStrike],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::AdditionalStrikes {
+                n: 1,
+                limited: true,
+            }],
+        },
+        ModeDef {
+            windows: &[Window::CombatAdditionalStrike],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::AdditionalStrikes {
+                n: 2,
+                limited: true,
+            }],
+        },
+    ],
+    abilities: &[],
+};
+
+/// "Grapple. Only usable at close range before strikes are chosen. A
+/// vampire can play only one Immortal Grapple each round. [pot] Strikes
+/// that are not hand strikes cannot be used this round (by either
+/// combatant). [POT] As above, with 1 optional press. If another round of
+/// combat occurs, that round is at close range (skip the determine range
+/// step for that round)."
+pub static IMMORTAL_GRAPPLE: CardDef = CardDef {
+    name: "Immortal Grapple",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::CombatBeforeStrikes],
+            actor: Actor::Combatant,
+            requires: &[Requirement::RangeClose],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: Some(Limit::PerRound),
+            effects: &[Effect::OnlyHandStrikes],
+        },
+        ModeDef {
+            windows: &[Window::CombatBeforeStrikes],
+            actor: Actor::Combatant,
+            requires: &[Requirement::RangeClose],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: Some(Limit::PerRound),
+            effects: &[
+                Effect::OnlyHandStrikes,
+                Effect::OptionalPress,
+                Effect::NextRoundClose,
+            ],
+        },
+    ],
+    abilities: &[],
+};
+
+/// "[for] Prevent X+1 damage. [FOR] As above, with 1 optional press." X is
+/// the blood cost, chosen as the card is played (rules-qa 3.5); it may
+/// exceed what is needed, and the card needs damage to prevent (rulings).
+pub static HIDDEN_STRENGTH: CardDef = CardDef {
+    name: "Hidden Strength",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::CombatDamagePrevention],
+            actor: Actor::Combatant,
+            requires: &[Requirement::DamagePending],
+            target: NO_TARGET,
+            terms: Some(Terms::XBlood),
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::PreventXPlus(1)],
+        },
+        ModeDef {
+            windows: &[Window::CombatDamagePrevention],
+            actor: Actor::Combatant,
+            requires: &[Requirement::DamagePending],
+            target: NO_TARGET,
+            terms: Some(Terms::XBlood),
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::PreventXPlus(1), Effect::OptionalPress],
+        },
+    ],
+    abilities: &[],
+};
+
+/// "A vampire can play only one Soak each round. [for] Prevent 2
+/// non-aggravated damage. [FOR] Prevent 4 non-aggravated damage."
+pub static SOAK: CardDef = CardDef {
+    name: "Soak",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::CombatDamagePrevention],
+            actor: Actor::Combatant,
+            requires: &[Requirement::NonAggravatedDamagePending],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: Some(Limit::PerRound),
+            effects: &[Effect::PreventNonAggravated(2)],
+        },
+        ModeDef {
+            windows: &[Window::CombatDamagePrevention],
+            actor: Actor::Combatant,
+            requires: &[Requirement::NonAggravatedDamagePending],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: Some(Limit::PerRound),
+            effects: &[Effect::PreventNonAggravated(4)],
+        },
+    ],
+    abilities: &[],
+};
+
+/// "[for] Prevent 1 damage. [FOR] Press, or prevent 1 damage with 1
+/// optional press." In the press step only the press applies.
+pub static INDOMITABILITY: CardDef = CardDef {
+    name: "Indomitability",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::CombatDamagePrevention],
+            actor: Actor::Combatant,
+            requires: &[Requirement::DamagePending],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Prevent(1)],
+        },
+        ModeDef {
+            windows: &[Window::CombatDamagePrevention, Window::CombatPress],
+            actor: Actor::Combatant,
+            requires: &[Requirement::DamagePending],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Prevent(1), Effect::OptionalPress, Effect::Press],
+        },
+    ],
+    abilities: &[],
+};
+
+/// "[pro] Damage from this vampire's hand strikes is aggravated this round.
+/// [PRO] Maneuver." (1 blood.) The basic mode has no printed step: any
+/// impulse before the strike resolution it affects (rules-qa 2.2).
+pub static CLAWS_OF_THE_DEAD: CardDef = CardDef {
+    name: "Claws of the Dead",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::CombatUntimed],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::AggravatedHands],
+        },
+        ModeDef {
+            windows: &[Window::CombatDetermineRange],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Maneuver],
+        },
+    ],
+    abilities: &[],
+};
+
+/// "Only usable at the end of a round of combat. Not usable by a vampire
+/// being burned or going to torpor. A vampire can play only one Taste of
+/// Vitae each round. This vampire gains blood equal to the amount of blood
+/// lost by the opposing vampire to damage this round."
+pub static TASTE_OF_VITAE: CardDef = CardDef {
+    name: "Taste of Vitae",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[ModeDef {
+        windows: &[Window::CombatEndOfRound],
+        actor: Actor::Combatant,
+        requires: &[Requirement::ActorReady],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: Some(Limit::PerRound),
+        effects: &[Effect::GainBloodLostByOpponent],
+    }],
+    abilities: &[],
+};
+
+/// "[aus] Press, only usable to continue combat. If another round of combat
+/// occurs, this vampire gets 1 optional maneuver that round. [AUS] Only
+/// usable if both combatants are still ready and combat would end.
+/// Instead, start a new round." (1 blood.)
+pub static TELEPATHIC_TRACKING: CardDef = CardDef {
+    name: "Telepathic Tracking",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::CombatPress],
+            actor: Actor::Combatant,
+            requires: &[Requirement::NoContinuePress],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Press, Effect::NextRoundManeuver],
+        },
+        ModeDef {
+            windows: &[Window::CombatWouldEnd],
+            actor: Actor::Combatant,
+            requires: &[
+                Requirement::BothCombatantsReady,
+                Requirement::CombatWouldEnd,
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::NewRound],
+        },
+    ],
+    abilities: &[],
+};
+
+/// "[ani] Only usable by a locked vampire who has blocked, after block
+/// resolution. Unlock this vampire. [ANI] +1 intercept." The basic mode's
+/// point is the after-combat window (rules-qa 2.1).
+pub static CATS_GUIDANCE: CardDef = CardDef {
+    name: "Cats' Guidance",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::ActionAfterCombat],
+            actor: Actor::ReactingMinion,
+            requires: &[Requirement::LockedActor, Requirement::ActorHasBlocked],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::UnlockActor],
+        },
+        ModeDef {
+            windows: &[Window::ActionStealthIntercept],
+            actor: Actor::ReactingMinion,
+            requires: &[Requirement::InterceptNeeded],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::AddIntercept(1)],
+        },
+    ],
+    abilities: &[],
+};
+
+/// "[pro] Strike: dodge. [PRO] Strike: combat ends. After combat ends, if
+/// this vampire was blocked, they can burn 1 blood to continue the action
+/// with +1 stealth as if unblocked, even if stealth is not yet needed. A
+/// vampire can play only one Form of Mist at superior each action."
+pub static FORM_OF_MIST: CardDef = CardDef {
+    name: "Form of Mist",
+    trifle: false,
+    out_of_turn: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::CombatStrikeDeclaration],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Strike(StrikeKind::Dodge)],
+        },
+        ModeDef {
+            windows: &[Window::CombatStrikeDeclaration],
+            actor: Actor::Combatant,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: Some(Limit::PerAction),
+            effects: &[
+                Effect::Strike(StrikeKind::CombatEnds { unlock: false }),
+                Effect::ContinueAfterCombat {
+                    blood: 1,
+                    stealth: 1,
+                },
+            ],
+        },
+    ],
+    abilities: &[],
+};
+
+pub static DEFS: [&CardDef; 28] = [
     &EARTH_CONTROL,
     &BONDING,
     &VILLEIN,
@@ -418,4 +990,21 @@ pub static DEFS: [&CardDef; 11] = [
     &DEFLECTION,
     &ARCHON_INVESTIGATION,
     &HOMUNCULUS,
+    &FLASH,
+    &TORN_SIGNPOST,
+    &ROUNDHOUSE,
+    &BODY_FLARE,
+    &THEFT_OF_VITAE,
+    &MAJESTY,
+    &SIDE_STRIKE,
+    &BLUR,
+    &IMMORTAL_GRAPPLE,
+    &HIDDEN_STRENGTH,
+    &SOAK,
+    &INDOMITABILITY,
+    &CLAWS_OF_THE_DEAD,
+    &TASTE_OF_VITAE,
+    &TELEPATHIC_TRACKING,
+    &CATS_GUIDANCE,
+    &FORM_OF_MIST,
 ];

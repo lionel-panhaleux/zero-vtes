@@ -483,10 +483,10 @@ impl Engine {
     }
 
     /// The action ends and the blood hunt referendum follows immediately;
-    /// rotation starts at the acting Methuselah, clockwise (DESIGN §4.2 —
-    /// a modeling call, owner-approved 2026-09-02).
+    /// rotation starts at the diablerist's controller, clockwise (DESIGN
+    /// §4.2 — a modeling call, owner-approved 2026-09-02).
     fn end_action_into_blood_hunt(&mut self, diablerist: MinionId) {
-        let seat = self.action.as_ref().expect("action context").seat;
+        let seat = self.state.minions[diablerist.index()].owner;
         let order = self.state.clockwise_from(seat);
         self.finish_action();
         self.last_outcome = self.action.as_ref().and_then(|a| a.outcome);
