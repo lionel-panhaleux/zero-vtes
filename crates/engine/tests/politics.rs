@@ -544,11 +544,35 @@ fn banishment_sends_a_younger_vampire_to_the_uncontrolled_region() {
         ]
     );
     pick(&mut e, Choice::ChooseMinion(bret));
+    // A retainer on Bret goes face down with him (rules-qa 5.7).
+    e.state.cards.push(zvtes::state::CardInPlay {
+        card: find_library("Homunculus"),
+        owner: SeatId(1),
+        host: Some(bret),
+        in_play: true,
+        locked: true,
+        counters: 1,
+    });
     pick(&mut e, votes(alexa, true));
     close_polling(&mut e);
     assert!(!e.state.minions[bret.index()].in_play);
+    assert!(!e.state.cards[0].in_play);
     let slot = &e.state.seats[1].uncontrolled[0];
     assert_eq!((slot.card, slot.counters), (find_card("Bret Stryker"), 4));
+    // Seat 1's influence phase: the slot is fully funded; influencing it
+    // out brings back the same vampire with the retainer, unlocked.
+    loop {
+        let req = request(&mut e);
+        if req.seat == SeatId(1) && req.window == WindowLabel::InfluenceTransfers {
+            break;
+        }
+        e.choose(0);
+    }
+    pick(&mut e, Choice::InfluenceOut { slot: 0 });
+    let b = &e.state.minions[bret.index()];
+    assert!(b.in_play && !b.locked && b.blood == 4);
+    assert!(e.state.cards[0].in_play && !e.state.cards[0].locked);
+    assert!(e.state.seats[1].uncontrolled.is_empty());
 }
 
 // Expulsion: up to two minions; the chosen ones cannot block, react or

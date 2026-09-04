@@ -145,6 +145,10 @@ impl CardId {
 pub struct UncontrolledSlot {
     pub card: u16,
     pub counters: u8,
+    /// A banished vampire (Banishment): the arena entry it left, with its
+    /// cards face down on it; it comes back as that entry when influenced
+    /// out again (rules-qa 5.7).
+    pub banished: Option<MinionId>,
 }
 
 /// An out-of-turn master card played since the seat's last master phase
@@ -352,6 +356,7 @@ impl GameState {
             }
             for u in &s.uncontrolled {
                 mix(u.counters as u64);
+                mix(u.banished.map_or(0, |m| m.0 as u64 + 1));
             }
         }
         mix(self.minions.len() as u64);

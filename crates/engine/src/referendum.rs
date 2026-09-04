@@ -11,6 +11,7 @@
 //! from the as-played stack can modify it (vote bonuses, abstentions,
 //! cancellation).
 
+use crate::actions::Outcome;
 use crate::cards::{self, Points, RefEffect, ReferendumDef, Term, Window};
 use crate::crypt::{Sect, CRYPT};
 use crate::decision::{Choice, DecisionRequest, WindowLabel};
@@ -631,7 +632,9 @@ impl Engine {
                 if passed {
                     self.state.minions[diablerist.index()].in_play = false;
                 }
-                self.flow = Flow::MinionPhase;
+                // Part of the action (spec §3.7.8.1): the after-resolution
+                // window follows it (rules-qa 5.8).
+                self.after_referendum();
             }
             RefKind::Political => {
                 {
@@ -782,7 +785,9 @@ impl Engine {
                     .push(UncontrolledSlot {
                         card,
                         counters: blood,
+                        banished: Some(m),
                     });
+                // Face down on the vampire: out of play until it returns.
                 for c in &mut self.state.cards {
                     if c.host == Some(m) {
                         c.in_play = false;
@@ -819,20 +824,26 @@ impl Engine {
 
     /// The referendum concluded (passed, failed or canceled): the action
     /// resumes at its after-resolution window — unless the acting
-    /// Methuselah was ousted (the turn passes) or the game ended.
+    /// Methuselah was ousted (the turn passes), the game ended, or the
+    /// action was blocked (a torpor-block diablerie's blood hunt).
     fn after_referendum(&mut self) {
         if self.state.living() <= 1 {
             self.action = None;
             self.flow = Flow::GameOver;
             return;
         }
-        let seat = self.action.as_ref().expect("political action").seat;
+        let a = self.action.as_ref().expect("action");
+        let (seat, blocked) = (a.seat, a.outcome == Some(Outcome::Blocked));
         if self.state.seats[seat.index()].ousted {
             self.action = None;
             self.next_turn();
             return;
         }
-        self.after_resolution();
+        if blocked {
+            self.end_action();
+        } else {
+            self.after_resolution();
+        }
     }
 
     /// Effects of a modifier / reaction resolved during the polling step.

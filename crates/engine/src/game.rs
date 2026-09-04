@@ -128,6 +128,7 @@ impl Engine {
                     .map(|_| UncontrolledSlot {
                         card: crypt.pop().expect("crypt larger than initial draw"),
                         counters: 0,
+                        banished: None,
                     })
                     .collect();
                 // The matching precon library, shuffled; hand of 7.
@@ -808,12 +809,14 @@ mod tests {
         e.state.seats[0].uncontrolled.push(UncontrolledSlot {
             card: plain(0),
             counters: CRYPT[plain(0) as usize].capacity,
+            banished: None,
         });
         let alice = find_card("Alice Chen");
         let cap = CRYPT[alice as usize].capacity;
         e.state.seats[0].uncontrolled.push(UncontrolledSlot {
             card: alice,
             counters: cap,
+            banished: None,
         });
         e.state.turn = 4;
         pick(&mut e, Choice::Pass); // end minion phase
@@ -845,6 +848,7 @@ mod tests {
         e.state.seats[1].uncontrolled.push(UncontrolledSlot {
             card: plain(1),
             counters: CRYPT[plain(1) as usize].capacity,
+            banished: None,
         });
         e.state.turn = 4;
         pick(&mut e, Choice::Pass); // seat 0 minion phase; its influence elides

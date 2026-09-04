@@ -322,10 +322,12 @@ fn midgame(seed: u64) -> Engine {
             UncontrolledSlot {
                 card: shared,
                 counters: CRYPT[shared as usize].capacity,
+                banished: None,
             },
             UncontrolledSlot {
                 card: city[s as usize % 2],
                 counters: CRYPT[city[s as usize % 2] as usize].capacity,
+                banished: None,
             },
         ];
         // Seven slice cards in hand, rotating the mix by seat and seed.

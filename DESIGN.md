@@ -556,8 +556,10 @@ Recorded so nobody mistakes them for oversights:
   and the other events (P2 machinery); Archon, Raising the Portcullis
   (in-play granted actions); Disputed Territory and Revolutionary Council
   (locations / equipment); the Justicar title cards (card-granted titles
-  and their contests); cards on a banished vampire do not return. Batch 5
-  of rules-qa lists the modeling calls to confirm.
+  and their contests). Batch 5 of rules-qa (answered 2026-09-04) records the
+  modeling calls: a banished vampire returns as the arena entry it left,
+  cards and history included; the blood hunt sits inside the diablerie
+  action, the after-resolution window after it.
 - **P2 — full engine pool**: all 621 cards including Events and their machinery;
   the 14 training decklists plus the New Blood minis as data; perft baselines;
   protocol server; scripted reference bots (aggro-bleed, wall, vote).

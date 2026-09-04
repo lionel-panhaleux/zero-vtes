@@ -549,10 +549,9 @@ impl Engine {
     /// rotation starts at the diablerist's controller, clockwise (DESIGN
     /// §4.2 — a modeling call, owner-approved 2026-09-02).
     fn end_action_into_blood_hunt(&mut self, diablerist: MinionId) {
+        // The blood hunt is part of the action (spec §3.7.8.1): the action
+        // ends after it, through its after-resolution window (rules-qa 5.8).
         let seat = self.state.minions[diablerist.index()].owner;
-        self.finish_action();
-        self.last_outcome = self.action.as_ref().and_then(|a| a.outcome);
-        self.action = None;
         self.start_referendum(RefKind::BloodHunt { diablerist }, seat, None);
     }
 
@@ -807,7 +806,7 @@ impl Engine {
         }
     }
 
-    fn end_action(&mut self) {
+    pub(crate) fn end_action(&mut self) {
         self.finish_action();
         self.last_outcome = self.action.as_ref().and_then(|a| a.outcome);
         self.action = None;

@@ -66,8 +66,11 @@ impl Engine {
                 let seat = &mut self.state.seats[s.index()];
                 seat.pool -= 1;
                 let card = seat.crypt.pop().expect("draw from empty crypt");
-                seat.uncontrolled
-                    .push(UncontrolledSlot { card, counters: 0 });
+                seat.uncontrolled.push(UncontrolledSlot {
+                    card,
+                    counters: 0,
+                    banished: None,
+                });
                 self.flow = Flow::Influence { left: left - 4 };
                 if seat.pool == 0 {
                     self.oust_and_pass(s);
@@ -79,7 +82,26 @@ impl Engine {
                     .remove(*slot as usize);
                 // Counters become blood; excess over capacity drains off.
                 let capacity = CRYPT[out.card as usize].capacity;
-                let m = self.add_minion(s, out.card, capacity, false);
+                let m = match out.banished {
+                    // A banished vampire returns as the entry it left — its
+                    // history (titles lost, contests) and the cards on it,
+                    // face up and unlocked (rules-qa 5.7; LSJ 20060213).
+                    Some(m) => {
+                        let v = &mut self.state.minions[m.index()];
+                        v.in_play = true;
+                        v.blood = capacity;
+                        v.locked = false;
+                        v.in_torpor = false;
+                        for c in &mut self.state.cards {
+                            if c.host == Some(m) {
+                                c.in_play = true;
+                                c.locked = false;
+                            }
+                        }
+                        m
+                    }
+                    None => self.add_minion(s, out.card, capacity, false),
+                };
                 self.stage_contests(m);
                 self.flow = Flow::Influence { left };
             }

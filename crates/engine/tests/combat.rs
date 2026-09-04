@@ -531,8 +531,12 @@ fn blocked_leave_torpor_blocker_may_diablerise() {
     pick(e, Choice::Diablerise);
     assert!(!e.state.minions[tor.index()].in_play);
     assert_eq!(blood(e, z), 6.min(e.state.minions[z.index()].capacity()));
-    // The blood hunt rotation starts at the diablerist's controller.
+    // The blood hunt rotation starts at the diablerist's controller; the
+    // hunt is inside the action (rules-qa 5.8), which ends blocked after it.
     expect(e, SeatId(1), WindowLabel::BloodHuntPolling);
+    assert_eq!(e.last_outcome, None);
+    pick(e, Choice::Pass);
+    let _ = request(e);
     assert_eq!(e.last_outcome, Some(Outcome::Blocked));
 }
 

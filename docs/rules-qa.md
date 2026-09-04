@@ -497,27 +497,35 @@ each is implemented as stated and awaits confirmation or correction.
 
 Bewitching Oration played by a vampire that has already cast: the extra
 votes join its cast on the same side (all votes of a source agree), with no
-new commitment. Before casting they fold into the source. _Open._
+new commitment. Before casting they fold into the source.
+
+**A** (2026-09-04): ok.
 
 ### 5.2 Political action cards burned for a vote in a blood hunt
 
 The rulebook's "burn a political action card for 1 vote" is offered in the
 blood hunt too (a vote source, not a card play; the blood hunt is "handled
 like any other referendum"), one per Methuselah per referendum. DESIGN's
-"vote sources only" is read as including it. _Open._
+"vote sources only" is read as including it.
+
+**A** (2026-09-04): yes.
 
 ### 5.3 Card plays during polling reopen the rotation
 
 A card played in the polling step is a commitment of the polling rotation:
 it reopens a response opportunity for every other Methuselah before the
 tally, like a vote. Windows with one option (a seat with nothing left to
-cast or play) elide. _Open._
+cast or play) elide.
+
+**A** (2026-09-04): yes.
 
 ### 5.4 The calling card's own vote
 
 The political action card that called the referendum provides 1 vote for
 the acting Methuselah, cast either way, as an independent ballot; it
-consumes that Methuselah's one political-action-card vote. _Open._
+consumes that Methuselah's one political-action-card vote.
+
+**A** (2026-09-04): yes.
 
 ### 5.5 Delaying Tactics / Telepathic Vote Counting: "discard down afterward"
 
@@ -525,26 +533,47 @@ An immediate decision (`DiscardDown`): the acting Methuselah discards to
 hand size right after the card returns, not in the discard phase. The
 action still ends successful (no referendum effect), the after-resolution
 window opens (Voter Captivation needs a passed referendum, so nothing), and
-the acting vampire has taken its political action for the turn. _Open._
+the acting vampire has taken its political action for the turn.
+
+**A** (2026-09-04): yes.
 
 ### 5.6 Parity Shift shortfall
 
 When the chosen Methuselah has less pool than the 3 allocated at
 resolution, the caller re-allocates what there is, each recipient capped at
-its term amount (LSJ 20010606), as a stepwise decision. _Open._
+its term amount (LSJ 20010606), as a stepwise decision.
+
+**A** (2026-09-04): yes.
 
 ### 5.7 Banishment and cards on the vampire
 
 The banished vampire goes to its controller's uncontrolled region with its
 blood as counters; cards on it leave play and do **not** come back when it
-is re-influenced (known gap — nothing in the pool re-attaches yet). _Open._
+is re-influenced (known gap — nothing in the pool re-attaches yet).
+
+**A** (2026-09-04): no — they leave play but stay face down on the banished
+vampire, and come back with it when it is re-influenced.
+
+**Applied**: the uncontrolled slot remembers the arena entry
+(`UncontrolledSlot::banished`); influencing it out restores that entry — its
+history (titles lost, contests) and the cards on it, face up and unlocked —
+rather than creating a new one.
+
+**Test** — `banishment_sends_a_younger_vampire_to_the_uncontrolled_region`
+(tests/politics.rs).
 
 ### 5.8 The after-resolution window
 
 Opened after every successful action, over the action's order, elided when
 nothing can be played (Voter Captivation, later Freak Drive); for a
 political action it follows the referendum (spec §3.7.5.1). Not opened
-after a diablerie (the blood hunt follows the action directly). _Open._
+after a diablerie (the blood hunt follows the action directly).
+
+**A** (2026-09-04): after a diablerie too.
+
+**Applied**: the blood hunt is inside the action (spec §3.7.8.1) and the
+after-resolution window follows it, then the action ends; a torpor-block
+diablerie's blood hunt ends the blocked action with no such window.
 
 ### 5.9 Acting minion no longer ready at resolution
 
@@ -552,7 +581,9 @@ A political action whose acting vampire is no longer ready when the action
 would resolve (torpor from the block's combat, then a Form of Mist
 continuation) ends with no referendum (Yawp Court ruling). The engine
 still pays the card's cost at that resolution; whether it should is
-unstated. _Open._
+unstated.
+
+**A** (2026-09-04): yes (the cost is paid).
 
 Batch 6 — cards & effects (replacement, delayed replacement, contests,
 events).
