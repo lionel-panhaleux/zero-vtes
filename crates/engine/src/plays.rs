@@ -60,12 +60,16 @@ impl Engine {
         let st = &self.state;
         match mode.actor {
             Actor::Methuselah => vec![None],
+            // Rulebook "Combat": the only minion cards playable during
+            // combat are combat cards — modifiers and reactions (wakes in a
+            // strike card's as-played window included) get no window there
+            // (spec §4.1.3).
             Actor::ActingMinion => match &self.action {
-                Some(a) if a.seat == seat => vec![Some(a.acting)],
+                Some(a) if a.seat == seat && self.combat.is_none() => vec![Some(a.acting)],
                 _ => vec![],
             },
             Actor::ReactingMinion => match &self.action {
-                Some(a) if a.seat != seat => {
+                Some(a) if a.seat != seat && self.combat.is_none() => {
                     let needs_locked = mode.requires.contains(&Requirement::LockedActor);
                     st.minions_of(seat)
                         .filter(|m| {

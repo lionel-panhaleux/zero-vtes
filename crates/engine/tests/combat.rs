@@ -535,3 +535,30 @@ fn blocked_leave_torpor_blocker_may_diablerise() {
     expect(e, SeatId(1), WindowLabel::BloodHuntPolling);
     assert_eq!(e.last_outcome, Some(Outcome::Blocked));
 }
+
+// Rulebook "Combat" / spec §4.1.3: only combat cards are playable during
+// combat — a strike card's as-played window offers no wake to a locked
+// vampire elsewhere (Eyes of Argus [AUS] lists CARD_AS_PLAYED), so the
+// window elides.
+#[test]
+fn no_reaction_cards_during_combat() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), vampire_with("POT", 0), 4, false);
+    let x = e.add_minion(SeatId(1), vampire_with("FOR", 0), 4, false);
+    let w = e.add_minion(SeatId(2), vampire_with("AUS", 0), 4, false);
+    e.state.minions[w.index()].locked = true;
+    e.state.turn = 4;
+    hand(&mut e, 0, &["Roundhouse"]);
+    hand(&mut e, 2, &["Eyes of Argus"]);
+    blocked_bleed(&mut e, a, x);
+    // During the action the wake is offered to seat 2; it declines.
+    while request(&mut e).window == WindowLabel::ActionBlock {
+        expect(&mut e, SeatId(2), WindowLabel::ActionBlock);
+        pick(&mut e, Choice::Pass);
+    }
+    pick(&mut e, play(0, 0, a));
+    // No as-played wake for seat 2; the rest of seat 0's turn elides.
+    expect(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(e.state.minions[w.index()].locked);
+    assert_eq!(blood(&e, x), 1);
+}
