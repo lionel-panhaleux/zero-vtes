@@ -12,8 +12,9 @@
 
 use super::{
     Actor, Among, CardDef, Effect, Limit, ModeDef, Modifier, Points, RefEffect, ReferendumDef,
-    Requirement, StrikeKind, TargetKind, TargetSpec, Term, Terms, Window,
+    Requirement, SeatFilter, StrikeKind, TargetKind, TargetSpec, Term, Terms, TitleClass, Window,
 };
+use crate::crypt::Sect;
 use crate::decision::ActionKind;
 
 const NO_TARGET: Option<TargetSpec> = None;
@@ -26,6 +27,7 @@ pub static VILLEIN: CardDef = CardDef {
     name: "Villein",
     trifle: true,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[ModeDef {
         windows: &[Window::MasterPhase],
         actor: Actor::Methuselah,
@@ -63,6 +65,7 @@ pub static SUDDEN_REVERSAL: CardDef = CardDef {
     name: "Sudden Reversal",
     trifle: false,
     out_of_turn: true,
+    delayed_replacement: false,
     modes: &[ModeDef {
         windows: &[Window::CardAsPlayed],
         actor: Actor::Methuselah,
@@ -86,6 +89,7 @@ pub static CONDITIONING: CardDef = CardDef {
     name: "Conditioning",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::ActionDuring],
@@ -124,6 +128,7 @@ pub static CONSIGN_TO_OBLIVION: CardDef = CardDef {
     name: "Consign to Oblivion",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::ActionAsAnnounced],
@@ -159,6 +164,7 @@ pub static FORM_OF_THE_COBRA: CardDef = CardDef {
     name: "Form of the Cobra",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         // [pro] [COMBAT] Strike: steal 1 blood or life (becoming blood).
         ModeDef {
@@ -195,6 +201,7 @@ pub static EYES_OF_ARGUS: CardDef = CardDef {
     name: "Eyes of Argus",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::ActionStealthIntercept],
@@ -229,6 +236,7 @@ pub static DEFLECTION: CardDef = CardDef {
     name: "Deflection",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::ActionBlocksDeclined],
@@ -275,6 +283,7 @@ pub static ARCHON_INVESTIGATION: CardDef = CardDef {
     name: "Archon Investigation",
     trifle: false,
     out_of_turn: true,
+    delayed_replacement: false,
     modes: &[ModeDef {
         windows: &[Window::ActionBlocksDeclined],
         actor: Actor::Methuselah,
@@ -301,6 +310,7 @@ pub static HOMUNCULUS: CardDef = CardDef {
     name: "Homunculus",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::ActionDeclareEmploy],
@@ -347,6 +357,7 @@ pub static BONDING: CardDef = CardDef {
     name: "Bonding",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::ActionDuring],
@@ -389,6 +400,7 @@ pub static EARTH_CONTROL: CardDef = CardDef {
     name: "Earth Control",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::ActionStealthIntercept],
@@ -421,6 +433,7 @@ pub static FLASH: CardDef = CardDef {
     name: "Flash",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::CombatDetermineRange, Window::CombatPress],
@@ -452,6 +465,7 @@ pub static TORN_SIGNPOST: CardDef = CardDef {
     name: "Torn Signpost",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::CombatBeforeRange],
@@ -483,6 +497,7 @@ pub static ROUNDHOUSE: CardDef = CardDef {
     name: "Roundhouse",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::CombatStrikeDeclaration],
@@ -514,6 +529,7 @@ pub static BODY_FLARE: CardDef = CardDef {
     name: "Body Flare",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::CombatStrikeDeclaration],
@@ -553,6 +569,7 @@ pub static THEFT_OF_VITAE: CardDef = CardDef {
     name: "Theft of Vitae",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::CombatStrikeDeclaration],
@@ -590,6 +607,7 @@ pub static MAJESTY: CardDef = CardDef {
     name: "Majesty",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::CombatStrikeDeclaration],
@@ -620,6 +638,7 @@ pub static SIDE_STRIKE: CardDef = CardDef {
     name: "Side Strike",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::CombatStrikeDeclaration],
@@ -654,6 +673,7 @@ pub static BLUR: CardDef = CardDef {
     name: "Blur",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::CombatAdditionalStrike],
@@ -695,6 +715,7 @@ pub static IMMORTAL_GRAPPLE: CardDef = CardDef {
     name: "Immortal Grapple",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::CombatBeforeStrikes],
@@ -731,6 +752,7 @@ pub static HIDDEN_STRENGTH: CardDef = CardDef {
     name: "Hidden Strength",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::CombatDamagePrevention],
@@ -762,6 +784,7 @@ pub static SOAK: CardDef = CardDef {
     name: "Soak",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::CombatDamagePrevention],
@@ -793,6 +816,7 @@ pub static INDOMITABILITY: CardDef = CardDef {
     name: "Indomitability",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::CombatDamagePrevention],
@@ -825,6 +849,7 @@ pub static CLAWS_OF_THE_DEAD: CardDef = CardDef {
     name: "Claws of the Dead",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::CombatUntimed],
@@ -858,6 +883,7 @@ pub static TASTE_OF_VITAE: CardDef = CardDef {
     name: "Taste of Vitae",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[ModeDef {
         windows: &[Window::CombatEndOfRound],
         actor: Actor::Combatant,
@@ -879,6 +905,7 @@ pub static TELEPATHIC_TRACKING: CardDef = CardDef {
     name: "Telepathic Tracking",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::CombatPress],
@@ -914,6 +941,7 @@ pub static CATS_GUIDANCE: CardDef = CardDef {
     name: "Cats' Guidance",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::ActionAfterCombat],
@@ -947,6 +975,7 @@ pub static FORM_OF_MIST: CardDef = CardDef {
     name: "Form of Mist",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::CombatStrikeDeclaration],
@@ -989,6 +1018,7 @@ macro_rules! political {
             name: $printed,
             trifle: false,
             out_of_turn: false,
+            delayed_replacement: false,
             modes: &[ModeDef {
                 windows: &[Window::ActionDeclarePolitical],
                 actor: Actor::ActingCandidate,
@@ -1106,6 +1136,7 @@ pub static BEWITCHING_ORATION: CardDef = CardDef {
     name: "Bewitching Oration",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::Referendum],
@@ -1145,6 +1176,7 @@ pub static SCALPEL_TONGUE: CardDef = CardDef {
     name: "Scalpel Tongue",
     trifle: false,
     out_of_turn: false,
+    delayed_replacement: false,
     modes: &[
         ModeDef {
             windows: &[Window::Referendum],
@@ -1176,7 +1208,453 @@ pub static SCALPEL_TONGUE: CardDef = CardDef {
     abilities: &[],
 };
 
-pub static DEFS: [&CardDef; 36] = [
+static RECKLESS_AGITATION_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::Allocate {
+        points: Points::Fixed(6),
+        among: Among::Others,
+        min_seats: 2,
+    }],
+    effect: RefEffect::BurnAllocated,
+};
+political!(
+    RECKLESS_AGITATION,
+    "Reckless Agitation",
+    "\"Requires an Independent or Anarch vampire with capacity 5 or more. \
+     Allocate 6 points among two or more other Methuselahs. Successful \
+     referendum means each Methuselah burns 1 pool for each point \
+     allocated.\" Unplayable with a single opponent (LSJ 20100129).",
+    &[
+        Requirement::ActorSectIn(&[Sect::Independent, Sect::Anarch]),
+        Requirement::ActorCapacityAtLeast(5),
+    ],
+    RECKLESS_AGITATION_REFERENDUM
+);
+
+static IRON_FIST_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[
+        Term::ChooseSeat(SeatFilter::Any),
+        Term::Allocate {
+            points: Points::Fixed(5),
+            among: Among::OthersNotChosen,
+            min_seats: 2,
+        },
+    ],
+    effect: RefEffect::BurnAllocatedChosenGains(1),
+};
+political!(
+    CAMARILLAS_IRON_FIST,
+    "Camarilla's Iron Fist",
+    "\"Requires a titled Camarilla vampire. Choose a Methuselah and allocate \
+     5 points among two or more other Methuselahs. Successful referendum \
+     means each Methuselah burns 1 pool for each point allocated and the \
+     chosen Methuselah gains 1 pool.\" No point to the chosen Methuselah \
+     (ANK 20241106).",
+    &[
+        Requirement::ActorSectIn(&[Sect::Camarilla]),
+        Requirement::ActorTitleIn(&[TitleClass::Any]),
+    ],
+    IRON_FIST_REFERENDUM
+);
+
+static PARITY_SHIFT_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[
+        Term::ChooseSeat(SeatFilter::MorePoolThanCaller),
+        Term::Allocate {
+            points: Points::PoolOfChosen(3),
+            among: Among::AnyNotChosen,
+            min_seats: 1,
+        },
+    ],
+    effect: RefEffect::MoveAllocatedFromChosen,
+};
+political!(
+    PARITY_SHIFT,
+    "Parity Shift",
+    "\"Requires a prince or justicar. Choose a Methuselah who has more pool \
+     than you do and allocate 3 of their pool among 1 or more other \
+     Methuselahs (including you). Successful referendum means the pool is \
+     distributed as you chose.\" A shortfall at resolution is re-allocated \
+     by the caller within the terms (LSJ 20010606).",
+    &[Requirement::ActorTitleIn(&[
+        TitleClass::Prince,
+        TitleClass::Justicar,
+    ])],
+    PARITY_SHIFT_REFERENDUM
+);
+
+static CONSANGUINEOUS_BOON_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseClan],
+    effect: RefEffect::GainPerClanVampire,
+};
+political!(
+    CONSANGUINEOUS_BOON,
+    "Consanguineous Boon",
+    "\"Boon. Choose a clan. Successful referendum means each Methuselah \
+     gains 1 pool for each vampire of the chosen clan they control.\"",
+    &[],
+    CONSANGUINEOUS_BOON_REFERENDUM
+);
+
+static ANARCH_SALON_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[],
+    effect: RefEffect::AnarchSalon,
+};
+political!(
+    ANARCH_SALON,
+    "Anarch Salon",
+    "\"Requires an Anarch. Successful referendum means each ready Anarch \
+     gains 1 blood and each Methuselah controlling an Anarch gains 1 \
+     pool.\"",
+    &[Requirement::ActorSectIn(&[Sect::Anarch])],
+    ANARCH_SALON_REFERENDUM
+);
+
+static BANISHMENT_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseMinions {
+        filter: &[Requirement::ActorReady, Requirement::Younger],
+        min: 1,
+        max: 1,
+    }],
+    effect: RefEffect::Banish,
+};
+political!(
+    BANISHMENT,
+    "Banishment",
+    "\"Choose a ready younger vampire. Successful referendum means the \
+     chosen vampire is moved to the uncontrolled region (breaking any \
+     temporary control effects); any cards and counters on the chosen \
+     vampire stay with them but are out of play as long as the chosen \
+     vampire remains uncontrolled.\" Undirected (ANK 20221019-3).",
+    &[],
+    BANISHMENT_REFERENDUM
+);
+
+static EXPULSION_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseMinions {
+        filter: &[],
+        min: 0,
+        max: 2,
+    }],
+    effect: RefEffect::Expel,
+};
+political!(
+    EXPULSION,
+    "Expulsion",
+    "\"Requires a primogen or prince. Choose up to two minions. Successful \
+     referendum means the chosen minions cannot play reaction cards, block \
+     or cast votes or ballots this turn.\"",
+    &[Requirement::ActorTitleIn(&[
+        TitleClass::Primogen,
+        TitleClass::Prince,
+    ])],
+    EXPULSION_REFERENDUM
+);
+
+/// A polling-step vote modifier: one mode, `actor`, +`n` votes.
+macro_rules! polling_mode {
+    ($actor:expr, $requires:expr, $effects:expr) => {
+        ModeDef {
+            windows: &[Window::Referendum],
+            actor: $actor,
+            requires: $requires,
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: $effects,
+        }
+    };
+}
+
+/// "Only usable during the polling step of a political action. This
+/// Lasombra gets +3 votes." Action Modifier/Reaction.
+pub static OMINOUS_CHORUS: CardDef = CardDef {
+    name: "Ominous Chorus",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[polling_mode!(
+        Actor::ActingOrReactingMinion,
+        &[Requirement::PollingStep],
+        &[Effect::AddVotes(3)]
+    )],
+    abilities: &[],
+};
+
+/// "[pre] Only usable during the polling step of a political action. This
+/// vampire gets +3 votes. [PRE] Allies and younger vampires get -1
+/// intercept." The superior half is playable any time during the action
+/// before resolution (LSJ 20020612).
+pub static PERFECT_PARAGON: CardDef = CardDef {
+    name: "Perfect Paragon",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[
+        polling_mode!(
+            Actor::ActingMinion,
+            &[Requirement::PollingStep],
+            &[Effect::AddVotes(3)]
+        ),
+        ModeDef {
+            windows: &[Window::ActionDuring],
+            actor: Actor::ActingMinion,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::YoungerIntercept(-1)],
+        },
+    ],
+    abilities: &[],
+};
+
+/// "Do not replace until your next unlock phase. [obf] Only usable during a
+/// bleed action. +1 bleed (limited). [OBF] Only usable during the polling
+/// step of a political action. This vampire gets +2 votes."
+pub static OLD_FRIENDS: CardDef = CardDef {
+    name: "Old Friends",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: true,
+    modes: &[
+        ModeDef {
+            windows: &[Window::ActionDuring],
+            actor: Actor::ActingMinion,
+            requires: &[Requirement::IsBleed],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::BleedMod {
+                n: 1,
+                limited: true,
+            }],
+        },
+        polling_mode!(
+            Actor::ActingMinion,
+            &[Requirement::PollingStep],
+            &[Effect::AddVotes(2)]
+        ),
+    ],
+    abilities: &[],
+};
+
+/// "Requires an Anarch. [obf] Reduce a bleed against you by 2. [pre] Only
+/// usable during the polling step of a political action. This vampire gets
+/// +2 votes. [pro] +1 intercept."
+pub static PARTY_OUT_OF_BOUNDS: CardDef = CardDef {
+    name: "Party Out Of Bounds",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::ReactionDuringAction],
+            actor: Actor::ReactingMinion,
+            requires: &[
+                Requirement::ActorSectIn(&[Sect::Anarch]),
+                Requirement::DirectedAtYou,
+                Requirement::IsBleed,
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::ReduceBleed(2)],
+        },
+        polling_mode!(
+            Actor::ReactingMinion,
+            &[
+                Requirement::ActorSectIn(&[Sect::Anarch]),
+                Requirement::PollingStep
+            ],
+            &[Effect::AddVotes(2)]
+        ),
+        ModeDef {
+            windows: &[Window::ActionStealthIntercept],
+            actor: Actor::ReactingMinion,
+            requires: &[
+                Requirement::ActorSectIn(&[Sect::Anarch]),
+                Requirement::InterceptNeeded,
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::AddIntercept(1)],
+        },
+    ],
+    abilities: &[],
+};
+
+/// "Requires a primogen. Only usable during a bleed action against you or
+/// during the polling step of a political action. Reduce the bleed amount
+/// by 3 or this vampire gains +3 votes against the referendum." The votes
+/// force the vampire's cast against; unusable by one voting in favor (LSJ
+/// 20031115, 20031119).
+pub static PROTECTED_DISTRICT: CardDef = CardDef {
+    name: "Protected District",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[ModeDef {
+        windows: &[Window::Referendum, Window::ReactionDuringAction],
+        actor: Actor::ReactingMinion,
+        requires: &[
+            Requirement::ActorTitleIn(&[TitleClass::Primogen]),
+            Requirement::AnyOf(&[
+                &[Requirement::DirectedAtYou, Requirement::IsBleed],
+                &[Requirement::PollingStep, Requirement::ActorNotVotingFor],
+            ]),
+        ],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::ReduceBleed(3), Effect::AddVotesAgainst(3)],
+    }],
+    abilities: &[],
+};
+
+/// "Only usable during the polling step of a political action. Methuselahs
+/// casting (including controlling a minion casting) votes or ballots
+/// against the referendum burn 1 pool once results are tallied." Reaches
+/// votes cast before it was played; 1 pool per Scorn per Methuselah (RTR
+/// 19951110).
+pub static SCORN_OF_ADONIS: CardDef = CardDef {
+    name: "Scorn of Adonis",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[polling_mode!(
+        Actor::ActingMinion,
+        &[Requirement::PollingStep],
+        &[Effect::TallyPenaltyAgainst(1)]
+    )],
+    abilities: &[],
+};
+
+const ANY_VAMPIRE: Option<TargetSpec> = Some(TargetSpec {
+    kind: TargetKind::Minion,
+    filter: &[],
+});
+
+/// "Only usable during the polling step of a political action. [aus] Cancel
+/// the referendum. If you played a political action card to call this
+/// referendum, return it to its owner's hand (discard down afterward).
+/// [AUS] Force a vampire to abstain (this can cancel their votes and
+/// ballots)."
+pub static TELEPATHIC_VOTE_COUNTING: CardDef = CardDef {
+    name: "Telepathic Vote Counting",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[
+        polling_mode!(
+            Actor::ActingMinion,
+            &[Requirement::PollingStep],
+            &[Effect::CancelReferendum {
+                unlock_acting: false,
+                forbid_repeat: false,
+            }]
+        ),
+        ModeDef {
+            windows: &[Window::Referendum],
+            actor: Actor::ActingMinion,
+            requires: &[Requirement::PollingStep],
+            target: ANY_VAMPIRE,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Abstain {
+                lock: false,
+                burn: 0,
+            }],
+        },
+    ],
+    abilities: &[],
+};
+
+/// "Only usable during the polling step of a political action. Cancel the
+/// referendum. Unlock the acting vampire. If a political action card was
+/// played to call this referendum, return it to its owner's hand (discard
+/// down afterward). Minions controlled by the acting Methuselah cannot
+/// perform the same political action again this turn." The acting minion
+/// has still taken its political action (RTR 19970630).
+pub static DELAYING_TACTICS: CardDef = CardDef {
+    name: "Delaying Tactics",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[polling_mode!(
+        Actor::ReactingMinion,
+        &[Requirement::PollingStep],
+        &[Effect::CancelReferendum {
+            unlock_acting: true,
+            forbid_repeat: true,
+        }]
+    )],
+    abilities: &[],
+};
+
+/// "Requires a prince, justicar or Inner Circle member. Only usable during
+/// the polling step of a political action before votes and ballots are
+/// cast. Non-Camarilla vampires cannot cast votes or ballots during this
+/// referendum."
+pub static CLOSED_SESSION: CardDef = CardDef {
+    name: "Closed Session",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[polling_mode!(
+        Actor::ActingMinion,
+        &[
+            Requirement::ActorTitleIn(&[TitleClass::Prince, TitleClass::Justicar]),
+            Requirement::PollingStep,
+            Requirement::NoVotesCast
+        ],
+        &[Effect::BarNonCamarillaVotes]
+    )],
+    abilities: &[],
+};
+
+/// "Only usable after resolution of a political action whose referendum
+/// passed. [pre] This vampire gains 1 blood for each vote by which the
+/// referendum passed. [PRE] As above, but move up to 2 of those blood to
+/// your pool instead of this vampire."
+pub static VOTER_CAPTIVATION: CardDef = CardDef {
+    name: "Voter Captivation",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[
+        ModeDef {
+            windows: &[Window::ActionAfterResolution],
+            actor: Actor::ActingMinion,
+            requires: &[Requirement::IsPolitical, Requirement::ReferendumPassed],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::GainBloodPerMargin],
+        },
+        ModeDef {
+            windows: &[Window::ActionAfterResolution],
+            actor: Actor::ActingMinion,
+            requires: &[Requirement::IsPolitical, Requirement::ReferendumPassed],
+            target: NO_TARGET,
+            terms: Some(Terms::UpToMargin(2)),
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::GainBloodPerMargin],
+        },
+    ],
+    abilities: &[],
+};
+
+pub static DEFS: [&CardDef; 53] = [
     &EARTH_CONTROL,
     &BONDING,
     &VILLEIN,
@@ -1213,4 +1691,21 @@ pub static DEFS: [&CardDef; 36] = [
     &NEONATE_BREACH,
     &BEWITCHING_ORATION,
     &SCALPEL_TONGUE,
+    &RECKLESS_AGITATION,
+    &CAMARILLAS_IRON_FIST,
+    &PARITY_SHIFT,
+    &CONSANGUINEOUS_BOON,
+    &ANARCH_SALON,
+    &BANISHMENT,
+    &EXPULSION,
+    &OMINOUS_CHORUS,
+    &PERFECT_PARAGON,
+    &OLD_FRIENDS,
+    &PARTY_OUT_OF_BOUNDS,
+    &PROTECTED_DISTRICT,
+    &SCORN_OF_ADONIS,
+    &TELEPATHIC_VOTE_COUNTING,
+    &DELAYING_TACTICS,
+    &CLOSED_SESSION,
+    &VOTER_CAPTIVATION,
 ];

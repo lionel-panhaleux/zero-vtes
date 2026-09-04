@@ -10,7 +10,7 @@ use std::collections::HashSet;
 
 use zvtes::agent::RandomLegal;
 use zvtes::crypt::{CRYPT, PRECONS};
-use zvtes::decision::{ActionKind, Choice};
+use zvtes::decision::{ActionKind, Choice, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::SeatId;
 use zvtes::library::LIBRARY;
@@ -39,7 +39,7 @@ fn zone_totals(e: &Engine) -> Vec<usize> {
         .collect()
 }
 
-fn invariants(e: &Engine, totals: &[usize], seed: u64) {
+fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
     let st = &e.state;
     assert!(
         !st.seats[st.active.index()].ousted,
@@ -61,8 +61,10 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64) {
                 "overfilled uncontrolled slot (seed {seed})"
             );
         }
+        // Over hand size only while discarding down after a canceled
+        // referendum returned the political action card.
         assert!(
-            s.hand.len() <= HAND_SIZE,
+            s.hand.len() <= HAND_SIZE || window == WindowLabel::DiscardDown,
             "hand over size at seat {i} (seed {seed})"
         );
     }
@@ -200,6 +202,14 @@ fn cover(discs: &[&str], used: &[u16]) -> Vec<u16> {
     picked
 }
 
+/// Per seat: a Camarilla prince, an Anarch baron, a primogen.
+const TITLED: [(&str, &str, &str); 4] = [
+    ("Catalina Vega", "Saku Pihlajamäki", "Chrysanthemum"),
+    ("Flávio Gonçalves", "Sergio Bueno", "Dowager, The"),
+    ("Alicia Cortez", "Valeriya Zinovieva", "Lenny Burkhead"),
+    ("Mkhokheli", "Vivian VI", "Rinaldo Albizzi"),
+];
+
 fn midgame(seed: u64) -> Engine {
     let mut e = Engine::new(seed, 4);
     let mut rng = Rng::new(seed ^ 0x5eed);
@@ -242,6 +252,23 @@ fn midgame(seed: u64) -> Engine {
         "Neonate Breach",
         "Bewitching Oration",
         "Scalpel Tongue",
+        "Reckless Agitation",
+        "Camarilla's Iron Fist",
+        "Parity Shift",
+        "Consanguineous Boon",
+        "Anarch Salon",
+        "Banishment",
+        "Expulsion",
+        "Ominous Chorus",
+        "Perfect Paragon",
+        "Old Friends",
+        "Party Out Of Bounds",
+        "Protected District",
+        "Scorn of Adonis",
+        "Telepathic Vote Counting",
+        "Delaying Tactics",
+        "Closed Session",
+        "Voter Captivation",
     ]
     .iter()
     .map(|n| find_library(n))
@@ -259,6 +286,20 @@ fn midgame(seed: u64) -> Engine {
             ],
             &used,
         ) {
+            used.push(card);
+            let blood = (1 + rng.below(4) as u8).min(CRYPT[card as usize].capacity);
+            e.add_minion(seat, card, blood, false);
+        }
+        // Vote sources and the politics cards' requirements: a Camarilla
+        // prince (Toreador princes with PRE for Scorn of Adonis and Voter
+        // Captivation, a Lasombra one for Ominous Chorus), an Anarch baron
+        // (capacity 5+) and a primogen per seat, distinct cities.
+        for name in [
+            TITLED[s as usize].0,
+            TITLED[s as usize].1,
+            TITLED[s as usize].2,
+        ] {
+            let card = find_card(name);
             used.push(card);
             let blood = (1 + rng.below(4) as u8).min(CRYPT[card as usize].capacity);
             e.add_minion(seat, card, blood, false);
@@ -291,7 +332,9 @@ fn midgame(seed: u64) -> Engine {
         let hand = &mut e.state.seats[s as usize].hand;
         hand.clear();
         for k in 0..HAND_SIZE {
-            hand.push(slice[(k + s as usize * 3 + seed as usize) % slice.len()]);
+            // A stride keeps every hand a mix of action cards and
+            // modifiers (consecutive indices would group the types).
+            hand.push(slice[(k * 11 + s as usize * 5 + seed as usize) % slice.len()]);
         }
     }
     e.state.seats[rng.below(4)].has_edge = true;
@@ -310,7 +353,7 @@ fn play(seed: u64, start: fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<Strin
         );
         match e.run() {
             Step::Decision(req) => {
-                invariants(&e, &totals, seed);
+                invariants(&e, &totals, seed, req.window);
                 let idx = agent.choose(&req);
                 chosen.insert(kind(&e, req.seat, &req.options[idx]));
                 e.choose(idx);
@@ -446,6 +489,25 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "play:Neonate Breach",
             "play:Bewitching Oration",
             "play:Scalpel Tongue",
+            "choose_minion",
+            "choose_clan",
+            "play:Reckless Agitation",
+            "play:Camarilla's Iron Fist",
+            "play:Parity Shift",
+            "play:Consanguineous Boon",
+            "play:Anarch Salon",
+            "play:Banishment",
+            "play:Expulsion",
+            "play:Ominous Chorus",
+            "play:Perfect Paragon",
+            "play:Old Friends",
+            "play:Party Out Of Bounds",
+            "play:Protected District",
+            "play:Scorn of Adonis",
+            "play:Telepathic Vote Counting",
+            "play:Delaying Tactics",
+            "play:Closed Session",
+            "play:Voter Captivation",
         ],
     );
     // Ousts and game wins happen from here: at least one game must end

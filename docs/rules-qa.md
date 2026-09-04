@@ -377,7 +377,7 @@ sub-decision at the `AtPlay` point (before the as-played window opens) for
 cards like Villein, and at the referendum's terms step for political cards.
 
 **Test** — `terms_announced_at_play` (`crates/engine/tests/scenarios.rs`).
-_Pending_: `referendum_terms_before_votes` (politics slice).
+_Implemented_ (tests/politics.rs): `referendum_terms_before_votes`.
 
 ### 3.6 Unpayable cost at resolution: the action fizzles
 
@@ -488,6 +488,63 @@ to torpor", which suggests the end-of-round window is otherwise open to such a
 vampire. The engine lets a combatant that is no longer ready play end-of-round
 combat cards unless the card excludes it, and no other combat window. Right?
 
-## Batch 5 — planned: politics (terms, Scalpel-class cards, blood hunts).
+## Batch 5 — politics (referendum machine, slice 4)
+
+Modeling calls made while implementing the referendum (tests/politics.rs);
+each is implemented as stated and awaits confirmation or correction.
+
+### 5.1 Votes gained after casting
+
+Bewitching Oration played by a vampire that has already cast: the extra
+votes join its cast on the same side (all votes of a source agree), with no
+new commitment. Before casting they fold into the source. _Open._
+
+### 5.2 Political action cards burned for a vote in a blood hunt
+
+The rulebook's "burn a political action card for 1 vote" is offered in the
+blood hunt too (a vote source, not a card play; the blood hunt is "handled
+like any other referendum"), one per Methuselah per referendum. DESIGN's
+"vote sources only" is read as including it. _Open._
+
+### 5.3 Card plays during polling reopen the rotation
+
+A card played in the polling step is a commitment of the polling rotation:
+it reopens a response opportunity for every other Methuselah before the
+tally, like a vote. Windows with one option (a seat with nothing left to
+cast or play) elide. _Open._
+
+### 5.4 The calling card's own vote
+
+The political action card that called the referendum provides 1 vote for
+the acting Methuselah, cast either way, as an independent ballot; it
+consumes that Methuselah's one political-action-card vote. _Open._
+
+### 5.5 Delaying Tactics / Telepathic Vote Counting: "discard down afterward"
+
+An immediate decision (`DiscardDown`): the acting Methuselah discards to
+hand size right after the card returns, not in the discard phase. The
+action still ends successful (no referendum effect), the after-resolution
+window opens (Voter Captivation needs a passed referendum, so nothing), and
+the acting vampire has taken its political action for the turn. _Open._
+
+### 5.6 Parity Shift shortfall
+
+When the chosen Methuselah has less pool than the 3 allocated at
+resolution, the caller re-allocates what there is, each recipient capped at
+its term amount (LSJ 20010606), as a stepwise decision. _Open._
+
+### 5.7 Banishment and cards on the vampire
+
+The banished vampire goes to its controller's uncontrolled region with its
+blood as counters; cards on it leave play and do **not** come back when it
+is re-influenced (known gap — nothing in the pool re-attaches yet). _Open._
+
+### 5.8 The after-resolution window
+
+Opened after every successful action, over the action's order, elided when
+nothing can be played (Voter Captivation, later Freak Drive); for a
+political action it follows the referendum (spec §3.7.5.1). Not opened
+after a diablerie (the blood hunt follows the action directly). _Open._
+
 Batch 6 — cards & effects (replacement, delayed replacement, contests,
 events).

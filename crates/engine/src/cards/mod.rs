@@ -231,6 +231,14 @@ pub enum Requirement {
     /// Target minion has cast votes or ballots in this referendum, still
     /// standing (Scalpel Tongue).
     HasCastVotes,
+    /// Target minion is younger than the acting minion (lower capacity).
+    Younger,
+    /// The actor is not voting in favor of the referendum (Protected
+    /// District: votes against cannot join a cast in favor).
+    ActorNotVotingFor,
+    /// Any one of these requirement lists holds in full ("only usable
+    /// during a bleed action against you or during the polling step").
+    AnyOf(&'static [&'static [Requirement]]),
 }
 
 /// How many points a referendum allocates.
@@ -240,6 +248,10 @@ pub enum Points {
     /// "X is the number of Methuselahs in the game" (Conservative
     /// Agitation).
     Methuselahs,
+    /// "Allocate n of their pool" (Parity Shift): n points of the chosen
+    /// Methuselah's pool; a shortfall at resolution is re-allocated by the
+    /// caller within the terms (LSJ 20010606).
+    PoolOfChosen(u8),
 }
 
 /// Which Methuselahs may receive points.
@@ -249,6 +261,18 @@ pub enum Among {
     Any,
     /// Other Methuselahs only.
     Others,
+    /// Any Methuselah but the one chosen by the previous term.
+    AnyNotChosen,
+    /// Other Methuselahs, the chosen one excluded (Camarilla's Iron Fist).
+    OthersNotChosen,
+}
+
+/// Which Methuselahs a `ChooseSeat` term may pick.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SeatFilter {
+    Any,
+    /// "A Methuselah who has more pool than you do" (Parity Shift).
+    MorePoolThanCaller,
 }
 
 /// One term of a referendum, chosen stepwise by the caller once the action
@@ -264,6 +288,14 @@ pub enum Term {
     },
     /// Choose between `min` and `max` Methuselahs.
     ChooseSeats { min: u8, max: u8 },
+    /// Choose one Methuselah (the "chosen" one for later terms).
+    ChooseSeat(SeatFilter),
+    /// Choose between `min` and `max` minions meeting the filter.
+    ChooseMinions {
+        filter: &'static [Requirement],
+        min: u8,
+        max: u8,
+    },
     /// Choose a clan.
     ChooseClan,
 }
@@ -283,6 +315,22 @@ pub enum RefEffect {
         young_bonus: u8,
         young_cap: u8,
     },
+    /// As `BurnAllocated`, and the chosen Methuselah gains n pool.
+    BurnAllocatedChosenGains(u8),
+    /// The allocated points move from the chosen Methuselah's pool to the
+    /// recipients (Parity Shift).
+    MoveAllocatedFromChosen,
+    /// Each Methuselah gains 1 pool per vampire of the chosen clan they
+    /// control.
+    GainPerClanVampire,
+    /// Each ready Anarch gains 1 blood; each Methuselah controlling an
+    /// Anarch gains 1 pool.
+    AnarchSalon,
+    /// The chosen vampire goes to its controller's uncontrolled region.
+    Banish,
+    /// The chosen minions cannot play reaction cards, block or cast votes
+    /// or ballots this turn.
+    Expel,
 }
 
 /// A political action card's referendum: its terms and its effect.
@@ -294,22 +342,91 @@ pub struct ReferendumDef {
 
 impl ReferendumDef {
     /// Can the terms be met (LSJ 20100129: a political action cannot be
-    /// played if the conditions for its terms cannot be met)?
-    pub fn feasible(&self, st: &GameState, seat: SeatId) -> bool {
-        let others = st.living().saturating_sub(1) as u8;
-        self.terms.iter().all(|t| match *t {
-            Term::Allocate {
-                among, min_seats, ..
-            } => {
-                let eligible = match among {
-                    Among::Any => others + 1,
-                    Among::Others => others,
-                };
-                eligible >= min_seats
+    /// played if the conditions for its terms cannot be met)? A choice of
+    /// Methuselah is feasible only if some choice leaves the following
+    /// allocation feasible.
+    pub fn feasible(&self, st: &GameState, seat: SeatId, actor: MinionId) -> bool {
+        if st.seats[seat.index()].ousted {
+            return false;
+        }
+        let living = st.clockwise_from(seat);
+        let mut i = 0;
+        while i < self.terms.len() {
+            match self.terms[i] {
+                Term::ChooseSeat(filter) => {
+                    let next = self.terms.get(i + 1).copied();
+                    let ok = living.iter().any(|&c| {
+                        seat_filter_holds(filter, st, seat, c)
+                            && match next {
+                                Some(Term::Allocate {
+                                    among, min_seats, ..
+                                }) => recipients(st, seat, among, Some(c)).len() as u8 >= min_seats,
+                                _ => true,
+                            }
+                    });
+                    if !ok {
+                        return false;
+                    }
+                    if matches!(next, Some(Term::Allocate { .. })) {
+                        i += 1;
+                    }
+                }
+                Term::Allocate {
+                    among, min_seats, ..
+                } => {
+                    if (recipients(st, seat, among, None).len() as u8) < min_seats {
+                        return false;
+                    }
+                }
+                Term::ChooseSeats { min, .. } => {
+                    if (living.len() as u8) < min {
+                        return false;
+                    }
+                }
+                Term::ChooseMinions { filter, min, .. } => {
+                    let n = (0..st.minions.len())
+                        .map(|i| MinionId(i as u32))
+                        .filter(|&m| {
+                            st.minions[m.index()].present()
+                                && filter
+                                    .iter()
+                                    .all(|&r| holds_for_minion(r, st, seat, None, Some(actor), m))
+                        })
+                        .count();
+                    if (n as u8) < min {
+                        return false;
+                    }
+                }
+                Term::ChooseClan => {}
             }
-            Term::ChooseSeats { min, .. } => others + 1 >= min,
-            Term::ChooseClan => true,
-        }) && !st.seats[seat.index()].ousted
+            i += 1;
+        }
+        true
+    }
+}
+
+/// Methuselahs eligible to receive points, clockwise from the caller.
+pub fn recipients(
+    st: &GameState,
+    caller: SeatId,
+    among: Among,
+    chosen: Option<SeatId>,
+) -> Vec<SeatId> {
+    st.clockwise_from(caller)
+        .into_iter()
+        .filter(|&s| match among {
+            Among::Any => true,
+            Among::Others => s != caller,
+            Among::AnyNotChosen => Some(s) != chosen,
+            Among::OthersNotChosen => s != caller && Some(s) != chosen,
+        })
+        .collect()
+}
+
+pub fn seat_filter_holds(filter: SeatFilter, st: &GameState, caller: SeatId, s: SeatId) -> bool {
+    match filter {
+        SeatFilter::Any => true,
+        SeatFilter::MorePoolThanCaller => st.seats[s.index()].pool > st.seats[caller.index()].pool,
     }
 }
 
@@ -373,6 +490,9 @@ pub enum Terms {
     /// X blood, 0 up to the actor's blood (Hidden Strength: X may exceed
     /// what is needed, never below zero).
     XBlood,
+    /// Up to n of the votes the referendum passed by (Voter Captivation
+    /// [PRE]: "move up to 2 of those blood to your pool instead").
+    UpToMargin(u8),
 }
 
 /// Continuous-effect modifiers carried by layers (effects-framework §3.2).
@@ -390,6 +510,9 @@ pub enum Modifier {
     },
     /// Reaction cards cost this much more blood (or life) this action.
     ReactionBloodCost(i8),
+    /// Minions younger than this capacity (allies included) get this
+    /// intercept modifier this action (Perfect Paragon [PRE]).
+    InterceptMod { younger_than: u8, n: i8 },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -422,6 +545,9 @@ impl Layer {
                     ^ (pool as i64 as u64 & 0xff)
             }
             Modifier::ReactionBloodCost(n) => 1 << 32 ^ (n as i64 as u64 & 0xff),
+            Modifier::InterceptMod { younger_than, n } => {
+                1 << 33 ^ (younger_than as u64) << 8 ^ (n as i64 as u64 & 0xff)
+            }
         };
         (self.source.0 as u64) << 40 ^ (self.scope as u64) << 36 ^ m
     }
@@ -512,6 +638,29 @@ pub enum Effect {
     /// The target vampire abstains: its cast votes and ballots are
     /// canceled and it casts no more; `lock` locks it, `burn` burns blood.
     Abstain { lock: bool, burn: u8 },
+    /// The actor gets +n votes against the referendum (and votes against).
+    AddVotesAgainst(u8),
+    /// Methuselahs casting votes or ballots against burn n pool once the
+    /// results are tallied (Scorn of Adonis; once per Scorn per Methuselah).
+    TallyPenaltyAgainst(u8),
+    /// Non-Camarilla vampires cannot cast votes or ballots (Closed Session).
+    BarNonCamarillaVotes,
+    /// Cancel the referendum: no tally; the political action card returns
+    /// to its owner's hand (discard down afterward). `unlock_acting`:
+    /// unlock the acting vampire; `forbid_repeat`: the acting Methuselah's
+    /// minions cannot perform the same political action again this turn.
+    CancelReferendum {
+        unlock_acting: bool,
+        forbid_repeat: bool,
+    },
+    /// After a passed referendum: the actor gains 1 blood per vote of the
+    /// margin, X of them to the player's pool instead (Voter Captivation).
+    GainBloodPerMargin,
+    /// Reduce the current bleed by n (never below 0).
+    ReduceBleed(u8),
+    /// Allies and vampires younger than the actor get this intercept
+    /// modifier for the rest of the action (Perfect Paragon [PRE]).
+    YoungerIntercept(i8),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -536,6 +685,8 @@ pub struct CardDef {
     pub trifle: bool,
     /// Out-of-turn master card (rulebook "Out-of-turn"; rules-qa 3.3).
     pub out_of_turn: bool,
+    /// "Do not replace until your next unlock phase" (Old Friends).
+    pub delayed_replacement: bool,
     /// Playable modes (from hand).
     pub modes: &'static [ModeDef],
     /// In-play abilities (the same shape; actor is the host or controller).
@@ -622,11 +773,12 @@ pub fn holds(
         Requirement::StealthNeeded => {
             waives_needed
                 || action.is_some_and(|a| {
-                    matches!(a.state, ActionState::Attempt(_)) && a.intercept >= a.stealth()
+                    matches!(a.state, ActionState::Attempt(_))
+                        && a.attempt_intercept(st) >= a.stealth()
                 })
         }
         Requirement::InterceptNeeded => action.is_some_and(|a| match a.state {
-            ActionState::Attempt(m) => actor == Some(m) && a.stealth() > a.intercept,
+            ActionState::Attempt(m) => actor == Some(m) && a.stealth() > a.intercept_of(st, m),
             _ => false,
         }),
         Requirement::LockedActor => actor.is_some_and(|m| st.minions[m.index()].locked),
@@ -669,6 +821,25 @@ pub fn holds(
         Requirement::PollingStep => political.is_some_and(|r| r.step == RefStep::Polling),
         Requirement::NoVotesCast => political.is_some_and(|r| !r.any_cast()),
         Requirement::ReferendumPassed => action.is_some_and(|a| a.referendum_passed),
+        Requirement::Younger => true, // target predicate
+        Requirement::ActorNotVotingFor => {
+            political.zip(actor).is_some_and(|(r, m)| !r.voting_for(m))
+        }
+        Requirement::AnyOf(alternatives) => alternatives.iter().any(|reqs| {
+            reqs.iter().all(|&r| {
+                holds(
+                    r,
+                    st,
+                    seat,
+                    actor,
+                    played,
+                    action,
+                    combat,
+                    referendum,
+                    waives_needed,
+                )
+            })
+        }),
     }
 }
 
@@ -678,6 +849,7 @@ pub fn holds_for_minion(
     st: &GameState,
     seat: SeatId,
     referendum: Option<&ReferendumCtx>,
+    acting: Option<MinionId>,
     m: MinionId,
 ) -> bool {
     let v = &st.minions[m.index()];
@@ -685,6 +857,10 @@ pub fn holds_for_minion(
         Requirement::Controlled => v.owner == seat && v.present(),
         Requirement::BloodAtLeast(n) => v.blood >= n,
         Requirement::HasCastVotes => referendum.is_some_and(|r| r.has_cast(m)),
+        Requirement::ActorReady => v.ready(),
+        Requirement::Younger => {
+            acting.is_some_and(|a| v.capacity() < st.minions[a.index()].capacity())
+        }
         _ => true,
     }
 }

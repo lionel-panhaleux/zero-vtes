@@ -31,7 +31,7 @@ impl Engine {
     /// empty library means no replacement).
     pub(crate) fn draw_to_hand_size(&mut self, s: SeatId) {
         let seat = &mut self.state.seats[s.index()];
-        while seat.hand.len() < HAND_SIZE {
+        while seat.hand.len() + (seat.delayed_draws as usize) < HAND_SIZE {
             match seat.library.pop() {
                 Some(c) => seat.hand.push(c),
                 None => break,
@@ -112,7 +112,8 @@ impl Engine {
                 st.minions_of(seat)
                     .filter(|m| {
                         let v = &st.minions[m.index()];
-                        if v.in_torpor {
+                        // Expulsion: no reaction cards this turn.
+                        if v.in_torpor || v.expelled {
                             return false;
                         }
                         let woken = a.woken.contains(m);
@@ -166,15 +167,15 @@ impl Engine {
                 }
                 let tags = LIBRARY[card as usize].modes[mi].tags;
                 let clans = LIBRARY[card as usize].clans;
-                // A political action card cannot be played if its terms
-                // cannot be met (LSJ 20100129).
-                if mode.effects.iter().any(|e| match e {
-                    Effect::CallReferendum(r) => !r.feasible(st, seat),
-                    _ => false,
-                }) {
-                    continue;
-                }
                 for actor in self.actor_candidates(seat, mode) {
+                    // A political action card cannot be played if its terms
+                    // cannot be met (LSJ 20100129).
+                    if mode.effects.iter().any(|e| match (e, actor) {
+                        (Effect::CallReferendum(r), Some(m)) => !r.feasible(st, seat, m),
+                        _ => false,
+                    }) {
+                        continue;
+                    }
                     // Clan requirement: the playing minion's clan, or (a
                     // Methuselah's card) a ready vampire of the clan.
                     if !clans.is_empty() {
@@ -195,10 +196,15 @@ impl Engine {
                             continue;
                         }
                         // One political action per minion per turn
-                        // (rulebook "Political Action").
+                        // (rulebook "Political Action"); a political action
+                        // canceled by Delaying Tactics cannot be performed
+                        // again this turn by the seat's minions.
                         if mode.effects.contains(&Effect::DeclareAction(
                             crate::decision::ActionKind::Political,
-                        )) && st.minions[m.index()].political_this_turn
+                        )) && (st.minions[m.index()].political_this_turn
+                            || st.seats[seat.index()]
+                                .forbidden_political
+                                .contains(&LIBRARY[card as usize].name))
                         {
                             continue;
                         }
@@ -266,7 +272,14 @@ impl Engine {
                                 .filter(|&id| {
                                     st.minions[id.index()].present()
                                         && spec.filter.iter().all(|&r| {
-                                            cards::holds_for_minion(r, st, seat, referendum, id)
+                                            cards::holds_for_minion(
+                                                r,
+                                                st,
+                                                seat,
+                                                referendum,
+                                                action.map(|a| a.acting),
+                                                id,
+                                            )
                                         })
                                 })
                                 .map(Target::Minion)
@@ -403,6 +416,10 @@ impl Engine {
             Some(Terms::XBlood) => {
                 let blood = self.state.minions[ctx.actor.expect("actor").index()].blood;
                 (0..=blood).map(Choice::SetX).collect()
+            }
+            Some(Terms::UpToMargin(n)) => {
+                let margin = self.action.as_ref().map_or(0, |a| a.margin) as u8;
+                (0..=n.min(margin)).map(Choice::SetX).collect()
             }
             None => unreachable!("terms window without terms"),
         };
@@ -620,7 +637,14 @@ impl Engine {
                 | Effect::CallReferendum(_) => {}
                 Effect::HostBurnBloodToUnlock => unreachable!("ability effect in a play"),
                 e if is_combat_effect(&e) => self.apply_combat_effect(e, &ctx),
-                e if is_vote_effect(&e) => self.apply_vote_effect(e, &ctx),
+                // A mode shared between a bleed and the polling step
+                // (Protected District) carries both effects; the one
+                // without a context does nothing.
+                e if is_vote_effect(&e) => {
+                    if self.referendum.is_some() {
+                        self.apply_vote_effect(e, &ctx)
+                    }
+                }
                 action_effect => self.apply_action_effect(action_effect, &ctx),
             }
         }
@@ -639,7 +663,10 @@ impl Engine {
                 .action
                 .as_ref()
                 .is_some_and(|a| a.defer_reaction_replacement);
-        if deferred {
+        if def.delayed_replacement {
+            // "Do not replace until your next unlock phase".
+            self.state.seats[s.index()].delayed_draws += 1;
+        } else if deferred {
             self.action.as_mut().expect("action").deferred_draws.push(s);
         } else {
             self.draw_to_hand_size(s);

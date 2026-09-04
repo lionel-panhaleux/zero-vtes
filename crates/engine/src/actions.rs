@@ -88,6 +88,11 @@ pub struct ActionCtx {
     /// The political action's referendum passed, by this margin.
     pub referendum_passed: bool,
     pub margin: u32,
+    /// Bleed reductions (Party Out Of Bounds [obf], Protected District).
+    pub bleed_reduce: u8,
+    /// The action card was returned to hand (Delaying Tactics): not
+    /// discarded at the end of the action.
+    pub card_returned: bool,
 }
 
 impl ActionCtx {
@@ -96,7 +101,36 @@ impl ActionCtx {
     }
 
     pub fn bleed_amount(&self) -> u8 {
-        1 + self.bleed_mods
+        (1 + self.bleed_mods).saturating_sub(self.bleed_reduce)
+    }
+
+    /// Effective intercept of minion `m`'s attempt: the accumulated
+    /// intercept folded through the action's intercept layers (Perfect
+    /// Paragon [PRE]: younger vampires and allies get -1).
+    pub fn intercept_of(&self, st: &crate::state::GameState, m: MinionId) -> u8 {
+        (self.intercept as i32 + Self::intercept_mods(st, m)).max(0) as u8
+    }
+
+    /// Sum of the action's intercept layers applying to `m`.
+    pub fn intercept_mods(st: &crate::state::GameState, m: MinionId) -> i32 {
+        let cap = st.minions[m.index()].capacity();
+        st.layers
+            .iter()
+            .filter_map(|l| match l.modifier {
+                cards::Modifier::InterceptMod { younger_than, n } if cap < younger_than => {
+                    Some(n as i32)
+                }
+                _ => None,
+            })
+            .sum()
+    }
+
+    /// The effective intercept of the current attempt, if any.
+    pub fn attempt_intercept(&self, st: &crate::state::GameState) -> u8 {
+        match self.state {
+            ActionState::Attempt(m) => self.intercept_of(st, m),
+            _ => 0,
+        }
     }
 
     /// The Methuselah the action is directed at, if directed.
@@ -166,6 +200,8 @@ impl Engine {
             played: Vec::new(),
             referendum_passed: false,
             margin: 0,
+            bleed_reduce: 0,
+            card_returned: false,
         });
         self.flow = Flow::Action;
     }
@@ -218,7 +254,7 @@ impl Engine {
             .minions_of(seat)
             .filter(|m| {
                 let v = &self.state.minions[m.index()];
-                !v.in_torpor && (!v.locked || a.woken.contains(m))
+                !v.in_torpor && !v.expelled && (!v.locked || a.woken.contains(m))
             })
             .collect()
     }
@@ -263,9 +299,8 @@ impl Engine {
                 per_card = per_card.max(best);
             }
             total = total.saturating_add(per_card);
-            {}
         }
-        total
+        (total as i32 + ActionCtx::intercept_mods(st, m)).max(0) as u8
     }
 
     /// Windows open for `seat` in the action's current state.
@@ -411,7 +446,7 @@ impl Engine {
                 self.flow = Flow::Action;
             }
             ActionState::Attempt(blocker) => {
-                if a.intercept >= a.stealth() {
+                if a.intercept_of(&self.state, blocker) >= a.stealth() {
                     self.blocked(blocker);
                 } else {
                     // The attempt fails: back to A, where the same Methuselah
@@ -529,6 +564,26 @@ impl Engine {
                 if limited {
                     a.limited_bleed_used = true;
                 }
+            }
+            Effect::ReduceBleed(n) => a.bleed_reduce += n,
+            Effect::YoungerIntercept(n) => {
+                let younger_than =
+                    self.state.minions[play.actor.expect("actor").index()].capacity();
+                self.state.layers.push(cards::Layer {
+                    scope: Scope::Action,
+                    modifier: cards::Modifier::InterceptMod { younger_than, n },
+                    source: crate::state::CardId(u32::MAX),
+                });
+            }
+            Effect::GainBloodPerMargin => {
+                // Voter Captivation: 1 blood per vote of the margin; X of
+                // them to the pool instead (a passed referendum with no
+                // polling step passes by 0: PIB 20150105).
+                let m = play.actor.expect("actor");
+                let to_pool = play.x.min(a.margin as u8);
+                let v = &mut self.state.minions[m.index()];
+                v.blood = (v.blood + (a.margin as u8 - to_pool)).min(v.capacity());
+                self.state.seats[play.seat.index()].pool += to_pool as i32;
             }
             Effect::Wake => a.woken.push(play.actor.expect("waking minion")),
             Effect::LockActor => {
@@ -723,7 +778,7 @@ impl Engine {
                 .cards
                 .iter()
                 .any(|c| c.card == play.card && c.host == Some(acting) && c.in_play);
-            if !in_play {
+            if !in_play && !a.card_returned {
                 self.state.seats[seat.index()].ash.push(play.card);
             }
             self.state.minions[acting.index()].acted.push(play.card);

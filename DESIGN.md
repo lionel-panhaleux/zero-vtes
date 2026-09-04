@@ -536,8 +536,27 @@ Recorded so nobody mistakes them for oversights:
   [tha]); environmental / per-round damage (Carrion Crows, Weather Control);
   first strike, weapons and equipment; cards played by minions not in the
   combat (Martyr's Resilience, Touch of Valeren [FOR]); rush / card-created
-  combats. Batch 4 of rules-qa lists the modeling calls to confirm. Next:
-  politics (Kine Resources Contested, Scalpel Tongue, Anarch Revolt).
+  combats. Batch 4 of rules-qa lists the modeling calls to confirm.
+  Slice 4 done (2026-09-04): the referendum machine (`referendum.rs`) —
+  the blood hunt generalized: terms chosen stepwise by the caller
+  (allocations with feasibility masks, seat / minion / clan choices), the
+  polling step as the unordered primitive with card plays as commitments
+  of the same rotation, per-source vote records (abstentions cancel),
+  Methuselah ballots (Edge, the calling card's vote, a political action
+  card burned from hand), the tally with Scorn's penalty first, a
+  shortfall re-allocation, simultaneous ousts as a batch (VP to every
+  predator, 6 pool to survivors only), cancellation with the card
+  returned and an immediate discard-down; the political action (+1
+  stealth, one per minion per turn, cost at resolution, no referendum if
+  the acting minion is no longer ready) and the after-resolution window;
+  Expulsion's per-turn bars, delayed replacement (Old Friends), bleed
+  reduction, an intercept layer (Perfect Paragon [PRE]), clan
+  requirements. 25 politics defs (53 total). Known gaps: Anarch Revolt
+  and the other events (P2 machinery); Archon, Raising the Portcullis
+  (in-play granted actions); Disputed Territory and Revolutionary Council
+  (locations / equipment); the Justicar title cards (card-granted titles
+  and their contests); cards on a banished vampire do not return. Batch 5
+  of rules-qa lists the modeling calls to confirm.
 - **P2 — full engine pool**: all 621 cards including Events and their machinery;
   the 14 training decklists plus the New Blood minis as data; perft baselines;
   protocol server; scripted reference bots (aggro-bleed, wall, vote).

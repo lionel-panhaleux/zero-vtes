@@ -166,6 +166,9 @@ pub enum WindowLabel {
     /// The polling step of a political referendum: votes and ballots
     /// (unordered commitments) and card plays (rulebook "The Referendum").
     ReferendumPolling,
+    /// A canceled referendum returned the political action card to hand:
+    /// "discard down afterward".
+    DiscardDown,
     InfluenceTransfers,
     DiscardPhase,
     /// Combat steps (rulebook "Combat Sequence"): ordered windows over the

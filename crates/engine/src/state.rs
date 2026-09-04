@@ -68,6 +68,9 @@ pub struct Minion {
     /// One political action per minion per turn (rulebook "Political
     /// Action"; NRA on resolution, rules-qa 1.4).
     pub political_this_turn: bool,
+    /// Expulsion: cannot play reaction cards, block or cast votes or
+    /// ballots this turn.
+    pub expelled: bool,
     /// Action cards this minion acted with this turn (NRA name identity,
     /// rules-qa 1.4).
     pub acted: Vec<u16>,
@@ -175,6 +178,12 @@ pub struct Seat {
     /// Discard phase actions left in the current discard phase.
     pub dpa: u8,
     pub turns_taken: u32,
+    /// Cards played with "do not replace until your next unlock phase":
+    /// the hand stays that many short until then.
+    pub delayed_draws: u8,
+    /// Political action card names the seat's minions cannot perform again
+    /// this turn (Delaying Tactics).
+    pub forbidden_political: Vec<&'static str>,
 }
 
 #[derive(Clone, Debug)]
@@ -320,6 +329,11 @@ impl GameState {
             mix(s.mpa as u64);
             mix(s.trifle_used as u64);
             mix(s.dpa as u64);
+            mix(s.delayed_draws as u64);
+            mix(s.forbidden_political.len() as u64);
+            for n in &s.forbidden_political {
+                mix(n.len() as u64);
+            }
             mix(match s.out_of_turn {
                 None => 0,
                 Some(OutOfTurn { trifle }) => 1 + trifle as u64,
@@ -353,6 +367,7 @@ impl GameState {
             mix(m.title_lost as u64);
             mix(m.bled_this_turn as u64);
             mix(m.political_this_turn as u64);
+            mix(m.expelled as u64);
             mix(m.acted.len() as u64);
             for &c in &m.acted {
                 mix(c as u64);

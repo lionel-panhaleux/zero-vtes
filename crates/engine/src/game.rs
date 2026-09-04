@@ -153,6 +153,8 @@ impl Engine {
                     out_of_turn: None,
                     dpa: 0,
                     turns_taken: 0,
+                    delayed_draws: 0,
+                    forbidden_political: Vec::new(),
                 }
             })
             .collect();
@@ -210,6 +212,7 @@ impl Engine {
             title_lost: false,
             bled_this_turn: false,
             political_this_turn: false,
+            expelled: false,
             acted: Vec::new(),
         });
         MinionId(self.state.minions.len() as u32 - 1)
@@ -483,10 +486,18 @@ impl Engine {
         let s = self.state.active;
         self.state.turn += 1;
         self.state.seats[s.index()].turns_taken += 1;
+        for seat in &mut self.state.seats {
+            seat.forbidden_political.clear();
+        }
+        // Delayed replacements ("do not replace until your next unlock
+        // phase") are drawn before unlocking (ANK 20200129).
+        self.state.seats[s.index()].delayed_draws = 0;
+        self.draw_to_hand_size(s);
         for m in &mut self.state.minions {
             // Per-turn NRA flags reset each new turn.
             m.bled_this_turn = false;
             m.political_this_turn = false;
+            m.expelled = false;
             m.acted.clear();
             // Unlock phase: the active seat's minions unlock (torpor included).
             if m.owner == s && m.in_play {
