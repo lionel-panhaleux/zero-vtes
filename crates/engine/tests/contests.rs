@@ -89,6 +89,7 @@ fn in_play(e: &mut Engine, name: &str, owner: u8) -> u32 {
     e.state.cards.push(CardInPlay {
         card: find_library(name),
         owner: SeatId(owner),
+        controller: SeatId(owner),
         host: None,
         in_play: true,
         contested: false,

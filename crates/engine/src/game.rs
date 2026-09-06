@@ -70,6 +70,14 @@ pub(crate) enum Flow {
         picked: Vec<u8>,
         resume: Box<Flow>,
     },
+    /// The impulse rotation closing one of the active Methuselah's phases
+    /// (rules-qa 7.9): `resume` is the phase flow the impulse returns to
+    /// when another seat plays an effect, and names the phase to end when
+    /// everyone passes.
+    PhaseRotation {
+        resume: Box<Flow>,
+        window: OrderedWindow,
+    },
     /// A mandatory rider resolving with choices (Smiling Jack): `left`
     /// units still to pay by the active Methuselah, then `resume`.
     RiderTerms {
@@ -129,6 +137,9 @@ pub struct Engine {
     /// How the most recent action ended (tests, and after-resolution
     /// riders to come).
     pub last_outcome: Option<crate::actions::Outcome>,
+    /// The game's random source after setup (random discards): replay is
+    /// the seed plus the decision log.
+    pub(crate) rng: Rng,
 }
 
 impl Engine {
@@ -172,6 +183,7 @@ impl Engine {
                     library,
                     hand,
                     ash: Vec::new(),
+                    removed: Vec::new(),
                     mpa: 0,
                     hand_bonus: 0,
                     trifle_used: false,
@@ -200,6 +212,7 @@ impl Engine {
             combat: None,
             referendum: None,
             ousted_during_play: false,
+            rng,
             last_outcome: None,
         };
         engine.start_turn();
@@ -308,7 +321,8 @@ impl Engine {
                 picked,
                 ..
             } => Some(self.ability_terms_request(*card, *ability, picked)),
-            Flow::RiderTerms { card, .. } => Some(self.rider_terms_request(*card)),
+            Flow::RiderTerms { card, left, .. } => Some(self.rider_terms_request(*card, *left)),
+            Flow::PhaseRotation { resume, window } => self.phase_rotation_request(resume, window),
             Flow::Abilities { window, pending } => self.abilities_request(window, pending),
             Flow::Action => self.action_request(),
             Flow::Combat => self.combat_request(),
@@ -326,6 +340,7 @@ impl Engine {
         let flow = std::mem::replace(&mut self.flow, Flow::GameOver);
         match flow {
             Flow::AsPlayed { stack, resume } => self.as_played_advance(stack, resume),
+            Flow::PhaseRotation { resume, .. } => self.close_phase(*resume),
             Flow::Abilities { window, .. } => {
                 debug_assert!(window.is_closed());
                 self.start_master_phase();
@@ -344,11 +359,7 @@ impl Engine {
             (Flow::PlayTerms { ctx, resume }, c) => self.terms_apply(ctx, *resume, c),
             (Flow::AsPlayed { stack, resume }, c) => self.as_played_apply(stack, resume, c),
             (Flow::Discard, c) => self.discard_apply(c),
-            (Flow::MinionPhase, Choice::Pass) => {
-                self.flow = Flow::Influence {
-                    left: transfers_for_turn(self.state.turn),
-                };
-            }
+            (Flow::MinionPhase, Choice::Pass) => self.open_phase_rotation(Flow::MinionPhase),
             (
                 Flow::MinionPhase,
                 Choice::TakeAction {
@@ -366,7 +377,11 @@ impl Engine {
                     target,
                 },
             ) => {
-                self.use_ability(*card, *ability, *actor, *target, Flow::MinionPhase);
+                // A granted action opens its action; an untimed ability
+                // (The Coven) leaves the minion phase where it was.
+                if !self.use_ability(*card, *ability, *actor, *target, Flow::MinionPhase) {
+                    self.flow = Flow::MinionPhase;
+                }
             }
             (
                 Flow::MinionPhase,
@@ -391,6 +406,9 @@ impl Engine {
             ) => self.ability_terms_apply(card, ability, picked, resume, *i),
             (Flow::RiderTerms { card, left, resume }, c) => {
                 self.rider_terms_apply(card, left, resume, c)
+            }
+            (Flow::PhaseRotation { resume, window }, c) => {
+                self.phase_rotation_apply(resume, window, c)
             }
             (Flow::Abilities { window, pending }, c) => self.abilities_apply(window, pending, c),
             (Flow::Action, c) => self.action_apply(c),
@@ -435,9 +453,10 @@ impl Engine {
                 .filter(|(i, c)| {
                     c.present()
                         && cards::lookup(c.card).is_some_and(|d| {
+                            let controller = self.state.card_controller(CardId(*i as u32));
                             d.riders.iter().any(|r| {
                                 r.hook == Hook::UnlockPhase
-                                    && r.scope.applies(c.owner, s)
+                                    && r.scope.applies(controller, s)
                                     && self.state.rider_holds(r, CardId(*i as u32))
                             })
                         })
@@ -495,6 +514,32 @@ impl Engine {
         self.state
             .layers
             .retain(|l| l.scope == crate::cards::Scope::Action || l.source != id);
+    }
+
+    /// The active Methuselah passed out of a phase: the impulse goes round
+    /// the other seats (rules-qa 7.9) before the phase ends.
+    pub(crate) fn open_phase_rotation(&mut self, phase: Flow) {
+        let mut window = OrderedWindow::new(self.state.clockwise_from(self.state.active));
+        window.pass();
+        self.flow = Flow::PhaseRotation {
+            resume: Box::new(phase),
+            window,
+        };
+    }
+
+    /// Everyone passed: the phase ends.
+    pub(crate) fn close_phase(&mut self, phase: Flow) {
+        match phase {
+            Flow::MasterPhase => self.flow = Flow::MinionPhase,
+            Flow::MinionPhase => {
+                self.flow = Flow::Influence {
+                    left: transfers_for_turn(self.state.turn),
+                }
+            }
+            Flow::Influence { .. } => self.end_influence(),
+            Flow::Discard => self.end_turn(),
+            other => unreachable!("not a phase: {other:?}"),
+        }
     }
 
     /// End of the influence phase: on to the discard phase (one discard
@@ -592,7 +637,11 @@ impl Engine {
                 continue;
             }
             if self.state.card_controller(id) == s {
+                let (owner, card) = (c.owner, c.card);
                 self.state.cards[ci].in_play = false;
+                if owner != s {
+                    self.state.seats[owner.index()].removed.push(card);
+                }
             } else if c
                 .host
                 .is_some_and(|h| self.state.minions[h.index()].owner == s)

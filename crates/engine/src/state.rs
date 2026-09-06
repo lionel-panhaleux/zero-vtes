@@ -149,7 +149,11 @@ impl Minion {
 #[derive(Clone, Debug)]
 pub struct CardInPlay {
     pub card: u16,
+    /// The Methuselah who played it: where it goes when it leaves play.
     pub owner: SeatId,
+    /// The Methuselah controlling it — its player until a control change
+    /// (The Coven); for a minion card on a minion see `card_controller`.
+    pub controller: SeatId,
     /// Minion the card is on, if any.
     pub host: Option<MinionId>,
     pub in_play: bool,
@@ -209,6 +213,9 @@ pub struct Seat {
     pub library: Vec<u16>,
     pub hand: Vec<u16>,
     pub ash: Vec<u16>,
+    /// Cards of this Methuselah removed from the game while another
+    /// controlled them (spec §1.10: removed cards are public).
+    pub removed: Vec<u16>,
     /// Master phase actions left in the current master phase.
     pub mpa: u8,
     /// Hand size above the rulebook's 7 until the end of the turn (Dreams
@@ -334,9 +341,9 @@ impl GameState {
     }
 
     /// The Methuselah controlling a card in play: a master card stays its
-    /// player's wherever it sits (Fame on another Methuselah's vampire); a
-    /// minion card on a minion is its host's controller's (owner,
-    /// 2026-09-06; spec §1.12.1).
+    /// controller's wherever it sits (Fame on another Methuselah's
+    /// vampire; The Coven once taken); a minion card on a minion is its
+    /// host's controller's (owner, 2026-09-06; spec §1.12.1).
     pub fn card_controller(&self, id: CardId) -> SeatId {
         let c = &self.cards[id.index()];
         let master = LIBRARY[c.card as usize]
@@ -344,7 +351,7 @@ impl GameState {
             .contains(&crate::library::CardType::Master);
         match c.host {
             Some(h) if !master => self.minions[h.index()].owner,
-            _ => c.owner,
+            _ => c.controller,
         }
     }
 
@@ -520,6 +527,7 @@ impl GameState {
         for c in &self.cards {
             mix(c.card as u64);
             mix(c.owner.0 as u64);
+            mix(c.controller.0 as u64);
             mix(c.host.map(|m| m.0 as u64 + 1).unwrap_or(0));
             mix(c.in_play as u64);
             mix(c.contested as u64);

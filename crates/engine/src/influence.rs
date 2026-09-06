@@ -117,7 +117,7 @@ impl Engine {
                 self.stage_contests(m);
                 self.flow = Flow::Influence { left };
             }
-            Choice::Pass => self.end_influence(),
+            Choice::Pass => self.open_phase_rotation(Flow::Influence { left }),
             other => unreachable!("illegal influence choice {other:?}"),
         }
     }

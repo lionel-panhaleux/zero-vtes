@@ -548,6 +548,7 @@ fn banishment_sends_a_younger_vampire_to_the_uncontrolled_region() {
     e.state.cards.push(zvtes::state::CardInPlay {
         card: find_library("Homunculus"),
         owner: SeatId(1),
+        controller: SeatId(1),
         host: Some(bret),
         in_play: true,
         contested: false,

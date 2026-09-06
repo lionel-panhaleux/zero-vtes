@@ -359,7 +359,7 @@ impl Engine {
 
     pub(crate) fn master_apply(&mut self, choice: &Choice) {
         match choice {
-            Choice::Pass => self.flow = Flow::MinionPhase,
+            Choice::Pass => self.open_phase_rotation(Flow::MasterPhase),
             Choice::Play {
                 card,
                 mode,
@@ -753,12 +753,17 @@ impl Engine {
                 *in_play = Some(self.enter_play(CardInPlay {
                     card: ctx.card,
                     owner: s,
+                    controller: s,
                     host,
                     in_play: true,
                     contested: false,
                     locked: false,
                     counters: 0,
                 }));
+            }
+            Effect::EnterWithCounters(n) => {
+                let id = in_play.expect("counters on a card that entered play");
+                self.state.cards[id.index()].counters = n;
             }
             Effect::MoveBloodTargetToPoolX => {
                 let Target::Minion(t) = ctx.target else {
@@ -795,6 +800,8 @@ impl Engine {
             | Effect::BurnPool(_)
             | Effect::PoolToCounter(_)
             | Effect::PoolOrBloodPerCounter
+            | Effect::PoolOrRandomCardsPerCounter
+            | Effect::PayPool(_)
             | Effect::TheirControllerBurnsPool(_)
             | Effect::SpendMasterPhaseAction
             | Effect::LockSelf
@@ -803,6 +810,8 @@ impl Engine {
             | Effect::GainPool(_)
             | Effect::HandSizeBonusUntilEndOfTurn(_)
             | Effect::BloodToUncontrolledTarget(_)
+            | Effect::BloodToTarget(_)
+            | Effect::PredatorTakesControl
             | Effect::BurnSelf
             | Effect::BurnSource => unreachable!("ability or rider effect in a play"),
             e if is_combat_effect(&e) => self.apply_combat_effect(e, ctx),
@@ -836,7 +845,7 @@ impl Engine {
     pub(crate) fn discard_apply(&mut self, choice: &Choice) {
         let s = self.state.active;
         match choice {
-            Choice::Pass => self.end_turn(),
+            Choice::Pass => self.open_phase_rotation(Flow::Discard),
             Choice::Discard(i) => {
                 let seat = &mut self.state.seats[s.index()];
                 let card = seat.hand.remove(*i as usize);
@@ -889,7 +898,7 @@ impl Engine {
                     // The controller picks the ability's target (a hunting
                     // ground: "a ready vampire you control can gain 1 blood").
                     Actor::Controller => {
-                        if c.owner != seat {
+                        if st.card_controller(CardId(ci as u32)) != seat {
                             continue;
                         }
                         let ok = ability.requires.iter().all(|&r| {
@@ -1208,7 +1217,7 @@ impl Engine {
         let def = cards::lookup(c.card).expect("definition");
         let mode = &def.abilities[ability as usize];
         let (seat, host) = match mode.actor {
-            Actor::Controller => (c.owner, None),
+            Actor::Controller => (self.state.card_controller(CardId(card)), None),
             Actor::Methuselah => (self.state.active, None),
             _ => {
                 let host = c.host.expect("host");
@@ -1246,6 +1255,13 @@ impl Engine {
                     }
                 }
                 Effect::GainPool(n) => self.state.seats[ctx.seat.index()].pool += n as i32,
+                Effect::BloodToTarget(n) => {
+                    let Target::Minion(t) = target else {
+                        unreachable!("blood to a target without a minion");
+                    };
+                    let v = &mut self.state.minions[t.index()];
+                    v.blood = (v.blood + n).min(v.capacity());
+                }
                 Effect::HandSizeBonusUntilEndOfTurn(n) => {
                     self.state.seats[ctx.seat.index()].hand_bonus += n;
                     self.draw_to_hand_size(ctx.seat);
@@ -1401,11 +1417,13 @@ impl Engine {
         let def = cards::lookup(c.card).expect("definition");
         let mut own_loss = 0i32;
         let mut to_counters = 0u8;
+        let mut add_counters = 0u8;
         let mut per_counter = false;
         let mut loss = vec![0i32; self.state.seats.len()];
+        let controller = self.state.card_controller(id);
         for r in def.riders.iter().filter(|r| {
             r.hook == Hook::UnlockPhase
-                && r.scope.applies(c.owner, s)
+                && r.scope.applies(controller, s)
                 && self.state.rider_holds(r, id)
         }) {
             for e in r.effects {
@@ -1415,7 +1433,10 @@ impl Engine {
                         own_loss += n as i32;
                         to_counters += n;
                     }
-                    Effect::PoolOrBloodPerCounter => per_counter = true,
+                    Effect::PoolOrBloodPerCounter | Effect::PoolOrRandomCardsPerCounter => {
+                        per_counter = true
+                    }
+                    Effect::AddCounter(n) => add_counters += n,
                     Effect::UnlockBurnPoolUnlessReady { sect, pool } => {
                         let has = self.state.minions_of(s).any(|m| {
                             let v = &self.state.minions[m.index()];
@@ -1452,6 +1473,7 @@ impl Engine {
                 return;
             }
         }
+        self.state.cards[id.index()].counters += add_counters;
         let counters = self.state.cards[id.index()].counters;
         if per_counter && counters > 0 {
             self.flow = Flow::RiderTerms {
@@ -1467,13 +1489,20 @@ impl Engine {
     /// One unit of a rider's payment (Smiling Jack): 1 pool, or 1 blood
     /// from a vampire the active Methuselah controls that has some (LSJ
     /// 19971212: an empty vampire does not lessen the obligation).
-    pub(crate) fn rider_terms_request(&self, card: CardId) -> DecisionRequest {
-        let _ = card;
+    pub(crate) fn rider_terms_request(&self, card: CardId, left: u8) -> DecisionRequest {
         let s = self.state.active;
-        let mut options = vec![Choice::BurnPool];
-        for m in self.state.minions_of(s) {
-            if self.state.minions[m.index()].blood > 0 {
-                options.push(Choice::BurnBloodFrom { minion: m });
+        let mut options = Vec::new();
+        if self.rider_effect(card, Effect::PoolOrRandomCardsPerCounter) {
+            // Constant Revolution: how many cards (the rest is pool), at
+            // most the hand (LSJ 20090618) — one announcement.
+            let hand = self.state.seats[s.index()].hand.len() as u8;
+            options.extend((0..=left.min(hand)).map(Choice::SetX));
+        } else {
+            options.push(Choice::BurnPool);
+            for m in self.state.minions_of(s) {
+                if self.state.minions[m.index()].blood > 0 {
+                    options.push(Choice::BurnBloodFrom { minion: m });
+                }
             }
         }
         DecisionRequest {
@@ -1481,6 +1510,12 @@ impl Engine {
             window: WindowLabel::RiderTerms,
             options,
         }
+    }
+
+    /// Whether a card in play carries a rider with this effect.
+    fn rider_effect(&self, card: CardId, effect: Effect) -> bool {
+        cards::lookup(self.state.cards[card.index()].card)
+            .is_some_and(|d| d.riders.iter().any(|r| r.effects.contains(&effect)))
     }
 
     pub(crate) fn rider_terms_apply(
@@ -1492,6 +1527,25 @@ impl Engine {
     ) {
         let s = self.state.active;
         match choice {
+            Choice::SetX(k) => {
+                // k cards burned at random, all at once, then the rest of
+                // the units from the pool; the hand is drawn up afterward.
+                for _ in 0..*k {
+                    let seat = &mut self.state.seats[s.index()];
+                    let i = self.rng.below(seat.hand.len());
+                    let c = seat.hand.remove(i);
+                    seat.ash.push(c);
+                }
+                let seat = &mut self.state.seats[s.index()];
+                seat.pool = (seat.pool - (left - k) as i32).max(0);
+                if seat.pool == 0 {
+                    self.oust_and_pass(s);
+                    return;
+                }
+                self.draw_to_hand_size(s);
+                self.flow = *resume;
+                return;
+            }
             Choice::BurnPool => {
                 let seat = &mut self.state.seats[s.index()];
                 seat.pool -= 1;
@@ -1514,6 +1568,133 @@ impl Engine {
             };
         } else {
             self.flow = *resume;
+        }
+    }
+
+    /// "During your discard phase" riders the seat holding the impulse
+    /// must resolve in the active Methuselah's discard phase: The Coven's
+    /// transfer is the predator's, taken when they get the opportunity to
+    /// play effects (LSJ 20100723).
+    fn discard_pending(&self, seat: SeatId) -> Vec<CardId> {
+        let s = self.state.active;
+        let mut out = Vec::new();
+        for ci in 0..self.state.cards.len() {
+            let id = CardId(ci as u32);
+            let c = &self.state.cards[ci];
+            if !c.present() {
+                continue;
+            }
+            let Some(def) = cards::lookup(c.card) else {
+                continue;
+            };
+            let controller = self.state.card_controller(id);
+            let resolver = self.state.predator(controller);
+            if def.riders.iter().any(|r| {
+                r.hook == Hook::DiscardPhase
+                    && r.scope.applies(controller, s)
+                    && self.state.rider_holds(r, id)
+                    && resolver == seat
+            }) {
+                out.push(id);
+            }
+        }
+        out
+    }
+
+    fn resolve_discard_rider(&mut self, id: CardId) {
+        let ci = id.index();
+        let def = cards::lookup(self.state.cards[ci].card).expect("definition");
+        let controller = self.state.card_controller(id);
+        let effects: Vec<Effect> = def
+            .riders
+            .iter()
+            .filter(|r| r.hook == Hook::DiscardPhase)
+            .flat_map(|r| r.effects.iter().copied())
+            .collect();
+        for e in effects {
+            match e {
+                Effect::PredatorTakesControl => {
+                    let predator = self.state.predator(controller);
+                    // A forced contest with a copy the predator already
+                    // controls burns the incoming copy (spec §1.13.1).
+                    let name = LIBRARY[self.state.cards[ci].card as usize].name;
+                    let held = self.state.cards.iter().enumerate().any(|(j, o)| {
+                        j != ci
+                            && o.present()
+                            && LIBRARY[o.card as usize].name == name
+                            && self.state.card_controller(CardId(j as u32)) == predator
+                    });
+                    if held {
+                        self.burn_card_in_play(id);
+                    } else {
+                        self.state.cards[ci].controller = predator;
+                    }
+                }
+                other => unreachable!("not a discard-phase rider effect: {other:?}"),
+            }
+        }
+    }
+
+    /// The impulse round the other seats at the end of a phase (rules-qa
+    /// 7.9): mandatory effects first (Pass masked), then untimed abilities.
+    pub(crate) fn phase_rotation_request(
+        &self,
+        resume: &Flow,
+        window: &OrderedWindow,
+    ) -> Option<DecisionRequest> {
+        let seat = window.current()?;
+        let mut options = Vec::new();
+        let pending = match resume {
+            Flow::Discard => self.discard_pending(seat),
+            _ => Vec::new(),
+        };
+        if pending.is_empty() {
+            options.push(Choice::Pass);
+            options.extend(self.ability_options(seat, Window::AnyImpulse));
+        } else {
+            options.extend(pending.iter().map(|c| Choice::ResolveRider { card: c.0 }));
+        }
+        Some(DecisionRequest {
+            seat,
+            window: WindowLabel::PhaseImpulse,
+            options,
+        })
+    }
+
+    pub(crate) fn phase_rotation_apply(
+        &mut self,
+        resume: Box<Flow>,
+        mut window: OrderedWindow,
+        choice: &Choice,
+    ) {
+        match choice {
+            Choice::Pass => {
+                window.pass();
+                if window.is_closed() {
+                    self.close_phase(*resume);
+                } else {
+                    self.flow = Flow::PhaseRotation { resume, window };
+                }
+            }
+            Choice::ResolveRider { card } => {
+                self.resolve_discard_rider(CardId(*card));
+                self.flow = Flow::PhaseRotation { resume, window };
+            }
+            Choice::UseAbility {
+                card,
+                ability,
+                actor,
+                target,
+            } => {
+                // An effect: the impulse returns to the active Methuselah,
+                // back in their phase.
+                let phase = *resume;
+                self.flow = phase.clone();
+                if !self.use_ability(*card, *ability, *actor, *target, phase.clone()) {
+                    self.flow = phase;
+                }
+            }
+            other => unreachable!("illegal phase-rotation choice {other:?}"),
         }
     }
 

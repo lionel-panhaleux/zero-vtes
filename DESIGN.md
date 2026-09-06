@@ -429,7 +429,7 @@ The engine's value is trust; trust is measured, not asserted.
    | Own unlock phase (optional ability / mandatory rider) | 39 | Vessel, hunting grounds / Creeping Sabotage | done (`UnlockPhaseOwn`, `Hook::UnlockPhase` + scope) |
    | Every / other Methuselah's unlock phase | 5 | Anarch Revolt / Smiling Jack | done (`RiderScope`, `Flow::RiderTerms` for a rider's choices) |
    | Master phase (optional / mandatory) | 10 | Blood Doll / Brujah Debate | optional done; mandatory rider pending |
-   | Discard phase | 3 | The Coven | pending (control change) |
+   | Discard phase | 3 | The Coven | done (`Hook::DiscardPhase`, fired as the impulse leaves the controller) |
    | Influence phase | 6 | Powerbase: Montreal | pending |
    | End of turn | 2 | Dreams of the Sphinx | done (`Seat.hand_bonus` cleared at `end_turn`) |
    | Minion to torpor | 8 | Guardian Angel / Fame | done (`Hook::HostToTorpor`, mid-combat oust teardown) |
@@ -444,11 +444,13 @@ The engine's value is trust; trust is measured, not asserted.
    | Lock / burn abilities in action or combat windows | 17 | Homunculus, Guardian Angel | done (abilities in windows); untimed "you can lock this card" done (`Window::AnyImpulse`: The Barrens, Dreams of the Sphinx) |
    | Counters on a card | 46 | Smiling Jack, Dreams of the Sphinx | done (`CardInPlay.counters`; `PoolToCounter`, `AddCounter`, `BurnSelfAtCounters`, `CountersAtLeast`) |
 
-   Three mechanisms sit outside the hook shape and are not started:
-   library search (Black Market Cache, Childe of the Revolution), draw
+   Two mechanisms sit outside the hook shape and are not started:
+   library search (Black Market Cache, Childe of the Revolution) and draw
    replacement (Black Market Cache, Shilmulo Tarot, Visit from the
-   Capuchin), and control change of a card in play (The Coven, "steal
-   this location" actions).
+   Capuchin). Control change of a card in play is done for the hostless
+   case (`CardInPlay.controller`, The Coven); "steal this location"
+   actions and the re-placement of a stolen minion card (spec §6.3.2)
+   land with the equipment slice.
 5. **Perft-style counts** on scripted positions (number of legal decision sequences
    to depth k) to catch legality regressions numerically.
 
@@ -751,9 +753,42 @@ Recorded so nobody mistakes them for oversights:
   window and the contest sub-flow are gone, `Pending::{Rider, Contest}`
   in the one unlock effects window (`Choice::PayContest(Contest)` /
   `YieldContest(Contest)`), forced settlements at collection. 78 defs.
-  Next: Smiling Jack (counters, mandatory-with-choice), Dreams
-  of the Sphinx / The Barrens (lock abilities in any window), The Coven
-  (control change).
+  Slice 5h (2026-09-06): The Coven — control of a card in play is state
+  (`CardInPlay.controller`, its player until a change; `card_controller`
+  still routes a minion card to its host's controller), read by
+  everything control-keyed (abilities, rider scopes, contests, ousts,
+  unlocking); `Hook::DiscardPhase` riders fire as the active Methuselah
+  passes out of their discard phase (LSJ 20100723) —
+  `Effect::PredatorTakesControl` to the controller's predator at that
+  time — onto a predator already controlling a copy, the incoming one is
+  burned (a forced contest, spec §1.13.1); `Effect::BloodToTarget`
+  (capped). Fuzz: a game ends only with ≤1 Methuselah or at the time
+  limit (a flow left on the placeholder ended a 5g game silently — the
+  Coven's minion-phase use found it), every card in play has a living
+  controller, and `Seat.removed` counts cards removed while another
+  controlled them, closing the conservation sink. Rules-qa 7.9: each of
+  the active Methuselah's phases ends on an impulse rotation over the
+  other seats (`Flow::PhaseRotation`, label `PhaseImpulse`; mandatory
+  effects first — The Coven moves at the predator's impulse — then
+  untimed abilities; an effect returns the impulse to the active player
+  in their phase; single-option rotations elide as any window). 79
+  defs.
+  Slice 5i (2026-09-06): Constant Revolution, the last card of the
+  batch — an action card entering play with counters
+  (`Effect::EnterWithCounters`), the controller's `AddCounter` unlock
+  rider, the others' `PoolOrRandomCardsPerCounter` rider announced as a
+  card count in the rider terms window (`SetX`; random burns from the
+  engine's own `Rng`, so replay stays seed + log; rules-qa 7.10 on the
+  replacement), a granted burn "that costs 1 pool" (`Effect::PayPool`
+  paid at resolution, `Requirement::PoolAtLeast` at declaration; paid
+  to 0 the acting Methuselah is ousted); a granted burn is directed at
+  the card's *controller*. 80 defs — the in-play effects batch (§6
+  stress set) is closed. Two pool-paying ability paths still assume the
+  user is the active seat (`PoolToHostBlood` ousts with `oust_and_pass`):
+  true for Blood Doll's own-phase windows, to route through `oust` when
+  the first pool-paying untimed ability reaches a non-active seat. Next:
+  the rulings-as-tests harness (`data/rulings-v5.csv` against the 80
+  defs), then library search and draw replacement.
 - **P2 — full engine pool**: all 621 cards including Events and their machinery;
   the 14 training decklists plus the New Blood minis as data; perft baselines;
   protocol server; scripted reference bots (aggro-bleed, wall, vote).

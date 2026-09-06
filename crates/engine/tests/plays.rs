@@ -89,6 +89,8 @@ fn implemented_definitions_cover_the_slice() {
             "Consanguineous Boon",
             "Conservative Agitation",
             "Consign to Oblivion",
+            "Constant Revolution",
+            "Coven, The",
             "Creeping Sabotage",
             "Deflection",
             "Delaying Tactics",

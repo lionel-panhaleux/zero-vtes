@@ -175,6 +175,11 @@ pub enum WindowLabel {
     /// The choices a mandatory rider needs as it resolves (Smiling Jack:
     /// pool or blood, one unit at a time).
     RiderTerms,
+    /// The end of one of the active Methuselah's phases (master, minion,
+    /// influence, discard): the impulse goes round the other seats for
+    /// their untimed effects and mandatory ones (The Coven's transfer),
+    /// returning to the active player after each (rules-qa 7.9).
+    PhaseImpulse,
     /// The as-played window of a card: cancels (and wakes, during an action)
     /// only (rules-qa 2.4).
     CardAsPlayed,

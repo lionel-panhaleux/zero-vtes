@@ -1696,7 +1696,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     riders: &[],
 };
 
-pub static DEFS: [&CardDef; 78] = [
+pub static DEFS: [&CardDef; 80] = [
     &EARTH_CONTROL,
     &BONDING,
     &VILLEIN,
@@ -1757,6 +1757,8 @@ pub static DEFS: [&CardDef; 78] = [
     &SMILING_JACK,
     &DREAMS_OF_THE_SPHINX,
     &THE_BARRENS,
+    &THE_COVEN,
+    &CONSTANT_REVOLUTION,
     &CREEPING_SABOTAGE,
     &BLOOD_DOLL,
     &VESSEL,
@@ -2124,6 +2126,107 @@ pub static THE_BARRENS: CardDef = CardDef {
         effects: &[Effect::LockSelf],
     }],
     riders: &[],
+};
+
+/// "Unique. Trifle. Put this card in play. You can lock this card to add 2
+/// blood to a ready vampire you control. During your discard phase, your
+/// predator takes control of The Coven." An untimed lock ability of the
+/// controller (usable before a forced hunt, and in the prevention window
+/// before damage lands — PIB 20121031: not midway through it, which the
+/// engine's atomic damage never offers); the control change fires as the
+/// controller passes out of their discard phase (LSJ 20100723), to the
+/// predator of the controller at that time.
+pub static THE_COVEN: CardDef = CardDef {
+    name: "Coven, The",
+    trifle: true,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::PutInPlay],
+    }],
+    abilities: &[ModeDef {
+        windows: &[Window::AnyImpulse],
+        actor: Actor::Controller,
+        requires: &[Requirement::CardUnlocked],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[Requirement::Controlled, Requirement::ActorReady],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::LockSelf, Effect::BloodToTarget(2)],
+    }],
+    riders: &[Rider {
+        hook: Hook::DiscardPhase,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::PredatorTakesControl],
+    }],
+};
+
+/// "+1 stealth action. Requires an Anarch. Unique. Put this card in play
+/// with 1 counter. During your unlock phase, add 1 counter to this card.
+/// During each other Methuselah's unlock phase, that Methuselah burns X
+/// pool and/or cards at random from their hand, where X is the number of
+/// counters on this card. Vampires can burn this card as a Ⓓ action that
+/// costs 1 pool." The others' rider is announced as a card count (the
+/// rest pool; LSJ 20090618); the burn's pool is paid at resolution.
+pub static CONSTANT_REVOLUTION: CardDef = CardDef {
+    name: "Constant Revolution",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[ModeDef {
+        windows: &[Window::ActionDeclare],
+        actor: Actor::ActingCandidate,
+        requires: &[Requirement::ActorSectIn(&[Sect::Anarch])],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutInPlay,
+            Effect::EnterWithCounters(1),
+        ],
+    }],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDeclare],
+        actor: Actor::ActingCandidate,
+        requires: &[Requirement::ActorVampire, Requirement::PoolAtLeast(1)],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::BurnCard),
+            Effect::PayPool(1),
+            Effect::BurnSource,
+        ],
+    }],
+    riders: &[
+        Rider {
+            hook: Hook::UnlockPhase,
+            scope: RiderScope::Controller,
+            requires: &[],
+            effects: &[Effect::AddCounter(1)],
+        },
+        Rider {
+            hook: Hook::UnlockPhase,
+            scope: RiderScope::Others,
+            requires: &[Requirement::CountersAtLeast(1)],
+            effects: &[Effect::PoolOrRandomCardsPerCounter],
+        },
+    ],
 };
 
 /// Nosferatu. "+1 stealth action. X is the number of copies of this card

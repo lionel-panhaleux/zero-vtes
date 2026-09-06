@@ -880,5 +880,39 @@ optional ones, offered whenever the active seat holds the impulse; the
 opening Edge window is gone; contests with no rival left and forced
 yields settle at once. Unlocking stays in `start_turn`.
 
-Batch 8 — cards & effects (replacement, delayed replacement, control
-change, events).
+### 7.9 The impulse in the active Methuselah's other phases
+
+The Coven's ruling (LSJ 20100723) has the predator "get the opportunity
+to play effects" in the controller's discard phase, and take control
+then. The engine's master, minion, influence and discard phases are
+offer windows for the active Methuselah alone: the others hold no
+impulse there, so their untimed abilities (The Barrens) are offered only
+during actions, referendums and unlock phases. Do the other Methuselahs
+get the impulse in each of the active player's phases (after the active
+player passes, before the phase ends), as in the unlock phase? If so
+each phase ends on a rotation, and The Coven moves when the predator
+holds it; the engine moves it as the controller passes out of the phase.
+
+**Answer (2026-09-06)** — Yes. Applied: every phase of the active
+Methuselah's turn ends on an ordered rotation over the other seats
+(`WindowLabel::PhaseImpulse`): their mandatory effects first (The
+Coven's transfer, taken by the predator as they get the impulse), then
+their untimed abilities; an effect returns the impulse to the active
+Methuselah in their phase; the phase ends once everyone passes.
+
+### 7.10 Constant Revolution's random discards
+
+LSJ 20090618: "the cards are all discarded at once (no replace); one
+cannot discard more cards than they have in hand, the rest must be
+pool". The engine has the Methuselah announce the card count (at most
+the hand), burns that many at random at once, takes the rest from the
+pool, then draws the hand back up. Is "no replace" only "not one at a
+time" (so the hand is refilled afterward, as modeled), or are those
+cards not replaced at all?
+
+**Test** — `constant_revolution_others_burn_pool_or_random_cards`.
+
+**Answer (2026-09-06)** — "No replace" means not one at a time, as
+modeled: the cards go at once, then the hand is drawn back up.
+
+Batch 8 — cards & effects (replacement, delayed replacement, events).

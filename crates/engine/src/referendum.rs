@@ -273,8 +273,9 @@ impl Engine {
         if ctx.canceled {
             // The returned political action card may leave the acting
             // Methuselah over hand size: "discard down afterward".
-            let hand = &self.state.seats[ctx.caller.index()].hand;
-            if hand.len() > HAND_SIZE {
+            let seat = &self.state.seats[ctx.caller.index()];
+            let hand = &seat.hand;
+            if hand.len() > HAND_SIZE + seat.hand_bonus as usize {
                 return Some(DecisionRequest {
                     seat: ctx.caller,
                     window: WindowLabel::DiscardDown,

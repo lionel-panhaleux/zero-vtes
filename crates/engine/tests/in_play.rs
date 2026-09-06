@@ -6,7 +6,7 @@
 
 use zvtes::actions::Outcome;
 use zvtes::cards::{Layer, Modifier, Scope, Target};
-use zvtes::crypt::CRYPT;
+use zvtes::crypt::{Sect, CRYPT};
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
@@ -78,6 +78,7 @@ fn revolt_in_play(e: &mut Engine, owner: u8) -> u32 {
     e.state.cards.push(CardInPlay {
         card: find_library("Anarch Revolt"),
         owner: SeatId(owner),
+        controller: SeatId(owner),
         host: None,
         in_play: true,
         contested: false,
@@ -343,6 +344,7 @@ fn anarch_revolt_burn_is_ordered_by_the_active_methuselah_before_the_impulse_pas
     e.state.cards.push(CardInPlay {
         card: find_library("Homunculus"),
         owner: SeatId(0),
+        controller: SeatId(0),
         host: Some(alexa),
         in_play: true,
         contested: false,
@@ -485,6 +487,7 @@ fn guardian_angel_on(e: &mut Engine, owner: u8, host: MinionId) -> u32 {
     e.state.cards.push(CardInPlay {
         card: find_library("Guardian Angel"),
         owner: SeatId(owner),
+        controller: SeatId(owner),
         host: Some(host),
         in_play: true,
         contested: false,
@@ -691,6 +694,7 @@ fn fame_on(e: &mut Engine, owner: u8, host: MinionId) -> u32 {
     e.state.cards.push(CardInPlay {
         card: find_library("Fame"),
         owner: SeatId(owner),
+        controller: SeatId(owner),
         host: Some(host),
         in_play: true,
         contested: false,
@@ -1255,6 +1259,29 @@ fn untimed_ability_offered_alongside_a_forced_hunt() {
     assert_eq!(uses(&req, barrens), vec![ability(barrens, 0)]);
 }
 
+// rules-qa 7.9: the active Methuselah's phases end on an impulse rotation
+// over the other seats — seat 1 uses The Barrens as seat 0 passes out of
+// its master phase, and the impulse returns to seat 0 in that phase.
+#[test]
+fn the_barrens_usable_in_the_rotation_closing_another_methuselahs_phase() {
+    let Table { mut e, .. } = table();
+    let barrens = revolt_like_in_play(&mut e, "Barrens, The", 1);
+    hand(&mut e, 0, &["Villein"]);
+    hand(&mut e, 1, &["Bonding", "Villein"]);
+    pick(&mut e, Choice::Pass); // seat 0 passes its master phase
+    let req = expect(&mut e, SeatId(1), WindowLabel::PhaseImpulse);
+    assert_eq!(uses(&req, barrens), vec![ability(barrens, 0)]);
+    pick(&mut e, ability(barrens, 0));
+    pick(&mut e, Choice::Discard(0));
+    // Back to seat 0's master phase (still a real decision: its master
+    // phase action is unspent), which it passes again; nothing left for
+    // the others (The Barrens is locked): the phase ends.
+    expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    pick(&mut e, Choice::Pass);
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[1].ash, vec![find_library("Bonding")]);
+}
+
 // Not in the as-played window: only cancels and wakes there (rules-qa
 // 2.4; LSJ 20061207).
 #[test]
@@ -1276,6 +1303,209 @@ fn the_barrens_is_not_usable_in_the_as_played_window() {
     let req = expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
     assert!(uses(&req, barrens).is_empty());
     assert!(req.options.len() > 1);
+}
+
+fn coven_use(card: u32, target: MinionId) -> Choice {
+    Choice::UseAbility {
+        card,
+        ability: 0,
+        actor: None,
+        target: Target::Minion(target),
+    }
+}
+
+// The Coven: "You can lock this card to add 2 blood to a ready vampire you
+// control" — the controller's own ready vampires only (not torpid ones, not
+// other Methuselahs'), capped at capacity; usable before a starving
+// vampire's forced hunt, which then is no longer forced (owner, 2026-09-06).
+#[test]
+fn the_coven_feeds_a_ready_vampire_you_control_before_the_forced_hunt() {
+    let (mut e, a, x, _z) = bleed_table();
+    let coven = revolt_like_in_play(&mut e, "Coven, The", 0);
+    let cel = MinionId(1);
+    e.state.minions[a.index()].blood = 0;
+    e.state.minions[cel.index()].in_torpor = true;
+    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!req.options.contains(&Choice::Pass));
+    assert_eq!(uses(&req, coven), vec![coven_use(coven, a)]);
+    let _ = x;
+    pick(&mut e, coven_use(coven, a));
+    assert_eq!(blood(&e, a), 2);
+    assert!(e.state.cards[coven as usize].locked);
+    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(req.options.contains(&Choice::Pass));
+    assert!(req.options.contains(&bleed(a)));
+    assert!(uses(&req, coven).is_empty());
+}
+
+// "During your discard phase, your predator takes control of The Coven":
+// fired as its controller passes out of their discard phase (LSJ
+// 20100723); the new controller unlocks it on their unlock phase, uses it,
+// and passes it on to their own predator in turn. Ownership never moves.
+#[test]
+fn the_coven_goes_to_the_predator_at_the_end_of_each_controllers_discard_phase() {
+    let Table {
+        mut e,
+        alexa,
+        lenny,
+        ..
+    } = table();
+    let coven = revolt_like_in_play(&mut e, "Coven, The", 0);
+    hand(&mut e, 0, &["Bonding"]);
+    hand(&mut e, 2, &["Bonding"]);
+    pick(&mut e, coven_use(coven, alexa));
+    let cap = e.state.minions[alexa.index()].capacity();
+    assert_eq!(blood(&e, alexa), 7.min(cap));
+    let req = to_window(&mut e, SeatId(0), WindowLabel::DiscardPhase);
+    assert!(uses(&req, coven).is_empty()); // locked
+    assert_eq!(e.state.cards[coven as usize].controller, SeatId(0));
+    pick(&mut e, Choice::Pass);
+    // The predator takes it as they get the impulse in the rotation
+    // closing the phase (rules-qa 7.9) — a mandatory choice that elides.
+    let _ = request(&mut e);
+    assert_eq!(e.state.cards[coven as usize].controller, SeatId(2));
+    assert_eq!(e.state.cards[coven as usize].owner, SeatId(0));
+    // Seat 2, its new controller: unlocked on its unlock phase, usable on
+    // its own vampire only.
+    let req = to_master_phase(&mut e, SeatId(2));
+    assert!(!e.state.cards[coven as usize].locked);
+    assert_eq!(uses(&req, coven), vec![coven_use(coven, lenny)]);
+    let req = to_window(&mut e, SeatId(2), WindowLabel::DiscardPhase);
+    assert!(!uses(&req, coven).is_empty());
+    pick(&mut e, Choice::Pass);
+    let _ = request(&mut e);
+    assert_eq!(e.state.cards[coven as usize].controller, SeatId(1));
+}
+
+// The predator already controls a Coven: the incoming copy would contest
+// involuntarily, so it is burned instead (spec §1.13.1), to its owner's ash.
+#[test]
+fn a_coven_moving_onto_a_second_copy_is_burned() {
+    let Table { mut e, .. } = table();
+    let mine = revolt_like_in_play(&mut e, "Coven, The", 0);
+    let theirs = revolt_like_in_play(&mut e, "Coven, The", 2);
+    hand(&mut e, 0, &["Bonding"]);
+    to_window(&mut e, SeatId(0), WindowLabel::DiscardPhase);
+    pick(&mut e, Choice::Pass);
+    let _ = request(&mut e);
+    assert!(!e.state.cards[mine as usize].in_play);
+    assert_eq!(e.state.seats[0].ash, vec![find_library("Coven, The")]);
+    assert!(e.state.cards[theirs as usize].present());
+    assert_eq!(e.state.cards[theirs as usize].controller, SeatId(2));
+}
+
+// A contested Coven is out of play: its discard-phase rider does not fire.
+#[test]
+fn a_contested_coven_does_not_move() {
+    let Table { mut e, .. } = table();
+    let coven = revolt_like_in_play(&mut e, "Coven, The", 0);
+    e.state.cards[coven as usize].contested = true;
+    hand(&mut e, 0, &["Bonding"]);
+    to_window(&mut e, SeatId(0), WindowLabel::DiscardPhase);
+    pick(&mut e, Choice::Pass);
+    let _ = request(&mut e);
+    assert_eq!(e.state.cards[coven as usize].controller, SeatId(0));
+}
+
+// Control, not ownership, decides an oust (spec §6.1.2): the owner ousted,
+// The Coven their predator controls stays in play.
+#[test]
+fn the_coven_taken_survives_its_owners_oust() {
+    let (mut e, _a, _x, _z) = bleed_table();
+    let coven = revolt_like_in_play(&mut e, "Coven, The", 0);
+    e.state.cards[coven as usize].controller = SeatId(2);
+    let jack = revolt_like_in_play(&mut e, "Smiling Jack, The Anarch", 0);
+    e.state.seats[0].pool = 1;
+    to_minion_phase(&mut e, SeatId(1));
+    to_minion_phase(&mut e, SeatId(2));
+    to_minion_phase(&mut e, SeatId(1));
+    assert!(e.state.seats[0].ousted);
+    assert!(!e.state.cards[jack as usize].in_play);
+    assert!(e.state.cards[coven as usize].in_play);
+    // Seat 2 passed it on at its own discard phase meanwhile.
+    assert_eq!(e.state.card_controller(CardId(coven)), SeatId(1));
+    assert_eq!(e.state.cards[coven as usize].owner, SeatId(0));
+}
+
+fn vampire_of_sect(sect: Sect, nth: usize) -> u16 {
+    CRYPT
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.sect == sect)
+        .nth(nth)
+        .map(|(i, _)| i as u16)
+        .unwrap_or_else(|| panic!("no {sect:?} vampire"))
+}
+
+// Constant Revolution: "+1 stealth action. Requires an Anarch. Unique. Put
+// this card in play with 1 counter. During your unlock phase, add 1
+// counter to this card." — offered to an Anarch only, enters with a
+// counter (blocks pruned by the stealth), one more each own unlock phase.
+#[test]
+fn constant_revolution_needs_an_anarch_and_counts_up() {
+    let (mut e, a, _x, _z) = bleed_table();
+    let anarch = e.add_minion(SeatId(0), vampire_of_sect(Sect::Anarch, 0), 6, false);
+    hand(&mut e, 0, &["Constant Revolution"]);
+    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!req.options.contains(&card_play(0, 0, a)));
+    assert!(req.options.contains(&card_play(0, 0, anarch)));
+    pick(&mut e, card_play(0, 0, anarch));
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(Outcome::Successful));
+    let cr = e.state.cards.len() as u32 - 1;
+    assert!(e.state.cards[cr as usize].present());
+    assert_eq!(e.state.cards[cr as usize].counters, 1);
+    to_minion_phase(&mut e, SeatId(1));
+    to_minion_phase(&mut e, SeatId(2));
+    assert_eq!(e.state.cards[cr as usize].counters, 1);
+    to_minion_phase(&mut e, SeatId(0));
+    assert_eq!(e.state.cards[cr as usize].counters, 2);
+}
+
+// "During each other Methuselah's unlock phase, that Methuselah burns X
+// pool and/or cards at random from their hand": the count of cards is
+// announced (at most the hand, LSJ 20090618), those are burned at random
+// at once, the rest is pool; an empty hand leaves only the pool (elided).
+#[test]
+fn constant_revolution_others_burn_pool_or_random_cards() {
+    let (mut e, _a, _x, _z) = bleed_table();
+    let cr = revolt_like_in_play(&mut e, "Constant Revolution", 0);
+    e.state.cards[cr as usize].counters = 2;
+    hand(&mut e, 1, &["Villein", "Bonding", "Flash"]);
+    let req = to_window(&mut e, SeatId(1), WindowLabel::RiderTerms);
+    assert_eq!(
+        req.options,
+        vec![Choice::SetX(0), Choice::SetX(1), Choice::SetX(2)]
+    );
+    pick(&mut e, Choice::SetX(1));
+    to_minion_phase(&mut e, SeatId(1));
+    assert_eq!(pool(&e), vec![10, 9, 10]);
+    assert_eq!(e.state.seats[1].hand.len(), 2);
+    assert_eq!(e.state.seats[1].ash.len(), 1);
+    // Seat 2, no hand: 2 pool with no decision; seat 0 pays nothing.
+    to_minion_phase(&mut e, SeatId(0));
+    assert_eq!(pool(&e), vec![10, 9, 8]);
+    assert_eq!(e.state.cards[cr as usize].counters, 3);
+}
+
+// "Vampires can burn this card as a Ⓓ action that costs 1 pool": directed
+// at its controller, the pool paid at resolution.
+#[test]
+fn constant_revolution_burn_action_costs_1_pool() {
+    let (mut e, a, x, _z) = bleed_table();
+    let cr = revolt_like_in_play(&mut e, "Constant Revolution", 1);
+    pick(&mut e, granted(cr, a));
+    let req = expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    assert_eq!(req.options[..2], [Choice::Pass, block(x)]);
+    pick(&mut e, Choice::Pass);
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(Outcome::Successful));
+    assert_eq!(pool(&e), vec![9, 10, 10]);
+    assert!(!e.state.cards[cr as usize].in_play);
+    assert_eq!(
+        e.state.seats[1].ash,
+        vec![find_library("Constant Revolution")]
+    );
 }
 
 // Creeping Sabotage: "+1 stealth action" (blocks pruned with no intercept),
@@ -1359,6 +1589,7 @@ fn revolt_like_in_play(e: &mut Engine, name: &str, owner: u8) -> u32 {
     e.state.cards.push(CardInPlay {
         card: find_library(name),
         owner: SeatId(owner),
+        controller: SeatId(owner),
         host: None,
         in_play: true,
         contested: false,
@@ -1453,6 +1684,7 @@ fn blood_doll_usable_with_the_host_in_torpor() {
     e.state.cards.push(CardInPlay {
         card: find_library("Blood Doll"),
         owner: SeatId(0),
+        controller: SeatId(0),
         host: Some(alexa),
         in_play: true,
         contested: false,
@@ -1483,6 +1715,7 @@ fn vessel_on_any_vampire_burns_any_blood_doll_and_is_the_controllers_to_use() {
     e.state.cards.push(CardInPlay {
         card: find_library("Blood Doll"),
         owner: SeatId(2),
+        controller: SeatId(2),
         host: Some(lenny),
         in_play: true,
         contested: false,

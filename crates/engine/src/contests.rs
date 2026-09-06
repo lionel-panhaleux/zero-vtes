@@ -31,7 +31,9 @@ impl Engine {
                 .cards
                 .iter()
                 .enumerate()
-                .filter(|(_, c)| c.owner == s && c.in_play && c.contested)
+                .filter(|(i, c)| {
+                    c.in_play && c.contested && self.state.card_controller(CardId(*i as u32)) == s
+                })
                 .map(|(i, _)| Contest::Library(CardId(i as u32))),
         );
         items

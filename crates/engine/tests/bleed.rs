@@ -334,6 +334,7 @@ fn archon_investigation_under_tension_in_the_ranks_ousts_the_bleeder_s_methusela
     t.e.state.cards.push(CardInPlay {
         card: find_library("Tension in the Ranks"),
         owner: SeatId(2),
+        controller: SeatId(2),
         host: None,
         in_play: true,
         contested: false,

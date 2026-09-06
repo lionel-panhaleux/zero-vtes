@@ -219,8 +219,8 @@ impl Engine {
                 // it undirected. No default stealth for an action granted
                 // by a card in play — only what its text prints (rules-qa
                 // 6.2).
-                let owner = self.state.cards[source.expect("source").index()].owner;
-                (0, None, (owner != seat).then_some(owner))
+                let controller = self.state.card_controller(source.expect("source"));
+                (0, None, (controller != seat).then_some(controller))
             }
             ActionKind::Rescue | ActionKind::Diablerie => {
                 let t = torpor_target.expect("torpor target");
@@ -310,8 +310,8 @@ impl Engine {
                 (owner != a.seat).then_some(owner)
             }
             ActionKind::BurnCard => {
-                let owner = self.state.cards[a.source.expect("source").index()].owner;
-                (owner != a.seat).then_some(owner)
+                let controller = self.state.card_controller(a.source.expect("source"));
+                (controller != a.seat).then_some(controller)
             }
             _ => None,
         }
@@ -828,6 +828,7 @@ impl Engine {
                         let id = self.enter_play(CardInPlay {
                             card: play.card,
                             owner: seat,
+                            controller: seat,
                             host: Some(a.acting),
                             in_play: true,
                             contested: false,
@@ -871,8 +872,38 @@ impl Engine {
                 }
             }
             ActionKind::BurnCard => {
+                // The granted action's pool cost is paid at resolution
+                // ("as a Ⓓ action that costs 1 pool"); unpayable by then
+                // it fizzles (rules-qa 3.6); paid down to 0, the acting
+                // Methuselah is ousted and the turn passes.
                 let src = a.source.expect("source");
-                self.burn_card_in_play(src);
+                let cost: u8 = a
+                    .ability
+                    .and_then(|ab| {
+                        let def = cards::lookup(self.state.cards[src.index()].card)?;
+                        Some(
+                            def.abilities[ab as usize]
+                                .effects
+                                .iter()
+                                .map(|e| match e {
+                                    Effect::PayPool(n) => *n,
+                                    _ => 0,
+                                })
+                                .sum(),
+                        )
+                    })
+                    .unwrap_or(0);
+                if self.state.seats[seat.index()].pool < cost as i32 {
+                    a.outcome = Some(Outcome::Fizzled);
+                } else {
+                    self.state.seats[seat.index()].pool -= cost as i32;
+                    self.burn_card_in_play(src);
+                    if self.state.seats[seat.index()].pool == 0 {
+                        self.action = Some(a);
+                        self.oust_and_pass(seat);
+                        return;
+                    }
+                }
             }
             ActionKind::Political => {
                 // Rulebook "The Referendum": the cost is paid and the

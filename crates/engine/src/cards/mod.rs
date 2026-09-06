@@ -246,6 +246,9 @@ pub enum Requirement {
     HasEdge,
     /// The player's hand is not empty ("discard a card").
     HandNotEmpty,
+    /// The player has at least n pool (a granted action "that costs 1
+    /// pool" is not declared unpayable).
+    PoolAtLeast(u8),
     /// Combat: the round is at close range ("only usable at close range").
     RangeClose,
     RangeLong,
@@ -666,6 +669,17 @@ pub enum Effect {
     /// (Smiling Jack), each unit chosen as it is paid — any mix (ANK
     /// 20181006), a vampire with no blood is no source (LSJ 19971212).
     PoolOrBloodPerCounter,
+    /// Rider effect: the Methuselah resolving it burns X pool and/or
+    /// cards at random from their hand, X the counters on this card
+    /// (Constant Revolution): they announce how many cards (at most their
+    /// hand), those are burned at once, the rest is pool (LSJ 20090618).
+    PoolOrRandomCardsPerCounter,
+    /// Put in play with n counters ("put this card in play with 1
+    /// counter").
+    EnterWithCounters(u8),
+    /// A granted action's pool cost, paid at resolution ("as a Ⓓ action
+    /// that costs 1 pool"; unpayable by then it fizzles, rules-qa 3.6).
+    PayPool(u8),
     /// Rider effect: the controller of the minion the hook names burns n
     /// pool — the host ("after this vampire goes to torpor, their
     /// controller burns 3 pool", Fame) or the minion that left ("after a
@@ -694,6 +708,13 @@ pub enum Effect {
     /// Add n blood to the targeted vampire in the player's uncontrolled
     /// region (capped at its capacity).
     BloodToUncontrolledTarget(u8),
+    /// Add n blood to the targeted minion (capped at its capacity; The
+    /// Coven: "add 2 blood to a ready vampire you control").
+    BloodToTarget(u8),
+    /// Rider effect: the controller's predator takes control of this card
+    /// (The Coven; spec §6.3: requirements are not re-checked, where it
+    /// goes when it leaves play is still its owner's).
+    PredatorTakesControl,
     /// Rider effect: burn this card (Guardian Angel: "if this vampire is in
     /// torpor, burn this card").
     BurnSelf,
@@ -831,6 +852,9 @@ pub enum Hook {
     /// The host of this card went to torpor (Guardian Angel; Fame), fired
     /// at once where the torpor happened (rules-qa 6.4).
     HostToTorpor,
+    /// "During your discard phase" (The Coven): a mandatory effect fired as
+    /// the impulse leaves the active Methuselah at the end of the phase.
+    DiscardPhase,
     /// A ready minion was burned or sent to torpor (Tension in the Ranks),
     /// whoever controls it; a minion removed from the game with its ousted
     /// Methuselah is not burned (spec §1.10), nor is one burned from
@@ -1000,6 +1024,7 @@ pub fn holds(
         Requirement::MasterPhaseActionLeft => st.seats[seat.index()].mpa > 0,
         Requirement::HasEdge => st.seats[seat.index()].has_edge,
         Requirement::HandNotEmpty => !st.seats[seat.index()].hand.is_empty(),
+        Requirement::PoolAtLeast(n) => st.seats[seat.index()].pool >= n as i32,
         Requirement::ActorVampire => actor.is_some(),
         Requirement::HandMasters(n) => st.hand_picks(seat, true).len() >= n as usize,
         Requirement::HostLocked

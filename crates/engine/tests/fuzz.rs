@@ -11,13 +11,13 @@ use std::collections::HashSet;
 use zvtes::agent::RandomLegal;
 use zvtes::crypt::{CRYPT, PRECONS};
 use zvtes::decision::{ActionKind, Choice, WindowLabel};
-use zvtes::game::{Engine, Step};
+use zvtes::game::{Engine, Step, TURN_LIMIT};
 use zvtes::ids::SeatId;
 use zvtes::library::LIBRARY;
 use zvtes::rng::Rng;
-use zvtes::state::{find_card, find_library, CardInPlay, UncontrolledSlot, HAND_SIZE};
+use zvtes::state::{find_card, find_library, CardId, CardInPlay, UncontrolledSlot, HAND_SIZE};
 
-const SEEDS: u64 = 100;
+const SEEDS: u64 = 200;
 const DECISION_BUDGET: u64 = 200_000;
 
 /// Library-card conservation baseline per seat (library + hand + ash +
@@ -34,12 +34,12 @@ fn zone_totals(e: &Engine) -> Vec<usize> {
                 .iter()
                 .filter(|c| c.owner.index() == i && c.in_play)
                 .count();
-            s.library.len() + s.hand.len() + s.ash.len() + in_play
+            s.library.len() + s.hand.len() + s.ash.len() + s.removed.len() + in_play
         })
         .collect()
 }
 
-fn invariants(e: &Engine, totals: &[usize], hands: &[usize], seed: u64, window: WindowLabel) {
+fn invariants(e: &Engine, totals: &[usize], hands: &[(usize, u8)], seed: u64, window: WindowLabel) {
     let st = &e.state;
     assert!(
         !st.seats[st.active.index()].ousted,
@@ -63,26 +63,41 @@ fn invariants(e: &Engine, totals: &[usize], hands: &[usize], seed: u64, window: 
         }
         // Over hand size only while discarding down after a canceled
         // referendum returned the political action card, or under Dreams
-        // of the Sphinx's bonus — which outlasts the turn (cards over size
-        // stay) but never lets the hand grow again once it is gone.
+        // of the Sphinx's bonus — the one in force now or at the previous
+        // decision (a draw-up under it, then the turn ending, happens
+        // between two decisions); cards over size stay but the hand never
+        // grows again once the bonus is gone.
+        let (was, bonus_was) = hands[i];
         assert!(
-            s.hand.len() <= HAND_SIZE + s.hand_bonus as usize
-                || s.hand.len() <= hands[i]
+            s.hand.len() <= HAND_SIZE + s.hand_bonus.max(bonus_was) as usize
+                || s.hand.len() <= was
                 || window == WindowLabel::DiscardDown,
-            "hand over size at seat {i} (seed {seed})"
+            "hand over size at seat {i} (seed {seed}): {} cards, bonus {}, was {} (bonus {}), at {window:?}",
+            s.hand.len(),
+            s.hand_bonus,
+            was,
+            bonus_was
         );
+    }
+    // Every card in play is controlled by a living Methuselah.
+    for ci in 0..st.cards.len() {
+        if st.cards[ci].in_play {
+            assert!(
+                !st.seats[st.card_controller(CardId(ci as u32)).index()].ousted,
+                "card in play controlled by an ousted seat (seed {seed})"
+            );
+        }
     }
     let now = zone_totals(e);
     for (i, (a, b)) in now.iter().zip(totals).enumerate() {
         if st.seats[i].ousted {
             // An oust removes what the Methuselah controlled (spec §6.1.2):
-            // their cards on other Methuselahs' minions stay in play.
-            let stray = st.cards.iter().any(|c| {
+            // their cards another Methuselah controls (a minion card on
+            // that Methuselah's minion, The Coven taken) stay in play.
+            let stray = st.cards.iter().enumerate().any(|(ci, c)| {
                 c.owner.index() == i
                     && c.in_play
-                    && !c
-                        .host
-                        .is_some_and(|h| !st.seats[st.minions[h.index()].owner.index()].ousted)
+                    && st.seats[st.card_controller(CardId(ci as u32)).index()].ousted
             });
             assert!(!stray, "ousted seat {i} kept library cards (seed {seed})");
             assert!(
@@ -313,6 +328,8 @@ fn midgame(seed: u64) -> Engine {
         "Smiling Jack, The Anarch",
         "Dreams of the Sphinx",
         "Barrens, The",
+        "Coven, The",
+        "Constant Revolution",
         "Carfax Abbey",
     ]
     .iter()
@@ -397,6 +414,7 @@ fn midgame(seed: u64) -> Engine {
         e.state.cards.push(CardInPlay {
             card: find_library("Smiling Jack, The Anarch"),
             owner: SeatId(rng.below(4) as u8),
+            controller: SeatId(rng.below(4) as u8),
             host: None,
             in_play: true,
             contested: false,
@@ -412,7 +430,12 @@ fn play(seed: u64, start: fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<Strin
     let totals = zone_totals(&e);
     let mut agent = RandomLegal::new(seed ^ 0x00c0_ffee);
     let mut chosen = HashSet::new();
-    let mut hands: Vec<usize> = e.state.seats.iter().map(|s| s.hand.len()).collect();
+    let mut hands: Vec<(usize, u8)> = e
+        .state
+        .seats
+        .iter()
+        .map(|s| (s.hand.len(), s.hand_bonus))
+        .collect();
     loop {
         assert!(
             e.decisions < DECISION_BUDGET,
@@ -427,7 +450,7 @@ fn play(seed: u64, start: fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<Strin
                 );
                 invariants(&e, &totals, &hands, seed, req.window);
                 for (h, s) in hands.iter_mut().zip(&e.state.seats) {
-                    *h = s.hand.len();
+                    *h = (s.hand.len(), s.hand_bonus);
                 }
                 for o in &req.options {
                     if let Choice::UseAbility { card, .. } = o {
@@ -444,14 +467,30 @@ fn play(seed: u64, start: fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<Strin
                 chosen.insert(kind(&e, req.seat, &req.options[idx]));
                 e.choose(idx);
             }
-            Step::Over(vps) => return (e, vps, chosen),
+            Step::Over(vps) => {
+                // A game ends for a legal reason only: one Methuselah (or
+                // none) left, or the time limit (a flow left on the
+                // game-over placeholder would end it silently).
+                assert!(
+                    e.state.living() <= 1 || e.state.turn >= TURN_LIMIT,
+                    "game over with {} Methuselahs at turn {} (seed {seed})",
+                    e.state.living(),
+                    e.state.turn
+                );
+                return (e, vps, chosen);
+            }
         }
     }
 }
 
 fn fuzz(start: fn(u64) -> Engine) -> HashSet<String> {
     let mut seen = HashSet::new();
-    for seed in 0..SEEDS {
+    // `SEED_FROM=n` starts the sweep at seed n (debugging one failure).
+    let from: u64 = std::env::var("SEED_FROM")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0);
+    for seed in from..SEEDS {
         let (played, vps, chosen) = play(seed, start);
         seen.extend(chosen);
         let hash = played.state.hash();
@@ -560,7 +599,8 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "play:Form of Mist",
             "play:Eyes of Argus",
             "play:Deflection",
-            "play:Archon Investigation",
+            // ("play:Archon Investigation" needs a bleed of 4 against a seat
+            // with 3 pool: taken at 400 seeds only; scripted in tests/bleed.rs.)
             "play:Homunculus",
             "ability:Homunculus",
             "allocate_to",
@@ -618,6 +658,10 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "ability:Dreams of the Sphinx",
             "play:Barrens, The",
             "ability:Barrens, The",
+            "play:Coven, The",
+            "ability:Coven, The",
+            "play:Constant Revolution",
+            "ability:Constant Revolution",
             // (Smiling Jack's pool unit elides when it is the only source and
             // is seldom picked against several vampires: no key.)
             "burn_blood_from",
