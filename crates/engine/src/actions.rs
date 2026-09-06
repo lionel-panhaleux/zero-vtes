@@ -289,7 +289,20 @@ impl Engine {
     /// Block"): the target of a directed action; prey and predator of an
     /// undirected one.
     fn eligible_blockers(&self, a: &ActionCtx) -> Vec<SeatId> {
-        let directed = match a.kind {
+        match self.directed_target(a) {
+            Some(t) => vec![t],
+            None => {
+                let mut v = vec![self.state.prey(a.seat), self.state.predator(a.seat)];
+                v.dedup();
+                v.retain(|s| *s != a.seat);
+                v
+            }
+        }
+    }
+
+    /// The Methuselah a directed action is directed at, if any.
+    fn directed_target(&self, a: &ActionCtx) -> Option<SeatId> {
+        match a.kind {
             ActionKind::Bleed => a.bleed_target,
             ActionKind::Rescue | ActionKind::Diablerie => {
                 let t = a.torpor_target.expect("torpor target");
@@ -301,15 +314,6 @@ impl Engine {
                 (owner != a.seat).then_some(owner)
             }
             _ => None,
-        };
-        match directed {
-            Some(t) => vec![t],
-            None => {
-                let mut v = vec![self.state.prey(a.seat), self.state.predator(a.seat)];
-                v.dedup();
-                v.retain(|s| *s != a.seat);
-                v
-            }
         }
     }
 
@@ -425,7 +429,12 @@ impl Engine {
         if a.state == ActionState::AfterCombat && seat == a.seat {
             if let Some((blood, _)) = a.continuation {
                 let m = &self.state.minions[a.acting.index()];
-                if m.ready() && m.blood >= blood {
+                // A directed action whose target Methuselah left the game
+                // mid-combat (DESIGN §10.8) has nothing to continue against.
+                let target_gone = self
+                    .directed_target(a)
+                    .is_some_and(|t| self.state.seats[t.index()].ousted);
+                if m.ready() && m.blood >= blood && !target_gone {
                     options.push(Choice::ContinueAction);
                 }
             }
@@ -726,6 +735,10 @@ impl Engine {
         match a.kind {
             ActionKind::Bleed => {
                 let prey = a.bleed_target.expect("bleed target");
+                debug_assert!(
+                    !self.state.seats[prey.index()].ousted,
+                    "bleed on an ousted seat"
+                );
                 self.state.minions[a.acting.index()].bled_this_turn = true;
                 self.state.seats[prey.index()].pool -= a.bleed_amount() as i32;
                 // Successful bleed: take the Edge.

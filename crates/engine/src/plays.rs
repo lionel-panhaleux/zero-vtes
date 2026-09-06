@@ -5,8 +5,8 @@
 //! through layers, replacement draws, and in-play abilities.
 
 use crate::cards::{
-    self, Actor, Effect, Hook, Layer, Limit, PlayCtx, Requirement, Scope, Target, TargetKind,
-    Terms, Window,
+    self, Actor, Effect, Hook, Layer, Limit, PlayCtx, Requirement, Rider, Scope, Target,
+    TargetKind, Terms, Window,
 };
 use crate::combat::is_combat_effect;
 use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
@@ -760,6 +760,8 @@ impl Engine {
             | Effect::HuntingGroundBlood(_)
             | Effect::UnlockBurnPoolUnlessReady { .. }
             | Effect::PreyBurnsPool(_)
+            | Effect::BurnPool(_)
+            | Effect::HostControllerBurnsPool(_)
             | Effect::BurnSelf
             | Effect::BurnSource => unreachable!("ability or rider effect in a play"),
             e if is_combat_effect(&e) => self.apply_combat_effect(e, ctx),
@@ -1160,9 +1162,15 @@ impl Engine {
         let def = cards::lookup(c.card).expect("definition");
         let mut own_loss = 0i32;
         let mut loss = vec![0i32; self.state.seats.len()];
-        for r in def.riders.iter().filter(|r| r.hook == Hook::UnlockPhase) {
+        let host = c.host;
+        for r in def.riders.iter().filter(|r| {
+            r.hook == Hook::UnlockPhase
+                && r.scope.applies(c.owner, s)
+                && self.state.rider_holds(r, host)
+        }) {
             for e in r.effects {
                 match *e {
+                    Effect::BurnPool(n) => own_loss += n as i32,
                     Effect::UnlockBurnPoolUnlessReady { sect, pool } => {
                         let has = self.state.minions_of(s).any(|m| {
                             let v = &self.state.minions[m.index()];
@@ -1199,8 +1207,11 @@ impl Engine {
     }
 
     /// Riders fired when a host goes to torpor (Guardian Angel; Fame),
-    /// for each of `hosts`.
+    /// for each of `hosts`. Pool losses are batched and applied at once
+    /// (a Methuselah at 0 is ousted here, mid-combat; the caller tears the
+    /// combat down).
     pub(crate) fn host_torpor_riders(&mut self, hosts: &[MinionId]) {
+        let mut loss = vec![0i32; self.state.seats.len()];
         for ci in 0..self.state.cards.len() {
             let c = &self.state.cards[ci];
             let Some(host) = c.host.filter(|h| hosts.contains(h) && c.present()) else {
@@ -1209,15 +1220,26 @@ impl Engine {
             let Some(def) = cards::lookup(c.card) else {
                 continue;
             };
-            let _ = host;
-            for r in def.riders.iter().filter(|r| r.hook == Hook::HostToTorpor) {
+            let controller = self.state.minions[host.index()].owner;
+            let riders: Vec<&Rider> = def
+                .riders
+                .iter()
+                .filter(|r| r.hook == Hook::HostToTorpor && self.state.rider_holds(r, Some(host)))
+                .collect();
+            for r in riders {
                 for e in r.effects {
                     match *e {
                         Effect::BurnSelf => self.burn_card_in_play(CardId(ci as u32)),
+                        Effect::HostControllerBurnsPool(n) => {
+                            loss[controller.index()] += n as i32;
+                        }
                         other => unreachable!("not a torpor rider effect: {other:?}"),
                     }
                 }
             }
+        }
+        if loss.iter().any(|&n| n > 0) {
+            self.burn_pool_batch(&loss);
         }
     }
 

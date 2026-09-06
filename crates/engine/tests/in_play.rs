@@ -687,6 +687,172 @@ fn guardian_angel_burned_when_its_host_goes_to_torpor() {
     assert_eq!(e.state.seats[1].ash, vec![find_library("Guardian Angel")]);
 }
 
+fn fame_on(e: &mut Engine, owner: u8, host: MinionId) -> u32 {
+    e.state.cards.push(CardInPlay {
+        card: find_library("Fame"),
+        owner: SeatId(owner),
+        host: Some(host),
+        in_play: true,
+        contested: false,
+        locked: false,
+        counters: 0,
+    });
+    e.state.cards.len() as u32 - 1
+}
+
+// "Put this card on a ready vampire": any controller's — the master phase
+// offers every ready vampire on the table, and the card sits on the prey's
+// vampire under its player's ownership, with no layer.
+#[test]
+fn fame_goes_on_any_ready_vampire() {
+    let Table {
+        mut e,
+        alexa: a,
+        kevin: x,
+        lenny: z,
+        ..
+    } = table();
+    e.state.minions[z.index()].in_torpor = true;
+    hand(&mut e, 0, &["Fame"]);
+    let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    let targets: Vec<Target> = req
+        .options
+        .iter()
+        .filter_map(|o| match o {
+            Choice::Play { target, .. } => Some(*target),
+            _ => None,
+        })
+        .collect();
+    assert!(targets.contains(&Target::Minion(a)));
+    assert!(targets.contains(&Target::Minion(x)));
+    assert!(!targets.contains(&Target::Minion(z)));
+    pick(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: None,
+            target: Target::Minion(x),
+        },
+    );
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.cards[0].host, Some(x));
+    assert_eq!(e.state.cards[0].owner, SeatId(0));
+    assert!(e.state.layers.is_empty());
+}
+
+// "During each Methuselah's unlock phase, if this vampire is in torpor,
+// that Methuselah burns 1 pool": every Methuselah, on their own unlock
+// phase, while the host is in torpor; nothing once it is ready. The rider
+// is ordered by the active Methuselah among their unlock effects and
+// resolved before the impulse passes (LSJ 20010121; rules-qa 6.1).
+#[test]
+fn fame_burns_1_pool_from_each_methuselah_while_its_host_is_in_torpor() {
+    let (mut e, _a, x, _z) = bleed_table();
+    fame_on(&mut e, 0, x);
+    e.state.minions[x.index()].in_torpor = true;
+    to_minion_phase(&mut e, SeatId(1));
+    assert_eq!(pool(&e), vec![10, 9, 10]);
+    to_minion_phase(&mut e, SeatId(2));
+    assert_eq!(pool(&e), vec![10, 9, 9]);
+    to_minion_phase(&mut e, SeatId(0));
+    assert_eq!(pool(&e), vec![9, 9, 9]);
+    e.state.minions[x.index()].in_torpor = false;
+    to_minion_phase(&mut e, SeatId(1));
+    to_minion_phase(&mut e, SeatId(2));
+    to_minion_phase(&mut e, SeatId(0));
+    assert_eq!(pool(&e), vec![9, 9, 9]);
+}
+
+// "After this vampire goes to torpor, their controller burns 3 pool":
+// inside the combat, from the host's controller (rules-qa 6.4).
+#[test]
+fn fame_burns_3_pool_from_the_host_controller_as_it_goes_to_torpor() {
+    let (mut e, a, x, _z) = bleed_table();
+    e.state.minions[x.index()].blood = 0;
+    fame_on(&mut e, 0, x);
+    pick(&mut e, bleed(a));
+    pick(&mut e, block(x));
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.minions[x.index()].in_torpor);
+    assert_eq!(pool(&e), vec![10, 7, 10]);
+    assert_eq!(e.last_outcome, Some(Outcome::Blocked));
+}
+
+// The famous vampire is the acting one and its Methuselah has 3 pool: the
+// burn ousts them mid-combat — their predator scores at once (VP and 6
+// pool), the combat and the action are torn down, and the turn passes to
+// their prey with no after-combat window. On a host that left the game
+// the unlock rider is inert (cards on a minion leaving play are not burned
+// yet — DESIGN §11 slice 5d).
+#[test]
+fn fame_ousts_the_active_methuselah_mid_combat_and_the_turn_passes() {
+    let (mut e, a, x, _z) = bleed_table();
+    e.state.seats[0].pool = 3;
+    let fame = fame_on(&mut e, 1, a);
+    pick(&mut e, bleed(a));
+    // Bled at 0 blood: the hand strike sends a to torpor.
+    e.state.minions[a.index()].blood = 0;
+    pick(&mut e, block(x));
+    let req = request(&mut e);
+    assert_eq!(req.seat, SeatId(1));
+    assert!(e.state.seats[0].ousted);
+    assert_eq!(pool(&e), vec![0, 10, 16]);
+    let vps: Vec<u32> = e.state.seats.iter().map(|s| s.half_vps).collect();
+    assert_eq!(vps, vec![0, 0, 2]);
+    let _ = fame;
+    to_minion_phase(&mut e, SeatId(1));
+    to_minion_phase(&mut e, SeatId(2));
+    assert_eq!(pool(&e), vec![0, 10, 16]);
+}
+
+// The famous vampire is the blocker and its Methuselah has 3 pool: ousted
+// mid-combat, their minion leaves the game with them, the combat ends at
+// once (no end-of-round window for the survivor) and the blocked action
+// ends; the acting Methuselah, their predator, scores. The ousted seat gets
+// no decision.
+#[test]
+fn fame_ousts_the_blocking_methuselah_mid_combat_and_the_action_ends() {
+    let (mut e, a, x, _z) = bleed_table();
+    e.state.minions[x.index()].blood = 0;
+    e.state.seats[1].pool = 3;
+    fame_on(&mut e, 1, x);
+    pick(&mut e, bleed(a));
+    pick(&mut e, block(x));
+    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(req.seat != SeatId(1));
+    assert!(e.state.seats[1].ousted);
+    assert!(!e.state.minions[x.index()].in_play);
+    assert_eq!(e.last_outcome, Some(Outcome::Blocked));
+    assert_eq!(pool(&e), vec![16, 0, 10]);
+    let vps: Vec<u32> = e.state.seats.iter().map(|s| s.half_vps).collect();
+    assert_eq!(vps, vec![2, 0, 0]);
+    assert_eq!(e.state.prey(SeatId(0)), SeatId(2));
+}
+
+// Two Methuselahs left: the mid-combat oust ends the game — the survivor
+// scores the oust and the last-standing VP.
+#[test]
+fn fame_oust_mid_combat_can_end_the_game() {
+    let mut e = Engine::bare(2);
+    let a = e.add_minion(SeatId(0), vampire_with("DOM", 0), 6, false);
+    e.add_minion(SeatId(0), vampire_with("CEL", 0), 6, false);
+    let x = e.add_minion(SeatId(1), vampire_with("FOR", 0), 0, false);
+    e.state.seats[0].pool = 10;
+    e.state.seats[1].pool = 3;
+    e.state.turn = 4;
+    fame_on(&mut e, 0, x);
+    pick(&mut e, bleed(a));
+    pick(&mut e, block(x));
+    match e.run() {
+        Step::Over(_) => {}
+        Step::Decision(req) => panic!("expected the game over, got {req:?}"),
+    }
+    let vps: Vec<u32> = e.state.seats.iter().map(|s| s.half_vps).collect();
+    assert_eq!(vps, vec![4, 0]);
+    assert_eq!(e.state.game_win(), Some(SeatId(0)));
+}
+
 // Creeping Sabotage: "+1 stealth action" (blocks pruned with no intercept),
 // "X is the number of copies you control" read when the cost is paid (the
 // second copy costs 1), "Put this card in play" (no host, not discarded),

@@ -432,7 +432,7 @@ The engine's value is trust; trust is measured, not asserted.
    | Discard phase | 3 | The Coven | pending (control change) |
    | Influence phase | 6 | Powerbase: Montreal | pending |
    | End of turn | 2 | Dreams of the Sphinx | pending |
-   | Minion to torpor | 8 | Guardian Angel / Fame | done (`Hook::HostToTorpor`); Fame needs the mid-combat oust |
+   | Minion to torpor | 8 | Guardian Angel / Fame | done (`Hook::HostToTorpor`, mid-combat oust teardown) |
    | Minion burned / leaves the ready region | 7 | Tension in the Ranks | pending |
    | Enters play | 12 | The Rack, Ravnos Carnival | pending |
    | After a successful action / bleed | 2 | Alamut, Cappadocian Crypt | pending |
@@ -499,6 +499,15 @@ Recorded so nobody mistakes them for oversights:
    Edge's pool — then passes the impulse so other players' unlock-phase
    abilities (Homunculus) can be used, the impulse returning to the active
    player after each.
+8. **Mid-combat ousts**: a pool loss fired inside a combat (Fame's torpor
+   rider) ousts at once. If the active Methuselah is ousted the turn passes
+   with the action and combat torn down; if the opponent's Methuselah is
+   ousted their minion leaves the game with them, so the combat ends at
+   once — no end-of-round window for the survivor (nothing in the pool
+   continues a combat with no opponent) — and the blocked action resumes
+   at its after-combat window without the ousted seat; a directed action
+   whose target left the game is not continued (Form of Mist's
+   continuation masked) — unreachable in the current pool, guarded anyway.
 
 ## 11. Phasing
 
@@ -661,9 +670,24 @@ Recorded so nobody mistakes them for oversights:
   unique location with an optional own-unlock pick (`Actor::Controller`,
   `Choice::UseAbility.target`, `Effect::HuntingGroundBlood`,
   `Minion.hunting_ground_fed` for rules-qa 6.5; `Limit::PerPhaseEach` for
-  Carfax Abbey's two picks within one "during" clause). 73 defs. Fame is
-  next on its own: its mid-combat pool loss can oust a seat inside a
-  combat, which needs the action/combat teardown.
+  Carfax Abbey's two picks within one "during" clause). 73 defs.
+  Slice 5d (2026-09-06): Fame — `Rider.requires` (host predicates read at
+  collection and at resolution, so an unmet mandatory rider is not pending
+  and its window elides; `Requirement::HostInTorpor` is false for a host
+  that left the game), `Effect::BurnPool` ("that Methuselah burns 1 pool",
+  every Methuselah's own unlock phase; LSJ 20010121 = rules-qa 6.1) and
+  `Effect::HostControllerBurnsPool` fired where the torpor happens (rules-qa
+  6.4) through `burn_pool_batch`, with the mid-combat oust teardown (§10.8:
+  `apply_damage` reports the flow moved on; the acting seat's turn passes,
+  an ousted opponent ends the combat at once, two seats left ends the
+  game). 74 defs. Known gap surfaced: cards on a minion that leaves play
+  (burned in combat, or removed with its ousted Methuselah) are not burned
+  yet — rulebook "cards on a vampire that leaves play are burned"; Fame's
+  `HostInTorpor` and Guardian Angel's host checks keep them inert
+  meanwhile. Next: Tension in the Ranks (`Hook::MinionBurnedOrTorpor`, the
+  "burned" half needs that same minion-leaves-play path), Smiling Jack
+  (counters, mandatory-with-choice), Dreams of the Sphinx / The Barrens
+  (lock abilities in any window), The Coven (control change).
 - **P2 — full engine pool**: all 621 cards including Events and their machinery;
   the 14 training decklists plus the New Blood minis as data; perft baselines;
   protocol server; scripted reference bots (aggro-bleed, wall, vote).

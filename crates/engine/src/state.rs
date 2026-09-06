@@ -313,6 +313,14 @@ impl GameState {
             .collect()
     }
 
+    /// A rider's host predicates hold (a hostless card has none to fail).
+    pub fn rider_holds(&self, r: &crate::cards::Rider, host: Option<MinionId>) -> bool {
+        r.requires.iter().all(|&req| match host {
+            Some(h) => crate::cards::holds_for_host(req, self, h),
+            None => true,
+        })
+    }
+
     /// Vampires in torpor, any controller — rescue and diablerie targets.
     pub fn in_torpor(&self) -> Vec<MinionId> {
         self.minions

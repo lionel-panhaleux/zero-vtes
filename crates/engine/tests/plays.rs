@@ -95,6 +95,7 @@ fn implemented_definitions_cover_the_slice() {
             "Earth Control",
             "Expulsion",
             "Eyes of Argus",
+            "Fame",
             "Flash",
             "Form of Mist",
             "Form of the Cobra",

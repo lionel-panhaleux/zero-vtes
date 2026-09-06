@@ -556,7 +556,9 @@ impl Engine {
                 }
             }
         }
-        self.apply_damage();
+        if self.apply_damage() {
+            return;
+        }
         let c = self.combat.as_mut().expect("combat context");
         if c.round_over {
             c.fresh_window(Step::EndOfRound);
@@ -658,7 +660,11 @@ impl Engine {
 
     /// Damage applied at once to both sides after prevention (rulebook
     /// "Damage Resolution"): blood burned, torpor, or burned outright.
-    fn apply_damage(&mut self) {
+    /// Returns true when the flow moved on: a torpor rider (Fame) ousted a
+    /// combatant's Methuselah mid-combat — the game ended, the active
+    /// Methuselah's turn passed, or the opponent left the game and the
+    /// combat ended at once (DESIGN §10).
+    fn apply_damage(&mut self) -> bool {
         let c = self.combat.as_mut().expect("combat context");
         let results: Vec<Resolved> = c
             .sides
@@ -686,7 +692,33 @@ impl Engine {
         // 6.4).
         if !wounded.is_empty() {
             self.host_torpor_riders(&wounded);
+            if self.state.living() <= 1 {
+                self.combat = None;
+                self.action = None;
+                self.flow = Flow::GameOver;
+                return true;
+            }
+            if self.state.seats[self.state.active.index()].ousted {
+                self.next_turn();
+                return true;
+            }
+            let c = self.combat.as_ref().expect("combat context");
+            if c.sides
+                .iter()
+                .any(|s| self.state.seats[s.seat.index()].ousted)
+            {
+                // The opponent's Methuselah ousted: their minion left the
+                // game with them, so the combat ends at once (no
+                // end-of-round window) and the blocked action goes on
+                // without them.
+                let st = &self.state;
+                let a = self.action.as_mut().expect("action context");
+                a.order.retain(|s| !st.seats[s.index()].ousted);
+                self.end_combat();
+                return true;
+            }
         }
+        false
     }
 
     fn new_round(&mut self) {

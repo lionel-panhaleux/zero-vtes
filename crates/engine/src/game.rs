@@ -411,9 +411,11 @@ impl Engine {
             .filter(|(_, c)| {
                 c.present()
                     && cards::lookup(c.card).is_some_and(|d| {
-                        d.riders
-                            .iter()
-                            .any(|r| r.hook == Hook::UnlockPhase && r.scope.applies(c.owner, s))
+                        d.riders.iter().any(|r| {
+                            r.hook == Hook::UnlockPhase
+                                && r.scope.applies(c.owner, s)
+                                && self.state.rider_holds(r, c.host)
+                        })
                     })
             })
             .map(|(i, _)| CardId(i as u32))

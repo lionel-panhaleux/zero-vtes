@@ -289,6 +289,7 @@ fn midgame(seed: u64) -> Engine {
         "Blood Doll",
         "Vessel",
         "Papillon",
+        "Fame",
         "Carfax Abbey",
     ]
     .iter()
@@ -567,8 +568,10 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "ability:Papillon",
             "play:Carfax Abbey",
             "ability:Carfax Abbey",
-            // (Anarch Revolt's rider is a decision only when ordered against
-            // another unlock effect; alone it elides, so no key.)
+            "play:Fame",
+            // (Anarch Revolt's and Fame's riders are decisions only when
+            // ordered against another unlock effect; alone they elide, so
+            // no key.)
         ],
     );
     // Ousts and game wins happen from here: at least one game must end

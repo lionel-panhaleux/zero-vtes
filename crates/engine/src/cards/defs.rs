@@ -1696,7 +1696,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     riders: &[],
 };
 
-pub static DEFS: [&CardDef; 73] = [
+pub static DEFS: [&CardDef; 74] = [
     &EARTH_CONTROL,
     &BONDING,
     &VILLEIN,
@@ -1752,6 +1752,7 @@ pub static DEFS: [&CardDef; 73] = [
     &VOTER_CAPTIVATION,
     &ANARCH_REVOLT,
     &GUARDIAN_ANGEL,
+    &FAME,
     &CREEPING_SABOTAGE,
     &BLOOD_DOLL,
     &VESSEL,
@@ -1820,6 +1821,7 @@ pub static ANARCH_REVOLT: CardDef = CardDef {
     riders: &[Rider {
         hook: Hook::UnlockPhase,
         scope: RiderScope::Every,
+        requires: &[],
         effects: &[Effect::UnlockBurnPoolUnlessReady {
             sect: Sect::Anarch,
             pool: 1,
@@ -1866,8 +1868,50 @@ pub static GUARDIAN_ANGEL: CardDef = CardDef {
     riders: &[Rider {
         hook: Hook::HostToTorpor,
         scope: RiderScope::Controller,
+        requires: &[],
         effects: &[Effect::BurnSelf],
     }],
+};
+
+/// "Unique. Put this card on a ready vampire. After this vampire goes to
+/// torpor, their controller burns 3 pool. During each Methuselah's unlock
+/// phase, if this vampire is in torpor, that Methuselah burns 1 pool." Any
+/// ready vampire, any controller; the 3 pool burn fires where the torpor
+/// happens (rules-qa 6.4) and may oust its controller mid-combat; the
+/// unlock rider is every Methuselah's own, read at their unlock phase.
+pub static FAME: CardDef = CardDef {
+    name: "Fame",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[Requirement::ActorReady],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::PutOnTarget],
+    }],
+    abilities: &[],
+    riders: &[
+        Rider {
+            hook: Hook::HostToTorpor,
+            scope: RiderScope::Every,
+            requires: &[],
+            effects: &[Effect::HostControllerBurnsPool(3)],
+        },
+        Rider {
+            hook: Hook::UnlockPhase,
+            scope: RiderScope::Every,
+            requires: &[Requirement::HostInTorpor],
+            effects: &[Effect::BurnPool(1)],
+        },
+    ],
 };
 
 /// Nosferatu. "+1 stealth action. X is the number of copies of this card
@@ -1911,6 +1955,7 @@ pub static CREEPING_SABOTAGE: CardDef = CardDef {
     riders: &[Rider {
         hook: Hook::UnlockPhase,
         scope: RiderScope::Controller,
+        requires: &[],
         effects: &[Effect::PreyBurnsPool(1)],
     }],
 };

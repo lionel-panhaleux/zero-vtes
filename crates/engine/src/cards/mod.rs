@@ -219,6 +219,9 @@ pub enum Requirement {
     HostLocked,
     /// The host of the card in play has at least this much blood.
     HostBloodAtLeast(u8),
+    /// The host of the card in play is in torpor (Fame's unlock rider;
+    /// a host that left play with its Methuselah does not qualify).
+    HostInTorpor,
     /// Combat: the round is at close range ("only usable at close range").
     RangeClose,
     RangeLong,
@@ -619,6 +622,13 @@ pub enum Effect {
     /// Rider effect: the controller's prey burns n pool (Creeping
     /// Sabotage).
     PreyBurnsPool(u8),
+    /// Rider effect: the Methuselah resolving it burns n pool ("that
+    /// Methuselah burns 1 pool", Fame's unlock rider).
+    BurnPool(u8),
+    /// Rider effect: the host's controller burns n pool ("after this
+    /// vampire goes to torpor, their controller burns 3 pool", Fame) —
+    /// at once, where the torpor happened (rules-qa 6.4).
+    HostControllerBurnsPool(u8),
     /// Rider effect: burn this card (Guardian Angel: "if this vampire is in
     /// torpor, burn this card").
     BurnSelf,
@@ -775,6 +785,10 @@ pub enum RiderScope {
 pub struct Rider {
     pub hook: Hook,
     pub scope: RiderScope,
+    /// Host predicates read when the rider is collected and again when it
+    /// resolves ("if this vampire is in torpor", Fame); an unmet rider is
+    /// not pending.
+    pub requires: &'static [Requirement],
     pub effects: &'static [Effect],
 }
 
@@ -917,6 +931,7 @@ pub fn holds(
         | Requirement::HostBloodAtLeast(_)
         | Requirement::HostBelowCapacity
         | Requirement::HostControllerPoolAtLeast(_)
+        | Requirement::HostInTorpor
         | Requirement::NotHuntingGroundFed => true, // host / target predicates
         Requirement::ControlsReadyTitled(classes) => st.minions_of(seat).any(|m| {
             let v = &st.minions[m.index()];
@@ -1037,6 +1052,7 @@ pub fn holds_for_host(req: Requirement, st: &GameState, host: MinionId) -> bool 
         Requirement::HostBloodAtLeast(n) => v.blood >= n,
         Requirement::HostBelowCapacity => v.blood < v.capacity(),
         Requirement::HostControllerPoolAtLeast(n) => st.seats[v.owner.index()].pool >= n as i32,
+        Requirement::HostInTorpor => v.in_play && v.in_torpor,
         _ => true,
     }
 }
