@@ -157,7 +157,8 @@ pub enum WindowLabel {
     /// In-play abilities usable during any Methuselah's unlock phase.
     UnlockAbilities,
     MasterPhase,
-    /// Numeric terms of a play, chosen as it is announced.
+    /// Terms of a play or of an in-play ability, chosen as it is announced
+    /// (an amount, a copy in play to burn, the master cards to discard).
     PlayTerms,
     /// The as-played window of a card: cancels (and wakes, during an action)
     /// only (rules-qa 2.4).

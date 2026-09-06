@@ -222,6 +222,12 @@ pub enum Requirement {
     /// The host of the card in play is in torpor (Fame's unlock rider;
     /// a host that left play with its Methuselah does not qualify).
     HostInTorpor,
+    /// The player has a master phase action left ("use a master phase
+    /// action", Tension in the Ranks).
+    MasterPhaseActionLeft,
+    /// The player holds at least n master cards in hand ("discard two
+    /// master cards").
+    HandMasters(u8),
     /// Combat: the round is at close range ("only usable at close range").
     RangeClose,
     RangeLong,
@@ -544,6 +550,9 @@ pub enum Terms {
     /// any controller's, or none — announced with the play like any target
     /// (rules-qa 6.7), burned at resolution.
     BurnNamedInPlay(&'static str),
+    /// Ability cost "discard n master cards": which ones, chosen one at a
+    /// time as the use is announced (Tension in the Ranks).
+    DiscardMasters(u8),
 }
 
 /// Continuous-effect modifiers carried by layers (effects-framework §3.2).
@@ -625,10 +634,16 @@ pub enum Effect {
     /// Rider effect: the Methuselah resolving it burns n pool ("that
     /// Methuselah burns 1 pool", Fame's unlock rider).
     BurnPool(u8),
-    /// Rider effect: the host's controller burns n pool ("after this
-    /// vampire goes to torpor, their controller burns 3 pool", Fame) —
-    /// at once, where the torpor happened (rules-qa 6.4).
-    HostControllerBurnsPool(u8),
+    /// Rider effect: the controller of the minion the hook names burns n
+    /// pool — the host ("after this vampire goes to torpor, their
+    /// controller burns 3 pool", Fame) or the minion that left ("after a
+    /// ready minion is burned or sent to torpor, their controller burns 1
+    /// pool", Tension in the Ranks) — at once, where it happened (rules-qa
+    /// 6.4).
+    TheirControllerBurnsPool(u8),
+    /// Ability cost: one of the player's master phase actions ("use a
+    /// master phase action … to burn this card").
+    SpendMasterPhaseAction,
     /// Rider effect: burn this card (Guardian Angel: "if this vampire is in
     /// torpor, burn this card").
     BurnSelf,
@@ -766,6 +781,11 @@ pub enum Hook {
     /// The host of this card went to torpor (Guardian Angel; Fame), fired
     /// at once where the torpor happened (rules-qa 6.4).
     HostToTorpor,
+    /// A ready minion was burned or sent to torpor (Tension in the Ranks),
+    /// whoever controls it; a minion removed from the game with its ousted
+    /// Methuselah is not burned (spec §1.10), nor is one burned from
+    /// torpor or from a contest.
+    ReadyMinionBurnedOrTorpor,
 }
 
 /// Whose turn a phase rider fires on.
@@ -927,6 +947,8 @@ pub fn holds(
             _ => false,
         }),
         Requirement::LockedActor => actor.is_some_and(|m| st.minions[m.index()].locked),
+        Requirement::MasterPhaseActionLeft => st.seats[seat.index()].mpa > 0,
+        Requirement::HandMasters(n) => st.hand_masters(seat).len() >= n as usize,
         Requirement::HostLocked
         | Requirement::HostBloodAtLeast(_)
         | Requirement::HostBelowCapacity

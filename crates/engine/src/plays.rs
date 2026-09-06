@@ -167,9 +167,9 @@ impl Engine {
             // playable while a copy of it is in play under this seat —
             // contested or not (rules-qa 7.1).
             if LIBRARY[card as usize].labels.contains(&Label::Unique)
-                && st.cards.iter().any(|c| {
+                && st.cards.iter().enumerate().any(|(i, c)| {
                     c.in_play
-                        && c.owner == seat
+                        && st.card_controller(CardId(i as u32)) == seat
                         && LIBRARY[c.card as usize].name == LIBRARY[card as usize].name
                 })
             {
@@ -371,7 +371,7 @@ impl Engine {
                 actor,
                 target,
             } => {
-                if !self.use_ability(*card, *ability, *actor, *target) {
+                if !self.use_ability(*card, *ability, *actor, *target, Flow::MasterPhase) {
                     self.flow = Flow::MasterPhase;
                 }
             }
@@ -477,7 +477,9 @@ impl Engine {
                 }
                 options
             }
-            Some(Terms::CopiesControlled) | None => unreachable!("terms window without a choice"),
+            Some(Terms::CopiesControlled) | Some(Terms::DiscardMasters(_)) | None => {
+                unreachable!("terms window without a choice")
+            }
         };
         DecisionRequest {
             seat: ctx.seat,
@@ -688,7 +690,32 @@ impl Engine {
             self.draw_to_hand_size(s);
         }
         if self.state.seats[s.index()].pool == 0 {
-            self.oust_and_pass(s);
+            if s == self.state.active {
+                self.oust_and_pass(s);
+                self.ousted_during_play = true;
+            } else {
+                // An out-of-turn play paid down to 0 (Archon Investigation
+                // at 3 pool): ousted, the turn goes on without them.
+                self.oust(s);
+                if self.state.living() <= 1 {
+                    self.ousted_during_play = true;
+                } else {
+                    for p in stack.iter_mut() {
+                        p.window.remove(s);
+                    }
+                    if let Some(a) = self.action.as_mut() {
+                        a.order.retain(|&o| o != s);
+                        a.window.remove(s);
+                    }
+                }
+            }
+        } else if self.state.seats[self.state.active.index()].ousted {
+            // A rider fired by the play's effects (Archon Investigation's
+            // burn under Tension in the Ranks) ousted the active Methuselah:
+            // the turn passes with the action.
+            if self.state.living() > 1 {
+                self.next_turn();
+            }
             self.ousted_during_play = true;
         }
         false
@@ -761,7 +788,8 @@ impl Engine {
             | Effect::UnlockBurnPoolUnlessReady { .. }
             | Effect::PreyBurnsPool(_)
             | Effect::BurnPool(_)
-            | Effect::HostControllerBurnsPool(_)
+            | Effect::TheirControllerBurnsPool(_)
+            | Effect::SpendMasterPhaseAction
             | Effect::BurnSelf
             | Effect::BurnSource => unreachable!("ability or rider effect in a play"),
             e if is_combat_effect(&e) => self.apply_combat_effect(e, ctx),
@@ -885,6 +913,31 @@ impl Engine {
                             });
                         }
                     }
+                    // "Methuselahs can …": any Methuselah, in their own
+                    // window, whoever controls the card.
+                    Actor::Methuselah => {
+                        let ok = ability.requires.iter().all(|&r| {
+                            cards::holds(
+                                r,
+                                st,
+                                seat,
+                                None,
+                                None,
+                                self.action.as_ref(),
+                                self.combat.as_ref(),
+                                self.referendum.as_ref(),
+                                false,
+                            )
+                        });
+                        if ok {
+                            out.push(Choice::UseAbility {
+                                card: ci as u32,
+                                ability: ai as u8,
+                                actor: None,
+                                target: Target::None,
+                            });
+                        }
+                    }
                     // The host's controller uses it (a card put on another
                     // Methuselah's vampire is theirs to use).
                     Actor::Host => {
@@ -996,6 +1049,7 @@ impl Engine {
         ability: u8,
         actor: Option<MinionId>,
         target: Target,
+        resume: Flow,
     ) -> bool {
         let c = &self.state.cards[card as usize];
         let def = cards::lookup(c.card).expect("definition");
@@ -1027,8 +1081,98 @@ impl Engine {
             a.base_stealth += stealth;
             return true;
         }
+        // Terms announced with the use (the master cards to discard): the
+        // ability resolves once they are chosen.
+        if let Some(Terms::DiscardMasters(_)) = mode.terms {
+            self.flow = Flow::AbilityTerms {
+                card: CardId(card),
+                ability,
+                picked: Vec::new(),
+                resume: Box::new(resume),
+            };
+            return true;
+        }
+        self.resolve_ability(card, ability, target)
+    }
+
+    /// The Methuselah using an ability: the active one for "Methuselahs
+    /// can …", the card's controller otherwise.
+    fn ability_user(&self, card: CardId, ability: u8) -> SeatId {
+        let def = cards::lookup(self.state.cards[card.index()].card).expect("definition");
+        match def.abilities[ability as usize].actor {
+            Actor::Methuselah => self.state.active,
+            _ => self.state.card_controller(card),
+        }
+    }
+
+    /// Terms of an ability: the next master card to discard, among those
+    /// not picked yet.
+    pub(crate) fn ability_terms_request(
+        &self,
+        card: CardId,
+        ability: u8,
+        picked: &[u8],
+    ) -> DecisionRequest {
+        let seat = self.ability_user(card, ability);
+        let options = self
+            .state
+            .hand_masters(seat)
+            .into_iter()
+            .filter(|i| !picked.contains(i))
+            .map(Choice::Discard)
+            .collect();
+        DecisionRequest {
+            seat,
+            window: WindowLabel::PlayTerms,
+            options,
+        }
+    }
+
+    pub(crate) fn ability_terms_apply(
+        &mut self,
+        card: CardId,
+        ability: u8,
+        mut picked: Vec<u8>,
+        resume: Box<Flow>,
+        pick: u8,
+    ) {
+        picked.push(pick);
+        let def = cards::lookup(self.state.cards[card.index()].card).expect("definition");
+        let Some(Terms::DiscardMasters(n)) = def.abilities[ability as usize].terms else {
+            unreachable!("ability terms without discards");
+        };
+        if picked.len() < n as usize {
+            self.flow = Flow::AbilityTerms {
+                card,
+                ability,
+                picked,
+                resume,
+            };
+            return;
+        }
+        // The cost: discards to the ash heap, replaced as any card leaving
+        // the hand.
+        let seat = self.ability_user(card, ability);
+        picked.sort_unstable_by(|a, b| b.cmp(a));
+        for i in picked {
+            let s = &mut self.state.seats[seat.index()];
+            let c = s.hand.remove(i as usize);
+            s.ash.push(c);
+        }
+        self.draw_to_hand_size(seat);
+        self.flow = *resume;
+        self.resolve_ability(card.0, ability, Target::None);
+    }
+
+    /// Resolve an in-play ability's effects (its terms, if any, chosen).
+    /// Returns true when the flow moved on (the user ousted).
+    fn resolve_ability(&mut self, card: u32, ability: u8, target: Target) -> bool {
+        let c = &self.state.cards[card as usize];
+        let def = cards::lookup(c.card).expect("definition");
+        let mode = &def.abilities[ability as usize];
         let (seat, host) = match mode.actor {
             Actor::Controller => (c.owner, None),
+            Actor::Methuselah => (self.state.active, None),
             _ => {
                 let host = c.host.expect("host");
                 (self.state.minions[host.index()].owner, Some(host))
@@ -1053,6 +1197,10 @@ impl Engine {
         }
         for e in mode.effects {
             match *e {
+                Effect::SpendMasterPhaseAction => {
+                    self.state.seats[ctx.seat.index()].mpa -= 1;
+                }
+                Effect::BurnSelf => self.burn_card_in_play(CardId(card)),
                 Effect::HuntingGroundBlood(n) => {
                     let Target::Minion(t) = target else {
                         unreachable!("hunting ground without a vampire");
@@ -1133,10 +1281,14 @@ impl Engine {
                 actor,
                 target,
             } => {
-                if self.use_ability(*card, *ability, *actor, *target) {
-                    return; // ousted: the turn has passed
-                }
                 window.play();
+                let resume = Flow::Abilities {
+                    window: window.clone(),
+                    pending: pending.clone(),
+                };
+                if self.use_ability(*card, *ability, *actor, *target, resume) {
+                    return; // ousted (the turn has passed) or terms pending
+                }
             }
             Choice::ResolveRider { card } => {
                 pending.retain(|c| c.0 != *card);
@@ -1206,34 +1358,38 @@ impl Engine {
         false
     }
 
-    /// Riders fired when a host goes to torpor (Guardian Angel; Fame),
-    /// for each of `hosts`. Pool losses are batched and applied at once
-    /// (a Methuselah at 0 is ousted here, mid-combat; the caller tears the
-    /// combat down).
-    pub(crate) fn host_torpor_riders(&mut self, hosts: &[MinionId]) {
+    /// Riders of `hook` fired for each minion of `subjects` that left the
+    /// ready region: a host's own riders (`HostToTorpor`: the cards on it)
+    /// or every card in play's (`ReadyMinionBurnedOrTorpor`). Pool losses
+    /// are batched and applied at once — a Methuselah at 0 is ousted here,
+    /// wherever it happened; the caller tears the combat or action down.
+    pub(crate) fn leave_riders(&mut self, hook: Hook, subjects: &[MinionId]) {
         let mut loss = vec![0i32; self.state.seats.len()];
-        for ci in 0..self.state.cards.len() {
-            let c = &self.state.cards[ci];
-            let Some(host) = c.host.filter(|h| hosts.contains(h) && c.present()) else {
-                continue;
-            };
-            let Some(def) = cards::lookup(c.card) else {
-                continue;
-            };
-            let controller = self.state.minions[host.index()].owner;
-            let riders: Vec<&Rider> = def
-                .riders
-                .iter()
-                .filter(|r| r.hook == Hook::HostToTorpor && self.state.rider_holds(r, Some(host)))
-                .collect();
-            for r in riders {
-                for e in r.effects {
-                    match *e {
-                        Effect::BurnSelf => self.burn_card_in_play(CardId(ci as u32)),
-                        Effect::HostControllerBurnsPool(n) => {
-                            loss[controller.index()] += n as i32;
+        for &subject in subjects {
+            let controller = self.state.minions[subject.index()].owner;
+            for ci in 0..self.state.cards.len() {
+                let c = &self.state.cards[ci];
+                if !c.present() || (hook == Hook::HostToTorpor && c.host != Some(subject)) {
+                    continue;
+                }
+                let Some(def) = cards::lookup(c.card) else {
+                    continue;
+                };
+                let host = c.host;
+                let riders: Vec<&Rider> = def
+                    .riders
+                    .iter()
+                    .filter(|r| r.hook == hook && self.state.rider_holds(r, host))
+                    .collect();
+                for r in riders {
+                    for e in r.effects {
+                        match *e {
+                            Effect::BurnSelf => self.burn_card_in_play(CardId(ci as u32)),
+                            Effect::TheirControllerBurnsPool(n) => {
+                                loss[controller.index()] += n as i32;
+                            }
+                            other => unreachable!("not a leave rider effect: {other:?}"),
                         }
-                        other => unreachable!("not a torpor rider effect: {other:?}"),
                     }
                 }
             }

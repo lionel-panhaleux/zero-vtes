@@ -1696,7 +1696,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     riders: &[],
 };
 
-pub static DEFS: [&CardDef; 74] = [
+pub static DEFS: [&CardDef; 75] = [
     &EARTH_CONTROL,
     &BONDING,
     &VILLEIN,
@@ -1753,6 +1753,7 @@ pub static DEFS: [&CardDef; 74] = [
     &ANARCH_REVOLT,
     &GUARDIAN_ANGEL,
     &FAME,
+    &TENSION_IN_THE_RANKS,
     &CREEPING_SABOTAGE,
     &BLOOD_DOLL,
     &VESSEL,
@@ -1903,7 +1904,7 @@ pub static FAME: CardDef = CardDef {
             hook: Hook::HostToTorpor,
             scope: RiderScope::Every,
             requires: &[],
-            effects: &[Effect::HostControllerBurnsPool(3)],
+            effects: &[Effect::TheirControllerBurnsPool(3)],
         },
         Rider {
             hook: Hook::UnlockPhase,
@@ -1912,6 +1913,48 @@ pub static FAME: CardDef = CardDef {
             effects: &[Effect::BurnPool(1)],
         },
     ],
+};
+
+/// "Unique. Put this card in play. After a ready minion is burned or sent
+/// to torpor, their controller burns 1 pool. Methuselahs can use a master
+/// phase action and discard two master cards to burn this card." The
+/// rider fires where the burn or torpor happens (rules-qa 6.4), any
+/// controller's minion; the burn is an ability of any Methuselah in their
+/// own master phase, its two discards announced with the use.
+pub static TENSION_IN_THE_RANKS: CardDef = CardDef {
+    name: "Tension in the Ranks",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::PutInPlay],
+    }],
+    abilities: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[
+            Requirement::MasterPhaseActionLeft,
+            Requirement::HandMasters(2),
+        ],
+        target: NO_TARGET,
+        terms: Some(Terms::DiscardMasters(2)),
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::SpendMasterPhaseAction, Effect::BurnSelf],
+    }],
+    riders: &[Rider {
+        hook: Hook::ReadyMinionBurnedOrTorpor,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::TheirControllerBurnsPool(1)],
+    }],
 };
 
 /// Nosferatu. "+1 stealth action. X is the number of copies of this card

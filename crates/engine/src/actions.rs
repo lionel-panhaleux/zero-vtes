@@ -615,8 +615,8 @@ impl Engine {
     /// later.
     fn diablerise(&mut self, diablerist: MinionId, victim: MinionId) {
         let taken = self.state.minions[victim.index()].blood;
-        self.state.minions[victim.index()].blood = 0;
-        self.state.minions[victim.index()].in_play = false;
+        // Burned from torpor: the cards on it go, no "ready minion" rider.
+        self.burn_minion(victim);
         let d = &mut self.state.minions[diablerist.index()];
         d.blood = (d.blood + taken).min(d.capacity());
     }
@@ -634,6 +634,7 @@ impl Engine {
     /// Effects of a modifier / reaction / master resolved during the action.
     pub(crate) fn apply_action_effect(&mut self, effect: Effect, play: &PlayCtx) {
         let mut a = self.action.take().expect("action context");
+        let mut burned = None;
         match effect {
             Effect::AddStealth(n) => a.stealth_mods += n,
             Effect::AddIntercept(n) => a.intercept += n,
@@ -684,11 +685,7 @@ impl Engine {
                 a.order = self.action_order_for(a.seat, Some(t));
                 a.fresh_window();
             }
-            Effect::BurnActingMinion => {
-                let m = a.acting;
-                self.state.minions[m.index()].in_play = false;
-                self.state.minions[m.index()].blood = 0;
-            }
+            Effect::BurnActingMinion => burned = Some(a.acting),
             Effect::ActionFails => a.failed = true,
             Effect::ActionLayer(modifier) => {
                 self.state.layers.push(cards::Layer {
@@ -701,6 +698,11 @@ impl Engine {
             other => unreachable!("not an action effect: {other:?}"),
         }
         self.action = Some(a);
+        if let Some(m) = burned {
+            // Its riders (Tension in the Ranks) may oust the acting
+            // Methuselah: the play's resolution passes the turn.
+            self.burn_minion(m);
+        }
     }
 
     fn action_order_for(&self, seat: SeatId, directed: Option<SeatId>) -> Vec<SeatId> {

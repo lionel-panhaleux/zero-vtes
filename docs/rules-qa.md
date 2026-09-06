@@ -802,5 +802,20 @@ second pick require the first to have been used ("another … as well")?
 
 **Answer (2026-09-06)** — No, the independent reading is fine.
 
+### 7.5 Control of a card on another Methuselah's minion
+
+Fame goes on any ready vampire: who controls A's Fame on B's vampire,
+and what becomes of it when either Methuselah is ousted?
+
+**Answer (2026-09-06)** — A *minion* card on a minion is controlled by
+the minion's controller; a *master* card like Fame stays controlled by
+the player who played it, so it is removed when that player is ousted.
+A card on a removed vampire is burned (to its owner's ash heap, not
+removed). Applied: `GameState::card_controller` (master → player, minion
+card → host's controller) keys the contest paths, so A's Fame on B's
+vampire contests B's own Fame as usual; `remove_seat` removes what the
+ousted Methuselah controlled and burns other players' cards on their
+minions.
+
 Batch 8 — cards & effects (replacement, delayed replacement, control
 change, events).

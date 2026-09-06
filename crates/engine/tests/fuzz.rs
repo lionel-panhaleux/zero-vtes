@@ -71,7 +71,20 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
     let now = zone_totals(e);
     for (i, (a, b)) in now.iter().zip(totals).enumerate() {
         if st.seats[i].ousted {
-            assert_eq!(*a, 0, "ousted seat {i} kept library cards (seed {seed})");
+            // An oust removes what the Methuselah controlled (spec §6.1.2):
+            // their cards on other Methuselahs' minions stay in play.
+            let stray = st.cards.iter().any(|c| {
+                c.owner.index() == i
+                    && c.in_play
+                    && !c
+                        .host
+                        .is_some_and(|h| !st.seats[st.minions[h.index()].owner.index()].ousted)
+            });
+            assert!(!stray, "ousted seat {i} kept library cards (seed {seed})");
+            assert!(
+                st.seats[i].library.is_empty() && st.seats[i].hand.is_empty(),
+                "ousted seat {i} kept a library or hand (seed {seed})"
+            );
             continue;
         }
         // Pending plays are out of every zone until they settle: allow a
@@ -290,6 +303,7 @@ fn midgame(seed: u64) -> Engine {
         "Vessel",
         "Papillon",
         "Fame",
+        "Tension in the Ranks",
         "Carfax Abbey",
     ]
     .iter()
@@ -569,6 +583,8 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "play:Carfax Abbey",
             "ability:Carfax Abbey",
             "play:Fame",
+            "play:Tension in the Ranks",
+            "ability:Tension in the Ranks",
             // (Anarch Revolt's and Fame's riders are decisions only when
             // ordered against another unlock effect; alone they elide, so
             // no key.)

@@ -433,7 +433,7 @@ The engine's value is trust; trust is measured, not asserted.
    | Influence phase | 6 | Powerbase: Montreal | pending |
    | End of turn | 2 | Dreams of the Sphinx | pending |
    | Minion to torpor | 8 | Guardian Angel / Fame | done (`Hook::HostToTorpor`, mid-combat oust teardown) |
-   | Minion burned / leaves the ready region | 7 | Tension in the Ranks | pending |
+   | Minion burned / leaves the ready region | 7 | Tension in the Ranks | done (`Hook::ReadyMinionBurnedOrTorpor`, `burn_minion`) |
    | Enters play | 12 | The Rack, Ravnos Carnival | pending |
    | After a successful action / bleed | 2 | Alamut, Cappadocian Crypt | pending |
    | Blocked / block resolution | 4 | Crypt's Sons, Sniper Rifle | pending |
@@ -680,14 +680,41 @@ Recorded so nobody mistakes them for oversights:
   6.4) through `burn_pool_batch`, with the mid-combat oust teardown (§10.8:
   `apply_damage` reports the flow moved on; the acting seat's turn passes,
   an ousted opponent ends the combat at once, two seats left ends the
-  game). 74 defs. Known gap surfaced: cards on a minion that leaves play
-  (burned in combat, or removed with its ousted Methuselah) are not burned
-  yet — rulebook "cards on a vampire that leaves play are burned"; Fame's
-  `HostInTorpor` and Guardian Angel's host checks keep them inert
-  meanwhile. Next: Tension in the Ranks (`Hook::MinionBurnedOrTorpor`, the
-  "burned" half needs that same minion-leaves-play path), Smiling Jack
-  (counters, mandatory-with-choice), Dreams of the Sphinx / The Barrens
-  (lock abilities in any window), The Coven (control change).
+  game). 74 defs.
+  Slice 5e (2026-09-06): Tension in the Ranks — minions leave play through
+  one path each: `burn_minion` (the cards on it burned to their owners'
+  ash heaps, spec §1.12.1; "after a ready minion is burned" riders only if
+  it was ready — not a diablerie victim, not a yielded contested vampire)
+  and `minions_to_torpor` (cards stay; host riders and the "sent to torpor"
+  riders fire together), both through `leave_riders` batching the pool
+  losses (`Effect::TheirControllerBurnsPool`, the subject minion's
+  controller; Fame's host rider renamed onto it). The burn sites: combat
+  damage, the blood hunt, Archon Investigation (`BurnActingMinion`, whose
+  rider may oust the active Methuselah inside the play — the resolution
+  passes the turn), the diablerie victim, a yielded crypt contest. An oust
+  removes what the Methuselah *controlled* (spec §6.1.2,
+  `GameState::card_controller`: a card follows its host's controller): the
+  cards on their minions whoever played them go, their cards on other
+  Methuselahs' minions stay — removed, not burned, no rider (§1.10). The
+  burn ability: `Actor::Methuselah` abilities (any Methuselah in their own
+  window), `Requirement::MasterPhaseActionLeft` / `HandMasters(n)`,
+  `Terms::DiscardMasters(n)` chosen one card at a time in a
+  `Flow::AbilityTerms` window (label `PlayTerms`) before the ability
+  resolves, `Effect::SpendMasterPhaseAction`, `BurnSelf` as an ability
+  effect; `use_ability` takes the flow to resume. 75 defs. Control of a
+  card in play (rules-qa 7.5): a master card stays its player's wherever
+  it sits (Fame on another Methuselah's vampire), a minion card on a minion
+  is its host's controller's — `GameState::card_controller` keys the
+  contest paths (self-contest mask, `library_rivals`) and the oust: an
+  ousted Methuselah's controlled cards are removed (§1.10, nothing
+  triggers), other players' cards on their removed minions are burned to
+  their owners' ash heaps. `RiderScope` and `Actor::Controller` still key
+  on the player, right for every card in the pool so far. An out-of-turn
+  play paid down to 0 pool (Archon Investigation at 3) ousts its player
+  without ending the active Methuselah's turn: the player drops out of the
+  open windows (`OrderedWindow::remove`). Next: Smiling Jack (counters, mandatory-with-choice), Dreams
+  of the Sphinx / The Barrens (lock abilities in any window), The Coven
+  (control change).
 - **P2 — full engine pool**: all 621 cards including Events and their machinery;
   the 14 training decklists plus the New Blood minis as data; perft baselines;
   protocol server; scripted reference bots (aggro-bleed, wall, vote).

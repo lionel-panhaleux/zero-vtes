@@ -489,7 +489,7 @@ impl Engine {
             target,
         } = choice
         {
-            self.use_ability(*card, *ability, *actor, *target);
+            self.use_ability(*card, *ability, *actor, *target, Flow::Combat);
         }
     }
 
@@ -672,26 +672,31 @@ impl Engine {
             .map(|s| resolve_damage(self.state.minions[s.minion.index()].blood, s.pending))
             .collect();
         let mut wounded = Vec::new();
+        let mut burned = Vec::new();
         for (s, r) in c.sides.iter_mut().zip(results) {
             let m = &mut self.state.minions[s.minion.index()];
             m.blood -= r.blood_burned;
             s.lost_to_damage += r.blood_burned;
             s.pending = Damage::default();
             if r.burned {
-                m.in_play = false;
-                m.blood = 0;
+                burned.push(s.minion);
             } else if r.wounded {
-                m.in_torpor = true;
                 wounded.push(s.minion);
             }
         }
+        // Burns and torpors land at once, their riders with them (rules-qa
+        // 6.4): a Methuselah may be ousted here.
+        for &m in &burned {
+            self.burn_minion(m);
+        }
+        if !wounded.is_empty() {
+            self.minions_to_torpor(&wounded);
+        }
+        let c = self.combat.as_mut().expect("combat context");
         if !c.both_ready(&self.state) {
             c.round_over = true;
         }
-        // "After this vampire goes to torpor" riders fire here (rules-qa
-        // 6.4).
-        if !wounded.is_empty() {
-            self.host_torpor_riders(&wounded);
+        if !wounded.is_empty() || !burned.is_empty() {
             if self.state.living() <= 1 {
                 self.combat = None;
                 self.action = None;

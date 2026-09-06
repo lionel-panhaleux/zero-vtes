@@ -632,7 +632,7 @@ impl Engine {
         match ctx.kind {
             RefKind::BloodHunt { diablerist } => {
                 if passed {
-                    self.state.minions[diablerist.index()].in_play = false;
+                    self.burn_minion(diablerist);
                 }
                 // Part of the action (spec §3.7.8.1): the after-resolution
                 // window follows it (rules-qa 5.8).

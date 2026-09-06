@@ -101,10 +101,9 @@ impl Engine {
                 if pay {
                     self.state.seats[s.index()].pool -= 1;
                 } else {
-                    // Yielded: burned with everything on it.
-                    let v = &mut self.state.minions[m.index()];
-                    v.in_play = false;
-                    v.blood = 0;
+                    // Yielded: burned with everything on it (not ready:
+                    // no "ready minion burned" rider).
+                    self.burn_minion(m);
                 }
             }
             Contest::Title(m) => {

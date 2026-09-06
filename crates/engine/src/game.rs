@@ -58,6 +58,15 @@ pub(crate) enum Flow {
         stack: Vec<PendingPlay>,
         resume: Box<Flow>,
     },
+    /// Terms of an in-play ability being used (the master cards Tension in
+    /// the Ranks' burn discards), chosen one at a time; then the ability
+    /// resolves and `resume` goes on.
+    AbilityTerms {
+        card: CardId,
+        ability: u8,
+        picked: Vec<u8>,
+        resume: Box<Flow>,
+    },
     /// In-play abilities usable during any Methuselah's unlock phase.
     Abilities {
         window: OrderedWindow,
@@ -295,6 +304,12 @@ impl Engine {
                 window: WindowLabel::MinionPhase,
                 options: self.minion_phase_options(),
             }),
+            Flow::AbilityTerms {
+                card,
+                ability,
+                picked,
+                ..
+            } => Some(self.ability_terms_request(*card, *ability, picked)),
             Flow::Abilities { window, pending } => self.abilities_request(window, pending),
             Flow::Action => self.action_request(),
             Flow::Combat => self.combat_request(),
@@ -365,7 +380,7 @@ impl Engine {
                     target,
                 },
             ) => {
-                self.use_ability(*card, *ability, *actor, *target);
+                self.use_ability(*card, *ability, *actor, *target, Flow::MinionPhase);
             }
             (
                 Flow::MinionPhase,
@@ -379,6 +394,15 @@ impl Engine {
                 let s = self.state.active;
                 self.announce_play(s, *card, *mode, *actor, *target, Flow::MinionPhase);
             }
+            (
+                Flow::AbilityTerms {
+                    card,
+                    ability,
+                    picked,
+                    resume,
+                },
+                Choice::Discard(i),
+            ) => self.ability_terms_apply(card, ability, picked, resume, *i),
             (Flow::Abilities { window, pending }, c) => self.abilities_apply(window, pending, c),
             (Flow::Action, c) => self.action_apply(c),
             (Flow::Combat, c) => self.combat_apply(c),
@@ -425,6 +449,38 @@ impl Engine {
             window: OrderedWindow::new(order),
             pending,
         };
+    }
+
+    /// A minion is burned: it leaves play with the cards on it burned
+    /// (spec §1.12.1, to their owners' ash heaps); "after a ready minion
+    /// is burned" riders fire if it was ready (a minion burned from torpor
+    /// or from a contest is not).
+    pub(crate) fn burn_minion(&mut self, m: MinionId) {
+        let was_ready = self.state.minions[m.index()].ready();
+        {
+            let v = &mut self.state.minions[m.index()];
+            v.in_play = false;
+            v.blood = 0;
+        }
+        for ci in 0..self.state.cards.len() {
+            if self.state.cards[ci].host == Some(m) {
+                self.burn_card_in_play(CardId(ci as u32));
+            }
+        }
+        if was_ready {
+            self.leave_riders(Hook::ReadyMinionBurnedOrTorpor, &[m]);
+        }
+    }
+
+    /// Minions go to torpor (combat damage): the cards on them stay; the
+    /// hosts' own riders (Guardian Angel, Fame) and "after a ready minion
+    /// is sent to torpor" riders fire at once (rules-qa 6.4).
+    pub(crate) fn minions_to_torpor(&mut self, ms: &[MinionId]) {
+        for &m in ms {
+            self.state.minions[m.index()].in_torpor = true;
+        }
+        self.leave_riders(Hook::HostToTorpor, ms);
+        self.leave_riders(Hook::ReadyMinionBurnedOrTorpor, ms);
     }
 
     /// Burn a card in play: to its owner's ash heap, its layers dropped.
@@ -514,14 +570,30 @@ impl Engine {
             seat.hand.clear();
             seat.ash.clear();
         }
+        // An oust removes what the Methuselah controlled (spec §6.1.2):
+        // their minions and the cards they control — their master cards
+        // wherever they sit, the minion cards on their minions — removed,
+        // not burned (§1.10: nothing triggers). Another Methuselah's card
+        // on a removed minion is burned to its owner's ash heap (owner,
+        // 2026-09-06).
         for m in &mut self.state.minions {
             if m.owner == s {
                 m.in_play = false;
             }
         }
-        for c in &mut self.state.cards {
-            if c.owner == s {
-                c.in_play = false;
+        for ci in 0..self.state.cards.len() {
+            let id = CardId(ci as u32);
+            let c = &self.state.cards[ci];
+            if !c.in_play {
+                continue;
+            }
+            if self.state.card_controller(id) == s {
+                self.state.cards[ci].in_play = false;
+            } else if c
+                .host
+                .is_some_and(|h| self.state.minions[h.index()].owner == s)
+            {
+                self.burn_card_in_play(id);
             }
         }
         let cards = &self.state.cards;

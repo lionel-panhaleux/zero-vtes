@@ -782,14 +782,17 @@ fn fame_burns_3_pool_from_the_host_controller_as_it_goes_to_torpor() {
 // The famous vampire is the acting one and its Methuselah has 3 pool: the
 // burn ousts them mid-combat — their predator scores at once (VP and 6
 // pool), the combat and the action are torn down, and the turn passes to
-// their prey with no after-combat window. On a host that left the game
-// the unlock rider is inert (cards on a minion leaving play are not burned
-// yet — DESIGN §11 slice 5d).
+// their prey with no after-combat window. The oust removes what they
+// controlled (spec §6.1.2): the famous vampire and their own Tension in
+// the Ranks — removed, not burned (no ash heap, no rider); the other
+// Methuselah's Fame on the removed vampire is burned to its owner's ash
+// heap (owner, 2026-09-06).
 #[test]
 fn fame_ousts_the_active_methuselah_mid_combat_and_the_turn_passes() {
     let (mut e, a, x, _z) = bleed_table();
     e.state.seats[0].pool = 3;
     let fame = fame_on(&mut e, 1, a);
+    let tension = revolt_like_in_play(&mut e, "Tension in the Ranks", 0);
     pick(&mut e, bleed(a));
     // Bled at 0 blood: the hand strike sends a to torpor.
     e.state.minions[a.index()].blood = 0;
@@ -800,7 +803,10 @@ fn fame_ousts_the_active_methuselah_mid_combat_and_the_turn_passes() {
     assert_eq!(pool(&e), vec![0, 10, 16]);
     let vps: Vec<u32> = e.state.seats.iter().map(|s| s.half_vps).collect();
     assert_eq!(vps, vec![0, 0, 2]);
-    let _ = fame;
+    assert!(!e.state.cards[fame as usize].in_play);
+    assert!(!e.state.cards[tension as usize].in_play);
+    assert_eq!(e.state.seats[1].ash, vec![find_library("Fame")]);
+    assert!(e.state.seats[0].ash.is_empty());
     to_minion_phase(&mut e, SeatId(1));
     to_minion_phase(&mut e, SeatId(2));
     assert_eq!(pool(&e), vec![0, 10, 16]);
@@ -851,6 +857,124 @@ fn fame_oust_mid_combat_can_end_the_game() {
     let vps: Vec<u32> = e.state.seats.iter().map(|s| s.half_vps).collect();
     assert_eq!(vps, vec![4, 0]);
     assert_eq!(e.state.game_win(), Some(SeatId(0)));
+}
+
+// Tension in the Ranks: "After a ready minion is burned or sent to torpor,
+// their controller burns 1 pool" — the blocker's torpor costs its
+// Methuselah 1 pool inside the combat, whoever controls the card; with Fame
+// on the same vampire both riders land at once (4 pool).
+#[test]
+fn tension_in_the_ranks_burns_1_pool_from_the_controller_of_a_minion_sent_to_torpor() {
+    let (mut e, a, x, _z) = bleed_table();
+    revolt_like_in_play(&mut e, "Tension in the Ranks", 2);
+    e.state.minions[x.index()].blood = 0;
+    pick(&mut e, bleed(a));
+    pick(&mut e, block(x));
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.minions[x.index()].in_torpor);
+    assert_eq!(pool(&e), vec![10, 9, 10]);
+
+    let (mut e, a, x, _z) = bleed_table();
+    revolt_like_in_play(&mut e, "Tension in the Ranks", 2);
+    fame_on(&mut e, 0, x);
+    e.state.minions[x.index()].blood = 0;
+    pick(&mut e, bleed(a));
+    pick(&mut e, block(x));
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e), vec![10, 6, 10]);
+}
+
+// "A ready minion is burned": a diablerie's victim is burned from torpor —
+// no pool (and the cards on it are burned, spec §1.12.1); the diablerist
+// burned by the blood hunt was ready — its controller burns 1 pool.
+#[test]
+fn tension_in_the_ranks_burned_ready_minion_but_not_a_torpor_victim() {
+    let Table {
+        mut e,
+        alexa,
+        kevin,
+        lenny,
+        ..
+    } = table();
+    revolt_like_in_play(&mut e, "Tension in the Ranks", 2);
+    let victim = e.add_minion(SeatId(1), find_card("Abraham DuSable"), 2, true);
+    let angel = guardian_angel_on(&mut e, 1, victim);
+    to_minion_phase(&mut e, SeatId(0));
+    pick(
+        &mut e,
+        Choice::TakeAction {
+            minion: alexa,
+            action: ActionKind::Diablerie,
+            target: Some(victim),
+        },
+    );
+    pick(&mut e, Choice::Pass); // seat 1 declines to block
+    let req = expect(&mut e, SeatId(0), WindowLabel::BloodHuntPolling);
+    assert!(!e.state.minions[victim.index()].in_play);
+    assert!(!e.state.cards[angel as usize].in_play);
+    assert_eq!(e.state.seats[1].ash, vec![find_library("Guardian Angel")]);
+    assert_eq!(pool(&e), vec![10, 10, 10]);
+    let _ = req;
+    pick(&mut e, Choice::Pass);
+    pick(&mut e, votes(kevin, true));
+    pick(&mut e, votes(lenny, true));
+    // The rotation closes on consecutive passes.
+    while request(&mut e).window == WindowLabel::BloodHuntPolling {
+        pick(&mut e, Choice::Pass);
+    }
+    // Seat 0 has no minion left: the rest of its turn elides.
+    let _ = request(&mut e);
+    assert!(!e.state.minions[alexa.index()].in_play);
+    assert_eq!(pool(&e), vec![9, 10, 10]);
+}
+
+// "Methuselahs can use a master phase action and discard two master cards
+// to burn this card": any Methuselah in their own master phase, with a
+// master phase action left and two master cards in hand; the two discards
+// are announced with the use (one at a time), the card goes to its owner's
+// ash heap.
+#[test]
+fn tension_in_the_ranks_burned_by_a_master_phase_action_and_two_master_discards() {
+    let Table { mut e, .. } = table();
+    let t = revolt_like_in_play(&mut e, "Tension in the Ranks", 1);
+    hand(&mut e, 0, &["Bonding", "Villein"]);
+    // One master card in hand: not offered.
+    let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    assert!(!req
+        .options
+        .iter()
+        .any(|o| matches!(o, Choice::UseAbility { .. })));
+    e.state.seats[0].hand.push(find_library("Blood Doll"));
+    let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    assert!(req.options.contains(&ability(t, 0)));
+    pick(&mut e, ability(t, 0));
+    let req = expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
+    assert_eq!(req.options, vec![Choice::Discard(1), Choice::Discard(2)]);
+    pick(&mut e, Choice::Discard(2));
+    // The second pick has a single candidate left: it elides.
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[0].hand, vec![find_library("Bonding")]);
+    assert_eq!(
+        e.state.seats[0].ash,
+        vec![find_library("Blood Doll"), find_library("Villein")]
+    );
+    assert_eq!(e.state.seats[0].mpa, 0);
+    assert!(!e.state.cards[t as usize].in_play);
+    assert_eq!(
+        e.state.seats[1].ash,
+        vec![find_library("Tension in the Ranks")]
+    );
+}
+
+// No master phase action left: the burn is not offered — nothing is, so
+// the master phase elides.
+#[test]
+fn tension_in_the_ranks_burn_needs_a_master_phase_action() {
+    let Table { mut e, .. } = table();
+    revolt_like_in_play(&mut e, "Tension in the Ranks", 1);
+    hand(&mut e, 0, &["Villein", "Blood Doll", "Bonding"]);
+    e.state.seats[0].mpa = 0;
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
 }
 
 // Creeping Sabotage: "+1 stealth action" (blocks pruned with no intercept),

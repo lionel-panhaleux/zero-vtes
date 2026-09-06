@@ -130,6 +130,7 @@ fn implemented_definitions_cover_the_slice() {
             "Telepathic Tracking",
             "Telepathic Vote Counting",
             "Temple Hunting Ground",
+            "Tension in the Ranks",
             "Theft of Vitae",
             "Torn Signpost",
             "Underworld Hunting Ground",

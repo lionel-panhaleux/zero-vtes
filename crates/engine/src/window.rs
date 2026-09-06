@@ -40,6 +40,23 @@ impl OrderedWindow {
         }
     }
 
+    /// A seat left the game mid-window (ousted by a play it resolved): it
+    /// drops out of the rotation, the impulse and the passes so far kept.
+    pub fn remove(&mut self, seat: SeatId) {
+        let Some(i) = self.order.iter().position(|&s| s == seat) else {
+            return;
+        };
+        self.order.remove(i);
+        if self.order.is_empty() {
+            return;
+        }
+        if i < self.cursor {
+            self.cursor -= 1;
+        }
+        self.cursor %= self.order.len();
+        self.quiet = self.quiet.min(self.order.len());
+    }
+
     /// The current seat played an effect: impulse returns to the acting
     /// Methuselah and prior passes are voided.
     pub fn play(&mut self) {

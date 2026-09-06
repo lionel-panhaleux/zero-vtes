@@ -313,6 +313,36 @@ impl GameState {
             .collect()
     }
 
+    /// Hand indices of the seat's master cards.
+    pub fn hand_masters(&self, seat: SeatId) -> Vec<u8> {
+        self.seats[seat.index()]
+            .hand
+            .iter()
+            .enumerate()
+            .filter(|(_, &c)| {
+                crate::library::LIBRARY[c as usize]
+                    .types
+                    .contains(&crate::library::CardType::Master)
+            })
+            .map(|(i, _)| i as u8)
+            .collect()
+    }
+
+    /// The Methuselah controlling a card in play: a master card stays its
+    /// player's wherever it sits (Fame on another Methuselah's vampire); a
+    /// minion card on a minion is its host's controller's (owner,
+    /// 2026-09-06; spec §1.12.1).
+    pub fn card_controller(&self, id: CardId) -> SeatId {
+        let c = &self.cards[id.index()];
+        let master = LIBRARY[c.card as usize]
+            .types
+            .contains(&crate::library::CardType::Master);
+        match c.host {
+            Some(h) if !master => self.minions[h.index()].owner,
+            _ => c.owner,
+        }
+    }
+
     /// A rider's host predicates hold (a hostless card has none to fail).
     pub fn rider_holds(&self, r: &crate::cards::Rider, host: Option<MinionId>) -> bool {
         r.requires.iter().all(|&req| match host {
@@ -362,14 +392,14 @@ impl GameState {
     pub fn library_rivals(&self, id: CardId) -> Vec<CardId> {
         let me = &self.cards[id.index()];
         let name = LIBRARY[me.card as usize].name;
+        let mine = self.card_controller(id);
         self.cards
             .iter()
             .enumerate()
             .filter(|(i, o)| {
                 *i != id.index()
-                    && o.owner != me.owner
                     && o.in_play
-                    && !self.seats[o.owner.index()].ousted
+                    && self.card_controller(CardId(*i as u32)) != mine
                     && LIBRARY[o.card as usize].name == name
             })
             .map(|(i, _)| CardId(i as u32))

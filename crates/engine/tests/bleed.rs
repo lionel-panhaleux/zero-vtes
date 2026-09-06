@@ -11,7 +11,7 @@ use zvtes::crypt::CRYPT;
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::find_library;
+use zvtes::state::{find_library, CardInPlay};
 
 fn request(e: &mut Engine) -> DecisionRequest {
     match e.run() {
@@ -301,6 +301,72 @@ fn archon_investigation_needs_a_bleed_of_four_and_burns_the_bleeder() {
     assert_eq!(e.state.seats[1].pool, 27);
     assert!(!e.state.seats[0].has_edge);
     assert!(e.state.seats[1].out_of_turn.is_some());
+}
+
+fn archon_sequence(t: &mut Table) -> Choice {
+    let e = &mut t.e;
+    e.state.seats[0].hand.push(find_library("Conditioning"));
+    e.state.seats[1]
+        .hand
+        .push(find_library("Archon Investigation"));
+    pick(e, bleed(t.a));
+    pick(e, Choice::Pass);
+    pick(e, Choice::Pass);
+    pick(e, play(0, 1, t.a)); // [DOM] +3: bleed 4
+    let archon = Choice::Play {
+        card: 0,
+        mode: 0,
+        actor: None,
+        target: Target::None,
+    };
+    pick(e, archon);
+    archon
+}
+
+// Tension in the Ranks in play: Archon Investigation burns a ready minion,
+// so the bleeder's Methuselah burns 1 pool inside the play's resolution —
+// at 1 pool they are ousted there, and the turn passes (no minion phase for
+// them); their predator scores.
+#[test]
+fn archon_investigation_under_tension_in_the_ranks_ousts_the_bleeder_s_methuselah() {
+    let mut t = table();
+    t.e.state.seats[0].pool = 1;
+    t.e.state.cards.push(CardInPlay {
+        card: find_library("Tension in the Ranks"),
+        owner: SeatId(2),
+        host: None,
+        in_play: true,
+        contested: false,
+        locked: false,
+        counters: 0,
+    });
+    archon_sequence(&mut t);
+    let e = &mut t.e;
+    let req = request(e);
+    assert_eq!(req.seat, SeatId(1));
+    assert!(e.state.seats[0].ousted);
+    assert!(!e.state.minions[t.a.index()].in_play);
+    assert_eq!(e.state.seats[2].half_vps, 2);
+    assert_eq!(e.state.seats[2].pool, 36);
+    assert_eq!(e.state.living(), 2);
+}
+
+// Archon Investigation at exactly 3 pool: its player pays down to 0 and is
+// ousted by their own out-of-turn play; the active Methuselah's turn goes
+// on (the failed action ends, their minion phase resumes) and they score
+// the oust as the predator.
+#[test]
+fn archon_investigation_at_three_pool_ousts_its_player_and_the_turn_goes_on() {
+    let mut t = table();
+    t.e.state.seats[1].pool = 3;
+    archon_sequence(&mut t);
+    let e = &mut t.e;
+    expect(e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.seats[1].ousted);
+    assert!(!e.state.minions[t.a.index()].in_play);
+    assert_eq!(e.state.seats[0].half_vps, 2);
+    assert_eq!(e.state.seats[0].pool, 36);
+    assert_eq!(e.state.living(), 2);
 }
 
 // rules-qa 2.4 — a wake is playable in the as-played window of a card
