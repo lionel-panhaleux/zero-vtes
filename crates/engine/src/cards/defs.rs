@@ -1696,7 +1696,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     riders: &[],
 };
 
-pub static DEFS: [&CardDef; 76] = [
+pub static DEFS: [&CardDef; 78] = [
     &EARTH_CONTROL,
     &BONDING,
     &VILLEIN,
@@ -1755,6 +1755,8 @@ pub static DEFS: [&CardDef; 76] = [
     &FAME,
     &TENSION_IN_THE_RANKS,
     &SMILING_JACK,
+    &DREAMS_OF_THE_SPHINX,
+    &THE_BARRENS,
     &CREEPING_SABOTAGE,
     &BLOOD_DOLL,
     &VESSEL,
@@ -1945,7 +1947,10 @@ pub static TENSION_IN_THE_RANKS: CardDef = CardDef {
             Requirement::HandMasters(2),
         ],
         target: NO_TARGET,
-        terms: Some(Terms::DiscardMasters(2)),
+        terms: Some(Terms::Discard {
+            n: 2,
+            masters: true,
+        }),
         waives_needed: false,
         limit: None,
         effects: &[Effect::SpendMasterPhaseAction, Effect::BurnSelf],
@@ -2007,6 +2012,118 @@ pub static SMILING_JACK: CardDef = CardDef {
             effects: &[Effect::PoolOrBloodPerCounter],
         },
     ],
+};
+
+/// "Unique. Put this card in play. Add 1 counter to this card each time
+/// you lock it. You can lock this card to get +2 hand size until the end
+/// of the turn. You can lock this card during your unlock phase to gain 1
+/// pool if you have the Edge. You can lock this card to add 1 blood to a
+/// vampire in your uncontrolled region. Burn this card if it has 3
+/// counters." Three lock abilities of the controller: two untimed (any
+/// impulse but the as-played window, ANK 20200616), one in their own
+/// unlock phase; each lock adds a counter, the third burns the card as
+/// its effect resolves.
+pub static DREAMS_OF_THE_SPHINX: CardDef = CardDef {
+    name: "Dreams of the Sphinx",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::PutInPlay],
+    }],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::AnyImpulse],
+            actor: Actor::Controller,
+            requires: &[Requirement::CardUnlocked],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::LockSelf,
+                Effect::AddCounter(1),
+                Effect::HandSizeBonusUntilEndOfTurn(2),
+                Effect::BurnSelfAtCounters(3),
+            ],
+        },
+        ModeDef {
+            windows: &[Window::UnlockPhaseOwn],
+            actor: Actor::Controller,
+            requires: &[Requirement::CardUnlocked, Requirement::HasEdge],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::LockSelf,
+                Effect::AddCounter(1),
+                Effect::GainPool(1),
+                Effect::BurnSelfAtCounters(3),
+            ],
+        },
+        ModeDef {
+            windows: &[Window::AnyImpulse],
+            actor: Actor::Controller,
+            requires: &[Requirement::CardUnlocked],
+            target: Some(TargetSpec {
+                kind: TargetKind::Uncontrolled,
+                filter: &[],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::LockSelf,
+                Effect::AddCounter(1),
+                Effect::BloodToUncontrolledTarget(1),
+                Effect::BurnSelfAtCounters(3),
+            ],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Unique location. You can lock this card to discard a card (draw up
+/// afterward)." An untimed lock ability of the controller (any impulse
+/// but the as-played window: RTR 20040501, ANK 20200616); the card to
+/// discard is announced with the use and replaced.
+pub static THE_BARRENS: CardDef = CardDef {
+    name: "Barrens, The",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::PutInPlay],
+    }],
+    abilities: &[ModeDef {
+        windows: &[Window::AnyImpulse],
+        actor: Actor::Controller,
+        requires: &[Requirement::CardUnlocked, Requirement::HandNotEmpty],
+        target: NO_TARGET,
+        terms: Some(Terms::Discard {
+            n: 1,
+            masters: false,
+        }),
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::LockSelf],
+    }],
+    riders: &[],
 };
 
 /// Nosferatu. "+1 stealth action. X is the number of copies of this card

@@ -6,11 +6,11 @@
 
 use crate::cards::{
     self, Actor, Effect, Hook, Layer, Limit, PlayCtx, Requirement, Rider, Scope, Target,
-    TargetKind, Terms, Window,
+    TargetKind, TargetSpec, Terms, Window,
 };
 use crate::combat::is_combat_effect;
 use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
-use crate::game::{Engine, Flow};
+use crate::game::{Engine, Flow, Pending};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, Label, LIBRARY};
 use crate::referendum::is_vote_effect;
@@ -40,7 +40,8 @@ impl Engine {
     /// empty library means no replacement).
     pub(crate) fn draw_to_hand_size(&mut self, s: SeatId) {
         let seat = &mut self.state.seats[s.index()];
-        while seat.hand.len() + (seat.delayed_draws as usize) < HAND_SIZE {
+        while seat.hand.len() + (seat.delayed_draws as usize) < HAND_SIZE + seat.hand_bonus as usize
+        {
             match seat.library.pop() {
                 Some(c) => seat.hand.push(c),
                 None => break,
@@ -292,6 +293,9 @@ impl Engine {
                     let targets: Vec<Target> = match mode.target {
                         None => vec![Target::None],
                         Some(spec) => match spec.kind {
+                            // No card play targets the uncontrolled region
+                            // in the pool (an in-play ability does).
+                            TargetKind::Uncontrolled => vec![],
                             TargetKind::Minion => (0..st.minions.len())
                                 .map(|i| MinionId(i as u32))
                                 .filter(|&id| {
@@ -343,8 +347,9 @@ impl Engine {
             options.extend(self.play_options(s, &[Window::MasterPhase], None));
         }
         // "During their master phase" abilities of cards in play (Blood
-        // Doll): no master phase action spent.
+        // Doll): no master phase action spent; and the untimed ones.
         options.extend(self.ability_options(s, Window::MasterPhase));
+        options.extend(self.ability_options(s, Window::AnyImpulse));
         DecisionRequest {
             seat: s,
             window: WindowLabel::MasterPhase,
@@ -477,7 +482,7 @@ impl Engine {
                 }
                 options
             }
-            Some(Terms::CopiesControlled) | Some(Terms::DiscardMasters(_)) | None => {
+            Some(Terms::CopiesControlled) | Some(Terms::Discard { .. }) | None => {
                 unreachable!("terms window without a choice")
             }
         };
@@ -792,6 +797,12 @@ impl Engine {
             | Effect::PoolOrBloodPerCounter
             | Effect::TheirControllerBurnsPool(_)
             | Effect::SpendMasterPhaseAction
+            | Effect::LockSelf
+            | Effect::AddCounter(_)
+            | Effect::BurnSelfAtCounters(_)
+            | Effect::GainPool(_)
+            | Effect::HandSizeBonusUntilEndOfTurn(_)
+            | Effect::BloodToUncontrolledTarget(_)
             | Effect::BurnSelf
             | Effect::BurnSource => unreachable!("ability or rider effect in a play"),
             e if is_combat_effect(&e) => self.apply_combat_effect(e, ctx),
@@ -814,6 +825,7 @@ impl Engine {
         if seat.dpa > 0 {
             options.extend((0..seat.hand.len()).map(|i| Choice::Discard(i as u8)));
         }
+        options.extend(self.ability_options(s, Window::AnyImpulse));
         DecisionRequest {
             seat: s,
             window: WindowLabel::DiscardPhase,
@@ -832,6 +844,16 @@ impl Engine {
                 seat.dpa -= 1;
                 self.draw_to_hand_size(s);
                 self.flow = Flow::Discard;
+            }
+            Choice::UseAbility {
+                card,
+                ability,
+                actor,
+                target,
+            } => {
+                if !self.use_ability(*card, *ability, *actor, *target, Flow::Discard) {
+                    self.flow = Flow::Discard;
+                }
             }
             other => unreachable!("illegal discard choice {other:?}"),
         }
@@ -871,23 +893,30 @@ impl Engine {
                             continue;
                         }
                         let ok = ability.requires.iter().all(|&r| {
-                            cards::holds(
-                                r,
-                                st,
-                                seat,
-                                None,
-                                None,
-                                self.action.as_ref(),
-                                self.combat.as_ref(),
-                                self.referendum.as_ref(),
-                                false,
-                            )
+                            cards::holds_for_card(r, st, CardId(ci as u32))
+                                && cards::holds(
+                                    r,
+                                    st,
+                                    seat,
+                                    None,
+                                    None,
+                                    self.action.as_ref(),
+                                    self.combat.as_ref(),
+                                    self.referendum.as_ref(),
+                                    false,
+                                )
                         });
                         if !ok {
                             continue;
                         }
                         let targets: Vec<Target> = match ability.target {
                             None => vec![Target::None],
+                            Some(TargetSpec {
+                                kind: TargetKind::Uncontrolled,
+                                ..
+                            }) => (0..st.seats[seat.index()].uncontrolled.len())
+                                .map(|i| Target::Uncontrolled(i as u8))
+                                .collect(),
                             Some(spec) => (0..st.minions.len())
                                 .map(|i| MinionId(i as u32))
                                 .filter(|&id| {
@@ -919,17 +948,18 @@ impl Engine {
                     // window, whoever controls the card.
                     Actor::Methuselah => {
                         let ok = ability.requires.iter().all(|&r| {
-                            cards::holds(
-                                r,
-                                st,
-                                seat,
-                                None,
-                                None,
-                                self.action.as_ref(),
-                                self.combat.as_ref(),
-                                self.referendum.as_ref(),
-                                false,
-                            )
+                            cards::holds_for_card(r, st, CardId(ci as u32))
+                                && cards::holds(
+                                    r,
+                                    st,
+                                    seat,
+                                    None,
+                                    None,
+                                    self.action.as_ref(),
+                                    self.combat.as_ref(),
+                                    self.referendum.as_ref(),
+                                    false,
+                                )
                         });
                         if ok {
                             out.push(Choice::UseAbility {
@@ -972,7 +1002,8 @@ impl Engine {
                             continue;
                         }
                         let ok = ability.requires.iter().all(|&r| {
-                            cards::holds_for_host(r, st, host)
+                            cards::holds_for_card(r, st, id)
+                                && cards::holds_for_host(r, st, host)
                                 && cards::holds(
                                     r,
                                     st,
@@ -1085,7 +1116,7 @@ impl Engine {
         }
         // Terms announced with the use (the master cards to discard): the
         // ability resolves once they are chosen.
-        if let Some(Terms::DiscardMasters(_)) = mode.terms {
+        if let Some(Terms::Discard { .. }) = mode.terms {
             self.flow = Flow::AbilityTerms {
                 card: CardId(card),
                 ability,
@@ -1116,9 +1147,13 @@ impl Engine {
         picked: &[u8],
     ) -> DecisionRequest {
         let seat = self.ability_user(card, ability);
+        let def = cards::lookup(self.state.cards[card.index()].card).expect("definition");
+        let Some(Terms::Discard { masters, .. }) = def.abilities[ability as usize].terms else {
+            unreachable!("ability terms without discards");
+        };
         let options = self
             .state
-            .hand_masters(seat)
+            .hand_picks(seat, masters)
             .into_iter()
             .filter(|i| !picked.contains(i))
             .map(Choice::Discard)
@@ -1140,7 +1175,7 @@ impl Engine {
     ) {
         picked.push(pick);
         let def = cards::lookup(self.state.cards[card.index()].card).expect("definition");
-        let Some(Terms::DiscardMasters(n)) = def.abilities[ability as usize].terms else {
+        let Some(Terms::Discard { n, .. }) = def.abilities[ability as usize].terms else {
             unreachable!("ability terms without discards");
         };
         if picked.len() < n as usize {
@@ -1203,6 +1238,26 @@ impl Engine {
                     self.state.seats[ctx.seat.index()].mpa -= 1;
                 }
                 Effect::BurnSelf => self.burn_card_in_play(CardId(card)),
+                Effect::LockSelf => self.state.cards[card as usize].locked = true,
+                Effect::AddCounter(n) => self.state.cards[card as usize].counters += n,
+                Effect::BurnSelfAtCounters(n) => {
+                    if self.state.cards[card as usize].counters >= n {
+                        self.burn_card_in_play(CardId(card));
+                    }
+                }
+                Effect::GainPool(n) => self.state.seats[ctx.seat.index()].pool += n as i32,
+                Effect::HandSizeBonusUntilEndOfTurn(n) => {
+                    self.state.seats[ctx.seat.index()].hand_bonus += n;
+                    self.draw_to_hand_size(ctx.seat);
+                }
+                Effect::BloodToUncontrolledTarget(n) => {
+                    let Target::Uncontrolled(i) = target else {
+                        unreachable!("blood to the uncontrolled region without a slot");
+                    };
+                    let slot = &mut self.state.seats[ctx.seat.index()].uncontrolled[i as usize];
+                    let cap = crate::crypt::CRYPT[slot.card as usize].capacity;
+                    slot.counters = (slot.counters + n).min(cap);
+                }
                 Effect::HuntingGroundBlood(n) => {
                     let Target::Minion(t) = target else {
                         unreachable!("hunting ground without a vampire");
@@ -1249,19 +1304,32 @@ impl Engine {
     pub(crate) fn abilities_request(
         &self,
         window: &OrderedWindow,
-        pending: &[CardId],
+        pending: &[Pending],
     ) -> Option<DecisionRequest> {
         let seat = window.current()?;
         let mut options = Vec::new();
         if seat == self.state.active && !pending.is_empty() {
-            options.extend(pending.iter().map(|c| Choice::ResolveRider { card: c.0 }));
+            for p in pending {
+                match *p {
+                    Pending::Rider(c) => options.push(Choice::ResolveRider { card: c.0 }),
+                    // Re-read: a title's vampire may have lost its blood
+                    // to another unlock effect since (a forced yield now).
+                    Pending::Contest(item) => options.extend(self.contest_choices(item)),
+                }
+            }
         } else {
             options.push(Choice::Pass);
+        }
+        // The Edge may still be burned here, ordered among the other unlock
+        // effects (Dreams of the Sphinx's Edge lock first, then the pool).
+        if seat == self.state.active && self.state.seats[seat.index()].has_edge {
+            options.push(Choice::BurnEdge);
         }
         options.extend(self.ability_options(seat, Window::UnlockPhaseAny));
         if seat == self.state.active {
             options.extend(self.ability_options(seat, Window::UnlockPhaseOwn));
         }
+        options.extend(self.ability_options(seat, Window::AnyImpulse));
         Some(DecisionRequest {
             seat,
             window: WindowLabel::UnlockAbilities,
@@ -1272,11 +1340,24 @@ impl Engine {
     pub(crate) fn abilities_apply(
         &mut self,
         mut window: OrderedWindow,
-        mut pending: Vec<CardId>,
+        mut pending: Vec<Pending>,
         choice: &Choice,
     ) {
         match choice {
             Choice::Pass => window.pass(),
+            Choice::PayContest(item) | Choice::YieldContest(item) => {
+                pending.retain(|p| *p != Pending::Contest(*item));
+                if self.settle_contest(*item, matches!(choice, Choice::PayContest(_))) {
+                    return; // ousted: the turn has passed
+                }
+                window.play();
+            }
+            Choice::BurnEdge => {
+                let s = self.state.active;
+                self.state.seats[s.index()].has_edge = false;
+                self.state.seats[s.index()].pool += 1;
+                window.play();
+            }
             Choice::UseAbility {
                 card,
                 ability,
@@ -1293,7 +1374,7 @@ impl Engine {
                 }
             }
             Choice::ResolveRider { card } => {
-                pending.retain(|c| c.0 != *card);
+                pending.retain(|p| *p != Pending::Rider(CardId(*card)));
                 window.play();
                 let resume = Flow::Abilities { window, pending };
                 // Sets the flow: the resume, a choice window the rider

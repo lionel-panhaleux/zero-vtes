@@ -829,5 +829,56 @@ does ANK 20181006's "different vampires" mean one blood per vampire?
 **Answer (2026-09-06)** — Yes and yes: torpid vampires are sources, and
 one vampire may pay for several counters. Implemented as stated.
 
+### 7.7 Untimed "you can lock this card" abilities
+
+The Barrens and Dreams of the Sphinx carry no timing: the engine offers
+them at every decision point where their controller holds the impulse —
+their own master, minion, influence and discard phases, every seat's
+unlock-phase rotation, every action and combat window (as announced,
+block loop, strike choice, prevention, end of round, after combat, after
+resolution), the polling step (as a commitment, reopening the rotation)
+— and never in the as-played window (LSJ 20061207), nor inside a choice
+that is part of a resolution: the play terms and rider payments, the
+Edge decision at the start of the unlock phase (the Edge can also be
+burned later, among the unlock effects), the torpor-block diablerie
+choice, the rescue cost split, the discard-down after a canceled
+referendum. Anything to trim or add (the influence phase? the strike
+choice)?
+Dreams' third lock: its effect (the +2 hand size, the blood) lands, then
+the card burns at 3 counters. Right?
+
+**Tests** — `the_barrens_discards_a_chosen_card_at_any_impulse`,
+`the_barrens_is_not_usable_in_the_as_played_window`,
+`dreams_of_the_sphinx_blood_to_uncontrolled_and_burn_at_three_counters`,
+`untimed_ability_offered_alongside_a_forced_hunt`.
+
+**Answer (2026-09-06)** — The window set and the third-lock ordering are
+right, with two corrections: the Edge's pool is itself a normal unlock
+effect usable anytime during the unlock phase (not a separate opening
+decision — offered among the unlock effects now; whether contest upkeep
+is likewise freely ordered is asked in 7.8), and an untimed ability can
+be used *before* a forced hunt (The Coven's blood sparing the hunt) —
+applied: the forced hunt is offered alongside them.
+
+### 7.8 Contest upkeep among the unlock effects
+
+Is paying or yielding a contest freely ordered among the active
+Methuselah's other unlock-phase effects (the Edge, mandatory riders,
+abilities), as the riders are (6.1)? If so the engine folds them all
+into one ordered window and drops its opening Edge decision (DESIGN
+§10.7 revised).
+
+**Answer (2026-09-06)** — Yes. The difference: contest upkeep is a
+mandatory decision (pay or yield), so the impulse cannot move on until
+it is made, whereas the Edge's pool is optional — if the impulse is
+passed and nobody takes it, the opportunity is lost. Unlocking cards
+happens at the beginning of the phase and is not ordered. Applied: one
+unlock effects window (`Flow::Abilities`, label `UnlockAbilities`) —
+the active Methuselah's pending contests and riders as mandatory
+choices (Pass masked until none is left), the Edge and the abilities as
+optional ones, offered whenever the active seat holds the impulse; the
+opening Edge window is gone; contests with no rival left and forced
+yields settle at once. Unlocking stays in `start_turn`.
+
 Batch 8 — cards & effects (replacement, delayed replacement, control
 change, events).

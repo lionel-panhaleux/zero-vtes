@@ -57,6 +57,12 @@ pub enum Window {
     /// In-play ability hook: during the host's controller's unlock phase
     /// ("during their unlock phase": Vessel).
     UnlockPhaseOwn,
+    /// In-play ability hook: any decision point where the controller
+    /// holds the impulse — "can be used during an action, when the
+    /// controller has the opportunity to play an effect" (ANK 20200616) —
+    /// except the as-played window (cancels and wakes only, rules-qa
+    /// 2.4). Matched only where a request site asks for it.
+    AnyImpulse,
 }
 
 impl Window {
@@ -234,6 +240,12 @@ pub enum Requirement {
     /// This card in play carries at least n counters (a rider with
     /// nothing to pay is not pending: Smiling Jack at 0 counters).
     CountersAtLeast(u8),
+    /// This card in play is unlocked ("you can lock this card to …").
+    CardUnlocked,
+    /// The player has the Edge ("if you have the Edge").
+    HasEdge,
+    /// The player's hand is not empty ("discard a card").
+    HandNotEmpty,
     /// Combat: the round is at close range ("only usable at close range").
     RangeClose,
     RangeLong,
@@ -521,6 +533,8 @@ pub enum Limit {
 pub enum TargetKind {
     Minion,
     Seat,
+    /// A vampire in the player's uncontrolled region (slot index).
+    Uncontrolled,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -535,6 +549,8 @@ pub enum Target {
     None,
     Minion(MinionId),
     Seat(SeatId),
+    /// A slot of the player's uncontrolled region.
+    Uncontrolled(u8),
 }
 
 /// Numeric terms chosen as the card is played (rules-qa 3.5).
@@ -556,9 +572,10 @@ pub enum Terms {
     /// any controller's, or none — announced with the play like any target
     /// (rules-qa 6.7), burned at resolution.
     BurnNamedInPlay(&'static str),
-    /// Ability cost "discard n master cards": which ones, chosen one at a
-    /// time as the use is announced (Tension in the Ranks).
-    DiscardMasters(u8),
+    /// Ability cost "discard n cards" (`masters`: master cards only):
+    /// which ones, chosen one at a time as the use is announced (Tension
+    /// in the Ranks, The Barrens).
+    Discard { n: u8, masters: bool },
 }
 
 /// Continuous-effect modifiers carried by layers (effects-framework §3.2).
@@ -659,6 +676,24 @@ pub enum Effect {
     /// Ability cost: one of the player's master phase actions ("use a
     /// master phase action … to burn this card").
     SpendMasterPhaseAction,
+    /// Ability cost: lock this card in play ("you can lock this card to
+    /// …").
+    LockSelf,
+    /// Add n counters to this card in play ("add 1 counter to this card
+    /// each time you lock it", Dreams of the Sphinx).
+    AddCounter(u8),
+    /// Burn this card once it carries n counters ("burn this card if it
+    /// has 3 counters"), checked as the ability resolves.
+    BurnSelfAtCounters(u8),
+    /// The player gains n pool.
+    GainPool(u8),
+    /// The player's hand size grows by n until the end of the turn (the
+    /// end of the discard phase, LSJ 20100812) — the hand is drawn up at
+    /// once; cards over size afterward stay (ANK 20180318).
+    HandSizeBonusUntilEndOfTurn(u8),
+    /// Add n blood to the targeted vampire in the player's uncontrolled
+    /// region (capped at its capacity).
+    BloodToUncontrolledTarget(u8),
     /// Rider effect: burn this card (Guardian Angel: "if this vampire is in
     /// torpor, burn this card").
     BurnSelf,
@@ -963,14 +998,17 @@ pub fn holds(
         }),
         Requirement::LockedActor => actor.is_some_and(|m| st.minions[m.index()].locked),
         Requirement::MasterPhaseActionLeft => st.seats[seat.index()].mpa > 0,
+        Requirement::HasEdge => st.seats[seat.index()].has_edge,
+        Requirement::HandNotEmpty => !st.seats[seat.index()].hand.is_empty(),
         Requirement::ActorVampire => actor.is_some(),
-        Requirement::HandMasters(n) => st.hand_masters(seat).len() >= n as usize,
+        Requirement::HandMasters(n) => st.hand_picks(seat, true).len() >= n as usize,
         Requirement::HostLocked
         | Requirement::HostBloodAtLeast(_)
         | Requirement::HostBelowCapacity
         | Requirement::HostControllerPoolAtLeast(_)
         | Requirement::HostInTorpor
         | Requirement::CountersAtLeast(_)
+        | Requirement::CardUnlocked
         | Requirement::NotHuntingGroundFed => true, // host / card / target predicates
         Requirement::ControlsReadyTitled(classes) => st.minions_of(seat).any(|m| {
             let v = &st.minions[m.index()];
@@ -1079,6 +1117,17 @@ pub fn holds_for_seat(
     match req {
         Requirement::NotActingController => action.is_some_and(|a| a.seat != t),
         Requirement::NotSelf => t != seat,
+        _ => true,
+    }
+}
+
+/// Evaluate a predicate on the card in play itself (an in-play ability's
+/// "lock this card", a rider's counters).
+pub fn holds_for_card(req: Requirement, st: &GameState, id: CardId) -> bool {
+    let c = &st.cards[id.index()];
+    match req {
+        Requirement::CardUnlocked => !c.locked,
+        Requirement::CountersAtLeast(n) => c.counters >= n,
         _ => true,
     }
 }

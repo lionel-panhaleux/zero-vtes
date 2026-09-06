@@ -5,9 +5,9 @@
 
 use zvtes::cards::Target;
 use zvtes::decision::{Choice, DecisionRequest, WindowLabel};
-use zvtes::game::{Engine, Step};
+use zvtes::game::{Contest, Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::{find_card, find_library, CardInPlay};
+use zvtes::state::{find_card, find_library, CardId, CardInPlay};
 
 fn request(e: &mut Engine) -> DecisionRequest {
     match e.run() {
@@ -234,8 +234,8 @@ fn papillon_and_carfax_abbey_requirements_and_picks() {
     let _ = request(&mut e);
     assert!(e.state.cards[0].contested && e.state.cards[1].contested);
     // Seat 0 pays; the contested Papillon feeds nobody.
-    to_window(&mut e, SeatId(0), WindowLabel::UnlockContest);
-    pick(&mut e, Choice::PayContest);
+    to_window(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
+    pick(&mut e, Choice::PayContest(Contest::Library(CardId(0))));
     let req = to_window(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(abilities(&req).is_empty());
     let _ = (alexa, mateo, kevin);
@@ -260,9 +260,13 @@ fn unique_library_card_contest_pay_yield_and_return() {
     assert!(e.state.cards[0].contested && e.state.cards[1].contested);
     assert!(e.state.cards[0].in_play && e.state.cards[1].in_play);
     // Seat 0's unlock phase: pay 1 pool; no feeding while contested.
-    let req = to_window(&mut e, SeatId(0), WindowLabel::UnlockContest);
-    assert_eq!(req.options, vec![Choice::PayContest, Choice::YieldContest]);
-    pick(&mut e, Choice::PayContest);
+    let item = Contest::Library(CardId(0));
+    let req = to_window(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
+    assert_eq!(
+        req.options,
+        vec![Choice::PayContest(item), Choice::YieldContest(item)]
+    );
+    pick(&mut e, Choice::PayContest(item));
     assert_eq!(e.state.seats[0].pool, 7);
     let req = to_window(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!req
@@ -270,8 +274,8 @@ fn unique_library_card_contest_pay_yield_and_return() {
         .iter()
         .any(|o| matches!(o, Choice::UseAbility { .. })));
     // Seat 1 yields: its copy is burned to its ash heap.
-    to_window(&mut e, SeatId(1), WindowLabel::UnlockContest);
-    pick(&mut e, Choice::YieldContest);
+    to_window(&mut e, SeatId(1), WindowLabel::UnlockAbilities);
+    pick(&mut e, Choice::YieldContest(Contest::Library(CardId(1))));
     assert!(!e.state.cards[1].in_play);
     assert_eq!(
         e.state.seats[1].ash,

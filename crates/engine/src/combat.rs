@@ -351,6 +351,7 @@ impl Engine {
                 }
                 let mut options = vec![Choice::HandStrike];
                 options.extend(self.play_options(side.seat, &c.windows(), None));
+                options.extend(self.ability_options(side.seat, Window::AnyImpulse));
                 Some(DecisionRequest {
                     seat: side.seat,
                     window: WindowLabel::CombatStrike,
@@ -377,6 +378,7 @@ impl Engine {
                 for w in c.windows() {
                     options.extend(self.ability_options(side.seat, w));
                 }
+                options.extend(self.ability_options(side.seat, Window::AnyImpulse));
                 Some(DecisionRequest {
                     seat: side.seat,
                     window: WindowLabel::CombatPrevention,
@@ -402,6 +404,7 @@ impl Engine {
                 for w in c.windows() {
                     options.extend(self.ability_options(seat, w));
                 }
+                options.extend(self.ability_options(seat, Window::AnyImpulse));
                 Some(DecisionRequest {
                     seat,
                     window: c.label(),

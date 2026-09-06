@@ -15,7 +15,7 @@ use zvtes::game::{Engine, Step};
 use zvtes::ids::SeatId;
 use zvtes::library::LIBRARY;
 use zvtes::rng::Rng;
-use zvtes::state::{find_card, find_library, UncontrolledSlot, HAND_SIZE};
+use zvtes::state::{find_card, find_library, CardInPlay, UncontrolledSlot, HAND_SIZE};
 
 const SEEDS: u64 = 100;
 const DECISION_BUDGET: u64 = 200_000;
@@ -39,7 +39,7 @@ fn zone_totals(e: &Engine) -> Vec<usize> {
         .collect()
 }
 
-fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
+fn invariants(e: &Engine, totals: &[usize], hands: &[usize], seed: u64, window: WindowLabel) {
     let st = &e.state;
     assert!(
         !st.seats[st.active.index()].ousted,
@@ -62,9 +62,13 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
             );
         }
         // Over hand size only while discarding down after a canceled
-        // referendum returned the political action card.
+        // referendum returned the political action card, or under Dreams
+        // of the Sphinx's bonus — which outlasts the turn (cards over size
+        // stay) but never lets the hand grow again once it is gone.
         assert!(
-            s.hand.len() <= HAND_SIZE || window == WindowLabel::DiscardDown,
+            s.hand.len() <= HAND_SIZE + s.hand_bonus as usize
+                || s.hand.len() <= hands[i]
+                || window == WindowLabel::DiscardDown,
             "hand over size at seat {i} (seed {seed})"
         );
     }
@@ -149,8 +153,8 @@ fn kind_of(c: &Choice) -> &'static str {
     match c {
         Choice::Pass => "pass",
         Choice::BurnEdge => "burn_edge",
-        Choice::PayContest => "pay_contest",
-        Choice::YieldContest => "yield_contest",
+        Choice::PayContest(_) => "pay_contest",
+        Choice::YieldContest(_) => "yield_contest",
         Choice::Play { .. } => "play",
         Choice::UseAbility { .. } => "use_ability",
         Choice::ResolveRider { .. } => "resolve_rider",
@@ -307,6 +311,8 @@ fn midgame(seed: u64) -> Engine {
         "Fame",
         "Tension in the Ranks",
         "Smiling Jack, The Anarch",
+        "Dreams of the Sphinx",
+        "Barrens, The",
         "Carfax Abbey",
     ]
     .iter()
@@ -384,6 +390,20 @@ fn midgame(seed: u64) -> Engine {
         e.state.seats[s as usize].library = library;
     }
     e.state.seats[rng.below(4)].has_edge = true;
+    // Half the seeds open with a Smiling Jack already fed, so the other
+    // seats' per-counter payments (a mandatory rider with choices) are
+    // reached without waiting for random play to bring it out and keep it.
+    if seed % 2 == 1 {
+        e.state.cards.push(CardInPlay {
+            card: find_library("Smiling Jack, The Anarch"),
+            owner: SeatId(rng.below(4) as u8),
+            host: None,
+            in_play: true,
+            contested: false,
+            locked: false,
+            counters: 2,
+        });
+    }
     e
 }
 
@@ -392,6 +412,7 @@ fn play(seed: u64, start: fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<Strin
     let totals = zone_totals(&e);
     let mut agent = RandomLegal::new(seed ^ 0x00c0_ffee);
     let mut chosen = HashSet::new();
+    let mut hands: Vec<usize> = e.state.seats.iter().map(|s| s.hand.len()).collect();
     loop {
         assert!(
             e.decisions < DECISION_BUDGET,
@@ -404,7 +425,10 @@ fn play(seed: u64, start: fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<Strin
                     "decision requested from an ousted seat (seed {seed}, {:?})",
                     req.window
                 );
-                invariants(&e, &totals, seed, req.window);
+                invariants(&e, &totals, &hands, seed, req.window);
+                for (h, s) in hands.iter_mut().zip(&e.state.seats) {
+                    *h = s.hand.len();
+                }
                 for o in &req.options {
                     if let Choice::UseAbility { card, .. } = o {
                         // Spec §1.13.3: nothing printed on a contested card
@@ -590,6 +614,10 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "ability:Tension in the Ranks",
             "play:Smiling Jack, The Anarch",
             "ability:Smiling Jack, The Anarch",
+            "play:Dreams of the Sphinx",
+            "ability:Dreams of the Sphinx",
+            "play:Barrens, The",
+            "ability:Barrens, The",
             // (Smiling Jack's pool unit elides when it is the only source and
             // is seldom picked against several vampires: no key.)
             "burn_blood_from",

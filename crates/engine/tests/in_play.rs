@@ -10,7 +10,7 @@ use zvtes::crypt::CRYPT;
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::{find_card, find_library, ActionId, CardId, CardInPlay};
+use zvtes::state::{find_card, find_library, ActionId, CardId, CardInPlay, UncontrolledSlot};
 
 fn request(e: &mut Engine) -> DecisionRequest {
     match e.run() {
@@ -1098,6 +1098,184 @@ fn smiling_jack_can_be_burned_as_a_directed_action() {
         e.state.seats[1].ash,
         vec![find_library("Smiling Jack, The Anarch")]
     );
+}
+
+fn uses(req: &DecisionRequest, card: u32) -> Vec<Choice> {
+    req.options
+        .iter()
+        .filter(|o| matches!(o, Choice::UseAbility { card: c, .. } if *c == card))
+        .copied()
+        .collect()
+}
+
+// Dreams of the Sphinx: "You can lock this card to get +2 hand size until
+// the end of the turn" — the hand is drawn up to 9 at once, the card locks
+// and gains a counter, and stays locked until its controller's next unlock
+// phase; the bonus ends with the turn (LSJ 20100812) and the cards over
+// size stay (ANK 20180318).
+#[test]
+fn dreams_of_the_sphinx_hand_size_lock_lasts_the_turn() {
+    let Table { mut e, .. } = table();
+    let dreams = revolt_like_in_play(&mut e, "Dreams of the Sphinx", 0);
+    hand(&mut e, 0, &["Bonding"]);
+    e.state.seats[0].library = vec![find_library("Villein"); 10];
+    let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    assert_eq!(uses(&req, dreams), vec![ability(dreams, 0)]);
+    pick(&mut e, ability(dreams, 0));
+    let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    assert!(uses(&req, dreams).is_empty()); // locked
+    assert_eq!(e.state.seats[0].hand.len(), 9);
+    assert_eq!(e.state.seats[0].library.len(), 2);
+    assert!(e.state.cards[dreams as usize].locked);
+    assert_eq!(e.state.cards[dreams as usize].counters, 1);
+    to_minion_phase(&mut e, SeatId(1));
+    assert_eq!(e.state.seats[0].hand_bonus, 0);
+    assert_eq!(e.state.seats[0].hand.len(), 9);
+    // Seat 0's next turn: the card unlocked, no draw (over size already).
+    let req = to_master_phase(&mut e, SeatId(0));
+    assert!(!e.state.cards[dreams as usize].locked);
+    assert_eq!(uses(&req, dreams), vec![ability(dreams, 0)]);
+    assert_eq!(e.state.seats[0].hand.len(), 9);
+}
+
+// "You can lock this card during your unlock phase to gain 1 pool if you
+// have the Edge": an own-unlock-phase ability gated on the Edge, offered
+// among the unlock-phase effects; the untimed hand-size lock is offered
+// there too.
+#[test]
+fn dreams_of_the_sphinx_edge_lock_in_own_unlock_phase() {
+    let (mut e, _a, _x, _z) = bleed_table();
+    let dreams = revolt_like_in_play(&mut e, "Dreams of the Sphinx", 0);
+    e.state.seats[0].has_edge = true;
+    // In the other Methuselahs' unlock rotations seat 0 is offered the
+    // untimed lock only; on its own unlock phase the Edge lock too.
+    let req = loop {
+        let req = to_unlock_abilities(&mut e, SeatId(0));
+        if e.state.active == SeatId(0) {
+            break req;
+        }
+        assert_eq!(uses(&req, dreams), vec![ability(dreams, 0)]);
+        e.choose(0);
+    };
+    assert_eq!(
+        uses(&req, dreams),
+        vec![ability(dreams, 1), ability(dreams, 0)]
+    );
+    pick(&mut e, ability(dreams, 1));
+    assert_eq!(pool(&e), vec![11, 10, 10]);
+    assert_eq!(e.state.cards[dreams as usize].counters, 1);
+    assert!(e.state.cards[dreams as usize].locked);
+    // The Edge, kept for the lock, is burned afterward in the same unlock
+    // phase: +2 pool in all.
+    let req = expect(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
+    assert!(req.options.contains(&Choice::BurnEdge));
+    pick(&mut e, Choice::BurnEdge);
+    assert_eq!(pool(&e), vec![12, 10, 10]);
+    assert!(!e.state.seats[0].has_edge);
+}
+
+// "You can lock this card to add 1 blood to a vampire in your uncontrolled
+// region" and "burn this card if it has 3 counters": the third lock's
+// effect lands, then the card burns.
+#[test]
+fn dreams_of_the_sphinx_blood_to_uncontrolled_and_burn_at_three_counters() {
+    let Table { mut e, .. } = table();
+    let dreams = revolt_like_in_play(&mut e, "Dreams of the Sphinx", 0);
+    e.state.cards[dreams as usize].counters = 2;
+    e.state.seats[0].uncontrolled.push(UncontrolledSlot {
+        card: find_card("Abraham DuSable"),
+        counters: 0,
+        banished: None,
+    });
+    let pick_slot = Choice::UseAbility {
+        card: dreams,
+        ability: 2,
+        actor: None,
+        target: Target::Uncontrolled(0),
+    };
+    let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    assert!(req.options.contains(&pick_slot));
+    pick(&mut e, pick_slot);
+    assert_eq!(e.state.seats[0].uncontrolled[0].counters, 1);
+    assert!(!e.state.cards[dreams as usize].in_play);
+    assert_eq!(
+        e.state.seats[0].ash,
+        vec![find_library("Dreams of the Sphinx")]
+    );
+}
+
+// The Barrens: "You can lock this card to discard a card (draw up
+// afterward)" — usable whenever its controller holds the impulse, another
+// Methuselah's action included (ANK 20200616); the card to discard is
+// announced with the use; locked, it is no longer offered.
+#[test]
+fn the_barrens_discards_a_chosen_card_at_any_impulse() {
+    let (mut e, a, _x, _z) = bleed_table();
+    let barrens = revolt_like_in_play(&mut e, "Barrens, The", 1);
+    hand(&mut e, 1, &["Villein", "Bonding"]);
+    e.state.seats[1].library = vec![find_library("Villein"); 3];
+    pick(&mut e, bleed(a));
+    // Offered as the action is announced already (a window that elides
+    // without it).
+    let req = expect(&mut e, SeatId(1), WindowLabel::ActionAsAnnounced);
+    assert_eq!(uses(&req, barrens), vec![ability(barrens, 0)]);
+    pick(&mut e, ability(barrens, 0));
+    let req = expect(&mut e, SeatId(1), WindowLabel::PlayTerms);
+    assert_eq!(req.options, vec![Choice::Discard(0), Choice::Discard(1)]);
+    pick(&mut e, Choice::Discard(1));
+    assert_eq!(e.state.seats[1].ash, vec![find_library("Bonding")]);
+    assert_eq!(e.state.seats[1].hand.len(), 4);
+    assert!(e.state.cards[barrens as usize].locked);
+    let req = to_window(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    assert!(uses(&req, barrens).is_empty());
+}
+
+// A starving vampire's forced hunt does not pre-empt an untimed ability:
+// the controller may use it first (owner, 2026-09-06).
+#[test]
+fn untimed_ability_offered_alongside_a_forced_hunt() {
+    let (mut e, a, _x, _z) = bleed_table();
+    let barrens = revolt_like_in_play(&mut e, "Barrens, The", 0);
+    hand(&mut e, 0, &["Bonding"]);
+    for m in &mut e.state.minions {
+        if m.owner == SeatId(0) {
+            m.blood = 0;
+        }
+    }
+    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!req.options.contains(&Choice::Pass));
+    assert!(req.options.iter().any(|o| matches!(
+        o,
+        Choice::TakeAction {
+            minion,
+            action: ActionKind::Hunt,
+            ..
+        } if *minion == a
+    )));
+    assert_eq!(uses(&req, barrens), vec![ability(barrens, 0)]);
+}
+
+// Not in the as-played window: only cancels and wakes there (rules-qa
+// 2.4; LSJ 20061207).
+#[test]
+fn the_barrens_is_not_usable_in_the_as_played_window() {
+    let Table { mut e, .. } = table();
+    let barrens = revolt_like_in_play(&mut e, "Barrens, The", 1);
+    hand(&mut e, 0, &["Villein"]);
+    hand(&mut e, 1, &["Sudden Reversal", "Bonding"]);
+    pick(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: None,
+            target: Target::Minion(MinionId(0)),
+        },
+    );
+    pick(&mut e, Choice::SetX(2));
+    let req = expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
+    assert!(uses(&req, barrens).is_empty());
+    assert!(req.options.len() > 1);
 }
 
 // Creeping Sabotage: "+1 stealth action" (blocks pruned with no intercept),

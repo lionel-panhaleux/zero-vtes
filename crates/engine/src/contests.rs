@@ -3,18 +3,15 @@
 //! (DESIGN §4.4 factoring: each Methuselah settles their own side, in arena
 //! order).
 
-use crate::decision::{Choice, DecisionRequest, WindowLabel};
-use crate::game::{Contest, Engine, Flow};
+use crate::decision::Choice;
+use crate::game::{Contest, Engine};
 use crate::ids::MinionId;
 use crate::library::{Label, LIBRARY};
 use crate::state::CardId;
 
 impl Engine {
-    /// Unlock-phase contest upkeep for the active seat, after the Edge
-    /// decision. Ordering call (DESIGN §10): Edge first, then contests in
-    /// arena order — the only line this drops is paying oneself to 0 pool
-    /// before taking the Edge's pool.
-    pub(crate) fn start_contests(&mut self) {
+    /// The active seat's contested objects, in arena order.
+    pub(crate) fn collect_contests(&self) -> Vec<Contest> {
         let s = self.state.active;
         let mut items: Vec<Contest> = self
             .state
@@ -37,66 +34,56 @@ impl Engine {
                 .filter(|(_, c)| c.owner == s && c.in_play && c.contested)
                 .map(|(i, _)| Contest::Library(CardId(i as u32))),
         );
-        self.flow = Flow::Contests { items, at: 0 };
+        items
     }
 
-    pub(crate) fn contest_request(&self, items: &[Contest], at: usize) -> Option<DecisionRequest> {
+    /// The upkeep decision for one contested object: none when no rival is
+    /// left (it returns for free), a forced yield for a title on a torpid
+    /// or empty vampire, else pay or yield. Paying is always offered for a
+    /// card: a living Methuselah has pool, and paying down to 0 is legal.
+    pub(crate) fn contest_choices(&self, item: Contest) -> Vec<Choice> {
         let st = &self.state;
-        let item = *items.get(at)?;
-        let options = match item {
-            Contest::Card(m) if st.card_rivals(m).is_empty() => return None,
-            Contest::Title(m) if st.title_rivals(m).is_empty() => return None,
-            Contest::Library(c) if st.library_rivals(c).is_empty() => return None,
-            // Paying is always offered for a card: a living Methuselah has
-            // pool, and paying down to 0 is legal.
+        match item {
+            Contest::Card(m) if st.card_rivals(m).is_empty() => vec![],
+            Contest::Title(m) if st.title_rivals(m).is_empty() => vec![],
+            Contest::Library(c) if st.library_rivals(c).is_empty() => vec![],
             Contest::Card(_) | Contest::Library(_) => {
-                vec![Choice::PayContest, Choice::YieldContest]
+                vec![Choice::PayContest(item), Choice::YieldContest(item)]
             }
             Contest::Title(m) => {
                 let v = &st.minions[m.index()];
-                // Only ready vampires contest titles; no blood means a
-                // forced yield.
                 if v.in_torpor || v.blood == 0 {
-                    vec![Choice::YieldContest]
+                    vec![Choice::YieldContest(item)]
                 } else {
-                    vec![Choice::PayContest, Choice::YieldContest]
+                    vec![Choice::PayContest(item), Choice::YieldContest(item)]
                 }
             }
-        };
-        Some(DecisionRequest {
-            seat: st.active,
-            window: WindowLabel::UnlockContest,
-            options,
-        })
+        }
     }
 
     /// A contested object with no rival left returns for free "during your
     /// next unlock phase".
-    pub(crate) fn contest_advance(&mut self, items: Vec<Contest>, at: usize) {
-        match items.get(at) {
-            Some(Contest::Card(m)) => {
+    pub(crate) fn release_contest(&mut self, item: Contest) {
+        match item {
+            Contest::Card(m) => {
                 self.state.minions[m.index()].contested = false;
-                self.enter_title_contest(*m);
-                self.flow = Flow::Contests { items, at: at + 1 };
+                self.enter_title_contest(m);
             }
-            Some(Contest::Title(m)) => {
-                self.state.minions[m.index()].title_contested = false;
-                self.flow = Flow::Contests { items, at: at + 1 };
-            }
+            Contest::Title(m) => self.state.minions[m.index()].title_contested = false,
             // "Unlocked and turned face up during your next unlock phase".
-            Some(Contest::Library(c)) => {
+            Contest::Library(c) => {
                 let card = &mut self.state.cards[c.index()];
                 card.contested = false;
                 card.locked = false;
-                self.flow = Flow::Contests { items, at: at + 1 };
             }
-            None => self.end_contests(),
         }
     }
 
-    pub(crate) fn contest_apply(&mut self, items: Vec<Contest>, at: usize, pay: bool) {
+    /// Pay or yield one contest. Returns true when the active Methuselah
+    /// paid themselves to 0: ousted, the turn has passed.
+    pub(crate) fn settle_contest(&mut self, item: Contest, pay: bool) -> bool {
         let s = self.state.active;
-        match items[at] {
+        match item {
             Contest::Card(m) => {
                 if pay {
                     self.state.seats[s.index()].pool -= 1;
@@ -124,10 +111,11 @@ impl Engine {
                 }
             }
         }
-        self.flow = Flow::Contests { items, at: at + 1 };
         if self.state.seats[s.index()].pool == 0 {
             self.oust_and_pass(s);
+            return true;
         }
+        false
     }
 
     /// A copy of a unique vampire entering play while another Methuselah has

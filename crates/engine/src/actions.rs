@@ -440,6 +440,7 @@ impl Engine {
             }
         }
         options.extend(self.play_options(seat, &Self::action_windows(a, seat), None));
+        options.extend(self.ability_options(seat, Window::AnyImpulse));
         let window = match a.state {
             ActionState::AsAnnounced => WindowLabel::ActionAsAnnounced,
             ActionState::Open | ActionState::Attempt(_) => WindowLabel::ActionBlock,
@@ -500,6 +501,18 @@ impl Engine {
                 a.window.play();
                 self.flow = Flow::Action;
                 self.announce_play(seat, *card, *mode, *actor, *target, Flow::Action);
+            }
+            Choice::UseAbility {
+                card,
+                ability,
+                actor,
+                target,
+            } => {
+                // An untimed ability (The Barrens) is an effect: the impulse
+                // returns to the acting Methuselah.
+                a.window.play();
+                self.flow = Flow::Action;
+                self.use_ability(*card, *ability, *actor, *target, Flow::Action);
             }
             other => unreachable!("illegal action choice {other:?}"),
         }
@@ -1000,7 +1013,10 @@ impl Engine {
             .filter(|m| st.minions[m.index()].blood == 0)
             .collect();
         if !starving.is_empty() {
-            return starving
+            // The forced hunt — after any untimed ability the Methuselah
+            // wants first (The Coven's blood spares the hunt; owner,
+            // 2026-09-06).
+            let mut options: Vec<Choice> = starving
                 .into_iter()
                 .map(|minion| Choice::TakeAction {
                     minion,
@@ -1008,6 +1024,8 @@ impl Engine {
                     target: None,
                 })
                 .collect();
+            options.extend(self.ability_options(s, Window::AnyImpulse));
+            return options;
         }
         let mut options = vec![Choice::Pass];
         let torpid = st.in_torpor();
@@ -1072,6 +1090,7 @@ impl Engine {
         // this card as a Ⓓ action").
         options.extend(self.ability_options(s, Window::ActionDeclare));
         options.extend(self.ability_options(s, Window::ActionDeclarePolitical));
+        options.extend(self.ability_options(s, Window::AnyImpulse));
         options
     }
 }

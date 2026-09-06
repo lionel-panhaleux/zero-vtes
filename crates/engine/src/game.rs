@@ -27,23 +27,26 @@ pub const TURN_LIMIT: u32 = 100;
 
 /// One contested object of the active seat, resolved during its unlock
 /// phase (rulebook "Contested Cards" / "Contested Titles").
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum Contest {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Contest {
     Card(MinionId),
     Title(MinionId),
     /// A unique library card in play (rulebook "Contested Cards").
     Library(CardId),
 }
 
+/// A mandatory unlock-phase effect the active Methuselah has yet to
+/// settle, in the order they choose (rules-qa 6.1, 7.8).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Pending {
+    /// A card in play's "during their unlock phase" rider.
+    Rider(CardId),
+    /// Contest upkeep: pay or yield.
+    Contest(Contest),
+}
+
 #[derive(Clone, Debug)]
 pub(crate) enum Flow {
-    /// Unlock-phase decision point: burn the Edge for 1 pool, or keep it.
-    Unlock,
-    /// Unlock-phase contest upkeep, one contested object at a time.
-    Contests {
-        items: Vec<Contest>,
-        at: usize,
-    },
     /// Master phase: an offer window for the active seat's master phase
     /// actions (rulebook "Master Phase").
     MasterPhase,
@@ -77,8 +80,8 @@ pub(crate) enum Flow {
     /// In-play abilities usable during any Methuselah's unlock phase.
     Abilities {
         window: OrderedWindow,
-        /// Mandatory unlock-phase riders the active seat has yet to resolve.
-        pending: Vec<CardId>,
+        /// Mandatory unlock-phase effects the active seat has yet to settle.
+        pending: Vec<Pending>,
     },
     /// Minion phase: offer actions for the active seat's ready minions.
     MinionPhase,
@@ -170,6 +173,7 @@ impl Engine {
                     hand,
                     ash: Vec::new(),
                     mpa: 0,
+                    hand_bonus: 0,
                     trifle_used: false,
                     out_of_turn: None,
                     dpa: 0,
@@ -290,19 +294,6 @@ impl Engine {
     fn request(&self) -> Option<DecisionRequest> {
         let st = &self.state;
         match &self.flow {
-            Flow::Unlock => {
-                let s = st.active;
-                if st.seats[s.index()].has_edge {
-                    Some(DecisionRequest {
-                        seat: s,
-                        window: WindowLabel::UnlockEdge,
-                        options: vec![Choice::Pass, Choice::BurnEdge],
-                    })
-                } else {
-                    None
-                }
-            }
-            Flow::Contests { items, at } => self.contest_request(items, *at),
             Flow::MasterPhase => Some(self.master_request()),
             Flow::PlayTerms { ctx, .. } => Some(self.terms_request(ctx)),
             Flow::AsPlayed { stack, .. } => self.as_played_request(stack),
@@ -334,9 +325,6 @@ impl Engine {
     fn advance(&mut self) {
         let flow = std::mem::replace(&mut self.flow, Flow::GameOver);
         match flow {
-            // No Edge to consider: on to contest upkeep.
-            Flow::Unlock => self.start_contests(),
-            Flow::Contests { items, at } => self.contest_advance(items, at),
             Flow::AsPlayed { stack, resume } => self.as_played_advance(stack, resume),
             Flow::Abilities { window, .. } => {
                 debug_assert!(window.is_closed());
@@ -352,16 +340,6 @@ impl Engine {
     fn apply(&mut self, choice: &Choice) {
         let flow = std::mem::replace(&mut self.flow, Flow::GameOver);
         match (flow, choice) {
-            (Flow::Unlock, Choice::BurnEdge) => {
-                let s = self.state.active.index();
-                self.state.seats[s].has_edge = false;
-                self.state.seats[s].pool += 1;
-                self.start_contests();
-            }
-            (Flow::Unlock, Choice::Pass) => self.start_contests(),
-            (Flow::Contests { items, at }, c @ (Choice::PayContest | Choice::YieldContest)) => {
-                self.contest_apply(items, at, *c == Choice::PayContest)
-            }
             (Flow::MasterPhase, c) => self.master_apply(c),
             (Flow::PlayTerms { ctx, resume }, c) => self.terms_apply(ctx, *resume, c),
             (Flow::AsPlayed { stack, resume }, c) => self.as_played_apply(stack, resume, c),
@@ -427,34 +405,45 @@ impl Engine {
         }
     }
 
-    /// End of the active seat's own unlock-phase effects (Edge, contests):
-    /// the impulse rotates for other players' unlock-phase abilities
-    /// (Homunculus), returning to the active seat after each (owner,
-    /// 2026-09-04; rules-qa 3.7), then the master phase.
-    pub(crate) fn end_contests(&mut self) {
-        // The unlock-phase effects window: the active seat's pending
-        // mandatory riders (every copy of Anarch Revolt in play, whoever
-        // controls it — each burns on its own, spec §1.15) ordered by them
-        // among their optional abilities and resolved before the impulse
-        // leaves them (rules-qa 6.1), then the other seats' abilities.
+    /// The unlock-phase effects window (rules-qa 3.7, 6.1, 7.8): one
+    /// ordered impulse sequence over the seats clockwise from the active
+    /// one. The active Methuselah settles their mandatory effects — contest
+    /// upkeep and every pending rider (each copy of Anarch Revolt in play,
+    /// whoever controls it, spec §1.15) — in the order they choose, among
+    /// their optional ones (the Edge's pool, abilities), and cannot pass
+    /// the impulse before; then the other seats' abilities. Contests with
+    /// no rival left and forced yields settle at once (no decision).
+    pub(crate) fn start_unlock_effects(&mut self) {
         let s = self.state.active;
-        let pending: Vec<CardId> = self
-            .state
-            .cards
-            .iter()
-            .enumerate()
-            .filter(|(i, c)| {
-                c.present()
-                    && cards::lookup(c.card).is_some_and(|d| {
-                        d.riders.iter().any(|r| {
-                            r.hook == Hook::UnlockPhase
-                                && r.scope.applies(c.owner, s)
-                                && self.state.rider_holds(r, CardId(*i as u32))
+        let mut pending = Vec::new();
+        for item in self.collect_contests() {
+            match self.contest_choices(item).len() {
+                0 => self.release_contest(item),
+                1 => {
+                    if self.settle_contest(item, false) {
+                        return; // ousted: the turn has passed
+                    }
+                }
+                _ => pending.push(Pending::Contest(item)),
+            }
+        }
+        pending.extend(
+            self.state
+                .cards
+                .iter()
+                .enumerate()
+                .filter(|(i, c)| {
+                    c.present()
+                        && cards::lookup(c.card).is_some_and(|d| {
+                            d.riders.iter().any(|r| {
+                                r.hook == Hook::UnlockPhase
+                                    && r.scope.applies(c.owner, s)
+                                    && self.state.rider_holds(r, CardId(*i as u32))
+                            })
                         })
-                    })
-            })
-            .map(|(i, _)| CardId(i as u32))
-            .collect();
+                })
+                .map(|(i, _)| Pending::Rider(CardId(i as u32))),
+        );
         let order = self.state.clockwise_from(s);
         self.flow = Flow::Abilities {
             window: OrderedWindow::new(order),
@@ -516,8 +505,12 @@ impl Engine {
         self.flow = Flow::Discard;
     }
 
-    /// End of the discard phase: the turn passes.
+    /// End of the discard phase: "until the end of the turn" effects end
+    /// (the hand size bonus, LSJ 20100812; cards over size stay), and the
+    /// turn passes.
     pub(crate) fn end_turn(&mut self) {
+        let s = self.state.active;
+        self.state.seats[s.index()].hand_bonus = 0;
         self.next_turn();
     }
 
@@ -664,7 +657,13 @@ impl Engine {
                 m.locked = false;
             }
         }
-        self.flow = Flow::Unlock;
+        // … and the cards they control.
+        for ci in 0..self.state.cards.len() {
+            if self.state.cards[ci].in_play && self.state.card_controller(CardId(ci as u32)) == s {
+                self.state.cards[ci].locked = false;
+            }
+        }
+        self.start_unlock_effects();
     }
 }
 
@@ -1004,9 +1003,13 @@ mod tests {
         let copy = MinionId(3);
         assert!(e.state.minions[1].contested && e.state.minions[copy.index()].contested);
         // Seat 2 has nothing and elides; seat 0's unlock phase: upkeep.
-        let req = expect(&mut e, SeatId(0), WindowLabel::UnlockContest);
-        assert_eq!(req.options, vec![Choice::PayContest, Choice::YieldContest]);
-        pick(&mut e, Choice::PayContest);
+        let item = Contest::Card(MinionId(1));
+        let req = expect(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
+        assert_eq!(
+            req.options,
+            vec![Choice::PayContest(item), Choice::YieldContest(item)]
+        );
+        pick(&mut e, Choice::PayContest(item));
         assert_eq!(e.state.seats[0].pool, START_POOL - 1);
         assert!(e.state.minions[1].contested);
         // Contested copies are out of play: seat 0 cannot act with it.
@@ -1017,8 +1020,8 @@ mod tests {
             .any(|o| matches!(o, Choice::TakeAction { minion, .. } if *minion == MinionId(1))));
         pick(&mut e, Choice::Pass);
         // Seat 1 yields: its copy is burned.
-        expect(&mut e, SeatId(1), WindowLabel::UnlockContest);
-        pick(&mut e, Choice::YieldContest);
+        expect(&mut e, SeatId(1), WindowLabel::UnlockAbilities);
+        pick(&mut e, Choice::YieldContest(Contest::Card(copy)));
         assert!(!e.state.minions[copy.index()].in_play);
         expect(&mut e, SeatId(1), WindowLabel::MinionPhase);
         pick(&mut e, Choice::Pass);
@@ -1040,20 +1043,20 @@ mod tests {
         e.state.turn = 4;
         pick(&mut e, Choice::Pass); // seat 0 minion phase
                                     // Seat 1's unlock: Aline pays 1 blood.
-        expect(&mut e, SeatId(1), WindowLabel::UnlockContest);
-        pick(&mut e, Choice::PayContest);
+        expect(&mut e, SeatId(1), WindowLabel::UnlockAbilities);
+        pick(&mut e, Choice::PayContest(Contest::Title(aline)));
         assert_eq!(e.state.minions[aline.index()].blood, 1);
         expect(&mut e, SeatId(1), WindowLabel::MinionPhase);
         pick(&mut e, Choice::Pass);
         // Seat 0's unlock: Horst pays too.
-        expect(&mut e, SeatId(0), WindowLabel::UnlockContest);
-        pick(&mut e, Choice::PayContest);
+        expect(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
+        pick(&mut e, Choice::PayContest(Contest::Title(horst)));
         assert_eq!(e.state.minions[horst.index()].blood, 3);
         expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
         pick(&mut e, Choice::Pass);
         // Seat 1's unlock: Aline yields — titleless for the rest of the game.
-        expect(&mut e, SeatId(1), WindowLabel::UnlockContest);
-        pick(&mut e, Choice::YieldContest);
+        expect(&mut e, SeatId(1), WindowLabel::UnlockAbilities);
+        pick(&mut e, Choice::YieldContest(Contest::Title(aline)));
         let a = &e.state.minions[aline.index()];
         assert!(a.title_lost && !a.title_contested && a.in_play);
         expect(&mut e, SeatId(1), WindowLabel::MinionPhase);
@@ -1130,10 +1133,11 @@ mod tests {
         e.state.seats[0].has_edge = false;
         e.state.seats[1].has_edge = true;
         // Seat 0 passes its minion phase; the empty influence phase elides
-        // and the turn passes to seat 1, whose unlock phase opens with the
-        // Edge decision.
+        // and the turn passes to seat 1, whose unlock effects offer the
+        // Edge's pool (rules-qa 7.8: an optional unlock effect).
         pick(&mut e, Choice::Pass);
-        expect(&mut e, SeatId(1), WindowLabel::UnlockEdge);
+        let req = expect(&mut e, SeatId(1), WindowLabel::UnlockAbilities);
+        assert_eq!(req.options, vec![Choice::Pass, Choice::BurnEdge]);
         let pool = e.state.seats[1].pool;
         pick(&mut e, Choice::BurnEdge);
         assert_eq!(e.state.seats[1].pool, pool + 1);

@@ -466,6 +466,7 @@ impl Engine {
                     &[Window::Referendum, Window::Wake]
                 };
                 options.extend(self.play_options(seat, windows, None));
+                options.extend(self.ability_options(seat, Window::AnyImpulse));
                 WindowLabel::ReferendumPolling
             }
         };
@@ -492,6 +493,21 @@ impl Engine {
         match ctx.step {
             RefStep::Terms => self.terms_step_apply(&mut ctx, choice),
             RefStep::Polling => {
+                if let Choice::UseAbility {
+                    card,
+                    ability,
+                    actor,
+                    target,
+                } = choice
+                {
+                    // An untimed ability is a commitment of the rotation
+                    // like a card play.
+                    ctx.window.commit();
+                    self.referendum = Some(ctx);
+                    self.flow = Flow::Referendum;
+                    self.use_ability(*card, *ability, *actor, *target, Flow::Referendum);
+                    return;
+                }
                 if let Some(play) = self.polling_apply(&mut ctx, choice) {
                     let (card, mode, actor, target, seat) = play;
                     self.referendum = Some(ctx);

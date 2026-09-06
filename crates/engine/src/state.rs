@@ -211,6 +211,9 @@ pub struct Seat {
     pub ash: Vec<u16>,
     /// Master phase actions left in the current master phase.
     pub mpa: u8,
+    /// Hand size above the rulebook's 7 until the end of the turn (Dreams
+    /// of the Sphinx).
+    pub hand_bonus: u8,
     /// One additional master phase action from trifles per master phase.
     pub trifle_used: bool,
     /// Out-of-turn master card played since the last master phase.
@@ -313,16 +316,18 @@ impl GameState {
             .collect()
     }
 
-    /// Hand indices of the seat's master cards.
-    pub fn hand_masters(&self, seat: SeatId) -> Vec<u8> {
+    /// Hand indices of the seat's cards — master cards only with
+    /// `masters`.
+    pub fn hand_picks(&self, seat: SeatId, masters: bool) -> Vec<u8> {
         self.seats[seat.index()]
             .hand
             .iter()
             .enumerate()
             .filter(|(_, &c)| {
-                crate::library::LIBRARY[c as usize]
-                    .types
-                    .contains(&crate::library::CardType::Master)
+                !masters
+                    || crate::library::LIBRARY[c as usize]
+                        .types
+                        .contains(&crate::library::CardType::Master)
             })
             .map(|(i, _)| i as u8)
             .collect()
@@ -455,6 +460,7 @@ impl GameState {
             mix(s.has_edge as u64);
             mix(s.turns_taken as u64);
             mix(s.mpa as u64);
+            mix(s.hand_bonus as u64);
             mix(s.trifle_used as u64);
             mix(s.dpa as u64);
             mix(s.delayed_draws as u64);

@@ -1,4 +1,5 @@
 use crate::cards::Target;
+use crate::game::Contest;
 use crate::ids::{MinionId, SeatId};
 
 /// Action kinds: the card-free rulebook actions, plus card actions.
@@ -31,10 +32,12 @@ pub enum ActionKind {
 pub enum Choice {
     Pass,
     BurnEdge,
-    /// Unlock-phase contest upkeep: pay 1 pool (card) or 1 blood (title).
-    PayContest,
+    /// Unlock-phase contest upkeep of this contested object: pay 1 pool
+    /// (card) or 1 blood (title) — a mandatory decision, ordered among the
+    /// active Methuselah's unlock effects (rules-qa 7.8).
+    PayContest(Contest),
     /// Unlock-phase contest: yield — the card is burned / the title is lost.
-    YieldContest,
+    YieldContest(Contest),
     /// Play a card from hand: hand index, mode index, the playing minion
     /// (modifiers, reactions, action cards), resolved target.
     Play {
@@ -159,9 +162,11 @@ pub enum Choice {
 /// One name per legality filter (DESIGN §4.4).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum WindowLabel {
-    UnlockEdge,
-    UnlockContest,
-    /// In-play abilities usable during any Methuselah's unlock phase.
+    /// The unlock-phase effects window (rules-qa 3.7, 6.1, 7.8): the active
+    /// Methuselah orders their mandatory effects (contest upkeep, riders)
+    /// and optional ones (the Edge's pool, abilities) and must settle the
+    /// mandatory ones before the impulse leaves them; then every seat's
+    /// unlock-phase abilities in rotation.
     UnlockAbilities,
     MasterPhase,
     /// Terms of a play or of an in-play ability, chosen as it is announced

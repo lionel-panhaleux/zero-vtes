@@ -2,6 +2,7 @@
 //! the 4-transfer + 1-pool crypt draw, and influencing out (no voluntary
 //! self-contest).
 
+use crate::cards::Window;
 use crate::crypt::CRYPT;
 use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
@@ -37,6 +38,7 @@ impl Engine {
         if left >= 4 && seat.pool > 0 && !seat.crypt.is_empty() {
             options.push(Choice::DrawCrypt);
         }
+        options.extend(self.ability_options(s, Window::AnyImpulse));
         DecisionRequest {
             seat: s,
             window: WindowLabel::InfluenceTransfers,
@@ -47,6 +49,16 @@ impl Engine {
     pub(crate) fn influence_apply(&mut self, left: u8, choice: &Choice) {
         let s = self.state.active;
         match choice {
+            Choice::UseAbility {
+                card,
+                ability,
+                actor,
+                target,
+            } => {
+                if !self.use_ability(*card, *ability, *actor, *target, Flow::Influence { left }) {
+                    self.flow = Flow::Influence { left };
+                }
+            }
             Choice::Transfer { slot } => {
                 let seat = &mut self.state.seats[s.index()];
                 seat.pool -= 1;

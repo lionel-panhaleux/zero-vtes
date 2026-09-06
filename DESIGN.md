@@ -431,7 +431,7 @@ The engine's value is trust; trust is measured, not asserted.
    | Master phase (optional / mandatory) | 10 | Blood Doll / Brujah Debate | optional done; mandatory rider pending |
    | Discard phase | 3 | The Coven | pending (control change) |
    | Influence phase | 6 | Powerbase: Montreal | pending |
-   | End of turn | 2 | Dreams of the Sphinx | pending |
+   | End of turn | 2 | Dreams of the Sphinx | done (`Seat.hand_bonus` cleared at `end_turn`) |
    | Minion to torpor | 8 | Guardian Angel / Fame | done (`Hook::HostToTorpor`, mid-combat oust teardown) |
    | Minion burned / leaves the ready region | 7 | Tension in the Ranks | done (`Hook::ReadyMinionBurnedOrTorpor`, `burn_minion`) |
    | Enters play | 12 | The Rack, Ravnos Carnival | pending |
@@ -441,8 +441,8 @@ The engine's value is trust; trust is measured, not asserted.
    | Polling step | 11 | Alamut | pending |
    | Granted actions (Ⓓ burn / steal / enter combat) | 26 | Anarch Revolt, Creeping Sabotage | done for burn; steal and enter-combat pending |
    | Continuous layers | 179 | Villein, Guardian Angel | done (`Layer`) |
-   | Lock / burn abilities in action or combat windows | 17 | Homunculus, Guardian Angel | done (abilities in windows) |
-   | Counters on a card | 46 | Smiling Jack, Dreams of the Sphinx | `CardInPlay.counters`, `PoolToCounter` done; lock-counting pending |
+   | Lock / burn abilities in action or combat windows | 17 | Homunculus, Guardian Angel | done (abilities in windows); untimed "you can lock this card" done (`Window::AnyImpulse`: The Barrens, Dreams of the Sphinx) |
+   | Counters on a card | 46 | Smiling Jack, Dreams of the Sphinx | done (`CardInPlay.counters`; `PoolToCounter`, `AddCounter`, `BurnSelfAtCounters`, `CountersAtLeast`) |
 
    Three mechanisms sit outside the hook shape and are not started:
    library search (Black Market Cache, Childe of the Revolution), draw
@@ -493,12 +493,14 @@ Recorded so nobody mistakes them for oversights:
    survivor; VPs are stored in half-points. Withdrawal (0.5 VP, an unlock-phase
    decision) is P1.
 7. **Unlock-phase ordering**: the unlock phase is one impulse sequence
-   (rules-qa 3.7): the active Methuselah settles their own effects — the engine
-   takes the Edge decision first, then contest upkeep in arena order; the only
-   line dropped is paying contest upkeep down to 0 pool before taking the
-   Edge's pool — then passes the impulse so other players' unlock-phase
-   abilities (Homunculus) can be used, the impulse returning to the active
-   player after each.
+   (rules-qa 3.7, 7.8): cards unlock first, unordered; then one ordered
+   window in which the active Methuselah settles their mandatory effects
+   (contest upkeep — pay or yield — and the pending riders) in the order
+   they choose among their optional ones (the Edge's pool, abilities), and
+   cannot pass the impulse before the mandatory ones are done; the other
+   players' unlock-phase abilities (Homunculus) follow in rotation, the
+   impulse returning to the active player after each — the Edge's pool
+   still on offer then, lost only once everyone passes.
 8. **Mid-combat ousts**: a pool loss fired inside a combat (Fame's torpor
    rider) ousts at once. If the active Methuselah is ousted the turn passes
    with the action and combat torn down; if the opponent's Methuselah is
@@ -723,7 +725,33 @@ Recorded so nobody mistakes them for oversights:
   pool paid to 0 ousts on the spot). `resolve_unlock_rider` now sets the
   flow itself (the resume, the choice window, or the next turn).
   `Requirement::ActorVampire` for "Vampires can burn this card" (vacuous
-  until allies land). 76 defs. Next: Smiling Jack (counters, mandatory-with-choice), Dreams
+  until allies land). 76 defs.
+  Slice 5g (2026-09-06): Dreams of the Sphinx, The Barrens — untimed
+  in-play abilities: `Window::AnyImpulse` is asked for at every decision
+  point where a seat holds the impulse (master, minion, influence and
+  discard phases, the unlock rotation, every action and combat window,
+  the polling step) and never in the as-played or terms windows (ANK
+  20200616; LSJ 20061207 / rules-qa 2.4); using one is an effect (the
+  ordered window's impulse resets, the polling window commits). Card
+  locks: `Requirement::CardUnlocked` / `Effect::LockSelf`, cards a
+  Methuselah controls unlock in their unlock phase (`start_turn`);
+  counters `AddCounter` / `BurnSelfAtCounters` (the third lock's effect
+  lands, then the card burns); `Seat.hand_bonus` for "+2 hand size until
+  the end of the turn" (drawn up at once, cleared at the end of the
+  discard phase per LSJ 20100812, cards over size stay per ANK 20180318 —
+  the fuzz hand invariant allows +2); `GainPool`, `HasEdge`;
+  `TargetKind::Uncontrolled` / `Target::Uncontrolled(slot)` /
+  `BloodToUncontrolledTarget` (capped at capacity); `Terms::Discard { n,
+  masters }` generalizes the discard terms (The Barrens: any card,
+  `HandNotEmpty`). A starving vampire's forced hunt is offered alongside
+  the untimed abilities, not instead of them (owner, 2026-09-06: The
+  Coven's blood spares the hunt). Rules-qa 7.8: contest upkeep is
+  freely ordered among the unlock effects like the riders (a mandatory
+  decision), the Edge's pool is an optional one — the opening Edge
+  window and the contest sub-flow are gone, `Pending::{Rider, Contest}`
+  in the one unlock effects window (`Choice::PayContest(Contest)` /
+  `YieldContest(Contest)`), forced settlements at collection. 78 defs.
+  Next: Smiling Jack (counters, mandatory-with-choice), Dreams
   of the Sphinx / The Barrens (lock abilities in any window), The Coven
   (control change).
 - **P2 — full engine pool**: all 621 cards including Events and their machinery;
