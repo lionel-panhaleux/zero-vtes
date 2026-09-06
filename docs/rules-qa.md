@@ -174,7 +174,7 @@ the hunt exemption). _Pending P1 (need cards)_: `nra_cancel_allows_retry`,
 `nra_one_political_per_turn`, `nra_in_play_copy_identity`,
 `nra_same_action_card_text_covers_hunt`.
 
-### 1.5 Master phase structure _(open; out-of-turn accounting answered in 3.3)_
+### 1.5 Master phase structure _(answered 2026-09-06; out-of-turn accounting in 3.3)_
 
 - During a Methuselah's master phase, what may *other* Methuselahs legally do,
   exhaustively? (Cancel-as-played responses, out-of-turn masters — anything
@@ -182,6 +182,12 @@ the hunt exemption). _Pending P1 (need cards)_: `nra_cancel_allows_retry`,
 - Confirm the master phase is "spend MPA one effect at a time, each play opening
   its cancel window, until the player moves on" — i.e. an offer window whose only
   actor is the phase owner, punctuated by reaction sub-windows.
+
+**Answer (2026-09-06)** — Yes to both: the others may cancel in the
+as-played window and play out-of-turn masters, nothing else (no wakes
+without an action); the master phase is the owner's offer window,
+punctuated by the cancel windows — and, per 7.9, closed by an impulse
+rotation over the other seats for their untimed and mandatory effects.
 
 ### 1.6 "Only when needed" stealth/intercept as a legality rule _(answered in 3.2)_
 
@@ -289,7 +295,7 @@ must opt out of it explicitly.
 
 ## Batch 3 — open items collected during P0 (2026-09-03)
 
-### 3.1 A contested vampire card in torpor _(open)_
+### 3.1 A contested vampire card in torpor _(answered 2026-09-06)_
 
 A vampire in torpor whose card becomes contested (another Methuselah brings out
 the same vampire) is face down and out of play for the contest. If it wins,
@@ -304,6 +310,11 @@ Related reading, not exercised by any precon: the rulebook exempts only
 one Methuselah contest a title (a Prince and a Baron of the same city). No V5
 precon holds both Mannheim or both Pittsburgh title holders, so nothing in
 v1 play reaches this; confirm or veto when convenient.
+
+**Answer (2026-09-06)** — Back to torpor: the torpor state is untouched
+through the contest, as the engine reads it (and, out of play while
+contested, it is no rescue or diablerie target). The title reading is
+right: two vampires under one Methuselah do contest a title.
 
 ### 3.2 "Only when needed" is a mask-level rule (closes 1.6)
 
@@ -481,12 +492,14 @@ additional-strikes step, for every card with that window (Blur, Side Strike
 
 **A** (2026-09-04): Yes, general.
 
-### 4.5 Combat cards by a combatant no longer ready _(open)_
+### 4.5 Combat cards by a combatant no longer ready _(answered 2026-09-06)_
 
 Taste of Vitae and Disarm print "not usable by a vampire being burned or going
 to torpor", which suggests the end-of-round window is otherwise open to such a
 vampire. The engine lets a combatant that is no longer ready play end-of-round
 combat cards unless the card excludes it, and no other combat window. Right?
+
+**Answer (2026-09-06)** — Yes.
 
 ## Batch 5 — politics (referendum machine, slice 4)
 
