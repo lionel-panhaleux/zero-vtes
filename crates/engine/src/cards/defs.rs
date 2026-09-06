@@ -1696,7 +1696,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     riders: &[],
 };
 
-pub static DEFS: [&CardDef; 58] = [
+pub static DEFS: [&CardDef; 73] = [
     &EARTH_CONTROL,
     &BONDING,
     &VILLEIN,
@@ -1755,6 +1755,21 @@ pub static DEFS: [&CardDef; 58] = [
     &CREEPING_SABOTAGE,
     &BLOOD_DOLL,
     &VESSEL,
+    &ACADEMIC_HUNTING_GROUND,
+    &ASYLUM_HUNTING_GROUND,
+    &BIOTECH_COMPANY_HUNTING_GROUND,
+    &LIBRARY_HUNTING_GROUND,
+    &PARK_HUNTING_GROUND,
+    &POLITICAL_HUNTING_GROUND,
+    &SLUM_HUNTING_GROUND,
+    &SOCIETY_HUNTING_GROUND,
+    &TEMPLE_HUNTING_GROUND,
+    &UNDERWORLD_HUNTING_GROUND,
+    &UPTOWN_HUNTING_GROUND,
+    &WARZONE_HUNTING_GROUND,
+    &ZOO_HUNTING_GROUND,
+    &PAPILLON,
+    &CARFAX_ABBEY,
 ];
 
 // ---- Cards in play with riders and granted actions (slice 5) ------------
@@ -1984,5 +1999,178 @@ pub static VESSEL: CardDef = CardDef {
         effects: &[Effect::PutOnTarget, Effect::BurnChosenInPlay],
     }],
     abilities: blood_shuttle!(Window::UnlockPhaseOwn),
+    riders: &[],
+};
+
+// ---- Hunting grounds (slice 5c: unique locations, library contests) -----
+
+/// A hunting ground's unlock-phase pick: "a ready vampire you control [of
+/// `$filter`] can gain `$n` blood. A vampire can gain blood from only one
+/// hunting ground each turn." The controller picks the vampire as the
+/// ability is used (its target), once per unlock phase per copy (rules-qa
+/// 6.6); a vampire at capacity is still a legal pick (DESIGN §4.5 mask
+/// policy) and counts as fed (rules-qa 6.5).
+macro_rules! hunting_ground_pick {
+    ($n:expr, $filter:expr) => {
+        ModeDef {
+            windows: &[Window::UnlockPhaseOwn],
+            actor: Actor::Controller,
+            requires: &[],
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: $filter,
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::HuntingGroundBlood($n)],
+        }
+    };
+}
+
+/// "Unique location. Hunting ground. During your unlock phase, a ready
+/// vampire you control can gain 1 blood. A vampire can gain blood from only
+/// one hunting ground each turn." Put in play (no host); unique: contests
+/// a copy under another Methuselah.
+macro_rules! hunting_ground {
+    ($name:ident, $printed:expr) => {
+        pub static $name: CardDef = CardDef {
+            name: $printed,
+            trifle: false,
+            out_of_turn: false,
+            delayed_replacement: false,
+            modes: &[ModeDef {
+                windows: &[Window::MasterPhase],
+                actor: Actor::Methuselah,
+                requires: &[],
+                target: NO_TARGET,
+                terms: None,
+                waives_needed: false,
+                limit: None,
+                effects: &[Effect::PutInPlay],
+            }],
+            abilities: &[hunting_ground_pick!(
+                1,
+                &[
+                    Requirement::Controlled,
+                    Requirement::ActorReady,
+                    Requirement::NotHuntingGroundFed,
+                ]
+            )],
+            riders: &[],
+        };
+    };
+}
+
+hunting_ground!(ACADEMIC_HUNTING_GROUND, "Academic Hunting Ground");
+hunting_ground!(ASYLUM_HUNTING_GROUND, "Asylum Hunting Ground");
+hunting_ground!(
+    BIOTECH_COMPANY_HUNTING_GROUND,
+    "Biotech Company Hunting Ground"
+);
+hunting_ground!(LIBRARY_HUNTING_GROUND, "Library Hunting Ground");
+hunting_ground!(PARK_HUNTING_GROUND, "Park Hunting Ground");
+hunting_ground!(POLITICAL_HUNTING_GROUND, "Political Hunting Ground");
+hunting_ground!(SLUM_HUNTING_GROUND, "Slum Hunting Ground");
+hunting_ground!(SOCIETY_HUNTING_GROUND, "Society Hunting Ground");
+hunting_ground!(TEMPLE_HUNTING_GROUND, "Temple Hunting Ground");
+hunting_ground!(UNDERWORLD_HUNTING_GROUND, "Underworld Hunting Ground");
+hunting_ground!(UPTOWN_HUNTING_GROUND, "Uptown Hunting Ground");
+hunting_ground!(WARZONE_HUNTING_GROUND, "Warzone Hunting Ground");
+hunting_ground!(ZOO_HUNTING_GROUND, "Zoo Hunting Ground");
+
+/// "Unique location. Hunting ground. Requires a ready vampire with a city
+/// title. During your unlock phase, a ready titled vampire you control can
+/// gain 2 blood. A vampire can gain blood from only one hunting ground each
+/// turn." The play needs a ready prince or baron; the pick, any title.
+pub static PAPILLON: CardDef = CardDef {
+    name: "Papillon",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[Requirement::ControlsReadyTitled(&[
+            TitleClass::Prince,
+            TitleClass::Baron,
+        ])],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::PutInPlay],
+    }],
+    abilities: &[hunting_ground_pick!(
+        2,
+        &[
+            Requirement::Controlled,
+            Requirement::ActorReady,
+            Requirement::ActorTitleIn(&[TitleClass::Any]),
+            Requirement::NotHuntingGroundFed,
+        ]
+    )],
+    riders: &[],
+};
+
+/// "Requires a ready Anarch. Unique location. Hunting ground. During your
+/// unlock phase, a ready Anarch you control can gain 1 blood, and, if you
+/// control a ready baron, another ready Anarch you control can gain 1 blood
+/// as well. A vampire can gain blood from only one hunting ground each
+/// turn." Two picks, each once per unlock phase; the second needs a ready
+/// baron and cannot be the first's vampire (fed this turn).
+pub static CARFAX_ABBEY: CardDef = CardDef {
+    name: "Carfax Abbey",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[Requirement::ControlsReadySect(&[Sect::Anarch])],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::PutInPlay],
+    }],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::UnlockPhaseOwn],
+            actor: Actor::Controller,
+            requires: &[],
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[
+                    Requirement::Controlled,
+                    Requirement::ActorReady,
+                    Requirement::ActorSectIn(&[Sect::Anarch]),
+                    Requirement::NotHuntingGroundFed,
+                ],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: Some(Limit::PerPhaseEach),
+            effects: &[Effect::HuntingGroundBlood(1)],
+        },
+        ModeDef {
+            windows: &[Window::UnlockPhaseOwn],
+            actor: Actor::Controller,
+            requires: &[Requirement::ControlsReadyTitled(&[TitleClass::Baron])],
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[
+                    Requirement::Controlled,
+                    Requirement::ActorReady,
+                    Requirement::ActorSectIn(&[Sect::Anarch]),
+                    Requirement::NotHuntingGroundFed,
+                ],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: Some(Limit::PerPhaseEach),
+            effects: &[Effect::HuntingGroundBlood(1)],
+        },
+    ],
     riders: &[],
 };

@@ -71,6 +71,9 @@ pub struct Minion {
     /// Expulsion: cannot play reaction cards, block or cast votes or
     /// ballots this turn.
     pub expelled: bool,
+    /// Gained blood from a hunting ground this turn ("a vampire can gain
+    /// blood from only one hunting ground each turn").
+    pub hunting_ground_fed: bool,
     /// Actions this minion performed this turn that reached resolution
     /// (NRA, rules-qa 1.4): a card from hand by name, a card in play by
     /// copy; bleeds and political actions are capped by type besides.
@@ -150,8 +153,19 @@ pub struct CardInPlay {
     /// Minion the card is on, if any.
     pub host: Option<MinionId>,
     pub in_play: bool,
+    /// Contested (rulebook "Contested Cards"): face down and out of play —
+    /// nothing printed on it applies, its layers are suspended (spec
+    /// §1.13.3) — until paid for to the end or yielded.
+    pub contested: bool,
     pub locked: bool,
     pub counters: u8,
+}
+
+impl CardInPlay {
+    /// In play and controlled: not contested.
+    pub fn present(&self) -> bool {
+        self.in_play && !self.contested
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -219,9 +233,9 @@ pub struct GameState {
     pub minions: Vec<Minion>,
     /// Arena of library cards in play.
     pub cards: Vec<CardInPlay>,
-    /// Cards in play whose phase ability was used this phase ("during X":
-    /// once per phase per copy, rules-qa 6.6); cleared at each phase.
-    pub phase_uses: Vec<CardId>,
+    /// Abilities (card in play, ability index) used this phase ("during
+    /// X": once per phase per copy, rules-qa 6.6); cleared at each phase.
+    pub phase_uses: Vec<(CardId, u8)>,
     /// Continuous effects (DESIGN §4.5 scope layers).
     pub layers: Vec<Layer>,
     pub active: SeatId,
@@ -335,6 +349,31 @@ impl GameState {
             .collect()
     }
 
+    /// Other seats' in-play copies (contested included) of the unique
+    /// library card `id`: its contest rivals.
+    pub fn library_rivals(&self, id: CardId) -> Vec<CardId> {
+        let me = &self.cards[id.index()];
+        let name = LIBRARY[me.card as usize].name;
+        self.cards
+            .iter()
+            .enumerate()
+            .filter(|(i, o)| {
+                *i != id.index()
+                    && o.owner != me.owner
+                    && o.in_play
+                    && !self.seats[o.owner.index()].ousted
+                    && LIBRARY[o.card as usize].name == name
+            })
+            .map(|(i, _)| CardId(i as u32))
+            .collect()
+    }
+
+    /// A layer applies: action-scoped, or sourced by a card in play that
+    /// is not contested (a contested card's effects are suspended).
+    pub fn layer_active(&self, l: &Layer) -> bool {
+        l.scope == crate::cards::Scope::Action || self.cards[l.source.index()].present()
+    }
+
     /// Other present vampires (any seat) claiming a title that contests
     /// `m`'s printed title.
     pub fn title_rivals(&self, m: MinionId) -> Vec<MinionId> {
@@ -415,6 +454,7 @@ impl GameState {
             mix(m.bled_this_turn as u64);
             mix(m.political_this_turn as u64);
             mix(m.expelled as u64);
+            mix(m.hunting_ground_fed as u64);
             mix(m.acted.len() as u64);
             for &c in &m.acted {
                 mix(match c {
@@ -424,8 +464,8 @@ impl GameState {
             }
         }
         mix(self.phase_uses.len() as u64);
-        for c in &self.phase_uses {
-            mix(c.0 as u64 + 1);
+        for (c, a) in &self.phase_uses {
+            mix((c.0 as u64 + 1) << 8 ^ *a as u64);
         }
         mix(self.cards.len() as u64);
         for c in &self.cards {
@@ -433,6 +473,7 @@ impl GameState {
             mix(c.owner.0 as u64);
             mix(c.host.map(|m| m.0 as u64 + 1).unwrap_or(0));
             mix(c.in_play as u64);
+            mix(c.contested as u64);
             mix(c.locked as u64);
             mix(c.counters as u64);
         }

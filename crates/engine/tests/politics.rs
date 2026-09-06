@@ -550,6 +550,7 @@ fn banishment_sends_a_younger_vampire_to_the_uncontrolled_region() {
         owner: SeatId(1),
         host: Some(bret),
         in_play: true,
+        contested: false,
         locked: true,
         counters: 1,
     });

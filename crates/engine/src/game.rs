@@ -31,6 +31,8 @@ pub const TURN_LIMIT: u32 = 100;
 pub(crate) enum Contest {
     Card(MinionId),
     Title(MinionId),
+    /// A unique library card in play (rulebook "Contested Cards").
+    Library(CardId),
 }
 
 #[derive(Clone, Debug)]
@@ -217,6 +219,7 @@ impl Engine {
             bled_this_turn: false,
             political_this_turn: false,
             expelled: false,
+            hunting_ground_fed: false,
             acted: Vec::new(),
         });
         MinionId(self.state.minions.len() as u32 - 1)
@@ -359,9 +362,10 @@ impl Engine {
                     card,
                     ability,
                     actor,
+                    target,
                 },
             ) => {
-                self.use_ability(*card, *ability, *actor);
+                self.use_ability(*card, *ability, *actor, *target);
             }
             (
                 Flow::MinionPhase,
@@ -405,7 +409,7 @@ impl Engine {
             .iter()
             .enumerate()
             .filter(|(_, c)| {
-                c.in_play
+                c.present()
                     && cards::lookup(c.card).is_some_and(|d| {
                         d.riders
                             .iter()
@@ -568,6 +572,7 @@ impl Engine {
             m.bled_this_turn = false;
             m.political_this_turn = false;
             m.expelled = false;
+            m.hunting_ground_fed = false;
             m.acted.clear();
             // Unlock phase: the active seat's minions unlock (torpor included).
             if m.owner == s && m.in_play {

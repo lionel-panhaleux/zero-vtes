@@ -126,7 +126,11 @@ impl ActionCtx {
         let bleed_at_owner = self.kind == ActionKind::Bleed && self.bleed_target == Some(owner);
         st.layers
             .iter()
-            .filter(|l| l.scope == Scope::InPlay && st.cards[l.source.index()].host == Some(m))
+            .filter(|l| {
+                l.scope == Scope::InPlay
+                    && st.layer_active(l)
+                    && st.cards[l.source.index()].host == Some(m)
+            })
             .filter_map(|l| match l.modifier {
                 cards::Modifier::HostInterceptOnBleedAtYou(n) if bleed_at_owner => Some(n as i32),
                 _ => None,
@@ -139,6 +143,7 @@ impl ActionCtx {
         let cap = st.minions[m.index()].capacity();
         st.layers
             .iter()
+            .filter(|l| st.layer_active(l))
             .filter_map(|l| match l.modifier {
                 cards::Modifier::InterceptMod { younger_than, n } if cap < younger_than => {
                     Some(n as i32)
@@ -792,14 +797,16 @@ impl Engine {
                 self.state.minions[a.acting.index()].blood -= cost;
                 for e in def.modes[play.mode as usize].effects {
                     if let Effect::EmployRetainer { life } = e {
-                        self.state.cards.push(CardInPlay {
+                        let id = self.enter_play(CardInPlay {
                             card: play.card,
                             owner: seat,
                             host: Some(a.acting),
                             in_play: true,
+                            contested: false,
                             locked: false,
                             counters: *life,
                         });
+                        self.enter_library_contest(id);
                     }
                 }
             }
@@ -831,6 +838,9 @@ impl Engine {
                     self.apply_card_effect(*e, &ctx, &mut in_play);
                 }
                 a.card_entered_play = in_play.is_some();
+                if let Some(id) = in_play {
+                    self.enter_library_contest(id);
+                }
             }
             ActionKind::BurnCard => {
                 let src = a.source.expect("source");

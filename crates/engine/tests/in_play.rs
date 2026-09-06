@@ -54,6 +54,7 @@ fn granted(card: u32, actor: MinionId) -> Choice {
         card,
         ability: 0,
         actor: Some(actor),
+        target: Target::None,
     }
 }
 
@@ -79,6 +80,7 @@ fn revolt_in_play(e: &mut Engine, owner: u8) -> u32 {
         owner: SeatId(owner),
         host: None,
         in_play: true,
+        contested: false,
         locked: false,
         counters: 0,
     });
@@ -343,6 +345,7 @@ fn anarch_revolt_burn_is_ordered_by_the_active_methuselah_before_the_impulse_pas
         owner: SeatId(0),
         host: Some(alexa),
         in_play: true,
+        contested: false,
         locked: false,
         counters: 0,
     });
@@ -484,6 +487,7 @@ fn guardian_angel_on(e: &mut Engine, owner: u8, host: MinionId) -> u32 {
         owner: SeatId(owner),
         host: Some(host),
         in_play: true,
+        contested: false,
         locked: false,
         counters: 0,
     });
@@ -539,7 +543,8 @@ fn guardian_angel_intercept_on_bleeds_at_its_controller_and_prevention() {
             Choice::UseAbility {
                 card: angel,
                 ability: 0,
-                actor: None
+                actor: None,
+                target: Target::None
             }
         ]
     );
@@ -593,12 +598,14 @@ fn guardian_angel_prevents_once_per_combat_per_copy() {
             Choice::UseAbility {
                 card: first,
                 ability: 0,
-                actor: None
+                actor: None,
+                target: Target::None
             },
             Choice::UseAbility {
                 card: second,
                 ability: 0,
-                actor: None
+                actor: None,
+                target: Target::None
             }
         ]
     );
@@ -611,7 +618,8 @@ fn guardian_angel_prevents_once_per_combat_per_copy() {
             Choice::UseAbility {
                 card: second,
                 ability: 0,
-                actor: None
+                actor: None,
+                target: Target::None
             }
         ]
     );
@@ -762,6 +770,7 @@ fn revolt_like_in_play(e: &mut Engine, name: &str, owner: u8) -> u32 {
         owner: SeatId(owner),
         host: None,
         in_play: true,
+        contested: false,
         locked: false,
         counters: 0,
     });
@@ -791,6 +800,7 @@ fn ability(card: u32, ability: u8) -> Choice {
         card,
         ability,
         actor: None,
+        target: Target::None,
     }
 }
 
@@ -854,6 +864,7 @@ fn blood_doll_usable_with_the_host_in_torpor() {
         owner: SeatId(0),
         host: Some(alexa),
         in_play: true,
+        contested: false,
         locked: false,
         counters: 0,
     });
@@ -883,6 +894,7 @@ fn vessel_on_any_vampire_burns_any_blood_doll_and_is_the_controllers_to_use() {
         owner: SeatId(2),
         host: Some(lenny),
         in_play: true,
+        contested: false,
         locked: false,
         counters: 0,
     });

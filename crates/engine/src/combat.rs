@@ -486,9 +486,10 @@ impl Engine {
             card,
             ability,
             actor,
+            target,
         } = choice
         {
-            self.use_ability(*card, *ability, *actor);
+            self.use_ability(*card, *ability, *actor, *target);
         }
     }
 

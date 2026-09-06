@@ -288,6 +288,8 @@ fn midgame(seed: u64) -> Engine {
         "Creeping Sabotage",
         "Blood Doll",
         "Vessel",
+        "Papillon",
+        "Carfax Abbey",
     ]
     .iter()
     .map(|n| find_library(n))
@@ -385,6 +387,17 @@ fn play(seed: u64, start: fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<Strin
                     req.window
                 );
                 invariants(&e, &totals, seed, req.window);
+                for o in &req.options {
+                    if let Choice::UseAbility { card, .. } = o {
+                        // Spec §1.13.3: nothing printed on a contested card
+                        // applies (its suspended layers are the scenario
+                        // tests' claim, tests/contests.rs).
+                        assert!(
+                            !e.state.cards[*card as usize].contested,
+                            "ability offered from a contested card (seed {seed})"
+                        );
+                    }
+                }
                 let idx = agent.choose(&req);
                 chosen.insert(kind(&e, req.seat, &req.options[idx]));
                 e.choose(idx);
@@ -550,6 +563,10 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "play:Vessel",
             "ability:Vessel",
             "burn_in_play",
+            "play:Papillon",
+            "ability:Papillon",
+            "play:Carfax Abbey",
+            "ability:Carfax Abbey",
             // (Anarch Revolt's rider is a decision only when ordered against
             // another unlock effect; alone it elides, so no key.)
         ],

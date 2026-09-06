@@ -131,6 +131,9 @@ pub enum Actor {
     ActingCandidate,
     /// The host minion of a card in play (in-play abilities).
     Host,
+    /// The Methuselah controlling a card in play, no minion: the ability
+    /// picks a `target` (a hunting ground's vampire).
+    Controller,
     /// The player's minion in the current combat (combat cards). Ready,
     /// except in the end-of-round window, where a minion being burned or
     /// sent to torpor may still play unless the card excludes it.
@@ -202,6 +205,14 @@ pub enum Requirement {
     LockedActor,
     /// The host of this card in play is below its capacity.
     HostBelowCapacity,
+    /// Target vampire has not gained blood from a hunting ground this turn.
+    NotHuntingGroundFed,
+    /// The player controls a ready vampire holding a title of one of these
+    /// classes ("requires a ready vampire with a city title", Papillon).
+    ControlsReadyTitled(&'static [TitleClass]),
+    /// The player controls a ready vampire of one of these sects
+    /// ("requires a ready Anarch", Carfax Abbey).
+    ControlsReadySect(&'static [Sect]),
     /// The host's controller has at least n pool.
     HostControllerPoolAtLeast(u8),
     /// The host of the card in play is locked.
@@ -484,6 +495,11 @@ pub enum Limit {
     PerRound,
     PerCombat,
     PerAction,
+    /// An in-play ability in a phase window is once per phase per copy by
+    /// default (the "during X" clause, rules-qa 6.6); with this limit each
+    /// mode of the clause is its own once-per-phase use (Carfax Abbey's
+    /// two picks).
+    PerPhaseEach,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -647,6 +663,10 @@ pub enum Effect {
     /// Move n pool from the host's controller to the host (Blood Doll,
     /// Vessel).
     PoolToHostBlood(u8),
+    /// The target vampire gains n blood from a hunting ground (capped at
+    /// capacity; it counts as fed by a hunting ground this turn either
+    /// way, rules-qa 6.5).
+    HuntingGroundBlood(u8),
     /// Burn the card in play chosen by the play's `BurnNamedInPlay` terms
     /// (Vessel), if it is still in play.
     BurnChosenInPlay,
@@ -896,7 +916,16 @@ pub fn holds(
         Requirement::HostLocked
         | Requirement::HostBloodAtLeast(_)
         | Requirement::HostBelowCapacity
-        | Requirement::HostControllerPoolAtLeast(_) => true, // host predicates
+        | Requirement::HostControllerPoolAtLeast(_)
+        | Requirement::NotHuntingGroundFed => true, // host / target predicates
+        Requirement::ControlsReadyTitled(classes) => st.minions_of(seat).any(|m| {
+            let v = &st.minions[m.index()];
+            v.ready() && classes.iter().any(|c| c.matches(v.title()))
+        }),
+        Requirement::ControlsReadySect(sects) => st.minions_of(seat).any(|m| {
+            let v = &st.minions[m.index()];
+            v.ready() && sects.contains(&v.card().sect)
+        }),
         Requirement::RangeClose => combat.is_some_and(|c| c.range == Range::Close),
         Requirement::RangeLong => combat.is_some_and(|c| c.range == Range::Long),
         Requirement::FirstRound => combat.is_some_and(|c| c.round == 1),
@@ -972,6 +1001,9 @@ pub fn holds_for_minion(
         Requirement::BloodAtLeast(n) => v.blood >= n,
         Requirement::HasCastVotes => referendum.is_some_and(|r| r.has_cast(m)),
         Requirement::ActorReady => v.ready(),
+        Requirement::ActorTitleIn(classes) => classes.iter().any(|c| c.matches(v.title())),
+        Requirement::ActorSectIn(sects) => sects.contains(&v.card().sect),
+        Requirement::NotHuntingGroundFed => !v.hunting_ground_fed,
         Requirement::Younger => {
             acting.is_some_and(|a| v.capacity() < st.minions[a.index()].capacity())
         }
@@ -1017,7 +1049,7 @@ pub fn terms_x(st: &GameState, seat: SeatId, card: u16, mode: &ModeDef) -> Optio
             st.cards
                 .iter()
                 .filter(|c| {
-                    c.in_play
+                    c.present()
                         && c.owner == seat
                         && LIBRARY[c.card as usize].name == LIBRARY[card as usize].name
                 })
@@ -1036,7 +1068,7 @@ pub fn pool_cost(st: &GameState, payer: SeatId, card: u16, target: Target) -> i3
         Cost::Fixed(n) => n as i32,
         Cost::X => 0,
     };
-    for l in &st.layers {
+    for l in st.layers.iter().filter(|l| st.layer_active(l)) {
         let Modifier::CostMod {
             name,
             on_host_only,

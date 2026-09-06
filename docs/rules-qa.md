@@ -754,4 +754,53 @@ Draws are legal results (two players at 2 VP; four or five all at 1 VP).
 game win from the VPs alone (≥ 2 VP and strictly more than every other
 Methuselah, ousted or not), `None` on a draw.
 
-Batch 7 — cards & effects (replacement, delayed replacement, contests).
+## Batch 7 — library-card contests, hunting grounds (slice 5c)
+
+### 7.1 Self-contest while your own copy is contested
+
+"You cannot voluntarily contest cards with yourself": the engine masks a
+unique card's play whenever a copy is in play under the same Methuselah —
+also while that copy is *contested* (out of play, not controlled, but
+playing another would contest with yourself). Right?
+
+**Test** — `unique_card_is_masked_while_a_copy_is_in_play_under_the_same_seat`.
+
+**Answer (2026-09-06)** — Yes: it is self-contesting, so forbidden. A
+contested card is out of play but keeps contesting incoming copies.
+Implemented as stated (`present()` excludes contested copies from every
+effect; the self-contest mask counts them).
+
+### 7.2 Hunting ground at capacity
+
+"A ready vampire you control can gain 1 blood": a vampire at capacity is
+still offered (DESIGN §4.5 mask policy: legal no-effect plays stay
+offered), and the pick counts as that vampire's one hunting ground this
+turn. Fine?
+
+**Test** — `hunting_ground_at_capacity_is_a_legal_pick_that_still_feeds`.
+
+**Answer (2026-09-06)** — Fine either way; the branch may be cut if it
+matters (it brings nothing — no card cycles from hand). Kept offered for
+now (§4.5); prune later if it costs the policy.
+
+### 7.3 A contested card's layers
+
+A contested card's continuous effects are suspended, not ended (spec
+§1.13.3 / §6.4.3): a contested Guardian Angel gives no intercept and
+its host cannot prevent with it; both resume when the contest resolves
+in its favor. Implemented as stated (`GameState::layer_active`).
+
+### 7.4 Carfax Abbey's second pick
+
+"A ready Anarch you control can gain 1 blood, and, if you control a ready
+baron, another ready Anarch you control can gain 1 blood as well": one
+"during your unlock phase" clause with two picks. The engine models them
+as two independent once-per-phase uses (`Limit::PerPhaseEach`): the
+second may be taken without the first (with a ready baron and a single
+Anarch, only the second is offered, feeding that Anarch). Should the
+second pick require the first to have been used ("another … as well")?
+
+**Answer (2026-09-06)** — No, the independent reading is fine.
+
+Batch 8 — cards & effects (replacement, delayed replacement, control
+change, events).

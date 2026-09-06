@@ -50,6 +50,9 @@ pub enum Choice {
         card: u32,
         ability: u8,
         actor: Option<MinionId>,
+        /// The ability's target when it picks one (a hunting ground's
+        /// vampire), announced with the use.
+        target: Target,
     },
     /// Resolve a mandatory effect of a card in play (arena index) pending
     /// at this hook — the player orders them among their own effects.

@@ -418,7 +418,37 @@ The engine's value is trust; trust is measured, not asserted.
    simultaneous ousts, NRA on resolution incl. blocked (not on cancellation),
    contest upkeep, master
    accounting, withdrawal/timeout) answers "where is this handled, where is it
-   tested".
+   tested". For the effects of cards in play, the hook vocabulary is
+   closed by enumeration from the ability census over the in-precon pool
+   (`data/ability-census-draft.csv`, 359 effect sentences on 385 cards;
+   counts are regex matches, indicative) — the *hooks* are fixed now, the
+   *tenants* land card by card:
+
+   | Hook / mechanism | Sentences | First tenant | Status |
+   |---|---|---|---|
+   | Own unlock phase (optional ability / mandatory rider) | 39 | Vessel, hunting grounds / Creeping Sabotage | done (`UnlockPhaseOwn`, `Hook::UnlockPhase` + scope) |
+   | Every / other Methuselah's unlock phase | 5 | Anarch Revolt / Smiling Jack | done / with counters |
+   | Master phase (optional / mandatory) | 10 | Blood Doll / Brujah Debate | optional done; mandatory rider pending |
+   | Discard phase | 3 | The Coven | pending (control change) |
+   | Influence phase | 6 | Powerbase: Montreal | pending |
+   | End of turn | 2 | Dreams of the Sphinx | pending |
+   | Minion to torpor | 8 | Guardian Angel / Fame | done (`Hook::HostToTorpor`); Fame needs the mid-combat oust |
+   | Minion burned / leaves the ready region | 7 | Tension in the Ranks | pending |
+   | Enters play | 12 | The Rack, Ravnos Carnival | pending |
+   | After a successful action / bleed | 2 | Alamut, Cappadocian Crypt | pending |
+   | Blocked / block resolution | 4 | Crypt's Sons, Sniper Rifle | pending |
+   | Combat steps (weapon strikes, maneuvers) | 37 | .44 Magnum | pending (equipment slice) |
+   | Polling step | 11 | Alamut | pending |
+   | Granted actions (Ⓓ burn / steal / enter combat) | 26 | Anarch Revolt, Creeping Sabotage | done for burn; steal and enter-combat pending |
+   | Continuous layers | 179 | Villein, Guardian Angel | done (`Layer`) |
+   | Lock / burn abilities in action or combat windows | 17 | Homunculus, Guardian Angel | done (abilities in windows) |
+   | Counters on a card | 46 | Smiling Jack, Dreams of the Sphinx | pending |
+
+   Three mechanisms sit outside the hook shape and are not started:
+   library search (Black Market Cache, Childe of the Revolution), draw
+   replacement (Black Market Cache, Shilmulo Tarot, Visit from the
+   Capuchin), and control change of a card in play (The Coven, "steal
+   this location" actions).
 5. **Perft-style counts** on scripted positions (number of legal decision sequences
    to depth k) to catch legality regressions numerically.
 
@@ -613,10 +643,27 @@ Recorded so nobody mistakes them for oversights:
   played while another copy is in play) — every remaining card of the
   batch is Unique — with Fame, Tension in the Ranks, Smiling Jack,
   Constant Revolution, The Barrens, Dreams of the Sphinx, The Coven and the
-  hunting grounds. Still open from the P1
-  definition: the contested-unique and
-  contested-title scenario tests (fuzz covers both kinds), the
+  (2+ VP and a strict lead, ousted or not; a tie is a draw). The stress
+  set's contested scenarios: crypt-card and title contests are scripted
+  unit tests (`game.rs`: `card_contest_pay_yield_and_return`,
+  `title_contest_prince_and_baron_of_one_city`); slice 5c adds the
+  library-card half. Still open from the P1 definition: the
   rulings-as-tests harness (`data/rulings-v5.csv` is not consumed yet).
+  Slice 5c (2026-09-06): library-card contests (rulebook "Contested
+  Cards", spec §1.13) — `CardInPlay.contested` / `present()`: a contested
+  card is out of play, so abilities, riders, copy counts and "a card named
+  X" skip it and its layers are suspended (`GameState::layer_active`);
+  entry after the card's own effects resolve (§1.13.2) through the single
+  `enter_play` helper (plays, `Card` actions, employ); self-contest masked
+  (§1.13.1, rules-qa 7.1); upkeep as `Contest::Library` in the unlock
+  machinery (1 pool, yield burns, return face up with no rival). Tenants:
+  the 13 precon hunting grounds, Papillon, Carfax Abbey — a hostless
+  unique location with an optional own-unlock pick (`Actor::Controller`,
+  `Choice::UseAbility.target`, `Effect::HuntingGroundBlood`,
+  `Minion.hunting_ground_fed` for rules-qa 6.5; `Limit::PerPhaseEach` for
+  Carfax Abbey's two picks within one "during" clause). 73 defs. Fame is
+  next on its own: its mid-combat pool loss can oust a seat inside a
+  combat, which needs the action/combat teardown.
 - **P2 — full engine pool**: all 621 cards including Events and their machinery;
   the 14 training decklists plus the New Blood minis as data; perft baselines;
   protocol server; scripted reference bots (aggro-bleed, wall, vote).
