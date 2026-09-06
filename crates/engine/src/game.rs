@@ -67,6 +67,13 @@ pub(crate) enum Flow {
         picked: Vec<u8>,
         resume: Box<Flow>,
     },
+    /// A mandatory rider resolving with choices (Smiling Jack): `left`
+    /// units still to pay by the active Methuselah, then `resume`.
+    RiderTerms {
+        card: CardId,
+        left: u8,
+        resume: Box<Flow>,
+    },
     /// In-play abilities usable during any Methuselah's unlock phase.
     Abilities {
         window: OrderedWindow,
@@ -310,6 +317,7 @@ impl Engine {
                 picked,
                 ..
             } => Some(self.ability_terms_request(*card, *ability, picked)),
+            Flow::RiderTerms { card, .. } => Some(self.rider_terms_request(*card)),
             Flow::Abilities { window, pending } => self.abilities_request(window, pending),
             Flow::Action => self.action_request(),
             Flow::Combat => self.combat_request(),
@@ -403,6 +411,9 @@ impl Engine {
                 },
                 Choice::Discard(i),
             ) => self.ability_terms_apply(card, ability, picked, resume, *i),
+            (Flow::RiderTerms { card, left, resume }, c) => {
+                self.rider_terms_apply(card, left, resume, c)
+            }
             (Flow::Abilities { window, pending }, c) => self.abilities_apply(window, pending, c),
             (Flow::Action, c) => self.action_apply(c),
             (Flow::Combat, c) => self.combat_apply(c),
@@ -432,13 +443,13 @@ impl Engine {
             .cards
             .iter()
             .enumerate()
-            .filter(|(_, c)| {
+            .filter(|(i, c)| {
                 c.present()
                     && cards::lookup(c.card).is_some_and(|d| {
                         d.riders.iter().any(|r| {
                             r.hook == Hook::UnlockPhase
                                 && r.scope.applies(c.owner, s)
-                                && self.state.rider_holds(r, c.host)
+                                && self.state.rider_holds(r, CardId(*i as u32))
                         })
                     })
             })

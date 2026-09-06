@@ -123,6 +123,7 @@ fn implemented_definitions_cover_the_slice() {
             "Scorn of Adonis",
             "Side Strike",
             "Slum Hunting Ground",
+            "Smiling Jack, The Anarch",
             "Soak",
             "Society Hunting Ground",
             "Sudden Reversal",

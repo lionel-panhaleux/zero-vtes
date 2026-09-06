@@ -817,5 +817,17 @@ vampire contests B's own Fame as usual; `remove_seat` removes what the
 ousted Methuselah controlled and burns other players' cards on their
 minions.
 
+### 7.6 Smiling Jack's blood sources
+
+"Burns 1 blood from a vampire they control": the engine offers every
+vampire the Methuselah controls that has blood — in torpor included, a
+torpid vampire being a vampire they control — and never an empty one
+(LSJ 19971212). Right on the torpor half? And may one vampire pay for
+several counters (the engine allows it: each unit is a fresh pick), or
+does ANK 20181006's "different vampires" mean one blood per vampire?
+
+**Answer (2026-09-06)** — Yes and yes: torpid vampires are sources, and
+one vampire may pay for several counters. Implemented as stated.
+
 Batch 8 — cards & effects (replacement, delayed replacement, control
 change, events).

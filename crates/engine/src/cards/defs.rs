@@ -1696,7 +1696,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     riders: &[],
 };
 
-pub static DEFS: [&CardDef; 75] = [
+pub static DEFS: [&CardDef; 76] = [
     &EARTH_CONTROL,
     &BONDING,
     &VILLEIN,
@@ -1754,6 +1754,7 @@ pub static DEFS: [&CardDef; 75] = [
     &GUARDIAN_ANGEL,
     &FAME,
     &TENSION_IN_THE_RANKS,
+    &SMILING_JACK,
     &CREEPING_SABOTAGE,
     &BLOOD_DOLL,
     &VESSEL,
@@ -1955,6 +1956,57 @@ pub static TENSION_IN_THE_RANKS: CardDef = CardDef {
         requires: &[],
         effects: &[Effect::TheirControllerBurnsPool(1)],
     }],
+};
+
+/// "Unique. Put this card in play. During your unlock phase, move 1
+/// counter from your pool to this card. During each other Methuselah's
+/// unlock phase, for each counter on this card, that Methuselah burns 1
+/// pool or burns 1 blood from a vampire they control. Vampires can burn
+/// this card as a Ⓓ action." Two unlock riders (the controller's, the
+/// others'); the payment is chosen unit by unit as the rider resolves
+/// (`Flow::RiderTerms`); the burn is a granted directed action.
+pub static SMILING_JACK: CardDef = CardDef {
+    name: "Smiling Jack, The Anarch",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::PutInPlay],
+    }],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDeclare],
+        actor: Actor::ActingCandidate,
+        requires: &[Requirement::ActorVampire],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::BurnCard),
+            Effect::BurnSource,
+        ],
+    }],
+    riders: &[
+        Rider {
+            hook: Hook::UnlockPhase,
+            scope: RiderScope::Controller,
+            requires: &[],
+            effects: &[Effect::PoolToCounter(1)],
+        },
+        Rider {
+            hook: Hook::UnlockPhase,
+            scope: RiderScope::Others,
+            requires: &[Requirement::CountersAtLeast(1)],
+            effects: &[Effect::PoolOrBloodPerCounter],
+        },
+    ],
 };
 
 /// Nosferatu. "+1 stealth action. X is the number of copies of this card

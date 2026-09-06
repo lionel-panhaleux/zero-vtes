@@ -427,7 +427,7 @@ The engine's value is trust; trust is measured, not asserted.
    | Hook / mechanism | Sentences | First tenant | Status |
    |---|---|---|---|
    | Own unlock phase (optional ability / mandatory rider) | 39 | Vessel, hunting grounds / Creeping Sabotage | done (`UnlockPhaseOwn`, `Hook::UnlockPhase` + scope) |
-   | Every / other Methuselah's unlock phase | 5 | Anarch Revolt / Smiling Jack | done / with counters |
+   | Every / other Methuselah's unlock phase | 5 | Anarch Revolt / Smiling Jack | done (`RiderScope`, `Flow::RiderTerms` for a rider's choices) |
    | Master phase (optional / mandatory) | 10 | Blood Doll / Brujah Debate | optional done; mandatory rider pending |
    | Discard phase | 3 | The Coven | pending (control change) |
    | Influence phase | 6 | Powerbase: Montreal | pending |
@@ -442,7 +442,7 @@ The engine's value is trust; trust is measured, not asserted.
    | Granted actions (Ⓓ burn / steal / enter combat) | 26 | Anarch Revolt, Creeping Sabotage | done for burn; steal and enter-combat pending |
    | Continuous layers | 179 | Villein, Guardian Angel | done (`Layer`) |
    | Lock / burn abilities in action or combat windows | 17 | Homunculus, Guardian Angel | done (abilities in windows) |
-   | Counters on a card | 46 | Smiling Jack, Dreams of the Sphinx | pending |
+   | Counters on a card | 46 | Smiling Jack, Dreams of the Sphinx | `CardInPlay.counters`, `PoolToCounter` done; lock-counting pending |
 
    Three mechanisms sit outside the hook shape and are not started:
    library search (Black Market Cache, Childe of the Revolution), draw
@@ -712,7 +712,18 @@ Recorded so nobody mistakes them for oversights:
   on the player, right for every card in the pool so far. An out-of-turn
   play paid down to 0 pool (Archon Investigation at 3) ousts its player
   without ending the active Methuselah's turn: the player drops out of the
-  open windows (`OrderedWindow::remove`). Next: Smiling Jack (counters, mandatory-with-choice), Dreams
+  open windows (`OrderedWindow::remove`).
+  Slice 5f (2026-09-06): Smiling Jack, The Anarch — a mandatory rider
+  with choices: `Effect::PoolToCounter` (the controller's rider, onto
+  `CardInPlay.counters`; the last pool moved ousts them) and
+  `Effect::PoolOrBloodPerCounter` (the others' rider: each unit paid as
+  chosen in a `Flow::RiderTerms` window, `Choice::BurnPool` /
+  `BurnBloodFrom`, any mix per ANK 20181006, empty vampires no source per
+  LSJ 19971212; the window elides when the pool is the only source; a
+  pool paid to 0 ousts on the spot). `resolve_unlock_rider` now sets the
+  flow itself (the resume, the choice window, or the next turn).
+  `Requirement::ActorVampire` for "Vampires can burn this card" (vacuous
+  until allies land). 76 defs. Next: Smiling Jack (counters, mandatory-with-choice), Dreams
   of the Sphinx / The Barrens (lock abilities in any window), The Coven
   (control change).
 - **P2 — full engine pool**: all 621 cards including Events and their machinery;

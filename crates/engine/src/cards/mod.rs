@@ -228,6 +228,12 @@ pub enum Requirement {
     /// The player holds at least n master cards in hand ("discard two
     /// master cards").
     HandMasters(u8),
+    /// The actor is a vampire ("Vampires can burn this card"): every
+    /// minion is a crypt vampire until allies land (P1 ally slice).
+    ActorVampire,
+    /// This card in play carries at least n counters (a rider with
+    /// nothing to pay is not pending: Smiling Jack at 0 counters).
+    CountersAtLeast(u8),
     /// Combat: the round is at close range ("only usable at close range").
     RangeClose,
     RangeLong,
@@ -634,6 +640,15 @@ pub enum Effect {
     /// Rider effect: the Methuselah resolving it burns n pool ("that
     /// Methuselah burns 1 pool", Fame's unlock rider).
     BurnPool(u8),
+    /// Rider effect: the Methuselah resolving it moves n counters from
+    /// their pool to this card ("move 1 counter from your pool to this
+    /// card", Smiling Jack) — down to 0 pool ousts them.
+    PoolToCounter(u8),
+    /// Rider effect: for each counter on this card, the Methuselah
+    /// resolving it burns 1 pool or 1 blood from a vampire they control
+    /// (Smiling Jack), each unit chosen as it is paid — any mix (ANK
+    /// 20181006), a vampire with no blood is no source (LSJ 19971212).
+    PoolOrBloodPerCounter,
     /// Rider effect: the controller of the minion the hook names burns n
     /// pool — the host ("after this vampire goes to torpor, their
     /// controller burns 3 pool", Fame) or the minion that left ("after a
@@ -948,13 +963,15 @@ pub fn holds(
         }),
         Requirement::LockedActor => actor.is_some_and(|m| st.minions[m.index()].locked),
         Requirement::MasterPhaseActionLeft => st.seats[seat.index()].mpa > 0,
+        Requirement::ActorVampire => actor.is_some(),
         Requirement::HandMasters(n) => st.hand_masters(seat).len() >= n as usize,
         Requirement::HostLocked
         | Requirement::HostBloodAtLeast(_)
         | Requirement::HostBelowCapacity
         | Requirement::HostControllerPoolAtLeast(_)
         | Requirement::HostInTorpor
-        | Requirement::NotHuntingGroundFed => true, // host / target predicates
+        | Requirement::CountersAtLeast(_)
+        | Requirement::NotHuntingGroundFed => true, // host / card / target predicates
         Requirement::ControlsReadyTitled(classes) => st.minions_of(seat).any(|m| {
             let v = &st.minions[m.index()];
             v.ready() && classes.iter().any(|c| c.matches(v.title()))

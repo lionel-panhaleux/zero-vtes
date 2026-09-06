@@ -788,6 +788,8 @@ impl Engine {
             | Effect::UnlockBurnPoolUnlessReady { .. }
             | Effect::PreyBurnsPool(_)
             | Effect::BurnPool(_)
+            | Effect::PoolToCounter(_)
+            | Effect::PoolOrBloodPerCounter
             | Effect::TheirControllerBurnsPool(_)
             | Effect::SpendMasterPhaseAction
             | Effect::BurnSelf
@@ -1292,10 +1294,12 @@ impl Engine {
             }
             Choice::ResolveRider { card } => {
                 pending.retain(|c| c.0 != *card);
-                if self.resolve_unlock_rider(CardId(*card)) {
-                    return; // ousted: the turn has passed
-                }
                 window.play();
+                let resume = Flow::Abilities { window, pending };
+                // Sets the flow: the resume, a choice window the rider
+                // needs, or the next turn (the active Methuselah ousted).
+                self.resolve_unlock_rider(CardId(*card), resume);
+                return;
             }
             other => unreachable!("illegal ability choice {other:?}"),
         }
@@ -1303,26 +1307,34 @@ impl Engine {
     }
 
     /// Resolve a card in play's "during their unlock phase" rider on the
-    /// active Methuselah's turn. Returns true when the flow moved on (the
-    /// active Methuselah ousted: the turn passed; or the game ended).
-    fn resolve_unlock_rider(&mut self, id: CardId) -> bool {
+    /// active Methuselah's turn, then set the flow: `resume`, a choice
+    /// window the rider needs (Smiling Jack's payments), or the next turn
+    /// when the active Methuselah is ousted (or the game over).
+    fn resolve_unlock_rider(&mut self, id: CardId, resume: Flow) {
         let s = self.state.active;
         let c = &self.state.cards[id.index()];
         if !c.present() {
-            return false;
+            self.flow = resume;
+            return;
         }
         let def = cards::lookup(c.card).expect("definition");
         let mut own_loss = 0i32;
+        let mut to_counters = 0u8;
+        let mut per_counter = false;
         let mut loss = vec![0i32; self.state.seats.len()];
-        let host = c.host;
         for r in def.riders.iter().filter(|r| {
             r.hook == Hook::UnlockPhase
                 && r.scope.applies(c.owner, s)
-                && self.state.rider_holds(r, host)
+                && self.state.rider_holds(r, id)
         }) {
             for e in r.effects {
                 match *e {
                     Effect::BurnPool(n) => own_loss += n as i32,
+                    Effect::PoolToCounter(n) => {
+                        own_loss += n as i32;
+                        to_counters += n;
+                    }
+                    Effect::PoolOrBloodPerCounter => per_counter = true,
                     Effect::UnlockBurnPoolUnlessReady { sect, pool } => {
                         let has = self.state.minions_of(s).any(|m| {
                             let v = &self.state.minions[m.index()];
@@ -1344,18 +1356,84 @@ impl Engine {
             // seat scoring; the unlock phase goes on.
             self.burn_pool_batch(&loss);
             if self.state.living() <= 1 {
-                return true;
+                return;
             }
         }
         if own_loss > 0 {
             let seat = &mut self.state.seats[s.index()];
+            let moved = own_loss.min(seat.pool) as u8;
             seat.pool = (seat.pool - own_loss).max(0);
-            if seat.pool == 0 {
+            // Counters move even as the last pool goes (the card leaves
+            // with its ousted controller anyway).
+            self.state.cards[id.index()].counters += to_counters.min(moved);
+            if self.state.seats[s.index()].pool == 0 {
                 self.oust_and_pass(s);
-                return true;
+                return;
             }
         }
-        false
+        let counters = self.state.cards[id.index()].counters;
+        if per_counter && counters > 0 {
+            self.flow = Flow::RiderTerms {
+                card: id,
+                left: counters,
+                resume: Box::new(resume),
+            };
+            return;
+        }
+        self.flow = resume;
+    }
+
+    /// One unit of a rider's payment (Smiling Jack): 1 pool, or 1 blood
+    /// from a vampire the active Methuselah controls that has some (LSJ
+    /// 19971212: an empty vampire does not lessen the obligation).
+    pub(crate) fn rider_terms_request(&self, card: CardId) -> DecisionRequest {
+        let _ = card;
+        let s = self.state.active;
+        let mut options = vec![Choice::BurnPool];
+        for m in self.state.minions_of(s) {
+            if self.state.minions[m.index()].blood > 0 {
+                options.push(Choice::BurnBloodFrom { minion: m });
+            }
+        }
+        DecisionRequest {
+            seat: s,
+            window: WindowLabel::RiderTerms,
+            options,
+        }
+    }
+
+    pub(crate) fn rider_terms_apply(
+        &mut self,
+        card: CardId,
+        left: u8,
+        resume: Box<Flow>,
+        choice: &Choice,
+    ) {
+        let s = self.state.active;
+        match choice {
+            Choice::BurnPool => {
+                let seat = &mut self.state.seats[s.index()];
+                seat.pool -= 1;
+                if seat.pool == 0 {
+                    // Ousted on their own unlock phase: the turn passes.
+                    self.oust_and_pass(s);
+                    return;
+                }
+            }
+            Choice::BurnBloodFrom { minion } => {
+                self.state.minions[minion.index()].blood -= 1;
+            }
+            other => unreachable!("illegal rider terms choice {other:?}"),
+        }
+        if left > 1 {
+            self.flow = Flow::RiderTerms {
+                card,
+                left: left - 1,
+                resume,
+            };
+        } else {
+            self.flow = *resume;
+        }
     }
 
     /// Riders of `hook` fired for each minion of `subjects` that left the
@@ -1375,11 +1453,10 @@ impl Engine {
                 let Some(def) = cards::lookup(c.card) else {
                     continue;
                 };
-                let host = c.host;
                 let riders: Vec<&Rider> = def
                     .riders
                     .iter()
-                    .filter(|r| r.hook == hook && self.state.rider_holds(r, host))
+                    .filter(|r| r.hook == hook && self.state.rider_holds(r, CardId(ci as u32)))
                     .collect();
                 for r in riders {
                     for e in r.effects {

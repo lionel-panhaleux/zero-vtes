@@ -155,6 +155,8 @@ fn kind_of(c: &Choice) -> &'static str {
         Choice::UseAbility { .. } => "use_ability",
         Choice::ResolveRider { .. } => "resolve_rider",
         Choice::BurnInPlay { .. } => "burn_in_play",
+        Choice::BurnPool => "burn_pool",
+        Choice::BurnBloodFrom { .. } => "burn_blood_from",
         Choice::SetX(_) => "set_x",
         Choice::Discard(_) => "discard",
         Choice::TakeAction { action, .. } => match action {
@@ -304,6 +306,7 @@ fn midgame(seed: u64) -> Engine {
         "Papillon",
         "Fame",
         "Tension in the Ranks",
+        "Smiling Jack, The Anarch",
         "Carfax Abbey",
     ]
     .iter()
@@ -585,6 +588,11 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "play:Fame",
             "play:Tension in the Ranks",
             "ability:Tension in the Ranks",
+            "play:Smiling Jack, The Anarch",
+            "ability:Smiling Jack, The Anarch",
+            // (Smiling Jack's pool unit elides when it is the only source and
+            // is seldom picked against several vampires: no key.)
+            "burn_blood_from",
             // (Anarch Revolt's and Fame's riders are decisions only when
             // ordered against another unlock effect; alone they elide, so
             // no key.)

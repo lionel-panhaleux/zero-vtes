@@ -343,11 +343,16 @@ impl GameState {
         }
     }
 
-    /// A rider's host predicates hold (a hostless card has none to fail).
-    pub fn rider_holds(&self, r: &crate::cards::Rider, host: Option<MinionId>) -> bool {
-        r.requires.iter().all(|&req| match host {
-            Some(h) => crate::cards::holds_for_host(req, self, h),
-            None => true,
+    /// A rider's card and host predicates hold (a hostless card has no
+    /// host predicate to fail).
+    pub fn rider_holds(&self, r: &crate::cards::Rider, id: CardId) -> bool {
+        let c = &self.cards[id.index()];
+        r.requires.iter().all(|&req| match req {
+            crate::cards::Requirement::CountersAtLeast(n) => c.counters >= n,
+            _ => match c.host {
+                Some(h) => crate::cards::holds_for_host(req, self, h),
+                None => true,
+            },
         })
     }
 

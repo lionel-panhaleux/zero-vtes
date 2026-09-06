@@ -64,6 +64,13 @@ pub enum Choice {
     BurnInPlay {
         card: u32,
     },
+    /// A mandatory rider's unit of payment: burn 1 pool (Smiling Jack).
+    BurnPool,
+    /// A mandatory rider's unit of payment: burn 1 blood from this vampire
+    /// the player controls (Smiling Jack).
+    BurnBloodFrom {
+        minion: MinionId,
+    },
     /// Numeric terms of the play being announced (rules-qa 3.5).
     SetX(u8),
     /// Discard phase action: discard the card at this hand index.
@@ -160,6 +167,9 @@ pub enum WindowLabel {
     /// Terms of a play or of an in-play ability, chosen as it is announced
     /// (an amount, a copy in play to burn, the master cards to discard).
     PlayTerms,
+    /// The choices a mandatory rider needs as it resolves (Smiling Jack:
+    /// pool or blood, one unit at a time).
+    RiderTerms,
     /// The as-played window of a card: cancels (and wakes, during an action)
     /// only (rules-qa 2.4).
     CardAsPlayed,

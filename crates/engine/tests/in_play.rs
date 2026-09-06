@@ -977,6 +977,129 @@ fn tension_in_the_ranks_burn_needs_a_master_phase_action() {
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
 }
 
+/// Pass every window until `seat` faces `window` (a mandatory rider's
+/// payment window, say); single-option windows elide on the way.
+fn to_window(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
+    loop {
+        let req = request(e);
+        if (req.seat, req.window) == (seat, window) {
+            return req;
+        }
+        assert!(
+            matches!(req.options[0], Choice::Pass | Choice::ResolveRider { .. }),
+            "{:?}",
+            req
+        );
+        e.choose(0);
+    }
+}
+
+// Smiling Jack: "During your unlock phase, move 1 counter from your pool
+// to this card" — the controller's mandatory rider, one pool a turn onto
+// the card; the last pool moved ousts them on their own unlock phase and
+// the turn passes.
+#[test]
+fn smiling_jack_moves_1_pool_to_a_counter_each_own_unlock_phase_and_can_oust() {
+    let (mut e, _a, _x, _z) = bleed_table();
+    let jack = revolt_like_in_play(&mut e, "Smiling Jack, The Anarch", 0);
+    to_minion_phase(&mut e, SeatId(1));
+    to_minion_phase(&mut e, SeatId(2));
+    assert_eq!(pool(&e), vec![10, 10, 10]);
+    to_minion_phase(&mut e, SeatId(0));
+    assert_eq!(pool(&e), vec![9, 10, 10]);
+    assert_eq!(e.state.cards[jack as usize].counters, 1);
+    e.state.seats[0].pool = 1;
+    // No counters were paid by the others so far: the first counter landed
+    // on seat 0's turn; seats 1 and 2 now pay 1 each on theirs (a vampire's
+    // blood or a pool: they have vampires with blood, so a window opens).
+    let req = to_window(&mut e, SeatId(1), WindowLabel::RiderTerms);
+    assert_eq!(req.options[0], Choice::BurnPool);
+    pick(&mut e, Choice::BurnPool);
+    let _ = to_window(&mut e, SeatId(2), WindowLabel::RiderTerms);
+    pick(&mut e, Choice::BurnPool);
+    // Seat 0's unlock: the pool goes onto the card and seat 0 is ousted.
+    to_minion_phase(&mut e, SeatId(1));
+    assert!(e.state.seats[0].ousted);
+    assert_eq!(pool(&e), vec![0, 9, 15]);
+    assert!(!e.state.cards[jack as usize].in_play);
+}
+
+// "During each other Methuselah's unlock phase, for each counter on this
+// card, that Methuselah burns 1 pool or burns 1 blood from a vampire they
+// control": each unit is chosen as it is paid, any mix (ANK 20181006); a
+// vampire with no blood is no source (LSJ 19971212), so with only empty
+// vampires the pool is the only way and the window elides.
+#[test]
+fn smiling_jack_each_other_methuselah_pays_pool_or_blood_per_counter() {
+    let (mut e, a, x, z) = bleed_table();
+    let jack = revolt_like_in_play(&mut e, "Smiling Jack, The Anarch", 0);
+    e.state.cards[jack as usize].counters = 2;
+    e.state.minions[z.index()].blood = 0;
+    let req = to_window(&mut e, SeatId(1), WindowLabel::RiderTerms);
+    assert_eq!(
+        req.options,
+        vec![Choice::BurnPool, Choice::BurnBloodFrom { minion: x }]
+    );
+    pick(&mut e, Choice::BurnPool);
+    let req = expect(&mut e, SeatId(1), WindowLabel::RiderTerms);
+    assert_eq!(
+        req.options,
+        vec![Choice::BurnPool, Choice::BurnBloodFrom { minion: x }]
+    );
+    pick(&mut e, Choice::BurnBloodFrom { minion: x });
+    to_minion_phase(&mut e, SeatId(1));
+    assert_eq!(pool(&e), vec![10, 9, 10]);
+    assert_eq!(blood(&e, x), 3);
+    // Seat 2: z is empty, both units come from the pool with no decision
+    // (and z's forced hunt elides its minion phase). Seat 0 then pays
+    // nothing but its own counter.
+    to_minion_phase(&mut e, SeatId(0));
+    assert_eq!(pool(&e), vec![9, 9, 8]);
+    assert_eq!(e.state.cards[jack as usize].counters, 3);
+    let _ = a;
+}
+
+// A paying Methuselah at 1 pool who pays the first unit from the pool is
+// ousted on the spot: the remaining units lapse, the turn passes, their
+// predator scores.
+#[test]
+fn smiling_jack_payment_from_the_last_pool_ousts_the_payer() {
+    let (mut e, _a, x, _z) = bleed_table();
+    let jack = revolt_like_in_play(&mut e, "Smiling Jack, The Anarch", 0);
+    e.state.cards[jack as usize].counters = 2;
+    e.state.seats[1].pool = 1;
+    let req = to_window(&mut e, SeatId(1), WindowLabel::RiderTerms);
+    assert_eq!(
+        req.options,
+        vec![Choice::BurnPool, Choice::BurnBloodFrom { minion: x }]
+    );
+    pick(&mut e, Choice::BurnPool);
+    let req = request(&mut e);
+    assert_eq!(req.seat, SeatId(2));
+    assert!(e.state.seats[1].ousted);
+    assert_eq!(pool(&e), vec![16, 0, 10]);
+    assert_eq!(e.state.seats[0].half_vps, 2);
+}
+
+// "Vampires can burn this card as a Ⓓ action": directed at its controller,
+// who may block; on success the card is burned to its owner's ash heap.
+#[test]
+fn smiling_jack_can_be_burned_as_a_directed_action() {
+    let (mut e, a, x, _z) = bleed_table();
+    let jack = revolt_like_in_play(&mut e, "Smiling Jack, The Anarch", 1);
+    pick(&mut e, granted(jack, a));
+    let req = expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    assert_eq!(req.options[..2], [Choice::Pass, block(x)]);
+    pick(&mut e, Choice::Pass);
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(Outcome::Successful));
+    assert!(!e.state.cards[jack as usize].in_play);
+    assert_eq!(
+        e.state.seats[1].ash,
+        vec![find_library("Smiling Jack, The Anarch")]
+    );
+}
+
 // Creeping Sabotage: "+1 stealth action" (blocks pruned with no intercept),
 // "X is the number of copies you control" read when the cost is paid (the
 // second copy costs 1), "Put this card in play" (no host, not discarded),
