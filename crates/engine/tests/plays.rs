@@ -65,12 +65,14 @@ fn implemented_definitions_cover_the_slice() {
     assert_eq!(
         implemented,
         vec![
+            "Anarch Revolt",
             "Anarch Salon",
             "Anarchist Uprising",
             "Ancilla Empowerment",
             "Archon Investigation",
             "Banishment",
             "Bewitching Oration",
+            "Blood Doll",
             "Blur",
             "Body Flare",
             "Bonding",
@@ -82,6 +84,7 @@ fn implemented_definitions_cover_the_slice() {
             "Consanguineous Boon",
             "Conservative Agitation",
             "Consign to Oblivion",
+            "Creeping Sabotage",
             "Deflection",
             "Delaying Tactics",
             "Domain Challenge",
@@ -91,6 +94,7 @@ fn implemented_definitions_cover_the_slice() {
             "Flash",
             "Form of Mist",
             "Form of the Cobra",
+            "Guardian Angel",
             "Hidden Strength",
             "Homunculus",
             "Immortal Grapple",
@@ -116,6 +120,7 @@ fn implemented_definitions_cover_the_slice() {
             "Telepathic Vote Counting",
             "Theft of Vitae",
             "Torn Signpost",
+            "Vessel",
             "Villein",
             "Voter Captivation"
         ]

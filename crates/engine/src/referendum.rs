@@ -434,7 +434,9 @@ impl Engine {
         // Methuselah, or a political action card burned from hand; at most
         // 1 vote from political action cards per Methuselah.
         if !ctx.card_voted.contains(&seat) {
-            if ctx.kind == RefKind::Political && seat == ctx.caller {
+            // A referendum granted by a card in play has no calling card.
+            let card_called = self.action.as_ref().is_some_and(|a| a.card.is_some());
+            if ctx.kind == RefKind::Political && seat == ctx.caller && card_called {
                 options.push(Choice::CastCardVote { favor: true });
                 options.push(Choice::CastCardVote { favor: false });
             }
@@ -756,7 +758,7 @@ impl Engine {
                         }
                     }
                 }
-                RefEffect::Banish | RefEffect::Expel => {}
+                RefEffect::Banish | RefEffect::Expel | RefEffect::BurnSource => {}
             }
         }
         for (i, g) in gain.iter().enumerate() {
@@ -798,6 +800,14 @@ impl Engine {
                 for &m in &ctx.terms.minions {
                     self.state.minions[m.index()].expelled = true;
                 }
+            }
+            RefEffect::BurnSource => {
+                let src = self
+                    .action
+                    .as_ref()
+                    .and_then(|a| a.source)
+                    .expect("granted action's source");
+                self.burn_card_in_play(src);
             }
             _ => {}
         }
@@ -911,11 +921,19 @@ impl Engine {
                 if let Some(card) = a.card {
                     self.state.seats[a.seat.index()].hand.push(card.card);
                     a.card_returned = true;
-                    if forbid_repeat {
-                        self.state.seats[a.seat.index()]
-                            .forbidden_political
-                            .push(LIBRARY[card.card as usize].name);
+                }
+                // The forbidden action is the card's, from hand or in play.
+                let name = match (a.card, a.source) {
+                    (Some(card), _) => Some(LIBRARY[card.card as usize].name),
+                    (None, Some(src)) => {
+                        Some(LIBRARY[self.state.cards[src.index()].card as usize].name)
                     }
+                    (None, None) => None,
+                };
+                if let (true, Some(name)) = (forbid_repeat, name) {
+                    self.state.seats[a.seat.index()]
+                        .forbidden_political
+                        .push(name);
                 }
                 if unlock_acting {
                     self.state.minions[a.acting.index()].locked = false;

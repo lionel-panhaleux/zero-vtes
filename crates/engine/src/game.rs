@@ -4,7 +4,7 @@
 //! `influence`, `referendum`), which extend `Engine`.
 
 use crate::actions::ActionCtx;
-use crate::cards::PlayCtx;
+use crate::cards::{self, Hook, PlayCtx};
 use crate::combat::CombatCtx;
 use crate::crypt::PRECONS;
 use crate::decision::{Choice, DecisionRequest, WindowLabel};
@@ -15,7 +15,7 @@ use crate::plays::PendingPlay;
 use crate::referendum::ReferendumCtx;
 use crate::rng::Rng;
 use crate::state::{
-    GameState, Minion, Seat, UncontrolledSlot, HAND_SIZE, START_POOL, UNCONTROLLED_START,
+    CardId, GameState, Minion, Seat, UncontrolledSlot, HAND_SIZE, START_POOL, UNCONTROLLED_START,
 };
 use crate::window::OrderedWindow;
 
@@ -59,6 +59,8 @@ pub(crate) enum Flow {
     /// In-play abilities usable during any Methuselah's unlock phase.
     Abilities {
         window: OrderedWindow,
+        /// Mandatory unlock-phase riders the active seat has yet to resolve.
+        pending: Vec<CardId>,
     },
     /// Minion phase: offer actions for the active seat's ready minions.
     MinionPhase,
@@ -164,6 +166,7 @@ impl Engine {
                 seats,
                 minions: Vec::new(),
                 cards: Vec::new(),
+                phase_uses: Vec::new(),
                 layers: Vec::new(),
                 active: SeatId(0),
                 turn: 0,
@@ -289,7 +292,7 @@ impl Engine {
                 window: WindowLabel::MinionPhase,
                 options: self.minion_phase_options(),
             }),
-            Flow::Abilities { window } => self.abilities_request(window),
+            Flow::Abilities { window, pending } => self.abilities_request(window, pending),
             Flow::Action => self.action_request(),
             Flow::Combat => self.combat_request(),
             Flow::TorporBlock => Some(self.torpor_block_request()),
@@ -309,7 +312,7 @@ impl Engine {
             Flow::Unlock => self.start_contests(),
             Flow::Contests { items, at } => self.contest_advance(items, at),
             Flow::AsPlayed { stack, resume } => self.as_played_advance(stack, resume),
-            Flow::Abilities { window } => {
+            Flow::Abilities { window, .. } => {
                 debug_assert!(window.is_closed());
                 self.start_master_phase();
             }
@@ -349,7 +352,17 @@ impl Engine {
                     action,
                     target,
                 },
-            ) => self.declare_action(*minion, *action, *target, None),
+            ) => self.declare_action(*minion, *action, *target, None, None),
+            (
+                Flow::MinionPhase,
+                Choice::UseAbility {
+                    card,
+                    ability,
+                    actor,
+                },
+            ) => {
+                self.use_ability(*card, *ability, *actor);
+            }
             (
                 Flow::MinionPhase,
                 Choice::Play {
@@ -362,7 +375,7 @@ impl Engine {
                 let s = self.state.active;
                 self.announce_play(s, *card, *mode, *actor, *target, Flow::MinionPhase);
             }
-            (Flow::Abilities { window }, c) => self.abilities_apply(window, c),
+            (Flow::Abilities { window, pending }, c) => self.abilities_apply(window, pending, c),
             (Flow::Action, c) => self.action_apply(c),
             (Flow::Combat, c) => self.combat_apply(c),
             (Flow::TorporBlock, c) => self.torpor_block_apply(c),
@@ -380,10 +393,46 @@ impl Engine {
     /// (Homunculus), returning to the active seat after each (owner,
     /// 2026-09-04; rules-qa 3.7), then the master phase.
     pub(crate) fn end_contests(&mut self) {
-        let order = self.state.clockwise_from(self.state.active);
+        // The unlock-phase effects window: the active seat's pending
+        // mandatory riders (every copy of Anarch Revolt in play, whoever
+        // controls it — each burns on its own, spec §1.15) ordered by them
+        // among their optional abilities and resolved before the impulse
+        // leaves them (rules-qa 6.1), then the other seats' abilities.
+        let s = self.state.active;
+        let pending: Vec<CardId> = self
+            .state
+            .cards
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| {
+                c.in_play
+                    && cards::lookup(c.card).is_some_and(|d| {
+                        d.riders
+                            .iter()
+                            .any(|r| r.hook == Hook::UnlockPhase && r.scope.applies(c.owner, s))
+                    })
+            })
+            .map(|(i, _)| CardId(i as u32))
+            .collect();
+        let order = self.state.clockwise_from(s);
         self.flow = Flow::Abilities {
             window: OrderedWindow::new(order),
+            pending,
         };
+    }
+
+    /// Burn a card in play: to its owner's ash heap, its layers dropped.
+    pub(crate) fn burn_card_in_play(&mut self, id: CardId) {
+        let c = &mut self.state.cards[id.index()];
+        if !c.in_play {
+            return;
+        }
+        c.in_play = false;
+        let (owner, card) = (c.owner, c.card);
+        self.state.seats[owner.index()].ash.push(card);
+        self.state
+            .layers
+            .retain(|l| l.scope == crate::cards::Scope::Action || l.source != id);
     }
 
     /// End of the influence phase: on to the discard phase (one discard
@@ -428,13 +477,20 @@ impl Engine {
                 self.state.seats[pred.index()].pool += 6;
             }
         }
-        if self.state.living() == 1 {
+        match self.state.living() {
             // The last Methuselah standing gains one additional VP.
-            let survivor = (0..self.state.seats.len())
-                .find(|&i| !self.state.seats[i].ousted)
-                .expect("one seat must survive");
-            self.state.seats[survivor].half_vps += 2;
-            self.flow = Flow::GameOver;
+            1 => {
+                let survivor = (0..self.state.seats.len())
+                    .find(|&i| !self.state.seats[i].ousted)
+                    .expect("one seat must survive");
+                self.state.seats[survivor].half_vps += 2;
+                self.flow = Flow::GameOver;
+            }
+            // Everyone ousted at once (rules-qa 6.9): the prey VPs stand,
+            // nobody is last standing; the game win, if any, follows from
+            // the VPs (`GameState::game_win`).
+            0 => self.flow = Flow::GameOver,
+            _ => {}
         }
     }
 
@@ -505,6 +561,7 @@ impl Engine {
         // Delayed replacements ("do not replace until your next unlock
         // phase") are drawn before unlocking (ANK 20200129).
         self.state.seats[s.index()].delayed_draws = 0;
+        self.state.phase_uses.clear();
         self.draw_to_hand_size(s);
         for m in &mut self.state.minions {
             // Per-turn NRA flags reset each new turn.
@@ -952,6 +1009,29 @@ mod tests {
             Step::Over(v) => assert_eq!(v, vec![3, 1, 0]),
             Step::Decision(_) => panic!("expected time-out"),
         }
+    }
+
+    // rules-qa 6.9: the game win needs 2 VP and a strict lead, ousted or
+    // not; ties are draws.
+    #[test]
+    fn game_win_needs_two_vps_and_a_strict_lead() {
+        let mut e = Engine::bare(4);
+        let set = |e: &mut Engine, vps: [u32; 4]| {
+            for (s, v) in e.state.seats.iter_mut().zip(vps) {
+                s.half_vps = v;
+            }
+        };
+        set(&mut e, [6, 4, 0, 0]); // 3 VP (ousted) vs 2: the 3 wins
+        e.state.seats[0].ousted = true;
+        assert_eq!(e.state.game_win(), Some(SeatId(0)));
+        set(&mut e, [4, 4, 0, 0]); // two at 2 VP: a draw
+        assert_eq!(e.state.game_win(), None);
+        set(&mut e, [2, 2, 2, 2]); // all at 1 VP: a draw
+        assert_eq!(e.state.game_win(), None);
+        set(&mut e, [3, 2, 1, 0]); // 1.5 VP leads but is under 2
+        assert_eq!(e.state.game_win(), None);
+        set(&mut e, [4, 2, 0, 0]);
+        assert_eq!(e.state.game_win(), Some(SeatId(0)));
     }
 
     #[test]

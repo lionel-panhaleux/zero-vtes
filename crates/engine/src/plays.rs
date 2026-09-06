@@ -5,16 +5,16 @@
 //! through layers, replacement draws, and in-play abilities.
 
 use crate::cards::{
-    self, Actor, Effect, Layer, Limit, PlayCtx, Requirement, Scope, Target, TargetKind, Terms,
-    Window,
+    self, Actor, Effect, Hook, Layer, Limit, PlayCtx, Requirement, Scope, Target, TargetKind,
+    Terms, Window,
 };
 use crate::combat::is_combat_effect;
-use crate::decision::{Choice, DecisionRequest, WindowLabel};
+use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, LIBRARY};
 use crate::referendum::is_vote_effect;
-use crate::state::{CardId, CardInPlay, OutOfTurn, HAND_SIZE};
+use crate::state::{ActionId, CardId, CardInPlay, OutOfTurn, HAND_SIZE};
 use crate::window::OrderedWindow;
 
 /// A card play between announcement and resolution: its as-played window is
@@ -53,6 +53,7 @@ impl Engine {
                 seat.trifle_used = true;
             }
         }
+        self.state.phase_uses.clear();
         self.flow = Flow::MasterPhase;
     }
 
@@ -217,11 +218,12 @@ impl Engine {
                             && st.minions[m.index()]
                                 .acted
                                 .iter()
-                                .any(|c| LIBRARY[*c as usize].name == LIBRARY[card as usize].name)
+                                .any(|a| a.same(ActionId::Card(card)))
                         {
                             continue;
                         }
-                        if cards::blood_cost(st, card, 0) > st.minions[m.index()].blood {
+                        let x = cards::terms_x(st, seat, card, mode).unwrap_or(0);
+                        if cards::blood_cost(st, card, x) > st.minions[m.index()].blood {
                             continue;
                         }
                         // "A vampire can play only one X each round / combat /
@@ -317,6 +319,9 @@ impl Engine {
         if self.state.seats[s.index()].mpa > 0 {
             options.extend(self.play_options(s, &[Window::MasterPhase], None));
         }
+        // "During their master phase" abilities of cards in play (Blood
+        // Doll): no master phase action spent.
+        options.extend(self.ability_options(s, Window::MasterPhase));
         DecisionRequest {
             seat: s,
             window: WindowLabel::MasterPhase,
@@ -336,6 +341,15 @@ impl Engine {
                 let s = self.state.active;
                 self.state.seats[s.index()].mpa -= 1;
                 self.announce_play(s, *card, *mode, *actor, *target, Flow::MasterPhase);
+            }
+            Choice::UseAbility {
+                card,
+                ability,
+                actor,
+            } => {
+                if !self.use_ability(*card, *ability, *actor) {
+                    self.flow = Flow::MasterPhase;
+                }
             }
             other => unreachable!("illegal master phase choice {other:?}"),
         }
@@ -386,8 +400,14 @@ impl Engine {
             actor,
             target,
             x: 0,
+            burn: None,
         };
+        let mut ctx = ctx;
+        if let Some(x) = cards::terms_x(&self.state, s, card, &def.modes[mode as usize]) {
+            ctx.x = x;
+        }
         match def.modes[mode as usize].terms {
+            Some(Terms::CopiesControlled) => self.open_as_played(ctx, resume),
             Some(_) => {
                 // Terms are chosen before the as-played window opens; a
                 // nested play (inside another as-played window) keeps that
@@ -421,7 +441,18 @@ impl Engine {
                 let margin = self.action.as_ref().map_or(0, |a| a.margin) as u8;
                 (0..=n.min(margin)).map(Choice::SetX).collect()
             }
-            None => unreachable!("terms window without terms"),
+            // "You can burn a card named X (if any)": any copy in play,
+            // whoever controls it, or none; nothing in play elides it.
+            Some(Terms::BurnNamedInPlay(name)) => {
+                let mut options = vec![Choice::Pass];
+                for (i, c) in self.state.cards.iter().enumerate() {
+                    if c.in_play && LIBRARY[c.card as usize].name == name {
+                        options.push(Choice::BurnInPlay { card: i as u32 });
+                    }
+                }
+                options
+            }
+            Some(Terms::CopiesControlled) | None => unreachable!("terms window without a choice"),
         };
         DecisionRequest {
             seat: ctx.seat,
@@ -432,18 +463,18 @@ impl Engine {
 
     pub(crate) fn terms_apply(&mut self, mut ctx: PlayCtx, resume: Flow, choice: &Choice) {
         match choice {
-            Choice::SetX(n) => {
-                ctx.x = *n;
-                // A nested play resumes the outer as-played stack it
-                // interrupted; restore it so the new window stacks on top.
-                if let Flow::AsPlayed { .. } = resume {
-                    self.flow = resume;
-                    self.open_as_played(ctx, Flow::GameOver);
-                } else {
-                    self.open_as_played(ctx, resume);
-                }
-            }
+            Choice::SetX(n) => ctx.x = *n,
+            Choice::BurnInPlay { card } => ctx.burn = Some(CardId(*card)),
+            Choice::Pass => ctx.burn = None,
             other => unreachable!("illegal terms choice {other:?}"),
+        }
+        // A nested play resumes the outer as-played stack it interrupted;
+        // restore it so the new window stacks on top.
+        if let Flow::AsPlayed { .. } = resume {
+            self.flow = resume;
+            self.open_as_played(ctx, Flow::GameOver);
+        } else {
+            self.open_as_played(ctx, resume);
         }
     }
 
@@ -583,7 +614,7 @@ impl Engine {
         {
             let actor = ctx.actor.expect("acting minion");
             self.draw_to_hand_size(s);
-            self.declare_action(actor, *kind, None, Some(ctx));
+            self.declare_action(actor, *kind, None, Some(ctx), None);
             return true;
         }
         let pool = cards::pool_cost(&self.state, s, ctx.card, ctx.target);
@@ -595,36 +626,6 @@ impl Engine {
         let mut in_play: Option<CardId> = None;
         for effect in mode.effects {
             match *effect {
-                Effect::PutOnTarget => {
-                    let Target::Minion(host) = ctx.target else {
-                        unreachable!("put-on without a minion target");
-                    };
-                    self.state.cards.push(CardInPlay {
-                        card: ctx.card,
-                        owner: s,
-                        host: Some(host),
-                        in_play: true,
-                        locked: false,
-                        counters: 0,
-                    });
-                    in_play = Some(CardId(self.state.cards.len() as u32 - 1));
-                }
-                Effect::MoveBloodTargetToPoolX => {
-                    let Target::Minion(t) = ctx.target else {
-                        unreachable!("blood move without a minion target");
-                    };
-                    let moved = ctx.x.min(self.state.minions[t.index()].blood);
-                    self.state.minions[t.index()].blood -= moved;
-                    self.state.seats[s.index()].pool += moved as i32;
-                }
-                Effect::Layer(modifier) => {
-                    let source = in_play.expect("layer source must be in play");
-                    self.state.layers.push(Layer {
-                        scope: Scope::InPlay,
-                        modifier,
-                        source,
-                    });
-                }
                 Effect::CancelPlayed { refund: _ } => {
                     // The play beneath this one on the stack is the card
                     // being played that this cancel targets.
@@ -632,20 +633,7 @@ impl Engine {
                         below.canceled = true;
                     }
                 }
-                Effect::DeclareAction(_)
-                | Effect::EmployRetainer { .. }
-                | Effect::CallReferendum(_) => {}
-                Effect::HostBurnBloodToUnlock => unreachable!("ability effect in a play"),
-                e if is_combat_effect(&e) => self.apply_combat_effect(e, &ctx),
-                // A mode shared between a bleed and the polling step
-                // (Protected District) carries both effects; the one
-                // without a context does nothing.
-                e if is_vote_effect(&e) => {
-                    if self.referendum.is_some() {
-                        self.apply_vote_effect(e, &ctx)
-                    }
-                }
-                action_effect => self.apply_action_effect(action_effect, &ctx),
+                e => self.apply_card_effect(e, &ctx, &mut in_play),
             }
         }
         if in_play.is_none() {
@@ -678,6 +666,79 @@ impl Engine {
         false
     }
 
+    /// One effect of a card resolving (a play, or an action card on
+    /// success): entering play, blood moves, layers, and the combat, vote
+    /// and action effects of the contexts that exist.
+    pub(crate) fn apply_card_effect(
+        &mut self,
+        effect: Effect,
+        ctx: &PlayCtx,
+        in_play: &mut Option<CardId>,
+    ) {
+        let s = ctx.seat;
+        match effect {
+            Effect::PutOnTarget | Effect::PutInPlay => {
+                let host = match (effect, ctx.target) {
+                    (Effect::PutOnTarget, Target::Minion(host)) => Some(host),
+                    (Effect::PutOnTarget, _) => unreachable!("put-on without a minion target"),
+                    _ => None,
+                };
+                self.state.cards.push(CardInPlay {
+                    card: ctx.card,
+                    owner: s,
+                    host,
+                    in_play: true,
+                    locked: false,
+                    counters: 0,
+                });
+                *in_play = Some(CardId(self.state.cards.len() as u32 - 1));
+            }
+            Effect::MoveBloodTargetToPoolX => {
+                let Target::Minion(t) = ctx.target else {
+                    unreachable!("blood move without a minion target");
+                };
+                let moved = ctx.x.min(self.state.minions[t.index()].blood);
+                self.state.minions[t.index()].blood -= moved;
+                self.state.seats[s.index()].pool += moved as i32;
+            }
+            Effect::Layer(modifier) => {
+                let source = in_play.expect("layer source must be in play");
+                self.state.layers.push(Layer {
+                    scope: Scope::InPlay,
+                    modifier,
+                    source,
+                });
+            }
+            // Announcement-time effects: read where the action is declared.
+            Effect::DeclareAction(_)
+            | Effect::EmployRetainer { .. }
+            | Effect::CallReferendum(_)
+            | Effect::CancelPlayed { .. } => {}
+            Effect::BurnChosenInPlay => {
+                if let Some(id) = ctx.burn {
+                    self.burn_card_in_play(id);
+                }
+            }
+            Effect::HostBurnBloodToUnlock
+            | Effect::HostBloodToPool(_)
+            | Effect::PoolToHostBlood(_)
+            | Effect::UnlockBurnPoolUnlessReady { .. }
+            | Effect::PreyBurnsPool(_)
+            | Effect::BurnSelf
+            | Effect::BurnSource => unreachable!("ability or rider effect in a play"),
+            e if is_combat_effect(&e) => self.apply_combat_effect(e, ctx),
+            // A mode shared between a bleed and the polling step
+            // (Protected District) carries both effects; the one
+            // without a context does nothing.
+            e if is_vote_effect(&e) => {
+                if self.referendum.is_some() {
+                    self.apply_vote_effect(e, ctx)
+                }
+            }
+            action_effect => self.apply_action_effect(action_effect, ctx),
+        }
+    }
+
     pub(crate) fn discard_request(&self) -> DecisionRequest {
         let s = self.state.active;
         let seat = &self.state.seats[s.index()];
@@ -708,12 +769,16 @@ impl Engine {
         }
     }
 
-    /// In-play abilities usable in `window` by `seat`'s cards in play.
+    /// In-play abilities usable in `window` by `seat`: host abilities of
+    /// the seat's cards in play, and granted actions of any card in play
+    /// ("Vampires can call a referendum …"), declared by the seat's ready
+    /// unlocked minions like a card action (one political action per
+    /// minion per turn; a Delaying Tactics ban is by card name).
     pub(crate) fn ability_options(&self, seat: SeatId, window: Window) -> Vec<Choice> {
         let st = &self.state;
         let mut out = Vec::new();
         for (ci, c) in st.cards.iter().enumerate() {
-            if !c.in_play || c.owner != seat {
+            if !c.in_play {
                 continue;
             }
             let Some(def) = cards::lookup(c.card) else {
@@ -723,49 +788,214 @@ impl Engine {
                 if !ability.windows.contains(&window) {
                     continue;
                 }
-                let Some(host) = c.host else {
-                    continue;
-                };
-                if !st.minions[host.index()].present() {
-                    continue;
-                }
-                if ability
-                    .requires
-                    .iter()
-                    .all(|&r| cards::holds_for_host(r, st, host))
-                {
-                    out.push(Choice::UseAbility {
-                        card: ci as u32,
-                        ability: ai as u8,
-                    });
+                match ability.actor {
+                    // The host's controller uses it (a card put on another
+                    // Methuselah's vampire is theirs to use).
+                    Actor::Host => {
+                        let Some(host) = c.host.filter(|h| st.minions[h.index()].owner == seat)
+                        else {
+                            continue;
+                        };
+                        if !st.minions[host.index()].present() {
+                            continue;
+                        }
+                        // In combat, the host must be the seat's combatant.
+                        if let Some(cb) = self.combat.as_ref() {
+                            if cb.side_of(seat) != cb.side_of_minion(host) {
+                                continue;
+                            }
+                        }
+                        // Per-copy limits ("each combat"; "during X" once per
+                        // phase, rules-qa 6.6).
+                        let id = CardId(ci as u32);
+                        if window.is_phase() && st.phase_uses.contains(&id) {
+                            continue;
+                        }
+                        let spent = match ability.limit {
+                            Some(Limit::PerCombat) => self
+                                .combat
+                                .as_ref()
+                                .is_some_and(|cb| cb.abilities_used.contains(&id)),
+                            Some(Limit::PerRound) | Some(Limit::PerAction) => {
+                                unreachable!("limit not supported on abilities yet")
+                            }
+                            None => false,
+                        };
+                        if spent {
+                            continue;
+                        }
+                        let ok = ability.requires.iter().all(|&r| {
+                            cards::holds_for_host(r, st, host)
+                                && cards::holds(
+                                    r,
+                                    st,
+                                    seat,
+                                    Some(host),
+                                    None,
+                                    self.action.as_ref(),
+                                    self.combat.as_ref(),
+                                    self.referendum.as_ref(),
+                                    false,
+                                )
+                        });
+                        if ok {
+                            out.push(Choice::UseAbility {
+                                card: ci as u32,
+                                ability: ai as u8,
+                                actor: None,
+                            });
+                        }
+                    }
+                    Actor::ActingCandidate => {
+                        let political = ability
+                            .effects
+                            .contains(&Effect::DeclareAction(ActionKind::Political));
+                        let name = LIBRARY[c.card as usize].name;
+                        if political && st.seats[seat.index()].forbidden_political.contains(&name) {
+                            continue;
+                        }
+                        for m in self.actor_candidates(seat, ability).into_iter().flatten() {
+                            if political && st.minions[m.index()].political_this_turn {
+                                continue;
+                            }
+                            // NRA for a card in play: the same copy once per
+                            // minion per turn (rules-qa 1.4).
+                            if st.minions[m.index()]
+                                .acted
+                                .iter()
+                                .any(|a| a.same(ActionId::InPlay(CardId(ci as u32))))
+                            {
+                                continue;
+                            }
+                            if ability.effects.iter().any(|e| match e {
+                                Effect::CallReferendum(r) => !r.feasible(st, seat, m),
+                                _ => false,
+                            }) {
+                                continue;
+                            }
+                            if !ability.requires.iter().all(|&r| {
+                                cards::holds(r, st, seat, Some(m), None, None, None, None, false)
+                            }) {
+                                continue;
+                            }
+                            out.push(Choice::UseAbility {
+                                card: ci as u32,
+                                ability: ai as u8,
+                                actor: Some(m),
+                            });
+                        }
+                    }
+                    other => unreachable!("not an ability actor: {other:?}"),
                 }
             }
         }
         out
     }
 
-    pub(crate) fn use_ability(&mut self, card: u32, ability: u8) {
+    /// Use an in-play ability. Returns true when the flow moved on: a
+    /// granted action was declared, or the user paid themselves out
+    /// (`PoolToHostBlood` at 1 pool: ousted, the turn passed) — callers
+    /// must not restore their flow then.
+    pub(crate) fn use_ability(&mut self, card: u32, ability: u8, actor: Option<MinionId>) -> bool {
         let c = &self.state.cards[card as usize];
         let def = cards::lookup(c.card).expect("definition");
+        let mode = &def.abilities[ability as usize];
+        // A granted action: declared like a card action, the card in play
+        // as its source (its referendum and cost are read at resolution).
+        if let Some(Effect::DeclareAction(kind)) = mode
+            .effects
+            .iter()
+            .find(|e| matches!(e, Effect::DeclareAction(_)))
+        {
+            let m = actor.expect("acting minion");
+            self.declare_action(m, *kind, None, None, Some(CardId(card)));
+            // The stealth of a granted action is the card's own ("as a +1
+            // stealth political action"), not the rulebook's for political
+            // action cards (rules-qa 6.2).
+            let stealth: u8 = mode
+                .effects
+                .iter()
+                .map(|e| match e {
+                    Effect::AddStealth(n) => *n,
+                    _ => 0,
+                })
+                .sum();
+            let a = self.action.as_mut().expect("action");
+            a.ability = Some(ability);
+            // Added to the rulebook's default for the kind (none for a
+            // granted action, rules-qa 6.2: the printed stealth only).
+            a.base_stealth += stealth;
+            return true;
+        }
         let host = c.host.expect("host");
-        for e in def.abilities[ability as usize].effects {
-            match e {
+        let ctx = PlayCtx {
+            seat: self.state.minions[host.index()].owner,
+            card: c.card,
+            mode: ability,
+            actor: Some(host),
+            target: Target::None,
+            x: 0,
+            burn: None,
+        };
+        if let (Some(Limit::PerCombat), Some(cb)) = (mode.limit, self.combat.as_mut()) {
+            cb.abilities_used.push(CardId(card));
+        }
+        if mode.windows.iter().any(|w| w.is_phase()) {
+            self.state.phase_uses.push(CardId(card));
+        }
+        for e in mode.effects {
+            match *e {
                 Effect::HostBurnBloodToUnlock => {
                     let h = &mut self.state.minions[host.index()];
                     h.blood -= 1;
                     h.locked = false;
                 }
+                Effect::HostBloodToPool(n) => {
+                    let h = &mut self.state.minions[host.index()];
+                    let moved = n.min(h.blood);
+                    h.blood -= moved;
+                    self.state.seats[ctx.seat.index()].pool += moved as i32;
+                }
+                Effect::PoolToHostBlood(n) => {
+                    let h = &mut self.state.minions[host.index()];
+                    let room = h.capacity() - h.blood;
+                    let moved = n
+                        .min(room)
+                        .min(self.state.seats[ctx.seat.index()].pool.max(0) as u8);
+                    h.blood += moved;
+                    self.state.seats[ctx.seat.index()].pool -= moved as i32;
+                    if self.state.seats[ctx.seat.index()].pool == 0 {
+                        self.oust_and_pass(ctx.seat);
+                    }
+                }
+                e if is_combat_effect(&e) => self.apply_combat_effect(e, &ctx),
                 other => unreachable!("not an ability effect: {other:?}"),
             }
         }
+        self.state.seats[ctx.seat.index()].ousted
     }
 
-    /// Abilities usable during any Methuselah's unlock phase: an ordered
-    /// window over the seats clockwise from the active one.
-    pub(crate) fn abilities_request(&self, window: &OrderedWindow) -> Option<DecisionRequest> {
+    /// Unlock-phase effects: an ordered window over the seats clockwise
+    /// from the active one. The active Methuselah orders their pending
+    /// mandatory riders (Anarch Revolt) among their own optional abilities
+    /// and must resolve them all before passing the impulse (rules-qa
+    /// 6.1); other Methuselahs then use theirs (Homunculus).
+    pub(crate) fn abilities_request(
+        &self,
+        window: &OrderedWindow,
+        pending: &[CardId],
+    ) -> Option<DecisionRequest> {
         let seat = window.current()?;
-        let mut options = vec![Choice::Pass];
+        let mut options = Vec::new();
+        if seat == self.state.active && !pending.is_empty() {
+            options.extend(pending.iter().map(|c| Choice::ResolveRider { card: c.0 }));
+        } else {
+            options.push(Choice::Pass);
+        }
         options.extend(self.ability_options(seat, Window::UnlockPhaseAny));
+        if seat == self.state.active {
+            options.extend(self.ability_options(seat, Window::UnlockPhaseOwn));
+        }
         Some(DecisionRequest {
             seat,
             window: WindowLabel::UnlockAbilities,
@@ -773,16 +1003,107 @@ impl Engine {
         })
     }
 
-    pub(crate) fn abilities_apply(&mut self, mut window: OrderedWindow, choice: &Choice) {
+    pub(crate) fn abilities_apply(
+        &mut self,
+        mut window: OrderedWindow,
+        mut pending: Vec<CardId>,
+        choice: &Choice,
+    ) {
         match choice {
             Choice::Pass => window.pass(),
-            Choice::UseAbility { card, ability } => {
-                self.use_ability(*card, *ability);
+            Choice::UseAbility {
+                card,
+                ability,
+                actor,
+            } => {
+                if self.use_ability(*card, *ability, *actor) {
+                    return; // ousted: the turn has passed
+                }
+                window.play();
+            }
+            Choice::ResolveRider { card } => {
+                pending.retain(|c| c.0 != *card);
+                if self.resolve_unlock_rider(CardId(*card)) {
+                    return; // ousted: the turn has passed
+                }
                 window.play();
             }
             other => unreachable!("illegal ability choice {other:?}"),
         }
-        self.flow = Flow::Abilities { window };
+        self.flow = Flow::Abilities { window, pending };
+    }
+
+    /// Resolve a card in play's "during their unlock phase" rider on the
+    /// active Methuselah's turn. Returns true when the flow moved on (the
+    /// active Methuselah ousted: the turn passed; or the game ended).
+    fn resolve_unlock_rider(&mut self, id: CardId) -> bool {
+        let s = self.state.active;
+        let c = &self.state.cards[id.index()];
+        if !c.in_play {
+            return false;
+        }
+        let def = cards::lookup(c.card).expect("definition");
+        let mut own_loss = 0i32;
+        let mut loss = vec![0i32; self.state.seats.len()];
+        for r in def.riders.iter().filter(|r| r.hook == Hook::UnlockPhase) {
+            for e in r.effects {
+                match *e {
+                    Effect::UnlockBurnPoolUnlessReady { sect, pool } => {
+                        let has = self.state.minions_of(s).any(|m| {
+                            let v = &self.state.minions[m.index()];
+                            v.ready() && v.card().sect == sect
+                        });
+                        if !has {
+                            own_loss += pool as i32;
+                        }
+                    }
+                    Effect::PreyBurnsPool(n) => {
+                        loss[self.state.prey(s).index()] += n as i32;
+                    }
+                    other => unreachable!("not a rider effect: {other:?}"),
+                }
+            }
+        }
+        if loss.iter().any(|&n| n > 0) {
+            // Another Methuselah's loss: ousted at once if at 0, the active
+            // seat scoring; the unlock phase goes on.
+            self.burn_pool_batch(&loss);
+            if self.state.living() <= 1 {
+                return true;
+            }
+        }
+        if own_loss > 0 {
+            let seat = &mut self.state.seats[s.index()];
+            seat.pool = (seat.pool - own_loss).max(0);
+            if seat.pool == 0 {
+                self.oust_and_pass(s);
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Riders fired when a host goes to torpor (Guardian Angel; Fame),
+    /// for each of `hosts`.
+    pub(crate) fn host_torpor_riders(&mut self, hosts: &[MinionId]) {
+        for ci in 0..self.state.cards.len() {
+            let c = &self.state.cards[ci];
+            let Some(host) = c.host.filter(|h| hosts.contains(h) && c.in_play) else {
+                continue;
+            };
+            let Some(def) = cards::lookup(c.card) else {
+                continue;
+            };
+            let _ = host;
+            for r in def.riders.iter().filter(|r| r.hook == Hook::HostToTorpor) {
+                for e in r.effects {
+                    match *e {
+                        Effect::BurnSelf => self.burn_card_in_play(CardId(ci as u32)),
+                        other => unreachable!("not a torpor rider effect: {other:?}"),
+                    }
+                }
+            }
+        }
     }
 
     /// Name of a library card (debugging / tests).

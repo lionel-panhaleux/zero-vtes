@@ -16,6 +16,12 @@ pub enum ActionKind {
     /// Call a referendum with a political action card (rulebook "Political
     /// Action": +1 stealth, undirected; one per minion per turn).
     Political,
+    /// An action card whose effects resolve on success (put in play, …);
+    /// its stealth is the card's own ("+1 stealth action").
+    Card,
+    /// Burn a card in play, granted by that card ("Minions can burn this
+    /// card as a Ⓓ action"): directed at its controller.
+    BurnCard,
 }
 
 /// One indexed option inside a decision request. `Pass` is always explicit;
@@ -37,10 +43,23 @@ pub enum Choice {
         actor: Option<MinionId>,
         target: Target,
     },
-    /// Use an in-play ability: arena index of the card, ability index.
+    /// Use an in-play ability: arena index of the card, ability index, and
+    /// the minion using it when the ability is a granted action (a card in
+    /// play's "can call a referendum … as a political action").
     UseAbility {
         card: u32,
         ability: u8,
+        actor: Option<MinionId>,
+    },
+    /// Resolve a mandatory effect of a card in play (arena index) pending
+    /// at this hook — the player orders them among their own effects.
+    ResolveRider {
+        card: u32,
+    },
+    /// Terms of a play: burn this card in play (arena index) at resolution
+    /// — "you can burn a card named X (if any)"; `Pass` for none.
+    BurnInPlay {
+        card: u32,
     },
     /// Numeric terms of the play being announced (rules-qa 3.5).
     SetX(u8),

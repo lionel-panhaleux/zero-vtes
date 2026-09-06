@@ -71,9 +71,31 @@ pub struct Minion {
     /// Expulsion: cannot play reaction cards, block or cast votes or
     /// ballots this turn.
     pub expelled: bool,
-    /// Action cards this minion acted with this turn (NRA name identity,
-    /// rules-qa 1.4).
-    pub acted: Vec<u16>,
+    /// Actions this minion performed this turn that reached resolution
+    /// (NRA, rules-qa 1.4): a card from hand by name, a card in play by
+    /// copy; bleeds and political actions are capped by type besides.
+    pub acted: Vec<ActionId>,
+}
+
+/// Identity of an action for the no-repeat-action rule (spec §3.5.2).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ActionId {
+    /// An action card played from hand: same printed name.
+    Card(u16),
+    /// An action granted by a card in play: the same copy.
+    InPlay(CardId),
+}
+
+impl ActionId {
+    pub fn same(self, other: ActionId) -> bool {
+        match (self, other) {
+            (ActionId::Card(a), ActionId::Card(b)) => {
+                LIBRARY[a as usize].name == LIBRARY[b as usize].name
+            }
+            (ActionId::InPlay(a), ActionId::InPlay(b)) => a == b,
+            _ => false,
+        }
+    }
 }
 
 impl Minion {
@@ -197,6 +219,9 @@ pub struct GameState {
     pub minions: Vec<Minion>,
     /// Arena of library cards in play.
     pub cards: Vec<CardInPlay>,
+    /// Cards in play whose phase ability was used this phase ("during X":
+    /// once per phase per copy, rules-qa 6.6); cleared at each phase.
+    pub phase_uses: Vec<CardId>,
     /// Continuous effects (DESIGN §4.5 scope layers).
     pub layers: Vec<Layer>,
     pub active: SeatId,
@@ -205,6 +230,23 @@ pub struct GameState {
 }
 
 impl GameState {
+    /// The game win (tournament rules 3.7; rules-qa 6.9): the Methuselah
+    /// with at least 2 VP and strictly more than every other, ousted or
+    /// not; `None` on a draw.
+    pub fn game_win(&self) -> Option<SeatId> {
+        let best = self.seats.iter().map(|s| s.half_vps).max()?;
+        if best < 4 {
+            return None;
+        }
+        let mut leaders = self
+            .seats
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| s.half_vps == best);
+        let (i, _) = leaders.next()?;
+        leaders.next().is_none().then_some(SeatId(i as u8))
+    }
+
     pub fn living(&self) -> usize {
         self.seats.iter().filter(|s| !s.ousted).count()
     }
@@ -375,8 +417,15 @@ impl GameState {
             mix(m.expelled as u64);
             mix(m.acted.len() as u64);
             for &c in &m.acted {
-                mix(c as u64);
+                mix(match c {
+                    ActionId::Card(c) => c as u64,
+                    ActionId::InPlay(id) => (id.0 as u64) << 20,
+                });
             }
+        }
+        mix(self.phase_uses.len() as u64);
+        for c in &self.phase_uses {
+            mix(c.0 as u64 + 1);
         }
         mix(self.cards.len() as u64);
         for c in &self.cards {

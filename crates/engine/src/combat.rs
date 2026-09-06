@@ -19,7 +19,7 @@ use crate::cards::{self, Effect, PlayCtx, StrikeKind, Window};
 use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
-use crate::state::GameState;
+use crate::state::{CardId, GameState};
 use crate::window::OrderedWindow;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -177,6 +177,8 @@ pub struct CombatCtx {
     /// Card names played per minion, for `Limit::PerRound` / `PerCombat`.
     pub played_round: Vec<(MinionId, &'static str)>,
     pub played_combat: Vec<(MinionId, &'static str)>,
+    /// In-play abilities used this combat, by copy ("each combat").
+    pub abilities_used: Vec<CardId>,
 }
 
 impl CombatCtx {
@@ -334,6 +336,7 @@ impl Engine {
             continued: false,
             played_round: Vec::new(),
             played_combat: Vec::new(),
+            abilities_used: Vec::new(),
         });
         self.flow = Flow::Combat;
     }
@@ -371,6 +374,9 @@ impl Engine {
                 }
                 let mut options = vec![Choice::Pass];
                 options.extend(self.play_options(side.seat, &c.windows(), None));
+                for w in c.windows() {
+                    options.extend(self.ability_options(side.seat, w));
+                }
                 Some(DecisionRequest {
                     seat: side.seat,
                     window: WindowLabel::CombatPrevention,
@@ -393,6 +399,9 @@ impl Engine {
                     _ => {}
                 }
                 options.extend(self.play_options(seat, &c.windows(), None));
+                for w in c.windows() {
+                    options.extend(self.ability_options(seat, w));
+                }
                 Some(DecisionRequest {
                     seat,
                     window: c.label(),
@@ -426,6 +435,12 @@ impl Engine {
                 None
             }
             (Step::Prevent(i), Choice::Play { .. }) => Some(c.sides[i].seat),
+            // An ability is not a card play: no as-played window.
+            (Step::Prevent(_), Choice::UseAbility { .. }) => None,
+            (_, Choice::UseAbility { .. }) => {
+                c.window.play();
+                None
+            }
             (_, Choice::Pass) => {
                 c.window.pass();
                 None
@@ -466,6 +481,14 @@ impl Engine {
         ) = (play, choice)
         {
             self.announce_play(seat, *card, *mode, *actor, *target, Flow::Combat);
+        }
+        if let Choice::UseAbility {
+            card,
+            ability,
+            actor,
+        } = choice
+        {
+            self.use_ability(*card, *ability, *actor);
         }
     }
 
@@ -641,6 +664,7 @@ impl Engine {
             .iter()
             .map(|s| resolve_damage(self.state.minions[s.minion.index()].blood, s.pending))
             .collect();
+        let mut wounded = Vec::new();
         for (s, r) in c.sides.iter_mut().zip(results) {
             let m = &mut self.state.minions[s.minion.index()];
             m.blood -= r.blood_burned;
@@ -651,10 +675,16 @@ impl Engine {
                 m.blood = 0;
             } else if r.wounded {
                 m.in_torpor = true;
+                wounded.push(s.minion);
             }
         }
         if !c.both_ready(&self.state) {
             c.round_over = true;
+        }
+        // "After this vampire goes to torpor" riders fire here (rules-qa
+        // 6.4).
+        if !wounded.is_empty() {
+            self.host_torpor_riders(&wounded);
         }
     }
 
@@ -902,6 +932,7 @@ mod tests {
                 actor: Some(x),
                 target: cards::Target::None,
                 x: 0,
+                burn: None,
             },
         );
         let req = e.combat_request().unwrap();

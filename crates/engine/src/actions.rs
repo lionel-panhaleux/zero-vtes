@@ -11,7 +11,7 @@ use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
 use crate::library::LIBRARY;
 use crate::referendum::RefKind;
-use crate::state::CardInPlay;
+use crate::state::{ActionId, CardId, CardInPlay};
 use crate::window::OrderedWindow;
 
 /// Rulebook "Resolve Any Block Attempts": A (no attempt), B (an attempt is
@@ -52,6 +52,11 @@ pub struct ActionCtx {
     pub kind: ActionKind,
     /// The action card, for card actions (employ …).
     pub card: Option<PlayCtx>,
+    /// The card in play granting the action, for granted actions (Anarch
+    /// Revolt's referendum).
+    pub source: Option<CardId>,
+    /// Ability index on `source`.
+    pub ability: Option<u8>,
     pub torpor_target: Option<MinionId>,
     /// The Methuselah being bled (changes on a redirect).
     pub bleed_target: Option<SeatId>,
@@ -93,6 +98,8 @@ pub struct ActionCtx {
     /// The action card was returned to hand (Delaying Tactics): not
     /// discarded at the end of the action.
     pub card_returned: bool,
+    /// The action card entered play at resolution (not discarded after).
+    pub card_entered_play: bool,
 }
 
 impl ActionCtx {
@@ -108,7 +115,23 @@ impl ActionCtx {
     /// intercept folded through the action's intercept layers (Perfect
     /// Paragon [PRE]: younger vampires and allies get -1).
     pub fn intercept_of(&self, st: &crate::state::GameState, m: MinionId) -> u8 {
-        (self.intercept as i32 + Self::intercept_mods(st, m)).max(0) as u8
+        (self.intercept as i32 + Self::intercept_mods(st, m) + self.host_intercept(st, m)).max(0)
+            as u8
+    }
+
+    /// Intercept from cards on `m` keyed to the action (Guardian Angel: +1
+    /// during bleed actions directed at its controller).
+    pub fn host_intercept(&self, st: &crate::state::GameState, m: MinionId) -> i32 {
+        let owner = st.minions[m.index()].owner;
+        let bleed_at_owner = self.kind == ActionKind::Bleed && self.bleed_target == Some(owner);
+        st.layers
+            .iter()
+            .filter(|l| l.scope == Scope::InPlay && st.cards[l.source.index()].host == Some(m))
+            .filter_map(|l| match l.modifier {
+                cards::Modifier::HostInterceptOnBleedAtYou(n) if bleed_at_owner => Some(n as i32),
+                _ => None,
+            })
+            .sum()
     }
 
     /// Sum of the action's intercept layers applying to `m`.
@@ -153,16 +176,47 @@ impl Engine {
         kind: ActionKind,
         torpor_target: Option<MinionId>,
         card: Option<PlayCtx>,
+        source: Option<CardId>,
     ) {
         self.state.minions[minion.index()].locked = true;
         let seat = self.state.active;
         let own_target = torpor_target.map(|t| self.state.minions[t.index()].owner == seat);
+        // The stealth an action card or a granted action prints ("+1
+        // stealth action"); the rulebook's +1 applies to political action
+        // cards and the undirected rulebook actions (rules-qa 6.2).
+        let printed_stealth = |effects: &[Effect]| -> u8 {
+            effects
+                .iter()
+                .map(|e| match e {
+                    Effect::AddStealth(n) => *n,
+                    _ => 0,
+                })
+                .sum()
+        };
         let (base_stealth, bleed_target, directed_seat) = match kind {
             ActionKind::Bleed => (0, Some(self.state.prey(seat)), Some(self.state.prey(seat))),
-            ActionKind::Hunt
-            | ActionKind::LeaveTorpor
-            | ActionKind::Employ
-            | ActionKind::Political => (1, None, None),
+            ActionKind::Hunt | ActionKind::LeaveTorpor | ActionKind::Employ => (1, None, None),
+            ActionKind::Political => match card {
+                Some(_) => (1, None, None),
+                None => (0, None, None),
+            },
+            ActionKind::Card => {
+                let play = card.expect("action card");
+                let def = cards::lookup(play.card).expect("definition");
+                (
+                    printed_stealth(def.modes[play.mode as usize].effects),
+                    None,
+                    None,
+                )
+            }
+            ActionKind::BurnCard => {
+                // Directed at the card's controller; one's own card makes
+                // it undirected. No default stealth for an action granted
+                // by a card in play — only what its text prints (rules-qa
+                // 6.2).
+                let owner = self.state.cards[source.expect("source").index()].owner;
+                (0, None, (owner != seat).then_some(owner))
+            }
             ActionKind::Rescue | ActionKind::Diablerie => {
                 let t = torpor_target.expect("torpor target");
                 if own_target == Some(true) {
@@ -178,6 +232,8 @@ impl Engine {
             acting: minion,
             kind,
             card,
+            source,
+            ability: None,
             torpor_target,
             bleed_target,
             base_stealth,
@@ -202,6 +258,7 @@ impl Engine {
             margin: 0,
             bleed_reduce: 0,
             card_returned: false,
+            card_entered_play: false,
         });
         self.flow = Flow::Action;
     }
@@ -232,6 +289,10 @@ impl Engine {
             ActionKind::Rescue | ActionKind::Diablerie => {
                 let t = a.torpor_target.expect("torpor target");
                 let owner = self.state.minions[t.index()].owner;
+                (owner != a.seat).then_some(owner)
+            }
+            ActionKind::BurnCard => {
+                let owner = self.state.cards[a.source.expect("source").index()].owner;
                 (owner != a.seat).then_some(owner)
             }
             _ => None,
@@ -271,6 +332,7 @@ impl Engine {
             ActionState::Attempt(cur) if cur == m => a.intercept,
             _ => 0,
         };
+        total = (total as i32 + a.host_intercept(st, m)).max(0) as u8;
         for &card in &st.seats[seat.index()].hand {
             let Some(def) = cards::lookup(card) else {
                 continue;
@@ -741,13 +803,60 @@ impl Engine {
                     }
                 }
             }
+            ActionKind::Card => {
+                // The card's effects resolve now; its cost (X read now,
+                // spec §1.7.1) unpayable by resolution fizzles (rules-qa
+                // 3.6).
+                let play = a.card.expect("action card");
+                let def = cards::lookup(play.card).expect("definition");
+                let mode = &def.modes[play.mode as usize];
+                let x = cards::terms_x(&self.state, seat, play.card, mode).unwrap_or(play.x);
+                let cost = cards::blood_cost(&self.state, play.card, x);
+                if self.state.minions[a.acting.index()].blood < cost {
+                    a.outcome = Some(Outcome::Fizzled);
+                    self.action = Some(a);
+                    self.after_resolution();
+                    return;
+                }
+                self.state.minions[a.acting.index()].blood -= cost;
+                let ctx = PlayCtx { x, ..play };
+                let mut in_play = None;
+                // Declaration-time effects (the kind, the printed stealth)
+                // were read at announcement.
+                for e in mode
+                    .effects
+                    .iter()
+                    .filter(|e| !matches!(e, Effect::DeclareAction(_) | Effect::AddStealth(_)))
+                {
+                    self.apply_card_effect(*e, &ctx, &mut in_play);
+                }
+                a.card_entered_play = in_play.is_some();
+            }
+            ActionKind::BurnCard => {
+                let src = a.source.expect("source");
+                self.burn_card_in_play(src);
+            }
             ActionKind::Political => {
                 // Rulebook "The Referendum": the cost is paid and the
                 // referendum called — only if the acting minion is still
                 // ready (spec §3.7.5.1); NRA on resolution (rules-qa 1.4).
-                let play = a.card.expect("action card");
-                let def = cards::lookup(play.card).expect("definition");
-                let cost = cards::blood_cost(&self.state, play.card, play.x);
+                // The referendum and cost come from the political action
+                // card, or from the card in play granting the action (no
+                // card-play cost, spec §1.5).
+                let (mode, cost) = match (a.card, a.source) {
+                    (Some(play), _) => {
+                        let def = cards::lookup(play.card).expect("definition");
+                        let cost = cards::blood_cost(&self.state, play.card, play.x);
+                        (&def.modes[play.mode as usize], cost)
+                    }
+                    (None, Some(src)) => {
+                        let c = &self.state.cards[src.index()];
+                        let def = cards::lookup(c.card).expect("definition");
+                        let ability = a.ability.expect("granted action's ability");
+                        (&def.abilities[ability as usize], 0)
+                    }
+                    (None, None) => unreachable!("political action without a source"),
+                };
                 let m = &mut self.state.minions[a.acting.index()];
                 m.political_this_turn = true;
                 if m.blood < cost {
@@ -759,7 +868,7 @@ impl Engine {
                     return;
                 }
                 m.blood -= cost;
-                let referendum = def.modes[play.mode as usize]
+                let referendum = mode
                     .effects
                     .iter()
                     .find_map(|e| match e {
@@ -790,15 +899,23 @@ impl Engine {
         let acting = a.acting;
         let deferred = a.deferred_draws.clone();
         if let Some(play) = a.card {
-            let in_play = self
-                .state
-                .cards
-                .iter()
-                .any(|c| c.card == play.card && c.host == Some(acting) && c.in_play);
+            let in_play = a.card_entered_play
+                || self
+                    .state
+                    .cards
+                    .iter()
+                    .any(|c| c.card == play.card && c.host == Some(acting) && c.in_play);
             if !in_play && !a.card_returned {
                 self.state.seats[seat.index()].ash.push(play.card);
             }
-            self.state.minions[acting.index()].acted.push(play.card);
+            self.state.minions[acting.index()]
+                .acted
+                .push(ActionId::Card(play.card));
+        }
+        if let Some(src) = a.source {
+            self.state.minions[acting.index()]
+                .acted
+                .push(ActionId::InPlay(src));
         }
         self.state.layers.retain(|l| l.scope != Scope::Action);
         for s in deferred {
@@ -926,6 +1043,10 @@ impl Engine {
             ],
             None,
         ));
+        // Actions granted by cards in play (Anarch Revolt's referendum, "burn
+        // this card as a Ⓓ action").
+        options.extend(self.ability_options(s, Window::ActionDeclare));
+        options.extend(self.ability_options(s, Window::ActionDeclarePolitical));
         options
     }
 }

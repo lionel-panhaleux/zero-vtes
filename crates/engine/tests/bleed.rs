@@ -438,7 +438,8 @@ fn homunculus_employ_then_unlock_ability_and_nra_by_card_name() {
             Choice::Pass,
             Choice::UseAbility {
                 card: 0,
-                ability: 0
+                ability: 0,
+                actor: None
             }
         ]
     );
@@ -447,6 +448,7 @@ fn homunculus_employ_then_unlock_ability_and_nra_by_card_name() {
         Choice::UseAbility {
             card: 0,
             ability: 0,
+            actor: None,
         },
     );
     let _ = request(e);

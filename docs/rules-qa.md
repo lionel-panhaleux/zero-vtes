@@ -585,5 +585,173 @@ unstated.
 
 **A** (2026-09-04): yes (the cost is paid).
 
-Batch 6 — cards & effects (replacement, delayed replacement, contests,
-events).
+## Batch 6 — cards in play (slice 5: riders, granted actions)
+
+Modeling calls made while implementing Anarch Revolt (tests/in_play.rs):
+effects carried by a card in play — mandatory ones fired at a hook and
+resolved by whichever Methuselah the text names, optional ones offered as
+abilities. Each is implemented as stated and awaits confirmation or
+correction. (Events, a controlled card type — 20 in the pool, none in a
+precon — are P2 and will reuse this shape.)
+
+### 6.1 When "during their unlock phase" is checked
+
+Anarch Revolt's burn fires once the active Methuselah's own unlock-phase
+effects are done — unlocking, delayed replacements, the Edge, contest
+upkeep (a contested Anarch won or yielded there counts or not) — and
+before the impulse leaves them for other players' unlock-phase abilities
+(Homunculus), per spec §2.4.4 ("finish the mandatory ones before another
+Methuselah gets the impulse"). Spec §5.2.2 / LSJ 20080106 say "checked
+when the phase ends"; the two readings differ only if another player's
+unlock-phase effect could give the active Methuselah a ready Anarch, which
+nothing in the pool does. The active seat's own optional unlock abilities
+(Homunculus) are not orderable before the burn in the engine — also
+unobservable (blood vs pool). Fine, or should the check sit after the
+whole rotation?
+
+**A** (2026-09-06): a mandatory effect must be resolved before the impulse
+passes to another player; the active Methuselah orders it before or after
+their other unlock-phase effects as they choose.
+
+**Applied**: the unlock-phase abilities window opens with the active
+seat's pending mandatory riders as `Choice::ResolveRider` options
+alongside their optional abilities, `Pass` masked until all are resolved
+(a lone rider elides); the condition is read when the rider resolves; other
+seats get the impulse after. `Hook::UnlockPhase`.
+
+**Test** — `anarch_revolt_burns_pool_at_each_unlock_phase_without_a_ready_anarch`,
+`anarch_revolt_copies_burn_cumulatively`, `anarch_revolt_ousts_at_unlock_and_the_turn_passes`,
+`anarch_revolt_burn_is_ordered_by_the_active_methuselah_before_the_impulse_passes`.
+
+### 6.2 A referendum granted by a card in play
+
+"Vampires can call a referendum to burn this card as a +1 stealth
+political action": any Methuselah's ready unlocked vampire (allies
+excluded), during their own minion phase; a political action in every
+respect (locks, +1 stealth, blockable, one political action per minion per
+turn, no card-play cost). The rulebook's "the political action card that
+called the referendum provides 1 vote" does not apply: no calling card, so
+no card vote for the caller (political action cards burned from hand still
+give theirs). Delaying Tactics cancels it with nothing to return to hand,
+and the ban on "the same political action this turn" is keyed on the card
+in play's name (so no minion of that Methuselah may call Anarch Revolt's
+referendum again this turn — any copy). Right?
+
+**A** (2026-09-06): locks, blockable, one political action per minion per
+turn — but the stealth is not implied: it must be granted by the card's
+text (it most often is). NRA for a card in play is keyed to the *copy*,
+not the name; and since it is a political action, the type-level cap
+(one bleed, one political action per minion per turn) applies as well.
+
+**A** (2026-09-06, follow-up): the default +1 stealth applies to
+political action *cards* only; an action granted by a card in play has no
+default, directed or not — only what its text prints.
+
+**Applied**: a granted action's stealth is exactly the ability's printed
+`AddStealth` (Anarch Revolt: 1; a "burn this card as a Ⓓ action" on one's
+own copy: 0, undirected, blockable by prey and predator). `Minion.acted` records
+`ActionId::InPlay(copy)` at resolution (hand cards: `ActionId::Card`, name
+identity) and the enumeration masks the same copy; `political_this_turn`
+keeps the type cap. The Delaying Tactics ban stays by name (the card's own
+"the same political action").
+
+**Test** — `anarch_revolt_referendum_burns_it`,
+`anarch_revolt_failed_referendum_keeps_it`,
+`anarch_revolt_referendum_canceled_by_delaying_tactics`,
+`granted_action_nra_is_per_copy`.
+
+### 6.3 Burning the source
+
+A passed referendum burns the copy whose action was taken (not every copy),
+to its owner's ash heap, its layers gone; if that copy already left play
+(its controller ousted by a Scorn of Adonis tally burn in the same
+referendum), the effect does nothing. Confirm.
+
+**A** (2026-09-06): confirmed.
+
+### 6.4 Fame's timing
+
+"After this vampire goes to torpor, their controller burns 3 pool" resolves
+at once inside whatever sent the vampire to torpor (mid-combat, before the
+after-combat window), and stacks with Tension in the Ranks in the
+controller's chosen order.
+
+**A** (2026-09-06): correct.
+
+### 6.5 Hunting grounds
+
+"A vampire can gain blood from only one hunting ground each turn" is per
+vampire: two grounds may feed two vampires; which vampire is the
+controller's choice as the ability resolves.
+
+**A** (2026-09-06): correct.
+
+### 6.6 Blood Doll / Vessel reuse
+
+"During their master phase, this vampire's controller can move 1 blood
+from this vampire to their pool or from their pool to this vampire" (Vessel:
+unlock phase). Spec §1.5.4: an ability is reusable unless its text limits
+it; KRCG lists no ruling. Once per phase, or repeatable within the phase
+(three uses move 3 blood)?
+
+**A** (2026-09-06): once. That is the whole "during X, do Y" template: a
+card text saying "during" always means "only once per" that X.
+
+**Applied**: an in-play ability offered in a phase window
+(`Window::is_phase`) is once per that phase per copy —
+`GameState.phase_uses`, cleared at each phase start — no per-card limit
+needed.
+
+**Test** — `blood_doll_moves_blood_either_way_once_per_master_phase`,
+`vessel_on_any_vampire_burns_any_blood_doll_and_is_the_controllers_to_use`.
+
+### 6.7 Vessel's Blood Doll burn
+
+"Put this card on a vampire and you can burn a card named Blood Doll (if
+any)": any Blood Doll in play, or only one on the target vampire?
+
+**A** (2026-09-06): any in play — "card text" in rulings terms: the card
+does what it says.
+
+**A** (2026-09-06, on the timing): the choice is announced when the card
+is played, like Villein's amount and any target — the as-played (cancel)
+window already knows it — and the burn lands as part of resolution; it is
+not an after-resolution trigger.
+
+**Applied**: `Terms::BurnNamedInPlay(name)` chosen in the play's terms
+window (`Choice::BurnInPlay` / `Pass`, elided when no copy is in play,
+any controller's), `Effect::BurnChosenInPlay` at resolution.
+
+### 6.8 A granted action on one's own card
+
+"Minions can burn this card as a Ⓓ action" (Creeping Sabotage): for the
+controller's own minion the action is undirected (prey and predator may
+block), for another Methuselah's it is directed at the controller; in both
+cases the stealth is only what the card prints — none here (6.2).
+
+**Test** — `creeping_sabotage_burn_action_is_directed_at_its_controller`.
+
+### 6.9 Every remaining Methuselah ousted at once _(open)_
+
+Random play reaches it (a "burns 1 pool for each minion" referendum with
+everyone at low pool; 11 of 200 fuzz games): all remaining Methuselahs
+reach 0 pool in one simultaneous batch. The engine ousts them together —
+each scores the VP for their prey (an ousted predator included, spec
+§6.5.4), nobody gets the 6 pool, and the game ends with no game-win VP
+since nobody survives. Right? (Tournament rules 3.7: is there a game win
+at all in that case?)
+
+**A** (2026-09-06): legal, and it happens. Every Methuselah still in play
+at that moment scores the VP for their ousted prey, ousted themselves or
+not; the 6 pool goes only to a predator who is not ousted. A game win is
+still possible: a Methuselah with at least 2 VP and strictly more VP than
+any other has the game win, ousted or not — a 3-VP player ousted by their
+last opponent (who scores 2: the oust and last-standing) still wins.
+Draws are legal results (two players at 2 VP; four or five all at 1 VP).
+
+**Applied**: `oust_batch` was already scoring each predator and paying the
+6 pool to surviving predators only; `GameState::game_win()` derives the
+game win from the VPs alone (≥ 2 VP and strictly more than every other
+Methuselah, ousted or not), `None` on a draw.
+
+Batch 7 — cards & effects (replacement, delayed replacement, contests).

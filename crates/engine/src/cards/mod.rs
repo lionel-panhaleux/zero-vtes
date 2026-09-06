@@ -54,6 +54,24 @@ pub enum Window {
     CombatUntimed,
     /// In-play ability hook: during any Methuselah's unlock phase.
     UnlockPhaseAny,
+    /// In-play ability hook: during the host's controller's unlock phase
+    /// ("during their unlock phase": Vessel).
+    UnlockPhaseOwn,
+}
+
+impl Window {
+    /// A phase window: an in-play ability offered here follows the
+    /// "during X, do Y" template — once per that phase per copy (rules-qa
+    /// 6.6).
+    pub fn is_phase(self) -> bool {
+        matches!(
+            self,
+            Window::MasterPhase
+                | Window::UnlockPhaseAny
+                | Window::UnlockPhaseOwn
+                | Window::DiscardPhase
+        )
+    }
 }
 
 impl Window {
@@ -182,6 +200,10 @@ pub enum Requirement {
     InterceptNeeded,
     /// The actor minion is locked (wakes: "only usable by a locked vampire").
     LockedActor,
+    /// The host of this card in play is below its capacity.
+    HostBelowCapacity,
+    /// The host's controller has at least n pool.
+    HostControllerPoolAtLeast(u8),
     /// The host of the card in play is locked.
     HostLocked,
     /// The host of the card in play has at least this much blood.
@@ -331,6 +353,9 @@ pub enum RefEffect {
     /// The chosen minions cannot play reaction cards, block or cast votes
     /// or ballots this turn.
     Expel,
+    /// Burn the card in play whose granted action called the referendum
+    /// ("call a referendum to burn this card").
+    BurnSource,
 }
 
 /// A political action card's referendum: its terms and its effect.
@@ -493,6 +518,13 @@ pub enum Terms {
     /// Up to n of the votes the referendum passed by (Voter Captivation
     /// [PRE]: "move up to 2 of those blood to your pool instead").
     UpToMargin(u8),
+    /// "X is the number of copies of this card you control" (Creeping
+    /// Sabotage): no decision; read when the cost is paid.
+    CopiesControlled,
+    /// "You can burn a card named X (if any)" (Vessel): which copy in play,
+    /// any controller's, or none — announced with the play like any target
+    /// (rules-qa 6.7), burned at resolution.
+    BurnNamedInPlay(&'static str),
 }
 
 /// Continuous-effect modifiers carried by layers (effects-framework §3.2).
@@ -513,6 +545,9 @@ pub enum Modifier {
     /// Minions younger than this capacity (allies included) get this
     /// intercept modifier this action (Perfect Paragon [PRE]).
     InterceptMod { younger_than: u8, n: i8 },
+    /// The layer source's host gets this intercept during bleed actions
+    /// directed at its controller (Guardian Angel).
+    HostInterceptOnBleedAtYou(i8),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -548,6 +583,7 @@ impl Layer {
             Modifier::InterceptMod { younger_than, n } => {
                 1 << 33 ^ (younger_than as u64) << 8 ^ (n as i64 as u64 & 0xff)
             }
+            Modifier::HostInterceptOnBleedAtYou(n) => 1 << 34 ^ (n as i64 as u64 & 0xff),
         };
         (self.source.0 as u64) << 40 ^ (self.scope as u64) << 36 ^ m
     }
@@ -558,6 +594,21 @@ impl Layer {
 pub enum Effect {
     /// Put this card on the target minion.
     PutOnTarget,
+    /// Put this card in play with no host (Anarch Revolt).
+    PutInPlay,
+    /// Rider effect: the Methuselah whose unlock phase it is burns `pool`
+    /// unless they control a ready vampire of `sect` (Anarch Revolt; each
+    /// copy in play burns on its own, spec §1.15).
+    UnlockBurnPoolUnlessReady { sect: Sect, pool: u8 },
+    /// Rider effect: the controller's prey burns n pool (Creeping
+    /// Sabotage).
+    PreyBurnsPool(u8),
+    /// Rider effect: burn this card (Guardian Angel: "if this vampire is in
+    /// torpor, burn this card").
+    BurnSelf,
+    /// Burn the card in play granting this action (a "burn this card as a
+    /// Ⓓ action" granted action), with `DeclareAction(BurnCard)`.
+    BurnSource,
     /// Move X blood from the target minion to the player's pool.
     MoveBloodTargetToPoolX,
     /// Push a continuous layer sourced by this card while it is in play.
@@ -590,6 +641,15 @@ pub enum Effect {
     EmployRetainer { life: u8 },
     /// Burn 1 blood from the host of this card in play to unlock it.
     HostBurnBloodToUnlock,
+    /// Move n blood from the host of this card to its controller's pool
+    /// (Blood Doll, Vessel).
+    HostBloodToPool(u8),
+    /// Move n pool from the host's controller to the host (Blood Doll,
+    /// Vessel).
+    PoolToHostBlood(u8),
+    /// Burn the card in play chosen by the play's `BurnNamedInPlay` terms
+    /// (Vessel), if it is still in play.
+    BurnChosenInPlay,
     /// Unlock the actor.
     UnlockActor,
     // Combat effects (`combat`).
@@ -663,6 +723,51 @@ pub enum Effect {
     YoungerIntercept(i8),
 }
 
+/// Trigger points where riders of cards in play fire (effects-framework
+/// §4: mandatory effects in canonical order).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Hook {
+    /// "During their unlock phase": a mandatory effect the active
+    /// Methuselah resolves among their own unlock-phase effects, in the
+    /// order they choose, and before the impulse leaves them (spec §2.4.4;
+    /// rules-qa 6.1). Its condition is read when it resolves (spec §5.2.2,
+    /// Anarch Revolt).
+    UnlockPhase,
+    /// The host of this card went to torpor (Guardian Angel; Fame), fired
+    /// at once where the torpor happened (rules-qa 6.4).
+    HostToTorpor,
+}
+
+/// Whose turn a phase rider fires on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RiderScope {
+    /// Every Methuselah's ("during their unlock phase": Anarch Revolt).
+    Every,
+    /// The controller's only ("during your unlock phase": Creeping
+    /// Sabotage).
+    Controller,
+    /// Every other Methuselah's (Smiling Jack).
+    Others,
+}
+
+/// A mandatory effect of a card in play, fired at its hook.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Rider {
+    pub hook: Hook,
+    pub scope: RiderScope,
+    pub effects: &'static [Effect],
+}
+
+impl RiderScope {
+    pub fn applies(self, controller: SeatId, active: SeatId) -> bool {
+        match self {
+            RiderScope::Every => true,
+            RiderScope::Controller => controller == active,
+            RiderScope::Others => controller != active,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ModeDef {
     pub windows: &'static [Window],
@@ -689,8 +794,12 @@ pub struct CardDef {
     pub delayed_replacement: bool,
     /// Playable modes (from hand).
     pub modes: &'static [ModeDef],
-    /// In-play abilities (the same shape; actor is the host or controller).
+    /// In-play abilities (the same shape; actor is the host, or a ready
+    /// unlocked minion declaring a granted action).
     pub abilities: &'static [ModeDef],
+    /// Riders of the card in play: mandatory effects fired at a hook
+    /// (effects-framework §4, `phase_trigger`).
+    pub riders: &'static [Rider],
 }
 
 /// Behavior of a library card, if implemented. A card without a definition
@@ -710,6 +819,8 @@ pub struct PlayCtx {
     pub actor: Option<MinionId>,
     pub target: Target,
     pub x: u8,
+    /// The card in play chosen by `Terms::BurnNamedInPlay`.
+    pub burn: Option<CardId>,
 }
 
 /// Does `m` meet a mode's discipline tags? Lower case needs the discipline
@@ -782,7 +893,10 @@ pub fn holds(
             _ => false,
         }),
         Requirement::LockedActor => actor.is_some_and(|m| st.minions[m.index()].locked),
-        Requirement::HostLocked | Requirement::HostBloodAtLeast(_) => true, // host predicates
+        Requirement::HostLocked
+        | Requirement::HostBloodAtLeast(_)
+        | Requirement::HostBelowCapacity
+        | Requirement::HostControllerPoolAtLeast(_) => true, // host predicates
         Requirement::RangeClose => combat.is_some_and(|c| c.range == Range::Close),
         Requirement::RangeLong => combat.is_some_and(|c| c.range == Range::Long),
         Requirement::FirstRound => combat.is_some_and(|c| c.round == 1),
@@ -889,7 +1003,27 @@ pub fn holds_for_host(req: Requirement, st: &GameState, host: MinionId) -> bool 
     match req {
         Requirement::HostLocked => v.locked,
         Requirement::HostBloodAtLeast(n) => v.blood >= n,
+        Requirement::HostBelowCapacity => v.blood < v.capacity(),
+        Requirement::HostControllerPoolAtLeast(n) => st.seats[v.owner.index()].pool >= n as i32,
         _ => true,
+    }
+}
+
+/// The value of X for terms the game state determines (no decision):
+/// `CopiesControlled` counts the seat's copies of the card in play.
+pub fn terms_x(st: &GameState, seat: SeatId, card: u16, mode: &ModeDef) -> Option<u8> {
+    match mode.terms {
+        Some(Terms::CopiesControlled) => Some(
+            st.cards
+                .iter()
+                .filter(|c| {
+                    c.in_play
+                        && c.owner == seat
+                        && LIBRARY[c.card as usize].name == LIBRARY[card as usize].name
+                })
+                .count() as u8,
+        ),
+        _ => None,
     }
 }
 

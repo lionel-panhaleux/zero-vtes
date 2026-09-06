@@ -560,6 +560,63 @@ Recorded so nobody mistakes them for oversights:
   modeling calls: a banished vampire returns as the arena entry it left,
   cards and history included; the blood hunt sits inside the diablerie
   action, the after-resolution window after it.
+  Slice 5 done (2026-09-05): effects carried by cards in play — mandatory
+  ones fired at a hook and resolved by whichever Methuselah the text
+  names (Anarch Revolt is controlled by its player, yet every Methuselah
+  resolves its burn at their own unlock phase), and optional / granted
+  ones offered as abilities. Anarch Revolt is a Master card in V5 ("Put
+  this card in play"); the `Event` card type (a controlled card type, 20 in
+  the pool, none in a precon) stays P2 and reuses this shape.
+  Vocabulary: `Effect::PutInPlay` (no host); `CardDef.riders` — a `Rider`
+  is `(Hook, effects)` (effects-framework §4 `phase_trigger`);
+  `Hook::UnlockPhase` riders are pending mandatory effects the active
+  Methuselah orders among their own unlock-phase abilities
+  (`Choice::ResolveRider`, `Pass` masked until none is pending) and
+  resolves before the impulse passes (rules-qa 6.1), one burn per copy
+  (§1.15), `oust_and_pass` at 0; granted actions as `abilities` with
+  `Actor::ActingCandidate` on *any* seat's card in play, enumerated in the
+  minion phase like card actions (`Choice::UseAbility` carries the actor;
+  `ActionCtx.source`), their stealth from the card's text only, NRA per
+  copy (`Minion.acted: Vec<ActionId>` — name identity for hand cards, copy
+  identity for cards in play — recorded at resolution) plus the type cap
+  for political actions, Delaying Tactics banning by the card's name, no
+  calling-card vote; `RefEffect::BurnSource` (`burn_card_in_play`: owner's
+  ash, layers dropped). Definition: Anarch Revolt (54 defs). Batch 6 of
+  rules-qa (answered 2026-09-06) records the calls.
+  Slice 5b-i (2026-09-06), the non-unique in-play effects of the widening
+  batch: `Rider` gains a `RiderScope` (every / controller / others);
+  `Hook::HostToTorpor` fired where the torpor happens (rules-qa 6.4);
+  host abilities keyed on the host's *controller*, offered in combat
+  windows too (no as-played window, per-copy `Limit::PerCombat` in
+  `CombatCtx.abilities_used`); `Modifier::HostInterceptOnBleedAtYou`
+  (counted by reachability); `ActionKind::Card` — a generic action card
+  resolving its mode's effects on success through `apply_card_effect`
+  (shared with plays), its printed stealth read at declaration, X cost
+  from `Terms::CopiesControlled` read at announcement for the mask and
+  again when paid; `ActionKind::BurnCard` ("burn this card as a Ⓓ action":
+  directed at the card's controller, undirected +1 for their own minions);
+  a rider's pool loss on another Methuselah goes through `burn_pool_batch`
+  (ousted at once, the phase goes on); a granted action has no default
+  stealth, only its printed one (rules-qa 6.2). Host abilities in phase
+  windows follow the "during X, do Y" template — once per that phase per
+  copy (`GameState.phase_uses`, rules-qa 6.6) — offered in the master
+  phase (no master phase action spent) and, `Window::UnlockPhaseOwn`, in
+  the controller's own unlock phase; a play's "you can burn a
+  card named X (if any)" is a term announced with the play (any copy in
+  play; `Terms::BurnNamedInPlay`, rules-qa 6.7) and burned at resolution. Definitions:
+  Guardian Angel, Creeping Sabotage, Blood Doll, Vessel (58 defs). The
+  fuzz midgame fixture now seeds each library with the slice, so
+  replacements keep offering defined cards. Every remaining Methuselah
+  ousted in one batch is a legal end (rules-qa 6.9): prey VPs stand, no
+  last-standing bonus; `GameState::game_win()` is the tournament game win
+  (2+ VP and a strict lead, ousted or not; a tie is a draw). Next: library-card contests (a unique card
+  played while another copy is in play) — every remaining card of the
+  batch is Unique — with Fame, Tension in the Ranks, Smiling Jack,
+  Constant Revolution, The Barrens, Dreams of the Sphinx, The Coven and the
+  hunting grounds. Still open from the P1
+  definition: the contested-unique and
+  contested-title scenario tests (fuzz covers both kinds), the
+  rulings-as-tests harness (`data/rulings-v5.csv` is not consumed yet).
 - **P2 — full engine pool**: all 621 cards including Events and their machinery;
   the 14 training decklists plus the New Blood minis as data; perft baselines;
   protocol server; scripted reference bots (aggro-bleed, wall, vote).

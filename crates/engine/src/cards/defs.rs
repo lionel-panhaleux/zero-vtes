@@ -11,8 +11,9 @@
 //! [pro].
 
 use super::{
-    Actor, Among, CardDef, Effect, Limit, ModeDef, Modifier, Points, RefEffect, ReferendumDef,
-    Requirement, SeatFilter, StrikeKind, TargetKind, TargetSpec, Term, Terms, TitleClass, Window,
+    Actor, Among, CardDef, Effect, Hook, Limit, ModeDef, Modifier, Points, RefEffect,
+    ReferendumDef, Requirement, Rider, RiderScope, SeatFilter, StrikeKind, TargetKind, TargetSpec,
+    Term, Terms, TitleClass, Window,
 };
 use crate::crypt::Sect;
 use crate::decision::ActionKind;
@@ -57,6 +58,7 @@ pub static VILLEIN: CardDef = CardDef {
         ],
     }],
     abilities: &[],
+    riders: &[],
 };
 
 /// "Out-of-turn. Cancel a master card as it is played by another Methuselah,
@@ -81,6 +83,7 @@ pub static SUDDEN_REVERSAL: CardDef = CardDef {
         effects: &[Effect::CancelPlayed { refund: true }],
     }],
     abilities: &[],
+    riders: &[],
 };
 
 /// "Only usable during a bleed action. [dom] +2 bleed (limited). [DOM] +3
@@ -119,6 +122,7 @@ pub static CONDITIONING: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "Only usable as the action is announced. [obl] Reaction cards cost +1
@@ -155,6 +159,7 @@ pub static CONSIGN_TO_OBLIVION: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "[PRO] [ACTION MODIFIER] Only usable as the action is announced. +1
@@ -192,6 +197,7 @@ pub static FORM_OF_THE_COBRA: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "[aus] Only usable during an action directed at you (or a card you
@@ -225,6 +231,7 @@ pub static EYES_OF_ARGUS: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "Only usable if a minion is bleeding you, after blocks are declined.
@@ -274,6 +281,7 @@ pub static DEFLECTION: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "Out-of-turn. Only usable if a minion is bleeding you and the bleed
@@ -301,6 +309,7 @@ pub static ARCHON_INVESTIGATION: CardDef = CardDef {
         effects: &[Effect::BurnActingMinion, Effect::ActionFails],
     }],
     abilities: &[],
+    riders: &[],
 };
 
 /// "Retainer with 1 life. [pro] During any Methuselah's unlock phase, the
@@ -349,6 +358,7 @@ pub static HOMUNCULUS: CardDef = CardDef {
         limit: None,
         effects: &[Effect::HostBurnBloodToUnlock],
     }],
+    riders: &[],
 };
 
 /// "Only usable during a bleed action. [dom] +1 bleed (limited). [DOM] +1
@@ -392,6 +402,7 @@ pub static BONDING: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "[pro] +1 stealth. [PRO] +2 stealth." — a pure stealth modifier: only
@@ -424,6 +435,7 @@ pub static EARTH_CONTROL: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "[cel] Maneuver or press. [CEL] Maneuver with 1 optional press." The
@@ -457,6 +469,7 @@ pub static FLASH: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "Only usable before range is determined. [pot] This vampire gets a
@@ -489,6 +502,7 @@ pub static TORN_SIGNPOST: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "[pot] Strike: hand strike at +2 damage. [POT] Strike: hand strike at
@@ -521,6 +535,7 @@ pub static ROUNDHOUSE: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "[pro] Strike: 2 aggravated damage. [PRO] Strike: 2R aggravated
@@ -561,6 +576,7 @@ pub static BODY_FLARE: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "[tha] Strike, ranged: steal 1 blood or life (becoming blood). [THA]
@@ -599,6 +615,7 @@ pub static THEFT_OF_VITAE: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "[pre] Strike: combat ends. [PRE] As above, and unlock this vampire
@@ -631,6 +648,7 @@ pub static MAJESTY: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "[cel] Strike: dodge. [CEL] Additional strike (limited)."
@@ -665,6 +683,7 @@ pub static SIDE_STRIKE: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "[cel] Additional strike (limited). [CEL] 2 additional strikes
@@ -703,6 +722,7 @@ pub static BLUR: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "Grapple. Only usable at close range before strikes are chosen. A
@@ -743,6 +763,7 @@ pub static IMMORTAL_GRAPPLE: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "[for] Prevent X+1 damage. [FOR] As above, with 1 optional press." X is
@@ -776,6 +797,7 @@ pub static HIDDEN_STRENGTH: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "A vampire can play only one Soak each round. [for] Prevent 2
@@ -808,6 +830,7 @@ pub static SOAK: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "[for] Prevent 1 damage. [FOR] Press, or prevent 1 damage with 1
@@ -840,6 +863,7 @@ pub static INDOMITABILITY: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "[pro] Damage from this vampire's hand strikes is aggravated this round.
@@ -873,6 +897,7 @@ pub static CLAWS_OF_THE_DEAD: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "Only usable at the end of a round of combat. Not usable by a vampire
@@ -895,6 +920,7 @@ pub static TASTE_OF_VITAE: CardDef = CardDef {
         effects: &[Effect::GainBloodLostByOpponent],
     }],
     abilities: &[],
+    riders: &[],
 };
 
 /// "[aus] Press, only usable to continue combat. If another round of combat
@@ -932,6 +958,7 @@ pub static TELEPATHIC_TRACKING: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "[ani] Only usable by a locked vampire who has blocked, after block
@@ -965,6 +992,7 @@ pub static CATS_GUIDANCE: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "[pro] Strike: dodge. [PRO] Strike: combat ends. After combat ends, if
@@ -1005,6 +1033,7 @@ pub static FORM_OF_MIST: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 // ---- Politics (slice 4) -------------------------------------------------
@@ -1033,6 +1062,7 @@ macro_rules! political {
                 ],
             }],
             abilities: &[],
+            riders: &[],
         };
     };
 }
@@ -1160,6 +1190,7 @@ pub static BEWITCHING_ORATION: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 const HAS_CAST_VOTES: Option<TargetSpec> = Some(TargetSpec {
@@ -1206,6 +1237,7 @@ pub static SCALPEL_TONGUE: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 static RECKLESS_AGITATION_REFERENDUM: ReferendumDef = ReferendumDef {
@@ -1379,6 +1411,7 @@ pub static OMINOUS_CHORUS: CardDef = CardDef {
         &[Effect::AddVotes(3)]
     )],
     abilities: &[],
+    riders: &[],
 };
 
 /// "[pre] Only usable during the polling step of a political action. This
@@ -1408,6 +1441,7 @@ pub static PERFECT_PARAGON: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "Do not replace until your next unlock phase. [obf] Only usable during a
@@ -1439,6 +1473,7 @@ pub static OLD_FRIENDS: CardDef = CardDef {
         ),
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "Requires an Anarch. [obf] Reduce a bleed against you by 2. [pre] Only
@@ -1487,6 +1522,7 @@ pub static PARTY_OUT_OF_BOUNDS: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "Requires a primogen. Only usable during a bleed action against you or
@@ -1516,6 +1552,7 @@ pub static PROTECTED_DISTRICT: CardDef = CardDef {
         effects: &[Effect::ReduceBleed(3), Effect::AddVotesAgainst(3)],
     }],
     abilities: &[],
+    riders: &[],
 };
 
 /// "Only usable during the polling step of a political action. Methuselahs
@@ -1534,6 +1571,7 @@ pub static SCORN_OF_ADONIS: CardDef = CardDef {
         &[Effect::TallyPenaltyAgainst(1)]
     )],
     abilities: &[],
+    riders: &[],
 };
 
 const ANY_VAMPIRE: Option<TargetSpec> = Some(TargetSpec {
@@ -1575,6 +1613,7 @@ pub static TELEPATHIC_VOTE_COUNTING: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
 /// "Only usable during the polling step of a political action. Cancel the
@@ -1597,6 +1636,7 @@ pub static DELAYING_TACTICS: CardDef = CardDef {
         }]
     )],
     abilities: &[],
+    riders: &[],
 };
 
 /// "Requires a prince, justicar or Inner Circle member. Only usable during
@@ -1618,6 +1658,7 @@ pub static CLOSED_SESSION: CardDef = CardDef {
         &[Effect::BarNonCamarillaVotes]
     )],
     abilities: &[],
+    riders: &[],
 };
 
 /// "Only usable after resolution of a political action whose referendum
@@ -1652,9 +1693,10 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
 };
 
-pub static DEFS: [&CardDef; 53] = [
+pub static DEFS: [&CardDef; 58] = [
     &EARTH_CONTROL,
     &BONDING,
     &VILLEIN,
@@ -1708,4 +1750,239 @@ pub static DEFS: [&CardDef; 53] = [
     &DELAYING_TACTICS,
     &CLOSED_SESSION,
     &VOTER_CAPTIVATION,
+    &ANARCH_REVOLT,
+    &GUARDIAN_ANGEL,
+    &CREEPING_SABOTAGE,
+    &BLOOD_DOLL,
+    &VESSEL,
 ];
+
+// ---- Cards in play with riders and granted actions (slice 5) ------------
+
+static BURN_THIS_CARD: ReferendumDef = ReferendumDef {
+    terms: &[],
+    effect: RefEffect::BurnSource,
+};
+
+/// "Put this card in play. A Methuselah not controlling a ready Anarch burns
+/// 1 pool during their unlock phase. Vampires can call a referendum to burn
+/// this card as a +1 stealth political action." The burn is a mandatory
+/// unlock-phase effect the active Methuselah orders among their own and
+/// resolves before passing the impulse (rules-qa 6.1; LSJ 20080106); copies
+/// burn cumulatively (LSJ 19980225). Any Methuselah's vampire may call the
+/// referendum: a political action (one per minion per turn, NRA per copy)
+/// whose +1 stealth is the card's own text, with no calling card to vote
+/// with (rules-qa 6.2).
+pub static ANARCH_REVOLT: CardDef = CardDef {
+    name: "Anarch Revolt",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::PutInPlay],
+    }],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDeclarePolitical],
+        actor: Actor::ActingCandidate,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::AddStealth(1),
+            Effect::CallReferendum(&BURN_THIS_CARD),
+        ],
+    }],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Every,
+        effects: &[Effect::UnlockBurnPoolUnlessReady {
+            sect: Sect::Anarch,
+            pool: 1,
+        }],
+    }],
+};
+
+/// "Put this card on a ready vampire you control. This vampire gets +1
+/// intercept during bleed actions directed at you. This vampire can prevent
+/// 1 damage each combat. If this vampire is in torpor, burn this card." The
+/// prevention is an in-play ability of the host (once per combat per copy,
+/// no as-played window); the burn fires as the host goes to torpor.
+pub static GUARDIAN_ANGEL: CardDef = CardDef {
+    name: "Guardian Angel",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[Requirement::Controlled, Requirement::ActorReady],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::PutOnTarget,
+            Effect::Layer(Modifier::HostInterceptOnBleedAtYou(1)),
+        ],
+    }],
+    abilities: &[ModeDef {
+        windows: &[Window::CombatDamagePrevention],
+        actor: Actor::Host,
+        requires: &[Requirement::DamagePending],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: Some(Limit::PerCombat),
+        effects: &[Effect::Prevent(1)],
+    }],
+    riders: &[Rider {
+        hook: Hook::HostToTorpor,
+        scope: RiderScope::Controller,
+        effects: &[Effect::BurnSelf],
+    }],
+};
+
+/// Nosferatu. "+1 stealth action. X is the number of copies of this card
+/// you control. Put this card in play. During your unlock phase, your prey
+/// burns 1 pool. Minions can burn this card as a Ⓓ action." X is read when the cost is
+/// paid (copies already in play); the unlock-phase burn is the controller's
+/// mandatory effect (rules-qa 6.1); the burn action is directed at the
+/// controller (undirected, +1 stealth, for their own minions).
+pub static CREEPING_SABOTAGE: CardDef = CardDef {
+    name: "Creeping Sabotage",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[ModeDef {
+        windows: &[Window::ActionDeclare],
+        actor: Actor::ActingCandidate,
+        requires: &[],
+        target: NO_TARGET,
+        terms: Some(Terms::CopiesControlled),
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutInPlay,
+        ],
+    }],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDeclare],
+        actor: Actor::ActingCandidate,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::BurnCard),
+            Effect::BurnSource,
+        ],
+    }],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        effects: &[Effect::PreyBurnsPool(1)],
+    }],
+};
+
+/// The two directions of "move 1 blood from this vampire to their pool or
+/// from their pool to this vampire" as a host ability in `window` — once
+/// per that phase per copy ("during X", rules-qa 6.6); usable with the host
+/// in torpor (PIB 20150522).
+macro_rules! blood_shuttle {
+    ($window:expr) => {
+        &[
+            ModeDef {
+                windows: &[$window],
+                actor: Actor::Host,
+                requires: &[Requirement::HostBloodAtLeast(1)],
+                target: NO_TARGET,
+                terms: None,
+                waives_needed: false,
+                limit: None,
+                effects: &[Effect::HostBloodToPool(1)],
+            },
+            ModeDef {
+                windows: &[$window],
+                actor: Actor::Host,
+                requires: &[
+                    Requirement::HostBelowCapacity,
+                    Requirement::HostControllerPoolAtLeast(1),
+                ],
+                target: NO_TARGET,
+                terms: None,
+                waives_needed: false,
+                limit: None,
+                effects: &[Effect::PoolToHostBlood(1)],
+            },
+        ]
+    };
+}
+
+/// "Put this card on a vampire you control. During their master phase, this
+/// vampire's controller can move 1 blood from this vampire to their pool or
+/// from their pool to this vampire."
+pub static BLOOD_DOLL: CardDef = CardDef {
+    name: "Blood Doll",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[Requirement::Controlled],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::PutOnTarget],
+    }],
+    abilities: blood_shuttle!(Window::MasterPhase),
+    riders: &[],
+};
+
+/// "Trifle. Put this card on a vampire and you can burn a card named Blood
+/// Doll (if any). During their unlock phase, this vampire's controller can
+/// move 1 blood from this vampire to their pool or from their pool to this
+/// vampire." Any vampire in play; the Blood Doll may be any in play (rules-qa
+/// 6.7), announced with the play like the target and burned at
+/// resolution; the ability is the host's controller's.
+pub static VESSEL: CardDef = CardDef {
+    name: "Vessel",
+    trifle: true,
+    out_of_turn: false,
+    delayed_replacement: false,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[],
+        }),
+        terms: Some(Terms::BurnNamedInPlay("Blood Doll")),
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::PutOnTarget, Effect::BurnChosenInPlay],
+    }],
+    abilities: blood_shuttle!(Window::UnlockPhaseOwn),
+    riders: &[],
+};

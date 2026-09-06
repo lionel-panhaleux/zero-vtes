@@ -115,11 +115,21 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
 /// Coverage key of a chosen option: which kind of decision it was; card
 /// plays are keyed by the card's printed name.
 fn kind(e: &Engine, seat: SeatId, c: &Choice) -> String {
-    if let Choice::Play { card, .. } = c {
-        let id = e.state.seats[seat.index()].hand[*card as usize];
-        return format!("play:{}", LIBRARY[id as usize].name);
+    match c {
+        Choice::Play { card, .. } => {
+            let id = e.state.seats[seat.index()].hand[*card as usize];
+            format!("play:{}", LIBRARY[id as usize].name)
+        }
+        Choice::UseAbility { card, .. } => {
+            let id = e.state.cards[*card as usize].card;
+            format!("ability:{}", LIBRARY[id as usize].name)
+        }
+        Choice::ResolveRider { card } => {
+            let id = e.state.cards[*card as usize].card;
+            format!("rider:{}", LIBRARY[id as usize].name)
+        }
+        _ => kind_of(c).to_string(),
     }
-    kind_of(c).to_string()
 }
 
 fn kind_of(c: &Choice) -> &'static str {
@@ -130,6 +140,8 @@ fn kind_of(c: &Choice) -> &'static str {
         Choice::YieldContest => "yield_contest",
         Choice::Play { .. } => "play",
         Choice::UseAbility { .. } => "use_ability",
+        Choice::ResolveRider { .. } => "resolve_rider",
+        Choice::BurnInPlay { .. } => "burn_in_play",
         Choice::SetX(_) => "set_x",
         Choice::Discard(_) => "discard",
         Choice::TakeAction { action, .. } => match action {
@@ -140,6 +152,8 @@ fn kind_of(c: &Choice) -> &'static str {
             ActionKind::Diablerie => "diablerie",
             ActionKind::Employ => "employ",
             ActionKind::Political => "political",
+            ActionKind::Card => "card_action",
+            ActionKind::BurnCard => "burn_card",
         },
         Choice::DeclareBlock { .. } => "declare_block",
         Choice::PayRescue { .. } => "pay_rescue",
@@ -269,6 +283,11 @@ fn midgame(seed: u64) -> Engine {
         "Delaying Tactics",
         "Closed Session",
         "Voter Captivation",
+        "Anarch Revolt",
+        "Guardian Angel",
+        "Creeping Sabotage",
+        "Blood Doll",
+        "Vessel",
     ]
     .iter()
     .map(|n| find_library(n))
@@ -330,7 +349,9 @@ fn midgame(seed: u64) -> Engine {
                 banished: None,
             },
         ];
-        // Seven slice cards in hand, rotating the mix by seat and seed.
+        // Seven slice cards in hand, rotating the mix by seat and seed, and
+        // a library of the whole slice (shuffled) so replacements keep
+        // offering defined cards all game long.
         let hand = &mut e.state.seats[s as usize].hand;
         hand.clear();
         for k in 0..HAND_SIZE {
@@ -338,6 +359,9 @@ fn midgame(seed: u64) -> Engine {
             // modifiers (consecutive indices would group the types).
             hand.push(slice[(k * 11 + s as usize * 5 + seed as usize) % slice.len()]);
         }
+        let mut library = slice.clone();
+        rng.shuffle(&mut library);
+        e.state.seats[s as usize].library = library;
     }
     e.state.seats[rng.below(4)].has_edge = true;
     e
@@ -355,6 +379,11 @@ fn play(seed: u64, start: fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<Strin
         );
         match e.run() {
             Step::Decision(req) => {
+                assert!(
+                    !e.state.seats[req.seat.index()].ousted,
+                    "decision requested from an ousted seat (seed {seed}, {:?})",
+                    req.window
+                );
                 invariants(&e, &totals, seed, req.window);
                 let idx = agent.choose(&req);
                 chosen.insert(kind(&e, req.seat, &req.options[idx]));
@@ -478,7 +507,7 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "play:Deflection",
             "play:Archon Investigation",
             "play:Homunculus",
-            "use_ability",
+            "ability:Homunculus",
             "allocate_to",
             "choose_seat",
             "cast_card_vote",
@@ -510,6 +539,19 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "play:Delaying Tactics",
             "play:Closed Session",
             "play:Voter Captivation",
+            "play:Anarch Revolt",
+            "ability:Anarch Revolt",
+            "play:Guardian Angel",
+            "ability:Guardian Angel",
+            "play:Creeping Sabotage",
+            "ability:Creeping Sabotage",
+            "play:Blood Doll",
+            "ability:Blood Doll",
+            "play:Vessel",
+            "ability:Vessel",
+            "burn_in_play",
+            // (Anarch Revolt's rider is a decision only when ordered against
+            // another unlock effect; alone it elides, so no key.)
         ],
     );
     // Ousts and game wins happen from here: at least one game must end
