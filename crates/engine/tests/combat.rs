@@ -247,6 +247,7 @@ fn dodge_voids_the_opposing_strike() {
 // to the vampire's blood and possibly more than needed; prevents X+1. The
 // card is not offered with no damage to prevent (the prevention window is
 // elided for the undamaged side).
+// Rulings: [LSJ 19970224]; [RTR 20041202] [PIB 20121202]; [LSJ 20001114] [LSJ 20030121]; [LSJ 20030502].
 #[test]
 fn hidden_strength_x_terms_and_prevention() {
     let mut t = table();
@@ -271,6 +272,7 @@ fn hidden_strength_x_terms_and_prevention() {
 // Rulebook "Aggravated damage" and Soak rulings: Soak cannot prevent
 // aggravated damage, so it is not offered against Body Flare; the first
 // aggravated point wounds, each further one burns 1 blood.
+// Rulings: [LSJ 20040812-2] [PIB 20130327].
 #[test]
 fn soak_cannot_prevent_aggravated_damage() {
     let mut t = table();
@@ -321,6 +323,7 @@ fn additional_strikes_limited_once_per_round() {
 // Immortal Grapple [POT]: only hand strikes this round (Majesty masked
 // out); the optional press continues to a second round, which is at close
 // range with the determine range step skipped.
+// Rulings: [RTR 19970630] [ANK 20180720].
 #[test]
 fn immortal_grapple_bars_non_hand_strikes_and_fixes_next_round_close() {
     let mut t = table();
@@ -354,6 +357,7 @@ fn immortal_grapple_bars_non_hand_strikes_and_fixes_next_round_close() {
 // Spec §4.9.1–4.9.2 — Telepathic Tracking [AUS] replaces the would-end
 // event with a new round; the Form of Mist [PRO] after-combat continuation
 // is lost when the combat continues.
+// Rulings: [RTR 20020501] [LSJ 19980109]; [RTR 20030519].
 #[test]
 fn would_end_replacement_loses_the_after_combat_rider() {
     let mut t = table();
@@ -379,6 +383,7 @@ fn would_end_replacement_loses_the_after_combat_rider() {
 // after Form of Mist [PRO] the action continues with +1 stealth, the prey
 // gets no new attempt although it could now reach the stealth, and the
 // blocker unlocked with Cats' Guidance [ani] in the after-combat window.
+// Rulings: [RTR 19980623] [LSJ 20040219] [ANK 20221130]; [ANK 20190116].
 #[test]
 fn continuation_keeps_declines() {
     let mut e = Engine::bare(3);
@@ -436,6 +441,7 @@ fn continuation_keeps_declines() {
 // every impulse before the strike resolution it affects, including after
 // both strikes are chosen (rulings), and not in the prevention window; the
 // hand strike becomes aggravated.
+// Rulings: [RTR 19960112].
 #[test]
 fn combat_untimed_deadline_precedes_step() {
     let mut t = table();

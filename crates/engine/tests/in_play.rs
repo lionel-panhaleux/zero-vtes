@@ -188,6 +188,7 @@ fn anarch_revolt_burns_pool_at_each_unlock_phase_without_a_ready_anarch() {
 }
 
 // Spec §1.15: each copy in play burns on its own.
+// Rulings: [LSJ 19980225].
 #[test]
 fn anarch_revolt_copies_burn_cumulatively() {
     let Table { mut e, .. } = table();
@@ -297,6 +298,7 @@ fn anarch_revolt_failed_referendum_keeps_it() {
 // Delaying Tactics on a granted referendum: nothing returns to hand (there
 // is no calling card), the acting vampire unlocks, and the seat's minions
 // cannot call the same card's referendum again this turn.
+// Rulings: [LSJ 20041130] [LSJ 20100527].
 #[test]
 fn anarch_revolt_referendum_canceled_by_delaying_tactics() {
     let Table {
@@ -336,6 +338,7 @@ fn anarch_revolt_referendum_canceled_by_delaying_tactics() {
 // effects among their own (two copies: either first, no Pass until both are
 // resolved), and resolves them before the impulse passes to other players'
 // unlock-phase abilities (seat 0's Homunculus sees the pool already burned).
+// Rulings: [LSJ 20100723].
 #[test]
 fn anarch_revolt_burn_is_ordered_by_the_active_methuselah_before_the_impulse_passes() {
     let Table { mut e, alexa, .. } = table();
@@ -750,6 +753,7 @@ fn fame_goes_on_any_ready_vampire() {
 // phase, while the host is in torpor; nothing once it is ready. The rider
 // is ordered by the active Methuselah among their unlock effects and
 // resolved before the impulse passes (LSJ 20010121; rules-qa 6.1).
+// Rulings: [LSJ 20010121].
 #[test]
 fn fame_burns_1_pool_from_each_methuselah_while_its_host_is_in_torpor() {
     let (mut e, _a, x, _z) = bleed_table();
@@ -1033,6 +1037,7 @@ fn smiling_jack_moves_1_pool_to_a_counter_each_own_unlock_phase_and_can_oust() {
 // control": each unit is chosen as it is paid, any mix (ANK 20181006); a
 // vampire with no blood is no source (LSJ 19971212), so with only empty
 // vampires the pool is the only way and the window elides.
+// Rulings: [LSJ 19971212]; [ANK 20181006].
 #[test]
 fn smiling_jack_each_other_methuselah_pays_pool_or_blood_per_counter() {
     let (mut e, a, x, z) = bleed_table();
@@ -1117,6 +1122,7 @@ fn uses(req: &DecisionRequest, card: u32) -> Vec<Choice> {
 // and gains a counter, and stays locked until its controller's next unlock
 // phase; the bonus ends with the turn (LSJ 20100812) and the cards over
 // size stay (ANK 20180318).
+// Rulings: [ANK 20180318].
 #[test]
 fn dreams_of_the_sphinx_hand_size_lock_lasts_the_turn() {
     let Table { mut e, .. } = table();
@@ -1212,6 +1218,7 @@ fn dreams_of_the_sphinx_blood_to_uncontrolled_and_burn_at_three_counters() {
 // afterward)" — usable whenever its controller holds the impulse, another
 // Methuselah's action included (ANK 20200616); the card to discard is
 // announced with the use; locked, it is no longer offered.
+// Rulings: [ANK 20200616].
 #[test]
 fn the_barrens_discards_a_chosen_card_at_any_impulse() {
     let (mut e, a, _x, _z) = bleed_table();
@@ -1284,6 +1291,7 @@ fn the_barrens_usable_in_the_rotation_closing_another_methuselahs_phase() {
 
 // Not in the as-played window: only cancels and wakes there (rules-qa
 // 2.4; LSJ 20061207).
+// Rulings: [RTR 20040501]; [LSJ 20061207] [LSJ 20061013].
 #[test]
 fn the_barrens_is_not_usable_in_the_as_played_window() {
     let Table { mut e, .. } = table();
@@ -1342,6 +1350,7 @@ fn the_coven_feeds_a_ready_vampire_you_control_before_the_forced_hunt() {
 // fired as its controller passes out of their discard phase (LSJ
 // 20100723); the new controller unlocks it on their unlock phase, uses it,
 // and passes it on to their own predator in turn. Ownership never moves.
+// Rulings: [LSJ 20100723] [PIB 20111002].
 #[test]
 fn the_coven_goes_to_the_predator_at_the_end_of_each_controllers_discard_phase() {
     let Table {
@@ -1466,6 +1475,7 @@ fn constant_revolution_needs_an_anarch_and_counts_up() {
 // pool and/or cards at random from their hand": the count of cards is
 // announced (at most the hand, LSJ 20090618), those are burned at random
 // at once, the rest is pool; an empty hand leaves only the pool (elided).
+// Rulings: [LSJ 20090618].
 #[test]
 fn constant_revolution_others_burn_pool_or_random_cards() {
     let (mut e, _a, _x, _z) = bleed_table();
@@ -1638,6 +1648,7 @@ fn abilities(req: &DecisionRequest) -> Vec<Choice> {
 // "during their master phase, this vampire's controller can move 1 blood"
 // either way — a host ability costing no master phase action, once per
 // master phase (the "during X" template, rules-qa 6.6), again next turn.
+// Rulings: [ANK 20210309-3].
 #[test]
 fn blood_doll_moves_blood_either_way_once_per_master_phase() {
     let Table { mut e, alexa, .. } = table();
@@ -1678,6 +1689,7 @@ fn blood_doll_moves_blood_either_way_once_per_master_phase() {
 }
 
 // The Doll works with its host in torpor (PIB 20150522).
+// Rulings: [PIB 20150522].
 #[test]
 fn blood_doll_usable_with_the_host_in_torpor() {
     let Table { mut e, alexa, .. } = table();
@@ -1702,6 +1714,7 @@ fn blood_doll_usable_with_the_host_in_torpor() {
 // as-played window), burned at resolution, elided when there is none; the
 // ability is the host's controller's, at their own unlock phase, once per
 // phase.
+// Rulings: [ANK 20210309-3].
 #[test]
 fn vessel_on_any_vampire_burns_any_blood_doll_and_is_the_controllers_to_use() {
     let Table {

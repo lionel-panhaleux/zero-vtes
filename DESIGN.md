@@ -407,6 +407,17 @@ The engine's value is trust; trust is measured, not asserted.
    so hand-translated, not generated) filtered to the V5 pool
    (`data/rulings-v5.csv`); each applicable ruling becomes a scenario test. Scenario format =
    decision scripts with KRCG card names, readable as annotated game transcripts.
+   The CSV is the ledger: every row on an implemented card (`DEFS`) carries a
+   `status` — `test:<fn>` (a `#[test]` under `crates/engine/tests/` whose
+   comment cites the row's references; new ones live in `tests/rulings.rs`),
+   `blocked:<gap>` (a card or mechanism the engine lacks, revisited when it
+   lands) or `n/a:<reason>` (not engine-observable, or the V5 card is only the
+   ruling's example). `scripts/rulings_v5.py --check data/rulings-v5.csv`
+   verifies the ledger against the tests offline; regeneration keeps the
+   statuses of unchanged rows and drops reworded ones as stale. The
+   invariant is the ruling's assertion: a script is corrected as a script
+   (fixture, window order), but engine behavior is never bent to a script —
+   a real divergence is fixed in the engine or the row is marked `blocked:`.
 2. **Property fuzzing**: millions of random-legal games; invariants — counter/pool
    conservation modulo explicit sources, no negative resources, capacity ceilings,
    every window terminates (paranoid step budget), elision observational-equivalence
@@ -786,9 +797,20 @@ Recorded so nobody mistakes them for oversights:
   stress set) is closed. Two pool-paying ability paths still assume the
   user is the active seat (`PoolToHostBlood` ousts with `oust_and_pass`):
   true for Blood Doll's own-phase windows, to route through `oust` when
-  the first pool-paying untimed ability reaches a non-active seat. Next:
-  the rulings-as-tests harness (`data/rulings-v5.csv` against the 80
-  defs), then library search and draw replacement.
+  the first pool-paying untimed ability reaches a non-active seat.
+  Slice 6 (2026-09-06): the rulings-as-tests harness (§7.1) —
+  `data/rulings-v5.csv` is the ledger, `scripts/rulings_v5.py --check`
+  the gate; the 248 rows on the 80 defs are triaged (122 `test:` over 72
+  tests, 42 of them new in `tests/rulings.rs`; 57 `blocked:` naming the
+  missing card or mechanism; 69 `n/a:`). One engine finding, fixed: the
+  Delaying Tactics repeat ban is keyed by `ActionId` — a card by name, a
+  granted action by copy (LSJ 20020201). One extractor bug, fixed: quoted
+  YAML keys (names with a colon or apostrophe) were read as continuation
+  lines, misattributing their rulings to the previous card (1121 rows
+  now). Rules-qa 8.1 answered (2026-09-07): Bonding's [DOM] mode needs the
+  stealth to be needed (`StealthNeeded`), like a plain stealth card. Next:
+  library search and draw replacement (the `blocked:` rows name the rest
+  of the gaps).
 - **P2 — full engine pool**: all 621 cards including Events and their machinery;
   the 14 training decklists plus the New Blood minis as data; perft baselines;
   protocol server; scripted reference bots (aggro-bleed, wall, vote).

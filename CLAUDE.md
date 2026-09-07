@@ -23,6 +23,10 @@ Key facts:
   (hand-reviewed, owner-arbitrated; queue in `docs/window-review-questions.md`).
   `scripts/window_matrix.py` regenerates the draft and, with `--check`, verifies
   it still reproduces the reviewed matrix — keep both in sync.
+- `data/rulings-v5.csv`: the rulings-as-tests ledger (DESIGN §7.1) — every row
+  on an implemented card carries `test:<fn>` / `blocked:<gap>` / `n/a:<reason>`;
+  `scripts/rulings_v5.py --check data/rulings-v5.csv` verifies it against the
+  tests offline — keep both in sync (regeneration keeps the statuses).
 - Card data source: https://static.krcg.org/data/vtes.json (the `v5/` dir there
   is a *schema* version, not the V5 format). Engine crypt data is generated
   from it: `scripts/gen_crypt.py` → `crates/engine/src/crypt.rs` (never edit by

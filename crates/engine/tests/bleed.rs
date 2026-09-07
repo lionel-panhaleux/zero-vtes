@@ -154,18 +154,25 @@ fn stealth_only_when_needed() {
     assert!(e.state.seats[0].has_edge);
 }
 
-// Bonding [DOM] is "+1 stealth and +1 bleed": one effect, playable for its
-// bleed half with no attempt pending; the limited cap then bars [dom].
+// Bonding [DOM] is "+1 stealth and +1 bleed": the stealth is the effect's,
+// so the mode is not playable while no block attempt matches the current
+// stealth — only [dom] is offered before an attempt; once B attempts at 0
+// intercept both modes are, and the play beats the attempt.
+// Rulings: [TOM 19951109].
 #[test]
-fn bonding_superior_is_playable_for_its_bleed_half() {
+fn bonding_superior_needs_the_stealth_to_be_needed() {
     let mut t = table();
     let e = &mut t.e;
     e.state.seats[0].hand.push(find_library("Bonding"));
     pick(e, bleed(t.a));
     let req = expect(e, SeatId(0), WindowLabel::ActionBlock);
+    assert_eq!(plays(&req), vec![play(0, 0, t.a)]);
+    pick(e, Choice::Pass);
+    pick(e, Choice::DeclareBlock { minion: t.b });
+    let req = expect(e, SeatId(0), WindowLabel::ActionBlock);
     assert_eq!(plays(&req), vec![play(0, 0, t.a), play(0, 1, t.a)]);
     pick(e, play(0, 1, t.a));
-    // Stealth 1, bleed 2; seat 1 cannot reach 1 intercept: no attempt.
+    // Stealth 1, bleed 2; the attempt fails, nothing reaches 1 intercept.
     expect(e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.seats[1].pool, 28);
 }
@@ -237,6 +244,7 @@ fn block_attempt_persists_until_all_pass() {
 // 1 declines, its Deflection sends the bleed to seat 2, who may block; seat
 // 1 stays out. Deflection rulings: after blocks are declined, to a valid
 // target other than the acting controller and oneself.
+// Rulings: [ANK 20211003]; [PIB 20130711].
 #[test]
 fn block_reopen_only_on_bounce() {
     let mut t = table();
@@ -373,6 +381,7 @@ fn archon_investigation_at_three_pool_ousts_its_player_and_the_turn_goes_on() {
 // rules-qa 2.4 — a wake is playable in the as-played window of a card
 // played during the action, before that card's effect exists: Eyes of
 // Argus wakes B before Consign to Oblivion raises reaction costs.
+// Rulings: [TOM 19951129].
 #[test]
 fn wake_playable_in_as_played_window() {
     let mut t = table();

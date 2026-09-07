@@ -928,4 +928,24 @@ cards not replaced at all?
 **Answer (2026-09-06)** — "No replace" means not one at a time, as
 modeled: the cards go at once, then the hand is drawn back up.
 
-Batch 8 — cards & effects (replacement, delayed replacement, events).
+## Batch 8 — Cards & effects (rulings harness, replacement, events)
+
+### 8.1 Bonding [DOM] when the stealth is not needed
+
+Ruling [TOM 19951109] on Bonding: "[DOM] Cannot be used if you do not
+need the stealth at the time you play it." The V5 printing folds the
+stealth into the superior mode ("+1 stealth and +1 bleed"), and the
+engine offers that mode for its bleed half with no block attempt pending
+(rules-qa 3.2's "only when needed" applies to the stealth alone; test
+`bonding_superior_is_playable_for_its_bleed_half`). Does the ruling
+stand for the V5 card — the [DOM] mode only once stealth is needed, so a
+bleed bonus before any attempt is the [dom] mode's alone — or is the
+combined effect playable for its bleed?
+
+**Test** — `bonding_superior_needs_the_stealth_to_be_needed`.
+
+**Answer (2026-09-07)** — The ruling applies: the superior mode provides
+the stealth and is not playable unless a block attempt matches the
+current stealth with equal intercept. Applied: `Requirement::StealthNeeded`
+on Bonding's [DOM] mode (the [dom] bleed bonus alone is playable before an
+attempt).

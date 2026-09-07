@@ -18,7 +18,7 @@ use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, LIBRARY};
-use crate::state::{title_votes, UncontrolledSlot, HAND_SIZE};
+use crate::state::{title_votes, ActionId, UncontrolledSlot, HAND_SIZE};
 use crate::window::PollingWindow;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -939,18 +939,18 @@ impl Engine {
                     self.state.seats[a.seat.index()].hand.push(card.card);
                     a.card_returned = true;
                 }
-                // The forbidden action is the card's, from hand or in play.
-                let name = match (a.card, a.source) {
-                    (Some(card), _) => Some(LIBRARY[card.card as usize].name),
-                    (None, Some(src)) => {
-                        Some(LIBRARY[self.state.cards[src.index()].card as usize].name)
-                    }
+                // The forbidden action is the card's from hand (by name),
+                // or this copy's in play: another copy's referendum stays
+                // available (LSJ 20020201).
+                let id = match (a.card, a.source) {
+                    (Some(card), _) => Some(ActionId::Card(card.card)),
+                    (None, Some(src)) => Some(ActionId::InPlay(src)),
                     (None, None) => None,
                 };
-                if let (true, Some(name)) = (forbid_repeat, name) {
+                if let (true, Some(id)) = (forbid_repeat, id) {
                     self.state.seats[a.seat.index()]
                         .forbidden_political
-                        .push(name);
+                        .push(id);
                 }
                 if unlock_acting {
                     self.state.minions[a.acting.index()].locked = false;

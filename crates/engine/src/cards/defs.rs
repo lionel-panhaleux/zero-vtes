@@ -383,11 +383,13 @@ pub static BONDING: CardDef = CardDef {
             }],
         },
         ModeDef {
-            // "+1 stealth and +1 bleed": one effect, playable whenever its
-            // bleed half applies — the stealth rides along, needed or not.
+            // "+1 stealth and +1 bleed": the stealth is the effect's, so
+            // it is playable only while stealth is needed — a block attempt
+            // whose intercept matches the current stealth (TOM 19951109,
+            // rules-qa 8.1).
             windows: &[Window::ActionDuring, Window::ActionStealthIntercept],
             actor: Actor::ActingMinion,
-            requires: &[Requirement::IsBleed],
+            requires: &[Requirement::IsBleed, Requirement::StealthNeeded],
             target: NO_TARGET,
             terms: None,
             waives_needed: false,

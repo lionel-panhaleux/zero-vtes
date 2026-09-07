@@ -207,6 +207,7 @@ fn villein_targets_terms_blood_move_layers_and_trifle() {
     assert!(e.state.seats[0].ash.is_empty());
 }
 
+// Rulings: [LSJ 20020620]; [ANK 20210714].
 #[test]
 fn villein_costs_one_more_on_a_vampire_that_already_has_one() {
     let mut e = table();
@@ -235,6 +236,7 @@ fn villein_costs_one_more_on_a_vampire_that_already_has_one() {
     assert_eq!(e.state.seats[0].mpa, 0);
 }
 
+// Rulings: [LSJ 20090626]; [ANK 20190104] [LSJ 19980212].
 #[test]
 fn sudden_reversal_cancels_a_master_and_its_cost_and_trifle_refund() {
     let mut e = table();

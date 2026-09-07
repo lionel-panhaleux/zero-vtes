@@ -231,9 +231,10 @@ pub struct Seat {
     /// Cards played with "do not replace until your next unlock phase":
     /// the hand stays that many short until then.
     pub delayed_draws: u8,
-    /// Political action card names the seat's minions cannot perform again
-    /// this turn (Delaying Tactics).
-    pub forbidden_political: Vec<&'static str>,
+    /// Political actions the seat's minions cannot perform again this
+    /// turn (Delaying Tactics): a card by name, a granted action by copy
+    /// (LSJ 20020201).
+    pub forbidden_political: Vec<ActionId>,
 }
 
 #[derive(Clone, Debug)]
@@ -472,8 +473,11 @@ impl GameState {
             mix(s.dpa as u64);
             mix(s.delayed_draws as u64);
             mix(s.forbidden_political.len() as u64);
-            for n in &s.forbidden_political {
-                mix(n.len() as u64);
+            for a in &s.forbidden_political {
+                mix(match a {
+                    ActionId::Card(c) => *c as u64,
+                    ActionId::InPlay(c) => 1 << 32 | c.0 as u64,
+                });
             }
             mix(match s.out_of_turn {
                 None => 0,

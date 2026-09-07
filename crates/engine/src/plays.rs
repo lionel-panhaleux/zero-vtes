@@ -228,7 +228,7 @@ impl Engine {
                         )) && (st.minions[m.index()].political_this_turn
                             || st.seats[seat.index()]
                                 .forbidden_political
-                                .contains(&LIBRARY[card as usize].name))
+                                .contains(&ActionId::Card(card)))
                         {
                             continue;
                         }
@@ -1038,8 +1038,11 @@ impl Engine {
                         let political = ability
                             .effects
                             .contains(&Effect::DeclareAction(ActionKind::Political));
-                        let name = LIBRARY[c.card as usize].name;
-                        if political && st.seats[seat.index()].forbidden_political.contains(&name) {
+                        if political
+                            && st.seats[seat.index()]
+                                .forbidden_political
+                                .contains(&ActionId::InPlay(CardId(ci as u32)))
+                        {
                             continue;
                         }
                         for m in self.actor_candidates(seat, ability).into_iter().flatten() {

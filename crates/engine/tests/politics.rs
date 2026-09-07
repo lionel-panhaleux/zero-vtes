@@ -361,6 +361,7 @@ fn neonate_breach_chooses_seats() {
 
 // Domain Challenge counts locked minions when the effect applies: the
 // acting vampire is locked by its own action.
+// Rulings: [RTR 19941109].
 #[test]
 fn domain_challenge_counts_locked_minions_at_resolution() {
     let Table { mut e, alexa, .. } = table();
@@ -448,6 +449,7 @@ fn set_x(n: u8) -> Choice {
 // Parity Shift: the chosen Methuselah must have more pool than the caller;
 // the allocation runs over everyone but the chosen one, and a shortfall at
 // resolution is re-allocated by the caller within the terms.
+// Rulings: [LSJ 20010606]; [LSJ 20041004].
 #[test]
 fn parity_shift_chooses_a_richer_methuselah_and_reallocates_a_shortfall() {
     let Table { mut e, alexa, .. } = table();
@@ -521,6 +523,7 @@ fn reckless_agitation_needs_two_opponents() {
 
 // Banishment: a ready vampire younger than the acting one goes to its
 // controller's uncontrolled region with its blood.
+// Rulings: [PIB 20140122] [TOM 19951209]; [LSJ 20060213] [LSJ 20060908].
 #[test]
 fn banishment_sends_a_younger_vampire_to_the_uncontrolled_region() {
     let Table {
@@ -622,6 +625,7 @@ fn expulsion_bars_blocks_reactions_and_votes_this_turn() {
 // afterward), and the acting Methuselah's minions cannot perform that
 // political action again this turn — the acting vampire has still taken
 // its political action.
+// Rulings: [RTR 19970630]; [LSJ 20050324].
 #[test]
 fn delaying_tactics_cancels_returns_the_card_and_forbids_a_repeat() {
     let Table {
@@ -723,6 +727,7 @@ fn closed_session_bars_non_camarilla_votes() {
 
 // Protected District during polling: +3 votes against, which forces the
 // primogen's cast against; unusable once it voted in favor.
+// Rulings: [LSJ 20031119].
 #[test]
 fn protected_district_votes_against() {
     let Table {
@@ -850,6 +855,7 @@ fn party_out_of_bounds_reduces_a_bleed() {
 
 // Perfect Paragon [PRE]: younger vampires get -1 intercept for the rest of
 // the action — an attempt that can no longer reach the stealth is pruned.
+// Rulings: [LSJ 20020612].
 #[test]
 fn perfect_paragon_penalizes_younger_intercept() {
     let Table { mut e, alexa, .. } = table();
@@ -871,6 +877,7 @@ fn perfect_paragon_penalizes_younger_intercept() {
 
 // Voter Captivation after a passed referendum: 1 blood per vote of the
 // margin; at superior, up to 2 of them to the pool, chosen as terms.
+// Rulings: [PIB 20150915] [LSJ 19981028] [ANK 20190425].
 #[test]
 fn voter_captivation_gains_blood_by_the_margin() {
     let Table { mut e, alexa, .. } = table();
