@@ -1120,9 +1120,9 @@ fn uses(req: &DecisionRequest, card: u32) -> Vec<Choice> {
 // Dreams of the Sphinx: "You can lock this card to get +2 hand size until
 // the end of the turn" — the hand is drawn up to 9 at once, the card locks
 // and gains a counter, and stays locked until its controller's next unlock
-// phase; the bonus ends with the turn (LSJ 20100812) and the cards over
-// size stay (ANK 20180318).
-// Rulings: [ANK 20180318].
+// phase; the bonus ends with the turn (LSJ 20100812), and seat 0 discards
+// down to 7 at once (rulebook "Drawing Cards": "whenever an effect changes
+// your hand size …, immediately discard down").
 #[test]
 fn dreams_of_the_sphinx_hand_size_lock_lasts_the_turn() {
     let Table { mut e, .. } = table();
@@ -1138,14 +1138,28 @@ fn dreams_of_the_sphinx_hand_size_lock_lasts_the_turn() {
     assert_eq!(e.state.seats[0].library.len(), 2);
     assert!(e.state.cards[dreams as usize].locked);
     assert_eq!(e.state.cards[dreams as usize].counters, 1);
-    to_minion_phase(&mut e, SeatId(1));
+    let req = loop {
+        let req = request(&mut e);
+        if req.window == WindowLabel::DiscardDown {
+            break req;
+        }
+        assert_eq!(req.options[0], Choice::Pass, "{req:?}");
+        e.choose(0);
+    };
+    assert_eq!(req.seat, SeatId(0));
     assert_eq!(e.state.seats[0].hand_bonus, 0);
-    assert_eq!(e.state.seats[0].hand.len(), 9);
-    // Seat 0's next turn: the card unlocked, no draw (over size already).
+    assert_eq!(e.state.active, SeatId(1));
+    e.choose(0);
+    expect(&mut e, SeatId(0), WindowLabel::DiscardDown);
+    e.choose(0);
+    to_minion_phase(&mut e, SeatId(1));
+    assert_eq!(e.state.seats[0].hand.len(), 7);
+    // Seat 0's next turn: the card unlocked, the hand full.
     let req = to_master_phase(&mut e, SeatId(0));
     assert!(!e.state.cards[dreams as usize].locked);
     assert_eq!(uses(&req, dreams), vec![ability(dreams, 0)]);
-    assert_eq!(e.state.seats[0].hand.len(), 9);
+    assert_eq!(e.state.seats[0].hand.len(), 7);
+    assert_eq!(e.state.seats[0].library.len(), 2);
 }
 
 // "You can lock this card during your unlock phase to gain 1 pool if you
@@ -1607,6 +1621,101 @@ fn revolt_like_in_play(e: &mut Engine, name: &str, owner: u8) -> u32 {
         counters: 0,
     });
     e.state.cards.len() as u32 - 1
+}
+
+// ---- Replacement and hand size --------------------------------------------
+
+/// Pass (or take the first option) until `seat`'s `window` opens on
+/// `seat`'s own turn.
+fn to_own_window(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
+    loop {
+        let req = request(e);
+        if (req.seat, req.window) == (seat, window) && e.state.active == seat {
+            return req;
+        }
+        let i = req
+            .options
+            .iter()
+            .position(|o| *o == Choice::Pass)
+            .unwrap_or(0);
+        e.choose(i);
+    }
+}
+
+// Elder Library: "Unique location. +1 hand size." Played from a full hand,
+// its replacement draws the hand up to 8.
+#[test]
+fn elder_library_gives_its_controller_one_more_hand_size() {
+    let Table { mut e, .. } = table();
+    hand(&mut e, 0, &["Elder Library"]);
+    hand(&mut e, 0, &["Bonding"; 6]);
+    e.state.seats[0].library = vec![find_library("Villein"); 3];
+    pick(&mut e, master_play(0));
+    let _ = request(&mut e);
+    assert_eq!(e.state.hand_size(SeatId(0)), 8);
+    assert_eq!(e.state.seats[0].hand.len(), 8);
+    assert_eq!(e.state.seats[0].library.len(), 1);
+    assert_eq!(e.state.hand_size(SeatId(1)), 7);
+}
+
+// Visit from the Capuchin: "Put this card in play with 4 counters. You get
+// +1 hand size for each counter on this card. Each time you would replace
+// a card other than this card, instead burn 1 counter from this card. Burn
+// this card if it has no counters." Its own replacement draws the hand up
+// to 11; a discard phase action's replacement burns a counter instead; a
+// delayed replacement coming due at the unlock phase burns the last one,
+// and the card with it.
+#[test]
+fn visit_from_the_capuchin_burns_a_counter_instead_of_each_replacement() {
+    let Table { mut e, .. } = table();
+    hand(&mut e, 0, &["Visit from the Capuchin"]);
+    hand(&mut e, 0, &["Bonding"; 6]);
+    e.state.seats[0].library = vec![find_library("Villein"); 10];
+    pick(&mut e, master_play(0));
+    let _ = request(&mut e);
+    assert_eq!(e.state.cards[0].counters, 4);
+    assert_eq!(e.state.hand_size(SeatId(0)), 11);
+    assert_eq!(e.state.seats[0].hand.len(), 11);
+    assert_eq!(e.state.seats[0].library.len(), 5);
+    to_own_window(&mut e, SeatId(0), WindowLabel::DiscardPhase);
+    pick(&mut e, Choice::Discard(0));
+    assert_eq!(e.state.cards[0].counters, 3);
+    assert_eq!(e.state.seats[0].hand.len(), 10);
+    assert_eq!(e.state.seats[0].library.len(), 5);
+    // One counter left (hand size 8), one card held back until the unlock
+    // phase: its replacement burns the last counter and the card.
+    e.state.cards[0].counters = 1;
+    e.state.seats[0].hand.truncate(7);
+    e.state.seats[0].held.unlock = 1;
+    to_own_window(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.cards[0].in_play);
+    assert!(e.state.seats[0]
+        .ash
+        .contains(&find_library("Visit from the Capuchin")));
+    assert_eq!(e.state.hand_size(SeatId(0)), 7);
+    assert_eq!(e.state.seats[0].hand.len(), 7);
+    assert_eq!(e.state.seats[0].library.len(), 5);
+}
+
+// Rules-qa 8.3: with an empty library a card is not replaced, so Visit from
+// the Capuchin has no replacement to replace — no counter burns, and the
+// hand stays short.
+#[test]
+fn visit_from_the_capuchin_burns_nothing_with_an_empty_library() {
+    let Table { mut e, .. } = table();
+    let capuchin = revolt_like_in_play(&mut e, "Visit from the Capuchin", 0);
+    e.state.cards[capuchin as usize].counters = 2;
+    e.state.layers.push(Layer {
+        scope: Scope::InPlay,
+        modifier: Modifier::HandSizePerCounter,
+        source: CardId(capuchin),
+    });
+    hand(&mut e, 0, &["Bonding"; 9]);
+    to_own_window(&mut e, SeatId(0), WindowLabel::DiscardPhase);
+    pick(&mut e, Choice::Discard(0));
+    assert_eq!(e.state.cards[capuchin as usize].counters, 2);
+    assert_eq!(e.state.hand_size(SeatId(0)), 9);
+    assert_eq!(e.state.seats[0].hand.len(), 8);
 }
 
 // ---- Blood Doll, Vessel ---------------------------------------------------

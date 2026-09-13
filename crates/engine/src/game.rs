@@ -15,7 +15,8 @@ use crate::plays::PendingPlay;
 use crate::referendum::ReferendumCtx;
 use crate::rng::Rng;
 use crate::state::{
-    CardId, GameState, Minion, Seat, UncontrolledSlot, HAND_SIZE, START_POOL, UNCONTROLLED_START,
+    CardId, GameState, Held, Minion, Seat, UncontrolledSlot, HAND_SIZE, START_POOL,
+    UNCONTROLLED_START,
 };
 use crate::window::OrderedWindow;
 
@@ -190,7 +191,7 @@ impl Engine {
                     out_of_turn: None,
                     dpa: 0,
                     turns_taken: 0,
-                    delayed_draws: 0,
+                    held: Held::default(),
                     forbidden_political: Vec::new(),
                 }
             })
@@ -304,8 +305,29 @@ impl Engine {
         self.apply(&choice);
     }
 
+    /// The first Methuselah, clockwise from the active one, holding more
+    /// cards than their hand size (rulebook "Drawing Cards": "whenever an
+    /// effect changes your hand size or adds or removes cards from your
+    /// hand, immediately discard down"): an Elder Library turned contested,
+    /// a hand-size bonus ending, a political action card returned to hand.
+    fn discard_down_seat(&self) -> Option<SeatId> {
+        let st = &self.state;
+        st.clockwise_from(st.active)
+            .into_iter()
+            .find(|&s| !st.seats[s.index()].hand.is_empty() && st.hand_excess(s) > 0)
+    }
+
     fn request(&self) -> Option<DecisionRequest> {
         let st = &self.state;
+        if let Some(s) = self.discard_down_seat() {
+            return Some(DecisionRequest {
+                seat: s,
+                window: WindowLabel::DiscardDown,
+                options: (0..st.seats[s.index()].hand.len())
+                    .map(|i| Choice::Discard(i as u8))
+                    .collect(),
+            });
+        }
         match &self.flow {
             Flow::MasterPhase => Some(self.master_request()),
             Flow::PlayTerms { ctx, .. } => Some(self.terms_request(ctx)),
@@ -353,6 +375,15 @@ impl Engine {
     }
 
     fn apply(&mut self, choice: &Choice) {
+        if let Some(s) = self.discard_down_seat() {
+            let Choice::Discard(i) = choice else {
+                unreachable!("illegal discard-down choice {choice:?}");
+            };
+            let seat = &mut self.state.seats[s.index()];
+            let card = seat.hand.remove(*i as usize);
+            seat.ash.push(card);
+            return;
+        }
         let flow = std::mem::replace(&mut self.flow, Flow::GameOver);
         match (flow, choice) {
             (Flow::MasterPhase, c) => self.master_apply(c),
@@ -546,6 +577,12 @@ impl Engine {
     /// phase action; events are a later slice).
     pub(crate) fn end_influence(&mut self) {
         let s = self.state.active;
+        // "Do not replace until your next discard phase": replaced as the
+        // phase begins, ahead of anything else in it (spec §1.9.2).
+        let held = std::mem::take(&mut self.state.seats[s.index()].held.discard);
+        if held > 0 {
+            self.replace(s, held as usize, None);
+        }
         self.state.seats[s.index()].dpa = 1;
         self.flow = Flow::Discard;
     }
@@ -668,10 +705,8 @@ impl Engine {
         }
         // An action cannot outlive the turn (the acting Methuselah ousted
         // by its own referendum or a cost): its scoped state goes with it.
-        if let Some(a) = self.action.take() {
-            for s in a.deferred_draws {
-                self.draw_to_hand_size(s);
-            }
+        if self.action.take().is_some() {
+            self.release_action_holds();
         }
         self.combat = None;
         self.referendum = None;
@@ -691,9 +726,9 @@ impl Engine {
         }
         // Delayed replacements ("do not replace until your next unlock
         // phase") are drawn before unlocking (ANK 20200129).
-        self.state.seats[s.index()].delayed_draws = 0;
+        let held = std::mem::take(&mut self.state.seats[s.index()].held.unlock);
         self.state.phase_uses.clear();
-        self.draw_to_hand_size(s);
+        self.replace(s, held as usize, None);
         for m in &mut self.state.minions {
             // Per-turn NRA flags reset each new turn.
             m.bled_this_turn = false;

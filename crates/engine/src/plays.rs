@@ -6,7 +6,7 @@
 
 use crate::cards::{
     self, Actor, Effect, Hook, Layer, Limit, PlayCtx, Requirement, Rider, Scope, Target,
-    TargetKind, TargetSpec, Terms, Window,
+    TargetKind, TargetSpec, Terms, Until, Window,
 };
 use crate::combat::is_combat_effect;
 use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
@@ -14,7 +14,7 @@ use crate::game::{Engine, Flow, Pending};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, Label, LIBRARY};
 use crate::referendum::is_vote_effect;
-use crate::state::{ActionId, CardId, CardInPlay, OutOfTurn, HAND_SIZE};
+use crate::state::{ActionId, CardId, CardInPlay, OutOfTurn};
 use crate::window::OrderedWindow;
 
 /// The once-per-phase key of an in-play ability: the copy, or the copy and
@@ -36,15 +36,81 @@ pub(crate) struct PendingPlay {
 }
 
 impl Engine {
-    /// Draw up to hand size from the library (rulebook "Drawing Cards"; an
-    /// empty library means no replacement).
-    pub(crate) fn draw_to_hand_size(&mut self, s: SeatId) {
+    /// Draw up to hand size from the library (rulebook "Drawing Cards"):
+    /// the cards not replaced yet count against it; an empty library draws
+    /// nothing.
+    pub(crate) fn draw_up(&mut self, s: SeatId) {
+        let size = self.state.hand_size(s);
         let seat = &mut self.state.seats[s.index()];
-        while seat.hand.len() + (seat.delayed_draws as usize) < HAND_SIZE + seat.hand_bonus as usize
-        {
+        while seat.hand.len() + seat.held.total() < size {
             match seat.library.pop() {
                 Some(c) => seat.hand.push(c),
                 None => break,
+            }
+        }
+    }
+
+    /// `n` cards that left the seat's hand are replaced now (rulebook
+    /// "Drawing Cards"; spec §6.8.3: every replacement, whatever took the
+    /// card out of hand). Each replacement is first offered to the
+    /// `WouldReplace` riders of the cards the seat controls, `except` the
+    /// card being replaced itself ("a card other than this card"): Visit
+    /// from the Capuchin burns a counter instead, its hand size shrinking
+    /// with it. With an empty library nothing is replaced, so nothing is
+    /// replaced instead (rules-qa 8.3). The pool holds one such card, so
+    /// there is no choice between alternatives to offer (ANK 20200905). The
+    /// hand is then drawn up.
+    pub(crate) fn replace(&mut self, s: SeatId, n: usize, except: Option<CardId>) {
+        for _ in 0..n {
+            let st = &self.state;
+            if st.seats[s.index()].library.is_empty() {
+                break;
+            }
+            let instead = (0..st.cards.len() as u32).map(CardId).find(|&id| {
+                let c = &st.cards[id.index()];
+                Some(id) != except
+                    && c.present()
+                    && st.card_controller(id) == s
+                    && cards::lookup(c.card).is_some_and(|d| {
+                        d.riders.iter().any(|r| {
+                            r.hook == Hook::WouldReplace
+                                && r.scope.applies(s, s)
+                                && st.rider_holds(r, id)
+                        })
+                    })
+            });
+            let Some(id) = instead else {
+                continue;
+            };
+            let def = cards::lookup(self.state.cards[id.index()].card).expect("definition");
+            for r in def.riders.iter().filter(|r| r.hook == Hook::WouldReplace) {
+                for e in r.effects {
+                    match *e {
+                        Effect::RemoveCounter(k) => {
+                            let c = &mut self.state.cards[id.index()];
+                            c.counters = c.counters.saturating_sub(k);
+                        }
+                        Effect::BurnSelfWithoutCounters => {
+                            if self.state.cards[id.index()].counters == 0 {
+                                self.burn_card_in_play(id);
+                            }
+                        }
+                        other => unreachable!("not a replacement rider effect: {other:?}"),
+                    }
+                }
+            }
+        }
+        self.draw_up(s);
+    }
+
+    /// The end of the action (or of the turn it could not outlive): the
+    /// cards held back until then are replaced (Consign to Oblivion [OBL];
+    /// spec §1.9.2: after all combats).
+    pub(crate) fn release_action_holds(&mut self) {
+        for i in 0..self.state.seats.len() {
+            let n = std::mem::take(&mut self.state.seats[i].held.action);
+            if n > 0 && !self.state.seats[i].ousted {
+                self.replace(SeatId(i as u8), n as usize, None);
             }
         }
     }
@@ -623,7 +689,7 @@ impl Engine {
     /// nothing was paid, since costs are paid at resolution (§1.7.1).
     fn settle_canceled(&mut self, ctx: PlayCtx) {
         self.state.seats[ctx.seat.index()].ash.push(ctx.card);
-        self.draw_to_hand_size(ctx.seat);
+        self.replace(ctx.seat, 1, None);
     }
 
     /// Resolution: pay the cost, apply the effects, move the card, replace.
@@ -645,7 +711,7 @@ impl Engine {
             .find(|e| matches!(e, Effect::DeclareAction(_)))
         {
             let actor = ctx.actor.expect("acting minion");
-            self.draw_to_hand_size(s);
+            self.replace(s, 1, None);
             self.declare_action(actor, *kind, None, Some(ctx), None);
             return true;
         }
@@ -686,13 +752,13 @@ impl Engine {
                 .action
                 .as_ref()
                 .is_some_and(|a| a.defer_reaction_replacement);
-        if def.delayed_replacement {
-            // "Do not replace until your next unlock phase".
-            self.state.seats[s.index()].delayed_draws += 1;
-        } else if deferred {
-            self.action.as_mut().expect("action").deferred_draws.push(s);
-        } else {
-            self.draw_to_hand_size(s);
+        // The card's own "do not replace until" clause outlasts an
+        // end-of-action deferral (spec §1.9.2: the longest delay wins).
+        match def.delayed_replacement {
+            Some(Until::NextUnlockPhase) => self.state.seats[s.index()].held.unlock += 1,
+            Some(Until::NextDiscardPhase) => self.state.seats[s.index()].held.discard += 1,
+            None if deferred => self.state.seats[s.index()].held.action += 1,
+            None => self.replace(s, 1, in_play),
         }
         if self.state.seats[s.index()].pool == 0 {
             if s == self.state.active {
@@ -807,6 +873,8 @@ impl Engine {
             | Effect::LockSelf
             | Effect::AddCounter(_)
             | Effect::BurnSelfAtCounters(_)
+            | Effect::RemoveCounter(_)
+            | Effect::BurnSelfWithoutCounters
             | Effect::GainPool(_)
             | Effect::HandSizeBonusUntilEndOfTurn(_)
             | Effect::BloodToUncontrolledTarget(_)
@@ -851,7 +919,7 @@ impl Engine {
                 let card = seat.hand.remove(*i as usize);
                 seat.ash.push(card);
                 seat.dpa -= 1;
-                self.draw_to_hand_size(s);
+                self.replace(s, 1, None);
                 self.flow = Flow::Discard;
             }
             Choice::UseAbility {
@@ -1203,12 +1271,13 @@ impl Engine {
         // the hand.
         let seat = self.ability_user(card, ability);
         picked.sort_unstable_by(|a, b| b.cmp(a));
+        let discarded = picked.len();
         for i in picked {
             let s = &mut self.state.seats[seat.index()];
             let c = s.hand.remove(i as usize);
             s.ash.push(c);
         }
-        self.draw_to_hand_size(seat);
+        self.replace(seat, discarded, None);
         self.flow = *resume;
         self.resolve_ability(card.0, ability, Target::None);
     }
@@ -1267,7 +1336,7 @@ impl Engine {
                 }
                 Effect::HandSizeBonusUntilEndOfTurn(n) => {
                     self.state.seats[ctx.seat.index()].hand_bonus += n;
-                    self.draw_to_hand_size(ctx.seat);
+                    self.draw_up(ctx.seat);
                 }
                 Effect::BloodToUncontrolledTarget(n) => {
                     let Target::Uncontrolled(i) = target else {
@@ -1545,7 +1614,7 @@ impl Engine {
                     self.oust_and_pass(s);
                     return;
                 }
-                self.draw_to_hand_size(s);
+                self.replace(s, *k as usize, None);
                 self.flow = *resume;
                 return;
             }

@@ -7,12 +7,12 @@
 //! data/rulings-v5.csv` keeps the ledger and the tests in sync.
 
 use zvtes::actions::Outcome;
-use zvtes::cards::Target;
+use zvtes::cards::{Layer, Modifier, Scope, Target};
 use zvtes::crypt::CRYPT;
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::{find_card, find_library, CardInPlay};
+use zvtes::state::{find_card, find_library, CardId, CardInPlay};
 
 // ---- Script helpers ---------------------------------------------------------
 
@@ -438,8 +438,8 @@ fn dreams_of_the_sphinx_is_usable_during_an_action_but_not_in_the_as_played_wind
 
 // [LSJ 20100812] [LSJ 20020904-2] "The hand size bonus ... ends at the end
 // of the discard phase ... Any discard phase actions ... must be handled
-// first": no discard-down during the discard phase, and none once the
-// bonus is gone.
+// first": no discard-down during the discard phase — the discard-down to
+// the rulebook's hand size comes once the bonus has ended with the turn.
 #[test]
 fn dreams_of_the_sphinx_bonus_lasts_through_the_discard_phase() {
     let mut e = game(2);
@@ -451,12 +451,23 @@ fn dreams_of_the_sphinx_bonus_lasts_through_the_discard_phase() {
     library(&mut e, 0, "Bonding", 4);
     pick(&mut e, ability(dreams, 0, Target::None));
     assert_eq!(e.state.seats[0].hand.len(), 9);
-    drive(&mut e, |_, req| {
-        assert_ne!(req.window, WindowLabel::DiscardDown, "{req:?}");
-        ((req.seat, req.window) != (SeatId(1), WindowLabel::MinionPhase)).then(|| fallback(req))
+    let mut discard_phase = false;
+    let req = drive(&mut e, |e, req| {
+        if req.window == WindowLabel::DiscardPhase && req.seat == SeatId(0) {
+            // Still 9 cards and the bonus in force during the phase.
+            assert_eq!(e.state.seats[0].hand_bonus, 2);
+            discard_phase = true;
+        }
+        (req.window != WindowLabel::DiscardDown).then(|| fallback(req))
     });
-    assert_eq!(e.state.seats[0].hand.len(), 9);
+    assert!(discard_phase);
+    assert_eq!(req.seat, SeatId(0));
+    assert_eq!(e.state.active, SeatId(1));
     assert_eq!(e.state.seats[0].hand_bonus, 0);
+    pick(&mut e, Choice::Discard(0));
+    pick(&mut e, Choice::Discard(0));
+    to_minion_phase(&mut e, SeatId(1));
+    assert_eq!(e.state.seats[0].hand.len(), 7);
 }
 
 // [RBK 2-card-types] "You cannot lock the card 'in response to' another
@@ -531,7 +542,7 @@ fn old_friends_is_replaced_before_the_unlock_effects() {
     in_play(&mut e, "Barrens, The", 0, None);
     hand(&mut e, 0, &["Bonding"; 6]);
     library(&mut e, 0, "Bonding", 3);
-    e.state.seats[0].delayed_draws = 1;
+    e.state.seats[0].held.unlock = 1;
     let req = drive(&mut e, |e, req| {
         let own = (req.seat, req.window) == (SeatId(0), WindowLabel::UnlockAbilities)
             && e.state.active == SeatId(0);
@@ -539,7 +550,7 @@ fn old_friends_is_replaced_before_the_unlock_effects() {
     });
     assert!(!uses_any(&req).is_empty());
     assert_eq!(e.state.seats[0].hand.len(), 7);
-    assert_eq!(e.state.seats[0].delayed_draws, 0);
+    assert_eq!(e.state.seats[0].held.unlock, 0);
 }
 
 // [LSJ 20061207] [LSJ 20061013] "Cards are not replaced during the 'as
@@ -653,6 +664,210 @@ fn as_announced_modifiers_precede_other_modifiers() {
     pick(&mut e, play(0, 0, a));
     let req = expect(&mut e, SeatId(0), WindowLabel::ActionBlock);
     assert_eq!(plays(&req), vec![play(0, 0, a), play(0, 1, a)]);
+}
+
+// [ANK 20181208] "Replace the action card (if any) before playing" an "as
+// the action is announced" modifier: the action card's replacement, drawn
+// as the action is declared, may be the Consign to Oblivion played on it.
+#[test]
+fn the_action_cards_replacement_is_playable_as_the_action_is_announced() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), find_card("Aintzane Arriaga"), 6, false); // DOM OBL POT
+    e.add_minion(SeatId(1), vampire_with("FOR", 0), 4, false);
+    hand(&mut e, 0, &["Kine Resources Contested"]);
+    library(&mut e, 0, "Consign to Oblivion", 1);
+    pick(&mut e, play(0, 0, a));
+    let req = expect(&mut e, SeatId(0), WindowLabel::ActionAsAnnounced);
+    assert_eq!(plays(&req), vec![play(0, 0, a), play(0, 1, a)]);
+}
+
+// ---- Replacement and hand size ----------------------------------------------
+
+// [ANK 20180318] "Cards that are not replaced count against the hand
+// size": with Old Friends held back until the unlock phase, Dreams of the
+// Sphinx's +2 draws the hand up to 8, not 9.
+#[test]
+fn cards_not_replaced_count_against_the_hand_size() {
+    let mut e = game(2);
+    e.add_minion(SeatId(0), find_card("Alexa Draper"), 5, false);
+    e.add_minion(SeatId(1), find_card("Kevin Jackson"), 5, false);
+    e.at_master_phase();
+    let dreams = in_play(&mut e, "Dreams of the Sphinx", 0, None);
+    hand(&mut e, 0, &["Bonding"; 6]);
+    e.state.seats[0].held.unlock = 1;
+    library(&mut e, 0, "Bonding", 5);
+    pick(&mut e, ability(dreams, 0, Target::None));
+    assert_eq!(e.state.seats[0].hand.len(), 8);
+    assert_eq!(e.state.seats[0].library.len(), 3);
+}
+
+// [ANK 20221028] Elder Library: "If there is another copy in play, it
+// enters contest without modifying the hand size" — and the copy it
+// contests gives no hand size either from then on (spec §1.13.3), so its
+// controller discards down at once.
+#[test]
+fn elder_library_enters_contest_without_modifying_the_hand_size() {
+    let mut e = game(2);
+    e.add_minion(SeatId(0), find_card("Alexa Draper"), 5, false);
+    e.add_minion(SeatId(1), find_card("Kevin Jackson"), 5, false);
+    e.at_master_phase();
+    let theirs = in_play(&mut e, "Elder Library", 1, None);
+    e.state.layers.push(Layer {
+        scope: Scope::InPlay,
+        modifier: Modifier::HandSize(1),
+        source: CardId(theirs),
+    });
+    hand(&mut e, 0, &["Elder Library"]);
+    hand(&mut e, 0, &["Bonding"; 6]);
+    library(&mut e, 0, "Bonding", 3);
+    hand(&mut e, 1, &["Bonding"; 8]);
+    pick(&mut e, master(0, Target::None));
+    let req = expect(&mut e, SeatId(1), WindowLabel::DiscardDown);
+    assert_eq!(req.options.len(), 8);
+    assert!(e.state.cards[theirs as usize].contested && e.state.cards[1].contested);
+    // Seat 0 replaced up to 7, not 8.
+    assert_eq!(e.state.seats[0].hand.len(), 7);
+    assert_eq!(e.state.seats[0].library.len(), 2);
+    pick(&mut e, Choice::Discard(0));
+    let _ = request(&mut e);
+    assert_eq!(e.state.seats[1].hand.len(), 7);
+}
+
+// [PIB 20121031] Visit from the Capuchin "cannot be played if you have
+// another one, even if it has only one counter left".
+#[test]
+fn visit_from_the_capuchin_is_not_playable_beside_ones_own_copy() {
+    let mut e = game(2);
+    let alexa = e.add_minion(SeatId(0), find_card("Alexa Draper"), 5, false);
+    e.add_minion(SeatId(1), find_card("Kevin Jackson"), 5, false);
+    e.at_master_phase();
+    let mine = in_play(&mut e, "Visit from the Capuchin", 0, None);
+    e.state.cards[mine as usize].counters = 1;
+    e.state.layers.push(Layer {
+        scope: Scope::InPlay,
+        modifier: Modifier::HandSizePerCounter,
+        source: CardId(mine),
+    });
+    hand(&mut e, 0, &["Visit from the Capuchin", "Villein"]);
+    let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    assert_eq!(plays(&req), vec![master(1, Target::Minion(alexa))]);
+    // Without that copy, it is playable.
+    e.state.cards[mine as usize].in_play = false;
+    e.state.layers.clear();
+    let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    assert!(plays(&req).contains(&master(0, Target::None)));
+}
+
+// [RTR 20180719] [ANK 20200207] [ANK 20210627] Mirror Walk [THA]: "If the
+// action is blocked, it ends unsuccessfully immediately, no other action
+// modifier or reaction can be played afterwards." [ANK 20191204] "The
+// would be blocker is locked ... from Mirror Walk's effect." [ANK
+// 20220116] [ANK 20211207] [ANK 20210627] [RTR 19991206] [LSJ 20091125]
+// Triggered by block: "all 'if blocked' effects must be applied ... before
+// any other card or effect can be used". No combat, no window: the acting
+// Methuselah's minion phase goes on; the card is replaced as the discard
+// phase begins.
+#[test]
+fn mirror_walk_superior_ends_the_blocked_action_before_block_resolution() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), vampire_with("THA", 0), 6, false);
+    e.add_minion(SeatId(0), vampire_with("CEL", 0), 6, false);
+    let b = e.add_minion(SeatId(1), vampire_with("AUS", 0), 4, false);
+    hand(&mut e, 0, &["Mirror Walk"]);
+    hand(&mut e, 0, &["Villein"; 6]);
+    library(&mut e, 0, "Villein", 3);
+    hand(&mut e, 1, &["Eyes of Argus"]);
+    pick(&mut e, bleed(a));
+    pick(&mut e, block(b));
+    let req = expect(&mut e, SeatId(0), WindowLabel::ActionBlock);
+    assert_eq!(plays(&req), vec![play(0, 0, a), play(0, 1, a)]);
+    pick(&mut e, play(0, 1, a)); // [THA]: +1 stealth
+    expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    assert_eq!(e.state.seats[0].hand.len(), 6);
+    assert_eq!(e.state.seats[0].held.discard, 1);
+    pick(&mut e, play(0, 0, b)); // Eyes of Argus [aus]: +2 intercept
+    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(Outcome::Blocked));
+    assert!(locked(&e, b));
+    assert_eq!(blood(&e, b), 4);
+    assert!(req.options.contains(&Choice::Pass));
+    let req = drive(&mut e, |_, req| {
+        ((req.seat, req.window) != (SeatId(0), WindowLabel::DiscardPhase)).then(|| fallback(req))
+    });
+    assert_eq!(req.seat, SeatId(0));
+    assert_eq!(e.state.seats[0].hand.len(), 7);
+    assert_eq!(e.state.seats[0].held.discard, 0);
+    assert_eq!(e.state.seats[0].library.len(), 2);
+}
+
+// [PIB 20121216] Mirror Walk [THA]: "If the action is blocked and it was
+// leaving torpor, the blocker does not get an opportunity to diablerize."
+#[test]
+fn mirror_walk_on_a_blocked_leave_torpor_gives_no_diablerie_opportunity() {
+    let mut e = game(2);
+    let tor = e.add_minion(SeatId(0), vampire_with("THA", 0), 2, true);
+    e.add_minion(SeatId(0), vampire_with("CEL", 0), 6, false);
+    let z = e.add_minion(SeatId(1), vampire_with("ANI", 0), 4, false);
+    hand(&mut e, 0, &["Mirror Walk"]);
+    hand(&mut e, 1, &["Cats' Guidance", "Cats' Guidance"]);
+    pick(&mut e, take(tor, ActionKind::LeaveTorpor));
+    pick(&mut e, block(z));
+    pick(&mut e, play(0, 1, z)); // +1 intercept: 1 against 1 stealth
+    pick(&mut e, play(0, 1, tor)); // Mirror Walk [THA]
+    pick(&mut e, play(0, 1, z)); // +1 intercept: 2 against 2
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(Outcome::Blocked));
+    assert!(in_torpor(&e, tor) && e.state.minions[tor.index()].in_play);
+    assert!(locked(&e, z));
+}
+
+// [ANK 20210817] A wake "can be played or used during the 'as a card is
+// played' window, except in combat, or when there is no action". [TOM
+// 19951129] "The minion need not attempt to block nor play further reaction
+// cards". [ANK 20200629-2] [LSJ 20091208] [RTR 19951017] "Replace next
+// turn": Wake with Evening's Freshness is replaced before its player's
+// unlock phase — the hand stays one short until then.
+#[test]
+fn wake_with_evenings_freshness_wakes_and_waits_for_the_next_unlock_phase() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), vampire_with("DOM", 0), 6, false);
+    let b = e.add_minion(SeatId(1), vampire_with("AUS", 0), 4, false);
+    e.state.minions[b.index()].locked = true;
+    e.at_master_phase();
+    hand(&mut e, 0, &["Villein", "Bonding"]);
+    hand(
+        &mut e,
+        1,
+        &["Wake with Evening's Freshness", "Sudden Reversal"],
+    );
+    hand(&mut e, 1, &["Villein"; 5]);
+    library(&mut e, 1, "Villein", 3);
+    pick(&mut e, master(0, Target::Minion(a)));
+    pick(&mut e, Choice::SetX(2));
+    let req = expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
+    assert_eq!(plays(&req), vec![master(1, Target::None)]);
+    pick(&mut e, Choice::Pass);
+    pick(&mut e, bleed(a));
+    pick(&mut e, play(0, 0, a)); // Bonding [dom]
+    let req = expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
+    assert_eq!(plays(&req), vec![play(0, 0, b)]);
+    pick(&mut e, play(0, 0, b));
+    let req = expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    assert_eq!(e.state.seats[1].hand.len(), 6);
+    assert_eq!(e.state.seats[1].held.unlock, 1);
+    assert!(req.options.contains(&block(b)));
+    pick(&mut e, Choice::Pass); // woken, need not block
+    let _ = drive(&mut e, |e, req| {
+        let theirs = (req.seat, req.window) == (SeatId(1), WindowLabel::MinionPhase)
+            && e.state.active == SeatId(1);
+        if e.state.active == SeatId(0) {
+            assert_eq!(e.state.seats[1].hand.len(), 6, "{req:?}");
+        }
+        (!theirs).then(|| fallback(req))
+    });
+    assert_eq!(e.state.seats[1].hand.len(), 7);
+    assert_eq!(e.state.seats[1].held.unlock, 0);
+    assert_eq!(e.state.seats[1].library.len(), 2);
 }
 
 // [LSJ 20061213] A bounce "cannot be used before all blocks have been

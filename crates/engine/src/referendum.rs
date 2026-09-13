@@ -18,7 +18,7 @@ use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, LIBRARY};
-use crate::state::{title_votes, ActionId, UncontrolledSlot, HAND_SIZE};
+use crate::state::{title_votes, ActionId, UncontrolledSlot};
 use crate::window::PollingWindow;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -272,16 +272,8 @@ impl Engine {
         let ctx = self.referendum.as_ref().expect("referendum context");
         if ctx.canceled {
             // The returned political action card may leave the acting
-            // Methuselah over hand size: "discard down afterward".
-            let seat = &self.state.seats[ctx.caller.index()];
-            let hand = &seat.hand;
-            if hand.len() > HAND_SIZE + seat.hand_bonus as usize {
-                return Some(DecisionRequest {
-                    seat: ctx.caller,
-                    window: WindowLabel::DiscardDown,
-                    options: (0..hand.len()).map(|i| Choice::Discard(i as u8)).collect(),
-                });
-            }
+            // Methuselah over hand size: "discard down afterward" — the
+            // engine's discard-down, asked before any other decision.
             return None;
         }
         match ctx.step {
@@ -480,17 +472,6 @@ impl Engine {
 
     pub(crate) fn referendum_apply(&mut self, choice: &Choice) {
         let mut ctx = self.referendum.take().expect("referendum context");
-        if ctx.canceled {
-            let Choice::Discard(i) = choice else {
-                unreachable!("illegal discard-down choice {choice:?}");
-            };
-            let seat = &mut self.state.seats[ctx.caller.index()];
-            let card = seat.hand.remove(*i as usize);
-            seat.ash.push(card);
-            self.referendum = Some(ctx);
-            self.flow = Flow::Referendum;
-            return;
-        }
         match ctx.step {
             RefStep::Terms => self.terms_step_apply(&mut ctx, choice),
             RefStep::Polling => {
@@ -604,7 +585,7 @@ impl Engine {
                 let s = &mut self.state.seats[seat.index()];
                 let c = s.hand.remove(*card as usize);
                 s.ash.push(c);
-                self.draw_to_hand_size(seat);
+                self.replace(seat, 1, None);
                 ctx.card_voted.push(seat);
                 (Source::Card(seat), *favor, 1)
             }

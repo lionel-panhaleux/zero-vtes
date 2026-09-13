@@ -13,7 +13,7 @@
 use super::{
     Actor, Among, CardDef, Effect, Hook, Limit, ModeDef, Modifier, Points, RefEffect,
     ReferendumDef, Requirement, Rider, RiderScope, SeatFilter, StrikeKind, TargetKind, TargetSpec,
-    Term, Terms, TitleClass, Window,
+    Term, Terms, TitleClass, Until, Window,
 };
 use crate::crypt::Sect;
 use crate::decision::ActionKind;
@@ -28,7 +28,7 @@ pub static VILLEIN: CardDef = CardDef {
     name: "Villein",
     trifle: true,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[ModeDef {
         windows: &[Window::MasterPhase],
         actor: Actor::Methuselah,
@@ -67,7 +67,7 @@ pub static SUDDEN_REVERSAL: CardDef = CardDef {
     name: "Sudden Reversal",
     trifle: false,
     out_of_turn: true,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[ModeDef {
         windows: &[Window::CardAsPlayed],
         actor: Actor::Methuselah,
@@ -92,7 +92,7 @@ pub static CONDITIONING: CardDef = CardDef {
     name: "Conditioning",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::ActionDuring],
@@ -132,7 +132,7 @@ pub static CONSIGN_TO_OBLIVION: CardDef = CardDef {
     name: "Consign to Oblivion",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::ActionAsAnnounced],
@@ -169,7 +169,7 @@ pub static FORM_OF_THE_COBRA: CardDef = CardDef {
     name: "Form of the Cobra",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         // [pro] [COMBAT] Strike: steal 1 blood or life (becoming blood).
         ModeDef {
@@ -207,7 +207,7 @@ pub static EYES_OF_ARGUS: CardDef = CardDef {
     name: "Eyes of Argus",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::ActionStealthIntercept],
@@ -243,7 +243,7 @@ pub static DEFLECTION: CardDef = CardDef {
     name: "Deflection",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::ActionBlocksDeclined],
@@ -291,7 +291,7 @@ pub static ARCHON_INVESTIGATION: CardDef = CardDef {
     name: "Archon Investigation",
     trifle: false,
     out_of_turn: true,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[ModeDef {
         windows: &[Window::ActionBlocksDeclined],
         actor: Actor::Methuselah,
@@ -319,7 +319,7 @@ pub static HOMUNCULUS: CardDef = CardDef {
     name: "Homunculus",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::ActionDeclareEmploy],
@@ -367,7 +367,7 @@ pub static BONDING: CardDef = CardDef {
     name: "Bonding",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::ActionDuring],
@@ -413,7 +413,7 @@ pub static EARTH_CONTROL: CardDef = CardDef {
     name: "Earth Control",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::ActionStealthIntercept],
@@ -447,7 +447,7 @@ pub static FLASH: CardDef = CardDef {
     name: "Flash",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::CombatDetermineRange, Window::CombatPress],
@@ -480,7 +480,7 @@ pub static TORN_SIGNPOST: CardDef = CardDef {
     name: "Torn Signpost",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::CombatBeforeRange],
@@ -513,7 +513,7 @@ pub static ROUNDHOUSE: CardDef = CardDef {
     name: "Roundhouse",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::CombatStrikeDeclaration],
@@ -546,7 +546,7 @@ pub static BODY_FLARE: CardDef = CardDef {
     name: "Body Flare",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::CombatStrikeDeclaration],
@@ -587,7 +587,7 @@ pub static THEFT_OF_VITAE: CardDef = CardDef {
     name: "Theft of Vitae",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::CombatStrikeDeclaration],
@@ -626,7 +626,7 @@ pub static MAJESTY: CardDef = CardDef {
     name: "Majesty",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::CombatStrikeDeclaration],
@@ -658,7 +658,7 @@ pub static SIDE_STRIKE: CardDef = CardDef {
     name: "Side Strike",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::CombatStrikeDeclaration],
@@ -694,7 +694,7 @@ pub static BLUR: CardDef = CardDef {
     name: "Blur",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::CombatAdditionalStrike],
@@ -737,7 +737,7 @@ pub static IMMORTAL_GRAPPLE: CardDef = CardDef {
     name: "Immortal Grapple",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::CombatBeforeStrikes],
@@ -775,7 +775,7 @@ pub static HIDDEN_STRENGTH: CardDef = CardDef {
     name: "Hidden Strength",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::CombatDamagePrevention],
@@ -808,7 +808,7 @@ pub static SOAK: CardDef = CardDef {
     name: "Soak",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::CombatDamagePrevention],
@@ -841,7 +841,7 @@ pub static INDOMITABILITY: CardDef = CardDef {
     name: "Indomitability",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::CombatDamagePrevention],
@@ -875,7 +875,7 @@ pub static CLAWS_OF_THE_DEAD: CardDef = CardDef {
     name: "Claws of the Dead",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::CombatUntimed],
@@ -910,7 +910,7 @@ pub static TASTE_OF_VITAE: CardDef = CardDef {
     name: "Taste of Vitae",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[ModeDef {
         windows: &[Window::CombatEndOfRound],
         actor: Actor::Combatant,
@@ -933,7 +933,7 @@ pub static TELEPATHIC_TRACKING: CardDef = CardDef {
     name: "Telepathic Tracking",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::CombatPress],
@@ -970,7 +970,7 @@ pub static CATS_GUIDANCE: CardDef = CardDef {
     name: "Cats' Guidance",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::ActionAfterCombat],
@@ -1005,7 +1005,7 @@ pub static FORM_OF_MIST: CardDef = CardDef {
     name: "Form of Mist",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::CombatStrikeDeclaration],
@@ -1049,7 +1049,7 @@ macro_rules! political {
             name: $printed,
             trifle: false,
             out_of_turn: false,
-            delayed_replacement: false,
+            delayed_replacement: None,
             modes: &[ModeDef {
                 windows: &[Window::ActionDeclarePolitical],
                 actor: Actor::ActingCandidate,
@@ -1168,7 +1168,7 @@ pub static BEWITCHING_ORATION: CardDef = CardDef {
     name: "Bewitching Oration",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::Referendum],
@@ -1209,7 +1209,7 @@ pub static SCALPEL_TONGUE: CardDef = CardDef {
     name: "Scalpel Tongue",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::Referendum],
@@ -1406,7 +1406,7 @@ pub static OMINOUS_CHORUS: CardDef = CardDef {
     name: "Ominous Chorus",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[polling_mode!(
         Actor::ActingOrReactingMinion,
         &[Requirement::PollingStep],
@@ -1424,7 +1424,7 @@ pub static PERFECT_PARAGON: CardDef = CardDef {
     name: "Perfect Paragon",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         polling_mode!(
             Actor::ActingMinion,
@@ -1453,7 +1453,7 @@ pub static OLD_FRIENDS: CardDef = CardDef {
     name: "Old Friends",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: true,
+    delayed_replacement: Some(Until::NextUnlockPhase),
     modes: &[
         ModeDef {
             windows: &[Window::ActionDuring],
@@ -1485,7 +1485,7 @@ pub static PARTY_OUT_OF_BOUNDS: CardDef = CardDef {
     name: "Party Out Of Bounds",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::ReactionDuringAction],
@@ -1536,7 +1536,7 @@ pub static PROTECTED_DISTRICT: CardDef = CardDef {
     name: "Protected District",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[ModeDef {
         windows: &[Window::Referendum, Window::ReactionDuringAction],
         actor: Actor::ReactingMinion,
@@ -1566,7 +1566,7 @@ pub static SCORN_OF_ADONIS: CardDef = CardDef {
     name: "Scorn of Adonis",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[polling_mode!(
         Actor::ActingMinion,
         &[Requirement::PollingStep],
@@ -1590,7 +1590,7 @@ pub static TELEPATHIC_VOTE_COUNTING: CardDef = CardDef {
     name: "Telepathic Vote Counting",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         polling_mode!(
             Actor::ActingMinion,
@@ -1628,7 +1628,7 @@ pub static DELAYING_TACTICS: CardDef = CardDef {
     name: "Delaying Tactics",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[polling_mode!(
         Actor::ReactingMinion,
         &[Requirement::PollingStep],
@@ -1649,7 +1649,7 @@ pub static CLOSED_SESSION: CardDef = CardDef {
     name: "Closed Session",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[polling_mode!(
         Actor::ActingMinion,
         &[
@@ -1671,7 +1671,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     name: "Voter Captivation",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[
         ModeDef {
             windows: &[Window::ActionAfterResolution],
@@ -1698,7 +1698,11 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     riders: &[],
 };
 
-pub static DEFS: [&CardDef; 80] = [
+pub static DEFS: [&CardDef; 84] = [
+    &ELDER_LIBRARY,
+    &VISIT_FROM_THE_CAPUCHIN,
+    &WAKE_WITH_EVENINGS_FRESHNESS,
+    &MIRROR_WALK,
     &EARTH_CONTROL,
     &BONDING,
     &VILLEIN,
@@ -1801,7 +1805,7 @@ pub static ANARCH_REVOLT: CardDef = CardDef {
     name: "Anarch Revolt",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[ModeDef {
         windows: &[Window::MasterPhase],
         actor: Actor::Methuselah,
@@ -1846,7 +1850,7 @@ pub static GUARDIAN_ANGEL: CardDef = CardDef {
     name: "Guardian Angel",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[ModeDef {
         windows: &[Window::MasterPhase],
         actor: Actor::Methuselah,
@@ -1891,7 +1895,7 @@ pub static FAME: CardDef = CardDef {
     name: "Fame",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[ModeDef {
         windows: &[Window::MasterPhase],
         actor: Actor::Methuselah,
@@ -1932,7 +1936,7 @@ pub static TENSION_IN_THE_RANKS: CardDef = CardDef {
     name: "Tension in the Ranks",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[ModeDef {
         windows: &[Window::MasterPhase],
         actor: Actor::Methuselah,
@@ -1978,7 +1982,7 @@ pub static SMILING_JACK: CardDef = CardDef {
     name: "Smiling Jack, The Anarch",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[ModeDef {
         windows: &[Window::MasterPhase],
         actor: Actor::Methuselah,
@@ -2031,7 +2035,7 @@ pub static DREAMS_OF_THE_SPHINX: CardDef = CardDef {
     name: "Dreams of the Sphinx",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[ModeDef {
         windows: &[Window::MasterPhase],
         actor: Actor::Methuselah,
@@ -2103,7 +2107,7 @@ pub static THE_BARRENS: CardDef = CardDef {
     name: "Barrens, The",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[ModeDef {
         windows: &[Window::MasterPhase],
         actor: Actor::Methuselah,
@@ -2142,7 +2146,7 @@ pub static THE_COVEN: CardDef = CardDef {
     name: "Coven, The",
     trifle: true,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[ModeDef {
         windows: &[Window::MasterPhase],
         actor: Actor::Methuselah,
@@ -2185,7 +2189,7 @@ pub static CONSTANT_REVOLUTION: CardDef = CardDef {
     name: "Constant Revolution",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[ModeDef {
         windows: &[Window::ActionDeclare],
         actor: Actor::ActingCandidate,
@@ -2241,7 +2245,7 @@ pub static CREEPING_SABOTAGE: CardDef = CardDef {
     name: "Creeping Sabotage",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[ModeDef {
         windows: &[Window::ActionDeclare],
         actor: Actor::ActingCandidate,
@@ -2318,7 +2322,7 @@ pub static BLOOD_DOLL: CardDef = CardDef {
     name: "Blood Doll",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[ModeDef {
         windows: &[Window::MasterPhase],
         actor: Actor::Methuselah,
@@ -2346,7 +2350,7 @@ pub static VESSEL: CardDef = CardDef {
     name: "Vessel",
     trifle: true,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[ModeDef {
         windows: &[Window::MasterPhase],
         actor: Actor::Methuselah,
@@ -2400,7 +2404,7 @@ macro_rules! hunting_ground {
             name: $printed,
             trifle: false,
             out_of_turn: false,
-            delayed_replacement: false,
+            delayed_replacement: None,
             modes: &[ModeDef {
                 windows: &[Window::MasterPhase],
                 actor: Actor::Methuselah,
@@ -2449,7 +2453,7 @@ pub static PAPILLON: CardDef = CardDef {
     name: "Papillon",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[ModeDef {
         windows: &[Window::MasterPhase],
         actor: Actor::Methuselah,
@@ -2485,7 +2489,7 @@ pub static CARFAX_ABBEY: CardDef = CardDef {
     name: "Carfax Abbey",
     trifle: false,
     out_of_turn: false,
-    delayed_replacement: false,
+    delayed_replacement: None,
     modes: &[ModeDef {
         windows: &[Window::MasterPhase],
         actor: Actor::Methuselah,
@@ -2534,5 +2538,127 @@ pub static CARFAX_ABBEY: CardDef = CardDef {
             effects: &[Effect::HuntingGroundBlood(1)],
         },
     ],
+    riders: &[],
+};
+
+// ---- Replacement and hand size (slice 7) ----------------------------------
+
+/// "Unique location. +1 hand size." A hand-size layer of its controller,
+/// suspended while the card is contested (ANK 20221028: a second copy
+/// enters contest without modifying the hand size).
+pub static ELDER_LIBRARY: CardDef = CardDef {
+    name: "Elder Library",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::PutInPlay, Effect::Layer(Modifier::HandSize(1))],
+    }],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Unique. Put this card in play with 4 counters. You get +1 hand size for
+/// each counter on this card. Each time you would replace a card other
+/// than this card, instead burn 1 counter from this card. Burn this card if
+/// it has no counters." Its own replacement is drawn normally, up to the
+/// new hand size; every later replacement — whatever took the card out of
+/// hand (spec §6.8.3) — burns a counter instead, the hand size shrinking
+/// with it (`Hook::WouldReplace`). A second copy of one's own is masked
+/// (PIB 20121031: the self-contest rule, rules-qa 7.1).
+pub static VISIT_FROM_THE_CAPUCHIN: CardDef = CardDef {
+    name: "Visit from the Capuchin",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::PutInPlay,
+            Effect::EnterWithCounters(4),
+            Effect::Layer(Modifier::HandSizePerCounter),
+        ],
+    }],
+    abilities: &[],
+    riders: &[Rider {
+        hook: Hook::WouldReplace,
+        scope: RiderScope::Controller,
+        requires: &[Requirement::CountersAtLeast(1)],
+        effects: &[Effect::RemoveCounter(1), Effect::BurnSelfWithoutCounters],
+    }],
+};
+
+/// "Only usable by a locked vampire. Do not replace until your next unlock
+/// phase. This vampire wakes (they ignore the requirement to be unlocked
+/// for playing reaction cards and attempting to block until the end of the
+/// action)." The wake of Eyes of Argus [AUS], held back until the player's
+/// next unlock phase.
+pub static WAKE_WITH_EVENINGS_FRESHNESS: CardDef = CardDef {
+    name: "Wake with Evening's Freshness",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: Some(Until::NextUnlockPhase),
+    modes: &[ModeDef {
+        windows: &[Window::Wake, Window::CardAsPlayed],
+        actor: Actor::ReactingMinion,
+        requires: &[Requirement::LockedActor],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::Wake],
+    }],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Do not replace until your next discard phase. [tha] +1 stealth. [THA]
+/// As above, and if this action is blocked, lock the blocking minion and
+/// end the action before block resolution." The stealth only when needed
+/// (rules-qa 3.2); the [THA] end is read where the block resolves: the
+/// blocker locks, no combat, no diablerie opportunity on a blocked
+/// leave-torpor (PIB 20121216), nothing more is played on the action (RTR
+/// 20180719).
+pub static MIRROR_WALK: CardDef = CardDef {
+    name: "Mirror Walk",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: Some(Until::NextDiscardPhase),
+    modes: &[
+        ModeDef {
+            windows: &[Window::ActionStealthIntercept],
+            actor: Actor::ActingMinion,
+            requires: &[Requirement::StealthNeeded],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::AddStealth(1)],
+        },
+        ModeDef {
+            windows: &[Window::ActionStealthIntercept],
+            actor: Actor::ActingMinion,
+            requires: &[Requirement::StealthNeeded],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::AddStealth(1), Effect::EndActionIfBlocked],
+        },
+    ],
+    abilities: &[],
     riders: &[],
 };

@@ -39,7 +39,7 @@ fn zone_totals(e: &Engine) -> Vec<usize> {
         .collect()
 }
 
-fn invariants(e: &Engine, totals: &[usize], hands: &[(usize, u8)], seed: u64, window: WindowLabel) {
+fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
     let st = &e.state;
     assert!(
         !st.seats[st.active.index()].ousted,
@@ -61,22 +61,17 @@ fn invariants(e: &Engine, totals: &[usize], hands: &[(usize, u8)], seed: u64, wi
                 "overfilled uncontrolled slot (seed {seed})"
             );
         }
-        // Over hand size only while discarding down after a canceled
-        // referendum returned the political action card, or under Dreams
-        // of the Sphinx's bonus — the one in force now or at the previous
-        // decision (a draw-up under it, then the turn ending, happens
-        // between two decisions); cards over size stay but the hand never
-        // grows again once the bonus is gone.
-        let (was, bonus_was) = hands[i];
+        // Never over hand size — the cards not replaced yet counting
+        // against it — except while discarding down (rulebook "Drawing
+        // Cards": at once).
+        let size = st.hand_size(zvtes::ids::SeatId(i as u8));
         assert!(
-            s.hand.len() <= HAND_SIZE + s.hand_bonus.max(bonus_was) as usize
-                || s.hand.len() <= was
+            s.ousted
+                || s.hand.len() + s.held.total() <= size
                 || window == WindowLabel::DiscardDown,
-            "hand over size at seat {i} (seed {seed}): {} cards, bonus {}, was {} (bonus {}), at {window:?}",
+            "hand over size at seat {i} (seed {seed}): {} cards + {} held, size {size}, at {window:?}",
             s.hand.len(),
-            s.hand_bonus,
-            was,
-            bonus_was
+            s.held.total(),
         );
     }
     // Every card in play is controlled by a living Methuselah.
@@ -331,6 +326,10 @@ fn midgame(seed: u64) -> Engine {
         "Coven, The",
         "Constant Revolution",
         "Carfax Abbey",
+        "Elder Library",
+        "Visit from the Capuchin",
+        "Wake with Evening's Freshness",
+        "Mirror Walk",
     ]
     .iter()
     .map(|n| find_library(n))
@@ -430,12 +429,6 @@ fn play(seed: u64, start: fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<Strin
     let totals = zone_totals(&e);
     let mut agent = RandomLegal::new(seed ^ 0x00c0_ffee);
     let mut chosen = HashSet::new();
-    let mut hands: Vec<(usize, u8)> = e
-        .state
-        .seats
-        .iter()
-        .map(|s| (s.hand.len(), s.hand_bonus))
-        .collect();
     loop {
         assert!(
             e.decisions < DECISION_BUDGET,
@@ -448,10 +441,7 @@ fn play(seed: u64, start: fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<Strin
                     "decision requested from an ousted seat (seed {seed}, {:?})",
                     req.window
                 );
-                invariants(&e, &totals, &hands, seed, req.window);
-                for (h, s) in hands.iter_mut().zip(&e.state.seats) {
-                    *h = (s.hand.len(), s.hand_bonus);
-                }
+                invariants(&e, &totals, seed, req.window);
                 for o in &req.options {
                     if let Choice::UseAbility { card, .. } = o {
                         // Spec §1.13.3: nothing printed on a contested card
@@ -662,6 +652,10 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "ability:Coven, The",
             "play:Constant Revolution",
             "ability:Constant Revolution",
+            "play:Elder Library",
+            "play:Visit from the Capuchin",
+            "play:Wake with Evening's Freshness",
+            "play:Mirror Walk",
             // (Smiling Jack's pool unit elides when it is the only source and
             // is seldom picked against several vampires: no key.)
             "burn_blood_from",

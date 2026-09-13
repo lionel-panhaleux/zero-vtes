@@ -198,6 +198,25 @@ pub struct OutOfTurn {
     pub trifle: bool,
 }
 
+/// Cards played but not replaced yet, by the moment their replacement is
+/// drawn (spec §1.9.2).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Held {
+    /// "Do not replace until your next unlock phase" (Old Friends).
+    pub unlock: u8,
+    /// "Do not replace until your next discard phase" (Mirror Walk).
+    pub discard: u8,
+    /// Replaced at the end of the current action (Consign to Oblivion
+    /// [OBL]).
+    pub action: u8,
+}
+
+impl Held {
+    pub fn total(self) -> usize {
+        self.unlock as usize + self.discard as usize + self.action as usize
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Seat {
     pub pool: i32,
@@ -228,9 +247,9 @@ pub struct Seat {
     /// Discard phase actions left in the current discard phase.
     pub dpa: u8,
     pub turns_taken: u32,
-    /// Cards played with "do not replace until your next unlock phase":
-    /// the hand stays that many short until then.
-    pub delayed_draws: u8,
+    /// Cards played but not replaced yet: they count against the hand
+    /// size until then (rulebook "Drawing Cards"; spec §6.8.1).
+    pub held: Held,
     /// Political actions the seat's minions cannot perform again this
     /// turn (Delaying Tactics): a card by name, a granted action by copy
     /// (LSJ 20020201).
@@ -356,6 +375,38 @@ impl GameState {
         }
     }
 
+    /// Hand size (rulebook "Drawing Cards"): seven, the until-end-of-turn
+    /// bonus (Dreams of the Sphinx), and the hand-size layers of the
+    /// uncontested cards in play the seat controls (Elder Library; Visit
+    /// from the Capuchin, one per counter; spec §1.13.3: a contested
+    /// location gives no hand size).
+    pub fn hand_size(&self, s: SeatId) -> usize {
+        let mut size = HAND_SIZE as i32 + self.seats[s.index()].hand_bonus as i32;
+        for l in &self.layers {
+            if l.scope != crate::cards::Scope::InPlay
+                || !self.layer_active(l)
+                || self.card_controller(l.source) != s
+            {
+                continue;
+            }
+            match l.modifier {
+                crate::cards::Modifier::HandSize(n) => size += n as i32,
+                crate::cards::Modifier::HandSizePerCounter => {
+                    size += self.cards[l.source.index()].counters as i32
+                }
+                _ => {}
+            }
+        }
+        size.max(0) as usize
+    }
+
+    /// Cards over hand size, the cards not replaced yet counting against
+    /// it: discarded down at once (rulebook "Drawing Cards"; spec §6.8.1).
+    pub fn hand_excess(&self, s: SeatId) -> usize {
+        let seat = &self.seats[s.index()];
+        (seat.hand.len() + seat.held.total()).saturating_sub(self.hand_size(s))
+    }
+
     /// A rider's card and host predicates hold (a hostless card has no
     /// host predicate to fail).
     pub fn rider_holds(&self, r: &crate::cards::Rider, id: CardId) -> bool {
@@ -471,7 +522,9 @@ impl GameState {
             mix(s.hand_bonus as u64);
             mix(s.trifle_used as u64);
             mix(s.dpa as u64);
-            mix(s.delayed_draws as u64);
+            mix(s.held.unlock as u64);
+            mix(s.held.discard as u64);
+            mix(s.held.action as u64);
             mix(s.forbidden_political.len() as u64);
             for a in &s.forbidden_political {
                 mix(match a {

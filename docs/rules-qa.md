@@ -949,3 +949,62 @@ the stealth and is not playable unless a block attempt matches the
 current stealth with equal intercept. Applied: `Requirement::StealthNeeded`
 on Bonding's [DOM] mode (the [dom] bleed bonus alone is playable before an
 attempt).
+
+### 8.2 Discarding down when a hand-size bonus ends
+
+Slice 5g let the cards drawn under Dreams of the Sphinx's "+2 hand size
+until the end of the turn" stay once the bonus ended, citing ANK 20180318
+— which only says that cards not replaced count against the hand size.
+The rulebook ("Drawing Cards": "whenever an effect changes your hand size
+or adds or removes cards from your hand, immediately discard down to or
+draw up to match your hand size") says otherwise, and the engine now
+discards down at once whenever a hand is over size: after the discard
+phase for Dreams of the Sphinx (LSJ 20100812 still holds: no discard-down
+during the phase), and for the controller of an Elder Library that
+becomes contested (its +1 is gone, spec §1.13.3). Is that right?
+
+**Tests** — `dreams_of_the_sphinx_hand_size_lock_lasts_the_turn`,
+`dreams_of_the_sphinx_bonus_lasts_through_the_discard_phase`,
+`elder_library_enters_contest_without_modifying_the_hand_size`.
+
+**Answer (2026-09-13)** — Yes, both: the hand is discarded down at once
+when Dreams of the Sphinx's bonus ends, and when an Elder Library becomes
+contested.
+
+### 8.3 What Visit from the Capuchin counts as replacing a card
+
+"Each time you would replace a card other than this card, instead burn 1
+counter from this card." The engine burns a counter for every card the
+rules replace, whatever took it out of hand (spec §6.8.3): a card played
+or canceled, the discard phase action, a political action card burned for
+a ballot, The Barrens' and Tension in the Ranks' discards, Constant
+Revolution's random burns, and a delayed replacement when it comes due
+(Old Friends at the unlock phase). A draw-up after a hand-size increase
+(Dreams of the Sphinx) is not a replacement. Two points: (a) do The
+Barrens' "discard a card (draw up afterward)" and the refill after
+Constant Revolution's random burns count as replacing cards? (b) With an
+empty library, is a counter still burned (the engine: yes — the
+replacement itself is what the Capuchin replaces)?
+
+**Tests** — `visit_from_the_capuchin_burns_a_counter_instead_of_each_replacement`,
+`visit_from_the_capuchin_burns_nothing_with_an_empty_library`.
+
+**Answer (2026-09-13)** — (a) Yes: The Barrens' "draw up afterward" and
+Constant Revolution's refill are replacements. (b) No: with an empty
+library no card is replaced, so no counter is burned. Applied:
+`Engine::replace` offers nothing to the `WouldReplace` riders once the
+library is empty.
+
+### 8.4 Mirror Walk: the discard phase it waits for, the blocked end
+
+"Do not replace until your next discard phase": played in its
+Methuselah's own minion phase, the engine replaces it as that same turn's
+discard phase begins. [THA] "end the action before block resolution": the
+engine records the action as blocked (its no-repeat-action identity kept,
+the blocker locked by the effect), with no combat and nothing more played
+on it. Is that right?
+
+**Tests** — `mirror_walk_superior_ends_the_blocked_action_before_block_resolution`,
+`mirror_walk_on_a_blocked_leave_torpor_gives_no_diablerie_opportunity`.
+
+**Answer (2026-09-13)** — Correct.

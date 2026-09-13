@@ -455,10 +455,18 @@ The engine's value is trust; trust is measured, not asserted.
    | Lock / burn abilities in action or combat windows | 17 | Homunculus, Guardian Angel | done (abilities in windows); untimed "you can lock this card" done (`Window::AnyImpulse`: The Barrens, Dreams of the Sphinx) |
    | Counters on a card | 46 | Smiling Jack, Dreams of the Sphinx | done (`CardInPlay.counters`; `PoolToCounter`, `AddCounter`, `BurnSelfAtCounters`, `CountersAtLeast`) |
 
-   Two mechanisms sit outside the hook shape and are not started:
-   library search (Black Market Cache, Childe of the Revolution) and draw
-   replacement (Black Market Cache, Shilmulo Tarot, Visit from the
-   Capuchin). Control change of a card in play is done for the hostless
+   | Would replace a card | — | Visit from the Capuchin | done (`Hook::WouldReplace` in `Engine::replace`; delayed replacements by `Until`) |
+
+   Library search sits outside the hook shape and is not started: every
+   V5 search card needs another mechanism first — equipment (Magic of the
+   Smith, Vast Wealth, Michael Harris; Black Market Cache fetches
+   equipment) or an action creating a vampire (Childe of the Revolution,
+   Waters of Duat) — so it lands with the equipment slice, as do the
+   draw alternatives ("if you would draw a card from your library, you
+   can draw one of those cards instead": Black Market Cache, Shilmulo
+   Tarot). A search chooses its card at resolution, not at announcement
+   (spec §1.14.1, §3.1.2), and shuffles with the engine's `Rng`. Control
+   change of a card in play is done for the hostless
    case (`CardInPlay.controller`, The Coven); "steal this location"
    actions and the re-placement of a stolen minion card (spec §6.3.2)
    land with the equipment slice.
@@ -751,8 +759,8 @@ Recorded so nobody mistakes them for oversights:
   counters `AddCounter` / `BurnSelfAtCounters` (the third lock's effect
   lands, then the card burns); `Seat.hand_bonus` for "+2 hand size until
   the end of the turn" (drawn up at once, cleared at the end of the
-  discard phase per LSJ 20100812, cards over size stay per ANK 20180318 —
-  the fuzz hand invariant allows +2); `GainPool`, `HasEdge`;
+  discard phase per LSJ 20100812, the cards over size then discarded down
+  — corrected in slice 7, rules-qa 8.2); `GainPool`, `HasEdge`;
   `TargetKind::Uncontrolled` / `Target::Uncontrolled(slot)` /
   `BloodToUncontrolledTarget` (capped at capacity); `Terms::Discard { n,
   masters }` generalizes the discard terms (The Barrens: any card,
@@ -809,8 +817,40 @@ Recorded so nobody mistakes them for oversights:
   lines, misattributing their rulings to the previous card (1121 rows
   now). Rules-qa 8.1 answered (2026-09-07): Bonding's [DOM] mode needs the
   stealth to be needed (`StealthNeeded`), like a plain stealth card. Next:
-  library search and draw replacement (the `blocked:` rows name the rest
-  of the gaps).
+  draw replacement and hand size (the `blocked:` rows name the rest of
+  the gaps).
+  Slice 7 (2026-09-13): replacement and hand size. Hand size is derived
+  (`GameState::hand_size`: 7, the until-end-of-turn bonus, and the
+  `Modifier::HandSize` / `HandSizePerCounter` layers of the uncontested
+  cards the seat controls), and the cards not replaced yet count against
+  it (`Seat.held`, by the moment they come due: `Until::NextUnlockPhase`
+  before cards unlock, `Until::NextDiscardPhase` as the discard phase
+  begins, the end of the action for Consign to Oblivion [OBL]; spec
+  §1.9.2, the longest delay wins). A hand over that size is discarded down
+  before any other decision (`WindowLabel::DiscardDown` for any seat;
+  rulebook "Drawing Cards": "immediately discard down") — which corrects
+  slice 5g: the cards over size after Dreams of the Sphinx's bonus no
+  longer stay (rules-qa 8.2). Every card leaving the hand that the rules
+  replace goes through `Engine::replace` — a card played or canceled, the
+  action card at declaration, the discard phase action, ability discards
+  (The Barrens, Tension in the Ranks), a political action card burned for
+  a ballot, Constant Revolution's random burns, a delayed replacement
+  coming due — which offers each replacement to the seat's
+  `Hook::WouldReplace` riders first (spec §6.8.3: "whatever took the card
+  out of hand"; rules-qa 8.3: an empty library replaces nothing, so
+  nothing burns instead); a hand-size increase only draws up
+  (`draw_up`), a library-card contest ending included. Mirror Walk [THA]:
+  `Effect::EndActionIfBlocked` ends the action as blocked where the block
+  resolves — the blocker locked, no combat, no diablerie on a blocked
+  leave-torpor (rules-qa 8.4). Definitions: Elder Library, Visit from the
+  Capuchin, Wake with Evening's Freshness, Mirror Walk (84 defs). Ledger:
+  266 rows on 84 defs, 79 tests referenced; Consign to Oblivion's "replace
+  the action card before playing it" row is now a test (the action card
+  is replaced at declaration, before the as-announced window). Library
+  search is not in this slice (§7.4): it lands with equipment, with the
+  draw alternatives (Black Market Cache, Shilmulo Tarot) — the tenants of
+  the Capuchin's "choose which replacement treatment applies" (ANK
+  20200905, `blocked:`).
 - **P2 — full engine pool**: all 621 cards including Events and their machinery;
   the 14 training decklists plus the New Blood minis as data; perft baselines;
   protocol server; scripted reference bots (aggro-bleed, wall, vote).

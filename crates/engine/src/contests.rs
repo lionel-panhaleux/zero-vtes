@@ -77,6 +77,9 @@ impl Engine {
                 let card = &mut self.state.cards[c.index()];
                 card.contested = false;
                 card.locked = false;
+                // Its hand size applies again: draw up at once.
+                let controller = self.state.card_controller(c);
+                self.draw_up(controller);
             }
         }
     }

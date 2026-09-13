@@ -602,6 +602,11 @@ pub enum Modifier {
     /// The layer source's host gets this intercept during bleed actions
     /// directed at its controller (Guardian Angel).
     HostInterceptOnBleedAtYou(i8),
+    /// The layer source's controller gets this hand size (Elder Library).
+    HandSize(i8),
+    /// The layer source's controller gets +1 hand size per counter on it
+    /// (Visit from the Capuchin).
+    HandSizePerCounter,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -638,6 +643,8 @@ impl Layer {
                 1 << 33 ^ (younger_than as u64) << 8 ^ (n as i64 as u64 & 0xff)
             }
             Modifier::HostInterceptOnBleedAtYou(n) => 1 << 34 ^ (n as i64 as u64 & 0xff),
+            Modifier::HandSize(n) => 1 << 35 ^ (n as i64 as u64 & 0xff),
+            Modifier::HandSizePerCounter => 1 << 35 ^ 1 << 12,
         };
         (self.source.0 as u64) << 40 ^ (self.scope as u64) << 36 ^ m
     }
@@ -699,6 +706,11 @@ pub enum Effect {
     /// Burn this card once it carries n counters ("burn this card if it
     /// has 3 counters"), checked as the ability resolves.
     BurnSelfAtCounters(u8),
+    /// Rider effect: burn n counters from this card (Visit from the
+    /// Capuchin: "instead burn 1 counter from this card").
+    RemoveCounter(u8),
+    /// Rider effect: burn this card if it has no counters left.
+    BurnSelfWithoutCounters,
     /// The player gains n pool.
     GainPool(u8),
     /// The player's hand size grows by n until the end of the turn (the
@@ -749,6 +761,9 @@ pub enum Effect {
     ActionFails,
     /// Reaction cards are not replaced until the end of the action.
     DeferReactionReplacement,
+    /// If this action is blocked, lock the blocking minion and end the
+    /// action before block resolution (Mirror Walk [THA]).
+    EndActionIfBlocked,
     /// The card (a retainer) enters play on the acting minion with this life.
     EmployRetainer { life: u8 },
     /// Burn 1 blood from the host of this card in play to unlock it.
@@ -860,6 +875,12 @@ pub enum Hook {
     /// Methuselah is not burned (spec §1.10), nor is one burned from
     /// torpor or from a contest.
     ReadyMinionBurnedOrTorpor,
+    /// The controller would replace a card (effects-framework §5
+    /// `replacement`): the rider's effects happen instead of the draw
+    /// (Visit from the Capuchin). Every replacement draw counts, whatever
+    /// took the card out of hand (spec §6.8.3), a delayed one when it
+    /// finally comes due included.
+    WouldReplace,
 }
 
 /// Whose turn a phase rider fires on.
@@ -910,6 +931,17 @@ pub struct ModeDef {
     pub effects: &'static [Effect],
 }
 
+/// When a card played with a "do not replace until" clause is replaced:
+/// at the first moment the condition is met, ahead of any other effect
+/// (spec §1.9.2). A canceled card is replaced at once (§1.9.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Until {
+    /// "Until your next unlock phase": before cards unlock.
+    NextUnlockPhase,
+    /// "Until your next discard phase": as the phase begins.
+    NextDiscardPhase,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CardDef {
     /// Printed name; matched against `library::LIBRARY`.
@@ -918,8 +950,8 @@ pub struct CardDef {
     pub trifle: bool,
     /// Out-of-turn master card (rulebook "Out-of-turn"; rules-qa 3.3).
     pub out_of_turn: bool,
-    /// "Do not replace until your next unlock phase" (Old Friends).
-    pub delayed_replacement: bool,
+    /// "Do not replace until …" (Old Friends, Mirror Walk).
+    pub delayed_replacement: Option<Until>,
     /// Playable modes (from hand).
     pub modes: &'static [ModeDef],
     /// In-play abilities (the same shape; actor is the host, or a ready

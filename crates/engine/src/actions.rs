@@ -76,7 +76,9 @@ pub struct ActionCtx {
     pub woken: Vec<MinionId>,
     /// Consign to Oblivion [OBL]: reactions replaced at the end of the action.
     pub defer_reaction_replacement: bool,
-    pub deferred_draws: Vec<SeatId>,
+    /// Mirror Walk [THA]: if blocked, the blocker locks and the action
+    /// ends before block resolution.
+    pub end_on_block: bool,
     /// Archon Investigation: the action is not successful.
     pub failed: bool,
     /// Set when the action ends.
@@ -252,7 +254,7 @@ impl Engine {
             declined: Vec::new(),
             woken: Vec::new(),
             defer_reaction_replacement: false,
-            deferred_draws: Vec::new(),
+            end_on_block: false,
             failed: false,
             outcome: None,
             blocker: None,
@@ -708,6 +710,7 @@ impl Engine {
                 });
             }
             Effect::DeferReactionReplacement => a.defer_reaction_replacement = true,
+            Effect::EndActionIfBlocked => a.end_on_block = true,
             other => unreachable!("not an action effect: {other:?}"),
         }
         self.action = Some(a);
@@ -736,6 +739,14 @@ impl Engine {
             ActionKind::Bleed => self.state.minions[acting.index()].bled_this_turn = true,
             ActionKind::Political => self.state.minions[acting.index()].political_this_turn = true,
             _ => {}
+        }
+        // Mirror Walk [THA]: the action ends before block resolution — no
+        // combat, no diablerie opportunity on a blocked leave-torpor (PIB
+        // 20121216), nothing more played on it (RTR 20180719).
+        if self.action.as_ref().is_some_and(|a| a.end_on_block) {
+            self.action.as_mut().expect("action context").outcome = Some(Outcome::Blocked);
+            self.end_action();
+            return;
         }
         match kind {
             ActionKind::LeaveTorpor => self.flow = Flow::TorporBlock,
@@ -966,7 +977,6 @@ impl Engine {
         let a = self.action.as_ref().expect("action context");
         let seat = a.seat;
         let acting = a.acting;
-        let deferred = a.deferred_draws.clone();
         if let Some(play) = a.card {
             let in_play = a.card_entered_play
                 || self
@@ -987,9 +997,7 @@ impl Engine {
                 .push(ActionId::InPlay(src));
         }
         self.state.layers.retain(|l| l.scope != Scope::Action);
-        for s in deferred {
-            self.draw_to_hand_size(s);
-        }
+        self.release_action_holds();
     }
 
     pub(crate) fn end_action(&mut self) {
