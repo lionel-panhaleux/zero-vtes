@@ -183,7 +183,10 @@ fn kind_of(c: &Choice) -> &'static str {
             ActionKind::Political => "political",
             ActionKind::Card => "card_action",
             ActionKind::BurnCard => "burn_card",
+            ActionKind::Equip => "equip",
+            ActionKind::EquipFrom => "equip_from",
         },
+        Choice::TakeEquipment { .. } => "take_equipment",
         Choice::DeclareBlock { .. } => "declare_block",
         Choice::PayRescue { .. } => "pay_rescue",
         Choice::CastVotes { .. } => "cast_votes",
@@ -330,6 +333,22 @@ fn midgame(seed: u64) -> Engine {
         "Visit from the Capuchin",
         "Wake with Evening's Freshness",
         "Mirror Walk",
+        "Sport Bike",
+        "Unlicensed Taxicab",
+        "Treasured Samadji",
+        "Codex of the Edenic Groundskeepers",
+        "Stolen Police Cruiser",
+        "Bowl of Convergence",
+        ".44 Magnum",
+        "AK-47",
+        "Assault Rifle",
+        "Flamethrower",
+        "Ivory Bow",
+        "Femur of Toomler",
+        "Kali's Fang",
+        "Sniper Rifle",
+        "Kevlar Vest",
+        "Righteous Blade",
     ]
     .iter()
     .map(|n| find_library(n))
@@ -656,6 +675,40 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "play:Visit from the Capuchin",
             "play:Wake with Evening's Freshness",
             "play:Mirror Walk",
+            "play:Sport Bike",
+            "play:Unlicensed Taxicab",
+            // (Treasured Samadji needs a Ravnos to equip and its dodge a
+            // Ravnos bearer in a combat — rare in random hands: scripted in
+            // tests/equipment.rs.)
+            "play:Codex of the Edenic Groundskeepers",
+            "ability:Codex of the Edenic Groundskeepers",
+            "play:Stolen Police Cruiser",
+            "ability:Stolen Police Cruiser",
+            "play:Bowl of Convergence",
+            "play:.44 Magnum",
+            "ability:.44 Magnum",
+            "play:AK-47",
+            "ability:AK-47",
+            "play:Assault Rifle",
+            "ability:Assault Rifle",
+            "play:Flamethrower",
+            // (Flamethrower, Femur of Toomler and Kali's Fang strikes — the
+            // clan weapons need their clan to equip — are rare in random
+            // combats; the same strike kinds are taken with Ivory Bow and
+            // Righteous Blade, and the Femur's and the Fang's are scripted
+            // in tests/weapons.rs.)
+            "play:Ivory Bow",
+            "ability:Ivory Bow",
+            "play:Femur of Toomler",
+            "play:Kali's Fang",
+            "play:Sniper Rifle",
+            "ability:Sniper Rifle",
+            "play:Kevlar Vest",
+            "ability:Kevlar Vest",
+            "play:Righteous Blade",
+            "ability:Righteous Blade",
+            "equip_from",
+            "take_equipment",
             // (Smiling Jack's pool unit elides when it is the only source and
             // is seldom picked against several vampires: no key.)
             "burn_blood_from",

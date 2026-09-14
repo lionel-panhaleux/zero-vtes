@@ -74,6 +74,9 @@ pub struct Minion {
     /// Gained blood from a hunting ground this turn ("a vampire can gain
     /// blood from only one hunting ground each turn").
     pub hunting_ground_fed: bool,
+    /// "Does not unlock as normal during their next unlock phase" (Stolen
+    /// Police Cruiser): cleared by that unlock phase.
+    pub skip_unlock: bool,
     /// Actions this minion performed this turn that reached resolution
     /// (NRA, rules-qa 1.4): a card from hand by name, a card in play by
     /// copy; bleeds and political actions are capped by type besides.
@@ -420,6 +423,81 @@ impl GameState {
         })
     }
 
+    /// Does minion `m` have a card in play of this kind on it?
+    pub fn holds_a(&self, m: MinionId, h: crate::cards::Holding) -> bool {
+        self.cards
+            .iter()
+            .any(|c| c.in_play && c.host == Some(m) && holding_matches(c.card, h))
+    }
+
+    /// Could minion `m` take equipment `card` as well — none of the card's
+    /// "a minion can have only one X" limits reached by what it has or by
+    /// the cards `with` it takes in the same action?
+    pub fn can_hold(&self, m: MinionId, card: u16, with: &[u16]) -> bool {
+        let Some(def) = crate::cards::lookup(card) else {
+            return true;
+        };
+        def.modes
+            .iter()
+            .flat_map(|mode| mode.requires.iter())
+            .all(|r| match *r {
+                crate::cards::Requirement::ActorWithout(h) => {
+                    !self.holds_a(m, h) && !with.iter().any(|&w| holding_matches(w, h))
+                }
+                _ => true,
+            })
+    }
+
+    /// Equipment on minion `m` (uncontested cards in play of the
+    /// equipment type).
+    pub fn equipment_on(&self, m: MinionId) -> Vec<CardId> {
+        self.cards
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| {
+                c.present()
+                    && c.host == Some(m)
+                    && LIBRARY[c.card as usize]
+                        .types
+                        .contains(&crate::library::CardType::Equipment)
+            })
+            .map(|(i, _)| CardId(i as u32))
+            .collect()
+    }
+
+    /// What the cards in play on minion `m` add to `stat` during its
+    /// action of `kind` (`Modifier::Bearer`; contested cards give
+    /// nothing).
+    pub fn bearer_mod(
+        &self,
+        m: MinionId,
+        stat: crate::cards::Stat,
+        kind: crate::decision::ActionKind,
+    ) -> i32 {
+        self.layers
+            .iter()
+            .filter(|l| {
+                l.scope == crate::cards::Scope::InPlay
+                    && self.layer_active(l)
+                    && self.cards[l.source.index()].host == Some(m)
+            })
+            .filter_map(|l| match l.modifier {
+                crate::cards::Modifier::Bearer {
+                    stat: s,
+                    n,
+                    during,
+                    who,
+                } if s == stat
+                    && (during.is_empty() || during.contains(&kind))
+                    && who.is(self, m) =>
+                {
+                    Some(n as i32)
+                }
+                _ => None,
+            })
+            .sum()
+    }
+
     /// Vampires in torpor, any controller — rescue and diablerie targets.
     pub fn in_torpor(&self) -> Vec<MinionId> {
         self.minions
@@ -568,6 +646,7 @@ impl GameState {
             mix(m.political_this_turn as u64);
             mix(m.expelled as u64);
             mix(m.hunting_ground_fed as u64);
+            mix(m.skip_unlock as u64);
             mix(m.acted.len() as u64);
             for &c in &m.acted {
                 mix(match c {
@@ -596,6 +675,13 @@ impl GameState {
             mix(l.hash());
         }
         h
+    }
+}
+
+fn holding_matches(card: u16, h: crate::cards::Holding) -> bool {
+    match h {
+        crate::cards::Holding::Label(l) => LIBRARY[card as usize].labels.contains(&l),
+        crate::cards::Holding::Named(n) => LIBRARY[card as usize].name == n,
     }
 }
 

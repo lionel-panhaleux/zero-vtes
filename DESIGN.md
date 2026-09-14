@@ -447,11 +447,11 @@ The engine's value is trust; trust is measured, not asserted.
    | Minion burned / leaves the ready region | 7 | Tension in the Ranks | done (`Hook::ReadyMinionBurnedOrTorpor`, `burn_minion`) |
    | Enters play | 12 | The Rack, Ravnos Carnival | pending |
    | After a successful action / bleed | 2 | Alamut, Cappadocian Crypt | pending |
-   | Blocked / block resolution | 4 | Crypt's Sons, Sniper Rifle | pending |
-   | Combat steps (weapon strikes, maneuvers) | 37 | .44 Magnum | pending (equipment slice) |
+   | Blocked / block resolution | 4 | Crypt's Sons, Sniper Rifle, Unlicensed Taxicab | host rider done (`Hook::HostBlocked`: Unlicensed Taxicab); Sniper Rifle done as the blocker's before-range ability (`Requirement::ActorHasBlocked`, not a hook); Crypt's Sons pending |
+   | Combat steps (weapon strikes, maneuvers) | 37 | .44 Magnum | done (host strike abilities, `Side.strike_source`; a gun's maneuver or Sniper Rifle's range set commits the initial strike, `Side.committed`); armor's per-combat allowance, `Damage.gun`, and a weapon's press to continue, `Side.continue_presses` (Kevlar Vest, Righteous Blade) |
    | Polling step | 11 | Alamut | pending |
-   | Granted actions (Ⓓ burn / steal / enter combat) | 26 | Anarch Revolt, Creeping Sabotage | done for burn; steal and enter-combat pending |
-   | Continuous layers | 179 | Villein, Guardian Angel | done (`Layer`) |
+   | Granted actions (Ⓓ burn / steal / enter combat) | 26 | Anarch Revolt, Creeping Sabotage | done for burn and for a host's own action (Codex of the Edenic Groundskeepers' bleed); steal and enter-combat pending |
+   | Continuous layers | 179 | Villein, Guardian Angel | done (`Layer`; a bearer's stats `Modifier::Bearer`) |
    | Lock / burn abilities in action or combat windows | 17 | Homunculus, Guardian Angel | done (abilities in windows); untimed "you can lock this card" done (`Window::AnyImpulse`: The Barrens, Dreams of the Sphinx) |
    | Counters on a card | 46 | Smiling Jack, Dreams of the Sphinx | done (`CardInPlay.counters`; `PoolToCounter`, `AddCounter`, `BurnSelfAtCounters`, `CountersAtLeast`) |
 
@@ -461,7 +461,7 @@ The engine's value is trust; trust is measured, not asserted.
    V5 search card needs another mechanism first — equipment (Magic of the
    Smith, Vast Wealth, Michael Harris; Black Market Cache fetches
    equipment) or an action creating a vampire (Childe of the Revolution,
-   Waters of Duat) — so it lands with the equipment slice, as do the
+   Waters of Duat) — so it lands with the equipment slice (8c), as do the
    draw alternatives ("if you would draw a card from your library, you
    can draw one of those cards instead": Black Market Cache, Shilmulo
    Tarot). A search chooses its card at resolution, not at announcement
@@ -469,7 +469,8 @@ The engine's value is trust; trust is measured, not asserted.
    change of a card in play is done for the hostless
    case (`CardInPlay.controller`, The Coven); "steal this location"
    actions and the re-placement of a stolen minion card (spec §6.3.2)
-   land with the equipment slice.
+   land with locations (Dominate Kine [DOM], The Rack, the Powerbases,
+   Living Manse on a minion) — no precon card steals equipment.
 5. **Perft-style counts** on scripted positions (number of legal decision sequences
    to depth k) to catch legality regressions numerically.
 
@@ -851,6 +852,89 @@ Recorded so nobody mistakes them for oversights:
   draw alternatives (Black Market Cache, Shilmulo Tarot) — the tenants of
   the Capuchin's "choose which replacement treatment applies" (ANK
   20200905, `blocked:`).
+  Slice 8a (2026-09-13): the equip action and equipment on a minion, the
+  first of three equipment sub-slices (8b weapons in combat, 8c search and
+  draw alternatives). Equipping from hand is `ActionKind::Equip` (rulebook
+  "Equip": undirected, +1 stealth plus what the card prints for the action
+  to equip with it; pool and blood costs paid at resolution — unpayable, or
+  no longer holdable, by then it fizzles, rules-qa 3.6; no-repeat by card
+  name like employ, rules-qa 1.4). From another minion the Methuselah
+  controls, ready or in torpor, `ActionKind::EquipFrom` announces the
+  equipment one card at a time (`Flow::ActionTerms`,
+  `Choice::TakeEquipment`), is free, checks no requirement (ANK
+  20180719-3), adds each taken card's own equip stealth (LSJ 20060222) and
+  moves what is still there at resolution. "A minion can have only one
+  vehicle" is `Requirement::ActorWithout(Holding)`, read on the offers and
+  again at resolution (`GameState::can_hold`). What equipment gives its
+  bearer is read live on the current bearer: `Modifier::Bearer { stat, n,
+  during, who }` for stealth, bleed and intercept (`ActionCtx::stealth` and
+  `bleed_amount` take the state), the named trait in `who` (a non-Ravnos
+  holding Treasured Samadji gets nothing, rules-qa 9.1), and
+  `YoungerInterceptAgainstBearer`; host abilities are offered at the strike
+  choice under `CombatCtx::allows` (no dodge under a grapple); a host's own
+  granted action (`Actor::Host` declaring one: the Codex's bleed, 1 blood
+  paid at resolution and fizzling if the Codex left the acting vampire, RTR
+  19960221; its +3 against a Methuselah with no ready unlocked minion is
+  part of the action's bleed amount, read live like any bleed modifier);
+  `Hook::HostBlocked` riders applied where the block resolves, before
+  anything else (Unlicensed Taxicab, ANK 20220116; `TitleClass::Archbishop`
+  kept from the text, matching no V5 vampire yet); a granted burn's
+  `LockHostSkipNextUnlock` (`Minion.skip_unlock`). Definitions: Sport Bike,
+  Unlicensed Taxicab, Treasured Samadji, Codex of the Edenic Groundskeepers,
+  Stolen Police Cruiser, Bowl of Convergence (90 defs), scripted in
+  `tests/equipment.rs`. The Bowl's [AUS] burn is an ability timed in the
+  block loop's windows: once per action (`Limit::PerAction`,
+  `ActionCtx.abilities_used`), only on the bearer's own needed block
+  attempt, and counted by intercept reachability. Held back whole: Living
+  Manse (a location on a minion, with location stealing), Flaming Candle
+  (once a game) and Sword of the Archangel (a cancel of grapple and aim
+  cards). Rules-qa Batch 9 answered (2026-09-13): the bearer-trait and
+  equip-from readings stand; for 8c, Magic of the Smith offers no
+  equipment with an unpayable blood cost, Vast Wealth burns a first find
+  it cannot equip and pays an ousting pool cost, draw alternatives are a
+  choice per drawn card (one treatment per replacement beside the
+  Capuchin, nothing from an empty library), Heart of Nizchetus' bottom
+  order is the player's.
+  Slice 8b (2026-09-13): weapons in combat. A weapon's strike is an
+  ability of the card in play (`Actor::Host`, `CombatStrikeDeclaration`)
+  and the chosen strike remembers it (`Side.strike_source`): no longer on
+  the striker when strikes resolve, it has no effect (spec §4.10.4). A
+  melee weapon's "strength+1" is `StrikeKind::Melee`, close range and not
+  a hand strike (Immortal Grapple bars it, Claws of the Dead does not
+  reach it). "With 1 optional maneuver each combat" is a determine-range
+  ability limited per copy (`Limit::PerCombat`, tracking the weapon, LSJ
+  19980302-2) whose use chooses the initial strike (`Effect::CommitStrike`,
+  `Side.committed`; rulebook "Determine Range" and "Choose Strike"): only
+  that card's strike is offered for the round's initial strike, none at
+  all if an effect now bars it (spec §4.3.1), and no second commitment
+  that round; additional strikes are free. AK-47's rider
+  (`Effect::AdditionalStrikeWithSource`) is read once its strike has
+  resolved — dodged or not, not when a combat ends strike ended the round
+  first — and grants the round's one limited additional strike, only usable
+  with the gun or declined (`Side.additional_with`, `Choice::Pass` at the
+  strike choice). Sniper Rifle's "if the bearer blocks … before range is
+  determined" is a before-range ability of the blocker in the first round
+  (`ActorHasBlocked`, `FirstRound`): `Effect::SetRangeLong` skips the
+  determine range step, usable only while no other effect set the range
+  (RTR 19970630, ANK 20180720). Definitions: .44 Magnum, AK-47, Assault
+  Rifle, Flamethrower, Ivory Bow, Femur of Toomler, Kali's Fang, Sniper
+  Rifle (98 defs), scripted in `tests/weapons.rs`. Per-combat and
+  per-action ability uses are keyed by card copy alone — two limited
+  abilities on one card would share a use (none yet) — and a strike
+  commitment names a card in play: a strike card played in determine range
+  for its maneuver will need the same commitment on its play (none
+  implemented yet). Rules-qa Batch 10 answered (2026-09-14): the readings
+  stand, and Sniper Rifle's range set needs the rifle on the blocker when
+  it blocked (`CombatCtx.held_at_block`, `SourceHeldWhenBlocking`). Kevlar
+  Vest: pending damage counts its gun-strike points (`Damage.gun`; other
+  preventions take the rest first); gun or other is chosen once each
+  combat, and the gun branch prevents one point a use while points are
+  left, over the combat's strikes, only against gun-strike damage
+  (`CombatCtx.gun_prevention_left`; LSJ 20081210). Righteous Blade: its
+  strike banks a press only usable to continue
+  (`Effect::ContinuePressEachCombat`, `Side.continue_presses`) as it is
+  chosen, kept though dodged or unresolved, once per Blade per combat.
+  100 defs.
 - **P2 — full engine pool**: all 621 cards including Events and their machinery;
   the 14 training decklists plus the New Blood minis as data; perft baselines;
   protocol server; scripted reference bots (aggro-bleed, wall, vote).

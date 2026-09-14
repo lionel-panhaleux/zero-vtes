@@ -1008,3 +1008,183 @@ on it. Is that right?
 `mirror_walk_on_a_blocked_leave_torpor_gives_no_diablerie_opportunity`.
 
 **Answer (2026-09-13)** — Correct.
+
+## Batch 9 — Equipment (slice 8)
+
+### 9.1 Text naming the bearer's clan or sect, on a bearer without it
+
+ANK 20180719-3 lets a minion take a clan equipment from another minion
+without meeting its requirement. Treasured Samadji: "This Ravnos gets +1
+bleed. Once each combat, this Ravnos can strike: dodge." The engine reads
+the named trait on the current bearer: a non-Ravnos holding it gets
+neither. Likewise Stolen Police Cruiser's "This Anarch gets +1 bleed" (it
+has no requirement, so a non-Anarch can equip it from hand), its younger
+vampires' -1 intercept and its lock when burned; Shilmulo Tarot's "While
+this Ravnos is ready". Is that right?
+
+**Tests** — `treasured_samadji_taken_by_a_non_ravnos_gives_nothing`,
+`stolen_police_cruiser_anarch_bleeds_one_more_and_younger_vampires_intercept_less`.
+
+**Answer (2026-09-13)** — Right.
+
+### 9.2 Equipping from another minion; one vehicle
+
+The engine offers the rulebook equip action from any other minion the
+Methuselah controls, ready or in torpor, taking one or more of its
+equipment announced with the action; a blocked action leaves them. May the
+equipment come from a minion in torpor? And "a minion can have only one
+vehicle": a second vehicle is simply not offered, from hand or from
+another minion (nor two vehicles in one equip action). Right?
+
+**Tests** — `a_minion_can_have_only_one_vehicle`,
+`a_blocked_equip_from_another_minion_leaves_the_equipment`.
+
+**Answer (2026-09-13)** — (a) Yes, from a minion in torpor too. (b) Right.
+
+### 9.3 Searching for equipment (slice 8c)
+
+Magic of the Smith: the engine would offer, at resolution, every
+equipment in the library the vampire can equip — requirements met, not a
+second vehicle — or none (a search may find nothing; PIB 20121028: cards
+are not shown); a pool cost that ousts is allowed. Should an equipment
+whose blood cost the vampire cannot pay be offered? Vast Wealth ("the
+first equipment you find"): no choice; if that equipment's requirements
+are not met, it cannot be placed or its blood cost is unpayable, it is
+burned without cost (TOM 19950407, extended to requirements), and a pool
+cost that ousts is paid (RTR 19941109). Right?
+
+**Answer (2026-09-13)** — Magic of the Smith: no, an equipment whose blood
+cost the vampire cannot pay is not offered. Vast Wealth: yes to both.
+
+### 9.4 Draw alternatives (slice 8c)
+
+Shilmulo Tarot and Black Market Cache: each card drawn from the library —
+a replacement, a draw-up, Heart of Nizchetus' draws — may be taken from
+the stored cards instead, a choice per card; with Visit from the Capuchin
+in play, the player picks one treatment per replacement (ANK 20200905).
+With an empty library no draw happens (8.3b), so the Tarot supplies no
+card either. Right?
+
+**Answer (2026-09-13)** — Yes: a choice per card drawn; one treatment
+per replacement beside the Capuchin; nothing from an empty library.
+
+### 9.5 Heart of Nizchetus (slice 8c)
+
+"Draw up to 3 cards without discarding and then move the same number of
+cards from your hand to the bottom of your library": the number is chosen
+as the ability is used (0 to 3), the cards are drawn with no discard-down
+in between, then the same number is chosen from hand one at a time, each
+placed under the previous one (the last chosen is the bottom card). Is
+the order at the bottom the player's choice?
+
+**Answer (2026-09-13)** — Yes.
+
+### 9.6 Bowl of Convergence's burn
+
+"The bearer with superior Auspex [AUS] can burn 1 blood during an action
+to get an additional +1 intercept." Once per action, or any number of
+times (each an additional +1)? And "during an action": any action the
+bearer could block, used while it holds the impulse (a block attempt
+pending or not)?
+
+**Answer (2026-09-13)** — "During" in the sentence makes it the "during
+X" template (rules-qa 6.6): once per action, not repeatable; and only
+while the bearer is attempting to block. Applied: `Limit::PerAction` on
+the ability (`ActionCtx.abilities_used`), `InterceptNeeded` (rules-qa 3.2).
+
+**Tests** — `bowl_of_convergence_burns_blood_once_per_action_only_while_attempting_to_block`.
+
+## Batch 10 — Weapons (slice 8b)
+
+### 10.1 A gun's maneuver commits the strike
+
+.44 Magnum, AK-47, Assault Rifle: "Strike: 2R damage, with 1 optional
+maneuver each combat." The engine follows the rulebook ("Determine Range":
+using the maneuver from a strike card or a weapon chooses the strike;
+"Choose Strike": no other initial strike that round) and LSJ 20090528-2-2 /
+PIB 20141026: once the maneuver is used, only that gun's strike is offered
+for the round's initial strike — none at all if an effect then bars it
+(Immortal Grapple played after, spec §4.3.1), no hand strike instead — and
+no second strike card or weapon may maneuver that round; additional strikes
+are free. The allowance tracks the gun (LSJ 19980302-2). Spec §4.10.1 reads
+"a minion who maneuvers with a gun may still strike with that gun that
+round" and lists a maneuver among weapon functions that never commit: is
+that about maneuvers printed apart from the strike, the engine reading
+right for these three guns?
+
+**Answer (2026-09-14)** — Right.
+
+**Tests** — `a_gun_maneuver_commits_the_initial_strike_to_that_gun`,
+`a_committed_strike_barred_by_immortal_grapple_leaves_no_strike`.
+
+### 10.2 AK-47's additional strike
+
+"After the bearer strikes with this gun, they get 1 optional additional
+strike (limited), only usable to strike with this gun, this round." The
+engine grants it once the gun's strike has resolved, dodged or not (not
+when a strike: combat ends resolved first, spec §4.7.1); it is the bearer's
+one limited source that round, so none if a limited additional strike
+(Blur) was already used, and Blur is no longer playable after it; in the
+additional pair the bearer chooses the gun's strike or no strike. Right?
+
+**Answer (2026-09-14)** — Right.
+
+**Tests** — `ak_47_gives_one_optional_additional_strike_only_with_the_gun`.
+
+### 10.3 Kevlar Vest
+
+"Once each combat, the bearer can prevent 2 damage from gun strikes or 1
+damage from any other source. A minion can have only one Kevlar Vest." LSJ
+20081210 lets it prevent the damage of two separate gun strikes doing 1
+each, and optional prevention carries over (ANK 20200318, LSJ 20001114), so
+the reading is an allowance for the rest of the combat, into later rounds,
+spent at whichever prevention steps the bearer chooses. (a) Is the branch —
+gun or other — fixed at the first use? (b) Can leftover gun points prevent
+non-gun damage, or a use against gun damage take only 1 point and keep 1?
+(c) Is a gun's damage delivered other than by its strike (none in the pool
+yet) "damage from gun strikes"?
+
+**Answer (2026-09-14)** — Part of the prevention may be used in one round
+or exchange and the rest, if any, later in the combat. Gun or non-gun is
+chosen once each combat; leftover points for gun strikes prevent nothing
+else. Gun damage not from the strike is not "damage from gun strikes".
+Applied: the gun branch prevents one point a use while points are left
+(`CombatCtx.gun_prevention_left`), `Damage.gun` counts gun-strike points;
+using either branch spends the other.
+
+**Tests** — `kevlar_vest_spends_its_gun_points_over_separate_gun_strikes`,
+`kevlar_vest_chooses_gun_or_other_once_each_combat`.
+
+### 10.4 Righteous Blade
+
+"Strike: strength+1 damage, with 1 optional press, only usable to continue
+combat, each combat." (a) Is the press had when the Blade's strike is
+chosen — usable though the strike is dodged, or never resolves because a
+strike: combat ends resolved first — or only once it resolves? (b) "Each
+combat": one such press per combat per Blade, so the Blade's strike in a
+second round gives none?
+
+**Answer (2026-09-14)** — (a) Kept if the strike does not resolve or is
+dodged. (b) Once per combat ("each combat"). Applied: the press is banked
+as the strike is chosen (`Side.continue_presses`), once per Blade per
+combat.
+
+**Tests** — `righteous_blade_press_survives_a_dodge_once_each_combat`.
+
+### 10.5 Sniper Rifle
+
+"If the bearer blocks, they can, before range is determined, set the range
+for the first round of the resulting combat to long, and their initial
+strike that round must be with this weapon." The engine offers it to the
+blocker in the before-range step of the first round, only while no other
+effect has set that round's range; used, it skips the determine range step
+(RTR 19970630, ANK 20180720) and commits the initial strike to the rifle.
+Right?
+
+**Answer (2026-09-14)** — Right; and the option is offered only if the
+bearer had the weapon when blocking — not after equipping it with
+Concealed Weapon or a similar effect once the block happened. Applied:
+`CombatCtx.held_at_block`, `Requirement::SourceHeldWhenBlocking` (LSJ
+20021028 stays `blocked:` until an effect equips during combat).
+
+**Tests** — `sniper_rifle_sets_long_range_skipping_determine_range_and_commits_the_strike`.

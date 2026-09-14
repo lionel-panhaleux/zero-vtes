@@ -158,6 +158,9 @@ pub enum TitleClass {
     Prince,
     Baron,
     Justicar,
+    /// No V5 vampire holds it yet: `crypt::Title` gains the Sabbat titles
+    /// with the Sabbat precons (owner, 2026-09-13: keep the card's text).
+    Archbishop,
 }
 
 impl TitleClass {
@@ -172,6 +175,61 @@ impl TitleClass {
             _ => false,
         }
     }
+}
+
+/// What a minion may hold only one of ("a minion can have only one
+/// vehicle", "… only one Kevlar Vest").
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Holding {
+    Label(crate::library::Label),
+    Named(&'static str),
+}
+
+/// The trait printed text names the bearer by ("this Ravnos", "this
+/// Anarch", "the bearer with Auspex"): read on the current bearer, so a
+/// minion without it gets nothing from that text (rules-qa 9.1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Bearer {
+    Any,
+    Clan(&'static str),
+    Sect(Sect),
+    /// "The bearer with Auspex [aus]": lower case at any level, upper case
+    /// superior only.
+    Discipline(&'static str),
+}
+
+impl Bearer {
+    pub fn is(self, st: &GameState, m: MinionId) -> bool {
+        let v = st.minions[m.index()].card();
+        match self {
+            Bearer::Any => true,
+            Bearer::Clan(c) => v.clan == c,
+            Bearer::Sect(s) => v.sect == s,
+            Bearer::Discipline(d) => has_discipline(v.disciplines, d),
+        }
+    }
+}
+
+/// Does a printed discipline list meet `tag` (lower case: any level; upper
+/// case: superior)?
+fn has_discipline(disciplines: &[&str], tag: &str) -> bool {
+    if tag.chars().all(|c| c.is_ascii_uppercase()) {
+        disciplines.contains(&tag)
+    } else {
+        let upper = tag.to_ascii_uppercase();
+        disciplines.iter().any(|d| *d == tag || *d == upper)
+    }
+}
+
+/// A minion statistic a card in play modifies on its bearer.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Stat {
+    /// Of the bearer's bleeds.
+    Bleed,
+    /// Of the bearer's actions.
+    Stealth,
+    /// Of the bearer's block attempts.
+    Intercept,
 }
 
 /// Legality predicates — the closed vocabulary (effects-framework §2.3).
@@ -268,6 +326,13 @@ pub enum Requirement {
     DamagePending,
     /// Non-aggravated damage is pending on the actor (Soak).
     NonAggravatedDamagePending,
+    /// Damage from gun strikes is pending on the actor (Kevlar Vest).
+    GunStrikeDamagePending,
+    /// Damage from any source but gun strikes is pending on the actor.
+    NonGunDamagePending,
+    /// This card was on the blocker when it blocked (Sniper Rifle: not an
+    /// equipment equipped after the block, rules-qa 10.5).
+    SourceHeldWhenBlocking,
     /// No press to continue stands ("press, only usable to continue").
     NoContinuePress,
     /// The actor is the minion that blocked this action ("who has
@@ -302,6 +367,19 @@ pub enum Requirement {
     /// Any one of these requirement lists holds in full ("only usable
     /// during a bleed action against you or during the polling step").
     AnyOf(&'static [&'static [Requirement]]),
+    /// The actor has no card in play of this kind ("a minion can have only
+    /// one vehicle"): an equip is not offered to a minion already holding
+    /// one.
+    ActorWithout(Holding),
+    /// The host of the card in play is of this clan ("this Ravnos can
+    /// strike").
+    HostClan(&'static str),
+    /// The minion that blocked the current action holds a title of one of
+    /// these classes ("blocked by a prince or an archbishop").
+    BlockerTitleIn(&'static [TitleClass]),
+    /// The host of the card in play has this discipline (lower case: any
+    /// level; upper case: superior) — "the bearer with superior Auspex".
+    HostDiscipline(&'static str),
 }
 
 /// How many points a referendum allocates.
@@ -501,6 +579,9 @@ pub fn seat_filter_holds(filter: SeatFilter, st: &GameState, caller: SeatId, s: 
 pub enum StrikeKind {
     /// Hand strike: strength (+bonus) damage at close range.
     Hand { bonus: u8 },
+    /// A melee weapon's "strength+n damage": close range, not a hand strike
+    /// (hand-strike effects do not reach it).
+    Melee { bonus: u8, aggravated: bool },
     /// Defensive: the opposing strike has no effect on the dodging minion.
     Dodge,
     /// Combat ends before any other strike resolves; `unlock`: "unlock
@@ -607,6 +688,20 @@ pub enum Modifier {
     /// The layer source's controller gets +1 hand size per counter on it
     /// (Visit from the Capuchin).
     HandSizePerCounter,
+    /// The layer source's host, if `who`, gets `n` to `stat` during its
+    /// actions of these kinds (any action when empty): Sport Bike's +1
+    /// intercept, Unlicensed Taxicab's +1 stealth during hunt and employ
+    /// actions, Treasured Samadji's +1 bleed.
+    Bearer {
+        stat: Stat,
+        n: i8,
+        during: &'static [ActionKind],
+        who: Bearer,
+    },
+    /// Vampires younger than the layer source's host, if `who`, get `n`
+    /// intercept against its actions (Stolen Police Cruiser; allies too,
+    /// once they exist).
+    YoungerInterceptAgainstBearer { n: i8, who: Bearer },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -645,8 +740,32 @@ impl Layer {
             Modifier::HostInterceptOnBleedAtYou(n) => 1 << 34 ^ (n as i64 as u64 & 0xff),
             Modifier::HandSize(n) => 1 << 35 ^ (n as i64 as u64 & 0xff),
             Modifier::HandSizePerCounter => 1 << 35 ^ 1 << 12,
+            Modifier::Bearer {
+                stat,
+                n,
+                during,
+                who,
+            } => {
+                1 << 37
+                    ^ (stat as u64) << 24
+                    ^ (during.len() as u64) << 16
+                    ^ bearer_hash(who) << 8
+                    ^ (n as i64 as u64 & 0xff)
+            }
+            Modifier::YoungerInterceptAgainstBearer { n, who } => {
+                1 << 38 ^ bearer_hash(who) << 8 ^ (n as i64 as u64 & 0xff)
+            }
         };
         (self.source.0 as u64) << 40 ^ (self.scope as u64) << 36 ^ m
+    }
+}
+
+fn bearer_hash(who: Bearer) -> u64 {
+    match who {
+        Bearer::Any => 0,
+        Bearer::Clan(c) => 1 ^ (c.len() as u64) << 2,
+        Bearer::Sect(s) => 2 ^ (s as u64) << 2,
+        Bearer::Discipline(d) => 3 ^ (d.as_bytes()[0] as u64) << 2,
     }
 }
 
@@ -766,6 +885,20 @@ pub enum Effect {
     EndActionIfBlocked,
     /// The card (a retainer) enters play on the acting minion with this life.
     EmployRetainer { life: u8 },
+    /// Burn n blood from the host of this card in play (an ability's cost:
+    /// Bowl of Convergence [AUS]).
+    HostBurnBlood(u8),
+    /// A granted action "that costs n blood": paid by the acting minion at
+    /// resolution (fizzles if unpayable by then, rules-qa 3.6).
+    PayBlood(u8),
+    /// A granted bleed "gets +n bleed if the target Methuselah controls no
+    /// ready unlocked minions", read at resolution (Codex of the Edenic
+    /// Groundskeepers).
+    BleedIfTargetHasNoReadyUnlocked(u8),
+    /// On a successful granted burn: the card's host is locked and does
+    /// not unlock as normal during its controller's next unlock phase
+    /// (Stolen Police Cruiser), if it is still `who`.
+    LockHostSkipNextUnlock(Bearer),
     /// Burn 1 blood from the host of this card in play to unlock it.
     HostBurnBloodToUnlock,
     /// Move n blood from the host of this card to its controller's pool
@@ -820,6 +953,27 @@ pub enum Effect {
     /// blocked, it may burn `blood` to continue the action with +`stealth`
     /// as if unblocked. Lost if the combat continues (spec §4.9.2).
     ContinueAfterCombat { blood: u8, stealth: u8 },
+    /// Set this round's range to long, skipping the determine range step;
+    /// usable only while no other effect has set it (Sniper Rifle).
+    SetRangeLong,
+    /// The host's initial strike this round must be this card's strike: a
+    /// weapon's maneuver used (rulebook "Determine Range"), Sniper Rifle's
+    /// range set. One such commitment a round.
+    CommitStrike,
+    /// Rider of a weapon's strike, read once the strike has resolved: the
+    /// bearer gets 1 optional additional strike (limited) this round, only
+    /// usable to strike with this weapon (AK-47).
+    AdditionalStrikeWithSource,
+    /// "Once each combat, can prevent n damage from gun strikes": one point
+    /// a use, the rest kept for later in the combat (rules-qa 10.3).
+    PreventGunStrikeAllowance(u8),
+    /// Prevent up to n damage from sources other than gun strikes.
+    PreventNonGun(u8),
+    /// Rider of a weapon's strike, had as it is chosen: 1 optional press
+    /// only usable to continue combat, once each combat per copy (Righteous
+    /// Blade; kept though the strike is dodged or does not resolve,
+    /// rules-qa 10.4).
+    ContinuePressEachCombat,
     // Referendum effects (`referendum`).
     /// The political action card's referendum (with `DeclareAction`).
     CallReferendum(&'static ReferendumDef),
@@ -881,6 +1035,10 @@ pub enum Hook {
     /// took the card out of hand (spec §6.8.3), a delayed one when it
     /// finally comes due included.
     WouldReplace,
+    /// The card's host was blocked ("if this minion is blocked …, burn
+    /// this vehicle"): applied where the block resolves, before combat or
+    /// any other effect (ANK 20220116).
+    HostBlocked,
 }
 
 /// Whose turn a phase rider fires on.
@@ -1039,17 +1197,17 @@ pub fn holds(
         Requirement::NotOwnTurn => st.active != seat,
         Requirement::DirectedAtYou => action.is_some_and(|a| a.directed_at() == Some(seat)),
         Requirement::IsBleed => action.is_some_and(|a| a.kind == ActionKind::Bleed),
-        Requirement::BleedAmountAtLeast(n) => action.is_some_and(|a| a.bleed_amount() >= n),
+        Requirement::BleedAmountAtLeast(n) => action.is_some_and(|a| a.bleed_amount(st) >= n),
         Requirement::BlocksDeclined => action.is_some_and(|a| a.state == ActionState::Declined),
         Requirement::StealthNeeded => {
             waives_needed
                 || action.is_some_and(|a| {
                     matches!(a.state, ActionState::Attempt(_))
-                        && a.attempt_intercept(st) >= a.stealth()
+                        && a.attempt_intercept(st) >= a.stealth(st)
                 })
         }
         Requirement::InterceptNeeded => action.is_some_and(|a| match a.state {
-            ActionState::Attempt(m) => actor == Some(m) && a.stealth() > a.intercept_of(st, m),
+            ActionState::Attempt(m) => actor == Some(m) && a.stealth(st) > a.intercept_of(st, m),
             _ => false,
         }),
         Requirement::LockedActor => actor.is_some_and(|m| st.minions[m.index()].locked),
@@ -1095,6 +1253,17 @@ pub fn holds(
                 _ => true,
             })
         }
+        Requirement::GunStrikeDamagePending => {
+            combat.zip(side).is_some_and(|(c, i)| match c.step {
+                Step::Prevent(p) => p == i && c.sides[i].pending.gun > 0,
+                _ => true,
+            })
+        }
+        Requirement::NonGunDamagePending => combat.zip(side).is_some_and(|(c, i)| match c.step {
+            Step::Prevent(p) => p == i && c.sides[i].pending.total() > c.sides[i].pending.gun,
+            _ => true,
+        }),
+        Requirement::SourceHeldWhenBlocking => true, // card predicate
         Requirement::NoContinuePress => combat.is_some_and(|c| !c.press_continue),
         Requirement::ActorHasBlocked => {
             action.is_some_and(|a| a.blocker.is_some() && a.blocker == actor)
@@ -1117,6 +1286,12 @@ pub fn holds(
         Requirement::ActorNotVotingFor => {
             political.zip(actor).is_some_and(|(r, m)| !r.voting_for(m))
         }
+        Requirement::ActorWithout(h) => actor.is_some_and(|m| !st.holds_a(m, h)),
+        Requirement::HostClan(_) | Requirement::HostDiscipline(_) => true, // host predicates
+        Requirement::BlockerTitleIn(classes) => action.and_then(|a| a.blocker).is_some_and(|b| {
+            let t = st.minions[b.index()].title();
+            classes.iter().any(|c| c.matches(t))
+        }),
         Requirement::AnyOf(alternatives) => alternatives.iter().any(|reqs| {
             reqs.iter().all(|&r| {
                 holds(
@@ -1198,6 +1373,8 @@ pub fn holds_for_host(req: Requirement, st: &GameState, host: MinionId) -> bool 
         Requirement::HostBelowCapacity => v.blood < v.capacity(),
         Requirement::HostControllerPoolAtLeast(n) => st.seats[v.owner.index()].pool >= n as i32,
         Requirement::HostInTorpor => v.in_play && v.in_torpor,
+        Requirement::HostClan(c) => v.card().clan == c,
+        Requirement::HostDiscipline(d) => has_discipline(v.card().disciplines, d),
         _ => true,
     }
 }

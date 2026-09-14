@@ -19,6 +19,7 @@ use crate::cards::{self, Effect, PlayCtx, StrikeKind, Window};
 use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
+use crate::library::{Label, LIBRARY};
 use crate::state::{CardId, GameState};
 use crate::window::OrderedWindow;
 
@@ -56,6 +57,10 @@ pub enum Step {
 pub struct Damage {
     pub normal: u8,
     pub aggravated: u8,
+    /// Of `normal`, the points from gun strikes (Kevlar Vest); a prevention
+    /// not keyed on guns takes the other points first. No gun in the pool
+    /// deals aggravated damage.
+    pub gun: u8,
 }
 
 impl Damage {
@@ -83,7 +88,23 @@ impl Damage {
         }
         let b = left.min(self.normal);
         self.normal -= b;
+        self.gun = self.gun.min(self.normal);
         n - (left - b)
+    }
+
+    /// Prevent up to `n` points of gun-strike damage.
+    pub(crate) fn prevent_gun(&mut self, n: u8) {
+        let p = n.min(self.gun);
+        self.gun -= p;
+        self.normal -= p;
+    }
+
+    /// Prevent up to `n` points from other sources, aggravated first.
+    fn prevent_non_gun(&mut self, n: u8) {
+        let a = n.min(self.aggravated);
+        self.aggravated -= a;
+        let b = (n - a).min(self.normal - self.gun);
+        self.normal -= b;
     }
 }
 
@@ -112,6 +133,16 @@ pub struct Side {
     pub next_round_maneuvers: u8,
     /// Form of Mist [PRO] rider, armed by the play, fired by the strike.
     pub continue_rider: Option<(u8, u8)>,
+    /// The card in play the chosen strike comes from (a weapon).
+    pub strike_source: Option<CardId>,
+    /// The initial strike this round must be this card's (a weapon's
+    /// maneuver used, Sniper Rifle's range set): rulebook "Choose Strike".
+    pub committed: Option<CardId>,
+    /// The additional strike granted by this weapon is only usable to
+    /// strike with it, and may be declined (AK-47).
+    pub additional_with: Option<CardId>,
+    /// Optional presses only usable to continue combat (Righteous Blade).
+    pub continue_presses: u8,
 }
 
 impl Side {
@@ -132,6 +163,10 @@ impl Side {
             strength_set: None,
             next_round_maneuvers: 0,
             continue_rider: None,
+            strike_source: None,
+            committed: None,
+            additional_with: None,
+            continue_presses: 0,
         }
     }
 
@@ -179,6 +214,10 @@ pub struct CombatCtx {
     pub played_combat: Vec<(MinionId, &'static str)>,
     /// In-play abilities used this combat, by copy ("each combat").
     pub abilities_used: Vec<CardId>,
+    /// Gun-strike prevention left this combat, by copy (Kevlar Vest).
+    pub gun_prevention_left: Vec<(CardId, u8)>,
+    /// The equipment on the blocker when it blocked (Sniper Rifle).
+    pub held_at_block: Vec<CardId>,
 }
 
 impl CombatCtx {
@@ -255,12 +294,16 @@ impl CombatCtx {
 
     /// Effect-derived legality at the current step: no two maneuvers or
     /// presses in a row by the same minion, one limited additional-strike
-    /// source per round, only hand strikes under a grapple.
+    /// source per round, only hand strikes under a grapple, one strike
+    /// commitment a round (rulebook "Determine Range": no second strike
+    /// card or weapon to maneuver again), a range not set twice.
     pub(crate) fn allows(&self, mode: &cards::ModeDef, side: usize) -> bool {
         mode.effects.iter().all(|e| match e {
             Effect::Maneuver if self.step == Step::DetermineRange => {
                 self.last_maneuver != Some(side)
             }
+            Effect::CommitStrike => self.sides[side].committed.is_none(),
+            Effect::SetRangeLong => !self.range_set,
             Effect::Press if self.step == Step::Press => self.last_press != Some(side),
             Effect::AdditionalStrikes { limited: true, .. } => !self.sides[side].limited_used,
             Effect::Strike(k) if self.only_hand_strikes => matches!(k, StrikeKind::Hand { .. }),
@@ -319,6 +362,7 @@ impl Engine {
             Side::new(opposing, st.minions[opposing.index()].owner),
         ];
         let order = vec![sides[0].seat, sides[1].seat];
+        let held_at_block = st.equipment_on(opposing);
         self.combat = Some(CombatCtx {
             sides,
             round: 1,
@@ -337,6 +381,8 @@ impl Engine {
             played_round: Vec::new(),
             played_combat: Vec::new(),
             abilities_used: Vec::new(),
+            gun_prevention_left: Vec::new(),
+            held_at_block,
         });
         self.flow = Flow::Combat;
     }
@@ -349,8 +395,38 @@ impl Engine {
                 if side.chosen {
                     return None;
                 }
+                // A committed strike: that card's strike only — none at all
+                // if an effect now bars it (spec §4.3.1); AK-47's additional
+                // strike only with the gun, or none.
+                let committed = if c.pair == 0 {
+                    side.committed
+                } else {
+                    side.additional_with
+                };
+                if let Some(w) = committed {
+                    let mut options: Vec<Choice> = self
+                        .ability_options(side.seat, Window::CombatStrikeDeclaration)
+                        .into_iter()
+                        .filter(|o| matches!(o, Choice::UseAbility { card, .. } if *card == w.0))
+                        .collect();
+                    if c.pair > 0 {
+                        options.insert(0, Choice::Pass);
+                    }
+                    if options.is_empty() {
+                        return None;
+                    }
+                    options.extend(self.ability_options(side.seat, Window::AnyImpulse));
+                    return Some(DecisionRequest {
+                        seat: side.seat,
+                        window: WindowLabel::CombatStrike,
+                        options,
+                    });
+                }
                 let mut options = vec![Choice::HandStrike];
                 options.extend(self.play_options(side.seat, &c.windows(), None));
+                // Strikes a card in play gives its bearer (Treasured
+                // Samadji's dodge).
+                options.extend(self.ability_options(side.seat, Window::CombatStrikeDeclaration));
                 options.extend(self.ability_options(side.seat, Window::AnyImpulse));
                 Some(DecisionRequest {
                     seat: side.seat,
@@ -395,7 +471,11 @@ impl Engine {
                     {
                         options.push(Choice::UseManeuver);
                     }
-                    Step::Press if c.sides[i].presses > 0 && c.last_press != Some(i) => {
+                    Step::Press
+                        if c.last_press != Some(i)
+                            && (c.sides[i].presses > 0
+                                || (c.sides[i].continue_presses > 0 && !c.press_continue)) =>
+                    {
                         options.push(Choice::UsePress);
                     }
                     _ => {}
@@ -422,6 +502,15 @@ impl Engine {
         let play = match (c.step, choice) {
             (Step::ChooseStrike(i), Choice::HandStrike) => {
                 c.sides[i].strike = Some(StrikeKind::Hand { bonus: 0 });
+                c.sides[i].strike_source = None;
+                c.sides[i].chosen = true;
+                None
+            }
+            // An optional additional strike declined.
+            (Step::ChooseStrike(i), Choice::Pass) => {
+                c.sides[i].strike = None;
+                c.sides[i].strike_source = None;
+                c.sides[i].additional_with = None;
                 c.sides[i].chosen = true;
                 None
             }
@@ -434,12 +523,13 @@ impl Engine {
                 let d = &mut c.sides[side].pending;
                 d.aggravated -= k;
                 d.normal -= n - k;
+                d.gun = d.gun.min(d.normal);
                 c.step = Step::Prevent(side);
                 None
             }
             (Step::Prevent(i), Choice::Play { .. }) => Some(c.sides[i].seat),
             // An ability is not a card play: no as-played window.
-            (Step::Prevent(_), Choice::UseAbility { .. }) => None,
+            (Step::Prevent(_) | Step::ChooseStrike(_), Choice::UseAbility { .. }) => None,
             (_, Choice::UseAbility { .. }) => {
                 c.window.play();
                 None
@@ -461,7 +551,12 @@ impl Engine {
                 let i = c
                     .side_of(c.window.current().expect("impulse"))
                     .expect("side");
-                c.sides[i].presses -= 1;
+                // A press only usable to continue goes first when continuing.
+                if !c.press_continue && c.sides[i].continue_presses > 0 {
+                    c.sides[i].continue_presses -= 1;
+                } else {
+                    c.sides[i].presses -= 1;
+                }
                 c.window.play();
                 c.press(i);
                 None
@@ -608,9 +703,25 @@ impl Engine {
             c.round_over = true;
             for s in &mut c.sides {
                 s.strike = None;
+                s.strike_source = None;
             }
             return;
         }
+        // A strike from a card no longer on the striker has no effect (spec
+        // §4.10.4).
+        let st = &self.state;
+        let strikes: [Option<StrikeKind>; 2] = std::array::from_fn(|i| {
+            let s = &c.sides[i];
+            match s.strike_source {
+                Some(w)
+                    if !(st.cards[w.index()].present()
+                        && st.cards[w.index()].host == Some(s.minion)) =>
+                {
+                    None
+                }
+                _ => strikes[i],
+            }
+        });
         let close = c.range == Range::Close;
         let mut steals = [0u8; 2];
         for i in 0..2 {
@@ -618,12 +729,32 @@ impl Engine {
             let Some(k) = strikes[i] else {
                 continue;
             };
+            // "After the bearer strikes with this gun" (AK-47): struck,
+            // dodged or not; one limited additional-strike source a round.
+            if let Some(w) = c.sides[i].strike_source {
+                let def = cards::lookup(st.cards[w.index()].card).expect("definition");
+                let rider = def
+                    .abilities
+                    .iter()
+                    .any(|m| m.effects.contains(&Effect::AdditionalStrikeWithSource));
+                if rider && !c.sides[i].limited_used {
+                    c.sides[i].additional += 1;
+                    c.sides[i].limited_used = true;
+                    c.sides[i].additional_with = Some(w);
+                }
+            }
             let dodged = strikes[j] == Some(StrikeKind::Dodge);
             match k {
                 StrikeKind::Hand { bonus } => {
                     if close && !dodged {
                         let n = c.sides[i].strength() + bonus;
                         let aggravated = c.sides[i].aggravated_hands;
+                        c.sides[j].pending.add(n, aggravated);
+                    }
+                }
+                StrikeKind::Melee { bonus, aggravated } => {
+                    if close && !dodged {
+                        let n = c.sides[i].strength() + bonus;
                         c.sides[j].pending.add(n, aggravated);
                     }
                 }
@@ -634,6 +765,14 @@ impl Engine {
                 } => {
                     if (ranged || close) && !dodged {
                         c.sides[j].pending.add(n, aggravated);
+                        let gun = c.sides[i].strike_source.is_some_and(|w| {
+                            LIBRARY[st.cards[w.index()].card as usize]
+                                .labels
+                                .contains(&Label::Gun)
+                        });
+                        if gun && !aggravated {
+                            c.sides[j].pending.gun += n;
+                        }
                     }
                 }
                 StrikeKind::StealBlood { n, ranged } => {
@@ -657,6 +796,7 @@ impl Engine {
         }
         for s in &mut c.sides {
             s.strike = None;
+            s.strike_source = None;
             s.preventing = s.pending.total() > 0;
         }
     }
@@ -766,9 +906,25 @@ impl Engine {
         let actor = play.actor.expect("combat card actor");
         let i = c.side_of_minion(actor).expect("actor in combat");
         match effect {
+            // A strike card's; `resolve_ability` names a card in play as
+            // the source afterward.
             Effect::Strike(k) => {
-                c.sides[i].strike = Some(k);
-                c.sides[i].chosen = true;
+                let initial = c.pair == 0;
+                let s = &mut c.sides[i];
+                s.strike = Some(k);
+                s.strike_source = None;
+                s.chosen = true;
+                if initial {
+                    s.committed = None;
+                } else {
+                    s.additional_with = None;
+                }
+            }
+            Effect::SetRangeLong => {
+                if !c.range_set {
+                    c.range = Range::Long;
+                    c.range_set = true;
+                }
             }
             Effect::Maneuver => {
                 if c.step == Step::DetermineRange {
@@ -800,6 +956,14 @@ impl Engine {
             Effect::PreventXPlus(k) => c.prevent(i, play.x + k),
             Effect::PreventNonAggravated(n) => {
                 c.sides[i].pending.prevent(n, false);
+            }
+            Effect::PreventNonGun(n) => {
+                let d = c.sides[i].pending;
+                if d.normal > d.gun && d.aggravated > 0 && n < d.total() - d.gun {
+                    c.step = Step::Allocate { side: i, n };
+                } else {
+                    c.sides[i].pending.prevent_non_gun(n);
+                }
             }
             Effect::OnlyHandStrikes => c.only_hand_strikes = true,
             Effect::NextRoundClose => c.next_round_close = true,
@@ -884,6 +1048,8 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::NewRound
             | Effect::GainBloodLostByOpponent
             | Effect::ContinueAfterCombat { .. }
+            | Effect::SetRangeLong
+            | Effect::PreventNonGun(_)
     )
 }
 
@@ -892,7 +1058,11 @@ mod tests {
     use super::*;
 
     fn d(normal: u8, aggravated: u8) -> Damage {
-        Damage { normal, aggravated }
+        Damage {
+            normal,
+            aggravated,
+            gun: 0,
+        }
     }
 
     #[test]

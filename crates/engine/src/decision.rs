@@ -23,6 +23,13 @@ pub enum ActionKind {
     /// Burn a card in play, granted by that card ("Minions can burn this
     /// card as a Ⓓ action"): directed at its controller.
     BurnCard,
+    /// Equip with an equipment card from hand (rulebook "Equip": +1
+    /// stealth, undirected; the cost paid at resolution).
+    Equip,
+    /// Equip with equipment taken from another minion the Methuselah
+    /// controls (rulebook "Equip": free, the equipment announced with the
+    /// action; not a card play, so no requirement is checked).
+    EquipFrom,
 }
 
 /// One indexed option inside a decision request. `Pass` is always explicit;
@@ -78,6 +85,11 @@ pub enum Choice {
     SetX(u8),
     /// Discard phase action: discard the card at this hand index.
     Discard(u8),
+    /// Terms of an equip action from another minion: take this equipment
+    /// (arena index) too; `Pass` once at least one is taken.
+    TakeEquipment {
+        card: u32,
+    },
     TakeAction {
         minion: MinionId,
         action: ActionKind,
@@ -209,9 +221,12 @@ pub enum WindowLabel {
     /// The polling step of a political referendum: votes and ballots
     /// (unordered commitments) and card plays (rulebook "The Referendum").
     ReferendumPolling,
-    /// A canceled referendum returned the political action card to hand:
-    /// "discard down afterward".
+    /// A hand over its size (rulebook "Drawing Cards": "immediately discard
+    /// down"): a card returned to hand, a hand-size bonus ended.
     DiscardDown,
+    /// Terms of a rulebook action, chosen as it is announced: the equipment
+    /// an equip action takes from another minion.
+    ActionTerms,
     InfluenceTransfers,
     DiscardPhase,
     /// Combat steps (rulebook "Combat Sequence"): ordered windows over the

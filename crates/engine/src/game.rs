@@ -7,7 +7,7 @@ use crate::actions::ActionCtx;
 use crate::cards::{self, Hook, PlayCtx};
 use crate::combat::CombatCtx;
 use crate::crypt::PRECONS;
-use crate::decision::{Choice, DecisionRequest, WindowLabel};
+use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use crate::ids::{MinionId, SeatId};
 use crate::influence::transfers_for_turn;
 use crate::library::PRECON_LIBRARIES;
@@ -94,6 +94,13 @@ pub(crate) enum Flow {
     },
     /// Minion phase: offer actions for the active seat's ready minions.
     MinionPhase,
+    /// An equip action from another minion being announced: the
+    /// equipment `minion` takes from `giver`, picked one at a time.
+    ActionTerms {
+        minion: MinionId,
+        giver: MinionId,
+        picked: Vec<CardId>,
+    },
     /// An action is under way (`Engine::action`).
     Action,
     /// A combat is under way inside the action (`Engine::combat`).
@@ -254,6 +261,7 @@ impl Engine {
             political_this_turn: false,
             expelled: false,
             hunting_ground_fed: false,
+            skip_unlock: false,
             acted: Vec::new(),
         });
         MinionId(self.state.minions.len() as u32 - 1)
@@ -344,6 +352,11 @@ impl Engine {
                 ..
             } => Some(self.ability_terms_request(*card, *ability, picked)),
             Flow::RiderTerms { card, left, .. } => Some(self.rider_terms_request(*card, *left)),
+            Flow::ActionTerms {
+                minion,
+                giver,
+                picked,
+            } => Some(self.action_terms_request(*minion, *giver, picked)),
             Flow::PhaseRotation { resume, window } => self.phase_rotation_request(resume, window),
             Flow::Abilities { window, pending } => self.abilities_request(window, pending),
             Flow::Action => self.action_request(),
@@ -398,7 +411,25 @@ impl Engine {
                     action,
                     target,
                 },
-            ) => self.declare_action(*minion, *action, *target, None, None),
+            ) => match action {
+                // The equipment taken is announced with the action.
+                ActionKind::EquipFrom => {
+                    self.flow = Flow::ActionTerms {
+                        minion: *minion,
+                        giver: target.expect("minion to equip from"),
+                        picked: Vec::new(),
+                    }
+                }
+                _ => self.declare_action(*minion, *action, *target, None, None),
+            },
+            (
+                Flow::ActionTerms {
+                    minion,
+                    giver,
+                    picked,
+                },
+                c,
+            ) => self.action_terms_apply(minion, giver, picked, c),
             (
                 Flow::MinionPhase,
                 Choice::UseAbility {
@@ -737,8 +768,14 @@ impl Engine {
             m.hunting_ground_fed = false;
             m.acted.clear();
             // Unlock phase: the active seat's minions unlock (torpor included).
+            // Stolen Police Cruiser: "does not unlock as normal during their
+            // next unlock phase".
             if m.owner == s && m.in_play {
-                m.locked = false;
+                if m.skip_unlock {
+                    m.skip_unlock = false;
+                } else {
+                    m.locked = false;
+                }
             }
         }
         // … and the cards they control.

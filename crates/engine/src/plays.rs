@@ -881,7 +881,17 @@ impl Engine {
             | Effect::BloodToTarget(_)
             | Effect::PredatorTakesControl
             | Effect::BurnSelf
-            | Effect::BurnSource => unreachable!("ability or rider effect in a play"),
+            | Effect::BurnSource
+            | Effect::PayBlood(_)
+            | Effect::BleedIfTargetHasNoReadyUnlocked(_)
+            | Effect::LockHostSkipNextUnlock(_)
+            | Effect::HostBurnBlood(_)
+            | Effect::CommitStrike
+            | Effect::AdditionalStrikeWithSource
+            | Effect::PreventGunStrikeAllowance(_)
+            | Effect::ContinuePressEachCombat => {
+                unreachable!("ability or rider effect in a play")
+            }
             e if is_combat_effect(&e) => self.apply_combat_effect(e, ctx),
             // A mode shared between a bleed and the polling step
             // (Protected District) carries both effects; the one
@@ -1066,11 +1076,27 @@ impl Engine {
                         // Per-copy limits ("each combat").
                         let id = CardId(ci as u32);
                         let spent = match ability.limit {
-                            Some(Limit::PerCombat) => self
-                                .combat
+                            // Kevlar Vest's gun branch stays usable while
+                            // points are left (rules-qa 10.3).
+                            Some(Limit::PerCombat) => self.combat.as_ref().is_some_and(|cb| {
+                                let allowance = ability
+                                    .effects
+                                    .iter()
+                                    .any(|e| matches!(e, Effect::PreventGunStrikeAllowance(_)));
+                                cb.abilities_used.contains(&id)
+                                    && !(allowance
+                                        && cb
+                                            .gun_prevention_left
+                                            .iter()
+                                            .any(|&(c, n)| c == id && n > 0))
+                            }),
+                            // "During an action": once per action per copy
+                            // (rules-qa 6.6, 9.6).
+                            Some(Limit::PerAction) => self
+                                .action
                                 .as_ref()
-                                .is_some_and(|cb| cb.abilities_used.contains(&id)),
-                            Some(Limit::PerRound) | Some(Limit::PerAction) => {
+                                .is_some_and(|a| a.abilities_used.contains(&id)),
+                            Some(Limit::PerRound) => {
                                 unreachable!("limit not supported on abilities yet")
                             }
                             Some(Limit::PerPhaseEach) | None => false,
@@ -1078,8 +1104,43 @@ impl Engine {
                         if spent {
                             continue;
                         }
+                        // Effect-derived combat legality (a dodge under a
+                        // grapple).
+                        if let Some(cb) = self.combat.as_ref() {
+                            if let Some(i) = cb.side_of_minion(host) {
+                                if !cb.allows(ability, i) {
+                                    continue;
+                                }
+                            }
+                        }
+                        // A granted action of the host ("this vampire can
+                        // bleed as a Ⓓ action", Codex of the Edenic
+                        // Groundskeepers): declared in the minion phase by
+                        // the host, ready and unlocked; one bleed a turn,
+                        // the same copy once a turn (rules-qa 1.4).
+                        let declares = ability.effects.iter().find_map(|e| match e {
+                            Effect::DeclareAction(k) => Some(*k),
+                            _ => None,
+                        });
+                        if let Some(kind) = declares {
+                            let v = &st.minions[host.index()];
+                            if self.action.is_some()
+                                || st.active != seat
+                                || v.locked
+                                || !v.ready()
+                                || (kind == ActionKind::Bleed && v.bled_this_turn)
+                                || v.acted.iter().any(|a| a.same(ActionId::InPlay(id)))
+                            {
+                                continue;
+                            }
+                        }
                         let ok = ability.requires.iter().all(|&r| {
-                            cards::holds_for_card(r, st, id)
+                            (!matches!(r, Requirement::SourceHeldWhenBlocking)
+                                || self
+                                    .combat
+                                    .as_ref()
+                                    .is_some_and(|cb| cb.held_at_block.contains(&id)))
+                                && cards::holds_for_card(r, st, id)
                                 && cards::holds_for_host(r, st, host)
                                 && cards::holds(
                                     r,
@@ -1097,7 +1158,7 @@ impl Engine {
                             out.push(Choice::UseAbility {
                                 card: ci as u32,
                                 ability: ai as u8,
-                                actor: None,
+                                actor: declares.map(|_| host),
                                 target: Target::None,
                             });
                         }
@@ -1305,6 +1366,9 @@ impl Engine {
             x: 0,
             burn: None,
         };
+        if let (Some(Limit::PerAction), Some(a)) = (mode.limit, self.action.as_mut()) {
+            a.abilities_used.push(CardId(card));
+        }
         if let (Some(Limit::PerCombat), Some(cb)) = (mode.limit, self.combat.as_mut()) {
             cb.abilities_used.push(CardId(card));
         }
@@ -1375,6 +1439,57 @@ impl Engine {
                     self.state.seats[ctx.seat.index()].pool -= moved as i32;
                     if self.state.seats[ctx.seat.index()].pool == 0 {
                         self.oust_and_pass(ctx.seat);
+                    }
+                }
+                Effect::HostBurnBlood(n) => {
+                    let h = &mut self.state.minions[host.expect("host").index()];
+                    h.blood -= n.min(h.blood);
+                }
+                // +n intercept for the host's block attempt.
+                Effect::AddIntercept(n) => {
+                    if let Some(a) = self.action.as_mut() {
+                        a.intercept += n;
+                    }
+                }
+                // A strike from a card in play (a weapon, Treasured
+                // Samadji's dodge) remembers its card: unavailable when the
+                // strike resolves, it has no effect (spec §4.10.4).
+                Effect::Strike(k) => {
+                    self.apply_combat_effect(Effect::Strike(k), &ctx);
+                    let cb = self.combat.as_mut().expect("combat context");
+                    let i = cb.side_of_minion(host.expect("host")).expect("combatant");
+                    cb.sides[i].strike_source = Some(CardId(card));
+                }
+                Effect::CommitStrike => {
+                    let cb = self.combat.as_mut().expect("combat context");
+                    let i = cb.side_of_minion(host.expect("host")).expect("combatant");
+                    cb.sides[i].committed = Some(CardId(card));
+                }
+                // Read when the strike resolves.
+                Effect::AdditionalStrikeWithSource => {}
+                // One point a use; the first use opens the combat's
+                // allowance (rules-qa 10.3).
+                Effect::PreventGunStrikeAllowance(n) => {
+                    let id = CardId(card);
+                    let cb = self.combat.as_mut().expect("combat context");
+                    let i = cb.side_of_minion(host.expect("host")).expect("combatant");
+                    let k = match cb.gun_prevention_left.iter().position(|&(c, _)| c == id) {
+                        Some(k) => k,
+                        None => {
+                            cb.gun_prevention_left.push((id, n));
+                            cb.gun_prevention_left.len() - 1
+                        }
+                    };
+                    cb.gun_prevention_left[k].1 -= 1;
+                    cb.sides[i].pending.prevent_gun(1);
+                }
+                Effect::ContinuePressEachCombat => {
+                    let id = CardId(card);
+                    let cb = self.combat.as_mut().expect("combat context");
+                    let i = cb.side_of_minion(host.expect("host")).expect("combatant");
+                    if !cb.abilities_used.contains(&id) {
+                        cb.abilities_used.push(id);
+                        cb.sides[i].continue_presses += 1;
                     }
                 }
                 e if is_combat_effect(&e) => self.apply_combat_effect(e, &ctx),

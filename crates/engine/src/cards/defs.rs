@@ -11,12 +11,13 @@
 //! [pro].
 
 use super::{
-    Actor, Among, CardDef, Effect, Hook, Limit, ModeDef, Modifier, Points, RefEffect,
-    ReferendumDef, Requirement, Rider, RiderScope, SeatFilter, StrikeKind, TargetKind, TargetSpec,
-    Term, Terms, TitleClass, Until, Window,
+    Actor, Among, Bearer, CardDef, Effect, Holding, Hook, Limit, ModeDef, Modifier, Points,
+    RefEffect, ReferendumDef, Requirement, Rider, RiderScope, SeatFilter, Stat, StrikeKind,
+    TargetKind, TargetSpec, Term, Terms, TitleClass, Until, Window,
 };
 use crate::crypt::Sect;
 use crate::decision::ActionKind;
+use crate::library::Label;
 
 const NO_TARGET: Option<TargetSpec> = None;
 
@@ -1698,7 +1699,23 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     riders: &[],
 };
 
-pub static DEFS: [&CardDef; 84] = [
+pub static DEFS: [&CardDef; 100] = [
+    &KEVLAR_VEST,
+    &RIGHTEOUS_BLADE,
+    &MAGNUM_44,
+    &AK_47,
+    &ASSAULT_RIFLE,
+    &FLAMETHROWER,
+    &IVORY_BOW,
+    &FEMUR_OF_TOOMLER,
+    &KALIS_FANG,
+    &SNIPER_RIFLE,
+    &BOWL_OF_CONVERGENCE,
+    &SPORT_BIKE,
+    &UNLICENSED_TAXICAB,
+    &TREASURED_SAMADJI,
+    &CODEX_OF_THE_EDENIC_GROUNDSKEEPERS,
+    &STOLEN_POLICE_CRUISER,
     &ELDER_LIBRARY,
     &VISIT_FROM_THE_CAPUCHIN,
     &WAKE_WITH_EVENINGS_FRESHNESS,
@@ -2660,5 +2677,556 @@ pub static MIRROR_WALK: CardDef = CardDef {
         },
     ],
     abilities: &[],
+    riders: &[],
+};
+
+// ---- Equipment (slice 8a) ---------------------------------------------------
+
+/// The one vehicle a minion can have (the vehicles' shared clause).
+const ONE_VEHICLE: &[Requirement] = &[Requirement::ActorWithout(Holding::Label(Label::Vehicle))];
+
+/// "Vehicle. This minion gets +1 intercept. A minion can have only one
+/// vehicle."
+pub static SPORT_BIKE: CardDef = CardDef {
+    name: "Sport Bike",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::ActionDeclareEquip],
+        actor: Actor::ActingCandidate,
+        requires: ONE_VEHICLE,
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::Layer(Modifier::Bearer {
+                stat: Stat::Intercept,
+                n: 1,
+                during: &[],
+                who: Bearer::Any,
+            }),
+        ],
+    }],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Vehicle. The action to equip with this vehicle is with an additional +1
+/// stealth. This minion gets +1 stealth during hunt, recruit and employ
+/// actions. If this minion is blocked by a prince or an archbishop (during
+/// any action), burn this vehicle. A minion can have only one vehicle." The
+/// equip stealth counts when it is taken from another minion too (LSJ
+/// 20060222); recruit actions arrive with allies; the burn applies as the
+/// block resolves, before anything else (ANK 20220116). No V5 vampire is an
+/// archbishop yet (`TitleClass::Archbishop`).
+pub static UNLICENSED_TAXICAB: CardDef = CardDef {
+    name: "Unlicensed Taxicab",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::ActionDeclareEquip],
+        actor: Actor::ActingCandidate,
+        requires: ONE_VEHICLE,
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::AddStealth(1),
+            Effect::Layer(Modifier::Bearer {
+                stat: Stat::Stealth,
+                n: 1,
+                during: &[ActionKind::Hunt, ActionKind::Employ],
+                who: Bearer::Any,
+            }),
+        ],
+    }],
+    abilities: &[],
+    riders: &[Rider {
+        hook: Hook::HostBlocked,
+        scope: RiderScope::Every,
+        requires: &[Requirement::BlockerTitleIn(&[
+            TitleClass::Prince,
+            TitleClass::Archbishop,
+        ])],
+        effects: &[Effect::BurnSelf],
+    }],
+};
+
+/// "Unique. This Ravnos gets +1 bleed. Once each combat, this Ravnos can
+/// strike: dodge." A minion that is not Ravnos may take it from another
+/// minion (ANK 20180719-3) and gets nothing from it (rules-qa 9.1).
+pub static TREASURED_SAMADJI: CardDef = CardDef {
+    name: "Treasured Samadji",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::ActionDeclareEquip],
+        actor: Actor::ActingCandidate,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::Layer(Modifier::Bearer {
+                stat: Stat::Bleed,
+                n: 1,
+                during: &[],
+                who: Bearer::Clan("Ravnos"),
+            }),
+        ],
+    }],
+    abilities: &[ModeDef {
+        windows: &[Window::CombatStrikeDeclaration],
+        actor: Actor::Host,
+        requires: &[Requirement::HostClan("Ravnos")],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: Some(Limit::PerCombat),
+        effects: &[Effect::Strike(StrikeKind::Dodge)],
+    }],
+    riders: &[],
+};
+
+/// "Unique. The bearer gets -2 stealth during bleed actions. This vampire
+/// can bleed as a Ⓓ action that costs 1 blood; this action gets +3 bleed if
+/// the target Methuselah controls no ready unlocked minions." The granted
+/// bleed is a bleed (one a turn) and this copy's action; its cost and the
+/// +3 are read at resolution, and it fizzles if the Codex is no longer on
+/// the acting vampire then (RTR 19960221).
+pub static CODEX_OF_THE_EDENIC_GROUNDSKEEPERS: CardDef = CardDef {
+    name: "Codex of the Edenic Groundskeepers",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::ActionDeclareEquip],
+        actor: Actor::ActingCandidate,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::Layer(Modifier::Bearer {
+                stat: Stat::Stealth,
+                n: -2,
+                during: &[ActionKind::Bleed],
+                who: Bearer::Any,
+            }),
+        ],
+    }],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDeclare],
+        actor: Actor::Host,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::Bleed),
+            Effect::PayBlood(1),
+            Effect::BleedIfTargetHasNoReadyUnlocked(3),
+        ],
+    }],
+    riders: &[],
+};
+
+/// "Vehicle. This Anarch gets +1 bleed. Allies and younger vampires get -1
+/// intercept against this Anarch. Vampires can burn this card as a Ⓓ action
+/// that costs 1 pool; if that action is successful, this Anarch is locked
+/// and does not unlock as normal during their next unlock phase. A minion
+/// can have only one vehicle." The Anarch clauses read the current bearer
+/// (rules-qa 9.1); the burn is directed at the card's controller.
+pub static STOLEN_POLICE_CRUISER: CardDef = CardDef {
+    name: "Stolen Police Cruiser",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::ActionDeclareEquip],
+        actor: Actor::ActingCandidate,
+        requires: ONE_VEHICLE,
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::Layer(Modifier::Bearer {
+                stat: Stat::Bleed,
+                n: 1,
+                during: &[],
+                who: Bearer::Sect(Sect::Anarch),
+            }),
+            Effect::Layer(Modifier::YoungerInterceptAgainstBearer {
+                n: -1,
+                who: Bearer::Sect(Sect::Anarch),
+            }),
+        ],
+    }],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDeclare],
+        actor: Actor::ActingCandidate,
+        requires: &[Requirement::ActorVampire, Requirement::PoolAtLeast(1)],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::BurnCard),
+            Effect::PayPool(1),
+            Effect::BurnSource,
+            Effect::LockHostSkipNextUnlock(Bearer::Sect(Sect::Anarch)),
+        ],
+    }],
+    riders: &[],
+};
+
+/// "Unique. The bearer with Auspex [aus] gets +1 intercept. The bearer with
+/// superior Auspex [AUS] can burn 1 blood during an action to get an
+/// additional +1 intercept." The burn follows the "during X" template:
+/// once per action (rules-qa 9.6), only while the bearer attempts to block
+/// and the intercept is needed (rules-qa 3.2, 9.6).
+pub static BOWL_OF_CONVERGENCE: CardDef = CardDef {
+    name: "Bowl of Convergence",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::ActionDeclareEquip],
+        actor: Actor::ActingCandidate,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::Layer(Modifier::Bearer {
+                stat: Stat::Intercept,
+                n: 1,
+                during: &[],
+                who: Bearer::Discipline("aus"),
+            }),
+        ],
+    }],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionStealthIntercept],
+        actor: Actor::Host,
+        requires: &[
+            Requirement::HostDiscipline("AUS"),
+            Requirement::HostBloodAtLeast(1),
+            Requirement::InterceptNeeded,
+        ],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: Some(Limit::PerAction),
+        effects: &[Effect::HostBurnBlood(1), Effect::AddIntercept(1)],
+    }],
+    riders: &[],
+};
+
+// ---- Weapons (slice 8b) -----------------------------------------------------
+
+/// The equip action of an equipment with nothing else on its mode.
+const EQUIP: ModeDef = ModeDef {
+    windows: &[Window::ActionDeclareEquip],
+    actor: Actor::ActingCandidate,
+    requires: &[],
+    target: NO_TARGET,
+    terms: None,
+    waives_needed: false,
+    limit: None,
+    effects: &[Effect::DeclareAction(ActionKind::Equip)],
+};
+
+/// A weapon's strike, chosen by its bearer at the strike step.
+const fn weapon_strike(requires: &'static [Requirement], effects: &'static [Effect]) -> ModeDef {
+    ModeDef {
+        windows: &[Window::CombatStrikeDeclaration],
+        actor: Actor::Host,
+        requires,
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects,
+    }
+}
+
+/// "With 1 optional maneuver each combat": the allowance tracks the weapon
+/// (LSJ 19980302-2), and using it chooses the bearer's initial strike
+/// (rulebook "Determine Range"; LSJ 20090528-2-2).
+const GUN_MANEUVER: ModeDef = ModeDef {
+    windows: &[Window::CombatDetermineRange],
+    actor: Actor::Host,
+    requires: &[],
+    target: NO_TARGET,
+    terms: None,
+    waives_needed: false,
+    limit: Some(Limit::PerCombat),
+    effects: &[Effect::Maneuver, Effect::CommitStrike],
+};
+
+/// "Weapon: gun. Strike: 2R damage, with 1 optional maneuver each combat."
+pub static MAGNUM_44: CardDef = CardDef {
+    name: ".44 Magnum",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[EQUIP],
+    abilities: &[
+        weapon_strike(
+            &[],
+            &[Effect::Strike(StrikeKind::Damage {
+                n: 2,
+                ranged: true,
+                aggravated: false,
+            })],
+        ),
+        GUN_MANEUVER,
+    ],
+    riders: &[],
+};
+
+/// "Weapon: gun. Strike: 2R damage, with 1 optional maneuver each combat.
+/// After the bearer strikes with this gun, they get 1 optional additional
+/// strike (limited), only usable to strike with this gun, this round."
+pub static AK_47: CardDef = CardDef {
+    name: "AK-47",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[EQUIP],
+    abilities: &[
+        weapon_strike(
+            &[],
+            &[
+                Effect::Strike(StrikeKind::Damage {
+                    n: 2,
+                    ranged: true,
+                    aggravated: false,
+                }),
+                Effect::AdditionalStrikeWithSource,
+            ],
+        ),
+        GUN_MANEUVER,
+    ],
+    riders: &[],
+};
+
+/// "Weapon: gun. Strike: 4R damage, with 1 optional maneuver each combat."
+pub static ASSAULT_RIFLE: CardDef = CardDef {
+    name: "Assault Rifle",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[EQUIP],
+    abilities: &[
+        weapon_strike(
+            &[],
+            &[Effect::Strike(StrikeKind::Damage {
+                n: 4,
+                ranged: true,
+                aggravated: false,
+            })],
+        ),
+        GUN_MANEUVER,
+    ],
+    riders: &[],
+};
+
+/// "Weapon. Strike: 2R aggravated damage."
+pub static FLAMETHROWER: CardDef = CardDef {
+    name: "Flamethrower",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[EQUIP],
+    abilities: &[weapon_strike(
+        &[],
+        &[Effect::Strike(StrikeKind::Damage {
+            n: 2,
+            ranged: true,
+            aggravated: true,
+        })],
+    )],
+    riders: &[],
+};
+
+/// "Unique weapon. Strike: 1R aggravated damage."
+pub static IVORY_BOW: CardDef = CardDef {
+    name: "Ivory Bow",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[EQUIP],
+    abilities: &[weapon_strike(
+        &[],
+        &[Effect::Strike(StrikeKind::Damage {
+            n: 1,
+            ranged: true,
+            aggravated: true,
+        })],
+    )],
+    riders: &[],
+};
+
+/// "Unique melee weapon. Strike: strength+1 aggravated damage." (Tzimisce.)
+/// Equipping from hand needs a Tzimisce; taken from another minion it
+/// needs none (ANK 20180719-3), and the strike names no clan.
+pub static FEMUR_OF_TOOMLER: CardDef = CardDef {
+    name: "Femur of Toomler",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[EQUIP],
+    abilities: &[weapon_strike(
+        &[],
+        &[Effect::Strike(StrikeKind::Melee {
+            bonus: 1,
+            aggravated: true,
+        })],
+    )],
+    riders: &[],
+};
+
+/// "Unique melee weapon. Strike: strength+1 aggravated damage." (Banu
+/// Haqim; as Femur of Toomler.)
+pub static KALIS_FANG: CardDef = CardDef {
+    name: "Kali's Fang",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[EQUIP],
+    abilities: &[weapon_strike(
+        &[],
+        &[Effect::Strike(StrikeKind::Melee {
+            bonus: 1,
+            aggravated: true,
+        })],
+    )],
+    riders: &[],
+};
+
+/// "Weapon: gun. Strike: 2R damage, only usable at long range. If the
+/// bearer blocks, they can, before range is determined, set the range for
+/// the first round of the resulting combat to long, and their initial
+/// strike that round must be with this weapon." The range set skips the
+/// determine range step and no other effect resets it (RTR 19970630, ANK
+/// 20180720); every v1 combat arises from its block, so the blocker's
+/// first round is the one.
+pub static SNIPER_RIFLE: CardDef = CardDef {
+    name: "Sniper Rifle",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[EQUIP],
+    abilities: &[
+        weapon_strike(
+            &[Requirement::RangeLong],
+            &[Effect::Strike(StrikeKind::Damage {
+                n: 2,
+                ranged: true,
+                aggravated: false,
+            })],
+        ),
+        ModeDef {
+            windows: &[Window::CombatBeforeRange],
+            actor: Actor::Host,
+            requires: &[
+                Requirement::ActorHasBlocked,
+                Requirement::FirstRound,
+                Requirement::SourceHeldWhenBlocking,
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::SetRangeLong, Effect::CommitStrike],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Melee weapon. Strike: strength+1 damage, with 1 optional press, only
+/// usable to continue combat, each combat." (Salubri.) The press is had as
+/// the strike is chosen, kept though the strike is dodged or does not
+/// resolve, once each combat per Blade (rules-qa 10.4).
+pub static RIGHTEOUS_BLADE: CardDef = CardDef {
+    name: "Righteous Blade",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[EQUIP],
+    abilities: &[weapon_strike(
+        &[],
+        &[
+            Effect::Strike(StrikeKind::Melee {
+                bonus: 1,
+                aggravated: false,
+            }),
+            Effect::ContinuePressEachCombat,
+        ],
+    )],
+    riders: &[],
+};
+
+/// "Once each combat, the bearer can prevent 2 damage from gun strikes or 1
+/// damage from any other source. A minion can have only one Kevlar Vest."
+/// The branch is chosen once each combat; the gun points may be spent over
+/// several strikes of the combat, only against gun-strike damage; a gun's
+/// damage other than its strike is not "from gun strikes" (rules-qa 10.3;
+/// LSJ 20081210).
+pub static KEVLAR_VEST: CardDef = CardDef {
+    name: "Kevlar Vest",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::ActionDeclareEquip],
+        actor: Actor::ActingCandidate,
+        requires: &[Requirement::ActorWithout(Holding::Named("Kevlar Vest"))],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::DeclareAction(ActionKind::Equip)],
+    }],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::CombatDamagePrevention],
+            actor: Actor::Host,
+            requires: &[Requirement::GunStrikeDamagePending],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: Some(Limit::PerCombat),
+            effects: &[Effect::PreventGunStrikeAllowance(2)],
+        },
+        ModeDef {
+            windows: &[Window::CombatDamagePrevention],
+            actor: Actor::Host,
+            requires: &[Requirement::NonGunDamagePending],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: Some(Limit::PerCombat),
+            effects: &[Effect::PreventNonGun(1)],
+        },
+    ],
     riders: &[],
 };
