@@ -84,6 +84,7 @@ fn revolt_in_play(e: &mut Engine, owner: u8) -> u32 {
         contested: false,
         locked: false,
         counters: 0,
+        stored: Vec::new(),
     });
     e.state.cards.len() as u32 - 1
 }
@@ -353,6 +354,7 @@ fn anarch_revolt_burn_is_ordered_by_the_active_methuselah_before_the_impulse_pas
         contested: false,
         locked: false,
         counters: 0,
+        stored: Vec::new(),
     });
     e.state.minions[alexa.index()].locked = true;
     // Seat 0's own turn ends; seat 1 has a ready Anarch, so its two riders
@@ -496,6 +498,7 @@ fn guardian_angel_on(e: &mut Engine, owner: u8, host: MinionId) -> u32 {
         contested: false,
         locked: false,
         counters: 0,
+        stored: Vec::new(),
     });
     let id = e.state.cards.len() as u32 - 1;
     e.state.layers.push(Layer {
@@ -703,6 +706,7 @@ fn fame_on(e: &mut Engine, owner: u8, host: MinionId) -> u32 {
         contested: false,
         locked: false,
         counters: 0,
+        stored: Vec::new(),
     });
     e.state.cards.len() as u32 - 1
 }
@@ -1619,6 +1623,7 @@ fn revolt_like_in_play(e: &mut Engine, name: &str, owner: u8) -> u32 {
         contested: false,
         locked: false,
         counters: 0,
+        stored: Vec::new(),
     });
     e.state.cards.len() as u32 - 1
 }
@@ -1811,6 +1816,7 @@ fn blood_doll_usable_with_the_host_in_torpor() {
         contested: false,
         locked: false,
         counters: 0,
+        stored: Vec::new(),
     });
     e.state.minions[alexa.index()].in_torpor = true;
     let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
@@ -1843,6 +1849,7 @@ fn vessel_on_any_vampire_burns_any_blood_doll_and_is_the_controllers_to_use() {
         contested: false,
         locked: false,
         counters: 0,
+        stored: Vec::new(),
     });
     hand(&mut e, 0, &["Vessel", "Vessel"]);
     let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);

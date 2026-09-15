@@ -226,7 +226,7 @@ card_id,card,via,references,ruling,status
 100492,Daring the Dawn,mention in Guard Duty,[LSJ 20010714-2],Cannot be used to unlock if the vampire cannot attempt to block the action (eg. {100492|Daring the Dawn}).,
 100771,Form of Mist,mention in Guardian Vigil,[LSJ 20010814-2] [ANK 20181127],"All effects apply for the duration of the action. They still apply if the action ""continues as if unblocked"" (eg. [PRO] {100771|Form of Mist}) and, if [aus] was used, the maneuver is provided again.",n/a:Guardian Vigil is not in V5
 100492,Daring the Dawn,"mention in Heidelberg Castle, Germany",[ANK 20171124],"Cannot be used before damage is inflicted after action resolution (eg. {100759|Force of Will}, {100492|Daring the Dawn}): this is still during the action.",
-101143,Magic of the Smith,mention in Helicopter,[LSJ 20100119],"It comes locked if it is equipped, even in an non-standard fashion (eg. {101143|Magic of the Smith}).",
+101143,Magic of the Smith,mention in Helicopter,[LSJ 20100119],"It comes locked if it is equipped, even in an non-standard fashion (eg. {101143|Magic of the Smith}).",n/a:Helicopter is not in V5
 100913,Heroic Might,key,[LSJ 20081120-2],The strikes it provides are Potence [pot] strikes (eg. they benefit from {100971|Increased Strength}).,
 100918,Hidden Strength,key,[LSJ 19970224],The 'X' in card text refers to the cost of the card.,test:hidden_strength_x_terms_and_prevention
 100918,Hidden Strength,key,[RTR 20041202] [PIB 20121202],"Prevents up to X+1 damage, it can prevent less (X can be higher than strictly needed).",test:hidden_strength_x_terms_and_prevention
@@ -236,7 +236,7 @@ card_id,card,via,references,ruling,status
 100959,Immortal Grapple,key,[TOM 19951217],"If a minion is committed to a strike other than a hand strike (e.g. used a maneuver from a gun), then he gets no strike.",blocked:no weapon in the pool
 100959,Immortal Grapple,key,[ANK 20200525-2],Is still considered played if it is canceled as it is played (eg. {100333|Charismatic Aura}). A second one cannot be played in the same round as its card text forbids it.,blocked:no combat-card cancel in the pool
 101816,Sniper Rifle,mention in Improvised Flamethrower,[LSJ 20100709],"When range was set to long (e.g. {101276|Neutral Guard}, {101816|Sniper Rifle}), or the range default is long (e.g. [dai]{100711|Fear of the Void Below}), [TEM]{101338|Outside the Hourglass} triggers the Flamethrower","blocked:no effect reads the range outside strikes, nor ends a round before range is determined, yet"
-101143,Magic of the Smith,mention in Incriminating Videotape,[LSJ 20090506],"If it is not equipped but merely put into play (eg. {100038|Alastor}), no minion is chosen. One is if it is equipped (eg. {101143|Magic of the Smith}).",
+101143,Magic of the Smith,mention in Incriminating Videotape,[LSJ 20090506],"If it is not equipped but merely put into play (eg. {100038|Alastor}), no minion is chosen. One is if it is equipped (eg. {101143|Magic of the Smith}).",test:shilmulo_tarot_equipped_by_a_search_takes_its_cards_before_entering_contest
 100217,Blood Weakens,mention in Infernal Pursuit,[ANK 20180925-1] [LSJ 20100506],"[CEL] If an effect would force you to replace more than 1 card (e.g. {201057|Nicomedes}, {100217|Blood Weakens}), replace and draw extra cards individually (i.e. one replacement card draw at a time), discarding each time X cards (where X is the number of extra cards you drew).",
 101223,Mirror Walk,mention in Inscription,[PIB 20121014],"The card inscribed with Inscription can only be used when the card could be played (an inscribed {101664|Rutor's Hand} requires an action, a {101223|Mirror Walk} must be used by an acting vampire, etc).",n/a:Inscription is not in V5
 101664,Rutor's Hand,mention in Inscription,[PIB 20121014],"The card inscribed with Inscription can only be used when the card could be played (an inscribed {101664|Rutor's Hand} requires an action, a {101223|Mirror Walk} must be used by an acting vampire, etc).",
@@ -261,8 +261,8 @@ card_id,card,via,references,ruling,status
 101114,Living Manse,key,[LSJ 20090324],"An action targeting it (eg. {100391|Conceal}) is directed at the Methuselah controlling it, not the minion it is on.",
 101114,Living Manse,key,[RTR 19960112],"May be put on any minion if the controller changes. If the new controller has no minions, it is burned.",
 101857,Spying Mission,mention in Lost in Translation,[LSJ 19980105],"Must be played before action resolution, ie. before any modifier or reaction played ""as the action/bleed would be successful"" are played. It cannot be played after a {101857|Spying Mission} on the vampire triggers.",
-101143,Magic of the Smith,key,,"The equipment need not be declared, it is chosen upon resolution. [RBK search]",
-101143,Magic of the Smith,key,[LSJ 19971001-2],Can fetch an equipment that is a location when in play.,
+101143,Magic of the Smith,key,,"The equipment need not be declared, it is chosen upon resolution. [RBK search]",test:magic_of_the_smith_searches_at_resolution_for_an_equipment_the_vampire_can_equip
+101143,Magic of the Smith,key,[LSJ 19971001-2],Can fetch an equipment that is a location when in play.,blocked:no locquipment implemented yet (Living Manse)
 101144,Majesty,key,[RTR 20020501],[PRE] The vampire still unlocks if an effect continues the combat or begins a new combat.,test:majesty_still_unlocks_when_the_combat_continues
 101175,Martyr's Resilience,key,[LSJ 20020416],Can be used by a vampire in torpor.,
 101175,Martyr's Resilience,key,[ANK 20181101],Can be played by a minion of a Methuselah not involved in the current combat.,
@@ -281,7 +281,7 @@ card_id,card,via,references,ruling,status
 100788,Freak Drive,mention in Mirror Walk,[RTR 20180719] [ANK 20200207] [ANK 20210627],"[THA] If the action is blocked, it ends unsuccessfully immediately, no other action modifier or reaction can be played afterwards (eg. {100788|Freak Drive}, slave rule, {101838|Sowing Dissension}).",
 101223,Mirror Walk,key,[RTR 20180719] [ANK 20200207] [ANK 20210627],"[THA] If the action is blocked, it ends unsuccessfully immediately, no other action modifier or reaction can be played afterwards (eg. {100788|Freak Drive}, slave rule, {101838|Sowing Dissension}).",test:mirror_walk_superior_ends_the_blocked_action_before_block_resolution
 101223,Mirror Walk,key,[PIB 20121216],"[THA] If the action is blocked and it was leaving torpor, the blocker does not get an opportunity to diablerize.",test:mirror_walk_on_a_blocked_leave_torpor_gives_no_diablerie_opportunity
-101143,Magic of the Smith,mention in Mokolé Blood,[LSJ 20090506],"If it is not equipped but merely put into play (eg. {100038|Alastor}), it does not get cards. It does is if it is equipped (eg. {101143|Magic of the Smith}).",
+101143,Magic of the Smith,mention in Mokolé Blood,[LSJ 20090506],"If it is not equipped but merely put into play (eg. {100038|Alastor}), it does not get cards. It does is if it is equipped (eg. {101143|Magic of the Smith}).",n/a:Mokolé Blood is not in V5
 100788,Freak Drive,mention in Momentary Delay,[LSJ 19981028] [LSJ 20100206-2],"Is played after resolution, but still during the action. Cards and effects that played ""after resolution"" (eg. {100788|Freak Drive}) can be played before it, but not after.",
 101242,Monster,key,[ANK 20230314],Is used after combat effectively ends and can be order against other cards and effects played after combat (eg. {101503|Provision of the Silsila}).,
 101254,Murder of Crows,key,[ANK 20200203-2] [LSJ 20060515],Are neither mortal nor monster.,
@@ -365,10 +365,10 @@ card_id,card,via,references,ruling,status
 101717,Sense the Savage Way,mention in Sensory Deprivation,[PIB 20150111],"Can target an unlocked minion, does not prevent a minion to wake or unlock in a non-normal way (eg. {100788|Freak Drive}, {101717|Sense the Savage Way}).",
 102169,Weighted Walking Stick,mention in Shadow Court Satyr,[LSJ 20010716],"If the card combat card is moved, the Satyr cannot use it as if played from your hand anymore, even if it was moved on him (eg. {102169|Weighted Walking Stick})",
 101945,Taste of Vitae,mention in Shadow Court Satyr,[LSJ 20080717],"He can play any card ""as a vampire"" even if it does not require a discipline (eg. {101945|Taste of Vitae}). REVERSAL of previous rulings. Note this is specific to the Satyr and his card text: this does not apply to other allies playing cards as a vampire.",n/a:Shadow Court Satyr is not in V5
-101767,Shilmulo Tarot,key,[PIB 20110712-2],There is no limit to the number of cards it can store.,
-101767,Shilmulo Tarot,key,[ANK 20221028] [LSJ 20090428-1],"If there is another copy in play, the cards are put on it before it enters contest.",
-101143,Magic of the Smith,mention in Shilmulo Tarot,[LSJ 20090506],"If it is not equipped but merely put into play (eg. {100038|Alastor}), it does not get 2 cards. It does is if it is equipped (eg. {101143|Magic of the Smith}).",
-101767,Shilmulo Tarot,key,[LSJ 20090506],"If it is not equipped but merely put into play (eg. {100038|Alastor}), it does not get 2 cards. It does is if it is equipped (eg. {101143|Magic of the Smith}).",
+101767,Shilmulo Tarot,key,[PIB 20110712-2],There is no limit to the number of cards it can store.,test:shilmulo_tarot_moves_the_top_card_once_each_unlock_phase
+101767,Shilmulo Tarot,key,[ANK 20221028] [LSJ 20090428-1],"If there is another copy in play, the cards are put on it before it enters contest.",test:shilmulo_tarot_equipped_by_a_search_takes_its_cards_before_entering_contest
+101143,Magic of the Smith,mention in Shilmulo Tarot,[LSJ 20090506],"If it is not equipped but merely put into play (eg. {100038|Alastor}), it does not get 2 cards. It does is if it is equipped (eg. {101143|Magic of the Smith}).",blocked:Shilmulo Tarot's stored cards are not implemented yet (slice 8c-ii)
+101767,Shilmulo Tarot,key,[LSJ 20090506],"If it is not equipped but merely put into play (eg. {100038|Alastor}), it does not get 2 cards. It does is if it is equipped (eg. {101143|Magic of the Smith}).",test:shilmulo_tarot_equipped_by_a_search_takes_its_cards_before_entering_contest
 101945,Taste of Vitae,mention in Slake the Thirst,[LSJ 20100206-2],[san] Can be played multiple times on the same blood gain (eg. {101945|Taste of Vitae}).,n/a:Slake the Thirst is not in V5
 101388,Perfectionist,mention in Slake the Thirst,[LSJ 20100325],"[SAN] Can be played at any time blood is gained during an action, including after action resolution (eg. {100801|Games of Instinct}, {101388|Perfectionist}).",
 101798,Slam,key,[TOM 19960225],Additional damage inherits all of the properties of the base damage.,
@@ -461,12 +461,12 @@ card_id,card,via,references,ruling,status
 102087,Vagabond Mystic,key,[LSJ 20001111],His ability cannot be used in the middle of a single damage resolution step.,
 100788,Freak Drive,mention in Vampiric Disease,[ANK 20221210-2],"Any unlock, even one costing blood already, triggers the burning blood effect (eg. {100788|Freak Drive}, {100527|Derange}).",
 100959,Immortal Grapple,mention in Vampiric Disease,[ANK 20210422] [LSJ 20040830],"The counter is placed before strikes are chosen (i.e. after range is determined, in the same step as {100959|Immortal Grapple}). The second vampire does not get a counter if this step is skipped but will get a counter even if they play defensive strikes like dodge or combat ends.",n/a:Vampiric Disease is not in V5
-102092,Vast Wealth,key,[TOM 19960130] [RTR 19960124],"The provided action is an ""equip action""",
-102092,Vast Wealth,key,[TOM 19951107],You only search your library if the action is successful.,
-102092,Vast Wealth,key,[RTR 19941109] [RTR 20010711],"Paying for the equipment found is not optional. If paying the cost will oust the controlling Methuselah, then she is ousted.",
-102092,Vast Wealth,key,[TOM 19950407],"If the equipment cannot be legally placed on the vampire (e.g. a second vehicle or a second {101073|Laptop Computer}), it is burned without cost.",
-102092,Vast Wealth,key,[RTR 19951017],Vast Wealth's ability is not usable if the vampire does not share the same controller as Vast Wealth.,
-102092,Vast Wealth,key,[PIB 20121028],You do not show cards when you search.,
+102092,Vast Wealth,key,[TOM 19960130] [RTR 19960124],"The provided action is an ""equip action""",blocked:no effect keyed to equip actions yet
+102092,Vast Wealth,key,[TOM 19951107],You only search your library if the action is successful.,test:vast_wealth_searches_only_if_its_action_succeeds
+102092,Vast Wealth,key,[RTR 19941109] [RTR 20010711],"Paying for the equipment found is not optional. If paying the cost will oust the controlling Methuselah, then she is ousted.",test:vast_wealth_pays_a_pool_cost_that_ousts
+102092,Vast Wealth,key,[TOM 19950407],"If the equipment cannot be legally placed on the vampire (e.g. a second vehicle or a second {101073|Laptop Computer}), it is burned without cost.",test:vast_wealth_burns_a_first_find_it_cannot_equip
+102092,Vast Wealth,key,[RTR 19951017],Vast Wealth's ability is not usable if the vampire does not share the same controller as Vast Wealth.,blocked:no control change of a minion or of a card on a minion yet
+102092,Vast Wealth,key,[PIB 20121028],You do not show cards when you search.,n/a:a search is a decision offered to the searching player only
 102097,Veil the Legions,key,[LSJ 19990425],Can only be played by the controller of the acting minion.,
 102097,Veil the Legions,key,[LSJ 20070526] [ANK 20210124],"[OBF] If an action is cancelled after it has been played (e.g. {101935|Tangle Atropos' Hand} but not {100545|Direct Intervention})\ \ it still counts as \""one of the next X actions\"".",
 100519,Delaying Tactics,mention in Veles' Hunt,[LSJ 20081202-2],"Modifiers and reactions can be played during and after the referendum (eg. {102131|Voter Captivation}, {100519|Delaying Tactics}).",n/a:Veles' Hunt is not in V5
@@ -478,7 +478,7 @@ card_id,card,via,references,ruling,status
 102121,Villein,key,[ANK 20210714],You must be able to pay the cost to play it (eg. cannot play a third Villein with only 1 pool).,test:villein_costs_one_more_on_a_vampire_that_already_has_one
 102121,Villein,key,[LSJ 20100216] [ANK 20180512-2],"If the target has less blood at resolution than the amount announced, you take what you can.",blocked:nothing changes a vampire's blood in the as-played window
 102126,Visit from the Capuchin,key,[PIB 20121031],"Cannot be played if you have another one, even if it has only one counter left.",test:visit_from_the_capuchin_is_not_playable_beside_ones_own_copy
-102126,Visit from the Capuchin,key,[ANK 20200905],"If another effect offers an alternative for card replacement (eg. {101869|Steely Tenacity}), you choose which to apply.","blocked:no other replacement alternative yet (Black Market Cache, Shilmulo Tarot: equipment slice)"
+102126,Visit from the Capuchin,key,[ANK 20200905],"If another effect offers an alternative for card replacement (eg. {101869|Steely Tenacity}), you choose which to apply.",test:visit_from_the_capuchin_or_a_draw_alternative_is_one_treatment_per_replacement
 100652,Entrancement,mention in War Ghoul,[PIB 20121031],"Can use its ability to ""lock and burn to burn a location"" during an action that would steal it (eg. [PRE] {100652|Entrancement}). The action will have no effect but is still successful if unblocked and must then be paid.",
 102144,War Ghoul,key,[PIB 20121031],"Can use its ability to ""lock and burn to burn a location"" during an action that would steal it (eg. [PRE] {100652|Entrancement}). The action will have no effect but is still successful if unblocked and must then be paid.",
 102149,Warsaw Station,key,[ANK 20220218] [ANK 20181107],"Can be burned after the announcement of a diablerie action to bring the target Nosferatu out of torpor. The action will still be successful if unblocked, but will have no effect: no diablerie happen.",
@@ -537,13 +537,13 @@ card_id,card,via,references,ruling,status
 102304,Rotting Behemoth,key,[LSJ 20080512],"When paying their last life for the action, the action is still considerd succesful, but combat immediately ends.",
 102304,Rotting Behemoth,key,[LSJ 20030701-2],The acting vampire's controller can choose not to remove a minion from his or her ash heap and thus burn the Rotting Behemoth.,
 101950,Telepathic Tracking,mention in Hunting the Quarry,[ANK 20191219],"[cel]/[tha] effects that are played when a combat ""would end"" (eg. {101950|Telepathic Tracking}) cannot be play afterwards.",n/a:Hunting the Quarry is not in V5
-100903,Heart of Nizchetus,"mention in Agaitas, The Scholar of Antiquities",[RTR 19970425] [LSJ 20060921],"Cards from his ability that go into an ash heap, hand, or library always go into their owner's ash heap, hand, or library (eg. using {100903|Heart of Nizchetus}).",
+100903,Heart of Nizchetus,"mention in Agaitas, The Scholar of Antiquities",[RTR 19970425] [LSJ 20060921],"Cards from his ability that go into an ash heap, hand, or library always go into their owner's ash heap, hand, or library (eg. using {100903|Heart of Nizchetus}).","n/a:Agaitas, The Scholar of Antiquities is not in V5"
 101857,Spying Mission,mention in Andre LeRoux,[LSJ 20081123],"It is used in the ""would/about to be successful"" window like {101857|Spying Mission}.",
 101857,Spying Mission,mention in Andre LeRoux,[PIB 20150612],"His ability cannot be used after {101857|Spying Mission}. If his ability reduces a bleed to zero, it is no longer successful and {101857|Spying Mission} cannot be used afterwards.",
 101712,Seduction,mention in Anneke,[RTR 20020501] [LSJ 20041203],"Her ability only affects the rule restricting who gets to block an action. She must still meet all other requirements to block. In particular, {100194|Blood Bond}, {100502|Day Operation}, {101712|Seduction} and prior decision not to block are not circumvented.",
 100332,Charisma,mention in Antonio d'Erlette,[LSJ 20090920-2] [RTR 20070707],"Cost reductions apply (eg. {101443|Powerbase: Tshwane}), except if they require an action (eg. {100332|Charisma}).",
 101342,Pack Alpha,"mention in Baba Yaga, the Iron Hag",[PIB 20150105-2],Her ability applies when she recruits or employs a retainer or ally in a non-normal way (eg. {101342|Pack Alpha}).,
-102092,Vast Wealth,"mention in Beast, The Leatherface of Detroit",[LSJ 20050315] [LSJ 20050413-1] [LSJ 20050413-2],"He can equip with an equipment that is a location when in play, but not by playing the card normally as it is an action card. (eg. Using {102092|Vast Wealth} would work).",
+102092,Vast Wealth,"mention in Beast, The Leatherface of Detroit",[LSJ 20050315] [LSJ 20050413-1] [LSJ 20050413-2],"He can equip with an equipment that is a location when in play, but not by playing the card normally as it is an action card. (eg. Using {102092|Vast Wealth} would work).","n/a:Beast, The Leatherface of Detroit is not in V5"
 100519,Delaying Tactics,"mention in Bernard, the Scourge",[LSJ 20081202-2],"When using his ability, modifiers and reactions can be played during and after the referendum (eg. {102131|Voter Captivation}, {100519|Delaying Tactics}).","n/a:Bernard, the Scourge is not in V5"
 102131,Voter Captivation,"mention in Bernard, the Scourge",[LSJ 20081202-2],"When using his ability, modifiers and reactions can be played during and after the referendum (eg. {102131|Voter Captivation}, {100519|Delaying Tactics}).","n/a:Bernard, the Scourge is not in V5"
 100081,Arcane Library,"mention in Bindusara, Historian of the Kindred",[ANK 20200810],"When using his special ability, requirements do not apply (eg. {100081|Arcane Library} is put into play even if you have no ready Tremere).",
@@ -633,7 +633,7 @@ card_id,card,via,references,ruling,status
 102364,"Vozhd of Juiz de Fora, The",group Allies who can play as a vampire,[RTR 19970630] [LSJ 20080717],They cannot use a card to commit diablerie (eg. {100043|Amaranth}),
 100720,Femur of Toomler,group Clan equipment,[ANK 20180719-3],"Once in play, can be equipped from the minion it's on (rulebook action) by another minion that does not meet the requirements.",test:femur_of_toomler_taken_by_a_non_tzimisce_strikes_strength_plus_one_aggravated
 101032,Kali's Fang,group Clan equipment,[ANK 20180719-3],"Once in play, can be equipped from the minion it's on (rulebook action) by another minion that does not meet the requirements.",test:femur_of_toomler_taken_by_a_non_tzimisce_strikes_strength_plus_one_aggravated
-101767,Shilmulo Tarot,group Clan equipment,[ANK 20180719-3],"Once in play, can be equipped from the minion it's on (rulebook action) by another minion that does not meet the requirements.",
+101767,Shilmulo Tarot,group Clan equipment,[ANK 20180719-3],"Once in play, can be equipped from the minion it's on (rulebook action) by another minion that does not meet the requirements.",test:shilmulo_tarot_offers_its_cards_only_while_a_ready_ravnos_bears_it
 102015,Treasured Samadji,group Clan equipment,[ANK 20180719-3],"Once in play, can be equipped from the minion it's on (rulebook action) by another minion that does not meet the requirements.",test:treasured_samadji_taken_by_a_non_ravnos_gives_nothing
 100485,Dabbler,group Once each turn,[ANK 20180719-4],"\""Once each turn\"" means once during each player's turn.",
 100722,Ferraille,group Once each turn,[ANK 20180719-4],"\""Once each turn\"" means once during each player's turn.",
@@ -700,7 +700,7 @@ card_id,card,via,references,ruling,status
 201675,Luciano Carvalho,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
 201680,Opikun,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
 201716,Yewon Ong,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
-101767,Shilmulo Tarot,group Cards holding cards,[LSJ 20021128],"If it leaves play, the card on it is burned.",
+101767,Shilmulo Tarot,group Cards holding cards,[LSJ 20021128],"If it leaves play, the card on it is burned.",test:a_shilmulo_tarot_leaving_play_burns_the_cards_on_it
 100476,Crypt's Sons,group Retainer that strike,[RTR 19941109],Does not gain additional strikes from its owner.,
 101254,Murder of Crows,group Retainer that strike,[RTR 19941109],Does not gain additional strikes from its owner.,
 100918,Hidden Strength,group Cost X,[LSJ 20030502],"X can be zero, but not less than zero.",test:hidden_strength_x_terms_and_prevention
@@ -1024,10 +1024,10 @@ card_id,card,via,references,ruling,status
 101342,Pack Alpha,group Equip/employ/recruit outside of an action,[ANK 20230824] [RTR 20070707],Cost reductions that are not referring to an action apply .,
 101401,Piper,group Equip/employ/recruit outside of an action,[ANK 20230824] [RTR 20070707],Cost reductions that are not referring to an action apply .,
 102352,Contraband,group Equip/employ/recruit outside of an action,[ANK 20230824] [RTR 20070707],Cost reductions that are not referring to an action apply .,
-101143,Magic of the Smith,group Equip/Employ/Recruit action,[ANK 20180817],Does not prevent the acting vampire from playing the equipment/retainer/ally directly this turn if he unlocks (not the same action).,
-101143,Magic of the Smith,group Equip/Employ/Recruit action,[ANK 20180817] [LSJ 20100303] [LSJ 20100725],Requirements apply but do not count as requirements for the action (eg. you cannot use {100446|CrimethInc.} if the chosen card requires an Anarch).,
-101143,Magic of the Smith,group Equip/Employ/Recruit action,[LSJ 20080803],"When choosing a card whose effect depend on Discipline level, the vampire decides in respect to his disciplines the normal way.",
-101143,Magic of the Smith,group Equip/Employ/Recruit action,[TOM 19960130],Is an action of the appropriate type for the chosen card (recruit/employ/equip).,
+101143,Magic of the Smith,group Equip/Employ/Recruit action,[ANK 20180817],Does not prevent the acting vampire from playing the equipment/retainer/ally directly this turn if he unlocks (not the same action).,blocked:no effect unlocks the acting vampire after its action yet
+101143,Magic of the Smith,group Equip/Employ/Recruit action,[ANK 20180817] [LSJ 20100303] [LSJ 20100725],Requirements apply but do not count as requirements for the action (eg. you cannot use {100446|CrimethInc.} if the chosen card requires an Anarch).,n/a:CrimethInc. is not in V5
+101143,Magic of the Smith,group Equip/Employ/Recruit action,[LSJ 20080803],"When choosing a card whose effect depend on Discipline level, the vampire decides in respect to his disciplines the normal way.",blocked:no equipment with a discipline requirement implemented yet
+101143,Magic of the Smith,group Equip/Employ/Recruit action,[TOM 19960130],Is an action of the appropriate type for the chosen card (recruit/employ/equip).,blocked:no effect keyed to equip actions yet
 102239,"Michael Harris, the Incinerator",group Allies with equip actions,[ANK 20180817],Does not prevent the acting ally from playing the equipment directly this turn if he unlocks (not the same action).,
 102239,"Michael Harris, the Incinerator",group Allies with equip actions,[TOM 19960130],Their special is an equip action.,
 102239,"Michael Harris, the Incinerator",group Allies with equip actions,[ANK 20180817] [LSJ 20100303] [LSJ 20100725],Requirements apply.,

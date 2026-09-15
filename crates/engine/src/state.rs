@@ -166,6 +166,10 @@ pub struct CardInPlay {
     pub contested: bool,
     pub locked: bool,
     pub counters: u8,
+    /// Library cards on this card, out of play (Black Market Cache face
+    /// up, Shilmulo Tarot face down), top last: their owner's, burned with
+    /// the card (LSJ 20021128).
+    pub stored: Vec<u16>,
 }
 
 impl CardInPlay {
@@ -376,6 +380,21 @@ impl GameState {
             Some(h) if !master => self.minions[h.index()].owner,
             _ => c.controller,
         }
+    }
+
+    /// A copy of this unique card is in play under `seat`, contested or not:
+    /// another is not playable, nor equipped by a search ("you cannot
+    /// voluntarily contest cards with yourself", rulebook "Contested
+    /// Cards"; spec §1.13.1; rules-qa 7.1).
+    pub fn controls_unique_copy(&self, seat: SeatId, card: u16) -> bool {
+        LIBRARY[card as usize]
+            .labels
+            .contains(&crate::library::Label::Unique)
+            && self.cards.iter().enumerate().any(|(i, c)| {
+                c.in_play
+                    && self.card_controller(CardId(i as u32)) == seat
+                    && LIBRARY[c.card as usize].name == LIBRARY[card as usize].name
+            })
     }
 
     /// Hand size (rulebook "Drawing Cards"): seven, the until-end-of-turn

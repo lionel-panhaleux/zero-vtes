@@ -95,6 +95,7 @@ fn in_play(e: &mut Engine, name: &str, owner: u8) -> u32 {
         contested: false,
         locked: false,
         counters: 0,
+        stored: Vec::new(),
     });
     e.state.cards.len() as u32 - 1
 }

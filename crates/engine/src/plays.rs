@@ -10,9 +10,10 @@ use crate::cards::{
 };
 use crate::combat::is_combat_effect;
 use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
+use crate::draws::Interrupt;
 use crate::game::{Engine, Flow, Pending};
 use crate::ids::{MinionId, SeatId};
-use crate::library::{CardType, Label, LIBRARY};
+use crate::library::{CardType, LIBRARY};
 use crate::referendum::is_vote_effect;
 use crate::state::{ActionId, CardId, CardInPlay, OutOfTurn};
 use crate::window::OrderedWindow;
@@ -40,6 +41,12 @@ impl Engine {
     /// the cards not replaced yet count against it; an empty library draws
     /// nothing.
     pub(crate) fn draw_up(&mut self, s: SeatId) {
+        // A draw alternative applies: each card drawn is a choice (rules-qa
+        // 9.4), made before any other decision.
+        if self.draws_interrupt(s) {
+            self.interrupts.push(Interrupt::DrawUp { seat: s });
+            return;
+        }
         let size = self.state.hand_size(s);
         let seat = &mut self.state.seats[s.index()];
         while seat.hand.len() + seat.held.total() < size {
@@ -57,47 +64,23 @@ impl Engine {
     /// card being replaced itself ("a card other than this card"): Visit
     /// from the Capuchin burns a counter instead, its hand size shrinking
     /// with it. With an empty library nothing is replaced, so nothing is
-    /// replaced instead (rules-qa 8.3). The pool holds one such card, so
-    /// there is no choice between alternatives to offer (ANK 20200905). The
-    /// hand is then drawn up.
+    /// replaced instead (rules-qa 8.3). Beside a draw alternative (Black
+    /// Market Cache, Shilmulo Tarot) the player picks one treatment per
+    /// replacement (ANK 20200905; rules-qa 9.4), queued in order. The hand
+    /// is then drawn up.
     pub(crate) fn replace(&mut self, s: SeatId, n: usize, except: Option<CardId>) {
         for _ in 0..n {
-            let st = &self.state;
-            if st.seats[s.index()].library.is_empty() {
+            if self.state.seats[s.index()].library.is_empty() {
                 break;
             }
-            let instead = (0..st.cards.len() as u32).map(CardId).find(|&id| {
-                let c = &st.cards[id.index()];
-                Some(id) != except
-                    && c.present()
-                    && st.card_controller(id) == s
-                    && cards::lookup(c.card).is_some_and(|d| {
-                        d.riders.iter().any(|r| {
-                            r.hook == Hook::WouldReplace
-                                && r.scope.applies(s, s)
-                                && st.rider_holds(r, id)
-                        })
-                    })
-            });
-            let Some(id) = instead else {
+            let Some(id) = self.replacement_rider(s, except) else {
                 continue;
             };
-            let def = cards::lookup(self.state.cards[id.index()].card).expect("definition");
-            for r in def.riders.iter().filter(|r| r.hook == Hook::WouldReplace) {
-                for e in r.effects {
-                    match *e {
-                        Effect::RemoveCounter(k) => {
-                            let c = &mut self.state.cards[id.index()];
-                            c.counters = c.counters.saturating_sub(k);
-                        }
-                        Effect::BurnSelfWithoutCounters => {
-                            if self.state.cards[id.index()].counters == 0 {
-                                self.burn_card_in_play(id);
-                            }
-                        }
-                        other => unreachable!("not a replacement rider effect: {other:?}"),
-                    }
-                }
+            if self.draws_interrupt(s) {
+                self.interrupts
+                    .push(Interrupt::Replacement { seat: s, except });
+            } else {
+                self.apply_replacement_rider(id);
             }
         }
         self.draw_up(s);
@@ -233,13 +216,7 @@ impl Engine {
             // "Contested Cards"; spec §1.13.1): a unique card is not
             // playable while a copy of it is in play under this seat —
             // contested or not (rules-qa 7.1).
-            if LIBRARY[card as usize].labels.contains(&Label::Unique)
-                && st.cards.iter().enumerate().any(|(i, c)| {
-                    c.in_play
-                        && st.card_controller(CardId(i as u32)) == seat
-                        && LIBRARY[c.card as usize].name == LIBRARY[card as usize].name
-                })
-            {
+            if st.controls_unique_copy(seat, card) {
                 continue;
             }
             for (mi, mode) in def.modes.iter().enumerate() {
@@ -548,7 +525,10 @@ impl Engine {
                 }
                 options
             }
-            Some(Terms::CopiesControlled) | Some(Terms::Discard { .. }) | None => {
+            Some(Terms::CopiesControlled)
+            | Some(Terms::Discard { .. })
+            | Some(Terms::Count { .. })
+            | None => {
                 unreachable!("terms window without a choice")
             }
         };
@@ -722,8 +702,11 @@ impl Engine {
             self.state.minions[m.index()].blood -= blood;
         }
         let mut in_play: Option<CardId> = None;
+        let mut search = None;
         for effect in mode.effects {
             match *effect {
+                // Once the card is replaced (rules-qa 12.4).
+                Effect::SearchStore(n) => search = Some(n),
                 Effect::CancelPlayed { refund: _ } => {
                     // The play beneath this one on the stack is the card
                     // being played that this cancel targets.
@@ -735,6 +718,9 @@ impl Engine {
             }
         }
         match in_play {
+            // Its search puts its cards on it first: the search's end
+            // enters the contest (Black Market Cache).
+            Some(_) if search.is_some() => {}
             // Entered play: a unique copy contests once its own entry
             // effects have resolved (spec §1.13.2).
             Some(id) => self.enter_library_contest(id),
@@ -759,6 +745,16 @@ impl Engine {
             Some(Until::NextDiscardPhase) => self.state.seats[s.index()].held.discard += 1,
             None if deferred => self.state.seats[s.index()].held.action += 1,
             None => self.replace(s, 1, in_play),
+        }
+        // Black Market Cache's search, chosen as it resolves after its
+        // replacement is drawn (rules-qa 12.4): queued behind that draw's
+        // choices, if any.
+        if let (Some(left), Some(card)) = (search, in_play) {
+            self.interrupts.push(Interrupt::StoreSearch {
+                seat: s,
+                card,
+                left,
+            });
         }
         if self.state.seats[s.index()].pool == 0 {
             if s == self.state.active {
@@ -825,11 +821,16 @@ impl Engine {
                     contested: false,
                     locked: false,
                     counters: 0,
+                    stored: Vec::new(),
                 }));
             }
             Effect::EnterWithCounters(n) => {
                 let id = in_play.expect("counters on a card that entered play");
                 self.state.cards[id.index()].counters = n;
+            }
+            Effect::StoreTopCards(n) => {
+                let id = in_play.expect("cards stored on a card that entered play");
+                self.store_top_cards(id, n);
             }
             Effect::MoveBloodTargetToPoolX => {
                 let Target::Minion(t) = ctx.target else {
@@ -889,7 +890,12 @@ impl Engine {
             | Effect::CommitStrike
             | Effect::AdditionalStrikeWithSource
             | Effect::PreventGunStrikeAllowance(_)
-            | Effect::ContinuePressEachCombat => {
+            | Effect::ContinuePressEachCombat
+            | Effect::SearchEquip
+            | Effect::EquipFirstFound
+            | Effect::BurnSelfWithoutStored
+            | Effect::DrawThenBottom
+            | Effect::SearchStore(_) => {
                 unreachable!("ability or rider effect in a play")
             }
             e if is_combat_effect(&e) => self.apply_combat_effect(e, ctx),
@@ -1255,9 +1261,9 @@ impl Engine {
             a.base_stealth += stealth;
             return true;
         }
-        // Terms announced with the use (the master cards to discard): the
-        // ability resolves once they are chosen.
-        if let Some(Terms::Discard { .. }) = mode.terms {
+        // Terms announced with the use (the master cards to discard, a
+        // number of cards): the ability resolves once they are chosen.
+        if let Some(Terms::Discard { .. } | Terms::Count { .. }) = mode.terms {
             self.flow = Flow::AbilityTerms {
                 card: CardId(card),
                 ability,
@@ -1266,7 +1272,7 @@ impl Engine {
             };
             return true;
         }
-        self.resolve_ability(card, ability, target)
+        self.resolve_ability(card, ability, target, 0)
     }
 
     /// The Methuselah using an ability: the active one for "Methuselahs
@@ -1289,16 +1295,17 @@ impl Engine {
     ) -> DecisionRequest {
         let seat = self.ability_user(card, ability);
         let def = cards::lookup(self.state.cards[card.index()].card).expect("definition");
-        let Some(Terms::Discard { masters, .. }) = def.abilities[ability as usize].terms else {
-            unreachable!("ability terms without discards");
+        let options = match def.abilities[ability as usize].terms {
+            Some(Terms::Discard { masters, .. }) => self
+                .state
+                .hand_picks(seat, masters)
+                .into_iter()
+                .filter(|i| !picked.contains(i))
+                .map(Choice::Discard)
+                .collect(),
+            Some(Terms::Count { min, max }) => (min..=max).map(Choice::SetX).collect(),
+            _ => unreachable!("ability terms without a choice"),
         };
-        let options = self
-            .state
-            .hand_picks(seat, masters)
-            .into_iter()
-            .filter(|i| !picked.contains(i))
-            .map(Choice::Discard)
-            .collect();
         DecisionRequest {
             seat,
             window: WindowLabel::PlayTerms,
@@ -1340,12 +1347,20 @@ impl Engine {
         }
         self.replace(seat, discarded, None);
         self.flow = *resume;
-        self.resolve_ability(card.0, ability, Target::None);
+        self.resolve_ability(card.0, ability, Target::None, 0);
     }
 
-    /// Resolve an in-play ability's effects (its terms, if any, chosen).
-    /// Returns true when the flow moved on (the user ousted).
-    fn resolve_ability(&mut self, card: u32, ability: u8, target: Target) -> bool {
+    /// The number chosen for an ability's count terms (Heart of
+    /// Nizchetus): the ability resolves with it.
+    pub(crate) fn ability_count_apply(&mut self, card: CardId, ability: u8, resume: Flow, x: u8) {
+        self.flow = resume;
+        self.resolve_ability(card.0, ability, Target::None, x);
+    }
+
+    /// Resolve an in-play ability's effects (its terms, if any, chosen:
+    /// `x` for a count). Returns true when the flow moved on (the user
+    /// ousted).
+    fn resolve_ability(&mut self, card: u32, ability: u8, target: Target, x: u8) -> bool {
         let c = &self.state.cards[card as usize];
         let def = cards::lookup(c.card).expect("definition");
         let mode = &def.abilities[ability as usize];
@@ -1363,7 +1378,7 @@ impl Engine {
             mode: ability,
             actor: host,
             target,
-            x: 0,
+            x,
             burn: None,
         };
         if let (Some(Limit::PerAction), Some(a)) = (mode.limit, self.action.as_mut()) {
@@ -1490,6 +1505,21 @@ impl Engine {
                     if !cb.abilities_used.contains(&id) {
                         cb.abilities_used.push(id);
                         cb.sides[i].continue_presses += 1;
+                    }
+                }
+                Effect::StoreTopCards(n) => self.store_top_cards(CardId(card), n),
+                // The number picked, capped by the library as the ability
+                // resolves; drawn with no discard-down before the same
+                // number goes back to the bottom (rules-qa 9.5, 11.1).
+                Effect::DrawThenBottom => {
+                    let library = self.state.seats[ctx.seat.index()].library.len();
+                    let n = ctx.x.min(library.min(u8::MAX as usize) as u8);
+                    if n > 0 {
+                        self.interrupts.push(Interrupt::Draws {
+                            seat: ctx.seat,
+                            left: n,
+                            drawn: 0,
+                        });
                     }
                 }
                 e if is_combat_effect(&e) => self.apply_combat_effect(e, &ctx),

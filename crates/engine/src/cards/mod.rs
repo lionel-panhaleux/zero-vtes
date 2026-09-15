@@ -333,6 +333,12 @@ pub enum Requirement {
     /// This card was on the blocker when it blocked (Sniper Rifle: not an
     /// equipment equipped after the block, rules-qa 10.5).
     SourceHeldWhenBlocking,
+    /// The card's controller controls the minion it is on ("if you control
+    /// this minion", Vast Wealth; RTR 19951017).
+    ControllerControlsHost,
+    /// The card's host is ready ("while this Ravnos is ready", Shilmulo
+    /// Tarot; "if the bearer is ready", Heart of Nizchetus).
+    HostReady,
     /// No press to continue stands ("press, only usable to continue").
     NoContinuePress,
     /// The actor is the minion that blocked this action ("who has
@@ -660,6 +666,9 @@ pub enum Terms {
     /// which ones, chosen one at a time as the use is announced (Tension
     /// in the Ranks, The Barrens).
     Discard { n: u8, masters: bool },
+    /// A number of cards in `min..=max`, chosen as the ability is used
+    /// (Heart of Nizchetus: "up to 3"; rules-qa 11.1).
+    Count { min: u8, max: u8 },
 }
 
 /// Continuous-effect modifiers carried by layers (effects-framework §3.2).
@@ -974,6 +983,34 @@ pub enum Effect {
     /// Blade; kept though the strike is dodged or does not resolve,
     /// rules-qa 10.4).
     ContinuePressEachCombat,
+    /// On success, search the library for an equipment the acting vampire
+    /// can equip and equip it — requirements and cost as normal, shuffle
+    /// afterward (Magic of the Smith; chosen at resolution, spec §1.14.1).
+    SearchEquip,
+    /// On success, equip with the first equipment found working down from
+    /// the top — requirements and cost as normal, shuffle afterward (Vast
+    /// Wealth): one that cannot be placed or paid for in blood is burned
+    /// without cost (TOM 19950407); a pool cost that ousts is paid (RTR
+    /// 19941109).
+    EquipFirstFound,
+    /// Move the top n cards of the controller's library onto this card,
+    /// out of play — as many as there are (Shilmulo Tarot, on equip and in
+    /// its unlock ability; rules-qa 11.2).
+    StoreTopCards(u8),
+    /// As the card resolves, once it is replaced (rules-qa 12.4), search the
+    /// library (shuffle afterward) for up to n non-unique equipment cards,
+    /// one at a time, and put them on this card; the card enters contest
+    /// only then (spec §1.13.2), and is burned at once if it holds none
+    /// (Black Market Cache; rules-qa 11.3). Applied by `resolve_play`.
+    SearchStore(u8),
+    /// Rider of a draw alternative: "if this card has no cards on it, burn
+    /// it", checked as its last card is drawn (Black Market Cache).
+    BurnSelfWithoutStored,
+    /// "Draw up to X cards without discarding and then move the same number
+    /// of cards from your hand to the bottom of your library": X capped by
+    /// the library as the ability resolves (Heart of Nizchetus; rules-qa
+    /// 9.5, 11.1).
+    DrawThenBottom,
     // Referendum effects (`referendum`).
     /// The political action card's referendum (with `DeclareAction`).
     CallReferendum(&'static ReferendumDef),
@@ -1039,6 +1076,11 @@ pub enum Hook {
     /// this vehicle"): applied where the block resolves, before combat or
     /// any other effect (ANK 20220116).
     HostBlocked,
+    /// The controller would draw a card from their library: a draw
+    /// alternative ("you can draw one of those cards instead") offered for
+    /// each card drawn, while the library holds one (rules-qa 9.4). The
+    /// rider's effects apply as a card is taken from this card.
+    WouldDraw,
 }
 
 /// Whose turn a phase rider fires on.
@@ -1263,7 +1305,10 @@ pub fn holds(
             Step::Prevent(p) => p == i && c.sides[i].pending.total() > c.sides[i].pending.gun,
             _ => true,
         }),
-        Requirement::SourceHeldWhenBlocking => true, // card predicate
+        // Card and host predicates.
+        Requirement::SourceHeldWhenBlocking
+        | Requirement::ControllerControlsHost
+        | Requirement::HostReady => true,
         Requirement::NoContinuePress => combat.is_some_and(|c| !c.press_continue),
         Requirement::ActorHasBlocked => {
             action.is_some_and(|a| a.blocker.is_some() && a.blocker == actor)
@@ -1360,6 +1405,9 @@ pub fn holds_for_card(req: Requirement, st: &GameState, id: CardId) -> bool {
     match req {
         Requirement::CardUnlocked => !c.locked,
         Requirement::CountersAtLeast(n) => c.counters >= n,
+        Requirement::ControllerControlsHost => c
+            .host
+            .is_some_and(|h| st.minions[h.index()].owner == c.controller),
         _ => true,
     }
 }
@@ -1369,6 +1417,7 @@ pub fn holds_for_host(req: Requirement, st: &GameState, host: MinionId) -> bool 
     let v = &st.minions[host.index()];
     match req {
         Requirement::HostLocked => v.locked,
+        Requirement::HostReady => v.ready(),
         Requirement::HostBloodAtLeast(n) => v.blood >= n,
         Requirement::HostBelowCapacity => v.blood < v.capacity(),
         Requirement::HostControllerPoolAtLeast(n) => st.seats[v.owner.index()].pool >= n as i32,

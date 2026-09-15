@@ -1699,7 +1699,12 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     riders: &[],
 };
 
-pub static DEFS: [&CardDef; 100] = [
+pub static DEFS: [&CardDef; 105] = [
+    &MAGIC_OF_THE_SMITH,
+    &VAST_WEALTH,
+    &BLACK_MARKET_CACHE,
+    &SHILMULO_TAROT,
+    &HEART_OF_NIZCHETUS,
     &KEVLAR_VEST,
     &RIGHTEOUS_BLADE,
     &MAGNUM_44,
@@ -3228,5 +3233,192 @@ pub static KEVLAR_VEST: CardDef = CardDef {
             effects: &[Effect::PreventNonGun(1)],
         },
     ],
+    riders: &[],
+};
+
+// ---- Library search (slice 8c) ----------------------------------------------
+
+/// "+1 stealth action. [tha] Search your library for an equipment card and
+/// equip this vampire with it (requirements and cost apply as normal;
+/// shuffle afterward). [THA] As above, but this is a +3 stealth action."
+/// (1 blood.) The equipment is chosen at resolution ([RBK search]); one
+/// whose blood cost the vampire cannot pay is not offered (rules-qa 9.3).
+pub static MAGIC_OF_THE_SMITH: CardDef = CardDef {
+    name: "Magic of the Smith",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        ModeDef {
+            windows: &[Window::ActionDeclare],
+            actor: Actor::ActingCandidate,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::SearchEquip,
+            ],
+        },
+        ModeDef {
+            windows: &[Window::ActionDeclare],
+            actor: Actor::ActingCandidate,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(3),
+                Effect::SearchEquip,
+            ],
+        },
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Put this card on a ready minion you control. If you control this
+/// minion, they can equip with the first equipment you find in your library
+/// as a +1 stealth equip action (working down from the top; requirements
+/// and cost apply as normal; shuffle afterward)."
+pub static VAST_WEALTH: CardDef = CardDef {
+    name: "Vast Wealth",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[Requirement::Controlled, Requirement::ActorReady],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::PutOnTarget],
+    }],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDeclare],
+        actor: Actor::Host,
+        requires: &[Requirement::ControllerControlsHost],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::EquipFound),
+            Effect::AddStealth(1),
+            Effect::EquipFirstFound,
+        ],
+    }],
+    riders: &[],
+};
+
+// ---- Stored cards and draw alternatives (slice 8c-ii) ----------------------
+
+/// "Unique location. Search your library (shuffle afterward) for up to
+/// three non-unique equipment cards and put them on this location, face up
+/// and out of play. If you would draw a card from your library, you can
+/// draw one of those cards instead. If this location has no cards on it,
+/// burn it." (Ravnos.) The cards are chosen one at a time as it resolves,
+/// once its replacement is drawn (rules-qa 12.4), before it enters contest
+/// (spec §1.13.2); it is burned at once holding
+/// none, and as its last card is drawn (rules-qa 11.3). Each card drawn
+/// from the library may be one of them instead (rules-qa 9.4).
+pub static BLACK_MARKET_CACHE: CardDef = CardDef {
+    name: "Black Market Cache",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::PutInPlay, Effect::SearchStore(3)],
+    }],
+    abilities: &[],
+    riders: &[Rider {
+        hook: Hook::WouldDraw,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::BurnSelfWithoutStored],
+    }],
+};
+
+/// "Unique. Move the top 2 cards of your library to this equipment, face
+/// down and out of play (you can look at the cards at any time). While this
+/// Ravnos is ready, if you would draw a card from your library, you can
+/// draw one of these cards instead. During your unlock phase, you can move
+/// the top card of your library to this equipment." (Ravnos.) The two cards
+/// come as it is equipped — not when it is taken by another minion — and
+/// before a second copy enters contest (ANK 20221028); it stores any number
+/// (PIB 20110712-2). A minion that is not Ravnos may take it from another
+/// minion (ANK 20180719-3) and draws nothing from it: "this Ravnos" is read
+/// on the current bearer, as Treasured Samadji's (rules-qa 9.1). The unlock
+/// move is once per unlock phase, the bearer ready or not (rules-qa 6.6,
+/// 11.2).
+pub static SHILMULO_TAROT: CardDef = CardDef {
+    name: "Shilmulo Tarot",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        effects: &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::StoreTopCards(2),
+        ],
+        ..EQUIP
+    }],
+    abilities: &[ModeDef {
+        windows: &[Window::UnlockPhaseOwn],
+        actor: Actor::Controller,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::StoreTopCards(1)],
+    }],
+    riders: &[Rider {
+        hook: Hook::WouldDraw,
+        scope: RiderScope::Controller,
+        requires: &[Requirement::HostClan("Ravnos"), Requirement::HostReady],
+        effects: &[],
+    }],
+};
+
+/// "Unique. If the bearer is ready during your unlock phase, you can draw
+/// up to 3 cards without discarding and then move the same number of cards
+/// from your hand to the bottom of your library." The number is picked as
+/// the ability is used and capped by the library as it resolves; the cards
+/// moved back are chosen one at a time, the last one chosen the bottom
+/// card (rules-qa 9.5, 11.1).
+pub static HEART_OF_NIZCHETUS: CardDef = CardDef {
+    name: "Heart of Nizchetus",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[EQUIP],
+    abilities: &[ModeDef {
+        windows: &[Window::UnlockPhaseOwn],
+        actor: Actor::Host,
+        requires: &[Requirement::HostReady],
+        target: NO_TARGET,
+        terms: Some(Terms::Count { min: 1, max: 3 }),
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::DrawThenBottom],
+    }],
     riders: &[],
 };

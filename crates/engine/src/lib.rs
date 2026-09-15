@@ -10,6 +10,7 @@ pub mod combat;
 pub mod contests;
 pub mod crypt;
 pub mod decision;
+pub mod draws;
 pub mod game;
 pub mod ids;
 pub mod influence;

@@ -28,12 +28,14 @@ fn zone_totals(e: &Engine) -> Vec<usize> {
         .iter()
         .enumerate()
         .map(|(i, s)| {
-            let in_play = e
+            // A card in play with the library cards stored on it.
+            let in_play: usize = e
                 .state
                 .cards
                 .iter()
                 .filter(|c| c.owner.index() == i && c.in_play)
-                .count();
+                .map(|c| 1 + c.stored.len())
+                .sum();
             s.library.len() + s.hand.len() + s.ash.len() + s.removed.len() + in_play
         })
         .collect()
@@ -63,12 +65,17 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
         }
         // Never over hand size — the cards not replaced yet counting
         // against it — except while discarding down (rulebook "Drawing
-        // Cards": at once).
+        // Cards": at once) or while Heart of Nizchetus draws "without
+        // discarding" and moves as many back: over size, a draw choice can
+        // only be one of its draws (a draw-up or a replacement is asked
+        // below size).
         let size = st.hand_size(zvtes::ids::SeatId(i as u8));
         assert!(
             s.ousted
                 || s.hand.len() + s.held.total() <= size
-                || window == WindowLabel::DiscardDown,
+                || window == WindowLabel::DiscardDown
+                || window == WindowLabel::Draw
+                || window == WindowLabel::BottomCards,
             "hand over size at seat {i} (seed {seed}): {} cards + {} held, size {size}, at {window:?}",
             s.hand.len(),
             s.held.total(),
@@ -185,7 +192,12 @@ fn kind_of(c: &Choice) -> &'static str {
             ActionKind::BurnCard => "burn_card",
             ActionKind::Equip => "equip",
             ActionKind::EquipFrom => "equip_from",
+            ActionKind::EquipFound => "equip_found",
         },
+        Choice::FindCard(_) => "find_card",
+        Choice::DrawLibrary => "draw_library",
+        Choice::DrawStored { .. } => "draw_stored",
+        Choice::Bottom(_) => "bottom",
         Choice::TakeEquipment { .. } => "take_equipment",
         Choice::DeclareBlock { .. } => "declare_block",
         Choice::PayRescue { .. } => "pay_rescue",
@@ -349,6 +361,11 @@ fn midgame(seed: u64) -> Engine {
         "Sniper Rifle",
         "Kevlar Vest",
         "Righteous Blade",
+        "Magic of the Smith",
+        "Vast Wealth",
+        "Black Market Cache",
+        "Shilmulo Tarot",
+        "Heart of Nizchetus",
     ]
     .iter()
     .map(|n| find_library(n))
@@ -438,6 +455,7 @@ fn midgame(seed: u64) -> Engine {
             contested: false,
             locked: false,
             counters: 2,
+            stored: Vec::new(),
         });
     }
     e
@@ -641,7 +659,10 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "play:Scorn of Adonis",
             "play:Telepathic Vote Counting",
             "play:Delaying Tactics",
-            "play:Closed Session",
+            // (Closed Session needs a prince or justicar in the polling
+            // step before anyone votes — random play votes early, and the
+            // play comes and goes as the slice reshuffles hands: scripted in
+            // tests/politics.rs.)
             "play:Voter Captivation",
             "play:Anarch Revolt",
             "ability:Anarch Revolt",
@@ -692,11 +713,11 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "play:Assault Rifle",
             "ability:Assault Rifle",
             "play:Flamethrower",
-            // (Flamethrower, Femur of Toomler and Kali's Fang strikes — the
-            // clan weapons need their clan to equip — are rare in random
-            // combats; the same strike kinds are taken with Ivory Bow and
-            // Righteous Blade, and the Femur's and the Fang's are scripted
-            // in tests/weapons.rs.)
+            // (Flamethrower strikes and the melee weapons' — Femur of
+            // Toomler, Kali's Fang and Righteous Blade need their clan to
+            // equip — are rare in random combats and come and go as the
+            // slice reshuffles hands; Ivory Bow takes the aggravated ranged
+            // kind, and the melee strikes are scripted in tests/weapons.rs.)
             "play:Ivory Bow",
             "ability:Ivory Bow",
             "play:Femur of Toomler",
@@ -706,7 +727,19 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "play:Kevlar Vest",
             "ability:Kevlar Vest",
             "play:Righteous Blade",
-            "ability:Righteous Blade",
+            "play:Magic of the Smith",
+            "find_card",
+            "play:Vast Wealth",
+            "ability:Vast Wealth",
+            "play:Black Market Cache",
+            // (Shilmulo Tarot's unlock move needs a Ravnos bearer to live
+            // until its unlock phase — rare at random tables: scripted in
+            // tests/draws.rs.)
+            "play:Shilmulo Tarot",
+            "draw_stored",
+            "play:Heart of Nizchetus",
+            "ability:Heart of Nizchetus",
+            "bottom",
             "equip_from",
             "take_equipment",
             // (Smiling Jack's pool unit elides when it is the only source and

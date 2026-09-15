@@ -557,6 +557,7 @@ fn banishment_sends_a_younger_vampire_to_the_uncontrolled_region() {
         contested: false,
         locked: true,
         counters: 1,
+        stored: Vec::new(),
     });
     pick(&mut e, votes(alexa, true));
     close_polling(&mut e);

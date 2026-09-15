@@ -1188,3 +1188,94 @@ Concealed Weapon or a similar effect once the block happened. Applied:
 20021028 stays `blocked:` until an effect equips during combat).
 
 **Tests** — `sniper_rifle_sets_long_range_skipping_determine_range_and_commits_the_strike`.
+
+## Batch 11 — Stored cards and draw alternatives (slice 8c-ii)
+
+### 11.1 Heart of Nizchetus with a short library
+
+"You can draw up to 3 cards without discarding and then move the same
+number of cards from your hand to the bottom of your library." The number
+is chosen as the ability is used (1 to 3), the cards drawn one at a time
+(each may be a draw alternative, 9.4). With fewer cards in the library
+than the number chosen, is "the same number" the number actually drawn?
+
+**Answer (2026-09-14)** — The number is picked before drawing and the
+cards are drawn at once: the number picked, capped by the library's size;
+then that same number is moved to the bottom. Applied: the draw count is
+fixed as the ability resolves (`min(X, library)`), each of those draws
+still a draw alternative's choice (9.4); the bottom move follows with no
+discard-down in between.
+
+### 11.2 Shilmulo Tarot's stored cards
+
+On equip, "move the top 2 cards of your library to this equipment": with
+fewer than 2 cards, the ones there are. "During your unlock phase, you
+can move the top card of your library to this equipment": once per unlock
+phase per Tarot (the "during" template, 6.6), whoever bears it. Right?
+
+**Answer (2026-09-14)** — Right; and the Tarot is unique, so a Methuselah
+has only one in play. Applied: `Effect::StoreTopCards` on equip and in
+the unlock ability; the self-contest mask also bars a search from
+equipping a unique the seat already has in play (rules-qa 7.1).
+
+### 11.3 Black Market Cache
+
+"Search your library (shuffle afterward) for up to three non-unique
+equipment cards and put them on this location": chosen as the card
+resolves, one at a time, 0 to 3. "If this location has no cards on it,
+burn it": checked whenever it is empty — at once after a search finding
+none, and as its last card is drawn. Right?
+
+**Answer (2026-09-14)** — Right.
+
+**Tests** — `black_market_cache_stores_non_unique_equipment_offered_for_each_draw`,
+`black_market_cache_finding_nothing_is_burned_at_once`,
+`black_market_cache_is_burned_as_its_last_card_is_drawn`,
+`shilmulo_tarot_moves_the_top_card_once_each_unlock_phase`,
+`heart_of_nizchetus_draws_the_number_picked_capped_by_the_library_then_as_many_to_the_bottom`.
+
+## Batch 12 — Readings of slice 8c-ii
+
+### 12.1 Visit from the Capuchin beside a draw alternative
+
+With the Capuchin and a Black Market Cache holding cards, each replacement
+offers the Capuchin's counter or a card from the Cache — not the top card
+of the library, since the Capuchin's "instead" applies unless the other
+treatment is chosen (ANK 20200905). Right?
+
+### 12.2 Shilmulo Tarot taken by another minion
+
+"Move the top 2 cards of your library to this equipment" happens as the
+Tarot is equipped from hand or by a search (LSJ 20090506). Taken from
+another minion with the rulebook equip action, the engine moves no new
+cards (the card is moved, not played). Right?
+
+### 12.3 A search finding a unique already in play
+
+Magic of the Smith does not offer a unique equipment its Methuselah
+already has in play (the self-contest rule, 7.1), and Vast Wealth's first
+find of one is burned as an equipment it cannot place. Right?
+
+### 12.4 Black Market Cache's own replacement
+
+The search resolves with the card, before its replacement is drawn, so
+that replacement may already be one of the cards just put on it. Right?
+
+### 12.5 Shilmulo Tarot on a minion that is not Ravnos
+
+A minion that is not Ravnos may take the Tarot from another minion (ANK
+20180719-3). "While this Ravnos is ready" is read on the current bearer,
+as Treasured Samadji's "this Ravnos" (9.1): such a bearer's Methuselah
+draws nothing from it, while the unlock-phase move ("you can move the top
+card of your library to this equipment") still applies. Right?
+
+**Answer (2026-09-15)** — 12.4: no — the Cache is replaced before its
+search, so its replacement is never one of the cards the search puts on
+it. 12.1, 12.2, 12.3, 12.5: right. Applied: `resolve_play` queues the
+search once the card is replaced.
+
+**Tests** — `visit_from_the_capuchin_or_a_draw_alternative_is_one_treatment_per_replacement`,
+`black_market_cache_is_replaced_before_storing_non_unique_equipment`,
+`shilmulo_tarot_offers_its_cards_only_while_a_ready_ravnos_bears_it`.
+
+**Tests** — `sniper_rifle_sets_long_range_skipping_determine_range_and_commits_the_strike`.

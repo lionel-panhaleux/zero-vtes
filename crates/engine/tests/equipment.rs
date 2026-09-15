@@ -81,6 +81,7 @@ fn equip(e: &mut Engine, name: &str, host: MinionId) -> u32 {
         contested: false,
         locked: false,
         counters: 0,
+        stored: Vec::new(),
     });
     let id = CardId(e.state.cards.len() as u32 - 1);
     for effect in cards::lookup(card).expect("definition").modes[0].effects {

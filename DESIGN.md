@@ -455,16 +455,17 @@ The engine's value is trust; trust is measured, not asserted.
    | Lock / burn abilities in action or combat windows | 17 | Homunculus, Guardian Angel | done (abilities in windows); untimed "you can lock this card" done (`Window::AnyImpulse`: The Barrens, Dreams of the Sphinx) |
    | Counters on a card | 46 | Smiling Jack, Dreams of the Sphinx | done (`CardInPlay.counters`; `PoolToCounter`, `AddCounter`, `BurnSelfAtCounters`, `CountersAtLeast`) |
 
-   | Would replace a card | — | Visit from the Capuchin | done (`Hook::WouldReplace` in `Engine::replace`; delayed replacements by `Until`) |
+   | Would replace / would draw a card | — | Visit from the Capuchin, Black Market Cache, Shilmulo Tarot | done (`Hook::WouldReplace` in `Engine::replace`; delayed replacements by `Until`; draw alternatives `Hook::WouldDraw`, a choice per card drawn served before other decisions, `Engine::interrupts`) |
 
-   Library search sits outside the hook shape and is not started: every
-   V5 search card needs another mechanism first — equipment (Magic of the
-   Smith, Vast Wealth, Michael Harris; Black Market Cache fetches
-   equipment) or an action creating a vampire (Childe of the Revolution,
-   Waters of Duat) — so it lands with the equipment slice (8c), as do the
-   draw alternatives ("if you would draw a card from your library, you
-   can draw one of those cards instead": Black Market Cache, Shilmulo
-   Tarot). A search chooses its card at resolution, not at announcement
+   Library search sits outside the hook shape: done for equipment (slice
+   8c: `Flow::LibrarySearch`, Magic of the Smith; Vast Wealth's first
+   equipment found; Black Market Cache's search storing cards on it,
+   `Interrupt::StoreSearch`); the searches of an action creating a vampire
+   (Childe of the Revolution, Waters of Duat) and of crypt printed
+   abilities wait for those mechanisms. The draw alternatives ("if you
+   would draw a card from your library, you can draw one of those cards
+   instead": Black Market Cache, Shilmulo Tarot) came with it (8c-ii). A
+   search chooses its card at resolution, not at announcement
    (spec §1.14.1, §3.1.2), and shuffles with the engine's `Rng`. Control
    change of a card in play is done for the hostless
    case (`CardInPlay.controller`, The Coven); "steal this location"
@@ -935,6 +936,62 @@ Recorded so nobody mistakes them for oversights:
   (`Effect::ContinuePressEachCombat`, `Side.continue_presses`) as it is
   chosen, kept though dodged or unresolved, once per Blade per combat.
   100 defs.
+  Slice 8c-i (2026-09-14): library search. Magic of the Smith declares
+  nothing ([RBK search]): once the action succeeds and its blood is paid,
+  `Flow::LibrarySearch` offers the searching player every equipment in the
+  library the vampire could equip as a card play — clan and discipline
+  requirements, "only one" limits, a pool cost the pool covers (down to 0,
+  which ousts), no unpayable blood cost (rules-qa 9.3) — by card, not by
+  position (the order is hidden), or none (`Choice::FindCard`, `Pass`);
+  the library is shuffled with the engine's `Rng` afterward. Vast Wealth
+  is a master card on a ready minion granting a +1 stealth equip action
+  (`ActionKind::EquipFound`, `Requirement::ControllerControlsHost`, RTR
+  19951017): on success the first equipment working down from the top is
+  equipped as normal, or burned without cost when it cannot be placed or
+  its blood paid (TOM 19950407), its pool cost paid even when that ousts
+  (RTR 19941109); it fizzles if Vast Wealth left the minion. Both equip
+  through `Engine::put_equipment`, shared with the equip action (the
+  mode's own effects, a unique's contest). An equipment without a
+  definition cannot be put in play by the engine: a search neither offers
+  it nor stops at it (a P1 coverage limit, gone once P2 defines every
+  card). Definitions: Magic of the Smith, Vast Wealth (102 defs), scripted
+  in `tests/search.rs`.
+  Slice 8c-ii (2026-09-14): cards stored on cards and the draws they
+  change. `CardInPlay.stored` holds library cards out of play on a card,
+  burned with it (LSJ 20021128). A draw that can be a choice — a draw
+  alternative applies: a `Hook::WouldDraw` rider on a card of the drawing
+  Methuselah holding cards (Black Market Cache; Shilmulo Tarot while a
+  ready Ravnos bears it, read on the current bearer as rules-qa 9.1) —
+  interrupts whatever drew it: `Engine::interrupts` is served in order
+  before any other decision, a discard-down included, and a Methuselah
+  with no alternative and nothing queued draws at once as before. Each
+  card drawn from the library, replacement or not, may be taken from a
+  card instead (rules-qa 9.4); beside Visit from the Capuchin a
+  replacement is the Capuchin's counter or a stored card, not the top
+  card (ANK 20200905: the Capuchin's "instead" stands otherwise); nothing
+  is drawn, from anywhere, from an empty library. Black Market Cache's
+  search (`Effect::SearchStore`) picks up to three non-unique equipment one
+  at a time as it resolves — any, defined or not, as they stay out of
+  play — once its own replacement is drawn (rules-qa 12.4);
+  the library is shuffled, the location burned at once holding no card,
+  else entering contest only then (spec §1.13.2), and burned as its last
+  card is drawn (rules-qa 11.3). Shilmulo Tarot's two cards come as it is
+  equipped (`Effect::StoreTopCards` among the mode's own effects, so from
+  hand or by a search, LSJ 20090506; before its contest, ANK 20221028),
+  not as another minion takes it; its unlock move is once per unlock
+  phase and stacks without limit (PIB 20110712-2). Heart of Nizchetus
+  (`Terms::Count`, `Effect::DrawThenBottom`): the number is picked as the
+  ability is used and capped by the library as it resolves; those cards
+  are drawn, then as many moved to the bottom one at a time (the last one
+  chosen the bottom card) with no discard-down in between (rules-qa 9.5,
+  11.1). The self-contest mask (rules-qa 7.1) now also keeps a search from
+  equipping a unique its Methuselah already has in play
+  (`GameState::controls_unique_copy`): Magic of the Smith does not offer
+  it, Vast Wealth burns it as unplaceable. Definitions: Black Market
+  Cache, Shilmulo Tarot, Heart of Nizchetus (105 defs), scripted in
+  `tests/draws.rs`. Rules-qa Batch 11 answered (2026-09-14); Batch 12
+  answered (2026-09-15): the readings stand, except that the Cache is
+  replaced before its search (12.4).
 - **P2 — full engine pool**: all 621 cards including Events and their machinery;
   the 14 training decklists plus the New Blood minis as data; perft baselines;
   protocol server; scripted reference bots (aggro-bleed, wall, vote).

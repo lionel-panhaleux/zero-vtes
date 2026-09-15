@@ -14,6 +14,28 @@ use crate::referendum::RefKind;
 use crate::state::{ActionId, CardId, CardInPlay};
 use crate::window::OrderedWindow;
 
+/// An equipment card the engine can put in play (it has a definition).
+fn is_equipment(card: u16) -> bool {
+    LIBRARY[card as usize]
+        .types
+        .contains(&crate::library::CardType::Equipment)
+        && cards::lookup(card).is_some()
+}
+
+/// The play context of an equipment found in the library and equipped on
+/// `acting` (its only mode).
+fn found_play(seat: SeatId, acting: MinionId, card: u16) -> PlayCtx {
+    PlayCtx {
+        seat,
+        card,
+        mode: 0,
+        actor: Some(acting),
+        target: Target::Minion(acting),
+        x: 0,
+        burn: None,
+    }
+}
+
 /// Rulebook "Resolve Any Block Attempts": A (no attempt), B (an attempt is
 /// ongoing), C (blocks declined by all); plus the as-announced window that
 /// precedes them (spec §2.2).
@@ -264,6 +286,9 @@ impl Engine {
             | ActionKind::LeaveTorpor
             | ActionKind::Employ
             | ActionKind::EquipFrom => (1, None, None),
+            // Granted by a card in play: its printed stealth only (rules-qa
+            // 6.2), added by `use_ability`.
+            ActionKind::EquipFound => (0, None, None),
             ActionKind::Equip => {
                 // +1 stealth, and what the equipment prints for the action
                 // to equip with it (Unlicensed Taxicab).
@@ -1032,6 +1057,7 @@ impl Engine {
                             contested: false,
                             locked: false,
                             counters: *life,
+                            stored: Vec::new(),
                         });
                         self.enter_library_contest(id);
                     }
@@ -1044,7 +1070,6 @@ impl Engine {
                 // the action fizzles (rules-qa 3.6) and the card is
                 // discarded; paid down to 0 pool, the Methuselah is ousted.
                 let play = a.card.expect("equipment card");
-                let def = cards::lookup(play.card).expect("definition");
                 let acting = a.acting;
                 let pool = cards::pool_cost(&self.state, seat, play.card, Target::Minion(acting));
                 let blood = cards::blood_cost(&self.state, play.card, play.x);
@@ -1056,36 +1081,56 @@ impl Engine {
                 } else {
                     self.state.seats[seat.index()].pool -= pool;
                     self.state.minions[acting.index()].blood -= blood;
-                    let ctx = PlayCtx {
-                        target: Target::Minion(acting),
-                        ..play
-                    };
-                    let mut in_play = Some(self.enter_play(CardInPlay {
-                        card: play.card,
-                        owner: seat,
-                        controller: seat,
-                        host: Some(acting),
-                        in_play: true,
-                        contested: false,
-                        locked: false,
-                        counters: 0,
-                    }));
-                    for e in def.modes[play.mode as usize]
-                        .effects
-                        .iter()
-                        .filter(|e| !matches!(e, Effect::DeclareAction(_) | Effect::AddStealth(_)))
-                    {
-                        self.apply_card_effect(*e, &ctx, &mut in_play);
-                    }
+                    self.put_equipment(seat, acting, play);
                     a.card_entered_play = true;
-                    if let Some(id) = in_play {
-                        self.enter_library_contest(id);
-                    }
                     if pool > 0 && self.state.seats[seat.index()].pool == 0 {
                         self.action = Some(a);
                         self.oust_and_pass(seat);
                         return;
                     }
+                }
+            }
+            ActionKind::EquipFound => {
+                // Vast Wealth: fizzles if the card left the acting minion
+                // (as the Codex's bleed). Working down from the top, the
+                // first equipment is equipped as normal — or burned without
+                // cost if it cannot be placed or its blood paid (TOM
+                // 19950407, rules-qa 9.3), its pool paid even if that ousts
+                // (RTR 19941109); the library is shuffled afterward.
+                let src = a.source.expect("source");
+                let acting = a.acting;
+                let c = &self.state.cards[src.index()];
+                if !(c.present() && c.host == Some(acting)) {
+                    a.outcome = Some(Outcome::Fizzled);
+                    self.action = Some(a);
+                    self.after_resolution();
+                    return;
+                }
+                let mut ousted = false;
+                let library = &self.state.seats[seat.index()].library;
+                if let Some(k) = library.iter().rposition(|&c| is_equipment(c)) {
+                    let card = self.state.seats[seat.index()].library.remove(k);
+                    let blood = cards::blood_cost(&self.state, card, 0);
+                    if self.equip_requirements_met(acting, card)
+                        && self.state.minions[acting.index()].blood >= blood
+                    {
+                        let pool =
+                            cards::pool_cost(&self.state, seat, card, Target::Minion(acting));
+                        let s = &mut self.state.seats[seat.index()];
+                        s.pool = (s.pool - pool).max(0);
+                        ousted = pool > 0 && s.pool == 0;
+                        self.state.minions[acting.index()].blood -= blood;
+                        self.put_equipment(seat, acting, found_play(seat, acting, card));
+                    } else {
+                        self.state.seats[seat.index()].ash.push(card);
+                    }
+                }
+                self.rng
+                    .shuffle(&mut self.state.seats[seat.index()].library);
+                if ousted {
+                    self.action = Some(a);
+                    self.oust_and_pass(seat);
+                    return;
                 }
             }
             ActionKind::EquipFrom => {
@@ -1117,6 +1162,14 @@ impl Engine {
                     return;
                 }
                 self.state.minions[a.acting.index()].blood -= cost;
+                if mode.effects.contains(&Effect::SearchEquip) {
+                    // Magic of the Smith: the equipment is chosen now that
+                    // the action succeeded (spec §1.14.1, §3.4).
+                    let acting = a.acting;
+                    self.action = Some(a);
+                    self.flow = Flow::LibrarySearch { minion: acting };
+                    return;
+                }
                 let ctx = PlayCtx { x, ..play };
                 let mut in_play = None;
                 // Declaration-time effects (the kind, the printed stealth)
@@ -1302,6 +1355,113 @@ impl Engine {
         // Rescued: to the ready region, lock state untouched.
         self.state.minions[target.index()].in_torpor = false;
         self.after_resolution();
+    }
+
+    /// Put an equipment card from outside play on `acting`, its cost paid:
+    /// its mode's own effects apply, and a unique enters contest.
+    fn put_equipment(&mut self, seat: SeatId, acting: MinionId, play: PlayCtx) {
+        let def = cards::lookup(play.card).expect("definition");
+        let ctx = PlayCtx {
+            target: Target::Minion(acting),
+            ..play
+        };
+        let mut in_play = Some(self.enter_play(CardInPlay {
+            card: play.card,
+            owner: seat,
+            controller: seat,
+            host: Some(acting),
+            in_play: true,
+            contested: false,
+            locked: false,
+            counters: 0,
+            stored: Vec::new(),
+        }));
+        for e in def.modes[play.mode as usize]
+            .effects
+            .iter()
+            .filter(|e| !matches!(e, Effect::DeclareAction(_) | Effect::AddStealth(_)))
+        {
+            self.apply_card_effect(*e, &ctx, &mut in_play);
+        }
+        if let Some(id) = in_play {
+            self.enter_library_contest(id);
+        }
+    }
+
+    /// Could minion `m` equip with library card `card` as a card play would
+    /// — clan and discipline requirements, "a minion can have only one", no
+    /// unique copy already in play under its controller (rules-qa 7.1)?
+    /// Cards without a definition cannot be put in play by the engine yet.
+    fn equip_requirements_met(&self, m: MinionId, card: u16) -> bool {
+        let st = &self.state;
+        let lib = &LIBRARY[card as usize];
+        is_equipment(card)
+            && !st.controls_unique_copy(st.minions[m.index()].owner, card)
+            && (lib.clans.is_empty() || lib.clans.contains(&st.minions[m.index()].card().clan))
+            && lib
+                .modes
+                .first()
+                .is_some_and(|mode| cards::has_disciplines(st, m, card, mode.tags))
+            && st.can_hold(m, card, &[])
+    }
+
+    /// The search of a successful Magic of the Smith: every equipment in
+    /// the library the vampire can equip and pay for (a pool cost down to 0
+    /// included; no unpayable blood cost, rules-qa 9.3), by card, or none.
+    pub(crate) fn search_request(&self, minion: MinionId) -> DecisionRequest {
+        let st = &self.state;
+        let seat = st.active;
+        let mut found: Vec<u16> = st.seats[seat.index()]
+            .library
+            .iter()
+            .copied()
+            .filter(|&c| {
+                self.equip_requirements_met(minion, c)
+                    && st.seats[seat.index()].pool
+                        >= cards::pool_cost(st, seat, c, Target::Minion(minion))
+                    && st.minions[minion.index()].blood >= cards::blood_cost(st, c, 0)
+            })
+            .collect();
+        // By card, not by position: the order of the library is hidden.
+        found.sort_unstable();
+        found.dedup();
+        let mut options = vec![Choice::Pass];
+        options.extend(found.into_iter().map(Choice::FindCard));
+        DecisionRequest {
+            seat,
+            window: WindowLabel::LibrarySearch,
+            options,
+        }
+    }
+
+    pub(crate) fn search_apply(&mut self, minion: MinionId, choice: &Choice) {
+        let seat = self.state.active;
+        let mut ousted = false;
+        match *choice {
+            Choice::FindCard(card) => {
+                let library = &mut self.state.seats[seat.index()].library;
+                let k = library
+                    .iter()
+                    .rposition(|&c| c == card)
+                    .expect("found card in the library");
+                library.remove(k);
+                let pool = cards::pool_cost(&self.state, seat, card, Target::Minion(minion));
+                let blood = cards::blood_cost(&self.state, card, 0);
+                self.state.seats[seat.index()].pool -= pool;
+                self.state.minions[minion.index()].blood -= blood;
+                self.put_equipment(seat, minion, found_play(seat, minion, card));
+                ousted = pool > 0 && self.state.seats[seat.index()].pool == 0;
+            }
+            Choice::Pass => {}
+            other => unreachable!("illegal search choice {other:?}"),
+        }
+        self.rng
+            .shuffle(&mut self.state.seats[seat.index()].library);
+        if ousted {
+            self.oust_and_pass(seat);
+        } else {
+            self.after_resolution();
+        }
     }
 
     /// The equipment an equip action takes from `giver`, announced one at

@@ -348,6 +348,7 @@ fn archon_investigation_under_tension_in_the_ranks_ousts_the_bleeder_s_methusela
         contested: false,
         locked: false,
         counters: 0,
+        stored: Vec::new(),
     });
     archon_sequence(&mut t);
     let e = &mut t.e;

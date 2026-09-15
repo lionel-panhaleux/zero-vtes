@@ -8,6 +8,7 @@ use crate::cards::{self, Hook, PlayCtx};
 use crate::combat::CombatCtx;
 use crate::crypt::PRECONS;
 use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
+use crate::draws::Interrupt;
 use crate::ids::{MinionId, SeatId};
 use crate::influence::transfers_for_turn;
 use crate::library::PRECON_LIBRARIES;
@@ -101,6 +102,11 @@ pub(crate) enum Flow {
         giver: MinionId,
         picked: Vec<CardId>,
     },
+    /// A successful action's library search (Magic of the Smith): the
+    /// equipment `minion` equips with, chosen at resolution (spec §1.14.1).
+    LibrarySearch {
+        minion: MinionId,
+    },
     /// An action is under way (`Engine::action`).
     Action,
     /// A combat is under way inside the action (`Engine::combat`).
@@ -142,6 +148,9 @@ pub struct Engine {
     /// Set when a play's resolution ousted its player: the as-played stack
     /// must not resume the ousted seat's phase.
     pub(crate) ousted_during_play: bool,
+    /// Choices about cards drawn, moved or stored, served in order before
+    /// any other decision (`draws`).
+    pub(crate) interrupts: Vec<Interrupt>,
     /// How the most recent action ended (tests, and after-resolution
     /// riders to come).
     pub last_outcome: Option<crate::actions::Outcome>,
@@ -220,6 +229,7 @@ impl Engine {
             combat: None,
             referendum: None,
             ousted_during_play: false,
+            interrupts: Vec::new(),
             rng,
             last_outcome: None,
         };
@@ -285,6 +295,7 @@ impl Engine {
     /// not logged.
     pub fn run(&mut self) -> Step {
         loop {
+            self.settle_interrupts();
             if matches!(self.flow, Flow::GameOver) {
                 return Step::Over(self.state.seats.iter().map(|s| s.half_vps).collect());
             }
@@ -327,6 +338,11 @@ impl Engine {
 
     fn request(&self) -> Option<DecisionRequest> {
         let st = &self.state;
+        // Draws first: a hand is discarded down once its draws are done
+        // (Heart of Nizchetus: "without discarding").
+        if let Some(req) = self.interrupt_request() {
+            return Some(req);
+        }
         if let Some(s) = self.discard_down_seat() {
             return Some(DecisionRequest {
                 seat: s,
@@ -359,6 +375,7 @@ impl Engine {
             } => Some(self.action_terms_request(*minion, *giver, picked)),
             Flow::PhaseRotation { resume, window } => self.phase_rotation_request(resume, window),
             Flow::Abilities { window, pending } => self.abilities_request(window, pending),
+            Flow::LibrarySearch { minion } => Some(self.search_request(*minion)),
             Flow::Action => self.action_request(),
             Flow::Combat => self.combat_request(),
             Flow::TorporBlock => Some(self.torpor_block_request()),
@@ -388,6 +405,10 @@ impl Engine {
     }
 
     fn apply(&mut self, choice: &Choice) {
+        if !self.interrupts.is_empty() {
+            self.interrupt_apply(choice);
+            return;
+        }
         if let Some(s) = self.discard_down_seat() {
             let Choice::Discard(i) = choice else {
                 unreachable!("illegal discard-down choice {choice:?}");
@@ -466,6 +487,15 @@ impl Engine {
                 },
                 Choice::Discard(i),
             ) => self.ability_terms_apply(card, ability, picked, resume, *i),
+            (
+                Flow::AbilityTerms {
+                    card,
+                    ability,
+                    resume,
+                    ..
+                },
+                Choice::SetX(x),
+            ) => self.ability_count_apply(card, ability, *resume, *x),
             (Flow::RiderTerms { card, left, resume }, c) => {
                 self.rider_terms_apply(card, left, resume, c)
             }
@@ -473,6 +503,7 @@ impl Engine {
                 self.phase_rotation_apply(resume, window, c)
             }
             (Flow::Abilities { window, pending }, c) => self.abilities_apply(window, pending, c),
+            (Flow::LibrarySearch { minion }, c) => self.search_apply(minion, c),
             (Flow::Action, c) => self.action_apply(c),
             (Flow::Combat, c) => self.combat_apply(c),
             (Flow::TorporBlock, c) => self.torpor_block_apply(c),
@@ -564,7 +595,8 @@ impl Engine {
         self.leave_riders(Hook::ReadyMinionBurnedOrTorpor, ms);
     }
 
-    /// Burn a card in play: to its owner's ash heap, its layers dropped.
+    /// Burn a card in play: to its owner's ash heap with the cards on it
+    /// (LSJ 20021128), its layers dropped.
     pub(crate) fn burn_card_in_play(&mut self, id: CardId) {
         let c = &mut self.state.cards[id.index()];
         if !c.in_play {
@@ -572,7 +604,10 @@ impl Engine {
         }
         c.in_play = false;
         let (owner, card) = (c.owner, c.card);
-        self.state.seats[owner.index()].ash.push(card);
+        let stored = std::mem::take(&mut c.stored);
+        let ash = &mut self.state.seats[owner.index()].ash;
+        ash.push(card);
+        ash.extend(stored);
         self.state
             .layers
             .retain(|l| l.scope == crate::cards::Scope::Action || l.source != id);

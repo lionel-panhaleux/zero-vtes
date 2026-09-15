@@ -30,6 +30,11 @@ pub enum ActionKind {
     /// controls (rulebook "Equip": free, the equipment announced with the
     /// action; not a card play, so no requirement is checked).
     EquipFrom,
+    /// Equip with the first equipment found in the library, working down
+    /// from the top (Vast Wealth): an equip action granted by a card in
+    /// play, undirected, its stealth the card's own; the search happens
+    /// only on success (TOM 19951107).
+    EquipFound,
 }
 
 /// One indexed option inside a decision request. `Pass` is always explicit;
@@ -85,6 +90,21 @@ pub enum Choice {
     SetX(u8),
     /// Discard phase action: discard the card at this hand index.
     Discard(u8),
+    /// A library search: take a copy of this card (LIBRARY index); `Pass`
+    /// finds nothing. Offered to the searching player only (spec §6.8.4).
+    FindCard(u16),
+    /// A card drawn from the library as it would be (rules-qa 9.4): the
+    /// top card, rather than a draw alternative.
+    DrawLibrary,
+    /// A card drawn instead from those on a card in play (arena index),
+    /// by card (LIBRARY index): Black Market Cache, Shilmulo Tarot.
+    DrawStored {
+        card: u32,
+        stored: u16,
+    },
+    /// Move the card at this hand index to the bottom of the library, under
+    /// the ones moved before it (Heart of Nizchetus; rules-qa 9.5).
+    Bottom(u8),
     /// Terms of an equip action from another minion: take this equipment
     /// (arena index) too; `Pass` once at least one is taken.
     TakeEquipment {
@@ -227,6 +247,17 @@ pub enum WindowLabel {
     /// Terms of a rulebook action, chosen as it is announced: the equipment
     /// an equip action takes from another minion.
     ActionTerms,
+    /// A library search at an action's or a card's resolution (Magic of
+    /// the Smith, Black Market Cache): the card chosen, or none; the library
+    /// is shuffled afterward.
+    LibrarySearch,
+    /// A card drawn while a draw alternative applies: from the library or
+    /// from a card in play (rules-qa 9.4); beside Visit from the Capuchin,
+    /// the treatment of a replacement (ANK 20200905).
+    Draw,
+    /// The cards drawn by Heart of Nizchetus moved back to the bottom of
+    /// the library, one at a time (rules-qa 9.5, 11.1).
+    BottomCards,
     InfluenceTransfers,
     DiscardPhase,
     /// Combat steps (rulebook "Combat Sequence"): ordered windows over the
