@@ -6,11 +6,13 @@
 //! ability (Homunculus). Windows with a single option are elided, so the
 //! scripts below only stop where a real decision exists.
 
+use zvtes::cards::AbilitySource;
 use zvtes::cards::Target;
 use zvtes::crypt::CRYPT;
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
+use zvtes::state::CardId;
 use zvtes::state::{find_library, CardInPlay};
 
 fn request(e: &mut Engine) -> DecisionRequest {
@@ -80,7 +82,9 @@ fn vampire_with(disc: &str, nth: usize) -> u16 {
     CRYPT
         .iter()
         .enumerate()
-        .filter(|(_, c)| c.disciplines.contains(&disc))
+        .filter(|(i, c)| {
+            c.disciplines.contains(&disc) && zvtes::cards::vampire(*i as u16).is_none()
+        })
         .nth(nth)
         .map(|(i, _)| i as u16)
         .unwrap_or_else(|| panic!("no vampire with {disc}"))
@@ -514,7 +518,7 @@ fn homunculus_employ_then_unlock_ability_and_nra_by_card_name() {
         vec![
             Choice::Pass,
             Choice::UseAbility {
-                card: 0,
+                source: AbilitySource::Card(CardId(0)),
                 ability: 0,
                 actor: None,
                 target: Target::None
@@ -524,7 +528,7 @@ fn homunculus_employ_then_unlock_ability_and_nra_by_card_name() {
     pick(
         e,
         Choice::UseAbility {
-            card: 0,
+            source: AbilitySource::Card(CardId(0)),
             ability: 0,
             actor: None,
             target: Target::None,

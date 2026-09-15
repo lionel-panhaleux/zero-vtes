@@ -143,6 +143,8 @@ pub struct Side {
     pub additional_with: Option<CardId>,
     /// Optional presses only usable to continue combat (Righteous Blade).
     pub continue_presses: u8,
+    /// "+n strength that combat" (Kasim Bayar), kept each round.
+    pub strength_mods: u8,
 }
 
 impl Side {
@@ -167,6 +169,7 @@ impl Side {
             committed: None,
             additional_with: None,
             continue_presses: 0,
+            strength_mods: 0,
         }
     }
 
@@ -174,6 +177,7 @@ impl Side {
         let maneuvers = self.next_round_maneuvers;
         *self = Self {
             strength_set: self.strength_set,
+            strength_mods: self.strength_mods,
             continue_rider: None,
             maneuvers,
             ..Self::new(self.minion, self.seat)
@@ -213,7 +217,9 @@ pub struct CombatCtx {
     pub played_round: Vec<(MinionId, &'static str)>,
     pub played_combat: Vec<(MinionId, &'static str)>,
     /// In-play abilities used this combat, by copy ("each combat").
-    pub abilities_used: Vec<CardId>,
+    pub abilities_used: Vec<(cards::AbilitySource, u8)>,
+    /// Abilities used this round ("each round", Rowena).
+    pub abilities_used_round: Vec<(cards::AbilitySource, u8)>,
     /// Gun-strike prevention left this combat, by copy (Kevlar Vest).
     pub gun_prevention_left: Vec<(CardId, u8)>,
     /// The equipment on the blocker when it blocked (Sniper Rifle).
@@ -381,6 +387,7 @@ impl Engine {
             played_round: Vec::new(),
             played_combat: Vec::new(),
             abilities_used: Vec::new(),
+            abilities_used_round: Vec::new(),
             gun_prevention_left: Vec::new(),
             held_at_block,
         });
@@ -407,7 +414,9 @@ impl Engine {
                     let mut options: Vec<Choice> = self
                         .ability_options(side.seat, Window::CombatStrikeDeclaration)
                         .into_iter()
-                        .filter(|o| matches!(o, Choice::UseAbility { card, .. } if *card == w.0))
+                        .filter(|o| {
+                            matches!(o, Choice::UseAbility { source: cards::AbilitySource::Card(c), .. } if *c == w)
+                        })
                         .collect();
                     if c.pair > 0 {
                         options.insert(0, Choice::Pass);
@@ -581,13 +590,13 @@ impl Engine {
             self.announce_play(seat, *card, *mode, *actor, *target, Flow::Combat);
         }
         if let Choice::UseAbility {
-            card,
+            source,
             ability,
             actor,
             target,
         } = choice
         {
-            self.use_ability(*card, *ability, *actor, *target, Flow::Combat);
+            self.use_ability(*source, *ability, *actor, *target, Flow::Combat);
         }
     }
 
@@ -722,6 +731,19 @@ impl Engine {
                 _ => strikes[i],
             }
         });
+        // Printed strength (Massimiliano; Kevin Jackson's, on him and on a
+        // Brujah opposing him): added to the strength of 1 or to a set
+        // strength (spec §4.4.1).
+        let strength: [u8; 2] = std::array::from_fn(|i| {
+            let ctx = crate::state::PrintedCtx {
+                opponent: Some(c.sides[1 - i].minion),
+                ..Default::default()
+            };
+            (c.sides[i].strength() as i32
+                + c.sides[i].strength_mods as i32
+                + st.printed_mod(c.sides[i].minion, cards::Stat::Strength, ctx))
+            .max(0) as u8
+        });
         let close = c.range == Range::Close;
         let mut steals = [0u8; 2];
         for i in 0..2 {
@@ -747,14 +769,14 @@ impl Engine {
             match k {
                 StrikeKind::Hand { bonus } => {
                     if close && !dodged {
-                        let n = c.sides[i].strength() + bonus;
+                        let n = strength[i] + bonus;
                         let aggravated = c.sides[i].aggravated_hands;
                         c.sides[j].pending.add(n, aggravated);
                     }
                 }
                 StrikeKind::Melee { bonus, aggravated } => {
                     if close && !dodged {
-                        let n = c.sides[i].strength() + bonus;
+                        let n = strength[i] + bonus;
                         c.sides[j].pending.add(n, aggravated);
                     }
                 }
@@ -764,6 +786,22 @@ impl Engine {
                     aggravated,
                 } => {
                     if (ranged || close) && !dodged {
+                        // "+1 damage with ranged strikes (even at close
+                        // range)" (Noluthando): part of the strike's damage.
+                        let n = if ranged {
+                            let ctx = crate::state::PrintedCtx {
+                                opponent: Some(c.sides[j].minion),
+                                ..Default::default()
+                            };
+                            let more = st.printed_mod(
+                                c.sides[i].minion,
+                                cards::Stat::RangedStrikeDamage,
+                                ctx,
+                            );
+                            (n as i32 + more).max(0) as u8
+                        } else {
+                            n
+                        };
                         c.sides[j].pending.add(n, aggravated);
                         let gun = c.sides[i].strike_source.is_some_and(|w| {
                             LIBRARY[st.cards[w.index()].card as usize]
@@ -886,6 +924,7 @@ impl Engine {
         c.round_over = false;
         c.continued = false;
         c.played_round.clear();
+        c.abilities_used_round.clear();
         // After-combat riders are lost when the combat continues (spec
         // §4.9.2).
         if let Some(a) = self.action.as_mut() {
@@ -951,6 +990,7 @@ impl Engine {
                 }
             }
             Effect::SetStrength(n) => c.sides[i].strength_set = Some(n),
+            Effect::StrengthThisCombat(n) => c.sides[i].strength_mods += n,
             Effect::AggravatedHands => c.sides[i].aggravated_hands = true,
             Effect::Prevent(n) => c.prevent(i, n),
             Effect::PreventXPlus(k) => c.prevent(i, play.x + k),
@@ -1050,6 +1090,7 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::ContinueAfterCombat { .. }
             | Effect::SetRangeLong
             | Effect::PreventNonGun(_)
+            | Effect::StrengthThisCombat(_)
     )
 }
 

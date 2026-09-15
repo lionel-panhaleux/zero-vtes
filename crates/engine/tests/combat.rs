@@ -76,7 +76,9 @@ fn vampire_with(disc: &str, nth: usize) -> u16 {
     CRYPT
         .iter()
         .enumerate()
-        .filter(|(_, c)| c.disciplines.contains(&disc))
+        .filter(|(i, c)| {
+            c.disciplines.contains(&disc) && zvtes::cards::vampire(*i as u16).is_none()
+        })
         .nth(nth)
         .map(|(i, _)| i as u16)
         .unwrap_or_else(|| panic!("no vampire with {disc}"))
@@ -328,7 +330,7 @@ fn additional_strikes_limited_once_per_round() {
 fn immortal_grapple_bars_non_hand_strikes_and_fixes_next_round_close() {
     let mut t = table();
     let e = &mut t.e;
-    let z = e.add_minion(SeatId(1), vampire_with("PRE", 0), 4, false);
+    let z = e.add_minion(SeatId(1), find_card("Elisha Tucker"), 4, false); // cel PRE
     hand(e, 0, &["Immortal Grapple"]);
     hand(e, 1, &["Majesty", "Flash"]);
     e.state.minions[z.index()].blood = 6;
@@ -541,8 +543,9 @@ fn blocked_leave_torpor_blocker_may_diablerise() {
     // hunt is inside the action (rules-qa 5.8), which ends blocked after it.
     expect(e, SeatId(1), WindowLabel::BloodHuntPolling);
     assert_eq!(e.last_outcome, None);
-    pick(e, Choice::Pass);
-    let _ = request(e);
+    while request(e).window == WindowLabel::BloodHuntPolling {
+        pick(e, Choice::Pass);
+    }
     assert_eq!(e.last_outcome, Some(Outcome::Blocked));
 }
 

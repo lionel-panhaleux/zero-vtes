@@ -128,7 +128,13 @@ impl ReferendumCtx {
             .filter(|(b, _)| *b == m)
             .map(|(_, n)| *n)
             .sum();
-        title_votes(v.title()) + bonus
+        // Printed votes (Neserian) count only while ready, as title votes.
+        let printed = st.printed_mod(
+            m,
+            crate::cards::Stat::Votes,
+            crate::state::PrintedCtx::default(),
+        );
+        (title_votes(v.title()) as i32 + bonus as i32 + printed).max(0) as u8
     }
 
     /// Has this vampire cast votes or ballots that still stand?
@@ -476,7 +482,7 @@ impl Engine {
             RefStep::Terms => self.terms_step_apply(&mut ctx, choice),
             RefStep::Polling => {
                 if let Choice::UseAbility {
-                    card,
+                    source,
                     ability,
                     actor,
                     target,
@@ -487,7 +493,7 @@ impl Engine {
                     ctx.window.commit();
                     self.referendum = Some(ctx);
                     self.flow = Flow::Referendum;
-                    self.use_ability(*card, *ability, *actor, *target, Flow::Referendum);
+                    self.use_ability(*source, *ability, *actor, *target, Flow::Referendum);
                     return;
                 }
                 if let Some(play) = self.polling_apply(&mut ctx, choice) {

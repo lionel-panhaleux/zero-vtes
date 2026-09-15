@@ -4,6 +4,7 @@
 //! afterward). Windows with a single option are elided, so the scripts
 //! only stop where a real decision exists.
 
+use zvtes::cards::AbilitySource;
 use zvtes::cards::{self, Effect, Layer, Scope, Target};
 use zvtes::crypt::CRYPT;
 use zvtes::decision::{Choice, DecisionRequest, WindowLabel};
@@ -79,7 +80,7 @@ fn library(e: &mut Engine, cards: &[&str]) {
 
 fn granted(card: u32, actor: MinionId) -> Choice {
     Choice::UseAbility {
-        card,
+        source: AbilitySource::Card(CardId(card)),
         ability: 0,
         actor: Some(actor),
         target: Target::None,
@@ -91,7 +92,9 @@ fn vampire_with(disc: &str, nth: usize) -> u16 {
     CRYPT
         .iter()
         .enumerate()
-        .filter(|(_, c)| c.disciplines.contains(&disc))
+        .filter(|(i, c)| {
+            c.disciplines.contains(&disc) && zvtes::cards::vampire(*i as u16).is_none()
+        })
         .nth(nth)
         .map(|(i, _)| i as u16)
         .unwrap_or_else(|| panic!("no vampire with {disc}"))

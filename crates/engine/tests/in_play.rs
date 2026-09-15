@@ -5,6 +5,7 @@
 //! elided, so the scripts only stop where a real decision exists.
 
 use zvtes::actions::Outcome;
+use zvtes::cards::AbilitySource;
 use zvtes::cards::{Layer, Modifier, Scope, Target};
 use zvtes::crypt::{Sect, CRYPT};
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
@@ -51,7 +52,7 @@ fn master_play(card: u8) -> Choice {
 
 fn granted(card: u32, actor: MinionId) -> Choice {
     Choice::UseAbility {
-        card,
+        source: AbilitySource::Card(CardId(card)),
         ability: 0,
         actor: Some(actor),
         target: Target::None,
@@ -445,11 +446,15 @@ fn granted_action_nra_is_per_copy() {
 
 // ---- Guardian Angel, Creeping Sabotage ---------------------------------
 
+/// The `nth` V5 vampire with `disc` and no printed text implemented (a plain
+/// fixture: printed abilities would add decisions to the script).
 fn vampire_with(disc: &str, nth: usize) -> u16 {
     CRYPT
         .iter()
         .enumerate()
-        .filter(|(_, c)| c.disciplines.contains(&disc))
+        .filter(|(i, c)| {
+            c.disciplines.contains(&disc) && zvtes::cards::vampire(*i as u16).is_none()
+        })
         .nth(nth)
         .map(|(i, _)| i as u16)
         .unwrap_or_else(|| panic!("no vampire with {disc}"))
@@ -459,7 +464,7 @@ fn vampire_of_clan(clan: &str, nth: usize) -> u16 {
     CRYPT
         .iter()
         .enumerate()
-        .filter(|(_, c)| c.clan == clan)
+        .filter(|(i, c)| c.clan == clan && zvtes::cards::vampire(*i as u16).is_none())
         .nth(nth)
         .map(|(i, _)| i as u16)
         .unwrap_or_else(|| panic!("no {clan}"))
@@ -550,7 +555,7 @@ fn guardian_angel_intercept_on_bleeds_at_its_controller_and_prevention() {
         vec![
             Choice::Pass,
             Choice::UseAbility {
-                card: angel,
+                source: AbilitySource::Card(CardId(angel)),
                 ability: 0,
                 actor: None,
                 target: Target::None
@@ -605,13 +610,13 @@ fn guardian_angel_prevents_once_per_combat_per_copy() {
         vec![
             Choice::Pass,
             Choice::UseAbility {
-                card: first,
+                source: AbilitySource::Card(CardId(first)),
                 ability: 0,
                 actor: None,
                 target: Target::None
             },
             Choice::UseAbility {
-                card: second,
+                source: AbilitySource::Card(CardId(second)),
                 ability: 0,
                 actor: None,
                 target: Target::None
@@ -625,7 +630,7 @@ fn guardian_angel_prevents_once_per_combat_per_copy() {
         vec![
             Choice::Pass,
             Choice::UseAbility {
-                card: second,
+                source: AbilitySource::Card(CardId(second)),
                 ability: 0,
                 actor: None,
                 target: Target::None
@@ -1116,7 +1121,7 @@ fn smiling_jack_can_be_burned_as_a_directed_action() {
 fn uses(req: &DecisionRequest, card: u32) -> Vec<Choice> {
     req.options
         .iter()
-        .filter(|o| matches!(o, Choice::UseAbility { card: c, .. } if *c == card))
+        .filter(|o| matches!(o, Choice::UseAbility { source: AbilitySource::Card(CardId(c)), .. } if *c == card))
         .copied()
         .collect()
 }
@@ -1216,7 +1221,7 @@ fn dreams_of_the_sphinx_blood_to_uncontrolled_and_burn_at_three_counters() {
         banished: None,
     });
     let pick_slot = Choice::UseAbility {
-        card: dreams,
+        source: AbilitySource::Card(CardId(dreams)),
         ability: 2,
         actor: None,
         target: Target::Uncontrolled(0),
@@ -1333,7 +1338,7 @@ fn the_barrens_is_not_usable_in_the_as_played_window() {
 
 fn coven_use(card: u32, target: MinionId) -> Choice {
     Choice::UseAbility {
-        card,
+        source: AbilitySource::Card(CardId(card)),
         ability: 0,
         actor: None,
         target: Target::Minion(target),
@@ -1458,7 +1463,7 @@ fn vampire_of_sect(sect: Sect, nth: usize) -> u16 {
     CRYPT
         .iter()
         .enumerate()
-        .filter(|(_, c)| c.sect == sect)
+        .filter(|(i, c)| c.sect == sect && zvtes::cards::vampire(*i as u16).is_none())
         .nth(nth)
         .map(|(i, _)| i as u16)
         .unwrap_or_else(|| panic!("no {sect:?} vampire"))
@@ -1743,7 +1748,7 @@ fn to_master_phase(e: &mut Engine, seat: SeatId) -> DecisionRequest {
 
 fn ability(card: u32, ability: u8) -> Choice {
     Choice::UseAbility {
-        card,
+        source: AbilitySource::Card(CardId(card)),
         ability,
         actor: None,
         target: Target::None,

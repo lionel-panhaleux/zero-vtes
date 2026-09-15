@@ -99,7 +99,16 @@ def implemented():
     assert len(idents) == int(m.group(1)), "DEFS length literal out of sync"
     missing = [i for i in idents if i not in names]
     assert not missing, f"cannot read the printed name of {missing}"
-    return {names[i] for i in idents}
+    found = {names[i] for i in idents}
+    # Vampires with printed text (crates/engine/src/cards/vampires.rs `VAMPIRES`).
+    src = open(os.path.join(ENGINE, "src", "cards", "vampires.rs"), encoding="utf-8").read()
+    vnames = dict(re.findall(r"pub static ([A-Z_0-9]+): VampireDef = VampireDef \{\s*name: \"([^\"]+)\"", src))
+    m = re.search(r"VAMPIRES: \[&VampireDef; (\d+)\] = \[(.*?)\];", src, re.S)
+    idents = re.findall(r"&([A-Z_0-9]+)", m.group(2))
+    assert len(idents) == int(m.group(1)), "VAMPIRES length literal out of sync"
+    missing = [i for i in idents if i not in vnames]
+    assert not missing, f"cannot read the printed name of {missing}"
+    return found | {vnames[i] for i in idents}
 
 
 def tests():

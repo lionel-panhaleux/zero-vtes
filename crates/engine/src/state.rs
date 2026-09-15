@@ -49,6 +49,17 @@ pub fn title_votes(t: Title) -> u8 {
     }
 }
 
+/// What a vampire's printed modifier reads besides the game state
+/// (`GameState::printed_mod`): the action performed, if any, and the
+/// minion opposing the modified one — the acting minion for a block
+/// attempt, the opposing combatant in combat.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct PrintedCtx {
+    pub kind: Option<crate::decision::ActionKind>,
+    pub directed: Option<bool>,
+    pub opponent: Option<MinionId>,
+}
+
 /// A vampire in play. `contested`: the card is contested — face down and out
 /// of play, blood kept (rulebook "Contested Cards"). `title_contested` /
 /// `title_lost`: the printed title is under contest / was yielded for the
@@ -272,7 +283,7 @@ pub struct GameState {
     pub cards: Vec<CardInPlay>,
     /// Abilities (card in play, ability index) used this phase ("during
     /// X": once per phase per copy, rules-qa 6.6); cleared at each phase.
-    pub phase_uses: Vec<(CardId, u8)>,
+    pub phase_uses: Vec<(crate::cards::AbilitySource, u8)>,
     /// Continuous effects (DESIGN §4.5 scope layers).
     pub layers: Vec<Layer>,
     pub active: SeatId,
@@ -352,16 +363,14 @@ impl GameState {
 
     /// Hand indices of the seat's cards — master cards only with
     /// `masters`.
-    pub fn hand_picks(&self, seat: SeatId, masters: bool) -> Vec<u8> {
+    pub fn hand_picks(&self, seat: SeatId, of: Option<crate::library::CardType>) -> Vec<u8> {
         self.seats[seat.index()]
             .hand
             .iter()
             .enumerate()
-            .filter(|(_, &c)| {
-                !masters
-                    || crate::library::LIBRARY[c as usize]
-                        .types
-                        .contains(&crate::library::CardType::Master)
+            .filter(|(_, &c)| match of {
+                None => true,
+                Some(t) => crate::library::LIBRARY[c as usize].types.contains(&t),
             })
             .map(|(i, _)| i as u8)
             .collect()
@@ -397,13 +406,131 @@ impl GameState {
             })
     }
 
+    /// Printed modifiers to minion `m`'s `stat` from the vampires in play
+    /// (`cards::vampires`): its own text and other vampires' ("Brujah get
+    /// +1 strength in combat with him"), read live — in torpor included
+    /// (LSJ 20011022), nothing from a contested vampire.
+    pub fn printed_mod(&self, m: MinionId, stat: crate::cards::Stat, ctx: PrintedCtx) -> i32 {
+        use crate::cards::PrintedTo;
+        let owner = self.minions[m.index()].owner;
+        let mut total = 0;
+        for (i, v) in self.minions.iter().enumerate() {
+            let source = MinionId(i as u32);
+            let Some(def) = crate::cards::vampire(v.card).filter(|_| v.present()) else {
+                continue;
+            };
+            for p in def.printed.iter().filter(|p| p.stat == stat) {
+                let applies = match p.to {
+                    PrintedTo::Itself => source == m,
+                    PrintedTo::Opponent => ctx.opponent == Some(source),
+                    PrintedTo::OthersControlled => source != m && v.owner == owner,
+                };
+                if applies
+                    && p.requires
+                        .iter()
+                        .all(|&r| self.printed_holds(r, source, m, ctx))
+                {
+                    total += p.n as i32 * self.printed_count(p.per, source);
+                }
+            }
+        }
+        total
+    }
+
+    /// A printed-modifier predicate, read on the vampire whose text it is
+    /// (`source`), the modified minion (`actor`) and the opposing minion.
+    fn printed_holds(
+        &self,
+        r: crate::cards::Requirement,
+        source: MinionId,
+        actor: MinionId,
+        ctx: PrintedCtx,
+    ) -> bool {
+        use crate::cards::Requirement as R;
+        use crate::decision::ActionKind;
+        let src = &self.minions[source.index()];
+        let me = &self.minions[actor.index()];
+        let opp = ctx.opponent.map(|o| &self.minions[o.index()]);
+        match r {
+            R::ThisVampireReady => src.ready(),
+            R::IsDirected => ctx.directed == Some(true),
+            R::IsUndirected => ctx.directed == Some(false),
+            R::IsBleed => ctx.kind == Some(ActionKind::Bleed),
+            R::IsPolitical => ctx.kind == Some(ActionKind::Political),
+            R::OpponentClan(c) => opp.is_some_and(|o| o.card().clan == c),
+            R::OpponentYounger => opp.is_some_and(|o| o.capacity() < me.capacity()),
+            R::OpponentOlder => opp.is_some_and(|o| o.capacity() > me.capacity()),
+            R::OpponentTitled => opp.is_some_and(|o| o.title() != Title::None),
+            R::ActorClan(c) => me.card().clan == c,
+            R::ActorTitleIn(classes) => classes.iter().any(|c| c.matches(me.title())),
+            R::PoolAtMost(n) => self.seats[src.owner.index()].pool <= n as i32,
+            R::ControlsLocation | R::ControlsNoLocation => {
+                let any = self.cards.iter().enumerate().any(|(i, c)| {
+                    c.present()
+                        && self.card_controller(CardId(i as u32)) == src.owner
+                        && LIBRARY[c.card as usize]
+                            .labels
+                            .contains(&crate::library::Label::Location)
+                });
+                any == (r == R::ControlsLocation)
+            }
+            R::ControlsVampireNamed(name) => self
+                .minions
+                .iter()
+                .any(|v| v.owner == src.owner && v.present() && v.name() == name),
+            _ => unreachable!("{r:?} is not a printed-modifier predicate"),
+        }
+    }
+
+    fn printed_count(&self, per: crate::cards::Per, source: MinionId) -> i32 {
+        use crate::library::{CardType, Label};
+        match per {
+            crate::cards::Per::One => 1,
+            crate::cards::Per::UniqueEquipmentOn => self
+                .cards
+                .iter()
+                .filter(|c| {
+                    let l = &LIBRARY[c.card as usize];
+                    c.present()
+                        && c.host == Some(source)
+                        && l.types.contains(&CardType::Equipment)
+                        && l.labels.contains(&Label::Unique)
+                })
+                .count() as i32,
+        }
+    }
+
     /// Hand size (rulebook "Drawing Cards"): seven, the until-end-of-turn
     /// bonus (Dreams of the Sphinx), and the hand-size layers of the
     /// uncontested cards in play the seat controls (Elder Library; Visit
     /// from the Capuchin, one per counter; spec §1.13.3: a contested
     /// location gives no hand size).
     pub fn hand_size(&self, s: SeatId) -> usize {
-        let mut size = HAND_SIZE as i32 + self.seats[s.index()].hand_bonus as i32;
+        // Printed hand size of the seat's vampires ("while André is ready,
+        // you get +2 hand size").
+        // Read on every request (discard-down): one pass over the seat's
+        // vampires rather than `printed_mod` per minion. Hand size is only
+        // printed as "you get" on the vampire itself (`PrintedTo::Itself`).
+        let printed: i32 = self
+            .minions
+            .iter()
+            .enumerate()
+            .filter(|(_, v)| v.owner == s && v.present())
+            .filter_map(|(i, v)| crate::cards::vampire(v.card).map(|d| (MinionId(i as u32), d)))
+            .flat_map(|(m, d)| {
+                d.printed
+                    .iter()
+                    .filter(|p| p.stat == crate::cards::Stat::HandSize)
+                    .map(move |p| (m, p))
+            })
+            .filter(|(m, p)| {
+                p.requires
+                    .iter()
+                    .all(|&r| self.printed_holds(r, *m, *m, PrintedCtx::default()))
+            })
+            .map(|(_, p)| p.n as i32)
+            .sum();
+        let mut size = HAND_SIZE as i32 + self.seats[s.index()].hand_bonus as i32 + printed;
         for l in &self.layers {
             if l.scope != crate::cards::Scope::InPlay
                 || !self.layer_active(l)
@@ -676,7 +803,11 @@ impl GameState {
         }
         mix(self.phase_uses.len() as u64);
         for (c, a) in &self.phase_uses {
-            mix((c.0 as u64 + 1) << 8 ^ *a as u64);
+            let source = match c {
+                crate::cards::AbilitySource::Card(id) => id.0 as u64,
+                crate::cards::AbilitySource::Vampire(m) => (m.0 as u64) << 32,
+            };
+            mix((source + 1) << 8 ^ *a as u64);
         }
         mix(self.cards.len() as u64);
         for c in &self.cards {

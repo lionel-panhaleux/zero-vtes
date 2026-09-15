@@ -4,6 +4,7 @@
 //! and bottom move. Windows with a single option are elided, so the scripts
 //! only stop where a real decision exists.
 
+use zvtes::cards::AbilitySource;
 use zvtes::cards::{self, Effect, Layer, Scope, Target};
 use zvtes::crypt::CRYPT;
 use zvtes::decision::{Choice, DecisionRequest, WindowLabel};
@@ -104,7 +105,7 @@ fn sorted(mut v: Vec<u16>) -> Vec<u16> {
 
 fn use_ability(card: u32) -> Choice {
     Choice::UseAbility {
-        card,
+        source: AbilitySource::Card(CardId(card)),
         ability: 0,
         actor: None,
         target: Target::None,
@@ -323,7 +324,7 @@ fn shilmulo_tarot_equipped_by_a_search_takes_its_cards_before_entering_contest()
     pick(
         &mut e,
         Choice::UseAbility {
-            card: wealth,
+            source: AbilitySource::Card(CardId(wealth)),
             ability: 0,
             actor: Some(r),
             target: Target::None,

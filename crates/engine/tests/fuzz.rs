@@ -9,6 +9,7 @@
 use std::collections::HashSet;
 
 use zvtes::agent::RandomLegal;
+use zvtes::cards::AbilitySource;
 use zvtes::crypt::{CRYPT, PRECONS};
 use zvtes::decision::{ActionKind, Choice, WindowLabel};
 use zvtes::game::{Engine, Step, TURN_LIMIT};
@@ -154,10 +155,13 @@ fn kind(e: &Engine, seat: SeatId, c: &Choice) -> String {
             let id = e.state.seats[seat.index()].hand[*card as usize];
             format!("play:{}", LIBRARY[id as usize].name)
         }
-        Choice::UseAbility { card, .. } => {
-            let id = e.state.cards[*card as usize].card;
-            format!("ability:{}", LIBRARY[id as usize].name)
-        }
+        Choice::UseAbility { source, .. } => match source {
+            AbilitySource::Card(c) => {
+                let id = e.state.cards[c.index()].card;
+                format!("ability:{}", LIBRARY[id as usize].name)
+            }
+            AbilitySource::Vampire(m) => format!("ability:{}", e.state.minions[m.index()].name()),
+        },
         Choice::ResolveRider { card } => {
             let id = e.state.cards[*card as usize].card;
             format!("rider:{}", LIBRARY[id as usize].name)
@@ -480,13 +484,27 @@ fn play(seed: u64, start: fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<Strin
                 );
                 invariants(&e, &totals, seed, req.window);
                 for o in &req.options {
-                    if let Choice::UseAbility { card, .. } = o {
+                    if let Choice::UseAbility {
+                        source: AbilitySource::Card(card),
+                        ..
+                    } = o
+                    {
                         // Spec §1.13.3: nothing printed on a contested card
                         // applies (its suspended layers are the scenario
                         // tests' claim, tests/contests.rs).
                         assert!(
-                            !e.state.cards[*card as usize].contested,
+                            !e.state.cards[card.index()].contested,
                             "ability offered from a contested card (seed {seed})"
+                        );
+                    }
+                    if let Choice::UseAbility {
+                        source: AbilitySource::Vampire(m),
+                        ..
+                    } = o
+                    {
+                        assert!(
+                            !e.state.minions[m.index()].contested,
+                            "ability offered from a contested vampire (seed {seed})"
                         );
                     }
                 }
@@ -668,6 +686,7 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "ability:Anarch Revolt",
             "play:Guardian Angel",
             "ability:Guardian Angel",
+            "ability:Saku Pihlajamäki",
             "play:Creeping Sabotage",
             "ability:Creeping Sabotage",
             "play:Blood Doll",
@@ -732,10 +751,10 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "play:Vast Wealth",
             "ability:Vast Wealth",
             "play:Black Market Cache",
-            // (Shilmulo Tarot's unlock move needs a Ravnos bearer to live
-            // until its unlock phase — rare at random tables: scripted in
-            // tests/draws.rs.)
-            "play:Shilmulo Tarot",
+            // (Shilmulo Tarot needs a Ravnos to equip, and its unlock move a
+            // Ravnos bearer living until its unlock phase — rare at random
+            // tables, the play coming and going as printed vampire text
+            // shifts the games: scripted in tests/draws.rs.)
             "draw_stored",
             "play:Heart of Nizchetus",
             "ability:Heart of Nizchetus",

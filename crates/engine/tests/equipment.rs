@@ -7,6 +7,7 @@
 //! the scripts only stop where a real decision exists.
 
 use zvtes::actions::Outcome;
+use zvtes::cards::AbilitySource;
 use zvtes::cards::{self, Effect, Layer, Scope, Target};
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
@@ -123,7 +124,7 @@ fn take_from(minion: MinionId, giver: MinionId) -> Choice {
 
 fn granted(card: u32, actor: MinionId) -> Choice {
     Choice::UseAbility {
-        card,
+        source: AbilitySource::Card(CardId(card)),
         ability: 0,
         actor: Some(actor),
         target: Target::None,
@@ -285,7 +286,7 @@ fn unlicensed_taxicab_burns_as_a_prince_blocks_before_anything_else() {
 fn treasured_samadji_ravnos_dodges_once_each_combat_and_bleeds_one_more() {
     let (mut e, hafthor, octane, _) = hafthor_blocked_by("Octane");
     let samadji = Choice::UseAbility {
-        card: 1,
+        source: AbilitySource::Card(CardId(1)),
         ability: 0,
         actor: None,
         target: Target::None,
@@ -431,7 +432,7 @@ fn bowl_of_convergence_burns_blood_once_per_action_only_while_attempting_to_bloc
     equip(&mut e, "Unlicensed Taxicab", horst);
     let bowl = equip(&mut e, "Bowl of Convergence", alex);
     let burn = Choice::UseAbility {
-        card: bowl,
+        source: AbilitySource::Card(CardId(bowl)),
         ability: 0,
         actor: None,
         target: Target::None,

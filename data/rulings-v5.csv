@@ -233,7 +233,7 @@ card_id,card,via,references,ruling,status
 100918,Hidden Strength,key,[LSJ 20001114] [LSJ 20030121],Cannot be used if there is no damage to prevent (X cannot be negative).,test:hidden_strength_x_terms_and_prevention
 100921,Hide the Mind,key,[PIB 20130704],Cannot be used to cancel a card that could be played with [aus] but has not been (eg. {100066|Anesthetic Touch} played with [obe]).,
 101950,Telepathic Tracking,mention in Illusions of the Kindred,[RTR 20020501],"If the combat continues nonetheless (eg. {101950|Telepathic Tracking}), the card has no effect (no crypt card is drawn, no new combat occurs afterwards).",n/a:Illusions of the Kindred is not in V5
-100959,Immortal Grapple,key,[TOM 19951217],"If a minion is committed to a strike other than a hand strike (e.g. used a maneuver from a gun), then he gets no strike.",blocked:no weapon in the pool
+100959,Immortal Grapple,key,[TOM 19951217],"If a minion is committed to a strike other than a hand strike (e.g. used a maneuver from a gun), then he gets no strike.",test:a_committed_strike_barred_by_immortal_grapple_leaves_no_strike
 100959,Immortal Grapple,key,[ANK 20200525-2],Is still considered played if it is canceled as it is played (eg. {100333|Charismatic Aura}). A second one cannot be played in the same round as its card text forbids it.,blocked:no combat-card cancel in the pool
 101816,Sniper Rifle,mention in Improvised Flamethrower,[LSJ 20100709],"When range was set to long (e.g. {101276|Neutral Guard}, {101816|Sniper Rifle}), or the range default is long (e.g. [dai]{100711|Fear of the Void Below}), [TEM]{101338|Outside the Hourglass} triggers the Flamethrower","blocked:no effect reads the range outside strikes, nor ends a round before range is determined, yet"
 101143,Magic of the Smith,mention in Incriminating Videotape,[LSJ 20090506],"If it is not equipped but merely put into play (eg. {100038|Alastor}), no minion is chosen. One is if it is equipped (eg. {101143|Magic of the Smith}).",test:shilmulo_tarot_equipped_by_a_search_takes_its_cards_before_entering_contest
@@ -367,7 +367,7 @@ card_id,card,via,references,ruling,status
 101945,Taste of Vitae,mention in Shadow Court Satyr,[LSJ 20080717],"He can play any card ""as a vampire"" even if it does not require a discipline (eg. {101945|Taste of Vitae}). REVERSAL of previous rulings. Note this is specific to the Satyr and his card text: this does not apply to other allies playing cards as a vampire.",n/a:Shadow Court Satyr is not in V5
 101767,Shilmulo Tarot,key,[PIB 20110712-2],There is no limit to the number of cards it can store.,test:shilmulo_tarot_moves_the_top_card_once_each_unlock_phase
 101767,Shilmulo Tarot,key,[ANK 20221028] [LSJ 20090428-1],"If there is another copy in play, the cards are put on it before it enters contest.",test:shilmulo_tarot_equipped_by_a_search_takes_its_cards_before_entering_contest
-101143,Magic of the Smith,mention in Shilmulo Tarot,[LSJ 20090506],"If it is not equipped but merely put into play (eg. {100038|Alastor}), it does not get 2 cards. It does is if it is equipped (eg. {101143|Magic of the Smith}).",blocked:Shilmulo Tarot's stored cards are not implemented yet (slice 8c-ii)
+101143,Magic of the Smith,mention in Shilmulo Tarot,[LSJ 20090506],"If it is not equipped but merely put into play (eg. {100038|Alastor}), it does not get 2 cards. It does is if it is equipped (eg. {101143|Magic of the Smith}).",test:shilmulo_tarot_equipped_by_a_search_takes_its_cards_before_entering_contest
 101767,Shilmulo Tarot,key,[LSJ 20090506],"If it is not equipped but merely put into play (eg. {100038|Alastor}), it does not get 2 cards. It does is if it is equipped (eg. {101143|Magic of the Smith}).",test:shilmulo_tarot_equipped_by_a_search_takes_its_cards_before_entering_contest
 101945,Taste of Vitae,mention in Slake the Thirst,[LSJ 20100206-2],[san] Can be played multiple times on the same blood gain (eg. {101945|Taste of Vitae}).,n/a:Slake the Thirst is not in V5
 101388,Perfectionist,mention in Slake the Thirst,[LSJ 20100325],"[SAN] Can be played at any time blood is gained during an action, including after action resolution (eg. {100801|Games of Instinct}, {101388|Perfectionist}).",
@@ -581,9 +581,9 @@ card_id,card,via,references,ruling,status
 201585,Elen Kamjian,key,[LSJ 20090226] [ANK 20211009-2],"If she unlocks after having performed her mandatory bleed, she is free to take any action.",
 201585,Elen Kamjian,key,[ANK 20211009-2],Another bleed action (eg. {100752|Flurry of Action}) does not count as the bleed action her ability forces her to take.,
 201585,Elen Kamjian,key,[ANK 20211009-2],"If her ability makes a bleed mandatory but she has performed a bleed already this turn, she is stuck and cannot act.",
-201608,Nonu Dis,key,[ANK 20220617],His ability can be used only once per master phase.,
+201608,Nonu Dis,key,[ANK 20220617],His ability can be used only once per master phase.,blocked:Nonu Dis's master-phase blood ability is not implemented yet
 100852,Graverobbing,mention in Theo Bell,[ANK 20220805-2],Can be merged with {201363|Theo Bell (G2 ADV)} if you get to control one (eg. {100852|Graverobbing}).,
-201613,Theo Bell,key,[ANK 20220805-2],Can be merged with {201363|Theo Bell (G2 ADV)} if you get to control one (eg. {100852|Graverobbing}).,
+201613,Theo Bell,key,[ANK 20220805-2],Can be merged with {201363|Theo Bell (G2 ADV)} if you get to control one (eg. {100852|Graverobbing}).,n/a:Theo Bell (G2 ADV) is not in V5
 102270,Camarilla's Iron Fist,mention in Karl Schrekt,[ANK 20250410],"When he changes Sects, he can't play votes that ""requires a titled camarilla Vampire"" (e.g. {102270|Camarilla's Iron Fist})",n/a:Karl Schrekt is not in V5
 201627,Evan Klein,key,[LSJ 20030214-2],"Actions from minions of the same controller targeting him are undirected, so they are not affected by his ability.",
 201641,"Guardian, The",key,[ANK 20221102],"When using his ability, the opponent is the acting minion and play their combat effects first.",
@@ -692,21 +692,21 @@ card_id,card,via,references,ruling,status
 102137,Wake with Evening's Freshness,group Replace next turn,[ANK 20200629-2] [LSJ 20091208] [RTR 19951017],Is replaced before unlocking cards: other unlock effects cannot be ordered before.,test:wake_with_evenings_freshness_wakes_and_waits_for_the_next_unlock_phase
 201576,Aline Gädeke,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
 201639,Daria,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
-201642,Gwenllian Arwyn,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
-201646,Oskar Anasov,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
+201642,Gwenllian Arwyn,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,blocked:Gwenllian Arwyn's intercept ability is not implemented yet
+201646,Oskar Anasov,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,blocked:Oskar Anasov's intercept ability is not implemented yet
 201648,Regina Blake,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
 201652,Sri Sansa,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
 201672,Gathii,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
 201675,Luciano Carvalho,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
-201680,Opikun,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
+201680,Opikun,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,test:opikun_in_torpor_prevents_damage_to_a_vampire_in_combat
 201716,Yewon Ong,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
 101767,Shilmulo Tarot,group Cards holding cards,[LSJ 20021128],"If it leaves play, the card on it is burned.",test:a_shilmulo_tarot_leaving_play_burns_the_cards_on_it
 100476,Crypt's Sons,group Retainer that strike,[RTR 19941109],Does not gain additional strikes from its owner.,
 101254,Murder of Crows,group Retainer that strike,[RTR 19941109],Does not gain additional strikes from its owner.,
 100918,Hidden Strength,group Cost X,[LSJ 20030502],"X can be zero, but not less than zero.",test:hidden_strength_x_terms_and_prevention
 101817,Soak,group Prevent non-aggravated,[LSJ 20040812-2] [PIB 20130327],"Cannot be used to prevent aggravated damage, even if the minion treats them as normal damage (eg. {101790|Skin of Night}).",test:soak_cannot_prevent_aggravated_damage
-201651,Rowena,group Prevent non-aggravated,[LSJ 20040812-2] [PIB 20130327],"Cannot be used to prevent aggravated damage, even if the minion treats them as normal damage (eg. {101790|Skin of Night}).",
-201680,Opikun,group Prevent non-aggravated,[LSJ 20040812-2] [PIB 20130327],"Cannot be used to prevent aggravated damage, even if the minion treats them as normal damage (eg. {101790|Skin of Night}).",
+201651,Rowena,group Prevent non-aggravated,[LSJ 20040812-2] [PIB 20130327],"Cannot be used to prevent aggravated damage, even if the minion treats them as normal damage (eg. {101790|Skin of Night}).",test:printed_non_aggravated_prevention_leaves_aggravated_damage
+201680,Opikun,group Prevent non-aggravated,[LSJ 20040812-2] [PIB 20130327],"Cannot be used to prevent aggravated damage, even if the minion treats them as normal damage (eg. {101790|Skin of Night}).",test:printed_non_aggravated_prevention_leaves_aggravated_damage
 101990,Toreador Justicar,group Justicar title vote without Camarilla,[LSJ 20041026],"Only a Camarilla vampire can be chosen, it cannot be played without a valid target.",
 100084,Archon,group Provide multiple actions,[LSJ 20100909],The two actions provided are not cross-restrictive. Each can be performed once during the same turn by the same minion.,
 101324,Open War,group Provide multiple actions,[LSJ 20100909],The two actions provided are not cross-restrictive. Each can be performed once during the same turn by the same minion.,
@@ -719,7 +719,7 @@ card_id,card,via,references,ruling,status
 102218,Bait and Switch,group Require a Baron,[LSJ 20080603] [LSJ 20050128],Counts as requiring an Anarch (for eg. {101435|Powerbase: Los Angeles}).,
 102230,Organized Resistance,group Require a Baron,[LSJ 20080603] [LSJ 20050128],Counts as requiring an Anarch (for eg. {101435|Powerbase: Los Angeles}).,
 102246,Childe of the Revolution,group Require a Baron,[LSJ 20080603] [LSJ 20050128],Counts as requiring an Anarch (for eg. {101435|Powerbase: Los Angeles}).,
-200030,Aisha az-Zahra,group Non-locking referendum ability,[ANK 20220705],"The ability can be used while locked, only once per referendum.",
+200030,Aisha az-Zahra,group Non-locking referendum ability,[ANK 20220705],"The ability can be used while locked, only once per referendum.",blocked:Aisha az-Zahra's polling-step vote ability is not implemented yet
 201529,Alexa Draper,group Non-locking referendum ability,[ANK 20220705],"The ability can be used while locked, only once per referendum.",
 201716,Yewon Ong,group Non-locking referendum ability,[ANK 20220705],"The ability can be used while locked, only once per referendum.",
 100712,Fee Stake: Boston,group Title providing action,[LSJ 20070808-2],"If the title is contested, the card is turned face down out of play and the provided action cannot be used.",
@@ -911,10 +911,10 @@ card_id,card,via,references,ruling,status
 101578,Redirection,group Change the target of a bleed,[LSJ 20061211],No blocks can be attempted if it is canceled as it is played (as blocks have been declined) unless another effect subsequently changes the target of the bleed. [REMINDER],
 101949,Telepathic Misdirection,group Change the target of a bleed,[LSJ 20061211],No blocks can be attempted if it is canceled as it is played (as blocks have been declined) unless another effect subsequently changes the target of the bleed. [REMINDER],
 102218,Bait and Switch,group Change the target of a bleed,[LSJ 20061211],No blocks can be attempted if it is canceled as it is played (as blocks have been declined) unless another effect subsequently changes the target of the bleed. [REMINDER],
-201645,Mithras,group Ability active in torpor,[LSJ 20011022],The passive ability applies even if the vampire is in torpor.,
+201645,Mithras,group Ability active in torpor,[LSJ 20011022],The passive ability applies even if the vampire is in torpor.,blocked:Mithras's block and vote costs for younger vampires are not implemented yet
 201662,Sergio Bueno,group Ability active in torpor,[LSJ 20011022],The passive ability applies even if the vampire is in torpor.,
 201677,Marialena,group Ability active in torpor,[LSJ 20011022],The passive ability applies even if the vampire is in torpor.,
-201684,Roy,group Ability active in torpor,[LSJ 20011022],The passive ability applies even if the vampire is in torpor.,
+201684,Roy,group Ability active in torpor,[LSJ 20011022],The passive ability applies even if the vampire is in torpor.,blocked:Roy's discard-phase lock is not implemented yet
 101215,Puppet Master,group Can steal minion during an action,[LSJ 20020618],"If used to steal a vampire in combat, combat ends. Any damage yet to resolve still resolves before the change of control.",
 101215,Puppet Master,group Can steal minion during an action,[LSJ 20080326],"If used to steal a minion attempting to block, if the block attempt becomes illegal, the block attempt fails.",
 101215,Puppet Master,group Can steal minion during an action,[PIB 20150501],"If used to steal a minion during an action, Methuselahs who declined to block are still declining to block. The new controller, if he is eligible and has not declined to block yet, can block with the stolen minion even if the previous controller has declined to block.",

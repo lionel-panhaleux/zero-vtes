@@ -58,11 +58,12 @@ pub enum Choice {
         actor: Option<MinionId>,
         target: Target,
     },
-    /// Use an in-play ability: arena index of the card, ability index, and
-    /// the minion using it when the ability is a granted action (a card in
-    /// play's "can call a referendum … as a political action").
+    /// Use an ability: where it is printed (a card in play, or a vampire's
+    /// own text), ability index, and the minion using it when the ability
+    /// is a granted action (a card in play's "can call a referendum … as a
+    /// political action").
     UseAbility {
-        card: u32,
+        source: crate::cards::AbilitySource,
         ability: u8,
         actor: Option<MinionId>,
         /// The ability's target when it picks one (a hunting ground's

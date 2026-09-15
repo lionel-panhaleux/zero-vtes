@@ -3,6 +3,7 @@
 //! optional unlock-phase pick of a vampire. Windows with a single option
 //! are elided, so the scripts only stop where a real decision exists.
 
+use zvtes::cards::AbilitySource;
 use zvtes::cards::Target;
 use zvtes::decision::{Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Contest, Engine, Step};
@@ -64,7 +65,7 @@ fn master_play(card: u8) -> Choice {
 
 fn feed(card: u32, ability: u8, vampire: MinionId) -> Choice {
     Choice::UseAbility {
-        card,
+        source: AbilitySource::Card(CardId(card)),
         ability,
         actor: None,
         target: Target::Minion(vampire),

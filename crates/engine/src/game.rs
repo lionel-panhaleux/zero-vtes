@@ -67,7 +67,7 @@ pub(crate) enum Flow {
     /// the Ranks' burn discards), chosen one at a time; then the ability
     /// resolves and `resume` goes on.
     AbilityTerms {
-        card: CardId,
+        source: crate::cards::AbilitySource,
         ability: u8,
         picked: Vec<u8>,
         resume: Box<Flow>,
@@ -362,11 +362,11 @@ impl Engine {
                 options: self.minion_phase_options(),
             }),
             Flow::AbilityTerms {
-                card,
+                source,
                 ability,
                 picked,
                 ..
-            } => Some(self.ability_terms_request(*card, *ability, picked)),
+            } => Some(self.ability_terms_request(*source, *ability, picked)),
             Flow::RiderTerms { card, left, .. } => Some(self.rider_terms_request(*card, *left)),
             Flow::ActionTerms {
                 minion,
@@ -454,7 +454,7 @@ impl Engine {
             (
                 Flow::MinionPhase,
                 Choice::UseAbility {
-                    card,
+                    source,
                     ability,
                     actor,
                     target,
@@ -462,7 +462,7 @@ impl Engine {
             ) => {
                 // A granted action opens its action; an untimed ability
                 // (The Coven) leaves the minion phase where it was.
-                if !self.use_ability(*card, *ability, *actor, *target, Flow::MinionPhase) {
+                if !self.use_ability(*source, *ability, *actor, *target, Flow::MinionPhase) {
                     self.flow = Flow::MinionPhase;
                 }
             }
@@ -480,22 +480,22 @@ impl Engine {
             }
             (
                 Flow::AbilityTerms {
-                    card,
+                    source,
                     ability,
                     picked,
                     resume,
                 },
                 Choice::Discard(i),
-            ) => self.ability_terms_apply(card, ability, picked, resume, *i),
+            ) => self.ability_terms_apply(source, ability, picked, resume, *i),
             (
                 Flow::AbilityTerms {
-                    card,
+                    source,
                     ability,
                     resume,
                     ..
                 },
                 Choice::SetX(x),
-            ) => self.ability_count_apply(card, ability, *resume, *x),
+            ) => self.ability_count_apply(source, ability, *resume, *x),
             (Flow::RiderTerms { card, left, resume }, c) => {
                 self.rider_terms_apply(card, left, resume, c)
             }

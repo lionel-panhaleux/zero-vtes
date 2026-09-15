@@ -6,6 +6,7 @@
 //! Definitions live in `defs`.
 
 pub mod defs;
+pub mod vampires;
 
 use crate::actions::{ActionCtx, ActionState};
 use crate::combat::{CombatCtx, Range, Step};
@@ -144,6 +145,10 @@ pub enum Actor {
     /// except in the end-of-round window, where a minion being burned or
     /// sent to torpor may still play unless the card excludes it.
     Combatant,
+    /// An ability's host — on a vampire's own text, the vampire — in the
+    /// combat or out of it, in torpor included, used for its controller's
+    /// minion in combat: the combat effects apply to that minion (Opikun).
+    ForOwnCombatant,
     /// "Action Modifier/Reaction" (Scalpel Tongue, Ominous Chorus): the
     /// acting minion for its controller, a reacting minion for anyone else.
     ActingOrReactingMinion,
@@ -230,6 +235,15 @@ pub enum Stat {
     Stealth,
     /// Of the bearer's block attempts.
     Intercept,
+    /// Of the minion's strikes: added to its strength of 1 or to a strength
+    /// an effect sets (spec §4.4.1).
+    Strength,
+    /// Votes the vampire can cast (only while ready).
+    Votes,
+    /// Its controller's hand size.
+    HandSize,
+    /// The damage of its ranged strikes, at either range (Noluthando).
+    RangedStrikeDamage,
 }
 
 /// Legality predicates — the closed vocabulary (effects-framework §2.3).
@@ -289,9 +303,9 @@ pub enum Requirement {
     /// The player has a master phase action left ("use a master phase
     /// action", Tension in the Ranks).
     MasterPhaseActionLeft,
-    /// The player holds at least n master cards in hand ("discard two
-    /// master cards").
-    HandMasters(u8),
+    /// The player holds at least n cards of this type in hand ("discard two
+    /// master cards", "discard a political action card").
+    HandOfType(CardType, u8),
     /// The actor is a vampire ("Vampires can burn this card"): every
     /// minion is a crypt vampire until allies land (P1 ally slice).
     ActorVampire,
@@ -386,6 +400,32 @@ pub enum Requirement {
     /// The host of the card in play has this discipline (lower case: any
     /// level; upper case: superior) — "the bearer with superior Auspex".
     HostDiscipline(&'static str),
+    /// Printed-modifier predicates (`GameState::printed_mod`), read on the
+    /// vampire whose text it is, the modified minion ("actor"), and the
+    /// opposing minion — the acting minion for a block attempt, the
+    /// opposing combatant in combat. "While this vampire is ready".
+    ThisVampireReady,
+    /// The action performed is directed / not directed (Castellan).
+    IsDirected,
+    IsUndirected,
+    /// The opposing minion is of this clan ("in combat with a Brujah").
+    OpponentClan(&'static str),
+    /// The opposing minion is younger / older than the modified minion.
+    OpponentYounger,
+    OpponentOlder,
+    /// The opposing minion holds a title (effective title).
+    OpponentTitled,
+    /// The modified minion is of this clan ("Brujah get +1 strength").
+    ActorClan(&'static str),
+    /// The vampire's controller has at most n pool ("while you have 9 or
+    /// fewer pool").
+    PoolAtMost(u8),
+    /// The vampire's controller controls an uncontested location / none.
+    ControlsLocation,
+    ControlsNoLocation,
+    /// The vampire's controller controls a vampire in play of this name
+    /// ("while you control Mithras").
+    ControlsVampireNamed(&'static str),
 }
 
 /// How many points a referendum allocates.
@@ -643,6 +683,37 @@ pub enum Target {
     Uncontrolled(u8),
 }
 
+/// Where an ability used with `Choice::UseAbility` is printed: a card in
+/// play (arena index) or a vampire's own text (`cards::vampires`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AbilitySource {
+    Card(CardId),
+    Vampire(MinionId),
+}
+
+impl AbilitySource {
+    /// The card in play of an ability whose effects act on that card.
+    pub fn card(self) -> CardId {
+        match self {
+            AbilitySource::Card(c) => c,
+            AbilitySource::Vampire(m) => {
+                unreachable!("an effect on its card in play, used from vampire {m:?}")
+            }
+        }
+    }
+
+    /// The key an "each action / combat / round" limit counts uses by: a
+    /// card in play is limited per copy (Kevlar Vest's two branches share
+    /// one use, rules-qa 10.3); a vampire's abilities are separate grants
+    /// (Abaddon's maneuver and press).
+    pub fn use_key(self, ability: u8) -> (AbilitySource, u8) {
+        match self {
+            AbilitySource::Card(_) => (self, 0),
+            AbilitySource::Vampire(_) => (self, ability),
+        }
+    }
+}
+
 /// Numeric terms chosen as the card is played (rules-qa 3.5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Terms {
@@ -662,10 +733,10 @@ pub enum Terms {
     /// any controller's, or none — announced with the play like any target
     /// (rules-qa 6.7), burned at resolution.
     BurnNamedInPlay(&'static str),
-    /// Ability cost "discard n cards" (`masters`: master cards only):
+    /// Ability cost "discard n cards" (`of`: cards of that type only):
     /// which ones, chosen one at a time as the use is announced (Tension
-    /// in the Ranks, The Barrens).
-    Discard { n: u8, masters: bool },
+    /// in the Ranks, The Barrens, Kasim Bayar).
+    Discard { n: u8, of: Option<CardType> },
     /// A number of cards in `min..=max`, chosen as the ability is used
     /// (Heart of Nizchetus: "up to 3"; rules-qa 11.1).
     Count { min: u8, max: u8 },
@@ -788,7 +859,10 @@ pub enum Effect {
     /// Rider effect: the Methuselah whose unlock phase it is burns `pool`
     /// unless they control a ready vampire of `sect` (Anarch Revolt; each
     /// copy in play burns on its own, spec §1.15).
-    UnlockBurnPoolUnlessReady { sect: Sect, pool: u8 },
+    UnlockBurnPoolUnlessReady {
+        sect: Sect,
+        pool: u8,
+    },
     /// Rider effect: the controller's prey burns n pool (Creeping
     /// Sabotage).
     PreyBurnsPool(u8),
@@ -868,7 +942,9 @@ pub enum Effect {
     /// Push a layer scoped to the current action.
     ActionLayer(Modifier),
     /// Cancel the card being played; `refund`: its cost is not paid.
-    CancelPlayed { refund: bool },
+    CancelPlayed {
+        refund: bool,
+    },
     /// Declare an action of this kind with this card (action cards).
     DeclareAction(ActionKind),
     /// +n stealth for the current action.
@@ -876,7 +952,10 @@ pub enum Effect {
     /// +n intercept for the actor's current block attempt.
     AddIntercept(u8),
     /// +n bleed for the current bleed; `limited` binds the rulebook cap.
-    BleedMod { n: u8, limited: bool },
+    BleedMod {
+        n: u8,
+        limited: bool,
+    },
     /// The actor wakes for the rest of the action.
     Wake,
     /// Lock the actor.
@@ -893,7 +972,9 @@ pub enum Effect {
     /// action before block resolution (Mirror Walk [THA]).
     EndActionIfBlocked,
     /// The card (a retainer) enters play on the acting minion with this life.
-    EmployRetainer { life: u8 },
+    EmployRetainer {
+        life: u8,
+    },
     /// Burn n blood from the host of this card in play (an ability's cost:
     /// Bowl of Convergence [AUS]).
     HostBurnBlood(u8),
@@ -938,7 +1019,10 @@ pub enum Effect {
     NextRoundManeuver,
     /// Additional strikes this round; `limited`: one such source per
     /// combatant per round (rulebook "Additional Strikes").
-    AdditionalStrikes { n: u8, limited: bool },
+    AdditionalStrikes {
+        n: u8,
+        limited: bool,
+    },
     /// The actor gets a strength of n this combat (replaces the base).
     SetStrength(u8),
     /// The actor's hand strikes are aggravated this round.
@@ -961,7 +1045,10 @@ pub enum Effect {
     /// Rider of a strike: combat ends — after combat, if the actor was
     /// blocked, it may burn `blood` to continue the action with +`stealth`
     /// as if unblocked. Lost if the combat continues (spec §4.9.2).
-    ContinueAfterCombat { blood: u8, stealth: u8 },
+    ContinueAfterCombat {
+        blood: u8,
+        stealth: u8,
+    },
     /// Set this round's range to long, skipping the determine range step;
     /// usable only while no other effect has set it (Sniper Rifle).
     SetRangeLong,
@@ -982,6 +1069,11 @@ pub enum Effect {
     /// only usable to continue combat, once each combat per copy (Righteous
     /// Blade; kept though the strike is dodged or does not resolve,
     /// rules-qa 10.4).
+    /// "Discard n cards at random" from the user's hand (a cost; the cards
+    /// are replaced).
+    DiscardAtRandom(u8),
+    /// "+n strength that combat" (Kasim Bayar): added each round.
+    StrengthThisCombat(u8),
     ContinuePressEachCombat,
     /// On success, search the library for an equipment the acting vampire
     /// can equip and equip it — requirements and cost as normal, shuffle
@@ -1019,7 +1111,10 @@ pub enum Effect {
     AddVotes(u8),
     /// The target vampire abstains: its cast votes and ballots are
     /// canceled and it casts no more; `lock` locks it, `burn` burns blood.
-    Abstain { lock: bool, burn: u8 },
+    Abstain {
+        lock: bool,
+        burn: u8,
+    },
     /// The actor gets +n votes against the referendum (and votes against).
     AddVotesAgainst(u8),
     /// Methuselahs casting votes or ballots against burn n pool once the
@@ -1169,6 +1264,73 @@ pub fn lookup(card: u16) -> Option<&'static CardDef> {
     defs::DEFS.iter().find(|d| d.name == name).copied()
 }
 
+/// Whom a vampire's printed modifier applies to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PrintedTo {
+    /// The vampire itself.
+    Itself,
+    /// The minion opposing it ("Brujah get +1 strength in combat with
+    /// him").
+    Opponent,
+    /// The other minions its controller controls ("primogen you control
+    /// get +1 stealth").
+    OthersControlled,
+}
+
+/// How many times a printed modifier counts.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Per {
+    One,
+    /// "For each unique equipment attached to him" (uncontested).
+    UniqueEquipmentOn,
+}
+
+/// A modifier printed on a vampire, read live by `GameState::printed_mod`
+/// while the vampire is in play — in torpor included (LSJ 20011022), not
+/// while contested.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Printed {
+    pub stat: Stat,
+    pub n: i8,
+    pub to: PrintedTo,
+    pub per: Per,
+    pub requires: &'static [Requirement],
+}
+
+/// Behavior of a vampire's printed text (`crypt.rs` stays the generated
+/// printed data: sect, title, disciplines).
+#[derive(Debug)]
+pub struct VampireDef {
+    /// Printed name; matched against `crypt::CRYPT`.
+    pub name: &'static str,
+    pub printed: &'static [Printed],
+    /// Abilities printed on the vampire, in the card vocabulary: the actor
+    /// `Host` is the vampire itself.
+    pub abilities: &'static [ModeDef],
+    /// The printed text not implemented yet, if any: a vampire lands with
+    /// part of its text and ends with all of it (rules-qa 13.1).
+    pub incomplete: Option<&'static str>,
+}
+
+/// Behavior of a crypt card, if its printed text is implemented. A vampire
+/// without a definition plays with no text.
+pub fn vampire(card: u16) -> Option<&'static VampireDef> {
+    // Read on every stat computation: indexed once by crypt card.
+    static TABLE: std::sync::OnceLock<Vec<Option<&'static VampireDef>>> =
+        std::sync::OnceLock::new();
+    TABLE.get_or_init(|| {
+        crate::crypt::CRYPT
+            .iter()
+            .map(|c| {
+                vampires::VAMPIRES
+                    .iter()
+                    .find(|d| d.name == c.name)
+                    .copied()
+            })
+            .collect()
+    })[card as usize]
+}
+
 /// The card play under announcement / in its as-played window.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PlayCtx {
@@ -1258,7 +1420,7 @@ pub fn holds(
         Requirement::HandNotEmpty => !st.seats[seat.index()].hand.is_empty(),
         Requirement::PoolAtLeast(n) => st.seats[seat.index()].pool >= n as i32,
         Requirement::ActorVampire => actor.is_some(),
-        Requirement::HandMasters(n) => st.hand_picks(seat, true).len() >= n as usize,
+        Requirement::HandOfType(t, n) => st.hand_picks(seat, Some(t)).len() >= n as usize,
         Requirement::HostLocked
         | Requirement::HostBloodAtLeast(_)
         | Requirement::HostBelowCapacity
@@ -1333,6 +1495,18 @@ pub fn holds(
         }
         Requirement::ActorWithout(h) => actor.is_some_and(|m| !st.holds_a(m, h)),
         Requirement::HostClan(_) | Requirement::HostDiscipline(_) => true, // host predicates
+        Requirement::ThisVampireReady
+        | Requirement::IsDirected
+        | Requirement::IsUndirected
+        | Requirement::OpponentClan(_)
+        | Requirement::OpponentYounger
+        | Requirement::OpponentOlder
+        | Requirement::OpponentTitled
+        | Requirement::ActorClan(_)
+        | Requirement::PoolAtMost(_)
+        | Requirement::ControlsLocation
+        | Requirement::ControlsNoLocation
+        | Requirement::ControlsVampireNamed(_) => true, // printed-modifier predicates
         Requirement::BlockerTitleIn(classes) => action.and_then(|a| a.blocker).is_some_and(|b| {
             let t = st.minions[b.index()].title();
             classes.iter().any(|c| c.matches(t))

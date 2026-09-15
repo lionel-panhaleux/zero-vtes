@@ -5,8 +5,8 @@
 //! through layers, replacement draws, and in-play abilities.
 
 use crate::cards::{
-    self, Actor, Effect, Hook, Layer, Limit, PlayCtx, Requirement, Rider, Scope, Target,
-    TargetKind, TargetSpec, Terms, Until, Window,
+    self, AbilitySource, Actor, Effect, Hook, Layer, Limit, PlayCtx, Requirement, Rider, Scope,
+    Target, TargetKind, TargetSpec, Terms, Until, Window,
 };
 use crate::combat::is_combat_effect;
 use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
@@ -20,10 +20,10 @@ use crate::window::OrderedWindow;
 
 /// The once-per-phase key of an in-play ability: the copy, or the copy and
 /// mode under `Limit::PerPhaseEach`.
-fn phase_key(card: CardId, ability: u8, limit: Option<Limit>) -> (CardId, u8) {
+fn phase_key(source: AbilitySource, ability: u8, limit: Option<Limit>) -> (AbilitySource, u8) {
     match limit {
-        Some(Limit::PerPhaseEach) => (card, ability),
-        _ => (card, 0),
+        Some(Limit::PerPhaseEach) => (source, ability),
+        _ => (source, 0),
     }
 }
 
@@ -144,7 +144,7 @@ impl Engine {
                     st.ready_unlocked(seat).into_iter().map(Some).collect()
                 }
             }
-            Actor::Host | Actor::Controller => vec![],
+            Actor::Host | Actor::Controller | Actor::ForOwnCombatant => vec![],
             // The player's minion in the combat; ready, except in the
             // end-of-round window (Taste of Vitae's "not usable by a vampire
             // being burned or going to torpor" is the card's own clause).
@@ -414,12 +414,12 @@ impl Engine {
                 self.announce_play(s, *card, *mode, *actor, *target, Flow::MasterPhase);
             }
             Choice::UseAbility {
-                card,
+                source,
                 ability,
                 actor,
                 target,
             } => {
-                if !self.use_ability(*card, *ability, *actor, *target, Flow::MasterPhase) {
+                if !self.use_ability(*source, *ability, *actor, *target, Flow::MasterPhase) {
                     self.flow = Flow::MasterPhase;
                 }
             }
@@ -939,12 +939,12 @@ impl Engine {
                 self.flow = Flow::Discard;
             }
             Choice::UseAbility {
-                card,
+                source,
                 ability,
                 actor,
                 target,
             } => {
-                if !self.use_ability(*card, *ability, *actor, *target, Flow::Discard) {
+                if !self.use_ability(*source, *ability, *actor, *target, Flow::Discard) {
                     self.flow = Flow::Discard;
                 }
             }
@@ -974,7 +974,11 @@ impl Engine {
                 }
                 // "During X" abilities: once per phase per copy (rules-qa
                 // 6.6) — per mode with `Limit::PerPhaseEach`.
-                let key = phase_key(CardId(ci as u32), ai as u8, ability.limit);
+                let key = phase_key(
+                    AbilitySource::Card(CardId(ci as u32)),
+                    ai as u8,
+                    ability.limit,
+                );
                 if window.is_phase() && st.phase_uses.contains(&key) {
                     continue;
                 }
@@ -1030,7 +1034,7 @@ impl Engine {
                         };
                         for target in targets {
                             out.push(Choice::UseAbility {
-                                card: ci as u32,
+                                source: AbilitySource::Card(CardId(ci as u32)),
                                 ability: ai as u8,
                                 actor: None,
                                 target,
@@ -1056,7 +1060,7 @@ impl Engine {
                         });
                         if ok {
                             out.push(Choice::UseAbility {
-                                card: ci as u32,
+                                source: AbilitySource::Card(CardId(ci as u32)),
                                 ability: ai as u8,
                                 actor: None,
                                 target: Target::None,
@@ -1089,7 +1093,8 @@ impl Engine {
                                     .effects
                                     .iter()
                                     .any(|e| matches!(e, Effect::PreventGunStrikeAllowance(_)));
-                                cb.abilities_used.contains(&id)
+                                cb.abilities_used
+                                    .contains(&AbilitySource::Card(id).use_key(ai as u8))
                                     && !(allowance
                                         && cb
                                             .gun_prevention_left
@@ -1098,13 +1103,14 @@ impl Engine {
                             }),
                             // "During an action": once per action per copy
                             // (rules-qa 6.6, 9.6).
-                            Some(Limit::PerAction) => self
-                                .action
-                                .as_ref()
-                                .is_some_and(|a| a.abilities_used.contains(&id)),
-                            Some(Limit::PerRound) => {
-                                unreachable!("limit not supported on abilities yet")
-                            }
+                            Some(Limit::PerAction) => self.action.as_ref().is_some_and(|a| {
+                                a.abilities_used
+                                    .contains(&AbilitySource::Card(id).use_key(ai as u8))
+                            }),
+                            Some(Limit::PerRound) => self.combat.as_ref().is_some_and(|cb| {
+                                cb.abilities_used_round
+                                    .contains(&AbilitySource::Card(id).use_key(ai as u8))
+                            }),
                             Some(Limit::PerPhaseEach) | None => false,
                         };
                         if spent {
@@ -1162,7 +1168,7 @@ impl Engine {
                         });
                         if ok {
                             out.push(Choice::UseAbility {
-                                card: ci as u32,
+                                source: AbilitySource::Card(CardId(ci as u32)),
                                 ability: ai as u8,
                                 actor: declares.map(|_| host),
                                 target: Target::None,
@@ -1205,7 +1211,7 @@ impl Engine {
                                 continue;
                             }
                             out.push(Choice::UseAbility {
-                                card: ci as u32,
+                                source: AbilitySource::Card(CardId(ci as u32)),
                                 ability: ai as u8,
                                 actor: Some(m),
                                 target: Target::None,
@@ -1216,7 +1222,93 @@ impl Engine {
                 }
             }
         }
+        self.vampire_ability_options(seat, window, &mut out);
         out
+    }
+
+    /// Abilities printed on the seat's vampires (`cards::vampires`) usable
+    /// in `window`: a vampire's own in its combat (`Actor::Host`), or, in
+    /// the combat or out of it, in torpor included (LSJ 20011022), for its
+    /// Methuselah's minion in combat (`Actor::ForOwnCombatant`, Opikun).
+    fn vampire_ability_options(&self, seat: SeatId, window: Window, out: &mut Vec<Choice>) {
+        let st = &self.state;
+        let cb = self.combat.as_ref();
+        for m in st.minions_of(seat) {
+            let Some(def) = cards::vampire(st.minions[m.index()].card) else {
+                continue;
+            };
+            let source = AbilitySource::Vampire(m);
+            for (ai, ability) in def.abilities.iter().enumerate() {
+                if !ability.windows.contains(&window) {
+                    continue;
+                }
+                let key = phase_key(source, ai as u8, ability.limit);
+                if window.is_phase() && st.phase_uses.contains(&key) {
+                    continue;
+                }
+                // The minion the combat effects apply to.
+                let combatant = match (ability.actor, cb) {
+                    (Actor::Host, Some(cb)) if cb.side_of_minion(m).is_none() => continue,
+                    (Actor::Host, _) => Some(m),
+                    (Actor::ForOwnCombatant, Some(cb)) => match cb.side_of(seat) {
+                        Some(i) => Some(cb.sides[i].minion),
+                        None => continue,
+                    },
+                    (Actor::ForOwnCombatant, None) => continue,
+                    (other, _) => unreachable!("not a vampire ability actor: {other:?}"),
+                };
+                let used = source.use_key(ai as u8);
+                let spent = match ability.limit {
+                    Some(Limit::PerCombat) => {
+                        cb.is_some_and(|cb| cb.abilities_used.contains(&used))
+                    }
+                    Some(Limit::PerRound) => {
+                        cb.is_some_and(|cb| cb.abilities_used_round.contains(&used))
+                    }
+                    Some(Limit::PerAction) => self
+                        .action
+                        .as_ref()
+                        .is_some_and(|a| a.abilities_used.contains(&used)),
+                    Some(Limit::PerPhaseEach) | None => false,
+                };
+                if spent {
+                    continue;
+                }
+                // Effect-derived combat legality (a dodge under a grapple).
+                if let Some((cb, i)) = cb
+                    .zip(combatant)
+                    .and_then(|(cb, c)| cb.side_of_minion(c).map(|i| (cb, i)))
+                {
+                    if !cb.allows(ability, i) {
+                        continue;
+                    }
+                }
+                // Host predicates read the vampire; the others its minion in
+                // combat.
+                let ok = ability.requires.iter().all(|&r| {
+                    cards::holds_for_host(r, st, m)
+                        && cards::holds(
+                            r,
+                            st,
+                            seat,
+                            combatant,
+                            None,
+                            self.action.as_ref(),
+                            cb,
+                            self.referendum.as_ref(),
+                            false,
+                        )
+                });
+                if ok {
+                    out.push(Choice::UseAbility {
+                        source,
+                        ability: ai as u8,
+                        actor: None,
+                        target: Target::None,
+                    });
+                }
+            }
+        }
     }
 
     /// Use an in-play ability. Returns true when the flow moved on: a
@@ -1225,15 +1317,13 @@ impl Engine {
     /// must not restore their flow then.
     pub(crate) fn use_ability(
         &mut self,
-        card: u32,
+        source: AbilitySource,
         ability: u8,
         actor: Option<MinionId>,
         target: Target,
         resume: Flow,
     ) -> bool {
-        let c = &self.state.cards[card as usize];
-        let def = cards::lookup(c.card).expect("definition");
-        let mode = &def.abilities[ability as usize];
+        let mode = self.ability_mode(source, ability);
         // A granted action: declared like a card action, the card in play
         // as its source (its referendum and cost are read at resolution).
         if let Some(Effect::DeclareAction(kind)) = mode
@@ -1242,7 +1332,7 @@ impl Engine {
             .find(|e| matches!(e, Effect::DeclareAction(_)))
         {
             let m = actor.expect("acting minion");
-            self.declare_action(m, *kind, None, None, Some(CardId(card)));
+            self.declare_action(m, *kind, None, None, Some(source.card()));
             // The stealth of a granted action is the card's own ("as a +1
             // stealth political action"), not the rulebook's for political
             // action cards (rules-qa 6.2).
@@ -1265,40 +1355,56 @@ impl Engine {
         // number of cards): the ability resolves once they are chosen.
         if let Some(Terms::Discard { .. } | Terms::Count { .. }) = mode.terms {
             self.flow = Flow::AbilityTerms {
-                card: CardId(card),
+                source,
                 ability,
                 picked: Vec::new(),
                 resume: Box::new(resume),
             };
             return true;
         }
-        self.resolve_ability(card, ability, target, 0)
+        self.resolve_ability(source, ability, target, 0)
     }
 
     /// The Methuselah using an ability: the active one for "Methuselahs
     /// can …", the card's controller otherwise.
-    fn ability_user(&self, card: CardId, ability: u8) -> SeatId {
-        let def = cards::lookup(self.state.cards[card.index()].card).expect("definition");
-        match def.abilities[ability as usize].actor {
-            Actor::Methuselah => self.state.active,
-            _ => self.state.card_controller(card),
+    fn ability_user(&self, source: AbilitySource, ability: u8) -> SeatId {
+        match (source, self.ability_mode(source, ability).actor) {
+            (AbilitySource::Vampire(m), _) => self.state.minions[m.index()].owner,
+            (AbilitySource::Card(_), Actor::Methuselah) => self.state.active,
+            (AbilitySource::Card(c), _) => self.state.card_controller(c),
         }
+    }
+
+    /// The definition of an ability, wherever it is printed.
+    fn ability_mode(&self, source: AbilitySource, ability: u8) -> &'static cards::ModeDef {
+        let abilities = match source {
+            AbilitySource::Card(c) => {
+                cards::lookup(self.state.cards[c.index()].card)
+                    .expect("definition")
+                    .abilities
+            }
+            AbilitySource::Vampire(m) => {
+                cards::vampire(self.state.minions[m.index()].card)
+                    .expect("vampire definition")
+                    .abilities
+            }
+        };
+        &abilities[ability as usize]
     }
 
     /// Terms of an ability: the next master card to discard, among those
     /// not picked yet.
     pub(crate) fn ability_terms_request(
         &self,
-        card: CardId,
+        source: AbilitySource,
         ability: u8,
         picked: &[u8],
     ) -> DecisionRequest {
-        let seat = self.ability_user(card, ability);
-        let def = cards::lookup(self.state.cards[card.index()].card).expect("definition");
-        let options = match def.abilities[ability as usize].terms {
-            Some(Terms::Discard { masters, .. }) => self
+        let seat = self.ability_user(source, ability);
+        let options = match self.ability_mode(source, ability).terms {
+            Some(Terms::Discard { of, .. }) => self
                 .state
-                .hand_picks(seat, masters)
+                .hand_picks(seat, of)
                 .into_iter()
                 .filter(|i| !picked.contains(i))
                 .map(Choice::Discard)
@@ -1315,20 +1421,19 @@ impl Engine {
 
     pub(crate) fn ability_terms_apply(
         &mut self,
-        card: CardId,
+        source: AbilitySource,
         ability: u8,
         mut picked: Vec<u8>,
         resume: Box<Flow>,
         pick: u8,
     ) {
         picked.push(pick);
-        let def = cards::lookup(self.state.cards[card.index()].card).expect("definition");
-        let Some(Terms::Discard { n, .. }) = def.abilities[ability as usize].terms else {
+        let Some(Terms::Discard { n, .. }) = self.ability_mode(source, ability).terms else {
             unreachable!("ability terms without discards");
         };
         if picked.len() < n as usize {
             self.flow = Flow::AbilityTerms {
-                card,
+                source,
                 ability,
                 picked,
                 resume,
@@ -1337,7 +1442,7 @@ impl Engine {
         }
         // The cost: discards to the ash heap, replaced as any card leaving
         // the hand.
-        let seat = self.ability_user(card, ability);
+        let seat = self.ability_user(source, ability);
         picked.sort_unstable_by(|a, b| b.cmp(a));
         let discarded = picked.len();
         for i in picked {
@@ -1347,62 +1452,90 @@ impl Engine {
         }
         self.replace(seat, discarded, None);
         self.flow = *resume;
-        self.resolve_ability(card.0, ability, Target::None, 0);
+        self.resolve_ability(source, ability, Target::None, 0);
     }
 
     /// The number chosen for an ability's count terms (Heart of
     /// Nizchetus): the ability resolves with it.
-    pub(crate) fn ability_count_apply(&mut self, card: CardId, ability: u8, resume: Flow, x: u8) {
+    pub(crate) fn ability_count_apply(
+        &mut self,
+        source: AbilitySource,
+        ability: u8,
+        resume: Flow,
+        x: u8,
+    ) {
         self.flow = resume;
-        self.resolve_ability(card.0, ability, Target::None, x);
+        self.resolve_ability(source, ability, Target::None, x);
     }
 
     /// Resolve an in-play ability's effects (its terms, if any, chosen:
     /// `x` for a count). Returns true when the flow moved on (the user
     /// ousted).
-    fn resolve_ability(&mut self, card: u32, ability: u8, target: Target, x: u8) -> bool {
-        let c = &self.state.cards[card as usize];
-        let def = cards::lookup(c.card).expect("definition");
-        let mode = &def.abilities[ability as usize];
-        let (seat, host) = match mode.actor {
-            Actor::Controller => (self.state.card_controller(CardId(card)), None),
-            Actor::Methuselah => (self.state.active, None),
-            _ => {
-                let host = c.host.expect("host");
-                (self.state.minions[host.index()].owner, Some(host))
+    fn resolve_ability(
+        &mut self,
+        source: AbilitySource,
+        ability: u8,
+        target: Target,
+        x: u8,
+    ) -> bool {
+        let mode = self.ability_mode(source, ability);
+        let (seat, host, card) = match source {
+            // A vampire's own text: the vampire is its host, and there is no
+            // library card (`u16::MAX`: no effect of a vampire reads it).
+            AbilitySource::Vampire(m) => (self.state.minions[m.index()].owner, Some(m), u16::MAX),
+            AbilitySource::Card(id) => {
+                let c = &self.state.cards[id.index()];
+                match mode.actor {
+                    Actor::Controller => (self.state.card_controller(id), None, c.card),
+                    Actor::Methuselah => (self.state.active, None, c.card),
+                    _ => {
+                        let host = c.host.expect("host");
+                        (self.state.minions[host.index()].owner, Some(host), c.card)
+                    }
+                }
             }
+        };
+        // Combat effects apply to the host, or to the user's minion in combat
+        // for an ability used from out of the combat (Opikun).
+        let actor = match (mode.actor, self.combat.as_ref()) {
+            (Actor::ForOwnCombatant, Some(cb)) => cb.side_of(seat).map(|i| cb.sides[i].minion),
+            _ => host,
         };
         let ctx = PlayCtx {
             seat,
-            card: c.card,
+            card,
             mode: ability,
-            actor: host,
+            actor,
             target,
             x,
             burn: None,
         };
         if let (Some(Limit::PerAction), Some(a)) = (mode.limit, self.action.as_mut()) {
-            a.abilities_used.push(CardId(card));
+            a.abilities_used.push(source.use_key(ability));
         }
-        if let (Some(Limit::PerCombat), Some(cb)) = (mode.limit, self.combat.as_mut()) {
-            cb.abilities_used.push(CardId(card));
+        if let Some(cb) = self.combat.as_mut() {
+            match mode.limit {
+                Some(Limit::PerCombat) => cb.abilities_used.push(source.use_key(ability)),
+                Some(Limit::PerRound) => cb.abilities_used_round.push(source.use_key(ability)),
+                _ => {}
+            }
         }
         if mode.windows.iter().any(|w| w.is_phase()) {
             self.state
                 .phase_uses
-                .push(phase_key(CardId(card), ability, mode.limit));
+                .push(phase_key(source, ability, mode.limit));
         }
         for e in mode.effects {
             match *e {
                 Effect::SpendMasterPhaseAction => {
                     self.state.seats[ctx.seat.index()].mpa -= 1;
                 }
-                Effect::BurnSelf => self.burn_card_in_play(CardId(card)),
-                Effect::LockSelf => self.state.cards[card as usize].locked = true,
-                Effect::AddCounter(n) => self.state.cards[card as usize].counters += n,
+                Effect::BurnSelf => self.burn_card_in_play(source.card()),
+                Effect::LockSelf => self.state.cards[source.card().index()].locked = true,
+                Effect::AddCounter(n) => self.state.cards[source.card().index()].counters += n,
                 Effect::BurnSelfAtCounters(n) => {
-                    if self.state.cards[card as usize].counters >= n {
-                        self.burn_card_in_play(CardId(card));
+                    if self.state.cards[source.card().index()].counters >= n {
+                        self.burn_card_in_play(source.card());
                     }
                 }
                 Effect::GainPool(n) => self.state.seats[ctx.seat.index()].pool += n as i32,
@@ -1473,19 +1606,24 @@ impl Engine {
                     self.apply_combat_effect(Effect::Strike(k), &ctx);
                     let cb = self.combat.as_mut().expect("combat context");
                     let i = cb.side_of_minion(host.expect("host")).expect("combatant");
-                    cb.sides[i].strike_source = Some(CardId(card));
+                    // A vampire's own strike (Flávio Gonçalves' dodge) has
+                    // no card to lose.
+                    cb.sides[i].strike_source = match source {
+                        AbilitySource::Card(id) => Some(id),
+                        AbilitySource::Vampire(_) => None,
+                    };
                 }
                 Effect::CommitStrike => {
                     let cb = self.combat.as_mut().expect("combat context");
                     let i = cb.side_of_minion(host.expect("host")).expect("combatant");
-                    cb.sides[i].committed = Some(CardId(card));
+                    cb.sides[i].committed = Some(source.card());
                 }
                 // Read when the strike resolves.
                 Effect::AdditionalStrikeWithSource => {}
                 // One point a use; the first use opens the combat's
                 // allowance (rules-qa 10.3).
                 Effect::PreventGunStrikeAllowance(n) => {
-                    let id = CardId(card);
+                    let id = source.card();
                     let cb = self.combat.as_mut().expect("combat context");
                     let i = cb.side_of_minion(host.expect("host")).expect("combatant");
                     let k = match cb.gun_prevention_left.iter().position(|&(c, _)| c == id) {
@@ -1499,7 +1637,7 @@ impl Engine {
                     cb.sides[i].pending.prevent_gun(1);
                 }
                 Effect::ContinuePressEachCombat => {
-                    let id = CardId(card);
+                    let id = source.use_key(ability);
                     let cb = self.combat.as_mut().expect("combat context");
                     let i = cb.side_of_minion(host.expect("host")).expect("combatant");
                     if !cb.abilities_used.contains(&id) {
@@ -1507,7 +1645,20 @@ impl Engine {
                         cb.sides[i].continue_presses += 1;
                     }
                 }
-                Effect::StoreTopCards(n) => self.store_top_cards(CardId(card), n),
+                Effect::StoreTopCards(n) => self.store_top_cards(source.card(), n),
+                // A cost: cards discarded at random from the user's hand,
+                // then replaced (Phaibun).
+                Effect::DiscardAtRandom(n) => {
+                    let seat = &mut self.state.seats[ctx.seat.index()];
+                    let k = (n as usize).min(seat.hand.len());
+                    for _ in 0..k {
+                        let seat = &mut self.state.seats[ctx.seat.index()];
+                        let i = self.rng.below(seat.hand.len());
+                        let c = seat.hand.remove(i);
+                        seat.ash.push(c);
+                    }
+                    self.replace(ctx.seat, k, None);
+                }
                 // The number picked, capped by the library as the ability
                 // resolves; drawn with no discard-down before the same
                 // number goes back to the bottom (rules-qa 9.5, 11.1).
@@ -1592,7 +1743,7 @@ impl Engine {
                 window.play();
             }
             Choice::UseAbility {
-                card,
+                source,
                 ability,
                 actor,
                 target,
@@ -1602,7 +1753,7 @@ impl Engine {
                     window: window.clone(),
                     pending: pending.clone(),
                 };
-                if self.use_ability(*card, *ability, *actor, *target, resume) {
+                if self.use_ability(*source, *ability, *actor, *target, resume) {
                     return; // ousted (the turn has passed) or terms pending
                 }
             }
@@ -1898,7 +2049,7 @@ impl Engine {
                 self.flow = Flow::PhaseRotation { resume, window };
             }
             Choice::UseAbility {
-                card,
+                source,
                 ability,
                 actor,
                 target,
@@ -1907,7 +2058,7 @@ impl Engine {
                 // back in their phase.
                 let phase = *resume;
                 self.flow = phase.clone();
-                if !self.use_ability(*card, *ability, *actor, *target, phase.clone()) {
+                if !self.use_ability(*source, *ability, *actor, *target, phase.clone()) {
                     self.flow = phase;
                 }
             }

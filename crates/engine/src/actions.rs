@@ -130,7 +130,7 @@ pub struct ActionCtx {
     pub taken: Vec<CardId>,
     /// In-play abilities used this action, by copy ("during an action":
     /// once per action, rules-qa 9.6).
-    pub abilities_used: Vec<CardId>,
+    pub abilities_used: Vec<(cards::AbilitySource, u8)>,
 }
 
 impl ActionCtx {
@@ -140,7 +140,8 @@ impl ActionCtx {
     pub fn stealth(&self, st: &crate::state::GameState) -> u8 {
         (self.base_stealth as i32
             + self.stealth_mods as i32
-            + st.bearer_mod(self.acting, Stat::Stealth, self.kind))
+            + st.bearer_mod(self.acting, Stat::Stealth, self.kind)
+            + st.printed_mod(self.acting, Stat::Stealth, self.printed_ctx(st, None)))
         .max(0) as u8
     }
 
@@ -172,6 +173,7 @@ impl ActionCtx {
         let n = (1
             + self.bleed_mods as i32
             + st.bearer_mod(self.acting, Stat::Bleed, self.kind)
+            + st.printed_mod(self.acting, Stat::Bleed, self.printed_ctx(st, None))
             + granted)
             .max(0) as u8;
         n.saturating_sub(self.bleed_reduce)
@@ -216,7 +218,38 @@ impl ActionCtx {
                 _ => None,
             })
             .sum();
-        own + st.bearer_mod(m, Stat::Intercept, self.kind) + against
+        let printed = st.printed_mod(m, Stat::Intercept, self.printed_ctx(st, Some(self.acting)));
+        own + st.bearer_mod(m, Stat::Intercept, self.kind) + against + printed
+    }
+
+    /// The Methuselah a directed action is directed at, if any.
+    pub fn directed_seat(&self, st: &crate::state::GameState) -> Option<SeatId> {
+        match self.kind {
+            ActionKind::Bleed => self.bleed_target,
+            ActionKind::Rescue | ActionKind::Diablerie => {
+                let t = self.torpor_target.expect("torpor target");
+                let owner = st.minions[t.index()].owner;
+                (owner != self.seat).then_some(owner)
+            }
+            ActionKind::BurnCard => {
+                let controller = st.card_controller(self.source.expect("source"));
+                (controller != self.seat).then_some(controller)
+            }
+            _ => None,
+        }
+    }
+
+    /// What a printed modifier reads of this action (`GameState::printed_mod`).
+    pub fn printed_ctx(
+        &self,
+        st: &crate::state::GameState,
+        opponent: Option<MinionId>,
+    ) -> crate::state::PrintedCtx {
+        crate::state::PrintedCtx {
+            kind: Some(self.kind),
+            directed: Some(self.directed_seat(st).is_some()),
+            opponent,
+        }
     }
 
     /// Sum of the action's intercept layers applying to `m`.
@@ -404,19 +437,7 @@ impl Engine {
 
     /// The Methuselah a directed action is directed at, if any.
     fn directed_target(&self, a: &ActionCtx) -> Option<SeatId> {
-        match a.kind {
-            ActionKind::Bleed => a.bleed_target,
-            ActionKind::Rescue | ActionKind::Diablerie => {
-                let t = a.torpor_target.expect("torpor target");
-                let owner = self.state.minions[t.index()].owner;
-                (owner != a.seat).then_some(owner)
-            }
-            ActionKind::BurnCard => {
-                let controller = self.state.card_controller(a.source.expect("source"));
-                (controller != a.seat).then_some(controller)
-            }
-            _ => None,
-        }
+        a.directed_seat(&self.state)
     }
 
     /// Minions of `seat` that may attempt to block: ready and unlocked, or
@@ -488,7 +509,8 @@ impl Engine {
                 .filter(|ab| ab.windows.contains(&Window::ActionStealthIntercept))
             {
                 if ab.limit == Some(Limit::PerAction)
-                    && a.abilities_used.contains(&CardId(ci as u32))
+                    && a.abilities_used
+                        .contains(&cards::AbilitySource::Card(CardId(ci as u32)).use_key(0))
                 {
                     continue;
                 }
@@ -640,7 +662,7 @@ impl Engine {
                 self.announce_play(seat, *card, *mode, *actor, *target, Flow::Action);
             }
             Choice::UseAbility {
-                card,
+                source,
                 ability,
                 actor,
                 target,
@@ -649,7 +671,7 @@ impl Engine {
                 // returns to the acting Methuselah.
                 a.window.play();
                 self.flow = Flow::Action;
-                self.use_ability(*card, *ability, *actor, *target, Flow::Action);
+                self.use_ability(*source, *ability, *actor, *target, Flow::Action);
             }
             other => unreachable!("illegal action choice {other:?}"),
         }

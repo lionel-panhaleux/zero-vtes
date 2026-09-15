@@ -559,7 +559,7 @@ Recorded so nobody mistakes them for oversights:
   pool: every undirected action is +1 stealth, so only bleeds and
   cross-controller rescue/diablerie are blockable, and a vampire enters torpor
   at 0 blood, so leave-torpor is unpayable and rescue is the only way out.
-- **P1 — stress set** (in progress): effects framework sized against §6's stress
+- **P1 — stress set** (done 2026-09-15): effects framework sized against §6's stress
   set; the A/B/C block loop, combat, referendum machines complete;
   rulings-as-tests harness. Slice 1 done (2026-09-03): library zones (precon
   libraries, hand of 7, ash heap), the master phase as an offer window with
@@ -992,9 +992,77 @@ Recorded so nobody mistakes them for oversights:
   `tests/draws.rs`. Rules-qa Batch 11 answered (2026-09-14); Batch 12
   answered (2026-09-15): the readings stand, except that the Cache is
   replaced before its search (12.4).
-- **P2 — full engine pool**: all 621 cards including Events and their machinery;
+  Slice 8d (2026-09-15): P1 closes. Every §6 stress-set card has a
+  definition, and both contest scenarios are scripted: a contested unique
+  (vampire copies in `game.rs`, a unique library card in
+  `tests/contests.rs`) and a contested title
+  (`title_contest_prince_and_baron_of_one_city`,
+  `title_contest_torpor_and_no_blood_force_a_yield`). Two ledger rows
+  left blocked by gaps since built now point at their tests: Immortal
+  Grapple's committed strike (TOM 19951217) and Magic of the Smith's
+  Shilmulo Tarot (LSJ 20090506). Carried into P2: printed crypt
+  abilities (strength, prevention, maneuvers), then allies and
+  retainers; 282 of the 385 precon cards have no definition yet.
+- **P2 — full engine pool** (in progress): all 621 cards including Events and their machinery;
   the 14 training decklists plus the New Blood minis as data; perft baselines;
   protocol server; scripted reference bots (aggro-bleed, wall, vote).
+  Slice 9a (2026-09-15): printed vampire text. `crypt.rs` stays the
+  generated printed data; what a vampire's text does is written in
+  `cards::vampires` (`VampireDef` keyed by printed name like `DEFS`,
+  `cards::vampire` indexed once by crypt card), in the effects
+  vocabulary: `Printed { stat, n, to, per, requires }` modifiers read live
+  by `GameState::printed_mod`. They are not pushed as layers — a vampire
+  is not a card in play (`Layer.source` is a `CardId`), and a live read
+  needs no push or retract on torpor, contest, burn or oust. Printed text
+  applies in torpor (LSJ 20011022); a contested vampire gives nothing.
+  `Stat` gains strength (added to the strength of 1 or to a set
+  strength, spec §4.4.1), votes (only while ready) and hand size; the
+  new requirements read the vampire, the modified minion and the
+  opposing one (the acting minion for a block attempt, the opposing
+  combatant), the action's directedness (`ActionCtx::directed_seat`),
+  and the controller's pool, locations and vampires. Intercept
+  reachability counts printed intercept. Definitions: the 23 vampires
+  whose whole text is plain stat modifiers — 15 in precons (Catalina
+  Vega, Kamile Paukstys, Lenny Burkhead, Rinaldo Albizzi, Massimiliano,
+  Valeriya Zinovieva, Ariane, Azucena, Branimira, Bret Stryker,
+  Castellan, The Dowager, Martina Srnankova, Hesha Ruhadze, Neserian)
+  and Hafthor Thorsteinsson, Mickey Wheeler, André the Manipulator,
+  Carmelita Neillson, Weirich Waldburg, Rose Abawi, Kevin Jackson,
+  Oluwafunmilayo — scripted in `tests/vampires.rs`; the ledger counts
+  `VAMPIRES`. Not yet: vampires whose whole text is a cost modifier
+  (Anne-Marie Bourgeois, Adelino Da Silva, Doc Martina, Kuyén, Máddji)
+  or a damage modifier (Noluthando). Rules-qa Batch 13 answered
+  (2026-09-15): the readings stand (13.2), and the order in which a
+  vampire's text lands is the implementer's call, every vampire ending
+  with all of it (13.1). So the plain stat half of 19 two-part vampires
+  lands too (Mithras, Theo Bell, Kasim Bayar, Marchesa Liliana, Mora,
+  Nonu Dis, Sreelekha, Roy, Faruq, Ragnar Nordstrom, …), the rest quoted
+  in `VampireDef.incomplete` and its ledger rows blocked on it (42
+  vampires).
+  Slice 9b (2026-09-15): printed combat abilities. `VampireDef.abilities`
+  are `ModeDef`s verbatim (the actor `Host` is the vampire), and the
+  ability plumbing is shared rather than twinned: `Choice::UseAbility`
+  names its `AbilitySource` — a card in play or a vampire — and
+  `ActionCtx`/`CombatCtx.abilities_used`, `phase_uses` and
+  `Flow::AbilityTerms` key on it; `resolve_ability` branches on the source
+  for the definition, user and host, and shares everything after (an
+  effect acting on its card calls `AbilitySource::card`). New:
+  `Actor::ForOwnCombatant` — the host, in the combat or not, torpor
+  included, using it for its controller's minion in combat (Opikun; the
+  door to the gap slice 3 recorded for cards played by minions not in the
+  combat); `Limit::PerRound` on abilities (`abilities_used_round`);
+  `Terms::Discard { of: Option<CardType> }` with
+  `Requirement::HandOfType`; `Effect::DiscardAtRandom` (a cost, replaced,
+  from `Engine.rng`), `Effect::StrengthThisCombat` (`Side.strength_mods`,
+  kept each round), `Stat::RangedStrikeDamage`. Definitions: Abaddon, Saku
+  Pihlajamäki, Flávio Gonçalves, Phaibun, Opikun, Rowena (her prevention;
+  the werewolf strike waits for allies), Noluthando, and the rest of Kasim
+  Bayar and Chun Hei (49 vampires). Deferred: Adrino Manauara (the
+  mandatory press, rules-qa 14.1), Djeneba (a cost on the opponent's
+  strike cards), Egidia Arrú (a rider on a vampire, with 9c), Roger de
+  Camden (a once-per-turn ability for another combatant, beside a cost
+  reduction), Faruq (no corruption counters yet). Test fixtures that want
+  a plain vampire skip vampires with printed text.
 - **P3 — training loop**: PyO3 batched stepping, encoder, PPO self-play at 4p;
   evaluation ladder vs scripted bots and frozen snapshots.
 - **P4 — league & 5p**: exploiters, PFSP, deck/seat sampling, evaluation vs humans.

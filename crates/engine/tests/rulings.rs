@@ -7,6 +7,7 @@
 //! data/rulings-v5.csv` keeps the ledger and the tests in sync.
 
 use zvtes::actions::Outcome;
+use zvtes::cards::AbilitySource;
 use zvtes::cards::{Layer, Modifier, Scope, Target};
 use zvtes::crypt::CRYPT;
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
@@ -157,7 +158,7 @@ fn master(card: u8, target: Target) -> Choice {
 
 fn ability(card: u32, ability: u8, target: Target) -> Choice {
     Choice::UseAbility {
-        card,
+        source: AbilitySource::Card(CardId(card)),
         ability,
         actor: None,
         target,
@@ -166,7 +167,7 @@ fn ability(card: u32, ability: u8, target: Target) -> Choice {
 
 fn granted(card: u32, actor: MinionId) -> Choice {
     Choice::UseAbility {
-        card,
+        source: AbilitySource::Card(CardId(card)),
         ability: 0,
         actor: Some(actor),
         target: Target::None,
@@ -196,7 +197,7 @@ fn uses(req: &DecisionRequest, card: u32) -> Vec<Choice> {
     req.options
         .iter()
         .copied()
-        .filter(|o| matches!(o, Choice::UseAbility { card: c, .. } if *c == card))
+        .filter(|o| matches!(o, Choice::UseAbility { source: AbilitySource::Card(CardId(c)), .. } if *c == card))
         .collect()
 }
 
@@ -261,11 +262,15 @@ fn in_torpor(e: &Engine, m: MinionId) -> bool {
 }
 
 /// The `nth` V5 vampire with superior `disc`.
+/// The `nth` V5 vampire with `disc` and no printed text implemented (a plain
+/// fixture: printed abilities would add decisions to the script).
 fn vampire_with(disc: &str, nth: usize) -> u16 {
     CRYPT
         .iter()
         .enumerate()
-        .filter(|(_, c)| c.disciplines.contains(&disc))
+        .filter(|(i, c)| {
+            c.disciplines.contains(&disc) && zvtes::cards::vampire(*i as u16).is_none()
+        })
         .nth(nth)
         .map(|(i, _)| i as u16)
         .unwrap_or_else(|| panic!("no vampire with {disc}"))

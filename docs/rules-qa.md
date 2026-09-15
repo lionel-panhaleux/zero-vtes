@@ -1278,4 +1278,92 @@ search once the card is replaced.
 `black_market_cache_is_replaced_before_storing_non_unique_equipment`,
 `shilmulo_tarot_offers_its_cards_only_while_a_ready_ravnos_bears_it`.
 
-**Tests** — `sniper_rifle_sets_long_range_skipping_determine_range_and_commits_the_strike`.
+## Batch 13 — Printed vampire abilities (slice 9)
+
+### 13.1 A vampire whose text has two parts
+
+Every vampire is dealt today with none of its printed text. Several pair
+a plain bonus with another ability: Theo Bell (+1 strength, and entering
+combat as a Ⓓ action), Kasim Bayar, Marchesa Liliana, Mora, Nonu Dis,
+Sreelekha (+1 bleed, and another ability), Faruq (+1 strength, and his
+corruption rule). For library cards, a card with a mode dropped is not
+implemented. For vampires, which do you want: (a) a vampire gets its
+text only once all of it is implemented, staying textless until then;
+or (b) the plain bonuses land on every vampire first and the other
+abilities follow, since the vampire is in play either way? Slice 9a
+takes, meanwhile, only vampires whose whole text is plain stat bonuses
+(bleed, stealth, intercept, strength, votes, hand size).
+
+### 13.2 Readings of the plain bonuses (slice 9a)
+
+- A printed bonus is read live on the vampire while it is in play, in
+  torpor included (LSJ 20011022), and not while it is contested.
+- "+1 strength" adds to the strength of 1 or to a strength an effect
+  sets (Torn Signpost); "in combat with X" reads the opposing minion.
+- "Intercept against X" (Azucena, Bret Stryker) reads the acting minion;
+  "against titled vampires" reads the effective title, so a contested
+  or yielded title does not count; a primogen is titled.
+- "During directed / non-directed actions" (Castellan, The Dowager,
+  Ariane) reads the action performed, whoever performs it.
+- Hesha Ruhadze counts the unique equipment on him that are not
+  contested; Neserian's "control a location" counts uncontested
+  locations, hunting grounds included; Branimira reads the pool as the
+  intercept is compared.
+- "While X is ready" (André the Manipulator, Carmelita Neillson,
+  Weirich Waldburg) is read live, so a bonus is lost as the vampire goes
+  to torpor, and a hand grown over size is discarded down at once
+  (8.2).
+
+Right?
+
+**Answer (2026-09-15)** — 13.1: an implementation order question only:
+every vampire must end with all its abilities (full effect
+capabilities); the order is the implementer's call. Applied: a vampire
+may land with part of its text, the rest named in
+`VampireDef.incomplete` until it is implemented. 13.2: yes to all.
+
+**Tests** — `tests/vampires.rs`.
+
+## Batch 14 — Printed combat abilities (slice 9b)
+
+### 14.1 Adrino Manauara's mandatory press
+
+"Adrino gets 1 press (mandatory) each combat, only usable to continue
+combat." Mandatory effects apply at their timing point, before their
+controller passes (spec §1.1.2). The reading I would build: at the first
+press step of each combat where no press to continue stands and both
+combatants are ready, Adrino's controller must use it before passing.
+Three points only you can settle: (a) may Adrino's controller play a
+press card to continue first, so the mandatory press is not used that
+round; (b) if the opponent already pressed to continue, the press is not
+usable — does it wait for a later round of the same combat, or is it
+lost; (c) if the round ended early (a combatant not ready), is it simply
+not used? Adrino is held back until the answer.
+
+### 14.2 Readings of the other combat abilities
+
+- Abaddon, Saku Pihlajamäki: "1 optional maneuver / press each combat" is
+  one use over the whole combat, in any round, under the no-two-in-a-row
+  rule of maneuvers and presses.
+- Flávio Gonçalves, Phaibun: "once each combat, … strike: dodge" is chosen
+  as their strike; Immortal Grapple bars it as any dodge. Phaibun's card
+  is discarded at random as he chooses the strike, then replaced; not
+  offered with an empty hand.
+- Opikun: usable in torpor (LSJ 20011022), and when he is himself the
+  vampire in combat; the blood is burned as he uses it, only while
+  non-aggravated damage is pending on that vampire in its prevention
+  step; it prevents non-aggravated damage only (LSJ 20040812-2). Every
+  damage pending at that step is strike damage in the engine today.
+- Rowena: 1 non-aggravated damage once each round, in her prevention
+  step.
+- Kasim Bayar: the political action card is picked as he uses the
+  ability, then replaced; the +2 strength counts in every round of that
+  combat and adds to a strength an effect sets.
+- Chun Hei: usable where additional strike cards are; "does not count
+  against the limit": a limited additional strike card still fits that
+  round.
+- Noluthando: +1 damage on each of his ranged strikes (a weapon's or a
+  card's) at either range, not on hand or melee strikes; on a gun it is
+  gun-strike damage (Kevlar Vest).
+
+Right?

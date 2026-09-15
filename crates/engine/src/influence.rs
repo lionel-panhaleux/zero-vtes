@@ -50,12 +50,12 @@ impl Engine {
         let s = self.state.active;
         match choice {
             Choice::UseAbility {
-                card,
+                source,
                 ability,
                 actor,
                 target,
             } => {
-                if !self.use_ability(*card, *ability, *actor, *target, Flow::Influence { left }) {
+                if !self.use_ability(*source, *ability, *actor, *target, Flow::Influence { left }) {
                     self.flow = Flow::Influence { left };
                 }
             }

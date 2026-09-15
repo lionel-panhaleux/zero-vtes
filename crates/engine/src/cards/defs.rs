@@ -17,7 +17,7 @@ use super::{
 };
 use crate::crypt::Sect;
 use crate::decision::ActionKind;
-use crate::library::Label;
+use crate::library::{CardType, Label};
 
 const NO_TARGET: Option<TargetSpec> = None;
 
@@ -1974,12 +1974,12 @@ pub static TENSION_IN_THE_RANKS: CardDef = CardDef {
         actor: Actor::Methuselah,
         requires: &[
             Requirement::MasterPhaseActionLeft,
-            Requirement::HandMasters(2),
+            Requirement::HandOfType(CardType::Master, 2),
         ],
         target: NO_TARGET,
         terms: Some(Terms::Discard {
             n: 2,
-            masters: true,
+            of: Some(CardType::Master),
         }),
         waives_needed: false,
         limit: None,
@@ -2145,10 +2145,7 @@ pub static THE_BARRENS: CardDef = CardDef {
         actor: Actor::Controller,
         requires: &[Requirement::CardUnlocked, Requirement::HandNotEmpty],
         target: NO_TARGET,
-        terms: Some(Terms::Discard {
-            n: 1,
-            masters: false,
-        }),
+        terms: Some(Terms::Discard { n: 1, of: None }),
         waives_needed: false,
         limit: None,
         effects: &[Effect::LockSelf],

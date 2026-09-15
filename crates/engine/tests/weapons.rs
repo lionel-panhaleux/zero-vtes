@@ -4,6 +4,7 @@
 //! additional strike, Sniper Rifle's range set. Windows with a single option
 //! are elided, so the scripts only stop where a real decision exists.
 
+use zvtes::cards::AbilitySource;
 use zvtes::cards::Target;
 use zvtes::crypt::CRYPT;
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
@@ -103,7 +104,7 @@ fn play(card: u8, mode: u8, actor: MinionId) -> Choice {
 /// A weapon's ability: its strike is `0`, its maneuver or range set `1`.
 fn ability(card: u32, ability: u8) -> Choice {
     Choice::UseAbility {
-        card,
+        source: AbilitySource::Card(CardId(card)),
         ability,
         actor: None,
         target: Target::None,
@@ -123,7 +124,9 @@ fn vampire_with(disc: &str, nth: usize) -> u16 {
     CRYPT
         .iter()
         .enumerate()
-        .filter(|(_, c)| c.disciplines.contains(&disc))
+        .filter(|(i, c)| {
+            c.disciplines.contains(&disc) && zvtes::cards::vampire(*i as u16).is_none()
+        })
         .nth(nth)
         .map(|(i, _)| i as u16)
         .unwrap_or_else(|| panic!("no vampire with {disc}"))
@@ -179,6 +182,7 @@ fn a_gun_maneuver_commits_the_initial_strike_to_that_gun() {
 // strike at all. Both combatants maneuver with a .44 Magnum (back to close
 // range), then Immortal Grapple [pot] bars non-hand strikes: neither
 // strikes, and neither falls back to a hand strike.
+// Rulings: [TOM 19951217].
 #[test]
 fn a_committed_strike_barred_by_immortal_grapple_leaves_no_strike() {
     let mut t = table();
