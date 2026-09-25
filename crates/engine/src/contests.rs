@@ -31,11 +31,14 @@ impl Engine {
                 .cards
                 .iter()
                 .enumerate()
-                // An ally's card is contested as its minion (above).
+                // An ally's card is contested as its minion, a non-unique
+                // title card as its vampire's title (above).
                 .filter(|(i, c)| {
                     c.in_play
                         && c.contested
                         && c.body.is_none()
+                        && (crate::cards::card_title(c.card).is_none()
+                            || LIBRARY[c.card as usize].labels.contains(&Label::Unique))
                         && self.state.card_controller(CardId(*i as u32)) == s
                 })
                 .map(|(i, _)| Contest::Library(CardId(i as u32))),
@@ -75,12 +78,16 @@ impl Engine {
                 self.set_minion_contested(m, false);
                 self.enter_title_contest(m);
             }
-            Contest::Title(m) => self.state.minions[m.index()].title_contested = false,
+            Contest::Title(m) => self.set_title_contested(m, false),
             // "Unlocked and turned face up during your next unlock phase".
             Contest::Library(c) => {
                 let card = &mut self.state.cards[c.index()];
                 card.contested = false;
                 card.locked = false;
+                // A title card face up again: its vampire gains the title.
+                if let (Some(t), Some(h)) = (crate::cards::card_title(card.card), card.host) {
+                    self.gain_title(h, t, Some(c));
+                }
                 // Its hand size applies again: draw up at once.
                 let controller = self.state.card_controller(c);
                 self.draw_up(controller);
@@ -103,12 +110,11 @@ impl Engine {
                 }
             }
             Contest::Title(m) => {
-                let v = &mut self.state.minions[m.index()];
                 if pay {
-                    v.blood -= 1;
+                    self.state.minions[m.index()].blood -= 1;
                 } else {
-                    v.title_contested = false;
-                    v.title_lost = true;
+                    self.set_title_contested(m, false);
+                    self.lose_title(m);
                 }
             }
             Contest::Library(c) => {
@@ -156,6 +162,8 @@ impl Engine {
         if !LIBRARY[card as usize].labels.contains(&Label::Unique) {
             return;
         }
+        // A unique title card contests as a card first: face down, its
+        // title is not claimed, so no title contest (rules-qa 19.1).
         let rivals = self.state.library_rivals(id);
         if !rivals.is_empty() {
             self.state.cards[id.index()].contested = true;
@@ -165,18 +173,84 @@ impl Engine {
         }
     }
 
-    /// A vampire (re-)entering play whose unique title is already claimed:
-    /// the title is contested for every claimant.
+    /// A vampire (re-)entering play, or gaining a title, whose unique title
+    /// is already claimed: the title is contested for every claimant.
     pub(crate) fn enter_title_contest(&mut self, m: MinionId) {
-        if !self.state.minions[m.index()].present() || self.state.minions[m.index()].title_lost {
+        if !self.state.minions[m.index()].present()
+            || self.state.claimed_title(m) == crate::crypt::Title::None
+        {
             return;
         }
         let rivals = self.state.title_rivals(m);
         if !rivals.is_empty() {
-            self.state.minions[m.index()].title_contested = true;
+            self.set_title_contested(m, true);
             for r in rivals {
-                self.state.minions[r.index()].title_contested = true;
+                self.set_title_contested(r, true);
             }
         }
+    }
+
+    /// A vampire's title contest state; its title card, if any, follows it
+    /// (face down and out of play: its abilities are suspended).
+    fn set_title_contested(&mut self, m: MinionId, contested: bool) {
+        self.state.minions[m.index()].title_contested = contested;
+        if let Some((id, _)) = self.state.title_card_on(m) {
+            self.state.cards[id.index()].contested = contested;
+        }
+    }
+
+    /// Vampire `m` loses the title it claims (yielded, stolen, or replaced):
+    /// its title card is burned, a title gained without a card is gone,
+    /// or else its printed title is lost for the rest of the game.
+    pub(crate) fn lose_title(&mut self, m: MinionId) {
+        if let Some((id, _)) = self.state.title_card_on(m) {
+            self.state.cards[id.index()].contested = false;
+            self.burn_card_in_play(id);
+        } else if self.state.minions[m.index()].granted_title.is_some() {
+            self.state.minions[m.index()].granted_title = None;
+        } else {
+            self.state.minions[m.index()].title_lost = true;
+        }
+    }
+
+    /// `thief` steals the title `from` holds (Valerius): `from` loses it
+    /// — a card representing it is burned — and `thief` gains the title
+    /// itself (rules-qa 19.6).
+    pub(crate) fn steal_title(&mut self, thief: MinionId, from: MinionId) {
+        let title = self.state.title_of(from);
+        if title == crate::crypt::Title::None {
+            return;
+        }
+        self.lose_title(from);
+        self.gain_title(thief, title, None);
+    }
+
+    /// Vampire `m` gains `title` (rulebook "Vampiric Sects": a vampire
+    /// has one title; one with a title that gains another loses the
+    /// first, and yields a contested one): with `card`, a title card put
+    /// on it; else a title gained without a card (Valerius's steal). The
+    /// printed title, if still held, is lost with it. A rival claimant
+    /// contests it.
+    pub(crate) fn gain_title(
+        &mut self,
+        m: MinionId,
+        title: crate::crypt::Title,
+        card: Option<CardId>,
+    ) {
+        let old = self
+            .state
+            .title_card_on(m)
+            .map(|(id, _)| id)
+            .filter(|&id| Some(id) != card);
+        if self.state.minions[m.index()].title_contested {
+            self.set_title_contested(m, false);
+        }
+        if let Some(id) = old {
+            self.burn_card_in_play(id);
+        }
+        let v = &mut self.state.minions[m.index()];
+        v.title_lost = true;
+        v.granted_title = if card.is_some() { None } else { Some(title) };
+        self.enter_title_contest(m);
     }
 }

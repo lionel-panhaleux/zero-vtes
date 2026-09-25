@@ -197,6 +197,33 @@ pub enum Choice {
     /// follows from the state: continue, or end the opponent's press to
     /// continue (rulebook "Press").
     UsePress,
+    /// Combat, damage prevention: prevent 1 damage with a prevention banked
+    /// this round (Precognition [AUS]).
+    UsePrevent,
+    /// A block attempt's toll (Where the Veil Thins [OBL]): pay it (a pass
+    /// resigns the attempt).
+    PayBlockToll,
+    /// As a card is played: burn the pool it names to cancel it (True
+    /// Love's Face [OBF][PRE], by the blocking minion's controller).
+    PayToCancel,
+    /// Combat, choose strike: a granted "strike: combat ends" (Night
+    /// Terrors [OBF][PRE] in the first round).
+    StrikeCombatEnds,
+    /// Combat, choose strike: the strike granted for the round (Hunger of
+    /// Marduk), a ranged one aimed at a retainer at long range (`at`).
+    RoundStrike {
+        at: Option<crate::state::CardId>,
+    },
+    /// During a block attempt: the attempting minion burns 1 blood for +1
+    /// intercept (Eyes of the Wild).
+    BurnBloodForIntercept {
+        minion: MinionId,
+    },
+    /// After block resolution: the blocker burns blood to unlock (Truth in
+    /// Darkness [OBL]).
+    UnlockForBlood {
+        minion: MinionId,
+    },
     /// After combat: continue the action as if unblocked (Form of Mist
     /// [PRO]), paying the rider's blood.
     ContinueAction,
@@ -251,6 +278,10 @@ pub enum WindowLabel {
     RescueCost,
     /// An entering ally's effect with a choice (War Ghoul's burn).
     EntryEffect,
+    /// Pay a block attempt's toll or resign it (Where the Veil Thins).
+    BlockToll,
+    /// Distribute blood among pool and minions (Amici Noctis).
+    Distribution,
     /// The blood hunt: polling only, no cards (rulebook "The Blood Hunt").
     BloodHuntPolling,
     /// Terms of a political referendum, chosen by the caller once the

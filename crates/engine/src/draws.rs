@@ -54,6 +54,30 @@ pub(crate) enum Interrupt {
         seat: SeatId,
         ally: crate::ids::MinionId,
     },
+    /// A block attempt made costly as it goes on (Where the Veil Thins
+    /// [OBL]): its minion pays, or resigns the attempt and pays nothing
+    /// (LSJ 20031121-2).
+    BlockToll {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+    },
+    /// Amici Noctis: `left` blood to distribute; first how much to the
+    /// pool (at most `cap`), the rest among the ready `clan` vampires.
+    MarginPool {
+        seat: SeatId,
+        left: u8,
+        cap: u8,
+        clan: &'static str,
+    },
+    /// Amici Noctis: `left` blood for the ready `clan` vampires below
+    /// capacity, 1 each, offered in arena order from minion `next`: give or
+    /// skip, a skip only while enough of them are left.
+    MarginBlood {
+        seat: SeatId,
+        left: u8,
+        next: u32,
+        clan: &'static str,
+    },
 }
 
 impl Interrupt {
@@ -65,7 +89,10 @@ impl Interrupt {
             | Interrupt::Bottom { seat, .. }
             | Interrupt::StoreSearch { seat, .. }
             | Interrupt::EntryBurn { seat, .. }
-            | Interrupt::EntryRemoveOrBurn { seat, .. } => seat,
+            | Interrupt::EntryRemoveOrBurn { seat, .. }
+            | Interrupt::BlockToll { seat, .. }
+            | Interrupt::MarginPool { seat, .. }
+            | Interrupt::MarginBlood { seat, .. } => seat,
         }
     }
 }
@@ -282,6 +309,43 @@ impl Engine {
                         return;
                     }
                 }
+                Interrupt::BlockToll { minion, .. } => {
+                    let attempting = self
+                        .action
+                        .as_ref()
+                        .is_some_and(|a| a.state == crate::actions::ActionState::Attempt(minion));
+                    let affordable = self
+                        .action
+                        .as_ref()
+                        .is_some_and(|a| self.block_toll(a, minion).is_some());
+                    if !attempting {
+                        self.interrupts.remove(0);
+                    } else if !affordable {
+                        self.interrupts.remove(0);
+                        self.resign_attempt();
+                    } else {
+                        return;
+                    }
+                }
+                Interrupt::MarginPool { .. } => {
+                    let range = self.margin_pool_range(front);
+                    if range.len() > 1 {
+                        return;
+                    }
+                    self.interrupts.remove(0);
+                    self.margin_to_pool(front, range[0]);
+                }
+                Interrupt::MarginBlood { left, .. } => {
+                    let open = self.margin_recipients(front);
+                    if left > 0 && open.len() > left as usize {
+                        return;
+                    }
+                    self.interrupts.remove(0);
+                    for m in open.into_iter().take(left as usize) {
+                        let v = &mut self.state.minions[m.index()];
+                        v.blood = v.cap_blood(v.blood + 1);
+                    }
+                }
                 Interrupt::EntryBurn { ally, .. } => {
                     if !self.state.minions[ally.index()].in_play {
                         self.interrupts.remove(0);
@@ -342,6 +406,24 @@ impl Engine {
             }
             Interrupt::EntryBurn { ally, .. } => {
                 (WindowLabel::EntryEffect, self.entry_burn_options(s, ally))
+            }
+            Interrupt::BlockToll { .. } => (
+                WindowLabel::BlockToll,
+                vec![Choice::PayBlockToll, Choice::Pass],
+            ),
+            Interrupt::MarginPool { .. } => (
+                WindowLabel::Distribution,
+                self.margin_pool_range(front)
+                    .into_iter()
+                    .map(|n| Choice::AllocateTo { seat: s, n })
+                    .collect(),
+            ),
+            Interrupt::MarginBlood { .. } => {
+                let first = self.margin_recipients(front)[0];
+                (
+                    WindowLabel::Distribution,
+                    vec![Choice::ChooseMinion(first), Choice::Pass],
+                )
             }
             Interrupt::EntryRemoveOrBurn { .. } => {
                 // One choice per card: copies are alike.
@@ -456,11 +538,109 @@ impl Engine {
                     other => unreachable!("illegal entry choice {other:?}"),
                 }
             }
+            (Interrupt::BlockToll { minion, .. }, Choice::PayBlockToll) => {
+                self.interrupts.remove(0);
+                self.pay_block_toll(minion, false);
+            }
+            (Interrupt::BlockToll { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+                self.resign_attempt();
+            }
+            (Interrupt::MarginPool { .. }, Choice::AllocateTo { n, .. }) => {
+                self.interrupts.remove(0);
+                self.margin_to_pool(front, n);
+            }
+            (
+                Interrupt::MarginBlood {
+                    seat, left, clan, ..
+                },
+                Choice::ChooseMinion(m),
+            ) => {
+                let v = &mut self.state.minions[m.index()];
+                v.blood = v.cap_blood(v.blood + 1);
+                self.interrupts[0] = Interrupt::MarginBlood {
+                    seat,
+                    left: left - 1,
+                    next: m.0 + 1,
+                    clan,
+                };
+            }
+            (
+                Interrupt::MarginBlood {
+                    seat, left, clan, ..
+                },
+                Choice::Pass,
+            ) => {
+                let skipped = self.margin_recipients(front)[0];
+                self.interrupts[0] = Interrupt::MarginBlood {
+                    seat,
+                    left,
+                    next: skipped.0 + 1,
+                    clan,
+                };
+            }
             (Interrupt::EntryBurn { .. }, Choice::BurnInPlay { card }) => {
                 self.interrupts.remove(0);
                 self.burn_card_in_play(CardId(card));
             }
             (front, choice) => unreachable!("illegal choice {choice:?} for {front:?}"),
+        }
+    }
+
+    /// The ready `clan` vampires below capacity the Methuselah controls,
+    /// from minion `next` on (Amici Noctis).
+    fn margin_recipients(&self, front: Interrupt) -> Vec<crate::ids::MinionId> {
+        let (s, from, clan) = match front {
+            Interrupt::MarginPool { seat, clan, .. } => (seat, 0, clan),
+            Interrupt::MarginBlood {
+                seat, next, clan, ..
+            } => (seat, next, clan),
+            _ => unreachable!("not a distribution"),
+        };
+        let st = &self.state;
+        st.minions_of(s)
+            .filter(|m| {
+                let v = &st.minions[m.index()];
+                m.0 >= from
+                    && v.ready()
+                    && v.vampire()
+                        .is_some_and(|c| c.clan == clan && v.blood < c.capacity)
+            })
+            .collect()
+    }
+
+    /// The pool amounts Amici Noctis may give: at most its cap, and at
+    /// least what the vampires cannot take (all of it distributed where it
+    /// fits).
+    fn margin_pool_range(&self, front: Interrupt) -> Vec<u8> {
+        let Interrupt::MarginPool { left, cap, .. } = front else {
+            unreachable!("not the pool step");
+        };
+        let room = self.margin_recipients(front).len().min(u8::MAX as usize) as u8;
+        let hi = left.min(cap);
+        let lo = left.saturating_sub(room).min(hi);
+        (lo..=hi).collect()
+    }
+
+    /// `n` to the pool; the rest goes to the vampires.
+    fn margin_to_pool(&mut self, front: Interrupt, n: u8) {
+        let Interrupt::MarginPool {
+            seat, left, clan, ..
+        } = front
+        else {
+            unreachable!("not the pool step");
+        };
+        self.state.seats[seat.index()].pool += n as i32;
+        if left > n {
+            self.interrupts.insert(
+                0,
+                Interrupt::MarginBlood {
+                    seat,
+                    left: left - n,
+                    next: 0,
+                    clan,
+                },
+            );
         }
     }
 

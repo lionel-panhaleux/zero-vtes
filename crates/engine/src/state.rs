@@ -1,5 +1,5 @@
 use crate::cards::Layer;
-use crate::crypt::{CryptCard, Title, CRYPT};
+use crate::crypt::{CryptCard, Sect, Title, CRYPT};
 use crate::ids::{MinionId, SeatId};
 use crate::library::LIBRARY;
 
@@ -30,12 +30,15 @@ pub fn find_library(name: &str) -> u16 {
 pub enum TitleKey {
     City(&'static str),
     Justicar(&'static str),
+    /// A unique title a card names (Saulot's Guiding Wisdom).
+    Named(&'static str),
 }
 
 pub fn title_key(t: Title) -> Option<TitleKey> {
     match t {
         Title::Prince(c) | Title::Baron(c) => Some(TitleKey::City(c)),
         Title::Justicar(k) => Some(TitleKey::Justicar(k)),
+        Title::Independent { name, .. } => Some(TitleKey::Named(name)),
         Title::None | Title::Primogen => None,
     }
 }
@@ -46,6 +49,7 @@ pub fn title_votes(t: Title) -> u8 {
         Title::Primogen => 1,
         Title::Prince(_) | Title::Baron(_) => 2,
         Title::Justicar(_) => 3,
+        Title::Independent { votes, .. } => votes,
     }
 }
 
@@ -87,8 +91,12 @@ impl MinionKind {
 
 /// A minion in play: a vampire, or an ally. `contested`: the card is
 /// contested — face down and out of play, blood kept (rulebook "Contested
-/// Cards"). `title_contested` / `title_lost`: the printed title is under
-/// contest / was yielded for the rest of the game. `bled_this_turn` is the
+/// Cards"). `title_contested`: the title it claims is under contest;
+/// `title_lost`: the printed title is gone for the rest of the game
+/// (yielded, stolen, or replaced by a title gained since: rulebook
+/// "Vampiric Sects", one title per vampire). `granted_title`: a title
+/// gained with no card to represent it (Valerius's steal); a title card
+/// on the vampire represents its own (`GameState::claimed_title`). `bled_this_turn` is the
 /// NRA special cap (rules-qa 1.4).
 #[derive(Clone, Debug)]
 pub struct Minion {
@@ -103,6 +111,7 @@ pub struct Minion {
     pub contested: bool,
     pub title_contested: bool,
     pub title_lost: bool,
+    pub granted_title: Option<Title>,
     pub bled_this_turn: bool,
     /// One political action per minion per turn (rulebook "Political
     /// Action"; NRA on resolution, rules-qa 1.4).
@@ -127,6 +136,10 @@ pub struct Minion {
     /// Successful recruit ally actions this turn (Spectral Servitor
     /// unlocks its recruiter on the first).
     pub recruits_this_turn: u8,
+    /// Card names (LIBRARY indices) played under
+    /// `Limit::BetweenUnlockPhases`, cleared in its controller's unlock
+    /// phase.
+    pub played_since_unlock: Vec<u16>,
     /// "This ally cannot gain life (instead, any life it would gain goes
     /// to the blood bank)" (Aggressive Corpse, Rotting Behemoth).
     pub no_life_gain: bool,
@@ -252,24 +265,6 @@ impl Minion {
     /// Ready: present and not in torpor (locked or not).
     pub fn ready(&self) -> bool {
         self.present() && !self.in_torpor
-    }
-
-    /// Effective title: none while contested, yielded, or out of play.
-    pub fn title(&self) -> Title {
-        match self.vampire() {
-            Some(v) if !(self.title_lost || self.title_contested || !self.present()) => v.title,
-            _ => Title::None,
-        }
-    }
-
-    /// Votes this vampire can cast right now (title votes need a ready,
-    /// uncontested holder; rulebook "Gaining Votes").
-    pub fn votes(&self) -> u8 {
-        if self.ready() {
-            title_votes(self.title())
-        } else {
-            0
-        }
     }
 }
 
@@ -405,6 +400,9 @@ pub struct Seat {
     pub trifle_used: bool,
     /// Out-of-turn master card played since the last master phase.
     pub out_of_turn: Option<OutOfTurn>,
+    /// Master phase actions added at the start of the next master phase
+    /// (Wash canceling an out-of-turn master).
+    pub mpa_next: u8,
     /// Discard phase actions left in the current discard phase.
     pub dpa: u8,
     /// A master card was played in the current master phase (Nonu Dis).
@@ -642,9 +640,11 @@ impl GameState {
             R::OpponentOlder => {
                 matches!((opp.and_then(|o| o.capacity()), me.capacity()), (Some(o), Some(m)) if o > m)
             }
-            R::OpponentTitled => opp.is_some_and(|o| o.title() != Title::None),
+            R::OpponentTitled => ctx
+                .opponent
+                .is_some_and(|o| self.title_of(o) != Title::None),
             R::ActorClan(c) => me.vampire().is_some_and(|v| v.clan == c),
-            R::ActorTitleIn(classes) => classes.iter().any(|c| c.matches(me.title())),
+            R::ActorTitleIn(classes) => classes.iter().any(|c| c.matches(self.title_of(actor))),
             R::PoolAtMost(n) => self.seats[src.owner.index()].pool <= n as i32,
             R::ControlsLocation | R::ControlsNoLocation => {
                 let any = self.cards.iter().enumerate().any(|(i, c)| {
@@ -759,6 +759,22 @@ impl GameState {
         size.max(0) as usize
     }
 
+    /// Transfers seat `s` gets from cards in play (Information Highway).
+    pub fn transfer_bonus(&self, s: SeatId) -> u8 {
+        self.layers
+            .iter()
+            .filter(|l| {
+                l.scope == crate::cards::Scope::InPlay
+                    && self.layer_active(l)
+                    && self.card_controller(l.source) == s
+            })
+            .map(|l| match l.modifier {
+                crate::cards::Modifier::Transfers(n) => n,
+                _ => 0,
+            })
+            .sum()
+    }
+
     /// Cards over hand size, the cards not replaced yet counting against
     /// it: discarded down at once (rulebook "Drawing Cards"; spec §6.8.1).
     pub fn hand_excess(&self, s: SeatId) -> usize {
@@ -835,6 +851,28 @@ impl GameState {
         kind: crate::decision::ActionKind,
     ) -> i32 {
         self.bearer_mods(m, stat, kind).map(|(_, n)| n).sum()
+    }
+
+    /// The discount on `rescuer`'s rescue of `target` from its cards in play,
+    /// and the blood the rescued vampire gains on success (Saulot's Healing
+    /// Touch).
+    pub fn rescue_discount(&self, rescuer: MinionId, target: MinionId) -> (u8, u8) {
+        let clan = self.minions[target.index()].vampire().map(|v| v.clan);
+        self.layers
+            .iter()
+            .filter(|l| {
+                l.scope == crate::cards::Scope::InPlay
+                    && self.layer_active(l)
+                    && self.cards[l.source.index()].bearer() == Some(rescuer)
+            })
+            .fold((0, 0), |(d, g), l| match l.modifier {
+                crate::cards::Modifier::RescueDiscount { not_clan, n, gain }
+                    if clan != Some(not_clan) =>
+                {
+                    (d + n, g + gain)
+                }
+                _ => (d, g),
+            })
     }
 
     /// As `bearer_mod`, with no equipment increasing it — reductions still
@@ -1091,11 +1129,79 @@ impl GameState {
         l.scope == crate::cards::Scope::Action || self.cards[l.source.index()].present()
     }
 
+    /// The title card on vampire `m`, with the title it represents: face
+    /// down under a title contest included, not under a card contest (a
+    /// unique title card contests as a card first, its title out of play
+    /// with it: rules-qa 19.1).
+    pub fn title_card_on(&self, m: MinionId) -> Option<(CardId, Title)> {
+        let title_contested = self.minions[m.index()].title_contested;
+        self.cards.iter().enumerate().find_map(|(i, c)| {
+            (c.in_play && c.host == Some(m) && (!c.contested || title_contested))
+                .then(|| crate::cards::card_title(c.card))
+                .flatten()
+                .map(|t| (CardId(i as u32), t))
+        })
+    }
+
+    /// The title vampire `m` claims, contested or not: its title card's,
+    /// a title gained without a card, or its printed one unless lost.
+    pub fn claimed_title(&self, m: MinionId) -> Title {
+        let v = &self.minions[m.index()];
+        let Some(printed) = v.vampire() else {
+            return Title::None;
+        };
+        if let Some((_, t)) = self.title_card_on(m) {
+            return t;
+        }
+        match v.granted_title {
+            Some(t) => t,
+            None if !v.title_lost => printed.title,
+            None => Title::None,
+        }
+    }
+
+    /// Effective title (read live): the claimed title, none while it is
+    /// contested, while the vampire is out of play, or while its sect is
+    /// inappropriate for it (rulebook "Vampiric Sects": the benefit returns
+    /// with the sect). A justicar's clan is checked as the title is given:
+    /// no pool card changes a clan, and printed justicars keep their
+    /// clan's old name (Kasim Bayar, Justicar "Assamite").
+    pub fn title_of(&self, m: MinionId) -> Title {
+        let v = &self.minions[m.index()];
+        if v.title_contested || !v.present() {
+            return Title::None;
+        }
+        let t = self.claimed_title(m);
+        let Some(c) = v.vampire() else {
+            return Title::None;
+        };
+        let fits = match t {
+            Title::None => true,
+            Title::Primogen | Title::Prince(_) | Title::Justicar(_) => c.sect == Sect::Camarilla,
+            Title::Baron(_) => c.sect == Sect::Anarch,
+            Title::Independent { .. } => c.sect == Sect::Independent,
+        };
+        if fits {
+            t
+        } else {
+            Title::None
+        }
+    }
+
+    /// Votes vampire `m` can cast right now from its title (a ready,
+    /// uncontested holder; rulebook "Gaining Votes").
+    pub fn title_votes_of(&self, m: MinionId) -> u8 {
+        if self.minions[m.index()].ready() {
+            title_votes(self.title_of(m))
+        } else {
+            0
+        }
+    }
+
     /// Other present vampires (any seat) claiming a title that contests
-    /// `m`'s printed title.
+    /// the one `m` claims.
     pub fn title_rivals(&self, m: MinionId) -> Vec<MinionId> {
-        let me = &self.minions[m.index()];
-        let Some(key) = me.vampire().and_then(|v| title_key(v.title)) else {
+        let Some(key) = title_key(self.claimed_title(m)) else {
             return Vec::new();
         };
         self.minions
@@ -1104,9 +1210,8 @@ impl GameState {
             .filter(|(i, o)| {
                 *i != m.index()
                     && o.present()
-                    && !o.title_lost
                     && !self.seats[o.owner.index()].ousted
-                    && o.vampire().and_then(|v| title_key(v.title)) == Some(key)
+                    && title_key(self.claimed_title(MinionId(*i as u32))) == Some(key)
             })
             .map(|(i, _)| MinionId(i as u32))
             .collect()
@@ -1151,6 +1256,7 @@ impl GameState {
                 None => 0,
                 Some(OutOfTurn { trifle }) => 1 + trifle as u64,
             });
+            mix(s.mpa_next as u64);
             for zone in [
                 &s.crypt,
                 &s.uncontrolled_cards(),
@@ -1189,6 +1295,9 @@ impl GameState {
             });
             mix(m.recruited as u64);
             mix(m.recruits_this_turn as u64);
+            for &c in &m.played_since_unlock {
+                mix(c as u64);
+            }
             mix(m.unlock_at_discard as u64);
             mix(m.no_life_gain as u64);
             mix(m.blood as u64);
@@ -1198,6 +1307,12 @@ impl GameState {
             mix(m.contested as u64);
             mix(m.title_contested as u64);
             mix(m.title_lost as u64);
+            mix(match m.granted_title {
+                None => 0,
+                Some(t) => format!("{t:?}")
+                    .bytes()
+                    .fold(1u64, |h, b| h.wrapping_mul(31).wrapping_add(b as u64)),
+            });
             mix(m.bled_this_turn as u64);
             mix(m.political_this_turn as u64);
             mix(m.expelled as u64);

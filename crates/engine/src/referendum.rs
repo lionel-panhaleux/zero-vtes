@@ -52,6 +52,8 @@ pub enum Source {
     Printed(MinionId),
     Edge(SeatId),
     Card(SeatId),
+    /// Votes a card in play gives its Methuselah (Ventrue Headquarters).
+    InPlay(crate::state::CardId),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -95,6 +97,9 @@ pub struct ReferendumCtx {
     pub records: Vec<VoteRecord>,
     /// Vote bonuses granted to vampires that have not cast yet.
     pub bonus: Vec<(MinionId, u8)>,
+    /// Vote grants in force this referendum (the calling card's, all
+    /// Methuselahs'; a card in play's, its Methuselah's), read live.
+    pub grants: Vec<(Option<SeatId>, cards::VoteGrant)>,
     /// Vampires forced to abstain: they cast nothing more.
     pub abstaining: Vec<MinionId>,
     /// Vampires whose bonus votes are against the referendum (Protected
@@ -121,12 +126,19 @@ impl ReferendumCtx {
         if !self.may_vote(st, m) {
             return 0;
         }
-        let v = &st.minions[m.index()];
         let bonus: u8 = self
             .bonus
             .iter()
             .filter(|(b, _)| *b == m)
             .map(|(_, n)| *n)
+            .sum();
+        let granted: u8 = self
+            .grants
+            .iter()
+            .filter(|(s, g)| {
+                s.is_none_or(|s| st.minions[m.index()].owner == s) && g.voters.reach(st, m)
+            })
+            .map(|(_, g)| g.n)
             .sum();
         // Printed votes (Neserian) count only while ready, as title votes.
         let printed = st.printed_mod(
@@ -134,7 +146,7 @@ impl ReferendumCtx {
             crate::cards::Stat::Votes,
             crate::state::PrintedCtx::default(),
         );
-        (title_votes(v.title()) as i32 + bonus as i32 + printed).max(0) as u8
+        (title_votes(st.title_of(m)) as i32 + bonus as i32 + granted as i32 + printed).max(0) as u8
     }
 
     fn may_vote(&self, st: &crate::state::GameState, m: MinionId) -> bool {
@@ -269,6 +281,9 @@ impl Engine {
             window: PollingWindow::new(order),
             records: Vec::new(),
             bonus: Vec::new(),
+            grants: def
+                .map(|d| d.grants.iter().map(|&g| (None, g)).collect())
+                .unwrap_or_default(),
             abstaining: Vec::new(),
             forced_against: Vec::new(),
             card_voted: Vec::new(),
@@ -823,7 +838,10 @@ impl Engine {
                         }
                     }
                 }
-                RefEffect::Banish | RefEffect::Expel | RefEffect::BurnSource => {}
+                RefEffect::Banish
+                | RefEffect::Expel
+                | RefEffect::BurnSource
+                | RefEffect::PutOnChosen => {}
             }
         }
         for (i, g) in gain.iter().enumerate() {
@@ -876,6 +894,34 @@ impl Engine {
             RefEffect::Expel => {
                 for &m in &ctx.terms.minions {
                     self.state.minions[m.index()].expelled = true;
+                }
+            }
+            RefEffect::PutOnChosen => {
+                let m = ctx.terms.minions[0];
+                let a = self.action.as_ref().expect("political action");
+                let (seat, play) = (a.seat, a.card.expect("a political action card"));
+                if self.state.minions[m.index()].present() {
+                    let id = self.enter_play(crate::state::CardInPlay {
+                        card: play.card,
+                        owner: seat,
+                        controller: seat,
+                        host: Some(m),
+                        body: None,
+                        mode: play.mode,
+                        by: None,
+                        in_play: true,
+                        contested: false,
+                        locked: false,
+                        counters: 0,
+                        stored: Vec::new(),
+                    });
+                    self.action
+                        .as_mut()
+                        .expect("political action")
+                        .card_entered_play = true;
+                    if let Some(t) = cards::card_title(play.card) {
+                        self.gain_title(m, t, Some(id));
+                    }
                 }
             }
             RefEffect::BurnSource => {
@@ -965,6 +1011,25 @@ impl Engine {
         }
     }
 
+    /// Votes card `id` in play gives its Methuselah, cast at once on one
+    /// side (Ventrue Headquarters).
+    pub(crate) fn methuselah_votes(
+        &mut self,
+        id: crate::state::CardId,
+        seat: SeatId,
+        n: u8,
+        favor: bool,
+    ) {
+        let ctx = self.referendum.as_mut().expect("referendum context");
+        ctx.records.push(VoteRecord {
+            source: Source::InPlay(id),
+            seat,
+            favor,
+            n,
+            canceled: false,
+        });
+    }
+
     /// Effects of a modifier / reaction resolved during the polling step.
     pub(crate) fn apply_vote_effect(&mut self, effect: cards::Effect, play: &cards::PlayCtx) {
         let mut ctx = self.referendum.take().expect("referendum context");
@@ -994,6 +1059,19 @@ impl Engine {
                     Some(r) => r.n += n,
                     None => ctx.bonus.push((m, n)),
                 }
+            }
+            cards::Effect::GrantVotes(g) => {
+                // Votes gained after casting join the cast.
+                for r in ctx.records.iter_mut().filter(|r| !r.canceled) {
+                    if let Source::Vampire(m) = r.source {
+                        if self.state.minions[m.index()].owner == play.seat
+                            && g.voters.reach(&self.state, m)
+                        {
+                            r.n += g.n;
+                        }
+                    }
+                }
+                ctx.grants.push((Some(play.seat), g));
             }
             cards::Effect::AddVotesAgainst(n) => {
                 // Votes against only: they join a cast against, or force
@@ -1071,6 +1149,7 @@ pub(crate) fn is_vote_effect(e: &cards::Effect) -> bool {
     matches!(
         e,
         cards::Effect::AddVotes(_)
+            | cards::Effect::GrantVotes(_)
             | cards::Effect::AddVotesPerReadySect(_)
             | cards::Effect::AddVotesAgainst(_)
             | cards::Effect::Abstain { .. }

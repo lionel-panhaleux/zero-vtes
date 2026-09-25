@@ -1101,6 +1101,27 @@ fn majesty_still_unlocks_when_the_combat_continues() {
     assert_eq!((blood(&e, a), blood(&e, x)), (6 - 1 - 1, 6 - 1 - 1));
 }
 
+// [RTR 20020501] Earth Meld [PRO]: "The vampire still unlocks if an
+// effect continues the combat or begins a new combat."
+#[test]
+fn earth_meld_still_unlocks_when_the_combat_continues() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), find_card("Monica Giovanni"), 6, false);
+    e.add_minion(SeatId(0), find_card("Asmin Kobane"), 4, false);
+    let x = e.add_minion(SeatId(1), vampire_with("PRO", 0), 6, false);
+    hand(&mut e, 0, &["Telepathic Tracking"]);
+    hand(&mut e, 1, &["Earth Meld"]);
+    let x_start = blood(&e, x);
+    pick(&mut e, bleed(a));
+    pick(&mut e, block(x));
+    pick(&mut e, play(0, 1, x)); // Earth Meld [PRO]: combat ends, unlock
+    pick(&mut e, play(0, 1, a)); // Telepathic Tracking [AUS]: a new round
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!locked(&e, x));
+    // Round 2 was fought: hand strikes both ways (Tracking costs 1 blood).
+    assert_eq!((blood(&e, a), blood(&e, x)), (6 - 1 - 1, x_start - 1));
+}
+
 // [RTR 20041202] "If fewer points of (preventable) damage are being
 // resolved, then the effect prevents all of those points."
 #[test]
@@ -1712,4 +1733,38 @@ fn voter_captivation_has_no_window_when_the_referendum_ousts_the_caller() {
     assert_eq!(req.seat, SeatId(1));
     // Seat 2 burned 1 for its minion and took the 6 pool of the oust.
     assert_eq!(pool(&t.e), vec![0, 8, 15]);
+}
+
+// ---- Slice 11e: titles and votes ---------------------------------------------
+
+// [ANK 20190606-2] Power Structure "cannot be used during a Blood Hunt
+// referendum, since there is no political action" — while Ventrue
+// Headquarters, "during the polling step of any referendum", can.
+#[test]
+fn power_structure_is_not_usable_during_a_blood_hunt() {
+    let mut e = Engine::bare(3);
+    let alexa = e.add_minion(SeatId(0), find_card("Alexa Draper"), 5, false);
+    e.add_minion(SeatId(0), find_card("Braden White"), 4, false); // Lasombra
+    let victim = e.add_minion(SeatId(1), find_card("Abraham DuSable"), 2, true);
+    e.add_minion(SeatId(1), find_card("Kevin Jackson"), 5, false);
+    e.add_minion(SeatId(2), find_card("Lenny Burkhead"), 4, false);
+    let ps = in_play(&mut e, "Power Structure", 0, None);
+    let hq = in_play(&mut e, "Ventrue Headquarters", 1, None);
+    pick(
+        &mut e,
+        Choice::TakeAction {
+            minion: alexa,
+            action: ActionKind::Diablerie,
+            target: Some(victim),
+        },
+    );
+    pick(&mut e, Choice::Pass); // seat 1 declines to block
+    let req = expect(&mut e, SeatId(0), WindowLabel::BloodHuntPolling);
+    assert!(uses(&req, ps).is_empty(), "no political action");
+    pick(&mut e, Choice::Pass);
+    let req = expect(&mut e, SeatId(1), WindowLabel::BloodHuntPolling);
+    assert_eq!(
+        uses(&req, hq),
+        vec![ability(hq, 0, Target::None), ability(hq, 1, Target::None)]
+    );
 }

@@ -1397,15 +1397,31 @@ pub static THEO_BELL: VampireDef = VampireDef {
     incomplete: None,
 };
 
+/// "If Valerius is Camarilla and not a prince, he can steal the title held
+/// by a prince as a Ⓓ action. +1 bleed." The prince loses the title and
+/// Valerius gains it (a title he held is lost: one title per vampire), a
+/// baron of the same city contesting it.
 pub static VALERIUS: VampireDef = VampireDef {
     name: "Valerius",
     printed: &[own(Stat::Bleed, 1, &[])],
-    abilities: &[],
+    abilities: &[ModeDef {
+        requires: &[
+            R::ActorSectIn(&[Sect::Camarilla]),
+            R::ActorTitleNotIn(&[TitleClass::Prince]),
+        ],
+        ..printed_action(
+            Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[R::TargetVampire, R::TargetTitleIn(&[TitleClass::Prince])],
+            }),
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::StealTargetTitle,
+            ],
+        )
+    }],
     riders: &[],
-    incomplete: Some(
-        "If Valerius is Camarilla and not a prince, he can steal the title held by a prince as \
-         a Ⓓ action.",
-    ),
+    incomplete: None,
 };
 
 pub static VALERIYA_ZINOVIEVA: VampireDef = VampireDef {
@@ -1456,7 +1472,20 @@ pub static YEWON_ONG: VampireDef = VampireDef {
     incomplete: None,
 };
 
-pub static VAMPIRES: [&VampireDef; 81] = [
+/// "Independent: While Parijat is ready, minions must burn the top card of
+/// their library to attempt to block wraith or zombie allies." A toll on
+/// the attempt (`Engine::block_toll`): none possible from an empty library;
+/// a forced attempt pays it once its card is replaced (ANK 20260317).
+pub static PARIJAT: VampireDef = VampireDef {
+    name: "Parijat, the Dark Oracle",
+    printed: &[own(Stat::WraithZombieBlockToll, 1, &[])],
+    abilities: &[],
+    riders: &[],
+    incomplete: None,
+};
+
+pub static VAMPIRES: [&VampireDef; 82] = [
+    &PARIJAT,
     &ABADDON,
     &ABRAHAM_DUSABLE,
     &ADISA,

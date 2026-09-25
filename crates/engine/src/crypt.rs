@@ -10,8 +10,10 @@ pub enum Sect {
     Sabbat,
 }
 
-/// Printed title. Prince and Baron of the same city contest each other;
-/// each clan's Justicar is unique; primogen is not unique.
+/// A title, printed or granted by a card. Prince and Baron of the same city
+/// contest each other; each clan's Justicar is unique; primogen is not
+/// unique. `Independent`: a unique Independent title a card names, worth
+/// its votes (Saulot's Guiding Wisdom); no V5 vampire prints one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Title {
     None,
@@ -19,6 +21,7 @@ pub enum Title {
     Prince(&'static str),
     Baron(&'static str),
     Justicar(&'static str),
+    Independent { name: &'static str, votes: u8 },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

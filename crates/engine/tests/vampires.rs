@@ -406,8 +406,8 @@ fn the_plain_half_of_a_two_part_vampire_applies_and_the_rest_is_named() {
     assert_eq!([alexa, braden].map(|o| strength(roy, o)), [1, 0]);
     assert_eq!([alexa, braden].map(|o| strength(ragnar, o)), [0, 1]);
     let incomplete = VAMPIRES.iter().filter(|d| d.incomplete.is_some()).count();
-    assert_eq!(incomplete, 8);
-    assert!(cards::vampire(find_card("Valerius")).is_some_and(|d| d.incomplete.is_some()));
+    assert_eq!(incomplete, 7);
+    assert!(cards::vampire(find_card("Mithras")).is_some_and(|d| d.incomplete.is_some()));
     assert!(cards::vampire(find_card("Catalina Vega")).is_some_and(|d| d.incomplete.is_none()));
 }
 

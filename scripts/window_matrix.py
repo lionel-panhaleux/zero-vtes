@@ -51,7 +51,9 @@ V5_SETS = {
 # equipment, so Darius Shirazi's "non-electronic" has something to exclude).
 EXTRA_CARDS = {
     100287: "Camera Phone",
+    100545: "Direct Intervention",
     101073: "Laptop Computer",
+    102151: "Wash",
 }
 
 

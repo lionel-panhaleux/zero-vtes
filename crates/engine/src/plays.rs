@@ -13,7 +13,7 @@ use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use crate::draws::Interrupt;
 use crate::game::{Engine, Flow, Pending};
 use crate::ids::{MinionId, SeatId};
-use crate::library::{CardType, LIBRARY};
+use crate::library::{CardType, Label, LIBRARY};
 use crate::referendum::is_vote_effect;
 use crate::state::{ActionId, CardId, CardInPlay, OutOfTurn};
 use crate::window::OrderedWindow;
@@ -106,6 +106,7 @@ impl Engine {
         seat.mpa = 1;
         seat.trifle_used = false;
         seat.master_played = false;
+        seat.mpa += std::mem::take(&mut seat.mpa_next);
         if let Some(OutOfTurn { trifle }) = seat.out_of_turn.take() {
             seat.mpa -= 1;
             if trifle {
@@ -170,6 +171,7 @@ impl Engine {
         match &self.action {
             Some(a) if a.seat != seat && self.combat.is_none() => {
                 let needs_locked = mode.requires.contains(&Requirement::LockedActor);
+                let either = mode.requires.contains(&Requirement::MayBeLocked);
                 st.minions_of(seat)
                     .filter(|m| {
                         let v = &st.minions[m.index()];
@@ -178,8 +180,11 @@ impl Engine {
                             return false;
                         }
                         let woken = a.woken.contains(m);
-                        if needs_locked {
-                            v.locked && !woken
+                        if either {
+                            true
+                        } else if needs_locked {
+                            // A woken minion is still a locked one.
+                            v.locked
                         } else {
                             !v.locked || woken
                         }
@@ -224,18 +229,43 @@ impl Engine {
                 if !mode.windows.iter().any(|w| windows.contains(w)) {
                     continue;
                 }
-                // The rulebook's one limited bleed increase per action.
-                if mode
-                    .effects
-                    .iter()
-                    .any(|e| matches!(e, Effect::BleedMod { limited: true, .. }))
-                    && action.is_some_and(|a| a.limited_bleed_used)
-                {
-                    continue;
+                // The rulebook's one limited bleed increase per action. A
+                // conditional one counts only while its condition holds:
+                // playable when it would not (Foreshadowing Destruction
+                // against 10 or more pool, PIB 20110817). Bleed modifiers
+                // are the acting minion's: its condition is read on it.
+                if let Some(a) = action.filter(|a| a.limited_used(st)) {
+                    let counts = mode.effects.iter().any(|e| match e {
+                        Effect::BleedMod { limited: true, .. }
+                        | Effect::BleedModX { limited: true } => true,
+                        Effect::If {
+                            requires,
+                            then: Effect::BleedMod { limited: true, .. },
+                            ..
+                        } => a.condition_holds(st, seat, a.acting, requires),
+                        _ => false,
+                    });
+                    if counts {
+                        continue;
+                    }
                 }
                 let tags = LIBRARY[card as usize].modes[mi].tags;
                 let clans = LIBRARY[card as usize].clans;
                 for actor in self.actor_candidates(seat, mode) {
+                    // "Unlocks and attempts to block": only a minion that
+                    // could.
+                    if mode.requires.contains(&Requirement::CanAttemptBlock)
+                        && !actor.is_some_and(|m| self.can_attempt_block(seat, m))
+                    {
+                        continue;
+                    }
+                    // An X blood cost with a printed minimum the actor
+                    // cannot pay (Monkey Wrench: "X must be 1, 2 or 3").
+                    if let (Some(Terms::XBloodIn { min, .. }), Some(m)) = (mode.terms, actor) {
+                        if st.minions[m.index()].blood < min {
+                            continue;
+                        }
+                    }
                     // A political action card cannot be played if its terms
                     // cannot be met (LSJ 20100129).
                     if mode.effects.iter().any(|e| match (e, actor) {
@@ -366,6 +396,9 @@ impl Engine {
                             Some(Limit::PerRound) => combat.is_some_and(|c| hit(&c.played_round)),
                             Some(Limit::PerCombat) => combat.is_some_and(|c| hit(&c.played_combat)),
                             Some(Limit::PerAction) => action.is_some_and(|a| hit(&a.played)),
+                            Some(Limit::BetweenUnlockPhases) => {
+                                st.minions[m.index()].played_since_unlock.contains(&card)
+                            }
                             Some(Limit::PerPhaseEach | Limit::PerReferendum | Limit::PerTurn) => {
                                 false
                             }
@@ -378,6 +411,24 @@ impl Engine {
                         if let Some(c) = combat {
                             if let Some(i) = c.side_of_minion(m) {
                                 if !c.allows(st, mode, i) {
+                                    continue;
+                                }
+                                // Under a Fortitude-proof strike, no
+                                // prevention card requiring Fortitude this
+                                // round, even to cycle (LSJ 20050628).
+                                let prevention = mode.effects.iter().any(|e| {
+                                    matches!(
+                                        e,
+                                        Effect::Prevent(_)
+                                            | Effect::PreventXPlus(_)
+                                            | Effect::PreventNonAggravated(_)
+                                            | Effect::PreventNonGun(_)
+                                    )
+                                });
+                                if c.sides[i].no_fortitude_prevention
+                                    && prevention
+                                    && tags.iter().any(|t| t.eq_ignore_ascii_case("for"))
+                                {
                                     continue;
                                 }
                             }
@@ -406,10 +457,16 @@ impl Engine {
                     let targets: Vec<Target> = match mode.target {
                         None => vec![Target::None],
                         Some(spec) => match spec.kind {
-                            // No card play targets the uncontrolled region
-                            // or a card in play in the pool (in-play and
-                            // vampire abilities do).
-                            TargetKind::Uncontrolled => vec![],
+                            // A vampire in the player's uncontrolled region
+                            // (Govern the Unaligned [DOM]).
+                            TargetKind::Uncontrolled => {
+                                (0..st.seats[seat.index()].uncontrolled.len())
+                                    .filter(|&i| {
+                                        self.uncontrolled_target_qualifies(seat, spec, actor, i)
+                                    })
+                                    .map(|i| Target::Uncontrolled(i as u8))
+                                    .collect()
+                            }
                             // A card in play (Far Mastery's retainer).
                             TargetKind::Card => (0..st.cards.len())
                                 .map(|i| CardId(i as u32))
@@ -437,6 +494,11 @@ impl Engine {
                                                 action,
                                             )
                                         })
+                                        // "Unlock a locked Anarch you
+                                        // control; that Anarch attempts to
+                                        // block" (engine-checked).
+                                        && (!spec.filter.contains(&Requirement::CanAttemptBlock)
+                                            || self.can_attempt_block(seat, id))
                                 })
                                 .map(Target::Minion)
                                 .collect(),
@@ -546,11 +608,21 @@ impl Engine {
                         a.played.push((m, name));
                     }
                 }
+                Limit::BetweenUnlockPhases => {
+                    self.state.minions[m.index()].played_since_unlock.push(card);
+                }
                 Limit::PerPhaseEach | Limit::PerReferendum | Limit::PerTurn => {}
             }
         }
         if def.out_of_turn {
             self.state.seats[s.index()].out_of_turn = Some(OutOfTurn { trifle: def.trifle });
+        }
+        // A reaction card played during an action, canceled or not
+        // (Perfectionist; LSJ 20070330).
+        if LIBRARY[card as usize].types.contains(&CardType::Reaction) {
+            if let Some(a) = self.action.as_mut() {
+                a.reaction_played = true;
+            }
         }
         let ctx = PlayCtx {
             seat: s,
@@ -595,6 +667,10 @@ impl Engine {
             Some(Terms::XBlood) => {
                 let blood = self.state.minions[ctx.actor.expect("actor").index()].blood;
                 (0..=blood).map(Choice::SetX).collect()
+            }
+            Some(Terms::XBloodIn { min, max }) => {
+                let blood = self.state.minions[ctx.actor.expect("actor").index()].blood;
+                (min..=max.min(blood)).map(Choice::SetX).collect()
             }
             Some(Terms::UpToMargin(n)) => {
                 let margin = self.action.as_ref().map_or(0, |a| a.margin) as u8;
@@ -682,6 +758,28 @@ impl Engine {
         let seat = top.window.current()?;
         let mut options = vec![Choice::Pass];
         options.extend(self.play_options(seat, &[Window::CardAsPlayed], Some(&top.ctx)));
+        // "The blocking minion's controller can burn 1 pool to cancel this
+        // card as it is played" (True Love's Face [OBF][PRE]). Burning a
+        // last pool this way is not offered (an oust mid-play: DESIGN).
+        if let Some(n) = cards::lookup(top.ctx.card).and_then(|d| {
+            d.modes[top.ctx.mode as usize]
+                .effects
+                .iter()
+                .find_map(|e| match e {
+                    Effect::CancelableForPool(n) => Some(*n),
+                    _ => None,
+                })
+        }) {
+            let blocker_seat = self.action.as_ref().and_then(|a| match a.state {
+                crate::actions::ActionState::Attempt(m) => {
+                    Some(self.state.minions[m.index()].owner)
+                }
+                _ => None,
+            });
+            if blocker_seat == Some(seat) && self.state.seats[seat.index()].pool > n as i32 {
+                options.push(Choice::PayToCancel);
+            }
+        }
         // Abilities cancelling a card as it is played (The Vozhd of
         // Gravesend: a strike card of the minion opposing it).
         options.extend(
@@ -753,6 +851,25 @@ impl Engine {
                 if !self.use_ability(*source, *ability, *actor, *target, flow.clone()) {
                     self.flow = flow;
                 }
+            }
+            Choice::PayToCancel => {
+                let top = stack.last_mut().expect("as-played stack");
+                let n = cards::lookup(top.ctx.card)
+                    .and_then(|d| {
+                        d.modes[top.ctx.mode as usize]
+                            .effects
+                            .iter()
+                            .find_map(|e| match e {
+                                Effect::CancelableForPool(n) => Some(*n),
+                                _ => None,
+                            })
+                    })
+                    .expect("a cancel for pool");
+                let seat = top.window.current().expect("as-played impulse holder");
+                top.window.play();
+                top.canceled = true;
+                self.state.seats[seat.index()].pool -= n as i32;
+                self.flow = Flow::AsPlayed { stack, resume };
             }
             other => unreachable!("illegal as-played choice {other:?}"),
         }
@@ -875,6 +992,19 @@ impl Engine {
                         below.canceled = true;
                     }
                 }
+                Effect::CanceledGetsMasterAction => {
+                    if let Some(below) = stack.last() {
+                        let t = below.ctx.seat;
+                        let out_of_turn =
+                            cards::lookup(below.ctx.card).is_some_and(|d| d.out_of_turn);
+                        let seat = &mut self.state.seats[t.index()];
+                        if out_of_turn {
+                            seat.mpa_next += 1;
+                        } else {
+                            seat.mpa += 1;
+                        }
+                    }
+                }
                 e => self.apply_card_effect(e, &ctx, &mut in_play),
             }
         }
@@ -906,6 +1036,16 @@ impl Engine {
             Some(Until::NextDiscardPhase) => self.state.seats[s.index()].held.discard += 1,
             None if deferred => self.state.seats[s.index()].held.action += 1,
             None => self.replace(s, 1, in_play),
+        }
+        // A forced attempt's library toll, once the card is replaced (ANK
+        // 20260317).
+        let tolls = self
+            .action
+            .as_mut()
+            .map(|a| std::mem::take(&mut a.library_toll))
+            .unwrap_or_default();
+        for (seat, n) in tolls {
+            self.burn_library_top(seat, n);
         }
         // Black Market Cache's search, chosen as it resolves after its
         // replacement is drawn (rules-qa 12.4): queued behind that draw's
@@ -967,10 +1107,35 @@ impl Engine {
     ) {
         let s = ctx.seat;
         match effect {
-            Effect::PutOnTarget | Effect::PutInPlay => {
+            // The target of a master card (Life in the City) or the
+            // vampire in the uncontrolled region an action card chose
+            // (Govern the Unaligned [DOM]); re-checked at resolution.
+            Effect::BloodToTarget(n) => {
+                let Target::Minion(t) = ctx.target else {
+                    unreachable!("blood to a target without a minion");
+                };
+                let v = &mut self.state.minions[t.index()];
+                v.blood = v.cap_blood(v.blood + n);
+            }
+            Effect::BloodToUncontrolledTarget(n) => {
+                let Target::Uncontrolled(i) = ctx.target else {
+                    unreachable!("blood to the uncontrolled region without a slot");
+                };
+                let slot = &mut self.state.seats[s.index()].uncontrolled[i as usize];
+                let cap = crate::crypt::CRYPT[slot.card as usize].capacity;
+                slot.counters = (slot.counters + n).min(cap);
+            }
+            Effect::LockTarget => {
+                let Target::Minion(t) = ctx.target else {
+                    unreachable!("a lock without a minion target");
+                };
+                self.state.minions[t.index()].locked = true;
+            }
+            Effect::PutOnTarget | Effect::PutInPlay | Effect::PutOnActor => {
                 let host = match (effect, ctx.target) {
                     (Effect::PutOnTarget, Target::Minion(host)) => Some(host),
                     (Effect::PutOnTarget, _) => unreachable!("put-on without a minion target"),
+                    (Effect::PutOnActor, _) => Some(ctx.actor.expect("actor")),
                     _ => None,
                 };
                 *in_play = Some(self.enter_play(CardInPlay {
@@ -987,6 +1152,15 @@ impl Engine {
                     counters: 0,
                     stored: Vec::new(),
                 }));
+                // A title card: its vampire gains the title it represents —
+                // once a unique one's card contest is over (rules-qa 19.1).
+                if let (Some(t), Some(h), Some(id)) = (cards::card_title(ctx.card), host, *in_play)
+                {
+                    let unique = LIBRARY[ctx.card as usize].labels.contains(&Label::Unique);
+                    if !unique || self.state.library_rivals(id).is_empty() {
+                        self.gain_title(h, t, Some(id));
+                    }
+                }
             }
             // An action card's steal, on success: nothing if the target left
             // play meanwhile (PIB 20121031: still successful, and paid).
@@ -1038,6 +1212,7 @@ impl Engine {
             Effect::DeclareAction(_)
             | Effect::EmployRetainer { .. }
             | Effect::CallReferendum(_)
+            | Effect::RepresentsTitle(_)
             | Effect::CancelPlayed { .. } => {}
             Effect::BurnChosenInPlay => {
                 if let Some(id) = ctx.burn {
@@ -1064,8 +1239,6 @@ impl Engine {
             | Effect::BurnSelfWithoutCounters
             | Effect::GainPool(_)
             | Effect::HandSizeBonusUntilEndOfTurn(_)
-            | Effect::BloodToUncontrolledTarget(_)
-            | Effect::BloodToTarget(_)
             | Effect::PredatorTakesControl
             | Effect::BurnSelf
             | Effect::BurnSource
@@ -1088,6 +1261,43 @@ impl Engine {
             | Effect::DrawThenBottom
             | Effect::SearchStore(_) => {
                 unreachable!("ability or rider effect in a play")
+            }
+            // A bonus whose condition is read live for the rest of the
+            // action.
+            Effect::If { on, requires, then } => {
+                let a = self
+                    .action
+                    .as_mut()
+                    .expect("a conditional bonus during an action");
+                let on = match on {
+                    cards::On::Actor => ctx.actor.expect("actor"),
+                    cards::On::Acting => a.acting,
+                };
+                let (stat, n, to, limited) = match *then {
+                    Effect::BleedMod { n, limited } => {
+                        (cards::Stat::Bleed, n as i8, a.acting, limited)
+                    }
+                    Effect::AddIntercept(n) => {
+                        let to = ctx
+                            .actor
+                            .or(match a.state {
+                                crate::actions::ActionState::Attempt(m) => Some(m),
+                                _ => None,
+                            })
+                            .expect("intercepting minion");
+                        (cards::Stat::Intercept, n as i8, to, false)
+                    }
+                    other => unreachable!("not a live conditional bonus: {other:?}"),
+                };
+                a.conditional.push(crate::actions::Conditional {
+                    stat,
+                    to,
+                    on,
+                    seat: s,
+                    requires,
+                    n,
+                    limited,
+                });
             }
             e if is_combat_effect(&e) => self.apply_combat_effect(e, ctx),
             // A mode shared between a bleed and the polling step
@@ -1294,6 +1504,18 @@ impl Engine {
                         if !st.minions[host.index()].present() {
                             continue;
                         }
+                        // "Cannot use equipment during the resulting
+                        // combat" (Form of the Bat).
+                        if LIBRARY[c.card as usize]
+                            .types
+                            .contains(&CardType::Equipment)
+                            && self.combat.as_ref().is_some_and(|cb| {
+                                cb.side_of_minion(host)
+                                    .is_some_and(|i| cb.sides[i].no_equipment)
+                            })
+                        {
+                            continue;
+                        }
                         // An ally never pays a blood cost (advanced rules
                         // 5.5.1).
                         if st.minions[host.index()].is_ally()
@@ -1358,6 +1580,9 @@ impl Engine {
                                 .turn_uses
                                 .contains(&AbilitySource::Card(id).use_key(ai as u8)),
                             Some(Limit::PerPhaseEach) | None => false,
+                            Some(Limit::BetweenUnlockPhases) => {
+                                unreachable!("a card-play limit on an ability")
+                            }
                         };
                         if spent {
                             continue;
@@ -1391,6 +1616,11 @@ impl Engine {
                                     .combat
                                     .as_ref()
                                     .is_some_and(|cb| cb.held_at_block.contains(&id)))
+                                && (!matches!(r, Requirement::HostOutOfCombat)
+                                    || self
+                                        .combat
+                                        .as_ref()
+                                        .is_none_or(|cb| cb.side_of_minion(host).is_none()))
                                 && cards::holds_for_card(r, st, id)
                                 && cards::holds_for_host(r, st, host)
                                 && cards::holds(
@@ -1479,10 +1709,13 @@ impl Engine {
         let st = &self.state;
         match spec {
             None => vec![Target::None],
-            Some(TargetSpec {
-                kind: TargetKind::Uncontrolled,
-                ..
-            }) => (0..st.seats[seat.index()].uncontrolled.len())
+            Some(
+                spec @ TargetSpec {
+                    kind: TargetKind::Uncontrolled,
+                    ..
+                },
+            ) => (0..st.seats[seat.index()].uncontrolled.len())
+                .filter(|&i| self.uncontrolled_target_qualifies(seat, spec, host, i))
                 .map(|i| Target::Uncontrolled(i as u8))
                 .collect(),
             Some(
@@ -1527,6 +1760,24 @@ impl Engine {
                     self.action.as_ref(),
                 )
             })
+    }
+
+    /// Does the vampire in slot `i` of the seat's uncontrolled region
+    /// qualify as the target of `actor`'s card or ability? Read again at
+    /// resolution.
+    pub(crate) fn uncontrolled_target_qualifies(
+        &self,
+        seat: SeatId,
+        spec: TargetSpec,
+        actor: Option<MinionId>,
+        i: usize,
+    ) -> bool {
+        let acting = self.action.as_ref().map(|a| a.acting).or(actor);
+        i < self.state.seats[seat.index()].uncontrolled.len()
+            && spec
+                .filter
+                .iter()
+                .all(|&r| cards::holds_for_uncontrolled(r, &self.state, seat, acting, i))
     }
 
     /// Does card `id` qualify as the target of an ability of `host`'s: in
@@ -1597,6 +1848,9 @@ impl Engine {
                         .is_some_and(|r| r.abilities_used.contains(&used)),
                     Some(Limit::PerTurn) => st.turn_uses.contains(&used),
                     Some(Limit::PerPhaseEach) | None => false,
+                    Some(Limit::BetweenUnlockPhases) => {
+                        unreachable!("a card-play limit on an ability")
+                    }
                 };
                 if spent {
                     continue;
@@ -2166,6 +2420,10 @@ impl Engine {
                 Effect::LockActor => {
                     self.state.minions[actor.expect("actor").index()].locked = true;
                 }
+                Effect::LockHost => {
+                    self.state.minions[host.expect("host").index()].locked = true;
+                }
+                Effect::EndCombat => self.end_combat_now(),
                 Effect::UnlockActor => {
                     self.state.minions[actor.expect("actor").index()].locked = false;
                 }
@@ -2338,6 +2596,9 @@ impl Engine {
                             drawn: 0,
                         });
                     }
+                }
+                Effect::MethuselahVotes { n, favor } => {
+                    self.methuselah_votes(source.card(), ctx.seat, n, favor)
                 }
                 e if is_combat_effect(&e) => self.apply_combat_effect(e, &ctx),
                 // A referendum ability's votes and abstentions (Alexa Draper,

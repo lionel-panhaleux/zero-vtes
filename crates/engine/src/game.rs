@@ -216,6 +216,7 @@ impl Engine {
                     hand_bonus: 0,
                     trifle_used: false,
                     out_of_turn: None,
+                    mpa_next: 0,
                     dpa: 0,
                     master_played: false,
                     turns_taken: 0,
@@ -287,6 +288,7 @@ impl Engine {
             contested: false,
             title_contested: false,
             title_lost: false,
+            granted_title: None,
             bled_this_turn: false,
             political_this_turn: false,
             expelled: false,
@@ -295,6 +297,7 @@ impl Engine {
             acted: Vec::new(),
             recruited: false,
             recruits_this_turn: 0,
+            played_since_unlock: Vec::new(),
             unlock_at_discard: false,
             no_life_gain: false,
         });
@@ -329,14 +332,19 @@ impl Engine {
         self.enter_title_contest(m);
     }
 
-    /// Advance until a real decision is needed or the game is over. Windows
-    /// with a single legal option are elided (DESIGN §4.3): auto-applied and
-    /// not logged.
     /// The action under way, if any (read-only).
     pub fn action(&self) -> Option<&ActionCtx> {
         self.action.as_ref()
     }
 
+    /// The referendum under way, if any (read-only).
+    pub fn referendum(&self) -> Option<&ReferendumCtx> {
+        self.referendum.as_ref()
+    }
+
+    /// Advance until a real decision is needed or the game is over. Windows
+    /// with a single legal option are elided (DESIGN §4.3): auto-applied and
+    /// not logged.
     pub fn run(&mut self) -> Step {
         loop {
             self.settle_interrupts();
@@ -730,7 +738,8 @@ impl Engine {
             Flow::MasterPhase => self.flow = Flow::MinionPhase,
             Flow::MinionPhase => {
                 self.flow = Flow::Influence {
-                    left: transfers_for_turn(self.state.turn),
+                    left: transfers_for_turn(self.state.turn)
+                        + self.state.transfer_bonus(self.state.active),
                 }
             }
             Flow::Influence { .. } => self.end_influence(),
@@ -917,6 +926,7 @@ impl Engine {
             // Stolen Police Cruiser: "does not unlock as normal during their
             // next unlock phase".
             if m.owner == s && m.in_play {
+                m.played_since_unlock.clear();
                 if m.skip_unlock {
                     m.skip_unlock = false;
                 } else {
@@ -1307,10 +1317,11 @@ mod tests {
         assert!(!req.options.contains(&Choice::InfluenceOut { slot: 1 }));
         pick(&mut e, Choice::Transfer { slot: 1 });
         pick(&mut e, Choice::InfluenceOut { slot: 1 });
-        let m = e.state.minions.last().unwrap();
+        let id = MinionId(e.state.minions.len() as u32 - 1);
+        let m = &e.state.minions[id.index()];
         assert_eq!(m.name(), "Alice Chen");
         assert_eq!(
-            (m.owner, m.blood, m.votes(), m.in_torpor),
+            (m.owner, m.blood, e.state.title_votes_of(id), m.in_torpor),
             (SeatId(0), cap, 2, false)
         );
         assert_eq!(e.state.seats[0].uncontrolled.len(), 1);
@@ -1368,8 +1379,8 @@ mod tests {
         let aline = e.add_minion(SeatId(1), find_card("Aline Gädeke"), 2, false);
         e.stage_contests(aline);
         assert!(e.state.minions[horst.index()].title_contested);
-        assert_eq!(e.state.minions[horst.index()].votes(), 0);
-        assert_eq!(e.state.minions[aline.index()].votes(), 0);
+        assert_eq!(e.state.title_votes_of(horst), 0);
+        assert_eq!(e.state.title_votes_of(aline), 0);
         e.state.turn = 4;
         pick(&mut e, Choice::Pass); // seat 0 minion phase
                                     // Seat 1's unlock: Aline pays 1 blood.
@@ -1394,7 +1405,7 @@ mod tests {
         // Seat 0's unlock: no rival left, Horst acquires the title for free.
         expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
         assert!(!e.state.minions[horst.index()].title_contested);
-        assert_eq!(e.state.minions[horst.index()].votes(), 2);
+        assert_eq!(e.state.title_votes_of(horst), 2);
     }
 
     #[test]
@@ -1418,7 +1429,7 @@ mod tests {
         // titled again at his next unlock phase.
         pick(&mut e, Choice::Pass);
         expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-        assert_eq!(e.state.minions[horst.index()].votes(), 2);
+        assert_eq!(e.state.title_votes_of(horst), 2);
     }
 
     #[test]

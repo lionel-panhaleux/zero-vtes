@@ -131,6 +131,17 @@ pub struct Side {
     /// "Gets a strength of n this combat" (spec §4.4.1: replaces the base).
     pub strength_set: Option<u8>,
     pub next_round_maneuvers: u8,
+    /// Optional maneuvers usable in any round of this combat (Spirit's
+    /// Touch [AUS] if this vampire blocks).
+    pub combat_maneuvers: u8,
+    /// Damage this side can prevent this round, at will (Precognition
+    /// [AUS] in the first round).
+    pub round_prevents: u8,
+    /// This side can strike: combat ends in this round (Night Terrors
+    /// [OBF][PRE]: the first).
+    pub combat_ends_round: Option<u8>,
+    /// This minion cannot use equipment this combat (Form of the Bat).
+    pub no_equipment: bool,
     /// Form of Mist [PRO] rider, armed by the play, fired by the strike.
     pub continue_rider: Option<(u8, u8)>,
     /// The card in play the chosen strike comes from (a weapon).
@@ -152,6 +163,20 @@ pub struct Side {
     pub mandatory_press: u8,
     /// "+n strength that combat" (Kasim Bayar), kept each round.
     pub strength_mods: u8,
+    /// Riders of the chosen strike (Blood Rage, Soul Burn), fired as it
+    /// lands: `Effect::FortitudeProofStrike`, `NullifyOpposingWeapons`.
+    pub fortitude_proof: bool,
+    pub nullifies_weapons: bool,
+    /// This round, this minion cannot play prevention cards requiring
+    /// Fortitude (a Fortitude-proof strike landed on it).
+    pub no_fortitude_prevention: bool,
+    /// This round, this vampire's weapon strikes inflict no damage.
+    pub weapons_harmless: bool,
+    /// A strike this minion can choose this round (Hunger of Marduk).
+    pub round_strike: Option<StrikeKind>,
+    /// Environmental damage the opposing minion takes each round, this
+    /// combat (Carrion Crows).
+    pub environmental: u8,
 }
 
 impl Side {
@@ -171,6 +196,10 @@ impl Side {
             preventing: false,
             strength_set: None,
             next_round_maneuvers: 0,
+            combat_maneuvers: 0,
+            round_prevents: 0,
+            no_equipment: false,
+            combat_ends_round: None,
             continue_rider: None,
             strike_source: None,
             strike_at: None,
@@ -179,7 +208,21 @@ impl Side {
             continue_presses: 0,
             mandatory_press: 0,
             strength_mods: 0,
+            fortitude_proof: false,
+            nullifies_weapons: false,
+            no_fortitude_prevention: false,
+            weapons_harmless: false,
+            round_strike: None,
+            environmental: 0,
         }
+    }
+
+    /// A new strike chosen: the old one's riders are gone.
+    fn set_strike(&mut self, k: Option<StrikeKind>) {
+        self.strike = k;
+        self.strike_source = None;
+        self.fortitude_proof = false;
+        self.nullifies_weapons = false;
     }
 
     fn new_round(&mut self) {
@@ -187,6 +230,10 @@ impl Side {
         *self = Self {
             strength_set: self.strength_set,
             strength_mods: self.strength_mods,
+            combat_maneuvers: self.combat_maneuvers,
+            no_equipment: self.no_equipment,
+            combat_ends_round: self.combat_ends_round,
+            environmental: self.environmental,
             continue_rider: None,
             maneuvers,
             ..Self::new(self.minion, self.seat)
@@ -212,6 +259,9 @@ pub struct CombatCtx {
     pub range_set: bool,
     pub next_round_close: bool,
     pub only_hand_strikes: bool,
+    /// "Neither combatant can strike" this round (One With the Land
+    /// [PRO]: the first round).
+    pub no_strikes_round: Option<u8>,
     pub step: Step,
     pub window: OrderedWindow,
     pub last_maneuver: Option<usize>,
@@ -326,7 +376,11 @@ impl CombatCtx {
             Effect::Maneuver if self.step == Step::DetermineRange => {
                 self.last_maneuver != Some(side)
             }
-            Effect::CommitStrike => self.sides[side].committed.is_none(),
+            // Nor the maneuver of a strike that cannot be used (LSJ
+            // 20001126).
+            Effect::CommitStrike => {
+                self.sides[side].committed.is_none() && self.no_strikes_round != Some(self.round)
+            }
             Effect::SetRangeLong => !self.range_set,
             Effect::Press if self.step == Step::Press => self.last_press != Some(side),
             Effect::AdditionalStrikes { limited: true, .. } => !self.sides[side].limited_used,
@@ -432,6 +486,7 @@ impl Engine {
             range_set: false,
             next_round_close: false,
             only_hand_strikes: false,
+            no_strikes_round: None,
             step: Step::BeforeRange,
             window: OrderedWindow::new(order),
             last_maneuver: None,
@@ -489,6 +544,21 @@ impl Engine {
                     });
                 }
                 let mut options = vec![Choice::HandStrike];
+                // A granted "strike: combat ends" this round, unless combat
+                // ends strikes or strikes other than hand strikes are
+                // barred (Dog Pack, a grapple).
+                if side.combat_ends_round == Some(c.round)
+                    && !c.only_hand_strikes
+                    && !self.state.combat_ends_barred(c.sides[1 - i].minion)
+                {
+                    options.push(Choice::StrikeCombatEnds);
+                }
+                // A strike granted for the round (Hunger of Marduk).
+                if let Some(k) = side.round_strike {
+                    if !c.only_hand_strikes || matches!(k, StrikeKind::Hand { .. }) {
+                        options.push(Choice::RoundStrike { at: None });
+                    }
+                }
                 options.extend(self.play_options(side.seat, &c.windows(), None));
                 // Strikes a card in play gives its bearer (Treasured
                 // Samadji's dodge).
@@ -517,6 +587,9 @@ impl Engine {
                     return None;
                 }
                 let mut options = vec![Choice::Pass];
+                if side.round_prevents > 0 {
+                    options.push(Choice::UsePrevent);
+                }
                 options.extend(self.play_options(side.seat, &c.windows(), None));
                 for w in c.windows() {
                     options.extend(self.ability_options(side.seat, w));
@@ -535,7 +608,8 @@ impl Engine {
                 let mut mandatory = false;
                 match c.step {
                     Step::DetermineRange
-                        if c.sides[i].maneuvers > 0 && c.last_maneuver != Some(i) =>
+                        if (c.sides[i].maneuvers > 0 || c.sides[i].combat_maneuvers > 0)
+                            && c.last_maneuver != Some(i) =>
                     {
                         options.push(Choice::UseManeuver);
                     }
@@ -581,16 +655,26 @@ impl Engine {
         // The seat acting on this choice, and whether the play goes through
         // the as-played stack (announced after the borrow ends).
         let play = match (c.step, choice) {
+            (Step::ChooseStrike(i), Choice::StrikeCombatEnds) => {
+                c.sides[i].set_strike(Some(StrikeKind::CombatEnds { unlock: false }));
+                c.sides[i].chosen = true;
+                None
+            }
             (Step::ChooseStrike(i), Choice::HandStrike) => {
-                c.sides[i].strike = Some(StrikeKind::Hand { bonus: 0 });
-                c.sides[i].strike_source = None;
+                c.sides[i].set_strike(Some(StrikeKind::Hand { bonus: 0 }));
+                c.sides[i].chosen = true;
+                None
+            }
+            (Step::ChooseStrike(i), Choice::RoundStrike { at }) => {
+                let k = c.sides[i].round_strike;
+                c.sides[i].set_strike(k);
+                c.sides[i].strike_at = *at;
                 c.sides[i].chosen = true;
                 None
             }
             // An optional additional strike declined.
             (Step::ChooseStrike(i), Choice::Pass) => {
-                c.sides[i].strike = None;
-                c.sides[i].strike_source = None;
+                c.sides[i].set_strike(None);
                 c.sides[i].additional_with = None;
                 c.sides[i].chosen = true;
                 None
@@ -598,6 +682,11 @@ impl Engine {
             (Step::ChooseStrike(i), Choice::Play { .. }) => Some(c.sides[i].seat),
             (Step::Prevent(i), Choice::Pass) => {
                 c.sides[i].preventing = false;
+                None
+            }
+            (Step::Prevent(i), Choice::UsePrevent) => {
+                c.sides[i].round_prevents -= 1;
+                c.prevent(i, 1);
                 None
             }
             (Step::Allocate { side, n }, Choice::SetX(k)) => {
@@ -623,7 +712,12 @@ impl Engine {
                 let i = c
                     .side_of(c.window.current().expect("impulse"))
                     .expect("side");
-                c.sides[i].maneuvers -= 1;
+                // This round's banked maneuver before the combat-long one.
+                if c.sides[i].maneuvers > 0 {
+                    c.sides[i].maneuvers -= 1;
+                } else {
+                    c.sides[i].combat_maneuvers -= 1;
+                }
                 c.window.play();
                 c.maneuver(i);
                 None
@@ -791,8 +885,7 @@ impl Engine {
             }
             c.round_over = true;
             for s in &mut c.sides {
-                s.strike = None;
-                s.strike_source = None;
+                s.set_strike(None);
                 s.strike_at = None;
             }
             return;
@@ -825,9 +918,15 @@ impl Engine {
                 Some(a) if a.acting == c.sides[i].minion => a.strength_bonus as i32,
                 _ => 0,
             };
+            // Strength from cards in play on the minion (Saulot's
+            // Avenging Fist).
+            let bearer = self.action.as_ref().map_or(0, |a| {
+                st.bearer_mod(c.sides[i].minion, cards::Stat::Strength, a.kind)
+            });
             (c.sides[i].strength(st.base_strength(c.sides[i].minion)) as i32
                 + action_bonus
                 + c.sides[i].strength_mods as i32
+                + bearer
                 + st.printed_mod(c.sides[i].minion, cards::Stat::Strength, ctx))
             .max(0) as u8
         });
@@ -842,8 +941,50 @@ impl Engine {
             for i in 0..2 {
                 let n = st.retainer_damage(c.sides[i].minion);
                 c.sides[1 - i].pending.add(n, false);
+                // Environmental damage (Carrion Crows): dodge or not.
+                let n = c.sides[i].environmental;
+                c.sides[1 - i].pending.add(n, false);
             }
         }
+        // Strike riders fire as the strike lands — in range, not dodged
+        // (LSJ 20040928), not aimed at a retainer — and reach the weapon
+        // strikes resolving with it (ANK 20170519): Blood Rage, Soul Burn.
+        for i in 0..2 {
+            let j = 1 - i;
+            let s = &c.sides[i];
+            let Some(k) = strikes[i] else {
+                continue;
+            };
+            if !(s.fortitude_proof || s.nullifies_weapons) || s.strike_at.is_some() {
+                continue;
+            }
+            let dodged =
+                strikes[j] == Some(StrikeKind::Dodge) && !st.undodgeable(c.sides[i].minion);
+            let lands = !dodged
+                && match k {
+                    StrikeKind::Hand { .. } | StrikeKind::Melee { .. } => close,
+                    StrikeKind::Damage { ranged, .. } | StrikeKind::StealBlood { ranged, .. } => {
+                        ranged || close
+                    }
+                    StrikeKind::Dodge | StrikeKind::CombatEnds { .. } => false,
+                };
+            if lands {
+                let (fp, nw) = (s.fortitude_proof, s.nullifies_weapons);
+                // "The opposing vampire's" weapons: not an ally's.
+                let vampire = !st.minions[c.sides[j].minion.index()].is_ally();
+                c.sides[j].no_fortitude_prevention |= fp;
+                c.sides[j].weapons_harmless |= nw && vampire;
+            }
+        }
+        // Weapon strikes that inflict no damage this round.
+        let harmless: [bool; 2] = std::array::from_fn(|i| {
+            c.sides[i].weapons_harmless
+                && c.sides[i].strike_source.is_some_and(|w| {
+                    LIBRARY[st.cards[w.index()].card as usize]
+                        .labels
+                        .contains(&Label::Weapon)
+                })
+        });
         let mut steals = [0u8; 2];
         for i in 0..2 {
             let j = 1 - i;
@@ -874,6 +1015,7 @@ impl Engine {
                 let rc = &st.cards[r.index()];
                 if rc.present() && rc.host == Some(c.sides[j].minion) {
                     match k {
+                        StrikeKind::Damage { .. } if harmless[i] => {}
                         StrikeKind::Damage { n, .. } => {
                             let ctx = crate::state::PrintedCtx {
                                 opponent: Some(c.sides[j].minion),
@@ -902,7 +1044,7 @@ impl Engine {
                     }
                 }
                 StrikeKind::Melee { bonus, aggravated } => {
-                    if close && !dodged {
+                    if close && !dodged && !harmless[i] {
                         let n = strength[i] + bonus;
                         c.sides[j].pending.add(n, aggravated);
                     }
@@ -912,7 +1054,7 @@ impl Engine {
                     ranged,
                     aggravated,
                 } => {
-                    if (ranged || close) && !dodged {
+                    if (ranged || close) && !dodged && !harmless[i] {
                         // "+1 damage with ranged strikes (even at close
                         // range)" (Noluthando): part of the strike's damage.
                         let n = if ranged {
@@ -973,8 +1115,7 @@ impl Engine {
             }
         }
         for s in &mut c.sides {
-            s.strike = None;
-            s.strike_source = None;
+            s.set_strike(None);
             s.strike_at = None;
             s.preventing = s.pending.total() > 0;
         }
@@ -1085,6 +1226,22 @@ impl Engine {
         c.fresh_window(Step::BeforeRange);
     }
 
+    /// "End a combat" outside strike resolution (Saulot's Guiding Wisdom):
+    /// no strike resolves, damage prevention cannot be played, the round
+    /// is over and its end-of-round window opens (advanced rules §4.7.2,
+    /// §4.9: ending combat does not close that window).
+    pub(crate) fn end_combat_now(&mut self) {
+        let c = self.combat.as_mut().expect("combat context");
+        c.round_over = true;
+        c.press_continue = false;
+        for s in &mut c.sides {
+            s.set_strike(None);
+            s.committed = None;
+            s.additional = 0;
+        }
+        c.fresh_window(Step::EndOfRound);
+    }
+
     /// Combat over: back to the action's after-combat window — after
     /// which a combat the action's resolution began leads to the
     /// after-resolution window (rules-qa 17.3).
@@ -1189,6 +1346,21 @@ impl Engine {
                 });
             }
         }
+        // The round's granted strike, if ranged.
+        let round_ranged = matches!(
+            c.sides[i].round_strike,
+            Some(
+                StrikeKind::Damage { ranged: true, .. }
+                    | StrikeKind::StealBlood { ranged: true, .. }
+            )
+        );
+        if round_ranged && options.contains(&Choice::RoundStrike { at: None }) {
+            aimed.extend(
+                retainers
+                    .iter()
+                    .map(|&r| Choice::RoundStrike { at: Some(r) }),
+            );
+        }
         options.extend(aimed);
         options
     }
@@ -1204,8 +1376,7 @@ impl Engine {
             Effect::Strike(k) => {
                 let initial = c.pair == 0;
                 let s = &mut c.sides[i];
-                s.strike = Some(k);
-                s.strike_source = None;
+                s.set_strike(Some(k));
                 s.strike_at = match play.target {
                     cards::Target::Card(r) => Some(r),
                     _ => None,
@@ -1217,6 +1388,10 @@ impl Engine {
                     s.additional_with = None;
                 }
             }
+            Effect::FortitudeProofStrike => c.sides[i].fortitude_proof = true,
+            Effect::NullifyOpposingWeapons => c.sides[i].nullifies_weapons = true,
+            Effect::EnvironmentalDamage(n) => c.sides[i].environmental += n,
+            Effect::RoundStrike(k) => c.sides[i].round_strike = Some(k),
             Effect::SetRangeLong => {
                 if !c.range_set {
                     c.range = Range::Long;
@@ -1287,9 +1462,18 @@ impl CombatCtx {
         if self.step != Step::BeforeStrikes {
             self.pair += 1;
         }
+        // "Cannot strike" this round: no strike is chosen, in any pair
+        // (additional strikes are still gained, uselessly: LSJ 19970814-2).
+        let barred = self.no_strikes_round == Some(self.round);
         for s in &mut self.sides {
-            s.strike = None;
-            if self.pair == 0 {
+            s.set_strike(None);
+            if barred {
+                // The pair's additional strike is spent, unused.
+                if self.pair > 0 {
+                    s.additional = s.additional.saturating_sub(1);
+                }
+                s.chosen = true;
+            } else if self.pair == 0 {
                 s.chosen = false;
             } else if s.additional > 0 {
                 s.additional -= 1;
@@ -1338,6 +1522,10 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::AdditionalStrikes { .. }
             | Effect::SetStrength(_)
             | Effect::AggravatedHands
+            | Effect::FortitudeProofStrike
+            | Effect::NullifyOpposingWeapons
+            | Effect::EnvironmentalDamage(_)
+            | Effect::RoundStrike(_)
             | Effect::Prevent(_)
             | Effect::PreventXPlus(_)
             | Effect::PreventNonAggravated(_)

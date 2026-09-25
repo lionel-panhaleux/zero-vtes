@@ -49,12 +49,13 @@ Fifth Edition, Fifth Edition (Anarch), Fifth Edition (Companion), New Blood,
 New Blood II, New Blood III, Fall of London, Shadows of Berlin, Echoes of Gehenna —
 plus the legacy cards the owner adds one by one (`EXTRA_CARDS` in
 `scripts/window_matrix.py`, read by every generator and the ledger): Camera Phone and
-Laptop Computer (2026-09-25, common electronic equipment).
+Laptop Computer (2026-09-25, common electronic equipment); Direct Intervention and
+Wash (2026-09-25, cancellation beside Sudden Reversal).
 
 Measured from `vtes.json` (2026-08):
 
-- **621 unique cards**: 200 crypt (all vampires), 421 library — 623 and 423 with the
-  two extra cards (the counts below are the V5 sets').
+- **621 unique cards**: 200 crypt (all vampires), 421 library — 625 and 425 with the
+  four extra cards (the counts below are the V5 sets').
 - Library by type: Master 124, Combat 63, Action 59, Action Modifier 53, Reaction 40,
   Equipment 23, Event 20, Ally 19, Political Action 19, Retainer 12 (multi-type cards
   counted once per type).
@@ -1364,10 +1365,248 @@ Recorded so nobody mistakes them for oversights:
   Behemoth, The Vozhds of Gravesend and Juiz de Fora, Spectral Servitor,
   Owl Companion (140 defs), scripted in `tests/allies.rs`, all in the ally
   fuzz tables.
-  **P2 open items (2026-09-25, after 9d):**
-  - Next: the precon card coverage push (actions, masters, modifiers,
-    combat, reactions of the 14 training decks) — slice 10 landed whole
-    (10a–10c). Left from it, waiting for cards that need them: damage to
+  Slice 11 (2026-09-25): the pre-built decks' remaining cards, 148 of the
+  241 library uniques at its start, landed in families by the mechanism
+  they need. 11a — the cards the existing vocabulary nearly covers, with
+  what they lacked: an action card may target a vampire in its player's
+  uncontrolled region (`TargetKind::Uncontrolled` on plays,
+  `cards::holds_for_uncontrolled`: younger than the acting minion,
+  `R::TargetClan`), chosen as played and read again at resolution;
+  conditional bonuses for the rest of the action, their condition read
+  live whenever the stat is (`Effect::If` → `ActionCtx.conditional`, on
+  the actor or the acting minion: Aire of Elation's Toreador, Protection
+  Racket's titled acting minion — ANK 20190416 — The Warrens' titled
+  Nosferatu; owner, 2026-09-25: an effect's conditions are evaluated
+  throughout, never snapshotted); the limited bleed increase is read
+  live too (`ActionCtx::limited_used`): a conditional one counts against
+  the limit only while its condition holds, so Foreshadowing Destruction
+  [DOM] (`R::BleedTargetPoolAtMost`) played against 10 or more pool
+  lingers outside the limit and bounced away from 9 or fewer frees it
+  (PIB 20110817, RTR 20191031, ANK 20211019-2); a lingering one that
+  comes to hold after another limited increase was played applies beside
+  it (owner, 2026-09-25); an X
+  blood cost in a printed range (`Terms::XBloodIn`, `Effect::BleedModX`);
+  an action card put on its actor (`Effect::PutOnActor`); transfers from
+  cards in play (`Modifier::Transfers`, `GameState::transfer_bonus`); a
+  location's lock for its controller's attempting blocker of a clan
+  (`R::AttemptingClan`); My Enemy's Enemy's predator's predator
+  (`R::ActingByPredator`, `R::MoreThanTwoLeft`, `R::PredatorsPredator`).
+  Master cards now resolve blood-to-target, lock-target and uncontrolled
+  blood effects (they reached `apply_card_effect` unhandled). Definitions:
+  Govern the Unaligned, Enchant Kindred, Intimidation, Thing, Heart of the
+  City, Lost in Crowds, Swallowed by the Night, Resist Earth's Grasp, Aire
+  of Elation, Monkey Wrench, Telepathic Misdirection, Bait and Switch, My
+  Enemy's Enemy, Enhanced Senses, Protection Racket, The Warrens, Earth
+  Meld, Pursuit, Apportation, Arms of Ahriman, Walk of Flame, Quickness,
+  Rego Motum, Life in the City, Misdirection, Information Highway, The
+  Labyrinth, Elysian Fields, Backways, Opium Den, Market Square,
+  Foreshadowing Destruction (172 defs), scripted in `tests/precon.rs`, all in their own fuzz tables
+  (Obfuscate covered). Misdirection may target a locked minion (a legal
+  play to no effect, cycling the card: owner).
+  11b-i — wakes and "if this vampire blocks": a play limit between the
+  playing minion's unlock phases (`Limit::BetweenUnlockPhases`,
+  `Minion.played_since_unlock`, cleared in its controller's unlock phase);
+  a reaction-unlock window during block attempts (`Window::ReactionUnlock`,
+  Guard Dogs); a wake of a target (`Effect::WakeTarget`,
+  `R::TargetSubtypeIn`, `R::MayBeLocked`: "usable by a locked vampire" is
+  a permission); an ally woken by On the Qui Vive skipping its next unlock
+  (`Effect::AllySkipsNextUnlock`). Riders "if this vampire blocks"
+  (`Effect::IfBlocks(BlockRider)`, `ActionCtx.block_riders`) go to the
+  minion's side as each block of the action begins its combat (again on a
+  second block, LSJ 20010814-2; never to a combat begun otherwise): a
+  maneuver for the whole combat (`Side.combat_maneuvers`) or a
+  first-round prevention bank (`Side.round_prevents`, used with the new
+  `Choice::UsePrevent`). Definitions: On the Qui Vive, Shadow Sentinel,
+  Guard Dogs, Spirit's Touch, Instinctive Reaction, Precognition (178
+  defs), in `tests/precon.rs` and the precon fuzz tables.
+  11b-ii — forced block attempts and more riders. "Unlocks and attempts
+  to block" (`Window::ReactionUnlockAttempt` in the block loop,
+  `Effect::AttemptBlock`, the engine-checked `R::CanAttemptBlock` =
+  `Engine::can_attempt_block`: the seat may block and has not declined,
+  the minion is a block candidate but for its lock — or already
+  attempting, ANK 20181122-2, 20180623); the actor's blood burned as an
+  effect (`Effect::BurnActorBlood`, `R::ActorBloodAtLeast`: not playable
+  without it, ANK 20210226); a woken minion still counts as locked for
+  "only usable by a locked" cards; `Window::ReactionUnlock` in every
+  reaction window of the action (after blocks are declined too) and
+  `Window::ActionBlockAttempt` for the acting minion during an attempt.
+  New riders: no strikes in the round (`CombatCtx.no_strikes_round`: no
+  strike chosen in any pair, additional strikes spent unused, a weapon's
+  strike maneuver barred — LSJ 20001126, 19970814-2), no equipment
+  abilities for that side (`Side.no_equipment`), and an unlock for blood
+  after block resolution (`ActionCtx.after_block_unlocks`,
+  `Choice::UnlockForBlood`). Found: a combat whose strikes were barred
+  never spent its additional strikes (fixed in `begin_pair`).
+  Definitions: Second Tradition: Domain, Deep Ecology, One With the Land,
+  Form of the Bat, Truth in Darkness (183 defs, 439 tests). Form of the
+  Bat's "cannot use equipment" bars its equipment's abilities: every
+  combat use of the pool's equipment is one (strikes, gun maneuvers,
+  Kevlar Vest's prevention; the passive layers are bleed, stealth and
+  intercept, out of combat). Living Manse, once defined, is a location
+  in play, not equipment (rules-qa 17.4): its combat-ending burn stays
+  usable.
+  11b-iii — targets of forced attempts, action-scoped grants, third-party
+  stealth strips. Organized Resistance's baron (locked or not) gives its
+  attempting Anarch intercept (`R::AttemptingSectIn`) or forces a locked
+  Anarch's attempt (`Effect::TargetAttemptsBlock`, `R::CanAttemptBlock` in
+  a target filter, engine-checked). Eyes of the Wild: burn 1 blood for +1
+  intercept while the attempt needs it, as often as paid
+  (`ActionCtx.burn_for_intercept`, `Choice::BurnBloodForIntercept`), and a
+  lock after the action unless it blocked (`ActionCtx.lock_if_no_block`,
+  `blocked_by`). Night Terrors reduces the acting minion's stealth to 0 as
+  a fixed -X, X the stealth as played (RTR 20030519: the ruling-backed
+  exception to live conditions), and gives its blocker a first-round
+  "strike: combat ends" (`Side.combat_ends_round`,
+  `Choice::StrikeCombatEnds`, barred as a combat-ends or non-hand strike
+  would be). The block pruning counts it: while a non-acting Methuselah
+  holds a stealth strip one of their minions could play, no attempt is
+  pruned (`Engine::stealth_strippable`; rules-qa 1.2: the target attempts
+  first, a third party strips). Definitions: Organized Resistance, Eyes of
+  the Wild, Night Terrors (186 defs, 445 tests).
+  11c — block attempts that fail or cost. A card-made failure bars the
+  minion from attempting again this action (`Effect::AttemptFails`,
+  `ActionCtx.barred_blockers`); an attempt's toll, checked before it is
+  offered and paid as it is made (`Engine::block_toll`): 1 blood without
+  Oblivion under Where the Veil Thins [OBL] (none possible for an ally),
+  the top library card against a wraith or zombie ally while a Parijat is
+  ready (`Stat::WraithZombieBlockToll`; none from an empty library; a
+  forced attempt pays once its card is replaced, `ActionCtx.library_toll`
+  — ANK 20260317); an attempt under way when Where the Veil Thins lands
+  pays or resigns (`Interrupt::BlockToll`, `Choice::PayBlockToll`, a pass
+  resigning: LSJ 20031121-2). Faceless Night [OBF] locks, at resolution,
+  the minions whose attempts fail after it (the one under way included).
+  True Love's Face [OBF][PRE] may be canceled as played by the blocking
+  minion's controller for 1 pool (`Effect::CancelableForPool`,
+  `Choice::PayToCancel`) — not offered for a last pool (an oust in the
+  middle of a play: open item). Definitions: Stygian Shroud, Forced
+  Confessional, True Love's Face, Where the Veil Thins, Faceless Night;
+  Parijat, the Dark Oracle (191 defs, 82 vampires, 453 tests).
+  11d — cancellation. Direct Intervention (cancel a minion card as it is
+  played: an action card declares nothing, its minion unlocked and free to
+  act; a strike card leaves the minion to choose again) and Wash (cancel a
+  master of the predator or prey: +1 master phase action to its player,
+  at once or at their next master phase for an out-of-turn master,
+  `Seat.mpa_next`, `Effect::CanceledGetsMasterAction`; replaced at the
+  next unlock phase) join Sudden Reversal. A canceled card's own "do not
+  replace until" is canceled with it (a canceled Wash is replaced at once);
+  a canceled limited bleed leaves the limit unused; a canceled forced
+  attempt pays no Parijat toll (owner, 2026-09-25: ANK 20260317 over ANK
+  20260216; rules-qa 18.1). Definitions: Direct Intervention, Wash (193
+  defs, 460 tests).
+  11e — titles and votes. A title is read live from state
+  (`GameState::title_of`), not from printed data:
+  - **Claimed title** (`claimed_title`, what contests key on): a title card
+    on the vampire (`Effect::RepresentsTitle` in its mode, read by
+    `cards::card_title`), else a title gained without a card
+    (`Minion.granted_title`), else the printed title unless lost.
+  - **Effective title**: the claimed title, none while contested, out of
+    play, or off-sect (rulebook "Vampiric Sects"). A justicar's clan is
+    checked as the title is given: printed justicars keep the clan's old
+    name, Kasim Bayar's "Assamite".
+  - **One title per vampire**: gaining one (`Engine::gain_title`) loses the
+    printed title for good and burns an older title card.
+  - **Contests**: a unique title card contests as a card first, paid in
+    pool; face down, its title is not claimed, and it gives its title once
+    the contest is over (rules-qa 19.1). A non-unique one (Toreador
+    Justicar) contests as its title, paid in blood, its card face down with
+    it. A yielded title burns its card (`Engine::lose_title`).
+
+  `Title::Independent { name, votes }` is the generated enum's new variant
+  (Saulot's Guiding Wisdom).
+  - **Toreador Justicar**: `Term::ChooseMinions` over ready Camarilla
+    Toreador (LSJ 20041026). `RefEffect::PutOnChosen` puts the card on the
+    chosen vampire.
+  - **Vote grants**: `ReferendumDef.grants`, "each ready Toreador gets +1
+    vote", and the in-play `Effect::GrantVotes` (Elysium: The Palace of
+    Versailles, Power Structure) live in `ReferendumCtx.grants`. They are
+    read as a vampire casts and added to a cast already made.
+  - **Ventrue Headquarters**: the Methuselah's own +3 votes, a vote source
+    (`Effect::MethuselahVotes`, `Source::InPlay`).
+  - **Saulot's Guiding Wisdom**: a host lock forces an abstention in any
+    referendum. Once each turn, a lock from out of the combat
+    (`R::HostOutOfCombat`) ends a combat of its controller's other minion:
+    `Effect::EndCombat` goes straight to the end-of-round window (advanced
+    rules §4.7.2, §4.9).
+  - **Archetypes**: one per vampire (`R::TargetWithout`).
+  - **Rebel**: a block rider (`Hook::HostBlocks`, `R::OncePerTurn`).
+  - **Valerius**: steals a prince's title (`Effect::StealTargetTitle`,
+    `Engine::steal_title`): a card representing it is burned, he gains the
+    title itself (rules-qa 19.6); he is no longer held.
+
+  Parity Shift and Consanguineous Boon were slice 4's. Definitions:
+  Toreador Justicar, Saulot's Guiding Wisdom, Rebel, Elysium: The Palace of
+  Versailles, Power Structure, Ventrue Headquarters; Valerius (199 defs, 7
+  incomplete vampires, 473 tests; rules-qa Batch 19 answered).
+  11f — combat staples:
+  - **Strike riders** in a combat card's effects, after its `Strike`, fire
+    as the strike lands: in range, not dodged (LSJ 20040928), not aimed
+    at a retainer. `Effect::FortitudeProofStrike`: its target can play no
+    prevention card requiring Fortitude this round, even to cycle (LSJ
+    20050628). `Effect::NullifyOpposingWeapons`: the opposing vampire's
+    weapon strikes inflict no damage this round, the one resolving with it
+    included (ANK 20170519).
+  - **Environmental damage** for the combat (`Effect::EnvironmentalDamage`,
+    `Side.environmental`) lands in each round's normal strike resolution,
+    dodge or not; a strike: combat ends comes first.
+  - **A strike granted for the round** (`Effect::RoundStrike`,
+    `Choice::RoundStrike`) is offered at every strike choice of the round,
+    additional strikes included (ANK 20220207); ranged, it can be aimed
+    at a retainer.
+  - No first strike and no self-damaging weapon in the V5 pool: those
+    rulings are n/a.
+
+  Definitions: Blood Rage, Soul Burn, Carrion Crows, Hunger of Marduk (203
+  defs, 479 tests).
+  11g — archetypes, one per vampire (`R::TargetWithout`):
+  - **Perfectionist**: an after-resolution host ability. It needs a
+    successful action (an unblocked one with no effect counts: LSJ
+    20070411) with no reaction card played, a canceled one included
+    (`ActionCtx.reaction_played`, `R::NoReactionPlayed`; LSJ 20070330).
+    Once each turn.
+  - **Saulot's Avenging Fist**: its +1 strength is the first strength from
+    a card in play (`Modifier::Bearer` on `Stat::Strength`, now read in
+    combat). Its enter-combat Ⓓ action has a +1 stealth variant against a
+    Tremere (`R::TargetClanNotIn`).
+  - **Saulot's Healing Touch**: a rescue discount on its host's rescues of
+    a non-Tremere (`Modifier::RescueDiscount`, `ActionCtx.rescue_cost`):
+    the whole cost, whoever pays (PIB 20110918), also when the rescue is
+    offered. The rescued vampire gains 1 blood. Its +1 stealth action
+    adds 1 blood to another ready minion (`R::OtherThanActor`), directed at
+    its controller when another Methuselah's (rules-qa 20.1: Ⓓ, printed
+    or not, is only a reminder).
+
+  Definitions: Perfectionist, Saulot's Avenging Fist, Saulot's Healing
+  Touch (206 defs, 485 tests).
+  11h — Amici Noctis: the margin is distributed as the card resolves, by
+  interrupt (`Effect::DistributeMargin`, `Interrupt::MarginPool` then
+  `MarginBlood`, `WindowLabel::Distribution`).
+  - **Pool first**: at most 1 pool, 2 if the acting Lasombra is titled
+    (read at resolution). At least what the vampires cannot take, so all
+    of the margin is placed where it fits.
+  - **Then the Lasombra**: the ready Lasombra below capacity, 1 blood
+    each, offered in arena order: give or skip, a skip only while enough
+    are left. What finds no room is lost.
+  - A referendum passing automatically would pass by 0; no such effect in
+    the pool yet (the ledger row stays blocked, as Voter Captivation's).
+
+  Definition: Amici Noctis (207 defs, 487 tests).
+  **P2 open items (2026-09-25, after 11h):**
+  - Next: slice 11's remaining precon cards (the coverage probe lists
+    them); then the rest.
+  - Self-contest of a unique title (advanced rules §1.13.1: "you can never
+    choose to contest yourself"; a forced one burns the incoming copy).
+    Saulot's Guiding Wisdom is covered by the unique-card gate
+    (`controls_unique_copy`) and contests as a card. Toreador Justicar's terms can still choose a
+    second Toreador of a Methuselah already holding the title: that choice
+    should be masked for the caller's own vampires, and the incoming card
+    burned for another Methuselah's. Valerius stealing Prince of a city
+    whose baron his Methuselah controls is the same case. Deferred: corruption (The Platinum
+    Protocol, Enchanting Gaze, Revelation of the Serpent, Aniel), frenzy
+    (Deep Song [ANI], Meditative Grove), Discipline masters (Oblivion),
+    Week of Nightmares, Carver's Meat Packing, Childe of the Revolution;
+    third-party stealth and intercept from locations (Anarch Railroad,
+    Fortune Teller Shop, KRCG News Radio) with the pruning item below.
+    Slice 10 landed whole (10a–10c). Left from it, waiting for cards that need them: damage to
     retainers from effects (Weather Control, Martyr's Resilience), immunity
     to damage from a source, subtype-reading effects (mortal, monster), an
     as-a-vampire ally's sect and capacity read by a card it plays (coded,
@@ -1379,7 +1618,7 @@ Recorded so nobody mistakes them for oversights:
     of would need the mark after its terms. (Stealing a unique ally whose copy the thief's
     Methuselah controls cannot arise: both copies are contested, out of
     play, no target.)
-  - Held vampires: Valerius (titles are printed only), The Guardian
+  - Held vampires: The Guardian
     (combat begun outside an action), Gnaeus Aemilius (out-of-combat damage
     in another seat's unlock phase), Keegan and "Mother" Anja Giovanni (no
     implemented action card requires their clans), Marchesa Liliana
@@ -1388,9 +1627,10 @@ Recorded so nobody mistakes them for oversights:
     (corruption counters).
   - Effect-widened block eligibility (Eagle's Sight): `eligible_blockers`
     effect-aware (noted above).
-  - Third-party help during another seat's block attempt (Night Terrors,
-    KRCG News Radio): `intercept_reachable` must count it or stop pruning
-    (noted above).
+  - Third-party intercept during another seat's block attempt (KRCG News
+    Radio, Anarch Railroad and Fortune Teller Shop's stealth for another's
+    minion): `intercept_reachable` must count it (stealth strips are
+    counted since 11b-iii).
   - Directedness beyond minions and cards in play (rules-qa 17): an action
     targeting another Methuselah's hand, library, crypt or uncontrolled
     region is directed at them; an ash heap target is undirected.

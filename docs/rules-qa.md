@@ -1653,3 +1653,110 @@ choice or randomness at resolution (Vast Wealth's search) is not illegal by
 principle and may be taken, even when the player can tell it will fail.
 Camera Phone and Laptop Computer, common legacy electronic equipment, may
 join the pool.
+
+---
+
+## Batch 18 — Precon coverage (slice 11)
+
+### 18.1 A canceled card and Parijat's toll _(answered 2026-09-25)_
+
+ANK 20260317: a card forcing a block attempt (Second Tradition: Domain)
+pays Parijat's library toll "if the card is not cancelled and after the
+replacement card has been drawn". ANK 20260216 (the cancel group): a
+canceled non-action card's cost is still paid, additional costs included —
+its example, Eagle's Sight's Parijat toll paid though canceled. Which holds?
+
+**Answer (2026-09-25)** — ANK 20260317: a canceled card pays no toll.
+**Applied**: the toll is paid as the forcing card resolves; a canceled card
+never resolves. **Test** — `a_canceled_forced_attempt_pays_no_parijat_toll`
+(`crates/engine/tests/precon.rs`); the ANK 20260216 Parijat row is `n/a`
+(superseded).
+
+### 18.2 True Love's Face and a last pool _(answered 2026-09-25)_
+
+Burning one's last pool to cancel True Love's Face would oust its player in
+the middle of the play; the cancel is not offered then. **Answer** — fine.
+
+### 18.3 Form of the Bat's equipment _(answered 2026-09-25)_
+
+"Cannot use equipment during the resulting combat" bars the equipment's
+abilities; no equipment in the pool has a passive combat effect (every use
+is an ability). **Answer** — right: a passive combat bonus hardly exists
+without a strike, which is using the equipment.
+
+### 18.4 Conditions read live _(answered 2026-09-25)_
+
+An effect's condition is evaluated throughout, never snapshotted (Aire of
+Elation, Protection Racket, The Warrens), and so is whether a limited bleed
+counts: Foreshadowing Destruction [DOM] counts only while its target has 9
+or fewer pool; played at 10 or more it lingers outside the limit, and if
+Conditioning was played meanwhile and the bleed is bounced onto 9 or fewer,
+both apply. Night Terrors is the ruling-backed exception (a fixed -X, RTR
+20030519). **Answer** — yes; that is what the rulings say.
+
+
+## Batch 19 — Titles and votes (slice 11e)
+
+### 19.1 Saulot's Guiding Wisdom contests as a unique card _(answered 2026-09-25)_
+
+"Unique archetype. Title." Is a second copy, played by another Methuselah,
+contested as the title (paid in blood, glossary "Title") or as a unique
+card (paid in pool)?
+
+**Answer (2026-09-25)** — the unique card contests first, so the title does
+not. **Applied**: a unique title card entering contested gives its vampire
+no title until its contest is over. Face down, neither copy's title is
+claimed. A non-unique title card (Toreador Justicar) still contests as its
+title, paid in blood. **Test** —
+`saulots_guiding_wisdom_contests_as_a_unique_card_not_as_a_title`.
+
+### 19.2 A title card replaces a printed title for good _(answered 2026-09-25)_
+
+A prince given the Toreador Justicar card loses Cape Town for the rest of
+the game; once the card is gone, he is untitled. **Answer** — yes.
+**Test** — `a_title_card_replaces_a_printed_title_for_good`.
+
+### 19.3 Vote grants from locations are read live _(answered 2026-09-25)_
+
+Elysium: The Palace of Versailles, Power Structure, and Toreador Justicar's
+"+1 vote in this referendum" (for every ready Toreador, an Anarch's
+included): a vampire that has already cast adds the vote to its cast; one
+casting later gets it if it qualifies as it casts. **Answer** — yes.
+**Test** — `vote_locations_give_each_vampire_they_name_a_vote`,
+`toreador_justicar_titles_a_ready_camarilla_toreador`.
+
+### 19.4 Ventrue Headquarters' votes _(answered 2026-09-25)_
+
+"Lock … to get +3 votes": the Methuselah's own votes, cast all on one side
+as the card locks, like the Edge. **Answer** — yes. **Test** —
+`ventrue_headquarters_locks_for_3_votes`.
+
+### 19.5 Saulot's Guiding Wisdom ending a combat _(answered 2026-09-25)_
+
+No strike resolves (advanced rules §4.7.2); the end-of-round window still
+opens (§4.9). **Answer** — yes. **Test** —
+`saulots_guiding_wisdom_ends_a_combat_of_another_minion`.
+
+### 19.6 Valerius's steal _(answered 2026-09-25)_
+
+Would a card representing the stolen title move to Valerius?
+
+**Answer (2026-09-25)** — no: the card is burned and he just gets the
+title. **Applied**: the prince loses the title (its card, if any, burned);
+Valerius gains the title with no card, losing any title he held; a baron of
+the same city would contest it. **Test** —
+`valerius_steals_a_princes_title` (no pool title is a card for a prince:
+the card branch is the shared `lose_title`).
+
+## Batch 20 — Archetypes (slice 11g)
+
+### 20.1 Directed actions without a printed Ⓓ _(answered 2026-09-25)_
+
+Saulot's Healing Touch's "+1 stealth action" adds blood to another ready
+minion, and prints no Ⓓ. Is it undirected even at another Methuselah's
+minion?
+
+**Answer (2026-09-25)** — no. Ⓓ, printed or not, is only indicative: an
+action targeting your own minions is undirected; one targeting another
+Methuselah's minion is directed at them. **Test** —
+`saulots_healing_touch_adds_blood_to_another_ready_minion`.

@@ -13,7 +13,7 @@ use zvtes::cards::AbilitySource;
 use zvtes::crypt::{CRYPT, PRECONS};
 use zvtes::decision::{ActionKind, Choice, WindowLabel};
 use zvtes::game::{Engine, Step, TURN_LIMIT};
-use zvtes::ids::SeatId;
+use zvtes::ids::{MinionId, SeatId};
 use zvtes::library::LIBRARY;
 use zvtes::rng::Rng;
 use zvtes::state::{find_card, find_library, CardId, CardInPlay, UncontrolledSlot, HAND_SIZE};
@@ -152,10 +152,14 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
                 });
             assert!(!dup, "seat holds two copies of {} (seed {seed})", m.name());
         }
-        if m.title_lost {
+        // A contest is over a title still claimed: a lost printed title
+        // is not contested unless a title card or a stolen title replaced
+        // it (out of play, a vampire's title card is out of play too).
+        if m.in_play && m.title_contested {
             assert!(
-                !m.title_contested,
-                "lost title still contested (seed {seed})"
+                st.claimed_title(MinionId(i as u32)) != zvtes::crypt::Title::None,
+                "lost title still contested (seed {seed}): {}",
+                m.name()
             );
         }
     }
@@ -243,6 +247,13 @@ fn kind_of(c: &Choice) -> &'static str {
         Choice::InfluenceOut { .. } => "influence_out",
         Choice::HandStrike => "hand_strike",
         Choice::UseManeuver => "use_maneuver",
+        Choice::UsePrevent => "use_prevent",
+        Choice::UnlockForBlood { .. } => "unlock_for_blood",
+        Choice::BurnBloodForIntercept { .. } => "burn_blood_for_intercept",
+        Choice::StrikeCombatEnds => "strike_combat_ends",
+        Choice::RoundStrike { .. } => "round_strike",
+        Choice::PayBlockToll => "pay_block_toll",
+        Choice::PayToCancel => "pay_to_cancel",
         Choice::UsePress => "use_press",
         Choice::ContinueAction => "continue_action",
         Choice::Diablerise => "diablerise_blocked",
@@ -439,16 +450,82 @@ const ALLY_SLICE: &[&str] = &[
     "Unlicensed Taxicab",
 ];
 
+/// The slice 11a tables' library: the pre-built decks' cards built from
+/// the existing vocabulary, with a few strikes to fight with.
+const PRECON_SLICE: &[&str] = &[
+    "Govern the Unaligned",
+    "Enchant Kindred",
+    "Intimidation",
+    "Thing",
+    "Heart of the City",
+    "Lost in Crowds",
+    "Swallowed by the Night",
+    "Resist Earth's Grasp",
+    "Aire of Elation",
+    "Monkey Wrench",
+    "Foreshadowing Destruction",
+    "Telepathic Misdirection",
+    "Bait and Switch",
+    "My Enemy's Enemy",
+    "Enhanced Senses",
+    "Protection Racket",
+    "Warrens, The",
+    "Earth Meld",
+    "Pursuit",
+    "Apportation",
+    "Arms of Ahriman",
+    "Walk of Flame",
+    "Quickness",
+    "Rego Motum",
+    "Life in the City",
+    "Misdirection",
+    "Information Highway",
+    "Labyrinth, The",
+    "Elysian Fields",
+    "Backways",
+    "Opium Den",
+    "Market Square",
+    "On the Qui Vive",
+    "Shadow Sentinel",
+    "Guard Dogs",
+    "Spirit's Touch",
+    "Instinctive Reaction",
+    "Precognition",
+    "Second Tradition: Domain",
+    "Deep Ecology",
+    "One With the Land",
+    "Form of the Bat",
+    "Truth in Darkness",
+    "Organized Resistance",
+    "Eyes of the Wild",
+    "Night Terrors",
+    "Stygian Shroud",
+    "Forced Confessional",
+    "True Love's Face",
+    "Where the Veil Thins",
+    "Faceless Night",
+    "Direct Intervention",
+    "Wash",
+    "Roundhouse",
+    "Side Strike",
+    "Soak",
+];
+
 fn midgame(seed: u64) -> Engine {
-    table(seed, SLICE)
+    table(seed, SLICE, &[])
 }
 
 /// As `midgame`, the ally tables.
 fn allies_midgame(seed: u64) -> Engine {
-    table(seed, ALLY_SLICE)
+    table(seed, ALLY_SLICE, &[])
 }
 
-fn table(seed: u64, slice: &[&str]) -> Engine {
+/// As `midgame`, the slice 11a tables (Obfuscate covered too).
+fn precon_midgame(seed: u64) -> Engine {
+    table(seed, PRECON_SLICE, &["OBF"])
+}
+
+fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
     let mut e = Engine::new(seed, 4);
     let mut rng = Rng::new(seed ^ 0x5eed);
     let shared = find_card("Alice Chen");
@@ -461,12 +538,14 @@ fn table(seed: u64, slice: &[&str]) -> Engine {
         // need, picked greedily so the table stays small; distinct across
         // seats.
         e.state.seats[s as usize].pool = 2 + rng.below(8) as i32;
-        for card in cover(
-            &[
-                "DOM", "AUS", "PRO", "OBL", "CEL", "FOR", "POT", "PRE", "THA", "ANI",
-            ],
-            &used,
-        ) {
+        let discs: Vec<&str> = [
+            "DOM", "AUS", "PRO", "OBL", "CEL", "FOR", "POT", "PRE", "THA", "ANI",
+        ]
+        .iter()
+        .chain(extra)
+        .copied()
+        .collect();
+        for card in cover(&discs, &used) {
             used.push(card);
             let blood = (1 + rng.below(4) as u8).min(CRYPT[card as usize].capacity);
             e.add_minion(seat, card, blood, false);
@@ -937,6 +1016,240 @@ fn random_games_with_allies_and_retainers_hold_invariants_and_replay() {
             "play:Spectral Servitor",
             "rider:Spectral Servitor",
             "play:Owl Companion",
+        ],
+    );
+}
+
+/// Slice 11a: random tables whose libraries are the pre-built decks' cards
+/// built from the existing vocabulary.
+#[test]
+fn random_games_with_precon_cards_hold_invariants_and_replay() {
+    let seen = fuzz(precon_midgame);
+    covers(
+        &seen,
+        &[
+            "play:Govern the Unaligned",
+            "play:Enchant Kindred",
+            "play:Intimidation",
+            "play:Heart of the City",
+            "play:Lost in Crowds",
+            "play:Swallowed by the Night",
+            "play:Resist Earth's Grasp",
+            "play:Aire of Elation",
+            "play:Foreshadowing Destruction",
+            "play:On the Qui Vive",
+            "play:Shadow Sentinel",
+            "play:Guard Dogs",
+            "play:Spirit's Touch",
+            "play:Instinctive Reaction",
+            "play:Precognition",
+            "use_prevent",
+            "play:Second Tradition: Domain",
+            "play:Deep Ecology",
+            "play:One With the Land",
+            "play:Form of the Bat",
+            "play:Truth in Darkness",
+            "unlock_for_blood",
+            "play:Organized Resistance",
+            "play:Eyes of the Wild",
+            // (Eyes of the Wild's burn needs its Gangrel attempting against
+            // more stealth with blood left — rare at these tables:
+            // scripted in tests/precon.rs.)
+            "play:Night Terrors",
+            "play:Stygian Shroud",
+            "play:Forced Confessional",
+            "play:True Love's Face",
+            "play:Where the Veil Thins",
+            "play:Faceless Night",
+            "pay_to_cancel",
+            "pay_block_toll",
+            "play:Direct Intervention",
+            "play:Wash",
+            "play:Telepathic Misdirection",
+            "play:My Enemy's Enemy",
+            "play:Enhanced Senses",
+            "play:Earth Meld",
+            "play:Pursuit",
+            "play:Arms of Ahriman",
+            "play:Quickness",
+            "play:Rego Motum",
+            "play:Life in the City",
+            "play:Misdirection",
+            "play:Information Highway",
+            // (Thing needs a Gangrel acting and one in its uncontrolled
+            // region — rare at these tables: scripted in tests/precon.rs.)
+            "play:Monkey Wrench",
+            "play:Bait and Switch",
+            "play:Protection Racket",
+            "play:Warrens, The",
+            "play:Apportation",
+            "play:Walk of Flame",
+            "play:Labyrinth, The",
+            "ability:Labyrinth, The",
+            "play:Elysian Fields",
+            "ability:Elysian Fields",
+            // (Backways competes with the other masters for the master
+            // phase action — starved at these tables since 11d; the same
+            // macro as The Labyrinth, scripted in tests/precon.rs.)
+            // (Backways' lock needs its controller's acting Gangrel under a
+            // block attempt — rare at these tables; the same macro as The
+            // Labyrinth, scripted in tests/precon.rs.)
+            "play:Opium Den",
+            "ability:Opium Den",
+            "play:Market Square",
+            "ability:Market Square",
+            "set_x",
+        ],
+    );
+}
+
+/// The slice 11e tables' library: title cards, vote locations and archetypes,
+/// with political actions to vote on and a few strikes to fight with.
+const TITLES_SLICE: &[&str] = &[
+    "Toreador Justicar",
+    "Saulot's Guiding Wisdom",
+    "Rebel",
+    "Perfectionist",
+    "Saulot's Avenging Fist",
+    "Saulot's Healing Touch",
+    "Amici Noctis",
+    "Elysium: The Palace of Versailles",
+    "Power Structure",
+    "Ventrue Headquarters",
+    "Anarchist Uprising",
+    "Kine Resources Contested",
+    "Consanguineous Boon",
+    "Bewitching Oration",
+    "Roundhouse",
+    "Soak",
+];
+
+/// As `midgame`, the slice 11e tables, with an Independent Salubri per
+/// seat for Saulot's Guiding Wisdom and Valerius to steal princes' titles.
+fn titles_midgame(seed: u64) -> Engine {
+    let mut e = table(seed, TITLES_SLICE, &[]);
+    // Vampires nowhere on the table yet (no contest to stage).
+    let absent =
+        |e: &Engine, card: u16| {
+            !e.state.minions.iter().any(|m| m.crypt_card() == Some(card))
+                && !e.state.seats.iter().any(|s| {
+                    s.crypt.contains(&card) || s.uncontrolled.iter().any(|u| u.card == card)
+                })
+        };
+    let salubri: Vec<u16> = CRYPT
+        .iter()
+        .enumerate()
+        .filter(|(i, c)| {
+            c.clan == "Salubri"
+                && c.sect == zvtes::crypt::Sect::Independent
+                && absent(&e, *i as u16)
+        })
+        .map(|(i, _)| i as u16)
+        .take(4)
+        .collect();
+    for (s, &card) in salubri.iter().enumerate() {
+        e.add_minion(SeatId(s as u8), card, 3, false);
+    }
+    let valerius = find_card("Valerius");
+    if absent(&e, valerius) {
+        e.add_minion(SeatId((seed % 4) as u8), valerius, 4, false);
+    }
+    e
+}
+
+/// Slice 11e: random tables with title cards and vote locations.
+#[test]
+fn random_games_with_titles_and_votes_hold_invariants_and_replay() {
+    let seen = fuzz(titles_midgame);
+    covers(
+        &seen,
+        &[
+            "play:Toreador Justicar",
+            "play:Saulot's Guiding Wisdom",
+            "ability:Saulot's Guiding Wisdom",
+            "play:Rebel",
+            "play:Elysium: The Palace of Versailles",
+            "ability:Elysium: The Palace of Versailles",
+            "play:Power Structure",
+            "ability:Power Structure",
+            "play:Ventrue Headquarters",
+            "ability:Ventrue Headquarters",
+            "ability:Valerius",
+            "play:Perfectionist",
+            "ability:Perfectionist",
+            "play:Saulot's Avenging Fist",
+            "ability:Saulot's Avenging Fist",
+            "play:Saulot's Healing Touch",
+            "ability:Saulot's Healing Touch",
+            "play:Amici Noctis",
+            "choose_minion",
+            "pay_contest",
+            "yield_contest",
+        ],
+    );
+}
+
+/// The slice 11f tables' library: the combat staples, with weapons, dodges,
+/// additional strikes and Fortitude prevention to meet them.
+const STAPLES_SLICE: &[&str] = &[
+    "Blood Rage",
+    "Soul Burn",
+    "Carrion Crows",
+    "Hunger of Marduk",
+    ".44 Magnum",
+    "Side Strike",
+    "Quickness",
+    "Majesty",
+    "Soak",
+    "Hidden Strength",
+    "Roundhouse",
+];
+
+/// As `midgame`, the slice 11f tables, with a Banu Haqim of Blood Sorcery
+/// per seat for Hunger of Marduk.
+fn staples_midgame(seed: u64) -> Engine {
+    let mut e = table(seed, STAPLES_SLICE, &[]);
+    let absent =
+        |e: &Engine, card: u16| {
+            !e.state.minions.iter().any(|m| m.crypt_card() == Some(card))
+                && !e.state.seats.iter().any(|s| {
+                    s.crypt.contains(&card) || s.uncontrolled.iter().any(|u| u.card == card)
+                })
+        };
+    let assassins: Vec<u16> = CRYPT
+        .iter()
+        .enumerate()
+        .filter(|(i, c)| {
+            c.clan == "Banu Haqim"
+                && c.disciplines.iter().any(|d| d.eq_ignore_ascii_case("tha"))
+                && absent(&e, *i as u16)
+        })
+        .map(|(i, _)| i as u16)
+        .take(4)
+        .collect();
+    for (s, &card) in assassins.iter().enumerate() {
+        e.add_minion(
+            SeatId(s as u8),
+            card,
+            CRYPT[card as usize].capacity.min(4),
+            false,
+        );
+    }
+    e
+}
+
+/// Slice 11f: random tables with the combat staples.
+#[test]
+fn random_games_with_combat_staples_hold_invariants_and_replay() {
+    let seen = fuzz(staples_midgame);
+    covers(
+        &seen,
+        &[
+            "play:Blood Rage",
+            "play:Soul Burn",
+            "play:Carrion Crows",
+            "play:Hunger of Marduk",
+            "round_strike",
         ],
     );
 }
