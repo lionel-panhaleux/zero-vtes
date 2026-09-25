@@ -16,7 +16,7 @@ use crate::plays::PendingPlay;
 use crate::referendum::ReferendumCtx;
 use crate::rng::Rng;
 use crate::state::{
-    CardId, GameState, Held, Minion, Seat, UncontrolledSlot, HAND_SIZE, START_POOL,
+    CardId, GameState, Held, Minion, MinionKind, Seat, UncontrolledSlot, HAND_SIZE, START_POOL,
     UNCONTROLLED_START,
 };
 use crate::window::OrderedWindow;
@@ -210,6 +210,8 @@ impl Engine {
                     hand,
                     ash: Vec::new(),
                     removed: Vec::new(),
+                    ash_crypt: Vec::new(),
+                    removed_crypt: Vec::new(),
                     mpa: 0,
                     hand_bonus: 0,
                     trifle_used: false,
@@ -232,6 +234,7 @@ impl Engine {
                 layers: Vec::new(),
                 active: SeatId(0),
                 turn: 0,
+                combatants: None,
             },
             log: Vec::new(),
             decisions: 0,
@@ -276,7 +279,7 @@ impl Engine {
     pub fn add_minion(&mut self, owner: SeatId, card: u16, blood: u8, in_torpor: bool) -> MinionId {
         self.state.minions.push(Minion {
             owner,
-            card,
+            kind: MinionKind::Vampire(card),
             blood,
             locked: false,
             in_torpor,
@@ -290,8 +293,27 @@ impl Engine {
             hunting_ground_fed: false,
             skip_unlock: false,
             acted: Vec::new(),
+            recruited: false,
+            recruits_this_turn: 0,
+            unlock_at_discard: false,
+            no_life_gain: false,
         });
         MinionId(self.state.minions.len() as u32 - 1)
+    }
+
+    /// Test fixture: put the ally `card` (a LIBRARY index) into play for
+    /// `owner`, ready and unlocked, with its printed life and able to act
+    /// (as one put in play other than by recruiting). Contests are entered.
+    pub fn add_ally(&mut self, owner: SeatId, card: u16) -> MinionId {
+        self.add_ally_version(owner, card, 0)
+    }
+
+    /// As [`Engine::add_ally`], in the version of `mode` (its superior
+    /// version with 1).
+    pub fn add_ally_version(&mut self, owner: SeatId, card: u16, mode: u8) -> MinionId {
+        let m = self.recruit_ally(owner, card, mode);
+        self.state.minions[m.index()].recruited = false;
+        m
     }
 
     /// Test fixture: position the game at the active seat's master phase
@@ -387,8 +409,9 @@ impl Engine {
                 source,
                 ability,
                 picked,
+                target,
                 ..
-            } => Some(self.ability_terms_request(*source, *ability, picked)),
+            } => Some(self.ability_terms_request(*source, *ability, *target, picked)),
             Flow::RiderTerms { card, left, .. } => Some(self.rider_terms_request(*card, *left)),
             Flow::ActionTerms {
                 minion,
@@ -600,7 +623,7 @@ impl Engine {
     }
 
     /// A minion is burned: it leaves play with the cards on it burned
-    /// (spec §1.12.1, to their owners' ash heaps); "after a ready minion
+    /// (spec §1.12.1, to their owners' ash heaps), an ally's card with them; "after a ready minion
     /// is burned" riders fire if it was ready (a minion burned from torpor
     /// or from a contest is not).
     pub(crate) fn burn_minion(&mut self, m: MinionId) {
@@ -609,9 +632,18 @@ impl Engine {
             let v = &mut self.state.minions[m.index()];
             v.in_play = false;
             v.blood = 0;
+            // A burned vampire goes to its Methuselah's ash heap (an ally's
+            // card goes with the cards on it, below).
+            if let Some(card) = v.crypt_card() {
+                let owner = v.owner;
+                self.state.seats[owner.index()].ash_crypt.push(card);
+            }
         }
+        // The cards on it, and an ally's own card, to their owners' ash
+        // heaps.
         for ci in 0..self.state.cards.len() {
-            if self.state.cards[ci].host == Some(m) {
+            let c = &self.state.cards[ci];
+            if c.host == Some(m) || c.body == Some(m) {
                 self.burn_card_in_play(CardId(ci as u32));
             }
         }
@@ -623,7 +655,16 @@ impl Engine {
     /// Minions go to torpor (combat damage): the cards on them stay; the
     /// hosts' own riders (Guardian Angel, Fame) and "after a ready minion
     /// is sent to torpor" riders fire at once (rules-qa 6.4).
+    /// An ally has no torpor: sent there, it is burned instead (advanced
+    /// rules 5.3.3).
     pub(crate) fn minions_to_torpor(&mut self, ms: &[MinionId]) {
+        let (allies, ms): (Vec<MinionId>, Vec<MinionId>) = ms
+            .iter()
+            .partition(|m| self.state.minions[m.index()].is_ally());
+        for m in allies {
+            self.burn_minion(m);
+        }
+        let ms = &ms[..];
         for &m in ms {
             self.state.minions[m.index()].in_torpor = true;
         }
@@ -631,9 +672,32 @@ impl Engine {
         self.leave_riders(Hook::ReadyMinionBurnedOrTorpor, ms);
     }
 
+    /// Unlock a card in play — an ally's own card unlocks the ally.
+    pub(crate) fn unlock_card(&mut self, id: CardId) {
+        match self.state.cards[id.index()].body {
+            Some(m) => self.state.minions[m.index()].locked = false,
+            None => self.state.cards[id.index()].locked = false,
+        }
+    }
+
+    /// Lock a card in play — an ally's own card locks the ally.
+    pub(crate) fn lock_card(&mut self, id: CardId) {
+        match self.state.cards[id.index()].body {
+            Some(m) => self.state.minions[m.index()].locked = true,
+            None => self.state.cards[id.index()].locked = true,
+        }
+    }
+
     /// Burn a card in play: to its owner's ash heap with the cards on it
     /// (LSJ 20021128), its layers dropped.
     pub(crate) fn burn_card_in_play(&mut self, id: CardId) {
+        // An ally's card burned is the ally burned (its card with it).
+        if let Some(m) = self.state.cards[id.index()].body {
+            if self.state.minions[m.index()].in_play {
+                self.burn_minion(m);
+                return;
+            }
+        }
         let c = &mut self.state.cards[id.index()];
         if !c.in_play {
             return;
@@ -687,6 +751,12 @@ impl Engine {
         }
         let printed = self.state.printed_discard_actions(s);
         self.state.seats[s.index()].dpa = (1 + printed).max(0) as u8;
+        // "Unlock this vampire during the next discard phase" (Feral Hound).
+        for m in &mut self.state.minions {
+            if std::mem::take(&mut m.unlock_at_discard) {
+                m.locked = false;
+            }
+        }
         self.flow = Flow::Discard;
     }
 
@@ -812,6 +882,7 @@ impl Engine {
             self.release_action_holds();
         }
         self.combat = None;
+        self.state.combatants = None;
         self.referendum = None;
         self.state
             .layers
@@ -840,6 +911,8 @@ impl Engine {
             m.expelled = false;
             m.hunting_ground_fed = false;
             m.acted.clear();
+            m.recruited = false;
+            m.recruits_this_turn = 0;
             // Unlock phase: the active seat's minions unlock (torpor included).
             // Stolen Police Cruiser: "does not unlock as normal during their
             // next unlock phase".

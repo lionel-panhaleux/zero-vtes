@@ -31,8 +31,12 @@ impl Engine {
                 .cards
                 .iter()
                 .enumerate()
+                // An ally's card is contested as its minion (above).
                 .filter(|(i, c)| {
-                    c.in_play && c.contested && self.state.card_controller(CardId(*i as u32)) == s
+                    c.in_play
+                        && c.contested
+                        && c.body.is_none()
+                        && self.state.card_controller(CardId(*i as u32)) == s
                 })
                 .map(|(i, _)| Contest::Library(CardId(i as u32))),
         );
@@ -68,7 +72,7 @@ impl Engine {
     pub(crate) fn release_contest(&mut self, item: Contest) {
         match item {
             Contest::Card(m) => {
-                self.state.minions[m.index()].contested = false;
+                self.set_minion_contested(m, false);
                 self.enter_title_contest(m);
             }
             Contest::Title(m) => self.state.minions[m.index()].title_contested = false,
@@ -128,10 +132,19 @@ impl Engine {
     pub(crate) fn enter_card_contest(&mut self, m: MinionId) {
         let rivals = self.state.card_rivals(m);
         if !rivals.is_empty() {
-            self.state.minions[m.index()].contested = true;
+            self.set_minion_contested(m, true);
             for r in rivals {
-                self.state.minions[r.index()].contested = true;
+                self.set_minion_contested(r, true);
             }
+        }
+    }
+
+    /// A minion's card contest state; an ally's card in play follows it
+    /// (face down and out of play with it: its text does not apply).
+    fn set_minion_contested(&mut self, m: MinionId, contested: bool) {
+        self.state.minions[m.index()].contested = contested;
+        if let Some(id) = self.state.minions[m.index()].ally_id() {
+            self.state.cards[id.index()].contested = contested;
         }
     }
 

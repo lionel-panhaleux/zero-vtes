@@ -94,21 +94,20 @@ impl Engine {
                     .remove(*slot as usize);
                 // Counters become blood; excess over capacity drains off.
                 let capacity = CRYPT[out.card as usize].capacity;
-                let m = match out.banished {
+                let m = match out.banished.map(|b| (b.minion, b.cards)) {
                     // A banished vampire returns as the entry it left — its
                     // history (titles lost, contests) and the cards on it,
                     // face up and unlocked (rules-qa 5.7; LSJ 20060213).
-                    Some(m) => {
+                    Some((m, on)) => {
                         let v = &mut self.state.minions[m.index()];
                         v.in_play = true;
                         v.blood = capacity;
                         v.locked = false;
                         v.in_torpor = false;
-                        for c in &mut self.state.cards {
-                            if c.host == Some(m) {
-                                c.in_play = true;
-                                c.locked = false;
-                            }
+                        for c in on {
+                            let c = &mut self.state.cards[c.index()];
+                            c.in_play = true;
+                            c.locked = false;
                         }
                         m
                     }

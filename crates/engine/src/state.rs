@@ -60,14 +60,42 @@ pub struct PrintedCtx {
     pub opponent: Option<MinionId>,
 }
 
-/// A vampire in play. `contested`: the card is contested — face down and out
-/// of play, blood kept (rulebook "Contested Cards"). `title_contested` /
-/// `title_lost`: the printed title is under contest / was yielded for the
-/// rest of the game. `bled_this_turn` is the NRA special cap (rules-qa 1.4).
+/// What a minion is: a vampire (its crypt card) or an ally — a library card
+/// in play (`id`, whose `CardInPlay::body` points back here) that is a
+/// minion in its own right (rulebook "Ally cards"), with the type line of
+/// the version that entered play (`body`: its starting life, strength and
+/// bleed; advanced rules 5.5.2).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MinionKind {
+    Vampire(u16),
+    Ally {
+        card: u16,
+        id: CardId,
+        body: crate::library::Body,
+    },
+}
+
+impl MinionKind {
+    /// The ally's LIBRARY index; `None` for a vampire.
+    pub fn ally_card(self) -> Option<u16> {
+        match self {
+            MinionKind::Ally { card, .. } => Some(card),
+            MinionKind::Vampire(_) => None,
+        }
+    }
+}
+
+/// A minion in play: a vampire, or an ally. `contested`: the card is
+/// contested — face down and out of play, blood kept (rulebook "Contested
+/// Cards"). `title_contested` / `title_lost`: the printed title is under
+/// contest / was yielded for the rest of the game. `bled_this_turn` is the
+/// NRA special cap (rules-qa 1.4).
 #[derive(Clone, Debug)]
 pub struct Minion {
     pub owner: SeatId,
-    pub card: u16,
+    pub kind: MinionKind,
+    /// A vampire's blood; an ally's life (advanced rules 5.5.1: an ally
+    /// has life, not blood, and never pays a blood cost).
     pub blood: u8,
     pub locked: bool,
     pub in_torpor: bool,
@@ -92,6 +120,19 @@ pub struct Minion {
     /// (NRA, rules-qa 1.4): a card from hand by name, a card in play by
     /// copy; bleeds and political actions are capped by type besides.
     pub acted: Vec<ActionId>,
+    /// Recruited this turn: an ally cannot act the turn it is recruited
+    /// (rulebook "Recruit Ally"; one put in play otherwise can, advanced
+    /// rules 5.5.4). Cleared as each turn begins.
+    pub recruited: bool,
+    /// Successful recruit ally actions this turn (Spectral Servitor
+    /// unlocks its recruiter on the first).
+    pub recruits_this_turn: u8,
+    /// "This ally cannot gain life (instead, any life it would gain goes
+    /// to the blood bank)" (Aggressive Corpse, Rotting Behemoth).
+    pub no_life_gain: bool,
+    /// "Unlock this vampire during the next discard phase" (Feral Hound
+    /// [ani]): cleared by that phase.
+    pub unlock_at_discard: bool,
 }
 
 /// Identity of an action for the no-repeat-action rule (spec §3.5.2).
@@ -121,16 +162,85 @@ impl ActionId {
 }
 
 impl Minion {
-    pub fn card(&self) -> &'static CryptCard {
-        &CRYPT[self.card as usize]
+    /// The vampire's crypt card; `None` for an ally (no clan, sect,
+    /// Disciplines, capacity or title).
+    pub fn vampire(&self) -> Option<&'static CryptCard> {
+        match self.kind {
+            MinionKind::Vampire(c) => Some(&CRYPT[c as usize]),
+            MinionKind::Ally { .. } => None,
+        }
     }
 
+    /// The vampire's CRYPT index (printed text lookup); `None` for an ally.
+    pub fn crypt_card(&self) -> Option<u16> {
+        match self.kind {
+            MinionKind::Vampire(c) => Some(c),
+            MinionKind::Ally { .. } => None,
+        }
+    }
+
+    pub fn is_ally(&self) -> bool {
+        matches!(self.kind, MinionKind::Ally { .. })
+    }
+
+    /// The ally's card in play; `None` for a vampire.
+    pub fn ally_id(&self) -> Option<CardId> {
+        match self.kind {
+            MinionKind::Ally { id, .. } => Some(id),
+            MinionKind::Vampire(_) => None,
+        }
+    }
+
+    /// Printed name: the contest identity of a vampire or unique ally.
     pub fn name(&self) -> &'static str {
-        self.card().name
+        match self.kind {
+            MinionKind::Vampire(c) => CRYPT[c as usize].name,
+            MinionKind::Ally { card, .. } => LIBRARY[card as usize].name,
+        }
     }
 
-    pub fn capacity(&self) -> u8 {
-        self.card().capacity
+    /// A vampire's capacity; `None` for an ally, which has none (its life
+    /// is not capped, advanced rules 5.5.2).
+    pub fn capacity(&self) -> Option<u8> {
+        self.vampire().map(|v| v.capacity)
+    }
+
+    /// A vampire younger than `than` (lower capacity); an ally is no
+    /// vampire, so neither younger nor older.
+    pub fn younger_than(&self, than: &Minion) -> bool {
+        matches!((self.capacity(), than.capacity()), (Some(a), Some(b)) if a < b)
+    }
+
+    /// "Allies and younger vampires" (Stolen Police Cruiser, Perfect
+    /// Paragon): an ally, or a vampire of capacity below `than`.
+    pub fn ally_or_younger(&self, than: u8) -> bool {
+        self.capacity().is_none_or(|c| c < than)
+    }
+
+    /// Blood or life gained "not to exceed starting life" (Seraphina): a
+    /// vampire's capacity, an ally's starting life — never below what it
+    /// already has.
+    pub fn cap_starting(&self, blood: u8) -> u8 {
+        let start = match self.kind {
+            MinionKind::Vampire(c) => CRYPT[c as usize].capacity,
+            MinionKind::Ally { body, .. } => body.life,
+        };
+        if self.no_life_gain {
+            return blood.min(self.blood);
+        }
+        blood.min(start.max(self.blood))
+    }
+
+    /// Room left under capacity for blood gained: unlimited for an ally —
+    /// none for one that cannot gain life.
+    pub fn cap_blood(&self, blood: u8) -> u8 {
+        if self.no_life_gain {
+            return blood.min(self.blood);
+        }
+        match self.capacity() {
+            Some(c) => blood.min(c),
+            None => blood,
+        }
     }
 
     /// Controlled and present: in play and not contested (a contested copy
@@ -146,10 +256,9 @@ impl Minion {
 
     /// Effective title: none while contested, yielded, or out of play.
     pub fn title(&self) -> Title {
-        if self.title_lost || self.title_contested || !self.present() {
-            Title::None
-        } else {
-            self.card().title
+        match self.vampire() {
+            Some(v) if !(self.title_lost || self.title_contested || !self.present()) => v.title,
+            _ => Title::None,
         }
     }
 
@@ -175,6 +284,16 @@ pub struct CardInPlay {
     pub controller: SeatId,
     /// Minion the card is on, if any.
     pub host: Option<MinionId>,
+    /// An ally: the minion this card is (not a card on that minion — its
+    /// controller is the minion's).
+    pub body: Option<MinionId>,
+    /// The mode it entered play with: its version, for a card whose
+    /// superior version differs (the Discipline level used to employ or
+    /// recruit it decides, RTR 19941109).
+    pub mode: u8,
+    /// The minion that played it, when its text names it ("this acting
+    /// vampire", Slaughtering the Herd [DOM]).
+    pub by: Option<MinionId>,
     pub in_play: bool,
     /// Contested (rulebook "Contested Cards"): face down and out of play —
     /// nothing printed on it applies, its layers are suspended (spec
@@ -192,6 +311,12 @@ impl CardInPlay {
     /// In play and controlled: not contested.
     pub fn present(&self) -> bool {
         self.in_play && !self.contested
+    }
+
+    /// The minion whose card text this is, for its `Actor::Host`
+    /// abilities: the minion it is on, or the ally it is.
+    pub fn bearer(&self) -> Option<MinionId> {
+        self.host.or(self.body)
     }
 }
 
@@ -211,7 +336,15 @@ pub struct UncontrolledSlot {
     /// A banished vampire (Banishment): the arena entry it left, with its
     /// cards face down on it; it comes back as that entry when influenced
     /// out again (rules-qa 5.7).
-    pub banished: Option<MinionId>,
+    pub banished: Option<Banished>,
+}
+
+/// A banished vampire's arena entry and the cards that were in play on it
+/// as it left — face down on it, out of play, until it returns.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Banished {
+    pub minion: MinionId,
+    pub cards: Vec<CardId>,
 }
 
 /// An out-of-turn master card played since the seat's last master phase
@@ -255,9 +388,14 @@ pub struct Seat {
     pub library: Vec<u16>,
     pub hand: Vec<u16>,
     pub ash: Vec<u16>,
-    /// Cards of this Methuselah removed from the game while another
-    /// controlled them (spec §1.10: removed cards are public).
+    /// Cards of this Methuselah removed from the game (while another
+    /// controlled them, or from its ash heap: Rotting Behemoth; spec §1.10:
+    /// removed cards are public).
     pub removed: Vec<u16>,
+    /// Burned vampires (CRYPT indices): the ash heap's crypt cards.
+    pub ash_crypt: Vec<u16>,
+    /// Vampires removed from the game (CRYPT indices).
+    pub removed_crypt: Vec<u16>,
     /// Master phase actions left in the current master phase.
     pub mpa: u8,
     /// Hand size above the rulebook's 7 until the end of the turn (Dreams
@@ -299,6 +437,9 @@ pub struct GameState {
     pub active: SeatId,
     /// Game turn counter, 1-based once the first turn starts.
     pub turn: u32,
+    /// The minions in the combat under way, if any (the acting side
+    /// first): "while the employer is in combat" (Raptor [ANI]).
+    pub combatants: Option<[MinionId; 2]>,
 }
 
 impl GameState {
@@ -371,6 +512,27 @@ impl GameState {
             .collect()
     }
 
+    /// An ally's type line, of the version that entered play (`None` for
+    /// a vampire).
+    pub fn ally_body(&self, m: MinionId) -> Option<crate::library::Body> {
+        match self.minions[m.index()].kind {
+            MinionKind::Ally { body, .. } => Some(body),
+            MinionKind::Vampire(_) => None,
+        }
+    }
+
+    /// Bleed amount before modifiers (rulebook "Bleed": all vampires bleed
+    /// for 1 by default; an ally for its printed bleed).
+    pub fn base_bleed(&self, m: MinionId) -> u8 {
+        self.ally_body(m).map_or(1, |b| b.bleed)
+    }
+
+    /// Strength before modifiers (rulebook "Hand Strike": vampires have a
+    /// default strength of 1; an ally has its printed strength).
+    pub fn base_strength(&self, m: MinionId) -> u8 {
+        self.ally_body(m).map_or(1, |b| b.strength)
+    }
+
     /// Hand indices of the seat's cards — master cards only with
     /// `masters`.
     pub fn hand_picks(&self, seat: SeatId, of: crate::cards::CardFilter) -> Vec<u8> {
@@ -389,6 +551,9 @@ impl GameState {
     /// host's controller's (owner, 2026-09-06; spec §1.12.1).
     pub fn card_controller(&self, id: CardId) -> SeatId {
         let c = &self.cards[id.index()];
+        if let Some(m) = c.body {
+            return self.minions[m.index()].owner;
+        }
         let master = LIBRARY[c.card as usize]
             .types
             .contains(&crate::library::CardType::Master);
@@ -423,7 +588,11 @@ impl GameState {
         let mut total = 0;
         for (i, v) in self.minions.iter().enumerate() {
             let source = MinionId(i as u32);
-            let Some(def) = crate::cards::vampire(v.card).filter(|_| v.present()) else {
+            let Some(def) = v
+                .crypt_card()
+                .and_then(crate::cards::vampire)
+                .filter(|_| v.present())
+            else {
                 continue;
             };
             for p in def.printed.iter().filter(|p| p.stat == stat) {
@@ -464,11 +633,17 @@ impl GameState {
             R::IsUndirected => ctx.directed == Some(false),
             R::IsBleed => ctx.kind == Some(ActionKind::Bleed),
             R::IsPolitical => ctx.kind == Some(ActionKind::Political),
-            R::OpponentClan(c) => opp.is_some_and(|o| o.card().clan == c),
-            R::OpponentYounger => opp.is_some_and(|o| o.capacity() < me.capacity()),
-            R::OpponentOlder => opp.is_some_and(|o| o.capacity() > me.capacity()),
+            R::OpponentClan(c) => opp.and_then(|o| o.vampire()).is_some_and(|o| o.clan == c),
+            // Younger and older compare vampires: an ally has no capacity.
+            R::OpponentYounger => {
+                matches!((opp.and_then(|o| o.capacity()), me.capacity()), (Some(o), Some(m)) if o < m)
+            }
+            R::OpponentAllyOrYounger => opp.is_some_and(|o| o.is_ally() || o.younger_than(me)),
+            R::OpponentOlder => {
+                matches!((opp.and_then(|o| o.capacity()), me.capacity()), (Some(o), Some(m)) if o > m)
+            }
             R::OpponentTitled => opp.is_some_and(|o| o.title() != Title::None),
-            R::ActorClan(c) => me.card().clan == c,
+            R::ActorClan(c) => me.vampire().is_some_and(|v| v.clan == c),
             R::ActorTitleIn(classes) => classes.iter().any(|c| c.matches(me.title())),
             R::PoolAtMost(n) => self.seats[src.owner.index()].pool <= n as i32,
             R::ControlsLocation | R::ControlsNoLocation => {
@@ -538,7 +713,11 @@ impl GameState {
             .iter()
             .enumerate()
             .filter(|(_, v)| v.owner == s && v.present())
-            .filter_map(|(i, v)| crate::cards::vampire(v.card).map(|d| (MinionId(i as u32), d)))
+            .filter_map(|(i, v)| {
+                v.crypt_card()
+                    .and_then(crate::cards::vampire)
+                    .map(|d| (MinionId(i as u32), d))
+            })
             .flat_map(|(m, d)| {
                 d.printed
                     .iter()
@@ -553,6 +732,15 @@ impl GameState {
             .map(|(_, p)| p.n as i32)
             .sum();
         let mut size = HAND_SIZE as i32 + self.seats[s.index()].hand_bonus as i32 + printed;
+        // "While the employer is in combat, the opposing minion's
+        // controller gets -1 hand size" (Raptor [ANI]).
+        if let Some(pair) = self.combatants {
+            for (i, &m) in pair.iter().enumerate() {
+                if self.minions[pair[1 - i].index()].owner == s {
+                    size -= self.combat_hand_penalty(m) as i32;
+                }
+            }
+        }
         for l in &self.layers {
             if l.scope != crate::cards::Scope::InPlay
                 || !self.layer_active(l)
@@ -584,7 +772,9 @@ impl GameState {
         let c = &self.cards[id.index()];
         r.requires.iter().all(|&req| match req {
             crate::cards::Requirement::CountersAtLeast(n) => c.counters >= n,
-            _ => match c.host {
+            crate::cards::Requirement::SuperiorVersion => c.mode > 0,
+            crate::cards::Requirement::BasicVersion => c.mode == 0,
+            _ => match c.bearer() {
                 Some(h) => crate::cards::holds_for_host(req, self, h),
                 None => true,
             },
@@ -602,6 +792,9 @@ impl GameState {
     /// "a minion can have only one X" limits reached by what it has or by
     /// the cards `with` it takes in the same action?
     pub fn can_hold(&self, m: MinionId, card: u16, with: &[u16]) -> bool {
+        if self.no_equipment_or_retainers(m) {
+            return false;
+        }
         let Some(def) = crate::cards::lookup(card) else {
             return true;
         };
@@ -680,7 +873,7 @@ impl GameState {
             .filter(move |l| {
                 l.scope == crate::cards::Scope::InPlay
                     && self.layer_active(l)
-                    && self.cards[l.source.index()].host == Some(m)
+                    && self.cards[l.source.index()].bearer() == Some(m)
             })
             .filter_map(move |l| match l.modifier {
                 crate::cards::Modifier::Bearer {
@@ -696,6 +889,136 @@ impl GameState {
                 }
                 _ => None,
             })
+    }
+
+    /// Damage the retainers on minion `m` inflict on its opponent each
+    /// round during normal strike resolution (`Modifier::RetainerDamage`).
+    pub fn retainer_damage(&self, m: MinionId) -> u8 {
+        self.layers
+            .iter()
+            .filter(|l| {
+                l.scope == crate::cards::Scope::InPlay
+                    && self.layer_active(l)
+                    && self.cards[l.source.index()].host == Some(m)
+            })
+            .map(|l| match l.modifier {
+                crate::cards::Modifier::RetainerDamage(n) => n,
+                _ => 0,
+            })
+            .sum()
+    }
+
+    /// Whether `viewer` sees `seat`'s hand: their own, or an open hand —
+    /// `seat`'s minion in combat with the employer of an Owl Companion.
+    /// The legal view reads it.
+    pub fn hand_visible_to(&self, seat: SeatId, viewer: SeatId) -> bool {
+        viewer == seat
+            || self.combatants.is_some_and(|pair| {
+                (0..2).any(|i| {
+                    self.minions[pair[1 - i].index()].owner == seat
+                        && self.layers.iter().any(|l| {
+                            l.modifier == crate::cards::Modifier::OpponentOpenHandInCombat
+                                && l.scope == crate::cards::Scope::InPlay
+                                && self.layer_active(l)
+                                && self.cards[l.source.index()].host == Some(pair[i])
+                        })
+                })
+            })
+    }
+
+    /// Hand size the retainers on combatant `m` take from its opponent's
+    /// controller (`Modifier::OpponentHandSizeInCombat`).
+    pub fn combat_hand_penalty(&self, m: MinionId) -> u8 {
+        self.layers
+            .iter()
+            .filter(|l| {
+                l.scope == crate::cards::Scope::InPlay
+                    && self.layer_active(l)
+                    && self.cards[l.source.index()].host == Some(m)
+            })
+            .map(|l| match l.modifier {
+                crate::cards::Modifier::OpponentHandSizeInCombat(n) => n,
+                _ => 0,
+            })
+            .sum()
+    }
+
+    /// `m` cannot have or use equipment or retainers (Bone Shambler's own
+    /// text): it takes none, by any means.
+    pub fn no_equipment_or_retainers(&self, m: MinionId) -> bool {
+        self.layers.iter().any(|l| {
+            l.modifier == crate::cards::Modifier::NoEquipmentOrRetainers
+                && l.scope == crate::cards::Scope::InPlay
+                && self.layer_active(l)
+                && self.cards[l.source.index()].bearer() == Some(m)
+        })
+    }
+
+    /// `m` cannot be the target of a directed action requiring one of the
+    /// Disciplines of `tags` (a mode's tags, any level).
+    pub fn immune_to_directed(&self, m: MinionId, tags: &[&str]) -> bool {
+        self.layers.iter().any(|l| {
+            l.scope == crate::cards::Scope::InPlay
+                && self.layer_active(l)
+                && self.cards[l.source.index()].bearer() == Some(m)
+                && matches!(l.modifier, crate::cards::Modifier::ImmuneToDirectedActions(ds)
+                    if tags.iter().any(|t| ds.contains(&t.to_ascii_lowercase().as_str())))
+        })
+    }
+
+    /// What `m` — an ally — may play "as a vampire", if anything.
+    pub fn plays_as_vampire(&self, m: MinionId) -> Option<crate::cards::AsVampire> {
+        self.layers.iter().find_map(|l| match l.modifier {
+            crate::cards::Modifier::PlaysAsVampire(g)
+                if l.scope == crate::cards::Scope::InPlay
+                    && self.layer_active(l)
+                    && self.cards[l.source.index()].bearer() == Some(m) =>
+            {
+                Some(g)
+            }
+            _ => None,
+        })
+    }
+
+    /// Allies cannot block `m` (Libertas on it).
+    pub fn allies_cannot_block(&self, m: MinionId) -> bool {
+        self.layers.iter().any(|l| {
+            l.modifier == crate::cards::Modifier::AlliesCannotBlockBearer
+                && l.scope == crate::cards::Scope::InPlay
+                && self.layer_active(l)
+                && self.cards[l.source.index()].host == Some(m)
+        })
+    }
+
+    /// The strikes of `m` cannot be dodged (Aggressive Corpse's own text).
+    pub fn undodgeable(&self, m: MinionId) -> bool {
+        self.layers.iter().any(|l| {
+            l.modifier == crate::cards::Modifier::UndodgeableStrikes
+                && l.scope == crate::cards::Scope::InPlay
+                && self.layer_active(l)
+                && self.cards[l.source.index()].bearer() == Some(m)
+        })
+    }
+
+    /// `m` cannot block vampires (Vagabond Mystic's own text).
+    pub fn cannot_block_vampires(&self, m: MinionId) -> bool {
+        self.layers.iter().any(|l| {
+            l.modifier == crate::cards::Modifier::CannotBlockVampires
+                && l.scope == crate::cards::Scope::InPlay
+                && self.layer_active(l)
+                && self.cards[l.source.index()].bearer() == Some(m)
+        })
+    }
+
+    /// Minions in combat with `m` cannot strike: combat ends (a retainer on
+    /// it: Dog Pack).
+    pub fn combat_ends_barred(&self, m: MinionId) -> bool {
+        self.layers.iter().any(|l| {
+            l.modifier == crate::cards::Modifier::NoCombatEndsAgainstHost
+                && l.scope == crate::cards::Scope::InPlay
+                && self.layer_active(l)
+                && self.cards[l.source.index()].host == Some(m)
+        })
     }
 
     /// Vampires in torpor, any controller — rescue and diablerie targets.
@@ -717,9 +1040,18 @@ impl GameState {
             .any(|m| m.owner == s && m.in_play && m.name() == name)
     }
 
-    /// Other seats' in-play copies of `m`'s vampire (contest rivals).
+    /// Other seats' in-play copies of `m`'s vampire or unique ally (contest
+    /// rivals: uniqueness runs on the name, across minion types, advanced
+    /// rules 5.1.3).
     pub fn card_rivals(&self, m: MinionId) -> Vec<MinionId> {
         let me = &self.minions[m.index()];
+        if me.kind.ally_card().is_some_and(|c| {
+            !LIBRARY[c as usize]
+                .labels
+                .contains(&crate::library::Label::Unique)
+        }) {
+            return Vec::new();
+        }
         self.minions
             .iter()
             .enumerate()
@@ -763,7 +1095,7 @@ impl GameState {
     /// `m`'s printed title.
     pub fn title_rivals(&self, m: MinionId) -> Vec<MinionId> {
         let me = &self.minions[m.index()];
-        let Some(key) = title_key(me.card().title) else {
+        let Some(key) = me.vampire().and_then(|v| title_key(v.title)) else {
             return Vec::new();
         };
         self.minions
@@ -774,7 +1106,7 @@ impl GameState {
                     && o.present()
                     && !o.title_lost
                     && !self.seats[o.owner.index()].ousted
-                    && title_key(o.card().title) == Some(key)
+                    && o.vampire().and_then(|v| title_key(v.title)) == Some(key)
             })
             .map(|(i, _)| MinionId(i as u32))
             .collect()
@@ -790,6 +1122,9 @@ impl GameState {
         };
         mix(self.active.0 as u64);
         mix(self.turn as u64);
+        mix(self
+            .combatants
+            .map_or(0, |[a, b]| 1 + ((a.0 as u64) << 20 | b.0 as u64)));
         for s in &self.seats {
             mix(s.pool as u64);
             mix(s.ousted as u64);
@@ -822,6 +1157,9 @@ impl GameState {
                 &s.library,
                 &s.hand,
                 &s.ash,
+                &s.ash_crypt,
+                &s.removed_crypt,
+                &s.removed,
             ] {
                 mix(zone.len() as u64);
                 for &c in zone.iter() {
@@ -830,13 +1168,29 @@ impl GameState {
             }
             for u in &s.uncontrolled {
                 mix(u.counters as u64);
-                mix(u.banished.map_or(0, |m| m.0 as u64 + 1));
+                mix(u.banished.as_ref().map_or(0, |b| b.minion.0 as u64 + 1));
+                for c in u.banished.iter().flat_map(|b| &b.cards) {
+                    mix(c.0 as u64);
+                }
             }
         }
         mix(self.minions.len() as u64);
         for m in &self.minions {
             mix(m.owner.0 as u64);
-            mix(m.card as u64);
+            mix(match m.kind {
+                MinionKind::Vampire(c) => c as u64,
+                MinionKind::Ally { card, id, body } => {
+                    1 << 40
+                        | (body.life as u64) << 48
+                        | (body.strength as u64) << 44
+                        | (id.0 as u64) << 16
+                        | card as u64
+                }
+            });
+            mix(m.recruited as u64);
+            mix(m.recruits_this_turn as u64);
+            mix(m.unlock_at_discard as u64);
+            mix(m.no_life_gain as u64);
             mix(m.blood as u64);
             mix(m.locked as u64);
             mix(m.in_torpor as u64);
@@ -873,6 +1227,9 @@ impl GameState {
             mix(c.owner.0 as u64);
             mix(c.controller.0 as u64);
             mix(c.host.map(|m| m.0 as u64 + 1).unwrap_or(0));
+            mix(c.body.map(|m| m.0 as u64 + 1).unwrap_or(0));
+            mix(c.mode as u64);
+            mix(c.by.map_or(0, |m| m.0 as u64 + 1));
             mix(c.in_play as u64);
             mix(c.contested as u64);
             mix(c.locked as u64);

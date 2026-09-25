@@ -41,6 +41,12 @@ pub enum Label {
     Title,
     OutOfTurn,
     Frenzy,
+    Mortal,
+    Animal,
+    Ghoul,
+    Zombie,
+    Wraith,
+    Werewolf,
 }
 
 /// One playable mode of a card: its bracket tags as printed (`DOM`,
@@ -53,6 +59,15 @@ pub struct Mode {
     pub tags: &'static [&'static str],
     pub windows: &'static [&'static str],
     pub flags: &'static [&'static str],
+}
+
+/// An ally's or retainer's printed type line: its starting life, and an
+/// ally's strength and bleed (0 for a retainer, which has neither).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Body {
+    pub life: u8,
+    pub strength: u8,
+    pub bleed: u8,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -70,6 +85,8 @@ pub struct LibraryCard {
     /// Combo card: every listed discipline is required (KRCG `combo`).
     pub combo: bool,
     pub labels: &'static [Label],
+    /// Allies and retainers: the printed type line.
+    pub body: Option<Body>,
     pub modes: &'static [Mode],
 }
 
@@ -86,6 +103,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Weapon, Label::Gun],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -104,7 +122,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique],
+        labels: &[Label::Unique, Label::Mortal],
+        body: Some(Body { life: 2, strength: 1, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -124,6 +143,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Weapon, Label::Gun],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -143,6 +163,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Gehenna],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -162,6 +183,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -180,7 +202,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Zombie],
+        body: Some(Body { life: 3, strength: 2, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -200,6 +223,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -224,6 +248,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pre"],
@@ -248,6 +273,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -267,6 +293,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -286,6 +313,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -305,6 +333,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -324,6 +353,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -343,6 +373,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -362,6 +393,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -381,6 +413,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -400,6 +433,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -419,6 +453,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["COMBAT"],
@@ -443,6 +478,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["aus"],
@@ -467,6 +503,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["tha"],
@@ -491,6 +528,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -510,6 +548,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -529,6 +568,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -548,6 +588,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::OutOfTurn],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -567,6 +608,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obl"],
@@ -591,6 +633,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -610,6 +653,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -629,6 +673,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Weapon, Label::Gun],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -648,6 +693,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -667,6 +713,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -686,6 +733,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -705,6 +753,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -724,6 +773,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -743,6 +793,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: true,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani", "pro"],
@@ -767,6 +818,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: true,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani", "pro"],
@@ -791,6 +843,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pre"],
@@ -815,6 +868,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -834,6 +888,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["tha"],
@@ -858,6 +913,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -877,6 +933,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -896,6 +953,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -915,6 +973,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["tha"],
@@ -939,6 +998,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["tha"],
@@ -963,6 +1023,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Gehenna],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -982,6 +1043,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Gehenna],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1001,6 +1063,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["cel"],
@@ -1025,6 +1088,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pro"],
@@ -1049,6 +1113,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom"],
@@ -1072,7 +1137,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Zombie],
+        body: Some(Body { life: 1, strength: 1, bleed: 1 }),
         modes: &[
             Mode {
                 tags: &["obl"],
@@ -1097,6 +1163,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1116,6 +1183,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -1145,6 +1213,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1164,6 +1233,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1183,6 +1253,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1202,6 +1273,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Electronic],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1221,6 +1293,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1240,6 +1313,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1259,6 +1333,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -1283,6 +1358,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1302,6 +1378,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -1326,6 +1403,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1345,6 +1423,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1364,6 +1443,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1383,6 +1463,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1402,6 +1483,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1421,6 +1503,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1440,6 +1523,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1458,7 +1542,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::Fixed(3),
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Mortal],
+        body: Some(Body { life: 2, strength: 0, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -1478,6 +1563,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pro"],
@@ -1502,6 +1588,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obf"],
@@ -1526,6 +1613,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1545,6 +1633,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1564,6 +1653,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1583,6 +1673,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obf"],
@@ -1607,6 +1698,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom"],
@@ -1631,6 +1723,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Gehenna],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1650,6 +1743,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1669,6 +1763,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1688,6 +1783,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obl"],
@@ -1712,6 +1808,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1731,6 +1828,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obf"],
@@ -1755,6 +1853,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Trifle],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1774,6 +1873,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1793,6 +1893,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1811,7 +1912,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::Fixed(1),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique],
+        labels: &[Label::Unique, Label::Mortal],
+        body: Some(Body { life: 3, strength: 0, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -1831,6 +1933,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Archetype, Label::Trifle],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1850,6 +1953,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["for"],
@@ -1874,6 +1978,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["for"],
@@ -1898,6 +2003,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -1917,6 +2023,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -1946,6 +2053,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -1970,6 +2078,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom"],
@@ -1994,6 +2103,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2013,6 +2123,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pot"],
@@ -2037,6 +2148,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2056,6 +2168,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["cel"],
@@ -2084,7 +2197,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::Fixed(2),
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Animal],
+        body: Some(Body { life: 1, strength: 0, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -2104,6 +2218,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -2128,6 +2243,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2147,6 +2263,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2166,6 +2283,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom"],
@@ -2189,7 +2307,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::Fixed(2),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique],
+        labels: &[Label::Unique, Label::Werewolf],
+        body: Some(Body { life: 3, strength: 1, bleed: 1 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -2209,6 +2328,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2228,6 +2348,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2247,6 +2368,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -2275,7 +2397,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::Fixed(2),
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Mortal],
+        body: Some(Body { life: 3, strength: 1, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -2295,6 +2418,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["aus"],
@@ -2319,6 +2443,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pro"],
@@ -2343,6 +2468,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pro"],
@@ -2367,6 +2493,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2386,6 +2513,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obf"],
@@ -2410,6 +2538,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2429,6 +2558,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2448,6 +2578,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2467,6 +2598,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2486,6 +2618,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pre"],
@@ -2510,6 +2643,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: true,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pre", "pro"],
@@ -2534,6 +2668,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Weapon],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2553,6 +2688,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["aus"],
@@ -2577,6 +2713,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pre"],
@@ -2601,6 +2738,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2620,6 +2758,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["aus"],
@@ -2644,6 +2783,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2663,6 +2803,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2682,6 +2823,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obf"],
@@ -2706,6 +2848,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Gehenna],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2725,6 +2868,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Gehenna],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2744,6 +2888,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2763,6 +2908,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Trifle],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2782,6 +2928,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom"],
@@ -2806,6 +2953,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom"],
@@ -2830,6 +2978,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2849,6 +2998,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2868,6 +3018,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2887,6 +3038,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Weapon],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2905,7 +3057,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Animal],
+        body: Some(Body { life: 1, strength: 0, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -2930,6 +3083,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2949,6 +3103,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2968,6 +3123,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Weapon],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -2987,6 +3143,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3006,6 +3163,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["cel"],
@@ -3030,6 +3188,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["cel"],
@@ -3054,6 +3213,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pro"],
@@ -3078,6 +3238,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3097,6 +3258,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3116,6 +3278,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom"],
@@ -3140,6 +3303,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["for"],
@@ -3164,6 +3328,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom"],
@@ -3188,6 +3353,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obf"],
@@ -3212,6 +3378,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pro"],
@@ -3236,6 +3403,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pro", "ACTION MODIFIER"],
@@ -3260,6 +3428,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pro", "COMBAT"],
@@ -3284,6 +3453,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pro"],
@@ -3308,6 +3478,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3327,6 +3498,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3346,6 +3518,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3365,6 +3538,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3384,6 +3558,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["for"],
@@ -3408,6 +3583,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3427,6 +3603,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Gehenna],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3446,6 +3623,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3465,6 +3643,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3484,6 +3663,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3503,6 +3683,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3522,6 +3703,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obf"],
@@ -3546,6 +3728,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3565,6 +3748,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom"],
@@ -3589,6 +3773,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom"],
@@ -3613,6 +3798,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3632,6 +3818,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -3656,6 +3843,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3675,6 +3863,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3694,6 +3883,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3713,6 +3903,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3732,6 +3923,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pre"],
@@ -3756,6 +3948,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pot"],
@@ -3780,6 +3973,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["for"],
@@ -3804,6 +3998,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obf", "COMBAT"],
@@ -3828,6 +4023,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: Some(Body { life: 1, strength: 0, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &["pro"],
@@ -3852,6 +4048,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["tha"],
@@ -3876,6 +4073,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: true,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["cel", "tha"],
@@ -3900,6 +4098,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["aus"],
@@ -3924,6 +4123,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pot"],
@@ -3948,6 +4148,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["for"],
@@ -3972,6 +4173,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -3991,6 +4193,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -4015,6 +4218,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pre"],
@@ -4039,6 +4243,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -4068,6 +4273,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Weapon],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4087,6 +4293,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4106,6 +4313,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4125,6 +4333,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Weapon],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4144,6 +4353,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4163,6 +4373,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4182,6 +4393,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4201,6 +4413,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4220,6 +4433,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4239,6 +4453,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4258,6 +4473,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Electronic],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4277,6 +4493,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4296,6 +4513,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4315,6 +4533,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Trifle],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4334,6 +4553,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["cel"],
@@ -4358,6 +4578,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["cel"],
@@ -4387,6 +4608,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4406,6 +4628,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4425,6 +4648,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obf"],
@@ -4449,6 +4673,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["tha"],
@@ -4473,6 +4698,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pre"],
@@ -4497,6 +4723,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["cel"],
@@ -4526,6 +4753,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Title],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4545,6 +4773,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4564,6 +4793,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: true,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["aus", "for"],
@@ -4588,6 +4818,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4607,6 +4838,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["aus"],
@@ -4630,7 +4862,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::Fixed(3),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique],
+        labels: &[Label::Unique, Label::Mortal],
+        body: Some(Body { life: 3, strength: 1, bleed: 1 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -4650,6 +4883,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pre"],
@@ -4674,6 +4908,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4693,6 +4928,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["tha"],
@@ -4717,6 +4953,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4736,6 +4973,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4755,6 +4993,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Trifle],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4774,6 +5013,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4793,6 +5033,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4812,6 +5053,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4831,6 +5073,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Archetype],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4850,6 +5093,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: true,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom", "pro"],
@@ -4873,7 +5117,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique],
+        labels: &[Label::Unique, Label::Mortal],
+        body: Some(Body { life: 1, strength: 0, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -4892,7 +5137,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Animal],
+        body: Some(Body { life: 1, strength: 0, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -4917,6 +5163,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["aus"],
@@ -4941,6 +5188,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4960,6 +5208,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4979,6 +5228,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -4998,6 +5248,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Gehenna],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5017,6 +5268,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: true,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obf", "pre"],
@@ -5041,6 +5293,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Gehenna],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5060,6 +5313,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obf"],
@@ -5084,6 +5338,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: true,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom", "pro", "ACTION MODIFIER"],
@@ -5108,6 +5363,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5127,6 +5383,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5146,6 +5403,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obf"],
@@ -5170,6 +5428,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5189,6 +5448,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5208,6 +5468,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pro"],
@@ -5232,6 +5493,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5251,6 +5513,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5270,6 +5533,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5293,7 +5557,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Animal],
+        body: Some(Body { life: 1, strength: 0, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -5318,6 +5583,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5337,6 +5603,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -5361,6 +5628,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5380,6 +5648,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5399,6 +5668,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5418,6 +5688,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5437,6 +5708,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obf"],
@@ -5466,6 +5738,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obl"],
@@ -5490,6 +5763,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obl"],
@@ -5514,6 +5788,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5533,6 +5808,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pre"],
@@ -5557,6 +5833,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Archetype],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5576,6 +5853,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pre"],
@@ -5600,6 +5878,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5619,6 +5898,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5638,6 +5918,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obf"],
@@ -5666,7 +5947,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::Fixed(2),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique],
+        labels: &[Label::Unique, Label::Mortal],
+        body: Some(Body { life: 1, strength: 0, bleed: 3 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -5686,6 +5968,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5705,6 +5988,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5724,6 +6008,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5743,6 +6028,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5762,6 +6048,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5781,6 +6068,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5800,6 +6088,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["aus"],
@@ -5824,6 +6113,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pot"],
@@ -5848,6 +6138,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Trifle],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5867,6 +6158,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pre"],
@@ -5891,6 +6183,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5910,6 +6203,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5929,6 +6223,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5948,6 +6243,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -5967,6 +6263,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pre"],
@@ -5991,6 +6288,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom"],
@@ -6015,6 +6313,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["cel"],
@@ -6039,6 +6338,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["cel"],
@@ -6063,6 +6363,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -6082,6 +6383,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -6101,6 +6403,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pro", "ACTION MODIFIER"],
@@ -6124,7 +6427,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Animal],
+        body: Some(Body { life: 1, strength: 0, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -6149,6 +6453,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -6172,7 +6477,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Animal],
+        body: Some(Body { life: 1, strength: 0, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -6197,6 +6503,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -6216,6 +6523,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -6235,6 +6543,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Archetype, Label::Trifle],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -6254,6 +6563,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Gehenna],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -6273,6 +6583,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -6292,6 +6603,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom"],
@@ -6316,6 +6628,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["tha"],
@@ -6340,6 +6653,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["cel", "COMBAT"],
@@ -6364,6 +6678,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["for"],
@@ -6388,6 +6703,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Gehenna],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -6407,6 +6723,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: true,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pre", "pro"],
@@ -6431,6 +6748,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["aus"],
@@ -6454,7 +6772,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Ghoul],
+        body: Some(Body { life: 2, strength: 0, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -6474,6 +6793,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -6493,6 +6813,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -6512,6 +6833,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Weapon],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -6531,6 +6853,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Gehenna],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -6550,6 +6873,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -6569,6 +6893,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["for"],
@@ -6592,7 +6917,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Zombie],
+        body: Some(Body { life: 6, strength: 3, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &["obl"],
@@ -6617,6 +6943,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pot"],
@@ -6641,6 +6968,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -6660,6 +6988,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["tha"],
@@ -6684,6 +7013,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Archetype],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -6703,6 +7033,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Archetype],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -6722,6 +7053,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Archetype],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -6741,6 +7073,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: true,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["cel", "pre"],
@@ -6765,6 +7098,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -6784,6 +7118,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom"],
@@ -6807,7 +7142,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::Fixed(1),
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Wraith],
+        body: Some(Body { life: 1, strength: 1, bleed: 1 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -6827,6 +7163,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pro"],
@@ -6851,6 +7188,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["REACTION"],
@@ -6875,6 +7213,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -6894,6 +7233,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom"],
@@ -6918,6 +7258,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -6942,6 +7283,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obl"],
@@ -6966,6 +7308,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obl"],
@@ -6990,6 +7333,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obl"],
@@ -7014,6 +7358,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obl"],
@@ -7038,6 +7383,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7057,6 +7403,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7076,6 +7423,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: true,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pot", "pre"],
@@ -7100,6 +7448,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obl"],
@@ -7124,6 +7473,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["cel"],
@@ -7148,6 +7498,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: true,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7167,6 +7518,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pot"],
@@ -7191,6 +7543,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom"],
@@ -7215,6 +7568,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom"],
@@ -7239,6 +7593,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Gehenna],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7258,6 +7613,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7277,6 +7633,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7296,6 +7653,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Weapon, Label::Gun],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7315,6 +7673,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["for"],
@@ -7339,6 +7698,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pre"],
@@ -7363,6 +7723,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7382,6 +7743,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["tha"],
@@ -7405,7 +7767,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Wraith],
+        body: Some(Body { life: 1, strength: 1, bleed: 1 }),
         modes: &[
             Mode {
                 tags: &["obl"],
@@ -7430,6 +7793,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["aus"],
@@ -7454,6 +7818,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7473,6 +7838,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Vehicle],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7492,6 +7858,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obf"],
@@ -7516,6 +7883,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Vehicle],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7535,6 +7903,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obl"],
@@ -7559,6 +7928,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::OutOfTurn],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7578,6 +7948,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obf", "ACTION MODIFIER"],
@@ -7602,6 +7973,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Weapon],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7620,7 +7992,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Ghoul],
+        body: Some(Body { life: 2, strength: 0, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -7639,7 +8012,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Ghoul],
+        body: Some(Body { life: 2, strength: 0, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -7659,6 +8033,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7678,6 +8053,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["aus"],
@@ -7702,6 +8078,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["aus"],
@@ -7726,6 +8103,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["aus"],
@@ -7750,6 +8128,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["aus"],
@@ -7774,6 +8153,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7793,6 +8173,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7812,6 +8193,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Frenzy],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -7836,6 +8218,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["tha"],
@@ -7860,6 +8243,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7879,6 +8263,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Gehenna],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7898,6 +8283,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom"],
@@ -7922,6 +8308,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -7946,6 +8333,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7965,6 +8353,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Title],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -7984,6 +8373,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pot"],
@@ -8008,6 +8398,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Gehenna],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8027,6 +8418,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obl"],
@@ -8051,6 +8443,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["for", "ACTION"],
@@ -8080,6 +8473,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["for"],
@@ -8104,6 +8498,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8123,6 +8518,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: true,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obf", "pre"],
@@ -8147,6 +8543,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obl"],
@@ -8171,6 +8568,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8190,6 +8588,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obl"],
@@ -8214,6 +8613,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8232,7 +8632,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Animal],
+        body: Some(Body { life: 1, strength: 0, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -8257,6 +8658,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8276,6 +8678,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["dom"],
@@ -8300,6 +8703,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Vehicle],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8319,6 +8723,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8337,7 +8742,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique],
+        labels: &[Label::Unique, Label::Mortal],
+        body: Some(Body { life: 2, strength: 0, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -8356,7 +8762,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::Fixed(3),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique],
+        labels: &[Label::Unique, Label::Mortal],
+        body: Some(Body { life: 3, strength: 1, bleed: 1 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -8376,6 +8783,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8395,6 +8803,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obf"],
@@ -8419,6 +8828,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8438,6 +8848,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Trifle],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8457,6 +8868,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Trifle],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8476,6 +8888,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pre"],
@@ -8500,6 +8913,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: true,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obf", "pre"],
@@ -8524,6 +8938,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8543,6 +8958,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["ani"],
@@ -8567,6 +8983,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pre"],
@@ -8590,7 +9007,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::Fixed(4),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique],
+        labels: &[Label::Unique, Label::Ghoul],
+        body: Some(Body { life: 5, strength: 4, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -8609,7 +9027,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::Fixed(3),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique],
+        labels: &[Label::Unique, Label::Ghoul],
+        body: Some(Body { life: 5, strength: 4, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -8628,7 +9047,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::Fixed(3),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique],
+        labels: &[Label::Unique, Label::Ghoul],
+        body: Some(Body { life: 5, strength: 3, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -8647,7 +9067,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::Fixed(4),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique],
+        labels: &[Label::Unique, Label::Ghoul],
+        body: Some(Body { life: 5, strength: 4, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -8667,6 +9088,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8686,6 +9108,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8705,6 +9128,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["tha"],
@@ -8728,7 +9152,8 @@ pub static LIBRARY: [LibraryCard; 423] = [
         pool_cost: Cost::Fixed(3),
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Ghoul],
+        body: Some(Body { life: 5, strength: 4, bleed: 0 }),
         modes: &[
             Mode {
                 tags: &[],
@@ -8748,6 +9173,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8767,6 +9193,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8786,6 +9213,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8805,6 +9233,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8824,6 +9253,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8843,6 +9273,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["tha"],
@@ -8867,6 +9298,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8886,6 +9318,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8905,6 +9338,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["obl"],
@@ -8929,6 +9363,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Trifle],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -8948,6 +9383,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["tha"],
@@ -8972,6 +9408,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[],
+        body: None,
         modes: &[
             Mode {
                 tags: &["pro"],
@@ -8996,6 +9433,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Gehenna],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -9015,6 +9453,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],
@@ -9034,6 +9473,7 @@ pub static LIBRARY: [LibraryCard; 423] = [
         burn_option: false,
         combo: false,
         labels: &[Label::Unique, Label::Location],
+        body: None,
         modes: &[
             Mode {
                 tags: &[],

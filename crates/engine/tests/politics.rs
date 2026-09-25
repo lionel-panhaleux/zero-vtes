@@ -553,10 +553,28 @@ fn banishment_sends_a_younger_vampire_to_the_uncontrolled_region() {
         owner: SeatId(1),
         controller: SeatId(1),
         host: Some(bret),
+        body: None,
+        mode: 0,
+        by: None,
         in_play: true,
         contested: false,
         locked: true,
         counters: 1,
+        stored: Vec::new(),
+    });
+    // A card burned from him before does not (it stays in the ash heap).
+    e.state.cards.push(zvtes::state::CardInPlay {
+        card: find_library("Homunculus"),
+        owner: SeatId(1),
+        controller: SeatId(1),
+        host: Some(bret),
+        body: None,
+        mode: 0,
+        by: None,
+        in_play: false,
+        contested: false,
+        locked: false,
+        counters: 0,
         stored: Vec::new(),
     });
     pick(&mut e, votes(alexa, true));
@@ -578,6 +596,7 @@ fn banishment_sends_a_younger_vampire_to_the_uncontrolled_region() {
     let b = &e.state.minions[bret.index()];
     assert!(b.in_play && !b.locked && b.blood == 4);
     assert!(e.state.cards[0].in_play && !e.state.cards[0].locked);
+    assert!(!e.state.cards[1].in_play);
     assert!(e.state.seats[1].uncontrolled.is_empty());
 }
 

@@ -135,6 +135,9 @@ pub struct Side {
     pub continue_rider: Option<(u8, u8)>,
     /// The card in play the chosen strike comes from (a weapon).
     pub strike_source: Option<CardId>,
+    /// The opposing minion's retainer this ranged strike is aimed at, at
+    /// long range (rulebook "Retainers and Combat"): announced with it.
+    pub strike_at: Option<CardId>,
     /// The initial strike this round must be this card's (a weapon's
     /// maneuver used, Sniper Rifle's range set): rulebook "Choose Strike".
     pub committed: Option<CardId>,
@@ -170,6 +173,7 @@ impl Side {
             next_round_maneuvers: 0,
             continue_rider: None,
             strike_source: None,
+            strike_at: None,
             committed: None,
             additional_with: None,
             continue_presses: 0,
@@ -189,9 +193,10 @@ impl Side {
         };
     }
 
-    /// Rulebook "Hand Strike": vampires have a default strength of 1.
-    pub fn strength(&self) -> u8 {
-        self.strength_set.unwrap_or(1)
+    /// Rulebook "Hand Strike": the minion's strength (`base`: a vampire's
+    /// default 1, an ally's printed strength) unless set by an effect.
+    pub fn strength(&self, base: u8) -> u8 {
+        self.strength_set.unwrap_or(base)
     }
 }
 
@@ -312,8 +317,12 @@ impl CombatCtx {
     /// source per round, only hand strikes under a grapple, one strike
     /// commitment a round (rulebook "Determine Range": no second strike
     /// card or weapon to maneuver again), a range not set twice.
-    pub(crate) fn allows(&self, mode: &cards::ModeDef, side: usize) -> bool {
+    pub(crate) fn allows(&self, st: &GameState, mode: &cards::ModeDef, side: usize) -> bool {
+        // "Minions in combat with the employer cannot strike: combat ends"
+        // (Dog Pack).
+        let no_ends = st.combat_ends_barred(self.sides[1 - side].minion);
         mode.effects.iter().all(|e| match e {
+            Effect::Strike(StrikeKind::CombatEnds { .. }) if no_ends => false,
             Effect::Maneuver if self.step == Step::DetermineRange => {
                 self.last_maneuver != Some(side)
             }
@@ -366,6 +375,19 @@ pub(crate) fn resolve_damage(blood: u8, d: Damage) -> Resolved {
     }
 }
 
+/// An ally (or retainer) treats aggravated damage as normal: 1 life burned
+/// per point, burned with its last life (rulebook "Damage Resolution",
+/// advanced rules box) — never wounded, allies have no torpor (advanced
+/// rules 5.3.3). Life stolen to 0 burns it too.
+pub(crate) fn resolve_life_damage(life: u8, d: Damage) -> Resolved {
+    let lost = life.min(d.total());
+    Resolved {
+        blood_burned: lost,
+        wounded: false,
+        burned: life == lost,
+    }
+}
+
 impl Engine {
     /// Block resolution produced a combat: `acting` is the acting minion,
     /// `opposing` the blocker (rules-qa 1.2: the opponent is a "blocker"
@@ -395,6 +417,8 @@ impl Engine {
                 .max(0) as u8;
         }
         let order = vec![sides[0].seat, sides[1].seat];
+        self.state.combatants = Some([acting, opposing]);
+        let st = &self.state;
         let held_at_block = if at_resolution {
             Vec::new()
         } else {
@@ -457,6 +481,7 @@ impl Engine {
                         return None;
                     }
                     options.extend(self.ability_options(side.seat, Window::AnyImpulse));
+                    let options = self.with_retainer_targets(i, options);
                     return Some(DecisionRequest {
                         seat: side.seat,
                         window: WindowLabel::CombatStrike,
@@ -469,6 +494,7 @@ impl Engine {
                 // Samadji's dodge).
                 options.extend(self.ability_options(side.seat, Window::CombatStrikeDeclaration));
                 options.extend(self.ability_options(side.seat, Window::AnyImpulse));
+                let options = self.with_retainer_targets(i, options);
                 Some(DecisionRequest {
                     seat: side.seat,
                     window: WindowLabel::CombatStrike,
@@ -734,8 +760,13 @@ impl Engine {
     fn resolve_strikes(&mut self) {
         let c = self.combat.as_mut().expect("combat context");
         let strikes = [c.sides[0].strike, c.sides[1].strike];
+        // A combat ends strike against a minion whose retainer bars it has
+        // no effect (Dog Pack put on it after the strike was chosen, ANK
+        // 20190412).
+        let barred: [bool; 2] =
+            std::array::from_fn(|i| self.state.combat_ends_barred(c.sides[1 - i].minion));
         let ends: Vec<usize> = (0..2)
-            .filter(|&i| matches!(strikes[i], Some(StrikeKind::CombatEnds { .. })))
+            .filter(|&i| !barred[i] && matches!(strikes[i], Some(StrikeKind::CombatEnds { .. })))
             .collect();
         if !ends.is_empty() {
             for i in ends {
@@ -762,6 +793,7 @@ impl Engine {
             for s in &mut c.sides {
                 s.strike = None;
                 s.strike_source = None;
+                s.strike_at = None;
             }
             return;
         }
@@ -773,7 +805,7 @@ impl Engine {
             match s.strike_source {
                 Some(w)
                     if !(st.cards[w.index()].present()
-                        && st.cards[w.index()].host == Some(s.minion)) =>
+                        && st.cards[w.index()].bearer() == Some(s.minion)) =>
                 {
                     None
                 }
@@ -788,12 +820,30 @@ impl Engine {
                 opponent: Some(c.sides[1 - i].minion),
                 ..Default::default()
             };
-            (c.sides[i].strength() as i32
+            // The acting minion's strength this action (Invigorate).
+            let action_bonus = match self.action.as_ref() {
+                Some(a) if a.acting == c.sides[i].minion => a.strength_bonus as i32,
+                _ => 0,
+            };
+            (c.sides[i].strength(st.base_strength(c.sides[i].minion)) as i32
+                + action_bonus
                 + c.sides[i].strength_mods as i32
                 + st.printed_mod(c.sides[i].minion, cards::Stat::Strength, ctx))
             .max(0) as u8
         });
         let close = c.range == Range::Close;
+        // Ranged strikes aimed at a retainer: (retainer, amount, steal,
+        // striking side), applied once the strikes are read.
+        let mut retainer_hits: Vec<(CardId, u8, bool, usize)> = Vec::new();
+        // Retainer damage, in the normal strike pair only (not repeated by
+        // additional strikes, RTR 19941109), dodge or not (rulebook
+        // "Environmental damage").
+        if c.pair == 0 {
+            for i in 0..2 {
+                let n = st.retainer_damage(c.sides[i].minion);
+                c.sides[1 - i].pending.add(n, false);
+            }
+        }
         let mut steals = [0u8; 2];
         for i in 0..2 {
             let j = 1 - i;
@@ -814,12 +864,40 @@ impl Engine {
                     c.sides[i].additional_with = Some(w);
                 }
             }
-            let dodged = strikes[j] == Some(StrikeKind::Dodge);
+            // A dodge has no effect on a strike that cannot be dodged
+            // (Aggressive Corpse; LSJ 20030902-2).
+            let dodged =
+                strikes[j] == Some(StrikeKind::Dodge) && !st.undodgeable(c.sides[i].minion);
+            // Aimed at a retainer: a dodge does not protect it (rulebook
+            // "Dodge"); gone or moved by now, the strike has no effect.
+            if let Some(r) = c.sides[i].strike_at {
+                let rc = &st.cards[r.index()];
+                if rc.present() && rc.host == Some(c.sides[j].minion) {
+                    match k {
+                        StrikeKind::Damage { n, .. } => {
+                            let ctx = crate::state::PrintedCtx {
+                                opponent: Some(c.sides[j].minion),
+                                ..Default::default()
+                            };
+                            let more = st.printed_mod(
+                                c.sides[i].minion,
+                                cards::Stat::RangedStrikeDamage,
+                                ctx,
+                            );
+                            retainer_hits.push((r, (n as i32 + more).max(0) as u8, false, i));
+                        }
+                        StrikeKind::StealBlood { n, .. } => retainer_hits.push((r, n, true, i)),
+                        _ => {}
+                    }
+                }
+                continue;
+            }
             match k {
                 StrikeKind::Hand { bonus } => {
                     if close && !dodged {
                         let n = strength[i] + bonus;
-                        let aggravated = c.sides[i].aggravated_hands;
+                        let aggravated = c.sides[i].aggravated_hands
+                            || (i == 0 && self.action.as_ref().is_some_and(|a| a.aggravated_hands));
                         c.sides[j].pending.add(n, aggravated);
                     }
                 }
@@ -873,18 +951,35 @@ impl Engine {
         // Simultaneous steals: amounts from the pre-strike state, capacity
         // applied after both moves (Theft of Vitae rulings).
         for (i, &n) in steals.iter().enumerate() {
-            let j = 1 - i;
-            self.state.minions[c.sides[j].minion.index()].blood -= n;
-            self.state.minions[c.sides[i].minion.index()].blood += n;
+            self.state.minions[c.sides[1 - i].minion.index()].blood -= n;
         }
-        for s in &c.sides {
-            let m = &mut self.state.minions[s.minion.index()];
-            m.blood = m.blood.min(m.capacity());
+        for (i, &n) in steals.iter().enumerate() {
+            let m = &mut self.state.minions[c.sides[i].minion.index()];
+            m.blood = m.cap_blood(m.blood + n);
+        }
+        // A retainer burns life for damage (aggravated alike, rulebook
+        // "Damage Resolution"), and life stolen from it becomes blood.
+        let mut lifeless = Vec::new();
+        for (r, n, steal, i) in retainer_hits {
+            let card = &mut self.state.cards[r.index()];
+            let taken = n.min(card.counters);
+            card.counters -= taken;
+            if steal {
+                let m = &mut self.state.minions[c.sides[i].minion.index()];
+                m.blood = m.cap_blood(m.blood + taken);
+            }
+            if self.state.cards[r.index()].counters == 0 {
+                lifeless.push(r);
+            }
         }
         for s in &mut c.sides {
             s.strike = None;
             s.strike_source = None;
+            s.strike_at = None;
             s.preventing = s.pending.total() > 0;
+        }
+        for r in lifeless {
+            self.burn_card_in_play(r);
         }
     }
 
@@ -899,7 +994,14 @@ impl Engine {
         let results: Vec<Resolved> = c
             .sides
             .iter()
-            .map(|s| resolve_damage(self.state.minions[s.minion.index()].blood, s.pending))
+            .map(|s| {
+                let m = &self.state.minions[s.minion.index()];
+                if m.is_ally() {
+                    resolve_life_damage(m.blood, s.pending)
+                } else {
+                    resolve_damage(m.blood, s.pending)
+                }
+            })
             .collect();
         let mut wounded = Vec::new();
         let mut burned = Vec::new();
@@ -929,6 +1031,7 @@ impl Engine {
         if !wounded.is_empty() || !burned.is_empty() {
             if self.state.living() <= 1 {
                 self.combat = None;
+                self.state.combatants = None;
                 self.action = None;
                 self.flow = Flow::GameOver;
                 return true;
@@ -986,10 +1089,108 @@ impl Engine {
     /// which a combat the action's resolution began leads to the
     /// after-resolution window (rules-qa 17.3).
     fn end_combat(&mut self) {
-        if self.combat.take().is_some_and(|c| c.at_resolution) {
+        let ended = self.combat.take();
+        if ended.as_ref().is_some_and(|c| c.at_resolution) {
             self.action.as_mut().expect("action context").resolved = true;
         }
+        // A hand size the combat lowered comes back: that Methuselah draws
+        // up (Raptor [ANI]; LSJ 20030530).
+        let lowered: Vec<SeatId> = ended
+            .iter()
+            .flat_map(|c| {
+                (0..2).filter_map(|i| {
+                    (self.state.combat_hand_penalty(c.sides[1 - i].minion) > 0)
+                        .then_some(c.sides[i].seat)
+                })
+            })
+            .collect();
+        self.state.combatants = None;
+        for s in lowered {
+            if !self.state.seats[s.index()].ousted {
+                self.draw_up(s);
+            }
+        }
         self.after_combat();
+    }
+
+    /// At long range, each ranged strike among `options` may instead be
+    /// aimed at one of the opposing minion's retainers (rulebook "Retainers
+    /// and Combat"): the same choice with that retainer as its target.
+    fn with_retainer_targets(&self, i: usize, mut options: Vec<Choice>) -> Vec<Choice> {
+        let c = self.combat.as_ref().expect("combat context");
+        if c.range != Range::Long {
+            return options;
+        }
+        let st = &self.state;
+        let opposing = c.sides[1 - i].minion;
+        let retainers: Vec<CardId> = (0..st.cards.len())
+            .map(|k| CardId(k as u32))
+            .filter(|r| {
+                let card = &st.cards[r.index()];
+                card.present()
+                    && card.host == Some(opposing)
+                    && LIBRARY[card.card as usize]
+                        .types
+                        .contains(&crate::library::CardType::Retainer)
+            })
+            .collect();
+        if retainers.is_empty() {
+            return options;
+        }
+        let ranged = |mode: &cards::ModeDef| {
+            mode.effects.iter().any(|e| {
+                matches!(
+                    e,
+                    Effect::Strike(
+                        StrikeKind::Damage { ranged: true, .. }
+                            | StrikeKind::StealBlood { ranged: true, .. }
+                    )
+                )
+            })
+        };
+        let seat = c.sides[i].seat;
+        let mut aimed = Vec::new();
+        for o in &options {
+            let mode = match *o {
+                Choice::Play { card, mode, .. } => {
+                    let id = st.seats[seat.index()].hand[card as usize];
+                    cards::lookup(id).map(|d| &d.modes[mode as usize])
+                }
+                Choice::UseAbility {
+                    source, ability, ..
+                } => Some(source.mode(st, ability)),
+                _ => None,
+            };
+            if !mode.is_some_and(ranged) {
+                continue;
+            }
+            for &r in &retainers {
+                aimed.push(match *o {
+                    Choice::Play {
+                        card, mode, actor, ..
+                    } => Choice::Play {
+                        card,
+                        mode,
+                        actor,
+                        target: cards::Target::Card(r),
+                    },
+                    Choice::UseAbility {
+                        source,
+                        ability,
+                        actor,
+                        ..
+                    } => Choice::UseAbility {
+                        source,
+                        ability,
+                        actor,
+                        target: cards::Target::Card(r),
+                    },
+                    _ => unreachable!(),
+                });
+            }
+        }
+        options.extend(aimed);
+        options
     }
 
     /// Effects of a combat card resolved during the combat.
@@ -1005,6 +1206,10 @@ impl Engine {
                 let s = &mut c.sides[i];
                 s.strike = Some(k);
                 s.strike_source = None;
+                s.strike_at = match play.target {
+                    cards::Target::Card(r) => Some(r),
+                    _ => None,
+                };
                 s.chosen = true;
                 if initial {
                     s.committed = None;
@@ -1064,7 +1269,7 @@ impl Engine {
             Effect::GainBloodLostByOpponent => {
                 let gained = c.sides[1 - i].lost_to_damage;
                 let m = &mut self.state.minions[actor.index()];
-                m.blood = (m.blood + gained).min(m.capacity());
+                m.blood = m.cap_blood(m.blood + gained);
             }
             Effect::ContinueAfterCombat { blood, stealth } => {
                 c.sides[i].continue_rider = Some((blood, stealth));

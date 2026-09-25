@@ -12,8 +12,13 @@ pub enum ActionKind {
     Rescue,
     /// Diablerise a vampire in torpor (`target`); triggers the blood hunt.
     Diablerie,
-    /// Employ a retainer from hand (a card action).
+    /// Employ a retainer from hand (rulebook "Employ Retainer": +1 stealth,
+    /// undirected; the cost paid at resolution).
     Employ,
+    /// Recruit an ally from hand (rulebook "Recruit Ally": +1 stealth,
+    /// undirected; the cost paid at resolution; the ally cannot act the
+    /// turn it is recruited).
+    Recruit,
     /// Call a referendum with a political action card (rulebook "Political
     /// Action": +1 stealth, undirected; one per minion per turn).
     Political,
@@ -99,6 +104,9 @@ pub enum Choice {
     /// A library search: take a copy of this card (LIBRARY index); `Pass`
     /// finds nothing. Offered to the searching player only (spec §6.8.4).
     FindCard(u16),
+    /// A vampire in the player's ash heap, by crypt card (CRYPT index):
+    /// Rotting Behemoth's entry removes it from the game.
+    AshVampire(u16),
     /// A card drawn from the library as it would be (rules-qa 9.4): the
     /// top card, rather than a draw alternative.
     DrawLibrary,
@@ -233,12 +241,16 @@ pub enum WindowLabel {
     /// Blocks declined by all (rulebook state C): redirects, Archon
     /// Investigation, remaining modifiers.
     ActionBlocksDeclined,
+    /// Blocked, before block resolution (Crypt's Sons).
+    ActionBlocked,
     /// After combat (after *all* combats of the block, rules-qa 2.1):
     /// unlock reactions of the blocker, the Form of Mist continuation.
     ActionAfterCombat,
     /// A blocked leave-torpor: the blocker's diablerie opportunity.
     TorporBlock,
     RescueCost,
+    /// An entering ally's effect with a choice (War Ghoul's burn).
+    EntryEffect,
     /// The blood hunt: polling only, no cards (rulebook "The Blood Hunt").
     BloodHuntPolling,
     /// Terms of a political referendum, chosen by the caller once the

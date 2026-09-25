@@ -31,19 +31,22 @@ fn zone_totals(e: &Engine) -> Vec<usize> {
         .map(|(i, s)| {
             // A card in play with the library cards stored on it, or out of
             // play on a banished vampire (Banishment: they stay with it).
-            let banished = |c: &CardInPlay| {
-                c.host.is_some_and(|m| {
-                    e.state
-                        .seats
-                        .iter()
-                        .any(|s| s.uncontrolled.iter().any(|u| u.banished == Some(m)))
+            let banished = |id: usize| {
+                e.state.seats.iter().any(|s| {
+                    s.uncontrolled.iter().any(|u| {
+                        u.banished
+                            .as_ref()
+                            .is_some_and(|b| b.cards.contains(&CardId(id as u32)))
+                    })
                 })
             };
             let in_play: usize = e
                 .state
                 .cards
                 .iter()
-                .filter(|c| c.owner.index() == i && (c.in_play || banished(c)))
+                .enumerate()
+                .filter(|(ci, c)| c.owner.index() == i && (c.in_play || banished(*ci)))
+                .map(|(_, c)| c)
                 .map(|c| 1 + c.stored.len())
                 .sum();
             s.library.len() + s.hand.len() + s.ash.len() + s.removed.len() + in_play
@@ -127,15 +130,24 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
     }
     assert!(edges <= 1, "multiple Edges (seed {seed})");
     for (i, m) in st.minions.iter().enumerate() {
-        assert!(m.blood <= m.capacity(), "blood over capacity (seed {seed})");
+        assert!(
+            m.capacity().is_none_or(|c| m.blood <= c),
+            "blood over capacity (seed {seed})"
+        );
         if m.in_play {
             assert!(
                 !st.seats[m.owner.index()].ousted,
                 "minion of an ousted seat in play (seed {seed})"
             );
-            // Uniqueness: a seat never has two copies of a vampire in play.
-            let dup =
-                st.minions.iter().enumerate().any(|(j, o)| {
+            // Uniqueness: a seat never has two copies of a vampire, or of a
+            // unique ally, in play.
+            let unique = m.kind.ally_card().is_none_or(|c| {
+                zvtes::library::LIBRARY[c as usize]
+                    .labels
+                    .contains(&zvtes::library::Label::Unique)
+            });
+            let dup = unique
+                && st.minions.iter().enumerate().any(|(j, o)| {
                     j != i && o.owner == m.owner && o.in_play && o.name() == m.name()
                 });
             assert!(!dup, "seat holds two copies of {} (seed {seed})", m.name());
@@ -200,6 +212,7 @@ fn kind_of(c: &Choice) -> &'static str {
             ActionKind::Rescue => "rescue",
             ActionKind::Diablerie => "diablerie",
             ActionKind::Employ => "employ",
+            ActionKind::Recruit => "recruit",
             ActionKind::Political => "political",
             ActionKind::Card => "card_action",
             ActionKind::BurnCard => "burn_card",
@@ -209,6 +222,7 @@ fn kind_of(c: &Choice) -> &'static str {
             ActionKind::Ability => "ability_action",
         },
         Choice::FindCard(_) => "find_card",
+        Choice::AshVampire(_) => "ash_vampire",
         Choice::DrawLibrary => "draw_library",
         Choice::DrawStored { .. } => "draw_stored",
         Choice::Bottom(_) => "bottom",
@@ -282,108 +296,164 @@ const TITLED: [(&str, &str, &str); 4] = [
     ("Mkhokheli", "Vivian VI", "Kalinda"),
 ];
 
+/// The midgame tables' library: the defined cards of slices 1–9.
+const SLICE: &[&str] = &[
+    "Villein",
+    "Sudden Reversal",
+    "Earth Control",
+    "Bonding",
+    "Conditioning",
+    "Consign to Oblivion",
+    "Form of the Cobra",
+    "Eyes of Argus",
+    "Deflection",
+    "Archon Investigation",
+    "Homunculus",
+    "Flash",
+    "Torn Signpost",
+    "Roundhouse",
+    "Body Flare",
+    "Theft of Vitae",
+    "Majesty",
+    "Side Strike",
+    "Blur",
+    "Immortal Grapple",
+    "Hidden Strength",
+    "Soak",
+    "Indomitability",
+    "Claws of the Dead",
+    "Taste of Vitae",
+    "Telepathic Tracking",
+    "Cats' Guidance",
+    "Form of Mist",
+    "Kine Resources Contested",
+    "Conservative Agitation",
+    "Ancilla Empowerment",
+    "Anarchist Uprising",
+    "Domain Challenge",
+    "Neonate Breach",
+    "Bewitching Oration",
+    "Scalpel Tongue",
+    "Reckless Agitation",
+    "Camarilla's Iron Fist",
+    "Parity Shift",
+    "Consanguineous Boon",
+    "Anarch Salon",
+    "Banishment",
+    "Expulsion",
+    "Ominous Chorus",
+    "Perfect Paragon",
+    "Old Friends",
+    "Party Out Of Bounds",
+    "Protected District",
+    "Scorn of Adonis",
+    "Telepathic Vote Counting",
+    "Delaying Tactics",
+    "Closed Session",
+    "Voter Captivation",
+    "Anarch Revolt",
+    "Guardian Angel",
+    "Creeping Sabotage",
+    "Blood Doll",
+    "Vessel",
+    "Papillon",
+    "Fame",
+    "Tension in the Ranks",
+    "Smiling Jack, The Anarch",
+    "Dreams of the Sphinx",
+    "Barrens, The",
+    "Coven, The",
+    "Constant Revolution",
+    "Carfax Abbey",
+    "Elder Library",
+    "Visit from the Capuchin",
+    "Wake with Evening's Freshness",
+    "Mirror Walk",
+    "Sport Bike",
+    "Unlicensed Taxicab",
+    "Treasured Samadji",
+    "Codex of the Edenic Groundskeepers",
+    "Stolen Police Cruiser",
+    "Bowl of Convergence",
+    ".44 Magnum",
+    "AK-47",
+    "Assault Rifle",
+    "Flamethrower",
+    "Ivory Bow",
+    "Femur of Toomler",
+    "Kali's Fang",
+    "Sniper Rifle",
+    "Kevlar Vest",
+    "Righteous Blade",
+    "Magic of the Smith",
+    "Vast Wealth",
+    "Black Market Cache",
+    "Shilmulo Tarot",
+    "Heart of Nizchetus",
+];
+
+/// The ally tables' library (slice 10): the defined allies and retainers,
+/// with strikes, prevention and Protean cards to fight and pay with.
+const ALLY_SLICE: &[&str] = &[
+    "Political Ally",
+    "47th Street Royals",
+    "City Star Taxi",
+    "Dog Pack",
+    "Double Deuce",
+    "Feral Hound",
+    "Murder of Crows",
+    "Raven Spy",
+    "Szlachta Bodyguard",
+    "Vozhd of Sofia, The",
+    "War Ghoul",
+    "Bone Shambler",
+    "Crypt's Sons",
+    "Szlachta Assistant",
+    "Underbridge Stray",
+    "Vagabond Mystic",
+    "Raptor",
+    "Screamer",
+    "Vozhd of Szczecin, The",
+    "Aggressive Corpse",
+    "Entrancement",
+    "Far Mastery",
+    "Invigorate",
+    "Libertas",
+    "Slaughtering the Herd",
+    "Visions of Gehenna",
+    "Rotting Behemoth",
+    "Vozhd of Gravesend, The",
+    "Vozhd of Juiz de Fora, The",
+    "Spectral Servitor",
+    "Consign to Oblivion",
+    "Owl Companion",
+    "Homunculus",
+    "Roundhouse",
+    "Side Strike",
+    "Majesty",
+    "Theft of Vitae",
+    "Hidden Strength",
+    "Soak",
+    "Form of Mist",
+    "Sport Bike",
+    "Unlicensed Taxicab",
+];
+
 fn midgame(seed: u64) -> Engine {
+    table(seed, SLICE)
+}
+
+/// As `midgame`, the ally tables.
+fn allies_midgame(seed: u64) -> Engine {
+    table(seed, ALLY_SLICE)
+}
+
+fn table(seed: u64, slice: &[&str]) -> Engine {
     let mut e = Engine::new(seed, 4);
     let mut rng = Rng::new(seed ^ 0x5eed);
     let shared = find_card("Alice Chen");
     let city = [find_card("Horst von Brühl"), find_card("Aline Gädeke")];
-    let slice: Vec<u16> = [
-        "Villein",
-        "Sudden Reversal",
-        "Earth Control",
-        "Bonding",
-        "Conditioning",
-        "Consign to Oblivion",
-        "Form of the Cobra",
-        "Eyes of Argus",
-        "Deflection",
-        "Archon Investigation",
-        "Homunculus",
-        "Flash",
-        "Torn Signpost",
-        "Roundhouse",
-        "Body Flare",
-        "Theft of Vitae",
-        "Majesty",
-        "Side Strike",
-        "Blur",
-        "Immortal Grapple",
-        "Hidden Strength",
-        "Soak",
-        "Indomitability",
-        "Claws of the Dead",
-        "Taste of Vitae",
-        "Telepathic Tracking",
-        "Cats' Guidance",
-        "Form of Mist",
-        "Kine Resources Contested",
-        "Conservative Agitation",
-        "Ancilla Empowerment",
-        "Anarchist Uprising",
-        "Domain Challenge",
-        "Neonate Breach",
-        "Bewitching Oration",
-        "Scalpel Tongue",
-        "Reckless Agitation",
-        "Camarilla's Iron Fist",
-        "Parity Shift",
-        "Consanguineous Boon",
-        "Anarch Salon",
-        "Banishment",
-        "Expulsion",
-        "Ominous Chorus",
-        "Perfect Paragon",
-        "Old Friends",
-        "Party Out Of Bounds",
-        "Protected District",
-        "Scorn of Adonis",
-        "Telepathic Vote Counting",
-        "Delaying Tactics",
-        "Closed Session",
-        "Voter Captivation",
-        "Anarch Revolt",
-        "Guardian Angel",
-        "Creeping Sabotage",
-        "Blood Doll",
-        "Vessel",
-        "Papillon",
-        "Fame",
-        "Tension in the Ranks",
-        "Smiling Jack, The Anarch",
-        "Dreams of the Sphinx",
-        "Barrens, The",
-        "Coven, The",
-        "Constant Revolution",
-        "Carfax Abbey",
-        "Elder Library",
-        "Visit from the Capuchin",
-        "Wake with Evening's Freshness",
-        "Mirror Walk",
-        "Sport Bike",
-        "Unlicensed Taxicab",
-        "Treasured Samadji",
-        "Codex of the Edenic Groundskeepers",
-        "Stolen Police Cruiser",
-        "Bowl of Convergence",
-        ".44 Magnum",
-        "AK-47",
-        "Assault Rifle",
-        "Flamethrower",
-        "Ivory Bow",
-        "Femur of Toomler",
-        "Kali's Fang",
-        "Sniper Rifle",
-        "Kevlar Vest",
-        "Righteous Blade",
-        "Magic of the Smith",
-        "Vast Wealth",
-        "Black Market Cache",
-        "Shilmulo Tarot",
-        "Heart of Nizchetus",
-    ]
-    .iter()
-    .map(|n| find_library(n))
-    .collect();
+    let slice: Vec<u16> = slice.iter().map(|n| find_library(n)).collect();
     let mut used = vec![shared, city[0], city[1]];
     for s in 0..4u8 {
         let seat = SeatId(s);
@@ -465,6 +535,9 @@ fn midgame(seed: u64) -> Engine {
             owner: SeatId(rng.below(4) as u8),
             controller: SeatId(rng.below(4) as u8),
             host: None,
+            body: None,
+            mode: 0,
+            by: None,
             in_play: true,
             contested: false,
             locked: false,
@@ -805,4 +878,65 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
         e.state.seats.iter().any(|s| s.ousted) && vps.iter().any(|&v| v >= 2)
     });
     assert!(ousted, "no oust in {SEEDS} mid-game random games");
+}
+
+/// Slice 10: random tables whose libraries are the allies and retainers.
+#[test]
+fn random_games_with_allies_and_retainers_hold_invariants_and_replay() {
+    let seen = fuzz(allies_midgame);
+    covers(
+        &seen,
+        &[
+            // (Feral Hound needs a Ravnos to employ it, City Star Taxi's
+            // ability a Ravnos acting beside it, Double Deuce's rider a
+            // hurt Double Deuce, The Vozhd of Gravesend's cancel an
+            // opposing strike card in its combat — rare at these tables:
+            // scripted in tests/allies.rs.)
+            "play:47th Street Royals",
+            "ability:47th Street Royals",
+            "play:City Star Taxi",
+            "play:Dog Pack",
+            "play:Double Deuce",
+            "play:Murder of Crows",
+            "play:Political Ally",
+            "play:Raptor",
+            "play:Raven Spy",
+            "play:Screamer",
+            "ability:Screamer",
+            "play:Szlachta Bodyguard",
+            "ability:Szlachta Bodyguard",
+            "play:Szlachta Assistant",
+            "ability:Szlachta Assistant",
+            "play:Vozhd of Sofia, The",
+            "ability:Vozhd of Sofia, The",
+            "play:Vozhd of Szczecin, The",
+            "ability:Vozhd of Szczecin, The",
+            "play:War Ghoul",
+            "ability:War Ghoul",
+            "burn_in_play",
+            "play:Bone Shambler",
+            "ability:Bone Shambler",
+            "play:Crypt's Sons",
+            "ability:Crypt's Sons",
+            "play:Underbridge Stray",
+            "ability:Underbridge Stray",
+            "play:Vagabond Mystic",
+            "ability:Vagabond Mystic",
+            "play:Aggressive Corpse",
+            "ability:Aggressive Corpse",
+            "play:Entrancement",
+            "play:Far Mastery",
+            "play:Invigorate",
+            "play:Libertas",
+            "play:Slaughtering the Herd",
+            "ability:Slaughtering the Herd",
+            "play:Visions of Gehenna",
+            "play:Rotting Behemoth",
+            "play:Vozhd of Gravesend, The",
+            "play:Vozhd of Juiz de Fora, The",
+            "play:Spectral Servitor",
+            "rider:Spectral Servitor",
+            "play:Owl Companion",
+        ],
+    );
 }

@@ -142,7 +142,8 @@ impl ReferendumCtx {
         v.ready()
             && !v.expelled
             && !self.abstaining.contains(&m)
-            && !(self.camarilla_only && v.card().sect != Sect::Camarilla)
+            && v.vampire()
+                .is_some_and(|c| !(self.camarilla_only && c.sect != Sect::Camarilla))
     }
 
     /// The votes `m` casts on `favor`'s side: its votes, plus printed votes
@@ -799,7 +800,9 @@ impl Engine {
                         loss[s.index()] += base as i32;
                         if st.minions_of(s).any(|m| {
                             st.minions[m.index()].ready()
-                                && st.minions[m.index()].capacity() <= young_cap
+                                && st.minions[m.index()]
+                                    .capacity()
+                                    .is_some_and(|c| c <= young_cap)
                         }) {
                             loss[s.index()] += young_bonus as i32;
                         }
@@ -808,14 +811,14 @@ impl Engine {
                 RefEffect::GainPerClanVampire => {
                     let clan = ctx.terms.clan.expect("chosen clan");
                     for m in &st.minions {
-                        if m.present() && m.card().clan == clan {
+                        if m.present() && m.vampire().is_some_and(|v| v.clan == clan) {
                             gain[m.owner.index()] += 1;
                         }
                     }
                 }
                 RefEffect::AnarchSalon => {
                     for m in &st.minions {
-                        if m.present() && m.card().sect == Sect::Anarch {
+                        if m.present() && m.vampire().is_some_and(|v| v.sect == Sect::Anarch) {
                             gain[m.owner.index()] = 1;
                         }
                     }
@@ -831,8 +834,8 @@ impl Engine {
         match effect {
             RefEffect::AnarchSalon => {
                 for m in &mut self.state.minions {
-                    if m.ready() && m.card().sect == Sect::Anarch {
-                        m.blood = (m.blood + 1).min(m.capacity());
+                    if m.ready() && m.vampire().is_some_and(|v| v.sect == Sect::Anarch) {
+                        m.blood = m.cap_blood(m.blood + 1);
                     }
                 }
             }
@@ -841,21 +844,33 @@ impl Engine {
                 // counters; cards on the vampire leave play with it.
                 let m = ctx.terms.minions[0];
                 let v = &mut self.state.minions[m.index()];
+                let was_ready = v.ready();
                 v.in_play = false;
-                let (owner, card, blood) = (v.owner, v.card, v.blood);
+                let card = v.crypt_card().expect("a banished vampire");
+                let (owner, blood) = (v.owner, v.blood);
                 v.blood = 0;
+                // Face down on the vampire: out of play until it returns
+                // (the cards in play on it, not those burned from it).
+                let mut on = Vec::new();
+                for (ci, c) in self.state.cards.iter_mut().enumerate() {
+                    if c.in_play && c.host == Some(m) {
+                        c.in_play = false;
+                        on.push(crate::state::CardId(ci as u32));
+                    }
+                }
                 self.state.seats[owner.index()]
                     .uncontrolled
                     .push(UncontrolledSlot {
                         card,
                         counters: blood,
-                        banished: Some(m),
+                        banished: Some(crate::state::Banished {
+                            minion: m,
+                            cards: on,
+                        }),
                     });
-                // Face down on the vampire: out of play until it returns.
-                for c in &mut self.state.cards {
-                    if c.host == Some(m) {
-                        c.in_play = false;
-                    }
+                // It left the ready region (Slaughtering the Herd [DOM]).
+                if was_ready {
+                    self.by_left_ready(m);
                 }
             }
             RefEffect::Expel => {
@@ -933,7 +948,7 @@ impl Engine {
         }
         let m = a.acting;
         let v = &self.state.minions[m.index()];
-        let Some(def) = cards::vampire(v.card).filter(|_| v.ready()) else {
+        let Some(def) = cards::vampire_of(v).filter(|_| v.ready()) else {
             return;
         };
         for r in def
@@ -961,7 +976,7 @@ impl Engine {
                             .minions_of(play.seat)
                             .filter(|v| {
                                 let v = &self.state.minions[v.index()];
-                                v.ready() && v.card().sect == sect
+                                v.ready() && v.vampire().is_some_and(|c| c.sect == sect)
                             })
                             .count() as u8
                     }

@@ -92,6 +92,9 @@ fn in_play(e: &mut Engine, name: &str, owner: u8, host: Option<MinionId>) -> usi
         owner: SeatId(owner),
         controller: SeatId(owner),
         host,
+        body: None,
+        mode: 0,
+        by: None,
         in_play: true,
         contested: false,
         locked: false,
@@ -403,7 +406,7 @@ fn the_plain_half_of_a_two_part_vampire_applies_and_the_rest_is_named() {
     assert_eq!([alexa, braden].map(|o| strength(roy, o)), [1, 0]);
     assert_eq!([alexa, braden].map(|o| strength(ragnar, o)), [0, 1]);
     let incomplete = VAMPIRES.iter().filter(|d| d.incomplete.is_some()).count();
-    assert_eq!(incomplete, 10);
+    assert_eq!(incomplete, 8);
     assert!(cards::vampire(find_card("Valerius")).is_some_and(|d| d.incomplete.is_some()));
     assert!(cards::vampire(find_card("Catalina Vega")).is_some_and(|d| d.incomplete.is_none()));
 }
@@ -1842,7 +1845,7 @@ fn seraphina_adds_two_blood_to_a_minion_you_control() {
     let mut e = bare();
     let seraphina = add(&mut e, 0, "Seraphina");
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
-    let cap = e.state.minions[seraphina.index()].capacity();
+    let cap = e.state.minions[seraphina.index()].capacity().unwrap();
     e.state.minions[seraphina.index()].blood = cap - 1;
     pick(
         &mut e,
@@ -2103,7 +2106,7 @@ fn adisa_enters_combat_with_younger_vampires_and_stays_locked_after_hunting() {
     // (A second minion keeps the minion phase from eliding into the next
     // turn, whose unlock phase would spend the skip.)
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
-    let cap = e.state.minions[adisa.index()].capacity();
+    let cap = e.state.minions[adisa.index()].capacity().unwrap();
     let (younger, older): (Vec<u16>, Vec<u16>) = (0..CRYPT.len() as u16)
         .filter(|&c| cards::vampire(c).is_none() && CRYPT[c as usize].capacity != cap)
         .partition(|&c| CRYPT[c as usize].capacity < cap);
@@ -2313,7 +2316,7 @@ fn aniel_burns_a_card_requiring_a_discipline_from_another_ready_minion() {
 fn apolonia_czarnecki_steals_one_blood_from_a_younger_vampire() {
     let mut e = bare();
     let apolonia = add(&mut e, 0, "Apolonia Czarnecki");
-    let cap = e.state.minions[apolonia.index()].capacity();
+    let cap = e.state.minions[apolonia.index()].capacity().unwrap();
     let (younger, older): (Vec<u16>, Vec<u16>) = (0..CRYPT.len() as u16)
         .filter(|&c| cards::vampire(c).is_none() && CRYPT[c as usize].capacity != cap)
         .partition(|&c| CRYPT[c as usize].capacity < cap);

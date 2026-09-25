@@ -10,10 +10,11 @@
 //! Telepathic Tracking, Cats' Guidance, Form of Mist, Form of the Cobra
 //! [pro].
 
+use super::vampires::{ability, enter_combat, MANEUVER_EACH_COMBAT};
 use super::{
-    Actor, Among, Bearer, CardDef, CardFilter, Effect, Holding, Hook, Limit, ModeDef, Modifier,
-    Points, RefEffect, ReferendumDef, Requirement, Rider, RiderScope, SeatFilter, Stat, StrikeKind,
-    TargetKind, TargetSpec, Term, Terms, TitleClass, Until, Window,
+    Actor, Among, AsVampire, Bearer, CardDef, CardFilter, Effect, Holding, Hook, Limit, ModeDef,
+    Modifier, Points, RefEffect, ReferendumDef, Requirement, Rider, RiderScope, SeatFilter, Stat,
+    StrikeKind, TargetKind, TargetSpec, Term, Terms, TitleClass, Until, Window,
 };
 use crate::crypt::Sect;
 use crate::decision::ActionKind;
@@ -36,7 +37,11 @@ pub static VILLEIN: CardDef = CardDef {
         requires: &[],
         target: Some(TargetSpec {
             kind: TargetKind::Minion,
-            filter: &[Requirement::Controlled, Requirement::BloodAtLeast(1)],
+            filter: &[
+                Requirement::TargetVampire,
+                Requirement::Controlled,
+                Requirement::BloodAtLeast(1),
+            ],
         }),
         terms: Some(Terms::BloodRange { min: 2, max: 5 }),
         waives_needed: false,
@@ -309,6 +314,1308 @@ pub static ARCHON_INVESTIGATION: CardDef = CardDef {
         limit: None,
         effects: &[Effect::BurnActingMinion, Effect::ActionFails],
     }],
+    abilities: &[],
+    riders: &[],
+};
+
+/// A recruit ally mode: the ally enters play in the acting Methuselah's
+/// ready region with its printed life, its layers on itself.
+const fn recruit(effects: &'static [Effect]) -> ModeDef {
+    ModeDef {
+        windows: &[Window::ActionDeclareRecruit],
+        actor: Actor::ActingCandidate,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects,
+    }
+}
+
+/// "Unique mortal with 2 life. 1 strength, 0 bleed. You can burn 47th
+/// Street Royals to reduce a bleed against you by 3." Its controller's,
+/// during the bleed, locked or not.
+pub static FORTY_SEVENTH_STREET_ROYALS: CardDef = CardDef {
+    name: "47th Street Royals",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
+    abilities: &[ModeDef {
+        windows: &[Window::ReactionDuringAction],
+        actor: Actor::Controller,
+        requires: &[Requirement::IsBleed, Requirement::DirectedAtYou],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::BurnSelf, Effect::ReduceBleed(3)],
+    }],
+    riders: &[],
+};
+
+/// "Mortal with 2 life. 0 strength, 0 bleed. This ally can strike: 1R
+/// damage. This ally gets 1 optional maneuver each combat. This ally can
+/// lock to give a Ravnos you control +1 stealth." The lock gives the
+/// stealth to the acting Ravnos, when needed; usable the turn it is
+/// recruited (ANK 20180517).
+pub static CITY_STAR_TAXI: CardDef = CardDef {
+    name: "City Star Taxi",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::CombatStrikeDeclaration],
+            actor: Actor::Host,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Strike(StrikeKind::Damage {
+                n: 1,
+                ranged: true,
+                aggravated: false,
+            })],
+        },
+        MANEUVER_EACH_COMBAT,
+        ModeDef {
+            windows: &[Window::ActionDuring],
+            actor: Actor::Host,
+            requires: &[
+                Requirement::CardUnlocked,
+                Requirement::OtherActingControlled,
+                Requirement::OtherActingClan("Ravnos"),
+                Requirement::StealthNeeded,
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::LockSelf, Effect::AddStealth(1)],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Unique werewolf with 3 life. 1 strength, 1 bleed. Double Deuce has +1
+/// stealth. If Double Deuce has 2 or fewer life during your unlock phase,
+/// he gains 1 life." The gain is an unlock-phase rider its controller
+/// orders among their own (rules-qa 6.1).
+pub static DOUBLE_DEUCE: CardDef = CardDef {
+    name: "Double Deuce",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[recruit(&[
+        Effect::DeclareAction(ActionKind::Recruit),
+        Effect::Layer(Modifier::Bearer {
+            stat: Stat::Stealth,
+            n: 1,
+            during: &[],
+            who: Bearer::Any,
+        }),
+    ])],
+    abilities: &[],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        requires: &[Requirement::HostBloodAtMost(2)],
+        effects: &[Effect::AddHostBlood(1)],
+    }],
+};
+
+/// "Animal with 1 life. Minions in combat with the employer cannot
+/// strike: combat ends." Put on after the opposing strike was chosen, that
+/// strike has no effect (ANK 20190412).
+pub static DOG_PACK: CardDef = CardDef {
+    name: "Dog Pack",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[employ(&[
+        Effect::DeclareAction(ActionKind::Employ),
+        Effect::EmployRetainer { life: 1 },
+        Effect::Layer(Modifier::NoCombatEndsAgainstHost),
+    ])],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Animal with 1 life. [ani] If the action to employ this retainer is
+/// successful, unlock this vampire during the next discard phase. You can
+/// lock this retainer to give the employer +1 intercept. [ANI] As above,
+/// but unlock this vampire after resolution of this action instead." The
+/// intercept goes to the employer's block attempt, when needed.
+pub static FERAL_HOUND: CardDef = CardDef {
+    name: "Feral Hound",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        employ(&[
+            Effect::DeclareAction(ActionKind::Employ),
+            Effect::EmployRetainer { life: 1 },
+            Effect::UnlockActorAtDiscard,
+        ]),
+        employ(&[
+            Effect::DeclareAction(ActionKind::Employ),
+            Effect::EmployRetainer { life: 1 },
+            Effect::UnlockActor,
+        ]),
+    ],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionStealthIntercept],
+        actor: Actor::Host,
+        requires: &[Requirement::CardUnlocked, Requirement::InterceptNeeded],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::LockSelf, Effect::AddIntercept(1)],
+    }],
+    riders: &[],
+};
+
+/// "Ghoul with 2 life. The employer can lock this retainer to prevent 1
+/// damage in combat. You can burn this retainer to have an action directed
+/// at a minion you control fail." The failure is not usable while a block
+/// is attempted or after one succeeded (ANK 20260316, LSJ 20041022); the
+/// failed action reached resolution (NRA) and was not blocked (RTR
+/// 20180719, LSJ 20070219).
+pub static SZLACHTA_BODYGUARD: CardDef = CardDef {
+    name: "Szlachta Bodyguard",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[employ(&[
+        Effect::DeclareAction(ActionKind::Employ),
+        Effect::EmployRetainer { life: 2 },
+    ])],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::CombatDamagePrevention],
+            actor: Actor::Host,
+            requires: &[Requirement::CardUnlocked, Requirement::DamagePending],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::LockSelf, Effect::Prevent(1)],
+        },
+        ModeDef {
+            windows: &[Window::ReactionDuringAction],
+            actor: Actor::Controller,
+            requires: &[
+                Requirement::DirectedAtYourMinion,
+                Requirement::NoBlockAttempt,
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::BurnSelf, Effect::ActionFails],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Ghoul with 5 life. 4 strength, 0 bleed. After this ally enters play,
+/// burn an ally or retainer you control. It can prevent 1 damage each round
+/// of combat. It can enter combat with a vampire as a Ⓓ action. It can lock
+/// and burn itself to burn a location, except during combat." The entry
+/// burn applies however it enters (ANK 20170309-2), itself if there is no
+/// other (RTR 19961113); the location burn may answer an action stealing
+/// that location (PIB 20121031).
+pub static WAR_GHOUL: CardDef = CardDef {
+    name: "War Ghoul",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[recruit(&[
+        Effect::DeclareAction(ActionKind::Recruit),
+        Effect::EntryBurnAllyOrRetainer,
+    ])],
+    abilities: &[
+        ability(
+            &[Window::CombatDamagePrevention],
+            Actor::Host,
+            &[Requirement::DamagePending],
+            Limit::PerRound,
+            &[Effect::Prevent(1)],
+        ),
+        enter_combat(&[
+            Requirement::NotControlled,
+            Requirement::ActorReady,
+            Requirement::TargetVampire,
+        ]),
+        ModeDef {
+            windows: &[Window::AnyImpulse],
+            actor: Actor::Host,
+            requires: &[Requirement::CardUnlocked, Requirement::NotInCombat],
+            target: Some(TargetSpec {
+                kind: TargetKind::Card,
+                filter: &[Requirement::TargetCard(CardFilter::Location)],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::LockSelf, Effect::BurnTargetCard, Effect::BurnSelf],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Unique ghoul with 5 life. 3 strength, 0 bleed. After this ally enters
+/// play, burn an ally or retainer you control. It can strike: 3R damage. It
+/// can enter combat with a minion as a Ⓓ action. During your unlock phase,
+/// you can discard an ally or retainer card to add 2 life to this ally."
+/// The unlock discard is once per phase (rules-qa 6.6).
+pub static VOZHD_OF_SOFIA: CardDef = CardDef {
+    name: "Vozhd of Sofia, The",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[recruit(&[
+        Effect::DeclareAction(ActionKind::Recruit),
+        Effect::EntryBurnAllyOrRetainer,
+    ])],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::CombatStrikeDeclaration],
+            actor: Actor::Host,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Strike(StrikeKind::Damage {
+                n: 3,
+                ranged: true,
+                aggravated: false,
+            })],
+        },
+        enter_combat(&[Requirement::NotControlled, Requirement::ActorReady]),
+        ModeDef {
+            windows: &[Window::UnlockPhaseOwn],
+            actor: Actor::Host,
+            requires: &[Requirement::HandHas(CardFilter::AllyOrRetainer, 1)],
+            target: NO_TARGET,
+            terms: Some(Terms::Discard {
+                n: 1,
+                of: CardFilter::AllyOrRetainer,
+            }),
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::AddHostBlood(2)],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Zombie with 1 life. 1 strength, 1 bleed. [obl] This ally cannot have or
+/// use equipment or retainers. During a bleed action, you can lock another
+/// copy of this ally you control to give this ally +1 bleed. [OBL] As
+/// above, and during a bleed action, a Hecata you control can burn 1 blood
+/// to give this ally +1 bleed." During its bleed, before resolution (ANK
+/// 20231124); a copy recruited this turn may be locked (ANK 20180517).
+pub static BONE_SHAMBLER: CardDef = CardDef {
+    name: "Bone Shambler",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        recruit(&[
+            Effect::DeclareAction(ActionKind::Recruit),
+            Effect::Layer(Modifier::NoEquipmentOrRetainers),
+        ]),
+        recruit(&[
+            Effect::DeclareAction(ActionKind::Recruit),
+            Effect::Layer(Modifier::NoEquipmentOrRetainers),
+        ]),
+    ],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::ActionDuring],
+            actor: Actor::Host,
+            requires: &[Requirement::ActorActing, Requirement::IsBleed],
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[
+                    Requirement::Controlled,
+                    Requirement::TargetOtherCopy,
+                    Requirement::TargetUnlocked,
+                ],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::LockTarget,
+                Effect::BleedMod {
+                    n: 1,
+                    limited: false,
+                },
+            ],
+        },
+        ModeDef {
+            windows: &[Window::ActionDuring],
+            actor: Actor::Host,
+            requires: &[
+                Requirement::SuperiorVersion,
+                Requirement::ActorActing,
+                Requirement::IsBleed,
+            ],
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[
+                    Requirement::Controlled,
+                    Requirement::ActorClan("Hecata"),
+                    Requirement::BloodAtLeast(1),
+                ],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::TargetBurnsBlood(1),
+                Effect::BleedMod {
+                    n: 1,
+                    limited: false,
+                },
+            ],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Unique mortal with 3 life. Requires an Anarch. If this Anarch is
+/// blocked, they can burn 1 life from this retainer before block resolution
+/// to lock the blocking minion and continue the action as if unblocked.
+/// This retainer inflicts 1R damage on the opposing minion each round of
+/// combat during normal strike resolution." The blocker is locked already
+/// (LSJ 20080611); modifiers and reactions stand and the declines too (RTR
+/// 19941109, ANK 20190116).
+pub static CRYPTS_SONS: CardDef = CardDef {
+    name: "Crypt's Sons",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::ActionDeclareEmploy],
+        actor: Actor::ActingCandidate,
+        requires: &[Requirement::ActorSectIn(&[Sect::Anarch])],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::Employ),
+            Effect::EmployRetainer { life: 3 },
+            Effect::Layer(Modifier::RetainerDamage(1)),
+        ],
+    }],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionBlocked],
+        actor: Actor::Host,
+        requires: &[
+            Requirement::ActorActing,
+            Requirement::NotContinued,
+            Requirement::LifeAtLeast(1),
+        ],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::BurnOwnLife(1), Effect::ContinueUnblocked],
+    }],
+    riders: &[],
+};
+
+/// "Ghoul with 2 life. The employer can burn this retainer to reduce the
+/// cost of a ghoul ally requiring a Tzimisce they recruit by 2 blood or
+/// pool." During that recruit action, the cost paid at resolution.
+pub static SZLACHTA_ASSISTANT: CardDef = CardDef {
+    name: "Szlachta Assistant",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[employ(&[
+        Effect::DeclareAction(ActionKind::Employ),
+        Effect::EmployRetainer { life: 2 },
+    ])],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDuring],
+        actor: Actor::Host,
+        requires: &[
+            Requirement::ActorActing,
+            Requirement::RecruitingTzimisceGhoul,
+        ],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::BurnSelf, Effect::ReduceActionCost(2)],
+    }],
+    riders: &[],
+};
+
+/// "Animal with 1 life. 0 strength, 0 bleed. [ani] This ally can burn 1
+/// life to give a minion you control 1 press. During an action directed at
+/// you (or a card you control), you can burn this ally if it is not
+/// blocking to unlock a ready minion you control. [ANI] As above, but this
+/// ally has 2 life and 1 strength." The press is usable the turn it is
+/// recruited (ANK 20180517).
+pub static UNDERBRIDGE_STRAY: CardDef = CardDef {
+    name: "Underbridge Stray",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        recruit(&[Effect::DeclareAction(ActionKind::Recruit)]),
+        recruit(&[
+            Effect::DeclareAction(ActionKind::Recruit),
+            Effect::Version(crate::library::Body {
+                life: 2,
+                strength: 1,
+                bleed: 0,
+            }),
+        ]),
+    ],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::CombatPress],
+            actor: Actor::ForOwnCombatant,
+            requires: &[Requirement::LifeAtLeast(1)],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::BurnOwnLife(1), Effect::Press],
+        },
+        ModeDef {
+            windows: &[Window::ReactionDuringAction],
+            actor: Actor::Host,
+            requires: &[Requirement::DirectedAtYou, Requirement::ActorNotBlocking],
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[Requirement::Controlled, Requirement::ActorReady],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::BurnSelf, Effect::UnlockTarget],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Unique mortal with 2 life. 0 strength, 0 bleed. Vagabond Mystic can lock
+/// to add 1 life to an ally you control who has fewer life than its
+/// starting life. Vagabond Mystic cannot block vampires." Not in the middle
+/// of a damage resolution step (LSJ 20001111); starting life is the
+/// entering version's (advanced rules 5.5.2).
+pub static VAGABOND_MYSTIC: CardDef = CardDef {
+    name: "Vagabond Mystic",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[recruit(&[
+        Effect::DeclareAction(ActionKind::Recruit),
+        Effect::Layer(Modifier::CannotBlockVampires),
+    ])],
+    abilities: &[ModeDef {
+        windows: &[Window::AnyImpulse],
+        actor: Actor::Host,
+        requires: &[
+            Requirement::CardUnlocked,
+            Requirement::NotInDamageResolution,
+        ],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[Requirement::Controlled, Requirement::TargetAllyHurt],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::LockSelf, Effect::BloodToTarget(1)],
+    }],
+    riders: &[],
+};
+
+/// "Animal with 1 life. [ani] The employer gets +1 intercept. [ANI] As
+/// above, and while the employer is in combat, the opposing minion's
+/// controller gets -1 hand size." The opponent discards down at once and
+/// draws back up as the combat ends — again for each new combat (LSJ
+/// 20030530); cards not replaced count against the hand size (ANK
+/// 20180318).
+pub static RAPTOR: CardDef = CardDef {
+    name: "Raptor",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        employ(&[
+            Effect::DeclareAction(ActionKind::Employ),
+            Effect::EmployRetainer { life: 1 },
+            EMPLOYER_INTERCEPT,
+        ]),
+        employ(&[
+            Effect::DeclareAction(ActionKind::Employ),
+            Effect::EmployRetainer { life: 1 },
+            EMPLOYER_INTERCEPT,
+            Effect::Layer(Modifier::OpponentHandSizeInCombat(1)),
+        ]),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Wraith with 1 life. 1 strength, 1 bleed. You can burn this ally to give
+/// a minion controlled by your predator or prey -1 stealth. You can burn
+/// this ally as an action directed at an ally you control is announced to
+/// have it fail." The stealth goes off the acting minion; the failure comes
+/// after the acting Methuselah's own as-announced effects (LSJ 20081105)
+/// and before any other (ANK 20190425); the failed action reached
+/// resolution (NRA) and was not blocked.
+pub static SCREAMER: CardDef = CardDef {
+    name: "Screamer",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::ReactionAsAnnounced, Window::ReactionDuringAction],
+            actor: Actor::Controller,
+            requires: &[Requirement::ActingByPredatorOrPrey],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::BurnSelf, Effect::ReduceStealth(1)],
+        },
+        ModeDef {
+            windows: &[Window::ReactionAsAnnounced],
+            actor: Actor::Controller,
+            requires: &[Requirement::DirectedAtYourAlly],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::BurnSelf, Effect::ActionFails],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Unique ghoul with 5 life. 4 strength, 0 bleed. After this ally enters
+/// play, burn an ally or retainer you control. This ally can enter combat
+/// with a vampire as a Ⓓ action. Once each combat, this ally can discard a
+/// card requiring Protean [pro] to prevent 2 damage. During any other
+/// Methuselah's minion phase, a Tzimisce you control can burn 1 blood to
+/// unlock this ally." The unlock is offered while the ally is locked.
+pub static VOZHD_OF_SZCZECIN: CardDef = CardDef {
+    name: "Vozhd of Szczecin, The",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[recruit(&[
+        Effect::DeclareAction(ActionKind::Recruit),
+        Effect::EntryBurnAllyOrRetainer,
+    ])],
+    abilities: &[
+        enter_combat(&[
+            Requirement::NotControlled,
+            Requirement::ActorReady,
+            Requirement::TargetVampire,
+        ]),
+        ModeDef {
+            windows: &[Window::CombatDamagePrevention],
+            actor: Actor::Host,
+            requires: &[
+                Requirement::DamagePending,
+                Requirement::HandHas(CardFilter::Discipline("pro"), 1),
+            ],
+            target: NO_TARGET,
+            terms: Some(Terms::Discard {
+                n: 1,
+                of: CardFilter::Discipline("pro"),
+            }),
+            waives_needed: false,
+            limit: Some(Limit::PerCombat),
+            effects: &[Effect::Prevent(2)],
+        },
+        ModeDef {
+            windows: &[Window::AnyImpulse],
+            actor: Actor::Controller,
+            requires: &[Requirement::OthersMinionPhase, Requirement::CardLocked],
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[
+                    Requirement::Controlled,
+                    Requirement::ActorClan("Tzimisce"),
+                    Requirement::BloodAtLeast(1),
+                ],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::TargetBurnsBlood(1), Effect::UnlockSelf],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Zombie with 3 life. 2 strength, 0 bleed. This ally can enter combat
+/// with a minion as a Ⓓ action. This ally cannot be the target of directed
+/// actions requiring Dominate [dom] or Presence [pre]. In combat, strikes
+/// made by this ally cannot be dodged. This ally cannot gain life
+/// (instead, any life it would gain goes to the blood bank)." A dodge has
+/// no effect on its strikes, but may still be played (LSJ 20030902-2).
+pub static AGGRESSIVE_CORPSE: CardDef = CardDef {
+    name: "Aggressive Corpse",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[recruit(&[
+        Effect::DeclareAction(ActionKind::Recruit),
+        Effect::Layer(Modifier::ImmuneToDirectedActions(&["dom", "pre"])),
+        Effect::Layer(Modifier::UndodgeableStrikes),
+        Effect::CannotGainLife,
+    ])],
+    abilities: &[enter_combat(&[
+        Requirement::NotControlled,
+        Requirement::ActorReady,
+    ])],
+    riders: &[],
+};
+
+/// "[pre] Ⓓ Bleed with +1 bleed. [PRE] +1 stealth action. Ⓓ Steal an ally
+/// controlled by another Methuselah." The ally changes controller with the
+/// cards on it; if it left play before resolution, the action is
+/// successful with no effect (PIB 20121031).
+pub static ENTRANCEMENT: CardDef = CardDef {
+    name: "Entrancement",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        ModeDef {
+            windows: &[Window::ActionDeclare],
+            actor: Actor::ActingCandidate,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::Bleed),
+                Effect::BleedMod {
+                    n: 1,
+                    limited: false,
+                },
+            ],
+        },
+        ModeDef {
+            windows: &[Window::ActionDeclare],
+            actor: Actor::ActingCandidate,
+            requires: &[],
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[Requirement::NotControlled, Requirement::TargetAlly],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::StealTargetAlly,
+            ],
+        },
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "+1 stealth action. [dom] Ⓓ Steal a retainer controlled by another
+/// vampire. [DOM] Ⓓ Steal an ally controlled by another Methuselah." (1
+/// blood.) Requirements do not apply to a card taken in play (TOM
+/// 19960226-1); a retainer on one of the acting Methuselah's other
+/// vampires makes the action undirected (rules-qa 17.4).
+pub static FAR_MASTERY: CardDef = CardDef {
+    name: "Far Mastery",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        ModeDef {
+            windows: &[Window::ActionDeclare],
+            actor: Actor::ActingCandidate,
+            requires: &[],
+            target: Some(TargetSpec {
+                kind: TargetKind::Card,
+                filter: &[
+                    Requirement::TargetCard(CardFilter::Type(CardType::Retainer)),
+                    Requirement::TargetOnVampire,
+                    Requirement::NotHost,
+                    Requirement::ActorMayHoldTarget,
+                ],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::StealTargetCard,
+            ],
+        },
+        ModeDef {
+            windows: &[Window::ActionDeclare],
+            actor: Actor::ActingCandidate,
+            requires: &[],
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[Requirement::NotControlled, Requirement::TargetAlly],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::StealTargetAlly,
+            ],
+        },
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// An action modifier of the acting minion's.
+const fn modifier(requires: &'static [Requirement], effects: &'static [Effect]) -> ModeDef {
+    ModeDef {
+        windows: &[Window::ActionDuring],
+        actor: Actor::ActingMinion,
+        requires,
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects,
+    }
+}
+
+const ANARCH: Requirement = Requirement::ActorSectIn(&[Sect::Anarch]);
+
+/// "Requires an Anarch. [ani] This Anarch gets +1 strength this action.
+/// [dom] This Anarch cannot be blocked by allies this action. [pro] This
+/// Anarch's hand strikes are aggravated this action." Played, it requires
+/// the Discipline used (LSJ 20011204-3).
+pub static INVIGORATE: CardDef = CardDef {
+    name: "Invigorate",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        modifier(&[ANARCH], &[Effect::StrengthThisAction(1)]),
+        modifier(&[ANARCH], &[Effect::AlliesCannotBlock]),
+        modifier(&[ANARCH], &[Effect::AggravatedHandsThisAction]),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Requires an Anarch. Put this card on an Anarch. Allies cannot block
+/// this Anarch. Cards requiring Dominate [dom] or Presence [pre] cost other
+/// minions +1 blood while this Anarch is acting, attempting to block or in
+/// combat." A Methuselah's card requiring a sect wants a ready vampire of
+/// it; the surcharge no longer applies once its block attempt failed, so
+/// not to an action card paid at resolution (LSJ 20080818).
+pub static LIBERTAS: CardDef = CardDef {
+    name: "Libertas",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[Requirement::ControlsReadySect(&[Sect::Anarch])],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[Requirement::TargetVampire, ANARCH],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::PutOnTarget,
+            Effect::Layer(Modifier::AlliesCannotBlockBearer),
+            Effect::Layer(Modifier::DisciplineSurchargeAround(&["dom", "pre"], 1)),
+        ],
+    }],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "[pre] Allies cannot block this action. [PRE] Only usable during a bleed
+/// action. As above, with +2 bleed (limited)." (Requires a Ravnos.)
+pub static VISIONS_OF_GEHENNA: CardDef = CardDef {
+    name: "Visions of Gehenna",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        modifier(&[], &[Effect::AlliesCannotBlock]),
+        modifier(
+            &[Requirement::IsBleed],
+            &[
+                Effect::AlliesCannotBlock,
+                Effect::BleedMod {
+                    n: 2,
+                    limited: true,
+                },
+            ],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "[dom] Ⓓ Bleed with +2 bleed. Allies cannot block this action. [DOM] Ⓓ
+/// Put this card on a vampire controlled by your predator. Each time the
+/// attached vampire announces an action, they move 1 blood from themselves
+/// to this acting vampire. The attached vampire can burn 4 blood during
+/// their minion phase to burn this card. Burn this card after this acting
+/// vampire leaves the ready region." (2 blood.) The card remembers the
+/// vampire that played it (`CardInPlay::by`); a target no longer the
+/// predator's by resolution makes the action fizzle (LSJ 20020725).
+pub static SLAUGHTERING_THE_HERD: CardDef = CardDef {
+    name: "Slaughtering the Herd",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        ModeDef {
+            windows: &[Window::ActionDeclare],
+            actor: Actor::ActingCandidate,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::Bleed),
+                Effect::BleedMod {
+                    n: 2,
+                    limited: false,
+                },
+                Effect::AlliesCannotBlock,
+            ],
+        },
+        ModeDef {
+            windows: &[Window::ActionDeclare],
+            actor: Actor::ActingCandidate,
+            requires: &[],
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[
+                    Requirement::TargetVampire,
+                    Requirement::ControlledByPredator,
+                ],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::DeclareAction(ActionKind::Card), Effect::PutOnTarget],
+        },
+    ],
+    abilities: &[ModeDef {
+        windows: &[Window::AnyImpulse],
+        actor: Actor::Host,
+        requires: &[
+            Requirement::OwnMinionPhase,
+            Requirement::HostBloodAtLeast(4),
+        ],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::HostBurnBlood(4), Effect::BurnSelf],
+    }],
+    riders: &[
+        Rider {
+            hook: Hook::HostAnnouncesAction,
+            scope: RiderScope::Controller,
+            requires: &[],
+            effects: &[Effect::HostBloodToBy(1)],
+        },
+        Rider {
+            hook: Hook::ByLeavesReady,
+            scope: RiderScope::Controller,
+            requires: &[],
+            effects: &[Effect::BurnSelf],
+        },
+    ],
+};
+
+/// "Zombie with 6 life. 3 strength, 0 bleed. [obl] After this ally enters
+/// play, burn it unless you remove an ally or vampire in your ash heap from
+/// the game. This ally cannot gain life. This ally can enter combat with a
+/// minion as a Ⓓ action that costs 1 life. [OBL] As above, and during the
+/// first round of each combat, this ally can burn 1 life to get 1 press."
+/// Its controller may decline the removal (LSJ 20030701-2); paying its last
+/// life for the action, the action succeeds and the combat ends at once
+/// (LSJ 20080512).
+pub static ROTTING_BEHEMOTH: CardDef = CardDef {
+    name: "Rotting Behemoth",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        recruit(&[
+            Effect::DeclareAction(ActionKind::Recruit),
+            Effect::EntryRemoveFromAshOrBurn,
+            Effect::CannotGainLife,
+        ]),
+        recruit(&[
+            Effect::DeclareAction(ActionKind::Recruit),
+            Effect::EntryRemoveFromAshOrBurn,
+            Effect::CannotGainLife,
+        ]),
+    ],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::ActionDeclare],
+            actor: Actor::Host,
+            requires: &[],
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[Requirement::NotControlled, Requirement::ActorReady],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::PayLife(1),
+                Effect::EnterCombatWithTarget,
+            ],
+        },
+        ModeDef {
+            windows: &[Window::CombatPress],
+            actor: Actor::Host,
+            requires: &[
+                Requirement::SuperiorVersion,
+                Requirement::FirstRound,
+                Requirement::LifeAtLeast(1),
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::BurnOwnLife(1), Effect::Press],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Unique ghoul with 5 life. 4 strength, 0 bleed. After this ally enters
+/// play, burn an ally or retainer you control. This ally can enter combat
+/// with a vampire as a Ⓓ action. This ally can prevent 1 damage each round
+/// of combat. During combat, this ally can burn 1 life to cancel a strike
+/// card as it is played by the opposing minion, and its cost is not paid
+/// (the minion chooses a strike again)." The canceled card is discarded
+/// and replaced (spec §1.8.3).
+pub static VOZHD_OF_GRAVESEND: CardDef = CardDef {
+    name: "Vozhd of Gravesend, The",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[recruit(&[
+        Effect::DeclareAction(ActionKind::Recruit),
+        Effect::EntryBurnAllyOrRetainer,
+    ])],
+    abilities: &[
+        enter_combat(&[
+            Requirement::NotControlled,
+            Requirement::ActorReady,
+            Requirement::TargetVampire,
+        ]),
+        ability(
+            &[Window::CombatDamagePrevention],
+            Actor::Host,
+            &[Requirement::DamagePending],
+            Limit::PerRound,
+            &[Effect::Prevent(1)],
+        ),
+        ModeDef {
+            windows: &[Window::CardAsPlayed],
+            actor: Actor::Host,
+            requires: &[
+                Requirement::PlayedStrikeByOpponent,
+                Requirement::LifeAtLeast(1),
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::BurnOwnLife(1),
+                Effect::CancelPlayed { refund: true },
+            ],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Unique ghoul with 5 life. 4 strength, 0 bleed. After this ally enters
+/// play, burn an ally or retainer you control. This ally can enter combat
+/// with a vampire as a Ⓓ action. This ally can play cards requiring basic
+/// Animalism [ani] as a vampire with capacity 5. During your unlock phase,
+/// this ally can steal any amount of blood (becoming life) from a Tzimisce
+/// you control, not to exceed its starting life." Played as a vampire, its
+/// life pays, its last life burns it (ANK 20180928-1, LSJ 20080512); it
+/// meets one Discipline requirement, at basic level only (LSJ 20011217,
+/// ANK 20180111), and does not have the Discipline (LSJ 19980303).
+pub static VOZHD_OF_JUIZ_DE_FORA: CardDef = CardDef {
+    name: "Vozhd of Juiz de Fora, The",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[recruit(&[
+        Effect::DeclareAction(ActionKind::Recruit),
+        Effect::EntryBurnAllyOrRetainer,
+        Effect::Layer(Modifier::PlaysAsVampire(AsVampire {
+            disciplines: &["ani"],
+            capacity: 5,
+            non_action: false,
+        })),
+    ])],
+    abilities: &[
+        enter_combat(&[
+            Requirement::NotControlled,
+            Requirement::ActorReady,
+            Requirement::TargetVampire,
+        ]),
+        ModeDef {
+            windows: &[Window::UnlockPhaseOwn],
+            actor: Actor::Host,
+            requires: &[Requirement::HostBelowStartingLife],
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[
+                    Requirement::Controlled,
+                    Requirement::ActorClan("Tzimisce"),
+                    Requirement::BloodAtLeast(1),
+                ],
+            }),
+            terms: Some(Terms::LifeFromTarget),
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::StealBloodToHostX],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Wraith with 1 life. 1 strength, 1 bleed. [obl] This ally can perform
+/// actions the turn it is recruited. Unlock this vampire if this is their
+/// first successful recruit ally action this turn. This ally can play
+/// non-action cards requiring basic Oblivion [obl] as a vampire. During
+/// your unlock phase, burn this ally. [OBL] As above, but during your
+/// unlock phase, you can burn 1 pool instead of burning this ally." It acts
+/// only in its own Methuselah's minion phase (ANK 20200930); played as a
+/// vampire, it counts as independent (LSJ 20020503).
+pub static SPECTRAL_SERVITOR: CardDef = CardDef {
+    name: "Spectral Servitor",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        recruit(&[
+            Effect::DeclareAction(ActionKind::Recruit),
+            Effect::ActsWhenRecruited,
+            Effect::UnlockRecruiterOnFirst,
+            Effect::Layer(Modifier::PlaysAsVampire(AsVampire {
+                disciplines: &["obl"],
+                capacity: 1,
+                non_action: true,
+            })),
+        ]),
+        recruit(&[
+            Effect::DeclareAction(ActionKind::Recruit),
+            Effect::ActsWhenRecruited,
+            Effect::UnlockRecruiterOnFirst,
+            Effect::Layer(Modifier::PlaysAsVampire(AsVampire {
+                disciplines: &["obl"],
+                capacity: 1,
+                non_action: true,
+            })),
+        ]),
+    ],
+    abilities: &[],
+    riders: &[
+        Rider {
+            hook: Hook::UnlockPhase,
+            scope: RiderScope::Controller,
+            requires: &[Requirement::BasicVersion],
+            effects: &[Effect::BurnSelf],
+        },
+        Rider {
+            hook: Hook::UnlockPhase,
+            scope: RiderScope::Controller,
+            requires: &[Requirement::SuperiorVersion],
+            effects: &[Effect::BurnSelfUnlessPool(1)],
+        },
+    ],
+};
+
+/// "Animal with 1 life. [ani] While the employer is in combat, the opposing
+/// minion's controller plays with an open hand. [ANI] As above, but Owl
+/// Companion has 2 life." An open hand is information: the legal view reads
+/// it (`GameState::hand_visible_to`).
+pub static OWL_COMPANION: CardDef = CardDef {
+    name: "Owl Companion",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        employ(&[
+            Effect::DeclareAction(ActionKind::Employ),
+            Effect::EmployRetainer { life: 1 },
+            Effect::Layer(Modifier::OpponentOpenHandInCombat),
+        ]),
+        employ(&[
+            Effect::DeclareAction(ActionKind::Employ),
+            Effect::EmployRetainer { life: 2 },
+            Effect::Layer(Modifier::OpponentOpenHandInCombat),
+        ]),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// An employ retainer mode: the retainer enters play on the acting minion
+/// with the life of its `EmployRetainer`, its layers giving the employer
+/// what its text says.
+const fn employ(effects: &'static [Effect]) -> ModeDef {
+    ModeDef {
+        windows: &[Window::ActionDeclareEmploy],
+        actor: Actor::ActingCandidate,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects,
+    }
+}
+
+/// "The employer gets +1 intercept."
+const EMPLOYER_INTERCEPT: Effect = Effect::Layer(Modifier::Bearer {
+    stat: Stat::Intercept,
+    n: 1,
+    during: &[],
+    who: Bearer::Any,
+});
+
+/// "Unique mortal with 1 life. The employer gets +1 intercept."
+pub static MR_WINTHROP: CardDef = CardDef {
+    name: "Mr. Winthrop",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[employ(&[
+        Effect::DeclareAction(ActionKind::Employ),
+        Effect::EmployRetainer { life: 1 },
+        EMPLOYER_INTERCEPT,
+    ])],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Animal with 1 life. [ani] Murder of Crows inflicts 1R damage on the
+/// opposing minion each round of combat during normal strike resolution.
+/// [ANI] As above, but Murder of Crows has 2 life." Environmental damage,
+/// the retainer its source (ANK 20180612): inflicted against a dodge, not
+/// once a combat ends strike ended the combat (RTR 19941109, TOM
+/// 19951216), and not again for additional strikes (RTR 19941109).
+pub static MURDER_OF_CROWS: CardDef = CardDef {
+    name: "Murder of Crows",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        employ(&[
+            Effect::DeclareAction(ActionKind::Employ),
+            Effect::EmployRetainer { life: 1 },
+            Effect::Layer(Modifier::RetainerDamage(1)),
+        ]),
+        employ(&[
+            Effect::DeclareAction(ActionKind::Employ),
+            Effect::EmployRetainer { life: 2 },
+            Effect::Layer(Modifier::RetainerDamage(1)),
+        ]),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Animal with 1 life. [ani] The employer gets +1 intercept. [ANI] As
+/// above, but Raven Spy has 2 life." The Discipline level used to employ it
+/// decides its version, for as long as it is in play (RTR 19941109, ANK
+/// 20180612).
+pub static RAVEN_SPY: CardDef = CardDef {
+    name: "Raven Spy",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        employ(&[
+            Effect::DeclareAction(ActionKind::Employ),
+            Effect::EmployRetainer { life: 1 },
+            EMPLOYER_INTERCEPT,
+        ]),
+        employ(&[
+            Effect::DeclareAction(ActionKind::Employ),
+            Effect::EmployRetainer { life: 2 },
+            EMPLOYER_INTERCEPT,
+        ]),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Ghoul with 2 life. The employer gets +1 intercept." Employed by a
+/// Tzimisce (the card's clan requirement).
+pub static REVENANT: CardDef = CardDef {
+    name: "Revenant",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[employ(&[
+        Effect::DeclareAction(ActionKind::Employ),
+        Effect::EmployRetainer { life: 2 },
+        EMPLOYER_INTERCEPT,
+    ])],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Unique mortal with 1 life. 0 strength, 3 bleed." Recruited by a Ventrue
+/// (the card's clan requirement); its type line is all its text.
+pub static POLITICAL_ALLY: CardDef = CardDef {
+    name: "Political Ally",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
     abilities: &[],
     riders: &[],
 };
@@ -915,7 +2222,11 @@ pub static TASTE_OF_VITAE: CardDef = CardDef {
     modes: &[ModeDef {
         windows: &[Window::CombatEndOfRound],
         actor: Actor::Combatant,
-        requires: &[Requirement::ActorReady],
+        requires: &[
+            Requirement::ActorVampire,
+            Requirement::OpponentVampire,
+            Requirement::ActorReady,
+        ],
         target: NO_TARGET,
         terms: None,
         waives_needed: false,
@@ -1699,7 +3010,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     riders: &[],
 };
 
-pub static DEFS: [&CardDef; 107] = [
+pub static DEFS: [&CardDef; 140] = [
     &MAGIC_OF_THE_SMITH,
     &VAST_WEALTH,
     &BLACK_MARKET_CACHE,
@@ -1738,6 +3049,39 @@ pub static DEFS: [&CardDef; 107] = [
     &DEFLECTION,
     &ARCHON_INVESTIGATION,
     &HOMUNCULUS,
+    &POLITICAL_ALLY,
+    &FORTY_SEVENTH_STREET_ROYALS,
+    &CITY_STAR_TAXI,
+    &DOG_PACK,
+    &DOUBLE_DEUCE,
+    &FERAL_HOUND,
+    &SZLACHTA_BODYGUARD,
+    &VOZHD_OF_SOFIA,
+    &WAR_GHOUL,
+    &BONE_SHAMBLER,
+    &CRYPTS_SONS,
+    &SZLACHTA_ASSISTANT,
+    &UNDERBRIDGE_STRAY,
+    &VAGABOND_MYSTIC,
+    &RAPTOR,
+    &SCREAMER,
+    &VOZHD_OF_SZCZECIN,
+    &AGGRESSIVE_CORPSE,
+    &ENTRANCEMENT,
+    &FAR_MASTERY,
+    &INVIGORATE,
+    &LIBERTAS,
+    &VISIONS_OF_GEHENNA,
+    &SLAUGHTERING_THE_HERD,
+    &ROTTING_BEHEMOTH,
+    &VOZHD_OF_GRAVESEND,
+    &VOZHD_OF_JUIZ_DE_FORA,
+    &SPECTRAL_SERVITOR,
+    &OWL_COMPANION,
+    &MR_WINTHROP,
+    &MURDER_OF_CROWS,
+    &RAVEN_SPY,
+    &REVENANT,
     &FLASH,
     &TORN_SIGNPOST,
     &ROUNDHOUSE,
@@ -1843,7 +3187,7 @@ pub static ANARCH_REVOLT: CardDef = CardDef {
     abilities: &[ModeDef {
         windows: &[Window::ActionDeclarePolitical],
         actor: Actor::ActingCandidate,
-        requires: &[],
+        requires: &[Requirement::ActorVampire],
         target: NO_TARGET,
         terms: None,
         waives_needed: false,
@@ -1881,7 +3225,11 @@ pub static GUARDIAN_ANGEL: CardDef = CardDef {
         requires: &[],
         target: Some(TargetSpec {
             kind: TargetKind::Minion,
-            filter: &[Requirement::Controlled, Requirement::ActorReady],
+            filter: &[
+                Requirement::TargetVampire,
+                Requirement::Controlled,
+                Requirement::ActorReady,
+            ],
         }),
         terms: None,
         waives_needed: false,
@@ -1926,7 +3274,7 @@ pub static FAME: CardDef = CardDef {
         requires: &[],
         target: Some(TargetSpec {
             kind: TargetKind::Minion,
-            filter: &[Requirement::ActorReady],
+            filter: &[Requirement::TargetVampire, Requirement::ActorReady],
         }),
         terms: None,
         waives_needed: false,
@@ -2187,7 +3535,11 @@ pub static THE_COVEN: CardDef = CardDef {
         requires: &[Requirement::CardUnlocked],
         target: Some(TargetSpec {
             kind: TargetKind::Minion,
-            filter: &[Requirement::Controlled, Requirement::ActorReady],
+            filter: &[
+                Requirement::TargetVampire,
+                Requirement::Controlled,
+                Requirement::ActorReady,
+            ],
         }),
         terms: None,
         waives_needed: false,
@@ -2353,7 +3705,7 @@ pub static BLOOD_DOLL: CardDef = CardDef {
         requires: &[],
         target: Some(TargetSpec {
             kind: TargetKind::Minion,
-            filter: &[Requirement::Controlled],
+            filter: &[Requirement::TargetVampire, Requirement::Controlled],
         }),
         terms: None,
         waives_needed: false,
@@ -2381,7 +3733,7 @@ pub static VESSEL: CardDef = CardDef {
         requires: &[],
         target: Some(TargetSpec {
             kind: TargetKind::Minion,
-            filter: &[],
+            filter: &[Requirement::TargetVampire],
         }),
         terms: Some(Terms::BurnNamedInPlay("Blood Doll")),
         waives_needed: false,
@@ -2442,6 +3794,7 @@ macro_rules! hunting_ground {
             abilities: &[hunting_ground_pick!(
                 1,
                 &[
+                    Requirement::TargetVampire,
                     Requirement::Controlled,
                     Requirement::ActorReady,
                     Requirement::NotHuntingGroundFed,
@@ -2638,7 +3991,7 @@ pub static WAKE_WITH_EVENINGS_FRESHNESS: CardDef = CardDef {
     modes: &[ModeDef {
         windows: &[Window::Wake, Window::CardAsPlayed],
         actor: Actor::ReactingMinion,
-        requires: &[Requirement::LockedActor],
+        requires: &[Requirement::ActorVampire, Requirement::LockedActor],
         target: NO_TARGET,
         terms: None,
         waives_needed: false,
@@ -2726,9 +4079,9 @@ pub static SPORT_BIKE: CardDef = CardDef {
 /// actions. If this minion is blocked by a prince or an archbishop (during
 /// any action), burn this vehicle. A minion can have only one vehicle." The
 /// equip stealth counts when it is taken from another minion too (LSJ
-/// 20060222); recruit actions arrive with allies; the burn applies as the
-/// block resolves, before anything else (ANK 20220116). No V5 vampire is an
-/// archbishop yet (`TitleClass::Archbishop`).
+/// 20060222); the burn applies as the block resolves, before anything else
+/// (ANK 20220116). No V5 vampire is an archbishop yet
+/// (`TitleClass::Archbishop`).
 pub static UNLICENSED_TAXICAB: CardDef = CardDef {
     name: "Unlicensed Taxicab",
     trifle: false,
@@ -2748,7 +4101,7 @@ pub static UNLICENSED_TAXICAB: CardDef = CardDef {
             Effect::Layer(Modifier::Bearer {
                 stat: Stat::Stealth,
                 n: 1,
-                during: &[ActionKind::Hunt, ActionKind::Employ],
+                during: &[ActionKind::Hunt, ActionKind::Recruit, ActionKind::Employ],
                 who: Bearer::Any,
             }),
         ],

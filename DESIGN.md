@@ -1227,20 +1227,165 @@ Recorded so nobody mistakes them for oversights:
   letting another seat add intercept or remove stealth are defined, it
   must count them too, or stop pruning, rather than hide an attempt
   someone else could make succeed.
+  Slice 10a (2026-09-25): allies and retainers, the model. An ally is a
+  minion and a card in play at once: `Minion.kind` is
+  `MinionKind::Vampire(crypt)` or `MinionKind::Ally { card, id }`, and its
+  `CardInPlay` points back through `body` — not `host`, so the ally is
+  never "a card on a minion" to card targets (Aniel), while
+  `CardInPlay::bearer()` (host or body) gives its own text's abilities and
+  bearer layers to the ally itself; `card_controller` follows the
+  minion's controller. `Minion::vampire()` / `capacity()` are `Option`s:
+  an ally has no clan, sect, Disciplines, title, capacity or votes, is
+  neither younger nor older (`Minion::younger_than`), is one of "allies and
+  younger vampires" (`ally_or_younger`), and its life (`blood`) is not
+  capped (`cap_blood`; advanced rules 5.5). Generated printed data:
+  `LibraryCard.body` (life, strength, bleed) and the subtype labels
+  (mortal, animal, ghoul, zombie, wraith, werewolf) from the type line;
+  base bleed and strength read it (`GameState::base_bleed`,
+  `base_strength`). An ally bleeds and equips, employs and recruits, blocks,
+  but does not hunt, rescue, commit diablerie (a blocked leave-torpor just
+  fails), call a referendum or play a political action card, pays no blood
+  cost (cards or abilities), and a recruited one takes no action that turn
+  (`Minion.recruited`; its abilities stay usable). Damage burns 1 life per
+  point, aggravated or not, its last life burns it (`resolve_life_damage`);
+  sent to torpor, it is burned instead; burned, its card goes to its
+  owner's ash heap, and burning the card burns the ally. A unique ally
+  contests by name as a minion (`card_rivals`), its card following
+  (`set_minion_contested`). `ActionKind::Recruit` (+1 stealth, undirected)
+  and employ share the resolution: pool and blood paid then, a fizzle
+  discards, paid to 0 pool ousts; the card's entry effects then land
+  (`apply_entry_effects`: a retainer's layers on its employer, an ally's on
+  itself). `R::TargetVampire` and `R::ActorVampire` are real, added where
+  printed text says vampire (Villein, Guardian Angel, Fame, The Coven,
+  Blood Doll, Vessel, the hunting grounds, Taste of Vitae, Wake with
+  Evening's Freshness, Anarch Revolt's referendum). `Modifier::RetainerDamage`:
+  the retainer's damage in the normal strike pair, through a dodge, not
+  after a combat ends strike, not repeated by additional strikes.
+  Unlicensed Taxicab's stealth now counts during recruit actions. Texts
+  waiting for allies completed: Adisa enters combat with an ally
+  (`R::AllyOrYounger`), Ragnar Nordstrom's +1 strength against one
+  (`R::OpponentAllyOrYounger`); Taste of Vitae is not played against an
+  ally (`R::OpponentVampire`; PIB 20121028). Fixed on
+  the way (fuzz): a banished vampire returned with cards burned from it
+  earlier — `UncontrolledSlot.banished` now records the cards in play on it
+  (`Banished`). Definitions: Political Ally, Mr. Winthrop, Raven Spy,
+  Revenant, Murder of Crows (112 defs; 81 vampires, 9 incomplete),
+  scripted in `tests/allies.rs`.
+  Slice 10b (2026-09-25): the pre-built-deck allies' and retainers'
+  text, first batches. An ally's own card acts through the ally:
+  `Effect::LockSelf` and `R::CardUnlocked` lock and read the minion
+  (`Engine::lock_card`), riders and bearer requirements read it
+  (`CardInPlay::bearer`), its printed strike is "on" it, and host
+  abilities take targets (an ally's rush). New: `R::HostBloodAtMost`,
+  `R::DirectedAtYourMinion` (`ActionCtx::target_minion`),
+  `R::NoBlockAttempt` (a failed action takes no more block attempts),
+  `R::NotInCombat`, `CardFilter::AllyOrRetainer` / `Location`,
+  `Modifier::NoCombatEndsAgainstHost` (offers and resolution both,
+  `CombatCtx::allows` now reads the state), `Effect::UnlockActorAtDiscard`
+  (`Minion.unlock_at_discard`), `Effect::EntryBurnAllyOrRetainer` — an
+  interrupt (`Interrupt::EntryBurn`, `WindowLabel::EntryEffect`): the
+  controller picks among their other allies and retainers, the entering
+  ally burns itself when there is none; it applies however the ally
+  enters (`Engine::add_ally` included). Card abilities may reduce a bleed
+  and fail an action. Definitions: 47th Street Royals, City Star Taxi,
+  Dog Pack, Double Deuce, Feral Hound, Szlachta Bodyguard, War Ghoul, The
+  Vozhd of Sofia, scripted in `tests/allies.rs`. Then: a card in play
+  keeps the mode it entered with (`CardInPlay.mode`, `R::SuperiorVersion`)
+  and an ally its version's type line (`MinionKind::Ally.body`,
+  `Effect::Version`: Underbridge Stray [ANI]'s 2 life and 1 strength, its
+  starting life). A blocked action stops before block resolution
+  (`ActionState::Blocked`, `WindowLabel::ActionBlocked`, elided when the
+  acting Methuselah has nothing to use): Crypt's Sons continue it as if
+  unblocked (`Effect::ContinueUnblocked`, once per block), the declines
+  standing. The other Methuselahs get an as-announced window
+  (`Window::ReactionAsAnnounced`, after the acting one's). The combat's
+  minions are state (`GameState::combatants`): Raptor [ANI] lowers the
+  opponent's hand size for the combat, drawn back up as it ends. Also:
+  `Effect::BurnOwnLife` (a retainer's counters or an ally's life — not a
+  blood cost), `ReduceActionCost` (`ActionCtx.cost_reduction`),
+  `ReduceStealth` (`ActionCtx.stealth_reduce`), `TargetBurnsBlood`,
+  `UnlockSelf`; `Modifier::CannotBlockVampires`,
+  `NoEquipmentOrRetainers` (no equipment or retainer card played by it,
+  none held: `GameState::can_hold`), `OpponentHandSizeInCombat`;
+  `Actor::ForOwnCombatant` on a card's ability; `R::OthersMinionPhase`
+  (read by the engine). Definitions: Bone Shambler, Crypt's Sons, Raptor,
+  Screamer, Szlachta Assistant, Underbridge Stray, Vagabond Mystic, The
+  Vozhd of Szczecin (128 defs). The allies and retainers have their own
+  fuzz tables (`allies_midgame`, `ALLY_SLICE`), the midgame slice keeping
+  its cards and keys. Then (owner, 2026-09-25: Entrancement and Far
+  Mastery give Aggressive Corpse's immunity something to meet): an action
+  card from hand with a minion or card target is directed at the target's
+  controller unless that is the acting Methuselah (`ActionKind::Card` in
+  `ActionCtx::directed_seat`, its target kept on the action), card plays
+  target cards in play, a bleed action card adds its own bleed and is one
+  bleed a turn; `Effect::StealTargetAlly` (the cards on it follow),
+  `StealTargetCard` on card actions, `CannotGainLife`
+  (`Minion.no_life_gain`, read by `cap_blood`); `Modifier::
+  ImmuneToDirectedActions` (targets of directed actions requiring those
+  Disciplines are not offered), `UndodgeableStrikes`. Definitions:
+  Aggressive Corpse, Entrancement, Far Mastery (131 defs).
+  Vampire text waiting for allies completed: Seraphina's gain stops at an
+  ally's starting life (`Effect::BloodToTargetToStart`,
+  `Minion::cap_starting`), Rowena strikes combat ends against a werewolf
+  (`R::OpponentSubtype`) — 8 vampires incomplete.
+  Slice 10c (2026-09-25): the rest of the pre-built decks' allies and
+  retainers, and what they needed. Ranged strikes at long range may be
+  aimed at a retainer of the opposing minion (`Side::strike_at`, the
+  strike's choice carrying `Target::Card`): its life burns, a dodge does
+  not protect it. "Allies cannot block": an action's
+  (`ActionCtx.allies_cannot_block`, from a modifier or the action card
+  itself) or a bearer's (`Modifier::AlliesCannotBlockBearer`); Libertas'
+  surcharge on Dominate and Presence cards around its Anarch
+  (`Modifier::DisciplineSurchargeAround`, `Engine::discipline_surcharge`:
+  on plays only, not once its block failed); Invigorate's strength and
+  aggravated hand strikes for the action. A card may name the minion that
+  played it (`CardInPlay.by`): Slaughtering the Herd [DOM] drains its host
+  as it announces an action (`Hook::HostAnnouncesAction`) and burns once
+  that vampire leaves the ready region (`Hook::ByLeavesReady`, banishment
+  included). A bleed action card pays its cost at resolution (it did not:
+  found here). An action card's target is read again at resolution:
+  gone or no longer legal, the action fizzles, paid (LSJ 20020725, PIB
+  20121031). An action whose acting minion left play before resolution
+  fails. Burned vampires go to the ash heap (`Seat.ash_crypt`; removed
+  from the game: `removed_crypt`): Rotting Behemoth's entry takes one or
+  an ally from there, or burns (`Interrupt::EntryRemoveOrBurn`,
+  `Choice::AshVampire`). The as-played window offers cancelling abilities
+  (The Vozhd of Gravesend: a strike card of its opponent, unpaid, the
+  opponent choosing again). Allies playing cards "as a vampire"
+  (`Modifier::PlaysAsVampire`, `AsVampire`): they meet one basic
+  Discipline, pay in life, their last life burning them (the card then has
+  no effect; an action resolves first), count as independent with their
+  granted capacity; Spectral Servitor acts the turn it is recruited,
+  unlocks its recruiter on that vampire's first recruit of the turn
+  (`Minion.recruits_this_turn`), burns in its unlock phase unless [OBL]
+  pays a pool (a rider with a choice). An open hand is a query for the
+  legal view to come (`GameState::hand_visible_to`). Definitions:
+  Invigorate, Libertas, Slaughtering the Herd, Visions of Gehenna, Rotting
+  Behemoth, The Vozhds of Gravesend and Juiz de Fora, Spectral Servitor,
+  Owl Companion (140 defs), scripted in `tests/allies.rs`, all in the ally
+  fuzz tables.
   **P2 open items (2026-09-25, after 9d):**
-  - Next: slice 10, allies and retainers — the ally as a minion (life, not
-    blood; its strength and bleed; damage burns life), recruit ally and
-    employ retainer, retainer damage and theft by strike. Unblocks Adisa's
-    ally half, Seraphina's "life", Rowena's werewolf strike,
-    `R::TargetVampire` (true for every minion until then), "allies cannot
-    block" riders. Then the precon card coverage push (actions, masters,
-    modifiers, combat, reactions of the 14 training decks).
+  - Next: the precon card coverage push (actions, masters, modifiers,
+    combat, reactions of the 14 training decks) — slice 10 landed whole
+    (10a–10c). Left from it, waiting for cards that need them: damage to
+    retainers from effects (Weather Control, Martyr's Resilience), immunity
+    to damage from a source, subtype-reading effects (mortal, monster), an
+    as-a-vampire ally's sect and capacity read by a card it plays (coded,
+    no card to meet yet); Obedient Flesh (allies' -1 intercept and a
+    combat half). `ImmuneToDirectedActions` is read on card plays only: a
+    granted or printed action requiring a Discipline would need it in
+    `ability_targets` too. A cancelling ability marks the play canceled as
+    it is used (`as_played_apply`): one with terms the user could back out
+    of would need the mark after its terms. (Stealing a unique ally whose copy the thief's
+    Methuselah controls cannot arise: both copies are contested, out of
+    play, no target.)
   - Held vampires: Valerius (titles are printed only), The Guardian
     (combat begun outside an action), Gnaeus Aemilius (out-of-combat damage
     in another seat's unlock phase), Keegan and "Mother" Anja Giovanni (no
-    implemented action card requires their clans), Marchesa Liliana (burned
-    vampires not kept in the ash heap); Aniel's corruption half (corruption
-    counters).
+    implemented action card requires their clans), Marchesa Liliana
+    (unblocked by 10c: burned vampires now reach the ash heap; her seven
+    cards removed want a pick-seven terms flow); Aniel's corruption half
+    (corruption counters).
   - Effect-widened block eligibility (Eagle's Sight): `eligible_blockers`
     effect-aware (noted above).
   - Third-party help during another seat's block attempt (Night Terrors,

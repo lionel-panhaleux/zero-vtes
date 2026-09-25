@@ -78,6 +78,9 @@ fn equip(e: &mut Engine, name: &str, host: MinionId) -> u32 {
         owner,
         controller: owner,
         host: Some(host),
+        body: None,
+        mode: 0,
+        by: None,
         in_play: true,
         contested: false,
         locked: false,
@@ -176,6 +179,21 @@ fn unlicensed_taxicab_gives_stealth_during_hunt_actions() {
     let req = request(&mut e);
     assert_ne!(req.window, WindowLabel::ActionBlock, "{req:?}");
     assert_eq!(e.state.minions[horst.index()].blood, 4);
+}
+
+#[test]
+fn unlicensed_taxicab_gives_stealth_during_recruit_and_employ_actions() {
+    let mut e = Engine::bare(3);
+    let horst = e.add_minion(SeatId(0), find_card("Horst von Brühl"), 3, false);
+    equip(&mut e, "Unlicensed Taxicab", horst);
+    for kind in [ActionKind::Hunt, ActionKind::Recruit, ActionKind::Employ] {
+        assert_eq!(e.state.bearer_mod(horst, cards::Stat::Stealth, kind), 1);
+    }
+    assert_eq!(
+        e.state
+            .bearer_mod(horst, cards::Stat::Stealth, ActionKind::Bleed),
+        0
+    );
 }
 
 #[test]
@@ -465,6 +483,9 @@ fn a_locquipment_in_play_is_not_taken_from_another_minion() {
         owner: SeatId(0),
         controller: SeatId(0),
         host: Some(alice),
+        body: None,
+        mode: 0,
+        by: None,
         in_play: true,
         contested: false,
         locked: false,

@@ -40,6 +40,20 @@ pub(crate) enum Interrupt {
         card: CardId,
         left: u8,
     },
+    /// "After this ally enters play, burn an ally or retainer you control"
+    /// (War Ghoul): the controller's pick among the others, the entering
+    /// ally itself if there is none (RTR 19961113).
+    EntryBurn {
+        seat: SeatId,
+        ally: crate::ids::MinionId,
+    },
+    /// "After this ally enters play, burn it unless you remove an ally or
+    /// vampire in your ash heap from the game" (Rotting Behemoth): the
+    /// controller may decline, and the ally burns (LSJ 20030701-2).
+    EntryRemoveOrBurn {
+        seat: SeatId,
+        ally: crate::ids::MinionId,
+    },
 }
 
 impl Interrupt {
@@ -49,7 +63,9 @@ impl Interrupt {
             | Interrupt::DrawUp { seat }
             | Interrupt::Draws { seat, .. }
             | Interrupt::Bottom { seat, .. }
-            | Interrupt::StoreSearch { seat, .. } => seat,
+            | Interrupt::StoreSearch { seat, .. }
+            | Interrupt::EntryBurn { seat, .. }
+            | Interrupt::EntryRemoveOrBurn { seat, .. } => seat,
         }
     }
 }
@@ -259,6 +275,23 @@ impl Engine {
                     self.interrupts.remove(0);
                     self.finish_store_search(s, card);
                 }
+                Interrupt::EntryRemoveOrBurn { ally, .. } => {
+                    if !self.state.minions[ally.index()].in_play {
+                        self.interrupts.remove(0);
+                    } else {
+                        return;
+                    }
+                }
+                Interrupt::EntryBurn { ally, .. } => {
+                    if !self.state.minions[ally.index()].in_play {
+                        self.interrupts.remove(0);
+                    } else if self.entry_burn_options(s, ally).is_empty() {
+                        self.interrupts.remove(0);
+                        self.burn_minion(ally);
+                    } else {
+                        return;
+                    }
+                }
             }
         }
     }
@@ -306,6 +339,28 @@ impl Engine {
                 let mut options = vec![Choice::Pass];
                 options.extend(found.into_iter().map(Choice::FindCard));
                 (WindowLabel::LibrarySearch, options)
+            }
+            Interrupt::EntryBurn { ally, .. } => {
+                (WindowLabel::EntryEffect, self.entry_burn_options(s, ally))
+            }
+            Interrupt::EntryRemoveOrBurn { .. } => {
+                // One choice per card: copies are alike.
+                let seat = &st.seats[s.index()];
+                let mut allies: Vec<u16> = seat
+                    .ash
+                    .iter()
+                    .copied()
+                    .filter(|&c| LIBRARY[c as usize].types.contains(&CardType::Ally))
+                    .collect();
+                allies.sort_unstable();
+                allies.dedup();
+                let mut vampires = seat.ash_crypt.clone();
+                vampires.sort_unstable();
+                vampires.dedup();
+                let mut options = vec![Choice::Pass];
+                options.extend(allies.into_iter().map(Choice::FindCard));
+                options.extend(vampires.into_iter().map(Choice::AshVampire));
+                (WindowLabel::EntryEffect, options)
             }
         };
         Some(DecisionRequest {
@@ -375,7 +430,55 @@ impl Engine {
                     left: 0,
                 };
             }
+            (Interrupt::EntryRemoveOrBurn { ally, .. }, c) => {
+                self.interrupts.remove(0);
+                let seat = &mut self.state.seats[s.index()];
+                match c {
+                    Choice::FindCard(card) => {
+                        let k = seat
+                            .ash
+                            .iter()
+                            .position(|&x| x == card)
+                            .expect("in the ash heap");
+                        seat.ash.remove(k);
+                        seat.removed.push(card);
+                    }
+                    Choice::AshVampire(card) => {
+                        let k = seat
+                            .ash_crypt
+                            .iter()
+                            .position(|&x| x == card)
+                            .expect("in the ash heap");
+                        seat.ash_crypt.remove(k);
+                        seat.removed_crypt.push(card);
+                    }
+                    Choice::Pass => self.burn_minion(ally),
+                    other => unreachable!("illegal entry choice {other:?}"),
+                }
+            }
+            (Interrupt::EntryBurn { .. }, Choice::BurnInPlay { card }) => {
+                self.interrupts.remove(0);
+                self.burn_card_in_play(CardId(card));
+            }
             (front, choice) => unreachable!("illegal choice {choice:?} for {front:?}"),
         }
+    }
+
+    /// The allies (by card) and retainers `s` controls, other than the
+    /// entering `ally`: what War Ghoul's entry may burn.
+    fn entry_burn_options(&self, s: SeatId, ally: crate::ids::MinionId) -> Vec<Choice> {
+        let st = &self.state;
+        st.cards
+            .iter()
+            .enumerate()
+            .filter(|&(i, c)| {
+                c.present()
+                    && c.body != Some(ally)
+                    && st.card_controller(CardId(i as u32)) == s
+                    && c.bearer().is_some_and(|m| st.minions[m.index()].present())
+                    && crate::cards::CardFilter::AllyOrRetainer.matches(c.card)
+            })
+            .map(|(i, _)| Choice::BurnInPlay { card: i as u32 })
+            .collect()
     }
 }

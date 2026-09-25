@@ -495,7 +495,7 @@ fn taste_of_vitae_gains_blood_lost_by_opponent() {
     pick(e, play(0, 0, t.a));
     pick(e, play(0, 0, t.x));
     expect(e, SeatId(0), WindowLabel::MinionPhase);
-    let cap = e.state.minions[t.a.index()].capacity();
+    let cap = e.state.minions[t.a.index()].capacity().unwrap();
     assert_eq!(blood(e, t.a), (4 - 1 + 3).min(cap));
     assert_eq!(blood(e, t.x), 4 - 3 + 1);
 }
@@ -538,7 +538,10 @@ fn blocked_leave_torpor_blocker_may_diablerise() {
     assert_eq!(req.options, vec![Choice::Pass, Choice::Diablerise]);
     pick(e, Choice::Diablerise);
     assert!(!e.state.minions[tor.index()].in_play);
-    assert_eq!(blood(e, z), 6.min(e.state.minions[z.index()].capacity()));
+    assert_eq!(
+        blood(e, z),
+        6.min(e.state.minions[z.index()].capacity().unwrap())
+    );
     // The blood hunt rotation starts at the diablerist's controller; the
     // hunt is inside the action (rules-qa 5.8), which ends blocked after it.
     expect(e, SeatId(1), WindowLabel::BloodHuntPolling);

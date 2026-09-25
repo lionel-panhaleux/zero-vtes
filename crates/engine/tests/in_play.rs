@@ -81,6 +81,9 @@ fn revolt_in_play(e: &mut Engine, owner: u8) -> u32 {
         owner: SeatId(owner),
         controller: SeatId(owner),
         host: None,
+        body: None,
+        mode: 0,
+        by: None,
         in_play: true,
         contested: false,
         locked: false,
@@ -351,6 +354,9 @@ fn anarch_revolt_burn_is_ordered_by_the_active_methuselah_before_the_impulse_pas
         owner: SeatId(0),
         controller: SeatId(0),
         host: Some(alexa),
+        body: None,
+        mode: 0,
+        by: None,
         in_play: true,
         contested: false,
         locked: false,
@@ -499,6 +505,9 @@ fn guardian_angel_on(e: &mut Engine, owner: u8, host: MinionId) -> u32 {
         owner: SeatId(owner),
         controller: SeatId(owner),
         host: Some(host),
+        body: None,
+        mode: 0,
+        by: None,
         in_play: true,
         contested: false,
         locked: false,
@@ -707,6 +716,9 @@ fn fame_on(e: &mut Engine, owner: u8, host: MinionId) -> u32 {
         owner: SeatId(owner),
         controller: SeatId(owner),
         host: Some(host),
+        body: None,
+        mode: 0,
+        by: None,
         in_play: true,
         contested: false,
         locked: false,
@@ -1386,7 +1398,7 @@ fn the_coven_goes_to_the_predator_at_the_end_of_each_controllers_discard_phase()
     hand(&mut e, 0, &["Bonding"]);
     hand(&mut e, 2, &["Bonding"]);
     pick(&mut e, coven_use(coven, alexa));
-    let cap = e.state.minions[alexa.index()].capacity();
+    let cap = e.state.minions[alexa.index()].capacity().unwrap();
     assert_eq!(blood(&e, alexa), 7.min(cap));
     let req = to_window(&mut e, SeatId(0), WindowLabel::DiscardPhase);
     assert!(uses(&req, coven).is_empty()); // locked
@@ -1624,6 +1636,9 @@ fn revolt_like_in_play(e: &mut Engine, name: &str, owner: u8) -> u32 {
         owner: SeatId(owner),
         controller: SeatId(owner),
         host: None,
+        body: None,
+        mode: 0,
+        by: None,
         in_play: true,
         contested: false,
         locked: false,
@@ -1817,6 +1832,9 @@ fn blood_doll_usable_with_the_host_in_torpor() {
         owner: SeatId(0),
         controller: SeatId(0),
         host: Some(alexa),
+        body: None,
+        mode: 0,
+        by: None,
         in_play: true,
         contested: false,
         locked: false,
@@ -1850,6 +1868,9 @@ fn vessel_on_any_vampire_burns_any_blood_doll_and_is_the_controllers_to_use() {
         owner: SeatId(2),
         controller: SeatId(2),
         host: Some(lenny),
+        body: None,
+        mode: 0,
+        by: None,
         in_play: true,
         contested: false,
         locked: false,

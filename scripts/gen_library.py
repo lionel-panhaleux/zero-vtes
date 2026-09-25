@@ -37,7 +37,17 @@ LABELS = [
     ("Title", r"^title\."),
     ("OutOfTurn", r"^out-of-turn\."),
     ("Frenzy", r"^frenzy\."),
+    # Ally and retainer subtypes: the type line only (advanced rules 5.7.1).
+    ("Mortal", r"^(unique )?mortal with"),
+    ("Animal", r"^(unique )?animal with"),
+    ("Ghoul", r"^(unique )?ghoul with"),
+    ("Zombie", r"^(unique )?zombie with"),
+    ("Wraith", r"^(unique )?wraith with"),
+    ("Werewolf", r"^(unique )?werewolf with"),
 ]
+# An ally's or retainer's type line: "Unique mortal with 2 life. 1 strength,
+# 0 bleed." (a retainer prints its life only).
+BODY = re.compile(r"^(?:unique )?[\w ]+? with (\d+) life\.(?: (\d+) strength, (\d+) bleed\.)?", re.I)
 
 
 def rust_str(s):
@@ -55,6 +65,18 @@ def cost(v):
 def labels_of(text):
     head = " ".join(line for line in text.split("\n")[:2])
     return [name for name, pat in LABELS if re.search(pat, head, re.I)]
+
+
+def body_of(c):
+    if not {"Ally", "Retainer"} & set(c["types"]):
+        return "None"
+    m = BODY.match(c["card_text"])
+    if not m:
+        raise SystemExit(f"no life on the type line of {c['_name']}")
+    life, strength, bleed = m.groups()
+    if "Ally" in c["types"] and strength is None:
+        raise SystemExit(f"no strength and bleed on ally {c['_name']}")
+    return f"Some(Body {{ life: {life}, strength: {strength or 0}, bleed: {bleed or 0} }})"
 
 
 def generate(cards):
@@ -101,6 +123,15 @@ def generate(cards):
     out.append("    pub flags: &'static [&'static str],")
     out.append("}")
     out.append("")
+    out.append("/// An ally's or retainer's printed type line: its starting life, and an")
+    out.append("/// ally's strength and bleed (0 for a retainer, which has neither).")
+    out.append("#[derive(Clone, Copy, Debug, PartialEq, Eq)]")
+    out.append("pub struct Body {")
+    out.append("    pub life: u8,")
+    out.append("    pub strength: u8,")
+    out.append("    pub bleed: u8,")
+    out.append("}")
+    out.append("")
     out.append("#[derive(Clone, Copy, Debug, PartialEq, Eq)]")
     out.append("pub struct LibraryCard {")
     out.append("    pub id: u32,")
@@ -116,6 +147,8 @@ def generate(cards):
     out.append("    /// Combo card: every listed discipline is required (KRCG `combo`).")
     out.append("    pub combo: bool,")
     out.append("    pub labels: &'static [Label],")
+    out.append("    /// Allies and retainers: the printed type line.")
+    out.append("    pub body: Option<Body>,")
     out.append("    pub modes: &'static [Mode],")
     out.append("}")
     out.append("")
@@ -137,6 +170,7 @@ def generate(cards):
         out.append(f"        combo: {'true' if c.get('combo') else 'false'},")
         labels = ", ".join("Label::" + l for l in labels_of(c["card_text"]))
         out.append(f"        labels: &[{labels}],")
+        out.append(f"        body: {body_of(c)},")
         out.append("        modes: &[")
         for tags, wins, flags in modes_for(c):
             t = ", ".join(rust_str(x) for x in tags)

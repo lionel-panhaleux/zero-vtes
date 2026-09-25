@@ -27,7 +27,7 @@ const fn own(stat: Stat, n: i8, requires: &'static [R]) -> Printed {
 }
 
 /// An ability with a limit, no target and no terms.
-const fn ability(
+pub(super) const fn ability(
     windows: &'static [Window],
     actor: Actor,
     requires: &'static [R],
@@ -48,7 +48,10 @@ const fn ability(
 
 /// A printed action ("… as a +1 stealth action"): the vampire's own,
 /// declared in the minion phase, its effects resolving on success.
-const fn printed_action(target: Option<TargetSpec>, effects: &'static [Effect]) -> ModeDef {
+pub(super) const fn printed_action(
+    target: Option<TargetSpec>,
+    effects: &'static [Effect],
+) -> ModeDef {
     ModeDef {
         windows: &[Window::ActionDeclare],
         actor: Actor::Host,
@@ -63,7 +66,7 @@ const fn printed_action(target: Option<TargetSpec>, effects: &'static [Effect]) 
 
 /// "… can enter combat with <filter> as a Ⓓ action": another Methuselah's
 /// ready minion, the combat part of the action (spec §4.1.2).
-const fn enter_combat(filter: &'static [R]) -> ModeDef {
+pub(super) const fn enter_combat(filter: &'static [R]) -> ModeDef {
     printed_action(
         Some(TargetSpec {
             kind: TargetKind::Minion,
@@ -91,7 +94,7 @@ const fn steal_equipment(filter: &'static [R], effects: &'static [Effect]) -> Mo
 }
 
 /// "Gets 1 optional maneuver … each combat" (Abaddon, Saku Pihlajamäki).
-const MANEUVER_EACH_COMBAT: ModeDef = ability(
+pub(super) const MANEUVER_EACH_COMBAT: ModeDef = ability(
     &[Window::CombatDetermineRange],
     Actor::Host,
     &[],
@@ -184,8 +187,7 @@ pub static ADISA: VampireDef = VampireDef {
     abilities: &[enter_combat(&[
         R::NotControlled,
         R::ActorReady,
-        R::TargetVampire,
-        R::Younger,
+        R::AllyOrYounger,
     ])],
     riders: &[Rider {
         hook: Hook::SuccessfulHunt,
@@ -193,7 +195,7 @@ pub static ADISA: VampireDef = VampireDef {
         requires: &[],
         effects: &[Effect::SkipNextUnlock],
     }],
-    incomplete: Some("Adisa can enter combat with an ally … (waits for allies)."),
+    incomplete: None,
 };
 
 pub static ADRINO_MANAUARA: VampireDef = VampireDef {
@@ -1183,13 +1185,10 @@ pub static QUEEN_ANNE: VampireDef = VampireDef {
 
 pub static RAGNAR_NORDSTROM: VampireDef = VampireDef {
     name: "Ragnar Nordstrom",
-    printed: &[own(Stat::Strength, 1, &[R::OpponentYounger])],
+    printed: &[own(Stat::Strength, 1, &[R::OpponentAllyOrYounger])],
     abilities: &[],
     riders: &[],
-    incomplete: Some(
-        "Cards requiring Protean [pro] cost Ragnar -1 blood. (His +1 strength in combat with \
-         an ally waits for allies.)",
-    ),
+    incomplete: Some("Cards requiring Protean [pro] cost Ragnar -1 blood."),
 };
 
 /// "After Richard successfully bleeds, he can look at the target
@@ -1234,22 +1233,33 @@ pub static ROSE_ABAWI: VampireDef = VampireDef {
     incomplete: None,
 };
 
-/// "Rowena can prevent 1 non-aggravated damage each round."
+/// "Rowena can prevent 1 non-aggravated damage each round. She can strike:
+/// combat ends in combat with a werewolf." A werewolf is an ally of that
+/// subtype (advanced rules 5.7.1: the type line only).
 pub static ROWENA: VampireDef = VampireDef {
     name: "Rowena",
     printed: &[],
-    abilities: &[ability(
-        &[Window::CombatDamagePrevention],
-        Actor::Host,
-        &[R::NonAggravatedDamagePending],
-        Limit::PerRound,
-        &[Effect::PreventNonAggravated(1)],
-    )],
+    abilities: &[
+        ability(
+            &[Window::CombatDamagePrevention],
+            Actor::Host,
+            &[R::NonAggravatedDamagePending],
+            Limit::PerRound,
+            &[Effect::PreventNonAggravated(1)],
+        ),
+        ModeDef {
+            windows: &[Window::CombatStrikeDeclaration],
+            actor: Actor::Host,
+            requires: &[R::OpponentSubtype(Label::Werewolf)],
+            target: None,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Strike(StrikeKind::CombatEnds { unlock: false })],
+        },
+    ],
     riders: &[],
-    incomplete: Some(
-        "She can strike: combat ends in combat with a werewolf. (Werewolves are allies: waits \
-         for allies.)",
-    ),
+    incomplete: None,
 };
 
 pub static ROY: VampireDef = VampireDef {
@@ -1315,7 +1325,8 @@ pub static SAKU_PIHLAJAMAKI: VampireDef = VampireDef {
 
 /// "Seraphina can add 2 blood or life to a minion you control as a +1
 /// stealth action, not to exceed starting life." A vampire's blood stops at
-/// its capacity; one in torpor, or Seraphina herself, may be chosen.
+/// its capacity, an ally's life at its starting life (advanced rules
+/// 5.5.2); one in torpor, or Seraphina herself, may be chosen.
 pub static SERAPHINA: VampireDef = VampireDef {
     name: "Seraphina",
     printed: &[],
@@ -1327,7 +1338,7 @@ pub static SERAPHINA: VampireDef = VampireDef {
         &[
             Effect::DeclareAction(ActionKind::Ability),
             Effect::AddStealth(1),
-            Effect::BloodToTarget(2),
+            Effect::BloodToTargetToStart(2),
         ],
     )],
     riders: &[],
