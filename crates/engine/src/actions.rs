@@ -182,9 +182,23 @@ impl ActionCtx {
                 .sum(),
             _ => 0,
         };
+        // "No other equipment can increase the bleed amount of this
+        // action" (Camera Phone).
+        let alone = match (self.source, self.ability) {
+            (Some(src), Some(ab)) => src
+                .mode(st, ab)
+                .effects
+                .contains(&Effect::NoOtherEquipmentBleed),
+            _ => false,
+        };
+        let bearer = if alone {
+            st.bearer_mod_without_equipment_increase(self.acting, Stat::Bleed, self.kind)
+        } else {
+            st.bearer_mod(self.acting, Stat::Bleed, self.kind)
+        };
         let n = (1
             + self.bleed_mods as i32
-            + st.bearer_mod(self.acting, Stat::Bleed, self.kind)
+            + bearer
             + st.printed_mod(self.acting, Stat::Bleed, self.printed_ctx(st, None))
             + granted)
             .max(0) as u8;

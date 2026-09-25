@@ -1133,6 +1133,9 @@ pub enum Effect {
     /// The minion attempting to block gets n intercept for the rest of the
     /// action (Oskar Anasov's +1, Gwenllian Arwyn's -1).
     AttemptingIntercept(i8),
+    /// Marker of a granted bleed: no equipment but the granting one may
+    /// increase its bleed amount (Camera Phone).
+    NoOtherEquipmentBleed,
     /// +n bleed for the current bleed; `limited` binds the rulebook cap.
     BleedMod {
         n: u8,

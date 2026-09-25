@@ -47,6 +47,18 @@ V5_SETS = {
     "Echoes of Gehenna": "EoG",
 }
 
+# Legacy cards the owner added to the pool (2026-09-25: common electronic
+# equipment, so Darius Shirazi's "non-electronic" has something to exclude).
+EXTRA_CARDS = {
+    100287: "Camera Phone",
+    101073: "Laptop Computer",
+}
+
+
+def in_pool(card):
+    """A card of the engine pool: printed in a V5-era set, or an owner-added extra."""
+    return bool(V5_SETS.keys() & set(card.get("ordered_sets", []))) or card["id"] in EXTRA_CARDS
+
 # Phrases removed before window matching: riders and granted abilities that
 # fire after the card's own play step (review convention: "riders firing after
 # the card's own play step add no play window"; in-play granted abilities are
@@ -273,7 +285,7 @@ def modes_for(card):
 def rows_for(cards):
     codes = set(V5_SETS.values())
     for card in sorted(cards, key=lambda c: c.get("name", "")):
-        if not V5_SETS.keys() & set(card.get("ordered_sets", [])):
+        if not in_pool(card):
             continue
         if "Vampire" in card.get("types", []):
             continue

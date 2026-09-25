@@ -1699,7 +1699,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     riders: &[],
 };
 
-pub static DEFS: [&CardDef; 105] = [
+pub static DEFS: [&CardDef; 107] = [
     &MAGIC_OF_THE_SMITH,
     &VAST_WEALTH,
     &BLACK_MARKET_CACHE,
@@ -1717,6 +1717,8 @@ pub static DEFS: [&CardDef; 105] = [
     &SNIPER_RIFLE,
     &BOWL_OF_CONVERGENCE,
     &SPORT_BIKE,
+    &CAMERA_PHONE,
+    &LAPTOP_COMPUTER,
     &UNLICENSED_TAXICAB,
     &TREASURED_SAMADJI,
     &CODEX_OF_THE_EDENIC_GROUNDSKEEPERS,
@@ -2845,6 +2847,75 @@ pub static CODEX_OF_THE_EDENIC_GROUNDSKEEPERS: CardDef = CardDef {
             Effect::BleedIfTargetHasNoReadyUnlocked(3),
         ],
     }],
+    riders: &[],
+};
+
+/// "Electronic equipment. The minion with this equipment may bleed at +1
+/// bleed as a Ⓓ action. No other equipment can increase the bleed amount
+/// of this action." A legacy card the owner added to the pool (2026-09-25).
+/// The granted bleed is a bleed (one a turn) and this copy's action; it
+/// fizzles if the phone is no longer on the acting minion (RTR 19960221).
+pub static CAMERA_PHONE: CardDef = CardDef {
+    name: "Camera Phone",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::ActionDeclareEquip],
+        actor: Actor::ActingCandidate,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::DeclareAction(ActionKind::Equip)],
+    }],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDeclare],
+        actor: Actor::Host,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::Bleed),
+            Effect::BleedMod {
+                n: 1,
+                limited: false,
+            },
+            Effect::NoOtherEquipmentBleed,
+        ],
+    }],
+    riders: &[],
+};
+
+/// "Electronic. The bearer gets +1 bleed. A minion can have only one Laptop
+/// Computer." A legacy card the owner added to the pool (2026-09-25).
+pub static LAPTOP_COMPUTER: CardDef = CardDef {
+    name: "Laptop Computer",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::ActionDeclareEquip],
+        actor: Actor::ActingCandidate,
+        requires: &[Requirement::ActorWithout(Holding::Named("Laptop Computer"))],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::Layer(Modifier::Bearer {
+                stat: Stat::Bleed,
+                n: 1,
+                during: &[],
+                who: Bearer::Any,
+            }),
+        ],
+    }],
+    abilities: &[],
     riders: &[],
 };
 

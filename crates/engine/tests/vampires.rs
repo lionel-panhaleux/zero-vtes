@@ -2250,8 +2250,17 @@ fn darius_shirazi_steals_neither_vehicle_nor_weapon_and_fizzles_without_the_targ
     let blade = in_play(&mut e, "Righteous Blade", 1, Some(theirs));
     let magnum = in_play(&mut e, ".44 Magnum", 1, Some(theirs));
     let bike = in_play(&mut e, "Sport Bike", 1, Some(theirs));
+    let laptop = in_play(&mut e, "Laptop Computer", 1, Some(theirs));
+    let phone = in_play(&mut e, "Camera Phone", 1, Some(theirs));
     let req = request(&mut e);
-    for (card, offered) in [(vest, true), (blade, false), (magnum, false), (bike, false)] {
+    for (card, offered) in [
+        (vest, true),
+        (blade, false),
+        (magnum, false),
+        (bike, false),
+        (laptop, false),
+        (phone, false),
+    ] {
         assert_eq!(
             req.options.contains(&at_card(darius, card)),
             offered,

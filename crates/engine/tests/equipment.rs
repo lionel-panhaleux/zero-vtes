@@ -477,3 +477,53 @@ fn a_locquipment_in_play_is_not_taken_from_another_minion() {
     let req = request(&mut e);
     assert!(req.options.contains(&take_from(horst, alice)));
 }
+
+// Laptop Computer: +1 bleed to its bearer, and a minion can have only one.
+#[test]
+fn laptop_computer_adds_a_bleed_and_a_minion_has_only_one() {
+    let mut e = Engine::bare(3);
+    let horst = e.add_minion(SeatId(0), find_card("Horst von Brühl"), 3, false);
+    let alice = e.add_minion(SeatId(0), find_card("Alice Chen"), 3, false);
+    e.add_minion(SeatId(1), find_card("Kevin Jackson"), 3, false);
+    equip(&mut e, "Laptop Computer", horst);
+    hand(&mut e, 0, &["Laptop Computer"]);
+    let req = request(&mut e);
+    assert!(!req.options.contains(&play(0, horst)));
+    assert!(req.options.contains(&play(0, alice)));
+    pick(&mut e, action(horst, ActionKind::Bleed));
+    let a = e.action().expect("action");
+    assert_eq!(a.bleed_amount(&e.state), 2);
+}
+
+// Camera Phone grants a Ⓓ bleed at +1 bleed that no other equipment
+// increases (the Laptop's +1 is off); the rulebook bleed keeps the Laptop's.
+#[test]
+fn camera_phone_bleeds_one_more_and_no_other_equipment_adds_to_it() {
+    let mut e = Engine::bare(3);
+    let horst = e.add_minion(SeatId(0), find_card("Horst von Brühl"), 3, false);
+    e.add_minion(SeatId(1), find_card("Kevin Jackson"), 3, false);
+    let phone = equip(&mut e, "Camera Phone", horst);
+    equip(&mut e, "Laptop Computer", horst);
+    let pool = e.state.seats[1].pool;
+    pick(&mut e, granted(phone, horst));
+    let a = e.action().expect("action");
+    assert_eq!((a.kind, a.bleed_amount(&e.state)), (ActionKind::Bleed, 2));
+    while e.action().is_some() {
+        let req = request(&mut e);
+        let i = req
+            .options
+            .iter()
+            .position(|o| *o == Choice::Pass)
+            .unwrap_or(0);
+        e.choose(i);
+    }
+    assert_eq!(e.state.seats[1].pool, pool - 2);
+
+    let mut e = Engine::bare(3);
+    let horst = e.add_minion(SeatId(0), find_card("Horst von Brühl"), 3, false);
+    e.add_minion(SeatId(1), find_card("Kevin Jackson"), 3, false);
+    equip(&mut e, "Camera Phone", horst);
+    equip(&mut e, "Laptop Computer", horst);
+    pick(&mut e, action(horst, ActionKind::Bleed));
+    assert_eq!(e.action().expect("action").bleed_amount(&e.state), 2);
+}

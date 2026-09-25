@@ -46,11 +46,15 @@ engine is ~70% of the project.
 
 Pool = union of official V5-era products (per KRCG set data):
 Fifth Edition, Fifth Edition (Anarch), Fifth Edition (Companion), New Blood,
-New Blood II, New Blood III, Fall of London, Shadows of Berlin, Echoes of Gehenna.
+New Blood II, New Blood III, Fall of London, Shadows of Berlin, Echoes of Gehenna —
+plus the legacy cards the owner adds one by one (`EXTRA_CARDS` in
+`scripts/window_matrix.py`, read by every generator and the ledger): Camera Phone and
+Laptop Computer (2026-09-25, common electronic equipment).
 
 Measured from `vtes.json` (2026-08):
 
-- **621 unique cards**: 200 crypt (all vampires), 421 library.
+- **621 unique cards**: 200 crypt (all vampires), 421 library — 623 and 423 with the
+  two extra cards (the counts below are the V5 sets').
 - Library by type: Master 124, Combat 63, Action 59, Action Modifier 53, Reaction 40,
   Equipment 23, Event 20, Ally 19, Political Action 19, Retainer 12 (multi-type cards
   counted once per type).
@@ -1201,8 +1205,11 @@ Recorded so nobody mistakes them for oversights:
   Generated labels: `Label::Weapon` now reads "Melee weapon." and "Unique
   (melee) weapon." (Righteous Blade, Femur of Toomler, Ivory Bow, Kali's
   Fang, Sword of the Archangel were unlabeled); new `Label::Electronic`,
-  borne by no V5 card (Darius's "non-electronic" has nothing to exclude in
-  the pool, so no test). Definitions: Apolonia Czarnecki, Darius Shirazi,
+  borne by no V5-set card — so the owner added Camera Phone and Laptop
+  Computer to the pool (§3; rules-qa 17.4). Camera Phone's granted bleed
+  carries `Effect::NoOtherEquipmentBleed`
+  (`GameState::bearer_mod_without_equipment_increase`: other equipment
+  may still reduce it). Definitions: Apolonia Czarnecki, Darius Shirazi,
   Saankaláxt, Aniel (the corruption half waits for corruption counters).
   81 vampires, 10 incomplete. Held: Valerius (titles are printed only), The Guardian
   (combat begun outside an action).

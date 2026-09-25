@@ -49,6 +49,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 102247,Break the Bonds,Action,ani/obf/pre,yes,ACTION_DECLARE,,,ok
 100260,Brujah Debate,Master,,yes,MASTER_PHASE,in_play_action,,corrected
 102270,Camarilla's Iron Fist,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
+100287,Camera Phone,Equipment,,no,ACTION_DECLARE_EQUIP,in_play_action,,ok
 102298,Cappadocian Crypt,Master,,yes,MASTER_PHASE,,,ok
 100297,Carfax Abbey,Master,,yes,MASTER_PHASE,,,ok
 100301,Carrion Crows,Combat,ani,yes,COMBAT_BEFORE_RANGE,,,ok
@@ -187,6 +188,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 101043,Khabar: Glory,Action,,yes,ACTION_DECLARE,,,ok
 101056,Kine Resources Contested,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
 101068,Kumpania,Master,,yes,MASTER_PHASE,,,ok
+101073,Laptop Computer,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
 101100,Libertas,Master,,yes,MASTER_PHASE,,,ok
 101102,Library Hunting Ground,Master,,yes,MASTER_PHASE,,,ok
 101104,Life in the City,Master,,yes,MASTER_PHASE,trifle,,corrected

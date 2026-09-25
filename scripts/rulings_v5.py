@@ -32,7 +32,7 @@ import sys
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from window_matrix import V5_SETS  # noqa: E402
+from window_matrix import in_pool  # noqa: E402
 
 RULINGS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "vtes-advanced-rules",
                            "vtes-rulings", "rulings")
@@ -198,7 +198,7 @@ def main():
     else:
         with urllib.request.urlopen("https://static.krcg.org/data/vtes.json") as f:
             cards = json.load(f)
-    v5 = {c["id"]: c["_name"] for c in cards if set(V5_SETS) & set(c.get("ordered_sets", []))}
+    v5 = {c["id"]: c["_name"] for c in cards if in_pool(c)}
     groups = parse_groups(GROUPS)
     out = csv.writer(sys.stdout)
     out.writerow(["card_id", "card", "via", "references", "ruling", "status"])

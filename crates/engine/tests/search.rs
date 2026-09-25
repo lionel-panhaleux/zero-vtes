@@ -191,6 +191,24 @@ fn vast_wealth_burns_a_first_find_it_cannot_equip() {
     assert_eq!(e.state.seats[0].pool, 4);
 }
 
+// Vast Wealth: a second Laptop Computer cannot be placed on the vampire, so
+// it is burned without cost.
+// Rulings: [TOM 19950407].
+#[test]
+fn vast_wealth_burns_a_second_laptop_computer_without_cost() {
+    let (mut e, t, _) = table();
+    let wealth = put_on(&mut e, "Vast Wealth", t);
+    put_on(&mut e, "Laptop Computer", t);
+    library(&mut e, &["Conditioning", "Laptop Computer"]);
+    let pool = e.state.seats[0].pool;
+    pick(&mut e, granted(wealth, t));
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.seats[0]
+        .ash
+        .contains(&find_library("Laptop Computer")));
+    assert_eq!(e.state.seats[0].pool, pool);
+}
+
 // Vast Wealth: paying for the equipment found is not optional — an Assault
 // Rifle's 5 pool ousts a Methuselah with 3.
 // Rulings: [RTR 19941109] [RTR 20010711].

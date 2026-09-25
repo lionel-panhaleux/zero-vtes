@@ -18,7 +18,7 @@ import sys
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from window_matrix import V5_SETS, modes_for  # noqa: E402
+from window_matrix import in_pool, modes_for  # noqa: E402
 
 FULL_PRECON_SETS = ["Fifth Edition", "Fifth Edition (Anarch)", "Fifth Edition (Companion)"]
 TYPES = ["Master", "Action", "Action Modifier", "Reaction", "Combat", "Political Action",
@@ -59,7 +59,7 @@ def labels_of(text):
 
 def generate(cards):
     lib = [c for c in cards
-           if "Vampire" not in c.get("types", []) and set(V5_SETS) & set(c.get("ordered_sets", []))]
+           if "Vampire" not in c.get("types", []) and in_pool(c)]
     lib.sort(key=lambda c: (c["_name"], c["id"]))
     index = {c["id"]: i for i, c in enumerate(lib)}
     out = []

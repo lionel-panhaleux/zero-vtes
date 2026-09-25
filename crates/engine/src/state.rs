@@ -641,14 +641,48 @@ impl GameState {
         stat: crate::cards::Stat,
         kind: crate::decision::ActionKind,
     ) -> i32 {
+        self.bearer_mods(m, stat, kind).map(|(_, n)| n).sum()
+    }
+
+    /// As `bearer_mod`, with no equipment increasing it — reductions still
+    /// apply ("no other equipment can increase the bleed amount of this
+    /// action", Camera Phone, which grants its own +1 with the action).
+    pub fn bearer_mod_without_equipment_increase(
+        &self,
+        m: MinionId,
+        stat: crate::cards::Stat,
+        kind: crate::decision::ActionKind,
+    ) -> i32 {
+        self.bearer_mods(m, stat, kind)
+            .map(|(card, n)| {
+                let equipment = LIBRARY[card as usize]
+                    .types
+                    .contains(&crate::library::CardType::Equipment);
+                if equipment {
+                    n.min(0)
+                } else {
+                    n
+                }
+            })
+            .sum()
+    }
+
+    /// The bearer modifiers of the cards in play on minion `m` for `stat`
+    /// during its action of `kind`, with the card each comes from.
+    fn bearer_mods(
+        &self,
+        m: MinionId,
+        stat: crate::cards::Stat,
+        kind: crate::decision::ActionKind,
+    ) -> impl Iterator<Item = (u16, i32)> + '_ {
         self.layers
             .iter()
-            .filter(|l| {
+            .filter(move |l| {
                 l.scope == crate::cards::Scope::InPlay
                     && self.layer_active(l)
                     && self.cards[l.source.index()].host == Some(m)
             })
-            .filter_map(|l| match l.modifier {
+            .filter_map(move |l| match l.modifier {
                 crate::cards::Modifier::Bearer {
                     stat: s,
                     n,
@@ -658,11 +692,10 @@ impl GameState {
                     && (during.is_empty() || during.contains(&kind))
                     && who.is(self, m) =>
                 {
-                    Some(n as i32)
+                    Some((self.cards[l.source.index()].card, n as i32))
                 }
                 _ => None,
             })
-            .sum()
     }
 
     /// Vampires in torpor, any controller — rescue and diablerie targets.
