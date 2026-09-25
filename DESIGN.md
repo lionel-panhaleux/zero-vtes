@@ -1227,6 +1227,32 @@ Recorded so nobody mistakes them for oversights:
   letting another seat add intercept or remove stealth are defined, it
   must count them too, or stop pruning, rather than hide an attempt
   someone else could make succeed.
+  **P2 open items (2026-09-25, after 9d):**
+  - Next: slice 10, allies and retainers — the ally as a minion (life, not
+    blood; its strength and bleed; damage burns life), recruit ally and
+    employ retainer, retainer damage and theft by strike. Unblocks Adisa's
+    ally half, Seraphina's "life", Rowena's werewolf strike,
+    `R::TargetVampire` (true for every minion until then), "allies cannot
+    block" riders. Then the precon card coverage push (actions, masters,
+    modifiers, combat, reactions of the 14 training decks).
+  - Held vampires: Valerius (titles are printed only), The Guardian
+    (combat begun outside an action), Gnaeus Aemilius (out-of-combat damage
+    in another seat's unlock phase), Keegan and "Mother" Anja Giovanni (no
+    implemented action card requires their clans), Marchesa Liliana (burned
+    vampires not kept in the ash heap); Aniel's corruption half (corruption
+    counters).
+  - Effect-widened block eligibility (Eagle's Sight): `eligible_blockers`
+    effect-aware (noted above).
+  - Third-party help during another seat's block attempt (Night Terrors,
+    KRCG News Radio): `intercept_reachable` must count it or stop pruning
+    (noted above).
+  - Directedness beyond minions and cards in play (rules-qa 17): an action
+    targeting another Methuselah's hand, library, crypt or uncontrolled
+    region is directed at them; an ash heap target is undirected.
+  - Locquipment: Living Manse is a location once in play — stealable as a
+    location by other cards, not as equipment (rules-qa 17.4).
+  - More legacy cards may join the pool through `EXTRA_CARDS` (owner's
+    call, §3).
 - **P3 — training loop**: PyO3 batched stepping, encoder, PPO self-play at 4p;
   evaluation ladder vs scripted bots and frozen snapshots.
 - **P4 — league & 5p**: exploiters, PFSP, deck/seat sampling, evaluation vs humans.
