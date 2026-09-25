@@ -2054,7 +2054,10 @@ fn theo_bell_enters_combat_with_a_minion_as_a_directed_action() {
         Some(SeatId(1))
     );
     let before = blood(&e, target);
-    until(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
+    // No block offered to seat 2, no after-combat window.
+    let seen = until_windows(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
+    assert!(!seen.contains(&WindowLabel::ActionAfterCombat));
+
     // Hand strikes: Theo's 2 damage, the Ventrue's 1.
     assert_eq!(blood(&e, target), before - 2);
     assert_eq!(blood(&e, theo), 3);
@@ -2125,4 +2128,54 @@ fn adisa_enters_combat_with_younger_vampires_and_stays_locked_after_hunting() {
     pick(&mut e, act(adisa, ActionKind::Hunt));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.minions[adisa.index()].skip_unlock);
+}
+
+/// As `until`, returning the windows passed on the way (seat 2 never asked
+/// to block, as `until` would answer Pass for it silently).
+fn until_windows(e: &mut Engine, seat: SeatId, window: WindowLabel) -> Vec<WindowLabel> {
+    let mut seen = Vec::new();
+    loop {
+        let req = request(e);
+        if (req.seat, req.window) == (seat, window) {
+            return seen;
+        }
+        assert!(
+            !(req.window == WindowLabel::ActionBlock && req.seat == SeatId(2)),
+            "seat 2 offered a block on an action directed at seat 1"
+        );
+        seen.push(req.window);
+        let i = req
+            .options
+            .iter()
+            .position(|o| matches!(o, Choice::Pass | Choice::HandStrike))
+            .unwrap_or(0);
+        e.choose(i);
+    }
+}
+
+// Entering combat with Evan Klein is an action directed at him: the coin
+// flips as the as-announced window closes — tails, the action fails with
+// no combat (Theo still locked); heads, the combat happens.
+#[test]
+fn evan_klein_flips_a_coin_on_a_minion_entering_combat_with_him() {
+    let (mut failed, mut fought) = (0, 0);
+    for seed in 0..8 {
+        let mut e = Engine::bare_seeded(seed, 2);
+        e.state.turn = 4;
+        let theo = add(&mut e, 0, "Theo Bell");
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        let evan = e.add_minion(SeatId(1), find_card("Evan Klein"), 4, false);
+        pick(&mut e, printed_action(theo, 0, Target::Minion(evan)));
+        until_windows(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert!(e.state.minions[theo.index()].locked);
+        // (Hand strikes only: the strike windows elide; the combat shows
+        // in Theo's 2 damage.)
+        if blood(&e, evan) < 4 {
+            fought += 1;
+        } else {
+            assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Failed));
+            failed += 1;
+        }
+    }
+    assert!(failed > 0 && fought > 0, "{failed} failed, {fought} fought");
 }

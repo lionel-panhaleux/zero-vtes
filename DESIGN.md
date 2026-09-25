@@ -1173,7 +1173,8 @@ Recorded so nobody mistakes them for oversights:
   combat begins at resolution (`Engine::start_combat_at_resolution`,
   `CombatCtx.at_resolution`), is part of the action, and ends into its
   after-resolution window — no after-combat window, no continuation (spec
-  §4.1.2); a target no longer qualifying leaves the action successful with
+  §4.1.2), and nothing "held when blocking" (the opposing minion did not
+  block: Sniper Rifle's range stays unset); a target no longer qualifying leaves the action successful with
   no effect (Nathaniel Bordruff, ANK 20210124). `Hook::SuccessfulHunt`
   fires only when the hunt gained blood (spec §3.7.2.1; Adisa's
   `Effect::SkipNextUnlock`). Definitions: Theo Bell (complete), Barachiel,
