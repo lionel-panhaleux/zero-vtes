@@ -617,7 +617,8 @@ impl GameState {
     }
 
     /// Equipment on minion `m` (uncontested cards in play of the
-    /// equipment type).
+    /// equipment type; a locquipment is only a location once in play, spec
+    /// §1.3.1).
     pub fn equipment_on(&self, m: MinionId) -> Vec<CardId> {
         self.cards
             .iter()
@@ -625,9 +626,7 @@ impl GameState {
             .filter(|(_, c)| {
                 c.present()
                     && c.host == Some(m)
-                    && LIBRARY[c.card as usize]
-                        .types
-                        .contains(&crate::library::CardType::Equipment)
+                    && crate::cards::CardFilter::EquipmentWithout(&[]).matches(c.card)
             })
             .map(|(i, _)| CardId(i as u32))
             .collect()

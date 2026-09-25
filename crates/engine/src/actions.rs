@@ -262,6 +262,10 @@ impl ActionCtx {
                     (controller != self.seat).then_some(controller)
                 }
                 Target::Seat(s) => (s != self.seat).then_some(s),
+                Target::Card(c) => {
+                    let controller = st.card_controller(c);
+                    (controller != self.seat).then_some(controller)
+                }
                 Target::None | Target::Uncontrolled(_) => None,
             },
             _ => None,
@@ -306,6 +310,8 @@ impl ActionCtx {
 
     /// The minion the action is directed at, if any: the vampire in
     /// torpor rescued or diablerised, or a granted action's minion target.
+    /// A card on a minion targets that card only, not its host (rulebook
+    /// "Target").
     pub fn directed_minion(&self) -> Option<MinionId> {
         match (self.torpor_target, self.target) {
             (Some(t), _) | (None, Target::Minion(t)) => Some(t),
@@ -1498,6 +1504,9 @@ impl Engine {
                     (Target::Minion(t), Some(spec)) => {
                         self.minion_target_qualifies(seat, spec, Some(acting), t)
                     }
+                    (Target::Card(c), Some(spec)) => {
+                        self.card_target_qualifies(seat, spec, Some(acting), c)
+                    }
                     _ => true,
                 };
                 if !qualifies {
@@ -1551,6 +1560,28 @@ impl Engine {
                                 self.start_combat_at_resolution(acting, t);
                                 return;
                             }
+                        }
+                        // Still one it could hold (re-checked above).
+                        Effect::StealTargetCard => {
+                            let Target::Card(c) = target else {
+                                unreachable!("a steal without a card target");
+                            };
+                            self.state.cards[c.index()].host = Some(acting);
+                        }
+                        Effect::BurnTargetCard => {
+                            let Target::Card(c) = target else {
+                                unreachable!("a burn without a card target");
+                            };
+                            self.burn_card_in_play(c);
+                        }
+                        Effect::StealBloodFromTarget(n) => {
+                            let Target::Minion(t) = target else {
+                                unreachable!("a blood steal without a minion target");
+                            };
+                            let taken = n.min(self.state.minions[t.index()].blood);
+                            self.state.minions[t.index()].blood -= taken;
+                            let v = &mut self.state.minions[acting.index()];
+                            v.blood = (v.blood + taken).min(v.capacity());
                         }
                         other => unreachable!("not a granted action's effect: {other:?}"),
                     }

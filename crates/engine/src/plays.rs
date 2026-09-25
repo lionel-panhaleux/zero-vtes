@@ -340,8 +340,9 @@ impl Engine {
                         None => vec![Target::None],
                         Some(spec) => match spec.kind {
                             // No card play targets the uncontrolled region
-                            // in the pool (an in-play ability does).
-                            TargetKind::Uncontrolled => vec![],
+                            // or a card in play in the pool (in-play and
+                            // vampire abilities do).
+                            TargetKind::Uncontrolled | TargetKind::Card => vec![],
                             TargetKind::Minion => (0..st.minions.len())
                                 .map(|i| MinionId(i as u32))
                                 .filter(|&id| {
@@ -1274,6 +1275,16 @@ impl Engine {
             }) => (0..st.seats[seat.index()].uncontrolled.len())
                 .map(|i| Target::Uncontrolled(i as u8))
                 .collect(),
+            Some(
+                spec @ TargetSpec {
+                    kind: TargetKind::Card,
+                    ..
+                },
+            ) => (0..st.cards.len())
+                .map(|i| CardId(i as u32))
+                .filter(|&id| self.card_target_qualifies(seat, spec, host, id))
+                .map(Target::Card)
+                .collect(),
             Some(spec) => (0..st.minions.len())
                 .map(|i| MinionId(i as u32))
                 .filter(|&id| self.minion_target_qualifies(seat, spec, host, id))
@@ -1306,6 +1317,25 @@ impl Engine {
                     self.action.as_ref(),
                 )
             })
+    }
+
+    /// Does card `id` qualify as the target of an ability of `host`'s: in
+    /// play, on a minion in play if on one? Read again at resolution.
+    pub(crate) fn card_target_qualifies(
+        &self,
+        seat: SeatId,
+        spec: TargetSpec,
+        host: Option<MinionId>,
+        id: CardId,
+    ) -> bool {
+        let st = &self.state;
+        let c = &st.cards[id.index()];
+        c.present()
+            && c.host.is_none_or(|h| st.minions[h.index()].present())
+            && spec
+                .filter
+                .iter()
+                .all(|&r| cards::holds_for_card_target(r, st, seat, host, id))
     }
 
     /// Abilities printed on the seat's vampires (`cards::vampires`) usable

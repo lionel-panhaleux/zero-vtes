@@ -451,3 +451,29 @@ fn bowl_of_convergence_burns_blood_once_per_action_only_while_attempting_to_bloc
     // 3 blood, 1 burned for the Bowl, 1 to Horst's hand strike.
     assert_eq!(e.state.minions[alex.index()].blood, 1);
 }
+
+// A locquipment is only a location once in play (spec §1.3.1): no minion
+// takes it from another with an equip action.
+#[test]
+fn a_locquipment_in_play_is_not_taken_from_another_minion() {
+    let mut e = Engine::bare(2);
+    let horst = e.add_minion(SeatId(0), find_card("Horst von Brühl"), 3, false);
+    let alice = e.add_minion(SeatId(0), find_card("Kevin Jackson"), 3, false);
+    e.add_minion(SeatId(1), find_card("Kevin Jackson"), 3, false);
+    e.state.cards.push(CardInPlay {
+        card: find_library("Living Manse"),
+        owner: SeatId(0),
+        controller: SeatId(0),
+        host: Some(alice),
+        in_play: true,
+        contested: false,
+        locked: false,
+        counters: 0,
+        stored: Vec::new(),
+    });
+    let req = request(&mut e);
+    assert!(!req.options.contains(&take_from(horst, alice)));
+    equip(&mut e, "Kevlar Vest", alice);
+    let req = request(&mut e);
+    assert!(req.options.contains(&take_from(horst, alice)));
+}

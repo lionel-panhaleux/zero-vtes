@@ -403,7 +403,7 @@ fn the_plain_half_of_a_two_part_vampire_applies_and_the_rest_is_named() {
     assert_eq!([alexa, braden].map(|o| strength(roy, o)), [1, 0]);
     assert_eq!([alexa, braden].map(|o| strength(ragnar, o)), [0, 1]);
     let incomplete = VAMPIRES.iter().filter(|d| d.incomplete.is_some()).count();
-    assert_eq!(incomplete, 9);
+    assert_eq!(incomplete, 10);
     assert!(cards::vampire(find_card("Valerius")).is_some_and(|d| d.incomplete.is_some()));
     assert!(cards::vampire(find_card("Catalina Vega")).is_some_and(|d| d.incomplete.is_none()));
 }
@@ -2178,4 +2178,159 @@ fn evan_klein_flips_a_coin_on_a_minion_entering_combat_with_him() {
         }
     }
     assert!(failed > 0 && fought > 0, "{failed} failed, {fought} fought");
+}
+
+// ---- Slice 9d-iv: card targets and steals -------------------------------
+
+fn at_card(m: MinionId, card: usize) -> Choice {
+    printed_action(m, 0, Target::Card(CardId(card as u32)))
+}
+
+// Saankaláxt steals an equipment for 1 blood: directed at its controller
+// (not at the minion it is on, rulebook "Target"), undirected from a minion
+// of his own Methuselah; not a second vehicle, not a locquipment (a
+// location once in play, spec §1.3.1), not his own.
+#[test]
+fn saankalaxt_steals_an_equipment_but_not_a_second_vehicle() {
+    let mut e = bare();
+    let saan = add(&mut e, 0, "Saankaláxt");
+    let friend = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let theirs = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let bike = in_play(&mut e, "Sport Bike", 0, Some(saan));
+    let vest = in_play(&mut e, "Kevlar Vest", 0, Some(friend));
+    let magnum = in_play(&mut e, ".44 Magnum", 1, Some(theirs));
+    let cruiser = in_play(&mut e, "Stolen Police Cruiser", 1, Some(theirs));
+    let manse = in_play(&mut e, "Living Manse", 1, Some(theirs));
+    let req = request(&mut e);
+    for (card, offered) in [
+        (bike, false),
+        (vest, true),
+        (magnum, true),
+        (cruiser, false),
+        (manse, false),
+    ] {
+        assert_eq!(
+            req.options.contains(&at_card(saan, card)),
+            offered,
+            "{card}"
+        );
+    }
+    pick(&mut e, at_card(saan, magnum));
+    let a = e.action().expect("action");
+    assert_eq!(a.directed_seat(&e.state), Some(SeatId(1)));
+    assert_eq!(a.directed_minion(), None);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.cards[magnum].host, Some(saan));
+    assert_eq!(e.state.card_controller(CardId(magnum as u32)), SeatId(0));
+    assert_eq!(e.state.cards[magnum].owner, SeatId(1));
+    assert_eq!(blood(&e, saan), 3);
+
+    // From his own Methuselah's minion: undirected.
+    let mut e = bare();
+    let saan = add(&mut e, 0, "Saankaláxt");
+    let friend = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let vest = in_play(&mut e, "Kevlar Vest", 0, Some(friend));
+    pick(&mut e, at_card(saan, vest));
+    assert_eq!(e.action().expect("action").directed_seat(&e.state), None);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.cards[vest].host, Some(saan));
+}
+
+// Darius steals a non-electronic, non-vehicle, non-weapon equipment, a
+// melee weapon being a weapon; the equipment gone by resolution, the action
+// is successful with no effect (spec §3.4.1).
+#[test]
+fn darius_shirazi_steals_neither_vehicle_nor_weapon_and_fizzles_without_the_target() {
+    let mut e = bare();
+    let darius = add(&mut e, 0, "Darius Shirazi");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let theirs = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let vest = in_play(&mut e, "Kevlar Vest", 1, Some(theirs));
+    let blade = in_play(&mut e, "Righteous Blade", 1, Some(theirs));
+    let magnum = in_play(&mut e, ".44 Magnum", 1, Some(theirs));
+    let bike = in_play(&mut e, "Sport Bike", 1, Some(theirs));
+    let req = request(&mut e);
+    for (card, offered) in [(vest, true), (blade, false), (magnum, false), (bike, false)] {
+        assert_eq!(
+            req.options.contains(&at_card(darius, card)),
+            offered,
+            "{card}"
+        );
+    }
+    pick(&mut e, at_card(darius, vest));
+    e.state.cards[vest].in_play = false;
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.cards[vest].host, Some(theirs));
+    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Fizzled));
+}
+
+// Aniel burns a card requiring a Discipline from another ready minion as a
+// +1 stealth action costing 1 blood: not from a minion in torpor, not a
+// card requiring none, not from himself.
+#[test]
+fn aniel_burns_a_card_requiring_a_discipline_from_another_ready_minion() {
+    let mut e = bare();
+    let aniel = add(&mut e, 0, "Aniel");
+    let ready = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let torpid = e.add_minion(SeatId(1), plain("Ventrue", 1), 0, true);
+    let target = in_play(&mut e, "Homunculus", 1, Some(ready));
+    let asleep = in_play(&mut e, "Homunculus", 1, Some(torpid));
+    let vest = in_play(&mut e, "Kevlar Vest", 1, Some(ready));
+    let his = in_play(&mut e, "Homunculus", 0, Some(aniel));
+    let req = request(&mut e);
+    for (card, offered) in [(target, true), (asleep, false), (vest, false), (his, false)] {
+        assert_eq!(
+            req.options.contains(&at_card(aniel, card)),
+            offered,
+            "{card}"
+        );
+    }
+    pick(&mut e, at_card(aniel, target));
+    let a = e.action().expect("action");
+    assert_eq!(
+        (a.stealth(&e.state), a.directed_seat(&e.state)),
+        (1, Some(SeatId(1)))
+    );
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.cards[target].in_play);
+    assert!(e.state.seats[1].ash.contains(&find_library("Homunculus")));
+    assert_eq!(blood(&e, aniel), 3);
+}
+
+// Apolonia steals 1 blood from a younger vampire — one with none is still a
+// legal target, one of her own Methuselah's an undirected one.
+#[test]
+fn apolonia_czarnecki_steals_one_blood_from_a_younger_vampire() {
+    let mut e = bare();
+    let apolonia = add(&mut e, 0, "Apolonia Czarnecki");
+    let cap = e.state.minions[apolonia.index()].capacity();
+    let (younger, older): (Vec<u16>, Vec<u16>) = (0..CRYPT.len() as u16)
+        .filter(|&c| cards::vampire(c).is_none() && CRYPT[c as usize].capacity != cap)
+        .partition(|&c| CRYPT[c as usize].capacity < cap);
+    let y = e.add_minion(SeatId(1), younger[0], 2, false);
+    let dry = e.add_minion(SeatId(1), younger[1], 0, true);
+    let o = e.add_minion(SeatId(1), older[0], 2, false);
+    let mine = e.add_minion(SeatId(0), younger[2], 2, false);
+    let req = request(&mut e);
+    let at = |t| printed_action(apolonia, 0, Target::Minion(t));
+    for (t, offered) in [(y, true), (dry, true), (o, false), (mine, true)] {
+        assert_eq!(req.options.contains(&at(t)), offered);
+    }
+    pick(&mut e, at(y));
+    assert_eq!(
+        e.action().expect("action").directed_seat(&e.state),
+        Some(SeatId(1))
+    );
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((blood(&e, apolonia), blood(&e, y)), (5, 1));
+
+    let mut e = bare();
+    let apolonia = add(&mut e, 0, "Apolonia Czarnecki");
+    let mine = e.add_minion(SeatId(0), younger[2], 2, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    pick(&mut e, printed_action(apolonia, 0, Target::Minion(mine)));
+    assert_eq!(e.action().expect("action").directed_seat(&e.state), None);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((blood(&e, apolonia), blood(&e, mine)), (5, 1));
 }

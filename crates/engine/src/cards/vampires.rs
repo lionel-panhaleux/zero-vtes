@@ -76,6 +76,20 @@ const fn enter_combat(filter: &'static [R]) -> ModeDef {
     )
 }
 
+/// "… can steal <filter> equipment as a Ⓓ action": moved to the vampire on
+/// success, if it could still hold it (like an equip from another minion),
+/// directed at the equipment's controller — undirected from a minion of
+/// the vampire's own Methuselah.
+const fn steal_equipment(filter: &'static [R], effects: &'static [Effect]) -> ModeDef {
+    printed_action(
+        Some(TargetSpec {
+            kind: TargetKind::Card,
+            filter,
+        }),
+        effects,
+    )
+}
+
 /// "Gets 1 optional maneuver … each combat" (Abaddon, Saku Pihlajamäki).
 const MANEUVER_EACH_COMBAT: ModeDef = ability(
     &[Window::CombatDetermineRange],
@@ -337,6 +351,54 @@ pub static ARIANE: VampireDef = VampireDef {
 /// "If Ayse is ready, you can use a discard phase action to add 1 blood to
 /// her": each use spends one, not once per phase; not offered at capacity
 /// (as the blood shuttles of cards in play).
+/// "Aniel can burn 1 corruption counter or a card requiring a Discipline
+/// from another ready minion as a +1 stealth Ⓓ action that costs 1
+/// blood." The card half: directed at the card's controller, undirected
+/// on a minion of Aniel's own Methuselah (rulebook "Directed and Undirected
+/// Actions": Ⓓ is a reminder).
+pub static ANIEL: VampireDef = VampireDef {
+    name: "Aniel",
+    printed: &[],
+    abilities: &[printed_action(
+        Some(TargetSpec {
+            kind: TargetKind::Card,
+            filter: &[
+                R::TargetCard(CardFilter::RequiresDiscipline),
+                R::TargetOnReadyMinion,
+                R::NotHost,
+            ],
+        }),
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::AddStealth(1),
+            Effect::PayBlood(1),
+            Effect::BurnTargetCard,
+        ],
+    )],
+    riders: &[],
+    incomplete: Some("Aniel can burn 1 corruption counter … (waits for corruption counters)."),
+};
+
+/// "Apolonia can steal 1 blood from a younger vampire as a Ⓓ action." Any
+/// younger vampire, one in torpor or with no blood included (rulebook
+/// "Target"); undirected on her own Methuselah's.
+pub static APOLONIA_CZARNECKI: VampireDef = VampireDef {
+    name: "Apolonia Czarnecki",
+    printed: &[],
+    abilities: &[printed_action(
+        Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[R::TargetVampire, R::Younger],
+        }),
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::StealBloodFromTarget(1),
+        ],
+    )],
+    riders: &[],
+    incomplete: None,
+};
+
 pub static AYSE_DHANIAL: VampireDef = VampireDef {
     name: "Ayse Dhanial",
     printed: &[],
@@ -498,6 +560,30 @@ pub static DARIA: VampireDef = VampireDef {
     }],
     riders: &[],
     incomplete: Some("Directed actions cost her +1 blood."),
+};
+
+/// "Darius can steal a non-electronic, non-vehicle, non-weapon equipment
+/// as a Ⓓ action." No electronic equipment is in the V5 pool.
+pub static DARIUS_SHIRAZI: VampireDef = VampireDef {
+    name: "Darius Shirazi",
+    printed: &[],
+    abilities: &[steal_equipment(
+        &[
+            R::TargetCard(CardFilter::EquipmentWithout(&[
+                Label::Electronic,
+                Label::Vehicle,
+                Label::Weapon,
+            ])),
+            R::NotHost,
+            R::ActorMayHoldTarget,
+        ],
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::StealTargetCard,
+        ],
+    )],
+    riders: &[],
+    incomplete: None,
 };
 
 pub static DJENEBA: VampireDef = VampireDef {
@@ -1183,6 +1269,27 @@ pub static ROY: VampireDef = VampireDef {
 
 /// "Sakhar can search your library for an equipment card, reveal it and
 /// move it to your hand as a +1 stealth action."
+/// "Saankaláxt can steal an equipment as a Ⓓ action that costs 1 blood."
+/// Not a second vehicle (rules-qa 17.4).
+pub static SAANKALAXT: VampireDef = VampireDef {
+    name: "Saankaláxt",
+    printed: &[],
+    abilities: &[steal_equipment(
+        &[
+            R::TargetCard(CardFilter::EquipmentWithout(&[])),
+            R::NotHost,
+            R::ActorMayHoldTarget,
+        ],
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::PayBlood(1),
+            Effect::StealTargetCard,
+        ],
+    )],
+    riders: &[],
+    incomplete: None,
+};
+
 pub static SAKHAR: VampireDef = VampireDef {
     name: "Sakhar",
     printed: &[],
@@ -1338,7 +1445,7 @@ pub static YEWON_ONG: VampireDef = VampireDef {
     incomplete: None,
 };
 
-pub static VAMPIRES: [&VampireDef; 77] = [
+pub static VAMPIRES: [&VampireDef; 81] = [
     &ABADDON,
     &ABRAHAM_DUSABLE,
     &ADISA,
@@ -1349,6 +1456,8 @@ pub static VAMPIRES: [&VampireDef; 77] = [
     &ALICIA_CORTEZ,
     &ALINE_GADEKE,
     &ANDRE_THE_MANIPULATOR,
+    &ANIEL,
+    &APOLONIA_CZARNECKI,
     &ARIANE,
     &AYSE_DHANIAL,
     &AZUCENA,
@@ -1362,6 +1471,7 @@ pub static VAMPIRES: [&VampireDef; 77] = [
     &CHUN_HEI,
     &DAFINA_HANGANU,
     &DARIA,
+    &DARIUS_SHIRAZI,
     &DJENEBA,
     &DOMINICA,
     &DOWAGER_THE,
@@ -1405,6 +1515,7 @@ pub static VAMPIRES: [&VampireDef; 77] = [
     &ROSE_ABAWI,
     &ROWENA,
     &ROY,
+    &SAANKALAXT,
     &SAKHAR,
     &SAKU_PIHLAJAMAKI,
     &SERAPHINA,

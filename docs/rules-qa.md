@@ -1610,3 +1610,46 @@ unblocked", since those effects need the action to have been blocked. A
 blocked rush can use one, and the continued action then enters combat with
 its target at resolution.
 
+### 17.4 Steals and card targets (Apolonia Czarnecki, Darius Shirazi, Saankaláxt, Aniel)
+
+- Own targets: the Ⓓ icon being a reminder (rulebook "Directed and
+  Undirected Actions"), Apolonia may steal from a younger vampire of her
+  own Methuselah, Darius and Saankaláxt may steal equipment from another
+  minion of theirs, Aniel may burn a card on another of his Methuselah's
+  ready minions — each then an undirected action. (Unlike 17.3's rushes,
+  where a minion does not enter combat with one its controller controls.)
+- Apolonia: any younger vampire, one in torpor or with no blood included
+  (rulebook "Target": she takes what is there); blood beyond her capacity
+  drains off.
+- Equipment steals: the equipment changes host only — its controller
+  follows, its owner stays; no requirement is checked (moving is not
+  playing nor equipping, spec §3.7.3.2). A locquipment (Living Manse) is
+  a location once in play, so not stealable (spec §1.3.1) — nor taken by
+  the rulebook equip from another minion, which the engine allowed until
+  now. A card on a minion is targeted without targeting the minion
+  (Evan Klein does not flip).
+- Saankaláxt holding a vehicle: another vehicle is not offered (as for the
+  rulebook equip from another minion, whose take stays where it is when it
+  could no longer be held). Or is the steal offered, the second vehicle
+  then burned (as TOM 19950407 for Vast Wealth) or left in place?
+- A target gone by resolution (burned, moved to another minion, its host
+  now in torpor for Aniel's "ready minion", or a younger vampire no longer
+  younger): successful, no effect, the cost paid (spec §3.4.1).
+- Darius: "non-weapon" excludes melee weapons ("Melee weapon." is a weapon,
+  the generated weapon label missed it until now). No V5 equipment is
+  electronic.
+- Aniel: "a card requiring a Discipline" is any library card printing a
+  discipline requirement (in the implemented pool: Homunculus); the
+  corruption half waits for corruption counters.
+
+Right?
+
+**Answer (2026-09-25)** — 17.4 right. Living Manse cannot be stolen as an
+equipment, but other cards can steal it as a location. Saankaláxt holding a
+vehicle: rightly not offered. What differs from Vast Wealth is whether the
+object is known when the action is taken: an action sure to aim at an
+illegal target is not allowed at all, while one whose object comes from a
+choice or randomness at resolution (Vast Wealth's search) is not illegal by
+principle and may be taken, even when the player can tell it will fail.
+Camera Phone and Laptop Computer, common legacy electronic equipment, may
+join the pool.

@@ -1151,9 +1151,9 @@ Recorded so nobody mistakes them for oversights:
   `directed_seat` (rescue, diablerie and card targets included), and the
   at-target riders read `ActionCtx::directed_minion` (a torpor target or a
   minion target: Evan Klein's flip). Still to come (rules-qa 17): an
-  action targeting another Methuselah's hand, library, crypt, uncontrolled
-  region or any card they control (stealing The Rack) is directed at them;
-  one targeting an ash heap is not. Mandatory actions side by side (a
+  action targeting another Methuselah's hand, library, crypt or
+  uncontrolled region is directed at them (a card in play they control:
+  below); one targeting an ash heap is not. Mandatory actions side by side (a
   rulebook hunt and Elen's bleed) are ordered by the acting Methuselah
   (rules-qa 17.2). `Engine::action()` exposes
   the action read-only. Library searches move a card to hand
@@ -1181,8 +1181,30 @@ Recorded so nobody mistakes them for oversights:
   fires only when the hunt gained blood (spec §3.7.2.1; Adisa's
   `Effect::SkipNextUnlock`). Definitions: Theo Bell (complete), Barachiel,
   Dafina Hanganu, Nathaniel Bordruff, Adisa (the ally half waits for
-  allies). 77 vampires, 9 incomplete. Next: steals and card targets (Apolonia Czarnecki, Darius Shirazi, Saankaláxt, Aniel's
-  card half). Held: Valerius (titles are printed only), The Guardian
+  allies). Card targets: `Target::Card` / `TargetKind::Card` (a library
+  card in play, checked by `Engine::card_target_qualifies` on offer and at
+  resolution: in play, on a minion in play if on one), the action directed
+  at the card's controller unless the acting Methuselah's, never at the
+  minion the card is on (rulebook "Target": `directed_minion` stays none,
+  so Evan Klein does not flip); target predicates `R::TargetCard(filter)`,
+  `R::TargetOnReadyMinion`, `R::ActorMayHoldTarget` (the one-vehicle
+  limit, as for an equip from another minion) and `R::NotHost`
+  (`cards::holds_for_card_target`). `CardFilter::EquipmentWithout(labels)`
+  (a locquipment is only a location once in play, spec §1.3.1 — also
+  dropped from `GameState::equipment_on`, so from the rulebook equip from
+  another minion) and `CardFilter::RequiresDiscipline`. Effects
+  `StealTargetCard` (the card changes host only: its controller follows
+  the host, its owner stays), `BurnTargetCard`, `StealBloodFromTarget(n)`
+  (as much as there is; beyond capacity drains off). The Ⓓ icon is a
+  reminder (rulebook "Directed and Undirected Actions"): a steal from a
+  minion of one's own Methuselah is legal and undirected (rules-qa 17.4).
+  Generated labels: `Label::Weapon` now reads "Melee weapon." and "Unique
+  (melee) weapon." (Righteous Blade, Femur of Toomler, Ivory Bow, Kali's
+  Fang, Sword of the Archangel were unlabeled); new `Label::Electronic`,
+  borne by no V5 card (Darius's "non-electronic" has nothing to exclude in
+  the pool, so no test). Definitions: Apolonia Czarnecki, Darius Shirazi,
+  Saankaláxt, Aniel (the corruption half waits for corruption counters).
+  81 vampires, 10 incomplete. Held: Valerius (titles are printed only), The Guardian
   (combat begun outside an action).
   Noted for later (owner, 2026-09-25): (1) block eligibility widened by an
   effect — Eagle's Sight [AUS] "attempts to block the current action,

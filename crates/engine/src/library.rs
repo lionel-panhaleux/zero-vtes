@@ -34,6 +34,7 @@ pub enum Label {
     Weapon,
     Gun,
     Vehicle,
+    Electronic,
     Archetype,
     Trifle,
     Gehenna,
@@ -2866,7 +2867,7 @@ pub static LIBRARY: [LibraryCard; 421] = [
         pool_cost: Cost::Fixed(2),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique],
+        labels: &[Label::Unique, Label::Weapon],
         modes: &[
             Mode {
                 tags: &[],
@@ -4047,7 +4048,7 @@ pub static LIBRARY: [LibraryCard; 421] = [
         pool_cost: Cost::Fixed(1),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique],
+        labels: &[Label::Unique, Label::Weapon],
         modes: &[
             Mode {
                 tags: &[],
@@ -4104,7 +4105,7 @@ pub static LIBRARY: [LibraryCard; 421] = [
         pool_cost: Cost::Fixed(2),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique],
+        labels: &[Label::Unique, Label::Weapon],
         modes: &[
             Mode {
                 tags: &[],
@@ -6472,7 +6473,7 @@ pub static LIBRARY: [LibraryCard; 421] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Weapon],
         modes: &[
             Mode {
                 tags: &[],
@@ -7562,7 +7563,7 @@ pub static LIBRARY: [LibraryCard; 421] = [
         pool_cost: Cost::Fixed(2),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique],
+        labels: &[Label::Unique, Label::Weapon],
         modes: &[
             Mode {
                 tags: &[],

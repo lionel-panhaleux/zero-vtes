@@ -240,6 +240,12 @@ pub enum CardFilter {
     Discipline(&'static str),
     /// A card of this type bearing this label ("a master archetype card").
     Labeled(CardType, crate::library::Label),
+    /// An equipment in play bearing none of these labels ("a
+    /// non-electronic, non-vehicle, non-weapon equipment"): a locquipment
+    /// is only a location once in play (spec §1.3.1).
+    EquipmentWithout(&'static [crate::library::Label]),
+    /// A card requiring a Discipline, any one (Aniel).
+    RequiresDiscipline,
 }
 
 impl CardFilter {
@@ -250,6 +256,12 @@ impl CardFilter {
             CardFilter::Type(t) => c.types.contains(&t),
             CardFilter::Discipline(d) => c.disciplines.contains(&d),
             CardFilter::Labeled(t, l) => c.types.contains(&t) && c.labels.contains(&l),
+            CardFilter::EquipmentWithout(ls) => {
+                c.types.contains(&CardType::Equipment)
+                    && !c.labels.contains(&crate::library::Label::Location)
+                    && !ls.iter().any(|l| c.labels.contains(l))
+            }
+            CardFilter::RequiresDiscipline => !c.disciplines.is_empty(),
         }
     }
 }
@@ -524,9 +536,16 @@ pub enum Requirement {
     /// The Methuselah controls a locked minion ("if you control a locked
     /// minion", Elen Kamjian).
     ControlsLockedMinion,
-    /// Target minion is controlled by another Methuselah (a minion does not
-    /// enter combat with one its controller controls).
+    /// Target minion or card is controlled by another Methuselah (a minion
+    /// does not enter combat with one its controller controls).
     NotControlled,
+    /// Target card in play is of this kind.
+    TargetCard(CardFilter),
+    /// Target card is on a ready minion ("from another ready minion").
+    TargetOnReadyMinion,
+    /// The acting minion could hold the target card: none of its "only
+    /// one" limits reached (a second vehicle).
+    ActorMayHoldTarget,
     /// Target minion is locked ("a locked vampire", Nathaniel Bordruff).
     TargetLocked,
     /// Target minion is a vampire: every minion in play is one until allies
@@ -777,6 +796,8 @@ pub enum TargetKind {
     Seat,
     /// A vampire in the player's uncontrolled region (slot index).
     Uncontrolled,
+    /// A library card in play (equipment to steal, a card to burn).
+    Card,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -793,6 +814,10 @@ pub enum Target {
     Seat(SeatId),
     /// A slot of the player's uncontrolled region.
     Uncontrolled(u8),
+    /// A library card in play: the action is directed at its controller
+    /// unless that is the acting Methuselah (rules-qa 17.1), not at the
+    /// minion it is on (rulebook "Target").
+    Card(CardId),
 }
 
 /// Where an ability used with `Choice::UseAbility` is printed: a card in
@@ -1268,6 +1293,16 @@ pub enum Effect {
     /// On success, the acting minion enters combat with the target, the
     /// combat part of the action (spec §4.1.2).
     EnterCombatWithTarget,
+    /// On success, the target card moves to the acting minion (a steal:
+    /// not played nor equipped, so no requirement is checked, spec
+    /// §3.7.3.2).
+    StealTargetCard,
+    /// On success, the target card is burned.
+    BurnTargetCard,
+    /// On success, move up to n blood from the target vampire to the acting
+    /// one — as much as there is (rulebook "Target") — the excess over its
+    /// capacity draining off.
+    StealBloodFromTarget(u8),
     /// The vampire does not unlock as normal during its next unlock phase.
     SkipNextUnlock,
     /// Exchange a card from hand for a library card in the ash heap
@@ -1612,7 +1647,10 @@ pub fn holds(
         | Requirement::NotAbstaining
         | Requirement::NotControlled
         | Requirement::TargetLocked
-        | Requirement::TargetVampire => true, // target predicates
+        | Requirement::TargetVampire
+        | Requirement::TargetCard(_)
+        | Requirement::TargetOnReadyMinion
+        | Requirement::ActorMayHoldTarget => true, // target predicates
         Requirement::PlayedCardIsMaster => {
             played.is_some_and(|p| LIBRARY[p.card as usize].types.contains(&CardType::Master))
         }
@@ -1842,6 +1880,26 @@ pub fn holds_for_seat(
     match req {
         Requirement::NotActingController => action.is_some_and(|a| a.seat != t),
         Requirement::NotSelf => t != seat,
+        _ => true,
+    }
+}
+
+/// Evaluate a requirement against a candidate card target of `actor`'s
+/// action.
+pub fn holds_for_card_target(
+    req: Requirement,
+    st: &GameState,
+    seat: SeatId,
+    actor: Option<MinionId>,
+    id: CardId,
+) -> bool {
+    let c = &st.cards[id.index()];
+    match req {
+        Requirement::NotControlled => st.card_controller(id) != seat,
+        Requirement::NotHost => actor.is_none() || c.host != actor,
+        Requirement::TargetCard(f) => f.matches(c.card),
+        Requirement::TargetOnReadyMinion => c.host.is_some_and(|h| st.minions[h.index()].ready()),
+        Requirement::ActorMayHoldTarget => actor.is_some_and(|m| st.can_hold(m, c.card, &[])),
         _ => true,
     }
 }
