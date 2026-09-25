@@ -1182,6 +1182,20 @@ Recorded so nobody mistakes them for oversights:
   allies). 77 vampires, 9 incomplete. Next: steals and card targets (Apolonia Czarnecki, Darius Shirazi, Saankaláxt, Aniel's
   card half). Held: Valerius (titles are printed only), The Guardian
   (combat begun outside an action).
+  Noted for later (owner, 2026-09-25): (1) block eligibility widened by an
+  effect — Eagle's Sight [AUS] "attempts to block the current action,
+  ignoring the normal prey, predator or target restrictions" (and vampire
+  text of that kind outside V5, Anneke) — so `eligible_blockers` must
+  become effect-aware, a seat not normally eligible still sitting in the
+  action's window order to play it. (2) Third-party help during another
+  seat's attempt (Night Terrors removing stealth, KRCG News Radio giving
+  intercept) already has its sequencing in the block loop (rules-qa 1.3):
+  an attempt short of stealth is not failed, the impulse goes round and
+  only all-pass closure decides. But the P1 reachability elision
+  (`intercept_reachable`) counts only the defender's own help: once cards
+  letting another seat add intercept or remove stealth are defined, it
+  must count them too, or stop pruning, rather than hide an attempt
+  someone else could make succeed.
 - **P3 — training loop**: PyO3 batched stepping, encoder, PPO self-play at 4p;
   evaluation ladder vs scripted bots and frozen snapshots.
 - **P4 — league & 5p**: exploiters, PFSP, deck/seat sampling, evaluation vs humans.
