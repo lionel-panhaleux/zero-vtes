@@ -264,6 +264,8 @@ pub struct Seat {
     pub out_of_turn: Option<OutOfTurn>,
     /// Discard phase actions left in the current discard phase.
     pub dpa: u8,
+    /// A master card was played in the current master phase (Nonu Dis).
+    pub master_played: bool,
     pub turns_taken: u32,
     /// Cards played but not replaced yet: they count against the hand
     /// size until then (rulebook "Drawing Cards"; spec §6.8.1).
@@ -284,6 +286,9 @@ pub struct GameState {
     /// Abilities (card in play, ability index) used this phase ("during
     /// X": once per phase per copy, rules-qa 6.6); cleared at each phase.
     pub phase_uses: Vec<(crate::cards::AbilitySource, u8)>,
+    /// Abilities used this turn ("once each turn", `Limit::PerTurn`);
+    /// cleared as each Methuselah's turn begins.
+    pub turn_uses: Vec<(crate::cards::AbilitySource, u8)>,
     /// Continuous effects (DESIGN §4.5 scope layers).
     pub layers: Vec<Layer>,
     pub active: SeatId,
@@ -363,15 +368,12 @@ impl GameState {
 
     /// Hand indices of the seat's cards — master cards only with
     /// `masters`.
-    pub fn hand_picks(&self, seat: SeatId, of: Option<crate::library::CardType>) -> Vec<u8> {
+    pub fn hand_picks(&self, seat: SeatId, of: crate::cards::CardFilter) -> Vec<u8> {
         self.seats[seat.index()]
             .hand
             .iter()
             .enumerate()
-            .filter(|(_, &c)| match of {
-                None => true,
-                Some(t) => crate::library::LIBRARY[c as usize].types.contains(&t),
-            })
+            .filter(|(_, &c)| of.matches(c))
             .map(|(i, _)| i as u8)
             .collect()
     }
@@ -505,6 +507,21 @@ impl GameState {
     /// uncontested cards in play the seat controls (Elder Library; Visit
     /// from the Capuchin, one per counter; spec §1.13.3: a contested
     /// location gives no hand size).
+    /// Discard phase actions printed on the seat's vampires ("if Sreelekha
+    /// is ready at the start of your discard phase, you get +1 discard
+    /// phase action"), read as the phase begins.
+    pub fn printed_discard_actions(&self, s: SeatId) -> i32 {
+        self.minions_of(s)
+            .map(|m| {
+                self.printed_mod(
+                    m,
+                    crate::cards::Stat::DiscardPhaseActions,
+                    PrintedCtx::default(),
+                )
+            })
+            .sum()
+    }
+
     pub fn hand_size(&self, s: SeatId) -> usize {
         // Printed hand size of the seat's vampires ("while André is ready,
         // you get +2 hand size").
@@ -746,6 +763,7 @@ impl GameState {
             mix(s.hand_bonus as u64);
             mix(s.trifle_used as u64);
             mix(s.dpa as u64);
+            mix(s.master_played as u64);
             mix(s.held.unlock as u64);
             mix(s.held.discard as u64);
             mix(s.held.action as u64);
@@ -802,7 +820,8 @@ impl GameState {
             }
         }
         mix(self.phase_uses.len() as u64);
-        for (c, a) in &self.phase_uses {
+        mix(self.turn_uses.len() as u64);
+        for (c, a) in self.phase_uses.iter().chain(&self.turn_uses) {
             let source = match c {
                 crate::cards::AbilitySource::Card(id) => id.0 as u64,
                 crate::cards::AbilitySource::Vampire(m) => (m.0 as u64) << 32,

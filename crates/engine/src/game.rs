@@ -69,6 +69,8 @@ pub(crate) enum Flow {
     AbilityTerms {
         source: crate::cards::AbilitySource,
         ability: u8,
+        /// The target chosen with the use (Alicia Cortez).
+        target: crate::cards::Target,
         picked: Vec<u8>,
         resume: Box<Flow>,
     },
@@ -206,6 +208,7 @@ impl Engine {
                     trifle_used: false,
                     out_of_turn: None,
                     dpa: 0,
+                    master_played: false,
                     turns_taken: 0,
                     held: Held::default(),
                     forbidden_political: Vec::new(),
@@ -218,6 +221,7 @@ impl Engine {
                 minions: Vec::new(),
                 cards: Vec::new(),
                 phase_uses: Vec::new(),
+                turn_uses: Vec::new(),
                 layers: Vec::new(),
                 active: SeatId(0),
                 turn: 0,
@@ -242,7 +246,13 @@ impl Engine {
     /// on turn 1. Populate with [`Engine::add_minion`] and by pushing cards
     /// into hands.
     pub fn bare(n_seats: usize) -> Self {
-        let mut e = Self::new(0, n_seats);
+        Self::bare_seeded(0, n_seats)
+    }
+
+    /// As `bare`, from a chosen seed: random effects (a coin flip, a random
+    /// discard) differ per seed.
+    pub fn bare_seeded(seed: u64, n_seats: usize) -> Self {
+        let mut e = Self::new(seed, n_seats);
         for seat in &mut e.state.seats {
             seat.crypt.clear();
             seat.uncontrolled.clear();
@@ -482,20 +492,32 @@ impl Engine {
                 Flow::AbilityTerms {
                     source,
                     ability,
+                    target,
                     picked,
                     resume,
                 },
                 Choice::Discard(i),
-            ) => self.ability_terms_apply(source, ability, picked, resume, *i),
+            ) => self.ability_terms_apply(source, ability, target, picked, resume, *i),
             (
                 Flow::AbilityTerms {
                     source,
                     ability,
+                    target,
                     resume,
                     ..
                 },
                 Choice::SetX(x),
-            ) => self.ability_count_apply(source, ability, *resume, *x),
+            ) => self.ability_count_apply(source, ability, target, *resume, *x),
+            (
+                Flow::AbilityTerms {
+                    source,
+                    ability,
+                    target,
+                    resume,
+                    ..
+                },
+                Choice::FindCard(card),
+            ) => self.ability_card_apply(source, ability, target, *resume, *card),
             (Flow::RiderTerms { card, left, resume }, c) => {
                 self.rider_terms_apply(card, left, resume, c)
             }
@@ -649,7 +671,8 @@ impl Engine {
         if held > 0 {
             self.replace(s, held as usize, None);
         }
-        self.state.seats[s.index()].dpa = 1;
+        let printed = self.state.printed_discard_actions(s);
+        self.state.seats[s.index()].dpa = (1 + printed).max(0) as u8;
         self.flow = Flow::Discard;
     }
 
@@ -794,6 +817,7 @@ impl Engine {
         // phase") are drawn before unlocking (ANK 20200129).
         let held = std::mem::take(&mut self.state.seats[s.index()].held.unlock);
         self.state.phase_uses.clear();
+        self.state.turn_uses.clear();
         self.replace(s, held as usize, None);
         for m in &mut self.state.minions {
             // Per-turn NRA flags reset each new turn.

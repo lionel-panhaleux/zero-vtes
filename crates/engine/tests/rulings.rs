@@ -290,9 +290,9 @@ fn game(n: usize) -> Engine {
 fn bleed_table() -> (Engine, MinionId, MinionId, MinionId) {
     let mut e = game(3);
     let a = e.add_minion(SeatId(0), vampire_with("DOM", 0), 6, false);
-    e.add_minion(SeatId(0), vampire_with("CEL", 0), 6, false);
-    let x = e.add_minion(SeatId(1), vampire_with("FOR", 0), 4, false);
-    let z = e.add_minion(SeatId(2), vampire_with("PRO", 0), 4, false);
+    e.add_minion(SeatId(0), find_card("Farah Sarroub"), 6, false);
+    let x = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
+    let z = e.add_minion(SeatId(2), find_card("Crystal Lynn"), 4, false);
     (e, a, x, z)
 }
 
@@ -504,7 +504,7 @@ fn dreams_of_the_sphinx_cannot_be_locked_in_response_to_a_second_copy() {
 fn wakes_in_the_as_played_window_only_during_an_action() {
     let mut e = game(2);
     let a = e.add_minion(SeatId(0), vampire_with("DOM", 0), 6, false);
-    let b = e.add_minion(SeatId(1), vampire_with("AUS", 0), 4, false);
+    let b = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
     e.state.minions[b.index()].locked = true;
     e.at_master_phase();
     hand(&mut e, 0, &["Villein", "Bonding"]);
@@ -526,9 +526,9 @@ fn wakes_in_the_as_played_window_only_during_an_action() {
 #[test]
 fn homunculus_version_is_fixed_by_the_employ_level() {
     let mut e = game(2);
-    let p = e.add_minion(SeatId(0), vampire_with("PRO", 0), 6, false);
+    let p = e.add_minion(SeatId(0), find_card("Crystal Lynn"), 6, false);
     let q = e.add_minion(SeatId(0), vampire_with("PRO", 1), 6, false);
-    e.add_minion(SeatId(1), vampire_with("FOR", 0), 4, false);
+    e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
     hand(&mut e, 0, &["Homunculus", "Homunculus"]);
     pick(&mut e, play(0, 0, p)); // [pro]
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
@@ -621,10 +621,10 @@ fn vessel_usable_with_the_host_in_torpor() {
 fn bleed_cards_are_not_playable_after_resolution() {
     let mut e = game(3);
     let a = e.add_minion(SeatId(0), vampire_with("DOM", 0), 6, false);
-    e.add_minion(SeatId(0), vampire_with("CEL", 0), 6, false);
-    e.add_minion(SeatId(1), vampire_with("AUS", 0), 6, false);
-    e.add_minion(SeatId(1), vampire_with("DOM", 1), 6, false);
-    e.add_minion(SeatId(2), vampire_with("FOR", 0), 6, false);
+    e.add_minion(SeatId(0), find_card("Farah Sarroub"), 6, false);
+    e.add_minion(SeatId(1), find_card("Monica Giovanni"), 6, false);
+    e.add_minion(SeatId(1), find_card("Chelsea Blake"), 6, false);
+    e.add_minion(SeatId(2), find_card("Monica Giovanni"), 6, false);
     hand(&mut e, 0, &["Conditioning"]);
     hand(&mut e, 1, &["Deflection", "Archon Investigation"]);
     pick(&mut e, bleed(a));
@@ -662,7 +662,7 @@ fn bonding_gives_no_stealth_to_a_non_bleed_action() {
 fn as_announced_modifiers_precede_other_modifiers() {
     let mut e = game(2);
     let a = e.add_minion(SeatId(0), find_card("Aintzane Arriaga"), 6, false); // DOM OBL POT
-    e.add_minion(SeatId(1), vampire_with("FOR", 0), 4, false);
+    e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
     hand(&mut e, 0, &["Consign to Oblivion", "Conditioning"]);
     pick(&mut e, bleed(a));
     let req = expect(&mut e, SeatId(0), WindowLabel::ActionAsAnnounced);
@@ -679,7 +679,7 @@ fn as_announced_modifiers_precede_other_modifiers() {
 fn the_action_cards_replacement_is_playable_as_the_action_is_announced() {
     let mut e = game(2);
     let a = e.add_minion(SeatId(0), find_card("Aintzane Arriaga"), 6, false); // DOM OBL POT
-    e.add_minion(SeatId(1), vampire_with("FOR", 0), 4, false);
+    e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
     hand(&mut e, 0, &["Kine Resources Contested"]);
     library(&mut e, 0, "Consign to Oblivion", 1);
     pick(&mut e, play(0, 0, a));
@@ -777,8 +777,8 @@ fn visit_from_the_capuchin_is_not_playable_beside_ones_own_copy() {
 fn mirror_walk_superior_ends_the_blocked_action_before_block_resolution() {
     let mut e = game(2);
     let a = e.add_minion(SeatId(0), vampire_with("THA", 0), 6, false);
-    e.add_minion(SeatId(0), vampire_with("CEL", 0), 6, false);
-    let b = e.add_minion(SeatId(1), vampire_with("AUS", 0), 4, false);
+    e.add_minion(SeatId(0), find_card("Farah Sarroub"), 6, false);
+    let b = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
     hand(&mut e, 0, &["Mirror Walk"]);
     hand(&mut e, 0, &["Villein"; 6]);
     library(&mut e, 0, "Villein", 3);
@@ -812,8 +812,8 @@ fn mirror_walk_superior_ends_the_blocked_action_before_block_resolution() {
 fn mirror_walk_on_a_blocked_leave_torpor_gives_no_diablerie_opportunity() {
     let mut e = game(2);
     let tor = e.add_minion(SeatId(0), vampire_with("THA", 0), 2, true);
-    e.add_minion(SeatId(0), vampire_with("CEL", 0), 6, false);
-    let z = e.add_minion(SeatId(1), vampire_with("ANI", 0), 4, false);
+    e.add_minion(SeatId(0), find_card("Farah Sarroub"), 6, false);
+    let z = e.add_minion(SeatId(1), find_card("Ángel Guerrero"), 4, false);
     hand(&mut e, 0, &["Mirror Walk"]);
     hand(&mut e, 1, &["Cats' Guidance", "Cats' Guidance"]);
     pick(&mut e, take(tor, ActionKind::LeaveTorpor));
@@ -837,7 +837,7 @@ fn mirror_walk_on_a_blocked_leave_torpor_gives_no_diablerie_opportunity() {
 fn wake_with_evenings_freshness_wakes_and_waits_for_the_next_unlock_phase() {
     let mut e = game(2);
     let a = e.add_minion(SeatId(0), vampire_with("DOM", 0), 6, false);
-    let b = e.add_minion(SeatId(1), vampire_with("AUS", 0), 4, false);
+    let b = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
     e.state.minions[b.index()].locked = true;
     e.at_master_phase();
     hand(&mut e, 0, &["Villein", "Bonding"]);
@@ -882,8 +882,8 @@ fn wake_with_evenings_freshness_wakes_and_waits_for_the_next_unlock_phase() {
 fn deflection_waits_for_all_blocks_to_be_declined() {
     let mut e = game(3);
     let a = e.add_minion(SeatId(0), vampire_with("DOM", 0), 6, false);
-    let c = e.add_minion(SeatId(1), vampire_with("DOM", 1), 6, false);
-    e.add_minion(SeatId(2), vampire_with("FOR", 0), 6, false);
+    let c = e.add_minion(SeatId(1), find_card("Chelsea Blake"), 6, false);
+    e.add_minion(SeatId(2), find_card("Monica Giovanni"), 6, false);
     hand(&mut e, 1, &["Deflection"]);
     pick(&mut e, bleed(a));
     let req = expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
@@ -901,9 +901,9 @@ fn deflection_waits_for_all_blocks_to_be_declined() {
 #[test]
 fn continuation_keeps_modifiers() {
     let mut e = game(3);
-    let p = e.add_minion(SeatId(0), vampire_with("PRO", 0), 6, false);
-    let x = e.add_minion(SeatId(1), vampire_with("AUS", 0), 4, false);
-    let z = e.add_minion(SeatId(2), vampire_with("FOR", 0), 4, false);
+    let p = e.add_minion(SeatId(0), find_card("Crystal Lynn"), 6, false);
+    let x = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
+    let z = e.add_minion(SeatId(2), find_card("Monica Giovanni"), 4, false);
     hand(&mut e, 0, &["Form of the Cobra", "Form of Mist"]);
     hand(&mut e, 1, &["Eyes of Argus"]);
     pick(&mut e, bleed(p));
@@ -928,8 +928,8 @@ fn continuation_keeps_modifiers() {
 fn continued_action_card_leaves_the_ash_heap() {
     let mut e = game(2);
     let crystal = e.add_minion(SeatId(0), find_card("Crystal Lynn"), 6, false); // Anarch, PRO
-    e.add_minion(SeatId(0), vampire_with("CEL", 1), 4, false);
-    let x = e.add_minion(SeatId(1), vampire_with("ANI", 0), 4, false);
+    e.add_minion(SeatId(0), find_card("Asmin Kobane"), 4, false);
+    let x = e.add_minion(SeatId(1), find_card("Ángel Guerrero"), 4, false);
     hand(&mut e, 0, &["Constant Revolution", "Form of Mist"]);
     hand(&mut e, 1, &["Cats' Guidance"]);
     pick(&mut e, play(0, 0, crystal));
@@ -1061,8 +1061,8 @@ fn optional_press_is_usable_only_in_its_round() {
 fn immediate_prevention_needs_damage() {
     for card in ["Indomitability", "Soak"] {
         let mut e = game(2);
-        let a = e.add_minion(SeatId(0), vampire_with("CEL", 0), 4, false);
-        let x = e.add_minion(SeatId(1), vampire_with("FOR", 0), 4, false);
+        let a = e.add_minion(SeatId(0), find_card("Farah Sarroub"), 4, false);
+        let x = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
         hand(&mut e, 0, &["Flash"]);
         hand(&mut e, 1, &[card]);
         pick(&mut e, bleed(a));
@@ -1082,8 +1082,8 @@ fn immediate_prevention_needs_damage() {
 #[test]
 fn majesty_still_unlocks_when_the_combat_continues() {
     let mut e = game(2);
-    let a = e.add_minion(SeatId(0), vampire_with("AUS", 0), 6, false);
-    e.add_minion(SeatId(0), vampire_with("CEL", 1), 4, false);
+    let a = e.add_minion(SeatId(0), find_card("Monica Giovanni"), 6, false);
+    e.add_minion(SeatId(0), find_card("Asmin Kobane"), 4, false);
     let x = e.add_minion(SeatId(1), vampire_with("PRE", 0), 6, false);
     hand(&mut e, 0, &["Telepathic Tracking"]);
     hand(&mut e, 1, &["Majesty"]);
@@ -1118,8 +1118,8 @@ fn soak_prevents_all_of_fewer_points() {
 #[test]
 fn soak_prevention_does_not_carry_over_to_the_next_strike() {
     let mut e = game(2);
-    let a = e.add_minion(SeatId(0), vampire_with("CEL", 0), 6, false);
-    let x = e.add_minion(SeatId(1), vampire_with("FOR", 0), 4, false);
+    let a = e.add_minion(SeatId(0), find_card("Farah Sarroub"), 6, false);
+    let x = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
     hand(&mut e, 0, &["Blur"]);
     hand(&mut e, 1, &["Soak"]);
     pick(&mut e, bleed(a));
@@ -1145,7 +1145,7 @@ fn soak_prevention_does_not_carry_over_to_the_next_strike() {
 fn taste_of_vitae_after_the_opponent_goes_to_torpor() {
     let mut e = game(2);
     let a = e.add_minion(SeatId(0), vampire_with("POT", 0), 4, false);
-    let x = e.add_minion(SeatId(1), vampire_with("FOR", 0), 1, false);
+    let x = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 1, false);
     hand(&mut e, 0, &["Roundhouse", "Taste of Vitae"]);
     pick(&mut e, bleed(a));
     pick(&mut e, block(x));
@@ -1166,8 +1166,8 @@ fn taste_of_vitae_after_the_opponent_goes_to_torpor() {
 fn taste_of_vitae_before_or_after_telepathic_tracking() {
     for taste_first in [true, false] {
         let mut e = game(2);
-        let a = e.add_minion(SeatId(0), vampire_with("AUS", 0), 6, false);
-        let x = e.add_minion(SeatId(1), vampire_with("FOR", 0), 4, false);
+        let a = e.add_minion(SeatId(0), find_card("Monica Giovanni"), 6, false);
+        let x = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
         hand(&mut e, 0, &["Taste of Vitae", "Telepathic Tracking"]);
         pick(&mut e, bleed(a));
         pick(&mut e, block(x));
@@ -1201,9 +1201,9 @@ fn taste_of_vitae_before_or_after_telepathic_tracking() {
 #[test]
 fn theft_of_vitae_takes_what_there_is() {
     let mut e = game(2);
-    let t = e.add_minion(SeatId(0), find_card("Abraham DuSable"), 4, false); // THA, capacity 8
-    e.add_minion(SeatId(0), vampire_with("CEL", 1), 4, false);
-    let x = e.add_minion(SeatId(1), vampire_with("CEL", 0), 1, false);
+    let t = e.add_minion(SeatId(0), find_card("Trevon Parker"), 4, false); // THA, capacity 6
+    e.add_minion(SeatId(0), find_card("Asmin Kobane"), 4, false);
+    let x = e.add_minion(SeatId(1), find_card("Farah Sarroub"), 1, false);
     hand(&mut e, 0, &["Theft of Vitae"]);
     pick(&mut e, bleed(t));
     pick(&mut e, block(x));
@@ -1222,7 +1222,7 @@ fn theft_of_vitae_takes_what_there_is() {
 fn simultaneous_thefts_of_vitae_net_out() {
     let mut e = game(2);
     let r = e.add_minion(SeatId(0), find_card("Rosalina Cortez"), 3, false); // THA, capacity 3
-    e.add_minion(SeatId(0), vampire_with("CEL", 1), 4, false);
+    e.add_minion(SeatId(0), find_card("Asmin Kobane"), 4, false);
     let d = e.add_minion(SeatId(1), find_card("Abraham DuSable"), 8, false); // THA, capacity 8
     hand(&mut e, 0, &["Theft of Vitae"]);
     hand(&mut e, 1, &["Theft of Vitae"]);
@@ -1241,8 +1241,8 @@ fn simultaneous_thefts_of_vitae_net_out() {
 fn torn_signpost_sets_the_base_and_hand_strike_bonuses_add() {
     let mut e = game(2);
     let a = e.add_minion(SeatId(0), vampire_with("POT", 0), 4, false);
-    e.add_minion(SeatId(0), vampire_with("CEL", 1), 4, false);
-    let x = e.add_minion(SeatId(1), vampire_with("FOR", 0), 6, false);
+    e.add_minion(SeatId(0), find_card("Asmin Kobane"), 4, false);
+    let x = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 6, false);
     hand(&mut e, 0, &["Torn Signpost", "Roundhouse"]);
     pick(&mut e, bleed(a));
     pick(&mut e, block(x));
@@ -1259,7 +1259,7 @@ fn torn_signpost_sets_the_base_and_hand_strike_bonuses_add() {
 fn cats_guidance_not_playable_from_torpor() {
     let mut e = game(2);
     let a = e.add_minion(SeatId(0), vampire_with("DOM", 0), 6, false);
-    let x = e.add_minion(SeatId(1), vampire_with("ANI", 0), 0, false);
+    let x = e.add_minion(SeatId(1), find_card("Ángel Guerrero"), 0, false);
     hand(&mut e, 1, &["Cats' Guidance"]);
     pick(&mut e, bleed(a));
     pick(&mut e, block(x));

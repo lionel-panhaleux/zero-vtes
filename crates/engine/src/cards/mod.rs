@@ -58,6 +58,10 @@ pub enum Window {
     /// In-play ability hook: during the host's controller's unlock phase
     /// ("during their unlock phase": Vessel).
     UnlockPhaseOwn,
+    /// The active Methuselah's discard phase, for an ability spending a
+    /// discard phase action ("you can use a discard phase action to …",
+    /// Ayse Dhanial): no "during" clause, so not once per phase.
+    DiscardPhaseAction,
     /// In-play ability hook: any decision point where the controller
     /// holds the impulse — "can be used during an action, when the
     /// controller has the opportunity to play an effect" (ANK 20200616) —
@@ -226,6 +230,27 @@ fn has_discipline(disciplines: &[&str], tag: &str) -> bool {
     }
 }
 
+/// The hand cards a cost or a requirement names ("discard two master
+/// cards", "a card requiring Dominate [dom]").
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CardFilter {
+    Any,
+    Type(CardType),
+    /// A library card whose printed disciplines name this one.
+    Discipline(&'static str),
+}
+
+impl CardFilter {
+    pub fn matches(self, card: u16) -> bool {
+        let c = &LIBRARY[card as usize];
+        match self {
+            CardFilter::Any => true,
+            CardFilter::Type(t) => c.types.contains(&t),
+            CardFilter::Discipline(d) => c.disciplines.contains(&d),
+        }
+    }
+}
+
 /// A minion statistic a card in play modifies on its bearer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Stat {
@@ -244,6 +269,18 @@ pub enum Stat {
     HandSize,
     /// The damage of its ranged strikes, at either range (Noluthando).
     RangedStrikeDamage,
+    /// Its controller's discard phase actions, read as the discard phase
+    /// begins (Sreelekha).
+    DiscardPhaseActions,
+    /// A press (mandatory) each combat, only usable to continue combat
+    /// (Adrino Manauara).
+    MandatoryContinuePress,
+    /// Of its votes cast against a blood hunt referendum (Jason "Son"
+    /// Newberry).
+    VotesAgainstBloodHunt,
+    /// Votes in favor of a blood hunt referendum called on it, counted as
+    /// the referendum is called (Styles Margs).
+    BloodHuntVotesInFavor,
 }
 
 /// Legality predicates — the closed vocabulary (effects-framework §2.3).
@@ -303,9 +340,9 @@ pub enum Requirement {
     /// The player has a master phase action left ("use a master phase
     /// action", Tension in the Ranks).
     MasterPhaseActionLeft,
-    /// The player holds at least n cards of this type in hand ("discard two
-    /// master cards", "discard a political action card").
-    HandOfType(CardType, u8),
+    /// The player holds at least n cards matching the filter ("discard two
+    /// master cards", "discard a card requiring Dominate [dom]").
+    HandHas(CardFilter, u8),
     /// The actor is a vampire ("Vampires can burn this card"): every
     /// minion is a crypt vampire until allies land (P1 ally slice).
     ActorVampire,
@@ -372,6 +409,61 @@ pub enum Requirement {
     /// during the polling step of a political action"; not the blood hunt,
     /// spec §3.7.5.4).
     PollingStep,
+    /// The polling step of any referendum, blood hunts included ("during
+    /// the polling step of any referendum", Aisha az-Zahra).
+    AnyPollingStep,
+    /// The referendum is the one the actor's political action called ("a
+    /// referendum called by Anne").
+    ActorCalledReferendum,
+    /// Target vampire is not abstaining from this referendum.
+    NotAbstaining,
+    /// The actor is the acting minion ("during an action she performs").
+    ActorActing,
+    /// The current action succeeded, read after resolution; a fizzled
+    /// action counts (ANK 20220218).
+    ActionSuccessful,
+    /// The current action is directed.
+    ActionDirected,
+    /// The current action is a diablerie.
+    IsDiablerie,
+    /// The actor diablerised a vampire in this action: as the acting minion
+    /// or as the blocker of a leave-torpor action (rules-qa 16.2).
+    ActorDiablerised,
+    /// The acting minion belongs to another Methuselah: an action of one's
+    /// own minions is undirected (LSJ 20030214-2).
+    ActingOtherController,
+    /// The acting minion is the player's and is not the actor ("another
+    /// Anarch you control", Aline Gädeke).
+    OtherActingControlled,
+    /// The acting minion belongs to one of these sects.
+    ActingSectIn(&'static [Sect]),
+    /// The Methuselah the action is directed at has cards in hand.
+    DirectedHandNotEmpty,
+    /// Target minion is controlled by the Methuselah the action is
+    /// directed at ("controlled by the target Methuselah", Alicia Cortez).
+    ControlledByDirectedSeat,
+    /// Target minion is not the vampire whose ability it is ("another ready
+    /// Gargoyle you control", Alabástrom).
+    NotHost,
+    /// The minion attempting to block is the player's and needs intercept
+    /// ("give a vampire you control +1 intercept", Oskar Anasov; rules-qa
+    /// 3.2).
+    YourAttemptNeedsIntercept,
+    /// The acting minion is of this clan and is not the actor ("another
+    /// Nosferatu", Daria).
+    OtherActingClan(&'static str),
+    /// The host is unlocked (a lock cost: "can lock to …").
+    HostUnlocked,
+    /// It is the player's turn ("during your turn", Kalinda).
+    OwnTurn,
+    /// The player has a discard phase action left.
+    DiscardPhaseActionLeft,
+    /// The player has played a master card in the current master phase
+    /// ("after playing a master card", Nonu Dis).
+    MasterCardPlayed,
+    /// The player's ash heap is not empty (it holds library cards only:
+    /// burned vampires are not kept in it).
+    AshNotEmpty,
     /// No votes or ballots have been cast yet in this referendum.
     NoVotesCast,
     /// The action's referendum passed (Voter Captivation).
@@ -578,9 +670,9 @@ impl ReferendumDef {
                         .map(|i| MinionId(i as u32))
                         .filter(|&m| {
                             st.minions[m.index()].present()
-                                && filter
-                                    .iter()
-                                    .all(|&r| holds_for_minion(r, st, seat, None, Some(actor), m))
+                                && filter.iter().all(|&r| {
+                                    holds_for_minion(r, st, seat, None, Some(actor), m, None)
+                                })
                         })
                         .count();
                     if (n as u8) < min {
@@ -657,6 +749,12 @@ pub enum Limit {
     /// mode of the clause is its own once-per-phase use (Carfax Abbey's
     /// two picks).
     PerPhaseEach,
+    /// "A referendum ability is usable once per referendum" (advanced
+    /// rules §1.2.1): unlocking mid-vote does not restore it.
+    PerReferendum,
+    /// "Once each turn": once during each Methuselah's turn (advanced rules
+    /// §1.2.1), per copy of the card or per vampire ability.
+    PerTurn,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -733,13 +831,20 @@ pub enum Terms {
     /// any controller's, or none — announced with the play like any target
     /// (rules-qa 6.7), burned at resolution.
     BurnNamedInPlay(&'static str),
-    /// Ability cost "discard n cards" (`of`: cards of that type only):
-    /// which ones, chosen one at a time as the use is announced (Tension
-    /// in the Ranks, The Barrens, Kasim Bayar).
-    Discard { n: u8, of: Option<CardType> },
+    /// Ability cost "discard n cards" (`of`: the cards that qualify): which
+    /// ones, chosen one at a time as the use is announced (Tension in the
+    /// Ranks, The Barrens, Kasim Bayar, Alexa Draper).
+    Discard { n: u8, of: CardFilter },
     /// A number of cards in `min..=max`, chosen as the ability is used
     /// (Heart of Nizchetus: "up to 3"; rules-qa 11.1).
     Count { min: u8, max: u8 },
+    /// A card in the user's ash heap, chosen by name as the ability is used
+    /// (Mora, the Death Seer).
+    AshCard,
+    /// A card in the hand of the Methuselah the action is directed at,
+    /// chosen by name, discarded as the ability resolves (Richard de
+    /// Worde: the choice shows the hand, his look).
+    DirectedHandCard,
 }
 
 /// Continuous-effect modifiers carried by layers (effects-framework §3.2).
@@ -902,6 +1007,15 @@ pub enum Effect {
     /// Ability cost: lock this card in play ("you can lock this card to
     /// …").
     LockSelf,
+    /// Ability cost: burn the Edge ("burn the Edge to …", Kalinda).
+    BurnEdge,
+    /// Ability cost: one of the player's discard phase actions.
+    SpendDiscardPhaseAction,
+    /// Add n blood to the host, up to its capacity ("add 1 blood to her").
+    AddHostBlood(u8),
+    /// The library card chosen by `Terms::AshCard` goes from the ash heap to
+    /// the bottom of the library (Mora, the Death Seer).
+    AshCardToLibraryBottom,
     /// Add n counters to this card in play ("add 1 counter to this card
     /// each time you lock it", Dreams of the Sphinx).
     AddCounter(u8),
@@ -951,6 +1065,9 @@ pub enum Effect {
     AddStealth(u8),
     /// +n intercept for the actor's current block attempt.
     AddIntercept(u8),
+    /// The minion attempting to block gets n intercept for the rest of the
+    /// action (Oskar Anasov's +1, Gwenllian Arwyn's -1).
+    AttemptingIntercept(i8),
     /// +n bleed for the current bleed; `limited` binds the rulebook cap.
     BleedMod {
         n: u8,
@@ -1006,6 +1123,27 @@ pub enum Effect {
     BurnChosenInPlay,
     /// Unlock the actor.
     UnlockActor,
+    /// Unlock the target minion (Alabástrom).
+    UnlockTarget,
+    /// Flip a coin: on tails the announced action fails at once, with no
+    /// block and no cost (Evan Klein).
+    CoinFlipActionFails,
+    /// Reveal the top card of the user's library, which stays on top: the
+    /// host burns `burn` blood if it is a master card, else it gets
+    /// `stealth` stealth, and only while stealth is needed (Gathii, ANK
+    /// 20231031).
+    RevealTopCard {
+        burn: u8,
+        stealth: u8,
+    },
+    /// The vampire whose text it is goes to torpor (Cedrick Calhoun).
+    GoToTorpor,
+    /// Lock the target minion.
+    LockTarget,
+    /// The acting minion's controller discards the chosen count
+    /// (`Terms::Count`) of cards at random from hand, replaced as normal
+    /// (Ilonka).
+    ActingControllerDiscardsAtRandom,
     // Combat effects (`combat`).
     /// Choose this strike for the actor.
     Strike(StrikeKind),
@@ -1109,6 +1247,9 @@ pub enum Effect {
     /// The actor gets +n votes in this referendum (cast on the same side as
     /// votes it already cast).
     AddVotes(u8),
+    /// As `AddVotes`, +1 per ready vampire of this sect the player controls,
+    /// counted as it resolves (Aisha az-Zahra).
+    AddVotesPerReadySect(Sect),
     /// The target vampire abstains: its cast votes and ballots are
     /// canceled and it casts no more; `lock` locks it, `burn` burns blood.
     Abstain {
@@ -1176,6 +1317,17 @@ pub enum Hook {
     /// each card drawn, while the library holds one (rules-qa 9.4). The
     /// rider's effects apply as a card is taken from this card.
     WouldDraw,
+    /// An action targeting this vampire was announced (Evan Klein): fired
+    /// as the as-announced window closes, before any block.
+    ActionAnnouncedAtTarget,
+    /// A minion in combat with this vampire left the ready region (Egidia
+    /// Arrú): fired with `ReadyMinionBurnedOrTorpor`, even if the vampire
+    /// left in the same event (advanced rules §6.4.4).
+    CombatOpponentLeftReady,
+    /// The referendum of this vampire's political action was canceled or
+    /// failed (Cedrick Calhoun): applied as the action resolves, before the
+    /// after-resolution window.
+    OwnReferendumFailed,
 }
 
 /// Whose turn a phase rider fires on.
@@ -1307,6 +1459,9 @@ pub struct VampireDef {
     /// Abilities printed on the vampire, in the card vocabulary: the actor
     /// `Host` is the vampire itself.
     pub abilities: &'static [ModeDef],
+    /// Mandatory effects printed on the vampire, fired at their hooks
+    /// (host predicates read on the vampire).
+    pub riders: &'static [Rider],
     /// The printed text not implemented yet, if any: a vampire lands with
     /// part of its text and ends with all of it (rules-qa 13.1).
     pub incomplete: Option<&'static str>,
@@ -1393,7 +1548,8 @@ pub fn holds(
         | Requirement::BloodAtLeast(_)
         | Requirement::NotActingController
         | Requirement::NotSelf
-        | Requirement::HasCastVotes => true, // target predicates
+        | Requirement::HasCastVotes
+        | Requirement::NotAbstaining => true, // target predicates
         Requirement::PlayedCardIsMaster => {
             played.is_some_and(|p| LIBRARY[p.card as usize].types.contains(&CardType::Master))
         }
@@ -1420,7 +1576,7 @@ pub fn holds(
         Requirement::HandNotEmpty => !st.seats[seat.index()].hand.is_empty(),
         Requirement::PoolAtLeast(n) => st.seats[seat.index()].pool >= n as i32,
         Requirement::ActorVampire => actor.is_some(),
-        Requirement::HandOfType(t, n) => st.hand_picks(seat, Some(t)).len() >= n as usize,
+        Requirement::HandHas(f, n) => st.hand_picks(seat, f).len() >= n as usize,
         Requirement::HostLocked
         | Requirement::HostBloodAtLeast(_)
         | Requirement::HostBelowCapacity
@@ -1487,6 +1643,49 @@ pub fn holds(
         }
         Requirement::IsPolitical => action.is_some_and(|a| a.kind == ActionKind::Political),
         Requirement::PollingStep => political.is_some_and(|r| r.step == RefStep::Polling),
+        Requirement::AnyPollingStep => referendum.is_some_and(|r| r.step == RefStep::Polling),
+        Requirement::ActorActing => action.zip(actor).is_some_and(|(a, m)| a.acting == m),
+        Requirement::ActionSuccessful => action.is_some_and(|a| {
+            matches!(
+                a.outcome,
+                Some(crate::actions::Outcome::Successful | crate::actions::Outcome::Fizzled)
+            )
+        }),
+        Requirement::ActionDirected => action.is_some_and(|a| a.directed_seat(st).is_some()),
+        Requirement::IsDiablerie => action.is_some_and(|a| a.kind == ActionKind::Diablerie),
+        Requirement::ActorDiablerised => action
+            .zip(actor)
+            .is_some_and(|(a, m)| a.diablerist == Some(m)),
+        Requirement::ActingOtherController => action.is_some_and(|a| a.seat != seat),
+        Requirement::OtherActingControlled => {
+            action.is_some_and(|a| a.seat == seat && actor != Some(a.acting))
+        }
+        Requirement::ActingSectIn(sects) => {
+            action.is_some_and(|a| sects.contains(&st.minions[a.acting.index()].card().sect))
+        }
+        Requirement::DirectedHandNotEmpty => action
+            .and_then(|a| a.directed_seat(st))
+            .is_some_and(|t| !st.seats[t.index()].hand.is_empty()),
+        // Target predicates (`holds_for_minion`).
+        Requirement::ControlledByDirectedSeat | Requirement::NotHost => true,
+        Requirement::YourAttemptNeedsIntercept => action.is_some_and(|a| match a.state {
+            ActionState::Attempt(m) => {
+                st.minions[m.index()].owner == seat && a.stealth(st) > a.intercept_of(st, m)
+            }
+            _ => false,
+        }),
+        Requirement::OtherActingClan(c) => action.is_some_and(|a| {
+            actor != Some(a.acting) && st.minions[a.acting.index()].card().clan == c
+        }),
+        // Host predicate (`holds_for_host`).
+        Requirement::HostUnlocked => true,
+        Requirement::OwnTurn => st.active == seat,
+        Requirement::DiscardPhaseActionLeft => st.seats[seat.index()].dpa > 0,
+        Requirement::MasterCardPlayed => st.seats[seat.index()].master_played,
+        Requirement::AshNotEmpty => !st.seats[seat.index()].ash.is_empty(),
+        Requirement::ActorCalledReferendum => {
+            political.is_some() && action.zip(actor).is_some_and(|(a, m)| a.acting == m)
+        }
         Requirement::NoVotesCast => political.is_some_and(|r| !r.any_cast()),
         Requirement::ReferendumPassed => action.is_some_and(|a| a.referendum_passed),
         Requirement::Younger => true, // target predicate
@@ -1537,12 +1736,18 @@ pub fn holds_for_minion(
     referendum: Option<&ReferendumCtx>,
     acting: Option<MinionId>,
     m: MinionId,
+    action: Option<&ActionCtx>,
 ) -> bool {
     let v = &st.minions[m.index()];
     match req {
+        Requirement::ControlledByDirectedSeat => action
+            .and_then(|a| a.directed_seat(st))
+            .is_some_and(|t| v.owner == t),
         Requirement::Controlled => v.owner == seat && v.present(),
         Requirement::BloodAtLeast(n) => v.blood >= n,
         Requirement::HasCastVotes => referendum.is_some_and(|r| r.has_cast(m)),
+        Requirement::NotAbstaining => !referendum.is_some_and(|r| r.abstaining.contains(&m)),
+        Requirement::ActorClan(c) => v.card().clan == c,
         Requirement::ActorReady => v.ready(),
         Requirement::ActorTitleIn(classes) => classes.iter().any(|c| c.matches(v.title())),
         Requirement::ActorSectIn(sects) => sects.contains(&v.card().sect),
@@ -1591,6 +1796,7 @@ pub fn holds_for_host(req: Requirement, st: &GameState, host: MinionId) -> bool 
     let v = &st.minions[host.index()];
     match req {
         Requirement::HostLocked => v.locked,
+        Requirement::HostUnlocked => !v.locked,
         Requirement::HostReady => v.ready(),
         Requirement::HostBloodAtLeast(n) => v.blood >= n,
         Requirement::HostBelowCapacity => v.blood < v.capacity(),

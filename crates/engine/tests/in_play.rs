@@ -524,9 +524,9 @@ fn blood(e: &Engine, m: MinionId) -> u8 {
 fn bleed_table() -> (Engine, MinionId, MinionId, MinionId) {
     let mut e = Engine::bare(3);
     let a = e.add_minion(SeatId(0), vampire_with("DOM", 0), 6, false);
-    e.add_minion(SeatId(0), vampire_with("CEL", 0), 6, false);
-    let x = e.add_minion(SeatId(1), vampire_with("FOR", 0), 4, false);
-    let z = e.add_minion(SeatId(2), vampire_with("PRO", 0), 4, false);
+    e.add_minion(SeatId(0), find_card("Farah Sarroub"), 6, false);
+    let x = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
+    let z = e.add_minion(SeatId(2), find_card("Crystal Lynn"), 4, false);
     for s in &mut e.state.seats {
         s.pool = 10;
     }
@@ -859,8 +859,8 @@ fn fame_ousts_the_blocking_methuselah_mid_combat_and_the_action_ends() {
 fn fame_oust_mid_combat_can_end_the_game() {
     let mut e = Engine::bare(2);
     let a = e.add_minion(SeatId(0), vampire_with("DOM", 0), 6, false);
-    e.add_minion(SeatId(0), vampire_with("CEL", 0), 6, false);
-    let x = e.add_minion(SeatId(1), vampire_with("FOR", 0), 0, false);
+    e.add_minion(SeatId(0), find_card("Farah Sarroub"), 6, false);
+    let x = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 0, false);
     e.state.seats[0].pool = 10;
     e.state.seats[1].pool = 3;
     e.state.turn = 4;

@@ -143,6 +143,10 @@ pub struct Side {
     pub additional_with: Option<CardId>,
     /// Optional presses only usable to continue combat (Righteous Blade).
     pub continue_presses: u8,
+    /// A mandatory press, only usable to continue combat (Adrino
+    /// Manauara): its controller cannot pass the press step while it can be
+    /// used (rules-qa 14.1).
+    pub mandatory_press: u8,
     /// "+n strength that combat" (Kasim Bayar), kept each round.
     pub strength_mods: u8,
 }
@@ -169,6 +173,7 @@ impl Side {
             committed: None,
             additional_with: None,
             continue_presses: 0,
+            mandatory_press: 0,
             strength_mods: 0,
         }
     }
@@ -363,10 +368,19 @@ impl Engine {
     /// only if it actually blocked).
     pub(crate) fn start_combat(&mut self, acting: MinionId, opposing: MinionId) {
         let st = &self.state;
-        let sides = [
+        let mut sides = [
             Side::new(acting, st.minions[acting.index()].owner),
             Side::new(opposing, st.minions[opposing.index()].owner),
         ];
+        for s in &mut sides {
+            s.mandatory_press = st
+                .printed_mod(
+                    s.minion,
+                    crate::cards::Stat::MandatoryContinuePress,
+                    crate::state::PrintedCtx::default(),
+                )
+                .max(0) as u8;
+        }
         let order = vec![sides[0].seat, sides[1].seat];
         let held_at_block = st.equipment_on(opposing);
         self.combat = Some(CombatCtx {
@@ -474,6 +488,7 @@ impl Engine {
                 let seat = c.window.current()?;
                 let i = c.side_of(seat).expect("combatant seat");
                 let mut options = vec![Choice::Pass];
+                let mut mandatory = false;
                 match c.step {
                     Step::DetermineRange
                         if c.sides[i].maneuvers > 0 && c.last_maneuver != Some(i) =>
@@ -483,9 +498,16 @@ impl Engine {
                     Step::Press
                         if c.last_press != Some(i)
                             && (c.sides[i].presses > 0
-                                || (c.sides[i].continue_presses > 0 && !c.press_continue)) =>
+                                || ((c.sides[i].continue_presses > 0
+                                    || c.sides[i].mandatory_press > 0)
+                                    && !c.press_continue)) =>
                     {
                         options.push(Choice::UsePress);
+                        // Mandatory only while it can be used: to continue,
+                        // with both combatants ready (rules-qa 14.1).
+                        mandatory = c.sides[i].mandatory_press > 0
+                            && !c.press_continue
+                            && c.both_ready(&self.state);
                     }
                     _ => {}
                 }
@@ -494,6 +516,12 @@ impl Engine {
                     options.extend(self.ability_options(seat, w));
                 }
                 options.extend(self.ability_options(seat, Window::AnyImpulse));
+                if mandatory {
+                    // Used before its controller passes (spec §1.1.2): a
+                    // press card played to continue first leaves it unused,
+                    // and it waits for a later round (rules-qa 14.1).
+                    options.retain(|o| *o != Choice::Pass);
+                }
                 Some(DecisionRequest {
                     seat,
                     window: c.label(),
@@ -560,8 +588,11 @@ impl Engine {
                 let i = c
                     .side_of(c.window.current().expect("impulse"))
                     .expect("side");
-                // A press only usable to continue goes first when continuing.
-                if !c.press_continue && c.sides[i].continue_presses > 0 {
+                // A press only usable to continue goes first when
+                // continuing, the mandatory one before the optional.
+                if !c.press_continue && c.sides[i].mandatory_press > 0 {
+                    c.sides[i].mandatory_press -= 1;
+                } else if !c.press_continue && c.sides[i].continue_presses > 0 {
                     c.sides[i].continue_presses -= 1;
                 } else {
                     c.sides[i].presses -= 1;

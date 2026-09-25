@@ -1367,3 +1367,180 @@ not used? Adrino is held back until the answer.
   gun-strike damage (Kevlar Vest).
 
 Right?
+
+**Answer (2026-09-15)** — 14.2: yes to all. 14.1 open: Adrino is held
+back.
+
+**Tests** — `tests/vampires.rs`.
+
+## Batch 15 — Printed abilities outside combat (slice 9c-i)
+
+### 15.1 Gathii's reveal
+
+"During an action Gathii performs, you can reveal the top card of your
+library. If it is a master card, he burns 1 blood; otherwise, he gets +1
+stealth." The revealed card stays on top and the text prints no periodicity
+clause, so by advanced rules §1.5.4 the ability could be used again,
+revealing the same card each time: a non-master card on top would give +1
+stealth at every use while stealth is needed (ANK 20231031: usable before
+stealth is needed, the stealth then not gained). (a) Repeatable in that way,
+or once per action? (b) Before stealth is needed, is the only effect the
+blood burned on a master card? Gathii is held back until the answer.
+
+### 15.2 Readings of the abilities built
+
+- Referendum abilities (Aisha az-Zahra, Alexa Draper, Yewon Ong, Queen
+  Anne): once per referendum, usable while locked (advanced rules §1.2.1,
+  ANK 20220705); those printing no condition are offered in torpor too
+  (§3.7.6.4), although a vampire in torpor casts no votes. "Any referendum"
+  includes blood hunts. Aisha counts every ready Anarch her controller
+  controls — herself included, locked ones too — as the ability resolves.
+  "A card requiring Dominate" is any library card whose disciplines include
+  it, either-or and combo cards included.
+- Queen Anne: "a referendum called by Anne" is the referendum of her
+  political action, not a blood hunt; the target is any younger Camarilla
+  vampire, any Methuselah's, in torpor included, not one already
+  abstaining.
+- Stealth and intercept printed on vampires are masked as cards are
+  (rules-qa 3.2): Abraham DuSable's +1 stealth only while stealth is needed
+  on his action, his +1 intercept only while intercept is needed on his own
+  block attempt; Daria's lock only while the acting Nosferatu (another
+  Methuselah's included) needs stealth; Oskar Anasov's +1 intercept only to
+  his controller's vampire attempting to block while it needs intercept;
+  Gwenllian Arwyn's -1 intercept only to the vampire attempting to block her
+  action while stealth is needed. Oskar's and Gwenllian's last the rest of
+  the action (a failed blocker is not offered an unreachable second
+  attempt). All repeat while payable (§1.5.4), except Daria's (a lock cost:
+  once per unlock). One asymmetry to settle: intercept given this way
+  survives a failed attempt, while the engine resets intercept from a
+  reaction card (Eyes of Argus) when an attempt fails (rules-qa 1.3 does
+  not say which). Does intercept gained during an attempt carry into a new
+  attempt by the same minion, for both, or for neither?
+- Larissa Moreira: on her own bleed only, before resolution (ANK 20231124),
+  repeatable.
+- Nonu Dis: once per master phase (ANK 20220617), offered at any point of
+  that master phase once a master card was played in it — played as it is
+  announced, canceled or not; his target is any ready Ministry vampire his
+  controller controls, himself included.
+- Mora, the Death Seer: once per discard phase; any library card in the ash
+  heap, chosen by name.
+- Sreelekha: +1 discard phase action if she is ready as the discard phase
+  begins.
+- Ayse Dhanial: each use spends a discard phase action, so twice with
+  Sreelekha's; not offered at capacity (as the blood shuttles of cards in
+  play).
+- Kalinda: whenever her controller holds the impulse on their turn, while
+  she is locked, in torpor too; not during a combat she is not in (a
+  vampire outside the combat is not offered its abilities there, as for the
+  host of a card in play).
+- Marchesa Liliana is held back: the engine does not keep burned vampires
+  in the ash heap yet, and "seven cards in your ash heap" counts them.
+
+Right?
+
+**Answer (2026-09-15)** — "All repeat while payable": no — most use the
+"during" template, meaning once during it. The asymmetry: bonus stealth or
+intercept survives for the whole action and ends when the action finishes,
+in both cases. 15.1 is not answered.
+Applied: Abraham DuSable (each mode), Oskar Anasov, Gwenllian Arwyn and
+Larissa Moreira once per action, Kalinda once per turn; intercept from a
+reaction card (Eyes of Argus) kept by the minion across a failed attempt
+too. Read from the template, not answered: Gathii once per action (15.1 (a))
+— to confirm with 15.1 (b).
+Tests: `intercept_from_a_failed_attempt_carries_into_a_new_one`,
+`abraham_dusable_discards_blood_sorcery_cards_for_stealth_or_intercept`,
+`larissa_moreira_discards_animalism_cards_for_bleed_during_a_bleed`.
+
+## Batch 16 — Printed abilities after an action (slice 9c-ii)
+
+### 16.1 "After …" with no periodicity
+
+Richard de Worde ("After Richard successfully bleeds, he can look at the
+target Methuselah's hand, then he can burn 1 blood to discard 1 card from
+it") and Alicia Cortez ("After Alicia performs a successful directed action,
+you can discard a political action card to lock a younger vampire …") print
+no periodicity clause. Read like the "during" template (15.2): once per
+action. Sybren van Oosten's and Queen Anne's unlocks limit themselves (the
+vampire must be locked). Right?
+
+### 16.2 Queen Anne's unlock after a diablerie as a blocker
+
+A blocked leave-torpor action ends blocked, with no after-resolution window.
+When Anne blocks it and diablerizes the acting vampire (then the blood hunt),
+can she unlock — and at which point? Only her own diablerie action is built;
+the rest is held.
+
+### 16.3 Looking at a hand
+
+The engine keeps no hidden information yet. Richard de Worde: the use
+chooses the card (the choice shows the hand) and burns the blood; looking
+without discarding is not offered. The card goes to its owner's ash heap and
+is replaced, as any card leaving the hand. Ilonka: the use looks, then her
+controller chooses to discard at random or not; offered while she is ready
+in the after-resolution window of a successful bleed against her controller,
+once each turn. Right?
+
+### 16.4 Other readings
+
+- Aline Gädeke: the acting minion's sect is read after resolution; usable in
+  torpor (LSJ 20011022); a fizzled action counts (ANK 20220218); once each
+  turn, whoever's turn.
+- Alicia Cortez: "directed" as for the bleed, a rescue or diablerie of
+  another Methuselah's vampire, and a burn action on their card; the target
+  any younger vampire (in torpor too) controlled by the Methuselah the action
+  was directed at. Locked ones are not offered as targets (as Kalinda is not
+  offered her unlock while unlocked), although the mask policy (rules-qa 4.3)
+  keeps legal no-effect plays — which?
+- Keegan and "Mother" Anja Giovanni are held back: no implemented action card
+  requires a Gangrel, Hecata or Oblivion yet.
+
+Right?
+
+### 16.5 Riders and printed votes
+
+- Roy: "if Roy is unlocked during your discard phase, lock him" applies as
+  the discard phase ends (the engine's convention for "during your discard
+  phase" effects: as the impulse leaves the active Methuselah), in torpor too
+  (LSJ 20011022).
+- Cedrick Calhoun: he goes to torpor as the action resolves — before the
+  after-resolution window — if the referendum failed or was canceled, while
+  he is ready.
+- Egidia Arrú: a minion in combat with her leaving the ready region (burned
+  or sent to torpor, by damage or anything else during the combat) costs its
+  controller 1 pool, even if Egidia falls in the same event (advanced rules
+  §6.4.4).
+- Marialena: the blood is burned as the block resolves, with the acting
+  minion's "if blocked" card riders, before combat or the blocker's
+  diablerie choice.
+- Jason "Son" Newberry: +2 only on votes he casts against a blood hunt, so a
+  Jason with no title votes can still cast 2 against one.
+- Styles Margs: the +2 in favor stand as the blood hunt is called on him,
+  counted like a vote no one casts (not his, whatever happens to him in the
+  polling).
+
+Right?
+
+### 16.6 Held vampires: what each needs
+
+- Evan Klein: "As a minion announces an action directed at Evan, flip a coin;
+  if it is tails, the action fails." On tails: does the acting minion still
+  lock, does the action count for NRA (and a bleed/political cap), are cost
+  and blocks skipped altogether, and is anything played "as the action is
+  announced" still possible before the flip?
+- Alabástrom: "If Alabástrom is ready during your turn, you can unlock
+  another ready Gargoyle you control." Once per turn (the "during" template),
+  whichever Gargoyle? Flight is inert for now (no card in the engine pool
+  requires it) — fine to land him with it as a bare trait?
+- Gnaeus Aemilius waits for out-of-combat damage in another Methuselah's
+  unlock phase (a new window shape); Keegan and "Mother" Anja Giovanni for an
+  action card requiring their clans; Gathii for 15.1 (b); Marchesa Liliana
+  for burned vampires kept in the ash heap.
+
+**Answer (2026-09-15)** — 16.1 yes: once per action. 16.2 yes: Anne can
+unlock after a diablerie as the blocker of a leave-torpor action too. 16.3
+right. 16.4: keep legal plays with no effect (a cycling opportunity) —
+Alicia Cortez may target a locked younger vampire. 16.5 right. 16.6 yes to
+all: on Evan Klein's tails the acting minion still locks, the action counts
+for NRA and the bleed/political caps, cost and blocks are skipped, and
+as-announced plays remain possible before the flip; Alabástrom once per
+turn, Flight a bare trait for now.

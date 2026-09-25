@@ -1063,6 +1063,79 @@ Recorded so nobody mistakes them for oversights:
   Camden (a once-per-turn ability for another combatant, beside a cost
   reduction), Faruq (no corruption counters yet). Test fixtures that want
   a plain vampire skip vampires with printed text.
+  Slice 9c-i (2026-09-15): vampire abilities outside combat, in windows the
+  engine already opens. Referendums: the polling step of both kinds, blood
+  hunts included, offers `Window::Referendum` abilities; `Limit::PerReferendum`
+  (advanced rules §1.2.1: once per referendum, usable while locked;
+  `ReferendumCtx.abilities_used`); `Requirement::AnyPollingStep`,
+  `ActorCalledReferendum`, `NotAbstaining`; `Effect::AddVotesPerReadySect`;
+  an ability's vote effects go through `apply_vote_effect`. Discard costs
+  name a `CardFilter` (any card, a type, a discipline: `Terms::Discard { of }`,
+  `Requirement::HandHas`). Actions: action modifiers printed on vampires go
+  through `apply_action_effect`; `ActionCtx.intercept_given` keeps intercept
+  given to a minion for the rest of the action (`Effect::AttemptingIntercept`),
+  and block reachability counts printed intercept abilities (a use per blood
+  or qualifying card, once per action). Printed stealth and intercept follow
+  rules-qa 3.2; the "during" template is once during it (rules-qa 15.2), a
+  lock cost once per unlock; intercept from any source stays with the minion
+  for the whole action, across a failed attempt (rules-qa 15.2). Phases: discard-phase abilities
+  (`Window::DiscardPhase`; `Window::DiscardPhaseAction` for one spending a
+  discard phase action, not once per phase), `Stat::DiscardPhaseActions` read
+  as the phase begins, `Seat.master_played` ("after playing a master card"),
+  `Terms::AshCard` (a choice per card name), `Effect::BurnEdge`,
+  `SpendDiscardPhaseAction`, `AddHostBlood`, `AshCardToLibraryBottom`; target
+  enumeration shared by cards and vampires (`Engine::ability_targets`).
+  Definitions: Alexa Draper, Yewon Ong, Abraham DuSable, Larissa Moreira,
+  Ayse Dhanial, Kalinda, Daria (her lock; the directed-action cost waits with
+  the cost modifiers), Queen Anne's abstention (her unlock after a diablerie
+  waits for 9c-ii), and the rest of Aisha az-Zahra, Oskar Anasov, Gwenllian
+  Arwyn, Mora the Death Seer, Nonu Dis and Sreelekha (56 vampires, 13
+  incomplete). Held back: Gathii (rules-qa 15.1), Marchesa Liliana (burned
+  vampires are not kept in the ash heap). Rules-qa Batch 15 asked. Fixture
+  picks that drifted are pinned by name to vampires with no printed text.
+  Fuzz seats Larissa Moreira and Kalinda (their abilities keyed), and its
+  card conservation counts the cards kept face down on a banished vampire.
+  Slice 9c-ii (in progress): `Limit::PerTurn` (`GameState.turn_uses`,
+  cleared as each turn begins, hashed); after-resolution abilities
+  (`Window::ActionAfterResolution`; `Requirement::ActionSuccessful` counts a
+  fizzle, `ActionDirected`, `IsDiablerie`, `OtherActingControlled`,
+  `ActingSectIn`, `DirectedHandNotEmpty`; target predicates
+  `ControlledByDirectedSeat`, `TargetUnlocked`, `holds_for_minion` reading
+  the action); `Flow::AbilityTerms` carries the use's target;
+  `Terms::DirectedHandCard` (a choice per card name in the directed-at
+  Methuselah's hand, the card discarded and replaced); `Effect::LockTarget`,
+  `ActingControllerDiscardsAtRandom` (the count, 0 or 1, chosen after the
+  look). Definitions: Sybren van Oosten, Aline Gädeke, Alicia Cortez, Ilonka,
+  Richard de Worde, Queen Anne's unlock after her diablerie action. Held back: Keegan, "Mother" Anja Giovanni (no
+  implemented action requires their clans). Fixture picks that the new
+  definitions shifted (combat, weapons, search, in-play, rulings) are pinned
+  by name. Rules-qa Batch 16 asked. Vampire riders: `VampireDef.riders`, fired where their
+  hook fires without the card-rider queue (a single mandatory effect of the
+  vampire's own): `Hook::HostBlocked` on the acting vampire (Marialena),
+  `Hook::DiscardPhase` at the active Methuselah's discard Pass (Roy),
+  `Hook::CombatOpponentLeftReady` with `ReadyMinionBurnedOrTorpor` (Egidia
+  Arrú; advanced rules §6.4.4) and `Hook::OwnReferendumFailed` before the
+  after-resolution window (Cedrick Calhoun; `Effect::GoToTorpor`). Printed
+  votes by side: `ReferendumCtx::votes_cast` adds `Stat::VotesAgainstBloodHunt`
+  (Jason "Son" Newberry); `Stat::BloodHuntVotesInFavor` stands as a
+  `Source::Printed` record when the blood hunt is called (Styles Margs). On the Batch 14/15/16 answers: Alicia's locked
+  targets kept (legal plays with no effect stay offered, rules-qa 16.4);
+  Queen Anne's unlock after a diablerie as a blocker (`ActionCtx.diablerist`,
+  `R::ActorDiablerised`; a blocked leave-torpor whose blocker diablerised
+  opens the after-resolution window); Alabástrom (`Effect::UnlockTarget`,
+  `R::NotHost`, `Engine::ability_targets` taking the host — no second
+  Gargoyle in the V5 pool, so the ability has no target yet); Gathii
+  (`Effect::RevealTopCard`, the stealth gained only while needed, ANK
+  20231031); Evan Klein (`Hook::ActionAnnouncedAtTarget`,
+  `Effect::CoinFlipActionFails` as the as-announced window closes — the
+  action fails with no block and no cost, the minion locked and the action
+  counted for NRA; `Engine::bare_seeded` for both flips in tests); Adrino
+  Manauara (`Stat::MandatoryContinuePress`, `Side.mandatory_press`, Pass
+  masked at the press step while it can continue combat). 68 vampires, 9
+  incomplete. Still held in 9c: Keegan and "Mother" Anja Giovanni (no
+  implemented action card requires their clans), Marchesa Liliana (burned
+  vampires are not kept in the ash heap), Gnaeus Aemilius (out-of-combat
+  damage in another seat's unlock phase).
 - **P3 — training loop**: PyO3 batched stepping, encoder, PPO self-play at 4p;
   evaluation ladder vs scripted bots and frozen snapshots.
 - **P4 — league & 5p**: exploiters, PFSP, deck/seat sampling, evaluation vs humans.

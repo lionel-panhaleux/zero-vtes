@@ -111,9 +111,9 @@ struct Table {
 fn table() -> Table {
     let mut e = Engine::bare(2);
     let a = e.add_minion(SeatId(0), vampire_with("POT", 0), 4, false);
-    let b = e.add_minion(SeatId(0), vampire_with("CEL", 0), 4, false);
-    let x = e.add_minion(SeatId(1), vampire_with("FOR", 0), 4, false);
-    let y = e.add_minion(SeatId(1), vampire_with("PRO", 0), 4, false);
+    let b = e.add_minion(SeatId(0), find_card("Farah Sarroub"), 4, false);
+    let x = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
+    let y = e.add_minion(SeatId(1), find_card("Crystal Lynn"), 4, false);
     e.state.turn = 4;
     Table { e, a, b, x, y }
 }
@@ -164,7 +164,7 @@ fn unmended_damage_sends_the_blocker_to_torpor() {
 fn combat_step_impulse_reset() {
     let mut t = table();
     let e = &mut t.e;
-    let z = e.add_minion(SeatId(1), vampire_with("POT", 1), 4, false);
+    let z = e.add_minion(SeatId(1), find_card("Octane"), 4, false);
     hand(e, 0, &["Torn Signpost"]);
     hand(e, 1, &["Torn Signpost"]);
     blocked_bleed(e, t.a, z);
@@ -191,7 +191,7 @@ fn combat_step_impulse_reset() {
 fn maneuvers_alternate_and_long_range_voids_hand_strikes() {
     let mut t = table();
     let e = &mut t.e;
-    let z = e.add_minion(SeatId(1), vampire_with("CEL", 1), 4, false);
+    let z = e.add_minion(SeatId(1), find_card("Asmin Kobane"), 4, false);
     hand(e, 0, &["Flash", "Flash"]);
     hand(e, 1, &["Flash"]);
     blocked_bleed(e, t.b, z);
@@ -232,7 +232,7 @@ fn strike_combat_ends_resolves_first_and_unlocks() {
 fn dodge_voids_the_opposing_strike() {
     let mut t = table();
     let e = &mut t.e;
-    let z = e.add_minion(SeatId(1), vampire_with("CEL", 1), 4, false);
+    let z = e.add_minion(SeatId(1), find_card("Asmin Kobane"), 4, false);
     hand(e, 0, &["Roundhouse"]);
     hand(e, 1, &["Side Strike"]);
     blocked_bleed(e, t.a, z);
@@ -365,7 +365,7 @@ fn would_end_replacement_loses_the_after_combat_rider() {
     let mut t = table();
     let e = &mut t.e;
     let p = e.add_minion(SeatId(0), vampire_with("PRO", 1), 4, false);
-    let z = e.add_minion(SeatId(1), vampire_with("AUS", 0), 4, false);
+    let z = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
     hand(e, 0, &["Form of Mist"]);
     hand(e, 1, &["Telepathic Tracking"]);
     blocked_bleed(e, p, z);
@@ -389,9 +389,9 @@ fn would_end_replacement_loses_the_after_combat_rider() {
 #[test]
 fn continuation_keeps_declines() {
     let mut e = Engine::bare(3);
-    let p = e.add_minion(SeatId(0), vampire_with("PRO", 0), 4, false);
-    let x = e.add_minion(SeatId(1), vampire_with("ANI", 0), 4, false);
-    let z = e.add_minion(SeatId(2), vampire_with("ANI", 1), 4, false);
+    let p = e.add_minion(SeatId(0), find_card("Crystal Lynn"), 4, false);
+    let x = e.add_minion(SeatId(1), find_card("Ángel Guerrero"), 4, false);
+    let z = e.add_minion(SeatId(2), find_card("Roberto Rivamonte"), 4, false);
     e.state.turn = 4;
     hand(&mut e, 0, &["Form of Mist"]);
     hand(&mut e, 1, &["Cats' Guidance", "Cats' Guidance"]);
@@ -521,7 +521,7 @@ fn ranged_steal_at_long_range() {
 fn blocked_leave_torpor_blocker_may_diablerise() {
     let mut t = table();
     let e = &mut t.e;
-    let z = e.add_minion(SeatId(1), vampire_with("ANI", 0), 4, false);
+    let z = e.add_minion(SeatId(1), find_card("Ángel Guerrero"), 4, false);
     let tor = e.add_minion(SeatId(0), vampire_with("DOM", 0), 2, true);
     hand(e, 1, &["Cats' Guidance"]);
     pick(
@@ -557,8 +557,8 @@ fn blocked_leave_torpor_blocker_may_diablerise() {
 fn no_reaction_cards_during_combat() {
     let mut e = Engine::bare(3);
     let a = e.add_minion(SeatId(0), vampire_with("POT", 0), 4, false);
-    let x = e.add_minion(SeatId(1), vampire_with("FOR", 0), 4, false);
-    let w = e.add_minion(SeatId(2), vampire_with("AUS", 0), 4, false);
+    let x = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
+    let w = e.add_minion(SeatId(2), find_card("Monica Giovanni"), 4, false);
     e.state.minions[w.index()].locked = true;
     e.state.turn = 4;
     hand(&mut e, 0, &["Roundhouse"]);

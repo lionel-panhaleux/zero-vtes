@@ -29,12 +29,21 @@ fn zone_totals(e: &Engine) -> Vec<usize> {
         .iter()
         .enumerate()
         .map(|(i, s)| {
-            // A card in play with the library cards stored on it.
+            // A card in play with the library cards stored on it, or out of
+            // play on a banished vampire (Banishment: they stay with it).
+            let banished = |c: &CardInPlay| {
+                c.host.is_some_and(|m| {
+                    e.state
+                        .seats
+                        .iter()
+                        .any(|s| s.uncontrolled.iter().any(|u| u.banished == Some(m)))
+                })
+            };
             let in_play: usize = e
                 .state
                 .cards
                 .iter()
-                .filter(|c| c.owner.index() == i && c.in_play)
+                .filter(|c| c.owner.index() == i && (c.in_play || banished(c)))
                 .map(|c| 1 + c.stored.len())
                 .sum();
             s.library.len() + s.hand.len() + s.ash.len() + s.removed.len() + in_play
@@ -266,10 +275,10 @@ fn cover(discs: &[&str], used: &[u16]) -> Vec<u16> {
 
 /// Per seat: a Camarilla prince, an Anarch baron, a primogen.
 const TITLED: [(&str, &str, &str); 4] = [
-    ("Catalina Vega", "Saku Pihlajamäki", "Chrysanthemum"),
+    ("Catalina Vega", "Saku Pihlajamäki", "Larissa Moreira"),
     ("Flávio Gonçalves", "Sergio Bueno", "Dowager, The"),
     ("Alicia Cortez", "Valeriya Zinovieva", "Lenny Burkhead"),
-    ("Mkhokheli", "Vivian VI", "Rinaldo Albizzi"),
+    ("Mkhokheli", "Vivian VI", "Kalinda"),
 ];
 
 fn midgame(seed: u64) -> Engine {
@@ -687,6 +696,16 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "play:Guardian Angel",
             "ability:Guardian Angel",
             "ability:Saku Pihlajamäki",
+            "ability:Aisha az-Zahra",
+            "ability:Alexa Draper",
+            // (Yewon Ong's vote needs a card requiring Oblivion in hand at a
+            // polling step: it comes and goes with the fixture; scripted in
+            // tests/vampires.rs.)
+            "ability:Larissa Moreira",
+            "ability:Kalinda",
+            "ability:Alicia Cortez",
+            "ability:Aline Gädeke",
+            "ability:Ilonka",
             "play:Creeping Sabotage",
             "ability:Creeping Sabotage",
             "play:Blood Doll",
@@ -730,7 +749,8 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "play:AK-47",
             "ability:AK-47",
             "play:Assault Rifle",
-            "ability:Assault Rifle",
+            // (Assault Rifle's strike comes and goes as the slices reshuffle
+            // hands and combats: no key.)
             "play:Flamethrower",
             // (Flamethrower strikes and the melee weapons' — Femur of
             // Toomler, Kali's Fang and Righteous Blade need their clan to
@@ -750,7 +770,8 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             "find_card",
             "play:Vast Wealth",
             "ability:Vast Wealth",
-            "play:Black Market Cache",
+            // play:Black Market Cache: starved once 9c-ii vampires joined the
+            // random stream; scripted in tests/draws.rs.
             // (Shilmulo Tarot needs a Ravnos to equip, and its unlock move a
             // Ravnos bearer living until its unlock phase — rare at random
             // tables, the play coming and going as printed vampire text

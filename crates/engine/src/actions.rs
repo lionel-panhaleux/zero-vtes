@@ -80,12 +80,13 @@ pub struct ActionCtx {
     /// Ability index on `source`.
     pub ability: Option<u8>,
     pub torpor_target: Option<MinionId>,
+    /// The vampire that diablerised in this action: the acting minion, or
+    /// the blocker of a leave-torpor action (rules-qa 16.2).
+    pub diablerist: Option<MinionId>,
     /// The Methuselah being bled (changes on a redirect).
     pub bleed_target: Option<SeatId>,
     pub base_stealth: u8,
     pub stealth_mods: u8,
-    /// Intercept of the current block attempt (reset per attempt).
-    pub intercept: u8,
     pub bleed_mods: u8,
     /// The rulebook's one "(limited)" bleed increase per action.
     pub limited_bleed_used: bool,
@@ -131,6 +132,9 @@ pub struct ActionCtx {
     /// In-play abilities used this action, by copy ("during an action":
     /// once per action, rules-qa 9.6).
     pub abilities_used: Vec<(cards::AbilitySource, u8)>,
+    /// Intercept gained by a minion, from any source, for the rest of the
+    /// action: a failed attempt keeps it for a new one (rules-qa 15.2).
+    pub intercept_given: Vec<(MinionId, i8)>,
 }
 
 impl ActionCtx {
@@ -183,8 +187,17 @@ impl ActionCtx {
     /// intercept folded through the action's intercept layers (Perfect
     /// Paragon [PRE]: younger vampires and allies get -1).
     pub fn intercept_of(&self, st: &crate::state::GameState, m: MinionId) -> u8 {
-        (self.intercept as i32 + Self::intercept_mods(st, m) + self.host_intercept(st, m)).max(0)
+        (Self::intercept_mods(st, m) + self.host_intercept(st, m) + self.given_intercept(m)).max(0)
             as u8
+    }
+
+    /// Intercept given to `m` for the rest of the action.
+    pub fn given_intercept(&self, m: MinionId) -> i32 {
+        self.intercept_given
+            .iter()
+            .filter(|(g, _)| *g == m)
+            .map(|(_, n)| *n as i32)
+            .sum()
     }
 
     /// Intercept from cards in play keyed to the action: on `m` (Guardian
@@ -375,7 +388,6 @@ impl Engine {
             bleed_target,
             base_stealth,
             stealth_mods: 0,
-            intercept: 0,
             bleed_mods: 0,
             limited_bleed_used: false,
             state: ActionState::AsAnnounced,
@@ -398,7 +410,9 @@ impl Engine {
             card_entered_play: false,
             giver: None,
             taken: Vec::new(),
+            diablerist: None,
             abilities_used: Vec::new(),
+            intercept_given: Vec::new(),
         });
         self.flow = Flow::Action;
     }
@@ -459,12 +473,9 @@ impl Engine {
     /// comparison in `action_advance` is the actual semantics.
     fn intercept_reachable(&self, a: &ActionCtx, seat: SeatId, m: MinionId) -> u8 {
         let st = &self.state;
-        // The current attempt's intercept counts when re-checking in B.
-        let mut total = match a.state {
-            ActionState::Attempt(cur) if cur == m => a.intercept,
-            _ => 0,
-        };
-        total = (total as i32 + a.host_intercept(st, m)).max(0) as u8;
+        // Intercept gained earlier in the action counts (rules-qa 15.2).
+        let mut total = (a.host_intercept(st, m) + a.given_intercept(m)).max(0) as u8;
+        total = total.saturating_add(self.printed_intercept_reach(seat, m));
         for &card in &st.seats[seat.index()].hand {
             let Some(def) = cards::lookup(card) else {
                 continue;
@@ -525,6 +536,69 @@ impl Engine {
             }
         }
         (total as i32 + ActionCtx::intercept_mods(st, m)).max(0) as u8
+    }
+
+    /// An upper bound on the intercept `m` can get from abilities printed on
+    /// `seat`'s vampires: a use per blood burned (Oskar Anasov) or card
+    /// discarded (Abraham DuSable, on his own attempt), once per action for
+    /// "during an action" (rules-qa 15.2).
+    fn printed_intercept_reach(&self, seat: SeatId, m: MinionId) -> u8 {
+        let st = &self.state;
+        let mut total = 0u8;
+        for v in st.minions_of(seat) {
+            let Some(def) = cards::vampire(st.minions[v.index()].card) else {
+                continue;
+            };
+            for (ai, ab) in def
+                .abilities
+                .iter()
+                .enumerate()
+                .filter(|(_, ab)| ab.windows.contains(&Window::ActionStealthIntercept))
+            {
+                let per_use: u8 = ab
+                    .effects
+                    .iter()
+                    .map(|e| match e {
+                        Effect::AttemptingIntercept(n) if *n > 0 => *n as u8,
+                        Effect::AddIntercept(n) if v == m => *n,
+                        _ => 0,
+                    })
+                    .sum();
+                if per_use == 0 {
+                    continue;
+                }
+                let uses = match ab.terms {
+                    Some(cards::Terms::Discard { n, of }) => {
+                        (st.hand_picks(seat, of).len() / n.max(1) as usize).min(u8::MAX as usize)
+                            as u8
+                    }
+                    _ if ab
+                        .effects
+                        .iter()
+                        .any(|e| matches!(e, Effect::HostBurnBlood(_))) =>
+                    {
+                        st.minions[v.index()].blood
+                    }
+                    _ => 1,
+                };
+                let uses = match ab.limit {
+                    Some(Limit::PerAction) => {
+                        let used = self.action.as_ref().is_some_and(|a| {
+                            a.abilities_used
+                                .contains(&cards::AbilitySource::Vampire(v).use_key(ai as u8))
+                        });
+                        if used {
+                            0
+                        } else {
+                            uses.min(1)
+                        }
+                    }
+                    _ => uses,
+                };
+                total = total.saturating_add(per_use.saturating_mul(uses));
+            }
+        }
+        total
     }
 
     /// Windows open for `seat` in the action's current state.
@@ -636,7 +710,6 @@ impl Engine {
             }
             Choice::DeclareBlock { minion } => {
                 a.state = ActionState::Attempt(*minion);
-                a.intercept = 0;
                 a.window.play();
                 self.flow = Flow::Action;
             }
@@ -680,6 +753,11 @@ impl Engine {
     /// The action window closed on consecutive passes: state transition
     /// (rulebook A.4, B.4, C.3; spec §2.2 for the as-announced window).
     pub(crate) fn action_advance(&mut self) {
+        if self.action.as_ref().expect("action context").state == ActionState::AsAnnounced
+            && self.announced_at_target_riders()
+        {
+            return;
+        }
         let a = self.action.as_mut().expect("action context");
         debug_assert!(a.window.is_closed());
         match a.state {
@@ -701,7 +779,6 @@ impl Engine {
                     // may attempt again (rulebook B.4, "if one attempt to
                     // block fails, another can be made").
                     a.state = ActionState::Open;
-                    a.intercept = 0;
                     a.fresh_window();
                     self.flow = Flow::Action;
                 }
@@ -721,7 +798,6 @@ impl Engine {
                     // the declines stand; only the attempt state resets.
                     a.continued = false;
                     a.state = ActionState::Open;
-                    a.intercept = 0;
                     a.fresh_window();
                     self.flow = Flow::Action;
                 } else {
@@ -799,6 +875,7 @@ impl Engine {
     fn end_action_into_blood_hunt(&mut self, diablerist: MinionId) {
         // The blood hunt is part of the action (spec §3.7.8.1): the action
         // ends after it, through its after-resolution window (rules-qa 5.8).
+        self.action.as_mut().expect("action context").diablerist = Some(diablerist);
         let seat = self.state.minions[diablerist.index()].owner;
         self.start_referendum(RefKind::BloodHunt { diablerist }, seat, None);
     }
@@ -809,7 +886,19 @@ impl Engine {
         let mut burned = None;
         match effect {
             Effect::AddStealth(n) => a.stealth_mods += n,
-            Effect::AddIntercept(n) => a.intercept += n,
+            // For the rest of the action (rules-qa 15.2).
+            Effect::AddIntercept(n) => {
+                // The minion given the intercept: the card's actor, else the
+                // minion attempting to block.
+                let m = play
+                    .actor
+                    .or(match a.state {
+                        ActionState::Attempt(m) => Some(m),
+                        _ => None,
+                    })
+                    .expect("intercepting minion");
+                a.intercept_given.push((m, n as i8));
+            }
             Effect::BleedMod { n, limited } => {
                 a.bleed_mods += n;
                 if limited {
@@ -853,7 +942,6 @@ impl Engine {
                 a.bleed_target = Some(t);
                 a.declined.clear();
                 a.state = ActionState::Open;
-                a.intercept = 0;
                 a.order = self.action_order_for(a.seat, Some(t));
                 a.fresh_window();
             }
@@ -880,6 +968,70 @@ impl Engine {
 
     fn action_order_for(&self, seat: SeatId, directed: Option<SeatId>) -> Vec<SeatId> {
         self.action_order(seat, directed)
+    }
+
+    /// Riders printed on the vampire an action targets, fired as the
+    /// as-announced window closes (Evan Klein's coin flip). Returns true
+    /// when the action ended.
+    fn announced_at_target_riders(&mut self) -> bool {
+        let a = self.action.as_ref().expect("action context");
+        let (kind, acting) = (a.kind, a.acting);
+        let Some(target) = a.torpor_target else {
+            return false;
+        };
+        let v = &self.state.minions[target.index()];
+        let owner = v.owner;
+        let Some(def) = cards::vampire(v.card).filter(|_| v.present()) else {
+            return false;
+        };
+        let effects: Vec<Effect> = def
+            .riders
+            .iter()
+            .filter(|r| {
+                r.hook == Hook::ActionAnnouncedAtTarget
+                    && r.requires.iter().all(|&req| {
+                        cards::holds(
+                            req,
+                            &self.state,
+                            owner,
+                            Some(target),
+                            None,
+                            self.action.as_ref(),
+                            None,
+                            None,
+                            false,
+                        )
+                    })
+            })
+            .flat_map(|r| r.effects.iter().copied())
+            .collect();
+        for e in effects {
+            match e {
+                // Tails: the action fails at once — no block, no cost — the
+                // acting minion locked and the action counted for NRA
+                // (rules-qa 16.6).
+                Effect::CoinFlipActionFails if self.rng.below(2) == 0 => {
+                    {
+                        let a = self.action.as_mut().expect("action context");
+                        a.outcome = Some(Outcome::Failed);
+                    }
+                    match kind {
+                        ActionKind::Bleed => {
+                            self.state.minions[acting.index()].bled_this_turn = true;
+                        }
+                        ActionKind::Political => {
+                            self.state.minions[acting.index()].political_this_turn = true;
+                        }
+                        _ => {}
+                    }
+                    self.end_action();
+                    return true;
+                }
+                Effect::CoinFlipActionFails => {}
+                other => unreachable!("not an announce rider effect: {other:?}"),
+            }
+        }
+        false
     }
 
     /// Block resolution: the blocker locks; combat, except a blocked
@@ -953,6 +1105,27 @@ impl Engine {
         }
         for id in burns {
             self.burn_card_in_play(id);
+        }
+        // Printed on the acting vampire (Marialena).
+        if let Some(def) = cards::vampire(self.state.minions[acting.index()].card) {
+            for r in def.riders.iter().filter(|r| r.hook == Hook::HostBlocked) {
+                if !r
+                    .requires
+                    .iter()
+                    .all(|&req| cards::holds_for_host(req, &self.state, acting))
+                {
+                    continue;
+                }
+                for e in r.effects {
+                    match *e {
+                        Effect::HostBurnBlood(n) => {
+                            let v = &mut self.state.minions[acting.index()];
+                            v.blood -= n.min(v.blood);
+                        }
+                        other => unreachable!("not a host-blocked rider effect: {other:?}"),
+                    }
+                }
+            }
         }
     }
 

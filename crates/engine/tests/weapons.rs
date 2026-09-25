@@ -10,7 +10,7 @@ use zvtes::crypt::CRYPT;
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::{find_library, CardId, CardInPlay};
+use zvtes::state::{find_card, find_library, CardId, CardInPlay};
 
 fn request(e: &mut Engine) -> DecisionRequest {
     match e.run() {
@@ -148,9 +148,9 @@ struct Table {
 fn table() -> Table {
     let mut e = Engine::bare(2);
     let a = e.add_minion(SeatId(0), vampire_with("POT", 0), 4, false);
-    let b = e.add_minion(SeatId(0), vampire_with("CEL", 0), 4, false);
-    let x = e.add_minion(SeatId(1), vampire_with("FOR", 0), 4, false);
-    e.add_minion(SeatId(1), vampire_with("PRO", 0), 4, false);
+    let b = e.add_minion(SeatId(0), find_card("Farah Sarroub"), 4, false);
+    let x = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
+    e.add_minion(SeatId(1), find_card("Crystal Lynn"), 4, false);
     e.state.turn = 4;
     Table { e, a, b, x }
 }
@@ -330,7 +330,8 @@ fn kevlar_vest_spends_its_gun_points_over_separate_gun_strikes() {
 #[test]
 fn kevlar_vest_chooses_gun_or_other_once_each_combat() {
     let mut t = table();
-    let z = t.e.add_minion(SeatId(1), vampire_with("CEL", 1), 4, false);
+    let z =
+        t.e.add_minion(SeatId(1), find_card("Asmin Kobane"), 4, false);
     let vest = equip(&mut t.e, "Kevlar Vest", t.a);
     let ak = equip(&mut t.e, "AK-47", z);
     hand(&mut t.e, 1, &["Blur"]);

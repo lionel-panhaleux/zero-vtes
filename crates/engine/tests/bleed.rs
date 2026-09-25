@@ -8,12 +8,11 @@
 
 use zvtes::cards::AbilitySource;
 use zvtes::cards::Target;
-use zvtes::crypt::CRYPT;
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::state::CardId;
-use zvtes::state::{find_library, CardInPlay};
+use zvtes::state::{find_card, find_library, CardInPlay};
 
 fn request(e: &mut Engine) -> DecisionRequest {
     match e.run() {
@@ -77,19 +76,6 @@ fn plays(req: &DecisionRequest) -> Vec<Choice> {
         .collect()
 }
 
-/// The `nth` V5 vampire with superior `disc`.
-fn vampire_with(disc: &str, nth: usize) -> u16 {
-    CRYPT
-        .iter()
-        .enumerate()
-        .filter(|(i, c)| {
-            c.disciplines.contains(&disc) && zvtes::cards::vampire(*i as u16).is_none()
-        })
-        .nth(nth)
-        .map(|(i, _)| i as u16)
-        .unwrap_or_else(|| panic!("no vampire with {disc}"))
-}
-
 /// 3 seats at seat 0's minion phase, turn 4, 6 blood each. Seat 0: A
 /// (DOM), P (PRO), O (OBL). Seat 1: B (AUS, basic dom), C (DOM and AUS).
 /// Seat 2: D.
@@ -105,12 +91,13 @@ struct Table {
 
 fn table() -> Table {
     let mut e = Engine::bare(3);
-    let a = e.add_minion(SeatId(0), vampire_with("DOM", 0), 6, false);
-    let p = e.add_minion(SeatId(0), vampire_with("PRO", 0), 6, false);
-    let o = e.add_minion(SeatId(0), vampire_with("OBL", 0), 6, false);
-    let b = e.add_minion(SeatId(1), vampire_with("AUS", 0), 6, false);
-    let c = e.add_minion(SeatId(1), vampire_with("DOM", 1), 6, false);
-    let d = e.add_minion(SeatId(2), vampire_with("FOR", 0), 6, false);
+    // No printed text: later definitions cannot shift these picks.
+    let a = e.add_minion(SeatId(0), find_card("Madison"), 6, false); // DOM
+    let p = e.add_minion(SeatId(0), find_card("Crystal Lynn"), 6, false); // PRO
+    let o = e.add_minion(SeatId(0), find_card("Monica Giovanni"), 6, false); // AUS FOR OBL
+    let b = e.add_minion(SeatId(1), find_card("Donny Kowalczyk"), 6, false); // AUS, basic dom
+    let c = e.add_minion(SeatId(1), find_card("Gelasia Fotiou"), 6, false); // AUS DOM
+    let d = e.add_minion(SeatId(2), find_card("Malachi"), 6, false); // AUS DOM FOR
     e.state.turn = 4;
     Table {
         e,
@@ -242,6 +229,36 @@ fn block_attempt_persists_until_all_pass() {
     pick(e, Choice::Pass); // final decline
     expect(e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.seats[1].pool, 29);
+}
+
+// rules-qa 15.2 — intercept gained during a failed attempt stays for the
+// rest of the action: B's first Eyes of Argus falls short of P's two Earth
+// Controls, and B's new attempt reaches 4 with the second card only because
+// the first card's +2 is kept.
+#[test]
+fn intercept_from_a_failed_attempt_carries_into_a_new_one() {
+    let mut t = table();
+    let e = &mut t.e;
+    e.state.seats[0]
+        .hand
+        .extend([find_library("Earth Control"), find_library("Earth Control")]);
+    e.state.seats[1]
+        .hand
+        .extend([find_library("Eyes of Argus"), find_library("Eyes of Argus")]);
+    pick(e, bleed(t.p));
+    pick(e, Choice::DeclareBlock { minion: t.b });
+    pick(e, play(0, 1, t.p)); // stealth 2
+    pick(e, play(0, 0, t.b)); // +2 intercept
+    pick(e, play(0, 1, t.p)); // stealth 4
+    pick(e, Choice::Pass); // seat 1 holds the second Eyes of Argus back
+                           // The attempt fails; B's kept +2 and the card in hand reach 4.
+    let req = expect(e, SeatId(1), WindowLabel::ActionBlock);
+    assert!(req.options.contains(&Choice::DeclareBlock { minion: t.b }));
+    pick(e, Choice::DeclareBlock { minion: t.b });
+    pick(e, play(0, 0, t.b));
+    expect(e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[1].pool, 30);
+    assert!(e.state.minions[t.b.index()].locked);
 }
 
 // rules-qa 1.3 — only a change of target reopens block attempts: after seat

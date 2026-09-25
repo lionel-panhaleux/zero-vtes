@@ -11,8 +11,8 @@
 //! [pro].
 
 use super::{
-    Actor, Among, Bearer, CardDef, Effect, Holding, Hook, Limit, ModeDef, Modifier, Points,
-    RefEffect, ReferendumDef, Requirement, Rider, RiderScope, SeatFilter, Stat, StrikeKind,
+    Actor, Among, Bearer, CardDef, CardFilter, Effect, Holding, Hook, Limit, ModeDef, Modifier,
+    Points, RefEffect, ReferendumDef, Requirement, Rider, RiderScope, SeatFilter, Stat, StrikeKind,
     TargetKind, TargetSpec, Term, Terms, TitleClass, Until, Window,
 };
 use crate::crypt::Sect;
@@ -1974,12 +1974,12 @@ pub static TENSION_IN_THE_RANKS: CardDef = CardDef {
         actor: Actor::Methuselah,
         requires: &[
             Requirement::MasterPhaseActionLeft,
-            Requirement::HandOfType(CardType::Master, 2),
+            Requirement::HandHas(CardFilter::Type(CardType::Master), 2),
         ],
         target: NO_TARGET,
         terms: Some(Terms::Discard {
             n: 2,
-            of: Some(CardType::Master),
+            of: CardFilter::Type(CardType::Master),
         }),
         waives_needed: false,
         limit: None,
@@ -2145,7 +2145,10 @@ pub static THE_BARRENS: CardDef = CardDef {
         actor: Actor::Controller,
         requires: &[Requirement::CardUnlocked, Requirement::HandNotEmpty],
         target: NO_TARGET,
-        terms: Some(Terms::Discard { n: 1, of: None }),
+        terms: Some(Terms::Discard {
+            n: 1,
+            of: CardFilter::Any,
+        }),
         waives_needed: false,
         limit: None,
         effects: &[Effect::LockSelf],

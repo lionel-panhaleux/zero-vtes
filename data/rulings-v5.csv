@@ -577,15 +577,15 @@ card_id,card,via,references,ruling,status
 101401,Piper,mention in Zhenga,[LSJ 20090115-1] [ANK 20170309],Her ability does not work with {101401|Piper} (not an action).,
 101401,Piper,mention in Kuyén,[ANK 20210913] [LSJ 20090116],Their ability works on allies recruited in a non-standard way (eg. {101401|Piper}).,
 201574,Kuyén,key,[ANK 20210913] [LSJ 20090116],Their ability works on allies recruited in a non-standard way (eg. {101401|Piper}).,
-201576,Aline Gädeke,key,[ANK 20220814],Can unlock after a vampire performs an action to become Anarch.,
+201576,Aline Gädeke,key,[ANK 20220814],Can unlock after a vampire performs an action to become Anarch.,blocked:no action changes a vampire's sect yet
 201585,Elen Kamjian,key,[LSJ 20090226] [ANK 20211009-2],"If she unlocks after having performed her mandatory bleed, she is free to take any action.",
 201585,Elen Kamjian,key,[ANK 20211009-2],Another bleed action (eg. {100752|Flurry of Action}) does not count as the bleed action her ability forces her to take.,
 201585,Elen Kamjian,key,[ANK 20211009-2],"If her ability makes a bleed mandatory but she has performed a bleed already this turn, she is stuck and cannot act.",
-201608,Nonu Dis,key,[ANK 20220617],His ability can be used only once per master phase.,blocked:Nonu Dis's master-phase blood ability is not implemented yet
+201608,Nonu Dis,key,[ANK 20220617],His ability can be used only once per master phase.,test:nonu_dis_adds_blood_once_per_master_phase_after_a_master_card
 100852,Graverobbing,mention in Theo Bell,[ANK 20220805-2],Can be merged with {201363|Theo Bell (G2 ADV)} if you get to control one (eg. {100852|Graverobbing}).,
 201613,Theo Bell,key,[ANK 20220805-2],Can be merged with {201363|Theo Bell (G2 ADV)} if you get to control one (eg. {100852|Graverobbing}).,n/a:Theo Bell (G2 ADV) is not in V5
 102270,Camarilla's Iron Fist,mention in Karl Schrekt,[ANK 20250410],"When he changes Sects, he can't play votes that ""requires a titled camarilla Vampire"" (e.g. {102270|Camarilla's Iron Fist})",n/a:Karl Schrekt is not in V5
-201627,Evan Klein,key,[LSJ 20030214-2],"Actions from minions of the same controller targeting him are undirected, so they are not affected by his ability.",
+201627,Evan Klein,key,[LSJ 20030214-2],"Actions from minions of the same controller targeting him are undirected, so they are not affected by his ability.",test:evan_klein_flips_a_coin_on_an_action_directed_at_him
 201641,"Guardian, The",key,[ANK 20221102],"When using his ability, the opponent is the acting minion and play their combat effects first.",
 101989,Toreador Grand Ball,mention in Lady Scarlett Churchill,[ANK 20220816-2],"Can be chosen as a target for {101989|Toreador Grand Ball} to be locked, but unlocks normally in subsequent unlock phases.",
 201643,Lady Scarlett Churchill,key,[ANK 20220816-2],"Can be chosen as a target for {101989|Toreador Grand Ball} to be locked, but unlocks normally in subsequent unlock phases.",
@@ -690,16 +690,16 @@ card_id,card,via,references,ruling,status
 101265,Narrow Minds,group Replace next turn,[ANK 20200629-2] [LSJ 20091208] [RTR 19951017],Is replaced before unlocking cards: other unlock effects cannot be ordered before.,
 101318,Old Friends,group Replace next turn,[ANK 20200629-2] [LSJ 20091208] [RTR 19951017],Is replaced before unlocking cards: other unlock effects cannot be ordered before.,test:old_friends_is_replaced_before_the_unlock_effects
 102137,Wake with Evening's Freshness,group Replace next turn,[ANK 20200629-2] [LSJ 20091208] [RTR 19951017],Is replaced before unlocking cards: other unlock effects cannot be ordered before.,test:wake_with_evenings_freshness_wakes_and_waits_for_the_next_unlock_phase
-201576,Aline Gädeke,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
-201639,Daria,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
-201642,Gwenllian Arwyn,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,blocked:Gwenllian Arwyn's intercept ability is not implemented yet
-201646,Oskar Anasov,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,blocked:Oskar Anasov's intercept ability is not implemented yet
+201576,Aline Gädeke,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,test:aline_gadeke_unlocks_after_another_anarchs_successful_action
+201639,Daria,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,test:daria_in_torpor_locks_to_give_an_acting_nosferatu_stealth
+201642,Gwenllian Arwyn,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,test:gwenllian_arwyn_lowers_a_blockers_intercept_as_she_leaves_torpor
+201646,Oskar Anasov,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,test:oskar_anasov_in_torpor_gives_intercept_to_a_blocker
 201648,Regina Blake,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
 201652,Sri Sansa,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
-201672,Gathii,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
+201672,Gathii,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,test:gathii_reveals_the_top_card_for_blood_or_stealth
 201675,Luciano Carvalho,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
 201680,Opikun,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,test:opikun_in_torpor_prevents_damage_to_a_vampire_in_combat
-201716,Yewon Ong,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,
+201716,Yewon Ong,group Ability usable in torpor,[LSJ 20011022],The ability can be used when in torpor.,test:yewon_ong_uses_her_referendum_ability_in_torpor
 101767,Shilmulo Tarot,group Cards holding cards,[LSJ 20021128],"If it leaves play, the card on it is burned.",test:a_shilmulo_tarot_leaving_play_burns_the_cards_on_it
 100476,Crypt's Sons,group Retainer that strike,[RTR 19941109],Does not gain additional strikes from its owner.,
 101254,Murder of Crows,group Retainer that strike,[RTR 19941109],Does not gain additional strikes from its owner.,
@@ -719,9 +719,9 @@ card_id,card,via,references,ruling,status
 102218,Bait and Switch,group Require a Baron,[LSJ 20080603] [LSJ 20050128],Counts as requiring an Anarch (for eg. {101435|Powerbase: Los Angeles}).,
 102230,Organized Resistance,group Require a Baron,[LSJ 20080603] [LSJ 20050128],Counts as requiring an Anarch (for eg. {101435|Powerbase: Los Angeles}).,
 102246,Childe of the Revolution,group Require a Baron,[LSJ 20080603] [LSJ 20050128],Counts as requiring an Anarch (for eg. {101435|Powerbase: Los Angeles}).,
-200030,Aisha az-Zahra,group Non-locking referendum ability,[ANK 20220705],"The ability can be used while locked, only once per referendum.",blocked:Aisha az-Zahra's polling-step vote ability is not implemented yet
-201529,Alexa Draper,group Non-locking referendum ability,[ANK 20220705],"The ability can be used while locked, only once per referendum.",
-201716,Yewon Ong,group Non-locking referendum ability,[ANK 20220705],"The ability can be used while locked, only once per referendum.",
+200030,Aisha az-Zahra,group Non-locking referendum ability,[ANK 20220705],"The ability can be used while locked, only once per referendum.",test:aisha_az_zahra_gets_a_vote_per_ready_anarch_in_a_blood_hunt
+201529,Alexa Draper,group Non-locking referendum ability,[ANK 20220705],"The ability can be used while locked, only once per referendum.",test:alexa_draper_discards_a_dominate_card_for_a_vote_once_per_referendum
+201716,Yewon Ong,group Non-locking referendum ability,[ANK 20220705],"The ability can be used while locked, only once per referendum.",test:yewon_ong_uses_her_referendum_ability_in_torpor
 100712,Fee Stake: Boston,group Title providing action,[LSJ 20070808-2],"If the title is contested, the card is turned face down out of play and the provided action cannot be used.",
 100715,Fee Stake: New York,group Title providing action,[LSJ 20070808-2],"If the title is contested, the card is turned face down out of play and the provided action cannot be used.",
 100717,Fee Stake: Seattle,group Title providing action,[LSJ 20070808-2],"If the title is contested, the card is turned face down out of play and the provided action cannot be used.",
@@ -793,7 +793,7 @@ card_id,card,via,references,ruling,status
 102282,Stygian Shroud,group Burn blood for effect,[ANK 20210226],The burn blood effect is not reduced by effects that reduce the cost of the card (eg. {200011|Adana de Sforza}).,
 100557,Disputed Territory,group Changes controller of location,[RTR 19980623],"Changing the controller of a location has no other effect, unless specified by card text. Exception: A location ""on"" another controlled card is moved onto an appropriate card controlled by the new controller of the location.",
 100573,Dominate Kine,group Changes controller of location,[RTR 19980623],"Changing the controller of a location has no other effect, unless specified by card text. Exception: A location ""on"" another controlled card is moved onto an appropriate card controlled by the new controller of the location.",
-201672,Gathii,group Stealth from random effect,[ANK 20231031],Can be used when stealth is not yet needed. Any stealth that would be gained is not gained (as no stealth is needed).,
+201672,Gathii,group Stealth from random effect,[ANK 20231031],Can be used when stealth is not yet needed. Any stealth that would be gained is not gained (as no stealth is needed).,test:gathii_reveals_the_top_card_for_blood_or_stealth
 100695,Fall of the Camarilla,mention in Impersonating title for non-existent sect,[ANK 20230503] [LSJ 20050124],Can meet a sect-specific title (e.g. Justicar) requirement even if the sect does not exist anymore (eg. {100695|Fall of the Camarilla}).,
 100771,Form of Mist,group After Combat Ends,[RTR 20020501] [LSJ 19980109],"If the combat continues or a new combat begins, the after combat effect does not happen/is not usable (e.g. {101507|Psyche!},\ \ {101950|Telepathic Tracking}).\n(Partial reversal of RTR 20010711)",test:would_end_replacement_loses_the_after_combat_rider
 101950,Telepathic Tracking,mention in After Combat Ends,[RTR 20020501] [LSJ 19980109],"If the combat continues or a new combat begins, the after combat effect does not happen/is not usable (e.g. {101507|Psyche!},\ \ {101950|Telepathic Tracking}).\n(Partial reversal of RTR 20010711)",test:would_end_replacement_loses_the_after_combat_rider
@@ -811,7 +811,7 @@ card_id,card,via,references,ruling,status
 101513,Public Trust,group Is affected by BCAN,[ANK 20240118-2] [LSJ 20060414],Is affected by {100198|Blood Cult Awareness Network},
 102247,Break the Bonds,group Is affected by BCAN,[ANK 20240118-2] [LSJ 20060414],Is affected by {100198|Blood Cult Awareness Network},
 100788,Freak Drive,group Requires successful action,[ANK 20220218],"The after action resolution effect can be used if the action ""fizzles"" (is unblocked at resolution, but has no effect because some requirement cannot be met or cost can't be paid in full).",
-201576,Aline Gädeke,group Requires successful action,[ANK 20220218],"The after action resolution effect can be used if the action ""fizzles"" (is unblocked at resolution, but has no effect because some requirement cannot be met or cost can't be paid in full).",
+201576,Aline Gädeke,group Requires successful action,[ANK 20220218],"The after action resolution effect can be used if the action ""fizzles"" (is unblocked at resolution, but has no effect because some requirement cannot be met or cost can't be paid in full).",test:aline_gadeke_unlocks_after_another_anarchs_successful_action
 201659,Keegan,group Requires successful action,[ANK 20220218],"The after action resolution effect can be used if the action ""fizzles"" (is unblocked at resolution, but has no effect because some requirement cannot be met or cost can't be paid in full).",
 201725,"""Mother"" Anja Giovanni",group Requires successful action,[ANK 20220218],"The after action resolution effect can be used if the action ""fizzles"" (is unblocked at resolution, but has no effect because some requirement cannot be met or cost can't be paid in full).",
 100747,Fleetness,group Action targeting locked minion,[ANK 20210124] [LSJ 20070411] [LSJ 20090514],"If the action is unblocked when it resolves and the target is unlocked, the action ""fizzles"" (cost, if any, is paid, and it is considered successful, but has no effect).",
@@ -913,8 +913,8 @@ card_id,card,via,references,ruling,status
 102218,Bait and Switch,group Change the target of a bleed,[LSJ 20061211],No blocks can be attempted if it is canceled as it is played (as blocks have been declined) unless another effect subsequently changes the target of the bleed. [REMINDER],
 201645,Mithras,group Ability active in torpor,[LSJ 20011022],The passive ability applies even if the vampire is in torpor.,blocked:Mithras's block and vote costs for younger vampires are not implemented yet
 201662,Sergio Bueno,group Ability active in torpor,[LSJ 20011022],The passive ability applies even if the vampire is in torpor.,
-201677,Marialena,group Ability active in torpor,[LSJ 20011022],The passive ability applies even if the vampire is in torpor.,
-201684,Roy,group Ability active in torpor,[LSJ 20011022],The passive ability applies even if the vampire is in torpor.,blocked:Roy's discard-phase lock is not implemented yet
+201677,Marialena,group Ability active in torpor,[LSJ 20011022],The passive ability applies even if the vampire is in torpor.,test:marialena_burns_a_blood_when_blocked
+201684,Roy,group Ability active in torpor,[LSJ 20011022],The passive ability applies even if the vampire is in torpor.,test:roy_locks_himself_if_unlocked_during_the_discard_phase
 101215,Puppet Master,group Can steal minion during an action,[LSJ 20020618],"If used to steal a vampire in combat, combat ends. Any damage yet to resolve still resolves before the change of control.",
 101215,Puppet Master,group Can steal minion during an action,[LSJ 20080326],"If used to steal a minion attempting to block, if the block attempt becomes illegal, the block attempt fails.",
 101215,Puppet Master,group Can steal minion during an action,[PIB 20150501],"If used to steal a minion during an action, Methuselahs who declined to block are still declining to block. The new controller, if he is eligible and has not declined to block yet, can block with the stolen minion even if the previous controller has declined to block.",
@@ -949,7 +949,7 @@ card_id,card,via,references,ruling,status
 102226,Haqim's Law: Retribution,group Permanents that increase bleed amount during an action,[ANK 20231124] [LSJ 19970718],The ability to increase bleed can only be used during a bleed action before Action Resolution.,
 102293,Bone Shambler,group Permanents that increase bleed amount during an action,[ANK 20231124] [LSJ 19970718],The ability to increase bleed can only be used during a bleed action before Action Resolution.,
 102299,Dead Pool,group Permanents that increase bleed amount during an action,[ANK 20231124] [LSJ 19970718],The ability to increase bleed can only be used during a bleed action before Action Resolution.,
-201553,Larissa Moreira,group Permanents that increase bleed amount during an action,[ANK 20231124] [LSJ 19970718],The ability to increase bleed can only be used during a bleed action before Action Resolution.,
+201553,Larissa Moreira,group Permanents that increase bleed amount during an action,[ANK 20231124] [LSJ 19970718],The ability to increase bleed can only be used during a bleed action before Action Resolution.,test:larissa_moreira_discards_animalism_cards_for_bleed_during_a_bleed
 102296,Spectral Servitor,group Can act the turn it is recruited,[ANK 20200930] [ANK 20200813-3],"The ""can act the turn it is recruited"" text does not let him act during an opponent's turn if it was recruited then (eg. using {100645|Enkil Cog}).",
 102087,Vagabond Mystic,"group Allies with ""lock this ally to"" abilities",[ANK 20180517],They can lock to use their ability the turn they where recruited.,
 102144,War Ghoul,"group Allies with ""lock this ally to"" abilities",[ANK 20180517],They can lock to use their ability the turn they where recruited.,

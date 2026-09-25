@@ -105,6 +105,7 @@ impl Engine {
         let seat = &mut self.state.seats[s.index()];
         seat.mpa = 1;
         seat.trifle_used = false;
+        seat.master_played = false;
         if let Some(OutOfTurn { trifle }) = seat.out_of_turn.take() {
             seat.mpa -= 1;
             if trifle {
@@ -302,7 +303,9 @@ impl Engine {
                             Some(Limit::PerRound) => combat.is_some_and(|c| hit(&c.played_round)),
                             Some(Limit::PerCombat) => combat.is_some_and(|c| hit(&c.played_combat)),
                             Some(Limit::PerAction) => action.is_some_and(|a| hit(&a.played)),
-                            Some(Limit::PerPhaseEach) => false,
+                            Some(Limit::PerPhaseEach | Limit::PerReferendum | Limit::PerTurn) => {
+                                false
+                            }
                         };
                         if limited {
                             continue;
@@ -351,6 +354,7 @@ impl Engine {
                                                 referendum,
                                                 action.map(|a| a.acting),
                                                 id,
+                                                action,
                                             )
                                         })
                                 })
@@ -411,6 +415,8 @@ impl Engine {
             } => {
                 let s = self.state.active;
                 self.state.seats[s.index()].mpa -= 1;
+                // Played as announced, canceled or not.
+                self.state.seats[s.index()].master_played = true;
                 self.announce_play(s, *card, *mode, *actor, *target, Flow::MasterPhase);
             }
             Choice::UseAbility {
@@ -460,7 +466,7 @@ impl Engine {
                         a.played.push((m, name));
                     }
                 }
-                Limit::PerPhaseEach => {}
+                Limit::PerPhaseEach | Limit::PerReferendum | Limit::PerTurn => {}
             }
         }
         if def.out_of_turn {
@@ -528,6 +534,8 @@ impl Engine {
             Some(Terms::CopiesControlled)
             | Some(Terms::Discard { .. })
             | Some(Terms::Count { .. })
+            | Some(Terms::AshCard)
+            | Some(Terms::DirectedHandCard)
             | None => {
                 unreachable!("terms window without a choice")
             }
@@ -918,6 +926,10 @@ impl Engine {
         if seat.dpa > 0 {
             options.extend((0..seat.hand.len()).map(|i| Choice::Discard(i as u8)));
         }
+        // "During your discard phase" abilities (Mora, the Death Seer), and
+        // those spending a discard phase action (Ayse Dhanial).
+        options.extend(self.ability_options(s, Window::DiscardPhase));
+        options.extend(self.ability_options(s, Window::DiscardPhaseAction));
         options.extend(self.ability_options(s, Window::AnyImpulse));
         DecisionRequest {
             seat: s,
@@ -926,10 +938,48 @@ impl Engine {
         }
     }
 
+    /// "During your discard phase" riders printed on the active
+    /// Methuselah's vampires (Roy), applied as the impulse leaves them.
+    fn discard_phase_vampire_riders(&mut self) {
+        let s = self.state.active;
+        let ms: Vec<MinionId> = self.state.minions_of(s).collect();
+        for m in ms {
+            let (card, owner, present) = {
+                let v = &self.state.minions[m.index()];
+                (v.card, v.owner, v.present())
+            };
+            let Some(def) = cards::vampire(card).filter(|_| present) else {
+                continue;
+            };
+            for r in def
+                .riders
+                .iter()
+                .filter(|r| r.hook == Hook::DiscardPhase && r.scope.applies(owner, s))
+            {
+                if !r
+                    .requires
+                    .iter()
+                    .all(|&req| cards::holds_for_host(req, &self.state, m))
+                {
+                    continue;
+                }
+                for e in r.effects {
+                    match *e {
+                        Effect::LockActor => self.state.minions[m.index()].locked = true,
+                        other => unreachable!("not a discard-phase rider effect: {other:?}"),
+                    }
+                }
+            }
+        }
+    }
+
     pub(crate) fn discard_apply(&mut self, choice: &Choice) {
         let s = self.state.active;
         match choice {
-            Choice::Pass => self.open_phase_rotation(Flow::Discard),
+            Choice::Pass => {
+                self.discard_phase_vampire_riders();
+                self.open_phase_rotation(Flow::Discard)
+            }
             Choice::Discard(i) => {
                 let seat = &mut self.state.seats[s.index()];
                 let card = seat.hand.remove(*i as usize);
@@ -1006,33 +1056,7 @@ impl Engine {
                         if !ok {
                             continue;
                         }
-                        let targets: Vec<Target> = match ability.target {
-                            None => vec![Target::None],
-                            Some(TargetSpec {
-                                kind: TargetKind::Uncontrolled,
-                                ..
-                            }) => (0..st.seats[seat.index()].uncontrolled.len())
-                                .map(|i| Target::Uncontrolled(i as u8))
-                                .collect(),
-                            Some(spec) => (0..st.minions.len())
-                                .map(|i| MinionId(i as u32))
-                                .filter(|&id| {
-                                    st.minions[id.index()].present()
-                                        && spec.filter.iter().all(|&r| {
-                                            cards::holds_for_minion(
-                                                r,
-                                                st,
-                                                seat,
-                                                self.referendum.as_ref(),
-                                                self.action.as_ref().map(|a| a.acting),
-                                                id,
-                                            )
-                                        })
-                                })
-                                .map(Target::Minion)
-                                .collect(),
-                        };
-                        for target in targets {
+                        for target in self.ability_targets(seat, ability.target, c.host) {
                             out.push(Choice::UseAbility {
                                 source: AbilitySource::Card(CardId(ci as u32)),
                                 ability: ai as u8,
@@ -1111,6 +1135,15 @@ impl Engine {
                                 cb.abilities_used_round
                                     .contains(&AbilitySource::Card(id).use_key(ai as u8))
                             }),
+                            Some(Limit::PerReferendum) => {
+                                self.referendum.as_ref().is_some_and(|r| {
+                                    r.abilities_used
+                                        .contains(&AbilitySource::Card(id).use_key(ai as u8))
+                                })
+                            }
+                            Some(Limit::PerTurn) => st
+                                .turn_uses
+                                .contains(&AbilitySource::Card(id).use_key(ai as u8)),
                             Some(Limit::PerPhaseEach) | None => false,
                         };
                         if spent {
@@ -1226,6 +1259,45 @@ impl Engine {
         out
     }
 
+    /// The targets an ability picks from (no target spec: one untargeted
+    /// use).
+    fn ability_targets(
+        &self,
+        seat: SeatId,
+        spec: Option<TargetSpec>,
+        host: Option<MinionId>,
+    ) -> Vec<Target> {
+        let st = &self.state;
+        match spec {
+            None => vec![Target::None],
+            Some(TargetSpec {
+                kind: TargetKind::Uncontrolled,
+                ..
+            }) => (0..st.seats[seat.index()].uncontrolled.len())
+                .map(|i| Target::Uncontrolled(i as u8))
+                .collect(),
+            Some(spec) => (0..st.minions.len())
+                .map(|i| MinionId(i as u32))
+                .filter(|&id| {
+                    st.minions[id.index()].present()
+                        && !(spec.filter.contains(&cards::Requirement::NotHost) && Some(id) == host)
+                        && spec.filter.iter().all(|&r| {
+                            cards::holds_for_minion(
+                                r,
+                                st,
+                                seat,
+                                self.referendum.as_ref(),
+                                self.action.as_ref().map(|a| a.acting),
+                                id,
+                                self.action.as_ref(),
+                            )
+                        })
+                })
+                .map(Target::Minion)
+                .collect(),
+        }
+    }
+
     /// Abilities printed on the seat's vampires (`cards::vampires`) usable
     /// in `window`: a vampire's own in its combat (`Actor::Host`), or, in
     /// the combat or out of it, in torpor included (LSJ 20011022), for its
@@ -1269,6 +1341,11 @@ impl Engine {
                         .action
                         .as_ref()
                         .is_some_and(|a| a.abilities_used.contains(&used)),
+                    Some(Limit::PerReferendum) => self
+                        .referendum
+                        .as_ref()
+                        .is_some_and(|r| r.abilities_used.contains(&used)),
+                    Some(Limit::PerTurn) => st.turn_uses.contains(&used),
                     Some(Limit::PerPhaseEach) | None => false,
                 };
                 if spent {
@@ -1300,12 +1377,14 @@ impl Engine {
                         )
                 });
                 if ok {
-                    out.push(Choice::UseAbility {
-                        source,
-                        ability: ai as u8,
-                        actor: None,
-                        target: Target::None,
-                    });
+                    for target in self.ability_targets(seat, ability.target, Some(m)) {
+                        out.push(Choice::UseAbility {
+                            source,
+                            ability: ai as u8,
+                            actor: None,
+                            target,
+                        });
+                    }
                 }
             }
         }
@@ -1353,16 +1432,35 @@ impl Engine {
         }
         // Terms announced with the use (the master cards to discard, a
         // number of cards): the ability resolves once they are chosen.
-        if let Some(Terms::Discard { .. } | Terms::Count { .. }) = mode.terms {
+        if let Some(
+            Terms::Discard { .. } | Terms::Count { .. } | Terms::AshCard | Terms::DirectedHandCard,
+        ) = mode.terms
+        {
             self.flow = Flow::AbilityTerms {
                 source,
                 ability,
+                target,
                 picked: Vec::new(),
                 resume: Box::new(resume),
             };
             return true;
         }
         self.resolve_ability(source, ability, target, 0)
+    }
+
+    /// Is stealth needed on the action `m` performs (rules-qa 3.2)?
+    fn stealth_needed(&self, seat: SeatId, m: MinionId) -> bool {
+        cards::holds(
+            cards::Requirement::StealthNeeded,
+            &self.state,
+            seat,
+            Some(m),
+            None,
+            self.action.as_ref(),
+            None,
+            None,
+            false,
+        )
     }
 
     /// The Methuselah using an ability: the active one for "Methuselahs
@@ -1410,6 +1508,24 @@ impl Engine {
                 .map(Choice::Discard)
                 .collect(),
             Some(Terms::Count { min, max }) => (min..=max).map(Choice::SetX).collect(),
+            // One choice per card name: copies are alike.
+            Some(Terms::AshCard) => {
+                let mut ash = self.state.seats[seat.index()].ash.clone();
+                ash.sort_unstable();
+                ash.dedup();
+                ash.into_iter().map(Choice::FindCard).collect()
+            }
+            Some(Terms::DirectedHandCard) => {
+                let t = self
+                    .action
+                    .as_ref()
+                    .and_then(|a| a.directed_seat(&self.state))
+                    .expect("directed action");
+                let mut hand = self.state.seats[t.index()].hand.clone();
+                hand.sort_unstable();
+                hand.dedup();
+                hand.into_iter().map(Choice::FindCard).collect()
+            }
             _ => unreachable!("ability terms without a choice"),
         };
         DecisionRequest {
@@ -1423,6 +1539,7 @@ impl Engine {
         &mut self,
         source: AbilitySource,
         ability: u8,
+        target: Target,
         mut picked: Vec<u8>,
         resume: Box<Flow>,
         pick: u8,
@@ -1435,6 +1552,7 @@ impl Engine {
             self.flow = Flow::AbilityTerms {
                 source,
                 ability,
+                target,
                 picked,
                 resume,
             };
@@ -1452,7 +1570,53 @@ impl Engine {
         }
         self.replace(seat, discarded, None);
         self.flow = *resume;
-        self.resolve_ability(source, ability, Target::None, 0);
+        self.resolve_ability(source, ability, target, 0);
+    }
+
+    /// The card chosen by name for an ability's terms: from the ash heap to
+    /// the bottom of the library (Mora, the Death Seer), or discarded from
+    /// the hand of the Methuselah the action is directed at and replaced
+    /// (Richard de Worde); then the ability resolves.
+    pub(crate) fn ability_card_apply(
+        &mut self,
+        source: AbilitySource,
+        ability: u8,
+        target: Target,
+        resume: Flow,
+        card: u16,
+    ) {
+        match self.ability_mode(source, ability).terms {
+            Some(Terms::AshCard) => {
+                let seat = self.ability_user(source, ability);
+                let s = &mut self.state.seats[seat.index()];
+                let i = s
+                    .ash
+                    .iter()
+                    .position(|&c| c == card)
+                    .expect("card in the ash heap");
+                s.ash.remove(i);
+                s.library.insert(0, card);
+            }
+            Some(Terms::DirectedHandCard) => {
+                let t = self
+                    .action
+                    .as_ref()
+                    .and_then(|a| a.directed_seat(&self.state))
+                    .expect("directed action");
+                let s = &mut self.state.seats[t.index()];
+                let i = s
+                    .hand
+                    .iter()
+                    .position(|&c| c == card)
+                    .expect("card in hand");
+                s.hand.remove(i);
+                s.ash.push(card);
+                self.replace(t, 1, None);
+            }
+            other => unreachable!("no card terms: {other:?}"),
+        }
+        self.flow = resume;
+        self.resolve_ability(source, ability, target, 0);
     }
 
     /// The number chosen for an ability's count terms (Heart of
@@ -1461,11 +1625,12 @@ impl Engine {
         &mut self,
         source: AbilitySource,
         ability: u8,
+        target: Target,
         resume: Flow,
         x: u8,
     ) {
         self.flow = resume;
-        self.resolve_ability(source, ability, Target::None, x);
+        self.resolve_ability(source, ability, target, x);
     }
 
     /// Resolve an in-play ability's effects (its terms, if any, chosen:
@@ -1512,6 +1677,12 @@ impl Engine {
         };
         if let (Some(Limit::PerAction), Some(a)) = (mode.limit, self.action.as_mut()) {
             a.abilities_used.push(source.use_key(ability));
+        }
+        if let (Some(Limit::PerReferendum), Some(r)) = (mode.limit, self.referendum.as_mut()) {
+            r.abilities_used.push(source.use_key(ability));
+        }
+        if mode.limit == Some(Limit::PerTurn) {
+            self.state.turn_uses.push(source.use_key(ability));
         }
         if let Some(cb) = self.combat.as_mut() {
             match mode.limit {
@@ -1593,12 +1764,77 @@ impl Engine {
                     let h = &mut self.state.minions[host.expect("host").index()];
                     h.blood -= n.min(h.blood);
                 }
-                // +n intercept for the host's block attempt.
+                // +n intercept for the host's block attempt, for the rest of
+                // the action (rules-qa 15.2).
                 Effect::AddIntercept(n) => {
                     if let Some(a) = self.action.as_mut() {
-                        a.intercept += n;
+                        a.intercept_given.push((actor.expect("actor"), n as i8));
                     }
                 }
+                Effect::AttemptingIntercept(n) => {
+                    if let Some(a) = self.action.as_mut() {
+                        if let crate::actions::ActionState::Attempt(m) = a.state {
+                            a.intercept_given.push((m, n));
+                        }
+                    }
+                }
+                // An action modifier printed on a vampire (Larissa Moreira's
+                // bleed, Daria's stealth).
+                Effect::AddStealth(_) | Effect::BleedMod { .. } => {
+                    self.apply_action_effect(*e, &ctx)
+                }
+                // In an action or out of one (Daria's lock, Kalinda's unlock).
+                Effect::LockActor => {
+                    self.state.minions[actor.expect("actor").index()].locked = true;
+                }
+                Effect::UnlockActor => {
+                    self.state.minions[actor.expect("actor").index()].locked = false;
+                }
+                Effect::BurnEdge => self.state.seats[ctx.seat.index()].has_edge = false,
+                Effect::UnlockTarget => {
+                    if let Target::Minion(m) = ctx.target {
+                        self.state.minions[m.index()].locked = false;
+                    }
+                }
+                // The revealed card stays on top (Gathii).
+                Effect::RevealTopCard { burn, stealth } => {
+                    let top = self.state.seats[ctx.seat.index()].library.last().copied();
+                    let master = top.is_some_and(|c| {
+                        crate::library::LIBRARY[c as usize]
+                            .types
+                            .contains(&crate::library::CardType::Master)
+                    });
+                    let h = host.expect("host");
+                    if master {
+                        let v = &mut self.state.minions[h.index()];
+                        v.blood -= burn.min(v.blood);
+                    } else if top.is_some() && self.stealth_needed(ctx.seat, h) {
+                        self.apply_action_effect(Effect::AddStealth(stealth), &ctx);
+                    }
+                }
+                Effect::LockTarget => {
+                    if let Target::Minion(m) = ctx.target {
+                        self.state.minions[m.index()].locked = true;
+                    }
+                }
+                Effect::ActingControllerDiscardsAtRandom => {
+                    let s = self.action.as_ref().expect("action").seat;
+                    let k = (ctx.x as usize).min(self.state.seats[s.index()].hand.len());
+                    for _ in 0..k {
+                        let hand = &mut self.state.seats[s.index()].hand;
+                        let i = self.rng.below(hand.len());
+                        let c = hand.remove(i);
+                        self.state.seats[s.index()].ash.push(c);
+                    }
+                    self.replace(s, k, None);
+                }
+                Effect::SpendDiscardPhaseAction => self.state.seats[ctx.seat.index()].dpa -= 1,
+                Effect::AddHostBlood(n) => {
+                    let h = &mut self.state.minions[host.expect("host").index()];
+                    h.blood = (h.blood + n).min(h.capacity());
+                }
+                // Moved as its terms were chosen (`ability_ash_apply`).
+                Effect::AshCardToLibraryBottom => {}
                 // A strike from a card in play (a weapon, Treasured
                 // Samadji's dodge) remembers its card: unavailable when the
                 // strike resolves, it has no effect (spec §4.10.4).
@@ -1674,6 +1910,9 @@ impl Engine {
                     }
                 }
                 e if is_combat_effect(&e) => self.apply_combat_effect(e, &ctx),
+                // A referendum ability's votes and abstentions (Alexa Draper,
+                // Queen Anne).
+                e if is_vote_effect(&e) => self.apply_vote_effect(e, &ctx),
                 other => unreachable!("not an ability effect: {other:?}"),
             }
         }
@@ -2092,6 +2331,31 @@ impl Engine {
                     for e in r.effects {
                         match *e {
                             Effect::BurnSelf => self.burn_card_in_play(CardId(ci as u32)),
+                            Effect::TheirControllerBurnsPool(n) => {
+                                loss[controller.index()] += n as i32;
+                            }
+                            other => unreachable!("not a leave rider effect: {other:?}"),
+                        }
+                    }
+                }
+            }
+            // Printed on the vampire in combat with the subject (Egidia
+            // Arrú), even if it left in the same event (advanced rules
+            // §6.4.4).
+            if hook == Hook::ReadyMinionBurnedOrTorpor {
+                let opponent = self.combat.as_ref().and_then(|cb| {
+                    cb.side_of_minion(subject)?;
+                    cb.sides.iter().map(|s| s.minion).find(|&o| o != subject)
+                });
+                let riders = opponent
+                    .and_then(|o| cards::vampire(self.state.minions[o.index()].card))
+                    .map_or(&[][..], |d| d.riders);
+                for r in riders
+                    .iter()
+                    .filter(|r| r.hook == Hook::CombatOpponentLeftReady)
+                {
+                    for e in r.effects {
+                        match *e {
                             Effect::TheirControllerBurnsPool(n) => {
                                 loss[controller.index()] += n as i32;
                             }

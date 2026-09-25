@@ -48,6 +48,8 @@ pub enum RefStep {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Source {
     Vampire(MinionId),
+    /// Votes printed on a vampire that it does not cast (Styles Margs).
+    Printed(MinionId),
     Edge(SeatId),
     Card(SeatId),
 }
@@ -107,6 +109,8 @@ pub struct ReferendumCtx {
     pub scorn: u8,
     pub terms: TermsState,
     pub canceled: bool,
+    /// Abilities used this referendum (`Limit::PerReferendum`).
+    pub abilities_used: Vec<(cards::AbilitySource, u8)>,
 }
 
 impl ReferendumCtx {
@@ -114,14 +118,10 @@ impl ReferendumCtx {
     /// uncontested) plus bonuses granted this referendum; none while
     /// abstaining, expelled, or barred by sect.
     pub fn votes_of(&self, st: &crate::state::GameState, m: MinionId) -> u8 {
-        let v = &st.minions[m.index()];
-        if !v.ready()
-            || v.expelled
-            || self.abstaining.contains(&m)
-            || (self.camarilla_only && v.card().sect != Sect::Camarilla)
-        {
+        if !self.may_vote(st, m) {
             return 0;
         }
+        let v = &st.minions[m.index()];
         let bonus: u8 = self
             .bonus
             .iter()
@@ -135,6 +135,32 @@ impl ReferendumCtx {
             crate::state::PrintedCtx::default(),
         );
         (title_votes(v.title()) as i32 + bonus as i32 + printed).max(0) as u8
+    }
+
+    fn may_vote(&self, st: &crate::state::GameState, m: MinionId) -> bool {
+        let v = &st.minions[m.index()];
+        v.ready()
+            && !v.expelled
+            && !self.abstaining.contains(&m)
+            && !(self.camarilla_only && v.card().sect != Sect::Camarilla)
+    }
+
+    /// The votes `m` casts on `favor`'s side: its votes, plus printed votes
+    /// for that side (Jason "Son" Newberry's +2 against a blood hunt).
+    pub fn votes_cast(&self, st: &crate::state::GameState, m: MinionId, favor: bool) -> u8 {
+        if !self.may_vote(st, m) {
+            return 0;
+        }
+        let side = if !favor && matches!(self.kind, RefKind::BloodHunt { .. }) {
+            st.printed_mod(
+                m,
+                crate::cards::Stat::VotesAgainstBloodHunt,
+                crate::state::PrintedCtx::default(),
+            )
+        } else {
+            0
+        };
+        (self.votes_of(st, m) as i32 + side).max(0) as u8
     }
 
     /// Has this vampire cast votes or ballots that still stand?
@@ -249,7 +275,26 @@ impl Engine {
             scorn: 0,
             terms: TermsState::default(),
             canceled: false,
+            abilities_used: Vec::new(),
         };
+        // Printed votes in favor of a blood hunt called on the diablerist
+        // (Styles Margs), counted as it is called.
+        if let RefKind::BloodHunt { diablerist } = ctx.kind {
+            let n = self.state.printed_mod(
+                diablerist,
+                cards::Stat::BloodHuntVotesInFavor,
+                crate::state::PrintedCtx::default(),
+            );
+            if n > 0 {
+                ctx.records.push(VoteRecord {
+                    source: Source::Printed(diablerist),
+                    seat: caller,
+                    favor: true,
+                    n: n as u8,
+                    canceled: false,
+                });
+            }
+        }
         if def.is_some_and(|d| !d.terms.is_empty()) {
             ctx.step = RefStep::Terms;
             self.begin_term(&mut ctx);
@@ -298,9 +343,17 @@ impl Engine {
             .filter(|&m| {
                 st.minions[m.index()].present()
                     && !ctx.terms.minions.contains(&m)
-                    && filter
-                        .iter()
-                        .all(|&r| cards::holds_for_minion(r, st, ctx.caller, Some(ctx), acting, m))
+                    && filter.iter().all(|&r| {
+                        cards::holds_for_minion(
+                            r,
+                            st,
+                            ctx.caller,
+                            Some(ctx),
+                            acting,
+                            m,
+                            self.action.as_ref(),
+                        )
+                    })
             })
             .collect()
     }
@@ -412,13 +465,16 @@ impl Engine {
         for id in st.minions_of(seat) {
             // Torpor vampires must abstain; locked ready ones may vote;
             // contested titles carry no votes.
-            if ctx.votes_of(st, id) > 0 && !ctx.spent(Source::Vampire(id)) {
-                if !ctx.forced_against.contains(&id) {
-                    options.push(Choice::CastVotes {
-                        minion: id,
-                        favor: true,
-                    });
-                }
+            if ctx.spent(Source::Vampire(id)) {
+                continue;
+            }
+            if ctx.votes_cast(st, id, true) > 0 && !ctx.forced_against.contains(&id) {
+                options.push(Choice::CastVotes {
+                    minion: id,
+                    favor: true,
+                });
+            }
+            if ctx.votes_cast(st, id, false) > 0 {
                 options.push(Choice::CastVotes {
                     minion: id,
                     favor: false,
@@ -455,6 +511,8 @@ impl Engine {
                 }
             }
         }
+        // Referendum abilities ("during the polling step of any referendum").
+        options.extend(self.ability_options(seat, Window::Referendum));
         let window = match ctx.kind {
             RefKind::BloodHunt { .. } => WindowLabel::BloodHuntPolling,
             RefKind::Political => {
@@ -577,7 +635,7 @@ impl Engine {
             Choice::CastVotes { minion, favor } => (
                 Source::Vampire(*minion),
                 *favor,
-                ctx.votes_of(&self.state, *minion),
+                ctx.votes_cast(&self.state, *minion, *favor),
             ),
             Choice::CastEdge { favor } => {
                 self.state.seats[seat.index()].has_edge = false;
@@ -853,10 +911,41 @@ impl Engine {
             self.next_turn();
             return;
         }
-        if blocked {
+        // A blocked leave-torpor whose blocker diablerised still opens the
+        // after-resolution window, for what the diablerie triggers
+        // (rules-qa 16.2).
+        if blocked && a.diablerist.is_none() {
             self.end_action();
         } else {
+            self.own_referendum_failed_riders();
             self.after_resolution();
+        }
+    }
+
+    /// "If the referendum of a political action called by this vampire is
+    /// canceled or fails" riders (Cedrick Calhoun), applied as the action
+    /// resolves, before the after-resolution window.
+    fn own_referendum_failed_riders(&mut self) {
+        let a = self.action.as_ref().expect("action");
+        if a.kind != crate::decision::ActionKind::Political || a.referendum_passed {
+            return;
+        }
+        let m = a.acting;
+        let v = &self.state.minions[m.index()];
+        let Some(def) = cards::vampire(v.card).filter(|_| v.ready()) else {
+            return;
+        };
+        for r in def
+            .riders
+            .iter()
+            .filter(|r| r.hook == cards::Hook::OwnReferendumFailed)
+        {
+            for e in r.effects {
+                match *e {
+                    cards::Effect::GoToTorpor => self.minions_to_torpor(&[m]),
+                    other => unreachable!("not a referendum rider effect: {other:?}"),
+                }
+            }
         }
     }
 
@@ -864,7 +953,20 @@ impl Engine {
     pub(crate) fn apply_vote_effect(&mut self, effect: cards::Effect, play: &cards::PlayCtx) {
         let mut ctx = self.referendum.take().expect("referendum context");
         match effect {
-            cards::Effect::AddVotes(n) => {
+            cards::Effect::AddVotes(_) | cards::Effect::AddVotesPerReadySect(_) => {
+                let n = match effect {
+                    cards::Effect::AddVotesPerReadySect(sect) => {
+                        self.state
+                            .minions_of(play.seat)
+                            .filter(|v| {
+                                let v = &self.state.minions[v.index()];
+                                v.ready() && v.card().sect == sect
+                            })
+                            .count() as u8
+                    }
+                    cards::Effect::AddVotes(n) => n,
+                    _ => unreachable!(),
+                };
                 let m = play.actor.expect("voting minion");
                 // Votes gained after casting join the cast, on the same
                 // side (all votes of a source agree).
@@ -953,6 +1055,7 @@ pub(crate) fn is_vote_effect(e: &cards::Effect) -> bool {
     matches!(
         e,
         cards::Effect::AddVotes(_)
+            | cards::Effect::AddVotesPerReadySect(_)
             | cards::Effect::AddVotesAgainst(_)
             | cards::Effect::Abstain { .. }
             | cards::Effect::TallyPenaltyAgainst(_)

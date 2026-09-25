@@ -10,7 +10,7 @@ use zvtes::crypt::CRYPT;
 use zvtes::decision::{Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::{find_library, CardId, CardInPlay};
+use zvtes::state::{find_card, find_library, CardId, CardInPlay};
 
 fn request(e: &mut Engine) -> DecisionRequest {
     match e.run() {
@@ -116,8 +116,8 @@ fn table() -> (Engine, MinionId, MinionId) {
     let t_card = vampire_with("THA", 0);
     assert_ne!(CRYPT[t_card as usize].clan, "Ravnos");
     let t = e.add_minion(SeatId(0), t_card, 4, false);
-    e.add_minion(SeatId(0), vampire_with("CEL", 0), 4, false);
-    let x = e.add_minion(SeatId(1), vampire_with("FOR", 0), 4, false);
+    e.add_minion(SeatId(0), find_card("Farah Sarroub"), 4, false);
+    let x = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
     e.state.seats[0].pool = 4;
     (e, t, x)
 }
