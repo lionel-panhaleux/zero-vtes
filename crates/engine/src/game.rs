@@ -915,6 +915,69 @@ mod tests {
         req
     }
 
+    // A blocked rush continued as if unblocked (Form of Mist's shape, set
+    // directly: no rush vampire has Protean) reaches its resolution and
+    // enters combat with its target; the unblocked combat's after-combat
+    // window offers no continuation and leads to after resolution
+    // (rules-qa 17.3).
+    #[test]
+    fn a_blocked_rush_continued_as_if_unblocked_enters_combat() {
+        let textless = |nth: usize| {
+            (0..CRYPT.len() as u16)
+                .filter(|&c| crate::cards::vampire(c).is_none() && CRYPT[c as usize].capacity >= 4)
+                .nth(nth)
+                .expect("textless vampire")
+        };
+        let mut e = Engine::bare(2);
+        e.state.turn = 4;
+        let theo = e.add_minion(SeatId(0), find_card("Theo Bell"), 5, false);
+        e.add_minion(SeatId(0), textless(0), 4, false);
+        let target = e.add_minion(SeatId(1), textless(1), 4, false);
+        let blocker = e.add_minion(SeatId(1), textless(2), 4, false);
+        pick(
+            &mut e,
+            Choice::UseAbility {
+                source: crate::cards::AbilitySource::Vampire(theo),
+                ability: 0,
+                actor: Some(theo),
+                target: crate::cards::Target::Minion(target),
+            },
+        );
+        pick(&mut e, Choice::DeclareBlock { minion: blocker });
+        e.action.as_mut().expect("action").continuation = Some((0, 0));
+        let (mut continued, mut offered_after_rush) = (0, 0);
+        loop {
+            let req = request(&mut e);
+            if req.window == WindowLabel::MinionPhase && req.seat == SeatId(0) {
+                break;
+            }
+            if req.options.contains(&Choice::ContinueAction) {
+                if e.action.as_ref().expect("action").resolved {
+                    offered_after_rush += 1;
+                } else {
+                    continued += 1;
+                    let i = req
+                        .options
+                        .iter()
+                        .position(|o| *o == Choice::ContinueAction);
+                    e.choose(i.expect("continue"));
+                    continue;
+                }
+            }
+            let i = req
+                .options
+                .iter()
+                .position(|o| matches!(o, Choice::Pass | Choice::HandStrike))
+                .unwrap_or(0);
+            e.choose(i);
+        }
+        assert_eq!((continued, offered_after_rush), (1, 0));
+        // Both combats fought: the blocker's, then the target's.
+        assert!(e.state.minions[blocker.index()].blood < 4);
+        assert!(e.state.minions[target.index()].blood < 4);
+        assert_eq!(e.last_outcome, Some(crate::actions::Outcome::Successful));
+    }
+
     #[test]
     fn crypt_data_is_complete() {
         assert_eq!(CRYPT.len(), 200);

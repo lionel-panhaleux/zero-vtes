@@ -1603,3 +1603,10 @@ Hanganu, Nathaniel Bordruff, Adisa)
 
 Right?
 
+**Answer (2026-09-25)** — 17.3 yes, except: the combat of an unblocked rush
+(the common name for an action to enter combat, after Bum's Rush) has its
+after-combat window like any combat; nothing there can "continue as if
+unblocked", since those effects need the action to have been blocked. A
+blocked rush can use one, and the continued action then enters combat with
+its target at resolution.
+

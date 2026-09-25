@@ -230,8 +230,8 @@ pub struct CombatCtx {
     /// The equipment on the blocker when it blocked (Sniper Rifle).
     pub held_at_block: Vec<CardId>,
     /// Begun by a successful action's resolution (entering combat as a Ⓓ
-    /// action), not by a block: part of the action, it ends into the
-    /// after-resolution window (spec §4.1.2).
+    /// action), not by a block: part of the action (spec §4.1.2), its
+    /// after-combat window leading to after resolution (rules-qa 17.3).
     pub at_resolution: bool,
 }
 
@@ -982,15 +982,14 @@ impl Engine {
         c.fresh_window(Step::BeforeRange);
     }
 
-    /// Combat over: back to the action's after-combat window — or, for a
-    /// combat the action's resolution began, its after-resolution window.
+    /// Combat over: back to the action's after-combat window — after
+    /// which a combat the action's resolution began leads to the
+    /// after-resolution window (rules-qa 17.3).
     fn end_combat(&mut self) {
-        let at_resolution = self.combat.take().is_some_and(|c| c.at_resolution);
-        if at_resolution {
-            self.after_resolution();
-        } else {
-            self.after_combat();
+        if self.combat.take().is_some_and(|c| c.at_resolution) {
+            self.action.as_mut().expect("action context").resolved = true;
         }
+        self.after_combat();
     }
 
     /// Effects of a combat card resolved during the combat.

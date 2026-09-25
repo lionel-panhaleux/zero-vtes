@@ -141,6 +141,9 @@ pub struct ActionCtx {
     pub intercept_given: Vec<(MinionId, i8)>,
     /// The ash card and the hand card an exchange action named (Lenelle).
     pub exchange: Option<(u16, u16)>,
+    /// The action resolved into a combat (entering combat as a Ⓓ action):
+    /// its after-combat window leads to after resolution (rules-qa 17.3).
+    pub resolved: bool,
 }
 
 impl ActionCtx {
@@ -436,6 +439,7 @@ impl Engine {
             abilities_used: Vec::new(),
             intercept_given: Vec::new(),
             exchange: None,
+            resolved: false,
         });
         self.flow = Flow::Action;
     }
@@ -680,7 +684,9 @@ impl Engine {
                 }
             }
         }
-        if a.state == ActionState::AfterCombat && seat == a.seat {
+        // Only after a block's combat: an unblocked action has nothing to
+        // continue (rules-qa 17.3).
+        if a.state == ActionState::AfterCombat && seat == a.seat && !a.resolved {
             if let Some((blood, _)) = a.continuation {
                 let m = &self.state.minions[a.acting.index()];
                 // A directed action whose target Methuselah left the game
@@ -819,7 +825,10 @@ impl Engine {
                 }
             }
             ActionState::AfterCombat => {
-                if a.continued {
+                if a.resolved {
+                    // A combat the resolution began: the action succeeded.
+                    self.after_resolution();
+                } else if a.continued {
                     // Continue as if unblocked (rules-qa 3.4): back to A with
                     // the action's context kept — modifiers, reactions and
                     // the declines stand; only the attempt state resets.

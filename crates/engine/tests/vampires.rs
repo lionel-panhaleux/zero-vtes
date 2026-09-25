@@ -2028,9 +2028,10 @@ fn a_rulebook_hunt_and_elens_bleed_are_ordered_by_their_methuselah() {
 
 // Theo Bell enters combat with another Methuselah's ready minion as a Ⓓ
 // action: directed at its controller, who alone may block; unblocked, the
-// combat is part of the action and ends into its after-resolution window
-// (spec §4.1.2) — Aline Gädeke's unlock after an Anarch's successful action
-// is offered there. Theo strikes first with his +1 strength.
+// combat is part of the action (spec §4.1.2), its after-combat window
+// leading to the after-resolution one (rules-qa 17.3) — Aline Gädeke's
+// unlock after an Anarch's successful action is offered there. Theo strikes
+// first with his +1 strength.
 #[test]
 fn theo_bell_enters_combat_with_a_minion_as_a_directed_action() {
     let mut e = Engine::bare(3);
@@ -2054,9 +2055,8 @@ fn theo_bell_enters_combat_with_a_minion_as_a_directed_action() {
         Some(SeatId(1))
     );
     let before = blood(&e, target);
-    // No block offered to seat 2, no after-combat window.
-    let seen = until_windows(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
-    assert!(!seen.contains(&WindowLabel::ActionAfterCombat));
+    // No block offered to seat 2.
+    until_windows(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
 
     // Hand strikes: Theo's 2 damage, the Ventrue's 1.
     assert_eq!(blood(&e, target), before - 2);
