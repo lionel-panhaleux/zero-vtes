@@ -108,6 +108,13 @@ pub(crate) enum Flow {
     /// equipment `minion` equips with, chosen at resolution (spec §1.14.1).
     LibrarySearch {
         minion: MinionId,
+        /// A card of this kind moved to hand (Sakhar), not equipped.
+        to_hand: Option<crate::cards::CardFilter>,
+    },
+    /// The cards an exchange action names as it is announced (Lenelle):
+    /// the ash card, then the hand card.
+    Exchange {
+        ash: Option<u16>,
     },
     /// An action is under way (`Engine::action`).
     Action,
@@ -303,6 +310,11 @@ impl Engine {
     /// Advance until a real decision is needed or the game is over. Windows
     /// with a single legal option are elided (DESIGN §4.3): auto-applied and
     /// not logged.
+    /// The action under way, if any (read-only).
+    pub fn action(&self) -> Option<&ActionCtx> {
+        self.action.as_ref()
+    }
+
     pub fn run(&mut self) -> Step {
         loop {
             self.settle_interrupts();
@@ -385,7 +397,8 @@ impl Engine {
             } => Some(self.action_terms_request(*minion, *giver, picked)),
             Flow::PhaseRotation { resume, window } => self.phase_rotation_request(resume, window),
             Flow::Abilities { window, pending } => self.abilities_request(window, pending),
-            Flow::LibrarySearch { minion } => Some(self.search_request(*minion)),
+            Flow::LibrarySearch { minion, to_hand } => Some(self.search_request(*minion, *to_hand)),
+            Flow::Exchange { ash } => Some(self.exchange_request(*ash)),
             Flow::Action => self.action_request(),
             Flow::Combat => self.combat_request(),
             Flow::TorporBlock => Some(self.torpor_block_request()),
@@ -525,7 +538,8 @@ impl Engine {
                 self.phase_rotation_apply(resume, window, c)
             }
             (Flow::Abilities { window, pending }, c) => self.abilities_apply(window, pending, c),
-            (Flow::LibrarySearch { minion }, c) => self.search_apply(minion, c),
+            (Flow::LibrarySearch { minion, to_hand }, c) => self.search_apply(minion, to_hand, c),
+            (Flow::Exchange { ash }, c) => self.exchange_apply(ash, c),
             (Flow::Action, c) => self.action_apply(c),
             (Flow::Combat, c) => self.combat_apply(c),
             (Flow::TorporBlock, c) => self.torpor_block_apply(c),

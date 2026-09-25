@@ -206,6 +206,7 @@ fn kind_of(c: &Choice) -> &'static str {
             ActionKind::Equip => "equip",
             ActionKind::EquipFrom => "equip_from",
             ActionKind::EquipFound => "equip_found",
+            ActionKind::Ability => "ability_action",
         },
         Choice::FindCard(_) => "find_card",
         Choice::DrawLibrary => "draw_library",
@@ -785,6 +786,13 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             // (Smiling Jack's pool unit elides when it is the only source and
             // is seldom picked against several vampires: no key.)
             "burn_blood_from",
+            // Slice 9d: printed actions. (Sakhar and Dominica, one copy
+            // each in the Salubri crypt, are seldom in play at random
+            // tables; Elen Kamjian's mandatory bleed is her only option and
+            // elides: scripted in tests/vampires.rs.)
+            "ability:Seraphina",
+            "ability:Lenelle, Mambo of Birmingham",
+            "ability:Theo Bell",
             // (Anarch Revolt's and Fame's riders are decisions only when
             // ordered against another unlock effect; alone they elide, so
             // no key.)

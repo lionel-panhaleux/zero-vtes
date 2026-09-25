@@ -868,7 +868,8 @@ impl Engine {
                     .action
                     .as_ref()
                     .and_then(|a| a.source)
-                    .expect("granted action's source");
+                    .expect("granted action's source")
+                    .card();
                 self.burn_card_in_play(src);
             }
             _ => {}
@@ -1033,7 +1034,7 @@ impl Engine {
                 // available (LSJ 20020201).
                 let id = match (a.card, a.source) {
                     (Some(card), _) => Some(ActionId::Card(card.card)),
-                    (None, Some(src)) => Some(ActionId::InPlay(src)),
+                    (None, Some(src)) => a.ability.map(|ab| src.action_id(ab)),
                     (None, None) => None,
                 };
                 if let (true, Some(id)) = (forbid_repeat, id) {

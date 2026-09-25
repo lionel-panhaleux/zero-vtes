@@ -13,7 +13,8 @@ use super::{
     Window,
 };
 use crate::crypt::Sect;
-use crate::library::CardType;
+use crate::decision::ActionKind;
+use crate::library::{CardType, Label};
 
 const fn own(stat: Stat, n: i8, requires: &'static [R]) -> Printed {
     Printed {
@@ -43,6 +44,36 @@ const fn ability(
         limit: Some(limit),
         effects,
     }
+}
+
+/// A printed action ("… as a +1 stealth action"): the vampire's own,
+/// declared in the minion phase, its effects resolving on success.
+const fn printed_action(target: Option<TargetSpec>, effects: &'static [Effect]) -> ModeDef {
+    ModeDef {
+        windows: &[Window::ActionDeclare],
+        actor: Actor::Host,
+        requires: &[],
+        target,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects,
+    }
+}
+
+/// "… can enter combat with <filter> as a Ⓓ action": another Methuselah's
+/// ready minion, the combat part of the action (spec §4.1.2).
+const fn enter_combat(filter: &'static [R]) -> ModeDef {
+    printed_action(
+        Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter,
+        }),
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::EnterCombatWithTarget,
+        ],
+    )
 }
 
 /// "Gets 1 optional maneuver … each combat" (Abaddon, Saku Pihlajamäki).
@@ -130,6 +161,27 @@ pub static ABRAHAM_DUSABLE: VampireDef = VampireDef {
 /// combat": he must use it before passing the press step, unless a press to
 /// continue already stands — it then waits for a later round (rules-qa
 /// 14.1).
+/// "Adisa can enter combat with an ally or younger vampire as a Ⓓ action. If
+/// she successfully hunts, she does not unlock as normal during her next
+/// unlock phase." A successful hunt gains blood (spec §3.7.2.1).
+pub static ADISA: VampireDef = VampireDef {
+    name: "Adisa",
+    printed: &[],
+    abilities: &[enter_combat(&[
+        R::NotControlled,
+        R::ActorReady,
+        R::TargetVampire,
+        R::Younger,
+    ])],
+    riders: &[Rider {
+        hook: Hook::SuccessfulHunt,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::SkipNextUnlock],
+    }],
+    incomplete: Some("Adisa can enter combat with an ally … (waits for allies)."),
+};
+
 pub static ADRINO_MANAUARA: VampireDef = VampireDef {
     name: "Adrino Manauara",
     printed: &[own(Stat::MandatoryContinuePress, 1, &[])],
@@ -325,6 +377,15 @@ pub static AZUCENA: VampireDef = VampireDef {
     incomplete: None,
 };
 
+/// "Barachiel can enter combat with a minion as a Ⓓ action."
+pub static BARACHIEL: VampireDef = VampireDef {
+    name: "Barachiel",
+    printed: &[],
+    abilities: &[enter_combat(&[R::NotControlled, R::ActorReady])],
+    riders: &[],
+    incomplete: None,
+};
+
 pub static BRANIMIRA: VampireDef = VampireDef {
     name: "Branimira",
     printed: &[own(Stat::Intercept, 1, &[R::PoolAtMost(9)])],
@@ -409,6 +470,15 @@ pub static CHUN_HEI: VampireDef = VampireDef {
 /// minion's, when needed (rules-qa 3.2), any Methuselah's; the lock cost
 /// makes it once per unlock (advanced rules §1.5.4), in torpor too (LSJ
 /// 20011022).
+/// "Dafina can enter combat with a minion as a Ⓓ action."
+pub static DAFINA_HANGANU: VampireDef = VampireDef {
+    name: "Dafina Hanganu",
+    printed: &[],
+    abilities: &[enter_combat(&[R::NotControlled, R::ActorReady])],
+    riders: &[],
+    incomplete: None,
+};
+
 pub static DARIA: VampireDef = VampireDef {
     name: "Daria",
     printed: &[],
@@ -438,6 +508,23 @@ pub static DJENEBA: VampireDef = VampireDef {
     incomplete: Some("In combat, strike cards cost the opposing minion +1 blood or life."),
 };
 
+/// "Dominica can search your library for a master archetype card, reveal it
+/// and move it to your hand as a +1 stealth action."
+pub static DOMINICA: VampireDef = VampireDef {
+    name: "Dominica",
+    printed: &[],
+    abilities: &[printed_action(
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::AddStealth(1),
+            Effect::SearchToHand(CardFilter::Labeled(CardType::Master, Label::Archetype)),
+        ],
+    )],
+    riders: &[],
+    incomplete: None,
+};
+
 pub static DOWAGER_THE: VampireDef = VampireDef {
     name: "Dowager, The",
     printed: &[own(Stat::Intercept, 1, &[R::IsDirected])],
@@ -464,6 +551,34 @@ pub static EGIDIA_ARRU: VampireDef = VampireDef {
 /// "As a minion announces an action directed at Evan, flip a coin; if it is
 /// tails, the action fails." An action of his controller's own minions is
 /// undirected, so it is not flipped (LSJ 20030214-2).
+/// "If you control a locked minion, Elen must bleed with +1 bleed as a Ⓓ
+/// action unless she must hunt." Her own action, mandatory while the
+/// condition holds; a bleed of another source does not discharge it, and
+/// having bled before it attached she is stuck (spec §3.9, ANK 20211009-2).
+pub static ELEN_KAMJIAN: VampireDef = VampireDef {
+    name: "Elen Kamjian",
+    printed: &[],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDeclare],
+        actor: Actor::Host,
+        requires: &[R::ControlsLockedMinion],
+        target: None,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::Bleed),
+            Effect::MandatoryAction,
+            Effect::BleedMod {
+                n: 1,
+                limited: false,
+            },
+        ],
+    }],
+    riders: &[],
+    incomplete: None,
+};
+
 pub static EVAN_KLEIN: VampireDef = VampireDef {
     name: "Evan Klein",
     printed: &[],
@@ -694,6 +809,29 @@ pub static LARISSA_MOREIRA: VampireDef = VampireDef {
     incomplete: None,
 };
 
+/// "Lenelle can exchange a card from your hand for a library card in your
+/// ash heap as a +1 stealth action that costs 1 blood." Both cards named as
+/// the action is announced (LSJ 20000222, LSJ 20011023); exchanged at
+/// resolution if both are still there.
+pub static LENELLE: VampireDef = VampireDef {
+    name: "Lenelle, Mambo of Birmingham",
+    printed: &[],
+    abilities: &[ModeDef {
+        requires: &[R::HandHas(CardFilter::Any, 1), R::AshNotEmpty],
+        ..printed_action(
+            None,
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::PayBlood(1),
+                Effect::ExchangeHandForAsh,
+            ],
+        )
+    }],
+    riders: &[],
+    incomplete: None,
+};
+
 pub static LENNY_BURKHEAD: VampireDef = VampireDef {
     name: "Lenny Burkhead",
     printed: &[own(Stat::Bleed, 1, &[])],
@@ -781,6 +919,21 @@ pub static MORA_THE_DEATH_SEER: VampireDef = VampireDef {
         limit: None,
         effects: &[Effect::AshCardToLibraryBottom],
     }],
+    riders: &[],
+    incomplete: None,
+};
+
+/// "Nathaniel can enter combat with a locked vampire as a Ⓓ action." A
+/// target unlocked by resolution: successful, no effect (ANK 20210124).
+pub static NATHANIEL_BORDRUFF: VampireDef = VampireDef {
+    name: "Nathaniel Bordruff",
+    printed: &[],
+    abilities: &[enter_combat(&[
+        R::NotControlled,
+        R::ActorReady,
+        R::TargetVampire,
+        R::TargetLocked,
+    ])],
     riders: &[],
     incomplete: None,
 };
@@ -1028,10 +1181,48 @@ pub static ROY: VampireDef = VampireDef {
     incomplete: None,
 };
 
+/// "Sakhar can search your library for an equipment card, reveal it and
+/// move it to your hand as a +1 stealth action."
+pub static SAKHAR: VampireDef = VampireDef {
+    name: "Sakhar",
+    printed: &[],
+    abilities: &[printed_action(
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::AddStealth(1),
+            Effect::SearchToHand(CardFilter::Type(CardType::Equipment)),
+        ],
+    )],
+    riders: &[],
+    incomplete: None,
+};
+
 pub static SAKU_PIHLAJAMAKI: VampireDef = VampireDef {
     name: "Saku Pihlajamäki",
     printed: &[],
     abilities: &[MANEUVER_EACH_COMBAT],
+    riders: &[],
+    incomplete: None,
+};
+
+/// "Seraphina can add 2 blood or life to a minion you control as a +1
+/// stealth action, not to exceed starting life." A vampire's blood stops at
+/// its capacity; one in torpor, or Seraphina herself, may be chosen.
+pub static SERAPHINA: VampireDef = VampireDef {
+    name: "Seraphina",
+    printed: &[],
+    abilities: &[printed_action(
+        Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[R::Controlled],
+        }),
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::AddStealth(1),
+            Effect::BloodToTarget(2),
+        ],
+    )],
     riders: &[],
     incomplete: None,
 };
@@ -1083,9 +1274,9 @@ pub static SYBREN_VAN_OOSTEN: VampireDef = VampireDef {
 pub static THEO_BELL: VampireDef = VampireDef {
     name: "Theo Bell",
     printed: &[own(Stat::Strength, 1, &[])],
-    abilities: &[],
+    abilities: &[enter_combat(&[R::NotControlled, R::ActorReady])],
     riders: &[],
-    incomplete: Some("Theo can enter combat with a minion as a Ⓓ action."),
+    incomplete: None,
 };
 
 pub static VALERIUS: VampireDef = VampireDef {
@@ -1147,9 +1338,10 @@ pub static YEWON_ONG: VampireDef = VampireDef {
     incomplete: None,
 };
 
-pub static VAMPIRES: [&VampireDef; 68] = [
+pub static VAMPIRES: [&VampireDef; 77] = [
     &ABADDON,
     &ABRAHAM_DUSABLE,
+    &ADISA,
     &ADRINO_MANAUARA,
     &ALABASTROM,
     &AISHA_AZ_ZAHRA,
@@ -1160,6 +1352,7 @@ pub static VAMPIRES: [&VampireDef; 68] = [
     &ARIANE,
     &AYSE_DHANIAL,
     &AZUCENA,
+    &BARACHIEL,
     &BRANIMIRA,
     &BRET_STRYKER,
     &CARMELITA_NEILLSON,
@@ -1167,10 +1360,13 @@ pub static VAMPIRES: [&VampireDef; 68] = [
     &CATALINA_VEGA,
     &CEDRICK_CALHOUN,
     &CHUN_HEI,
+    &DAFINA_HANGANU,
     &DARIA,
     &DJENEBA,
+    &DOMINICA,
     &DOWAGER_THE,
     &EGIDIA_ARRU,
+    &ELEN_KAMJIAN,
     &EVAN_KLEIN,
     &FARUQ_ABD_AL_QADIR,
     &FLAVIO_GONCALVES,
@@ -1185,6 +1381,7 @@ pub static VAMPIRES: [&VampireDef; 68] = [
     &KASIM_BAYAR,
     &KEVIN_JACKSON,
     &LARISSA_MOREIRA,
+    &LENELLE,
     &LENNY_BURKHEAD,
     &MARCHESA_LILIANA,
     &MARIALENA,
@@ -1193,6 +1390,7 @@ pub static VAMPIRES: [&VampireDef; 68] = [
     &MICKEY_WHEELER,
     &MITHRAS,
     &MORA_THE_DEATH_SEER,
+    &NATHANIEL_BORDRUFF,
     &NESERIAN,
     &NOLUTHANDO,
     &NONU_DIS,
@@ -1207,7 +1405,9 @@ pub static VAMPIRES: [&VampireDef; 68] = [
     &ROSE_ABAWI,
     &ROWENA,
     &ROY,
+    &SAKHAR,
     &SAKU_PIHLAJAMAKI,
+    &SERAPHINA,
     &SREELEKHA,
     &STYLES_MARGS,
     &SYBREN_VAN_OOSTEN,

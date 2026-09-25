@@ -35,6 +35,11 @@ pub enum ActionKind {
     /// play, undirected, its stealth the card's own; the search happens
     /// only on success (TOM 19951107).
     EquipFound,
+    /// An action granted by an ability (a vampire's printed action: "Sakhar
+    /// can search your library … as a +1 stealth action"), its effects
+    /// resolving on success; directed when its announced target is
+    /// another Methuselah's.
+    Ability,
 }
 
 /// One indexed option inside a decision request. `Pass` is always explicit;
@@ -252,6 +257,9 @@ pub enum WindowLabel {
     /// the Smith, Black Market Cache): the card chosen, or none; the library
     /// is shuffled afterward.
     LibrarySearch,
+    /// The cards an exchange action names as it is announced (Lenelle: the
+    /// library card in the ash heap, then the card from hand).
+    ActionExchange,
     /// A card drawn while a draw alternative applies: from the library or
     /// from a card in play (rules-qa 9.4); beside Visit from the Capuchin,
     /// the treatment of a replacement (ANK 20200905).

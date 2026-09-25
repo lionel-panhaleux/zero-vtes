@@ -1095,7 +1095,7 @@ Recorded so nobody mistakes them for oversights:
   picks that drifted are pinned by name to vampires with no printed text.
   Fuzz seats Larissa Moreira and Kalinda (their abilities keyed), and its
   card conservation counts the cards kept face down on a banished vampire.
-  Slice 9c-ii (in progress): `Limit::PerTurn` (`GameState.turn_uses`,
+  Slice 9c-ii (2026-09-15): `Limit::PerTurn` (`GameState.turn_uses`,
   cleared as each turn begins, hashed); after-resolution abilities
   (`Window::ActionAfterResolution`; `Requirement::ActionSuccessful` counts a
   fizzle, `ActionDirected`, `IsDiablerie`, `OtherActingControlled`,
@@ -1136,6 +1136,51 @@ Recorded so nobody mistakes them for oversights:
   implemented action card requires their clans), Marchesa Liliana (burned
   vampires are not kept in the ash heap), Gnaeus Aemilius (out-of-combat
   damage in another seat's unlock phase).
+  Slice 9d (in progress): printed actions. Plumbing: `ActionCtx.source` is
+  an `AbilitySource` (a card in play or a vampire; `AbilitySource::mode`
+  reads the ability wherever it is printed), `ActionId::Printed(vampire,
+  ability)` the NRA identity of a vampire's own action (never the same as a card's
+  or a rulebook action, spec §3.8.1), `Engine::may_take_granted` the one
+  gate for granted actions of both sources (minion phase, ready and
+  unlocked, one bleed a turn, once a turn per action). `ActionKind::Ability`:
+  a granted action whose effects resolve on success, its printed cost paid
+  then (unpayable: fizzled), a target no longer qualifying leaving it
+  successful with no effect (spec §3.4.1); `ActionCtx.target` holds the
+  announced target and makes the action directed at its controller unless
+  that is the acting Methuselah (spec §3.1.5); "directed at you" reads
+  `directed_seat` (rescue, diablerie and card targets included), and the
+  at-target riders read `ActionCtx::directed_minion` (a torpor target or a
+  minion target: Evan Klein's flip). Still to come (rules-qa 17): an
+  action targeting another Methuselah's hand, library, crypt, uncontrolled
+  region or any card they control (stealing The Rack) is directed at them;
+  one targeting an ash heap is not. Mandatory actions side by side (a
+  rulebook hunt and Elen's bleed) are ordered by the acting Methuselah
+  (rules-qa 17.2). `Engine::action()` exposes
+  the action read-only. Library searches move a card to hand
+  (`Effect::SearchToHand(CardFilter)`, `CardFilter::Labeled`,
+  `Flow::LibrarySearch.to_hand`). Mandatory printed actions
+  (`Effect::MandatoryAction`, `Engine::mandatory_actions`): while attached
+  and not yet taken, the only action on offer and the phase cannot end; a
+  vampire unable to take it is stuck and declares nothing (spec §3.9).
+  Definitions: Sakhar, Dominica (search to hand), Seraphina (blood to a
+  minion you control), Lenelle (`Effect::ExchangeHandForAsh`: both cards
+  named with the announcement, `Flow::Exchange`, `ActionCtx.exchange`;
+  LSJ 20000222), Elen Kamjian (`R::ControlsLockedMinion`; ANK 20211009-2).
+  Enter combat as a Ⓓ action (`Effect::EnterCombatWithTarget`, the
+  shape the pool's enter-combat action cards will share): another
+  Methuselah's ready minion (`R::NotControlled`, `R::ActorReady`;
+  `R::TargetLocked`, `R::TargetVampire`, `R::Younger` as printed); the
+  combat begins at resolution (`Engine::start_combat_at_resolution`,
+  `CombatCtx.at_resolution`), is part of the action, and ends into its
+  after-resolution window — no after-combat window, no continuation (spec
+  §4.1.2); a target no longer qualifying leaves the action successful with
+  no effect (Nathaniel Bordruff, ANK 20210124). `Hook::SuccessfulHunt`
+  fires only when the hunt gained blood (spec §3.7.2.1; Adisa's
+  `Effect::SkipNextUnlock`). Definitions: Theo Bell (complete), Barachiel,
+  Dafina Hanganu, Nathaniel Bordruff, Adisa (the ally half waits for
+  allies). 77 vampires, 9 incomplete. Next: steals and card targets (Apolonia Czarnecki, Darius Shirazi, Saankaláxt, Aniel's
+  card half). Held: Valerius (titles are printed only), The Guardian
+  (combat begun outside an action).
 - **P3 — training loop**: PyO3 batched stepping, encoder, PPO self-play at 4p;
   evaluation ladder vs scripted bots and frozen snapshots.
 - **P4 — league & 5p**: exploiters, PFSP, deck/seat sampling, evaluation vs humans.

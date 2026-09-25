@@ -1544,3 +1544,62 @@ all: on Evan Klein's tails the acting minion still locks, the action counts
 for NRA and the bleed/political caps, cost and blocks are skipped, and
 as-announced plays remain possible before the flip; Alabástrom once per
 turn, Flight a bare trait for now.
+
+## Batch 17 — Printed actions (slice 9d)
+
+### 17.1 Readings of the printed actions built
+
+- Sakhar, Dominica: the card is chosen at resolution, any card of the kind
+  (Sakhar: every equipment, whether or not he could equip it; Dominica: a
+  master card labeled archetype), revealed and moved to hand — or none is
+  found; the library is shuffled either way. Hand size is not checked then.
+- Seraphina: "a minion you control" includes Seraphina herself and a
+  vampire in torpor; a vampire's blood stops at its capacity. Undirected.
+- Lenelle: both cards named with the announcement (LSJ 20000222), the ash
+  card by card and the hand card by card (copies alike); the action is not
+  offered with an empty hand or ash heap. At resolution, if either named
+  card has left its zone, the action is still successful and its blood
+  paid, with no exchange (spec §3.4.1).
+- Elen Kamjian: "if you control a locked minion" counts any minion you
+  control, one in torpor included. While it holds and she has not taken
+  her bleed this turn, it is the only action any of your minions may
+  declare (spec §3.9: mandatory actions first), untimed abilities aside,
+  and the minion phase cannot end; with 0 blood the rulebook hunt takes
+  over ("unless she must hunt"). Stuck (she bled before it attached), she
+  declares no action but may still block and play reactions.
+
+Right?
+
+### 17.2 Two mandatory actions at once
+
+Elen Kamjian's bleed is mandatory while you control a locked minion; the
+rulebook hunt of a ready vampire with no blood is mandatory too. When another
+of your vampires must hunt while Elen's bleed is attached, the engine
+currently has the hunt come first (Elen's bleed is only offered once no
+vampire must hunt). Does the rulebook hunt pre-empt, or does the
+Methuselah choose the order between the two mandatory actions?
+
+**Answer (2026-09-25)** — 17.1 right. 17.2: the acting Methuselah chooses
+the order between mandatory actions. Directedness, beyond minions: an
+action is directed at the Methuselah whose hand, library, crypt,
+uncontrolled region or controlled card (any, not only a minion: stealing
+The Rack is directed) it targets — to cover in the end, not necessarily
+now. Actions targeting an ash heap are undirected.
+
+### 17.3 Entering combat as a Ⓓ action (Theo Bell, Barachiel, Dafina
+Hanganu, Nathaniel Bordruff, Adisa)
+
+- Target: a ready minion controlled by another Methuselah (none of your
+  own, none in torpor), locked or not unless printed (Nathaniel: locked
+  vampires; Adisa: younger vampires). The action is directed at its
+  controller, who alone may block.
+- Unblocked, the combat begins at resolution and is part of the action,
+  the acting minion acting first; when it ends, the after-resolution window
+  follows (Aline Gädeke, Queen Anne), with no after-combat window and no
+  "continue as if unblocked". The target no longer qualifying at resolution
+  (unlocked, in torpor, changed hands): successful, no effect.
+- Adisa: "successfully hunts" only when the hunt gains blood (advanced rules
+  §3.7.2.1) — at full capacity she unlocks as normal.
+
+Right?
+

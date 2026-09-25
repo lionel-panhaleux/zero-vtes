@@ -10,7 +10,7 @@ use zvtes::crypt::{Title, CRYPT};
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::{find_card, find_library, CardId, CardInPlay, PrintedCtx};
+use zvtes::state::{find_card, find_library, ActionId, CardId, CardInPlay, PrintedCtx};
 
 fn request(e: &mut Engine) -> DecisionRequest {
     match e.run() {
@@ -404,7 +404,7 @@ fn the_plain_half_of_a_two_part_vampire_applies_and_the_rest_is_named() {
     assert_eq!([alexa, braden].map(|o| strength(ragnar, o)), [0, 1]);
     let incomplete = VAMPIRES.iter().filter(|d| d.incomplete.is_some()).count();
     assert_eq!(incomplete, 9);
-    assert!(cards::vampire(find_card("Theo Bell")).is_some_and(|d| d.incomplete.is_some()));
+    assert!(cards::vampire(find_card("Valerius")).is_some_and(|d| d.incomplete.is_some()));
     assert!(cards::vampire(find_card("Catalina Vega")).is_some_and(|d| d.incomplete.is_none()));
 }
 
@@ -1744,4 +1744,385 @@ fn adrino_manauara_must_use_his_press_to_continue() {
     pick(&mut e, Choice::DeclareBlock { minion: x });
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!((blood(&e, a), blood(&e, x)), (3, 3));
+}
+
+// ---- Slice 9d: printed actions ------------------------------------------
+
+/// Vampire `m`'s printed action `ability`, at `target`.
+fn printed_action(m: MinionId, ability: u8, target: Target) -> Choice {
+    Choice::UseAbility {
+        source: AbilitySource::Vampire(m),
+        ability,
+        actor: Some(m),
+        target,
+    }
+}
+
+fn library(e: &mut Engine, seat: u8, cards: &[&str]) {
+    for c in cards {
+        e.state.seats[seat as usize].library.push(find_library(c));
+    }
+}
+
+// Sakhar searches the library for an equipment card as a +1 stealth action
+// and moves it to hand (or finds none); the library is shuffled. His action
+// is taken once a turn, even after he unlocks (spec §3.8.1).
+#[test]
+fn sakhar_searches_his_library_for_an_equipment_card() {
+    let mut e = bare();
+    let sakhar = add(&mut e, 0, "Sakhar");
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    library(
+        &mut e,
+        0,
+        &[".44 Magnum", "Blood Rage", "Kevlar Vest", ".44 Magnum"],
+    );
+    let magnum = find_library(".44 Magnum");
+    let kevlar = find_library("Kevlar Vest");
+    pick(&mut e, printed_action(sakhar, 0, Target::None));
+    let a = e.action().expect("action");
+    assert_eq!((a.kind, a.stealth(&e.state)), (ActionKind::Ability, 1));
+    assert!(e.state.minions[sakhar.index()].locked);
+    let req = until(&mut e, SeatId(0), WindowLabel::LibrarySearch);
+    let mut found = vec![magnum, kevlar];
+    found.sort_unstable();
+    let mut want = vec![Choice::Pass];
+    want.extend(found.into_iter().map(Choice::FindCard));
+    assert_eq!(req.options, want);
+    pick(&mut e, Choice::FindCard(kevlar));
+    assert!(e.state.seats[0].hand.contains(&kevlar));
+    assert_eq!(e.state.seats[0].library.len(), 3);
+    e.state.minions[sakhar.index()].locked = false;
+    let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!req
+        .options
+        .contains(&printed_action(sakhar, 0, Target::None)));
+}
+
+// Dominica finds a master archetype card, not another master card.
+#[test]
+fn dominica_searches_her_library_for_a_master_archetype_card() {
+    let mut e = bare();
+    let dominica = add(&mut e, 0, "Dominica");
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    library(&mut e, 0, &["Blood Doll", "Rebel", "Kevlar Vest"]);
+    pick(&mut e, printed_action(dominica, 0, Target::None));
+    let req = until(&mut e, SeatId(0), WindowLabel::LibrarySearch);
+    let rebel = find_library("Rebel");
+    assert_eq!(req.options, vec![Choice::Pass, Choice::FindCard(rebel)]);
+    pick(&mut e, Choice::FindCard(rebel));
+    assert_eq!(e.state.seats[0].hand, vec![rebel]);
+}
+
+// Seraphina adds 2 blood to a minion her Methuselah controls — herself, or
+// one in torpor — as a +1 stealth undirected action, up to its capacity.
+#[test]
+fn seraphina_adds_two_blood_to_a_minion_you_control() {
+    let mut e = bare();
+    let seraphina = add(&mut e, 0, "Seraphina");
+    let torpid = e.add_minion(SeatId(0), plain("Brujah", 0), 0, true);
+    let full = e.add_minion(SeatId(0), plain("Ventrue", 1), 4, false);
+    let theirs = e.add_minion(SeatId(1), plain("Ventrue", 0), 1, false);
+    let req = request(&mut e);
+    for t in [seraphina, torpid, full] {
+        assert!(req
+            .options
+            .contains(&printed_action(seraphina, 0, Target::Minion(t))));
+    }
+    assert!(!req
+        .options
+        .contains(&printed_action(seraphina, 0, Target::Minion(theirs))));
+    pick(&mut e, printed_action(seraphina, 0, Target::Minion(torpid)));
+    let a = e.action().expect("action");
+    assert_eq!(a.directed_seat(&e.state), None);
+    assert_eq!(a.stealth(&e.state), 1);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, torpid), 2);
+
+    let mut e = bare();
+    let seraphina = add(&mut e, 0, "Seraphina");
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let cap = e.state.minions[seraphina.index()].capacity();
+    e.state.minions[seraphina.index()].blood = cap - 1;
+    pick(
+        &mut e,
+        printed_action(seraphina, 0, Target::Minion(seraphina)),
+    );
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, seraphina), cap);
+}
+
+// Elen Kamjian must bleed with +1 bleed once her Methuselah controls a
+// locked minion: before any other action — the only one on offer, so the
+// window elides — and no other bleed (the Codex's) discharges it. Once
+// taken, if she unlocks she is free to act.
+// Rulings: [LSJ 20090226] [ANK 20211009-2].
+#[test]
+fn elen_kamjian_must_bleed_while_you_control_a_locked_minion() {
+    let mut e = bare();
+    let elen = add(&mut e, 0, "Elen Kamjian");
+    let other = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    // The Codex grants her another bleed, which the obligation leaves out.
+    let codex = in_play(&mut e, "Codex of the Edenic Groundskeepers", 0, Some(elen));
+    let codex_bleed = Choice::UseAbility {
+        source: AbilitySource::Card(CardId(codex as u32)),
+        ability: 0,
+        actor: Some(elen),
+        target: Target::None,
+    };
+    let forced = printed_action(elen, 0, Target::None);
+    // No locked minion yet: nothing is mandatory, her action not offered.
+    let req = request(&mut e);
+    assert!(req.options.contains(&Choice::Pass));
+    assert!(!req.options.contains(&forced));
+    let pool = e.state.seats[1].pool;
+    assert!(req.options.contains(&codex_bleed));
+    pick(&mut e, act(other, ActionKind::Hunt));
+    let offered = until_counting(&mut e, SeatId(1), WindowLabel::MinionPhase, &[codex_bleed]);
+    assert_eq!(offered, 0);
+    // Her +1 bleed, taken alone (the Codex's would take 1: a ready unlocked
+    // minion stands against it).
+    assert_eq!(e.state.seats[1].pool, pool - 2);
+
+    // Discharged: unlocked again, she may take any action.
+    let mut e = bare();
+    let elen = add(&mut e, 0, "Elen Kamjian");
+    let other = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.state.minions[other.index()].locked = true;
+    let v = &mut e.state.minions[elen.index()];
+    v.acted.push(ActionId::Printed(elen, 0));
+    v.bled_this_turn = true;
+    let req = request(&mut e);
+    assert!(req.options.contains(&Choice::Pass));
+    assert!(req.options.contains(&act(elen, ActionKind::Hunt)));
+}
+
+// Having bled before the obligation attaches, Elen is stuck: she takes no
+// action at all, while the others act freely.
+// Rulings: [ANK 20211009-2].
+#[test]
+fn elen_kamjian_is_stuck_if_she_bled_before_her_bleed_became_mandatory() {
+    let mut e = bare();
+    let elen = add(&mut e, 0, "Elen Kamjian");
+    let other = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    pick(&mut e, act(elen, ActionKind::Bleed));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    e.state.minions[elen.index()].locked = false;
+    // The obligation attaches once another minion is locked.
+    let third = e.add_minion(SeatId(0), plain("Ventrue", 1), 4, false);
+    e.state.minions[third.index()].locked = true;
+    let req = request(&mut e);
+    assert!(req
+        .options
+        .iter()
+        .all(|o| !matches!(o, Choice::TakeAction { minion, .. } if *minion == elen)));
+    assert!(req.options.contains(&act(other, ActionKind::Hunt)));
+    assert!(req.options.contains(&Choice::Pass));
+}
+
+// Lenelle exchanges a card from hand for a library card in the ash heap as
+// a +1 stealth action costing 1 blood: both named as the action is
+// announced, the ash card first, one option per card; exchanged on success
+// only if both are still there. Not offered with an empty hand or ash heap.
+// Rulings: [LSJ 20000222] [LSJ 20011023].
+#[test]
+fn lenelle_names_the_cards_she_exchanges_as_she_announces_the_action() {
+    let setup = || {
+        let mut e = bare();
+        let lenelle = add(&mut e, 0, "Lenelle, Mambo of Birmingham");
+        e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        (e, lenelle)
+    };
+    let kevlar = find_library("Kevlar Vest");
+    let magnum = find_library(".44 Magnum");
+    let rage = find_library("Blood Rage");
+    let rats = find_library("Army of Rats");
+    let (mut e, lenelle) = setup();
+    hand(&mut e, 0, &["Blood Rage"]);
+    let req = request(&mut e);
+    assert!(!req
+        .options
+        .contains(&printed_action(lenelle, 0, Target::None)));
+
+    let (mut e, lenelle) = setup();
+    hand(&mut e, 0, &["Blood Rage", "Army of Rats", "Blood Rage"]);
+    e.state.seats[0].ash.extend([kevlar, magnum]);
+    pick(&mut e, printed_action(lenelle, 0, Target::None));
+    let req = request(&mut e);
+    assert_eq!(req.window, WindowLabel::ActionExchange);
+    let mut ash = vec![kevlar, magnum];
+    ash.sort_unstable();
+    assert_eq!(
+        req.options,
+        ash.into_iter().map(Choice::FindCard).collect::<Vec<_>>()
+    );
+    pick(&mut e, Choice::FindCard(kevlar));
+    let req = request(&mut e);
+    assert_eq!(req.options, vec![Choice::Discard(0), Choice::Discard(1)]);
+    pick(&mut e, Choice::Discard(1));
+    let a = e.action().expect("action");
+    assert_eq!((a.exchange, a.stealth(&e.state)), (Some((kevlar, rats)), 1));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let s = &e.state.seats[0];
+    assert_eq!(s.ash, vec![magnum, rats]);
+    let mut held = s.hand.clone();
+    held.sort_unstable();
+    let mut want = vec![rage, rage, kevlar];
+    want.sort_unstable();
+    assert_eq!(held, want);
+    assert_eq!(blood(&e, lenelle), 3);
+
+    // The named card left the hand before resolution: no exchange, the
+    // action still successful and paid for.
+    let (mut e, lenelle) = setup();
+    hand(&mut e, 0, &["Blood Rage", "Army of Rats"]);
+    e.state.seats[0].ash.extend([kevlar, magnum]);
+    pick(&mut e, printed_action(lenelle, 0, Target::None));
+    pick(&mut e, Choice::FindCard(magnum));
+    pick(&mut e, Choice::Discard(0));
+    e.state.seats[0].hand.retain(|&c| c != rage);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[0].ash, vec![kevlar, magnum]);
+    assert_eq!(e.state.seats[0].hand, vec![rats]);
+    assert_eq!(blood(&e, lenelle), 3);
+}
+
+// "Unless she must hunt": with no blood, Elen's rulebook hunt comes before
+// her mandatory bleed.
+#[test]
+fn elen_kamjian_hunts_instead_when_she_has_no_blood() {
+    let mut e = bare();
+    let elen = e.add_minion(SeatId(0), find_card("Elen Kamjian"), 0, false);
+    let other = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.state.minions[other.index()].locked = true;
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    // The hunt is the only option: it elides.
+    let pool = e.state.seats[1].pool;
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, elen), 1);
+    assert_eq!(e.state.seats[1].pool, pool);
+}
+
+// Another vampire must hunt while Elen Kamjian's bleed is mandatory: the
+// acting Methuselah chooses the order of the two (rules-qa 17.2).
+#[test]
+fn a_rulebook_hunt_and_elens_bleed_are_ordered_by_their_methuselah() {
+    let mut e = bare();
+    let elen = add(&mut e, 0, "Elen Kamjian");
+    let starving = e.add_minion(SeatId(0), plain("Brujah", 0), 0, false);
+    let locked = e.add_minion(SeatId(0), plain("Ventrue", 1), 4, false);
+    e.state.minions[locked.index()].locked = true;
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let req = request(&mut e);
+    assert_eq!(
+        req.options,
+        vec![
+            act(starving, ActionKind::Hunt),
+            printed_action(elen, 0, Target::None)
+        ]
+    );
+}
+
+// Theo Bell enters combat with another Methuselah's ready minion as a Ⓓ
+// action: directed at its controller, who alone may block; unblocked, the
+// combat is part of the action and ends into its after-resolution window
+// (spec §4.1.2) — Aline Gädeke's unlock after an Anarch's successful action
+// is offered there. Theo strikes first with his +1 strength.
+#[test]
+fn theo_bell_enters_combat_with_a_minion_as_a_directed_action() {
+    let mut e = Engine::bare(3);
+    e.state.turn = 4;
+    let theo = add(&mut e, 0, "Theo Bell");
+    let aline = e.add_minion(SeatId(0), find_card("Aline Gädeke"), 3, false);
+    e.state.minions[aline.index()].locked = true;
+    let torpid = e.add_minion(SeatId(1), plain("Ventrue", 0), 0, true);
+    let target = e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    let other = e.add_minion(SeatId(2), plain("Brujah", 0), 4, false);
+    let req = request(&mut e);
+    let at = |t| printed_action(theo, 0, Target::Minion(t));
+    assert!(req.options.contains(&at(target)));
+    assert!(req.options.contains(&at(other)));
+    for t in [theo, aline, torpid] {
+        assert!(!req.options.contains(&at(t)));
+    }
+    pick(&mut e, at(target));
+    assert_eq!(
+        e.action().expect("action").directed_seat(&e.state),
+        Some(SeatId(1))
+    );
+    let before = blood(&e, target);
+    until(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
+    // Hand strikes: Theo's 2 damage, the Ventrue's 1.
+    assert_eq!(blood(&e, target), before - 2);
+    assert_eq!(blood(&e, theo), 3);
+    pick(&mut e, vampire_ability(aline, 0));
+    assert!(!e.state.minions[aline.index()].locked);
+}
+
+// Nathaniel Bordruff enters combat with a locked vampire only; if the
+// target unlocks before resolution, the action is successful (its cost
+// paid) but has no effect: no combat.
+// Rulings: [ANK 20210124] [LSJ 20070411] [LSJ 20090514].
+#[test]
+fn nathaniel_bordruff_action_fizzles_if_the_target_unlocks() {
+    let mut e = bare();
+    let nathaniel = add(&mut e, 0, "Nathaniel Bordruff");
+    let locked = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.state.minions[locked.index()].locked = true;
+    let unlocked = e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    let req = request(&mut e);
+    let at = |t| printed_action(nathaniel, 0, Target::Minion(t));
+    assert!(req.options.contains(&at(locked)));
+    assert!(!req.options.contains(&at(unlocked)));
+    pick(&mut e, at(locked));
+    e.state.minions[locked.index()].locked = false;
+    let counted = until_counting(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        &[Choice::HandStrike],
+    );
+    assert_eq!(counted, 0);
+    assert_eq!(blood(&e, locked), 4);
+    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Fizzled));
+}
+
+// Adisa enters combat with a younger vampire only; after a successful hunt
+// — blood gained — she does not unlock in her next unlock phase; a hunt at
+// full capacity gains none and is not one (spec §3.7.2.1).
+#[test]
+fn adisa_enters_combat_with_younger_vampires_and_stays_locked_after_hunting() {
+    let mut e = bare();
+    let adisa = e.add_minion(SeatId(0), find_card("Adisa"), 2, false);
+    // (A second minion keeps the minion phase from eliding into the next
+    // turn, whose unlock phase would spend the skip.)
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let cap = e.state.minions[adisa.index()].capacity();
+    let (younger, older): (Vec<u16>, Vec<u16>) = (0..CRYPT.len() as u16)
+        .filter(|&c| cards::vampire(c).is_none() && CRYPT[c as usize].capacity != cap)
+        .partition(|&c| CRYPT[c as usize].capacity < cap);
+    let y = e.add_minion(SeatId(1), younger[0], 1, false);
+    let o = e.add_minion(SeatId(1), older[0], 1, false);
+    let req = request(&mut e);
+    assert!(req
+        .options
+        .contains(&printed_action(adisa, 0, Target::Minion(y))));
+    assert!(!req
+        .options
+        .contains(&printed_action(adisa, 0, Target::Minion(o))));
+    pick(&mut e, act(adisa, ActionKind::Hunt));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, adisa), 3);
+    assert!(e.state.minions[adisa.index()].skip_unlock);
+
+    let mut e = bare();
+    let adisa = e.add_minion(SeatId(0), find_card("Adisa"), cap, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    pick(&mut e, act(adisa, ActionKind::Hunt));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[adisa.index()].skip_unlock);
 }

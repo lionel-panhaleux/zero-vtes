@@ -229,6 +229,10 @@ pub struct CombatCtx {
     pub gun_prevention_left: Vec<(CardId, u8)>,
     /// The equipment on the blocker when it blocked (Sniper Rifle).
     pub held_at_block: Vec<CardId>,
+    /// Begun by a successful action's resolution (entering combat as a Ⓓ
+    /// action), not by a block: part of the action, it ends into the
+    /// after-resolution window (spec §4.1.2).
+    pub at_resolution: bool,
 }
 
 impl CombatCtx {
@@ -367,6 +371,15 @@ impl Engine {
     /// `opposing` the blocker (rules-qa 1.2: the opponent is a "blocker"
     /// only if it actually blocked).
     pub(crate) fn start_combat(&mut self, acting: MinionId, opposing: MinionId) {
+        self.begin_combat(acting, opposing, false);
+    }
+
+    /// A successful action enters combat with its target (Theo Bell).
+    pub(crate) fn start_combat_at_resolution(&mut self, acting: MinionId, opposing: MinionId) {
+        self.begin_combat(acting, opposing, true);
+    }
+
+    fn begin_combat(&mut self, acting: MinionId, opposing: MinionId, at_resolution: bool) {
         let st = &self.state;
         let mut sides = [
             Side::new(acting, st.minions[acting.index()].owner),
@@ -382,7 +395,11 @@ impl Engine {
                 .max(0) as u8;
         }
         let order = vec![sides[0].seat, sides[1].seat];
-        let held_at_block = st.equipment_on(opposing);
+        let held_at_block = if at_resolution {
+            Vec::new()
+        } else {
+            st.equipment_on(opposing)
+        };
         self.combat = Some(CombatCtx {
             sides,
             round: 1,
@@ -404,6 +421,7 @@ impl Engine {
             abilities_used_round: Vec::new(),
             gun_prevention_left: Vec::new(),
             held_at_block,
+            at_resolution,
         });
         self.flow = Flow::Combat;
     }
@@ -964,10 +982,15 @@ impl Engine {
         c.fresh_window(Step::BeforeRange);
     }
 
-    /// Combat over: back to the action's after-combat window.
+    /// Combat over: back to the action's after-combat window — or, for a
+    /// combat the action's resolution began, its after-resolution window.
     fn end_combat(&mut self) {
-        self.combat = None;
-        self.after_combat();
+        let at_resolution = self.combat.take().is_some_and(|c| c.at_resolution);
+        if at_resolution {
+            self.after_resolution();
+        } else {
+            self.after_combat();
+        }
     }
 
     /// Effects of a combat card resolved during the combat.

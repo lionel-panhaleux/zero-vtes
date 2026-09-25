@@ -238,6 +238,8 @@ pub enum CardFilter {
     Type(CardType),
     /// A library card whose printed disciplines name this one.
     Discipline(&'static str),
+    /// A card of this type bearing this label ("a master archetype card").
+    Labeled(CardType, crate::library::Label),
 }
 
 impl CardFilter {
@@ -247,6 +249,7 @@ impl CardFilter {
             CardFilter::Any => true,
             CardFilter::Type(t) => c.types.contains(&t),
             CardFilter::Discipline(d) => c.disciplines.contains(&d),
+            CardFilter::Labeled(t, l) => c.types.contains(&t) && c.labels.contains(&l),
         }
     }
 }
@@ -518,6 +521,17 @@ pub enum Requirement {
     /// The vampire's controller controls a vampire in play of this name
     /// ("while you control Mithras").
     ControlsVampireNamed(&'static str),
+    /// The Methuselah controls a locked minion ("if you control a locked
+    /// minion", Elen Kamjian).
+    ControlsLockedMinion,
+    /// Target minion is controlled by another Methuselah (a minion does not
+    /// enter combat with one its controller controls).
+    NotControlled,
+    /// Target minion is locked ("a locked vampire", Nathaniel Bordruff).
+    TargetLocked,
+    /// Target minion is a vampire: every minion in play is one until allies
+    /// land.
+    TargetVampire,
 }
 
 /// How many points a referendum allocates.
@@ -809,6 +823,32 @@ impl AbilitySource {
             AbilitySource::Card(_) => (self, 0),
             AbilitySource::Vampire(_) => (self, ability),
         }
+    }
+
+    /// The NRA identity of the action this ability grants: the copy of a
+    /// card in play, or the vampire's printed action (spec §3.8.1).
+    pub fn action_id(self, ability: u8) -> crate::state::ActionId {
+        match self {
+            AbilitySource::Card(c) => crate::state::ActionId::InPlay(c),
+            AbilitySource::Vampire(m) => crate::state::ActionId::Printed(m, ability),
+        }
+    }
+
+    /// The definition of ability `ability`, wherever it is printed.
+    pub fn mode(self, st: &crate::state::GameState, ability: u8) -> &'static ModeDef {
+        let abilities = match self {
+            AbilitySource::Card(c) => {
+                lookup(st.cards[c.index()].card)
+                    .expect("definition")
+                    .abilities
+            }
+            AbilitySource::Vampire(m) => {
+                vampire(st.minions[m.index()].card)
+                    .expect("vampire definition")
+                    .abilities
+            }
+        };
+        &abilities[ability as usize]
     }
 }
 
@@ -1217,6 +1257,23 @@ pub enum Effect {
     /// can equip and equip it — requirements and cost as normal, shuffle
     /// afterward (Magic of the Smith; chosen at resolution, spec §1.14.1).
     SearchEquip,
+    /// On success, search the library for a card of this kind, reveal it
+    /// and move it to hand, or find none; shuffle afterward (Sakhar's
+    /// equipment, Dominica's master archetype).
+    SearchToHand(CardFilter),
+    /// The printed action is mandatory while its requirements hold: taken
+    /// before any other action, and a vampire that cannot take it is stuck
+    /// and takes none (spec §3.9, Elen Kamjian).
+    MandatoryAction,
+    /// On success, the acting minion enters combat with the target, the
+    /// combat part of the action (spec §4.1.2).
+    EnterCombatWithTarget,
+    /// The vampire does not unlock as normal during its next unlock phase.
+    SkipNextUnlock,
+    /// Exchange a card from hand for a library card in the ash heap
+    /// (Lenelle): both named as the action is announced (LSJ 20000222),
+    /// exchanged on success if both are still there.
+    ExchangeHandForAsh,
     /// On success, equip with the first equipment found working down from
     /// the top — requirements and cost as normal, shuffle afterward (Vast
     /// Wealth): one that cannot be placed or paid for in blood is burned
@@ -1328,6 +1385,9 @@ pub enum Hook {
     /// failed (Cedrick Calhoun): applied as the action resolves, before the
     /// after-resolution window.
     OwnReferendumFailed,
+    /// This vampire successfully hunted: blood was gained (Adisa; a hunt
+    /// action gaining none is not a successful hunt, spec §3.7.2.1).
+    SuccessfulHunt,
 }
 
 /// Whose turn a phase rider fires on.
@@ -1549,13 +1609,16 @@ pub fn holds(
         | Requirement::NotActingController
         | Requirement::NotSelf
         | Requirement::HasCastVotes
-        | Requirement::NotAbstaining => true, // target predicates
+        | Requirement::NotAbstaining
+        | Requirement::NotControlled
+        | Requirement::TargetLocked
+        | Requirement::TargetVampire => true, // target predicates
         Requirement::PlayedCardIsMaster => {
             played.is_some_and(|p| LIBRARY[p.card as usize].types.contains(&CardType::Master))
         }
         Requirement::PlayedByOtherSeat => played.is_some_and(|p| p.seat != seat),
         Requirement::NotOwnTurn => st.active != seat,
-        Requirement::DirectedAtYou => action.is_some_and(|a| a.directed_at() == Some(seat)),
+        Requirement::DirectedAtYou => action.is_some_and(|a| a.directed_seat(st) == Some(seat)),
         Requirement::IsBleed => action.is_some_and(|a| a.kind == ActionKind::Bleed),
         Requirement::BleedAmountAtLeast(n) => action.is_some_and(|a| a.bleed_amount(st) >= n),
         Requirement::BlocksDeclined => action.is_some_and(|a| a.state == ActionState::Declined),
@@ -1706,6 +1769,9 @@ pub fn holds(
         | Requirement::ControlsLocation
         | Requirement::ControlsNoLocation
         | Requirement::ControlsVampireNamed(_) => true, // printed-modifier predicates
+        Requirement::ControlsLockedMinion => {
+            st.minions_of(seat).any(|m| st.minions[m.index()].locked)
+        }
         Requirement::BlockerTitleIn(classes) => action.and_then(|a| a.blocker).is_some_and(|b| {
             let t = st.minions[b.index()].title();
             classes.iter().any(|c| c.matches(t))
@@ -1744,6 +1810,9 @@ pub fn holds_for_minion(
             .and_then(|a| a.directed_seat(st))
             .is_some_and(|t| v.owner == t),
         Requirement::Controlled => v.owner == seat && v.present(),
+        Requirement::NotControlled => v.owner != seat,
+        Requirement::TargetLocked => v.locked,
+        Requirement::TargetVampire => true,
         Requirement::BloodAtLeast(n) => v.blood >= n,
         Requirement::HasCastVotes => referendum.is_some_and(|r| r.has_cast(m)),
         Requirement::NotAbstaining => !referendum.is_some_and(|r| r.abstaining.contains(&m)),

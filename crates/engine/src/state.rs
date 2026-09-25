@@ -101,6 +101,10 @@ pub enum ActionId {
     Card(u16),
     /// An action granted by a card in play: the same copy.
     InPlay(CardId),
+    /// A vampire's printed action, by vampire and ability index: never the
+    /// same as a card's or a rulebook action (spec §3.8.1). The vampire is
+    /// kept for records held by the seat (a forbidden political action).
+    Printed(MinionId, u8),
 }
 
 impl ActionId {
@@ -110,6 +114,7 @@ impl ActionId {
                 LIBRARY[a as usize].name == LIBRARY[b as usize].name
             }
             (ActionId::InPlay(a), ActionId::InPlay(b)) => a == b,
+            (ActionId::Printed(m, a), ActionId::Printed(n, b)) => m == n && a == b,
             _ => false,
         }
     }
@@ -772,6 +777,7 @@ impl GameState {
                 mix(match a {
                     ActionId::Card(c) => *c as u64,
                     ActionId::InPlay(c) => 1 << 32 | c.0 as u64,
+                    ActionId::Printed(m, i) => 2 << 40 | (m.0 as u64) << 8 | *i as u64,
                 });
             }
             mix(match s.out_of_turn {
@@ -816,6 +822,7 @@ impl GameState {
                 mix(match c {
                     ActionId::Card(c) => c as u64,
                     ActionId::InPlay(id) => (id.0 as u64) << 20,
+                    ActionId::Printed(m, i) => 1 << 52 | (m.0 as u64) << 8 | i as u64,
                 });
             }
         }

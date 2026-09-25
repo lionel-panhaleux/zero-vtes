@@ -900,6 +900,11 @@ impl Engine {
             | Effect::PreventGunStrikeAllowance(_)
             | Effect::ContinuePressEachCombat
             | Effect::SearchEquip
+            | Effect::SearchToHand(_)
+            | Effect::MandatoryAction
+            | Effect::EnterCombatWithTarget
+            | Effect::SkipNextUnlock
+            | Effect::ExchangeHandForAsh
             | Effect::EquipFirstFound
             | Effect::BurnSelfWithoutStored
             | Effect::DrawThenBottom
@@ -1168,14 +1173,7 @@ impl Engine {
                             _ => None,
                         });
                         if let Some(kind) = declares {
-                            let v = &st.minions[host.index()];
-                            if self.action.is_some()
-                                || st.active != seat
-                                || v.locked
-                                || !v.ready()
-                                || (kind == ActionKind::Bleed && v.bled_this_turn)
-                                || v.acted.iter().any(|a| a.same(ActionId::InPlay(id)))
-                            {
+                            if !self.may_take_granted(seat, host, kind, ActionId::InPlay(id)) {
                                 continue;
                             }
                         }
@@ -1278,24 +1276,36 @@ impl Engine {
                 .collect(),
             Some(spec) => (0..st.minions.len())
                 .map(|i| MinionId(i as u32))
-                .filter(|&id| {
-                    st.minions[id.index()].present()
-                        && !(spec.filter.contains(&cards::Requirement::NotHost) && Some(id) == host)
-                        && spec.filter.iter().all(|&r| {
-                            cards::holds_for_minion(
-                                r,
-                                st,
-                                seat,
-                                self.referendum.as_ref(),
-                                self.action.as_ref().map(|a| a.acting),
-                                id,
-                                self.action.as_ref(),
-                            )
-                        })
-                })
+                .filter(|&id| self.minion_target_qualifies(seat, spec, host, id))
                 .map(Target::Minion)
                 .collect(),
         }
+    }
+
+    /// Does minion `id` qualify as the target of an ability of `host`'s?
+    /// Read again at resolution for a granted action's target (spec
+    /// §3.4.1).
+    pub(crate) fn minion_target_qualifies(
+        &self,
+        seat: SeatId,
+        spec: TargetSpec,
+        host: Option<MinionId>,
+        id: MinionId,
+    ) -> bool {
+        let st = &self.state;
+        st.minions[id.index()].present()
+            && !(spec.filter.contains(&cards::Requirement::NotHost) && Some(id) == host)
+            && spec.filter.iter().all(|&r| {
+                cards::holds_for_minion(
+                    r,
+                    st,
+                    seat,
+                    self.referendum.as_ref(),
+                    self.action.as_ref().map(|a| a.acting).or(host),
+                    id,
+                    self.action.as_ref(),
+                )
+            })
     }
 
     /// Abilities printed on the seat's vampires (`cards::vampires`) usable
@@ -1351,6 +1361,18 @@ impl Engine {
                 if spent {
                     continue;
                 }
+                // The vampire's printed action ("Sakhar can search your
+                // library … as a +1 stealth action"), taken by the vampire
+                // itself.
+                let declares = ability.effects.iter().find_map(|e| match e {
+                    Effect::DeclareAction(k) => Some(*k),
+                    _ => None,
+                });
+                if let Some(kind) = declares {
+                    if !self.may_take_granted(seat, m, kind, source.action_id(ai as u8)) {
+                        continue;
+                    }
+                }
                 // Effect-derived combat legality (a dodge under a grapple).
                 if let Some((cb, i)) = cb
                     .zip(combatant)
@@ -1381,13 +1403,34 @@ impl Engine {
                         out.push(Choice::UseAbility {
                             source,
                             ability: ai as u8,
-                            actor: None,
+                            actor: declares.map(|_| m),
                             target,
                         });
                     }
                 }
             }
         }
+    }
+
+    /// May `host` take the action an ability grants it: in its
+    /// Methuselah's minion phase, no action under way, ready and unlocked;
+    /// one bleed a turn, and the same granted action once a turn (rules-qa
+    /// 1.4, spec §3.8.1).
+    fn may_take_granted(
+        &self,
+        seat: SeatId,
+        host: MinionId,
+        kind: ActionKind,
+        id: ActionId,
+    ) -> bool {
+        let st = &self.state;
+        let v = &st.minions[host.index()];
+        self.action.is_none()
+            && st.active == seat
+            && !v.locked
+            && v.ready()
+            && !(kind == ActionKind::Bleed && v.bled_this_turn)
+            && !v.acted.iter().any(|a| a.same(id))
     }
 
     /// Use an in-play ability. Returns true when the flow moved on: a
@@ -1411,7 +1454,7 @@ impl Engine {
             .find(|e| matches!(e, Effect::DeclareAction(_)))
         {
             let m = actor.expect("acting minion");
-            self.declare_action(m, *kind, None, None, Some(source.card()));
+            self.declare_action(m, *kind, None, None, Some(source));
             // The stealth of a granted action is the card's own ("as a +1
             // stealth political action"), not the rulebook's for political
             // action cards (rules-qa 6.2).
@@ -1425,9 +1468,25 @@ impl Engine {
                 .sum();
             let a = self.action.as_mut().expect("action");
             a.ability = Some(ability);
+            a.target = target;
+            // The target decides whom the action is directed at: the
+            // blocking seats and the sequencing order follow (spec §3.1.5).
+            if let Some(t) = a.directed_seat(&self.state) {
+                let seat = a.seat;
+                let order = self.action_order_for(seat, Some(t));
+                let a = self.action.as_mut().expect("action");
+                a.order = order.clone();
+                a.window = crate::window::OrderedWindow::new(order);
+            }
+            let a = self.action.as_mut().expect("action");
             // Added to the rulebook's default for the kind (none for a
             // granted action, rules-qa 6.2: the printed stealth only).
             a.base_stealth += stealth;
+            // The cards exchanged are named with the announcement, before
+            // the as-announced window (LSJ 20000222).
+            if mode.effects.contains(&Effect::ExchangeHandForAsh) {
+                self.flow = Flow::Exchange { ash: None };
+            }
             return true;
         }
         // Terms announced with the use (the master cards to discard, a
@@ -1475,19 +1534,7 @@ impl Engine {
 
     /// The definition of an ability, wherever it is printed.
     fn ability_mode(&self, source: AbilitySource, ability: u8) -> &'static cards::ModeDef {
-        let abilities = match source {
-            AbilitySource::Card(c) => {
-                cards::lookup(self.state.cards[c.index()].card)
-                    .expect("definition")
-                    .abilities
-            }
-            AbilitySource::Vampire(m) => {
-                cards::vampire(self.state.minions[m.index()].card)
-                    .expect("vampire definition")
-                    .abilities
-            }
-        };
-        &abilities[ability as usize]
+        source.mode(&self.state, ability)
     }
 
     /// Terms of an ability: the next master card to discard, among those
