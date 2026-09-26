@@ -41,6 +41,8 @@ pub enum Label {
     Title,
     OutOfTurn,
     Frenzy,
+    Grapple,
+    Aim,
     Discipline,
     Mortal,
     Animal,
@@ -4167,7 +4169,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Grapple],
         body: None,
         modes: &[
             Mode {

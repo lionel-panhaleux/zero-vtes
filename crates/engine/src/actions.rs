@@ -34,6 +34,7 @@ fn found_play(seat: SeatId, acting: MinionId, card: u16) -> PlayCtx {
         x: 0,
         burn: None,
         named: None,
+        chosen: None,
     }
 }
 
@@ -249,6 +250,22 @@ pub struct ActionCtx {
     /// Minions whose block may still unlock them for blood after its
     /// combat (Truth in Darkness [OBL]), with the blood.
     pub after_block_unlocks: Vec<(MinionId, u8)>,
+    /// The acting minion's unlock for blood after a successful action
+    /// (Paths in Two Worlds [OBL]).
+    pub after_resolution_unlocks: Vec<(MinionId, u8)>,
+    /// "If this action is blocked, all damage inflicted on vampires during
+    /// the resulting combat is aggravated" (Dawn Operation).
+    pub dawn_operation: bool,
+    /// Cards put on their minion after resolution if it did not block
+    /// (Dogged Pursuit [ANI]).
+    pub put_if_no_block: Vec<crate::combat::Held>,
+    /// Cards put on the acting minion if their minion blocks (Melange
+    /// [AUS]).
+    pub put_on_acting_if_blocks: Vec<crate::combat::Held>,
+    /// Blood burned before resolution by minions that did not block after
+    /// the card (Forced Awakening): the minion, the blocks already made,
+    /// the blood.
+    pub burn_if_no_block: Vec<(MinionId, usize, u8)>,
     /// Bonuses whose condition is read live (`Effect::If`).
     pub conditional: Vec<Conditional>,
     /// The ash card and the hand card an exchange action named (Lenelle).
@@ -743,6 +760,11 @@ impl Engine {
                 })
                 .collect(),
             after_block_unlocks: Vec::new(),
+            after_resolution_unlocks: Vec::new(),
+            dawn_operation: false,
+            put_if_no_block: Vec::new(),
+            put_on_acting_if_blocks: Vec::new(),
+            burn_if_no_block: Vec::new(),
             blocked_by: Vec::new(),
             barred_blockers: Vec::new(),
             veil_thins: false,
@@ -1149,8 +1171,13 @@ impl Engine {
                     continue;
                 }
                 for e in ab.effects {
-                    if let Effect::AddIntercept(n) = e {
-                        total = total.saturating_add(*n);
+                    match *e {
+                        Effect::AddIntercept(n) => total = total.saturating_add(n),
+                        // Dogged Pursuit's burn for +1 intercept.
+                        Effect::AttemptingIntercept(n) if n > 0 => {
+                            total = total.saturating_add(n as u8)
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -1426,6 +1453,17 @@ impl Engine {
         }
         // Truth in Darkness [OBL]: the blocker's unlock for blood, after
         // block resolution.
+        // Paths in Two Worlds [OBL]: after a successful action.
+        if a.state == ActionState::AfterResolution
+            && matches!(a.outcome, Some(Outcome::Successful | Outcome::Fizzled))
+        {
+            for &(m, n) in &a.after_resolution_unlocks {
+                let v = &self.state.minions[m.index()];
+                if v.owner == seat && v.locked && v.ready() && v.blood >= n {
+                    options.push(Choice::UnlockForBlood { minion: m });
+                }
+            }
+        }
         if a.state == ActionState::AfterCombat {
             for &(m, n) in &a.after_block_unlocks {
                 let v = &self.state.minions[m.index()];
@@ -1510,12 +1548,16 @@ impl Engine {
                 self.flow = Flow::Action;
             }
             Choice::UnlockForBlood { minion } => {
-                let i = a
-                    .after_block_unlocks
+                let list = if a.state == ActionState::AfterResolution {
+                    &mut a.after_resolution_unlocks
+                } else {
+                    &mut a.after_block_unlocks
+                };
+                let i = list
                     .iter()
                     .position(|&(m, _)| m == *minion)
                     .expect("an unlock for blood");
-                let (m, n) = a.after_block_unlocks.remove(i);
+                let (m, n) = list.remove(i);
                 a.window.play();
                 let barred = a.no_unlock;
                 let v = &mut self.state.minions[m.index()];
@@ -1675,6 +1717,14 @@ impl Engine {
                     self.after_resolution();
                 }
             }
+            // Go-getter [OBF]: a blocked action continued as if unblocked.
+            ActionState::AfterResolution if a.continued => {
+                a.continued = false;
+                a.outcome = None;
+                a.state = ActionState::Open;
+                a.fresh_window();
+                self.flow = Flow::Action;
+            }
             ActionState::AfterResolution => self.end_action(),
             // Change of Target: the action ends, unsuccessfully, before block
             // resolution — no combat, no diablerie (LSJ 20050105-2); the
@@ -1700,7 +1750,9 @@ impl Engine {
                 } else {
                     let acting = a.acting;
                     let riders = a.block_riders.clone();
+                    let dawn = a.dawn_operation;
                     self.start_combat(acting, blocker);
+                    self.combat.as_mut().expect("combat").all_aggravated = dawn;
                     let unlocks = self.combat_riders(&riders);
                     let a = self.action.as_mut().expect("action context");
                     a.after_block_unlocks = unlocks;
@@ -1723,6 +1775,7 @@ impl Engine {
                 cards::BlockRider::Maneuver => c.sides[i].combat_maneuvers += 1,
                 cards::BlockRider::Press => c.sides[i].combat_presses += 1,
                 cards::BlockRider::PreventFirstRound(n) => c.sides[i].round_prevents += n,
+                cards::BlockRider::PreventInCombat(n) => c.sides[i].combat_prevents += n,
                 cards::BlockRider::NoStrikesFirstRound => c.no_strikes_round = Some(1),
                 cards::BlockRider::NoEquipment => c.sides[i].no_equipment = true,
                 cards::BlockRider::CombatEndsFirstRound => c.sides[i].combat_ends_round = Some(1),
@@ -1998,6 +2051,42 @@ impl Engine {
                 a.burn_for_intercept.push(play.actor.expect("actor"))
             }
             Effect::LockIfNoBlock => a.lock_if_no_block.push(play.actor.expect("actor")),
+            Effect::DawnOperation { cancel } => {
+                a.dawn_operation = true;
+                // "If a vampire is currently attempting to block, they can
+                // cancel their block attempt."
+                if let (true, ActionState::Attempt(m)) = (cancel, a.state) {
+                    if self.state.minions[m.index()].is_vampire() {
+                        let seat = self.state.minions[m.index()].owner;
+                        self.interrupts
+                            .push(crate::draws::Interrupt::CancelAttempt { seat, minion: m });
+                    }
+                }
+            }
+            Effect::PutOnActorIfNoBlock | Effect::PutOnActingIfBlocks => {
+                let h = crate::combat::Held {
+                    card: play.card,
+                    seat: play.seat,
+                    mode: play.mode,
+                    counters: 0,
+                    minion: play.actor.expect("actor"),
+                };
+                if effect == Effect::PutOnActorIfNoBlock {
+                    a.put_if_no_block.push(h);
+                } else {
+                    a.put_on_acting_if_blocks.push(h);
+                }
+            }
+            Effect::BurnIfNoBlock(n) => {
+                let since = a.blocked_by.len();
+                a.burn_if_no_block
+                    .push((play.actor.expect("actor"), since, n));
+            }
+            Effect::ContinueAfterResolution => a.continued = true,
+            Effect::UnlockForBloodIfSuccessful(n) => {
+                a.after_resolution_unlocks
+                    .push((play.actor.expect("actor"), n));
+            }
             Effect::AttemptBlock => {
                 if a.state == ActionState::Open {
                     let m = play.actor.expect("attempting minion");
@@ -2043,6 +2132,8 @@ impl Engine {
                 });
             }
             Effect::DeferReactionReplacement => a.defer_reaction_replacement = true,
+            // A marker of the card placed later (Melange [AUS]).
+            Effect::StillYours => {}
             Effect::EndActionIfBlocked => a.end_on_block = true,
             other => unreachable!("not an action effect: {other:?}"),
         }
@@ -2129,9 +2220,31 @@ impl Engine {
         }
     }
 
+    /// Forced Awakening: those that did not block after playing it burn
+    /// their blood as the action begins to resolve (LSJ 19990421) — at its
+    /// resolution, or as another minion's block, which is the action's
+    /// resolution (owner, 2026-09-26: rules-qa 30.2) — once; blocks before
+    /// the card do not count (ANK 20230319).
+    fn awakening_burns(&mut self, blocker: Option<MinionId>) {
+        let a = self.action.as_mut().expect("action context");
+        let entries = std::mem::take(&mut a.burn_if_no_block);
+        let burns: Vec<(MinionId, u8)> = entries
+            .iter()
+            .filter(|&&(m, since, _)| !a.blocked_by[since..].contains(&m) && blocker != Some(m))
+            .map(|&(m, _, n)| (m, n))
+            .collect();
+        for (m, n) in burns {
+            let v = &mut self.state.minions[m.index()];
+            if v.present() {
+                v.blood -= n.min(v.blood);
+            }
+        }
+    }
+
     /// Block resolution: the blocker locks; combat, except a blocked
     /// leave-torpor (no combat; the blocker may diablerise).
     fn blocked(&mut self, blocker: MinionId) {
+        self.awakening_burns(Some(blocker));
         let was_unlocked = !self.state.minions[blocker.index()].locked;
         let (acting, kind) = {
             let a = self.action.as_mut().expect("action context");
@@ -2161,6 +2274,19 @@ impl Engine {
         a.blocked_by.push(blocker);
         a.fresh_window();
         self.flow = Flow::Action;
+        // "If this vampire blocks, put this card on the acting minion; you
+        // still control this card" (Melange [AUS]).
+        let a = self.action.as_mut().expect("action context");
+        let placed: Vec<crate::combat::Held> = a
+            .put_on_acting_if_blocks
+            .iter()
+            .copied()
+            .filter(|h| h.minion == blocker)
+            .collect();
+        a.put_on_acting_if_blocks.retain(|h| h.minion != blocker);
+        for h in placed {
+            self.place_held(h, acting);
+        }
     }
 
     /// Riders of the cards on the acting minion fired as its action is
@@ -2402,6 +2528,7 @@ impl Engine {
                 self.state.minions[m.index()].locked = true;
             }
         }
+        self.awakening_burns(None);
         let mut a = self.action.take().expect("action context");
         let seat = a.seat;
         a.outcome = Some(Outcome::Successful);
@@ -2521,9 +2648,14 @@ impl Engine {
                 // 3.6): successful, no effect.
                 let acting = self.state.minions[a.acting.index()].blood;
                 let target = a.torpor_target.expect("target");
-                // The target no longer in torpor: nothing to rescue.
-                let tv = &self.state.minions[target.index()];
-                if !(tv.present() && tv.in_torpor) {
+                // The target no longer in play: the rescuer pays what it can
+                // and the action fizzles (ANK 20220218: a fizzled action's
+                // cost is paid; owner, 2026-09-26: rules-qa 28.7). Out of
+                // torpor but in play, it pays as normal and fizzles too
+                // (`rescue_apply`).
+                if !self.state.minions[target.index()].present() {
+                    let v = &mut self.state.minions[a.acting.index()];
+                    v.blood -= v.blood.min(2);
                     a.outcome = Some(Outcome::Fizzled);
                     self.action = Some(a);
                     self.after_resolution();
@@ -3168,6 +3300,23 @@ impl Engine {
                 self.state.minions[m.index()].locked = true;
             }
         }
+        // Dogged Pursuit [ANI]: put on them after resolution if they did not
+        // block ("a vampire can have only one").
+        let a = self.action.as_ref().expect("action context");
+        let put: Vec<crate::combat::Held> = a
+            .put_if_no_block
+            .iter()
+            .copied()
+            .filter(|h| !a.blocked_by.contains(&h.minion))
+            .collect();
+        for h in put {
+            let name = LIBRARY[h.card as usize].name;
+            if self.state.minions[h.minion.index()].present()
+                && !self.state.holds_a(h.minion, cards::Holding::Named(name))
+            {
+                self.place_held(h, h.minion);
+            }
+        }
         let a = self.action.as_ref().expect("action context");
         let seat = a.seat;
         let acting = a.acting;
@@ -3262,9 +3411,15 @@ impl Engine {
         let (cost, gain) = (a.rescue_cost, a.rescue_gain);
         self.state.minions[acting.index()].blood -= from_acting;
         self.state.minions[target.index()].blood -= cost - from_acting;
-        // Rescued: to the ready region, lock state untouched.
-        self.state.minions[target.index()].in_torpor = false;
-        self.state.gain_blood(target, gain);
+        if self.state.minions[target.index()].in_torpor {
+            // Rescued: to the ready region, lock state untouched.
+            self.state.minions[target.index()].in_torpor = false;
+            self.state.gain_blood(target, gain);
+        } else {
+            // Out of torpor already (Warsaw Station): paid, it fizzles
+            // (rules-qa 28.7).
+            self.action.as_mut().expect("action context").outcome = Some(Outcome::Fizzled);
+        }
         self.after_resolution();
     }
 
@@ -3325,6 +3480,7 @@ impl Engine {
             x: 0,
             burn: None,
             named: None,
+            chosen: None,
         };
         self.apply_entry_effects(&ctx, id, false);
         self.enter_card_contest(m);
@@ -3345,6 +3501,7 @@ impl Engine {
             x: 0,
             burn: None,
             named: None,
+            chosen: None,
         };
         let mut in_play = None;
         for &e in def.modes[0].effects {
@@ -3450,7 +3607,7 @@ impl Engine {
         }
     }
 
-    fn put_equipment(&mut self, seat: SeatId, acting: MinionId, play: PlayCtx) {
+    pub(crate) fn put_equipment(&mut self, seat: SeatId, acting: MinionId, play: PlayCtx) {
         let def = cards::lookup(play.card).expect("definition");
         let ctx = PlayCtx {
             target: Target::Minion(acting),
@@ -3490,7 +3647,7 @@ impl Engine {
     /// — clan and discipline requirements, "a minion can have only one", no
     /// unique copy already in play under its controller (rules-qa 7.1)?
     /// Cards without a definition cannot be put in play by the engine yet.
-    fn equip_requirements_met(&self, m: MinionId, card: u16) -> bool {
+    pub(crate) fn equip_requirements_met(&self, m: MinionId, card: u16) -> bool {
         let st = &self.state;
         let lib = &LIBRARY[card as usize];
         is_equipment(card)
@@ -3712,8 +3869,8 @@ impl Engine {
             })
             .collect();
         // A vampire that does not hunt as normal must take the hunt it can
-        // (Week of Nightmares' special hunt); with none, it is not held to
-        // hunt.
+        // (Week of Nightmares' special hunt); with none, it is frozen: no
+        // action at all (owner, 2026-09-26: rules-qa 28.8).
         let (unusual, starving): (Vec<MinionId>, Vec<MinionId>) =
             starving.into_iter().partition(|&m| st.cannot_hunt(m));
         let special: Vec<Choice> = self
@@ -3733,6 +3890,15 @@ impl Engine {
                             .contains(&Effect::HuntAction)
                 }
                 _ => false,
+            })
+            .collect();
+        let frozen: Vec<MinionId> = unusual
+            .iter()
+            .copied()
+            .filter(|&m| {
+                !special
+                    .iter()
+                    .any(|o| matches!(*o, Choice::UseAbility { actor: Some(a), .. } if a == m))
             })
             .collect();
         if !starving.is_empty() || !special.is_empty() {
@@ -3891,6 +4057,14 @@ impl Engine {
         if due {
             options.retain(|o| *o != Choice::Pass);
         }
+        options.retain(|o| {
+            let actor = match *o {
+                Choice::TakeAction { minion, .. } => Some(minion),
+                Choice::UseAbility { actor, .. } | Choice::Play { actor, .. } => actor,
+                _ => None,
+            };
+            !actor.is_some_and(|a| frozen.contains(&a))
+        });
         self.mandatory_actions(s, options)
     }
 

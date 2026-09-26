@@ -18,7 +18,7 @@ use zvtes::library::LIBRARY;
 use zvtes::rng::Rng;
 use zvtes::state::{find_card, find_library, CardId, CardInPlay, UncontrolledSlot, HAND_SIZE};
 
-const SEEDS: u64 = 200;
+const SEEDS: u64 = 300;
 const DECISION_BUDGET: u64 = 200_000;
 
 /// Library-card conservation baseline per seat (library + hand + ash +
@@ -73,12 +73,6 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
         }
         if s.has_edge {
             edges += 1;
-        }
-        for slot in &s.uncontrolled {
-            assert!(
-                slot.counters <= CRYPT[slot.card as usize].capacity,
-                "overfilled uncontrolled slot (seed {seed})"
-            );
         }
         // Never over hand size — the cards not replaced yet counting
         // against it — except while discarding down (rulebook "Drawing
@@ -707,6 +701,15 @@ fn play(seed: u64, start: fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<Strin
                     }
                 }
                 let idx = agent.choose(&req);
+                if std::env::var("FUZZ_TRACE").is_ok() {
+                    eprintln!(
+                        "{:?} {:?} -> {:?} {}",
+                        req.seat,
+                        req.window,
+                        req.options[idx],
+                        kind(&e, req.seat, &req.options[idx])
+                    );
+                }
                 chosen.insert(kind(&e, req.seat, &req.options[idx]));
                 e.choose(idx);
             }
@@ -1624,6 +1627,8 @@ const MASTERS_SLICE: &[&str] = &[
     "Carver's Meat Packing and Storage",
     "Meditative Grove",
     "Week of Nightmares",
+    "Living Manse",
+    "Sword of the Archangel",
 ];
 
 /// Slice 11q: random tables with the precon masters (and Childe of the
@@ -1658,4 +1663,84 @@ fn random_games_with_masters_hold_invariants_and_replay() {
             "play:Carver's Meat Packing and Storage",
         ],
     );
+}
+
+const COMBAT2_SLICE: &[&str] = &[
+    "Blood Fury",
+    "No Trace",
+    "Shadow Shift",
+    "Wolf Claws",
+    "Rapid Change",
+    "Diversion",
+    "Lightning Reflexes",
+    "Wind Dance",
+    "Anticipation",
+    "Terror Frenzy",
+    "Tranquility Shield",
+    "Flesh of Marble",
+    "Weather Control",
+    "Disarm",
+    "Hide the Mind",
+    "Angel's Gift",
+    "Contraband",
+    "Martyr's Resilience",
+    "Righteous Blade",
+    ".44 Magnum",
+    "Owl Companion",
+    "Pursuit",
+    "Quickness",
+    "Slam",
+    "Telepathic Misdirection",
+    "Meditative Grove",
+];
+
+/// Slice 11s: random tables with the second wave of combat cards.
+#[test]
+fn random_games_with_combat_cards_wave_2_hold_invariants_and_replay() {
+    let seen = fuzz(|seed| table(seed, COMBAT2_SLICE, &["OBF"]));
+    let plays: Vec<String> = COMBAT2_SLICE[..18]
+        .iter()
+        .map(|n| format!("play:{n}"))
+        .collect();
+    let mut kinds: Vec<&str> = plays.iter().map(String::as_str).collect();
+    kinds.push("ability:Disarm");
+    covers(&seen, &kinds);
+}
+
+const REACTIONS2_SLICE: &[&str] = &[
+    "Threats",
+    "Forgotten Labyrinth",
+    "Go-getter",
+    "Elder Impersonation",
+    "Beast Meld",
+    "Paths in Two Worlds",
+    "Dawn Operation",
+    "Dogged Pursuit",
+    "Elder Intervention",
+    "Forced Awakening",
+    "Forced Vigilance",
+    "Melange",
+    "Rat's Warning",
+    "Redirection",
+    "Sense the Savage Way",
+    "Telepathic Counter",
+    "Bone Shambler",
+    ".44 Magnum",
+    "Lost in Crowds",
+    "Precognition",
+    "Form of Mist",
+];
+
+/// Slice 11t: random tables with the second wave of reactions and action
+/// modifiers.
+#[test]
+fn random_games_with_reactions_wave_2_hold_invariants_and_replay() {
+    let seen = fuzz(|seed| table(seed, REACTIONS2_SLICE, &["OBF"]));
+    let plays: Vec<String> = REACTIONS2_SLICE[..16]
+        .iter()
+        .map(|n| format!("play:{n}"))
+        .collect();
+    let mut kinds: Vec<&str> = plays.iter().map(String::as_str).collect();
+    kinds.extend(["ability:Dogged Pursuit", "ability:Melange"]);
+    covers(&seen, &kinds);
 }

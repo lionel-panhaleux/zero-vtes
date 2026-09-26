@@ -61,6 +61,12 @@ pub(crate) enum Interrupt {
         seat: SeatId,
         minion: crate::ids::MinionId,
     },
+    /// Dawn Operation [for]: the vampire attempting to block may cancel its
+    /// attempt (`ChooseMinion` it, or pass).
+    CancelAttempt {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+    },
     /// Amici Noctis: `left` blood to distribute; first how much to the
     /// pool (at most `cap`), the rest among the ready `clan` vampires.
     MarginPool {
@@ -174,6 +180,7 @@ impl Interrupt {
             | Interrupt::EntryBurn { seat, .. }
             | Interrupt::EntryRemoveOrBurn { seat, .. }
             | Interrupt::BlockToll { seat, .. }
+            | Interrupt::CancelAttempt { seat, .. }
             | Interrupt::MarginPool { seat, .. }
             | Interrupt::MarginBlood { seat, .. }
             | Interrupt::MinionOf { seat, .. }
@@ -402,6 +409,17 @@ impl Engine {
                     } else {
                         return;
                     }
+                }
+                // Nothing to cancel once the attempt is over.
+                Interrupt::CancelAttempt { minion, .. } => {
+                    let attempting = self
+                        .action
+                        .as_ref()
+                        .is_some_and(|a| a.state == crate::actions::ActionState::Attempt(minion));
+                    if attempting {
+                        return;
+                    }
+                    self.interrupts.remove(0);
                 }
                 Interrupt::BlockToll { minion, .. } => {
                     let attempting = self
@@ -723,6 +741,10 @@ impl Engine {
             Interrupt::BlockToll { .. } => (
                 WindowLabel::BlockToll,
                 vec![Choice::PayBlockToll, Choice::Pass],
+            ),
+            Interrupt::CancelAttempt { minion, .. } => (
+                WindowLabel::ResolutionChoice,
+                vec![Choice::Pass, Choice::ChooseMinion(minion)],
             ),
             Interrupt::MarginPool { .. } => (
                 WindowLabel::Distribution,
@@ -1060,6 +1082,13 @@ impl Engine {
             (Interrupt::BlockToll { minion, .. }, Choice::PayBlockToll) => {
                 self.interrupts.remove(0);
                 self.pay_block_toll(minion, false);
+            }
+            (Interrupt::CancelAttempt { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+            }
+            (Interrupt::CancelAttempt { .. }, Choice::ChooseMinion(_)) => {
+                self.interrupts.remove(0);
+                self.resign_attempt();
             }
             (Interrupt::BlockToll { .. }, Choice::Pass) => {
                 self.interrupts.remove(0);

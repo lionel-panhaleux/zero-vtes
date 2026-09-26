@@ -190,6 +190,10 @@ pub enum Actor {
     /// Any ready vampire of the Methuselah using it ("any ready vampire can
     /// burn 2 blood to …", Carver's Meat Packing and Storage).
     AnyReadyVampire,
+    /// "Only usable by an unlocked vampire not involved in the combat"
+    /// (Martyr's Resilience): any Methuselah's (ANK 20181101), in torpor
+    /// too (LSJ 20020416).
+    UnlockedOutOfCombat,
 }
 
 /// A class of printed title, for "requires a prince or justicar" style
@@ -286,6 +290,11 @@ pub enum CardFilter {
     AllyOrRetainer,
     /// A location (a locquipment in play included, spec §1.3.1).
     Location,
+    /// A melee weapon: a weapon whose strike is a melee one ("strength+n
+    /// damage"), Weighted Walking Stick included.
+    MeleeWeapon,
+    /// A non-unique equipment card.
+    NonUniqueEquipment,
 }
 
 impl CardFilter {
@@ -306,6 +315,11 @@ impl CardFilter {
                 c.types.contains(&CardType::Ally) || c.types.contains(&CardType::Retainer)
             }
             CardFilter::Location => c.labels.contains(&crate::library::Label::Location),
+            CardFilter::MeleeWeapon => melee_strike(card).is_some(),
+            CardFilter::NonUniqueEquipment => {
+                c.types.contains(&CardType::Equipment)
+                    && !c.labels.contains(&crate::library::Label::Unique)
+            }
         }
     }
 }
@@ -439,6 +453,12 @@ pub enum Requirement {
     TargetHostage,
     /// This card was not played before in this game.
     NotPlayedThisGame,
+    /// The card being played is a grapple or aim card played by the minion
+    /// opposing this card's bearer (Sword of the Archangel): engine-checked.
+    PlayedGrappleOrAimByOpponent,
+    /// This weapon's strike resolution burned the opposing vampire this
+    /// combat (Sword of the Archangel): engine-checked.
+    WeaponBurnedOpponent,
     /// The card being played is a frenzy card played on a vampire of the
     /// clan the user controls (Meditative Grove): engine-checked.
     PlayedFrenzyOnYour(&'static str),
@@ -665,6 +685,45 @@ pub enum Requirement {
     OpposingWeapon,
     /// The actor is unlocked ("a ready unlocked vampire").
     ActorUnlocked,
+    /// The actor may use equipment: not barred this combat (Form of the
+    /// Bat) nor by its own card (Bone Shambler).
+    ActorMayUseEquipment,
+    /// Combat: the actor successfully inflicted more damage from its strikes
+    /// on the opposing vampire this round than it took from theirs (Disarm;
+    /// environmental damage does not count, LSJ 20010812).
+    InflictedMoreThisRound,
+    /// The current action is not a bleed ("not usable during a bleed
+    /// action").
+    NotBleed,
+    /// The acting minion is younger than the actor (Redirection [dom]: "a
+    /// younger vampire is bleeding you").
+    ActingYounger,
+    /// The current action recruits an ally or employs a retainer of one of
+    /// these subtypes (Paths in Two Worlds: "a wraith or zombie").
+    RecruitingSubtype(&'static [crate::library::Label]),
+    /// The host of this card is the minion attempting to block (Dogged
+    /// Pursuit's +1 intercept). Engine-checked.
+    HostAttempting,
+    /// The acting minion is the one that played this card (`CardInPlay::by`;
+    /// Melange's "this reacting vampire"). Engine-checked.
+    ActingIsBy,
+    /// The current bleed is against the controller of this card's host
+    /// (Melange). Engine-checked.
+    BleedAgainstHostController,
+    /// Combat: the opposing minion holds no card in play of this kind ("a
+    /// vampire can have only one Disarm").
+    OpponentWithout(Holding),
+    /// Target: a minion in the combat, or a retainer on one, with damage
+    /// pending on it — none to prevent, no prevention (LSJ 20001114); a
+    /// Fortitude card cannot reach damage a Fortitude-proof strike
+    /// inflicted (LSJ 20050628). Engine-checked.
+    TargetInCombatWithDamage,
+    /// The card being played is of this type (Hide the Mind: "a combat
+    /// card", "a reaction card").
+    PlayedCardType(CardType),
+    /// The card being played requires this Discipline as played — the mode
+    /// used, not the card's other Disciplines (PIB 20130704).
+    PlayedRequiresDiscipline(&'static str),
     /// Card target: on the minion in combat with the ability's host (a
     /// strike naming equipment, Heroic Might). Engine-checked.
     TargetOnOpposingCombatant,
@@ -899,6 +958,9 @@ pub enum BlockRider {
     /// combat, this vampire can gain +n strength that combat" (Show of
     /// Force): `Choice::GainStrength`.
     StrengthBeforeRange(u8),
+    /// "If this vampire is blocked, they can prevent n damage during the
+    /// resulting combat" (Beast Meld [ani][pro]): any round of it.
+    PreventInCombat(u8),
 }
 
 /// Whom a conditional bonus reads its condition on.
@@ -1202,6 +1264,9 @@ pub enum Limit {
     /// "Only one X can be played each action", by any minion (Veil the
     /// Legions).
     OnePerAction,
+    /// "A vampire can play only one X at superior each combat" (Terror
+    /// Frenzy): per minion and card mode.
+    PerCombatThisMode,
     /// "A minion can play only one X between their unlock phases" (On the
     /// Qui Vive): per minion and card name, until its controller's next
     /// unlock phase.
@@ -1356,6 +1421,19 @@ pub enum Terms {
     /// chosen by name, discarded as the ability resolves (Richard de
     /// Worde: the choice shows the hand, his look).
     DirectedHandCard,
+    /// "Equip this vampire with <filter> from your hand (requirements and
+    /// cost apply as normal)" outside an action (Angel's Gift, Contraband):
+    /// the card named as it is played (LSJ 20100130); with `blood_share`,
+    /// then how much of its pool cost, up to half rounded down, the vampire
+    /// pays in blood (Contraband [OBF]).
+    EquipFromHand {
+        filter: CardFilter,
+        blood_share: bool,
+    },
+    /// "Choose a ready <clan> you control" as the card is played — with
+    /// `other`, another than the play's target (Priority Contract, Toreador
+    /// Grand Ball; owner, 2026-09-26: rules-qa 28.5).
+    OwnOfClan { clan: &'static str, other: bool },
 }
 
 /// Continuous-effect modifiers carried by layers (effects-framework §3.2).
@@ -1613,11 +1691,11 @@ pub enum Effect {
     /// A ready vampire of the clan the user controls burns 1 blood (Chantry's
     /// cost): chosen as it resolves.
     OwnClanBurnsBlood(&'static str),
-    /// A second vampire of the clan the user controls is chosen, other than
-    /// the first (Toreador Grand Ball).
+    /// The card's second chosen vampire is the one its terms chose
+    /// (`Terms::OwnOfClan`: Toreador Grand Ball's other Toreador).
     ChooseSecondOfClan(&'static str),
-    /// The card's chosen vampire is a ready one of the clan the user
-    /// controls (Priority Contract's Assamite).
+    /// The card's chosen vampire is the one its terms chose (Priority
+    /// Contract's Assamite).
     ChooseOwnOfClan(&'static str),
     /// "If the attached minion is about to leave the ready region, you can
     /// burn this card to gain n pool" (Priority Contract): also as its
@@ -1664,7 +1742,8 @@ pub enum Effect {
     /// card" (Wasserschloss Anif): from the target minion.
     BloodToCard(u8),
     /// "Move all counters on this card to a <clan> in your uncontrolled
-    /// region" (Wasserschloss Anif): up to its capacity there.
+    /// region" (Wasserschloss Anif): all of them, over capacity too
+    /// (rules-qa 28.3).
     CountersToUncontrolledTarget,
     /// "<Clan> get +n stealth during that action" of a granted action
     /// (Wasserschloss Anif: Malkavians +1; Toreador Grand Ball: Nosferatu
@@ -2067,9 +2146,93 @@ pub enum Effect {
     /// commits this strike as the round's initial strike (`Side.
     /// committed_card`; window review: maneuver riders commit early).
     CommittedStrike(StrikeKind),
+    /// "This combat, the opposing minion cannot maneuver to close range,
+    /// press to continue combat or use equipment" (Terror Frenzy [ani]): a
+    /// frenzy effect on that minion (Tranquility Shield cancels it).
+    OpposingRestraint,
+    /// "This combat, combat cards cost the opposing vampire +n blood"
+    /// (Terror Frenzy [ANI]): end-of-round cards included (ANK 20191221).
+    OpposingCombatCardsCost(u8),
+    /// "This combat, frenzy cards cannot be used on this vampire; cancel the
+    /// effects of frenzy cards that have already been used on this vampire
+    /// this combat" (Tranquility Shield).
+    FrenzyShield,
+    /// "This combat, if a damage is successfully inflicted on this vampire
+    /// in a given round, any additional damage inflicted on this vampire in
+    /// the same round is automatically prevented"; `aggravated`: aggravated
+    /// damage too (Flesh of Marble [PRO]).
+    FleshOfMarble {
+        aggravated: bool,
+    },
+    /// "Both combatants and each retainer on them take 1 unpreventable
+    /// environmental damage before range is determined each round this
+    /// combat"; `escalate`: +1 in each subsequent round (Weather Control
+    /// [THA]).
+    WeatherDamage {
+        escalate: bool,
+    },
+    /// Prevent up to n damage to the target minion or retainer in combat
+    /// (Martyr's Resilience [aus][for]), from a minion out of it.
+    PreventOnTarget(u8),
+    /// As `PreventOnTarget`, X+n, X the play's terms ([AUS][FOR]).
+    PreventOnTargetXPlus(u8),
+    /// Equip the actor with the card its terms named, from hand, paying its
+    /// cost — the terms' X of it in blood (Contraband [OBF]); not an action
+    /// (LSJ 20080815), so no action's cost reduction applies (LSJ
+    /// 20090115-1).
+    EquipNamed,
+    /// "This round, this vampire gets 1 optional maneuver, only usable to
+    /// get to close range" (Angel's Gift).
+    OptionalCloseManeuver,
+    /// "If this action is blocked, all damage inflicted on vampires during
+    /// the resulting combat is aggravated" (Dawn Operation), environmental
+    /// and retainer damage included (PIB 20150603-1); with `cancel`, "if a
+    /// vampire is currently attempting to block, they can cancel their block
+    /// attempt" ([for]).
+    DawnOperation {
+        cancel: bool,
+    },
+    /// "If this vampire does not block this action, put this card on them
+    /// after action resolution" (Dogged Pursuit [ANI]): one per vampire.
+    PutOnActorIfNoBlock,
+    /// "If this vampire blocks, put this card on the acting minion; you
+    /// still control this card" (Melange [AUS]).
+    PutOnActingIfBlocks,
+    /// "If they do not block this action, they burn n blood before action
+    /// resolution" (Forced Awakening): blocks made before it do not count
+    /// (ANK 20230319).
+    BurnIfNoBlock(u8),
+    /// "Continue the action as if unblocked" after the resolution of a
+    /// blocked action (Go-getter [OBF]).
+    ContinueAfterResolution,
+    /// "If the action is successful, this vampire can burn n blood to unlock
+    /// after action resolution" (Paths in Two Worlds [OBL]).
+    UnlockForBloodIfSuccessful(u8),
+    /// Put this card on the opposing minion now (Disarm): its layers apply
+    /// while it is there, the card itself in the ash heap (rules-qa 21.1).
+    PutOnOpponent,
+    /// Send the opposing vampire to torpor (Disarm).
+    OpponentToTorpor,
     /// "With 1 additional <strike>" (Voracious Vermin [ANI]): an additional
-    /// strike only usable for that strike (none if its object is gone).
-    AdditionalStrikeOnly(StrikeKind),
+    /// strike only usable for that strike (none if its object is gone);
+    /// `limited`: "(limited)" (Wind Dance [THA]).
+    AdditionalStrikeOnly {
+        kind: StrikeKind,
+        limited: bool,
+    },
+    /// "Burn X blood to get X additional strikes" (Lightning Reflexes
+    /// [CEL]): X the play's terms; the blood is an effect, not a cost (ANK
+    /// 20210226).
+    AdditionalStrikesX {
+        limited: bool,
+    },
+    /// The actor burns X blood, X the play's terms (an effect, not a cost:
+    /// no cost reduction reaches it, ANK 20210226).
+    ActorBurnsBloodX,
+    /// "Use a melee weapon strike. This strike is at +n damage"
+    /// (Anticipation [aus]): the target weapon's strike, its riders
+    /// included, from that card (spec §4.10.4).
+    WeaponStrikePlus(u8),
     /// "It becomes a melee weapon equipment" (Weighted Walking Stick): the
     /// card in play counts as weapon equipment.
     BecomesWeapon,
@@ -2529,6 +2692,9 @@ pub enum Until {
     NextUnlockPhase,
     /// "Until your next discard phase": as the phase begins.
     NextDiscardPhase,
+    /// "Until after this action" (Elder Intervention): with the action's
+    /// other held cards, at its end.
+    EndOfAction,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2549,6 +2715,18 @@ pub struct CardDef {
     /// Riders of the card in play: mandatory effects fired at a hook
     /// (effects-framework §4, `phase_trigger`).
     pub riders: &'static [Rider],
+}
+
+/// The printed strike of a melee weapon (Anticipation's "melee weapon
+/// strike"): its strike ability's `Melee` kind, if it has one.
+pub fn melee_strike(card: u16) -> Option<(usize, StrikeKind)> {
+    let def = lookup(card)?;
+    def.abilities.iter().enumerate().find_map(|(i, m)| {
+        m.effects.iter().find_map(|e| match e {
+            Effect::Strike(k @ StrikeKind::Melee { .. }) => Some((i, *k)),
+            _ => None,
+        })
+    })
 }
 
 /// A card that becomes weapon equipment once in play (Weighted Walking
@@ -2583,12 +2761,23 @@ pub fn library_mode(card: u16, mi: usize) -> usize {
         // [DOM]: a younger vampire you control, or one in your uncontrolled
         // region — one target, of either kind.
         "Feast of the Soul's Secrets" => [0, 1, 1][mi],
+        // [aus]: a hand strike, or a melee weapon's strike.
+        "Anticipation" => [0, 0, 1][mi],
+        // Each version on a minion or on a retainer.
+        "Martyr's Resilience" => [0, 0, 1, 1][mi],
         _ => mi,
     }
 }
 
 /// Behavior of a library card, if implemented. A card without a definition
 /// is unplayable (but can be discarded); coverage grows as defs land.
+/// Equipment once in play: an equipment card that is not a location
+/// ("while in play, this card does not count as equipment", Living Manse).
+pub fn is_equipment_in_play(card: u16) -> bool {
+    let c = &LIBRARY[card as usize];
+    c.types.contains(&CardType::Equipment) && !c.labels.contains(&crate::library::Label::Location)
+}
+
 pub fn lookup(card: u16) -> Option<&'static CardDef> {
     // By LIBRARY index, built once: a name search on every call was the
     // engine's hottest path.
@@ -2692,6 +2881,10 @@ pub struct PlayCtx {
     /// A card in hand and the mode it is used with, named by the terms
     /// (`Terms::EmployFromHand`).
     pub named: Option<(u16, u8)>,
+    /// A vampire the card chooses as it is played (`Terms::OwnOfClan`:
+    /// Priority Contract's Assamite, Toreador Grand Ball's second
+    /// Toreador).
+    pub chosen: Option<MinionId>,
 }
 
 /// Does `m` meet a mode's discipline tags? Lower case needs the discipline
@@ -2821,7 +3014,10 @@ pub fn holds(
         | Requirement::ActorIsHost
         | Requirement::ActorIsChosen
         | Requirement::PlayedFrenzyOnYour(_)
-        | Requirement::NotPlayedThisGame => true, // engine-checked
+        | Requirement::NotPlayedThisGame
+        | Requirement::PlayedGrappleOrAimByOpponent
+        | Requirement::WeaponBurnedOpponent
+        | Requirement::TargetInCombatWithDamage => true, // engine-checked
         Requirement::TargetInTorpor
         | Requirement::ControlledByPrey
         | Requirement::TargetHostage => {
@@ -2863,6 +3059,42 @@ pub fn holds(
         | Requirement::OtherThanActor
         | Requirement::TargetOnActor => true, // host / card / target predicates
         Requirement::ActorUnlocked => actor.is_some_and(|m| !st.minions[m.index()].locked),
+        Requirement::ActorMayUseEquipment => actor.is_some_and(|m| {
+            !st.no_equipment_or_retainers(m)
+                && combat
+                    .and_then(|c| c.side_of_minion(m).map(|i| !c.sides[i].equipment_barred()))
+                    .unwrap_or(true)
+        }),
+        Requirement::InflictedMoreThisRound => combat
+            .zip(side)
+            .is_some_and(|(c, i)| c.sides[i].inflicted_round > c.sides[1 - i].inflicted_round),
+        Requirement::NotBleed => action.is_some_and(|a| a.kind != ActionKind::Bleed),
+        Requirement::ActingYounger => action
+            .zip(actor)
+            .is_some_and(|(a, m)| st.younger_than(a.acting, m)),
+        Requirement::RecruitingSubtype(labels) => action.is_some_and(|a| {
+            matches!(a.kind, ActionKind::Recruit | ActionKind::Employ)
+                && a.card.is_some_and(|p| {
+                    labels
+                        .iter()
+                        .any(|l| LIBRARY[p.card as usize].labels.contains(l))
+                })
+        }),
+        Requirement::HostAttempting
+        | Requirement::ActingIsBy
+        | Requirement::BleedAgainstHostController => true, // engine-checked
+        Requirement::PlayedCardType(t) => {
+            played.is_some_and(|p| LIBRARY[p.card as usize].types.contains(&t))
+        }
+        Requirement::PlayedRequiresDiscipline(d) => played.is_some_and(|p| {
+            LIBRARY[p.card as usize].modes[library_mode(p.card, p.mode as usize)]
+                .tags
+                .iter()
+                .any(|t| t.eq_ignore_ascii_case(d))
+        }),
+        Requirement::OpponentWithout(h) => combat
+            .zip(side)
+            .is_some_and(|(c, i)| !st.holds_a(c.sides[1 - i].minion, h)),
         Requirement::ActionBlocked => {
             action.is_some_and(|a| a.outcome == Some(crate::actions::Outcome::Blocked))
         }
@@ -3075,7 +3307,9 @@ pub fn holds(
         Requirement::NotInDamageResolution => combat.is_none_or(|c| {
             !matches!(
                 c.step,
-                crate::combat::Step::Prevent(_) | crate::combat::Step::Allocate { .. }
+                crate::combat::Step::Prevent(_)
+                    | crate::combat::Step::Allocate { .. }
+                    | crate::combat::Step::AllocateSource { .. }
             )
         }),
         Requirement::ActorNotBlocking => action.is_none_or(|a| {
@@ -3288,6 +3522,11 @@ pub fn holds_for_card_target(
         Requirement::NotControlled => st.card_controller(id) != seat,
         Requirement::NotHost => actor.is_none() || c.host != actor,
         Requirement::TargetOnActor => actor.is_some() && c.host == actor,
+        // A location in play is no equipment, whatever its type (Living
+        // Manse; rules-qa 17.4).
+        Requirement::TargetCard(CardFilter::Type(CardType::Equipment)) => {
+            is_equipment_in_play(c.card)
+        }
         Requirement::TargetCard(f) => f.matches(c.card),
         Requirement::TargetOnReadyMinion => c.host.is_some_and(|h| st.minions[h.index()].ready()),
         Requirement::TargetOnVampire => c.host.is_some_and(|h| !st.minions[h.index()].is_ally()),

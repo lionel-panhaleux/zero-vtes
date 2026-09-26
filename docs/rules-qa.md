@@ -2124,16 +2124,17 @@ vampire one controls may be in torpor. Right? **Test** —
 
 ## Batch 27 — Actions, wave 2 (slice 11p)
 
-Defaults chosen while implementing; each is applied and tested.
+Defaults chosen while implementing; each is applied and tested. Owner
+(2026-09-26): yes to all.
 
-### 27.1 Puppet Master [DOM]'s take is mandatory _(open)_
+### 27.1 Puppet Master [DOM]'s take is mandatory _(answered 2026-09-26)_
 
 "During your next minion phase, burn this card to unlock … and take
 control": it can be done at any point of that phase (LSJ 20001201), but
 the phase cannot end before it is done. Right? **Test** —
 `puppet_master_superior_takes_a_vampire_for_the_next_turn`.
 
-### 27.2 Targets _(open)_
+### 27.2 Targets _(answered 2026-09-26)_
 
 - Puppet Master [DOM]'s "a younger vampire" may be one of one's own
   (undirected, a no-op in effect).
@@ -2142,14 +2143,14 @@ the phase cannot end before it is done. Right? **Test** —
 
 Right?
 
-### 27.3 Stealing mid-action _(open)_
+### 27.3 Stealing mid-action _(answered 2026-09-26)_
 
 A stolen blocker's attempt fails without barring it: its new controller
 could attempt again if eligible. A stolen combatant's combat ends after
 the damage still pending resolves (LSJ 20020618). Right? **Test** —
 `puppet_master_steals_a_blocker_or_a_combatant`.
 
-### 27.4 A minion removed from the game _(open)_
+### 27.4 A minion removed from the game _(answered 2026-09-26)_
 
 When a temporarily controlled minion cannot return (its Methuselah is
 ousted), it is removed from the game. Its owner's cards on it go with it;
@@ -2157,7 +2158,7 @@ other Methuselahs' cards on it are burned to their ash heaps (as for an
 ousted Methuselah's minions). Right? **Test** —
 `puppet_master_temporary_control_and_ousts`.
 
-### 27.5 Deep Song [ANI]'s "considered the acting minion" _(open)_
+### 27.5 Deep Song [ANI]'s "considered the acting minion" _(answered 2026-09-26)_
 
 In that combat, the target takes the acting minion's side, so its
 Methuselah acts first in each combat step. Effects of the action on "this
@@ -2165,7 +2166,7 @@ acting vampire" (Invigorate [pro]'s aggravated hands, Form of Mist's
 continuation) stay with the vampire that took the action. Right? **Test** —
 `deep_song_superior_locks_and_fights_a_vampire_as_the_acting_minion`.
 
-### 27.6 The Gate of Acheron's payment _(open)_
+### 27.6 The Gate of Acheron's payment _(answered 2026-09-26)_
 
 "For each counter … they burn 1 pool or remove a library card at random in
 their ash heap from the game": announced as one count of ash heap cards,
@@ -2173,7 +2174,7 @@ the rest pool. The cards are random, so this is the same as unit by unit
 (as Constant Revolution, LSJ 20090618). Right? **Test** —
 `gate_of_acheron_grows_and_drains_the_prey`.
 
-### 27.7 Pit of Contemplation's "owner's uncontrolled region" _(open)_
+### 27.7 Pit of Contemplation's "owner's uncontrolled region" _(answered 2026-09-26)_
 
 A vampire held on temporary control goes to the region of its controller
 (the Methuselah it would return to). The move is Banishment's: blood kept
@@ -2182,9 +2183,10 @@ as counters, cards with it. Right? **Test** —
 
 ## Batch 28 — Masters and Childe of the Revolution (slice 11q)
 
-Defaults chosen while implementing; each is applied and tested.
+Defaults chosen while implementing; each is applied and tested. Owner
+(2026-09-26): yes to the ones without an answer below.
 
-### 28.1 Childe of the Revolution's new vampire _(open)_
+### 28.1 Childe of the Revolution's new vampire _(answered 2026-09-26)_
 
 It enters the ready region unlocked with no blood (the text gives none),
 capacity 1 plus any Discipline card put on it, and may act that turn: it
@@ -2193,7 +2195,7 @@ option. The library is shuffled after the search whatever was taken
 (or nothing). Right? **Test** —
 `childe_of_the_revolution_becomes_a_vampire_that_must_hunt`.
 
-### 28.2 "An Anarch", "a Ravnos", "a Nosferatu" on a location _(open)_
+### 28.2 "An Anarch", "a Ravnos", "a Nosferatu" on a location _(answered 2026-09-26)_
 
 Where the text does not say "you control", any Methuselah's minion:
 Club Illusion's Anarch burns its own blood; Anarch Railroad, Fortune
@@ -2202,7 +2204,7 @@ Methuselah's acting minion. Right? **Tests** —
 `club_illusion_lets_any_anarch_burn_blood_for_one_bleed_once`,
 `anarch_railroad_gives_any_acting_anarch_stealth`.
 
-### 28.3 Capacity in the uncontrolled region _(open)_
+### 28.3 Capacity in the uncontrolled region _(answered 2026-09-26)_
 
 Counters added by an effect (Wasserschloss Anif's, Powerbase: Montreal's,
 Family Gathering's) stop at the vampire's capacity there, the rest to the
@@ -2210,12 +2212,18 @@ blood bank — as transfers do. A banished vampire keeps counters a
 Discipline card let it hold. Right? **Test** —
 `a_banished_vampire_keeps_the_blood_its_discipline_card_held`.
 
-### 28.4 Capacity lost _(open)_
+**Answer (owner):** "While a minion is uncontrolled you can put any amount
+on them and go over their capacity. It just drains off to bank if
+influenced to controlled, which is a choice." Applied: transfers and
+effects (Wasserschloss Anif, Powerbase: Montreal, Family Gathering) put any
+amount on; the excess drains as the vampire is influenced out.
+
+### 28.4 Capacity lost _(answered 2026-09-26)_
 
 When a Discipline card leaves a vampire in play (burned, or its player
 ousted), blood above the new capacity drains off at once. Right?
 
-### 28.5 Choices made as the card resolves _(open)_
+### 28.5 Choices made as the card resolves _(answered 2026-09-26)_
 
 The Rack's vampire is the play's target (none ready: not playable);
 Toreador Grand Ball's locked Toreador is the target and the other chosen
@@ -2225,20 +2233,41 @@ Chantry's blood payer, Anarch Troublemaker's two vampires (a locked one
 allowed) and Garibaldi-Meucci Museum's two cards (no window between use
 and effect) are chosen as they resolve. Right?
 
-### 28.6 Wasserschloss Anif's Tremere _(open)_
+**Answer (owner):** "Rack, Grand Ball, Contract: chosen when played. The
+others have an effect when in play, target chosen when used." Applied:
+Toreador Grand Ball's second Toreador and Priority Contract's Assamite are
+now the play's terms (`Terms::OwnOfClan`), chosen as the card is announced.
+Chantry, Anarch Troublemaker and Garibaldi-Meucci Museum choose as the
+ability is used, which the engine does with nothing in between.
+
+### 28.6 Wasserschloss Anif's Tremere _(answered 2026-09-26)_
 
 "A Tremere you control can move 1 blood from themselves": a ready one.
 Right? **Test** —
 `wasserschloss_anif_banks_one_tremeres_blood_for_the_uncontrolled_region`.
 
-### 28.7 Out of torpor before resolution _(open)_
+**Answer (owner):** "Does not say ready, so it does not limit to ready. You
+can have blood in torpor (eg. if you take aggravated damage)." Applied: a
+Tremere in torpor can move its blood too.
+
+### 28.7 Out of torpor before resolution _(answered 2026-09-26)_
 
 A rescue whose target already left torpor fizzles unpaid; a leave-torpor
 action fizzles paid (ANK 20220218); a diablerie fizzles with no blood hunt.
 Right? **Test** —
 `warsaw_station_saves_a_nosferatu_from_a_diablerie`.
 
-### 28.8 Week of Nightmares _(open)_
+**Answer (owner):** "Unsure about leave fizzling unpaid — is it the ruling?
+Why the difference with rescue?" The leave-torpor half is the ruling (ANK
+20220218, filed under Warsaw Station: "the action immediately fizzles
+(cost, if any, is paid, and it is considered successful, but has no
+effect)"). No ruling covered the rescue, and nothing justified the
+difference: a rescue whose vampire left torpor now fizzles paid too (the
+split between rescuer and rescued as normal; a vampire gone from play
+pays nothing, the rescuer paying what it can). **Test** —
+`a_rescue_fizzles_paid_once_warsaw_station_raised_its_vampire`.
+
+### 28.8 Week of Nightmares _(answered 2026-09-26)_
 
 A Ravnos with no blood (or that must hunt) must take the special hunt if it
 has a target, else nothing holds it. At the end, a Ravnos pays its
@@ -2247,13 +2276,23 @@ can be played in a game" counts a play canceled as played. Right? **Tests**
 — `a_starving_ravnos_must_steal_once`,
 `week_of_nightmares_ends_in_nightmares_and_never_comes_back`.
 
-### 28.9 Frontal Assault's influence-phase burn _(open)_
+**Answer (owner):** "Must hunt, frozen if no target." Applied: a Ravnos
+that must hunt and has no target for the special hunt takes no action
+at all; other minions act. **Test** —
+`a_starving_ravnos_without_a_target_is_frozen`.
+
+### 28.9 Frontal Assault's influence-phase burn _(answered 2026-09-26)_
 
 Applied as the influence phase begins, each copy (before any transfer).
 Right? **Test** —
 `frontal_assault_rushes_the_prey_pays_for_losses_and_costs_at_influence`.
 
-### 28.10 Piper's Anarch _(open)_
+**Answer (owner):** "Mandatory effect must be resolved before passing the
+impulse, but can be ordered (so you can influence first)." Applied: each
+copy's burn is a choice of the influence phase, Pass withheld until all
+are resolved; the prey's ready minions are counted then.
+
+### 28.10 Piper's Anarch _(answered 2026-09-26)_
 
 The locked Anarch is the card's actor: it meets the ally's or retainer's
 requirements and pays its blood cost; its Disciplines pick the version.
@@ -2261,13 +2300,22 @@ Piper itself stays a master card Sudden Reversal can cancel. Right?
 **Tests** — `piper_has_an_anarch_recruit_an_ally_outside_an_action`,
 `piper_employs_by_the_anarchs_disciplines_and_is_no_action`.
 
-### 28.11 Meditative Grove's "played on a Salubri" _(open)_
+### 28.11 Meditative Grove's "played on a Salubri" _(answered 2026-09-26)_
 
 The frenzy card's target (Deep Song [ANI]), or its player for a card
 played on itself (Terror Frenzy, once defined). Right? **Test** —
 `meditative_grove_cancels_a_frenzy_card_played_on_its_salubri`.
 
-### 28.12 Powerbase: Los Angeles's discard phase action _(open)_
+**Answer (owner):** "Check rulings on frenzy and frenzy-cancel cards.
+Really depends but basically if the minion is affected it's the target."
+The rulings agree: "any frenzy card that targets/selects/chooses/affects
+the minion when played is considered being played on the minion" (LSJ
+20051113, on the frenzy-cancel cards), and for a card its player plays on
+their own side of a combat, "the opponent is the one affected by frenzy"
+(ANK 20220409, Dam the Heart's River). Applied: Terror Frenzy is played on
+the opposing minion.
+
+### 28.12 Powerbase: Los Angeles's discard phase action _(answered 2026-09-26)_
 
 The player spends whichever discard phase action serves best: Los
 Angeles's on a card requiring an Anarch (its requirements name Anarch or
@@ -2280,3 +2328,157 @@ It says a temporarily controlled minion stays with its current controller
 if its permanent controller is ousted; Puppet Master's rulings (ANK
 20181110, a reversal) remove it from the game, which the engine follows
 (27.4). The advanced rules may want the same.
+
+**Answer (owner):** fix the advanced rules. Done (uncommitted there): 6.4.1
+in `../vtes-advanced-rules` now agrees with its own 6.2.4 — the minion is
+removed from the game when it should return to the ousted Methuselah (ANK
+20181110); only a return that can no longer occur (Parmenides) leaves it
+with the current controller.
+
+## Batch 29 — Combat cards, wave 2 (slice 11s)
+
+Defaults chosen while implementing; each is applied and tested. Owner
+(2026-09-26): yes to the ones without an answer below.
+
+### 29.1 Prevention from outside the combat _(answered 2026-09-26)_
+
+Martyr's Resilience ("an unlocked vampire not involved in the combat", any
+Methuselah's, ANK 20181101): after both combatants' prevention, every
+Methuselah in turn, clockwise from the acting one, may prevent with such a
+vampire — on either combatant or a retainer on one. A combatant's
+controller may also play it during their own prevention. A partial cover
+of mixed damage is the Martyr's player's allocation. Right? **Tests** —
+`martyrs_resilience_prevents_from_outside_the_combat`,
+`martyrs_resilience_superior_saves_a_retainer`.
+
+### 29.2 Damage to retainers waits for prevention _(answered 2026-09-26)_
+
+Damage a strike aims at a retainer now waits with the combatants' damage
+and is applied with it (it used to apply as the strike resolved: no pool
+card could prevent it before Martyr's Resilience). Life stolen from a
+retainer still moves at once. Right?
+
+### 29.3 Disarm's "successfully inflicted more damage" _(answered 2026-09-26)_
+
+The damage from strikes that lands after prevention, all of the round's
+strike pairs counted. With strike and environmental damage pending
+together and part prevented, the prevention is taken from the
+environmental damage first. Right? **Test** —
+`disarm_sends_the_weaker_striker_to_torpor_with_less_strength`.
+
+**Answer (owner):** "No, the player preventing chooses what they prevent."
+Applied: a prevention that could cover strike or other damage asks its
+player which (`Step::AllocateSource`), and Disarm counts the strike damage
+left. **Test** — `disarm_counts_the_strike_damage_the_preventer_let_through`.
+
+### 29.4 Flesh of Marble _(answered 2026-09-26)_
+
+Applied as the damage lands, after every other prevention. Weather
+Control's before-range damage is "successfully inflicted" and so the
+round's first: strike damage that round is then prevented. Right?
+**Tests** — `flesh_of_marble_lets_one_damage_through_each_round`,
+`flesh_of_marble_leaves_aggravated_damage_unless_superior`.
+
+### 29.5 Tranquility Shield against Terror Frenzy _(answered 2026-09-26)_
+
+Terror Frenzy is played on the opposing minion (28.11), so a shielded
+vampire's opponent cannot play either version of it, and a shield played
+after cancels both versions' effects on the shielded vampire: it may
+maneuver to close range, press to continue and use equipment again, and
+its combat cards cost no more. Right? **Test** —
+`tranquility_shield_cancels_and_bars_frenzy_cards`.
+
+### 29.6 Contraband [OBF]'s blood _(answered 2026-09-26)_
+
+The blood share is chosen as the card is played, with the equipment's
+name: from what the pool cannot pay up to half the pool cost, rounded
+down. Right? **Test** — `contraband_superior_equips_paying_half_in_blood`.
+
+**Answer (owner):** "You choose what amount the vampire pays in blood, up
+to half; the rest is paid with pool (can be more than half)." As applied:
+the blood part, chosen as the card is played, at most half; the pool pays
+the rest (at least what the blood part leaves).
+
+### 29.7 Anticipation [aus] with a weapon _(answered 2026-09-26)_
+
+"Use a melee weapon strike" is the weapon's own strike, riders included
+(Righteous Blade's press), at +2 damage, from that weapon (gone by
+resolution, no effect). [AUS] also cancels a strike card played at the
+maneuver (Slam). Right? **Test** —
+`anticipation_strikes_with_the_hand_or_a_melee_weapon_at_plus_two`.
+
+### 29.8 Lightning Reflexes [CEL] with X = 0 _(answered 2026-09-26)_
+
+Playable, getting no strike but using the round's limited slot (a legal
+no-op, kept like the others). Right?
+
+**Answer (owner):** "If you get no additional strike you don't consume the
+limit." Applied. **Test** — `lightning_reflexes_for_no_blood_leaves_the_limit`.
+
+### 29.9 A new round with a combatant gone _(answered 2026-09-26)_
+
+Telepathic Tracking starts a new round, then Disarm sends the opponent to
+torpor in the same window: the combat ends instead. Right? **Test** —
+`disarm_and_telepathic_tracking_share_the_end_of_round`.
+
+### 29.10 Disarm's "they can burn 3 blood to burn this card" _(answered 2026-09-26)_
+
+No timing printed: any time the vampire's controller has the impulse, in
+torpor too. Right?
+
+### 29.11 Hide the Mind [obf] _(answered 2026-09-26)_
+
+"A combat card requiring Auspex": any, the player's own included (the text
+does not say opposing). Right?
+
+## Batch 30 — Reactions and action modifiers, wave 2 (slice 11t)
+
+Defaults chosen while implementing; each is applied and tested. Owner
+(2026-09-26): yes to the ones without an answer below.
+
+### 30.1 Dawn Operation [for]'s cancel _(answered 2026-09-26)_
+
+"If a vampire is currently attempting to block, they can cancel their
+block attempt": asked of that vampire's controller once, as the card
+resolves. A canceled attempt is withdrawn, not failed: the vampire may
+attempt again. Right? **Test** —
+`dawn_operation_lets_the_attempting_vampire_cancel`.
+
+### 30.2 Forced Awakening's blood _(answered 2026-09-26)_
+
+Burned as the action begins to resolve (LSJ 19990421) — successful,
+fizzled or failed. An action blocked by another minion does not resolve,
+so no blood is burned. Right? **Tests** —
+`forced_awakening_costs_a_blood_unless_it_blocks`,
+`forced_awakening_counts_only_blocks_after_it`.
+
+**Answer (owner):** "No, it resolves. The block and ensuing combat are the
+resolution (blood is burned)." Applied: another minion's block burns the
+blood as it happens, once.
+
+### 30.3 Go-getter [OBF] _(answered 2026-09-26)_
+
+Played in the after-resolution window of the blocked action (after its
+combat), by the acting vampire if still ready: the action goes back to the
+block step, modifiers and declines standing, as Form of Mist's
+continuation. Right? **Test** —
+`go_getter_superior_continues_a_blocked_action`.
+
+### 30.4 Dogged Pursuit [ANI]'s card _(answered 2026-09-26)_
+
+Put on the vampire after resolution when it did not block, unless it
+already has one. Its +1 intercept is for any later block attempt of that
+vampire, the card burned then. Right? **Test** —
+`dogged_pursuit_follows_a_missed_block_with_intercept_for_later`.
+
+### 30.5 Melange [AUS] _(answered 2026-09-26)_
+
+Put on the acting minion as the block succeeds, even if the action is
+then continued as if unblocked. Its "+1 bleed" is not limited (the text
+does not say so). Right? **Test** —
+`melange_superior_marks_the_acting_minion_for_a_later_bleed`.
+
+### 30.6 Beast Meld [ani][pro]'s prevention _(answered 2026-09-26)_
+
+One damage, usable at any point of the block's combat — any round, once.
+Right? **Test** — `beast_meld_prevents_a_damage_once_blocked`.

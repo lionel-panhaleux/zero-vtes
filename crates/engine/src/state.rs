@@ -727,13 +727,12 @@ impl GameState {
         }
     }
 
-    /// Add `n` blood to `seat`'s uncontrolled vampire `i`, up to its
-    /// capacity there — never taking any off (a banished vampire keeps
-    /// blood held for capacity its cards gave, advanced rules 5.1.1).
+    /// Add `n` blood to `seat`'s uncontrolled vampire `i`. Any amount, over
+    /// its capacity too: the excess drains off only as it is influenced
+    /// out, a choice (owner, 2026-09-26: rules-qa 28.3).
     pub fn add_uncontrolled_blood(&mut self, seat: SeatId, i: usize, n: u8) {
-        let (cap, _) = self.slot_vampire(seat, i);
         let slot = &mut self.seats[seat.index()].uncontrolled[i];
-        slot.counters = slot.counters.max((slot.counters + n).min(cap));
+        slot.counters = slot.counters.saturating_add(n);
     }
 
     /// `a` younger than `b`: both vampires, `a` of lower capacity.
@@ -1229,9 +1228,7 @@ impl GameState {
     ) -> i32 {
         self.bearer_mods(m, stat, kind)
             .map(|(card, n)| {
-                let equipment = LIBRARY[card as usize]
-                    .types
-                    .contains(&crate::library::CardType::Equipment);
+                let equipment = crate::cards::is_equipment_in_play(card);
                 if equipment {
                     n.min(0)
                 } else {

@@ -342,7 +342,12 @@ impl Engine {
             match self.request() {
                 None => self.advance(),
                 Some(req) => {
-                    debug_assert!(!req.options.is_empty());
+                    debug_assert!(
+                        !req.options.is_empty(),
+                        "empty {:?} {:?}",
+                        req.window,
+                        self.flow
+                    );
                     if req.options.len() == 1 {
                         let choice = req.options[0];
                         self.apply(&choice);
@@ -733,37 +738,41 @@ impl Engine {
     }
 
     /// Frontal Assault: "During your influence phase, burn this card and
-    /// burn 1 pool for each ready minion controlled by your prey", as the
-    /// phase begins, each copy. True if it ousted the active Methuselah
-    /// (the turn passed).
-    fn influence_burns(&mut self) -> bool {
+    /// burn 1 pool for each ready minion controlled by your prey" — a
+    /// mandatory effect of the phase, resolved when its controller chooses
+    /// but before they pass (owner, 2026-09-26: rules-qa 28.9): the cards
+    /// still due.
+    pub(crate) fn influence_burns_due(&self) -> Vec<CardId> {
         let s = self.state.active;
-        let mut loss = 0;
-        for ci in 0..self.state.cards.len() {
-            let id = CardId(ci as u32);
-            let c = &self.state.cards[ci];
-            let due = c.present()
-                && self.state.card_controller(id) == s
-                && crate::cards::lookup(c.card).is_some_and(|d| {
-                    d.modes[c.mode as usize]
-                        .effects
-                        .contains(&crate::cards::Effect::BurnAtInfluencePerPreyReady)
-                });
-            if due {
-                let prey = self.state.prey(s);
-                loss += self
-                    .state
-                    .minions_of(prey)
-                    .filter(|m| self.state.minions[m.index()].ready())
-                    .count() as i32;
-                self.burn_card_in_play(id);
-            }
-        }
-        if loss == 0 {
-            return false;
-        }
+        (0..self.state.cards.len())
+            .map(|ci| CardId(ci as u32))
+            .filter(|&id| {
+                let c = &self.state.cards[id.index()];
+                c.present()
+                    && self.state.card_controller(id) == s
+                    && crate::cards::lookup(c.card).is_some_and(|d| {
+                        d.modes[c.mode as usize]
+                            .effects
+                            .contains(&crate::cards::Effect::BurnAtInfluencePerPreyReady)
+                    })
+            })
+            .collect()
+    }
+
+    /// Resolve one Frontal Assault's influence-phase burn, the prey's ready
+    /// minions counted now. True if it ousted the active Methuselah (the
+    /// turn passed).
+    pub(crate) fn influence_burn(&mut self, id: CardId) -> bool {
+        let s = self.state.active;
+        let prey = self.state.prey(s);
+        let loss = self
+            .state
+            .minions_of(prey)
+            .filter(|m| self.state.minions[m.index()].ready())
+            .count() as i32;
+        self.burn_card_in_play(id);
         self.state.seats[s.index()].pool -= loss;
-        if self.state.seats[s.index()].pool <= 0 {
+        if loss > 0 && self.state.seats[s.index()].pool <= 0 {
             self.oust_and_pass(s);
             return true;
         }
@@ -780,9 +789,6 @@ impl Engine {
             Flow::MinionPhase => {
                 // "During your influence phase" abilities: once per phase.
                 self.state.phase_uses.clear();
-                if self.influence_burns() {
-                    return;
-                }
                 self.flow = Flow::Influence {
                     left: transfers_for_turn(self.state.turn)
                         + self.state.transfer_bonus(self.state.active),
@@ -1429,7 +1435,8 @@ mod tests {
         assert!(!req.options.contains(&Choice::InfluenceOut { slot: 0 }));
         assert!(req.options.contains(&Choice::InfluenceOut { slot: 1 }));
         assert!(req.options.contains(&Choice::Withdraw { slot: 1 }));
-        assert!(!req.options.contains(&Choice::Transfer { slot: 1 })); // already full
+        // Full, but more can go on (rules-qa 28.3).
+        assert!(req.options.contains(&Choice::Transfer { slot: 1 }));
         pick(&mut e, Choice::Withdraw { slot: 1 });
         assert_eq!(e.state.seats[0].pool, START_POOL + 1);
         let req = request(&mut e);
@@ -1444,6 +1451,29 @@ mod tests {
             (SeatId(0), cap, 2, false)
         );
         assert_eq!(e.state.seats[0].uncontrolled.len(), 1);
+    }
+
+    /// Rules-qa 28.3 (owner, 2026-09-26): any amount can go on an
+    /// uncontrolled vampire; the excess drains off to the bank only as it
+    /// is influenced out.
+    #[test]
+    fn transfers_go_over_capacity_and_drain_on_influence_out() {
+        let mut e = bare();
+        let alice = find_card("Alice Chen");
+        let cap = CRYPT[alice as usize].capacity;
+        e.state.seats[0].uncontrolled.push(UncontrolledSlot {
+            card: alice,
+            counters: cap,
+            banished: None,
+        });
+        e.state.turn = 4;
+        pick(&mut e, Choice::Pass);
+        pick(&mut e, Choice::Transfer { slot: 0 });
+        pick(&mut e, Choice::Transfer { slot: 0 });
+        assert_eq!(e.state.seats[0].uncontrolled[0].counters, cap + 2);
+        pick(&mut e, Choice::InfluenceOut { slot: 0 });
+        let id = MinionId(e.state.minions.len() as u32 - 1);
+        assert_eq!(e.state.minions[id.index()].blood, cap);
     }
 
     #[test]

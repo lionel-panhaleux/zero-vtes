@@ -42,7 +42,8 @@ impl Engine {
         for (i, slot) in seat.uncontrolled.iter().enumerate() {
             let i = i as u8;
             let (capacity, _) = st.slot_vampire(s, i as usize);
-            if left >= 1 && seat.pool > 0 && slot.counters < capacity {
+            // Any amount, over capacity too (rules-qa 28.3).
+            if left >= 1 && seat.pool > 0 {
                 options.push(Choice::Transfer { slot: i });
             }
             if left >= 2 && slot.counters > 0 {
@@ -67,6 +68,13 @@ impl Engine {
                 .into_iter()
                 .filter(|o| self.transfer_cost(o) <= left),
         );
+        // Frontal Assault's burn: in the order the player chooses, before
+        // they pass (rules-qa 28.9).
+        let due = self.influence_burns_due();
+        if !due.is_empty() {
+            options.retain(|o| *o != Choice::Pass);
+            options.extend(due.iter().map(|c| Choice::ResolveRider { card: c.0 }));
+        }
         DecisionRequest {
             seat: s,
             window: WindowLabel::InfluenceTransfers,
@@ -149,6 +157,10 @@ impl Engine {
                 };
                 self.stage_contests(m);
                 self.flow = Flow::Influence { left };
+            }
+            Choice::ResolveRider { card } => {
+                self.flow = Flow::Influence { left };
+                self.influence_burn(crate::state::CardId(*card));
             }
             Choice::Pass => self.open_phase_rotation(Flow::Influence { left }),
             other => unreachable!("illegal influence choice {other:?}"),

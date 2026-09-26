@@ -183,6 +183,19 @@ impl Engine {
                     .collect(),
                 _ => vec![],
             },
+            // Any Methuselah's unlocked vampire out of the combat, in
+            // torpor too (Martyr's Resilience).
+            Actor::UnlockedOutOfCombat => match &self.combat {
+                Some(c) => st
+                    .minions_of(seat)
+                    .filter(|&m| {
+                        let v = &st.minions[m.index()];
+                        v.present() && v.is_vampire() && !v.locked && c.side_of_minion(m).is_none()
+                    })
+                    .map(Some)
+                    .collect(),
+                None => vec![],
+            },
             Actor::Combatant => match &self.combat {
                 Some(c) => c
                     .side_of(seat)
@@ -303,10 +316,48 @@ impl Engine {
                     {
                         continue;
                     }
+                    // "Frenzy cards cannot be used on this vampire"
+                    // (Tranquility Shield): checked on the minion it would
+                    // be played on.
+                    if let Some(c) = combat {
+                        let immune = |m: MinionId| {
+                            c.side_of_minion(m)
+                                .is_some_and(|i| c.sides[i].frenzy_immune)
+                        };
+                        let on = self.frenzy_on(card, mi as u8, actor, Target::None);
+                        if on.is_some_and(immune) {
+                            continue;
+                        }
+                    }
+                    // "Cancel the opposing minion's strike card as it is
+                    // played" (Anticipation [AUS]).
+                    if mode.requires.contains(&Requirement::PlayedStrikeByOpponent)
+                        && !played
+                            .zip(actor)
+                            .is_some_and(|(p, m)| self.strike_card_against(m, p))
+                    {
+                        continue;
+                    }
                     if mode.requires.contains(&Requirement::CanAttemptBlockAnyone)
                         && !actor.is_some_and(|m| self.can_attempt_block_anyone(seat, m))
                     {
                         continue;
+                    }
+                    // Nothing in hand it could equip (Angel's Gift).
+                    if let (
+                        Some(Terms::EquipFromHand {
+                            filter,
+                            blood_share,
+                        }),
+                        Some(m),
+                    ) = (mode.terms, actor)
+                    {
+                        if self
+                            .equippable_from_hand(seat, m, filter, blood_share)
+                            .is_empty()
+                        {
+                            continue;
+                        }
                     }
                     // Nothing in hand it could employ (Pack Alpha [ani]).
                     if let (Some(terms), Some(m)) = (mode.terms, actor) {
@@ -396,7 +447,10 @@ impl Engine {
                         }
                         let x = cards::terms_x(st, seat, card, mode).unwrap_or(0);
                         let blood = cards::blood_cost(st, card, x) + self.reaction_surcharge(card);
-                        if blood + self.discipline_surcharge(m, card) > st.minions[m.index()].blood
+                        if blood
+                            + self.discipline_surcharge(m, card)
+                            + self.combat_card_surcharge(m, card)
+                            > st.minions[m.index()].blood
                         {
                             continue;
                         }
@@ -458,6 +512,9 @@ impl Engine {
                             None => false,
                             Some(Limit::PerRound) => combat.is_some_and(|c| hit(&c.played_round)),
                             Some(Limit::PerCombat) => combat.is_some_and(|c| hit(&c.played_combat)),
+                            Some(Limit::PerCombatThisMode) => combat.is_some_and(|c| {
+                                c.played_combat_modes.contains(&(m, card, mi as u8))
+                            }),
                             Some(Limit::PerAction) => action.is_some_and(|a| hit(&a.played)),
                             Some(Limit::OnePerAction) => {
                                 action.is_some_and(|a| a.played.iter().any(|&(_, n)| n == name))
@@ -577,6 +634,18 @@ impl Engine {
                                         // block" (engine-checked).
                                         && (!spec.filter.contains(&Requirement::CanAttemptBlock)
                                             || self.can_attempt_block(seat, id))
+                                        && (!spec
+                                            .filter
+                                            .contains(&Requirement::TargetInCombatWithDamage)
+                                            || self.combat.as_ref().is_some_and(|c| {
+                                                c.side_of_minion(id).is_some_and(|t| {
+                                                    c.sides[t].pending.total() > 0
+                                                        && !(c.sides[t].no_fortitude_prevention
+                                                            && tags.iter().any(|g| {
+                                                                g.eq_ignore_ascii_case("for")
+                                                            }))
+                                                })
+                                            }))
                                 })
                                 .map(Target::Minion)
                                 .collect(),
@@ -688,6 +757,11 @@ impl Engine {
                         c.played_combat.push((m, name));
                     }
                 }
+                Limit::PerCombatThisMode => {
+                    if let Some(c) = self.combat.as_mut() {
+                        c.played_combat_modes.push((m, card, mode));
+                    }
+                }
                 Limit::PerAction | Limit::OnePerAction => {
                     if let Some(a) = self.action.as_mut() {
                         a.played.push((m, name));
@@ -718,6 +792,7 @@ impl Engine {
             x: 0,
             burn: None,
             named: None,
+            chosen: None,
         };
         let mut ctx = ctx;
         if let Some(x) = cards::terms_x(&self.state, s, card, &def.modes[mode as usize]) {
@@ -771,6 +846,59 @@ impl Engine {
     /// With `ignore`, no clan or Discipline requirement: the basic version
     /// always, another as the vampire's Disciplines allow (Biothaumaturgic
     /// Experiment; LSJ 20080803).
+    /// Equipment cards in `seat`'s hand minion `m` could be equipped with
+    /// now (Angel's Gift, Contraband): matching `filter`, requirements met,
+    /// cost payable — its pool cost partly in blood with `blood_share`.
+    pub(crate) fn equippable_from_hand(
+        &self,
+        seat: SeatId,
+        m: MinionId,
+        filter: cards::CardFilter,
+        blood_share: bool,
+    ) -> Vec<(u16, u8)> {
+        let st = &self.state;
+        let mut hand = st.seats[seat.index()].hand.clone();
+        hand.sort_unstable();
+        hand.dedup();
+        hand.into_iter()
+            .filter(|&card| {
+                let pool = cards::pool_cost(st, seat, card, Target::Minion(m));
+                let blood = cards::blood_cost(st, card, 0);
+                let have = st.minions[m.index()].blood;
+                let share = if blood_share {
+                    (pool as u8 / 2).min(have.saturating_sub(blood)) as i32
+                } else {
+                    0
+                };
+                filter.matches(card)
+                    && cards::lookup(card).is_some()
+                    && self.equip_requirements_met(m, card)
+                    && have >= blood
+                    && st.seats[seat.index()].pool >= pool - share
+            })
+            .map(|card| (card, 0))
+            .collect()
+    }
+
+    /// The most of `card`'s pool cost minion `m` may pay in blood
+    /// (Contraband [OBF]: "up to half the cost rounded down").
+    fn blood_share_max(&self, seat: SeatId, m: MinionId, card: u16) -> u8 {
+        let st = &self.state;
+        let pool = cards::pool_cost(st, seat, card, Target::Minion(m));
+        let have = st.minions[m.index()]
+            .blood
+            .saturating_sub(cards::blood_cost(st, card, 0));
+        (pool as u8 / 2).min(have)
+    }
+
+    /// The least of `card`'s pool cost minion `m` must pay in blood: what
+    /// the pool cannot.
+    fn blood_share_min(&self, seat: SeatId, m: MinionId, card: u16) -> u8 {
+        let st = &self.state;
+        let pool = cards::pool_cost(st, seat, card, Target::Minion(m));
+        (pool - st.seats[seat.index()].pool).max(0) as u8
+    }
+
     pub(crate) fn employable_from_hand(
         &self,
         seat: SeatId,
@@ -836,9 +964,14 @@ impl Engine {
             Some(Terms::BloodRange { min, max }) => (min..=max).map(Choice::SetX).collect(),
             // X may exceed what is needed but never the actor's blood
             // (Hidden Strength rulings).
+            // A fixed blood cost besides ("burn X blood", Lightning
+            // Reflexes [CEL]) is paid first.
             Some(Terms::XBlood) => {
                 let blood = self.state.minions[ctx.actor.expect("actor").index()].blood;
-                (0..=blood).map(Choice::SetX).collect()
+                let fixed = cards::blood_cost(&self.state, ctx.card, 0);
+                (0..=blood.saturating_sub(fixed))
+                    .map(Choice::SetX)
+                    .collect()
             }
             Some(Terms::XBloodIn { min, max }) => {
                 let blood = self.state.minions[ctx.actor.expect("actor").index()].blood;
@@ -848,6 +981,35 @@ impl Engine {
                 let margin = self.action.as_ref().map_or(0, |a| a.margin) as u8;
                 (0..=n.min(margin)).map(Choice::SetX).collect()
             }
+            Some(Terms::OwnOfClan { clan, other }) => self
+                .state
+                .minions_of(ctx.seat)
+                .filter(|&m| {
+                    let v = &self.state.minions[m.index()];
+                    v.ready()
+                        && v.clan() == Some(clan)
+                        && !(other && ctx.target == Target::Minion(m))
+                })
+                .map(Choice::ChooseMinion)
+                .collect(),
+            // The equipment, then its blood share (Contraband [OBF]).
+            Some(Terms::EquipFromHand {
+                filter,
+                blood_share,
+            }) => match ctx.named {
+                None => self
+                    .equippable_from_hand(ctx.seat, ctx.actor.expect("actor"), filter, blood_share)
+                    .into_iter()
+                    .map(|(card, mode)| Choice::EmployFromHand { card, mode })
+                    .collect(),
+                // At least what the pool cannot pay.
+                Some((card, _)) => {
+                    let m = ctx.actor.expect("actor");
+                    let max = self.blood_share_max(ctx.seat, m, card);
+                    let min = self.blood_share_min(ctx.seat, m, card);
+                    (min..=max).map(Choice::SetX).collect()
+                }
+            },
             Some(Terms::EmployFromHand(label)) => self
                 .employable_from_hand(ctx.seat, ctx.actor.expect("actor"), Some(label), false)
                 .into_iter()
@@ -895,7 +1057,27 @@ impl Engine {
         match choice {
             Choice::SetX(n) => ctx.x = *n,
             Choice::BurnInPlay { card } => ctx.burn = Some(CardId(*card)),
-            Choice::EmployFromHand { card, mode } => ctx.named = Some((*card, *mode)),
+            Choice::EmployFromHand { card, mode } => {
+                ctx.named = Some((*card, *mode));
+                // A blood share to choose next (Contraband [OBF]).
+                let share = cards::lookup(ctx.card).is_some_and(|d| {
+                    matches!(
+                        d.modes[ctx.mode as usize].terms,
+                        Some(Terms::EquipFromHand {
+                            blood_share: true,
+                            ..
+                        })
+                    )
+                });
+                if share && self.blood_share_max(ctx.seat, ctx.actor.expect("actor"), *card) > 0 {
+                    self.flow = Flow::PlayTerms {
+                        ctx,
+                        resume: Box::new(resume),
+                    };
+                    return;
+                }
+            }
+            Choice::ChooseMinion(m) => ctx.chosen = Some(*m),
             Choice::Pass => ctx.burn = None,
             other => unreachable!("illegal terms choice {other:?}"),
         }
@@ -984,6 +1166,9 @@ impl Engine {
                                 Requirement::PlayedFrenzyOnYour(clan) => {
                                     self.played_frenzy_on(seat, clan, &top.ctx)
                                 }
+                                Requirement::PlayedGrappleOrAimByOpponent => {
+                                    self.played_grapple_by_opponent(source, &top.ctx)
+                                }
                                 _ => true,
                             })
                     }
@@ -1025,18 +1210,43 @@ impl Engine {
     /// (Deep Song [ANI]), or the card is labeled Frenzy; the vampire is its
     /// target, or its player for a card played on itself.
     fn played_frenzy_on(&self, seat: SeatId, clan: &str, ctx: &PlayCtx) -> bool {
-        let frenzy = LIBRARY[ctx.card as usize].labels.contains(&Label::Frenzy)
-            || cards::lookup(ctx.card)
-                .is_some_and(|d| d.modes[ctx.mode as usize].effects.contains(&Effect::Frenzy));
-        let on = match ctx.target {
-            Target::Minion(m) => Some(m),
-            _ => ctx.actor,
-        };
-        frenzy
-            && on.is_some_and(|m| {
+        self.frenzy_on(ctx.card, ctx.mode, ctx.actor, ctx.target)
+            .is_some_and(|m| {
                 let v = &self.state.minions[m.index()];
                 v.owner == seat && v.clan() == Some(clan)
             })
+    }
+
+    /// The minion a frenzy card is played on: the one it targets, chooses
+    /// or affects (LSJ 20051113) — the opposing minion for a combat card
+    /// affecting it (Terror Frenzy; ANK 20220409), else its player's own.
+    /// None for a card that is no frenzy card.
+    pub(crate) fn frenzy_on(
+        &self,
+        card: u16,
+        mode: u8,
+        actor: Option<MinionId>,
+        target: Target,
+    ) -> Option<MinionId> {
+        let effects = cards::lookup(card).map_or(&[][..], |d| d.modes[mode as usize].effects);
+        let frenzy = LIBRARY[card as usize].labels.contains(&Label::Frenzy)
+            || effects.contains(&Effect::Frenzy);
+        if !frenzy {
+            return None;
+        }
+        if let Target::Minion(m) = target {
+            return Some(m);
+        }
+        let on_opponent = effects.iter().any(|e| {
+            matches!(
+                e,
+                Effect::OpposingRestraint | Effect::OpposingCombatCardsCost(_)
+            )
+        });
+        match (on_opponent, self.combat.as_ref(), actor) {
+            (true, Some(c), Some(m)) => c.side_of_minion(m).map(|i| c.sides[1 - i].minion),
+            _ => actor,
+        }
     }
 
     pub(crate) fn as_played_apply(
@@ -1111,24 +1321,48 @@ impl Engine {
         }
     }
 
+    /// Is the card being played a grapple or aim card of the minion opposing
+    /// `source`'s bearer in combat (Sword of the Archangel)?
+    fn played_grapple_by_opponent(&self, source: AbilitySource, ctx: &PlayCtx) -> bool {
+        let AbilitySource::Card(c) = source else {
+            return false;
+        };
+        let labels = LIBRARY[ctx.card as usize].labels;
+        let kind = labels.contains(&Label::Grapple) || labels.contains(&Label::Aim);
+        let host = self.state.cards[c.index()].bearer();
+        kind && self.combat.as_ref().zip(host).is_some_and(|(cb, h)| {
+            cb.side_of_minion(h)
+                .is_some_and(|i| ctx.actor == Some(cb.sides[1 - i].minion))
+        })
+    }
+
     /// The card played (`ctx`) is a strike card of the minion opposing
-    /// `source`'s host in its combat.
+    /// `source`'s host in its combat (The Vozhd of Gravesend).
     fn played_strike_by_opponent(&self, source: AbilitySource, ctx: &PlayCtx) -> bool {
         let host = match source {
             AbilitySource::Card(c) => self.state.cards[c.index()].bearer(),
             AbilitySource::Vampire(m) => Some(m),
         };
-        let Some((cb, host)) = self.combat.as_ref().zip(host) else {
+        host.is_some_and(|h| self.strike_card_against(h, ctx))
+    }
+
+    /// The card played (`ctx`) is a strike card — played at strike
+    /// declaration or at the maneuver (Slam) — of the minion in combat
+    /// with `m` (Anticipation [AUS]).
+    pub(crate) fn strike_card_against(&self, m: MinionId, ctx: &PlayCtx) -> bool {
+        let Some(cb) = self.combat.as_ref() else {
             return false;
         };
-        let Some(i) = cb.side_of_minion(host) else {
+        let Some(i) = cb.side_of_minion(m) else {
             return false;
         };
         let strike = cards::lookup(ctx.card).is_some_and(|d| {
-            d.modes[ctx.mode as usize]
-                .effects
-                .iter()
-                .any(|e| matches!(e, Effect::Strike(_)))
+            d.modes[ctx.mode as usize].effects.iter().any(|e| {
+                matches!(
+                    e,
+                    Effect::Strike(_) | Effect::CommittedStrike(_) | Effect::WeaponStrikePlus(_)
+                )
+            })
         });
         strike && ctx.actor == Some(cb.sides[1 - i].minion)
     }
@@ -1213,7 +1447,8 @@ impl Engine {
             }
             let blood = cards::blood_cost(&self.state, ctx.card, ctx.x)
                 + surcharge
-                + self.discipline_surcharge(m, ctx.card);
+                + self.discipline_surcharge(m, ctx.card)
+                + self.combat_card_surcharge(m, ctx.card);
             let v = &mut self.state.minions[m.index()];
             v.blood = v.blood.saturating_sub(blood);
             if blood > 0 && v.is_ally() && v.blood == 0 {
@@ -1228,7 +1463,9 @@ impl Engine {
         let held = mode.effects.iter().any(|e| {
             matches!(
                 e,
-                Effect::PutOnOpponentOnHit { .. } | Effect::PutOnActorAfterCombat
+                Effect::PutOnOpponentOnHit { .. }
+                    | Effect::PutOnActorAfterCombat
+                    | Effect::PutOnOpponent
             )
         });
         for effect in mode.effects.iter().filter(|_| !payer_burned) {
@@ -1285,6 +1522,7 @@ impl Engine {
         match def.delayed_replacement {
             Some(Until::NextUnlockPhase) => self.state.seats[s.index()].held.unlock += 1,
             Some(Until::NextDiscardPhase) => self.state.seats[s.index()].held.discard += 1,
+            Some(Until::EndOfAction) => self.state.seats[s.index()].held.action += 1,
             None if deferred => self.state.seats[s.index()].held.action += 1,
             None => self.replace(s, 1, in_play),
         }
@@ -1390,14 +1628,19 @@ impl Engine {
             Effect::RechoosesOnControlChange
             | Effect::PoolWhenHostLeaves(_)
             | Effect::BurnAtInfluencePerPreyReady => {}
-            Effect::ChooseSecondOfClan(clan) | Effect::ChooseOwnOfClan(clan) => {
-                if let Some(card) = *in_play {
-                    self.interrupts.push(Interrupt::ChooseForCard {
-                        seat: s,
-                        card,
-                        clan: Some(clan),
-                        second: matches!(effect, Effect::ChooseSecondOfClan(_)),
-                    });
+            // A marker read by the frenzy-cancel cards (`frenzy_on`).
+            Effect::Frenzy => {}
+            // Chosen as the card was played (rules-qa 28.5).
+            Effect::ChooseSecondOfClan(_) => {
+                if let Some(id) = *in_play {
+                    let chosen = &mut self.state.cards[id.index()].chosen;
+                    chosen.truncate(1);
+                    chosen.extend(ctx.chosen);
+                }
+            }
+            Effect::ChooseOwnOfClan(_) => {
+                if let Some(id) = *in_play {
+                    self.state.cards[id.index()].chosen = ctx.chosen.into_iter().collect();
                 }
             }
             Effect::ChooseTarget => {
@@ -1506,6 +1749,49 @@ impl Engine {
             // The named retainer from hand, if still there and affordable:
             // its cost paid, requirements as normal, not an action (Pack
             // Alpha [ani]); a card played from hand is replaced.
+            // Still in hand, still allowed and payable: equipped, not an
+            // action (LSJ 20080815).
+            Effect::EquipNamed => {
+                let (Some((card, mode)), Some(m)) = (ctx.named, ctx.actor) else {
+                    unreachable!("an equip without its named card");
+                };
+                let Some(Terms::EquipFromHand {
+                    filter,
+                    blood_share,
+                }) = cards::lookup(ctx.card).and_then(|d| d.modes[ctx.mode as usize].terms)
+                else {
+                    unreachable!("an equip without its terms");
+                };
+                let ok = self.state.minions[m.index()].present()
+                    && self
+                        .equippable_from_hand(s, m, filter, blood_share)
+                        .contains(&(card, mode));
+                let share = ctx.x.min(self.blood_share_max(s, m, card));
+                let ok = ok && share >= self.blood_share_min(s, m, card);
+                if ok {
+                    let hand = &mut self.state.seats[s.index()].hand;
+                    let i = hand.iter().position(|&c| c == card).expect("in hand");
+                    hand.remove(i);
+                    let pool = cards::pool_cost(&self.state, s, card, Target::Minion(m));
+                    let blood = cards::blood_cost(&self.state, card, 0);
+                    self.state.seats[s.index()].pool -= pool - share as i32;
+                    self.state.minions[m.index()].blood -= blood + share;
+                    let play = PlayCtx {
+                        seat: s,
+                        card,
+                        mode,
+                        actor: Some(m),
+                        target: Target::Minion(m),
+                        x: 0,
+                        burn: None,
+                        named: None,
+                        chosen: None,
+                    };
+                    // Paid down to 0 pool: ousted as the play resolves.
+                    self.put_equipment(s, m, play);
+                    self.replace(s, 1, None);
+                }
+            }
             Effect::EmployNamed => {
                 let (Some((card, mode)), Some(m)) = (ctx.named, ctx.actor) else {
                     unreachable!("an employ without its named card");
@@ -1537,6 +1823,7 @@ impl Engine {
                         x: 0,
                         burn: None,
                         named: None,
+                        chosen: None,
                     };
                     // An ally recruited so cannot act this turn (RBK
                     // recruit-ally).
@@ -1979,6 +2266,18 @@ impl Engine {
                             continue;
                         }
                         let m = a.acting;
+                        // Melange: "this reacting vampire", bleeding the
+                        // controller of the minion the card is on.
+                        if ability.requires.contains(&Requirement::ActingIsBy) && c.by != Some(m)
+                            || ability
+                                .requires
+                                .contains(&Requirement::BleedAgainstHostController)
+                                && (a.bleed_target.is_none()
+                                    || c.host.map(|h| st.minions[h.index()].owner)
+                                        != a.bleed_target)
+                        {
+                            continue;
+                        }
                         if !st.minions[m.index()].present()
                             || !ability.requires.iter().all(|&r| {
                                 cards::holds(r, st, seat, Some(m), None, Some(a), None, None, false)
@@ -2101,13 +2400,23 @@ impl Engine {
                         }
                         // "Cannot use equipment during the resulting
                         // combat" (Form of the Bat).
-                        if (LIBRARY[c.card as usize]
-                            .types
-                            .contains(&CardType::Equipment)
-                            || cards::becomes_weapon(c.card))
+                        // "If the opposing vampire is burned during this
+                        // weapon's strike resolution" (Sword of the
+                        // Archangel).
+                        if ability
+                            .requires
+                            .contains(&Requirement::WeaponBurnedOpponent)
+                            && !self
+                                .combat
+                                .as_ref()
+                                .is_some_and(|cb| cb.burned_by.contains(&CardId(ci as u32)))
+                        {
+                            continue;
+                        }
+                        if (cards::is_equipment_in_play(c.card) || cards::becomes_weapon(c.card))
                             && self.combat.as_ref().is_some_and(|cb| {
                                 cb.side_of_minion(host)
-                                    .is_some_and(|i| cb.sides[i].no_equipment)
+                                    .is_some_and(|i| cb.sides[i].equipment_barred())
                             })
                         {
                             continue;
@@ -2176,7 +2485,11 @@ impl Engine {
                                 .turn_uses
                                 .contains(&AbilitySource::Card(id).use_key(ai as u8)),
                             Some(Limit::PerPhaseEach) | None => false,
-                            Some(Limit::BetweenUnlockPhases | Limit::OnePerAction) => {
+                            Some(
+                                Limit::BetweenUnlockPhases
+                                | Limit::OnePerAction
+                                | Limit::PerCombatThisMode,
+                            ) => {
                                 unreachable!("a card-play limit on an ability")
                             }
                         };
@@ -2212,6 +2525,10 @@ impl Engine {
                                     .combat
                                     .as_ref()
                                     .is_some_and(|cb| cb.held_at_block.contains(&id)))
+                                && (!matches!(r, Requirement::HostAttempting)
+                                    || self.action.as_ref().is_some_and(|a| {
+                                        a.state == crate::actions::ActionState::Attempt(host)
+                                    }))
                                 && (!matches!(r, Requirement::HostOutOfCombat)
                                     || self
                                         .combat
@@ -2437,7 +2754,14 @@ impl Engine {
                 cb.side_of_minion(h)
                     .is_some_and(|i| c.host == Some(cb.sides[1 - i].minion))
             });
+        // A retainer in combat with damage pending (Martyr's Resilience).
+        let damaged = !spec.filter.contains(&Requirement::TargetInCombatWithDamage)
+            || self
+                .combat
+                .as_ref()
+                .is_some_and(|cb| cb.retainer_pending.iter().any(|&(r, n)| r == id && n > 0));
         opposing
+            && damaged
             && c.present()
             && c.host.is_none_or(|h| st.minions[h.index()].present())
             && spec
@@ -2495,7 +2819,9 @@ impl Engine {
                         .is_some_and(|r| r.abilities_used.contains(&used)),
                     Some(Limit::PerTurn) => st.turn_uses.contains(&used),
                     Some(Limit::PerPhaseEach) | None => false,
-                    Some(Limit::BetweenUnlockPhases | Limit::OnePerAction) => {
+                    Some(
+                        Limit::BetweenUnlockPhases | Limit::OnePerAction | Limit::PerCombatThisMode,
+                    ) => {
                         unreachable!("a card-play limit on an ability")
                     }
                 };
@@ -2560,6 +2886,21 @@ impl Engine {
     /// while a minion bearing the surcharge is acting, attempting to block
     /// or in combat — not the bearer itself (Libertas). A failed block
     /// attempt no longer counts (LSJ 20080818).
+    /// "This combat, combat cards cost the opposing vampire +1 blood"
+    /// (Terror Frenzy [ANI]): `actor`'s combat cards in its combat.
+    pub(crate) fn combat_card_surcharge(&self, actor: MinionId, card: u16) -> u8 {
+        if !LIBRARY[card as usize].types.contains(&CardType::Combat) {
+            return 0;
+        }
+        self.combat
+            .as_ref()
+            .and_then(|c| {
+                c.side_of_minion(actor)
+                    .map(|i| c.sides[i].combat_card_surcharge)
+            })
+            .unwrap_or(0)
+    }
+
     pub(crate) fn discipline_surcharge(&self, actor: MinionId, card: u16) -> u8 {
         let st = &self.state;
         let discs = LIBRARY[card as usize].disciplines;
@@ -2981,6 +3322,7 @@ impl Engine {
             x,
             burn: None,
             named: None,
+            chosen: None,
         };
         if let (Some(Limit::PerAction), Some(a)) = (mode.limit, self.action.as_mut()) {
             a.abilities_used.push(source.use_key(ability));
@@ -3396,7 +3738,12 @@ impl Engine {
                         }
                     };
                     cb.gun_prevention_left[k].1 -= 1;
+                    // A gun point is strike damage.
+                    let gun = cb.sides[i].pending.gun.min(1);
                     cb.sides[i].pending.prevent_gun(1);
+                    let sd = &mut cb.sides[i].strike_damage;
+                    sd.normal -= gun.min(sd.normal);
+                    sd.gun -= gun.min(sd.gun);
                 }
                 Effect::ContinuePressEachCombat => {
                     let id = source.use_key(ability);
@@ -3460,8 +3807,15 @@ impl Engine {
     ) -> Option<DecisionRequest> {
         let seat = window.current()?;
         let mut options = Vec::new();
-        if seat == self.state.active && !pending.is_empty() {
-            for p in pending {
+        // A contest whose rivals are gone since the window opened (another
+        // unlock effect removed them) is no longer due: it is released as
+        // the impulse passes.
+        let live: Vec<&Pending> = pending
+            .iter()
+            .filter(|p| !matches!(p, Pending::Contest(i) if self.contest_choices(*i).is_empty()))
+            .collect();
+        if seat == self.state.active && !live.is_empty() {
+            for p in live {
                 match *p {
                     Pending::Rider(c) => options.push(Choice::ResolveRider { card: c.0 }),
                     // Re-read: a title's vampire may have lost its blood
@@ -3496,7 +3850,21 @@ impl Engine {
         choice: &Choice,
     ) {
         match choice {
-            Choice::Pass => window.pass(),
+            Choice::Pass => {
+                // Contests left without a rival: released now.
+                let stale: Vec<crate::game::Contest> = pending
+                    .iter()
+                    .filter_map(|p| match *p {
+                        Pending::Contest(i) if self.contest_choices(i).is_empty() => Some(i),
+                        _ => None,
+                    })
+                    .collect();
+                for i in stale {
+                    pending.retain(|p| *p != Pending::Contest(i));
+                    self.release_contest(i);
+                }
+                window.pass()
+            }
             Choice::PayContest(item) | Choice::YieldContest(item) => {
                 pending.retain(|p| *p != Pending::Contest(*item));
                 if self.settle_contest(*item, matches!(choice, Choice::PayContest(_))) {

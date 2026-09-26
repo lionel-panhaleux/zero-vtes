@@ -1930,9 +1930,117 @@ Recorded so nobody mistakes them for oversights:
   every pre-built deck master (292 defs, 626 tests; rules-qa Batch 28
   open). The pre-built decks' last two cards are equipment: Living Manse
   and Sword of the Archangel.
-  **P2 open items (2026-09-26, after 11q):**
-  - Next: Living Manse and Sword of the Archangel, then the rest of the
-    pool; the owner suggested hard cards to stress the engine (Rötschreck,
+  11r — the pre-built decks' last equipment:
+  - **Living Manse** is equipment to equip and a location in play
+    (`cards::is_equipment_in_play`): no equipment target or "cannot use
+    equipment" (Form of the Bat) reaches it, Camera Phone's cap ignores
+    its bleed, Rewilding burns it — its host's controller paying.
+  - **Sword of the Archangel**: its cancel of an opposing grapple or aim
+    card (`Label::Grapple`, `Label::Aim` from the generator;
+    `R::PlayedGrappleOrAimByOpponent`), and the end-of-combat unlock once
+    a turn after its strike burned the opposing vampire
+    (`Side::resolved_with` keeps the weapon until the damage lands,
+    `CombatCtx::burned_by`).
+
+  Definitions: Living Manse, Sword of the Archangel (294 defs, 632 tests).
+  Every card of the 14 pre-built decks is now defined.
+  Owner answers to rules-qa Batches 27–28 (2026-09-26), applied: counters
+  on an uncontrolled vampire have no cap (the excess drains as it is
+  influenced out, 28.3); Toreador Grand Ball's second Toreador and
+  Priority Contract's Assamite are chosen as the card is played
+  (`Terms::OwnOfClan`, `PlayCtx::chosen`, 28.5); Wasserschloss Anif's
+  Tremere may be in torpor (28.6); a rescue whose vampire left torpor
+  fizzles paid like a leave-torpor action (28.7); a Ravnos that must hunt
+  with no target for the special hunt is frozen (28.8); Frontal Assault's
+  influence burn is a mandatory effect the player orders among their
+  transfers, before passing (28.9); a frenzy card is played on the minion
+  it affects (28.11, `Engine::frenzy_on`). Advanced rules 6.4.1 fixed to
+  agree with 6.2.4 (28.13). Also: a pending unlock-phase contest whose
+  rivals vanished is released as the impulse passes (fuzz: an empty
+  request).
+  11s — the pool's combat cards (18): Blood Fury, No Trace, Shadow Shift,
+  Wolf Claws, Rapid Change, Diversion, Lightning Reflexes, Wind Dance,
+  Anticipation, Terror Frenzy, Tranquility Shield, Flesh of Marble,
+  Weather Control, Disarm, Hide the Mind, Angel's Gift, Contraband,
+  Martyr's Resilience.
+  - **Strikes**: an additional strike only usable as one kind, limited or
+    not (`Effect::AdditionalStrikeOnly { kind, limited }`, Wind Dance's
+    dodge, chosen with `Choice::CommittedStrike`); X additional strikes
+    for X blood (`AdditionalStrikesX`, `ActorBurnsBloodX`; `Terms::XBlood`
+    now stops at the blood left after a fixed cost); a melee weapon's own
+    strike at +n from a card (`WeaponStrikePlus`, `cards::melee_strike`,
+    `CardFilter::MeleeWeapon`); a card cancelling the opposing minion's
+    strike card, checked on card plays too (`Engine::strike_card_against`).
+  - **Frenzy effects** on a combatant (`Side::no_close_maneuver`,
+    `no_continue_press`, `frenzy_no_equipment`, `combat_card_surcharge`,
+    `CombatCtx::may_maneuver`/`may_press`), cancelled and barred by
+    `frenzy_immune` (Tranquility Shield); a once-per-combat limit on one
+    mode (`Limit::PerCombatThisMode`).
+  - **Damage**: Flesh of Marble's clamp as damage lands (`marble_clamp`,
+    the superior version's pick through `Step::Allocate`); Weather
+    Control's damage as the before-range step ends, or as the combat ends
+    before range (`weather_damage`); per-round damage landed and inflicted
+    by strikes (`Side::damaged_round`, `inflicted_round`) for Disarm, put
+    on the opposing vampire at once (`Effect::PutOnOpponent`) and sent to
+    torpor through `apply_damage`. No new round once a combatant left the
+    ready region.
+  - **Prevention from outside the combat** (Martyr's Resilience):
+    `Actor::UnlockedOutOfCombat`, targets engine-checked
+    (`R::TargetInCombatWithDamage`, Fortitude cards barred under a
+    Fortitude-proof strike), a third-party window after both sides'
+    prevention (`Step::OthersPrevent`), `Step::Allocate` naming the
+    preventer and its way back; damage aimed at retainers waits for
+    prevention (`CombatCtx::retainer_pending`).
+  - **Equip from hand in combat** (Angel's Gift, Contraband):
+    `Terms::EquipFromHand { filter, blood_share }` names the card as it is
+    played, then Contraband [OBF]'s blood share; `Effect::EquipNamed`
+    re-checks and pays at resolution, not an action. Angel's Gift's
+    maneuver only to close range (`Side::close_maneuvers`).
+  - **Cancels by Discipline**: `R::PlayedCardType`,
+    `R::PlayedRequiresDiscipline` (the mode played, PIB 20130704).
+  Owner answers to rules-qa Batch 29 (2026-09-26): the preventer picks
+  which damage — strike or other — a prevention covers
+  (`Step::AllocateSource`, `CombatCtx::settle_source`), which Disarm
+  reads; X = 0 additional strikes use no limit.
+  Definitions: 312, 664 tests, own fuzz table
+  (`random_games_with_combat_cards_wave_2_hold_invariants_and_replay`);
+  rules-qa Batch 29 answered. Pool: 425 library cards, 312 defined — 112
+  left (27 actions, 38 masters, 20 events, 9 reactions, 7 action
+  modifiers, 3 allies, 3 equipment, 5 political actions).
+  11t — the pool's reactions and action modifiers (16): Threats, Forgotten
+  Labyrinth, Go-getter, Elder Impersonation, Beast Meld, Paths in Two
+  Worlds, Dawn Operation, Dogged Pursuit, Elder Intervention, Forced
+  Awakening, Forced Vigilance, Melange, Rat's Warning, Redirection, Sense
+  the Savage Way, Telepathic Counter.
+  - Riders of the action: cards put on a minion after resolution unless it
+    blocked (`ActionCtx::put_if_no_block`, Dogged Pursuit), on the acting
+    minion as a block succeeds (`put_on_acting_if_blocks`, Melange, still
+    its player's), blood burned at resolution unless blocked after the card
+    (`burn_if_no_block`, Forced Awakening), an unlock for blood after a
+    successful action (`after_resolution_unlocks`, Paths in Two Worlds), a
+    blocked action continued from its after-resolution window (Go-getter),
+    all combat damage on vampires aggravated (`CombatCtx::all_aggravated`,
+    Dawn Operation, with a cancel of the attempt `Interrupt::CancelAttempt`).
+  - Prevention usable in any round of the block's combat
+    (`BlockRider::PreventInCombat`, `Side::combat_prevents`); replacement
+    held to the action's end (`Until::EndOfAction`); requirements
+    `NotBleed`, `ActingYounger`, `RecruitingSubtype`, and engine-checked
+    `HostAttempting`, `ActingIsBy`, `BleedAgainstHostController`. Block
+    pruning counts intercept abilities of cards on the minion given as
+    `AttemptingIntercept`.
+  Definitions: 328, 684 tests; own fuzz table
+  (`random_games_with_reactions_wave_2_hold_invariants_and_replay`);
+  rules-qa Batch 30 answered (a block is the action's resolution). 96 pool library cards left (27 actions, 38
+  masters, 20 events, 5 political actions, 3 allies, 3 equipment).
+  **P2 open items (2026-09-26, after 11t):**
+  - Edges left from 11s: `Terms::XBlood` stops at the blood left after a
+    fixed cost but not after a surcharge (Terror Frenzy [ANI] on
+    Lightning Reflexes offers one X too many, clamped at resolution);
+    Disarm's torpor is applied inside the card's resolution — a torpor
+    rider ousting the active Methuselah there (Fame) finishes the play's
+    bookkeeping before the flow moves on. Rapid Change [PRO] and Wolf
+    Claws [PRO] are covered by the fuzz table only.
+  - Next: the rest of the pool; the owner suggested hard cards to stress the engine (Rötschreck,
     Outside the Hourglass, Rewind Time) and legacy cards to close testing
     loops (a sterile baron: no printed vampire is both).
   - Self-contest of a unique title (advanced rules §1.13.1: "you can never

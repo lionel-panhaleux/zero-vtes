@@ -37,6 +37,10 @@ LABELS = [
     ("Title", r"^title\."),
     ("OutOfTurn", r"^out-of-turn\."),
     ("Frenzy", r"^frenzy\."),
+    # Combat card kinds a card may name ("cancel a grapple or aim card",
+    # Sword of the Archangel).
+    ("Grapple", r"^grapple\."),
+    ("Aim", r"^aim\."),
     # A Discipline master card ("Discipline. Put this card on a vampire.").
     ("Discipline", r"^discipline\."),
     # Ally and retainer subtypes: the type line only (advanced rules 5.7.1).
