@@ -83,6 +83,7 @@ fn equip(e: &mut Engine, name: &str, host: MinionId) -> u32 {
         locked: false,
         counters: 0,
         stored: Vec::new(),
+        effect_only: false,
     });
     CardId(e.state.cards.len() as u32 - 1).0
 }

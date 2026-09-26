@@ -1760,3 +1760,144 @@ minion?
 action targeting your own minions is undirected; one targeting another
 Methuselah's minion is directed at them. **Test** —
 `saulots_healing_touch_adds_blood_to_another_ready_minion`.
+
+## Batch 21 — Combat cards (slice 11i)
+
+### 21.1 Strikes that put their card on the opposing minion _(answered 2026-09-26)_
+
+Touch of Oblivion [obl] ("Strike: put this card on the opposing minion with
+2 counters") and Sculpt the Flesh [PRO] ("… and put this card on the
+opposing minion"): the card goes on as the strike resolves, only if it
+lands; a dodge stops it and the card is discarded, as does a combat ended
+before it resolves. Does Touch of Oblivion's strike, dealing no damage,
+work at any range?
+
+**Answer (2026-09-26)** — yes for the dodge; but a strike works at close
+range only by default, never at long range unless it says so. **Applied**:
+both Touch of Oblivion strikes are close-range.
+
+**Follow-up (owner, 2026-09-26)** — only action cards wait in limbo, until
+successful or blocked. Every other card goes to the ash heap as it resolves,
+unless its effect puts it in play, even when part of its effect lingers or
+is delayed. Players often leave such cards on the table as reminders; that
+is display only. The delayed effect applies whether or not the card is still
+there, and the card need not go anywhere (owner, 2026-09-26). **Applied**:
+Touch of Oblivion, Sculpt the Flesh [PRO] and Pass Through Shadow [OBL] go
+to the ash heap as they resolve and stay there. Their lingering effect is an
+effect-only card in play (`CardInPlay.effect_only`). Burning it ends the
+effect and moves no card; an oust removes it without touching the ash
+heap. **Tests** —
+`sculpt_the_flesh_superior_stays_on_the_opposing_minion`,
+`touch_of_oblivion_keeps_the_minion_locked_two_unlock_phases`.
+
+### 21.2 Touch of Oblivion: "instead of unlocking as normal" _(answered 2026-09-26)_
+
+Per the advanced rules §5.2.2 substitution template, the attached minion
+burns a counter even if it is already unlocked. One kept from unlocking by
+another effect (Stolen Police Cruiser) burns none that phase. At 0 counters
+the card is burned, and the minion unlocks as normal from the next unlock
+phase. **Answer** — right. **Test** —
+`touch_of_oblivion_keeps_the_minion_locked_two_unlock_phases`.
+
+### 21.3 Rolling with the Punches [FOR] _(answered 2026-09-26)_
+
+"Prevent all damage from the opposing minion's strikes this round" also
+reaches that minion's additional strikes later in the round. It does not
+reach environmental or retainer damage. It is playable only with strike
+damage pending (LSJ 20001114). **Answer** — yes. **Test** —
+`rolling_with_the_punches_prevents_the_strikes_for_1_blood`.
+
+## Batch 22 — Combat cards with their own mechanisms (slice 11j)
+
+### 22.1 A strike card played at the maneuver _(answered 2026-09-26)_
+
+Slam [POT] and Aid from Bats, played during determine range (window review:
+a maneuver rider commits the strike early), give their maneuver at once and
+commit the round's initial strike. At strike choice, that strike is the only
+one offered; the card itself goes to the ash heap as it resolves. Slam's
+maneuver only closes a long range. Neither is offered at the maneuver while
+the strike could not be used (LSJ 20021028). **Answer** — yes. **Tests** —
+`slam_played_at_the_maneuver_closes_the_range_and_commits_the_strike`,
+`aid_from_bats_maneuvers_either_way_and_commits_its_strike`,
+`a_strike_with_a_maneuver_is_not_played_while_strikes_are_barred`.
+
+### 22.2 Pack Alpha [ani]'s employ _(answered 2026-09-26)_
+
+The retainer and its version are named as Pack Alpha is played, among those
+the vampire could employ now (requirements met, cost affordable). At
+resolution the retainer card, if still in hand, is paid for and put in play,
+and the Methuselah replaces it like a card played from hand. Not being an
+action, an employ action's riders do not apply (Feral Hound's unlocks).
+**Answer** — yes. **Test** — `pack_alpha_employs_an_animal_retainer_from_hand`.
+
+### 22.3 Voracious Vermin [ANI]'s additional strike _(answered 2026-09-26)_
+
+"With 1 additional ranged strike: burn weapon": is the additional strike
+optional?
+
+**Answer (2026-09-26)** — it is not a matter of declining. Either there is a
+weapon to burn, and the superior version can be chosen, or there is none,
+and it cannot. It works at any range, and a dodge stops it. **Applied**: the
+[ANI] mode requires a weapon on the opposing minion (`R::OpposingWeapon`).
+Its additional strike burns one of them (the only choice is which), and
+there is none if no weapon is left by then. **Test** —
+`voracious_vermin_dodges_then_burns_a_weapon`.
+
+### 22.4 Weighted Walking Stick as a weapon _(answered 2026-09-26)_
+
+Once in play it counts as weapon equipment everywhere the engine asks:
+Blood Rage and Soul Burn nullify it, Form of the Bat bars it, and Voracious
+Vermin can burn it. **Answer** — yes, as long as it is in play; in hand or in
+the ash heap it is just a combat card. **Test** —
+`weighted_walking_stick_loses_counters_per_damage_inflicted`.
+
+## Batch 23 — Action modifiers and reactions (slice 11k)
+
+### 23.1 Change of Target and the blocker _(answered 2026-09-26)_
+
+The card is played "before the blocker is locked" (LSJ 19980224, RTR
+19991206), so a blocker that was unlocked when it blocked stays unlocked.
+The action ends as blocked: no combat, no diablerie. **Answer** — yes. **Test** —
+`change_of_target_ends_a_blocked_action_before_combat`.
+
+### 23.2 "Cannot perform the same action again this turn" _(answered 2026-09-26)_
+
+For a card action this is the ordinary NRA identity. For a rulebook action,
+"the same action" is the same kind at the same target: another rescue of a
+different vampire stays open (RTR 19950509). **Answer** — yes. **Test** —
+`change_of_target_forbids_the_same_rulebook_action_only`.
+
+### 23.3 Daring the Dawn's timing _(answered 2026-09-26)_
+
+The damage applies after resolution. LSJ 20010715 (Force of Will) lets
+after-resolution cards be played before or after such damage. **Answer** —
+either: players order effects as they wish. **Applied**: in the
+after-resolution window the acting Methuselah takes the damage
+(`Choice::TakeDamageAfterResolution`) whenever they choose among their
+after-resolution effects, and before passing. An action with no such
+window (blocked, or ended) takes it as it ends. **Tests** —
+`daring_the_dawn_damage_is_ordered_among_after_resolution_effects`,
+`daring_the_dawn_burns_after_combat_or_an_ended_action`.
+
+### 23.4 Unleashing the Bestial Soul [DOM]'s surcharge _(answered 2026-09-26)_
+
+"The next reaction card played this action costs +1 blood or life": the
+first reaction card to be paid for after it takes the surcharge. **Answer** — yes. **Test** —
+`unleashing_the_bestial_soul_bars_and_taxes_reactions`.
+
+### 23.5 Visions of Zapathasura [OBF][PRE]: "reduce … to 0" _(answered 2026-09-26)_
+
+The reduction is the bleed amount as the card resolves, a fixed amount, so
+later increases still count (the card's own parenthesis). **Answer** — yes. **Test** —
+`visions_of_zapathasura_superior_reduces_the_bleed_to_zero`.
+
+### 23.6 Veil the Legions [OBF] _(answered 2026-09-26)_
+
+X is chosen as the card is played, from 0 to the vampire's blood, and burned
+as it resolves. The next X actions of the Methuselah's minions this turn get
++1 stealth, counted as each is announced. Is "only one at superior each
+turn" per Methuselah?
+
+**Answer (2026-09-26)** — no: one in all, and a turn is one player's turn.
+**Applied**: a game-wide flag for the turn (`GameState.veil_superior`).
+**Test** — `veil_the_legions_superior_gives_the_next_actions_stealth`.

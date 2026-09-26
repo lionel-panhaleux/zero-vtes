@@ -561,6 +561,7 @@ fn banishment_sends_a_younger_vampire_to_the_uncontrolled_region() {
         locked: true,
         counters: 1,
         stored: Vec::new(),
+        effect_only: false,
     });
     // A card burned from him before does not (it stays in the ash heap).
     e.state.cards.push(zvtes::state::CardInPlay {
@@ -576,6 +577,7 @@ fn banishment_sends_a_younger_vampire_to_the_uncontrolled_region() {
         locked: false,
         counters: 0,
         stored: Vec::new(),
+        effect_only: false,
     });
     pick(&mut e, votes(alexa, true));
     close_polling(&mut e);

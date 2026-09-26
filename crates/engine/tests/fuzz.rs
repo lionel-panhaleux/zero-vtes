@@ -45,7 +45,11 @@ fn zone_totals(e: &Engine) -> Vec<usize> {
                 .cards
                 .iter()
                 .enumerate()
-                .filter(|(ci, c)| c.owner.index() == i && (c.in_play || banished(*ci)))
+                // An effect-only card is a lingering effect; its card is in
+                // the ash heap.
+                .filter(|(ci, c)| {
+                    c.owner.index() == i && !c.effect_only && (c.in_play || banished(*ci))
+                })
                 .map(|(_, c)| c)
                 .map(|c| 1 + c.stored.len())
                 .sum();
@@ -252,6 +256,10 @@ fn kind_of(c: &Choice) -> &'static str {
         Choice::BurnBloodForIntercept { .. } => "burn_blood_for_intercept",
         Choice::StrikeCombatEnds => "strike_combat_ends",
         Choice::RoundStrike { .. } => "round_strike",
+        Choice::CommittedStrike => "committed_strike",
+        Choice::TakeDamageAfterResolution => "take_damage_after_resolution",
+        Choice::BurnWeaponStrike { .. } => "burn_weapon_strike",
+        Choice::EmployFromHand { .. } => "employ_from_hand",
         Choice::PayBlockToll => "pay_block_toll",
         Choice::PayToCancel => "pay_to_cancel",
         Choice::UsePress => "use_press",
@@ -532,6 +540,13 @@ fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
     let city = [find_card("Horst von Brühl"), find_card("Aline Gädeke")];
     let slice: Vec<u16> = slice.iter().map(|n| find_library(n)).collect();
     let mut used = vec![shared, city[0], city[1]];
+    // The titled vampires every seat gets: never picked for Discipline
+    // cover too.
+    let titled: Vec<u16> = TITLED
+        .iter()
+        .flat_map(|t| [t.0, t.1, t.2])
+        .map(find_card)
+        .collect();
     for s in 0..4u8 {
         let seat = SeatId(s);
         // Vampires covering (at superior) every discipline the slice cards
@@ -545,7 +560,8 @@ fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
         .chain(extra)
         .copied()
         .collect();
-        for card in cover(&discs, &used) {
+        let excluded: Vec<u16> = used.iter().chain(&titled).copied().collect();
+        for card in cover(&discs, &excluded) {
             used.push(card);
             let blood = (1 + rng.below(4) as u8).min(CRYPT[card as usize].capacity);
             e.add_minion(seat, card, blood, false);
@@ -622,6 +638,7 @@ fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
             locked: false,
             counters: 2,
             stored: Vec::new(),
+            effect_only: false,
         });
     }
     e
@@ -1196,6 +1213,19 @@ const STAPLES_SLICE: &[&str] = &[
     "Soul Burn",
     "Carrion Crows",
     "Hunger of Marduk",
+    "Bear's Skin",
+    "Dust Up",
+    "Form of the Wolf",
+    "Rolling with the Punches",
+    "Sculpt the Flesh",
+    "Touch of Oblivion",
+    "Pass Through Shadow",
+    "Slam",
+    "Aid from Bats",
+    "Pack Alpha",
+    "Raven Spy",
+    "Voracious Vermin",
+    "Weighted Walking Stick",
     ".44 Magnum",
     "Side Strike",
     "Quickness",
@@ -1250,6 +1280,93 @@ fn random_games_with_combat_staples_hold_invariants_and_replay() {
             "play:Carrion Crows",
             "play:Hunger of Marduk",
             "round_strike",
+            "play:Bear's Skin",
+            "play:Dust Up",
+            "play:Form of the Wolf",
+            "play:Rolling with the Punches",
+            "play:Sculpt the Flesh",
+            "play:Touch of Oblivion",
+            "play:Pass Through Shadow",
+            "play:Slam",
+            "play:Aid from Bats",
+            "play:Pack Alpha",
+            "play:Voracious Vermin",
+            "play:Weighted Walking Stick",
+            // (The committed strike is the lone option at its strike
+            // choice, elided: scripted in tests/precon.rs.)
+            "employ_from_hand",
+        ],
+    );
+}
+
+/// The slice 11k tables' library: action modifiers and reactions, with
+/// blocks to modify and bleeds to react to.
+const MODIFIERS_SLICE: &[&str] = &[
+    "Cloak the Gathering",
+    "Veil the Legions",
+    "Daring the Dawn",
+    "Freak Drive",
+    "Seduction",
+    "Sleeping Mind, The",
+    "Unleashing the Bestial Soul",
+    "Visions of Zapathasura",
+    "Change of Target",
+    "Shadow Cloak",
+    "Deflection",
+    "Enhanced Senses",
+    "Roundhouse",
+];
+
+/// As `midgame`, the slice 11k tables (Obfuscate and Obtenebration too),
+/// with a Salubri of Dominate per seat for Unleashing the Bestial Soul.
+fn modifiers_midgame(seed: u64) -> Engine {
+    let mut e = table(seed, MODIFIERS_SLICE, &["OBF", "OBL"]);
+    let absent =
+        |e: &Engine, card: u16| {
+            !e.state.minions.iter().any(|m| m.crypt_card() == Some(card))
+                && !e.state.seats.iter().any(|s| {
+                    s.crypt.contains(&card) || s.uncontrolled.iter().any(|u| u.card == card)
+                })
+        };
+    let salubri: Vec<u16> = CRYPT
+        .iter()
+        .enumerate()
+        .filter(|(i, c)| {
+            c.clan == "Salubri"
+                && c.disciplines.iter().any(|d| d.eq_ignore_ascii_case("dom"))
+                && absent(&e, *i as u16)
+        })
+        .map(|(i, _)| i as u16)
+        .take(4)
+        .collect();
+    for (s, &card) in salubri.iter().enumerate() {
+        e.add_minion(
+            SeatId(s as u8),
+            card,
+            CRYPT[card as usize].capacity.min(4),
+            false,
+        );
+    }
+    e
+}
+
+/// Slice 11k: random tables with action modifiers and reactions.
+#[test]
+fn random_games_with_action_modifiers_hold_invariants_and_replay() {
+    let seen = fuzz(modifiers_midgame);
+    covers(
+        &seen,
+        &[
+            "play:Cloak the Gathering",
+            "play:Veil the Legions",
+            "play:Daring the Dawn",
+            "play:Freak Drive",
+            "play:Seduction",
+            "play:Sleeping Mind, The",
+            "play:Unleashing the Bestial Soul",
+            "play:Visions of Zapathasura",
+            "play:Change of Target",
+            "play:Shadow Cloak",
         ],
     );
 }

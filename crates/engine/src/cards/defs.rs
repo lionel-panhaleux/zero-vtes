@@ -3054,7 +3054,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     riders: &[],
 };
 
-pub static DEFS: [&CardDef; 207] = [
+pub static DEFS: [&CardDef; 229] = [
     &MAGIC_OF_THE_SMITH,
     &VAST_WEALTH,
     &BLACK_MARKET_CACHE,
@@ -3262,6 +3262,28 @@ pub static DEFS: [&CardDef; 207] = [
     &SAULOTS_AVENGING_FIST,
     &SAULOTS_HEALING_TOUCH,
     &AMICI_NOCTIS,
+    &BEARS_SKIN,
+    &DUST_UP,
+    &FORM_OF_THE_WOLF,
+    &ROLLING_WITH_THE_PUNCHES,
+    &SCULPT_THE_FLESH,
+    &TOUCH_OF_OBLIVION,
+    &PASS_THROUGH_SHADOW,
+    &SLAM,
+    &AID_FROM_BATS,
+    &PACK_ALPHA,
+    &VORACIOUS_VERMIN,
+    &WEIGHTED_WALKING_STICK,
+    &CLOAK_THE_GATHERING,
+    &VEIL_THE_LEGIONS,
+    &DARING_THE_DAWN,
+    &FREAK_DRIVE,
+    &SEDUCTION,
+    &THE_SLEEPING_MIND,
+    &UNLEASHING_THE_BESTIAL_SOUL,
+    &VISIONS_OF_ZAPATHASURA,
+    &CHANGE_OF_TARGET,
+    &SHADOW_CLOAK,
 ];
 
 // ---- Cards in play with riders and granted actions (slice 5) ------------
@@ -7044,4 +7066,778 @@ pub static SAULOTS_HEALING_TOUCH: CardDef = CardDef {
         ],
     )],
     riders: &[],
+};
+
+// ---- Combat cards (slice 11i) ----------------------------------------------
+
+/// "Only usable before range is determined. A vampire can play only one
+/// Bear's Skin each combat. [ani][pro] This round, this vampire gets +1
+/// strength and can prevent 1 damage. [ANI][PRO] This combat, this vampire
+/// gets +1 strength and can prevent 1 damage each round."
+pub static BEARS_SKIN: CardDef = CardDef {
+    name: "Bear's Skin",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        ModeDef {
+            limit: Some(Limit::PerCombat),
+            ..combat(
+                &[Window::CombatBeforeRange],
+                &[],
+                &[Effect::StrengthThisRound(1), Effect::PreventThisRound(1)],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::PerCombat),
+            ..combat(
+                &[Window::CombatBeforeRange],
+                &[],
+                &[Effect::StrengthThisCombat(1), Effect::PreventEachRound(1)],
+            )
+        },
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Requires an Anarch. [ani] Strike: hand strike at +1 damage. This strike
+/// cannot be dodged. [cel] Strike: dodge, with 1 additional strike
+/// (limited). [pot] Strike: hand strike at +2 damage." A dodge against the
+/// [ani] strike may be played, with no effect (LSJ 20030902-2); the [cel]
+/// additional strike is not optional: not playable once the round's limited
+/// one is used (ANK 20220204).
+pub static DUST_UP: CardDef = CardDef {
+    name: "Dust Up",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[Requirement::ActorSectIn(&[Sect::Anarch])],
+            &[
+                Effect::Strike(StrikeKind::Hand { bonus: 1 }),
+                Effect::UndodgeableStrike,
+            ],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[Requirement::ActorSectIn(&[Sect::Anarch])],
+            &[
+                Effect::Strike(StrikeKind::Dodge),
+                Effect::AdditionalStrikes {
+                    n: 1,
+                    limited: true,
+                },
+            ],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[Requirement::ActorSectIn(&[Sect::Anarch])],
+            &[Effect::Strike(StrikeKind::Hand { bonus: 2 })],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Only usable before range is determined. A vampire can play only one
+/// Form of the Wolf each combat. [pro] This vampire gets +1 strength this
+/// combat. [PRO] As above, and this vampire gains 1 optional press this
+/// combat." The press is usable this round only (TOM 19960521).
+pub static FORM_OF_THE_WOLF: CardDef = CardDef {
+    name: "Form of the Wolf",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        ModeDef {
+            limit: Some(Limit::PerCombat),
+            ..combat(
+                &[Window::CombatBeforeRange],
+                &[],
+                &[Effect::StrengthThisCombat(1)],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::PerCombat),
+            ..combat(
+                &[Window::CombatBeforeRange],
+                &[],
+                &[Effect::StrengthThisCombat(1), Effect::PressThisRound],
+            )
+        },
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "[for] Prevent 1 damage. [FOR] Burn 1 blood to prevent all damage from
+/// the opposing minion's strikes this round." The blood is the effect's,
+/// not a cost (ANK 20210226): the card is not playable without it, nor
+/// with no damage to prevent (LSJ 20001114).
+pub static ROLLING_WITH_THE_PUNCHES: CardDef = CardDef {
+    name: "Rolling with the Punches",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        combat(
+            &[Window::CombatDamagePrevention],
+            &[],
+            &[Effect::Prevent(1)],
+        ),
+        combat(
+            &[Window::CombatDamagePrevention],
+            &[
+                Requirement::ActorBloodAtLeast(1),
+                Requirement::StrikeDamagePending,
+            ],
+            &[
+                Effect::ActorBurnsBlood(1),
+                Effect::PreventOpposingStrikesThisRound,
+            ],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "[pro] Strike: hand strike, aggravated. [PRO] Strike: hand strike at +1
+/// damage and put this card on the opposing minion. During their unlock
+/// phase, the attached minion burns 1 blood or life. Minions can burn this
+/// card as a +1 stealth action." (Tzimisce.) The card goes on as the strike
+/// lands; an ally at no life is burned.
+pub static SCULPT_THE_FLESH: CardDef = CardDef {
+    name: "Sculpt the Flesh",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[
+                Effect::Strike(StrikeKind::Hand { bonus: 0 }),
+                Effect::AggravatedStrike,
+            ],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[
+                Effect::Strike(StrikeKind::Hand { bonus: 1 }),
+                Effect::PutOnOpponentOnHit { counters: 0 },
+            ],
+        ),
+    ],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDeclare],
+        actor: Actor::ActingCandidate,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::BurnCard),
+            Effect::AddStealth(1),
+            Effect::BurnSource,
+        ],
+    }],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::HostBurnBlood(1)],
+    }],
+};
+
+/// "[obl] Strike: put this card on the opposing minion with 2 counters. The
+/// attached minion burns 1 counter from this card instead of unlocking as
+/// normal. If this card has no counters, burn it. [OBL] Strike: send the
+/// opposing vampire to torpor or burn the opposing ally." The [OBL] vampire
+/// is wounded (LSJ 20090622-2).
+pub static TOUCH_OF_OBLIVION: CardDef = CardDef {
+    name: "Touch of Oblivion",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[
+                Effect::Strike(StrikeKind::CardEffect),
+                Effect::PutOnOpponentOnHit { counters: 2 },
+                Effect::Layer(Modifier::CounterInsteadOfUnlock),
+            ],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[Effect::Strike(StrikeKind::TorporOrBurn)],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "[obl] Strike: combat ends. [OBL] Strike: combat ends. After combat
+/// ends, put this card on this vampire. This vampire can burn this card to
+/// get +1 stealth." Not if the combat continues or a new one begins (RTR
+/// 20020501, LSJ 19980109).
+pub static PASS_THROUGH_SHADOW: CardDef = CardDef {
+    name: "Pass Through Shadow",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[Effect::Strike(StrikeKind::CombatEnds { unlock: false })],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[
+                Effect::Strike(StrikeKind::CombatEnds { unlock: false }),
+                Effect::PutOnActorAfterCombat,
+            ],
+        ),
+    ],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDuring],
+        actor: Actor::Host,
+        requires: &[Requirement::ActorActing, Requirement::StealthNeeded],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::BurnSelf, Effect::AddStealth(1)],
+    }],
+    riders: &[],
+};
+
+// ---- Combat cards with their own mechanisms (slice 11j) ---------------------
+
+/// "[pot] Strike: hand strike at +2 damage. [POT] As above, with 1 optional
+/// maneuver, only usable to get to close range." (1 blood.) Played at the
+/// maneuver, it commits the round's initial strike (window review; LSJ
+/// 20021028: not while the strike cannot be used).
+pub static SLAM: CardDef = CardDef {
+    name: "Slam",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[Effect::Strike(StrikeKind::Hand { bonus: 2 })],
+        ),
+        combat(
+            &[
+                Window::CombatStrikeDeclaration,
+                Window::CombatDetermineRange,
+            ],
+            &[Requirement::ManeuverToClose],
+            &[Effect::CommittedStrike(StrikeKind::Hand { bonus: 2 })],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "[ani] Strike: 1R damage, with 1 optional maneuver. [ANI] As above, with
+/// 1 optional press." Played at the maneuver, it commits the round's
+/// initial strike.
+pub static AID_FROM_BATS: CardDef = CardDef {
+    name: "Aid from Bats",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        combat(
+            &[
+                Window::CombatStrikeDeclaration,
+                Window::CombatDetermineRange,
+            ],
+            &[],
+            &[Effect::CommittedStrike(StrikeKind::Damage {
+                n: 1,
+                ranged: true,
+                aggravated: false,
+            })],
+        ),
+        combat(
+            &[
+                Window::CombatStrikeDeclaration,
+                Window::CombatDetermineRange,
+            ],
+            &[],
+            &[
+                Effect::CommittedStrike(StrikeKind::Damage {
+                    n: 1,
+                    ranged: true,
+                    aggravated: false,
+                }),
+                Effect::PressThisRound,
+            ],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "A vampire can play only one Pack Alpha each round. [ani] Only usable
+/// before range is determined. Employ an animal retainer from your hand
+/// (requirements and cost apply as normal). [ANI] Burn an animal retainer
+/// employed by this vampire to put this card on this vampire. This minion
+/// gets +1 strength. A minion can have only one Pack Alpha." The retainer
+/// is named as the card is played (LSJ 20100130); not an action, so an
+/// employ action's riders do not apply (LSJ 20090115-1).
+pub static PACK_ALPHA: CardDef = CardDef {
+    name: "Pack Alpha",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        ModeDef {
+            limit: Some(Limit::PerRound),
+            terms: Some(Terms::EmployFromHand(Label::Animal)),
+            ..combat(&[Window::CombatBeforeRange], &[], &[Effect::EmployNamed])
+        },
+        ModeDef {
+            windows: &[Window::CombatUntimed],
+            actor: Actor::Combatant,
+            requires: &[Requirement::ActorWithout(Holding::Named("Pack Alpha"))],
+            target: Some(TargetSpec {
+                kind: TargetKind::Card,
+                filter: &[
+                    Requirement::TargetCard(CardFilter::Labeled(CardType::Retainer, Label::Animal)),
+                    Requirement::TargetOnActor,
+                ],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: Some(Limit::PerRound),
+            effects: &[
+                Effect::BurnTargetCard,
+                Effect::PutOnActor,
+                Effect::Layer(Modifier::Bearer {
+                    stat: Stat::Strength,
+                    n: 1,
+                    during: &[],
+                    who: Bearer::Any,
+                }),
+            ],
+        },
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "[ani] Strike: dodge. [ANI] As above, with 1 additional ranged strike:
+/// burn weapon." The superior version needs a weapon to burn; its
+/// additional strike burns one of the opposing minion's weapons, at any
+/// range, unless dodged (owner, 2026-09-26: rules-qa 22.3).
+pub static VORACIOUS_VERMIN: CardDef = CardDef {
+    name: "Voracious Vermin",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[Effect::Strike(StrikeKind::Dodge)],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[Requirement::OpposingWeapon],
+            &[
+                Effect::Strike(StrikeKind::Dodge),
+                Effect::AdditionalStrikeOnly(StrikeKind::BurnWeapon),
+            ],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Only usable before range is determined during the first round. Put this
+/// card with 5 counters on it on this minion; it becomes a melee weapon
+/// equipment that can strike: strength+1 damage. For each damage inflicted
+/// by this strike (even if prevented), burn 1 counter from this card. Burn
+/// this card if it has no counters. A minion can have only one Weighted
+/// Walking Stick." Damage not inflicted (Blood Rage) burns no counter (LSJ
+/// 20100519); full damage while any counter is left (ANK 20201229-2).
+pub static WEIGHTED_WALKING_STICK: CardDef = CardDef {
+    name: "Weighted Walking Stick",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[combat(
+        &[Window::CombatBeforeRange],
+        &[
+            Requirement::FirstRound,
+            Requirement::ActorWithout(Holding::Named("Weighted Walking Stick")),
+        ],
+        &[
+            Effect::PutOnActor,
+            Effect::EnterWithCounters(5),
+            Effect::BecomesWeapon,
+        ],
+    )],
+    abilities: &[weapon_strike(
+        &[],
+        &[
+            Effect::Strike(StrikeKind::Melee {
+                bonus: 1,
+                aggravated: false,
+            }),
+            Effect::CountersPerDamage,
+        ],
+    )],
+    riders: &[],
+};
+
+// ---- Action modifiers and reactions (slice 11k) ----------------------------
+
+/// A mode of `actor` in `windows`, no target.
+const fn mode_of(
+    windows: &'static [Window],
+    actor: Actor,
+    requires: &'static [Requirement],
+    effects: &'static [Effect],
+) -> ModeDef {
+    ModeDef {
+        windows,
+        actor,
+        requires,
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects,
+    }
+}
+
+/// "[obf] +1 stealth. [OBF] Only usable by a ready vampire other than the
+/// acting minion. The acting minion gets +1 stealth." The [OBF] vampire is
+/// the acting minion's controller's (LSJ 19990425), locked or not (RTR
+/// 19941109, LSJ 19980210); several may each play one (ANK 20200515).
+pub static CLOAK_THE_GATHERING: CardDef = CardDef {
+    name: "Cloak the Gathering",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        stealth(&[Effect::AddStealth(1)]),
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::OtherOwnMinion,
+            &[Requirement::ActorVampire, Requirement::StealthNeeded],
+            &[Effect::AddStealth(1)],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Only usable by a ready unlocked vampire other than the acting minion.
+/// Only one Veil the Legions can be played each action. [obf] The acting
+/// minion gets +1 stealth. [OBF] As above, and this vampire can burn X
+/// blood to give the next X actions minions you control perform this turn
+/// +1 stealth. Only one Veil the Legions can be played at superior each
+/// turn." An action canceled after it is announced still counts as one of
+/// the next X (LSJ 20070526).
+pub static VEIL_THE_LEGIONS: CardDef = CardDef {
+    name: "Veil the Legions",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        ModeDef {
+            limit: Some(Limit::OnePerAction),
+            ..mode_of(
+                &[Window::ActionStealthIntercept],
+                Actor::OtherOwnMinion,
+                &[
+                    Requirement::ActorVampire,
+                    Requirement::ActorUnlocked,
+                    Requirement::StealthNeeded,
+                ],
+                &[Effect::AddStealth(1)],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::OnePerAction),
+            terms: Some(Terms::XBlood),
+            ..mode_of(
+                &[Window::ActionStealthIntercept],
+                Actor::OtherOwnMinion,
+                &[
+                    Requirement::ActorVampire,
+                    Requirement::ActorUnlocked,
+                    Requirement::StealthNeeded,
+                    Requirement::NoSuperiorVeilThisTurn,
+                ],
+                &[Effect::AddStealth(1), Effect::StealthForNextActions],
+            )
+        },
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "[for] Vampires cannot block this action. This vampire takes 2
+/// unpreventable environmental aggravated damage after action resolution.
+/// [FOR] As above, but this vampire takes 1 …" If blocked, after combat
+/// (RTR 19980623); whenever the action reaches resolution, even ended before
+/// combat or with no effect (ANK 20220331); not if canceled before (ANK
+/// 20220401).
+pub static DARING_THE_DAWN: CardDef = CardDef {
+    name: "Daring the Dawn",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        mode_of(
+            &[Window::ActionDuring],
+            Actor::ActingMinion,
+            &[],
+            &[
+                Effect::VampiresCannotBlock,
+                Effect::DamageAfterResolution(2),
+            ],
+        ),
+        mode_of(
+            &[Window::ActionDuring],
+            Actor::ActingMinion,
+            &[],
+            &[
+                Effect::VampiresCannotBlock,
+                Effect::DamageAfterResolution(1),
+            ],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Only usable after action resolution. [for] Only usable if the action
+/// was successful. Unlock this vampire. [FOR] Only usable if the action was
+/// blocked. Unlock this vampire." (1 blood.) A fizzled action is successful
+/// (ANK 20220218); an ended one gives no window (RTR 20180719).
+pub static FREAK_DRIVE: CardDef = CardDef {
+    name: "Freak Drive",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::ActingMinion,
+            &[Requirement::ActionSuccessful],
+            &[Effect::UnlockActor],
+        ),
+        mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::ActingMinion,
+            &[Requirement::ActionBlocked],
+            &[Effect::UnlockActor],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Only usable as the action is announced. [dom] Choose a younger vampire.
+/// The chosen vampire cannot block this action. [DOM] As above, but choose
+/// any vampire."
+pub static SEDUCTION: CardDef = CardDef {
+    name: "Seduction",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        ModeDef {
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[Requirement::TargetVampire, Requirement::Younger],
+            }),
+            ..mode_of(
+                &[Window::ActionAsAnnounced],
+                Actor::ActingMinion,
+                &[],
+                &[Effect::TargetCannotBlock],
+            )
+        },
+        ModeDef {
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[Requirement::TargetVampire],
+            }),
+            ..mode_of(
+                &[Window::ActionAsAnnounced],
+                Actor::ActingMinion,
+                &[],
+                &[Effect::TargetCannotBlock],
+            )
+        },
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Only usable as the action is announced. [dom] Choose a locked vampire.
+/// The chosen vampire cannot block this action. [DOM] During this action,
+/// minions cannot unlock." (1 blood.) Wakes still work; unlocks after
+/// resolution do not (PIB 20150703).
+pub static THE_SLEEPING_MIND: CardDef = CardDef {
+    name: "Sleeping Mind, The",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        ModeDef {
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[Requirement::TargetVampire, Requirement::TargetLocked],
+            }),
+            ..mode_of(
+                &[Window::ActionAsAnnounced],
+                Actor::ActingMinion,
+                &[],
+                &[Effect::TargetCannotBlock],
+            )
+        },
+        mode_of(
+            &[Window::ActionAsAnnounced],
+            Actor::ActingMinion,
+            &[],
+            &[Effect::NoUnlockThisAction],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Only usable as the action is announced. [dom] Choose a minion. The
+/// chosen minion cannot play reaction cards this action. [DOM] As above,
+/// and the next reaction card played this action costs +1 blood or life."
+/// (Salubri, 1 blood.)
+pub static UNLEASHING_THE_BESTIAL_SOUL: CardDef = CardDef {
+    name: "Unleashing the Bestial Soul",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        ModeDef {
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[],
+            }),
+            ..mode_of(
+                &[Window::ActionAsAnnounced],
+                Actor::ActingMinion,
+                &[],
+                &[Effect::TargetNoReactions],
+            )
+        },
+        ModeDef {
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[],
+            }),
+            ..mode_of(
+                &[Window::ActionAsAnnounced],
+                Actor::ActingMinion,
+                &[],
+                &[Effect::TargetNoReactions, Effect::NextReactionCosts(1)],
+            )
+        },
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "[obf][pre] Reduce a bleed against you by 3. [OBF][PRE] Lock this
+/// vampire to reduce a bleed against you to 0. (The acting minion can
+/// still increase the bleed amount.)" (1 blood; a combo card.)
+pub static VISIONS_OF_ZAPATHASURA: CardDef = CardDef {
+    name: "Visions of Zapathasura",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        mode_of(
+            &[Window::ReactionDuringAction],
+            Actor::ReactingMinion,
+            &[Requirement::DirectedAtYou, Requirement::IsBleed],
+            &[Effect::ReduceBleed(3)],
+        ),
+        mode_of(
+            &[Window::ReactionDuringAction],
+            Actor::ReactingMinion,
+            &[Requirement::DirectedAtYou, Requirement::IsBleed],
+            &[Effect::LockActor, Effect::ReduceBleedToZero],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Only usable if this minion is blocked, before block resolution. Unlock
+/// this minion. The action ends (unsuccessfully). This minion cannot
+/// perform the same action again this turn." It has reached resolution
+/// (NRA, LSJ 20070709); nothing more is played (LSJ 20010803-1); a blocked
+/// leave-torpor gives no diablerie (LSJ 20050105-2).
+pub static CHANGE_OF_TARGET: CardDef = CardDef {
+    name: "Change of Target",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[mode_of(
+        &[Window::ActionBlocked],
+        Actor::ActingMinion,
+        &[],
+        &[Effect::EndBlockedAction],
+    )],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "[obl] +1 stealth. [OBL] Only usable after resolution of a successful
+/// action. Put this card on this vampire. Minions without Auspex [aus]
+/// cannot perform actions directed at this vampire. During your unlock
+/// phase, burn this card."
+pub static SHADOW_CLOAK: CardDef = CardDef {
+    name: "Shadow Cloak",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        stealth(&[Effect::AddStealth(1)]),
+        mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::ActingMinion,
+            &[Requirement::ActionSuccessful],
+            &[
+                Effect::PutOnActor,
+                Effect::Layer(Modifier::DirectedOnlyBy(&["aus"])),
+            ],
+        ),
+    ],
+    abilities: &[],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::BurnSelf],
+    }],
 };

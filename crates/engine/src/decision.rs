@@ -214,6 +214,23 @@ pub enum Choice {
     RoundStrike {
         at: Option<crate::state::CardId>,
     },
+    /// After resolution: take the damage an action modifier inflicts then
+    /// (Daring the Dawn), ordered among the window's effects.
+    TakeDamageAfterResolution,
+    /// Combat, choose strike: the strike a card played at the maneuver
+    /// committed (Slam [POT]).
+    CommittedStrike,
+    /// Combat, choose strike: "ranged strike: burn weapon" at this opposing
+    /// weapon (Voracious Vermin [ANI]).
+    BurnWeaponStrike {
+        weapon: u32,
+    },
+    /// Terms: employ this retainer card from hand with this mode (Pack
+    /// Alpha [ani]).
+    EmployFromHand {
+        card: u16,
+        mode: u8,
+    },
     /// During a block attempt: the attempting minion burns 1 blood for +1
     /// intercept (Eyes of the Wild).
     BurnBloodForIntercept {

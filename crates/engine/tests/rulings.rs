@@ -234,6 +234,7 @@ fn in_play(e: &mut Engine, name: &str, owner: u8, host: Option<MinionId>) -> u32
         locked: false,
         counters: 0,
         stored: Vec::new(),
+        effect_only: false,
     });
     e.state.cards.len() as u32 - 1
 }

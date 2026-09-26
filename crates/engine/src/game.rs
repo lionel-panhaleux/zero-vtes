@@ -217,6 +217,7 @@ impl Engine {
                     trifle_used: false,
                     out_of_turn: None,
                     mpa_next: 0,
+                    veil_left: 0,
                     dpa: 0,
                     master_played: false,
                     turns_taken: 0,
@@ -232,6 +233,7 @@ impl Engine {
                 cards: Vec::new(),
                 phase_uses: Vec::new(),
                 turn_uses: Vec::new(),
+                veil_superior: false,
                 layers: Vec::new(),
                 active: SeatId(0),
                 turn: 0,
@@ -682,7 +684,9 @@ impl Engine {
 
     /// Unlock a card in play — an ally's own card unlocks the ally.
     pub(crate) fn unlock_card(&mut self, id: CardId) {
+        let barred = self.action.as_ref().is_some_and(|a| a.no_unlock);
         match self.state.cards[id.index()].body {
+            Some(_) if barred => {}
             Some(m) => self.state.minions[m.index()].locked = false,
             None => self.state.cards[id.index()].locked = false,
         }
@@ -713,6 +717,13 @@ impl Engine {
         c.in_play = false;
         let (owner, card) = (c.owner, c.card);
         let stored = std::mem::take(&mut c.stored);
+        // A lingering effect ends; its card is already in the ash heap.
+        if c.effect_only {
+            self.state
+                .layers
+                .retain(|l| l.scope == crate::cards::Scope::Action || l.source != id);
+            return;
+        }
         let ash = &mut self.state.seats[owner.index()].ash;
         ash.push(card);
         ash.extend(stored);
@@ -856,9 +867,10 @@ impl Engine {
                 continue;
             }
             if self.state.card_controller(id) == s {
-                let (owner, card) = (c.owner, c.card);
+                let (owner, card, effect_only) = (c.owner, c.card, c.effect_only);
                 self.state.cards[ci].in_play = false;
-                if owner != s {
+                // A lingering effect's card is already in the ash heap.
+                if owner != s && !effect_only {
                     self.state.seats[owner.index()].removed.push(card);
                 }
             } else if c
@@ -912,7 +924,12 @@ impl Engine {
         let held = std::mem::take(&mut self.state.seats[s.index()].held.unlock);
         self.state.phase_uses.clear();
         self.state.turn_uses.clear();
+        self.state.veil_superior = false;
         self.replace(s, held as usize, None);
+        // Veil the Legions lasts the turn.
+        for seat in &mut self.state.seats {
+            seat.veil_left = 0;
+        }
         for m in &mut self.state.minions {
             // Per-turn NRA flags reset each new turn.
             m.bled_this_turn = false;
@@ -927,10 +944,31 @@ impl Engine {
             // next unlock phase".
             if m.owner == s && m.in_play {
                 m.played_since_unlock.clear();
-                if m.skip_unlock {
-                    m.skip_unlock = false;
-                } else {
-                    m.locked = false;
+            }
+        }
+        for i in 0..self.state.minions.len() {
+            let id = MinionId(i as u32);
+            let m = &self.state.minions[i];
+            if m.owner != s || !m.in_play {
+                continue;
+            }
+            if m.skip_unlock {
+                self.state.minions[i].skip_unlock = false;
+                continue;
+            }
+            // "Burns 1 counter from this card instead of unlocking as normal"
+            // (Touch of Oblivion): a substitution, also for an unlocked
+            // minion (advanced rules §5.2.2).
+            let substitutes = self.state.counter_instead_of_unlock(id);
+            if substitutes.is_empty() {
+                self.state.minions[i].locked = false;
+                continue;
+            }
+            for c in substitutes {
+                let card = &mut self.state.cards[c.index()];
+                card.counters = card.counters.saturating_sub(1);
+                if card.counters == 0 {
+                    self.burn_card_in_play(c);
                 }
             }
         }

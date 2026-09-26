@@ -160,6 +160,11 @@ pub enum Actor {
     /// "Action Modifier/Reaction" (Scalpel Tongue, Ominous Chorus): the
     /// acting minion for its controller, a reacting minion for anyone else.
     ActingOrReactingMinion,
+    /// "Only usable by a ready vampire other than the acting minion" (Cloak
+    /// the Gathering [OBF], Veil the Legions): another ready minion of the
+    /// acting Methuselah, locked or not (the mode's requirements narrow
+    /// it); only the acting minion's controller plays it (LSJ 19990425).
+    OtherOwnMinion,
 }
 
 /// A class of printed title, for "requires a prince or justicar" style
@@ -236,7 +241,7 @@ impl Bearer {
 
 /// Does a printed discipline list meet `tag` (lower case: any level; upper
 /// case: superior)?
-fn has_discipline(disciplines: &[&str], tag: &str) -> bool {
+pub fn has_discipline(disciplines: &[&str], tag: &str) -> bool {
     if tag.chars().all(|c| c.is_ascii_uppercase()) {
         disciplines.contains(&tag)
     } else {
@@ -549,6 +554,26 @@ pub enum Requirement {
     /// The target is another minion than the one acting ("another ready
     /// minion").
     OtherThanActor,
+    /// Played at the maneuver, only to get to close range: the range is long
+    /// (Slam [POT]); any other step, no condition.
+    ManeuverToClose,
+    /// The opposing minion in combat has a weapon in play (Voracious Vermin
+    /// [ANI]: no weapon to burn, the superior version cannot be chosen;
+    /// owner, 2026-09-26: rules-qa 22.3).
+    OpposingWeapon,
+    /// The actor is unlocked ("a ready unlocked vampire").
+    ActorUnlocked,
+    /// The current action was blocked (Freak Drive [FOR]).
+    ActionBlocked,
+    /// The seat has not played a superior Veil the Legions this turn.
+    NoSuperiorVeilThisTurn,
+    /// The target card is on the actor ("an animal retainer employed by
+    /// this vampire", Pack Alpha [ANI]).
+    TargetOnActor,
+    /// The combatant has damage pending from the opposing minion's strikes
+    /// (Rolling with the Punches [FOR]: "cannot be used if there is no
+    /// damage to prevent", LSJ 20001114).
+    StrikeDamagePending,
     /// No reaction card was played during the current action — a canceled
     /// one still was (Perfectionist; LSJ 20070330).
     NoReactionPlayed,
@@ -1007,6 +1032,19 @@ pub enum StrikeKind {
     /// Move up to n blood from the opposing minion to the striker, before
     /// damage is mended.
     StealBlood { n: u8, ranged: bool },
+    /// "Send the opposing vampire to torpor or burn the opposing ally"
+    /// (Touch of Oblivion [OBL]): at close range (a strike not said to be
+    /// ranged, rules-qa 21.1), the vampire wounded (LSJ 20090622-2); no
+    /// prevention reaches it.
+    TorporOrBurn,
+    /// A strike whose effect is its card's rider ("Strike: put this card on
+    /// the opposing minion", Touch of Oblivion [obl]): no damage, close
+    /// range only (rules-qa 21.1), dodged like any strike.
+    CardEffect,
+    /// "Ranged strike: burn weapon" (Voracious Vermin [ANI]): the opposing
+    /// minion's weapon chosen as the strike is (`Side.strike_weapon`),
+    /// burned if it lands and the weapon is still there.
+    BurnWeapon,
 }
 
 /// "A vampire can play only one X each round / combat / action": one play
@@ -1028,6 +1066,9 @@ pub enum Limit {
     /// "Once each turn": once during each Methuselah's turn (advanced rules
     /// §1.2.1), per copy of the card or per vampire ability.
     PerTurn,
+    /// "Only one X can be played each action", by any minion (Veil the
+    /// Legions).
+    OnePerAction,
     /// "A minion can play only one X between their unlock phases" (On the
     /// Qui Vive): per minion and card name, until its controller's next
     /// unlock phase.
@@ -1157,6 +1198,10 @@ pub enum Terms {
     /// A card in the user's ash heap, chosen by name as the ability is used
     /// (Mora, the Death Seer).
     AshCard,
+    /// "Employ a <label> retainer from your hand (requirements and cost apply
+    /// as normal)" (Pack Alpha [ani]): the card and its version, named as
+    /// the card is played (LSJ 20100130).
+    EmployFromHand(crate::library::Label),
     /// A card in the hand of the Methuselah the action is directed at,
     /// chosen by name, discarded as the ability resolves (Richard de
     /// Worde: the choice shows the hand, his look).
@@ -1206,6 +1251,14 @@ pub enum Modifier {
     /// `who`, get `n` intercept against its actions (Stolen Police
     /// Cruiser).
     YoungerInterceptAgainstBearer { n: i8, who: Bearer },
+    /// "Minions without <Discipline> cannot perform actions directed at this
+    /// vampire" (Shadow Cloak [OBL]).
+    DirectedOnlyBy(&'static [&'static str]),
+    /// "The attached minion burns 1 counter from this card instead of
+    /// unlocking as normal. If this card has no counters, burn it" (Touch
+    /// of Oblivion): a substitution — an unlocked host burns one too, a
+    /// host kept from unlocking does not (advanced rules §5.2.2).
+    CounterInsteadOfUnlock,
     /// "Rescuing a non-<clan> vampire from torpor costs this <host> -n
     /// blood, and if the action is successful, the rescued vampire gains
     /// `gain` blood" (Saulot's Healing Touch): the action's cost, whoever
@@ -1308,6 +1361,8 @@ impl Layer {
             Modifier::RescueDiscount { not_clan, n, gain } => {
                 1 << 38 ^ 1 << 20 ^ (not_clan.len() as u64) << 12 ^ (n as u64) << 4 ^ gain as u64
             }
+            Modifier::CounterInsteadOfUnlock => 1 << 38 ^ 1 << 21,
+            Modifier::DirectedOnlyBy(d) => 1 << 38 ^ 1 << 22 ^ d.len() as u64,
             Modifier::RetainerDamage(n) => 1 << 39 ^ n as u64,
             Modifier::NoCombatEndsAgainstHost => 1 << 39 ^ 1 << 12,
             Modifier::CannotBlockVampires => 1 << 39 ^ 1 << 13,
@@ -1469,6 +1524,34 @@ pub enum Effect {
     LockActor,
     /// Ability cost: lock the card's host ("this Salubri can lock …").
     LockHost,
+    /// "Vampires cannot block this action" (Daring the Dawn).
+    VampiresCannotBlock,
+    /// "This vampire takes n unpreventable environmental aggravated damage
+    /// after action resolution" (Daring the Dawn): if the action reaches
+    /// resolution, after combat if blocked (RTR 19980623, ANK 20220331).
+    DamageAfterResolution(u8),
+    /// "The chosen vampire cannot block this action" (Seduction, The
+    /// Sleeping Mind [dom]).
+    TargetCannotBlock,
+    /// "During this action, minions cannot unlock" (The Sleeping Mind
+    /// [DOM]): wakes still work (PIB 20150703).
+    NoUnlockThisAction,
+    /// "The chosen minion cannot play reaction cards this action"
+    /// (Unleashing the Bestial Soul).
+    TargetNoReactions,
+    /// "The next reaction card played this action costs +n blood or life"
+    /// (Unleashing the Bestial Soul [DOM]).
+    NextReactionCosts(u8),
+    /// "Reduce a bleed against you to 0 (the acting minion can still
+    /// increase the bleed amount)" (Visions of Zapathasura [OBF][PRE]): a
+    /// reduction by the bleed amount as it resolves.
+    ReduceBleedToZero,
+    /// "Unlock this minion. The action ends (unsuccessfully). This minion
+    /// cannot perform the same action again this turn" (Change of Target).
+    EndBlockedAction,
+    /// "Give the next X actions minions you control perform this turn +1
+    /// stealth" (Veil the Legions [OBF]), X blood burned from the actor.
+    StealthForNextActions,
     /// End the combat at once, outside strike resolution: no strike
     /// resolves, the end-of-round window still opens (advanced rules
     /// §4.7.2, §4.9).
@@ -1644,6 +1727,54 @@ pub enum Effect {
     /// round during normal strike resolution" (Carrion Crows): dodge or
     /// not; a strike: combat ends comes first.
     EnvironmentalDamage(u8),
+    /// Strike rider: "this strike cannot be dodged" (Dust Up [ani]): a dodge
+    /// may still be played, it has no effect (LSJ 20030902-2).
+    UndodgeableStrike,
+    /// Strike rider: "hand strike, aggravated" (Sculpt the Flesh [pro]).
+    AggravatedStrike,
+    /// Strike rider: "put this card on the opposing minion (with n
+    /// counters)" as the strike lands (Sculpt the Flesh [PRO], Touch of
+    /// Oblivion [obl]); the card is held until then, else discarded.
+    PutOnOpponentOnHit {
+        counters: u8,
+    },
+    /// "After combat ends, put this card on this vampire" (Pass Through
+    /// Shadow [OBL]): held; lost if the combat continues (RTR 20020501).
+    PutOnActorAfterCombat,
+    /// "This round, this vampire gets +n strength" (Bear's Skin).
+    StrengthThisRound(u8),
+    /// "Can prevent n damage" this round, at will (Bear's Skin).
+    PreventThisRound(u8),
+    /// "Can prevent n damage each round" this combat (Bear's Skin [ANI]).
+    PreventEachRound(u8),
+    /// "Gains 1 optional press" usable this round only (Form of the Wolf
+    /// [PRO]; TOM 19960521).
+    PressThisRound,
+    /// "Burn n blood" as the card's effect, not its cost (Rolling with the
+    /// Punches [FOR]; ANK 20210226).
+    ActorBurnsBlood(u8),
+    /// "Prevent all damage from the opposing minion's strikes this round"
+    /// (Rolling with the Punches [FOR]).
+    PreventOpposingStrikesThisRound,
+    /// A strike "with 1 optional maneuver, only usable to get to close
+    /// range" (Slam [POT]): at strike declaration, the strike; played at
+    /// the maneuver (determine range), a maneuver to close range that
+    /// commits this strike as the round's initial strike (`Side.
+    /// committed_card`; window review: maneuver riders commit early).
+    CommittedStrike(StrikeKind),
+    /// "With 1 additional <strike>" (Voracious Vermin [ANI]): an additional
+    /// strike only usable for that strike (none if its object is gone).
+    AdditionalStrikeOnly(StrikeKind),
+    /// "It becomes a melee weapon equipment" (Weighted Walking Stick): the
+    /// card in play counts as weapon equipment.
+    BecomesWeapon,
+    /// Weapon strike rider: "for each damage inflicted by this strike (even
+    /// if prevented), burn 1 counter from this card. Burn this card if it
+    /// has no counters" (Weighted Walking Stick).
+    CountersPerDamage,
+    /// Employ the retainer named by the play's terms, from hand, on the
+    /// actor: requirements and cost apply, not an action (Pack Alpha [ani]).
+    EmployNamed,
     /// "This round, this vampire can strike: <strike>" (Hunger of Marduk):
     /// offered at every strike choice of the round, additional strikes
     /// included (ANK 20220207).
@@ -2020,6 +2151,16 @@ pub struct CardDef {
     pub riders: &'static [Rider],
 }
 
+/// A card that becomes weapon equipment once in play (Weighted Walking
+/// Stick).
+pub fn becomes_weapon(card: u16) -> bool {
+    lookup(card).is_some_and(|d| {
+        d.modes
+            .iter()
+            .any(|m| m.effects.contains(&Effect::BecomesWeapon))
+    })
+}
+
 /// The title a title card represents (`Effect::RepresentsTitle` in one of
 /// its modes), if it is one.
 pub fn card_title(card: u16) -> Option<Title> {
@@ -2126,6 +2267,9 @@ pub struct PlayCtx {
     pub x: u8,
     /// The card in play chosen by `Terms::BurnNamedInPlay`.
     pub burn: Option<CardId>,
+    /// A card in hand and the mode it is used with, named by the terms
+    /// (`Terms::EmployFromHand`).
+    pub named: Option<(u16, u8)>,
 }
 
 /// Does `m` meet a mode's discipline tags? Lower case needs the discipline
@@ -2239,7 +2383,31 @@ pub fn holds(
         | Requirement::HostOutOfCombat
         | Requirement::OncePerTurn
         | Requirement::TargetClanNotIn(_)
-        | Requirement::OtherThanActor => true, // host / card / target predicates
+        | Requirement::OtherThanActor
+        | Requirement::TargetOnActor => true, // host / card / target predicates
+        Requirement::ActorUnlocked => actor.is_some_and(|m| !st.minions[m.index()].locked),
+        Requirement::ActionBlocked => {
+            action.is_some_and(|a| a.outcome == Some(crate::actions::Outcome::Blocked))
+        }
+        Requirement::NoSuperiorVeilThisTurn => !st.veil_superior,
+        Requirement::OpposingWeapon => combat.zip(actor).is_some_and(|(c, m)| {
+            c.side_of_minion(m).is_some_and(|i| {
+                st.equipment_on(c.sides[1 - i].minion).into_iter().any(|w| {
+                    let card = st.cards[w.index()].card;
+                    LIBRARY[card as usize]
+                        .labels
+                        .contains(&crate::library::Label::Weapon)
+                        || becomes_weapon(card)
+                })
+            })
+        }),
+        Requirement::ManeuverToClose => combat.is_none_or(|c| {
+            c.step != crate::combat::Step::DetermineRange || c.range == Range::Long
+        }),
+        Requirement::StrikeDamagePending => combat.zip(actor).is_some_and(|(c, m)| {
+            c.side_of_minion(m)
+                .is_some_and(|i| c.sides[i].strike_damage.total() > 0)
+        }),
         Requirement::NoReactionPlayed => action.is_some_and(|a| !a.reaction_played),
         Requirement::ControlsReadyTitled(classes) => st.minions_of(seat).any(|m| {
             st.minions[m.index()].ready() && classes.iter().any(|c| c.matches(st.title_of(m)))
@@ -2606,6 +2774,7 @@ pub fn holds_for_card_target(
     match req {
         Requirement::NotControlled => st.card_controller(id) != seat,
         Requirement::NotHost => actor.is_none() || c.host != actor,
+        Requirement::TargetOnActor => actor.is_some() && c.host == actor,
         Requirement::TargetCard(f) => f.matches(c.card),
         Requirement::TargetOnReadyMinion => c.host.is_some_and(|h| st.minions[h.index()].ready()),
         Requirement::TargetOnVampire => c.host.is_some_and(|h| !st.minions[h.index()].is_ally()),

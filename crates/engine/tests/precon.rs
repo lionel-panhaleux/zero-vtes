@@ -184,6 +184,7 @@ fn location(e: &mut Engine, seat: u8, name: &str) -> CardId {
         locked: false,
         counters: 0,
         stored: Vec::new(),
+        effect_only: false,
     });
     let id = CardId(e.state.cards.len() as u32 - 1);
     for effect in cards::lookup(card).expect("definition").modes[0].effects {
@@ -2767,4 +2768,927 @@ fn amici_noctis_has_no_window_when_the_referendum_ousts_the_caller() {
     let req = request(&mut e);
     assert!(e.state.seats[0].ousted);
     assert_ne!(req.seat, SeatId(0));
+}
+
+// ---- Combat cards (slice 11i) ------------------------------------------------
+
+/// The cards in play on minion `m`, by LIBRARY index, with their counters.
+fn on(e: &Engine, m: MinionId) -> Vec<(u16, u8)> {
+    e.state
+        .cards
+        .iter()
+        .filter(|c| c.in_play && c.host == Some(m))
+        .map(|c| (c.card, c.counters))
+        .collect()
+}
+
+// Bear's Skin [ani][pro]: "This round, this vampire gets +1 strength and can
+// prevent 1 damage." "A vampire can play only one Bear's Skin each
+// combat."
+#[test]
+fn bears_skin_gives_strength_and_a_prevention_this_round() {
+    let mut e = Engine::bare(3);
+    // A combo card: Animalism and Protean both.
+    let a = e.add_minion(SeatId(0), with(&["ani", "pro"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let b = e.add_minion(SeatId(1), plain("Brujah", "", 0), 5, false);
+    hand(&mut e, 0, &["Bear's Skin", "Bear's Skin"]);
+    bleed_blocked(&mut e, a, b);
+    pick_when(&mut e, play(0, 0, a));
+    let req = request(&mut e);
+    assert!(!req.options.contains(&play(0, 0, a)), "one each combat");
+    pick_when(&mut e, Choice::UsePrevent);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, a), 5, "prevented");
+    assert_eq!(blood(&e, b), 3, "strength 2");
+}
+
+// [LSJ 20030902-2] [LSJ 20060808-1] Dust Up [ani]: "This strike cannot be
+// dodged" — "Does not prevent the opponent from dodging, the dodge just has
+// no effect." [TOM 19960225]: the +1 is part of the hand strike.
+#[test]
+fn dust_up_strikes_through_a_dodge() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(
+        SeatId(0),
+        vampire(
+            |c| c.sect == zvtes::crypt::Sect::Anarch && has(c, &["ani"]),
+            0,
+        ),
+        5,
+        false,
+    );
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let b = e.add_minion(SeatId(1), with(&["cel"], 0), 5, false);
+    hand(&mut e, 0, &["Dust Up"]);
+    hand(&mut e, 1, &["Side Strike"]);
+    bleed_blocked(&mut e, a, b);
+    pick_when(&mut e, play(0, 0, a));
+    pick_when(&mut e, play(0, 0, b)); // the dodge, offered
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, b), 3, "2 damage through the dodge");
+    assert_eq!(blood(&e, a), 5, "the dodge was its strike");
+}
+
+// [ANK 20220204] Dust Up [cel]: "The additional strike is not optional: you
+// cannot play it for the dodge only if you already played it for a
+// (limited) additional strike this round." After Quickness, no [cel] Dust
+// Up in the additional pair; the [pot] strike is still offered. [LSJ
+// 20011204-3] [PIB 20130704]: "When played, a multi-Disciplines card counts
+// as requiring the Discipline(s) being used" — each mode by its own.
+#[test]
+fn dust_up_dodge_is_not_playable_once_the_limited_strike_is_used() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(
+        SeatId(0),
+        vampire(
+            |c| c.sect == zvtes::crypt::Sect::Anarch && has(c, &["cel"]) && has(c, &["pot"]),
+            0,
+        ),
+        5,
+        false,
+    );
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let b = e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+    hand(&mut e, 0, &["Quickness", "Dust Up"]);
+    bleed_blocked(&mut e, a, b);
+    pick_when(&mut e, Choice::HandStrike);
+    pick_when(&mut e, play(0, 0, a)); // Quickness: the limited strike
+    let req = until(&mut e, SeatId(0), WindowLabel::CombatStrike);
+    assert!(
+        !req.options.contains(&play(0, 1, a)),
+        "the dodge's strike is limited"
+    );
+    assert!(req.options.contains(&play(0, 2, a)));
+}
+
+// Form of the Wolf [PRO]: "This vampire gets +1 strength this combat …
+// and gains 1 optional press this combat." [TOM 19960521]: "The optional
+// press can only be used during the current round."
+#[test]
+fn form_of_the_wolf_gives_strength_and_a_press_this_round() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["PRO"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let b = e.add_minion(SeatId(1), plain("Brujah", "", 0), 5, false);
+    hand(&mut e, 0, &["Form of the Wolf"]);
+    bleed_blocked(&mut e, a, b);
+    pick_when(&mut e, play(0, 1, a));
+    pick_when(&mut e, Choice::UsePress);
+    // A second round at strength 2 again, with no press left.
+    never_offered(&mut e, &Choice::UsePress);
+    assert_eq!(blood(&e, b), 1, "two rounds at strength 2");
+}
+
+// Rolling with the Punches [FOR]: "Burn 1 blood to prevent all damage from
+// the opposing minion's strikes this round." [ANK 20210226]: "The card
+// cannot be played if the minion cannot afford to burn the blood." [LSJ
+// 20001114]: "Cannot be used if there is no damage to prevent" — not for
+// environmental damage alone.
+#[test]
+fn rolling_with_the_punches_prevents_the_strikes_for_1_blood() {
+    // The strike's damage, prevented for 1 blood.
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Brujah", "", 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let b = e.add_minion(SeatId(1), with(&["FOR"], 0), 4, false);
+    hand(&mut e, 1, &["Rolling with the Punches"]);
+    bleed_blocked(&mut e, a, b);
+    pick_when(&mut e, play(0, 1, b));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, b), 3, "the blood burned, no damage");
+    // No blood to burn: not playable.
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Brujah", "", 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let b = e.add_minion(SeatId(1), with(&["FOR"], 0), 0, false);
+    hand(&mut e, 1, &["Rolling with the Punches"]);
+    bleed_blocked(&mut e, a, b);
+    never_offered(&mut e, &play(0, 1, b));
+    // Environmental damage only: nothing from the strikes to prevent.
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["ani", "cel"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let b = e.add_minion(SeatId(1), with(&["FOR"], 0), 4, false);
+    hand(&mut e, 0, &["Carrion Crows", "Side Strike"]);
+    hand(&mut e, 1, &["Rolling with the Punches"]);
+    bleed_blocked(&mut e, a, b);
+    pick_when(&mut e, play(0, 0, a)); // Carrion Crows
+    pick_when(&mut e, play(0, 0, a)); // Side Strike: no strike damage
+    let req = until(&mut e, SeatId(1), WindowLabel::CombatPrevention);
+    assert!(req.options.contains(&play(0, 0, b)));
+    assert!(!req.options.contains(&play(0, 1, b)));
+}
+
+// Sculpt the Flesh [pro]: "Strike: hand strike, aggravated": one point of
+// aggravated damage sends a vampire to torpor.
+#[test]
+fn sculpt_the_flesh_hand_strike_is_aggravated() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(
+        SeatId(0),
+        vampire(|c| c.clan == "Tzimisce" && has(c, &["pro"]), 0),
+        5,
+        false,
+    );
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let b = e.add_minion(SeatId(1), plain("Brujah", "", 0), 5, false);
+    hand(&mut e, 0, &["Sculpt the Flesh"]);
+    bleed_blocked(&mut e, a, b);
+    pick_when(&mut e, play(0, 0, a));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.minions[b.index()].in_torpor);
+}
+
+// Sculpt the Flesh [PRO]: "Strike: hand strike at +1 damage and put this
+// card on the opposing minion. During their unlock phase, the attached
+// minion burns 1 blood or life. Minions can burn this card as a +1 stealth
+// action." Dodged, the card is discarded.
+#[test]
+fn sculpt_the_flesh_superior_stays_on_the_opposing_minion() {
+    let sculpt = find_library("Sculpt the Flesh");
+    for dodge in [false, true] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(
+            SeatId(0),
+            vampire(|c| c.clan == "Tzimisce" && has(c, &["PRO"]), 0),
+            5,
+            false,
+        );
+        e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+        let b = e.add_minion(SeatId(1), with(&["cel"], 0), 5, false);
+        e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+        hand(&mut e, 0, &["Sculpt the Flesh"]);
+        hand(&mut e, 1, &["Side Strike"]);
+        bleed_blocked(&mut e, a, b);
+        pick_when(&mut e, play(0, 1, a));
+        if dodge {
+            pick_when(&mut e, play(0, 0, b));
+        }
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        if dodge {
+            assert!(on(&e, b).is_empty());
+            assert_eq!(e.state.seats[0].ash, vec![sculpt]);
+            continue;
+        }
+        assert_eq!(on(&e, b), vec![(sculpt, 0)]);
+        assert_eq!(blood(&e, b), 3);
+        // Seat 1's unlock phase: 1 blood burned.
+        until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+        assert_eq!(blood(&e, b), 2);
+        // Burned as a +1 stealth action.
+        let (id, _) = e
+            .state
+            .cards
+            .iter()
+            .enumerate()
+            .find(|(_, c)| c.in_play && c.card == sculpt)
+            .expect("in play");
+        let burn = Choice::UseAbility {
+            source: AbilitySource::Card(CardId(id as u32)),
+            ability: 0,
+            actor: Some(b),
+            target: Target::None,
+        };
+        pick(&mut e, burn);
+        until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+        assert!(on(&e, b).is_empty());
+    }
+}
+
+// Touch of Oblivion [obl]: "Strike: put this card on the opposing minion
+// with 2 counters. The attached minion burns 1 counter from this card
+// instead of unlocking as normal. If this card has no counters, burn it."
+#[test]
+fn touch_of_oblivion_keeps_the_minion_locked_two_unlock_phases() {
+    let touch = find_library("Touch of Oblivion");
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["obl"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let b = e.add_minion(SeatId(1), plain("Brujah", "", 0), 5, false);
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+    hand(&mut e, 0, &["Touch of Oblivion"]);
+    bleed_blocked(&mut e, a, b);
+    pick_when(&mut e, play(0, 0, a));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(on(&e, b), vec![(touch, 2)]);
+    assert_eq!(blood(&e, a), 2, "2 blood, and the hand strike");
+    for left in [1, 0] {
+        until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+        assert!(e.state.minions[b.index()].locked, "{left} left");
+        let want = if left > 0 {
+            vec![(touch, left)]
+        } else {
+            vec![]
+        };
+        assert_eq!(on(&e, b), want);
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    }
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[b.index()].locked);
+}
+
+// [LSJ 20090622-2] Touch of Oblivion [OBL]: "Strike: send the opposing
+// vampire to torpor or burn the opposing ally" — the vampire is wounded.
+#[test]
+fn touch_of_oblivion_superior_sends_the_vampire_to_torpor() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["OBL"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let b = e.add_minion(SeatId(1), plain("Brujah", "", 0), 5, false);
+    hand(&mut e, 0, &["Touch of Oblivion"]);
+    bleed_blocked(&mut e, a, b);
+    pick_when(&mut e, play(0, 1, a));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.minions[b.index()].in_torpor);
+    assert_eq!(blood(&e, b), 5, "no damage: sent to torpor");
+}
+
+// [RTR 20020501] [LSJ 19980109] Pass Through Shadow [OBL]: "Strike: combat
+// ends. After combat ends, put this card on this vampire. This vampire can
+// burn this card to get +1 stealth." A non-action card goes to the ash heap
+// as it resolves and stays there; its delayed effect applies all the same
+// (owner, 2026-09-26: rules-qa 21.1).
+#[test]
+fn pass_through_shadow_goes_on_the_vampire_after_combat() {
+    let shadow = find_library("Pass Through Shadow");
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["OBL"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let b = e.add_minion(SeatId(1), with(&["aus"], 0), 5, false);
+    hand(&mut e, 0, &["Pass Through Shadow"]);
+    bleed_blocked(&mut e, a, b);
+    pick_when(&mut e, play(0, 1, a));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(on(&e, a), vec![(shadow, 0)]);
+    // The card itself went to the ash heap as it resolved and stays there;
+    // the effect is in play.
+    assert_eq!(e.state.seats[0].ash, vec![shadow]);
+    assert_eq!(blood(&e, b), 5, "combat ended");
+    // Acting again, under a block attempt: the card burns for +1 stealth,
+    // and the attempt fails.
+    e.state.minions[a.index()].locked = false;
+    e.state.minions[a.index()].acted.clear();
+    e.state.minions[a.index()].bled_this_turn = false;
+    e.state.minions[b.index()].locked = false;
+    let id = e
+        .state
+        .cards
+        .iter()
+        .position(|c| c.in_play && c.card == shadow)
+        .expect("in play");
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, Choice::DeclareBlock { minion: b });
+    pick_when(&mut e, card_ability(CardId(id as u32), 0));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(on(&e, a).is_empty(), "burned");
+    assert_eq!(e.state.seats[0].ash, vec![shadow], "still one card");
+    assert_eq!(pool(&e, 1), 29, "the bleed went through");
+}
+
+// [RTR 20020501] [LSJ 19980109] Pass Through Shadow [OBL]: "If the combat
+// continues or a new combat begins, the after combat effect does not
+// happen" — Telepathic Tracking [AUS] starts a new round instead: the card
+// is discarded.
+#[test]
+fn pass_through_shadow_is_lost_if_the_combat_continues() {
+    let shadow = find_library("Pass Through Shadow");
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["OBL"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let b = e.add_minion(SeatId(1), with(&["AUS"], 0), 5, false);
+    hand(&mut e, 0, &["Pass Through Shadow"]);
+    hand(&mut e, 1, &["Telepathic Tracking"]);
+    bleed_blocked(&mut e, a, b);
+    pick_when(&mut e, play(0, 1, a));
+    pick_when(&mut e, play(0, 1, b)); // a new round instead
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(on(&e, a).is_empty());
+    assert!(e.state.seats[0].ash.contains(&shadow));
+}
+
+// Touch of Oblivion's strikes are not ranged: at long range they do
+// nothing, and the [obl] card is discarded (owner, 2026-09-26: a strike
+// works at close range unless it says so; rules-qa 21.1).
+#[test]
+fn touch_of_oblivion_does_nothing_at_long_range() {
+    let touch = find_library("Touch of Oblivion");
+    for mode in [0u8, 1] {
+        let mut e = Engine::bare(3);
+        let tag: &'static [&'static str] = if mode == 0 { &["obl"] } else { &["OBL"] };
+        let a = e.add_minion(SeatId(0), with(tag, 0), 5, false);
+        e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+        let b = e.add_minion(SeatId(1), plain("Brujah", "", 0), 5, false);
+        let gun = equip(&mut e, ".44 Magnum", b);
+        hand(&mut e, 0, &["Touch of Oblivion"]);
+        bleed_blocked(&mut e, a, b);
+        pick_when(&mut e, card_ability(gun, 1)); // the gun's maneuver: long
+        pick_when(&mut e, play(0, mode, a));
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert!(on(&e, b).iter().all(|&(c, _)| c != touch), "mode {mode}");
+        assert!(!e.state.minions[b.index()].in_torpor, "mode {mode}");
+        assert!(e.state.seats[0].ash.contains(&touch));
+    }
+}
+
+// ---- Combat cards with their own mechanisms (slice 11j) --------------------
+
+// Slam [POT]: "Strike: hand strike at +2 damage, with 1 optional maneuver,
+// only usable to get to close range." Played at the maneuver once the gun
+// has taken the range long, it closes it and commits the strike. [TOM
+// 19960225]: the +2 is the hand strike's own damage.
+#[test]
+fn slam_played_at_the_maneuver_closes_the_range_and_commits_the_strike() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["POT"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let b = e.add_minion(SeatId(1), plain("Brujah", "", 0), 5, false);
+    let gun = equip(&mut e, ".44 Magnum", b);
+    hand(&mut e, 0, &["Slam"]);
+    bleed_blocked(&mut e, a, b);
+    pick_when(&mut e, card_ability(gun, 1)); // the gun's maneuver: long
+    let req = request(&mut e);
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(0), WindowLabel::CombatDetermineRange)
+    );
+    assert!(req.options.contains(&play(0, 1, a)));
+    pick(&mut e, play(0, 1, a));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, b), 2, "a hand strike at +2, at close range");
+    assert_eq!(blood(&e, a), 2, "Slam's blood, and the gun's 2");
+}
+
+// [LSJ 20021028] Slam, Aid from Bats: "The optional maneuver cannot be used
+// if the strike cannot be used" — no strike in the first round (One With the
+// Land [PRO]): no Aid from Bats at the maneuver.
+#[test]
+fn a_strike_with_a_maneuver_is_not_played_while_strikes_are_barred() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["ani"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Tzimisce", "PRO", 0), 5, false);
+    e.state.minions[z.index()].locked = true;
+    hand(&mut e, 0, &["Aid from Bats"]);
+    hand(&mut e, 1, &["One With the Land"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, play(0, 1, z));
+    never_offered(&mut e, &play(0, 0, a));
+}
+
+// Aid from Bats [ANI]: "Strike: 1R damage, with 1 optional maneuver … with
+// 1 optional press." At the maneuver it takes the range long and commits
+// the strike; [TOM 19960521] the press is usable this round only.
+#[test]
+fn aid_from_bats_maneuvers_either_way_and_commits_its_strike() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["ANI"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let b = e.add_minion(SeatId(1), plain("Brujah", "", 0), 5, false);
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+    let gun = equip(&mut e, ".44 Magnum", b);
+    hand(&mut e, 0, &["Aid from Bats"]);
+    bleed_blocked(&mut e, a, b);
+    // At close range, played at the maneuver: long.
+    pick_when(&mut e, play(0, 1, a));
+    // The gun maneuvers back to close; the committed 1R stays A's strike.
+    pick_when(&mut e, card_ability(gun, 1));
+    let req = until(&mut e, SeatId(0), WindowLabel::CombatPress);
+    assert!(req.options.contains(&Choice::UsePress));
+    pick(&mut e, Choice::Pass);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, b), 4, "the committed 1R");
+    assert_eq!(blood(&e, a), 3, "the gun's 2R");
+}
+
+// Pack Alpha [ani]: "Employ an animal retainer from your hand (requirements
+// and cost apply as normal)." [LSJ 20100130] [ANK 20180925-2] [LSJ
+// 19991207]: "The equipment or retainer must be announced by name, and in
+// hand, when the card or effect is declared." [LSJ 20100725] [LSJ 20100303]
+// [ANK 20180817]: "Requirements apply" — Raven Spy's superior version needs
+// [ANI]. [LSJ 20080815]: "This does not count as performing the action to
+// employ … this retainer." [LSJ 20090115-1] [ANK 20170309]: "This is not an
+// action, so cost reductions referring to an action do not apply."
+#[test]
+fn pack_alpha_employs_an_animal_retainer_from_hand() {
+    let raven = find_library("Raven Spy");
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["ani"], 0), 3, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let b = e.add_minion(SeatId(1), plain("Brujah", "", 0), 5, false);
+    hand(&mut e, 0, &["Pack Alpha", "Raven Spy"]);
+    bleed_blocked(&mut e, a, b);
+    let req = until(&mut e, SeatId(0), WindowLabel::CombatBeforeRange);
+    assert!(req.options.contains(&play(0, 0, a)));
+    pick(&mut e, play(0, 0, a));
+    // Only the basic Raven Spy: its [ANI] version needs superior.
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(on(&e, a), vec![(raven, 1)]);
+    assert!(e.state.seats[0].hand.is_empty());
+    assert_eq!(pool(&e, 0), 30, "no pool");
+    assert_eq!(blood(&e, a), 1, "Raven Spy's blood, and the hand strike");
+    assert!(
+        !e.state.minions[a.index()]
+            .acted
+            .contains(&zvtes::state::ActionId::Card(raven)),
+        "not an employ action"
+    );
+}
+
+// Pack Alpha [ANI]: "Burn an animal retainer employed by this vampire to
+// put this card on this vampire. This minion gets +1 strength. A minion can
+// have only one Pack Alpha."
+#[test]
+fn pack_alpha_superior_burns_a_retainer_for_strength() {
+    let pack = find_library("Pack Alpha");
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["ANI"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let b = e.add_minion(SeatId(1), plain("Brujah", "", 0), 5, false);
+    let spy = equip(&mut e, "Raven Spy", a);
+    e.state.cards[spy.index()].counters = 1;
+    hand(&mut e, 0, &["Pack Alpha", "Pack Alpha"]);
+    bleed_blocked(&mut e, a, b);
+    pick_when(&mut e, play_at(0, 1, Some(a), Target::Card(spy)));
+    let req = request(&mut e);
+    assert!(
+        !req.options
+            .iter()
+            .any(|o| matches!(o, Choice::Play { mode: 1, .. })),
+        "one Pack Alpha a round, and a minion has only one"
+    );
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(on(&e, a), vec![(pack, 0)]);
+    assert_eq!(blood(&e, b), 3, "strength 2");
+}
+
+// Voracious Vermin [ANI]: "Strike: dodge … with 1 additional ranged strike:
+// burn weapon." With no weapon to burn the superior version cannot be
+// chosen; with one, the additional strike burns it (owner, 2026-09-26:
+// rules-qa 22.3).
+#[test]
+fn voracious_vermin_dodges_then_burns_a_weapon() {
+    for armed in [false, true] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), with(&["ANI"], 0), 5, false);
+        e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+        let b = e.add_minion(SeatId(1), plain("Brujah", "", 0), 5, false);
+        hand(&mut e, 0, &["Voracious Vermin"]);
+        if !armed {
+            bleed_blocked(&mut e, a, b);
+            let req = until(&mut e, SeatId(0), WindowLabel::CombatStrike);
+            assert!(req.options.contains(&play(0, 0, a)));
+            assert!(!req.options.contains(&play(0, 1, a)), "no weapon to burn");
+            continue;
+        }
+        let gun = equip(&mut e, ".44 Magnum", b);
+        bleed_blocked(&mut e, a, b);
+        pick_when(&mut e, play(0, 1, a));
+        pick_when(&mut e, weapon_strike(gun));
+        // The additional strike: the lone weapon, burned.
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert!(!e.state.cards[gun.index()].in_play, "burned");
+        assert_eq!(blood(&e, a), 5, "the gun was dodged");
+    }
+}
+
+// Weighted Walking Stick: "Put this card with 5 counters on it on this
+// minion; it becomes a melee weapon equipment that can strike: strength+1
+// damage. For each damage inflicted by this strike (even if prevented),
+// burn 1 counter from this card." [LSJ 20100519]: damage "not inflicted
+// (eg. Blood Fury)" burns no counter — Blood Rage nullifies the weapon.
+#[test]
+fn weighted_walking_stick_loses_counters_per_damage_inflicted() {
+    let stick = find_library("Weighted Walking Stick");
+    for rage in [false, true] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+        e.add_minion(SeatId(0), plain("Brujah", "", 1), 5, false);
+        let b = e.add_minion(SeatId(1), with(&["tha"], 0), 3, false);
+        hand(&mut e, 0, &["Weighted Walking Stick"]);
+        hand(&mut e, 1, &["Blood Rage"]);
+        bleed_blocked(&mut e, a, b);
+        pick_when(&mut e, play(0, 0, a));
+        request(&mut e);
+        let (id, _) = e
+            .state
+            .cards
+            .iter()
+            .enumerate()
+            .find(|(_, c)| c.in_play && c.card == stick)
+            .expect("in play");
+        let id = CardId(id as u32);
+        assert!(e.state.equipment_on(a).contains(&id), "equipment");
+        pick_when(&mut e, weapon_strike(id));
+        if rage {
+            pick_when(&mut e, play(0, 0, b));
+        }
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        let want = if rage { 5 } else { 3 };
+        assert_eq!(on(&e, a), vec![(stick, want)], "Blood Rage: {rage}");
+    }
+}
+
+// [ANK 20201229-2] Weighted Walking Stick: "Full damage is applied if there
+// are any counter left, even just 1" — and the card is burned.
+#[test]
+fn weighted_walking_stick_deals_full_damage_on_its_last_counter() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 5, false);
+    let b = e.add_minion(SeatId(1), plain("Brujah", "", 0), 5, false);
+    let stick = equip(&mut e, "Weighted Walking Stick", a);
+    e.state.cards[stick.index()].counters = 1;
+    bleed_blocked(&mut e, a, b);
+    pick_when(&mut e, weapon_strike(stick));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, b), 3, "strength+1: 2 damage");
+    assert!(!e.state.cards[stick.index()].in_play, "burned at 0");
+}
+
+// ---- Action modifiers and reactions (slice 11k) ----------------------------
+
+// Cloak the Gathering [OBF]: "Only usable by a ready vampire other than the
+// acting minion. The acting minion gets +1 stealth." [LSJ 19990425]: by the
+// acting minion's controller; [RTR 19941109] [LSJ 19980210]: a locked
+// vampire can play it; [ANK 20200515]: "Multiple copies can be played by
+// different minions on the same action."
+#[test]
+fn cloak_the_gathering_superior_is_played_by_another_vampire() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Brujah", "", 0), 5, false);
+    let o = e.add_minion(SeatId(0), with(&["OBF"], 0), 5, false);
+    let o2 = e.add_minion(SeatId(0), with(&["OBF"], 1), 5, false);
+    e.state.minions[o.index()].locked = true;
+    let z = e.add_minion(SeatId(1), with(&["aus"], 0), 5, false);
+    hand(&mut e, 0, &["Cloak the Gathering", "Cloak the Gathering"]);
+    hand(&mut e, 1, &["Enhanced Senses"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, play(0, 1, o));
+    pick_when(&mut e, play(0, 0, z)); // +1 intercept: 1 against 1
+    pick_when(&mut e, play(0, 1, o2));
+    assert!(e.state.seats[0].hand.is_empty());
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e, 1), 29, "the block failed");
+}
+
+// Veil the Legions [OBF]: "this vampire can burn X blood to give the next X
+// actions minions you control perform this turn +1 stealth." [LSJ
+// 20070526]: counted as the action is announced. "Only one Veil the
+// Legions can be played each action." [LSJ 19990425]: "Can only be played
+// by the controller of the acting minion."
+#[test]
+fn veil_the_legions_superior_gives_the_next_actions_stealth() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Brujah", "", 0), 5, false);
+    let o = e.add_minion(SeatId(0), with(&["OBF"], 0), 5, false);
+    let c = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let z = e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+    hand(&mut e, 0, &["Veil the Legions", "Veil the Legions"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, play(0, 1, o));
+    pick(&mut e, Choice::SetX(1));
+    let req = request(&mut e);
+    assert!(
+        !req.options
+            .iter()
+            .any(|x| matches!(x, Choice::Play { card: 0, .. })),
+        "one Veil each action"
+    );
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, o), 4);
+    // The next action: +1 stealth, beyond the reach of an attempt with no
+    // intercept (pruned).
+    e.state.minions[z.index()].locked = false;
+    pick(&mut e, action(c, ActionKind::Bleed));
+    never_offered(&mut e, &Choice::DeclareBlock { minion: z });
+    assert_eq!(pool(&e, 1), 28, "both bleeds went through");
+}
+
+// Daring the Dawn [for]: "Vampires cannot block this action. This vampire
+// takes 2 unpreventable environmental aggravated damage after action
+// resolution." One aggravated point sends it to torpor.
+#[test]
+fn daring_the_dawn_bars_vampire_blockers_and_burns_after_resolution() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["for"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let z = e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+    hand(&mut e, 0, &["Daring the Dawn"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, play(0, 0, a));
+    never_offered(&mut e, &Choice::DeclareBlock { minion: z });
+    assert_eq!(pool(&e, 1), 29);
+    assert!(
+        e.state.minions[a.index()].in_torpor,
+        "wounded by aggravated damage"
+    );
+}
+
+// Freak Drive [for]: "Only usable if the action was successful. Unlock this
+// vampire." [PIB 20150915] [LSJ 19981028] [ANK 20190425]: played after
+// resolution, still during the action. [PIB 20150703] The Sleeping Mind [DOM]: "During this action,
+// minions cannot unlock" — no unlock after resolution either.
+#[test]
+fn freak_drive_unlocks_unless_the_sleeping_mind_bars_it() {
+    for sleeping in [false, true] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), with(&["for", "DOM"], 0), 5, false);
+        e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+        e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+        hand(&mut e, 0, &["Freak Drive", "Sleeping Mind, The"]);
+        pick(&mut e, action(a, ActionKind::Bleed));
+        if sleeping {
+            pick_when(&mut e, play(1, 1, a));
+        }
+        pick_when(&mut e, play(0, 0, a));
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert_eq!(e.state.minions[a.index()].locked, sleeping);
+    }
+}
+
+// Seduction [dom]: "Only usable as the action is announced … Choose a
+// younger vampire. The chosen vampire cannot block this action." [ANK
+// 20190425]: as-announced modifiers come before the others — the
+// as-announced window opens first.
+#[test]
+fn seduction_bars_a_younger_vampire_from_blocking() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(
+        SeatId(0),
+        vampire(
+            |c| has(c, &["dom"]) && c.capacity >= 8 && c.title == Title::None,
+            0,
+        ),
+        5,
+        false,
+    );
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let z = e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+    hand(&mut e, 0, &["Seduction"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, play_at(0, 0, Some(a), Target::Minion(z)));
+    never_offered(&mut e, &Choice::DeclareBlock { minion: z });
+    assert_eq!(pool(&e, 1), 29);
+}
+
+// Unleashing the Bestial Soul [DOM]: "Choose a minion. The chosen minion
+// cannot play reaction cards this action … and the next reaction card
+// played this action costs +1 blood or life."
+#[test]
+fn unleashing_the_bestial_soul_bars_and_taxes_reactions() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(
+        SeatId(0),
+        vampire(|c| c.clan == "Salubri" && has(c, &["DOM"]), 0),
+        5,
+        false,
+    );
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let z = e.add_minion(SeatId(1), with(&["dom"], 0), 5, false);
+    let y = e.add_minion(SeatId(1), with(&["dom"], 1), 5, false);
+    hand(&mut e, 0, &["Unleashing the Bestial Soul"]);
+    hand(&mut e, 1, &["Deflection", "Deflection"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, play_at(0, 1, Some(a), Target::Minion(z)));
+    let deflect = |m| play_at(0, 0, Some(m), Target::Seat(SeatId(2)));
+    let req = until(&mut e, SeatId(1), WindowLabel::ActionBlocksDeclined);
+    assert!(!req.options.contains(&deflect(z)), "barred");
+    pick(&mut e, deflect(y));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, y), 3, "Deflection's 1 blood, +1");
+    assert!(e.state.minions[y.index()].locked);
+}
+
+// Visions of Zapathasura [OBF][PRE]: "Lock this vampire to reduce a bleed
+// against you to 0."
+#[test]
+fn visions_of_zapathasura_superior_reduces_the_bleed_to_zero() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["pre"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let z = e.add_minion(SeatId(1), with(&["OBF", "PRE"], 0), 5, false);
+    hand(&mut e, 1, &["Visions of Zapathasura"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, play(0, 1, z));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e, 1), 30);
+    assert!(e.state.minions[z.index()].locked);
+    assert_eq!(blood(&e, z), 4, "1 blood");
+}
+
+// Change of Target: "Only usable if this minion is blocked, before block
+// resolution. Unlock this minion. The action ends (unsuccessfully)."
+// [LSJ 19980224] [RTR 19991206]: played "before the blocker is locked and
+// combat begins"; [RTR 19991206]: "Effects triggered when the action is
+// blocked are still applied" (Unlicensed Taxicab's burn, blocked by a
+// prince); [LSJ 20010803-1]
+// [RTR 20180719]: "No other modifier or reaction can be played
+// afterwards" — nor Freak Drive [FOR] (RTR 20180719: not if "ended");
+// [LSJ 20070709]: it reached resolution, subject to NRA.
+#[test]
+fn change_of_target_ends_a_blocked_action_before_combat() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["FOR"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let z = e.add_minion(SeatId(1), prince(0), 5, false);
+    let taxi = equip(&mut e, "Unlicensed Taxicab", a);
+    hand(&mut e, 0, &["Change of Target", "Freak Drive"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, play(0, 0, a));
+    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(
+        !e.state.cards[taxi.index()].in_play,
+        "the block's rider applied"
+    );
+    assert!(!e.state.minions[a.index()].locked, "unlocked");
+    assert!(
+        !e.state.minions[z.index()].locked,
+        "the blocker never locked"
+    );
+    assert_eq!((blood(&e, a), blood(&e, z)), (5, 5), "no combat");
+    assert_eq!(pool(&e, 1), 30);
+    assert_eq!(e.state.seats[0].hand, vec![find_library("Freak Drive")]);
+    assert!(
+        !req.options.contains(&action(a, ActionKind::Bleed)),
+        "not the same action again this turn"
+    );
+}
+
+// [RTR 19950509] [LSJ 20080710] [ANK 20200502] Change of Target: "Actions
+// without card (provided by the rulebook) can be repeated if they have
+// different targets" — a rescue of another vampire stays open. [LSJ
+// 20050105-2]: "If used while leaving torpor, the blocker does not get an
+// opportunity for diablerie."
+#[test]
+fn change_of_target_forbids_the_same_rulebook_action_only() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Brujah", "", 0), 5, false);
+    let t1 = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 2, true);
+    let t2 = e.add_minion(SeatId(0), plain("Ventrue", "", 1), 2, true);
+    let z = e.add_minion(SeatId(1), with(&["aus"], 0), 5, false);
+    hand(&mut e, 0, &["Change of Target"]);
+    hand(&mut e, 1, &["Enhanced Senses", "Enhanced Senses"]);
+    let rescue = |t| Choice::TakeAction {
+        minion: a,
+        action: ActionKind::Rescue,
+        target: Some(t),
+    };
+    pick(&mut e, rescue(t1));
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, play(0, 0, z)); // +1 intercept against +1 stealth
+    pick_when(&mut e, play(0, 0, a));
+    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!req.options.contains(&rescue(t1)));
+    assert!(req.options.contains(&rescue(t2)));
+    // Leaving torpor, blocked: Change of Target, and no diablerie.
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Brujah", "", 0), 3, true);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let z = e.add_minion(SeatId(1), with(&["aus"], 0), 5, false);
+    hand(&mut e, 0, &["Change of Target"]);
+    hand(&mut e, 1, &["Enhanced Senses"]);
+    pick(&mut e, action(a, ActionKind::LeaveTorpor));
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, play(0, 0, z));
+    pick_when(&mut e, play(0, 0, a));
+    never_offered(&mut e, &Choice::Diablerise);
+    assert!(e.state.minions[a.index()].in_play);
+}
+
+// [RTR 19980623] Daring the Dawn: "If the action is blocked, damage is
+// applied after combat" — by an ally, vampires being barred. [ANK
+// 20220331] [ANK 20210124] [LSJ 20020927] [LSJ 20021115] [ANK
+// 20221011-2]: "The damage is applied if the action reaches resolution,
+// even if it ends before combat (eg. Change of Target)". [LSJ
+// 20010714-2]: a card forcing an attempt "cannot be used if the vampire
+// cannot attempt to block the action" (Second Tradition: Domain).
+#[test]
+fn daring_the_dawn_burns_after_combat_or_an_ended_action() {
+    for ended in [false, true] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), with(&["FOR"], 0), 5, false);
+        e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+        let ally = e.add_ally(SeatId(1), find_library("47th Street Royals"));
+        let p = e.add_minion(SeatId(1), prince(0), 5, false);
+        e.state.minions[p.index()].locked = true;
+        hand(&mut e, 0, &["Daring the Dawn", "Change of Target"]);
+        hand(&mut e, 1, &["Second Tradition: Domain"]);
+        pick(&mut e, action(a, ActionKind::Bleed));
+        pick_when(&mut e, play(0, 1, a));
+        let req = request(&mut e);
+        assert!(!req
+            .options
+            .iter()
+            .any(|o| matches!(o, Choice::Play { actor: Some(m), .. } if *m == p)));
+        pick_when(&mut e, Choice::DeclareBlock { minion: ally });
+        if ended {
+            pick_when(&mut e, play(0, 0, a));
+        }
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert!(e.state.minions[a.index()].in_torpor, "ended: {ended}");
+    }
+}
+// [PIB 20150915] [LSJ 19981028] [ANK 20190425] Shadow Cloak [OBL]: played
+// after resolution, still during the action. "Put this card on this vampire. Minions without
+// Auspex [aus] cannot perform actions directed at this vampire. During
+// your unlock phase, burn this card."
+#[test]
+fn shadow_cloak_shields_its_vampire_until_the_next_unlock_phase() {
+    let cloak = find_library("Shadow Cloak");
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["OBL"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let z = e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+    let seer = e.add_minion(SeatId(1), with(&["aus"], 0), 5, false);
+    hand(&mut e, 0, &["Shadow Cloak"]);
+    pick(&mut e, action(a, ActionKind::Hunt));
+    pick_when(&mut e, play(0, 1, a));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(on(&e, a), vec![(cloak, 0)]);
+    assert!(!e.state.may_direct_at(z, a), "no Auspex");
+    assert!(e.state.may_direct_at(seer, a));
+    // Seat 0's next unlock phase: burned.
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert_eq!(on(&e, a), vec![(cloak, 0)]);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(on(&e, a).is_empty());
+}
+
+// [LSJ 20010715] Cards usable after action resolution "can be played before
+// or after the damage is taken" (Daring the Dawn): the acting Methuselah
+// orders the damage among the after-resolution effects, and takes it
+// before passing (owner, 2026-09-26: rules-qa 23.3).
+#[test]
+fn daring_the_dawn_damage_is_ordered_among_after_resolution_effects() {
+    for damage_first in [true, false] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), with(&["for"], 0), 5, false);
+        e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+        e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+        hand(&mut e, 0, &["Daring the Dawn", "Freak Drive"]);
+        pick(&mut e, action(a, ActionKind::Bleed));
+        pick_when(&mut e, play(0, 0, a));
+        let req = until(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
+        assert!(
+            !req.options.contains(&Choice::Pass),
+            "the damage first, or a card"
+        );
+        assert!(req.options.contains(&Choice::TakeDamageAfterResolution));
+        assert!(req.options.contains(&play(0, 0, a)), "Freak Drive");
+        if damage_first {
+            pick(&mut e, Choice::TakeDamageAfterResolution);
+        } else {
+            // Freak Drive, then the damage (a lone option, elided).
+            pick(&mut e, play(0, 0, a));
+        }
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert!(
+            e.state.minions[a.index()].in_torpor,
+            "damage first: {damage_first}"
+        );
+    }
 }

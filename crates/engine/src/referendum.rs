@@ -914,6 +914,7 @@ impl Engine {
                         locked: false,
                         counters: 0,
                         stored: Vec::new(),
+                        effect_only: false,
                     });
                     self.action
                         .as_mut()
@@ -1135,7 +1136,7 @@ impl Engine {
                         .forbidden_political
                         .push(id);
                 }
-                if unlock_acting {
+                if unlock_acting && !a.no_unlock {
                     self.state.minions[a.acting.index()].locked = false;
                 }
             }

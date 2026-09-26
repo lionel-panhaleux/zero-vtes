@@ -1590,7 +1590,109 @@ Recorded so nobody mistakes them for oversights:
     the pool yet (the ledger row stays blocked, as Voter Captivation's).
 
   Definition: Amici Noctis (207 defs, 487 tests).
-  **P2 open items (2026-09-25, after 11h):**
+  11i — combat cards:
+  - **Delayed effects** (`combat::Held`): only action cards wait in limbo;
+    every other card goes to the ash heap as it resolves and stays there
+    (owner: rules-qa 21.1).
+    - The "put this card on …" effect still applies, whether or not the
+      card is still there. It is represented by an effect-only card in play
+      (`CardInPlay.effect_only`): burning it ends the effect and moves no
+      card, and an oust removes it without touching the ash heap.
+    - Where it lands: on the opposing minion as its strike lands
+      (`Effect::PutOnOpponentOnHit`; Touch of Oblivion [obl], Sculpt the
+      Flesh [PRO]), or on its minion after combat
+      (`Effect::PutOnActorAfterCombat`, `CombatCtx.after_combat`; Pass
+      Through Shadow [OBL]).
+    - It is lost if the strike does not land, combat ends first, or the
+      combat continues (RTR 20020501).
+  - **New strikes**: `StrikeKind::TorporOrBurn` (the vampire wounded, LSJ
+    20090622-2) and `StrikeKind::CardEffect` (no damage), both close-range: a strike not
+    said to be ranged works at close range only (rules-qa 21.1).
+  - **Strike riders**: undodgeable (Dust Up [ani]) and aggravated (Sculpt
+    the Flesh [pro]).
+  - **Strength and prevention**: this-round strength and prevention, and
+    prevention each round (Bear's Skin); a press for this round only (Form
+    of the Wolf [PRO]).
+  - **Rolling with the Punches [FOR]**: prevents the opposing strikes'
+    damage (`Side.strike_damage`, `strikes_prevented`) for 1 blood burned
+    as an effect.
+  - **Touch of Oblivion's counter**: burned instead of unlocking as normal
+    (`Modifier::CounterInsteadOfUnlock`, a substitution: advanced rules
+    §5.2.2).
+  - An ally burning its last life to an unlock-phase rider is burned.
+
+  Definitions: Bear's Skin, Dust Up, Form of the Wolf, Rolling with the
+  Punches, Sculpt the Flesh, Touch of Oblivion, Pass Through Shadow (214
+  defs, 498 tests; rules-qa Batch 21 answered).
+  11j — combat cards with their own mechanisms:
+  - **A strike card played at the maneuver** (`Effect::CommittedStrike`;
+    Slam [POT], Aid from Bats) maneuvers and commits the round's initial
+    strike (`Side.committed_card`, `Choice::CommittedStrike`). Slam's
+    maneuver only closes the range (`R::ManeuverToClose`). Not offered
+    while the strike could not be used (LSJ 20021028).
+  - **Pack Alpha [ani]** names an animal retainer from hand as its terms
+    (`Terms::EmployFromHand`, `Choice::EmployFromHand`, `PlayCtx.named`)
+    and employs it at resolution: requirements and cost, no employ-action
+    riders (`put_retainer`'s `outside_action`), replaced. Its [ANI] mode
+    burns an animal retainer on its vampire (`R::TargetOnActor`) for +1
+    strength.
+  - **Voracious Vermin [ANI]**: only with a weapon to burn
+    (`R::OpposingWeapon`). Its additional strike is only usable as "burn
+    weapon" (`Effect::AdditionalStrikeOnly`, `StrikeKind::BurnWeapon`,
+    `Choice::BurnWeaponStrike`; rules-qa 22.3).
+  - **Weighted Walking Stick** is weapon equipment once in play
+    (`Effect::BecomesWeapon`, `cards::becomes_weapon`); in hand or in the
+    ash heap it is a combat card (rules-qa 22.4). It loses a counter
+    per damage point its strike inflicts, prevented or not
+    (`Effect::CountersPerDamage`).
+
+  Definitions: Slam, Aid from Bats, Pack Alpha, Voracious Vermin, Weighted
+  Walking Stick (219 defs, 507 tests; rules-qa Batch 22 answered).
+  11k — action modifiers and reactions:
+  - **Actor**: "a ready vampire other than the acting minion"
+    (`Actor::OtherOwnMinion`; Cloak the Gathering [OBF], Veil the Legions).
+    `Limit::OnePerAction` counts every minion.
+  - **Veil the Legions [OBF]**: stealth for the next X actions
+    (`Seat.veil_left`, spent as each action is announced), one superior a
+    turn in all (`GameState.veil_superior`; rules-qa 23.6).
+  - **Blockers barred**: "vampires cannot block"
+    (`ActionCtx.vampires_cannot_block`, Daring the Dawn) and a chosen
+    vampire (`Effect::TargetCannotBlock` into `barred_blockers`; Seduction,
+    The Sleeping Mind [dom]).
+  - **Damage after resolution** (`ActionCtx.damage_after`,
+    `Engine::damage_out_of_combat`): taken when the action reached
+    resolution. The acting Methuselah orders it among the after-resolution
+    effects (`Choice::TakeDamageAfterResolution`, before passing; rules-qa
+    23.3). Without that window, it is taken as the action ends.
+  - **No unlocks**: "during this action, minions cannot unlock"
+    (`ActionCtx.no_unlock`, The Sleeping Mind [DOM]) guards every unlock
+    inside an action. Wakes still work; an unlock-and-block card finds no
+    candidate.
+  - **Reactions**: barred for a chosen minion (`ActionCtx.no_reactions`),
+    and the next one surcharged (`ActionCtx.reaction_surcharge`; Unleashing
+    the Bestial Soul).
+  - **Visions of Zapathasura [OBF][PRE]**: a bleed reduced by its amount as
+    it resolves (`Effect::ReduceBleedToZero`).
+  - **Change of Target**: ends a blocked action before block resolution
+    (`ActionCtx.ended_early`): its blocker, if it was unlocked, stays so.
+    The same rulebook action is forbidden this turn
+    (`ActionId::Rulebook(kind, target)`).
+  - **Shadow Cloak [OBL]**: "minions without Auspex cannot perform actions
+    directed at this vampire" (`Modifier::DirectedOnlyBy`,
+    `GameState::may_direct_at`, checked on card, granted and rulebook
+    actions).
+
+  Definitions: Cloak the Gathering, Veil the Legions, Daring the Dawn,
+  Freak Drive, Seduction, The Sleeping Mind, Unleashing the Bestial Soul,
+  Visions of Zapathasura, Change of Target, Shadow Cloak (229 defs, 520
+  tests; rules-qa Batch 23 answered). Ledger rows left blocked
+  wait for Eagle's Sight, a lock on a minion attempting to block, and a
+  few scripts (a fizzled action, the action card's replacement timing).
+  **P2 open items (2026-09-26, after 11k):**
+  - Still to do from the action modifiers: Spying Mission [OBF] and Shadow
+    Cast [OBL] (a card remembering the Methuselah an action was directed
+    at); Enchanting Gaze and Revelation of the Serpent (corruption); Eagle's
+    Sight (effect-widened block eligibility).
   - Next: slice 11's remaining precon cards (the coverage probe lists
     them); then the rest.
   - Self-contest of a unique title (advanced rules §1.13.1: "you can never

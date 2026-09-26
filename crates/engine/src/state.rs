@@ -159,6 +159,11 @@ pub enum ActionId {
     /// same as a card's or a rulebook action (spec §3.8.1). The vampire is
     /// kept for records held by the seat (a forbidden political action).
     Printed(MinionId, u8),
+    /// A rulebook action and its target minion, recorded only where a card
+    /// forbids repeating it ("this minion cannot perform the same action
+    /// again this turn", Change of Target): rulebook actions are otherwise
+    /// repeatable (LSJ 20060522).
+    Rulebook(crate::decision::ActionKind, Option<MinionId>),
 }
 
 impl ActionId {
@@ -169,6 +174,7 @@ impl ActionId {
             }
             (ActionId::InPlay(a), ActionId::InPlay(b)) => a == b,
             (ActionId::Printed(m, a), ActionId::Printed(n, b)) => m == n && a == b,
+            (ActionId::Rulebook(k, a), ActionId::Rulebook(l, b)) => k == l && a == b,
             _ => false,
         }
     }
@@ -300,6 +306,11 @@ pub struct CardInPlay {
     /// up, Shilmulo Tarot face down), top last: their owner's, burned with
     /// the card (LSJ 20021128).
     pub stored: Vec<u16>,
+    /// A lingering effect of a card that went to the ash heap as it resolved
+    /// (Touch of Oblivion's counters, Sculpt the Flesh [PRO]): represented
+    /// here, while the card itself stays in the ash heap; burning it ends
+    /// the effect, and moves no card (owner, 2026-09-26: rules-qa 21.1).
+    pub effect_only: bool,
 }
 
 impl CardInPlay {
@@ -403,6 +414,9 @@ pub struct Seat {
     /// Master phase actions added at the start of the next master phase
     /// (Wash canceling an out-of-turn master).
     pub mpa_next: u8,
+    /// Veil the Legions [OBF]: the next actions of this Methuselah's
+    /// minions this turn that get +1 stealth.
+    pub veil_left: u8,
     /// Discard phase actions left in the current discard phase.
     pub dpa: u8,
     /// A master card was played in the current master phase (Nonu Dis).
@@ -430,6 +444,9 @@ pub struct GameState {
     /// Abilities used this turn ("once each turn", `Limit::PerTurn`);
     /// cleared as each Methuselah's turn begins.
     pub turn_uses: Vec<(crate::cards::AbilitySource, u8)>,
+    /// A superior Veil the Legions was played this turn, by anyone ("only
+    /// one … at superior each turn"; owner, 2026-09-26: rules-qa 23.6).
+    pub veil_superior: bool,
     /// Continuous effects (DESIGN §4.5 scope layers).
     pub layers: Vec<Layer>,
     pub active: SeatId,
@@ -835,7 +852,8 @@ impl GameState {
             .filter(|(_, c)| {
                 c.present()
                     && c.host == Some(m)
-                    && crate::cards::CardFilter::EquipmentWithout(&[]).matches(c.card)
+                    && (crate::cards::CardFilter::EquipmentWithout(&[]).matches(c.card)
+                        || crate::cards::becomes_weapon(c.card))
             })
             .map(|(i, _)| CardId(i as u32))
             .collect()
@@ -851,6 +869,37 @@ impl GameState {
         kind: crate::decision::ActionKind,
     ) -> i32 {
         self.bearer_mods(m, stat, kind).map(|(_, n)| n).sum()
+    }
+
+    /// Can `actor` perform an action directed at `m`? Not without one of
+    /// the Disciplines a card on `m` names ("minions without Auspex cannot
+    /// perform actions directed at this vampire", Shadow Cloak [OBL]).
+    pub fn may_direct_at(&self, actor: MinionId, m: MinionId) -> bool {
+        let disc: &[&str] = self.minions[actor.index()]
+            .vampire()
+            .map_or(&[], |v| v.disciplines);
+        self.layers.iter().all(|l| {
+            !(l.scope == crate::cards::Scope::InPlay
+                && self.layer_active(l)
+                && self.cards[l.source.index()].bearer() == Some(m))
+                || !matches!(l.modifier, crate::cards::Modifier::DirectedOnlyBy(ds)
+                    if !ds.iter().any(|d| crate::cards::has_discipline(disc, d)))
+        })
+    }
+
+    /// Cards on `m` whose counter burns instead of its unlocking as normal
+    /// (Touch of Oblivion).
+    pub fn counter_instead_of_unlock(&self, m: MinionId) -> Vec<CardId> {
+        self.layers
+            .iter()
+            .filter(|l| {
+                l.scope == crate::cards::Scope::InPlay
+                    && self.layer_active(l)
+                    && l.modifier == crate::cards::Modifier::CounterInsteadOfUnlock
+                    && self.cards[l.source.index()].bearer() == Some(m)
+            })
+            .map(|l| l.source)
+            .collect()
     }
 
     /// The discount on `rescuer`'s rescue of `target` from its cards in play,
@@ -1250,6 +1299,9 @@ impl GameState {
                     ActionId::Card(c) => *c as u64,
                     ActionId::InPlay(c) => 1 << 32 | c.0 as u64,
                     ActionId::Printed(m, i) => 2 << 40 | (m.0 as u64) << 8 | *i as u64,
+                    ActionId::Rulebook(k, t) => {
+                        3 << 40 | (*k as u64) << 32 | t.map_or(u32::MAX, |t| t.0) as u64
+                    }
                 });
             }
             mix(match s.out_of_turn {
@@ -1257,6 +1309,7 @@ impl GameState {
                 Some(OutOfTurn { trifle }) => 1 + trifle as u64,
             });
             mix(s.mpa_next as u64);
+            mix(s.veil_left as u64);
             for zone in [
                 &s.crypt,
                 &s.uncontrolled_cards(),
@@ -1324,11 +1377,15 @@ impl GameState {
                     ActionId::Card(c) => c as u64,
                     ActionId::InPlay(id) => (id.0 as u64) << 20,
                     ActionId::Printed(m, i) => 1 << 52 | (m.0 as u64) << 8 | i as u64,
+                    ActionId::Rulebook(k, t) => {
+                        1 << 53 | (k as u64) << 32 | t.map_or(u32::MAX, |t| t.0) as u64
+                    }
                 });
             }
         }
         mix(self.phase_uses.len() as u64);
         mix(self.turn_uses.len() as u64);
+        mix(self.veil_superior as u64);
         for (c, a) in self.phase_uses.iter().chain(&self.turn_uses) {
             let source = match c {
                 crate::cards::AbilitySource::Card(id) => id.0 as u64,
@@ -1349,6 +1406,7 @@ impl GameState {
             mix(c.contested as u64);
             mix(c.locked as u64);
             mix(c.counters as u64);
+            mix(c.effect_only as u64);
         }
         mix(self.layers.len() as u64);
         for l in &self.layers {

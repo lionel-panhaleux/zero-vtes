@@ -86,6 +86,7 @@ fn equip(e: &mut Engine, name: &str, host: MinionId) -> u32 {
         locked: false,
         counters: 0,
         stored: Vec::new(),
+        effect_only: false,
     });
     let id = CardId(e.state.cards.len() as u32 - 1);
     for effect in cards::lookup(card).expect("definition").modes[0].effects {
@@ -491,6 +492,7 @@ fn a_locquipment_in_play_is_not_taken_from_another_minion() {
         locked: false,
         counters: 0,
         stored: Vec::new(),
+        effect_only: false,
     });
     let req = request(&mut e);
     assert!(!req.options.contains(&take_from(horst, alice)));

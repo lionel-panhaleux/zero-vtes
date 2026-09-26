@@ -33,6 +33,7 @@ fn found_play(seat: SeatId, acting: MinionId, card: u16) -> PlayCtx {
         target: Target::Minion(acting),
         x: 0,
         burn: None,
+        named: None,
     }
 }
 
@@ -156,6 +157,26 @@ pub struct ActionCtx {
     pub played: Vec<(MinionId, &'static str)>,
     /// A reaction card was played during this action (canceled or not).
     pub reaction_played: bool,
+    /// "Vampires cannot block this action" (Daring the Dawn).
+    pub vampires_cannot_block: bool,
+    /// Aggravated damage the acting vampire takes after resolution, if the
+    /// action reaches it (Daring the Dawn).
+    pub damage_after: u8,
+    /// "During this action, minions cannot unlock" (The Sleeping Mind
+    /// [DOM]).
+    pub no_unlock: bool,
+    /// Minions that cannot play reaction cards this action (Unleashing the
+    /// Bestial Soul).
+    pub no_reactions: Vec<MinionId>,
+    /// The next reaction card played this action costs this much more
+    /// blood or life (Unleashing the Bestial Soul [DOM]).
+    pub reaction_surcharge: u8,
+    /// The blocked action ends before block resolution (Change of Target):
+    /// no other card is played, no combat.
+    pub ended_early: bool,
+    /// The blocker was unlocked when it blocked (Change of Target leaves it
+    /// so: played before the blocker is locked, LSJ 19980224).
+    pub blocker_was_unlocked: bool,
     /// The rescue's blood cost, set as it resolves (2, less discounts).
     pub rescue_cost: u8,
     /// Blood the rescued vampire gains if this rescue succeeds (Saulot's
@@ -612,6 +633,13 @@ impl Engine {
             continued: false,
             played: Vec::new(),
             reaction_played: false,
+            vampires_cannot_block: false,
+            damage_after: 0,
+            no_unlock: false,
+            no_reactions: Vec::new(),
+            reaction_surcharge: 0,
+            ended_early: false,
+            blocker_was_unlocked: false,
             rescue_cost: 2,
             rescue_gain: 0,
             referendum_passed: false,
@@ -651,6 +679,14 @@ impl Engine {
             exchange: None,
             resolved: false,
         });
+        // Veil the Legions [OBF]: one of the next X actions this turn gets
+        // +1 stealth, counted as it is announced (a later cancel does not
+        // give it back: LSJ 20070526).
+        let seat_state = &mut self.state.seats[seat.index()];
+        if seat_state.veil_left > 0 {
+            seat_state.veil_left -= 1;
+            self.action.as_mut().expect("action").stealth_mods += 1;
+        }
         self.flow = Flow::Action;
         self.host_announces_riders(minion);
     }
@@ -785,7 +821,9 @@ impl Engine {
                 !a.failed
                     && self.eligible_blockers(a).contains(&seat)
                     && !a.declined.contains(&seat)
-                    && self.block_candidates_locked(a, seat, true).contains(&m)
+                    // An unlock-and-block card needs the unlock (The
+                    // Sleeping Mind [DOM] bars it).
+                    && self.block_candidates_locked(a, seat, !a.no_unlock).contains(&m)
             }
             _ => false,
         }
@@ -888,6 +926,7 @@ impl Engine {
                     && self.block_toll(a, *m).is_some()
                     && !(vampire_acting && st.cannot_block_vampires(*m))
                     && !(no_allies && v.is_ally())
+                    && !(a.vampires_cannot_block && !v.is_ally())
             })
             .collect()
     }
@@ -1048,6 +1087,11 @@ impl Engine {
 
     /// Windows open for `seat` in the action's current state.
     fn action_windows(a: &ActionCtx, seat: SeatId) -> Vec<Window> {
+        // Ended by Change of Target: nothing more is played (LSJ
+        // 20010803-1, RTR 20180719).
+        if a.ended_early {
+            return Vec::new();
+        }
         let acting = seat == a.seat;
         match a.state {
             ActionState::AsAnnounced => {
@@ -1158,6 +1202,17 @@ impl Engine {
                 }
             }
         }
+        // Damage after resolution (Daring the Dawn): the acting Methuselah
+        // orders it among the after-resolution effects, and resolves it
+        // before passing (owner, 2026-09-26: rules-qa 23.3).
+        let damage_pending = a.state == ActionState::AfterResolution
+            && seat == a.seat
+            && a.damage_after > 0
+            && a.outcome.is_some();
+        if damage_pending {
+            options.retain(|o| *o != Choice::Pass);
+            options.push(Choice::TakeDamageAfterResolution);
+        }
         let windows = Self::action_windows(a, seat);
         options.extend(self.play_options(seat, &windows, None));
         // Abilities of cards in play timed like the cards of these windows
@@ -1213,6 +1268,14 @@ impl Engine {
                 self.state.minions[minion.index()].blood -= 1;
                 self.flow = Flow::Action;
             }
+            Choice::TakeDamageAfterResolution => {
+                let (m, n) = (a.acting, std::mem::take(&mut a.damage_after));
+                a.window.play();
+                if self.state.minions[m.index()].present() {
+                    self.damage_out_of_combat(m, n, true);
+                }
+                self.flow = Flow::Action;
+            }
             Choice::UnlockForBlood { minion } => {
                 let i = a
                     .after_block_unlocks
@@ -1221,9 +1284,12 @@ impl Engine {
                     .expect("an unlock for blood");
                 let (m, n) = a.after_block_unlocks.remove(i);
                 a.window.play();
+                let barred = a.no_unlock;
                 let v = &mut self.state.minions[m.index()];
                 v.blood -= n;
-                v.locked = false;
+                if !barred {
+                    v.locked = false;
+                }
                 self.flow = Flow::Action;
             }
             Choice::ContinueAction => {
@@ -1346,6 +1412,17 @@ impl Engine {
                 }
             }
             ActionState::AfterResolution => self.end_action(),
+            // Change of Target: the action ends, unsuccessfully, before block
+            // resolution — no combat, no diablerie (LSJ 20050105-2); the
+            // blocker is not locked, the card being played before it is
+            // (LSJ 19980224, RTR 19991206).
+            ActionState::Blocked(blocker) if a.ended_early => {
+                if a.blocker_was_unlocked {
+                    self.state.minions[blocker.index()].locked = false;
+                }
+                a.outcome = Some(Outcome::Blocked);
+                self.end_action();
+            }
             ActionState::Blocked(blocker) => {
                 if a.continued {
                     // Continued as if unblocked before block resolution:
@@ -1495,6 +1572,44 @@ impl Engine {
             }
             Effect::ReduceBleed(n) => a.bleed_reduce += n,
             Effect::AlliesCannotBlock => a.allies_cannot_block = true,
+            Effect::VampiresCannotBlock => a.vampires_cannot_block = true,
+            Effect::DamageAfterResolution(n) => a.damage_after += n,
+            Effect::TargetCannotBlock => {
+                if let cards::Target::Minion(t) = play.target {
+                    a.barred_blockers.push(t);
+                }
+            }
+            Effect::NoUnlockThisAction => a.no_unlock = true,
+            Effect::TargetNoReactions => {
+                if let cards::Target::Minion(t) = play.target {
+                    a.no_reactions.push(t);
+                }
+            }
+            Effect::NextReactionCosts(n) => a.reaction_surcharge += n,
+            // The bleed amount as it resolves; later increases still count.
+            Effect::ReduceBleedToZero => {
+                self.action = Some(a);
+                let n = self
+                    .action
+                    .as_ref()
+                    .expect("action")
+                    .bleed_amount(&self.state);
+                a = self.action.take().expect("action");
+                a.bleed_reduce += n;
+            }
+            Effect::EndBlockedAction => {
+                a.ended_early = true;
+                if !a.no_unlock {
+                    self.state.minions[a.acting.index()].locked = false;
+                }
+            }
+            Effect::StealthForNextActions => {
+                let m = play.actor.expect("actor");
+                let x = play.x.min(self.state.minions[m.index()].blood);
+                self.state.minions[m.index()].blood -= x;
+                self.state.seats[play.seat.index()].veil_left += x;
+                self.state.veil_superior = true;
+            }
             Effect::StrengthThisAction(n) => a.strength_bonus += n,
             Effect::AggravatedHandsThisAction => a.aggravated_hands = true,
             Effect::YoungerIntercept(n) => {
@@ -1613,6 +1728,7 @@ impl Engine {
             Effect::LockActor => {
                 self.state.minions[play.actor.expect("actor").index()].locked = true;
             }
+            Effect::UnlockActor if a.no_unlock => {}
             Effect::UnlockActor => {
                 self.state.minions[play.actor.expect("actor").index()].locked = false;
             }
@@ -1717,9 +1833,11 @@ impl Engine {
     /// Block resolution: the blocker locks; combat, except a blocked
     /// leave-torpor (no combat; the blocker may diablerise).
     fn blocked(&mut self, blocker: MinionId) {
+        let was_unlocked = !self.state.minions[blocker.index()].locked;
         let (acting, kind) = {
             let a = self.action.as_mut().expect("action context");
             a.blocker = Some(blocker);
+            a.blocker_was_unlocked = was_unlocked;
             (a.acting, a.kind)
         };
         self.state.minions[blocker.index()].locked = true;
@@ -2045,12 +2163,12 @@ impl Engine {
                                 .effects
                                 .contains(&Effect::UnlockRecruiterOnFirst)
                         });
-                        if first && unlocks {
+                        if first && unlocks && !a.no_unlock {
                             self.state.minions[acting.index()].locked = false;
                         }
                         self.state.minions[acting.index()].recruits_this_turn += 1;
                     }
-                    _ => self.put_retainer(seat, acting, play),
+                    _ => self.put_retainer(seat, acting, play, false),
                 }
                 // An ally paying its last life "as a vampire": the action
                 // resolved fully, then it burns (LSJ 20080512).
@@ -2513,8 +2631,43 @@ impl Engine {
                 .acted
                 .push(src.action_id(ab));
         }
+        // "This minion cannot perform the same action again this turn"
+        // (Change of Target): a rulebook action, by kind and target.
+        if a.ended_early && a.card.is_none() && a.source.is_none() {
+            let id = ActionId::Rulebook(a.kind, a.torpor_target.or(a.giver));
+            self.state.minions[acting.index()].acted.push(id);
+        }
+        // Damage after action resolution (Daring the Dawn): if the action
+        // reached resolution, after combat (RTR 19980623, ANK 20220331).
+        let damage = a.damage_after;
+        if damage > 0 && a.outcome.is_some() && self.state.minions[acting.index()].present() {
+            self.damage_out_of_combat(acting, damage, true);
+        }
         self.state.layers.retain(|l| l.scope != Scope::Action);
         self.release_action_holds();
+    }
+
+    /// Unpreventable damage outside combat (Daring the Dawn): blood burned,
+    /// torpor, or burned outright (rulebook "Damage Resolution").
+    pub(crate) fn damage_out_of_combat(&mut self, m: MinionId, n: u8, aggravated: bool) {
+        let mut d = crate::combat::Damage::default();
+        if aggravated {
+            d.aggravated = n;
+        } else {
+            d.normal = n;
+        }
+        let v = &self.state.minions[m.index()];
+        let r = if v.is_ally() {
+            crate::combat::resolve_life_damage(v.blood, d)
+        } else {
+            crate::combat::resolve_damage(v.blood, d)
+        };
+        self.state.minions[m.index()].blood -= r.blood_burned;
+        if r.burned {
+            self.burn_minion(m);
+        } else if r.wounded && !self.state.minions[m.index()].in_torpor {
+            self.minions_to_torpor(&[m]);
+        }
     }
 
     pub(crate) fn end_action(&mut self) {
@@ -2594,6 +2747,7 @@ impl Engine {
             locked: false,
             counters: 0,
             stored: Vec::new(),
+            effect_only: false,
         });
         self.state.minions.push(crate::state::Minion {
             owner: seat,
@@ -2627,8 +2781,9 @@ impl Engine {
             target: Target::Minion(m),
             x: 0,
             burn: None,
+            named: None,
         };
-        self.apply_entry_effects(&ctx, id);
+        self.apply_entry_effects(&ctx, id, false);
         self.enter_card_contest(m);
         m
     }
@@ -2636,7 +2791,16 @@ impl Engine {
     /// A retainer enters play on the acting minion with the life its
     /// version has (rulebook "Employ Retainer"), its layers giving the
     /// employer what its text says.
-    fn put_retainer(&mut self, seat: SeatId, acting: MinionId, play: PlayCtx) {
+    /// `outside_action`: employed by an effect, not an employ action (Pack
+    /// Alpha): its "if the action to employ this retainer is successful"
+    /// riders have no action to follow (Feral Hound).
+    pub(crate) fn put_retainer(
+        &mut self,
+        seat: SeatId,
+        acting: MinionId,
+        play: PlayCtx,
+        outside_action: bool,
+    ) {
         let def = cards::lookup(play.card).expect("definition");
         let life = def.modes[play.mode as usize]
             .effects
@@ -2659,18 +2823,19 @@ impl Engine {
             locked: false,
             counters: life,
             stored: Vec::new(),
+            effect_only: false,
         });
         let ctx = PlayCtx {
             target: Target::Minion(acting),
             ..play
         };
-        self.apply_entry_effects(&ctx, id);
+        self.apply_entry_effects(&ctx, id, outside_action);
         self.enter_library_contest(id);
     }
 
     /// The effects of a minion card entering play from its mode (layers),
     /// the action's own announcement effects aside.
-    fn apply_entry_effects(&mut self, ctx: &PlayCtx, id: CardId) {
+    fn apply_entry_effects(&mut self, ctx: &PlayCtx, id: CardId, outside_action: bool) {
         let Some(def) = cards::lookup(ctx.card) else {
             return;
         };
@@ -2681,6 +2846,8 @@ impl Engine {
                 | Effect::AddStealth(_)
                 | Effect::EmployRetainer { .. }
                 | Effect::Version(_) => {}
+                // No employ action to have succeeded.
+                Effect::UnlockActor | Effect::UnlockActorAtDiscard if outside_action => {}
                 // The acting minion, at the action's resolution (Feral
                 // Hound).
                 Effect::UnlockActor => {
@@ -2735,6 +2902,7 @@ impl Engine {
             locked: false,
             counters: 0,
             stored: Vec::new(),
+            effect_only: false,
         }));
         for e in def.modes[play.mode as usize]
             .effects
@@ -2992,6 +3160,13 @@ impl Engine {
         }
         let mut options = vec![Choice::Pass];
         let torpid = st.in_torpor();
+        // A rulebook action a card forbade repeating this turn (Change of
+        // Target).
+        let forbidden = |minion: MinionId, kind: ActionKind, target: Option<MinionId>| {
+            st.minions[minion.index()]
+                .acted
+                .contains(&ActionId::Rulebook(kind, target))
+        };
         for id in st.minions_of(s) {
             let m = &st.minions[id.index()];
             if m.locked || m.recruited {
@@ -3042,18 +3217,22 @@ impl Engine {
                 // Rescue: 2 blood (less discounts) payable by acting,
                 // rescued, or split.
                 let cost = 2u8.saturating_sub(st.rescue_discount(id, t).0);
-                if m.blood + st.minions[t.index()].blood >= cost {
+                if m.blood + st.minions[t.index()].blood >= cost
+                    && self.may_direct(s, id, Target::Minion(t))
+                {
                     options.push(Choice::TakeAction {
                         minion: id,
                         action: ActionKind::Rescue,
                         target: Some(t),
                     });
                 }
-                options.push(Choice::TakeAction {
-                    minion: id,
-                    action: ActionKind::Diablerie,
-                    target: Some(t),
-                });
+                if self.may_direct(s, id, Target::Minion(t)) {
+                    options.push(Choice::TakeAction {
+                        minion: id,
+                        action: ActionKind::Diablerie,
+                        target: Some(t),
+                    });
+                }
             }
         }
         // Card actions from hand (employ …), declared by a ready unlocked
@@ -3079,6 +3258,14 @@ impl Engine {
                 _ => None,
             };
             !actor.is_some_and(|a| st.minions[a.index()].recruited)
+        });
+        options.retain(|o| match *o {
+            Choice::TakeAction {
+                minion,
+                action,
+                target,
+            } => !forbidden(minion, action, target),
+            _ => true,
         });
         options.extend(declared);
         options.extend(self.ability_options(s, Window::AnyImpulse));

@@ -327,6 +327,7 @@ fn retainer(e: &mut Engine, name: &str, host: MinionId, mode: usize) -> CardId {
         locked: false,
         counters: life,
         stored: Vec::new(),
+        effect_only: false,
     });
     let id = CardId(e.state.cards.len() as u32 - 1);
     for effect in def.modes[mode].effects {
@@ -859,6 +860,7 @@ fn war_ghoul_locks_and_burns_itself_to_burn_a_location() {
         locked: false,
         counters: 0,
         stored: Vec::new(),
+        effect_only: false,
     });
     let hg = CardId(e.state.cards.len() as u32 - 1);
     pick(
@@ -1561,6 +1563,7 @@ fn entrancement_steal_of_an_ally_gone_before_resolution_does_nothing() {
         locked: false,
         counters: 0,
         stored: Vec::new(),
+        effect_only: false,
     });
     let hg = CardId(e.state.cards.len() as u32 - 1);
     hand(&mut e, 0, &["Entrancement"]);
@@ -1707,6 +1710,7 @@ fn libertas_bars_allies_and_taxes_dominate_and_presence_around_its_anarch() {
         locked: false,
         counters: 0,
         stored: Vec::new(),
+        effect_only: false,
     });
     let id = CardId(e.state.cards.len() as u32 - 1);
     for m in [
@@ -1781,6 +1785,7 @@ fn libertas_does_not_tax_the_action_card_once_its_anarchs_block_failed() {
         locked: false,
         counters: 0,
         stored: Vec::new(),
+        effect_only: false,
     });
     let id = CardId(e.state.cards.len() as u32 - 1);
     e.state.layers.push(Layer {
