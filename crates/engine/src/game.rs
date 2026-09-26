@@ -236,6 +236,7 @@ impl Engine {
                 turn_uses: Vec::new(),
                 veil_superior: false,
                 phase_actions: 0,
+                optional_action: false,
                 once_played: Vec::new(),
                 layers: Vec::new(),
                 active: SeatId(0),
@@ -635,10 +636,10 @@ impl Engine {
             v.in_play = false;
             v.blood = 0;
             v.corruption.clear();
-            // A burned vampire goes to its Methuselah's ash heap (an ally's
-            // card goes with the cards on it, below).
+            // A burned vampire goes to its owner's ash heap, whoever
+            // controls it (an ally's card goes with the cards on it, below).
             if let Some(card) = v.crypt_card() {
-                let owner = v.owner;
+                let owner = v.origin.or(v.temp_from).unwrap_or(v.owner);
                 self.state.seats[owner.index()].ash_crypt.push(card);
             }
         }
@@ -726,6 +727,26 @@ impl Engine {
             .retain(|l| l.scope == crate::cards::Scope::Action || l.source != id);
     }
 
+    /// A card in play shuffled into its owner's library (Aranthebes, The
+    /// Immortal); the cards stored on it to the ash heap.
+    pub(crate) fn shuffle_into_library(&mut self, id: CardId) {
+        let c = &mut self.state.cards[id.index()];
+        if !c.in_play {
+            return;
+        }
+        c.in_play = false;
+        let (owner, card) = (c.owner, c.card);
+        let stored = std::mem::take(&mut c.stored);
+        let seat = &mut self.state.seats[owner.index()];
+        seat.ash.extend(stored);
+        seat.library.push(card);
+        self.rng
+            .shuffle(&mut self.state.seats[owner.index()].library);
+        self.state
+            .layers
+            .retain(|l| l.scope == crate::cards::Scope::Action || l.source != id);
+    }
+
     /// The active Methuselah passed out of a phase: the impulse goes round
     /// the other seats (rules-qa 7.9) before the phase ends.
     pub(crate) fn open_phase_rotation(&mut self, phase: Flow) {
@@ -784,6 +805,7 @@ impl Engine {
         match phase {
             Flow::MasterPhase => {
                 self.state.phase_actions = 0;
+                self.state.optional_action = false;
                 self.flow = Flow::MinionPhase
             }
             Flow::MinionPhase => {
@@ -874,6 +896,25 @@ impl Engine {
             self.state.seats[pred.index()].half_vps += 2;
             if !seats.contains(pred) {
                 self.state.seats[pred.index()].pool += 6;
+                // "If your prey is ousted, you gain 4 additional pool"
+                // (Khabar: Glory), per copy.
+                let extra: i32 = self
+                    .state
+                    .cards
+                    .iter()
+                    .enumerate()
+                    .filter(|&(i, c)| {
+                        c.present() && self.state.card_controller(CardId(i as u32)) == *pred
+                    })
+                    .filter_map(|(_, c)| cards::lookup(c.card))
+                    .flat_map(|d| d.riders.iter().filter(|r| r.hook == Hook::PreyOusted))
+                    .flat_map(|r| r.effects.iter())
+                    .map(|e| match *e {
+                        cards::Effect::GainPool(n) => n as i32,
+                        other => unreachable!("not a prey-ousted rider effect: {other:?}"),
+                    })
+                    .sum();
+                self.state.seats[pred.index()].pool += extra;
             }
         }
         match self.state.living() {

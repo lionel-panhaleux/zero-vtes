@@ -2390,6 +2390,7 @@ static KRC_REFERENDUM: ReferendumDef = ReferendumDef {
     }],
     effect: RefEffect::BurnAllocated,
     grants: &[],
+    non_anarch_titles_minus: false,
 };
 political!(
     KINE_RESOURCES_CONTESTED,
@@ -2410,6 +2411,7 @@ static CONSERVATIVE_AGITATION_REFERENDUM: ReferendumDef = ReferendumDef {
     }],
     effect: RefEffect::BurnAllocated,
     grants: &[],
+    non_anarch_titles_minus: false,
 };
 political!(
     CONSERVATIVE_AGITATION,
@@ -2425,6 +2427,7 @@ static PER_MINION_REFERENDUM: ReferendumDef = ReferendumDef {
     terms: &[],
     effect: RefEffect::BurnPerMinion { locked_only: false },
     grants: &[],
+    non_anarch_titles_minus: false,
 };
 political!(
     ANCILLA_EMPOWERMENT,
@@ -2447,6 +2450,7 @@ static PER_LOCKED_MINION_REFERENDUM: ReferendumDef = ReferendumDef {
     terms: &[],
     effect: RefEffect::BurnPerMinion { locked_only: true },
     grants: &[],
+    non_anarch_titles_minus: false,
 };
 political!(
     DOMAIN_CHALLENGE,
@@ -2469,6 +2473,7 @@ static NEONATE_BREACH_REFERENDUM: ReferendumDef = ReferendumDef {
         young_cap: 4,
     },
     grants: &[],
+    non_anarch_titles_minus: false,
 };
 political!(
     NEONATE_BREACH,
@@ -2568,6 +2573,7 @@ static RECKLESS_AGITATION_REFERENDUM: ReferendumDef = ReferendumDef {
     }],
     effect: RefEffect::BurnAllocated,
     grants: &[],
+    non_anarch_titles_minus: false,
 };
 political!(
     RECKLESS_AGITATION,
@@ -2594,6 +2600,7 @@ static IRON_FIST_REFERENDUM: ReferendumDef = ReferendumDef {
     ],
     effect: RefEffect::BurnAllocatedChosenGains(1),
     grants: &[],
+    non_anarch_titles_minus: false,
 };
 political!(
     CAMARILLAS_IRON_FIST,
@@ -2621,6 +2628,7 @@ static PARITY_SHIFT_REFERENDUM: ReferendumDef = ReferendumDef {
     ],
     effect: RefEffect::MoveAllocatedFromChosen,
     grants: &[],
+    non_anarch_titles_minus: false,
 };
 political!(
     PARITY_SHIFT,
@@ -2641,6 +2649,7 @@ static CONSANGUINEOUS_BOON_REFERENDUM: ReferendumDef = ReferendumDef {
     terms: &[Term::ChooseClan],
     effect: RefEffect::GainPerClanVampire,
     grants: &[],
+    non_anarch_titles_minus: false,
 };
 political!(
     CONSANGUINEOUS_BOON,
@@ -2655,6 +2664,7 @@ static ANARCH_SALON_REFERENDUM: ReferendumDef = ReferendumDef {
     terms: &[],
     effect: RefEffect::AnarchSalon,
     grants: &[],
+    non_anarch_titles_minus: false,
 };
 political!(
     ANARCH_SALON,
@@ -2674,6 +2684,7 @@ static BANISHMENT_REFERENDUM: ReferendumDef = ReferendumDef {
     }],
     effect: RefEffect::Banish,
     grants: &[],
+    non_anarch_titles_minus: false,
 };
 political!(
     BANISHMENT,
@@ -2695,6 +2706,7 @@ static EXPULSION_REFERENDUM: ReferendumDef = ReferendumDef {
     }],
     effect: RefEffect::Expel,
     grants: &[],
+    non_anarch_titles_minus: false,
 };
 political!(
     EXPULSION,
@@ -3054,7 +3066,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     riders: &[],
 };
 
-pub static DEFS: [&CardDef; 328] = [
+pub static DEFS: [&CardDef; 355] = [
     &MAGIC_OF_THE_SMITH,
     &VAST_WEALTH,
     &BLACK_MARKET_CACHE,
@@ -3383,6 +3395,33 @@ pub static DEFS: [&CardDef; 328] = [
     &REDIRECTION,
     &SENSE_THE_SAVAGE_WAY,
     &TELEPATHIC_COUNTER,
+    &SCOUTING_MISSION,
+    &SOCIAL_CHARM,
+    &PUBLIC_TRUST,
+    &RESTORATION,
+    &FIFTH_TRADITION,
+    &FOURTH_TRADITION,
+    &UMBROUS_CLUTCH,
+    &HUNTING_THE_BEAST,
+    &MAKE_THE_MISERE,
+    &MIND_NUMB,
+    &PROPAGANDA,
+    &CONCEAL,
+    &DOMINATE_KINE,
+    &GRAVEROBBING,
+    &ARMY_OF_RATS,
+    &JUDGMENT_CAMARILLA_SEGREGATION,
+    &TIER_OF_SOULS,
+    &PHANTASMAGORIA,
+    &ARANTHEBES,
+    &FEE_STAKE_BOSTON,
+    &FEE_STAKE_NEW_YORK,
+    &FEE_STAKE_SEATTLE,
+    &WATERS_OF_DUAT,
+    &SPLIT_THE_VEIL,
+    &PSYCHOPHAGIA,
+    &KHABAR_GLORY,
+    &OPEN_WAR,
 ];
 
 // ---- Cards in play with riders and granted actions (slice 5) ------------
@@ -3391,6 +3430,7 @@ static BURN_THIS_CARD: ReferendumDef = ReferendumDef {
     terms: &[],
     effect: RefEffect::BurnSource,
     grants: &[],
+    non_anarch_titles_minus: false,
 };
 
 /// "Put this card in play. A Methuselah not controlling a ready Anarch burns
@@ -6643,6 +6683,7 @@ static TOREADOR_JUSTICAR_REFERENDUM: ReferendumDef = ReferendumDef {
         voters: Voters::Clan("Toreador"),
         n: 1,
     }],
+    non_anarch_titles_minus: false,
 };
 
 /// "Title. Choose a ready Toreador. Successful referendum means this card is
@@ -9308,7 +9349,7 @@ pub static CHILDE_OF_THE_REVOLUTION: CardDef = CardDef {
             Effect::DeclareAction(ActionKind::Card),
             Effect::AddStealth(1),
             Effect::PutInPlay,
-            Effect::BecomesVampire,
+            Effect::BecomesVampire(Some(Sect::Anarch)),
         ],
     )],
     abilities: &[],
@@ -11742,5 +11783,1058 @@ pub static TELEPATHIC_COUNTER: CardDef = CardDef {
         ),
     ],
     abilities: &[],
+    riders: &[],
+};
+
+// ---- Pool actions, wave 1 (slice 11u) ---------------------------------------
+
+/// "[dom] Ⓓ Bleed with +1 bleed. [DOM] +1 stealth action. Add 2 blood to a
+/// younger vampire in your uncontrolled region."
+pub static SCOUTING_MISSION: CardDef = CardDef {
+    name: "Scouting Mission",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        bleed_action!(1),
+        uncontrolled_blood!(&[Requirement::Younger], 2),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "[pre] Ⓓ Bleed with +1 bleed. [PRE] As above, and gain 1 pool if the
+/// bleed is successful (for 1 or more)."
+pub static SOCIAL_CHARM: CardDef = CardDef {
+    name: "Social Charm",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        bleed_action!(1),
+        action_at(
+            &[],
+            NO_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Bleed),
+                PLUS_ONE_BLEED,
+                Effect::IfBleedSuccessful(&[Effect::GainPool(1)]),
+            ],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "[pre] Ⓓ Bleed with +2 bleed. [PRE] As above, and if the bleed is
+/// successful (for 1 or more), add 1 blood to a vampire in your
+/// uncontrolled region." (1 blood.) The vampire is chosen upon declaration
+/// (ANK 20240706).
+pub static PUBLIC_TRUST: CardDef = CardDef {
+    name: "Public Trust",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        bleed_action!(2),
+        action_at(
+            &[],
+            Some(TargetSpec {
+                kind: TargetKind::Uncontrolled,
+                filter: &[],
+            }),
+            &[
+                Effect::DeclareAction(ActionKind::Bleed),
+                Effect::BleedMod {
+                    n: 2,
+                    limited: false,
+                },
+                Effect::IfBleedSuccessful(&[Effect::BloodToUncontrolledTarget(1)]),
+            ],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "+1 stealth action. [for] This vampire gains 2 blood. [FOR] This vampire
+/// gains 3 blood."
+pub static RESTORATION: CardDef = CardDef {
+    name: "Restoration",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        action_at(
+            &[],
+            NO_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::BloodToActing(2),
+            ],
+        ),
+        action_at(
+            &[],
+            NO_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::BloodToActing(3),
+            ],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "+1 stealth action. Requires a prince or justicar. Add 4 blood to
+/// another vampire." (1 blood.) Any Methuselah's, in torpor too (rulebook:
+/// torpor vampires are eligible targets); at another Methuselah's, directed
+/// at them (Ⓓ is only indicative, rules-qa 20.1).
+pub static FIFTH_TRADITION: CardDef = CardDef {
+    name: "Fifth Tradition: Hospitality",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[action_at(
+        &[PRINCE_OR_JUSTICAR],
+        Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[Requirement::TargetVampire, Requirement::OtherThanActor],
+        }),
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::BloodToTarget(4),
+        ],
+    )],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "+1 stealth action. Requires a prince or justicar. Add 3 blood to a
+/// younger vampire in your uncontrolled region." (1 blood.)
+pub static FOURTH_TRADITION: CardDef = CardDef {
+    name: "Fourth Tradition: The Accounting",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[action_at(
+        &[PRINCE_OR_JUSTICAR],
+        Some(TargetSpec {
+            kind: TargetKind::Uncontrolled,
+            filter: &[Requirement::Younger],
+        }),
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::BloodToUncontrolledTarget(3),
+        ],
+    )],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "+1 stealth action. [obl] Ⓓ Enter combat with a minion. [OBL] As above,
+/// and this acting vampire gets 1 optional maneuver during that combat."
+pub static UMBROUS_CLUTCH: CardDef = CardDef {
+    name: "Umbrous Clutch",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        action_at(
+            &[],
+            COMBAT_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::EnterCombatWithTarget,
+            ],
+        ),
+        action_at(
+            &[],
+            COMBAT_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::EnterCombatWithTarget,
+                Effect::InResultingCombat(BlockRider::Maneuver),
+            ],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Enter combat with a vampire": another Methuselah's ready vampire.
+const VAMPIRE_COMBAT_TARGET: Option<TargetSpec> = Some(TargetSpec {
+    kind: TargetKind::Minion,
+    filter: &[
+        Requirement::NotControlled,
+        Requirement::ActorReady,
+        Requirement::TargetVampire,
+    ],
+});
+
+/// "+1 stealth action. [aus] Ⓓ Enter combat with a vampire. [AUS] As
+/// above, and at the end of that combat, if this vampire is ready and the
+/// opposing vampire is not, add 2 blood to a Salubri in your uncontrolled
+/// region." (Salubri.) The Salubri is chosen then.
+pub static HUNTING_THE_BEAST: CardDef = CardDef {
+    name: "Hunting the Beast",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        action_at(
+            &[],
+            VAMPIRE_COMBAT_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::EnterCombatWithTarget,
+            ],
+        ),
+        action_at(
+            &[],
+            VAMPIRE_COMBAT_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::EnterCombatWithTarget,
+                Effect::InResultingCombat(BlockRider::UncontrolledBloodIfWon {
+                    clan: "Salubri",
+                    n: 2,
+                }),
+            ],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Enter combat with a locked minion".
+const LOCKED_COMBAT_TARGET: Option<TargetSpec> = Some(TargetSpec {
+    kind: TargetKind::Minion,
+    filter: &[
+        Requirement::NotControlled,
+        Requirement::ActorReady,
+        Requirement::TargetLocked,
+    ],
+});
+
+/// Make the Misere: one mode per set of Disciplines used.
+macro_rules! misere {
+    ($($e:expr),*) => {
+        anarch_bleed(
+            LOCKED_COMBAT_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::EnterCombatWithTarget,
+                $($e),*
+            ],
+        )
+    };
+}
+
+const MISERE_CEL: Effect = Effect::InResultingCombat(BlockRider::Maneuver);
+const MISERE_POT: Effect = Effect::InResultingCombat(BlockRider::Strength(1));
+
+/// "Requires an Anarch. More than one Discipline can be used to play this
+/// card. Ⓓ Enter combat with a locked minion. [cel] This Anarch gets 1
+/// optional maneuver during that combat. [obf] This is a +1 stealth
+/// action. [pot] This Anarch gets +1 strength during that combat." Modes:
+/// [cel], [obf], [pot], then each larger set (LSJ 20011204-3, PIB
+/// 20130704). A target unlocked by resolution: the action fizzles (ANK
+/// 20210124).
+pub static MAKE_THE_MISERE: CardDef = CardDef {
+    name: "Make the Misere",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        misere!(MISERE_CEL),
+        misere!(Effect::AddStealth(1)),
+        misere!(MISERE_POT),
+        misere!(Effect::AddStealth(1), MISERE_CEL),
+        misere!(MISERE_CEL, MISERE_POT),
+        misere!(Effect::AddStealth(1), MISERE_POT),
+        misere!(Effect::AddStealth(1), MISERE_CEL, MISERE_POT),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Ⓓ Stun an unlocked vampire".
+const STUN_TARGET: Option<TargetSpec> = Some(TargetSpec {
+    kind: TargetKind::Minion,
+    filter: &[
+        Requirement::NotControlled,
+        Requirement::TargetVampire,
+        Requirement::TargetUnlocked,
+    ],
+});
+
+/// "[pre] Ⓓ Stun an unlocked vampire. [PRE] As above, and this is a +1
+/// stealth action." (1 blood.) A target locked by resolution: the action
+/// fizzles (ANK 20210124).
+pub static MIND_NUMB: CardDef = CardDef {
+    name: "Mind Numb",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        action_at(
+            &[],
+            STUN_TARGET,
+            &[Effect::DeclareAction(ActionKind::Card), Effect::Stun],
+        ),
+        action_at(
+            &[],
+            STUN_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::Stun,
+            ],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "[pre] Ⓓ Bleed with +1 bleed. Titled vampires cannot block this action.
+/// [PRE] As above, and the target Methuselah locks a ready unlocked minion
+/// they control." (2 blood.) The minion is named as the card is played
+/// (rules-qa 31.2).
+pub static PROPAGANDA: CardDef = CardDef {
+    name: "Propaganda",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        action_at(
+            &[],
+            NO_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Bleed),
+                PLUS_ONE_BLEED,
+                Effect::TitledCannotBlock,
+            ],
+        ),
+        action_at(
+            &[],
+            Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[
+                    Requirement::ControlledByPrey,
+                    Requirement::ActorReady,
+                    Requirement::TargetUnlocked,
+                ],
+            }),
+            &[
+                Effect::DeclareAction(ActionKind::Bleed),
+                PLUS_ONE_BLEED,
+                Effect::TitledCannotBlock,
+                Effect::TargetLocksReadyUnlocked,
+            ],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "[obf] Ⓓ Burn an equipment. [OBF] Ⓓ Burn a location." Directed at the
+/// card's controller, not the minion it is on (LSJ 20090324); one's own is
+/// undirected. A location in play is no equipment (Living Manse).
+pub static CONCEAL: CardDef = CardDef {
+    name: "Conceal",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        action_at(
+            &[],
+            Some(TargetSpec {
+                kind: TargetKind::Card,
+                filter: &[Requirement::TargetCard(CardFilter::Type(
+                    CardType::Equipment,
+                ))],
+            }),
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::BurnTargetCard,
+            ],
+        ),
+        action_at(
+            &[],
+            Some(TargetSpec {
+                kind: TargetKind::Card,
+                filter: &[Requirement::TargetCard(CardFilter::Location)],
+            }),
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::BurnTargetCard,
+            ],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "[dom] +1 stealth action. Ⓓ Bleed with +1 bleed. [DOM] Ⓓ Steal a
+/// location." (2 blood.) Another Methuselah's location: its control changes
+/// and nothing else (RTR 19980623); one on a minion moves onto a minion of
+/// the player's (RTR 19960112).
+pub static DOMINATE_KINE: CardDef = CardDef {
+    name: "Dominate Kine",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        action_at(
+            &[],
+            NO_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Bleed),
+                Effect::AddStealth(1),
+                PLUS_ONE_BLEED,
+            ],
+        ),
+        action_at(
+            &[],
+            Some(TargetSpec {
+                kind: TargetKind::Card,
+                filter: &[
+                    Requirement::TargetCard(CardFilter::Location),
+                    Requirement::NotControlled,
+                ],
+            }),
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::StealLocation,
+            ],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Ⓓ Steal a vampire in torpor controlled by another Methuselah".
+const GRAVEROBBING_TARGET: Option<TargetSpec> = Some(TargetSpec {
+    kind: TargetKind::Minion,
+    filter: &[
+        Requirement::NotControlled,
+        Requirement::TargetVampire,
+        Requirement::TargetInTorpor,
+    ],
+});
+
+/// "[dom] Ⓓ Steal a vampire in torpor controlled by another Methuselah.
+/// [DOM] As above, and this acting vampire can burn 2 blood to move the
+/// stolen vampire to your ready region." Out of torpor by resolution: the
+/// action fizzles (ANK 20210124); the 2 blood is a burn, not a cost (ANK
+/// 20210226).
+pub static GRAVEROBBING: CardDef = CardDef {
+    name: "Graverobbing",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        action_at(
+            &[],
+            GRAVEROBBING_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::StealTargetVampire,
+            ],
+        ),
+        action_at(
+            &[],
+            GRAVEROBBING_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::StealTargetVampire,
+                Effect::StolenToReadyForBlood(2),
+            ],
+        ),
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+// ---- Pool actions, wave 2 (slice 11v) ---------------------------------------
+
+/// "+1 stealth action. [ani] Put this card in play. During your unlock
+/// phase, your prey burns 1 pool. You can burn only 1 pool each turn with
+/// Army of Rats cards. Minions can burn this card as a Ⓓ action." The burn
+/// action is directed at the controller (undirected for their own
+/// minions).
+pub static ARMY_OF_RATS: CardDef = CardDef {
+    name: "Army of Rats",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[action_at(
+        &[],
+        NO_TARGET,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutInPlay,
+        ],
+    )],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDeclare],
+        actor: Actor::ActingCandidate,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::BurnCard),
+            Effect::BurnSource,
+        ],
+    }],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        requires: &[Requirement::OneCopyPerTurn],
+        effects: &[Effect::PreyBurnsPool(1)],
+    }],
+};
+
+/// "+1 stealth action. Requires a prince or justicar. Put this card in
+/// play. Each Methuselah controlling a non-Camarilla vampire burns 1 pool
+/// during their unlock phase. Methuselahs can burn a non-Camarilla vampire
+/// they control during their master phase to burn this card." (1 blood.)
+/// Copies stack (ANK 20200703-4); the condition is read as the burn
+/// resolves, other unlock effects first if the player wants (ANK
+/// 20181016).
+pub static JUDGMENT_CAMARILLA_SEGREGATION: CardDef = CardDef {
+    name: "Judgment: Camarilla Segregation",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[action_at(
+        &[PRINCE_OR_JUSTICAR],
+        NO_TARGET,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutInPlay,
+        ],
+    )],
+    abilities: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[
+                Requirement::Controlled,
+                Requirement::TargetSectNot(Sect::Camarilla),
+            ],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::BurnTargetMinion, Effect::BurnSelf],
+    }],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Every,
+        requires: &[Requirement::ActiveControlsNonSect(Sect::Camarilla)],
+        effects: &[Effect::BurnPool(1)],
+    }],
+};
+
+/// "Minions can burn this card as a Ⓓ action": directed at its controller
+/// (undirected for their own minions).
+const BURN_ACTION: ModeDef = ModeDef {
+    windows: &[Window::ActionDeclare],
+    actor: Actor::ActingCandidate,
+    requires: &[],
+    target: NO_TARGET,
+    terms: None,
+    waives_needed: false,
+    limit: None,
+    effects: &[
+        Effect::DeclareAction(ActionKind::BurnCard),
+        Effect::BurnSource,
+    ],
+};
+
+/// "Ⓓ Steal 1 blood or life from a minion controlled by your prey".
+const TIER_TARGET: Option<TargetSpec> = Some(TargetSpec {
+    kind: TargetKind::Minion,
+    filter: &[Requirement::ControlledByPrey],
+});
+
+/// "[ani] Ⓓ Steal 1 blood or life from a minion controlled by your prey.
+/// [ANI] As above, and put this card on this vampire. This vampire gets +1
+/// bleed against your prey. Minions can burn this card as a Ⓓ action. A
+/// vampire can have only one Tier of Souls." An ally left with no life is
+/// burned. "Your prey": the card's controller's, read live.
+pub static TIER_OF_SOULS: CardDef = CardDef {
+    name: "Tier of Souls",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        action_at(
+            &[],
+            TIER_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::StealBloodFromTarget(1),
+            ],
+        ),
+        action_at(
+            &[Requirement::ActorWithout(Holding::Named("Tier of Souls"))],
+            TIER_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::StealBloodFromTarget(1),
+                Effect::PutOnActor,
+                Effect::Layer(Modifier::HostBleedAgainstPrey(1)),
+            ],
+        ),
+    ],
+    abilities: &[BURN_ACTION],
+    riders: &[],
+};
+
+/// "+1 stealth action. [pre] Ⓓ Put this card on a minion; you still control
+/// this card. The attached minion gets -1 stealth. Minions can burn this
+/// card as a Ⓓ action. [PRE] As above, and if the attached minion is
+/// blocked, they burn 1 blood or life before block resolution." (1 blood;
+/// Ravnos.) Any minion: at the player's own, undirected (rules-qa 20.1).
+pub static PHANTASMAGORIA: CardDef = CardDef {
+    name: "Phantasmagoria",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        action_at(
+            &[],
+            Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[],
+            }),
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::StillYours,
+                Effect::PutOnTarget,
+                Effect::Layer(Modifier::Bearer {
+                    stat: Stat::Stealth,
+                    n: -1,
+                    during: &[],
+                    who: Bearer::Any,
+                }),
+            ],
+        ),
+        action_at(
+            &[],
+            Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[],
+            }),
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::StillYours,
+                Effect::PutOnTarget,
+                Effect::Layer(Modifier::Bearer {
+                    stat: Stat::Stealth,
+                    n: -1,
+                    during: &[],
+                    who: Bearer::Any,
+                }),
+            ],
+        ),
+    ],
+    abilities: &[BURN_ACTION],
+    riders: &[Rider {
+        hook: Hook::HostBlocked,
+        scope: RiderScope::Every,
+        requires: &[Requirement::SuperiorVersion],
+        effects: &[Effect::HostBurnBlood(1)],
+    }],
+};
+
+/// "+1 stealth action. Unique. Put this card in play. You can lock
+/// Aranthebes to give a minion controlled by your predator -1 stealth.
+/// While Aranthebes is unlocked, vampires with capacity 4 or less get -1
+/// bleed against you. Vampires with capacity 5 or more can shuffle
+/// Aranthebes into your library as a Ⓓ action." (1 pool.) The lock: any
+/// time during the action before resolution, no block attempt needed (LSJ
+/// 20020612) — on the acting minion. The action it provides requires
+/// capacity 5 or more (LSJ 20080604).
+pub static ARANTHEBES: CardDef = CardDef {
+    name: "Aranthebes, The Immortal",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[action_at(
+        &[],
+        NO_TARGET,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::YoungBleedAgainstController { max: 4, n: -1 }),
+        ],
+    )],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::ReactionAsAnnounced, Window::ReactionDuringAction],
+            actor: Actor::Controller,
+            requires: &[Requirement::CardUnlocked, Requirement::ActingByPredator],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::LockSelf, Effect::ReduceStealth(1)],
+        },
+        ModeDef {
+            windows: &[Window::ActionDeclare],
+            actor: Actor::ActingCandidate,
+            requires: &[
+                Requirement::ActorVampire,
+                Requirement::ActorCapacityAtLeast(5),
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::BurnCard),
+                Effect::ShuffleSourceIntoLibrary,
+            ],
+        },
+    ],
+    riders: &[],
+};
+
+/// Fee Stake's referendum: "burn this card; during that referendum,
+/// non-Anarch titles are worth -1 vote" (the Priscus sub-referendum's votes
+/// untouched, ANK 20180307-1: no Priscus in V5).
+static FEE_STAKE_BURN: ReferendumDef = ReferendumDef {
+    terms: &[],
+    effect: RefEffect::BurnSource,
+    grants: &[],
+    non_anarch_titles_minus: true,
+};
+
+/// "+1 stealth action. Requires an Anarch with capacity 5 or more. Title.
+/// Put this card on this Anarch to represent the unique Anarch title of
+/// Baron of <city>. While this Anarch is <clan> or <clan> antitribu, they
+/// get +1 vote during referendums they call. Vampires can call a
+/// referendum to burn this card as a +1 stealth political action; during
+/// that referendum, non-Anarch titles are worth -1 vote." A contested
+/// title: the card face down, its action unusable (LSJ 20070808-2).
+macro_rules! fee_stake {
+    ($name:ident, $printed:expr, $city:expr, $clans:expr) => {
+        pub static $name: CardDef = CardDef {
+            name: $printed,
+            trifle: false,
+            out_of_turn: false,
+            delayed_replacement: None,
+            modes: &[action_at(
+                &[
+                    Requirement::ActorSectIn(&[Sect::Anarch]),
+                    Requirement::ActorCapacityAtLeast(5),
+                ],
+                NO_TARGET,
+                &[
+                    Effect::DeclareAction(ActionKind::Card),
+                    Effect::AddStealth(1),
+                    Effect::PutOnActor,
+                    Effect::RepresentsTitle(crate::crypt::Title::Baron($city)),
+                    Effect::Layer(Modifier::HostVoteWhenCalling($clans)),
+                ],
+            )],
+            abilities: &[ModeDef {
+                windows: &[Window::ActionDeclarePolitical],
+                actor: Actor::ActingCandidate,
+                requires: &[Requirement::ActorVampire],
+                target: NO_TARGET,
+                terms: None,
+                waives_needed: false,
+                limit: None,
+                effects: &[
+                    Effect::DeclareAction(ActionKind::Political),
+                    Effect::AddStealth(1),
+                    Effect::CallReferendum(&FEE_STAKE_BURN),
+                ],
+            }],
+            riders: &[],
+        };
+    };
+}
+
+fee_stake!(
+    FEE_STAKE_BOSTON,
+    "Fee Stake: Boston",
+    "Boston",
+    &["Toreador", "Toreador antitribu"]
+);
+fee_stake!(
+    FEE_STAKE_NEW_YORK,
+    "Fee Stake: New York",
+    "New York",
+    &["Brujah", "Brujah antitribu"]
+);
+fee_stake!(
+    FEE_STAKE_SEATTLE,
+    "Fee Stake: Seattle",
+    "Seattle",
+    &["Gangrel", "Gangrel antitribu"]
+);
+
+/// "+1 stealth action. Requires a non-sterile Follower of Set with capacity
+/// 5 or more. Put this card in play. It becomes a 1-capacity (non-unique)
+/// Follower of Set and must hunt this turn. You can search your library
+/// (shuffle afterward), hand, and/or ash heap for a Discipline master card
+/// and put it on this new vampire." (1 blood; Ministry, the Followers of
+/// Set's V5 name.) No V5 vampire is sterile. No sect printed: its sire's,
+/// the acting vampire's (rules-qa 32.6). It is no vampire in the
+/// ash heap (LSJ 20020115); moved to the uncontrolled region, it stays a
+/// vampire (RTR 19990712).
+pub static WATERS_OF_DUAT: CardDef = CardDef {
+    name: "Waters of Duat",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[action_at(
+        &[Requirement::ActorCapacityAtLeast(5)],
+        NO_TARGET,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutInPlay,
+            Effect::BecomesVampire(None),
+        ],
+    )],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "+1 stealth action. Put this card in play with 2 counters. During your
+/// unlock phase, you can burn 1 counter from this card. You can burn
+/// counters from no more than two Split the Veil cards each unlock phase.
+/// If this card has no counters, burn it and move a wraith or zombie ally
+/// from your ash heap to your ready region with life equal to its starting
+/// life." (Hecata.) The ally: its inferior version, no requirement, X = 0,
+/// able to act this turn (LSJ 20100204, 20040518-2, 20100302-1).
+pub static SPLIT_THE_VEIL: CardDef = CardDef {
+    name: "Split the Veil",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[action_at(
+        &[],
+        NO_TARGET,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutInPlay,
+            Effect::EnterWithCounters(2),
+        ],
+    )],
+    abilities: &[ModeDef {
+        windows: &[Window::UnlockPhaseOwn],
+        actor: Actor::Controller,
+        requires: &[
+            Requirement::CountersAtLeast(1),
+            Requirement::FewerCopiesUsedThisPhase(2),
+        ],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::RemoveCounter(1),
+            Effect::RaiseAllyWhenEmpty(&[
+                crate::library::Label::Wraith,
+                crate::library::Label::Zombie,
+            ]),
+        ],
+    }],
+    riders: &[],
+};
+
+/// "+1 stealth hunt action. Remove an ally in any Methuselah's ash heap from
+/// the game to gain 3 blood or to gain 2 blood and unlock." (Hecata.) The
+/// two gains are two modes; the ally is named as the card is played
+/// (rules-qa 32.12). A vampire that must hunt may hunt with it (rules-qa
+/// 32.13).
+/// Undirected, whoever's ash heap (LSJ 20010627, ANK 20180202); not
+/// playable with no ally in any ash heap (ANK 20200420-3); a minion's one
+/// special hunt a turn (NRA).
+pub static PSYCHOPHAGIA: CardDef = CardDef {
+    name: "Psychophagia",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        ModeDef {
+            terms: Some(Terms::AnyAshAlly),
+            ..action_at(
+                &[Requirement::AllyInAnyAsh],
+                NO_TARGET,
+                &[
+                    Effect::DeclareAction(ActionKind::Card),
+                    Effect::AddStealth(1),
+                    Effect::HuntAction,
+                    Effect::EatAshAlly {
+                        blood: 3,
+                        unlock: false,
+                    },
+                ],
+            )
+        },
+        ModeDef {
+            terms: Some(Terms::AnyAshAlly),
+            ..action_at(
+                &[Requirement::AllyInAnyAsh],
+                NO_TARGET,
+                &[
+                    Effect::DeclareAction(ActionKind::Card),
+                    Effect::AddStealth(1),
+                    Effect::HuntAction,
+                    Effect::EatAshAlly {
+                        blood: 2,
+                        unlock: true,
+                    },
+                ],
+            )
+        },
+    ],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "+1 stealth action. Unique. Not usable if any non-mandatory actions have
+/// been performed this turn. Put this card on this Assamite and unlock
+/// them. This Assamite gets +1 bleed. If your prey is ousted, you gain 4
+/// additional pool. Burn this card during your unlock phase." (Banu Haqim,
+/// the Assamites' V5 name.)
+pub static KHABAR_GLORY: CardDef = CardDef {
+    name: "Khabar: Glory",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[action_at(
+        &[Requirement::NoOptionalActionThisTurn],
+        NO_TARGET,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutOnActor,
+            Effect::UnlockActor,
+            Effect::Layer(Modifier::Bearer {
+                stat: Stat::Bleed,
+                n: 1,
+                during: &[],
+                who: Bearer::Any,
+            }),
+        ],
+    )],
+    abilities: &[],
+    riders: &[
+        Rider {
+            hook: Hook::PreyOusted,
+            scope: RiderScope::Controller,
+            requires: &[],
+            effects: &[Effect::GainPool(4)],
+        },
+        Rider {
+            hook: Hook::UnlockPhase,
+            scope: RiderScope::Controller,
+            requires: &[],
+            effects: &[Effect::BurnSelf],
+        },
+    ],
+};
+
+/// "+1 stealth action. Requires a baron. Only one Open War can be played in
+/// a game. Put this card in play. Anarchs can enter combat with a minion as
+/// a Ⓓ action. Anarchs can burn a location as a Ⓓ action that costs 2
+/// pool. Methuselahs can use a master phase action to move 1 counter from
+/// their pool to this card. If this card has 4 counters, burn it and gain 4
+/// pool." Its two actions are not cross-restrictive: each once a turn per
+/// minion (LSJ 20100909); each requires an Anarch (LSJ 20080604); the
+/// location burn is directed at its controller (LSJ 20090324). Its
+/// controller gains the 4 pool, whoever moves the fourth counter (rules-qa
+/// 32.7).
+pub static OPEN_WAR: CardDef = CardDef {
+    name: "Open War",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[action_at(
+        &[BARON, Requirement::NotPlayedThisGame],
+        NO_TARGET,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutInPlay,
+        ],
+    )],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::ActionDeclare],
+            actor: Actor::ActingCandidate,
+            requires: &[Requirement::ActorSectIn(&[Sect::Anarch])],
+            target: COMBAT_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::EnterCombatWithTarget,
+            ],
+        },
+        ModeDef {
+            windows: &[Window::ActionDeclare],
+            actor: Actor::ActingCandidate,
+            requires: &[
+                Requirement::ActorSectIn(&[Sect::Anarch]),
+                Requirement::PoolAtLeast(2),
+            ],
+            target: Some(TargetSpec {
+                kind: TargetKind::Card,
+                filter: &[Requirement::TargetCard(CardFilter::Location)],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::PayPool(2),
+                Effect::BurnTargetCard,
+            ],
+        },
+        ModeDef {
+            windows: &[Window::MasterPhase],
+            actor: Actor::Methuselah,
+            requires: &[Requirement::MasterPhaseActionLeft],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::SpendMasterPhaseAction,
+                Effect::PoolToCounter(1),
+                Effect::AtCountersBurnAndGain { at: 4, pool: 4 },
+            ],
+        },
+    ],
     riders: &[],
 };

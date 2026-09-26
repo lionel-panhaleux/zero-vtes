@@ -77,14 +77,16 @@ pub enum MinionKind {
         id: CardId,
         body: crate::library::Body,
     },
-    /// A library card in play as a vampire (Childe of the Revolution): only
-    /// what the effect describes — a non-unique 1-capacity Anarch of the
-    /// clan given, with no Discipline and no title; the card's own name,
-    /// type and text are inert (advanced rules 1.4, 5.1.3).
+    /// A library card in play as a vampire (Childe of the Revolution,
+    /// Waters of Duat): only what the effect describes — a non-unique
+    /// 1-capacity vampire of the clan and sect given, with no Discipline
+    /// and no title; the card's own name, type and text are inert
+    /// (advanced rules 1.4, 5.1.3).
     Created {
         card: u16,
         id: CardId,
         clan: &'static str,
+        sect: Sect,
     },
 }
 
@@ -164,6 +166,9 @@ pub struct Minion {
     /// Held on temporary control: the Methuselah it returns to at the end
     /// of its controller's turn (Puppet Master [DOM]).
     pub temp_from: Option<SeatId>,
+    /// The vampire's owner, when its control changed for good
+    /// (Graverobbing): its ash heap is the owner's.
+    pub origin: Option<SeatId>,
     /// "Must hunt this turn" (Childe of the Revolution): as a vampire with
     /// no blood, until it hunts or the turn ends.
     pub must_hunt: bool,
@@ -180,8 +185,10 @@ pub struct Minion {
 pub enum ActionId {
     /// An action card played from hand: same printed name.
     Card(u16),
-    /// An action granted by a card in play: the same copy.
-    InPlay(CardId),
+    /// An action granted by a card in play: the same copy's same ability
+    /// (two actions a card grants are not cross-restrictive, Open War: LSJ
+    /// 20100909).
+    InPlay(CardId, u8),
     /// A vampire's printed action, by vampire and ability index: never the
     /// same as a card's or a rulebook action (spec §3.8.1). The vampire is
     /// kept for records held by the seat (a forbidden political action).
@@ -199,7 +206,7 @@ impl ActionId {
             (ActionId::Card(a), ActionId::Card(b)) => {
                 LIBRARY[a as usize].name == LIBRARY[b as usize].name
             }
-            (ActionId::InPlay(a), ActionId::InPlay(b)) => a == b,
+            (ActionId::InPlay(a, i), ActionId::InPlay(b, j)) => a == b && i == j,
             (ActionId::Printed(m, a), ActionId::Printed(n, b)) => m == n && a == b,
             (ActionId::Rulebook(k, a), ActionId::Rulebook(l, b)) => k == l && a == b,
             _ => false,
@@ -259,6 +266,7 @@ impl Minion {
             unlock_at_discard: false,
             corruption: Vec::new(),
             temp_from: None,
+            origin: None,
             no_life_gain: false,
             must_hunt: false,
             hostage: 0,
@@ -324,7 +332,7 @@ impl Minion {
     pub fn sect(&self) -> Option<Sect> {
         match self.kind {
             MinionKind::Vampire(c) => Some(CRYPT[c as usize].sect),
-            MinionKind::Created { .. } => Some(Sect::Anarch),
+            MinionKind::Created { sect, .. } => Some(sect),
             MinionKind::Ally { .. } => None,
         }
     }
@@ -561,6 +569,8 @@ pub struct GameState {
     /// usable during the first action in a minion phase"); one canceled as
     /// its card was played never was (LSJ 20100505).
     pub phase_actions: u8,
+    /// A non-mandatory action was performed this turn (Khabar: Glory).
+    pub optional_action: bool,
     /// Cards played this game that "can be played only once in a game"
     /// (Week of Nightmares), by LIBRARY index.
     pub once_played: Vec<u16>,
@@ -1103,6 +1113,13 @@ impl GameState {
             crate::cards::Requirement::CountersAtLeast(n) => c.counters >= n,
             crate::cards::Requirement::SuperiorVersion => c.mode > 0,
             crate::cards::Requirement::BasicVersion => c.mode == 0,
+            crate::cards::Requirement::OneCopyPerTurn => true,
+            crate::cards::Requirement::ActiveControlsNonSect(sect) => {
+                self.minions_of(self.active).any(|m| {
+                    let v = &self.minions[m.index()];
+                    v.is_vampire() && v.sect() != Some(sect)
+                })
+            }
             _ => match c.bearer() {
                 Some(h) => crate::cards::holds_for_host(req, self, h),
                 None => true,
@@ -1158,6 +1175,51 @@ impl GameState {
     /// What the cards in play on minion `m` add to `stat` during its
     /// action of `kind` (`Modifier::Bearer`; contested cards give
     /// nothing).
+    /// The votes `m`'s title cards give it in referendums it calls, while
+    /// it is of their clans (Fee Stake: Boston).
+    pub fn calling_votes(&self, m: MinionId) -> i32 {
+        let clan = self.minions[m.index()].clan();
+        self.layers
+            .iter()
+            .filter(|l| {
+                l.scope == crate::cards::Scope::InPlay
+                    && self.layer_active(l)
+                    && self.cards[l.source.index()].bearer() == Some(m)
+                    && matches!(l.modifier, crate::cards::Modifier::HostVoteWhenCalling(cs)
+                        if clan.is_some_and(|c| cs.contains(&c)))
+            })
+            .count() as i32
+    }
+
+    /// The layers reading who a bleed is against (Tier of Souls [ANI],
+    /// Aranthebes, The Immortal), for `m` bleeding `target`.
+    pub fn bleed_against_mod(&self, m: MinionId, target: SeatId) -> i32 {
+        self.layers
+            .iter()
+            .filter(|l| l.scope == crate::cards::Scope::InPlay && self.layer_active(l))
+            .map(|l| {
+                let c = &self.cards[l.source.index()];
+                let controller = self.card_controller(l.source);
+                match l.modifier {
+                    crate::cards::Modifier::HostBleedAgainstPrey(n)
+                        if c.bearer() == Some(m) && target == self.prey(controller) =>
+                    {
+                        n as i32
+                    }
+                    crate::cards::Modifier::YoungBleedAgainstController { max, n }
+                        if !c.locked
+                            && target == controller
+                            && self.minions[m.index()].is_vampire()
+                            && self.capacity_of(m).is_some_and(|cap| cap <= max) =>
+                    {
+                        n as i32
+                    }
+                    _ => 0,
+                }
+            })
+            .sum()
+    }
+
     pub fn bearer_mod(
         &self,
         m: MinionId,
@@ -1675,7 +1737,7 @@ impl GameState {
             for a in &s.forbidden_political {
                 mix(match a {
                     ActionId::Card(c) => *c as u64,
-                    ActionId::InPlay(c) => 1 << 32 | c.0 as u64,
+                    ActionId::InPlay(c, i) => 1 << 32 | (*i as u64) << 24 | c.0 as u64,
                     ActionId::Printed(m, i) => 2 << 40 | (m.0 as u64) << 8 | *i as u64,
                     ActionId::Rulebook(k, t) => {
                         3 << 40 | (*k as u64) << 32 | t.map_or(u32::MAX, |t| t.0) as u64
@@ -1752,11 +1814,12 @@ impl GameState {
             mix(m.expelled as u64);
             mix(m.hunting_ground_fed as u64);
             mix(m.skip_unlock as u64);
+            mix(m.origin.map_or(0, |s| s.0 as u64 + 1));
             mix(m.acted.len() as u64);
             for &c in &m.acted {
                 mix(match c {
                     ActionId::Card(c) => c as u64,
-                    ActionId::InPlay(id) => (id.0 as u64) << 20,
+                    ActionId::InPlay(id, i) => (id.0 as u64) << 20 | (i as u64) << 12,
                     ActionId::Printed(m, i) => 1 << 52 | (m.0 as u64) << 8 | i as u64,
                     ActionId::Rulebook(k, t) => {
                         1 << 53 | (k as u64) << 32 | t.map_or(u32::MAX, |t| t.0) as u64
@@ -1766,6 +1829,7 @@ impl GameState {
         }
         mix(self.phase_uses.len() as u64);
         mix(self.phase_actions as u64);
+        mix(self.optional_action as u64);
         mix(self.once_played.len() as u64);
         mix(self.turn_uses.len() as u64);
         mix(self.veil_superior as u64);

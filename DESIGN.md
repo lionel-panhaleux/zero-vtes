@@ -2032,6 +2032,73 @@ Recorded so nobody mistakes them for oversights:
   (`random_games_with_reactions_wave_2_hold_invariants_and_replay`);
   rules-qa Batch 30 answered (a block is the action's resolution). 96 pool library cards left (27 actions, 38
   masters, 20 events, 5 political actions, 3 allies, 3 equipment).
+  11u — the pool's actions, wave 1 (14): Scouting Mission, Social Charm,
+  Public Trust, Restoration, Fifth Tradition: Hospitality, Fourth
+  Tradition: The Accounting, Umbrous Clutch, Hunting the Beast, Make the
+  Misere, Mind Numb, Propaganda, Conceal, Dominate Kine, Graverobbing.
+  - Card-action markers: `Effect::Stun` (locked, `skip_unlock`),
+    `TitledCannotBlock` (`ActionCtx::titled_cannot_block`),
+    `TargetLocksReadyUnlocked` (the bled Methuselah's mandatory pick,
+    `MinionPurpose::LockReadyUnlocked`); a successful bleed's `GainPool`.
+  - Control: `StealLocation` (a location on a minion moves onto one of the
+    new controller's, `MinionPurpose::HostCard`), `StealTargetVampire`
+    for good (`Minion::origin`: a burned vampire goes to its owner's ash
+    heap, under temporary control too), `StolenToReadyForBlood`
+    (`Interrupt::MoveForBlood`).
+  - Combat riders from the action card: `BlockRider::Strength`,
+    `UncontrolledBloodIfWon` (`CombatCtx::won_uncontrolled_blood`, checked
+    as the combat ends; `Interrupt::UncontrolledBlood`).
+  - `MinionOf` requests and their elision share one option list
+    (`minion_of_options`).
+  - Generator: `Label::Location` from the type line only ("Burn a
+    location." no longer labels Conceal, Dominate Kine, Disputed
+    Territory).
+  - Fix (fuzz): a play whose effects already ousted its player (Piper's
+    ally paid down to 0) ousted them again — a second victory point.
+  Definitions: 342, 701 tests; own fuzz table
+  (`random_games_with_pool_actions_wave_1_hold_invariants_and_replay`);
+  rules-qa Batch 31 answered. Fixture edge: the fuzz `table` can seat a
+  torpid vampire named as a later seat's titled one, both uncontested (no
+  game reaches that); the pool-actions table removes the torpid copy —
+  fixing `table` itself reshuffles every table's games (coverage).
+  82 pool library cards left (13 actions, 38
+  masters, 20 events, 5 political actions, 3 allies, 3 equipment).
+  11v — the pool's actions, wave 2 (13): Army of Rats, Judgment: Camarilla
+  Segregation, Tier of Souls, Phantasmagoria, Aranthebes, Fee Stake:
+  Boston, New York and Seattle, Waters of Duat, Split the Veil,
+  Psychophagia, Khabar: Glory, Open War. Every pool action is defined.
+  - Riders: once a turn across copies (`Requirement::OneCopyPerTurn`,
+    the other copies' pending riders dropped as one resolves), a seat
+    condition read as it resolves (`ActiveControlsNonSect`),
+    `Hook::PreyOusted` (in `oust_batch`), a host-blocked burn on cards
+    (`HostBurnBlood`, by version).
+  - Bleed read against its target (`GameState::bleed_against_mod`:
+    `Modifier::HostBleedAgainstPrey`, `YoungBleedAgainstController`).
+  - Referendums: `ReferendumDef::non_anarch_titles_minus`,
+    `ReferendumCtx::calling`, `Modifier::HostVoteWhenCalling`
+    (`GameState::calling_votes`).
+  - `ActionId::InPlay(card, ability)`: two actions of one card are not the
+    same action (LSJ 20100909).
+  - Created vampires carry their sect (`BecomesVampire(Sect)`); a card in
+    play shuffled into its owner's library (`shuffle_into_library`);
+    `EatAshAlly` / `Interrupt::AshAlly`, `RaiseAllyWhenEmpty` /
+    `Interrupt::AllyFromAsh`; `GameState::optional_action`
+    (`ActionCtx::mandatory`); an action card's hunt (`is_hunt`).
+  - Generator: `Label::Title` after a sentence too (Fee Stakes, Saulot's
+    Guiding Wisdom).
+  Edges noted: Phantasmagoria may go on any minion (own, in torpor: legal
+  no-ops).
+  Owner answers to rules-qa Batches 31–32 (2026-09-26), applied: stun per
+  the V5 Sabbat terms (as implemented); Propaganda [PRE]'s minion and
+  Psychophagia's ally (`Terms::AnyAshAlly`, `PlayCtx::ash`) are named as
+  the card is played; a created vampire with no printed sect takes its
+  sire's (`BecomesVampire(Option<Sect>)`); card text speaks to the card's
+  controller (Open War's 4 pool); a must-hunt vampire may hunt with a
+  hunt action card.
+  Definitions: 355, 718 tests; own fuzz table
+  (`random_games_with_pool_actions_wave_2_hold_invariants_and_replay`);
+  rules-qa Batch 32 answered. 69 pool library cards left (38 masters, 20
+  events, 5 political actions, 3 allies, 3 equipment).
   **P2 open items (2026-09-26, after 11t):**
   - Edges left from 11s: `Terms::XBlood` stops at the blood left after a
     fixed cost but not after a surcharge (Terror Frenzy [ANI] on

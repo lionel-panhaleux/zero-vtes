@@ -1699,7 +1699,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[Label::Location],
+        labels: &[],
         body: None,
         modes: &[
             Mode {
@@ -2194,7 +2194,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[Label::Location],
+        labels: &[],
         body: None,
         modes: &[
             Mode {
@@ -2329,7 +2329,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[Label::Location],
+        labels: &[],
         body: None,
         modes: &[
             Mode {
@@ -3024,7 +3024,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[Label::RequiresAnarch],
+        labels: &[Label::Title, Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -3044,7 +3044,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[Label::RequiresAnarch],
+        labels: &[Label::Title, Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -3064,7 +3064,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[Label::RequiresAnarch],
+        labels: &[Label::Title, Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -7119,7 +7119,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::Fixed(1),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique, Label::Archetype],
+        labels: &[Label::Unique, Label::Archetype, Label::Title],
         body: None,
         modes: &[
             Mode {

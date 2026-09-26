@@ -91,6 +91,8 @@ pub struct ReferendumCtx {
     pub kind: RefKind,
     /// The acting Methuselah (political) or the diablerist's controller.
     pub caller: SeatId,
+    /// The vampire calling it (a political action's acting minion).
+    pub calling: Option<MinionId>,
     pub def: Option<&'static ReferendumDef>,
     pub step: RefStep,
     pub window: PollingWindow,
@@ -146,7 +148,27 @@ impl ReferendumCtx {
             crate::cards::Stat::Votes,
             crate::state::PrintedCtx::default(),
         );
-        (title_votes(st.title_of(m)) as i32 + bonus as i32 + granted as i32 + printed).max(0) as u8
+        // "Non-Anarch titles are worth -1 vote" (Fee Stake: Boston); a
+        // title card's "+1 vote during referendums they call".
+        let title = st.title_of(m);
+        let penalty = i32::from(
+            self.def.is_some_and(|d| d.non_anarch_titles_minus)
+                && !matches!(
+                    title,
+                    crate::crypt::Title::None | crate::crypt::Title::Baron(_)
+                ),
+        );
+        let calling = if self.calling == Some(m) {
+            st.calling_votes(m)
+        } else {
+            0
+        };
+        ((title_votes(title) as i32 - penalty).max(0)
+            + bonus as i32
+            + granted as i32
+            + printed
+            + calling)
+            .max(0) as u8
     }
 
     fn may_vote(&self, st: &crate::state::GameState, m: MinionId) -> bool {
@@ -274,6 +296,10 @@ impl Engine {
     ) {
         let order = self.state.clockwise_from(caller);
         let mut ctx = ReferendumCtx {
+            calling: match kind {
+                RefKind::Political => self.action.as_ref().map(|a| a.acting),
+                RefKind::BloodHunt { .. } => None,
+            },
             kind,
             caller,
             def,

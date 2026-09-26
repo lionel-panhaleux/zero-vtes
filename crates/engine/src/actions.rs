@@ -5,7 +5,7 @@
 //! the engine so that card plays resolved from the as-played stack can
 //! modify it.
 
-use crate::cards::{self, Effect, Hook, Limit, PlayCtx, Scope, Stat, Target, Window};
+use crate::cards::{self, Effect, Hook, Limit, PlayCtx, Requirement, Scope, Stat, Target, Window};
 use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
@@ -35,6 +35,7 @@ fn found_play(seat: SeatId, acting: MinionId, card: u16) -> PlayCtx {
         burn: None,
         named: None,
         chosen: None,
+        ash: None,
     }
 }
 
@@ -166,6 +167,8 @@ pub struct ActionCtx {
     pub reaction_played: bool,
     /// "Vampires cannot block this action" (Daring the Dawn).
     pub vampires_cannot_block: bool,
+    /// "Titled vampires cannot block this action" (Propaganda).
+    pub titled_cannot_block: bool,
     /// Aggravated damage the acting vampire takes after resolution, if the
     /// action reaches it (Daring the Dawn).
     pub damage_after: u8,
@@ -242,6 +245,9 @@ pub struct ActionCtx {
     pub hunt_gained: bool,
     /// A granted action that is a hunt (Week of Nightmares).
     pub is_hunt: bool,
+    /// A mandatory action (a must-hunt vampire's hunt, a printed mandatory
+    /// action): not one Khabar: Glory counts.
+    pub mandatory: bool,
     /// "After action resolution, if that action was successful, unlock the
     /// acting Nosferatu" (Warsaw Station): applied after the resolution and
     /// any referendum, the clan read then (LSJ 20090216), with or without
@@ -372,7 +378,11 @@ impl ActionCtx {
         } else {
             st.bearer_mod(self.acting, Stat::Bleed, self.kind)
         };
+        let against = self
+            .bleed_target
+            .map_or(0, |t| st.bleed_against_mod(self.acting, t));
         let n = (st.base_bleed(self.acting) as i32
+            + against
             + self.bleed_mods as i32
             + self.conditional_bonus(st, cards::Stat::Bleed, None)
             + bearer
@@ -716,6 +726,13 @@ impl Engine {
             played: Vec::new(),
             reaction_played: false,
             vampires_cannot_block: false,
+            titled_cannot_block: card.is_some_and(|p| {
+                cards::lookup(p.card).is_some_and(|d| {
+                    d.modes[p.mode as usize]
+                        .effects
+                        .contains(&Effect::TitledCannotBlock)
+                })
+            }),
             damage_after: 0,
             no_unlock: false,
             no_reactions: Vec::new(),
@@ -774,7 +791,23 @@ impl Engine {
             burn_for_intercept: Vec::new(),
             lock_if_no_block: Vec::new(),
             hunt_gained: false,
-            is_hunt: false,
+            // An action card's hunt (Psychophagia).
+            is_hunt: card.is_some_and(|p| {
+                cards::lookup(p.card).is_some_and(|d| {
+                    d.modes[p.mode as usize]
+                        .effects
+                        .contains(&Effect::HuntAction)
+                })
+            }),
+            mandatory: self.state.minions[minion.index()].must_hunt
+                && (kind == ActionKind::Hunt
+                    || card.is_some_and(|p| {
+                        cards::lookup(p.card).is_some_and(|d| {
+                            d.modes[p.mode as usize]
+                                .effects
+                                .contains(&Effect::HuntAction)
+                        })
+                    })),
             unlock_if_successful: None,
             exchange: None,
             resolved: false,
@@ -1085,6 +1118,9 @@ impl Engine {
                     && !st.unblockable(a.acting, a.kind)
                     && !(no_allies && v.is_ally())
                     && !(a.vampires_cannot_block && !v.is_ally())
+                    && !(a.titled_cannot_block
+                        && !v.is_ally()
+                        && st.title_of(*m) != crate::crypt::Title::None)
             })
             .collect()
     }
@@ -1784,6 +1820,10 @@ impl Engine {
                 }
                 cards::BlockRider::StrengthBeforeRange(n) => c.sides[i].strength_option += n,
                 cards::BlockRider::UnlockAfterForBlood(n) => unlocks.push((m, n)),
+                cards::BlockRider::Strength(n) => c.sides[i].strength_mods += n,
+                cards::BlockRider::UncontrolledBloodIfWon { clan, n } => {
+                    c.won_uncontrolled_blood = Some((m, clan, n))
+                }
             }
         }
         unlocks
@@ -2294,6 +2334,7 @@ impl Engine {
     fn host_blocked_riders(&mut self, acting: MinionId) {
         let seat = self.state.minions[acting.index()].owner;
         let mut burns = Vec::new();
+        let mut bleeds: Vec<u8> = Vec::new();
         for (ci, c) in self.state.cards.iter().enumerate() {
             if !c.present() || c.host != Some(acting) {
                 continue;
@@ -2318,9 +2359,19 @@ impl Engine {
                 if !holds {
                     continue;
                 }
+                // Its version (Phantasmagoria [PRE]).
+                if !r.requires.iter().all(|&req| match req {
+                    Requirement::SuperiorVersion => c.mode > 0,
+                    _ => true,
+                }) {
+                    continue;
+                }
                 for e in r.effects {
-                    match e {
+                    match *e {
                         Effect::BurnSelf => burns.push(CardId(ci as u32)),
+                        // "They burn 1 blood or life before block
+                        // resolution" (Phantasmagoria [PRE]).
+                        Effect::HostBurnBlood(n) => bleeds.push(n),
                         other => unreachable!("not a host-blocked rider effect: {other:?}"),
                     }
                 }
@@ -2328,6 +2379,13 @@ impl Engine {
         }
         for id in burns {
             self.burn_card_in_play(id);
+        }
+        for n in bleeds {
+            let v = &mut self.state.minions[acting.index()];
+            v.blood -= n.min(v.blood);
+            if v.is_ally() && v.blood == 0 {
+                self.burn_minion(acting);
+            }
         }
         // Printed on the acting vampire (Marialena).
         if let Some(def) = cards::vampire_of(&self.state.minions[acting.index()]) {
@@ -2376,6 +2434,10 @@ impl Engine {
                                 self.state.gain_blood(t, n);
                             }
                         }
+                        continue;
+                    }
+                    Effect::GainPool(n) => {
+                        self.state.seats[play.seat.index()].pool += n as i32;
                         continue;
                     }
                     Effect::TargetMethuselahDiscards(n) => {
@@ -2611,6 +2673,23 @@ impl Engine {
                 if self.state.seats[prey.index()].pool <= 0 {
                     self.state.seats[prey.index()].pool = 0;
                     self.oust(prey);
+                } else if a.card.is_some_and(|p| {
+                    cards::lookup(p.card).is_some_and(|d| {
+                        d.modes[p.mode as usize]
+                            .effects
+                            .contains(&Effect::TargetLocksReadyUnlocked)
+                    })
+                }) {
+                    // Propaganda [PRE]: "the target Methuselah locks a ready
+                    // unlocked minion they control" — the one named as the
+                    // card was played (owner, 2026-09-26: rules-qa 31.2),
+                    // whatever the bleed's amount.
+                    if let Some(Target::Minion(t)) = a.card.map(|p| p.target) {
+                        let v = &mut self.state.minions[t.index()];
+                        if v.present() {
+                            v.locked = true;
+                        }
+                    }
                 }
             }
             ActionKind::Hunt => {
@@ -2924,6 +3003,9 @@ impl Engine {
                             | Effect::TargetActsInCombat
                             | Effect::Frenzy
                             | Effect::StillYours
+                            | Effect::TitledCannotBlock
+                            | Effect::UnlockActor
+                            | Effect::HuntAction
                     )
                 }) {
                     self.apply_card_effect(*e, &ctx, &mut in_play);
@@ -2968,6 +3050,18 @@ impl Engine {
                         return;
                     }
                 }
+                // A hunt action card is the hunt a vampire must take.
+                if a.is_hunt {
+                    self.state.minions[a.acting.index()].must_hunt = false;
+                }
+                // "Unlock them" (Khabar: Glory): after the card's effects.
+                if target_ok
+                    && mode.effects.contains(&Effect::UnlockActor)
+                    && !a.no_unlock
+                    && self.state.minions[a.acting.index()].present()
+                {
+                    self.state.minions[a.acting.index()].locked = false;
+                }
                 a.card_entered_play = in_play.is_some();
                 if let Some(id) = in_play {
                     self.enter_library_contest(id);
@@ -2993,7 +3087,11 @@ impl Engine {
                     self.state.seats[seat.index()].pool -= cost as i32;
                     let host = self.state.cards[src.index()].host;
                     let effects = self.granted_effects(&a);
-                    self.burn_card_in_play(src);
+                    if effects.contains(&Effect::ShuffleSourceIntoLibrary) {
+                        self.shuffle_into_library(src);
+                    } else {
+                        self.burn_card_in_play(src);
+                    }
                     for e in effects {
                         if let (Effect::LockHostSkipNextUnlock(who), Some(h)) = (e, host) {
                             // Stolen Police Cruiser: "this Anarch is locked
@@ -3269,7 +3367,7 @@ impl Engine {
     }
 
     /// Riders of a vampire that successfully hunted (Adisa).
-    fn successful_hunt_riders(&mut self, m: MinionId) {
+    pub(crate) fn successful_hunt_riders(&mut self, m: MinionId) {
         let Some(def) = cards::vampire_of(&self.state.minions[m.index()]) else {
             return;
         };
@@ -3333,6 +3431,9 @@ impl Engine {
         if let (Some(src), Some(ab)) = (a.source, a.ability) {
             let id = src.action_id(&self.state, ab);
             self.state.minions[acting.index()].acted.push(id);
+        }
+        if !a.mandatory {
+            self.state.optional_action = true;
         }
         // "This minion cannot perform the same action again this turn"
         // (Change of Target): a rulebook action, by kind and target.
@@ -3481,6 +3582,7 @@ impl Engine {
             burn: None,
             named: None,
             chosen: None,
+            ash: None,
         };
         self.apply_entry_effects(&ctx, id, false);
         self.enter_card_contest(m);
@@ -3502,6 +3604,7 @@ impl Engine {
             burn: None,
             named: None,
             chosen: None,
+            ash: None,
         };
         let mut in_play = None;
         for &e in def.modes[0].effects {
@@ -3892,13 +3995,35 @@ impl Engine {
                 _ => false,
             })
             .collect();
+        // A hunt action card is a hunt too, for any vampire that must hunt
+        // (Psychophagia; owner, 2026-09-26: rules-qa 32.13).
+        let hunt_cards: Vec<Choice> = self
+            .play_options(s, &[Window::ActionDeclare], None)
+            .into_iter()
+            .filter(|o| match *o {
+                Choice::Play {
+                    card,
+                    mode,
+                    actor: Some(m),
+                    ..
+                } => {
+                    (unusual.contains(&m) || starving.contains(&m))
+                        && cards::lookup(st.seats[s.index()].hand[card as usize]).is_some_and(|d| {
+                            d.modes[mode as usize].effects.contains(&Effect::HuntAction)
+                        })
+                }
+                _ => false,
+            })
+            .collect();
+        let special: Vec<Choice> = special.into_iter().chain(hunt_cards).collect();
         let frozen: Vec<MinionId> = unusual
             .iter()
             .copied()
             .filter(|&m| {
-                !special
-                    .iter()
-                    .any(|o| matches!(*o, Choice::UseAbility { actor: Some(a), .. } if a == m))
+                !special.iter().any(|o| {
+                    matches!(*o, Choice::UseAbility { actor: Some(a), .. }
+                        | Choice::Play { actor: Some(a), .. } if a == m)
+                })
             })
             .collect();
         if !starving.is_empty() || !special.is_empty() {

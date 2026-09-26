@@ -150,6 +150,27 @@ pub(crate) enum Interrupt {
     /// "If the attached minion is about to leave the ready region, you can
     /// burn this card to gain n pool" (Priority Contract).
     PoolForCard { seat: SeatId, card: CardId, n: u8 },
+    /// "Add n blood to a `clan` vampire in your uncontrolled region"
+    /// (Hunting the Beast [AUS]): the player's pick, none if they have none.
+    UncontrolledBlood {
+        seat: SeatId,
+        clan: &'static str,
+        n: u8,
+    },
+    /// "Move a wraith or zombie ally from your ash heap to your ready
+    /// region" (Split the Veil): the player's pick among those labels.
+    AllyFromAsh {
+        seat: SeatId,
+        labels: &'static [crate::library::Label],
+    },
+    /// "This acting vampire can burn n blood to move the stolen vampire to
+    /// your ready region" (Graverobbing [DOM]): `ChooseMinion` it, or pass.
+    MoveForBlood {
+        seat: SeatId,
+        payer: crate::ids::MinionId,
+        minion: crate::ids::MinionId,
+        n: u8,
+    },
 }
 
 /// What a minion chosen at resolution is for (`Interrupt::MinionOf`).
@@ -167,6 +188,10 @@ pub(crate) enum MinionPurpose {
     /// A ready vampire of the clan the user controls, with blood, burns 1
     /// (Chantry's cost): mandatory.
     BurnBloodOfClan(&'static str),
+    /// A location on a minion, stolen, moves onto one of the new
+    /// controller's able to hold it (Dominate Kine [DOM]; RTR 19960112):
+    /// mandatory.
+    HostCard(CardId),
 }
 
 impl Interrupt {
@@ -193,7 +218,10 @@ impl Interrupt {
             | Interrupt::RemoveUncontrolled { seat }
             | Interrupt::ChooseForCard { seat, .. }
             | Interrupt::ExchangeAnarch { seat, .. }
-            | Interrupt::PoolForCard { seat, .. } => seat,
+            | Interrupt::PoolForCard { seat, .. }
+            | Interrupt::UncontrolledBlood { seat, .. }
+            | Interrupt::AllyFromAsh { seat, .. }
+            | Interrupt::MoveForBlood { seat, .. } => seat,
         }
     }
 }
@@ -560,12 +588,36 @@ impl Engine {
                         v.burn_corruption(owner, 1);
                     }
                 }
-                Interrupt::MinionOf { of, .. } => {
-                    if self.state.minions_of(of).next().is_none() {
+                Interrupt::MinionOf { of, purpose, .. } => {
+                    if self.minion_of_options(of, purpose).is_empty() {
                         self.interrupts.remove(0);
                     } else {
                         return;
                     }
+                }
+                Interrupt::AllyFromAsh { seat, labels } => {
+                    if self.ash_allies(seat, labels).is_empty() {
+                        self.interrupts.remove(0);
+                    } else {
+                        return;
+                    }
+                }
+                Interrupt::UncontrolledBlood { seat, clan, .. } => {
+                    if self.uncontrolled_of_clan(seat, clan).is_empty() {
+                        self.interrupts.remove(0);
+                    } else {
+                        return;
+                    }
+                }
+                Interrupt::MoveForBlood {
+                    payer, minion, n, ..
+                } => {
+                    let v = &self.state.minions[minion.index()];
+                    let p = &self.state.minions[payer.index()];
+                    if v.present() && v.in_torpor && v.hostage == 0 && p.present() && p.blood >= n {
+                        return;
+                    }
+                    self.interrupts.remove(0);
                 }
                 Interrupt::EntryBurn { ally, .. } => {
                     if !self.state.minions[ally.index()].in_play {
@@ -712,27 +764,35 @@ impl Engine {
                     .map(|&(s, _)| Choice::ChooseSeat(s))
                     .collect(),
             ),
+            Interrupt::UncontrolledBlood { seat, clan, .. } => (
+                WindowLabel::ResolutionChoice,
+                self.uncontrolled_of_clan(seat, clan)
+                    .into_iter()
+                    .map(|i| Choice::Slot(i as u8))
+                    .collect(),
+            ),
+            Interrupt::AllyFromAsh { seat, labels } => (
+                WindowLabel::ResolutionChoice,
+                self.ash_allies(seat, labels)
+                    .into_iter()
+                    .map(Choice::FindCard)
+                    .collect(),
+            ),
+            Interrupt::MoveForBlood { minion, .. } => (
+                WindowLabel::ResolutionChoice,
+                vec![Choice::Pass, Choice::ChooseMinion(minion)],
+            ),
             Interrupt::MinionOf { of, purpose, .. } => {
-                let mut options: Vec<Choice> = st
-                    .minions_of(of)
-                    .filter(|m| {
-                        let v = &st.minions[m.index()];
-                        match purpose {
-                            MinionPurpose::LockVampire => v.is_vampire(),
-                            MinionPurpose::UnlockAnarch => {
-                                v.ready() && v.sect() == Some(crate::crypt::Sect::Anarch)
-                            }
-                            MinionPurpose::BurnBloodOfClan(c) => {
-                                v.ready() && v.clan() == Some(c) && v.blood > 0
-                            }
-                            _ => true,
-                        }
-                    })
+                let mut options: Vec<Choice> = self
+                    .minion_of_options(of, purpose)
+                    .into_iter()
                     .map(Choice::ChooseMinion)
                     .collect();
                 if !matches!(
                     purpose,
-                    MinionPurpose::Corrupt | MinionPurpose::BurnBloodOfClan(_)
+                    MinionPurpose::Corrupt
+                        | MinionPurpose::BurnBloodOfClan(_)
+                        | MinionPurpose::HostCard(_)
                 ) {
                     options.insert(0, Choice::Pass);
                 }
@@ -789,6 +849,60 @@ impl Engine {
 
     /// The ready vampires a `ChooseForCard` may pick: its seat's, of its
     /// clan, other than the first chosen for a second choice.
+    /// The minions of `of` an `Interrupt::MinionOf` may choose.
+    fn minion_of_options(&self, of: SeatId, purpose: MinionPurpose) -> Vec<crate::ids::MinionId> {
+        let st = &self.state;
+        st.minions_of(of)
+            .filter(|m| {
+                let v = &st.minions[m.index()];
+                match purpose {
+                    MinionPurpose::LockVampire => v.is_vampire(),
+                    MinionPurpose::UnlockAnarch => {
+                        v.ready() && v.sect() == Some(crate::crypt::Sect::Anarch)
+                    }
+                    MinionPurpose::BurnBloodOfClan(c) => {
+                        v.ready() && v.clan() == Some(c) && v.blood > 0
+                    }
+                    MinionPurpose::HostCard(c) => st.can_hold(*m, st.cards[c.index()].card, &[]),
+                    MinionPurpose::Lock | MinionPurpose::Corrupt => true,
+                }
+            })
+            .collect()
+    }
+
+    /// The allies in `seat`'s ash heap bearing one of `labels` (any, if
+    /// empty), one entry per card.
+    pub(crate) fn ash_allies(&self, seat: SeatId, labels: &[crate::library::Label]) -> Vec<u16> {
+        let mut out: Vec<u16> = self.state.seats[seat.index()]
+            .ash
+            .iter()
+            .copied()
+            .filter(|&c| {
+                let lib = &LIBRARY[c as usize];
+                lib.types.contains(&crate::library::CardType::Ally)
+                    && (labels.is_empty() || labels.iter().any(|l| lib.labels.contains(l)))
+            })
+            .collect();
+        out.sort_unstable();
+        out.dedup();
+        out
+    }
+
+    /// The Methuselahs still in the game with an ally in their ash heap.
+    pub(crate) fn ash_ally_heaps(&self) -> Vec<SeatId> {
+        (0..self.state.seats.len() as u8)
+            .map(SeatId)
+            .filter(|&s| !self.state.seats[s.index()].ousted && !self.ash_allies(s, &[]).is_empty())
+            .collect()
+    }
+
+    /// The slots of `seat`'s uncontrolled region holding a `clan` vampire.
+    fn uncontrolled_of_clan(&self, seat: SeatId, clan: &'static str) -> Vec<usize> {
+        (0..self.state.seats[seat.index()].uncontrolled.len())
+            .filter(|&i| self.state.slot_vampire(seat, i).1 == clan)
+            .collect()
+    }
+
     fn choosable(&self, front: Interrupt) -> Vec<crate::ids::MinionId> {
         let Interrupt::ChooseForCard {
             seat,
@@ -972,6 +1086,28 @@ impl Engine {
             (Interrupt::ChooseForCard { .. }, Choice::ChooseMinion(m)) => {
                 self.interrupts.remove(0);
                 self.set_chosen(front, Some(m));
+            }
+            (Interrupt::UncontrolledBlood { n, .. }, Choice::Slot(i)) => {
+                self.interrupts.remove(0);
+                self.state.add_uncontrolled_blood(s, i as usize, n);
+            }
+            (Interrupt::AllyFromAsh { .. }, Choice::FindCard(card)) => {
+                self.interrupts.remove(0);
+                let ash = &mut self.state.seats[s.index()].ash;
+                let k = ash.iter().rposition(|&c| c == card).expect("ash ally");
+                ash.remove(k);
+                // Put in play, not recruited: its inferior version, its
+                // starting life, able to act this turn (LSJ 20100204).
+                let m = self.recruit_ally(s, card, 0);
+                self.state.minions[m.index()].recruited = false;
+            }
+            (Interrupt::MoveForBlood { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+            }
+            (Interrupt::MoveForBlood { payer, n, .. }, Choice::ChooseMinion(m)) => {
+                self.interrupts.remove(0);
+                self.state.minions[payer.index()].blood -= n;
+                self.state.minions[m.index()].in_torpor = false;
             }
             (Interrupt::RemoveUncontrolled { .. }, Choice::Slot(i)) => {
                 self.interrupts.remove(0);
@@ -1188,6 +1324,7 @@ impl Engine {
                 let v = &mut self.state.minions[m.index()];
                 match purpose {
                     MinionPurpose::Lock | MinionPurpose::LockVampire => v.locked = true,
+                    MinionPurpose::HostCard(c) => self.state.cards[c.index()].host = Some(m),
                     MinionPurpose::UnlockAnarch => v.locked = false,
                     MinionPurpose::BurnBloodOfClan(_) => v.blood -= 1,
                     MinionPurpose::Corrupt => v.add_corruption(seat, 1),

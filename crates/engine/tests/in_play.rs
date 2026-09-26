@@ -437,7 +437,7 @@ fn granted_action_nra_is_per_copy() {
     expect(&mut e, SeatId(1), WindowLabel::MinionPhase);
     assert_eq!(
         e.state.minions[kevin.index()].acted,
-        vec![ActionId::InPlay(CardId(first))]
+        vec![ActionId::InPlay(CardId(first), 0)]
     );
     e.state.minions[kevin.index()].locked = false;
     e.state.minions[kevin.index()].political_this_turn = false;
@@ -1633,7 +1633,7 @@ fn creeping_sabotage_burn_action_is_directed_at_its_controller() {
     );
     assert_eq!(
         e.state.minions[a.index()].acted,
-        vec![ActionId::InPlay(CardId(first))]
+        vec![ActionId::InPlay(CardId(first), 0)]
     );
     // Seat 1's x burns the other: seat 0 may block with a (unlocked).
     e.state.minions[a.index()].locked = false;

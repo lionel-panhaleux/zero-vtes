@@ -1744,3 +1744,116 @@ fn random_games_with_reactions_wave_2_hold_invariants_and_replay() {
     kinds.extend(["ability:Dogged Pursuit", "ability:Melange"]);
     covers(&seen, &kinds);
 }
+
+/// Slice 11u: the pool's actions, wave 1.
+const POOL_ACTIONS_SLICE: &[&str] = &[
+    "Scouting Mission",
+    "Social Charm",
+    "Public Trust",
+    "Restoration",
+    "Fifth Tradition: Hospitality",
+    "Fourth Tradition: The Accounting",
+    "Umbrous Clutch",
+    "Hunting the Beast",
+    "Make the Misere",
+    "Mind Numb",
+    "Propaganda",
+    "Conceal",
+    "Dominate Kine",
+    "Graverobbing",
+    ".44 Magnum",
+    "Elysian Fields",
+    "Telepathic Counter",
+    "Lost in Crowds",
+];
+
+/// Slice 11u: random tables with the first wave of the pool's actions.
+#[test]
+fn random_games_with_pool_actions_wave_1_hold_invariants_and_replay() {
+    let seen = fuzz(|seed| {
+        let mut e = table(seed, POOL_ACTIONS_SLICE, &["OBF"]);
+        // `table` may give a seat's torpid vampire the name of a later
+        // seat's titled one, both uncontested: no game reaches that, and
+        // Graverobbing would put both under one Methuselah. The torpid
+        // copy leaves.
+        let st = &mut e.state;
+        for i in 0..st.minions.len() {
+            let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
+            let twin = st
+                .minions
+                .iter()
+                .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
+            if twin && st.minions[i].in_torpor {
+                st.minions[i].in_play = false;
+            }
+        }
+        e
+    });
+    let plays: Vec<String> = POOL_ACTIONS_SLICE[..14]
+        .iter()
+        .map(|n| format!("play:{n}"))
+        .collect();
+    let kinds: Vec<&str> = plays.iter().map(String::as_str).collect();
+    covers(&seen, &kinds);
+}
+
+/// Slice 11v: the pool's actions, wave 2.
+const POOL_ACTIONS2_SLICE: &[&str] = &[
+    "Army of Rats",
+    "Judgment: Camarilla Segregation",
+    "Tier of Souls",
+    "Phantasmagoria",
+    "Aranthebes, The Immortal",
+    "Fee Stake: Boston",
+    "Fee Stake: New York",
+    "Fee Stake: Seattle",
+    "Waters of Duat",
+    "Split the Veil",
+    "Psychophagia",
+    "Khabar: Glory",
+    "Open War",
+    "Screamer",
+    "Bone Shambler",
+    "Elysian Fields",
+    "Graverobbing",
+];
+
+/// Slice 11v: random tables with the second wave of the pool's actions.
+#[test]
+fn random_games_with_pool_actions_wave_2_hold_invariants_and_replay() {
+    let seen = fuzz(|seed| {
+        let mut e = table(seed, POOL_ACTIONS2_SLICE, &["OBF"]);
+        // As in wave 1: no uncontrolled twin of another seat's vampire.
+        let st = &mut e.state;
+        for i in 0..st.minions.len() {
+            let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
+            let twin = st
+                .minions
+                .iter()
+                .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
+            if twin && st.minions[i].in_torpor {
+                st.minions[i].in_play = false;
+            }
+        }
+        e
+    });
+    let plays: Vec<String> = POOL_ACTIONS2_SLICE[..13]
+        .iter()
+        .map(|n| format!("play:{n}"))
+        .collect();
+    let mut kinds: Vec<&str> = plays.iter().map(String::as_str).collect();
+    kinds.extend([
+        "ability:Army of Rats",
+        "ability:Judgment: Camarilla Segregation",
+        "ability:Tier of Souls",
+        "ability:Phantasmagoria",
+        "ability:Aranthebes, The Immortal",
+        "ability:Fee Stake: Boston",
+        "ability:Split the Veil",
+        "ability:Open War",
+        "rider:Army of Rats",
+        "rider:Judgment: Camarilla Segregation",
+        "rider:Khabar: Glory",
+    ]);
+    covers(&seen, &kinds);
+}

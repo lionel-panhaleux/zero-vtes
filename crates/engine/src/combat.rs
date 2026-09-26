@@ -453,6 +453,10 @@ pub struct CombatCtx {
     /// "All damage inflicted on vampires during the resulting combat is
     /// aggravated" (Dawn Operation).
     pub all_aggravated: bool,
+    /// Hunting the Beast [AUS]: the acting vampire, and the uncontrolled
+    /// clan vampire and blood its Methuselah adds at the end of the combat
+    /// if it is ready and the opposing vampire is not.
+    pub won_uncontrolled_blood: Option<(MinionId, &'static str, u8)>,
     /// Damage aimed at retainers in this strike pair, waiting for
     /// prevention like the combatants' (Martyr's Resilience).
     pub retainer_pending: Vec<(CardId, u8)>,
@@ -728,6 +732,7 @@ impl Engine {
             retainer_pending: Vec::new(),
             others_prevented: false,
             all_aggravated: false,
+            won_uncontrolled_blood: None,
             abilities_used: Vec::new(),
             abilities_used_round: Vec::new(),
             gun_prevention_left: Vec::new(),
@@ -2017,6 +2022,19 @@ impl Engine {
             })
             .collect();
         self.state.combatants = None;
+        if let Some((m, clan, n)) = ended.as_ref().and_then(|c| c.won_uncontrolled_blood) {
+            let c = ended.as_ref().expect("combat");
+            let other = c.sides.iter().find(|s| s.minion != m).map(|s| s.minion);
+            let v = &self.state.minions[m.index()];
+            if v.ready() && other.is_some_and(|o| !self.state.minions[o.index()].ready()) {
+                self.interrupts
+                    .push(crate::draws::Interrupt::UncontrolledBlood {
+                        seat: v.owner,
+                        clan,
+                        n,
+                    });
+            }
+        }
         for s in lowered {
             if !self.state.seats[s.index()].ousted {
                 self.draw_up(s);
@@ -2684,6 +2702,7 @@ mod tests {
                 burn: None,
                 named: None,
                 chosen: None,
+                ash: None,
             },
         );
         let req = e.combat_request().unwrap();

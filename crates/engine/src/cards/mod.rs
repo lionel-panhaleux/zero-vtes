@@ -368,6 +368,26 @@ pub enum Stat {
 /// predicate on a target reads the candidate target.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Requirement {
+    /// On a rider: once one copy of the card its controller controls has
+    /// resolved it this turn, the others' are no longer due ("you can burn
+    /// only 1 pool each turn with Army of Rats cards").
+    OneCopyPerTurn,
+    /// On an ability of a card in play: fewer than n copies of the card its
+    /// controller controls have used it this phase ("you can burn counters
+    /// from no more than two Split the Veil cards each unlock phase").
+    FewerCopiesUsedThisPhase(u8),
+    /// No action other than a mandatory one has been performed this turn
+    /// (Khabar: Glory).
+    NoOptionalActionThisTurn,
+    /// An ally is in some Methuselah's ash heap (Psychophagia: ANK
+    /// 20200420-3).
+    AllyInAnyAsh,
+    /// On an unlock-phase rider: the active Methuselah controls a vampire
+    /// not of this sect, read as it resolves (Judgment: Camarilla
+    /// Segregation; ANK 20181016).
+    ActiveControlsNonSect(Sect),
+    /// The target minion is not of this sect.
+    TargetSectNot(Sect),
     /// Target minion is controlled by the player.
     Controlled,
     /// Target minion has at least this much blood.
@@ -961,6 +981,13 @@ pub enum BlockRider {
     /// "If this vampire is blocked, they can prevent n damage during the
     /// resulting combat" (Beast Meld [ani][pro]): any round of it.
     PreventInCombat(u8),
+    /// "This Anarch gets +n strength during that combat" (Make the Misere
+    /// [pot]).
+    Strength(u8),
+    /// "At the end of that combat, if this vampire is ready and the opposing
+    /// vampire is not, add n blood to a `clan` vampire in your uncontrolled
+    /// region" (Hunting the Beast [AUS]): chosen then.
+    UncontrolledBloodIfWon { clan: &'static str, n: u8 },
 }
 
 /// Whom a conditional bonus reads its condition on.
@@ -1078,6 +1105,9 @@ pub struct ReferendumDef {
     pub terms: &'static [Term],
     pub effect: RefEffect,
     pub grants: &'static [VoteGrant],
+    /// "During that referendum, non-Anarch titles are worth -1 vote" (Fee
+    /// Stake: Boston).
+    pub non_anarch_titles_minus: bool,
 }
 
 /// The vampires a vote grant reaches, read live while the referendum lasts
@@ -1334,17 +1364,17 @@ impl AbilitySource {
     }
 
     /// The NRA identity of the action this ability grants: the copy of a
-    /// card in play, or the vampire's printed action (spec §3.8.1) — one
-    /// printed action split by target kind keeps one identity
+    /// card in play and its ability, or the vampire's printed action (spec
+    /// §3.8.1) — one action split by target kind keeps one identity
     /// (`Effect::SameActionAs`, Aniel).
     pub fn action_id(self, st: &crate::state::GameState, ability: u8) -> crate::state::ActionId {
+        let same = self.mode(st, ability).effects.iter().find_map(|e| match e {
+            Effect::SameActionAs(n) => Some(*n),
+            _ => None,
+        });
         match self {
-            AbilitySource::Card(c) => crate::state::ActionId::InPlay(c),
+            AbilitySource::Card(c) => crate::state::ActionId::InPlay(c, same.unwrap_or(ability)),
             AbilitySource::Vampire(m) => {
-                let same = self.mode(st, ability).effects.iter().find_map(|e| match e {
-                    Effect::SameActionAs(n) => Some(*n),
-                    _ => None,
-                });
                 crate::state::ActionId::Printed(m, same.unwrap_or(ability))
             }
         }
@@ -1404,6 +1434,10 @@ pub enum Terms {
     /// A card in the user's ash heap, chosen by name as the ability is used
     /// (Mora, the Death Seer).
     AshCard,
+    /// An ally in any Methuselah's ash heap, named as the card is played:
+    /// the ash heap, then the ally (Psychophagia; owner, 2026-09-26:
+    /// rules-qa 32.12).
+    AnyAshAlly,
     /// "Employ a <label> retainer from your hand (requirements and cost apply
     /// as normal)" (Pack Alpha [ani]): the card and its version, named as
     /// the card is played (LSJ 20100130).
@@ -1439,6 +1473,16 @@ pub enum Terms {
 /// Continuous-effect modifiers carried by layers (effects-framework §3.2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Modifier {
+    /// The layer source's host gets n bleed against its controller's prey
+    /// (Tier of Souls [ANI]).
+    HostBleedAgainstPrey(i8),
+    /// "While this Anarch is <clan>, they get +1 vote during referendums
+    /// they call" (Fee Stake: Boston): the layer source's host, while of
+    /// one of these clans, calling the referendum.
+    HostVoteWhenCalling(&'static [&'static str]),
+    /// While the layer source is unlocked, vampires of capacity `max` or
+    /// less get n bleed against its controller (Aranthebes, The Immortal).
+    YoungBleedAgainstController { max: u8, n: i8 },
     /// Every minion of the clan gets n to the stat (Week of Nightmares).
     ClanStat {
         clan: &'static str,
@@ -1593,6 +1637,11 @@ impl Layer {
                     ^ (pool as i64 as u64 & 0xff)
             }
             Modifier::ReactionBloodCost(n) => 1 << 32 ^ (n as i64 as u64 & 0xff),
+            Modifier::HostBleedAgainstPrey(n) => 1 << 32 ^ 1 << 20 ^ (n as i64 as u64 & 0xff),
+            Modifier::HostVoteWhenCalling(clans) => 1 << 32 ^ 1 << 22 ^ clans.len() as u64,
+            Modifier::YoungBleedAgainstController { max, n } => {
+                1 << 32 ^ 1 << 21 ^ (max as u64) << 8 ^ (n as i64 as u64 & 0xff)
+            }
             Modifier::InterceptMod { younger_than, n } => {
                 1 << 33 ^ (younger_than as u64) << 8 ^ (n as i64 as u64 & 0xff)
             }
@@ -1764,8 +1813,11 @@ pub enum Effect {
     /// vampire of the same clan as the acting vampire and must hunt this
     /// turn. You can search your library (shuffle afterward), hand and/or
     /// ash heap for a Discipline master card and put it on this new
-    /// vampire" (Childe of the Revolution): after `PutInPlay`.
-    BecomesVampire,
+    /// vampire" (Childe of the Revolution): after `PutInPlay`, of the sect
+    /// printed, else of its sire's — the acting vampire's (rulebook
+    /// "Sect": new vampires take their sire's; Waters of Duat, rules-qa
+    /// 32.6).
+    BecomesVampire(Option<Sect>),
     /// Put this card on the target minion.
     PutOnTarget,
     /// Put this card in play with no host (Anarch Revolt).
@@ -2208,6 +2260,51 @@ pub enum Effect {
     /// "If the action is successful, this vampire can burn n blood to unlock
     /// after action resolution" (Paths in Two Worlds [OBL]).
     UnlockForBloodIfSuccessful(u8),
+    /// "Stun" the target minion: it locks and does not unlock during its
+    /// controller's next unlock phase (Mind Numb).
+    Stun,
+    /// "Titled vampires cannot block this action" (Propaganda).
+    TitledCannotBlock,
+    /// "The target Methuselah locks a ready unlocked minion they control"
+    /// (Propaganda [PRE]): the one named as the card is played.
+    TargetLocksReadyUnlocked,
+    /// "Steal a location" (Dominate Kine [DOM]): its control changes; one
+    /// on a minion moves onto a minion of the new controller's (RTR
+    /// 19960112, 19980623).
+    StealLocation,
+    /// "Steal a vampire in torpor" (Graverobbing): control changes for
+    /// good; the cards on it go with it.
+    StealTargetVampire,
+    /// "This acting vampire can burn n blood to move the stolen vampire to
+    /// your ready region" (Graverobbing [DOM]): a burn, not a cost (ANK
+    /// 20210226).
+    StolenToReadyForBlood(u8),
+    /// Burn the target minion (Judgment: Camarilla Segregation: "burn a
+    /// non-Camarilla vampire they control … to burn this card").
+    BurnTargetMinion,
+    /// Instead of burning the card in play (a granted "burn this card"
+    /// action's shape): shuffle it into its owner's library (Aranthebes,
+    /// The Immortal).
+    ShuffleSourceIntoLibrary,
+    /// "If this card has no counters, burn it and move a wraith or zombie
+    /// ally from your ash heap to your ready region with life equal to its
+    /// starting life" (Split the Veil): the ally put in play, not
+    /// recruited — its inferior version, no requirement or cost, able to
+    /// act this turn (LSJ 20100204).
+    RaiseAllyWhenEmpty(&'static [crate::library::Label]),
+    /// "Remove an ally in any Methuselah's ash heap from the game to gain n
+    /// blood (and unlock)" (Psychophagia): the ally named as it was played
+    /// (`PlayCtx::ash`), if still there.
+    EatAshAlly {
+        blood: u8,
+        unlock: bool,
+    },
+    /// "If this card has `at` counters, burn it and gain `pool` pool" (Open
+    /// War): its controller gains (rules-qa 32.7).
+    AtCountersBurnAndGain {
+        at: u8,
+        pool: u8,
+    },
     /// Put this card on the opposing minion now (Disarm): its layers apply
     /// while it is there, the card itself in the ash heap (rules-qa 21.1).
     PutOnOpponent,
@@ -2621,6 +2718,9 @@ pub enum Hook {
     HostBlocks,
     /// The host announces an action (Slaughtering the Herd [DOM]).
     HostAnnouncesAction,
+    /// The card's controller's prey is ousted (Khabar: Glory: "you gain 4
+    /// additional pool").
+    PreyOusted,
     /// The minion that played this card (`CardInPlay::by`) leaves the
     /// ready region: to torpor, burned (Slaughtering the Herd [DOM]).
     ByLeavesReady,
@@ -2765,6 +2865,8 @@ pub fn library_mode(card: u16, mi: usize) -> usize {
         "Anticipation" => [0, 0, 1][mi],
         // Each version on a minion or on a retainer.
         "Martyr's Resilience" => [0, 0, 1, 1][mi],
+        // "To gain 3 blood or to gain 2 blood and unlock".
+        "Psychophagia" => [0, 0][mi],
         _ => mi,
     }
 }
@@ -2885,6 +2987,10 @@ pub struct PlayCtx {
     /// Priority Contract's Assamite, Toreador Grand Ball's second
     /// Toreador).
     pub chosen: Option<MinionId>,
+    /// A card in a Methuselah's ash heap named as the card is played
+    /// (`Terms::AnyAshAlly`, Psychophagia); the card `u16::MAX` while only
+    /// the ash heap is chosen.
+    pub ash: Option<(SeatId, u16)>,
 }
 
 /// Does `m` meet a mode's discipline tags? Lower case needs the discipline
@@ -3017,9 +3123,20 @@ pub fn holds(
         | Requirement::NotPlayedThisGame
         | Requirement::PlayedGrappleOrAimByOpponent
         | Requirement::WeaponBurnedOpponent
-        | Requirement::TargetInCombatWithDamage => true, // engine-checked
+        | Requirement::TargetInCombatWithDamage
+        | Requirement::OneCopyPerTurn
+        | Requirement::FewerCopiesUsedThisPhase(_)
+        | Requirement::ActiveControlsNonSect(_) => true, // engine-checked
+        Requirement::NoOptionalActionThisTurn => !st.optional_action,
+        Requirement::AllyInAnyAsh => st.seats.iter().any(|s| {
+            !s.ousted
+                && s.ash
+                    .iter()
+                    .any(|&c| LIBRARY[c as usize].types.contains(&CardType::Ally))
+        }),
         Requirement::TargetInTorpor
         | Requirement::ControlledByPrey
+        | Requirement::TargetSectNot(_)
         | Requirement::TargetHostage => {
             true // target predicates
         }
@@ -3448,6 +3565,7 @@ pub fn holds_for_minion(
         Requirement::TargetHostage => v.hostage > 0,
         Requirement::ControlledByPrey => v.owner == st.prey(seat),
         Requirement::TargetClanNotIn(clans) => v.clan().is_some_and(|c| !clans.contains(&c)),
+        Requirement::TargetSectNot(sect) => v.is_vampire() && v.sect() != Some(sect),
         Requirement::TargetTitleIn(classes) => {
             let t = st.title_of(m);
             classes.iter().any(|c| c.matches(t))
@@ -3548,6 +3666,24 @@ pub fn holds_for_card(
 ) -> bool {
     let c = &st.cards[id.index()];
     match req {
+        // Phase uses by the copies its controller controls (Split the Veil).
+        Requirement::FewerCopiesUsedThisPhase(n) => {
+            let controller = st.card_controller(id);
+            let used = st
+                .cards
+                .iter()
+                .enumerate()
+                .filter(|&(j, o)| {
+                    o.card == c.card
+                        && st.card_controller(CardId(j as u32)) == controller
+                        && st
+                            .phase_uses
+                            .iter()
+                            .any(|(src, _)| *src == AbilitySource::Card(CardId(j as u32)))
+                })
+                .count();
+            used < n as usize
+        }
         // The remembered set, its host's controller not counted (LSJ
         // 20100527), all among the Methuselahs the action is directed at
         // (owner, 2026-09-26: rules-qa 24.5).

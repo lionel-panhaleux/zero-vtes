@@ -2482,3 +2482,182 @@ does not say so). Right? **Test** —
 
 One damage, usable at any point of the block's combat — any round, once.
 Right? **Test** — `beast_meld_prevents_a_damage_once_blocked`.
+
+## Batch 31 — The pool's actions, wave 1 (slice 11u)
+
+Defaults chosen while implementing; each is applied and tested. Owner
+(2026-09-26): yes to the ones without an answer below.
+
+### 31.1 Stun (Mind Numb) _(answered 2026-09-26)_
+
+No stun definition is in the card data. Implemented as the old Mind Numb
+wording: the vampire locks and does not unlock during its controller's
+next unlock phase (LSJ 20050114 reads that). Right? **Test** —
+`mind_numb_stuns_through_the_next_unlock_phase`.
+
+**Answer (owner):** "Check the rulebook." The V5 Sabbat terms (2025-06-12)
+define it: "lock a minion and put a stun counter on them. A minion with one
+or more stun counters does not unlock as normal at the beginning of their
+controller's unlock phase; during that unlock phase, burn all stun
+counters they had at the beginning of the turn." Same behaviour as
+implemented (`Minion::skip_unlock`: several stuns before one unlock phase
+are one skipped unlock).
+
+### 31.2 Propaganda [PRE]'s lock _(answered 2026-09-26)_
+
+"The target Methuselah locks a ready unlocked minion they control": their
+choice, mandatory, as the unblocked bleed resolves, whatever its amount
+(0 included). None if the bleed ousted them. Right? **Test** —
+`propaganda_bars_titled_blockers_and_locks_a_prey_minion`.
+
+**Answer (owner):** "No, choice of the player playing the card when
+played." Applied: [PRE] names a ready unlocked minion of the prey as the
+card is played; it locks as the bleed resolves.
+
+### 31.3 Hunting the Beast [AUS]'s Salubri _(answered 2026-09-26)_
+
+Chosen at the end of the combat, not upon declaration (ANK 20240706 is
+Public Trust's, a different timing: "if the bleed is successful"). "The
+opposing vampire is not ready": in torpor or burned. Right? **Test** —
+`hunting_the_beast_superior_feeds_an_uncontrolled_salubri_after_winning`.
+
+### 31.4 Dominate Kine [DOM] on Living Manse _(answered 2026-09-26)_
+
+The new host is chosen by the new controller as the action resolves,
+among their minions able to hold it (its Tzimisce requirement is not
+checked again, as for any card changing hands). If none can hold it, it
+stays where it is. Right? **Test** —
+`dominate_kine_superior_steals_a_location`.
+
+### 31.5 Graverobbing _(answered 2026-09-26)_
+
+The stolen vampire keeps its cards and blood; burned later, it goes to
+its owner's ash heap. Master cards on it (a Discipline master, Villein)
+stay their player's (a master card on a minion is controlled by its
+player, 11q); minion cards on it (equipment, retainers) move with it.
+[DOM]'s move is offered as the action resolves, only if the acting
+vampire has the 2 blood. Right? **Test** —
+`graverobbing_superior_steals_a_torpid_vampire_and_may_rescue_it`.
+
+### 31.6 A vampire burned under someone else's control _(answered 2026-09-26)_
+
+Goes to its owner's ash heap — also one under temporary control (Puppet
+Master [DOM]); before this slice it went to its controller's. Right?
+
+### 31.7 Make the Misere's Disciplines _(answered 2026-09-26)_
+
+[pot]'s +1 strength lasts the whole combat; [cel]'s maneuver is one for
+the combat. Right? **Test** —
+`make_the_misere_gives_what_each_discipline_used_adds`.
+
+## Batch 32 — The pool's actions, wave 2 (slice 11v)
+
+Defaults chosen while implementing; each is applied and tested. Owner
+(2026-09-26): yes to the ones without an answer below.
+
+### 32.1 Two actions from one card _(answered 2026-09-26)_
+
+Generalized from Open War (LSJ 20100909): each action a card in play
+grants is its own action for the "same action" rule — once each per
+minion per turn (Haven Uncovered's two actions likewise). Right?
+
+### 32.2 Army of Rats's once a turn _(answered 2026-09-26)_
+
+"You can burn only 1 pool each turn with Army of Rats cards": its
+controller's copies; the first one resolved in the unlock phase burns,
+the others' burns lapse. Right? **Test** —
+`army_of_rats_burns_one_prey_pool_a_turn_whatever_the_copies`.
+
+### 32.3 Judgment: Camarilla Segregation's burn _(answered 2026-09-26)_
+
+"Methuselahs can burn a non-Camarilla vampire they control during their
+master phase": any Methuselah, in their own master phase, no master phase
+action spent; a vampire in torpor qualifies. Right? **Test** —
+`judgment_camarilla_segregation_taxes_non_camarilla_methuselahs`.
+
+### 32.4 Tier of Souls [ANI]'s prey _(answered 2026-09-26)_
+
+"+1 bleed against your prey": the card's controller's prey, read live (a
+new prey after an oust counts). Stealing an ally's last life burns it.
+Right? **Test** —
+`tier_of_souls_superior_steals_blood_and_bleeds_the_prey_harder`.
+
+### 32.5 Phantasmagoria's target _(answered 2026-09-26)_
+
+"Put this card on a minion": any minion, one's own included (undirected
+then, rules-qa 20.1). Right? **Test** —
+`phantasmagoria_superior_costs_the_blocked_minion_a_blood`.
+
+### 32.6 Waters of Duat's sect _(answered 2026-09-26)_
+
+"It becomes a 1-capacity (non-unique) Follower of Set": no sect printed.
+Implemented as Independent, the Followers of Set's sect when the card was
+printed (V5's Ministry are Anarch). Right? **Test** —
+`waters_of_duat_creates_a_follower_of_set_that_must_hunt`.
+
+**Answer (owner):** "The acting vampire's sect actually (new default for
+Embrace-like cards, newish rule)" — rulebook "Sect": new vampires take
+their sire's sect. Applied (`BecomesVampire(None)`).
+
+### 32.7 Open War's payout _(answered 2026-09-26)_
+
+"Methuselahs can use a master phase action to move 1 counter from their
+pool to this card. If this card has 4 counters, burn it and gain 4 pool":
+the Methuselah who moves the fourth counter gains the 4 pool; paying the
+counter with their last pool ousts them. Right? **Test** —
+`open_war_grants_two_anarch_actions_and_pays_out_at_four_counters`.
+
+**Answer (owner):** "No, the player controlling it gets the pool — card
+text is addressed at the controller by default." Applied.
+
+### 32.8 Aranthebes, The Immortal _(answered 2026-09-26)_
+
+Shuffled into its owner's library. The lock gives -1 stealth to the
+predator's acting minion (stealth only matters there). The -1 bleed is for
+vampires only, not allies, while the card is unlocked. Right? **Tests** —
+`aranthebes_shields_against_young_bleeds_and_shuffles_away`,
+`aranthebes_locks_for_minus_one_stealth_on_the_predators_action`.
+
+### 32.9 Fee Stake's non-Anarch titles _(answered 2026-09-26)_
+
+"Non-Anarch titles are worth -1 vote": every title but baron (primogen,
+prince, justicar, an independent title card), to a minimum of 0. The +1
+vote goes to the Fee Stake's Anarch only when it calls the referendum.
+Right? **Test** —
+`fee_stake_represents_a_baron_and_its_burn_weakens_other_titles`.
+
+### 32.10 Khabar: Glory's condition _(answered 2026-09-26)_
+
+"Not usable if any non-mandatory actions have been performed this turn":
+any action of the player's minions already announced this turn (blocked or
+fizzled too), except a must-hunt vampire's hunt or a printed mandatory
+action. Right? **Test** —
+`khabar_glory_is_a_first_action_that_pays_for_an_oust`.
+
+### 32.11 Split the Veil's ally _(answered 2026-09-26)_
+
+Chosen when the last counter burns, among the wraith and zombie allies in
+the player's ash heap; with none there, the card is burned all the same.
+Right? **Test** —
+`split_the_veil_raises_a_wraith_or_zombie_from_the_ash_heap`.
+
+### 32.12 Psychophagia's ally _(answered 2026-09-26)_
+
+Chosen as the action resolves: whose ash heap, then which ally; an ousted
+Methuselah's ash heap does not count. Right? **Test** —
+`psychophagia_eats_an_ash_heap_ally`.
+
+**Answer (owner):** "No, chosen at declaration." Applied
+(`Terms::AnyAshAlly`: the ash heap, then the ally, as the card is played;
+gone by resolution, no effect). **Test** —
+`psychophagia_names_its_ally_at_play_and_serves_a_forced_hunt`.
+
+### 32.13 Psychophagia and a vampire that must hunt _(answered 2026-09-26)_
+
+Psychophagia is a hunt action, but a vampire that must hunt (Childe of
+the Revolution, Waters of Duat) is only offered the rulebook hunt as its
+mandatory action, and Psychophagia does not end its "must hunt". Should a
+must-hunt vampire be able to hunt with Psychophagia instead?
+
+**Answer (owner):** "Yes it should." Applied: offered beside the rulebook
+hunt to any vampire that must hunt, and it ends the "must hunt".

@@ -25,7 +25,8 @@ TYPES = ["Master", "Action", "Action Modifier", "Reaction", "Combat", "Political
          "Ally", "Equipment", "Retainer", "Event"]
 LABELS = [
     ("Unique", r"^unique\b|\bunique (location|\w+ with)|\. unique\."),
-    ("Location", r"\blocation\b\."),
+    # The type line only ("Burn a location." is an action's text).
+    ("Location", r"(^|\. )(unique )?location\."),
     ("HuntingGround", r"^hunting ground\."),
     ("Weapon", r"^(unique )?(melee )?weapon\b"),
     ("Gun", r"^weapon: gun"),
@@ -34,7 +35,7 @@ LABELS = [
     ("Archetype", r"\barchetype\."),
     ("Trifle", r"\btrifle\."),
     ("Gehenna", r"^gehenna\."),
-    ("Title", r"^title\."),
+    ("Title", r"(^|\. )title\."),
     ("OutOfTurn", r"^out-of-turn\."),
     ("Frenzy", r"^frenzy\."),
     # Combat card kinds a card may name ("cancel a grapple or aim card",
