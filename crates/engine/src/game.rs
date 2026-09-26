@@ -57,6 +57,18 @@ pub(crate) enum Flow {
         ctx: PlayCtx,
         resume: Box<Flow>,
     },
+    /// The cost reductions announced with a card (The Line, The Shard,
+    /// Ravnos Carnival, Ravnos Cache): the sources picked one at a time,
+    /// a counter source's number next (`pending`).
+    CostTerms {
+        ctx: PlayCtx,
+        resume: Box<Flow>,
+        pending: Option<crate::state::CardId>,
+        /// Asked after the card's terms named the card the reductions are
+        /// for (Piper's ally, Contraband's equipment): the as-played window
+        /// next.
+        after_terms: bool,
+    },
     /// As-played windows of pending plays, innermost last; `resume` is the
     /// flow to return to once the stack empties.
     AsPlayed {
@@ -71,6 +83,8 @@ pub(crate) enum Flow {
         ability: u8,
         /// The target chosen with the use (Alicia Cortez).
         target: crate::cards::Target,
+        /// The minion using it, if any (Alamut's vampire).
+        user: Option<MinionId>,
         picked: Vec<u8>,
         resume: Box<Flow>,
     },
@@ -215,6 +229,7 @@ impl Engine {
                     mpa: 0,
                     hand_bonus: 0,
                     trifle_used: false,
+                    burn_option_used: false,
                     out_of_turn: None,
                     mpa_next: 0,
                     veil_left: 0,
@@ -319,6 +334,12 @@ impl Engine {
         self.enter_title_contest(m);
     }
 
+    /// The card a `Choice::Play` index names: the hand, then the cards on
+    /// the seat's Fleshforge Chambers.
+    pub fn playable_card(&self, seat: SeatId, index: u8) -> u16 {
+        self.virtual_hand(seat)[index as usize].0
+    }
+
     /// The action under way, if any (read-only).
     pub fn action(&self) -> Option<&ActionCtx> {
         self.action.as_ref()
@@ -401,6 +422,7 @@ impl Engine {
         match &self.flow {
             Flow::MasterPhase => Some(self.master_request()),
             Flow::PlayTerms { ctx, .. } => Some(self.terms_request(ctx)),
+            Flow::CostTerms { ctx, pending, .. } => Some(self.cost_terms_request(ctx, *pending)),
             Flow::AsPlayed { stack, .. } => self.as_played_request(stack),
             Flow::MinionPhase => Some(DecisionRequest {
                 seat: st.active,
@@ -470,6 +492,15 @@ impl Engine {
         match (flow, choice) {
             (Flow::MasterPhase, c) => self.master_apply(c),
             (Flow::PlayTerms { ctx, resume }, c) => self.terms_apply(ctx, *resume, c),
+            (
+                Flow::CostTerms {
+                    ctx,
+                    resume,
+                    pending,
+                    after_terms,
+                },
+                c,
+            ) => self.cost_terms_apply(ctx, *resume, pending, after_terms, c),
             (Flow::AsPlayed { stack, resume }, c) => self.as_played_apply(stack, resume, c),
             (Flow::Discard, c) => self.discard_apply(c),
             (Flow::MinionPhase, Choice::Pass) => self.open_phase_rotation(Flow::MinionPhase),
@@ -533,6 +564,7 @@ impl Engine {
                     target,
                     picked,
                     resume,
+                    ..
                 },
                 Choice::Discard(i),
             ) => self.ability_terms_apply(source, ability, target, picked, resume, *i),
@@ -541,11 +573,12 @@ impl Engine {
                     source,
                     ability,
                     target,
+                    user,
                     resume,
                     ..
                 },
                 Choice::SetX(x),
-            ) => self.ability_count_apply(source, ability, target, *resume, *x),
+            ) => self.ability_count_apply(source, ability, target, user, *resume, *x),
             (
                 Flow::AbilityTerms {
                     source,
@@ -587,6 +620,9 @@ impl Engine {
     /// no rival left and forced yields settle at once (no decision).
     pub(crate) fn start_unlock_effects(&mut self) {
         let s = self.state.active;
+        for seat in &mut self.state.seats {
+            seat.burn_option_used = false;
+        }
         let mut pending = Vec::new();
         for item in self.collect_contests() {
             match self.contest_choices(item).len() {

@@ -2661,3 +2661,242 @@ must-hunt vampire be able to hunt with Psychophagia instead?
 
 **Answer (owner):** "Yes it should." Applied: offered beside the rulebook
 hunt to any vampire that must hunt, and it ends the "must hunt".
+
+## Batch 33 — The pool's masters, wave 1 (slice 11w)
+
+Defaults chosen while implementing; each is applied and tested. Owner
+(2026-09-26): yes to the ones without an answer below.
+
+### 33.1 Brujah Debate's lock _(answered 2026-09-26)_
+
+At the start of each Methuselah's master phase, one lock per copy in
+play, mandatory; "the oldest Brujah they control" counts vampires in
+torpor too (the highest capacity among all their Brujah). Right?
+**Test** — `brujah_debate_locks_an_oldest_brujah_each_master_phase`.
+
+### 33.2 Oxford University, England's X _(answered 2026-09-26)_
+
+X from 1 up to the player's pool, named as the card is locked; paying the
+last pool ousts them and they cast nothing (as Ferraille, LSJ 20081105).
+Right? **Test** — `oxford_university_buys_two_votes_a_pool`.
+
+### 33.3 Charisma's vampire _(answered 2026-09-26)_
+
+"Put this card on a ready vampire": any Methuselah's. Right? **Test** —
+`charisma_discounts_the_recruit_ally_action`.
+
+### 33.4 Grooming the Protégé _(answered 2026-09-26)_
+
+The giving vampire is named as the card is played and is not locked; X
+(1 to 3) is named then too, and it gives what it still has at
+resolution. Right? **Test** —
+`grooming_the_protege_feeds_a_younger_clanmate`.
+
+### 33.5 Golconda: Inner Peace _(answered 2026-09-26)_
+
+The capacity read as it resolves (Discipline master cards included); the
+removed vampire's crypt card to the removed cards, the cards on it removed
+with it (another Methuselah's burned, as for an ousted Methuselah's
+minions). Right? **Test** —
+`golconda_removes_an_elder_for_its_capacity_in_pool`.
+
+### 33.6 Mob Connections's press _(answered 2026-09-26)_
+
+Usable by its controller in the press step while a minion of theirs is in
+combat, one press to continue. Right? **Test** —
+`mob_connections_gives_a_press_to_continue`.
+
+### 33.7 The Black Throne and the contract _(answered 2026-09-26)_
+
+Offered as the contracted minion is about to leave the ready region,
+after the contract's own "burn this card to gain 3 pool". Right? **Test**
+— `the_black_throne_pays_when_a_contracted_minion_leaves`.
+
+**Answer (owner):** "Right — note it includes leaving because the
+controller is ousted." Tested (the oust case,
+`the_black_throne_pays_when_a_contracted_minion_leaves`).
+
+### 33.8 The burn option _(answered 2026-09-26)_
+
+The rulebook's advanced "burn option" was not implemented; it is now, in
+the unlock-phase window of any Methuselah. "A minion who meets the
+requirements" is read as a controlled minion (in torpor too) of the card's
+clan, if it names one, with one of its Disciplines, if it names any. Only
+Sight Beyond Sight has the icon in the pool. Right? **Test** —
+`a_burn_option_card_is_discarded_without_a_minion_to_play_it`.
+
+**Answer (owner):** "Not in torpor, no." Applied: only a ready minion
+meets the requirement.
+
+### 33.9 The Khabar: Community's stealth _(answered 2026-09-26)_
+
+"Assamites get +1 stealth when bleeding": during bleed actions only.
+Right? **Test** — `clan_wide_masters_modify_their_clans`.
+
+## Batch 34 — The pool's masters, wave 2 (slice 11x)
+
+Defaults chosen while implementing; each is applied and tested. Owner
+(2026-09-26): yes to the ones without an answer below.
+
+### 34.1 WMRH Talk Radio's minion _(answered 2026-09-26)_
+
+"Give a minion +1 intercept": the minion attempting to block, whoever
+controls it, while its attempt needs intercept; the pool is burned after
+resolution unless that minion blocked after the lock. Right? **Test** —
+`wmrh_talk_radio_charges_a_pool_for_a_failed_block`.
+
+### 34.2 The Rumor Mill's vampire _(answered 2026-09-26)_
+
+Any vampire, ready; its "burn 1 blood for +1 intercept" is offered while it
+attempts to block and needs intercept, once. Right? **Test** —
+`the_rumor_mill_lets_a_chosen_vampire_buy_one_intercept`.
+
+### 34.3 Dabbler's Disciplines _(answered 2026-09-26)_
+
+Distinct Disciplines of the cards the vampire played during the action,
+the action card included (each Discipline once, whatever its level); a
+multi-Discipline card counts each Discipline used. Right? **Test** —
+`dabbler_rewards_three_disciplines_in_one_action`.
+
+**Answer (owner):** "Note it also counts when reacting and in combat."
+As implemented: every card the vampire plays during the action counts —
+reactions, and combat cards in the action's combat.
+
+### 34.4 Dead Pool's counter _(answered 2026-09-26)_
+
+"You can add 1 counter": always added (never a loss); the leaving minion
+must be a vampire. Right? **Test** —
+`dead_pool_counts_victims_and_pays_them_as_bleed`.
+
+### 34.5 Alamut's counters _(answered 2026-09-26)_
+
+The pool actually lost (not more than the bled Methuselah had). Right?
+**Test** — `alamut_banks_bled_pool_for_votes`.
+
+### 34.6 Cappadocian Crypt's action _(answered 2026-09-26)_
+
+Anyone's successful action whose card requires Hecata or Oblivion (the
+Discipline level played), or granted by a card requiring a Hecata. Right?
+**Test** — `cappadocian_crypt_feeds_a_hecata_after_an_oblivion_action`.
+
+### 34.7 Twilight Camp _(answered 2026-09-26)_
+
+Its blood as counters. "After you put a … vampire in play from your
+uncontrolled region": when influenced out (the only way in the pool); the
+new sect lasts. "An Anarch" for its master phase action: any Methuselah's.
+Right? **Test** — `twilight_camp_makes_anarchs_and_feeds_them`.
+
+### 34.8 Mithraic Cultist's intercept _(answered 2026-09-26)_
+
+"Actions directed at /Mithras/ or a Mithraic Mysteries card or member": a
+directed action whose target is Mithras, a member, The Mithraeum or a
+Mithraic Cultist. Right?
+
+## Batch 35 — The pool's masters, wave 3 (slice 11y)
+
+Defaults chosen while implementing; each is applied and tested. Owner
+(2026-09-26): yes to the ones without an answer below.
+
+### 35.1 Secure Haven and choosing _(answered 2026-09-26)_
+
+"Choosing is targeting" (LSJ 20031010) is read for a master card's
+vampire chosen as it is played (Toreador Grand Ball, Priority Contract),
+the vampire a master card is played for (Piper), and Archon
+Investigation's bleeding vampire: each costs 1 pool more. Other
+Methuselahs' actions — card actions, granted ones (Open War's rush),
+rescue and diablerie — cannot target the minion; a referendum's terms
+choosing it can (Banishment, ANK 20221019-3). Right? **Tests** —
+`secure_haven_shields_its_minion_from_others_actions`,
+`secure_haven_taxes_master_cards_on_its_minion`.
+
+### 35.2 Cave of Apples' threshold _(answered 2026-09-26)_
+
+"Their capacity or cost": a vampire's capacity, an ally's printed pool or
+blood cost; only the player's own counters count, burned all at once.
+Right? **Test** — `cave_of_apples_corrupts_and_steals_at_capacity`.
+
+### 35.3 British Museum _(answered 2026-09-26)_
+
+Its unlock is once each turn per minion; the minion must have performed
+the equip action with such a card from hand, successfully. Right? **Test**
+— `british_museum_discounts_plain_equipment_and_unlocks_once`.
+
+### 35.4 Yoruba Shrine and the referendum _(answered 2026-09-26)_
+
+The referendum fails and its polling ends at once: no votes, nothing
+keyed to its passing; the political action is not canceled (its card is
+spent). Right? **Test** —
+`yoruba_shrine_fails_a_referendum_naming_an_assamite`.
+
+## Batch 36 — Cost reductions (slice 11z)
+
+Defaults chosen while implementing; each is applied and tested. Owner
+(2026-09-26): yes to the ones without an answer below.
+
+### 36.1 Announcing a reduction _(answered 2026-09-26)_
+
+With a card played, its applicable reductions are offered first (The
+Line, The Shard, Ravnos Carnival's and Ravnos Cache's counters), then its
+terms: a card unaffordable without them offers no way on without them.
+The Line and The Shard lock as the action is declared (a card canceled as
+played never is, ANK 20230620), a non-action card's Shard as it resolves;
+counters are spent as the cost is paid — none by a blocked or fizzled
+action. Right? **Tests** — `the_line_takes_a_blood_off_an_action_card`,
+`the_shard_takes_two_off_a_card_with_the_edge`,
+`ravnos_carnival_pays_a_ravnos_action_card`.
+
+**Answer (owner):** "The Shard and The Line can be locked on
+resolution." Applied: their abilities are also offered in the
+would-be-successful window, just before the cost is paid. **Test** —
+`the_line_can_be_locked_as_the_action_resolves`.
+
+### 36.2 Order of reductions _(answered 2026-09-26)_
+
+"By n blood or pool" reductions first (off whichever the card costs),
+then blood-only ones (The Line), then counters (Carnival: blood; Cache:
+pool if the equipment costs pool, else blood). Right?
+
+**Answer (owner):** "The player orders as he wishes between reductions
+(pool and blood, or just blood), then payment from an alternate source
+after." No card in the pool costs both pool and blood, so the order of the
+reductions cannot matter yet; counters come after, as implemented.
+
+### 36.3 Ravnos Cache's master phase move _(answered 2026-09-26)_
+
+Once each master phase per copy (rules-qa 6.6); paying its last pool
+ousts. Right? **Test** — `ravnos_cache_banks_pool_to_pay_for_equipment`.
+
+**Answer (owner):** "Moot, it's unique: no multiple copies." 
+
+### 36.4 Abilities paid with a master phase action _(answered 2026-09-26)_
+
+"Use a master phase action to …" (Open War, Twilight Camp) is not a
+"during your master phase" ability: as often as master phase actions are
+spent, not once each phase. Right?
+
+### 36.5 Not yet reached _(answered 2026-09-26)_
+
+Cost reductions do not reach a card named by Piper, Concealed Weapon or
+Contraband (paid inside those effects), nor let an ally pay a blood cost
+with The Shard: left open (DESIGN).
+
+**Answer (owner):** "Yes it should. Depends on the exact reduction text
+though: whether it requires the card to be played normally through an
+action or not." Applied: a card named by Piper or Contraband takes the
+reductions whose text does not require an action (The Line, The Shard,
+Ravnos Carnival, Ravnos Cache), announced once named; Charisma's "recruit
+ally actions" does not (rules-qa 33.3). **Test** —
+`reductions_reach_cards_played_by_piper_and_contraband`.
+
+## Batch 37 — Fleshforge Chamber (slice 11z)
+
+### 37.1 Fleshforge Chamber and replacement _(answered 2026-09-26)_
+
+A ghoul put on the Chamber from hand is not replaced (it is not played);
+one played from the Chamber is not replaced either (it did not leave the
+hand). Once each master phase per copy ("during your master phase",
+rules-qa 6.6). Right? **Test** —
+`fleshforge_chamber_keeps_ghouls_for_the_tzimisce`.
+
+**Answer (owner):** "No, it is replaced when put on the Chamber. One
+played from the Chamber is not replaced." Applied.

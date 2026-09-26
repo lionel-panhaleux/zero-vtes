@@ -2099,6 +2099,85 @@ Recorded so nobody mistakes them for oversights:
   (`random_games_with_pool_actions_wave_2_hold_invariants_and_replay`);
   rules-qa Batch 32 answered. 69 pool library cards left (38 masters, 20
   events, 5 political actions, 3 allies, 3 equipment).
+  11w — the pool's masters, wave 1 (17): The Parthenon, Dummy Corporation,
+  Ferraille, Oxford University, The Black Throne, Kumpania, Sight Beyond
+  Sight, Charisma, Giant's Blood, Golconda: Inner Peace, Grooming the
+  Protégé, Gangrel Revel, The Khabar: Community, New Carthage, Mob
+  Connections, Fragment of the Book of Nod, Brujah Debate.
+  - `Modifier::ClanStat` gains `own`, `titled`, `during`; clan votes read
+    in `votes_of` (`GameState::clan_votes`); `ClanCombatManeuver`;
+    `HostRecruitDiscount` (Charisma: the recruit ally action only).
+  - Master cards with a vampire actor (`Actor::AnyReadyVampire`), X pool
+    terms (`Terms::XPool`), a cancel for pool by the target's controller,
+    master-phase-start riders (`Hook::MasterPhaseStart`), the contract
+    host leaving (`Hook::ContractHostLeaves`, `Interrupt::LockForPool`).
+  - An ability's pool cost paid down to 0 out of turn ousts without
+    passing the turn (`pay_pool_for_ability`); votes are not cast by an
+    ousted Methuselah.
+  - The rulebook's burn option (advanced rules): a discard in any unlock
+    phase (`Seat::burn_option_used`).
+  Definitions: 372, 735 tests; own fuzz table
+  (`random_games_with_pool_masters_wave_1_hold_invariants_and_replay`);
+  rules-qa Batch 33 open. 52 pool library cards left (21 masters, 20
+  events, 5 political actions, 3 allies, 3 equipment).
+  11x — the pool's masters, wave 2 (11): WMRH Talk Radio, The Rumor Mill,
+  Monster, Dabbler, Dead Pool, Alamut, Cappadocian Crypt, Powerbase:
+  Munich, Twilight Camp, The Mithraeum, Mithraic Cultist.
+  - `ActionCtx::pool_if_no_block` (charged in `after_resolution`),
+    `burn_for_intercept_once`, `last_combat`, `disciplines_played`
+    (`cards::discipline_key`; canceled cards count).
+  - Hooks `CombatOpponentOfOwnClanLeft`, `OwnBleedSuccessful`,
+    `OwnVampireInfluenced` (`Interrupt::MakeAnarch`,
+    `Minion::sect_override`); `Terms::XCounters`; ability terms keep their
+    user (`Flow::AbilityTerms::user`); `AnyReadyVampire` abilities read the
+    action, combat and referendum; Mithraic Mysteries membership and
+    votes (`GameState::mithraic_member`, `host_votes`).
+  - Block pruning counts The Rumor Mill's intercept for its controller's
+    vampires with blood.
+  Definitions: 383, 746 tests; own fuzz table
+  (`random_games_with_pool_masters_wave_2_hold_invariants_and_replay`);
+  rules-qa Batch 34 open. 41 pool library cards left (10 masters, 20
+  events, 5 political actions, 3 allies, 3 equipment).
+  11y — the pool's masters, wave 3 (4): Secure Haven, Yoruba Shrine, Cave
+  of Apples, British Museum.
+  - `Modifier::Haven`: others' actions may not target the minion
+    (`GameState::may_direct_at`, now also filtering granted actions'
+    targets), master cards targeting or choosing it cost 1 more
+    (`pool_cost`, `resolve_play`).
+  - `Effect::UnlockActing`, `FailReferendum` (`ReferendumCtx::forced_fail`),
+    `CorruptTargetMayStealAtCapacity` (`Interrupt::StealForCorruption`),
+    `PlainEquipDiscount` (`GameState::equip_discount`, the equip branch
+    now reads `cost_reduction` too).
+  - Granted actions' targets read the acting candidate
+    (`minion_target_qualifies_by`); `Requirement::ActorOfClan` for
+    non-host actors (`ActorClan` is a printed/host predicate).
+  Definitions: 387, 756 tests; own fuzz table; rules-qa Batch 35 open.
+  11z — cost reductions and Fleshforge Chamber (5): The Line, The Shard,
+  Ravnos Cache, Ravnos Carnival, Fleshforge Chamber.
+  - `Modifier::CostSource`; reductions announced with the card
+    (`Flow::CostTerms`, `PlayCtx::discounts`; no Pass while the card is
+    unaffordable without them), locked at declaration (a card canceled as
+    played never locks them) or, for a non-action card, as it resolves;
+    during the action (`ReduceActionCost`, `ReduceActionBlood`,
+    `PayActionWithCountersX`); paid through `ActionCtx::cost_reduction`,
+    `blood_reduction`, `counter_payments` (`reduced_cost_with`,
+    `spend_counters`: counters spent only as a cost is paid) in the card,
+    bleed, equip, employ/recruit and political branches; affordability in
+    `play_options` counts the potential.
+  - Abilities paid with a master phase action are not once a phase.
+  - Fleshforge Chamber: cards stored from hand (`StorePickedFromHand`),
+    played from the location by its clan (`virtual_hand`, `PlayCtx::from`:
+    not replaced); `Engine::playable_card` for callers reading a play's
+    card.
+  - A card named by Piper or Contraband takes the reductions not
+    requiring an action, announced once named (`Flow::CostTerms`
+    `after_terms`, `pay_named_discounts`); The Line and The Shard are also
+    usable as the action resolves (would-be-successful window).
+  - Open: an ally's blood cost under The Shard (ANK 20230721).
+  Definitions: 392, 764 tests; rules-qa Batches 36–37 answered. Every pool
+  master but Mobile HQ is defined (it waits for the three Operation
+  Antigen allies). 32 pool library cards left (1 master, 20 events, 5
+  political actions, 3 allies, 3 equipment).
   **P2 open items (2026-09-26, after 11t):**
   - Edges left from 11s: `Terms::XBlood` stops at the blood left after a
     fixed cost but not after a surcharge (Terror Frenzy [ANI] on

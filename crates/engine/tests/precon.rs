@@ -10030,3 +10030,1374 @@ fn psychophagia_names_its_ally_at_play_and_serves_a_forced_hunt() {
     assert_eq!(e.state.seats[1].ash.len(), 1);
     assert_eq!(blood(&e, h), 3);
 }
+
+// ---- Pool masters, wave 1 (slice 11w) ---------------------------------------
+
+/// Seat 0's first minion calls Anarchist Uprising; decisions pass until
+/// `want` is offered, which is taken; the referendum's records then.
+fn in_referendum_take(e: &mut Engine, caller: MinionId, want: Choice) -> Vec<(SeatId, bool, u8)> {
+    hand(e, 0, &["Anarchist Uprising"]);
+    pick(e, play(e.state.seats[0].hand.len() as u8 - 1, 0, caller));
+    pick_when(e, want);
+    let r = e.referendum().expect("referendum");
+    r.records
+        .iter()
+        .filter(|v| matches!(v.source, zvtes::referendum::Source::InPlay(_)))
+        .map(|v| (v.seat, v.favor, v.n))
+        .collect()
+}
+
+// The Parthenon: "During your master phase, you can lock this card to get
+// +1 master phase action."
+#[test]
+fn the_parthenon_locks_for_a_master_phase_action() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let p = location(&mut e, 0, "Parthenon, The");
+    e.at_master_phase();
+    pick(&mut e, use_on(p, 0, None, Target::None));
+    assert_eq!(e.state.seats[0].mpa, 2);
+    assert!(e.state.cards[p.index()].locked);
+}
+
+// Dummy Corporation: "You can burn this card if a minion is bleeding you to
+// reduce the bleed amount by 2."
+#[test]
+fn dummy_corporation_burns_to_reduce_a_bleed_by_two() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["PRE"], 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    let d = location(&mut e, 1, "Dummy Corporation");
+    hand(&mut e, 0, &["Intimidation"]);
+    pick(&mut e, play(0, 1, a));
+    pick_when(&mut e, use_on(d, 0, None, Target::None));
+    to_minion_phase(&mut e, 0);
+    assert_eq!(pool(&e, 1), 29, "3 - 2");
+    assert!(!e.state.cards[d.index()].in_play);
+}
+
+// Ferraille: "Once each turn, you can burn 1 pool to get +3 votes during
+// the polling step of any referendum." [ANK 20180719-4] Each player's turn.
+// [LSJ 20081105] No votes if the cost ousts the player.
+#[test]
+fn ferraille_buys_three_votes_once_a_turn() {
+    for ousted in [false, true] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), anarch(0), 4, false);
+        e.add_minion(SeatId(1), vampire(|c| c.clan == "Ministry", 0), 4, false);
+        e.add_minion(SeatId(2), plain("", "", 2), 4, false);
+        let f = location(&mut e, 1, "Ferraille");
+        if ousted {
+            e.state.seats[1].pool = 1;
+        }
+        let votes = in_referendum_take(&mut e, a, use_on(f, 0, None, Target::None));
+        if ousted {
+            assert!(e.state.seats[1].ousted);
+            assert!(votes.is_empty(), "no votes");
+        } else {
+            assert_eq!(votes, vec![(SeatId(1), true, 3)]);
+            assert_eq!(pool(&e, 1), 29);
+            let req = request(&mut e);
+            assert!(
+                !req.options.contains(&use_on(f, 1, None, Target::None)),
+                "once a turn"
+            );
+        }
+    }
+}
+
+// Oxford University, England: "You can lock this card and burn X pool during
+// the polling step of a political action to get +2X votes."
+#[test]
+fn oxford_university_buys_two_votes_a_pool() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), anarch(0), 4, false);
+    e.add_minion(SeatId(1), plain("Brujah", "", 1), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 2), 4, false);
+    let o = location(&mut e, 1, "Oxford University, England");
+    hand(&mut e, 0, &["Anarchist Uprising"]);
+    pick(&mut e, play(0, 0, a));
+    pick_when(&mut e, use_on(o, 1, None, Target::None));
+    let req = expect(&mut e, SeatId(1), WindowLabel::PlayTerms);
+    assert_eq!(req.options.len(), 30, "X up to the pool");
+    pick(&mut e, Choice::SetX(3));
+    request(&mut e);
+    let r = e.referendum().expect("referendum");
+    assert!(r
+        .records
+        .iter()
+        .any(|v| v.seat == SeatId(1) && !v.favor && v.n == 6));
+    assert_eq!(pool(&e, 1), 27);
+}
+
+// The Black Throne: "You can lock this card during the polling step of any
+// referendum to get +2 votes. You can lock this card after a minion with a
+// contract for which an Assamite you control is chosen leaves the ready
+// region to gain 1 pool." [PIB 20150512] Even when the contract burns with
+// its minion. [ANK 20180129-2] Even when its controller is ousted.
+#[test]
+fn the_black_throne_pays_when_a_contracted_minion_leaves() {
+    for oust in [false, true] {
+        let mut e = Engine::bare(3);
+        let h = e.add_minion(
+            SeatId(0),
+            vampire(|c| c.clan == "Banu Haqim" && c.title == Title::None, 0),
+            4,
+            false,
+        );
+        let z = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+        e.add_minion(SeatId(2), plain("", "", 3), 4, false);
+        let pc = master_on(&mut e, 0, "Priority Contract", z);
+        e.state.cards[pc.index()].chosen = vec![h];
+        let bt = location(&mut e, 0, "Black Throne, The");
+        let p0 = pool(&e, 0);
+        if oust {
+            e.state.seats[1].pool = 1;
+            pick(&mut e, action(h, ActionKind::Bleed));
+        } else {
+            // The contract's rush sends z to torpor.
+            e.state.minions[z.index()].blood = 0;
+            pick(&mut e, use_on(pc, 0, Some(h), Target::Minion(z)));
+        }
+        pick_when(&mut e, Choice::ResolveRider { card: pc.0 });
+        pick_when(&mut e, Choice::ResolveRider { card: bt.0 });
+        request(&mut e);
+        assert!(e.state.cards[bt.index()].locked);
+        let extra = if oust { 6 } else { 0 };
+        assert_eq!(pool(&e, 0), p0 + extra + 3 + 1);
+    }
+}
+
+// Kumpania: "You can lock this card to give a Ravnos with capacity 5 or more
+// you control +1 intercept." Sight Beyond Sight: "Put this card on a Salubri
+// you control. This Salubri gets +1 intercept."
+#[test]
+fn kumpania_and_sight_beyond_sight_give_intercept() {
+    for old_enough in [false, true] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+        e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+        let r = e.add_minion(
+            SeatId(1),
+            vampire(
+                |c| c.clan == "Ravnos" && c.capacity >= 5 && c.title == Title::None,
+                0,
+            ),
+            4,
+            false,
+        );
+        let small = e.add_minion(
+            SeatId(1),
+            vampire(|c| c.clan == "Ravnos" && c.capacity < 5, 0),
+            4,
+            false,
+        );
+        let k = location(&mut e, 1, "Kumpania");
+        let s = e.add_minion(SeatId(2), salubri(0), 4, false);
+        master_on(&mut e, 2, "Sight Beyond Sight", s);
+        assert_eq!(e.state.bearer_mod(s, Stat::Intercept, ActionKind::Bleed), 1);
+        // A hunt: +1 stealth, intercept needed.
+        pick(&mut e, action(a, ActionKind::Hunt));
+        let lock = use_on(k, 0, None, Target::None);
+        if old_enough {
+            pick(&mut e, Choice::DeclareBlock { minion: r });
+            pick_when(&mut e, lock);
+            assert!(e.state.cards[k.index()].locked);
+        } else {
+            // Kumpania cannot reach the young Ravnos: its attempt, needing
+            // intercept it cannot get, is not offered.
+            let req = request(&mut e);
+            assert!(req.options.contains(&Choice::DeclareBlock { minion: r }));
+            assert!(!req
+                .options
+                .contains(&Choice::DeclareBlock { minion: small }));
+        }
+    }
+}
+
+// Charisma: "Put this card on a ready vampire. Recruit ally actions cost
+// this vampire -1 blood or pool." [LSJ 20090115-1] [ANK 20170309] Not a
+// recruit outside an action (Piper): "This is not an action, so cost
+// reductions referring to an action do not apply".
+#[test]
+fn charisma_discounts_the_recruit_ally_action() {
+    for piper in [false, true] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(
+            SeatId(0),
+            vampire(
+                |c| {
+                    c.clan == "Gangrel"
+                        && c.sect == zvtes::crypt::Sect::Anarch
+                        && c.title == Title::None
+                },
+                0,
+            ),
+            4,
+            false,
+        );
+        e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+        master_on(&mut e, 0, "Charisma", a);
+        let p0 = pool(&e, 0);
+        if piper {
+            hand(&mut e, 0, &["Piper", "Double Deuce"]);
+            e.at_master_phase();
+            pick(&mut e, play(0, 0, a));
+            request(&mut e);
+            assert_eq!(pool(&e, 0), p0 - 2, "not an action: no discount");
+        } else {
+            hand(&mut e, 0, &["Double Deuce"]);
+            pick(&mut e, play(0, 0, a));
+            to_minion_phase(&mut e, 0);
+            assert_eq!(pool(&e, 0), p0 - 1);
+        }
+    }
+}
+
+// Giant's Blood: "Only one Giant's Blood can be played in a game. Choose a
+// vampire. The chosen vampire gains enough blood to reach full capacity."
+// [LSJ 20061109] Not an uncontrolled one.
+#[test]
+fn giants_blood_fills_a_vampire_once_a_game() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 1), 1, false);
+    hand(&mut e, 0, &["Giant's Blood", "Giant's Blood"]);
+    e.at_master_phase();
+    e.state.seats[0].mpa = 2;
+    let req = request(&mut e);
+    assert!(!req.options.iter().any(|o| matches!(
+        o,
+        Choice::Play {
+            target: Target::Uncontrolled(_),
+            ..
+        }
+    )));
+    pick(&mut e, play_at(0, 0, None, Target::Minion(z)));
+    let req = request(&mut e);
+    assert_eq!(blood(&e, z), e.state.capacity_of(z).unwrap());
+    assert!(
+        !req.options.iter().any(|o| matches!(o, Choice::Play { .. })),
+        "once a game"
+    );
+}
+
+// Golconda: Inner Peace: "Remove a vampire with capacity 8 or more from the
+// game. Their controller gains pool equal to the vampire's capacity. Their
+// controller can burn 2 pool to cancel this card as it is played."
+#[test]
+fn golconda_removes_an_elder_for_its_capacity_in_pool() {
+    for cancel in [false, true] {
+        let mut e = Engine::bare(3);
+        e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+        let big = vampire(|c| c.capacity >= 8 && c.title == Title::None, 0);
+        let z = e.add_minion(SeatId(1), big, 4, false);
+        let small = e.add_minion(SeatId(1), vampire(|c| c.capacity < 8, 0), 4, false);
+        hand(&mut e, 0, &["Golconda: Inner Peace"]);
+        e.at_master_phase();
+        let req = request(&mut e);
+        assert!(!req
+            .options
+            .contains(&play_at(0, 0, None, Target::Minion(small))));
+        pick(&mut e, play_at(0, 0, None, Target::Minion(z)));
+        let req = expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
+        assert!(req.options.contains(&Choice::PayToCancel));
+        let cap = CRYPT[big as usize].capacity as i32;
+        pick(
+            &mut e,
+            if cancel {
+                Choice::PayToCancel
+            } else {
+                Choice::Pass
+            },
+        );
+        request(&mut e);
+        if cancel {
+            assert!(e.state.minions[z.index()].in_play);
+            assert_eq!(pool(&e, 1), 28);
+        } else {
+            assert!(!e.state.minions[z.index()].in_play);
+            assert_eq!(e.state.seats[1].removed_crypt, vec![big]);
+            assert_eq!(pool(&e, 1), 30 + cap);
+        }
+    }
+}
+
+// Grooming the Protégé: "Move up to 3 blood from a ready vampire you control
+// to a younger vampire of the same clan in your uncontrolled region."
+#[test]
+fn grooming_the_protege_feeds_a_younger_clanmate() {
+    let mut e = Engine::bare(3);
+    let card = plain("Ventrue", "", 0);
+    let a = e.add_minion(SeatId(0), card, 4, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let cap = CRYPT[card as usize].capacity;
+    let young = uncontrolled(
+        &mut e,
+        0,
+        vampire(|c| c.clan == "Ventrue" && c.capacity < cap, 0),
+    );
+    let other = uncontrolled(
+        &mut e,
+        0,
+        vampire(|c| c.clan == "Brujah" && c.capacity < cap, 0),
+    );
+    hand(&mut e, 0, &["Grooming the Protégé"]);
+    e.at_master_phase();
+    let req = request(&mut e);
+    assert!(!req
+        .options
+        .contains(&play_at(0, 0, Some(a), Target::Uncontrolled(other))));
+    pick(&mut e, play_at(0, 0, Some(a), Target::Uncontrolled(young)));
+    pick(&mut e, Choice::SetX(3));
+    request(&mut e);
+    assert_eq!(blood(&e, a), 1);
+    assert_eq!(e.state.seats[0].uncontrolled[young as usize].counters, 3);
+    assert!(!e.state.minions[a.index()].locked, "no action");
+}
+
+// Gangrel Revel: "Gangrel you control get +1 strength. Non-Ravnos minions
+// can burn this card as a Ⓓ action." The Khabar: Community: "Assamites get
+// +1 stealth when bleeding." New Carthage: "Titled Brujah get +1 bleed and
+// +1 vote. Ventrue get -1 vote." [ANK 20251125] [LSJ 20050221-2] Net
+// negative votes count as none.
+#[test]
+fn clan_wide_masters_modify_their_clans() {
+    let mut e = Engine::bare(3);
+    let g0 = e.add_minion(SeatId(0), plain("Gangrel", "", 0), 4, false);
+    let g1 = e.add_minion(SeatId(1), plain("Gangrel", "", 1), 4, false);
+    let r = e.add_minion(SeatId(1), plain("Ravnos", "", 0), 4, false);
+    let h = e.add_minion(SeatId(2), plain("Banu Haqim", "", 0), 4, false);
+    let b = e.add_minion(SeatId(2), a_baron(0), 4, false);
+    let v = e.add_minion(SeatId(2), plain("Ventrue", "", 0), 4, false);
+    let revel = location(&mut e, 0, "Gangrel Revel");
+    location(&mut e, 1, "Khabar: Community, The");
+    location(&mut e, 1, "New Carthage");
+    let str_of = |e: &Engine, m| e.state.bearer_mod(m, Stat::Strength, ActionKind::Bleed);
+    assert_eq!((str_of(&e, g0), str_of(&e, g1)), (1, 0), "you control");
+    assert_eq!(e.state.bearer_mod(h, Stat::Stealth, ActionKind::Bleed), 1);
+    assert_eq!(e.state.bearer_mod(h, Stat::Stealth, ActionKind::Hunt), 0);
+    let brujah_baron =
+        CRYPT[e.state.minions[b.index()].crypt_card().unwrap() as usize].clan == "Brujah";
+    assert_eq!(e.state.clan_votes(v), -1);
+    if brujah_baron {
+        assert_eq!(e.state.clan_votes(b), 1);
+        assert_eq!(e.state.bearer_mod(b, Stat::Bleed, ActionKind::Bleed), 1);
+    }
+    // Seat 1's Ravnos cannot burn the Revel; its Gangrel can.
+    pick(&mut e, Choice::Pass);
+    let req = to_minion_phase(&mut e, 1);
+    assert!(req
+        .options
+        .contains(&use_on(revel, 0, Some(g1), Target::None)));
+    assert!(!req
+        .options
+        .contains(&use_on(revel, 0, Some(r), Target::None)));
+}
+
+// [ANK 20251125] [LSJ 20050221-2] New Carthage: "A vampire can have net negative votes, but
+// net negative votes do not subtract from the total when votes are
+// tallied."
+#[test]
+fn new_carthage_leaves_an_untitled_ventrue_no_votes() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), anarch(0), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let v = e.add_minion(SeatId(2), plain("Ventrue", "", 0), 4, false);
+    location(&mut e, 1, "New Carthage");
+    hand(&mut e, 0, &["Anarchist Uprising"]);
+    pick(&mut e, play(0, 0, a));
+    loop {
+        let req = request(&mut e);
+        if let Some(r) = e.referendum() {
+            assert_eq!(r.votes_of(&e.state, v), 0);
+            break;
+        }
+        e.choose(fallback(&req));
+    }
+}
+
+// Mob Connections: "You can lock this card to give a minion you control 1
+// press, only usable to continue combat."
+#[test]
+fn mob_connections_gives_a_press_to_continue() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 2), 6, false);
+    let mob = location(&mut e, 1, "Mob Connections");
+    bleed_blocked(&mut e, a, z);
+    pick_when(&mut e, use_on(mob, 0, None, Target::None));
+    assert!(e.state.cards[mob.index()].locked);
+    let req = request(&mut e);
+    assert!(req.options.contains(&Choice::UsePress), "{:?}", req.options);
+}
+
+// Fragment of the Book of Nod: "You can lock this card to draw 2 cards
+// (discard down afterward)." [LSJ 20060620] From an empty library, draw what
+// there is. [ANK 20200616] During an action too, when its controller has
+// the impulse.
+#[test]
+fn fragment_of_the_book_of_nod_draws_two() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let f = location(&mut e, 1, "Fragment of the Book of Nod");
+    e.state.seats[1].library = vec![find_library("Soak")];
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, use_on(f, 0, None, Target::None));
+    assert_eq!(e.state.seats[1].hand, vec![find_library("Soak")]);
+    assert!(e.state.cards[f.index()].locked);
+}
+
+// Brujah Debate: "During each Methuselah's master phase, that Methuselah
+// locks one of the oldest Brujah they control (if any). Brujah get +1
+// strength and 1 optional maneuver each combat." [LSJ 19980224] Their pick
+// among the oldest. [LSJ 20010508] A locked one may be picked.
+#[test]
+fn brujah_debate_locks_an_oldest_brujah_each_master_phase() {
+    let mut e = Engine::bare(3);
+    let cap = |m: &MinionId, e: &Engine| e.state.capacity_of(*m).unwrap();
+    let pick_cap = CRYPT[plain("Brujah", "", 0) as usize].capacity;
+    let b1 = e.add_minion(
+        SeatId(0),
+        vampire(
+            |c| c.clan == "Brujah" && c.capacity == pick_cap && c.title == Title::None,
+            0,
+        ),
+        4,
+        false,
+    );
+    let b2 = e.add_minion(
+        SeatId(0),
+        vampire(
+            |c| c.clan == "Brujah" && c.capacity == pick_cap && c.title == Title::None,
+            1,
+        ),
+        4,
+        false,
+    );
+    let young = e.add_minion(
+        SeatId(0),
+        vampire(|c| c.clan == "Brujah" && c.capacity < pick_cap, 0),
+        4,
+        false,
+    );
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    location(&mut e, 1, "Brujah Debate");
+    assert_eq!(cap(&b1, &e), cap(&b2, &e));
+    e.state.minions[b2.index()].locked = true;
+    e.at_master_phase();
+    let req = expect(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    assert_eq!(
+        req.options,
+        vec![Choice::ChooseMinion(b1), Choice::ChooseMinion(b2)]
+    );
+    pick(&mut e, Choice::ChooseMinion(b2));
+    request(&mut e);
+    assert!(!e.state.minions[b1.index()].locked && !e.state.minions[young.index()].locked);
+    assert_eq!(e.state.bearer_mod(b1, Stat::Strength, ActionKind::Bleed), 1);
+    assert_eq!(e.state.clan_combat_maneuvers(young), 1);
+}
+
+// [RTR 20040501] Fragment of the Book of Nod: "Cannot be used when a card
+// is played to draw a card that would cancel it 'as it is played'."
+#[test]
+fn fragment_of_the_book_of_nod_is_no_as_played_answer() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["PRE"], 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    let f = location(&mut e, 1, "Fragment of the Book of Nod");
+    e.state.seats[1].library = vec![find_library("Soak"); 3];
+    hand(&mut e, 0, &["Intimidation"]);
+    hand(&mut e, 1, &["Direct Intervention"]);
+    pick(&mut e, play(0, 1, a));
+    let req = expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
+    assert!(!req.options.contains(&use_on(f, 0, None, Target::None)));
+}
+
+// Rulebook (advanced) "Burn option": "a Methuselah who does not control a
+// minion who meets the requirements of this card … may discard it during
+// ANY Methuselah's unlock phase and replace it. Each Methuselah is limited
+// to one such discard each unlock phase." [LSJ 20100203-2] Sight Beyond
+// Sight: "The fact it is Unique has no bearing on the burn option."
+#[test]
+fn a_burn_option_card_is_discarded_without_a_minion_to_play_it() {
+    // A Salubri in torpor does not meet it (owner, 2026-09-26: rules-qa
+    // 33.8).
+    for (salubri_too, torpid) in [(false, false), (true, false), (true, true)] {
+        let mut e = Engine::bare(3);
+        e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+        e.add_minion(SeatId(1), plain("Ventrue", "", 1), 4, false);
+        if salubri_too {
+            e.add_minion(SeatId(1), salubri(0), 4, torpid);
+        }
+        let salubri_too = salubri_too && !torpid;
+        e.add_minion(SeatId(2), plain("", "", 2), 4, false);
+        let sight = find_library("Sight Beyond Sight");
+        assert!(zvtes::library::LIBRARY[sight as usize].burn_option);
+        e.state.seats[1].hand = vec![sight, sight];
+        e.state.seats[1].library = vec![find_library("Soak"); 2];
+        pick(&mut e, Choice::Pass);
+        let found = loop {
+            let req = request(&mut e);
+            if req.window == WindowLabel::UnlockAbilities && req.seat == SeatId(1) {
+                break Some(req);
+            }
+            if (req.seat, req.window) == (SeatId(1), WindowLabel::MinionPhase) {
+                break None;
+            }
+            e.choose(fallback(&req));
+        };
+        if salubri_too {
+            assert!(found.is_none_or(|r| !r.options.contains(&Choice::Discard(0))));
+            continue;
+        }
+        let req = found.expect("the unlock window offers the discard");
+        assert!(req.options.contains(&Choice::Discard(0)));
+        pick(&mut e, Choice::Discard(0));
+        let hand1 = &e.state.seats[1].hand;
+        assert_eq!(hand1.iter().filter(|&&c| c == sight).count(), 1);
+        assert!(hand1.contains(&find_library("Soak")), "replaced");
+        assert_eq!(e.state.seats[1].ash, vec![sight]);
+        let req = request(&mut e);
+        assert!(
+            !req.options.contains(&Choice::Discard(0)),
+            "one each unlock phase"
+        );
+    }
+}
+
+// ---- Pool masters, wave 2 (slice 11x) ---------------------------------------
+
+// WMRH Talk Radio: "You can lock this card to give a minion +1 intercept. If
+// that minion does not block the action, burn 1 pool after action
+// resolution." [ANK 20200607] Sequencing as usual: its controller uses it
+// when they hold the impulse. [ANK 20230319] Blocks before the lock do not
+// count.
+#[test]
+fn wmrh_talk_radio_charges_a_pool_for_a_failed_block() {
+    for blocked in [true, false] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), with(&["OBF"], 0), 4, false);
+        e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+        let z = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+        e.add_minion(SeatId(2), plain("", "", 3), 4, false);
+        let radio = location(&mut e, 2, "WMRH Talk Radio");
+        if !blocked {
+            hand(&mut e, 0, &["Lost in Crowds"]);
+        }
+        pick(&mut e, action(a, ActionKind::Hunt));
+        pick(&mut e, Choice::DeclareBlock { minion: z });
+        pick_when(&mut e, use_on(radio, 0, None, Target::None));
+        if !blocked {
+            // The acting Methuselah answers with stealth: the attempt fails.
+            pick_when(&mut e, play(0, 0, a));
+        }
+        to_minion_phase(&mut e, 1);
+        assert_eq!(pool(&e, 2), if blocked { 30 } else { 29 });
+    }
+}
+
+// The Rumor Mill, Tabloid Newspaper: "You can lock this card during an action
+// to choose a vampire; the chosen vampire can burn 1 blood to get +1
+// intercept during that action." [ANK 20200607] Sequencing as usual.
+#[test]
+fn the_rumor_mill_lets_a_chosen_vampire_buy_one_intercept() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 3), 4, false);
+    let mill = location(&mut e, 1, "Rumor Mill, Tabloid Newspaper, The");
+    pick(&mut e, action(a, ActionKind::Hunt));
+    pick(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, use_on(mill, 0, None, Target::Minion(z)));
+    pick_when(&mut e, Choice::BurnBloodForIntercept { minion: z });
+    assert_eq!(blood(&e, z), 3);
+    to_minion_phase(&mut e, 0);
+    assert!(e.state.minions[a.index()].locked);
+    assert_eq!(blood(&e, a), 3, "blocked: a hand strike, no hunt");
+}
+
+// Monster: "Once each turn after a combat involving this vampire ends, this
+// vampire can burn 1 blood to unlock if the opposing minion is not ready."
+// [ANK 20230314] After the combat, among the after-combat effects. [ANK
+// 20180719-4] "Each turn": each player's. [ANK 20210309-3] Its controller
+// chooses.
+#[test]
+fn monster_unlocks_its_vampire_after_a_combat_it_won() {
+    let mut e = Engine::bare(3);
+    let h = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 2), 0, false);
+    master_on(&mut e, 0, "Monster", h);
+    let monster = CardId(e.state.cards.len() as u32 - 1);
+    bleed_blocked(&mut e, h, z);
+    pick_when(&mut e, use_on(monster, 0, None, Target::None));
+    assert!(!e.state.minions[h.index()].locked);
+    assert_eq!(blood(&e, h), 2, "a hand strike and the blood burned");
+    assert!(e.state.minions[z.index()].in_torpor);
+}
+
+// Dabbler: "Once each turn, after an action (successful or not) is resolved
+// during which this vampire used 3 or more Disciplines to play cards, this
+// vampire can either burn 1 blood to unlock or gain 1 blood." [ANK
+// 20220411] All the cards played count; the action itself must not be
+// canceled. [ANK 20180719-4] "Once each turn" is each player's turn.
+// [ANK 20210309-3] Its controller chooses to use it.
+#[test]
+fn dabbler_rewards_three_disciplines_in_one_action() {
+    let mut e = Engine::bare(3);
+    let at = e.add_minion(SeatId(0), zvtes::state::find_card("Atiena"), 3, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 2), 5, false);
+    e.state.minions[z.index()].locked = true;
+    let d = master_on(&mut e, 0, "Dabbler", at);
+    hand(&mut e, 0, &["Make the Misere"]);
+    // [cel][obf][pot]: three Disciplines in one card.
+    pick(&mut e, play_at(0, 6, Some(at), Target::Minion(z)));
+    pick_when(&mut e, use_on(d, 1, None, Target::None));
+    assert_eq!(blood(&e, at), 3 - 1 + 1, "struck once, then gained 1");
+}
+
+// Dead Pool: "After a vampire in combat with a Lasombra you control leaves
+// the ready region, you can add 1 counter to this card. During a bleed
+// action …, a Lasombra you control can burn 1 counter from this card to get
+// +2 bleed." [ANK 20231124] [LSJ 19970718] During the bleed, before its
+// resolution.
+#[test]
+fn dead_pool_counts_victims_and_pays_them_as_bleed() {
+    let mut e = Engine::bare(3);
+    let l = e.add_minion(SeatId(0), plain("Lasombra", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 2), 0, false);
+    let w = e.add_minion(SeatId(1), plain("", "", 3), 4, false);
+    let dp = location(&mut e, 0, "Dead Pool");
+    bleed_blocked(&mut e, l, z);
+    to_minion_phase(&mut e, 0);
+    assert_eq!(e.state.cards[dp.index()].counters, 1);
+    let _ = w;
+    e.state.minions[l.index()].locked = false;
+    e.state.minions[l.index()].bled_this_turn = false;
+    let p1 = pool(&e, 1);
+    pick(&mut e, action(l, ActionKind::Bleed));
+    pick_when(&mut e, use_on(dp, 0, Some(l), Target::None));
+    to_minion_phase(&mut e, 0);
+    assert_eq!(pool(&e, 1), p1 - 3);
+    assert_eq!(e.state.cards[dp.index()].counters, 0);
+}
+
+// Alamut: "After an Assamite you control successfully bleeds a Methuselah,
+// put the pool lost by that Methuselah on this card. During the polling step
+// of a political action, you can burn X counters from this card to give a
+// vampire you control +X votes."
+#[test]
+fn alamut_banks_bled_pool_for_votes() {
+    let mut e = Engine::bare(3);
+    let h = e.add_minion(
+        SeatId(0),
+        vampire(|c| c.clan == "Banu Haqim" && c.title == Title::None, 0),
+        4,
+        false,
+    );
+    let an = e.add_minion(SeatId(0), anarch(0), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    let al = location(&mut e, 0, "Alamut");
+    pick(&mut e, action(h, ActionKind::Bleed));
+    to_minion_phase(&mut e, 0);
+    assert_eq!(e.state.cards[al.index()].counters, 1);
+    hand(&mut e, 0, &["Anarchist Uprising"]);
+    pick(&mut e, play(0, 0, an));
+    // One counter: X = 1 without asking.
+    pick_when(&mut e, use_on(al, 0, Some(h), Target::None));
+    request(&mut e);
+    assert_eq!(e.state.cards[al.index()].counters, 0);
+    let r = e.referendum().expect("referendum");
+    assert_eq!(r.votes_of(&e.state, h), 1);
+}
+
+// Cappadocian Crypt: "You can lock this location after resolution of a
+// successful action requiring Hecata or Oblivion [obl] to add 1 blood to a
+// Hecata you control."
+#[test]
+fn cappadocian_crypt_feeds_a_hecata_after_an_oblivion_action() {
+    let mut e = Engine::bare(3);
+    let o = e.add_minion(SeatId(0), with(&["OBL"], 0), 4, false);
+    let h = e.add_minion(
+        SeatId(0),
+        vampire(|c| c.clan == "Hecata" && c.title == Title::None, 0),
+        2,
+        false,
+    );
+    let z = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    let crypt = location(&mut e, 0, "Cappadocian Crypt");
+    hand(&mut e, 0, &["Umbrous Clutch"]);
+    pick(&mut e, play_at(0, 0, Some(o), Target::Minion(z)));
+    pick_when(&mut e, use_on(crypt, 0, None, Target::Minion(h)));
+    assert_eq!(blood(&e, h), 3);
+    assert!(e.state.cards[crypt.index()].locked);
+}
+
+// Powerbase: Munich: "During your master phase, you can lock this location
+// to move 1 blood from a vampire with Oblivion [obl] you control to your
+// pool or from your pool to a ready vampire with Oblivion [obl] you
+// control. Independent vampires can burn this location as a Ⓓ action that
+// costs 1 blood." [LSJ 20080604] That action requires an Independent.
+#[test]
+fn powerbase_munich_shuttles_blood_and_burns_for_independents() {
+    let mut e = Engine::bare(3);
+    let o = e.add_minion(SeatId(0), with(&["obl"], 0), 1, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let ind = e.add_minion(
+        SeatId(1),
+        vampire(
+            |c| c.sect == zvtes::crypt::Sect::Independent && c.title == Title::None,
+            0,
+        ),
+        3,
+        false,
+    );
+    let pm = location(&mut e, 0, "Powerbase: Munich");
+    e.at_master_phase();
+    pick(&mut e, use_on(pm, 1, None, Target::Minion(o)));
+    assert_eq!((blood(&e, o), pool(&e, 0)), (2, 29));
+    pick(&mut e, Choice::Pass);
+    let req = to_minion_phase(&mut e, 1);
+    let burn = use_on(pm, 2, Some(ind), Target::None);
+    assert!(req.options.contains(&burn));
+    pick(&mut e, burn);
+    to_minion_phase(&mut e, 1);
+    assert!(!e.state.cards[pm.index()].in_play);
+    assert_eq!(blood(&e, ind), 2, "1 blood");
+}
+
+// Twilight Camp: "Put this card in play with 4 blood. After you put a
+// non-titled non-Anarch vampire in play from your uncontrolled region, you
+// can burn 1 blood from this card to make that vampire Anarch. You can use a
+// master phase action to move 1 blood from this card to an Anarch."
+#[test]
+fn twilight_camp_makes_anarchs_and_feeds_them() {
+    let mut e = Engine::bare(3);
+    let an = e.add_minion(SeatId(0), anarch(0), 1, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let camp = in_play_with(&mut e, 0, "Twilight Camp", 4);
+    e.at_master_phase();
+    pick(&mut e, use_on(camp, 0, None, Target::Minion(an)));
+    assert_eq!(
+        (blood(&e, an), e.state.cards[camp.index()].counters),
+        (2, 3)
+    );
+    let cam = vampire(
+        |c| c.sect == zvtes::crypt::Sect::Camarilla && c.title == Title::None,
+        7,
+    );
+    let slot = uncontrolled(&mut e, 0, cam);
+    e.state.seats[0].uncontrolled[slot as usize].counters = CRYPT[cam as usize].capacity;
+    pick(&mut e, Choice::Pass);
+    pick_when(&mut e, Choice::InfluenceOut { slot });
+    pick(&mut e, Choice::ResolveRider { card: camp.0 });
+    let v = MinionId(e.state.minions.len() as u32 - 1);
+    assert_eq!(
+        e.state.minions[v.index()].sect(),
+        Some(zvtes::crypt::Sect::Anarch)
+    );
+    assert_eq!(e.state.cards[camp.index()].counters, 2);
+}
+
+// The Mithraeum, London: "If you do not control /Mithras/ during your
+// influence phase, you can search your crypt for 1 copy of him, reveal it,
+// and move it to your uncontrolled region (shuffle afterward). During your
+// unlock phase, you can add 1 blood to /Mithras/ or a Mithraic Mysteries
+// member (the target must be controlled)." Mithraic Cultist: "This vampire
+// is a Mithraic Mysteries member. This vampire gets +1 vote while you
+// control /Mithras/. This vampire gets +1 intercept during actions directed
+// at /Mithras/ or a Mithraic Mysteries card or member."
+#[test]
+fn the_mithraeum_finds_mithras_and_feeds_his_cult() {
+    let mut e = Engine::bare(3);
+    let c = e.add_minion(SeatId(0), plain("", "", 0), 2, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let mithras = zvtes::state::find_card("Mithras");
+    e.state.seats[0].crypt = vec![plain("", "", 2), mithras];
+    let m = location(&mut e, 0, "Mithraeum, London, The");
+    master_on(&mut e, 0, "Mithraic Cultist", c);
+    assert!(e.state.mithraic_member(c));
+    assert_eq!(e.state.host_votes(c), 0, "no Mithras controlled");
+    // Influence phase: Mithras moves to the uncontrolled region.
+    pick_when(&mut e, use_on(m, 0, None, Target::None));
+    assert!(e.state.seats[0]
+        .uncontrolled
+        .iter()
+        .any(|s| s.card == mithras));
+    assert!(!e.state.seats[0].crypt.contains(&mithras));
+    // Next unlock phase: 1 blood to the member.
+    pick(&mut e, Choice::Pass);
+    pick_when(&mut e, use_on(m, 1, None, Target::Minion(c)));
+    assert_eq!(blood(&e, c), 3);
+    let mm = e.add_minion(SeatId(0), mithras, 3, false);
+    let _ = mm;
+    assert_eq!(e.state.host_votes(c), 1, "Mithras controlled");
+}
+
+// ---- Pool masters, wave 3 (slice 11y) ---------------------------------------
+
+// Secure Haven: "This minion cannot be the target of other Methuselahs'
+// actions." [TOM 19951208-1] [LSJ 19980302-1] "Actions that target
+// retainers, equipment, or other cards on the minion are allowed." [LSJ
+// 20031010] [LSJ 20090319] [ANK 20180907] "Actions that choose the vampire
+// cannot be played against him (eg. Propaganda)." [ANK 20221019-3]
+// Banishment is not directed: no protection.
+#[test]
+fn secure_haven_shields_its_minion_from_others_actions() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["PRE"], 0), 4, false);
+    let o = e.add_minion(SeatId(0), with(&["OBF"], 0), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let w = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    master_on(&mut e, 1, "Secure Haven", z);
+    let gun = equip(&mut e, ".44 Magnum", z);
+    hand(&mut e, 0, &["Propaganda", "Conceal", "Umbrous Clutch"]);
+    let req = request(&mut e);
+    let named = |m| play_at(0, 1, Some(a), Target::Minion(m));
+    assert!(!req.options.contains(&named(z)), "a chosen minion");
+    assert!(req.options.contains(&named(w)));
+    assert!(
+        req.options
+            .contains(&play_at(1, 0, Some(o), Target::Card(gun))),
+        "its equipment"
+    );
+    let ob = e.add_minion(SeatId(0), with(&["OBL"], 0), 4, false);
+    let req = request(&mut e);
+    let clutch = |m| play_at(2, 0, Some(ob), Target::Minion(m));
+    assert!(!req.options.contains(&clutch(z)), "an action card's combat");
+    assert!(req.options.contains(&clutch(w)));
+    // A granted action too (Open War's rush).
+    let war = location(&mut e, 0, "Open War");
+    let an = e.add_minion(SeatId(0), anarch(0), 4, false);
+    let req = request(&mut e);
+    assert!(!req
+        .options
+        .contains(&use_on(war, 0, Some(an), Target::Minion(z))));
+    assert!(req
+        .options
+        .contains(&use_on(war, 0, Some(an), Target::Minion(w))));
+}
+
+// Secure Haven: [TOM 19951208-1] "All Methuselahs, including the target
+// vampire's controller, must pay one extra pool when playing Master cards on
+// the target minion." [LSJ 20020620] Paid as the pool comes (Villein): not
+// ousted in between. [LSJ 20010610] Playable on a vampire in torpor. [LSJ
+// 20031010] [LSJ 20090319] [ANK 20180907] Choosing is targeting (Piper).
+#[test]
+fn secure_haven_taxes_master_cards_on_its_minion() {
+    let mut e = Engine::bare(3);
+    let torpid = e.add_minion(SeatId(0), plain("", "", 0), 4, true);
+    let z = e.add_minion(SeatId(1), plain("", "", 1), 1, false);
+    hand(&mut e, 0, &["Secure Haven", "Giant's Blood"]);
+    e.at_master_phase();
+    e.state.seats[0].mpa = 3;
+    pick(&mut e, play_at(0, 0, None, Target::Minion(torpid)));
+    request(&mut e);
+    assert_eq!(pool(&e, 0), 29, "1 pool, on a vampire in torpor");
+    master_on(&mut e, 1, "Secure Haven", z);
+    pick(&mut e, play_at(0, 0, None, Target::Minion(z)));
+    request(&mut e);
+    assert_eq!(pool(&e, 0), 28, "Giant's Blood costs 1");
+    // Its controller pays too: Villein on it with 1 pool, the blood coming
+    // at once.
+    let mut e = Engine::bare(3);
+    let v = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    master_on(&mut e, 0, "Secure Haven", v);
+    hand(&mut e, 0, &["Villein"]);
+    e.state.seats[0].pool = 1;
+    e.at_master_phase();
+    pick(&mut e, play_at(0, 0, None, Target::Minion(v)));
+    pick(&mut e, Choice::SetX(2));
+    request(&mut e);
+    assert!(!e.state.seats[0].ousted);
+    assert_eq!(pool(&e, 0), 2, "1 - 1 + 2");
+    // Piper for a vampire with a haven: 1 more.
+    let mut e = Engine::bare(3);
+    let an = e.add_minion(
+        SeatId(0),
+        vampire(
+            |c| {
+                c.clan == "Gangrel"
+                    && c.sect == zvtes::crypt::Sect::Anarch
+                    && c.title == Title::None
+            },
+            0,
+        ),
+        4,
+        false,
+    );
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    master_on(&mut e, 0, "Secure Haven", an);
+    hand(&mut e, 0, &["Piper", "Double Deuce"]);
+    e.at_master_phase();
+    pick(&mut e, play(0, 0, an));
+    request(&mut e);
+    assert_eq!(pool(&e, 0), 30 - 2 - 1);
+}
+
+// Secure Haven: "Burn this card after this minion goes to torpor." [RTR
+// 19960124] Contested, it is not burned. [ANK 20221120] "There is no
+// additional cost for using the effects of cards already in play (eg. KRCG
+// News Radio)."
+#[test]
+fn secure_haven_burns_with_its_minion_unless_contested() {
+    for contested in [false, true] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+        e.add_minion(SeatId(0), plain("", "", 3), 4, false);
+        let z = e.add_minion(SeatId(1), plain("", "", 1), 0, false);
+        let sh = master_on(&mut e, 1, "Secure Haven", z);
+        e.state.cards[sh.index()].contested = contested;
+        bleed_blocked(&mut e, a, z);
+        to_minion_phase(&mut e, 0);
+        assert!(e.state.minions[z.index()].in_torpor);
+        assert_eq!(e.state.cards[sh.index()].in_play, contested);
+    }
+    // KRCG News Radio's intercept for a haven's minion: no extra pool.
+    let mut e = Engine::bare(4);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 3, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 3), 4, false);
+    e.add_minion(SeatId(3), plain("", "", 4), 4, false);
+    let radio = location(&mut e, 2, "KRCG News Radio");
+    master_on(&mut e, 1, "Secure Haven", z);
+    hand(&mut e, 0, &["Anarchist Uprising"]);
+    pick(&mut e, play(0, 0, a));
+    let p2 = pool(&e, 2);
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, use_on(radio, 1, None, Target::None));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e, 2), p2 - 1, "its own cost only");
+}
+
+// Yoruba Shrine: "If a ready Assamite you control is the target of a
+// directed action …, you can lock this location to unlock the acting minion
+// and have the action … fail. Only usable as the directed action is
+// announced." [LSJ 20081105] After the acting player's as-announced
+// effects. [ANK 20190425] Before other modifiers and reactions. [ANK
+// 20211015] [RTR 20180719] The failed action reached resolution: NRA.
+// [LSJ 20070219] It was not blocked.
+#[test]
+fn yoruba_shrine_fails_an_action_aimed_at_an_assamite() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["OBL"], 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let h = e.add_minion(
+        SeatId(1),
+        vampire(|c| c.clan == "Banu Haqim" && c.title == Title::None, 0),
+        4,
+        false,
+    );
+    let shrine = location(&mut e, 1, "Yoruba Shrine");
+    hand(&mut e, 0, &["Umbrous Clutch", "Umbrous Clutch"]);
+    pick(&mut e, play_at(0, 0, Some(a), Target::Minion(h)));
+    let req = until(&mut e, SeatId(1), WindowLabel::ActionAsAnnounced);
+    let fail = use_on(shrine, 0, None, Target::None);
+    assert!(req.options.contains(&fail));
+    pick(&mut e, fail);
+    let req = to_minion_phase(&mut e, 0);
+    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Failed));
+    assert!(!e.state.minions[a.index()].locked, "unlocked");
+    assert!(e.state.cards[shrine.index()].locked);
+    assert!(
+        !req.options
+            .contains(&play_at(0, 0, Some(a), Target::Minion(h))),
+        "the same action again: NRA"
+    );
+}
+
+// Cave of Apples: "Followers of Set you control can put 1 corruption counter
+// on an ally or younger vampire controlled by your prey as a Ⓓ action. If the
+// action is successful and the number of your corruption counters on the
+// minion equals or exceeds their capacity or cost, you can burn those
+// counters to steal that minion." [LSJ 20080604] The action requires a
+// Follower of Set. [ANK 20200925] [ANK 20211105] A counter put otherwise
+// (The Platinum Protocol [pro]) gives no opportunity to steal.
+#[test]
+fn cave_of_apples_corrupts_and_steals_at_capacity() {
+    let mut e = Engine::bare(3);
+    let m = e.add_minion(
+        SeatId(0),
+        vampire(|c| c.clan == "Ministry" && c.capacity >= 7, 0),
+        4,
+        false,
+    );
+    let other = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 4, false);
+    let z = e.add_minion(SeatId(1), vampire(|c| c.capacity == 2, 0), 2, false);
+    let cave = location(&mut e, 0, "Cave of Apples");
+    e.state.minions[z.index()].add_corruption(SeatId(0), 1);
+    let req = request(&mut e);
+    assert!(!req
+        .options
+        .contains(&use_on(cave, 0, Some(other), Target::Minion(z))));
+    pick(&mut e, use_on(cave, 0, Some(m), Target::Minion(z)));
+    let req = until(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    assert_eq!(req.options, vec![Choice::Pass, Choice::ChooseMinion(z)]);
+    pick(&mut e, Choice::ChooseMinion(z));
+    request(&mut e);
+    let v = &e.state.minions[z.index()];
+    assert_eq!((v.owner, v.corruption_of(SeatId(0))), (SeatId(0), 0));
+}
+
+// British Museum: "+1 hand size. Minions you control can unlock after
+// resolution of a successful action to equip with a non-electronic,
+// non-vehicle, non-weapon equipment card from your hand … Non-electronic,
+// non-vehicle, non-weapon equipment cards cost minions you control -1 blood
+// or pool to equip." [ANK 20220824] The type read in hand: a location
+// equipment too. [ANK 20221026] The reduction always.
+#[test]
+fn british_museum_discounts_plain_equipment_and_unlocks_once() {
+    let mut e = Engine::bare(3);
+    let t = e.add_minion(
+        SeatId(0),
+        vampire(|c| c.clan == "Tzimisce" && c.title == Title::None, 0),
+        4,
+        false,
+    );
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let bm = location(&mut e, 0, "British Museum, London, The");
+    assert_eq!(e.state.hand_size(SeatId(0)), 8);
+    hand(&mut e, 0, &["Living Manse"]);
+    let cost = match zvtes::library::LIBRARY[find_library("Living Manse") as usize].pool_cost {
+        zvtes::library::Cost::Fixed(n) => n as i32,
+        _ => 0,
+    };
+    let p0 = pool(&e, 0);
+    pick(&mut e, play(0, 0, t));
+    pick_when(&mut e, use_on(bm, 0, None, Target::None));
+    assert!(!e.state.minions[t.index()].locked);
+    assert_eq!(pool(&e, 0), p0 - (cost - 1).max(0));
+}
+
+// Yoruba Shrine: "If a ready Assamite you control … is chosen by the acting
+// Methuselah in the terms of a referendum, you can lock this location to
+// unlock the acting minion and have the … referendum fail. Only usable …
+// during the polling step of the referendum before votes and ballots are
+// cast."
+#[test]
+fn yoruba_shrine_fails_a_referendum_naming_an_assamite() {
+    let mut e = Engine::bare(3);
+    let alexa = e.add_minion(SeatId(0), zvtes::state::find_card("Alexa Draper"), 5, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let h = e.add_minion(
+        SeatId(1),
+        vampire(|c| c.clan == "Banu Haqim" && c.title == Title::None, 0),
+        4,
+        false,
+    );
+    e.add_minion(SeatId(2), plain("", "", 2), 4, false);
+    let shrine = location(&mut e, 1, "Yoruba Shrine");
+    hand(&mut e, 0, &["Banishment"]);
+    pick(&mut e, play(0, 0, alexa));
+    pick_when(&mut e, Choice::ChooseMinion(h));
+    let fail = use_on(shrine, 1, None, Target::None);
+    pick_when(&mut e, fail);
+    to_minion_phase(&mut e, 0);
+    assert!(e.state.minions[h.index()].in_play, "not banished");
+    assert!(!e.state.minions[alexa.index()].locked, "unlocked");
+    assert!(e.state.cards[shrine.index()].locked);
+}
+
+// ---- Pool masters, wave 4: cost reductions (slice 11z) ----------------------
+
+// The Line: "You can lock this location to reduce the cost of an action card
+// a vampire you control plays by 1 blood (this location is not locked if
+// that card is canceled as it is played)." [ANK 20181007] Blood, not pool.
+// [ANK 20230620] [ANK 20170605] [LSJ 20090705] From the announcement to
+// just before the cost is paid; canceled as played, not locked. [LSJ
+// 20090705] [LSJ 20030917] [ANK 20230721] It lets a card otherwise
+// unaffordable be played, announced with it.
+#[test]
+fn the_line_takes_a_blood_off_an_action_card() {
+    // Unaffordable without it: announced with the card, no Pass.
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["PRE"], 0), 1, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let line = location(&mut e, 0, "Line, The");
+    hand(&mut e, 0, &["Propaganda"]);
+    // Its only choice: The Line (elided).
+    pick(&mut e, play(0, 0, a));
+    to_minion_phase(&mut e, 1);
+    assert!(e.state.cards[line.index()].locked);
+    assert_eq!((blood(&e, a), pool(&e, 1)), (0, 28), "2 blood - 1");
+    // Canceled as played: not locked.
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["PRE"], 0), 1, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let line = location(&mut e, 0, "Line, The");
+    hand(&mut e, 0, &["Propaganda"]);
+    hand(&mut e, 1, &["Direct Intervention"]);
+    pick(&mut e, play(0, 0, a));
+    pick_when(&mut e, play_at(0, 0, None, Target::None));
+    request(&mut e);
+    assert!(!e.state.cards[line.index()].locked);
+    // During the action, before the cost is paid.
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["PRE"], 0), 3, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let line = location(&mut e, 0, "Line, The");
+    hand(&mut e, 0, &["Public Trust"]);
+    pick(&mut e, play(0, 0, a));
+    pick(&mut e, Choice::Pass);
+    pick_when(&mut e, use_on(line, 0, None, Target::None));
+    to_minion_phase(&mut e, 1);
+    assert_eq!(blood(&e, a), 3, "1 blood - 1");
+}
+
+// The Shard, London: "If you have the Edge, you can lock this card to reduce
+// the cost of a card you play by 2 pool or blood." [ANK 20221102] Minion
+// cards too. Master cards: announced with the card, locked as it resolves
+// ([ANK 20230620] [ANK 20170605] [LSJ 20090705]: not if canceled as played;
+// [LSJ 20090705] [LSJ 20030917] [ANK 20230721]: announced when otherwise
+// unaffordable).
+#[test]
+fn the_shard_takes_two_off_a_card_with_the_edge() {
+    for edge in [false, true] {
+        let mut e = Engine::bare(3);
+        e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+        e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+        let shard = location(&mut e, 0, "Shard, London, The");
+        e.state.seats[0].has_edge = edge;
+        hand(&mut e, 0, &["Parthenon, The"]);
+        e.at_master_phase();
+        pick(&mut e, play_at(0, 0, None, Target::None));
+        if edge {
+            let req = expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
+            assert!(req.options.contains(&Choice::Pass));
+            pick(&mut e, Choice::ResolveRider { card: shard.0 });
+        }
+        request(&mut e);
+        assert_eq!(pool(&e, 0), if edge { 30 } else { 28 });
+        assert_eq!(e.state.cards[shard.index()].locked, edge);
+    }
+    // Unaffordable without it: no Pass. Canceled as played (Wash): not
+    // locked.
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", "", 1), 4, false);
+    let shard = location(&mut e, 0, "Shard, London, The");
+    e.state.seats[0].has_edge = true;
+    e.state.seats[0].pool = 1;
+    hand(&mut e, 0, &["Parthenon, The"]);
+    hand(&mut e, 1, &["Wash"]);
+    e.at_master_phase();
+    // The Shard its only choice: elided.
+    pick(&mut e, play_at(0, 0, None, Target::None));
+    pick_when(&mut e, play_at(0, 0, None, Target::None));
+    request(&mut e);
+    assert!(!e.state.cards[shard.index()].locked);
+    assert_eq!(pool(&e, 0), 1);
+}
+
+// Ravnos Cache: "During your master phase, you can move 1 counter from your
+// pool to this location and add 1 counter (from the blood bank) to it.
+// Minions you control can lock this location to use those counters to pay
+// some or all of the blood or pool cost of equipment they equip." [RTR
+// 19960112] In place of pool or blood, as the cost is.
+#[test]
+fn ravnos_cache_banks_pool_to_pay_for_equipment() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let cache = location(&mut e, 0, "Ravnos Cache");
+    e.at_master_phase();
+    pick(&mut e, use_on(cache, 0, None, Target::None));
+    assert_eq!(
+        (pool(&e, 0), e.state.cards[cache.index()].counters),
+        (29, 2)
+    );
+    // Once a master phase: the phase ends with nothing else to do.
+    hand(&mut e, 0, &[".44 Magnum"]);
+    let req = request(&mut e);
+    assert_eq!(req.window, WindowLabel::MinionPhase);
+    pick_when(&mut e, play(0, 0, a));
+    pick(&mut e, Choice::ResolveRider { card: cache.0 });
+    pick(&mut e, Choice::SetX(2));
+    to_minion_phase(&mut e, 1);
+    assert_eq!(pool(&e, 0), 29, "the Magnum's 2 pool from the counters");
+    assert!(e.state.cards[cache.index()].locked);
+    assert_eq!(e.state.cards[cache.index()].counters, 0);
+}
+
+// Ravnos Carnival: "This location comes into play with 1 counter for each
+// Ravnos you control. Ravnos you control can use those counters to pay some
+// or all of the blood cost of action cards they play. If this location has
+// no counters, burn it." [LSJ 20050408] An action otherwise unaffordable
+// may be attempted. [RTR 20111202] The counters are announced with the
+// card. [ANK 20180109] [LSJ 20070224] Not a cardless action, nor one
+// provided by a card in play. [LSJ 20091021] Not a political action card's
+// cost.
+#[test]
+fn ravnos_carnival_pays_a_ravnos_action_card() {
+    let mut e = Engine::bare(3);
+    let r = e.add_minion(
+        SeatId(0),
+        vampire(
+            |c| c.clan == "Ravnos" && has(c, &["pre"]) && c.title == Title::None,
+            0,
+        ),
+        1,
+        false,
+    );
+    e.add_minion(
+        SeatId(0),
+        vampire(|c| c.clan == "Ravnos" && c.title == Title::None, 1),
+        3,
+        false,
+    );
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    hand(&mut e, 0, &["Ravnos Carnival"]);
+    e.at_master_phase();
+    pick(&mut e, play_at(0, 0, None, Target::None));
+    request(&mut e);
+    let carnival = CardId(e.state.cards.len() as u32 - 1);
+    assert_eq!(e.state.cards[carnival.index()].counters, 2);
+    hand(&mut e, 0, &["Propaganda"]);
+    // 1 blood for a 2-blood card: the counters pay (announced with it).
+    let req = request(&mut e);
+    assert!(req.options.contains(&play(0, 0, r)));
+    // The Carnival its only choice (unaffordable alone): how many counters.
+    pick(&mut e, play(0, 0, r));
+    let req = expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
+    assert_eq!(req.options, vec![Choice::SetX(1), Choice::SetX(2)]);
+    pick(&mut e, Choice::SetX(2));
+    to_minion_phase(&mut e, 0);
+    assert_eq!((pool(&e, 1), blood(&e, r)), (28, 1));
+    assert!(!e.state.cards[carnival.index()].in_play, "no counters left");
+}
+
+// Fleshforge Chamber: "During your master phase, you can put a ghoul (ally
+// or retainer) from your hand on this location, face up and out of play.
+// Tzimisce you control can play cards from this location as if from your
+// hand (requirements and cost apply as normal)." Put there, the card is
+// replaced; played from there, it is not (owner, 2026-09-26: rules-qa
+// 37.1).
+#[test]
+fn fleshforge_chamber_keeps_ghouls_for_the_tzimisce() {
+    let mut e = Engine::bare(3);
+    let t = e.add_minion(
+        SeatId(0),
+        vampire(|c| c.clan == "Tzimisce" && c.title == Title::None, 0),
+        4,
+        false,
+    );
+    let v = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let ff = location(&mut e, 0, "Fleshforge Chamber");
+    let ghoul = find_library("Szlachta Assistant");
+    hand(&mut e, 0, &["Szlachta Assistant", "Soak"]);
+    e.state.seats[0].library = vec![find_library("Soak"); 3];
+    e.at_master_phase();
+    pick(&mut e, use_on(ff, 0, None, Target::None));
+    let req = request(&mut e);
+    assert_eq!(e.state.cards[ff.index()].stored, vec![ghoul]);
+    // Replaced (rules-qa 37.1).
+    let library = e.state.seats[0].library.len();
+    assert!(library < 3, "replaced");
+    // The minion phase: the index past the hand is the card on the chamber.
+    let _ = req;
+    let req = to_minion_phase(&mut e, 0);
+    let k = e.state.seats[0].hand.len() as u8;
+    assert!(req.options.contains(&play(k, 0, t)));
+    assert!(!req.options.contains(&play(k, 0, v)), "a Tzimisce only");
+    pick(&mut e, play(k, 0, t));
+    to_minion_phase(&mut e, 1);
+    assert!(e.state.cards[ff.index()].stored.is_empty());
+    assert!(e
+        .state
+        .cards
+        .iter()
+        .any(|c| c.in_play && c.card == ghoul && c.host == Some(t)));
+    assert_eq!(
+        e.state.seats[0].library.len(),
+        library,
+        "played from it: not replaced"
+    );
+}
+
+// Rules-qa 36.1 (owner, 2026-09-26): The Line and The Shard can be locked
+// as the action resolves too.
+#[test]
+fn the_line_can_be_locked_as_the_action_resolves() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["PRE"], 0), 3, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let line = location(&mut e, 0, "Line, The");
+    hand(&mut e, 0, &["Propaganda"]);
+    pick(&mut e, play(0, 0, a));
+    pick(&mut e, Choice::Pass); // nothing announced with the card
+    let lock = use_on(line, 0, None, Target::None);
+    loop {
+        let req = request(&mut e);
+        if (req.seat, req.window) == (SeatId(0), WindowLabel::ActionWouldBeSuccessful) {
+            assert!(req.options.contains(&lock));
+            e.choose(req.options.iter().position(|o| *o == lock).expect("lock"));
+            break;
+        }
+        e.choose(fallback(&req));
+    }
+    to_minion_phase(&mut e, 1);
+    assert_eq!(blood(&e, a), 2, "2 blood - 1");
+}
+
+// [ANK 20230824] [RTR 20070707] "Can reduce the cost of an action card even
+// if it is not played as an action (e.g. a weapon played with Concealed
+// Weapon or an Ally with Piper)." "Cost reductions that are not referring to
+// an action apply." (owner, 2026-09-26: rules-qa 36.5): The Shard for
+// Piper's ally, Ravnos Cache for Contraband's equipment.
+#[test]
+fn reductions_reach_cards_played_by_piper_and_contraband() {
+    let mut e = Engine::bare(3);
+    let an = e.add_minion(
+        SeatId(0),
+        vampire(
+            |c| {
+                c.clan == "Gangrel"
+                    && c.sect == zvtes::crypt::Sect::Anarch
+                    && c.title == Title::None
+            },
+            0,
+        ),
+        4,
+        false,
+    );
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let shard = location(&mut e, 0, "Shard, London, The");
+    e.state.seats[0].has_edge = true;
+    hand(&mut e, 0, &["Piper", "Double Deuce"]);
+    e.at_master_phase();
+    pick(&mut e, play(0, 0, an));
+    // The ally named (its only choice), then The Shard for it.
+    pick_when(&mut e, Choice::ResolveRider { card: shard.0 });
+    request(&mut e);
+    assert_eq!(pool(&e, 0), 30, "Double Deuce's 2 pool taken off");
+    assert!(e.state.cards[shard.index()].locked);
+    // Contraband's Magnum paid with Ravnos Cache counters.
+    let mut e = Engine::bare(3);
+    let ravnos = vampire(|c| c.clan == "Ravnos" && has(c, &["OBF"]), 0);
+    let a = e.add_minion(SeatId(0), ravnos, 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let z = e.add_minion(SeatId(1), plain("Brujah", "", 0), 5, false);
+    let cache = in_play_with(&mut e, 0, "Ravnos Cache", 2);
+    hand(&mut e, 0, &["Contraband", ".44 Magnum"]);
+    let p0 = pool(&e, 0);
+    bleed_blocked(&mut e, a, z);
+    pick_when(&mut e, play(0, 1, a));
+    pick_when(&mut e, Choice::SetX(0)); // no blood share
+    pick_when(&mut e, Choice::ResolveRider { card: cache.0 });
+    pick(&mut e, Choice::SetX(2));
+    request(&mut e);
+    assert_eq!(pool(&e, 0), p0, "the counters paid");
+    assert_eq!(e.state.cards[cache.index()].counters, 0);
+}

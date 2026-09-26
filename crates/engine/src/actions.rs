@@ -36,6 +36,8 @@ fn found_play(seat: SeatId, acting: MinionId, card: u16) -> PlayCtx {
         named: None,
         chosen: None,
         ash: None,
+        discounts: [None; 3],
+        from: None,
     }
 }
 
@@ -205,6 +207,11 @@ pub struct ActionCtx {
     /// Taken off the action card's cost at resolution (Szlachta
     /// Assistant: "by 2 blood or pool").
     pub cost_reduction: u8,
+    /// Blood-only reductions of the action card's cost (The Line).
+    pub blood_reduction: u8,
+    /// Counters of cards in play paying the action card's cost, spent as it
+    /// is paid (Ravnos Carnival, Ravnos Cache).
+    pub counter_payments: Vec<(CardId, u8)>,
     /// An equip action from another minion: that minion, and the equipment
     /// announced (rulebook "Equip").
     pub giver: Option<MinionId>,
@@ -237,6 +244,18 @@ pub struct ActionCtx {
     /// Minions that may burn blood for intercept this action (Eyes of the
     /// Wild).
     pub burn_for_intercept: Vec<MinionId>,
+    /// Vampires that "can burn 1 blood to get +1 intercept during that
+    /// action", once (The Rumor Mill, Tabloid Newspaper).
+    pub burn_for_intercept_once: Vec<MinionId>,
+    /// WMRH Talk Radio's intercept: the minion given it, the blocks before
+    /// (not counted, ANK 20230319), and the Methuselah burning 1 pool after
+    /// resolution if it did not block.
+    pub pool_if_no_block: Vec<(MinionId, usize, SeatId)>,
+    /// The combatants of the last combat of the action (Monster).
+    pub last_combat: Option<[MinionId; 2]>,
+    /// The Disciplines each minion used to play cards during the action,
+    /// canceled cards included (Dabbler; ANK 20220411).
+    pub disciplines_played: Vec<(MinionId, &'static str)>,
     /// Minions locked after the action unless they blocked it (Eyes of the
     /// Wild).
     pub lock_if_no_block: Vec<MinionId>,
@@ -467,9 +486,20 @@ impl ActionCtx {
                     && st.cards[l.source.index()].bearer() == Some(host)
             })
         };
+        // Directed at /Mithras/ or a Mithraic Mysteries card or member
+        // (Mithraic Cultist).
+        let at_mithraic = match self.target {
+            Target::Minion(t) => st.minions[t.index()].name() == "Mithras" || st.mithraic_member(t),
+            Target::Card(c) => {
+                let name = crate::library::LIBRARY[st.cards[c.index()].card as usize].name;
+                name == "Mithraeum, London, The" || name == "Mithraic Cultist"
+            }
+            _ => false,
+        } && self.directed_seat(st).is_some();
         let own: i32 = on(m)
             .filter_map(|l| match l.modifier {
                 cards::Modifier::HostInterceptOnBleedAtYou(n) if bleed_at_owner => Some(n as i32),
+                cards::Modifier::HostInterceptVsMithraic(n) if at_mithraic => Some(n as i32),
                 _ => None,
             })
             .sum();
@@ -747,6 +777,8 @@ impl Engine {
             card_returned: false,
             card_entered_play: false,
             cost_reduction: 0,
+            blood_reduction: 0,
+            counter_payments: Vec::new(),
             stealth_reduce: 0,
             // An action card's own "allies cannot block this action"
             // (Slaughtering the Herd [dom]).
@@ -789,6 +821,21 @@ impl Engine {
             failed_blockers: Vec::new(),
             library_toll: Vec::new(),
             burn_for_intercept: Vec::new(),
+            burn_for_intercept_once: Vec::new(),
+            pool_if_no_block: Vec::new(),
+            last_combat: None,
+            // The action card's own Disciplines, played by the acting
+            // minion.
+            disciplines_played: card
+                .map(|p| {
+                    crate::library::LIBRARY[p.card as usize].modes
+                        [cards::library_mode(p.card, p.mode as usize)]
+                    .tags
+                    .iter()
+                    .map(|t| (minion, cards::discipline_key(t)))
+                    .collect()
+                })
+                .unwrap_or_default(),
             lock_if_no_block: Vec::new(),
             hunt_gained: false,
             // An action card's hunt (Psychophagia).
@@ -815,6 +862,12 @@ impl Engine {
             corruption_fails: 0,
             corruption_unlock: 0,
         });
+        // The reductions announced with the card: a lock is made now —
+        // once the card is no longer cancelable as played (The Line: not
+        // locked if the card is canceled, ANK 20230620).
+        if let Some(play) = card {
+            self.apply_announced_discounts(&play);
+        }
         // Veil the Legions [OBF]: one of the next X actions this turn gets
         // +1 stealth, counted as it is announced (a later cancel does not
         // give it back: LSJ 20070526).
@@ -1078,6 +1131,95 @@ impl Engine {
 
     /// The attempting minion resigns its attempt: back to A, where it may
     /// attempt again (LSJ 20031121-2).
+    /// A card action's cost after its reductions: the "blood or pool" ones
+    /// off whichever the card costs, the blood-only ones, then counters
+    /// (Ravnos Carnival: blood; Ravnos Cache: either) — with what each
+    /// counter source covers.
+    pub(crate) fn reduced_cost_with(
+        &self,
+        a: &ActionCtx,
+        pool: i32,
+        blood: u8,
+    ) -> (i32, u8, Vec<(CardId, u8)>) {
+        let (mut pool, mut blood) = (pool, blood);
+        if pool > 0 {
+            pool = (pool - a.cost_reduction as i32).max(0);
+        } else {
+            blood = blood.saturating_sub(a.cost_reduction);
+        }
+        blood = blood.saturating_sub(a.blood_reduction);
+        let mut used = Vec::new();
+        for &(c, x) in &a.counter_payments {
+            let avail = x.min(self.state.cards[c.index()].counters);
+            let n = match self.state.cost_source_of(c) {
+                Some(cards::CostSource::Carnival) => avail.min(blood),
+                Some(cards::CostSource::Cache) if pool > 0 => avail.min(pool as u8),
+                Some(cards::CostSource::Cache) => avail.min(blood),
+                _ => 0,
+            };
+            match self.state.cost_source_of(c) {
+                Some(cards::CostSource::Cache) if pool > 0 => pool -= n as i32,
+                _ => blood -= n,
+            }
+            used.push((c, n));
+        }
+        (pool, blood, used)
+    }
+
+    /// Spend the counters paying a cost (`reduced_cost_with`'s usage); a
+    /// Ravnos Carnival with none left is burned.
+    pub(crate) fn spend_counters(&mut self, used: &[(CardId, u8)]) {
+        for &(c, n) in used {
+            let card = &mut self.state.cards[c.index()];
+            card.counters -= n.min(card.counters);
+            if card.counters == 0
+                && self.state.cost_source_of(c) == Some(cards::CostSource::Carnival)
+            {
+                self.burn_card_in_play(c);
+            }
+        }
+    }
+
+    /// The cost reductions announced with an action card: The Line and The
+    /// Shard locked now (still unlocked, the Edge still held), the
+    /// counters recorded to be spent as the cost is paid.
+    pub(crate) fn apply_announced_discounts(&mut self, play: &PlayCtx) {
+        for (c, n) in play.discounts.into_iter().flatten() {
+            let card = &self.state.cards[c.index()];
+            if !card.present() {
+                continue;
+            }
+            match self.state.cost_source_of(c) {
+                Some(cards::CostSource::Line) if !card.locked => {
+                    self.state.cards[c.index()].locked = true;
+                    self.action.as_mut().expect("action").blood_reduction += n;
+                }
+                Some(cards::CostSource::Shard)
+                    if !card.locked && self.state.seats[play.seat.index()].has_edge =>
+                {
+                    self.state.cards[c.index()].locked = true;
+                    self.action.as_mut().expect("action").cost_reduction += n;
+                }
+                Some(cards::CostSource::Cache) if !card.locked => {
+                    self.state.cards[c.index()].locked = true;
+                    self.action
+                        .as_mut()
+                        .expect("action")
+                        .counter_payments
+                        .push((c, n));
+                }
+                Some(cards::CostSource::Carnival) => {
+                    self.action
+                        .as_mut()
+                        .expect("action")
+                        .counter_payments
+                        .push((c, n));
+                }
+                _ => {}
+            }
+        }
+    }
+
     pub(crate) fn resign_attempt(&mut self) {
         let a = self.action.as_mut().expect("action context");
         a.state = ActionState::Open;
@@ -1263,6 +1405,9 @@ impl Engine {
                                             .sum::<i32>()
                             }
                             cards::Requirement::AttemptingClan(k) => v.clan() == Some(k),
+                            cards::Requirement::AttemptingCapacityAtLeast(n) => {
+                                st.capacity_of(m).is_some_and(|c| c >= n)
+                            }
                             cards::Requirement::AttemptingSectIn(s) => {
                                 v.sect().is_some_and(|x| s.contains(&x))
                             }
@@ -1279,6 +1424,15 @@ impl Engine {
                         })
                         .sum::<u8>()
                 })
+                // The Rumor Mill: its controller's vampire with blood may be
+                // chosen to buy 1 intercept.
+                .chain(def.abilities.iter().filter_map(|ab| {
+                    (ab.effects.contains(&Effect::TargetBurnsBloodForIntercept)
+                        && controller == seat
+                        && v.blood > 0
+                        && v.is_vampire())
+                    .then_some(1)
+                }))
                 .max()
                 .unwrap_or(0);
             total = total.saturating_add(best);
@@ -1448,12 +1602,13 @@ impl Engine {
             }
         }
         // Eyes of the Wild: burn 1 blood for +1 intercept, while its
-        // attempt needs intercept, as often as it pays.
+        // attempt needs intercept, as often as it pays; The Rumor Mill's
+        // chosen vampire, once.
         if let ActionState::Attempt(m) = a.state {
             let v = &self.state.minions[m.index()];
             if v.owner == seat
                 && v.blood > 0
-                && a.burn_for_intercept.contains(&m)
+                && (a.burn_for_intercept.contains(&m) || a.burn_for_intercept_once.contains(&m))
                 && a.stealth(&self.state) > a.intercept_of(&self.state, m)
             {
                 options.push(Choice::BurnBloodForIntercept { minion: m });
@@ -1570,6 +1725,9 @@ impl Engine {
                 self.pay_block_toll(*minion, false);
             }
             Choice::BurnBloodForIntercept { minion } => {
+                if !a.burn_for_intercept.contains(minion) {
+                    a.burn_for_intercept_once.retain(|m| m != minion);
+                }
                 a.window.play();
                 a.intercept_given.push((*minion, 1));
                 self.state.minions[minion.index()].blood -= 1;
@@ -1837,6 +1995,24 @@ impl Engine {
     /// Dawn's damage, ANK 20220331); an ended action takes no more cards
     /// in it (RTR 20180719), a failed one does (ANK 20221205).
     pub(crate) fn after_resolution(&mut self) {
+        // WMRH Talk Radio: the minion given intercept did not block since.
+        if let Some(a) = self.action.as_mut() {
+            let due = std::mem::take(&mut a.pool_if_no_block);
+            let losses: Vec<SeatId> = due
+                .iter()
+                .filter(|&&(m, since, _)| {
+                    !a.blocked_by[since.min(a.blocked_by.len())..].contains(&m)
+                })
+                .map(|&(_, _, s)| s)
+                .collect();
+            let mut loss = vec![0; self.state.seats.len()];
+            for s in losses {
+                loss[s.index()] += 1;
+            }
+            if loss.iter().any(|&n| n > 0) {
+                self.burn_pool_batch(&loss);
+            }
+        }
         // Warsaw Station: a successful action (a fizzled one is successful,
         // with no effect).
         if let Some(a) = self.action.as_ref() {
@@ -2089,6 +2265,16 @@ impl Engine {
             }
             Effect::BurnForInterceptThisAction => {
                 a.burn_for_intercept.push(play.actor.expect("actor"))
+            }
+            Effect::TargetBurnsBloodForIntercept => {
+                if let Target::Minion(t) = play.target {
+                    a.burn_for_intercept_once.push(t);
+                }
+            }
+            Effect::PoolIfAttemptingDoesNotBlock => {
+                if let ActionState::Attempt(m) = a.state {
+                    a.pool_if_no_block.push((m, a.blocked_by.len(), play.seat));
+                }
             }
             Effect::LockIfNoBlock => a.lock_if_no_block.push(play.actor.expect("actor")),
             Effect::DawnOperation { cancel } => {
@@ -2640,13 +2826,18 @@ impl Engine {
                 // paid now, unpayable by then the action fizzles (spec
                 // §1.7.1, rules-qa 3.6).
                 if let Some(play) = a.card {
-                    let blood = cards::blood_cost(&self.state, play.card, play.x);
+                    let (_, blood, used) = self.reduced_cost_with(
+                        &a,
+                        0,
+                        cards::blood_cost(&self.state, play.card, play.x),
+                    );
                     if self.state.minions[a.acting.index()].blood < blood {
                         a.outcome = Some(Outcome::Fizzled);
                         self.action = Some(a);
                         self.after_resolution();
                         return;
                     }
+                    self.spend_counters(&used);
                     self.state.minions[a.acting.index()].blood -= blood;
                 }
                 // About to bleed for 1 pool or more: the cards remembering
@@ -2655,7 +2846,11 @@ impl Engine {
                     a.bleed_mods += self.about_to_bleed_riders(a.acting, prey);
                 }
                 let amount = a.bleed_amount(&self.state);
+                let lost = amount.min(self.state.seats[prey.index()].pool.max(0) as u8);
                 self.state.seats[prey.index()].pool -= amount as i32;
+                if lost > 0 {
+                    self.own_bleed_riders(seat, a.acting, lost);
+                }
                 // A successful bleed, for 1 pool or more: take the Edge
                 // (rulebook "Bleed").
                 if amount > 0 {
@@ -2783,13 +2978,20 @@ impl Engine {
                 let mut pool =
                     cards::pool_cost(&self.state, seat, play.card, Target::Minion(acting));
                 let mut blood = cards::blood_cost(&self.state, play.card, play.x);
-                // A reduction "by n blood or pool" takes off the card's cost
-                // in whichever it has.
-                if pool > 0 {
-                    pool = (pool - a.cost_reduction as i32).max(0);
-                } else {
-                    blood = blood.saturating_sub(a.cost_reduction);
+                // "Recruit ally actions cost this vampire -1 blood or pool"
+                // (Charisma): the action's only, not a recruit outside an
+                // action (LSJ 20090115-1).
+                if a.kind == ActionKind::Recruit {
+                    let d = self.state.recruit_discount(acting);
+                    if pool > 0 {
+                        pool = (pool - d as i32).max(0);
+                    } else {
+                        blood = blood.saturating_sub(d);
+                    }
                 }
+                // The reductions: "by n blood or pool" off the card's cost in
+                // whichever it has; blood-only ones; counters.
+                let (pool, blood, used) = self.reduced_cost_with(&a, pool, blood);
                 if self.state.seats[seat.index()].pool < pool
                     || self.state.minions[acting.index()].blood < blood
                 {
@@ -2798,6 +3000,7 @@ impl Engine {
                     self.after_resolution();
                     return;
                 }
+                self.spend_counters(&used);
                 self.state.seats[seat.index()].pool -= pool;
                 self.state.minions[acting.index()].blood -= blood;
                 match a.kind {
@@ -2842,14 +3045,25 @@ impl Engine {
                 // discarded; paid down to 0 pool, the Methuselah is ousted.
                 let play = a.card.expect("equipment card");
                 let acting = a.acting;
-                let pool = cards::pool_cost(&self.state, seat, play.card, Target::Minion(acting));
-                let blood = cards::blood_cost(&self.state, play.card, play.x);
+                let mut pool =
+                    cards::pool_cost(&self.state, seat, play.card, Target::Minion(acting));
+                let mut blood = cards::blood_cost(&self.state, play.card, play.x);
+                // "-1 blood or pool" (British Museum): off whichever the
+                // card costs; then the reductions announced for the action.
+                let discount = self.state.equip_discount(acting, play.card);
+                if pool > 0 {
+                    pool = (pool - discount as i32).max(0);
+                } else {
+                    blood = blood.saturating_sub(discount);
+                }
+                let (pool, blood, used) = self.reduced_cost_with(&a, pool, blood);
                 if self.state.seats[seat.index()].pool < pool
                     || self.state.minions[acting.index()].blood < blood
                     || !self.state.can_hold(acting, play.card, &[])
                 {
                     a.outcome = Some(Outcome::Fizzled);
                 } else {
+                    self.spend_counters(&used);
                     self.state.seats[seat.index()].pool -= pool;
                     self.state.minions[acting.index()].blood -= blood;
                     self.put_equipment(seat, acting, play);
@@ -2925,8 +3139,11 @@ impl Engine {
                 let def = cards::lookup(play.card).expect("definition");
                 let mode = &def.modes[play.mode as usize];
                 let x = cards::terms_x(&self.state, seat, play.card, mode).unwrap_or(play.x);
-                let cost = cards::blood_cost(&self.state, play.card, x);
-                let pool = cards::pool_cost(&self.state, seat, play.card, play.target);
+                let (pool, cost, used) = self.reduced_cost_with(
+                    &a,
+                    cards::pool_cost(&self.state, seat, play.card, play.target),
+                    cards::blood_cost(&self.state, play.card, x),
+                );
                 if self.state.minions[a.acting.index()].blood < cost
                     || self.state.seats[seat.index()].pool < pool
                 {
@@ -2935,6 +3152,7 @@ impl Engine {
                     self.after_resolution();
                     return;
                 }
+                self.spend_counters(&used);
                 self.state.minions[a.acting.index()].blood -= cost;
                 // Its pool cost too (Biothaumaturgic Experiment): paid down
                 // to 0, the acting Methuselah is ousted and the turn passes.
@@ -3081,9 +3299,21 @@ impl Engine {
                     })
                     .sum();
                 let src = a.source.expect("source").card();
-                if self.state.seats[seat.index()].pool < cost as i32 {
+                // "As a Ⓓ action that costs 1 blood" (Powerbase: Munich).
+                let blood: u8 = self
+                    .granted_effects(&a)
+                    .iter()
+                    .map(|e| match e {
+                        Effect::PayBlood(n) => *n,
+                        _ => 0,
+                    })
+                    .sum();
+                if self.state.seats[seat.index()].pool < cost as i32
+                    || self.state.minions[a.acting.index()].blood < blood
+                {
                     a.outcome = Some(Outcome::Fizzled);
                 } else {
+                    self.state.minions[a.acting.index()].blood -= blood;
                     self.state.seats[seat.index()].pool -= cost as i32;
                     let host = self.state.cards[src.index()].host;
                     let effects = self.granted_effects(&a);
@@ -3308,6 +3538,34 @@ impl Engine {
                                 self.successful_hunt_riders(acting);
                             }
                         }
+                        // Cave of Apples: a corruption counter; enough of the
+                        // player's on it, they may burn them to steal it.
+                        Effect::CorruptTargetMayStealAtCapacity => {
+                            let Target::Minion(t) = target else {
+                                unreachable!("a corruption without a minion target");
+                            };
+                            self.state.minions[t.index()].add_corruption(seat, 1);
+                            let v = &self.state.minions[t.index()];
+                            let need = match v.ally_id() {
+                                Some(id) => {
+                                    let card = self.state.cards[id.index()].card;
+                                    let lib = &LIBRARY[card as usize];
+                                    match (lib.pool_cost, lib.blood_cost) {
+                                        (crate::library::Cost::Fixed(n), _)
+                                        | (_, crate::library::Cost::Fixed(n)) => n,
+                                        _ => 0,
+                                    }
+                                }
+                                None => self.state.capacity_of(t).unwrap_or(u8::MAX),
+                            };
+                            if v.corruption_of(seat) >= need {
+                                self.interrupts
+                                    .push(crate::draws::Interrupt::StealForCorruption {
+                                        seat,
+                                        minion: t,
+                                    });
+                            }
+                        }
                         other => unreachable!("not a granted action's effect: {other:?}"),
                     }
                 }
@@ -3333,6 +3591,7 @@ impl Engine {
                     }
                     (None, None) => unreachable!("political action without a source"),
                 };
+                let (_, cost, used) = self.reduced_cost_with(&a, 0, cost);
                 let m = &mut self.state.minions[a.acting.index()];
                 m.political_this_turn = true;
                 if m.blood < cost {
@@ -3344,6 +3603,7 @@ impl Engine {
                     return;
                 }
                 m.blood -= cost;
+                self.spend_counters(&used);
                 let referendum = mode
                     .effects
                     .iter()
@@ -3583,6 +3843,8 @@ impl Engine {
             named: None,
             chosen: None,
             ash: None,
+            discounts: [None; 3],
+            from: None,
         };
         self.apply_entry_effects(&ctx, id, false);
         self.enter_card_contest(m);
@@ -3605,6 +3867,8 @@ impl Engine {
             named: None,
             chosen: None,
             ash: None,
+            discounts: [None; 3],
+            from: None,
         };
         let mut in_play = None;
         for &e in def.modes[0].effects {
@@ -4008,7 +4272,7 @@ impl Engine {
                     ..
                 } => {
                     (unusual.contains(&m) || starving.contains(&m))
-                        && cards::lookup(st.seats[s.index()].hand[card as usize]).is_some_and(|d| {
+                        && cards::lookup(self.virtual_hand(s)[card as usize].0).is_some_and(|d| {
                             d.modes[mode as usize].effects.contains(&Effect::HuntAction)
                         })
                 }

@@ -169,6 +169,8 @@ pub struct Minion {
     /// The vampire's owner, when its control changed for good
     /// (Graverobbing): its ash heap is the owner's.
     pub origin: Option<SeatId>,
+    /// A sect a card made it (Twilight Camp: "make that vampire Anarch").
+    pub sect_override: Option<Sect>,
     /// "Must hunt this turn" (Childe of the Revolution): as a vampire with
     /// no blood, until it hunts or the turn ends.
     pub must_hunt: bool,
@@ -267,6 +269,7 @@ impl Minion {
             corruption: Vec::new(),
             temp_from: None,
             origin: None,
+            sect_override: None,
             no_life_gain: false,
             must_hunt: false,
             hostage: 0,
@@ -330,6 +333,9 @@ impl Minion {
 
     /// A vampire's sect; `None` for an ally.
     pub fn sect(&self) -> Option<Sect> {
+        if self.sect_override.is_some() && !self.is_ally() {
+            return self.sect_override;
+        }
         match self.kind {
             MinionKind::Vampire(c) => Some(CRYPT[c as usize].sect),
             MinionKind::Created { sect, .. } => Some(sect),
@@ -523,6 +529,9 @@ pub struct Seat {
     pub hand_bonus: u8,
     /// One additional master phase action from trifles per master phase.
     pub trifle_used: bool,
+    /// A burn-option card discarded this unlock phase (rulebook, advanced:
+    /// one each unlock phase).
+    pub burn_option_used: bool,
     /// Out-of-turn master card played since the last master phase.
     pub out_of_turn: Option<OutOfTurn>,
     /// Master phase actions added at the start of the next master phase
@@ -1175,6 +1184,117 @@ impl GameState {
     /// What the cards in play on minion `m` add to `stat` during its
     /// action of `kind` (`Modifier::Bearer`; contested cards give
     /// nothing).
+    /// How card `c` in play reduces its controller's costs, if it does.
+    pub fn cost_source_of(&self, c: CardId) -> Option<crate::cards::CostSource> {
+        self.layers.iter().find_map(|l| match l.modifier {
+            crate::cards::Modifier::CostSource(k)
+                if l.source == c
+                    && l.scope == crate::cards::Scope::InPlay
+                    && self.layer_active(l) =>
+            {
+                Some(k)
+            }
+            _ => None,
+        })
+    }
+
+    /// Secure Havens on `m`.
+    pub fn havens_on(&self, m: MinionId) -> u8 {
+        self.layers
+            .iter()
+            .filter(|l| {
+                l.scope == crate::cards::Scope::InPlay
+                    && self.layer_active(l)
+                    && l.modifier == crate::cards::Modifier::Haven
+                    && self.cards[l.source.index()].bearer() == Some(m)
+            })
+            .count() as u8
+    }
+
+    /// British Museum: what `m`'s equip with `card` costs less.
+    pub fn equip_discount(&self, m: MinionId, card: u16) -> u8 {
+        if !crate::cards::plain_equipment(card) {
+            return 0;
+        }
+        let owner = self.minions[m.index()].owner;
+        self.layers
+            .iter()
+            .filter(|l| l.scope == crate::cards::Scope::InPlay && self.layer_active(l))
+            .map(|l| match l.modifier {
+                crate::cards::Modifier::PlainEquipDiscount(n)
+                    if self.card_controller(l.source) == owner =>
+                {
+                    n
+                }
+                _ => 0,
+            })
+            .sum()
+    }
+
+    /// A Mithraic Mysteries member: a Mithraic Cultist on it.
+    pub fn mithraic_member(&self, m: MinionId) -> bool {
+        self.layers.iter().any(|l| {
+            l.scope == crate::cards::Scope::InPlay
+                && self.layer_active(l)
+                && l.modifier == crate::cards::Modifier::MithraicMember
+                && self.cards[l.source.index()].bearer() == Some(m)
+        })
+    }
+
+    /// Votes the host's cards give it (Mithraic Cultist: "+1 vote while you
+    /// control /Mithras/").
+    pub fn host_votes(&self, m: MinionId) -> i32 {
+        let owner = self.minions[m.index()].owner;
+        self.layers
+            .iter()
+            .filter(|l| {
+                l.scope == crate::cards::Scope::InPlay
+                    && self.layer_active(l)
+                    && self.cards[l.source.index()].bearer() == Some(m)
+            })
+            .map(|l| match l.modifier {
+                crate::cards::Modifier::HostVotesWhileControlling { name, n }
+                    if self
+                        .minions_of(owner)
+                        .any(|o| self.minions[o.index()].name() == name) =>
+                {
+                    n as i32
+                }
+                _ => 0,
+            })
+            .sum()
+    }
+
+    /// Charisma on `m`: its recruit ally actions cost this much less.
+    pub fn recruit_discount(&self, m: MinionId) -> u8 {
+        self.layers
+            .iter()
+            .filter(|l| {
+                l.scope == crate::cards::Scope::InPlay
+                    && self.layer_active(l)
+                    && self.cards[l.source.index()].bearer() == Some(m)
+            })
+            .map(|l| match l.modifier {
+                crate::cards::Modifier::HostRecruitDiscount(n) => n,
+                _ => 0,
+            })
+            .sum()
+    }
+
+    /// Optional maneuvers each combat for `m` from clan-wide layers
+    /// (Brujah Debate).
+    pub fn clan_combat_maneuvers(&self, m: MinionId) -> u8 {
+        let clan = self.minions[m.index()].clan();
+        self.layers
+            .iter()
+            .filter(|l| l.scope == crate::cards::Scope::InPlay && self.layer_active(l))
+            .filter(|l| {
+                matches!(l.modifier, crate::cards::Modifier::ClanCombatManeuver(c)
+                if clan == Some(c))
+            })
+            .count() as u8
+    }
+
     /// The votes `m`'s title cards give it in referendums it calls, while
     /// it is of their clans (Fee Stake: Boston).
     pub fn calling_votes(&self, m: MinionId) -> i32 {
@@ -1233,6 +1353,13 @@ impl GameState {
     /// the Disciplines a card on `m` names ("minions without Auspex cannot
     /// perform actions directed at this vampire", Shadow Cloak [OBL]).
     pub fn may_direct_at(&self, actor: MinionId, m: MinionId) -> bool {
+        // Secure Haven: "cannot be the target of other Methuselahs'
+        // actions" (the caller reads only another Methuselah's minions).
+        if self.havens_on(m) > 0
+            && self.minions[actor.index()].owner != self.minions[m.index()].owner
+        {
+            return false;
+        }
         self.layers.iter().all(|l| {
             !(l.scope == crate::cards::Scope::InPlay
                 && self.layer_active(l)
@@ -1300,6 +1427,40 @@ impl GameState {
             .sum()
     }
 
+    /// Does a clan-wide layer from `source` reach `m`?
+    fn clan_stat_reaches(
+        &self,
+        source: CardId,
+        m: MinionId,
+        clan: &str,
+        own: bool,
+        titled: bool,
+    ) -> bool {
+        self.minions[m.index()].clan() == Some(clan)
+            && (!own || self.minions[m.index()].owner == self.card_controller(source))
+            && (!titled || self.title_of(m) != crate::crypt::Title::None)
+    }
+
+    /// Votes the clan-wide layers give `m` (New Carthage: "titled Brujah get
+    /// +1 vote, Ventrue get -1 vote").
+    pub fn clan_votes(&self, m: MinionId) -> i32 {
+        self.layers
+            .iter()
+            .filter(|l| l.scope == crate::cards::Scope::InPlay && self.layer_active(l))
+            .map(|l| match l.modifier {
+                crate::cards::Modifier::ClanStat {
+                    clan,
+                    stat: crate::cards::Stat::Votes,
+                    n,
+                    own,
+                    titled,
+                    ..
+                } if self.clan_stat_reaches(l.source, m, clan, own, titled) => n as i32,
+                _ => 0,
+            })
+            .sum()
+    }
+
     /// The bearer modifiers of the cards in play on minion `m` for `stat`
     /// during its action of `kind`, with the card each comes from.
     fn bearer_mods(
@@ -1326,8 +1487,16 @@ impl GameState {
                 }
                 // Every minion of the clan (Week of Nightmares: "Ravnos get
                 // +1 bleed and +1 strength").
-                crate::cards::Modifier::ClanStat { clan, stat: s, n }
-                    if s == stat && self.minions[m.index()].clan() == Some(clan) =>
+                crate::cards::Modifier::ClanStat {
+                    clan,
+                    stat: s,
+                    n,
+                    own,
+                    titled,
+                    during,
+                } if s == stat
+                    && self.clan_stat_reaches(l.source, m, clan, own, titled)
+                    && (during.is_empty() || during.contains(&kind)) =>
                 {
                     Some((self.cards[l.source.index()].card, n as i32))
                 }
@@ -1727,6 +1896,7 @@ impl GameState {
             mix(s.mpa as u64);
             mix(s.hand_bonus as u64);
             mix(s.trifle_used as u64);
+            mix(s.burn_option_used as u64);
             mix(s.dpa as u64);
             mix(s.granted_dpa as u64);
             mix(s.master_played as u64);
@@ -1815,6 +1985,7 @@ impl GameState {
             mix(m.hunting_ground_fed as u64);
             mix(m.skip_unlock as u64);
             mix(m.origin.map_or(0, |s| s.0 as u64 + 1));
+            mix(m.sect_override.map_or(0, |s| s as u64 + 1));
             mix(m.acted.len() as u64);
             for &c in &m.acted {
                 mix(match c {

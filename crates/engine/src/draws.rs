@@ -150,6 +150,20 @@ pub(crate) enum Interrupt {
     /// "If the attached minion is about to leave the ready region, you can
     /// burn this card to gain n pool" (Priority Contract).
     PoolForCard { seat: SeatId, card: CardId, n: u8 },
+    /// "You can lock this card … to gain n pool" (The Black Throne).
+    LockForPool { seat: SeatId, card: CardId, n: u8 },
+    /// "You can burn those counters to steal that minion" (Cave of Apples).
+    StealForCorruption {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+    },
+    /// "You can burn 1 blood from this card to make that vampire Anarch"
+    /// (Twilight Camp).
+    MakeAnarch {
+        seat: SeatId,
+        card: CardId,
+        minion: crate::ids::MinionId,
+    },
     /// "Add n blood to a `clan` vampire in your uncontrolled region"
     /// (Hunting the Beast [AUS]): the player's pick, none if they have none.
     UncontrolledBlood {
@@ -192,6 +206,9 @@ pub(crate) enum MinionPurpose {
     /// controller's able to hold it (Dominate Kine [DOM]; RTR 19960112):
     /// mandatory.
     HostCard(CardId),
+    /// One of the oldest vampires of the clan (Brujah Debate): mandatory,
+    /// locked or not (LSJ 20010508).
+    LockOldest(&'static str),
 }
 
 impl Interrupt {
@@ -219,6 +236,9 @@ impl Interrupt {
             | Interrupt::ChooseForCard { seat, .. }
             | Interrupt::ExchangeAnarch { seat, .. }
             | Interrupt::PoolForCard { seat, .. }
+            | Interrupt::LockForPool { seat, .. }
+            | Interrupt::MakeAnarch { seat, .. }
+            | Interrupt::StealForCorruption { seat, .. }
             | Interrupt::UncontrolledBlood { seat, .. }
             | Interrupt::AllyFromAsh { seat, .. }
             | Interrupt::MoveForBlood { seat, .. } => seat,
@@ -534,6 +554,32 @@ impl Engine {
                     loss[of.index()] = pool as i32;
                     self.burn_pool_batch(&loss);
                 }
+                Interrupt::StealForCorruption { minion, .. } => {
+                    if !self.state.minions[minion.index()].present() {
+                        self.interrupts.remove(0);
+                    } else {
+                        return;
+                    }
+                }
+                Interrupt::MakeAnarch { card, minion, .. } => {
+                    let c = &self.state.cards[card.index()];
+                    if !c.present()
+                        || c.counters == 0
+                        || !self.state.minions[minion.index()].present()
+                    {
+                        self.interrupts.remove(0);
+                    } else {
+                        return;
+                    }
+                }
+                Interrupt::LockForPool { seat, card, .. } => {
+                    let c = &self.state.cards[card.index()];
+                    if self.state.seats[seat.index()].ousted || !c.present() || c.locked {
+                        self.interrupts.remove(0);
+                    } else {
+                        return;
+                    }
+                }
                 Interrupt::PoolForCard { seat, .. } => {
                     if self.state.seats[seat.index()].ousted {
                         self.interrupts.remove(0);
@@ -709,6 +755,18 @@ impl Engine {
                     kinds.into_iter().map(Choice::FindCard).collect(),
                 )
             }
+            Interrupt::StealForCorruption { minion, .. } => (
+                WindowLabel::ResolutionChoice,
+                vec![Choice::Pass, Choice::ChooseMinion(minion)],
+            ),
+            Interrupt::MakeAnarch { card, .. } => (
+                WindowLabel::ResolutionChoice,
+                vec![Choice::Pass, Choice::ResolveRider { card: card.0 }],
+            ),
+            Interrupt::LockForPool { card, .. } => (
+                WindowLabel::ResolutionChoice,
+                vec![Choice::Pass, Choice::ResolveRider { card: card.0 }],
+            ),
             Interrupt::PoolForCard { card, .. } => (
                 WindowLabel::ResolutionChoice,
                 vec![Choice::Pass, Choice::ResolveRider { card: card.0 }],
@@ -793,6 +851,7 @@ impl Engine {
                     MinionPurpose::Corrupt
                         | MinionPurpose::BurnBloodOfClan(_)
                         | MinionPurpose::HostCard(_)
+                        | MinionPurpose::LockOldest(_)
                 ) {
                     options.insert(0, Choice::Pass);
                 }
@@ -864,6 +923,15 @@ impl Engine {
                         v.ready() && v.clan() == Some(c) && v.blood > 0
                     }
                     MinionPurpose::HostCard(c) => st.can_hold(*m, st.cards[c.index()].card, &[]),
+                    MinionPurpose::LockOldest(c) => {
+                        v.clan() == Some(c)
+                            && st.capacity_of(*m)
+                                == st
+                                    .minions_of(of)
+                                    .filter(|&o| st.minions[o.index()].clan() == Some(c))
+                                    .filter_map(|o| st.capacity_of(o))
+                                    .max()
+                    }
                     MinionPurpose::Lock | MinionPurpose::Corrupt => true,
                 }
             })
@@ -968,6 +1036,41 @@ impl Engine {
                     let seat = self.state.card_controller(id);
                     self.interrupts
                         .push(Interrupt::PoolForCard { seat, card: id, n });
+                    // The Black Throne of the Methuselah whose vampire the
+                    // contract chose (PIB 20150512, ANK 20180129-2).
+                    if let Some(&chosen) = self.state.cards[ci].chosen.first() {
+                        let x = self.state.minions[chosen.index()].owner;
+                        self.contract_riders(x);
+                    }
+                }
+            }
+        }
+    }
+
+    /// The Black Throne of `x`'s: unlocked, offered to lock for pool.
+    fn contract_riders(&mut self, x: SeatId) {
+        for ci in 0..self.state.cards.len() {
+            let id = CardId(ci as u32);
+            let c = &self.state.cards[ci];
+            if !c.present() || c.locked || self.state.card_controller(id) != x {
+                continue;
+            }
+            let Some(def) = cards::lookup(c.card) else {
+                continue;
+            };
+            for r in def
+                .riders
+                .iter()
+                .filter(|r| r.hook == Hook::ContractHostLeaves)
+            {
+                for e in r.effects {
+                    if let crate::cards::Effect::GainPool(n) = *e {
+                        self.interrupts.push(Interrupt::LockForPool {
+                            seat: x,
+                            card: id,
+                            n,
+                        });
+                    }
                 }
             }
         }
@@ -1049,6 +1152,47 @@ impl Engine {
         let front = self.interrupts[0];
         let s = front.seat();
         match (front, *choice) {
+            (Interrupt::StealForCorruption { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+            }
+            // The player's counters burned; the minion theirs for good.
+            (Interrupt::StealForCorruption { minion, .. }, Choice::ChooseMinion(_)) => {
+                self.interrupts.remove(0);
+                let v = &mut self.state.minions[minion.index()];
+                let n = v.corruption_of(s);
+                v.burn_corruption(s, n);
+                if v.owner != s {
+                    let origin = v.origin.or(v.temp_from).unwrap_or(v.owner);
+                    v.origin = (origin != s).then_some(origin);
+                    v.temp_from = None;
+                    v.owner = s;
+                    if v.is_ally() {
+                        self.enter_card_contest(minion);
+                    } else {
+                        self.enter_title_contest(minion);
+                    }
+                }
+            }
+            (Interrupt::MakeAnarch { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+            }
+            (Interrupt::MakeAnarch { card, minion, .. }, Choice::ResolveRider { .. }) => {
+                self.interrupts.remove(0);
+                self.state.minions[minion.index()].sect_override = Some(crate::crypt::Sect::Anarch);
+                let c = &mut self.state.cards[card.index()];
+                c.counters -= 1;
+                if c.counters == 0 {
+                    self.burn_card_in_play(card);
+                }
+            }
+            (Interrupt::LockForPool { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+            }
+            (Interrupt::LockForPool { card, n, .. }, Choice::ResolveRider { .. }) => {
+                self.interrupts.remove(0);
+                self.state.cards[card.index()].locked = true;
+                self.state.seats[s.index()].pool += n as i32;
+            }
             (Interrupt::PoolForCard { .. }, Choice::Pass) => {
                 self.interrupts.remove(0);
             }
@@ -1323,7 +1467,9 @@ impl Engine {
                 self.interrupts.remove(0);
                 let v = &mut self.state.minions[m.index()];
                 match purpose {
-                    MinionPurpose::Lock | MinionPurpose::LockVampire => v.locked = true,
+                    MinionPurpose::Lock
+                    | MinionPurpose::LockVampire
+                    | MinionPurpose::LockOldest(_) => v.locked = true,
                     MinionPurpose::HostCard(c) => self.state.cards[c.index()].host = Some(m),
                     MinionPurpose::UnlockAnarch => v.locked = false,
                     MinionPurpose::BurnBloodOfClan(_) => v.blood -= 1,

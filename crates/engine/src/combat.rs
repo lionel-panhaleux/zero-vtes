@@ -700,6 +700,8 @@ impl Engine {
                     crate::state::PrintedCtx::default(),
                 )
                 .max(0) as u8;
+            // "Brujah get 1 optional maneuver each combat" (Brujah Debate).
+            s.combat_maneuvers += st.clan_combat_maneuvers(s.minion);
         }
         let order = vec![sides[0].seat, sides[1].seat];
         self.state.combatants = Some([acting, opposing]);
@@ -2002,6 +2004,11 @@ impl Engine {
     /// after-resolution window (rules-qa 17.3).
     fn end_combat(&mut self) {
         let ended = self.combat.take();
+        // Who fought, for "after a combat involving this vampire ends"
+        // (Monster).
+        if let (Some(c), Some(a)) = (ended.as_ref(), self.action.as_mut()) {
+            a.last_combat = Some([c.sides[0].minion, c.sides[1].minion]);
+        }
         // "After combat ends, put this card on this vampire" (Pass Through
         // Shadow [OBL]).
         for h in ended.iter().flat_map(|c| c.after_combat.clone()) {
@@ -2083,7 +2090,7 @@ impl Engine {
         for o in &options {
             let mode = match *o {
                 Choice::Play { card, mode, .. } => {
-                    let id = st.seats[seat.index()].hand[card as usize];
+                    let id = self.playable_card(seat, card);
                     cards::lookup(id).map(|d| &d.modes[mode as usize])
                 }
                 Choice::UseAbility {
@@ -2703,6 +2710,8 @@ mod tests {
                 named: None,
                 chosen: None,
                 ash: None,
+                discounts: [None; 3],
+                from: None,
             },
         );
         let req = e.combat_request().unwrap();

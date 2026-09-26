@@ -295,6 +295,8 @@ pub enum CardFilter {
     MeleeWeapon,
     /// A non-unique equipment card.
     NonUniqueEquipment,
+    /// Any card bearing this label (a ghoul ally or retainer).
+    HasLabel(crate::library::Label),
 }
 
 impl CardFilter {
@@ -316,6 +318,7 @@ impl CardFilter {
             }
             CardFilter::Location => c.labels.contains(&crate::library::Label::Location),
             CardFilter::MeleeWeapon => melee_strike(card).is_some(),
+            CardFilter::HasLabel(l) => c.labels.contains(&l),
             CardFilter::NonUniqueEquipment => {
                 c.types.contains(&CardType::Equipment)
                     && !c.labels.contains(&crate::library::Label::Unique)
@@ -372,6 +375,55 @@ pub enum Requirement {
     /// resolved it this turn, the others' are no longer due ("you can burn
     /// only 1 pool each turn with Army of Rats cards").
     OneCopyPerTurn,
+    /// The acting minion is not of this clan ("non-Ventrue minions",
+    /// allies included).
+    ActorNotClan(&'static str),
+    /// The minion attempting to block has at least this capacity (Kumpania).
+    AttemptingCapacityAtLeast(u8),
+    /// The target vampire has at least this capacity (Golconda).
+    TargetCapacityAtLeast(u8),
+    /// The target is of the actor's clan (Grooming the Protégé).
+    SameClanAsActor,
+    /// The user has a minion in the current combat (Mob Connections).
+    OwnMinionInCombat,
+    /// Some minion attempts to block and needs intercept (WMRH Talk Radio:
+    /// "give a minion +1 intercept").
+    AnyAttemptNeedsIntercept,
+    /// The host was in the combat that just ended and its opponent is not
+    /// ready (Monster).
+    HostCombatOpponentNotReady,
+    /// The host used at least n Disciplines to play cards during the action
+    /// (Dabbler).
+    HostUsedDisciplines(u8),
+    /// The action requires this clan or this Discipline: its card's, or its
+    /// granting card's requirement (Cappadocian Crypt).
+    ActionRequiresClanOrDiscipline(&'static str, &'static str),
+    /// The target has this Discipline (Powerbase: Munich).
+    TargetDiscipline(&'static str),
+    /// The player controls no vampire of this name, and has one in their
+    /// crypt (The Mithraeum, London).
+    NoVampireNamedButInCrypt(&'static str),
+    /// The target is /Mithras/ or a Mithraic Mysteries member.
+    TargetMithraic,
+    /// The target is not a vampire of this name (Mithraic Cultist).
+    TargetNotNamed(&'static str),
+    /// The target is Anarch.
+    TargetAnarch,
+    /// The directed action targets a ready vampire of this clan the player
+    /// controls (Yoruba Shrine).
+    DirectedAtYourReadyClan(&'static str),
+    /// The referendum's terms chose a ready vampire of this clan the player
+    /// controls (Yoruba Shrine).
+    TermsChoseYourReadyClan(&'static str),
+    /// The acting minion is a vampire the player controls (The Line).
+    ActingOwnVampire,
+    /// The action is an equip with a non-electronic, non-vehicle,
+    /// non-weapon equipment card from hand, and the acting minion has not
+    /// unlocked this way this turn (British Museum).
+    PlainEquipFromHandOncePerTurn,
+    /// The player's own action card costs blood (The Line: by a vampire),
+    /// or blood or pool (The Shard), or is an equip (Ravnos Cache).
+    OwnActionCardCosts(CostSource),
     /// On an ability of a card in play: fewer than n copies of the card its
     /// controller controls have used it this phase ("you can burn counters
     /// from no more than two Split the Veil cards each unlock phase").
@@ -990,6 +1042,19 @@ pub enum BlockRider {
     UncontrolledBloodIfWon { clan: &'static str, n: u8 },
 }
 
+/// How a card in play reduces its controller's costs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CostSource {
+    /// Lock: an action card a vampire plays costs 1 blood less (The Line).
+    Line,
+    /// With the Edge, lock: a card costs 2 pool or blood less (The Shard).
+    Shard,
+    /// Its counters pay a Ravnos's action card's blood (Ravnos Carnival).
+    Carnival,
+    /// Lock: its counters pay an equip's blood or pool (Ravnos Cache).
+    Cache,
+}
+
 /// Whom a conditional bonus reads its condition on.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum On {
@@ -1434,6 +1499,10 @@ pub enum Terms {
     /// A card in the user's ash heap, chosen by name as the ability is used
     /// (Mora, the Death Seer).
     AshCard,
+    /// X pool, 1 to the user's pool (Oxford University, England).
+    XPool,
+    /// X counters, 1 to the card's counters (Alamut).
+    XCounters,
     /// An ally in any Methuselah's ash heap, named as the card is played:
     /// the ash heap, then the ally (Psychophagia; owner, 2026-09-26:
     /// rules-qa 32.12).
@@ -1476,6 +1545,29 @@ pub enum Modifier {
     /// The layer source's host gets n bleed against its controller's prey
     /// (Tier of Souls [ANI]).
     HostBleedAgainstPrey(i8),
+    /// "Recruit ally actions cost this vampire -n blood or pool" (Charisma),
+    /// on the host.
+    HostRecruitDiscount(u8),
+    /// The host gets n votes while its controller controls a vampire named
+    /// so (Mithraic Cultist: "+1 vote while you control /Mithras/").
+    HostVotesWhileControlling { name: &'static str, n: i8 },
+    /// The host gets n intercept during actions directed at /Mithras/ or a
+    /// Mithraic Mysteries card or member (Mithraic Cultist).
+    HostInterceptVsMithraic(i8),
+    /// The host is a Mithraic Mysteries member (Mithraic Cultist).
+    MithraicMember,
+    /// A card in play reducing the cost of its controller's cards.
+    CostSource(CostSource),
+    /// "This minion cannot be the target of other Methuselahs' actions.
+    /// Master cards targeting this minion cost 1 additional pool" (Secure
+    /// Haven), on the host.
+    Haven,
+    /// Non-electronic, non-vehicle, non-weapon equipment cards cost the
+    /// controller's minions n less blood or pool to equip (British Museum).
+    PlainEquipDiscount(u8),
+    /// Minions of the clan get 1 optional maneuver each combat (Brujah
+    /// Debate).
+    ClanCombatManeuver(&'static str),
     /// "While this Anarch is <clan>, they get +1 vote during referendums
     /// they call" (Fee Stake: Boston): the layer source's host, while of
     /// one of these clans, calling the referendum.
@@ -1483,11 +1575,18 @@ pub enum Modifier {
     /// While the layer source is unlocked, vampires of capacity `max` or
     /// less get n bleed against its controller (Aranthebes, The Immortal).
     YoungBleedAgainstController { max: u8, n: i8 },
-    /// Every minion of the clan gets n to the stat (Week of Nightmares).
+    /// Every minion of the clan gets n to the stat (Week of Nightmares) —
+    /// with `own`, only the layer source's controller's ("Gangrel you
+    /// control", Gangrel Revel); with `titled`, only titled ones (New
+    /// Carthage); with `during`, only during its actions of these kinds
+    /// ("Assamites get +1 stealth when bleeding", The Khabar: Community).
     ClanStat {
         clan: &'static str,
         stat: Stat,
         n: i8,
+        own: bool,
+        titled: bool,
+        during: &'static [ActionKind],
     },
     /// Minions of the clan do not hunt as normal (Week of Nightmares).
     ClanCannotHunt(&'static str),
@@ -1639,6 +1738,16 @@ impl Layer {
             Modifier::ReactionBloodCost(n) => 1 << 32 ^ (n as i64 as u64 & 0xff),
             Modifier::HostBleedAgainstPrey(n) => 1 << 32 ^ 1 << 20 ^ (n as i64 as u64 & 0xff),
             Modifier::HostVoteWhenCalling(clans) => 1 << 32 ^ 1 << 22 ^ clans.len() as u64,
+            Modifier::HostRecruitDiscount(n) => 1 << 32 ^ 1 << 23 ^ n as u64,
+            Modifier::HostVotesWhileControlling { name, n } => {
+                1 << 32 ^ 1 << 25 ^ (name.len() as u64) << 8 ^ (n as u8 as u64)
+            }
+            Modifier::HostInterceptVsMithraic(n) => 1 << 32 ^ 1 << 26 ^ (n as u8 as u64),
+            Modifier::MithraicMember => 1 << 32 ^ 1 << 27,
+            Modifier::CostSource(k) => 1 << 32 ^ 1 << 30 ^ k as u64,
+            Modifier::Haven => 1 << 32 ^ 1 << 28,
+            Modifier::PlainEquipDiscount(n) => 1 << 32 ^ 1 << 29 ^ n as u64,
+            Modifier::ClanCombatManeuver(clan) => 1 << 32 ^ 1 << 24 ^ clan.len() as u64,
             Modifier::YoungBleedAgainstController { max, n } => {
                 1 << 32 ^ 1 << 21 ^ (max as u64) << 8 ^ (n as i64 as u64 & 0xff)
             }
@@ -1681,8 +1790,22 @@ impl Layer {
             Modifier::ImmuneToDirectedActions(d) => 1 << 39 ^ 1 << 16 ^ d.len() as u64,
             Modifier::UndodgeableStrikes => 1 << 39 ^ 1 << 17,
             Modifier::HostCannotBlock => 1 << 39 ^ 1 << 19,
-            Modifier::ClanStat { clan, stat, n } => {
-                1 << 39 ^ 1 << 22 ^ (clan.len() as u64) << 8 ^ (stat as u64) << 4 ^ (n as u8 as u64)
+            Modifier::ClanStat {
+                clan,
+                stat,
+                n,
+                own,
+                titled,
+                during,
+            } => {
+                1 << 39
+                    ^ 1 << 22
+                    ^ (clan.len() as u64) << 8
+                    ^ (stat as u64) << 4
+                    ^ (n as u8 as u64)
+                    ^ (own as u64) << 30
+                    ^ (titled as u64) << 31
+                    ^ (during.len() as u64) << 32
             }
             Modifier::ClanCannotHunt(clan) => 1 << 39 ^ 1 << 23 ^ clan.len() as u64,
             Modifier::SecondChosenUnblockable => 1 << 39 ^ 1 << 20,
@@ -2305,6 +2428,90 @@ pub enum Effect {
         at: u8,
         pool: u8,
     },
+    /// +1 master phase action this phase (The Parthenon).
+    GainMasterPhaseAction,
+    /// Burn X pool (X from the ability's terms), paid down to 0 ousts
+    /// (Oxford University, England).
+    PayPoolX,
+    /// The Methuselah's own `per` × X votes, on one side (Oxford
+    /// University, England: "+2X votes").
+    MethuselahVotesX {
+        per: u8,
+        favor: bool,
+    },
+    /// The target vampire gains blood to its capacity (Giant's Blood).
+    BloodToTargetFull,
+    /// Remove the target vampire from the game; its controller gains pool
+    /// equal to its capacity (Golconda: Inner Peace).
+    RemoveTargetForCapacityPool,
+    /// "Their controller can burn n pool to cancel this card as it is
+    /// played" (Golconda: Inner Peace): the target minion's controller.
+    CancelableForPoolByTargetController(u8),
+    /// Move X blood from the actor to the uncontrolled target (Grooming the
+    /// Protégé).
+    MoveBloodXToUncontrolledTarget,
+    /// The user's minion in the combat gets 1 press only usable to
+    /// continue combat (Mob Connections).
+    ContinuePressForOwnCombatant,
+    /// Draw n cards, then discard down to hand size (Fragment of the Book
+    /// of Nod).
+    DrawThenDiscardDown(u8),
+    /// The attempting minion's controller-given intercept comes with a cost:
+    /// if that minion does not block the action, this card's controller
+    /// burns 1 pool after resolution (WMRH Talk Radio).
+    PoolIfAttemptingDoesNotBlock,
+    /// The target vampire "can burn 1 blood to get +1 intercept during that
+    /// action", once (The Rumor Mill, Tabloid Newspaper).
+    TargetBurnsBloodForIntercept,
+    /// Remove X counters from this card (X from the ability's terms).
+    RemoveCountersX,
+    /// The actor gets +X votes (Alamut).
+    AddVotesX,
+    /// The acting Methuselah's `clan` vampire successfully bleeding: the
+    /// pool lost goes on this card as counters (Alamut).
+    CountersFromOwnBleed(&'static str),
+    /// Move n blood from the target vampire to its controller's pool
+    /// (Powerbase: Munich).
+    TargetBloodToPool(u8),
+    /// Move n pool to the target vampire (Powerbase: Munich).
+    PoolToTargetBlood(u8),
+    /// Move 1 counter from this card to the target as blood (Twilight Camp).
+    CounterToTargetBlood,
+    /// "Search your crypt for 1 copy of him, reveal it, and move it to your
+    /// uncontrolled region (shuffle afterward)" (The Mithraeum, London).
+    CryptNamedToUncontrolled(&'static str),
+    /// Unlock the acting minion (Yoruba Shrine).
+    UnlockActing,
+    /// The action's card costs n blood less (The Line, during the action).
+    ReduceActionBlood(u8),
+    /// The action's equipment is paid with X counters of this card (Ravnos
+    /// Cache, during the action).
+    PayActionWithCountersX,
+    /// Move n pool to this card as counters, and add m counters from the
+    /// bank (Ravnos Cache).
+    PoolToCounterPlusBank {
+        pool: u8,
+        bank: u8,
+    },
+    /// Enter play with 1 counter per vampire of this clan the player
+    /// controls; with none, burned (Ravnos Carnival).
+    EnterWithCountersPerOwnClan(&'static str),
+    /// The hand cards picked by the ability's terms go on this card, face up
+    /// and out of play, not replaced (Fleshforge Chamber).
+    StorePickedFromHand,
+    /// Its controller's vampires of this clan play the cards on it as if
+    /// from the hand (Fleshforge Chamber).
+    PlayableFromStore(&'static str),
+    /// The referendum fails, its polling over (Yoruba Shrine).
+    FailReferendum,
+    /// Put 1 of the player's corruption counters on the target (Cave of
+    /// Apples); if the player's counters on it reach its capacity (or an
+    /// ally's cost), they can burn them to steal it.
+    CorruptTargetMayStealAtCapacity,
+    /// "That Methuselah locks one of the oldest <clan> they control (if
+    /// any)" (Brujah Debate): their pick among the ties; a locked one may
+    /// be picked (LSJ 20010508).
+    LockOldestOfClan(&'static str),
     /// Put this card on the opposing minion now (Disarm): its layers apply
     /// while it is there, the card itself in the ash heap (rules-qa 21.1).
     PutOnOpponent,
@@ -2721,6 +2928,21 @@ pub enum Hook {
     /// The card's controller's prey is ousted (Khabar: Glory: "you gain 4
     /// additional pool").
     PreyOusted,
+    /// A minion with a contract for which a vampire of the card's
+    /// controller is chosen is about to leave the ready region (The Black
+    /// Throne: "lock this card … to gain 1 pool"): optional, the card
+    /// unlocked.
+    ContractHostLeaves,
+    /// At the start of each Methuselah's master phase (Brujah Debate).
+    MasterPhaseStart,
+    /// A vampire in combat with a vampire of `clan` its controller controls
+    /// left the ready region (Dead Pool: "you can add 1 counter").
+    CombatOpponentOfOwnClanLeft(&'static str),
+    /// A vampire from the controller's uncontrolled region entered play
+    /// (Twilight Camp).
+    OwnVampireInfluenced,
+    /// The controller's vampire successfully bled (Alamut).
+    OwnBleedSuccessful,
     /// The minion that played this card (`CardInPlay::by`) leaves the
     /// ready region: to torpor, burned (Slaughtering the Herd [DOM]).
     ByLeavesReady,
@@ -2855,6 +3077,28 @@ pub fn card_title(card: u16) -> Option<Title> {
 /// definition splits ("+1 bleed (limited), or +1 stealth and +1 bleed
 /// (limited)", Revelation of the Serpent: the stealth option only when
 /// stealth is needed).
+/// A Discipline tag's identity, whatever its level ("obl" for "OBL").
+pub fn discipline_key(tag: &str) -> &'static str {
+    const KEYS: &[&str] = &[
+        "abo", "ani", "aus", "cel", "chi", "dai", "dem", "dom", "fli", "for", "mel", "myt", "nec",
+        "obe", "obf", "obl", "obt", "pot", "pre", "pro", "qui", "san", "ser", "spi", "str", "tem",
+        "tha", "thn", "val", "vic", "vis", "mal", "flight", "vin",
+    ];
+    let lower = tag.to_ascii_lowercase();
+    KEYS.iter().copied().find(|k| *k == lower).unwrap_or("?")
+}
+
+/// A non-electronic, non-vehicle, non-weapon equipment card (British
+/// Museum), locations in play included (ANK 20220824).
+pub fn plain_equipment(card: u16) -> bool {
+    use crate::library::Label;
+    let c = &LIBRARY[card as usize];
+    c.types.contains(&CardType::Equipment)
+        && ![Label::Electronic, Label::Vehicle, Label::Weapon, Label::Gun]
+            .iter()
+            .any(|l| c.labels.contains(l))
+}
+
 pub fn library_mode(card: u16, mi: usize) -> usize {
     match LIBRARY[card as usize].name {
         "Revelation of the Serpent" => [0, 0, 1, 1][mi],
@@ -2991,6 +3235,12 @@ pub struct PlayCtx {
     /// (`Terms::AnyAshAlly`, Psychophagia); the card `u16::MAX` while only
     /// the ash heap is chosen.
     pub ash: Option<(SeatId, u16)>,
+    /// The cost reductions announced with the card: the source in play and
+    /// the amount (The Line, The Shard, Ravnos Carnival, Ravnos Cache).
+    pub discounts: [Option<(CardId, u8)>; 3],
+    /// The card in play the card was played from, not the hand (Fleshforge
+    /// Chamber): it is not replaced.
+    pub from: Option<CardId>,
 }
 
 /// Does `m` meet a mode's discipline tags? Lower case needs the discipline
@@ -3137,6 +3387,12 @@ pub fn holds(
         Requirement::TargetInTorpor
         | Requirement::ControlledByPrey
         | Requirement::TargetSectNot(_)
+        | Requirement::TargetCapacityAtLeast(_)
+        | Requirement::SameClanAsActor
+        | Requirement::TargetDiscipline(_)
+        | Requirement::TargetMithraic
+        | Requirement::TargetNotNamed(_)
+        | Requirement::TargetAnarch
         | Requirement::TargetHostage => {
             true // target predicates
         }
@@ -3369,6 +3625,84 @@ pub fn holds(
                 .is_some_and(|s| sects.contains(&s)),
             _ => false,
         }),
+        Requirement::AnyAttemptNeedsIntercept => action.is_some_and(|a| match a.state {
+            ActionState::Attempt(m) => a.stealth(st) > a.intercept_of(st, m),
+            _ => false,
+        }),
+        Requirement::ActionRequiresClanOrDiscipline(clan, disc) => action.is_some_and(|a| {
+            let from_card = a.card.is_some_and(|p| {
+                let lib = &LIBRARY[p.card as usize];
+                lib.clans.contains(&clan)
+                    || lib.modes[library_mode(p.card, p.mode as usize)]
+                        .tags
+                        .iter()
+                        .any(|t| discipline_key(t) == disc)
+            });
+            let from_source = a.source.zip(a.ability).is_some_and(|(src, ab)| {
+                src.mode(st, ab).requires.iter().any(|r| match r {
+                    Requirement::ActorClan(c) | Requirement::ActorOfClan(c) => *c == clan,
+                    _ => false,
+                })
+            });
+            from_card || from_source
+        }),
+        Requirement::NoVampireNamedButInCrypt(name) => {
+            !st.minions_of(seat)
+                .any(|m| st.minions[m.index()].name() == name)
+                && st.seats[seat.index()]
+                    .crypt
+                    .iter()
+                    .any(|&c| crate::crypt::CRYPT[c as usize].name == name)
+        }
+        Requirement::HostCombatOpponentNotReady | Requirement::HostUsedDisciplines(_) => true, // engine-checked
+        Requirement::DirectedAtYourReadyClan(clan) => action.is_some_and(|a| {
+            a.directed_seat(st).is_some()
+                && a.target_minion().is_some_and(|m| {
+                    let v = &st.minions[m.index()];
+                    v.owner == seat && v.ready() && v.clan() == Some(clan)
+                })
+        }),
+        Requirement::TermsChoseYourReadyClan(clan) => political.is_some_and(|r| {
+            r.terms.minions.iter().any(|&m| {
+                let v = &st.minions[m.index()];
+                v.owner == seat && v.ready() && v.clan() == Some(clan)
+            })
+        }),
+        Requirement::ActingOwnVampire => action.is_some_and(|a| {
+            let v = &st.minions[a.acting.index()];
+            v.owner == seat && v.is_vampire()
+        }),
+        Requirement::OwnActionCardCosts(kind) => action.is_some_and(|a| {
+            a.seat == seat
+                && a.card.is_some_and(|p| {
+                    let blood = blood_cost(st, p.card, p.x);
+                    let pool = pool_cost(st, seat, p.card, Target::Minion(a.acting));
+                    match kind {
+                        CostSource::Line => {
+                            blood > a.blood_reduction && st.minions[a.acting.index()].is_vampire()
+                        }
+                        CostSource::Cache => a.kind == crate::decision::ActionKind::Equip,
+                        _ => blood > 0 || pool > 0,
+                    }
+                })
+        }),
+        Requirement::PlainEquipFromHandOncePerTurn => action.is_some_and(|a| {
+            a.kind == crate::decision::ActionKind::Equip
+                && a.card.is_some_and(|p| plain_equipment(p.card))
+                && !st
+                    .turn_uses
+                    .contains(&(AbilitySource::Vampire(a.acting), u8::MAX - 1))
+        }),
+        Requirement::AttemptingCapacityAtLeast(n) => action.is_some_and(|a| match a.state {
+            ActionState::Attempt(m) => st.capacity_of(m).is_some_and(|c| c >= n),
+            _ => false,
+        }),
+        Requirement::ActorNotClan(c) => {
+            actor.is_some_and(|m| st.minions[m.index()].clan() != Some(c))
+        }
+        Requirement::OwnMinionInCombat => {
+            combat.is_some_and(|cb| cb.sides.iter().any(|s| s.seat == seat))
+        }
         Requirement::AttemptingClan(c) => action.is_some_and(|a| match a.state {
             ActionState::Attempt(m) => st.minions[m.index()].clan() == Some(c),
             _ => false,
@@ -3566,6 +3900,11 @@ pub fn holds_for_minion(
         Requirement::ControlledByPrey => v.owner == st.prey(seat),
         Requirement::TargetClanNotIn(clans) => v.clan().is_some_and(|c| !clans.contains(&c)),
         Requirement::TargetSectNot(sect) => v.is_vampire() && v.sect() != Some(sect),
+        Requirement::TargetCapacityAtLeast(n) => st.capacity_of(m).is_some_and(|c| c >= n),
+        Requirement::TargetDiscipline(d) => st.has_discipline(m, d),
+        Requirement::TargetMithraic => v.name() == "Mithras" || st.mithraic_member(m),
+        Requirement::TargetNotNamed(name) => v.name() != name,
+        Requirement::TargetAnarch => v.sect() == Some(Sect::Anarch),
         Requirement::TargetTitleIn(classes) => {
             let t = st.title_of(m);
             classes.iter().any(|c| c.matches(t))
@@ -3601,6 +3940,9 @@ pub fn holds_for_uncontrolled(
             .and_then(|a| st.capacity_of(a))
             .is_some_and(|c| capacity < c),
         Requirement::TargetClan(c) => clan == c,
+        Requirement::SameClanAsActor => {
+            acting.is_some_and(|a| st.minions[a.index()].clan() == Some(clan))
+        }
         _ => true,
     }
 }
@@ -3666,6 +4008,31 @@ pub fn holds_for_card(
 ) -> bool {
     let c = &st.cards[id.index()];
     match req {
+        // The host in the combat that just ended, its opponent not ready
+        // (Monster).
+        Requirement::HostCombatOpponentNotReady => {
+            let host = c.bearer();
+            action.and_then(|a| a.last_combat).is_some_and(|pair| {
+                host.is_some_and(|h| pair.contains(&h))
+                    && pair
+                        .iter()
+                        .any(|&o| Some(o) != host && !st.minions[o.index()].ready())
+            })
+        }
+        Requirement::HostUsedDisciplines(n) => {
+            let host = c.bearer();
+            action.is_some_and(|a| {
+                let mut used: Vec<&str> = a
+                    .disciplines_played
+                    .iter()
+                    .filter(|(m, _)| Some(*m) == host)
+                    .map(|(_, d)| *d)
+                    .collect();
+                used.sort_unstable();
+                used.dedup();
+                used.len() >= n as usize
+            })
+        }
         // Phase uses by the copies its controller controls (Split the Veil).
         Requirement::FewerCopiesUsedThisPhase(n) => {
             let controller = st.card_controller(id);
@@ -3786,6 +4153,13 @@ pub fn pool_cost(st: &GameState, payer: SeatId, card: u16, target: Target) -> i3
             continue;
         }
         cost += pool as i32;
+    }
+    // "Master cards targeting this minion cost 1 additional pool" (Secure
+    // Haven), whoever plays them (TOM 19951208-1).
+    if let Target::Minion(m) = target {
+        if def.types.contains(&CardType::Master) {
+            cost += st.havens_on(m) as i32;
+        }
     }
     cost.max(0)
 }

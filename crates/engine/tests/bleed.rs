@@ -562,3 +562,39 @@ fn homunculus_employ_then_unlock_ability_and_nra_by_card_name() {
     assert!(!e.state.minions[t.p.index()].locked);
     assert_eq!(e.state.minions[t.p.index()].blood, 5);
 }
+
+// [LSJ 20010817] [PIB 20131013] Archon Investigation "targets the bleeding
+// vampire (eg. costs one more against Secure Haven)".
+#[test]
+fn archon_investigation_costs_one_more_against_a_secure_haven() {
+    let mut t = table();
+    let e = &mut t.e;
+    e.state.cards.push(zvtes::state::CardInPlay {
+        card: find_library("Secure Haven"),
+        owner: SeatId(0),
+        controller: SeatId(0),
+        host: Some(t.a),
+        body: None,
+        mode: 0,
+        by: None,
+        in_play: true,
+        contested: false,
+        locked: false,
+        counters: 0,
+        stored: Vec::new(),
+        effect_only: false,
+        against: Default::default(),
+        entered: 0,
+        chosen: Vec::new(),
+    });
+    e.state.layers.push(zvtes::cards::Layer {
+        scope: zvtes::cards::Scope::InPlay,
+        modifier: zvtes::cards::Modifier::Haven,
+        source: zvtes::state::CardId(e.state.cards.len() as u32 - 1),
+    });
+    archon_sequence(&mut t);
+    let e = &mut t.e;
+    expect(e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[t.a.index()].in_play);
+    assert_eq!(e.state.seats[1].pool, 26, "3 + 1");
+}

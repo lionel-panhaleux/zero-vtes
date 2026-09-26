@@ -111,6 +111,8 @@ pub struct ReferendumCtx {
     pub card_voted: Vec<SeatId>,
     /// Closed Session: non-Camarilla vampires cast nothing.
     pub camarilla_only: bool,
+    /// Made to fail (Yoruba Shrine): no tally.
+    pub forced_fail: bool,
     /// Scorn of Adonis: pool burned at the tally by each Methuselah who
     /// cast against (one per Scorn).
     pub scorn: u8,
@@ -164,6 +166,8 @@ impl ReferendumCtx {
             0
         };
         ((title_votes(title) as i32 - penalty).max(0)
+            + st.clan_votes(m)
+            + st.host_votes(m)
             + bonus as i32
             + granted as i32
             + printed
@@ -314,6 +318,7 @@ impl Engine {
             forced_against: Vec::new(),
             card_voted: Vec::new(),
             camarilla_only: false,
+            forced_fail: false,
             scorn: 0,
             terms: TermsState::default(),
             canceled: false,
@@ -732,7 +737,7 @@ impl Engine {
         }
         debug_assert!(ctx.step == RefStep::Polling && ctx.window.is_closed());
         let (favor, against) = ctx.tally();
-        let passed = favor > against;
+        let passed = favor > against && !ctx.forced_fail;
         match ctx.kind {
             RefKind::BloodHunt { diablerist } => {
                 if passed {
@@ -1145,6 +1150,12 @@ impl Engine {
             }
             cards::Effect::TallyPenaltyAgainst(n) => ctx.scorn += n,
             cards::Effect::BarNonCamarillaVotes => ctx.camarilla_only = true,
+            // "Have the referendum fail" (Yoruba Shrine): the polling is
+            // over.
+            cards::Effect::FailReferendum => {
+                ctx.forced_fail = true;
+                ctx.window = PollingWindow::new(Vec::new());
+            }
             cards::Effect::CancelReferendum {
                 unlock_acting,
                 forbid_repeat,
@@ -1190,6 +1201,7 @@ pub(crate) fn is_vote_effect(e: &cards::Effect) -> bool {
             | cards::Effect::Abstain { .. }
             | cards::Effect::TallyPenaltyAgainst(_)
             | cards::Effect::BarNonCamarillaVotes
+            | cards::Effect::FailReferendum
             | cards::Effect::CancelReferendum { .. }
     )
 }

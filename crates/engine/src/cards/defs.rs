@@ -11,6 +11,7 @@
 //! [pro].
 
 use super::vampires::{ability, enter_combat, printed_action, MANEUVER_EACH_COMBAT};
+use super::CostSource;
 use super::{
     Actor, Among, AsVampire, Bearer, BlockRider, CardDef, CardFilter, Effect, Holding, Hook, Limit,
     ModeDef, Modifier, On, Points, RefEffect, ReferendumDef, Requirement, Rider, RiderScope,
@@ -3066,7 +3067,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     riders: &[],
 };
 
-pub static DEFS: [&CardDef; 355] = [
+pub static DEFS: [&CardDef; 392] = [
     &MAGIC_OF_THE_SMITH,
     &VAST_WEALTH,
     &BLACK_MARKET_CACHE,
@@ -3422,6 +3423,43 @@ pub static DEFS: [&CardDef; 355] = [
     &PSYCHOPHAGIA,
     &KHABAR_GLORY,
     &OPEN_WAR,
+    &THE_PARTHENON,
+    &DUMMY_CORPORATION,
+    &FERRAILLE,
+    &OXFORD_UNIVERSITY,
+    &THE_BLACK_THRONE,
+    &KUMPANIA,
+    &SIGHT_BEYOND_SIGHT,
+    &CHARISMA,
+    &GIANTS_BLOOD,
+    &GOLCONDA_INNER_PEACE,
+    &GROOMING_THE_PROTEGE,
+    &GANGREL_REVEL,
+    &KHABAR_COMMUNITY,
+    &NEW_CARTHAGE,
+    &MOB_CONNECTIONS,
+    &FRAGMENT_OF_THE_BOOK_OF_NOD,
+    &BRUJAH_DEBATE,
+    &WMRH_TALK_RADIO,
+    &THE_RUMOR_MILL,
+    &MONSTER,
+    &DABBLER,
+    &DEAD_POOL,
+    &ALAMUT,
+    &CAPPADOCIAN_CRYPT,
+    &POWERBASE_MUNICH,
+    &TWILIGHT_CAMP,
+    &THE_MITHRAEUM,
+    &MITHRAIC_CULTIST,
+    &SECURE_HAVEN,
+    &YORUBA_SHRINE,
+    &CAVE_OF_APPLES,
+    &BRITISH_MUSEUM,
+    &THE_LINE,
+    &THE_SHARD,
+    &RAVNOS_CACHE,
+    &RAVNOS_CARNIVAL,
+    &FLESHFORGE_CHAMBER,
 ];
 
 // ---- Cards in play with riders and granted actions (slice 5) ------------
@@ -10559,11 +10597,17 @@ pub static WEEK_OF_NIGHTMARES: CardDef = CardDef {
                 clan: "Ravnos",
                 stat: Stat::Bleed,
                 n: 1,
+                own: false,
+                titled: false,
+                during: &[],
             }),
             Effect::Layer(Modifier::ClanStat {
                 clan: "Ravnos",
                 stat: Stat::Strength,
                 n: 1,
+                own: false,
+                titled: false,
+                during: &[],
             }),
             Effect::Layer(Modifier::ClanCannotHunt("Ravnos")),
         ],
@@ -12836,5 +12880,1372 @@ pub static OPEN_WAR: CardDef = CardDef {
             ],
         },
     ],
+    riders: &[],
+};
+
+// ---- Pool masters, wave 1 (slice 11w) ---------------------------------------
+
+/// A master card put in play, then "minions can burn this card as a Ⓓ
+/// action" for those `requires` names.
+const fn burn_this_by(requires: &'static [Requirement]) -> ModeDef {
+    ModeDef {
+        windows: &[Window::ActionDeclare],
+        actor: Actor::ActingCandidate,
+        requires,
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::BurnCard),
+            Effect::BurnSource,
+        ],
+    }
+}
+
+/// "Unique location. During your master phase, you can lock this card to
+/// get +1 master phase action." (2 pool.)
+pub static THE_PARTHENON: CardDef = CardDef {
+    name: "Parthenon, The",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[LOCATION],
+    abilities: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Controller,
+        requires: &[Requirement::CardUnlocked],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::LockSelf, Effect::GainMasterPhaseAction],
+    }],
+    riders: &[],
+};
+
+/// "Unique location. You can burn this card if a minion is bleeding you to
+/// reduce the bleed amount by 2."
+pub static DUMMY_CORPORATION: CardDef = CardDef {
+    name: "Dummy Corporation",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[LOCATION],
+    abilities: &[ModeDef {
+        windows: &[Window::ReactionDuringAction],
+        actor: Actor::Controller,
+        requires: &[Requirement::DirectedAtYou, Requirement::IsBleed],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::BurnSelf, Effect::ReduceBleed(2)],
+    }],
+    riders: &[],
+};
+
+/// "Unique. Put this card in play. Once each turn, you can burn 1 pool to
+/// get +3 votes during the polling step of any referendum." (Ministry.) Not
+/// if the cost ousts the player (LSJ 20081105); "each turn": each player's
+/// turn (ANK 20180719-4).
+pub static FERRAILLE: CardDef = CardDef {
+    name: "Ferraille",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[master_in_play(&[], &[Effect::PutInPlay])],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::Referendum],
+            actor: Actor::Controller,
+            requires: &[Requirement::AnyPollingStep],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: Some(Limit::PerTurn),
+            effects: &[
+                Effect::PayPool(1),
+                Effect::MethuselahVotes { n: 3, favor: true },
+            ],
+        },
+        ModeDef {
+            windows: &[Window::Referendum],
+            actor: Actor::Controller,
+            requires: &[Requirement::AnyPollingStep],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: Some(Limit::PerTurn),
+            effects: &[
+                Effect::PayPool(1),
+                Effect::MethuselahVotes { n: 3, favor: false },
+            ],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Unique location. You can lock this card and burn X pool during the
+/// polling step of a political action to get +2X votes." (Brujah.)
+pub static OXFORD_UNIVERSITY: CardDef = CardDef {
+    name: "Oxford University, England",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[LOCATION],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::Referendum],
+            actor: Actor::Controller,
+            requires: &[Requirement::PollingStep, Requirement::CardUnlocked],
+            target: NO_TARGET,
+            terms: Some(Terms::XPool),
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::LockSelf,
+                Effect::PayPoolX,
+                Effect::MethuselahVotesX {
+                    per: 2,
+                    favor: true,
+                },
+            ],
+        },
+        ModeDef {
+            windows: &[Window::Referendum],
+            actor: Actor::Controller,
+            requires: &[Requirement::PollingStep, Requirement::CardUnlocked],
+            target: NO_TARGET,
+            terms: Some(Terms::XPool),
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::LockSelf,
+                Effect::PayPoolX,
+                Effect::MethuselahVotesX {
+                    per: 2,
+                    favor: false,
+                },
+            ],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Unique location. You can lock this card during the polling step of any
+/// referendum to get +2 votes. You can lock this card after a minion with a
+/// contract for which an Assamite you control is chosen leaves the ready
+/// region to gain 1 pool." (1 pool; Banu Haqim.) The contract's host
+/// leaving is enough: burned with it, or its controller ousted (PIB
+/// 20150512, ANK 20180129-2).
+pub static THE_BLACK_THRONE: CardDef = CardDef {
+    name: "Black Throne, The",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[LOCATION],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::Referendum],
+            actor: Actor::Controller,
+            requires: &[Requirement::AnyPollingStep, Requirement::CardUnlocked],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::LockSelf,
+                Effect::MethuselahVotes { n: 2, favor: true },
+            ],
+        },
+        ModeDef {
+            windows: &[Window::Referendum],
+            actor: Actor::Controller,
+            requires: &[Requirement::AnyPollingStep, Requirement::CardUnlocked],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::LockSelf,
+                Effect::MethuselahVotes { n: 2, favor: false },
+            ],
+        },
+    ],
+    riders: &[Rider {
+        hook: Hook::ContractHostLeaves,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::GainPool(1)],
+    }],
+};
+
+/// "Unique. Put this card in play. You can lock this card to give a Ravnos
+/// with capacity 5 or more you control +1 intercept." (1 pool; Ravnos.)
+pub static KUMPANIA: CardDef = CardDef {
+    name: "Kumpania",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[master_in_play(&[], &[Effect::PutInPlay])],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionStealthIntercept],
+        actor: Actor::Controller,
+        requires: &[
+            Requirement::CardUnlocked,
+            Requirement::YourAttemptNeedsIntercept,
+            Requirement::AttemptingClan("Ravnos"),
+            Requirement::AttemptingCapacityAtLeast(5),
+        ],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::LockSelf, Effect::AttemptingIntercept(1)],
+    }],
+    riders: &[],
+};
+
+/// "Unique. Put this card on a Salubri you control. This Salubri gets +1
+/// intercept." (Salubri.)
+pub static SIGHT_BEYOND_SIGHT: CardDef = CardDef {
+    name: "Sight Beyond Sight",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[Requirement::Controlled, Requirement::TargetClan("Salubri")],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::PutOnTarget,
+            Effect::Layer(Modifier::Bearer {
+                stat: Stat::Intercept,
+                n: 1,
+                during: &[],
+                who: Bearer::Any,
+            }),
+        ],
+    }],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Unique. Put this card on a ready vampire. Recruit ally actions cost this
+/// vampire -1 blood or pool." Any Methuselah's.
+pub static CHARISMA: CardDef = CardDef {
+    name: "Charisma",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[Requirement::TargetVampire, Requirement::ActorReady],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::PutOnTarget,
+            Effect::Layer(Modifier::HostRecruitDiscount(1)),
+        ],
+    }],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Only one Giant's Blood can be played in a game. Choose a vampire. The
+/// chosen vampire gains enough blood to reach full capacity." Not an
+/// uncontrolled one (LSJ 20061109).
+pub static GIANTS_BLOOD: CardDef = CardDef {
+    name: "Giant's Blood",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[Requirement::NotPlayedThisGame],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[Requirement::TargetVampire],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::BloodToTargetFull],
+    }],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Remove a vampire with capacity 8 or more from the game. Their
+/// controller gains pool equal to the vampire's capacity. Their controller
+/// can burn 2 pool to cancel this card as it is played."
+pub static GOLCONDA_INNER_PEACE: CardDef = CardDef {
+    name: "Golconda: Inner Peace",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[
+                Requirement::TargetVampire,
+                Requirement::TargetCapacityAtLeast(8),
+            ],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::CancelableForPoolByTargetController(2),
+            Effect::RemoveTargetForCapacityPool,
+        ],
+    }],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Move up to 3 blood from a ready vampire you control to a younger
+/// vampire of the same clan in your uncontrolled region." The vampire
+/// giving is the card's actor (not locked: no action).
+pub static GROOMING_THE_PROTEGE: CardDef = CardDef {
+    name: "Grooming the Protégé",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::AnyReadyVampire,
+        requires: &[Requirement::ActorBloodAtLeast(1)],
+        target: Some(TargetSpec {
+            kind: TargetKind::Uncontrolled,
+            filter: &[Requirement::Younger, Requirement::SameClanAsActor],
+        }),
+        terms: Some(Terms::BloodRange { min: 1, max: 3 }),
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::MoveBloodXToUncontrolledTarget],
+    }],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Unique. Put this card in play. Gangrel you control get +1 strength.
+/// Non-Ravnos minions can burn this card as a Ⓓ action." (1 pool; Gangrel.)
+pub static GANGREL_REVEL: CardDef = CardDef {
+    name: "Gangrel Revel",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[master_in_play(
+        &[],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::ClanStat {
+                clan: "Gangrel",
+                stat: Stat::Strength,
+                n: 1,
+                own: true,
+                titled: false,
+                during: &[],
+            }),
+        ],
+    )],
+    abilities: &[burn_this_by(&[Requirement::ActorNotClan("Ravnos")])],
+    riders: &[],
+};
+
+/// "Unique. Put this card in play. Assamites get +1 stealth when bleeding.
+/// Minions can burn this card as a Ⓓ action; Tremere get +1 stealth during
+/// that action." (2 pool; Banu Haqim.) Every Assamite, whoever controls it.
+pub static KHABAR_COMMUNITY: CardDef = CardDef {
+    name: "Khabar: Community, The",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[master_in_play(
+        &[],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::ClanStat {
+                clan: "Banu Haqim",
+                stat: Stat::Stealth,
+                n: 1,
+                own: false,
+                titled: false,
+                during: &[ActionKind::Bleed],
+            }),
+        ],
+    )],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDeclare],
+        actor: Actor::ActingCandidate,
+        requires: &[],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::BurnCard),
+            Effect::StealthForClan {
+                clan: "Tremere",
+                n: 1,
+            },
+            Effect::BurnSource,
+        ],
+    }],
+    riders: &[],
+};
+
+/// "Unique location. Titled Brujah get +1 bleed and +1 vote. Ventrue get -1
+/// vote." (3 pool; Brujah.) Every such vampire; net negative votes count
+/// as none (ANK 20251125, LSJ 20050221-2).
+pub static NEW_CARTHAGE: CardDef = CardDef {
+    name: "New Carthage",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[master_in_play(
+        &[],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::ClanStat {
+                clan: "Brujah",
+                stat: Stat::Bleed,
+                n: 1,
+                own: false,
+                titled: true,
+                during: &[],
+            }),
+            Effect::Layer(Modifier::ClanStat {
+                clan: "Brujah",
+                stat: Stat::Votes,
+                n: 1,
+                own: false,
+                titled: true,
+                during: &[],
+            }),
+            Effect::Layer(Modifier::ClanStat {
+                clan: "Ventrue",
+                stat: Stat::Votes,
+                n: -1,
+                own: false,
+                titled: false,
+                during: &[],
+            }),
+        ],
+    )],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Unique. Put this card in play. You can lock this card to give a minion
+/// you control 1 press, only usable to continue combat. Minions can burn
+/// this card as a Ⓓ action."
+pub static MOB_CONNECTIONS: CardDef = CardDef {
+    name: "Mob Connections",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[master_in_play(&[], &[Effect::PutInPlay])],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::CombatPress],
+            actor: Actor::Controller,
+            requires: &[Requirement::CardUnlocked, Requirement::OwnMinionInCombat],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::LockSelf, Effect::ContinuePressForOwnCombatant],
+        },
+        burn_this_by(&[]),
+    ],
+    riders: &[],
+};
+
+/// "Unique Nod fragment. Put this card in play. You can lock this card to
+/// draw 2 cards (discard down afterward). Vampires can steal this card as a
+/// Ⓓ action." Whenever its controller holds the impulse, during an action
+/// too (ANK 20200616).
+pub static FRAGMENT_OF_THE_BOOK_OF_NOD: CardDef = CardDef {
+    name: "Fragment of the Book of Nod",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[master_in_play(&[], &[Effect::PutInPlay])],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::AnyImpulse],
+            actor: Actor::Controller,
+            requires: &[Requirement::CardUnlocked],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::LockSelf, Effect::DrawThenDiscardDown(2)],
+        },
+        steal_this(&[Requirement::ActorVampire]),
+    ],
+    riders: &[],
+};
+
+/// "Put this card in play. During each Methuselah's master phase, that
+/// Methuselah locks one of the oldest Brujah they control (if any). Brujah
+/// get +1 strength and 1 optional maneuver each combat. Non-Ventrue minions
+/// can burn this card as a Ⓓ action." (1 pool; Brujah.) Their pick among
+/// the oldest (LSJ 19980224), a locked one too (LSJ 20010508).
+pub static BRUJAH_DEBATE: CardDef = CardDef {
+    name: "Brujah Debate",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[master_in_play(
+        &[],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::ClanStat {
+                clan: "Brujah",
+                stat: Stat::Strength,
+                n: 1,
+                own: false,
+                titled: false,
+                during: &[],
+            }),
+            Effect::Layer(Modifier::ClanCombatManeuver("Brujah")),
+        ],
+    )],
+    abilities: &[burn_this_by(&[Requirement::ActorNotClan("Ventrue")])],
+    riders: &[Rider {
+        hook: Hook::MasterPhaseStart,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::LockOldestOfClan("Brujah")],
+    }],
+};
+
+// ---- Pool masters, wave 2 (slice 11x) ---------------------------------------
+
+/// "Unique location. You can lock this card to give a minion +1 intercept.
+/// If that minion does not block the action, burn 1 pool after action
+/// resolution." (1 pool.) Any Methuselah's minion attempting to block;
+/// blocks before the lock do not count (ANK 20230319); sequencing as
+/// usual (ANK 20200607).
+pub static WMRH_TALK_RADIO: CardDef = CardDef {
+    name: "WMRH Talk Radio",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[LOCATION],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionStealthIntercept],
+        actor: Actor::Controller,
+        requires: &[
+            Requirement::CardUnlocked,
+            Requirement::AnyAttemptNeedsIntercept,
+        ],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::LockSelf,
+            Effect::AttemptingIntercept(1),
+            Effect::PoolIfAttemptingDoesNotBlock,
+        ],
+    }],
+    riders: &[],
+};
+
+/// "Unique location. You can lock this card during an action to choose a
+/// vampire; the chosen vampire can burn 1 blood to get +1 intercept during
+/// that action." (1 pool.) Any vampire, once; sequencing as usual (ANK
+/// 20200607).
+pub static THE_RUMOR_MILL: CardDef = CardDef {
+    name: "Rumor Mill, Tabloid Newspaper, The",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[LOCATION],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDuring, Window::ReactionDuringAction],
+        actor: Actor::Controller,
+        requires: &[Requirement::CardUnlocked],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[Requirement::TargetVampire, Requirement::ActorReady],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::LockSelf, Effect::TargetBurnsBloodForIntercept],
+    }],
+    riders: &[],
+};
+
+/// "Archetype. Put this card on a ready vampire you control. Once each turn
+/// after a combat involving this vampire ends, this vampire can burn 1
+/// blood to unlock if the opposing minion is not ready." Used after the
+/// combat, ordered among the after-combat effects (ANK 20230314); "each
+/// turn": each player's (ANK 20180719-4).
+pub static MONSTER: CardDef = CardDef {
+    name: "Monster",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[archetype(
+        &[
+            Requirement::Controlled,
+            Requirement::TargetVampire,
+            Requirement::ActorReady,
+            NO_ARCHETYPE,
+        ],
+        &[Effect::PutOnTarget],
+    )],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionAfterCombat],
+        actor: Actor::Host,
+        requires: &[
+            Requirement::HostCombatOpponentNotReady,
+            Requirement::HostBloodAtLeast(1),
+        ],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: Some(Limit::PerTurn),
+        effects: &[Effect::HostBurnBloodToUnlock],
+    }],
+    riders: &[],
+};
+
+/// "Archetype. Trifle. Put this card on a vampire you control. Once each
+/// turn, after an action (successful or not) is resolved during which this
+/// vampire used 3 or more Disciplines to play cards, this vampire can
+/// either burn 1 blood to unlock or gain 1 blood." Canceled cards count
+/// (ANK 20220411); a canceled action has no resolution (ANK 20220411).
+pub static DABBLER: CardDef = CardDef {
+    name: "Dabbler",
+    trifle: true,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[archetype(
+        &[
+            Requirement::Controlled,
+            Requirement::TargetVampire,
+            NO_ARCHETYPE,
+        ],
+        &[Effect::PutOnTarget],
+    )],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::ActionAfterResolution],
+            actor: Actor::Host,
+            requires: &[
+                Requirement::HostUsedDisciplines(3),
+                Requirement::HostBloodAtLeast(1),
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: Some(Limit::PerTurn),
+            effects: &[Effect::HostBurnBloodToUnlock],
+        },
+        ModeDef {
+            windows: &[Window::ActionAfterResolution],
+            actor: Actor::Host,
+            requires: &[Requirement::HostUsedDisciplines(3)],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: Some(Limit::PerTurn),
+            effects: &[Effect::AddHostBlood(1)],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Unique. Put this card in play. After a vampire in combat with a
+/// Lasombra you control leaves the ready region, you can add 1 counter to
+/// this card. During a bleed action or the polling step of any referendum,
+/// a Lasombra you control can burn 1 counter from this card to get +2 bleed
+/// or +2 votes." (Lasombra.) The bleed only during the bleed action before
+/// resolution (ANK 20231124, LSJ 19970718).
+pub static DEAD_POOL: CardDef = CardDef {
+    name: "Dead Pool",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[master_in_play(&[], &[Effect::PutInPlay])],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::ActionDuring],
+            actor: Actor::AnyReadyVampire,
+            requires: &[
+                Requirement::ActorActing,
+                Requirement::IsBleed,
+                Requirement::ActorOfClan("Lasombra"),
+                Requirement::CountersAtLeast(1),
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::RemoveCounter(1),
+                Effect::BleedMod {
+                    n: 2,
+                    limited: false,
+                },
+            ],
+        },
+        ModeDef {
+            windows: &[Window::Referendum],
+            actor: Actor::AnyReadyVampire,
+            requires: &[
+                Requirement::AnyPollingStep,
+                Requirement::ActorOfClan("Lasombra"),
+                Requirement::NotAbstaining,
+                Requirement::CountersAtLeast(1),
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::RemoveCounter(1), Effect::AddVotes(2)],
+        },
+    ],
+    riders: &[Rider {
+        hook: Hook::CombatOpponentOfOwnClanLeft("Lasombra"),
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::AddCounter(1)],
+    }],
+};
+
+/// "Unique location. After an Assamite you control successfully bleeds a
+/// Methuselah, put the pool lost by that Methuselah on this card. During
+/// the polling step of a political action, you can burn X counters from
+/// this card to give a vampire you control +X votes." (1 pool; Banu Haqim.)
+pub static ALAMUT: CardDef = CardDef {
+    name: "Alamut",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[LOCATION],
+    abilities: &[ModeDef {
+        windows: &[Window::Referendum],
+        actor: Actor::AnyReadyVampire,
+        requires: &[
+            Requirement::PollingStep,
+            Requirement::NotAbstaining,
+            Requirement::CountersAtLeast(1),
+        ],
+        target: NO_TARGET,
+        terms: Some(Terms::XCounters),
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::RemoveCountersX, Effect::AddVotesX],
+    }],
+    riders: &[Rider {
+        hook: Hook::OwnBleedSuccessful,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::CountersFromOwnBleed("Banu Haqim")],
+    }],
+};
+
+/// "Unique location. You can lock this location after resolution of a
+/// successful action requiring Hecata or Oblivion [obl] to add 1 blood to a
+/// Hecata you control." (Hecata.) Anyone's action; one granted by a card
+/// requiring Hecata counts (LSJ 20080604).
+pub static CAPPADOCIAN_CRYPT: CardDef = CardDef {
+    name: "Cappadocian Crypt",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[LOCATION],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionAfterResolution],
+        actor: Actor::Controller,
+        requires: &[
+            Requirement::CardUnlocked,
+            Requirement::ActionSuccessful,
+            Requirement::ActionRequiresClanOrDiscipline("Hecata", "obl"),
+        ],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[Requirement::Controlled, Requirement::TargetClan("Hecata")],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::LockSelf, Effect::BloodToTarget(1)],
+    }],
+    riders: &[],
+};
+
+/// "Unique location. During your master phase, you can lock this location to
+/// move 1 blood from a vampire with Oblivion [obl] you control to your pool
+/// or from your pool to a ready vampire with Oblivion [obl] you control.
+/// Independent vampires can burn this location as a Ⓓ action that costs 1
+/// blood." (Hecata.) The burn requires an Independent vampire (LSJ
+/// 20080604).
+pub static POWERBASE_MUNICH: CardDef = CardDef {
+    name: "Powerbase: Munich",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[LOCATION],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::MasterPhase],
+            actor: Actor::Controller,
+            requires: &[Requirement::CardUnlocked],
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[
+                    Requirement::Controlled,
+                    Requirement::TargetVampire,
+                    Requirement::TargetDiscipline("obl"),
+                    Requirement::BloodAtLeast(1),
+                ],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::LockSelf, Effect::TargetBloodToPool(1)],
+        },
+        ModeDef {
+            windows: &[Window::MasterPhase],
+            actor: Actor::Controller,
+            requires: &[Requirement::CardUnlocked],
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[
+                    Requirement::Controlled,
+                    Requirement::TargetVampire,
+                    Requirement::ActorReady,
+                    Requirement::TargetDiscipline("obl"),
+                ],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::LockSelf, Effect::PoolToTargetBlood(1)],
+        },
+        ModeDef {
+            windows: &[Window::ActionDeclare],
+            actor: Actor::ActingCandidate,
+            requires: &[
+                Requirement::ActorSectIn(&[Sect::Independent]),
+                Requirement::ActorBloodAtLeast(1),
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::BurnCard),
+                Effect::PayBlood(1),
+                Effect::BurnSource,
+            ],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Put this card in play with 4 blood. After you put a non-titled
+/// non-Anarch vampire in play from your uncontrolled region, you can burn 1
+/// blood from this card to make that vampire Anarch. You can use a master
+/// phase action to move 1 blood from this card to an Anarch. If this card
+/// has no blood, burn it." Its blood as counters.
+pub static TWILIGHT_CAMP: CardDef = CardDef {
+    name: "Twilight Camp",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[master_in_play(
+        &[],
+        &[Effect::PutInPlay, Effect::EnterWithCounters(4)],
+    )],
+    abilities: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Controller,
+        requires: &[
+            Requirement::MasterPhaseActionLeft,
+            Requirement::CountersAtLeast(1),
+        ],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[Requirement::TargetVampire, Requirement::TargetAnarch],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::SpendMasterPhaseAction,
+            Effect::CounterToTargetBlood,
+            Effect::BurnSelfWithoutCounters,
+        ],
+    }],
+    riders: &[Rider {
+        hook: Hook::OwnVampireInfluenced,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[],
+    }],
+};
+
+/// "Unique location. Mithraic Mysteries. If you do not control /Mithras/
+/// during your influence phase, you can search your crypt for 1 copy of
+/// him, reveal it, and move it to your uncontrolled region (shuffle
+/// afterward). During your unlock phase, you can add 1 blood to /Mithras/
+/// or a Mithraic Mysteries member (the target must be controlled)." (1
+/// pool.)
+pub static THE_MITHRAEUM: CardDef = CardDef {
+    name: "Mithraeum, London, The",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[LOCATION],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::InfluencePhaseOwn],
+            actor: Actor::Controller,
+            requires: &[Requirement::NoVampireNamedButInCrypt("Mithras")],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::CryptNamedToUncontrolled("Mithras")],
+        },
+        ModeDef {
+            windows: &[Window::UnlockPhaseOwn],
+            actor: Actor::Controller,
+            requires: &[],
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[Requirement::Controlled, Requirement::TargetMithraic],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::BloodToTarget(1)],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Trifle. Put this card on a vampire you control who is not /Mithras/.
+/// This vampire is a Mithraic Mysteries member. This vampire gets +1 vote
+/// while you control /Mithras/. This vampire gets +1 intercept during
+/// actions directed at /Mithras/ or a Mithraic Mysteries card or member. A
+/// vampire can have only one Mithraic Cultist."
+pub static MITHRAIC_CULTIST: CardDef = CardDef {
+    name: "Mithraic Cultist",
+    trifle: true,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[
+                Requirement::Controlled,
+                Requirement::TargetVampire,
+                Requirement::TargetNotNamed("Mithras"),
+                Requirement::TargetWithout(Holding::Named("Mithraic Cultist")),
+            ],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::PutOnTarget,
+            Effect::Layer(Modifier::MithraicMember),
+            Effect::Layer(Modifier::HostVotesWhileControlling {
+                name: "Mithras",
+                n: 1,
+            }),
+            Effect::Layer(Modifier::HostInterceptVsMithraic(1)),
+        ],
+    }],
+    abilities: &[],
+    riders: &[],
+};
+
+// ---- Pool masters, wave 3 (slice 11y) ---------------------------------------
+
+/// "Unique location. Haven. Put this card on a minion you control. This
+/// minion cannot be the target of other Methuselahs' actions. Master cards
+/// targeting this minion cost 1 additional pool. Burn this card after this
+/// minion goes to torpor. A minion can have only one haven." (1 pool.) The
+/// extra pool from anyone, its controller too (TOM 19951208-1); cards on the
+/// minion stay targetable (TOM 19951208-1, LSJ 19980302-1); effects of cards
+/// already in play cost nothing more (ANK 20221120); playable on a vampire
+/// in torpor (LSJ 20010610).
+pub static SECURE_HAVEN: CardDef = CardDef {
+    name: "Secure Haven",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[
+                Requirement::Controlled,
+                Requirement::TargetWithout(Holding::Named("Secure Haven")),
+            ],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::PutOnTarget, Effect::Layer(Modifier::Haven)],
+    }],
+    abilities: &[],
+    riders: &[Rider {
+        hook: Hook::HostToTorpor,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::BurnSelf],
+    }],
+};
+
+/// "Unique location. If a ready Assamite you control is the target of a
+/// directed action or is chosen by the acting Methuselah in the terms of a
+/// referendum, you can lock this location to unlock the acting minion and
+/// have the action or referendum fail. Only usable as the directed action is
+/// announced or during the polling step of the referendum before votes and
+/// ballots are cast." (1 pool; Banu Haqim.) After the acting Methuselah's
+/// own as-announced effects (LSJ 20081105), before other modifiers and
+/// reactions (ANK 20190425); the failed action reached resolution (ANK
+/// 20211015, RTR 20180719) and was not blocked (LSJ 20070219).
+pub static YORUBA_SHRINE: CardDef = CardDef {
+    name: "Yoruba Shrine",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[LOCATION],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::ReactionAsAnnounced],
+            actor: Actor::Controller,
+            requires: &[
+                Requirement::CardUnlocked,
+                Requirement::DirectedAtYourReadyClan("Banu Haqim"),
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::LockSelf, Effect::UnlockActing, Effect::ActionFails],
+        },
+        ModeDef {
+            windows: &[Window::Referendum],
+            actor: Actor::Controller,
+            requires: &[
+                Requirement::CardUnlocked,
+                Requirement::PollingStep,
+                Requirement::NoVotesCast,
+                Requirement::TermsChoseYourReadyClan("Banu Haqim"),
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::LockSelf,
+                Effect::UnlockActing,
+                Effect::FailReferendum,
+            ],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Unique location. Followers of Set you control can put 1 corruption
+/// counter on an ally or younger vampire controlled by your prey as a Ⓓ
+/// action. If the action is successful and the number of your corruption
+/// counters on the minion equals or exceeds their capacity or cost, you can
+/// burn those counters to steal that minion." (3 pool.) The action requires
+/// a Follower of Set (LSJ 20080604).
+pub static CAVE_OF_APPLES: CardDef = CardDef {
+    name: "Cave of Apples",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[LOCATION],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDeclare],
+        actor: Actor::ActingCandidate,
+        requires: &[Requirement::ActorOfClan("Ministry")],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[Requirement::ControlledByPrey, Requirement::AllyOrYounger],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::CorruptTargetMayStealAtCapacity,
+        ],
+    }],
+    riders: &[],
+};
+
+/// "Unique location. +1 hand size. Minions you control can unlock after
+/// resolution of a successful action to equip with a non-electronic,
+/// non-vehicle, non-weapon equipment card from your hand; a minion can
+/// unlock only once this way each turn. Non-electronic, non-vehicle,
+/// non-weapon equipment cards cost minions you control -1 blood or pool to
+/// equip." (2 pool.) The card's type read in hand (locations in play
+/// included, ANK 20220824); the reduction always (ANK 20221026).
+pub static BRITISH_MUSEUM: CardDef = CardDef {
+    name: "British Museum, London, The",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[master_in_play(
+        &[],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::HandSize(1)),
+            Effect::Layer(Modifier::PlainEquipDiscount(1)),
+        ],
+    )],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionAfterResolution],
+        actor: Actor::Controller,
+        requires: &[
+            Requirement::ActionSuccessful,
+            Requirement::OtherActingControlled,
+            Requirement::PlainEquipFromHandOncePerTurn,
+        ],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::UnlockActing],
+    }],
+    riders: &[],
+};
+
+// ---- Pool masters, wave 4: cost reductions (slice 11z) ----------------------
+
+/// "Unique location. You can lock this location to reduce the cost of an
+/// action card a vampire you control plays by 1 blood (this location is not
+/// locked if that card is canceled as it is played). Vampires can steal this
+/// location as a Ⓓ action." Any action card's blood, not its pool (ANK
+/// 20181007); not for an ally playing as a vampire (ANK 20200605); from the
+/// announcement to just before the cost is paid, announced with the card if
+/// it is otherwise unaffordable (ANK 20230620, ANK 20170605, LSJ 20090705,
+/// LSJ 20030917, ANK 20230621) — as the action resolves too (rules-qa
+/// 36.1). A card played otherwise than as an action (Piper's ally) takes it
+/// too (ANK 20230824, RTR 20070707; rules-qa 36.5).
+pub static THE_LINE: CardDef = CardDef {
+    name: "Line, The",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[master_in_play(
+        &[],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::CostSource(CostSource::Line)),
+        ],
+    )],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::ActionDuring, Window::ActionWouldBeSuccessful],
+            actor: Actor::Controller,
+            requires: &[
+                Requirement::CardUnlocked,
+                Requirement::OwnActionCardCosts(CostSource::Line),
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::LockSelf, Effect::ReduceActionBlood(1)],
+        },
+        steal_this(&[Requirement::ActorVampire]),
+    ],
+    riders: &[],
+};
+
+/// "Unique location. If you have the Edge, you can lock this card to reduce
+/// the cost of a card you play by 2 pool or blood. Vampires can steal this
+/// location as a Ⓓ action; Ventrue get +1 stealth during that action." (2
+/// pool.) Minion cards too (ANK 20221102); the same timing as The Line.
+pub static THE_SHARD: CardDef = CardDef {
+    name: "Shard, London, The",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[master_in_play(
+        &[],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::CostSource(CostSource::Shard)),
+        ],
+    )],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::ActionDuring, Window::ActionWouldBeSuccessful],
+            actor: Actor::Controller,
+            requires: &[
+                Requirement::CardUnlocked,
+                Requirement::HasEdge,
+                Requirement::OwnActionCardCosts(CostSource::Shard),
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::LockSelf, Effect::ReduceActionCost(2)],
+        },
+        ModeDef {
+            windows: &[Window::ActionDeclare],
+            actor: Actor::ActingCandidate,
+            requires: &[Requirement::ActorVampire],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::StealCard),
+                Effect::StealthForClan {
+                    clan: "Ventrue",
+                    n: 1,
+                },
+            ],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Unique location. During your master phase, you can move 1 counter from
+/// your pool to this location and add 1 counter (from the blood bank) to
+/// it. Minions you control can lock this location to use those counters to
+/// pay some or all of the blood or pool cost of equipment they equip." In
+/// place of pool or blood, as the cost is (RTR 19960112).
+pub static RAVNOS_CACHE: CardDef = CardDef {
+    name: "Ravnos Cache",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[master_in_play(
+        &[],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::CostSource(CostSource::Cache)),
+        ],
+    )],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::MasterPhase],
+            actor: Actor::Controller,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::PoolToCounterPlusBank { pool: 1, bank: 1 }],
+        },
+        ModeDef {
+            windows: &[Window::ActionDuring, Window::ActionWouldBeSuccessful],
+            actor: Actor::Controller,
+            requires: &[
+                Requirement::CardUnlocked,
+                Requirement::CountersAtLeast(1),
+                Requirement::OwnActionCardCosts(CostSource::Cache),
+            ],
+            target: NO_TARGET,
+            terms: Some(Terms::XCounters),
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::LockSelf, Effect::PayActionWithCountersX],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Unique location. This location comes into play with 1 counter for each
+/// Ravnos you control. Ravnos you control can use those counters to pay some
+/// or all of the blood cost of action cards they play. If this location has
+/// no counters, burn it." (1 pool; Ravnos.) An action otherwise unaffordable
+/// may be attempted (LSJ 20050408); the counters are announced with the
+/// card (RTR 20111202); not a cardless action nor one granted by a card in
+/// play (ANK 20180109, LSJ 20070224).
+pub static RAVNOS_CARNIVAL: CardDef = CardDef {
+    name: "Ravnos Carnival",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[master_in_play(
+        &[],
+        &[
+            Effect::PutInPlay,
+            Effect::EnterWithCountersPerOwnClan("Ravnos"),
+            Effect::Layer(Modifier::CostSource(CostSource::Carnival)),
+        ],
+    )],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Unique location. During your master phase, you can put a ghoul (ally or
+/// retainer) from your hand on this location, face up and out of play.
+/// Tzimisce you control can play cards from this location as if from your
+/// hand (requirements and cost apply as normal)." Put there, a card is not
+/// replaced; played from there, neither (rules-qa 37.1).
+pub static FLESHFORGE_CHAMBER: CardDef = CardDef {
+    name: "Fleshforge Chamber",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[master_in_play(
+        &[],
+        &[Effect::PutInPlay, Effect::PlayableFromStore("Tzimisce")],
+    )],
+    abilities: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Controller,
+        requires: &[Requirement::HandHas(
+            CardFilter::HasLabel(crate::library::Label::Ghoul),
+            1,
+        )],
+        target: NO_TARGET,
+        terms: Some(Terms::Discard {
+            n: 1,
+            of: CardFilter::HasLabel(crate::library::Label::Ghoul),
+        }),
+        waives_needed: false,
+        limit: Some(Limit::PerPhaseEach),
+        effects: &[Effect::StorePickedFromHand],
+    }],
     riders: &[],
 };

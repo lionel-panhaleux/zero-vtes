@@ -157,6 +157,32 @@ impl Engine {
                 };
                 self.stage_contests(m);
                 self.flow = Flow::Influence { left };
+                // Twilight Camp: a non-titled non-Anarch vampire put in play
+                // from the uncontrolled region may be made Anarch.
+                let v = &self.state.minions[m.index()];
+                if self.state.title_of(m) == crate::crypt::Title::None
+                    && v.sect() != Some(crate::crypt::Sect::Anarch)
+                {
+                    for ci in 0..self.state.cards.len() {
+                        let id = crate::state::CardId(ci as u32);
+                        let c = &self.state.cards[ci];
+                        if c.present()
+                            && c.counters > 0
+                            && self.state.card_controller(id) == s
+                            && crate::cards::lookup(c.card).is_some_and(|d| {
+                                d.riders
+                                    .iter()
+                                    .any(|r| r.hook == crate::cards::Hook::OwnVampireInfluenced)
+                            })
+                        {
+                            self.interrupts.push(crate::draws::Interrupt::MakeAnarch {
+                                seat: s,
+                                card: id,
+                                minion: m,
+                            });
+                        }
+                    }
+                }
             }
             Choice::ResolveRider { card } => {
                 self.flow = Flow::Influence { left };

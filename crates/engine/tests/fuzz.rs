@@ -184,7 +184,7 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
 fn kind(e: &Engine, seat: SeatId, c: &Choice) -> String {
     match c {
         Choice::Play { card, .. } => {
-            let id = e.state.seats[seat.index()].hand[*card as usize];
+            let id = e.playable_card(seat, *card);
             format!("play:{}", LIBRARY[id as usize].name)
         }
         Choice::UseAbility { source, .. } => match source {
@@ -1855,5 +1855,237 @@ fn random_games_with_pool_actions_wave_2_hold_invariants_and_replay() {
         "rider:Judgment: Camarilla Segregation",
         "rider:Khabar: Glory",
     ]);
+    covers(&seen, &kinds);
+}
+
+/// Slice 11w: the pool's masters, wave 1.
+const POOL_MASTERS_SLICE: &[&str] = &[
+    "Parthenon, The",
+    "Dummy Corporation",
+    "Ferraille",
+    "Oxford University, England",
+    "Black Throne, The",
+    "Kumpania",
+    "Sight Beyond Sight",
+    "Charisma",
+    "Giant's Blood",
+    "Golconda: Inner Peace",
+    "Grooming the Protégé",
+    "Gangrel Revel",
+    "Khabar: Community, The",
+    "New Carthage",
+    "Mob Connections",
+    "Fragment of the Book of Nod",
+    "Brujah Debate",
+    "Priority Contract",
+    "Anarchist Uprising",
+    "Double Deuce",
+    "Political Ally",
+];
+
+/// Slice 11w: random tables with the first wave of the pool's masters.
+#[test]
+fn random_games_with_pool_masters_wave_1_hold_invariants_and_replay() {
+    let seen = fuzz(|seed| {
+        let mut e = table(seed, POOL_MASTERS_SLICE, &["OBF"]);
+        let st = &mut e.state;
+        for i in 0..st.minions.len() {
+            let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
+            let twin = st
+                .minions
+                .iter()
+                .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
+            if twin && st.minions[i].in_torpor {
+                st.minions[i].in_play = false;
+            }
+        }
+        e
+    });
+    let mut kinds: Vec<String> = POOL_MASTERS_SLICE[..17]
+        .iter()
+        .map(|n| format!("play:{n}"))
+        .collect();
+    for k in [
+        "ability:Black Throne, The",
+        "ability:Brujah Debate",
+        "ability:Dummy Corporation",
+        "ability:Ferraille",
+        "ability:Fragment of the Book of Nod",
+        "ability:Gangrel Revel",
+        "ability:Khabar: Community, The",
+        "ability:Kumpania",
+        "ability:Mob Connections",
+        "ability:Oxford University, England",
+        "ability:Parthenon, The",
+        "rider:Black Throne, The",
+    ] {
+        kinds.push(k.into());
+    }
+    let kinds: Vec<&str> = kinds.iter().map(String::as_str).collect();
+    covers(&seen, &kinds);
+}
+
+/// Slice 11x: the pool's masters, wave 2.
+const POOL_MASTERS2_SLICE: &[&str] = &[
+    "WMRH Talk Radio",
+    "Rumor Mill, Tabloid Newspaper, The",
+    "Monster",
+    "Dabbler",
+    "Dead Pool",
+    "Alamut",
+    "Cappadocian Crypt",
+    "Powerbase: Munich",
+    "Twilight Camp",
+    "Mithraeum, London, The",
+    "Mithraic Cultist",
+    "Anarchist Uprising",
+    "Make the Misere",
+    "Umbrous Clutch",
+    "Lost in Crowds",
+];
+
+/// Slice 11x: random tables with the second wave of the pool's masters.
+#[test]
+fn random_games_with_pool_masters_wave_2_hold_invariants_and_replay() {
+    let seen = fuzz(|seed| {
+        let mut e = table(seed, POOL_MASTERS2_SLICE, &["OBF", "OBL"]);
+        let st = &mut e.state;
+        for i in 0..st.minions.len() {
+            let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
+            let twin = st
+                .minions
+                .iter()
+                .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
+            if twin && st.minions[i].in_torpor {
+                st.minions[i].in_play = false;
+            }
+        }
+        e
+    });
+    let mut kinds: Vec<String> = POOL_MASTERS2_SLICE[..11]
+        .iter()
+        .map(|n| format!("play:{n}"))
+        .collect();
+    for k in [
+        "ability:Alamut",
+        "ability:Cappadocian Crypt",
+        "ability:Dead Pool",
+        "ability:Mithraeum, London, The",
+        "ability:Monster",
+        "ability:Powerbase: Munich",
+        "ability:Rumor Mill, Tabloid Newspaper, The",
+        "ability:Twilight Camp",
+        "ability:WMRH Talk Radio",
+    ] {
+        kinds.push(k.into());
+    }
+    let kinds: Vec<&str> = kinds.iter().map(String::as_str).collect();
+    covers(&seen, &kinds);
+}
+
+/// Slice 11y: the pool's masters, wave 3.
+const POOL_MASTERS3_SLICE: &[&str] = &[
+    "Secure Haven",
+    "Yoruba Shrine",
+    "Cave of Apples",
+    "British Museum, London, The",
+    "Banishment",
+    "Anarchist Uprising",
+    "Umbrous Clutch",
+    "Open War",
+    "Living Manse",
+    "Kevlar Vest",
+    "Giant's Blood",
+    "Villein",
+    "Fleshforge Chamber",
+    "Szlachta Assistant",
+    "War Ghoul",
+];
+
+/// Slice 11y: random tables with the third wave of the pool's masters.
+#[test]
+fn random_games_with_pool_masters_wave_3_hold_invariants_and_replay() {
+    let seen = fuzz(|seed| {
+        let mut e = table(seed, POOL_MASTERS3_SLICE, &["OBF", "OBL"]);
+        let st = &mut e.state;
+        for i in 0..st.minions.len() {
+            let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
+            let twin = st
+                .minions
+                .iter()
+                .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
+            if twin && st.minions[i].in_torpor {
+                st.minions[i].in_play = false;
+            }
+        }
+        e
+    });
+    let mut kinds: Vec<String> = POOL_MASTERS3_SLICE[..4]
+        .iter()
+        .map(|n| format!("play:{n}"))
+        .collect();
+    for k in [
+        "play:Fleshforge Chamber",
+        "ability:Fleshforge Chamber",
+        "ability:British Museum, London, The",
+        "ability:Cave of Apples",
+        "ability:Yoruba Shrine",
+    ] {
+        kinds.push(k.into());
+    }
+    let kinds: Vec<&str> = kinds.iter().map(String::as_str).collect();
+    covers(&seen, &kinds);
+}
+
+/// Slice 11z: the cost-reduction masters.
+const COST_MASTERS_SLICE: &[&str] = &[
+    "Line, The",
+    "Shard, London, The",
+    "Ravnos Cache",
+    "Ravnos Carnival",
+    "Propaganda",
+    "Public Trust",
+    ".44 Magnum",
+    "Kevlar Vest",
+    "Parthenon, The",
+    "Direct Intervention",
+    "Wash",
+    "Political Ally",
+];
+
+/// Slice 11z: random tables with the cost-reduction masters.
+#[test]
+fn random_games_with_cost_reductions_hold_invariants_and_replay() {
+    let seen = fuzz(|seed| {
+        let mut e = table(seed, COST_MASTERS_SLICE, &["OBF"]);
+        let st = &mut e.state;
+        for i in 0..st.minions.len() {
+            let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
+            let twin = st
+                .minions
+                .iter()
+                .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
+            if twin && st.minions[i].in_torpor {
+                st.minions[i].in_play = false;
+            }
+        }
+        e
+    });
+    let mut kinds: Vec<String> = COST_MASTERS_SLICE[..4]
+        .iter()
+        .map(|n| format!("play:{n}"))
+        .collect();
+    for k in [
+        "ability:Line, The",
+        "ability:Shard, London, The",
+        "ability:Ravnos Cache",
+        "rider:Line, The",
+        "rider:Shard, London, The",
+        "rider:Ravnos Cache",
+        "rider:Ravnos Carnival",
+    ] {
+        kinds.push(k.into());
+    }
+    let kinds: Vec<&str> = kinds.iter().map(String::as_str).collect();
     covers(&seen, &kinds);
 }
