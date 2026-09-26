@@ -185,6 +185,9 @@ fn location(e: &mut Engine, seat: u8, name: &str) -> CardId {
         counters: 0,
         stored: Vec::new(),
         effect_only: false,
+        against: Default::default(),
+        entered: 0,
+        chosen: Vec::new(),
     });
     let id = CardId(e.state.cards.len() as u32 - 1);
     for effect in cards::lookup(card).expect("definition").modes[0].effects {
@@ -2431,6 +2434,7 @@ fn a_dodged_blood_rage_or_soul_burn_leaves_the_weapons_working() {
 fn soul_burn_nullifies_weapon_damage_as_it_resolves() {
     let mut e = Engine::bare(3);
     let a = e.add_minion(SeatId(0), with(&["THA"], 0), 5, false);
+    let start = e.state.capacity_of(a).unwrap().min(5);
     e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
     let b = e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
     let gun = equip(&mut e, ".44 Magnum", b);
@@ -2439,7 +2443,7 @@ fn soul_burn_nullifies_weapon_damage_as_it_resolves() {
     pick_when(&mut e, play(0, 1, a));
     pick_when(&mut e, weapon_strike(gun));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert_eq!(blood(&e, a), 4, "Soul Burn's own blood cost only");
+    assert_eq!(blood(&e, a), start - 1, "Soul Burn's own blood cost only");
     assert_eq!(blood(&e, b), 3);
 }
 
@@ -3004,6 +3008,7 @@ fn touch_of_oblivion_keeps_the_minion_locked_two_unlock_phases() {
     let touch = find_library("Touch of Oblivion");
     let mut e = Engine::bare(3);
     let a = e.add_minion(SeatId(0), with(&["obl"], 0), 5, false);
+    let start = e.state.capacity_of(a).unwrap().min(5);
     e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
     let b = e.add_minion(SeatId(1), plain("Brujah", "", 0), 5, false);
     e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
@@ -3012,7 +3017,7 @@ fn touch_of_oblivion_keeps_the_minion_locked_two_unlock_phases() {
     pick_when(&mut e, play(0, 0, a));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(on(&e, b), vec![(touch, 2)]);
-    assert_eq!(blood(&e, a), 2, "2 blood, and the hand strike");
+    assert_eq!(blood(&e, a), start - 3, "2 blood, and the hand strike");
     for left in [1, 0] {
         until(&mut e, SeatId(1), WindowLabel::MinionPhase);
         assert!(e.state.minions[b.index()].locked, "{left} left");
@@ -3615,7 +3620,11 @@ fn daring_the_dawn_burns_after_combat_or_an_ended_action() {
         let ally = e.add_ally(SeatId(1), find_library("47th Street Royals"));
         let p = e.add_minion(SeatId(1), prince(0), 5, false);
         e.state.minions[p.index()].locked = true;
-        hand(&mut e, 0, &["Daring the Dawn", "Change of Target"]);
+        hand(
+            &mut e,
+            0,
+            &["Daring the Dawn", "Change of Target", "Freak Drive"],
+        );
         hand(&mut e, 1, &["Second Tradition: Domain"]);
         pick(&mut e, action(a, ActionKind::Bleed));
         pick_when(&mut e, play(0, 1, a));
@@ -3627,11 +3636,44 @@ fn daring_the_dawn_burns_after_combat_or_an_ended_action() {
         pick_when(&mut e, Choice::DeclareBlock { minion: ally });
         if ended {
             pick_when(&mut e, play(0, 0, a));
+        } else {
+            // After the block's combat: the damage among the
+            // after-resolution effects, with Freak Drive [FOR].
+            let req = until(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
+            assert!(req.options.contains(&Choice::TakeDamageAfterResolution));
+            assert!(req.options.contains(&play(1, 1, a)), "Freak Drive [FOR]");
+            pick(&mut e, Choice::TakeDamageAfterResolution);
         }
         until(&mut e, SeatId(0), WindowLabel::MinionPhase);
         assert!(e.state.minions[a.index()].in_torpor, "ended: {ended}");
     }
 }
+// Freak Drive [FOR]: "Only usable if the action was blocked. Unlock this
+// vampire." [PIB 20150915] [LSJ 19981028] [ANK 20190425]: after
+// resolution, after all combats — a blocked action has its after-resolution
+// window after the block's combat (owner, 2026-09-26).
+#[test]
+fn freak_drive_superior_unlocks_after_the_blocked_actions_combat() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["FOR"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let z = e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+    hand(&mut e, 0, &["Freak Drive"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    let req = until(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
+    let plays: Vec<_> = req
+        .options
+        .iter()
+        .filter(|o| matches!(o, Choice::Play { .. }))
+        .collect();
+    assert_eq!(plays, vec![&play(0, 1, a)], "[FOR] only: blocked");
+    pick(&mut e, play(0, 1, a));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[a.index()].locked);
+    assert_eq!(blood(&e, a), 3, "a hand strike, then Freak Drive's blood");
+}
+
 // [PIB 20150915] [LSJ 19981028] [ANK 20190425] Shadow Cloak [OBL]: played
 // after resolution, still during the action. "Put this card on this vampire. Minions without
 // Auspex [aus] cannot perform actions directed at this vampire. During
@@ -3691,4 +3733,3487 @@ fn daring_the_dawn_damage_is_ordered_among_after_resolution_effects() {
             "damage first: {damage_first}"
         );
     }
+}
+
+// ---- Cards remembering a Methuselah (slice 11l) ------------------------------
+
+use zvtes::actions::Outcome;
+use zvtes::ids::SeatSet;
+
+/// Pass through the other Methuselahs' turns to seat 0's next minion phase.
+fn next_own_turn(e: &mut Engine) {
+    until(e, SeatId(1), WindowLabel::MinionPhase);
+    until(e, SeatId(0), WindowLabel::MinionPhase);
+}
+
+/// The copies of `name` in play, and what each remembers.
+fn remembering(e: &Engine, name: &str) -> Vec<(CardId, SeatSet)> {
+    let card = find_library(name);
+    e.state
+        .cards
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.in_play && c.card == card)
+        .map(|(i, c)| (CardId(i as u32), c.against))
+        .collect()
+}
+
+// Spying Mission [OBF]: "Only usable if a bleed would be successful.
+// Instead, the bleed burns no pool, is unsuccessful, and this card is put on
+// this vampire. The next time this vampire is about to successfully bleed
+// the same Methuselah, burn this card and this vampire gets +2 bleed." [LSJ
+// 19980105] [LSJ 20110502] played when the bleed is about to be successful,
+// after every other modifier and reaction (Deflection offered before, not
+// after). [ANK 20200609] several on one minion against the same Methuselah
+// burn at once, +2 bleed each. [LSJ 19980105] burned only after every card
+// is played: nothing can follow them (no window after the burn).
+#[test]
+fn spying_mission_superior_replaces_a_bleed_then_boosts_the_next_ones() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "OBF", 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), with(&["dom"], 0), 4, false);
+    hand(&mut e, 0, &["Spying Mission", "Spying Mission"]);
+    hand(&mut e, 1, &["Deflection", "Archon Investigation"]);
+    // Turn 1: the redirect comes first, then the bleed would succeed.
+    pick(&mut e, action(a, ActionKind::Bleed));
+    let req = until(&mut e, SeatId(1), WindowLabel::ActionBlocksDeclined);
+    assert!(req
+        .options
+        .iter()
+        .any(|o| matches!(o, Choice::Play { actor: Some(m), .. } if *m == z)));
+    pick(&mut e, Choice::Pass);
+    let req = until(&mut e, SeatId(0), WindowLabel::ActionWouldBeSuccessful);
+    assert!(req.options.contains(&play(0, 1, a)));
+    assert!(!req.options.contains(&play(0, 0, a)), "[obf] is stealth");
+    pick(&mut e, play(0, 1, a));
+    // The bleed is no longer successful: the other copy is not playable.
+    never_offered(&mut e, &play(0, 1, a));
+    assert_eq!(e.last_outcome, Some(Outcome::Failed), "unsuccessful");
+    assert_eq!(pool(&e, 1), 30, "no pool burned");
+    assert!(!e.state.seats[0].has_edge);
+    assert_eq!(
+        remembering(&e, "Spying Mission")
+            .iter()
+            .map(|&(_, s)| s)
+            .collect::<Vec<_>>(),
+        vec![SeatSet::single(SeatId(1))]
+    );
+    // Turn 2: a second one, played before the first could burn.
+    next_own_turn(&mut e);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, play(0, 1, a));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e, 1), 30);
+    assert_eq!(remembering(&e, "Spying Mission").len(), 2);
+    // Turn 3: both burn as the bleed resolves: 1 + 2 + 2 — too late for
+    // Archon Investigation (a bleed of 4 or more).
+    next_own_turn(&mut e);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    let archon = Choice::Play {
+        card: 1,
+        mode: 0,
+        actor: None,
+        target: Target::None,
+    };
+    never_offered(&mut e, &archon);
+    assert_eq!(pool(&e, 1), 25);
+    assert!(remembering(&e, "Spying Mission").is_empty());
+    assert_eq!(
+        e.state.seats[0].ash,
+        vec![find_library("Spying Mission"); 2]
+    );
+    assert!(e.state.seats[0].has_edge);
+}
+
+// [PIB 20150612] A bleed reduced to 0 "is no longer successful and Spying
+// Mission cannot be used afterwards" — nor does one in play burn, and no
+// Edge is taken (rulebook "Bleed": successful for 1 or more).
+#[test]
+fn spying_mission_needs_a_bleed_of_one_or_more() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "OBF", 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let royals = e.add_ally(SeatId(1), find_library("47th Street Royals"));
+    let id = e.state.minions[royals.index()].ally_id().unwrap();
+    hand(&mut e, 0, &["Spying Mission"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, ability(id)); // reduce by 3: 0
+    never_offered(&mut e, &play(0, 1, a));
+    assert_eq!(pool(&e, 1), 30);
+    assert!(!e.state.seats[0].has_edge, "a bleed of 0 is not successful");
+}
+
+// [LSJ 20050607] [LSJ 20050608] Spying Mission [OBF] canceled (Direct
+// Intervention): "it is too late for the target to play reactions" — the
+// bleed resolves. "If the cost of the cancellation ousts a player, handle
+// the oust before resolving the bleed": the prey ousted, the bleed has no
+// one to burn pool; another player ousted, it burns the prey's.
+#[test]
+fn spying_mission_canceled_lets_the_bleed_resolve_after_the_oust() {
+    for canceller in [1u8, 2] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), plain("", "OBF", 0), 5, false);
+        e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+        e.add_minion(SeatId(1), plain("Ventrue", "", 0), 4, false);
+        e.add_minion(SeatId(2), plain("Ventrue", "", 1), 4, false);
+        e.state.seats[canceller as usize].pool = 1;
+        hand(&mut e, 0, &["Spying Mission"]);
+        hand(&mut e, canceller, &["Direct Intervention", "Deflection"]);
+        pick(&mut e, action(a, ActionKind::Bleed));
+        pick_when(&mut e, play(0, 1, a));
+        let di = Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: None,
+            target: Target::None,
+        };
+        pick_when(&mut e, di);
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert!(e.state.seats[canceller as usize].ousted);
+        assert_eq!(e.state.seats[0].ash, vec![find_library("Spying Mission")]);
+        assert!(remembering(&e, "Spying Mission").is_empty());
+        if canceller == 1 {
+            assert_eq!(e.last_outcome, Some(Outcome::Fizzled));
+            assert!(!e.state.seats[0].has_edge);
+        } else {
+            assert_eq!(e.last_outcome, Some(Outcome::Successful));
+            assert_eq!(pool(&e, 1), 30 + 6 - 1, "the oust pays its predator first");
+            assert!(e.state.seats[0].has_edge);
+        }
+    }
+}
+
+// Shadow Cast [OBL]: "Only usable after resolution of a successful directed
+// action. Put this card on this vampire. During an action directed at the
+// same Methuselah or same set of Methuselahs, this vampire can burn this
+// card to get +1 stealth." [PIB 20150915] [LSJ 19981028] [ANK 20190425]
+// played after resolution, still during the action.
+#[test]
+fn shadow_cast_superior_gives_stealth_against_the_same_methuselah() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "OBL", 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    hand(&mut e, 0, &["Shadow Cast"]);
+    // Turn 1: a successful bleed, then [OBL].
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, play(0, 1, a));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let cast = remembering(&e, "Shadow Cast");
+    assert_eq!(cast.len(), 1);
+    let (id, against) = cast[0];
+    assert_eq!(against, SeatSet::single(SeatId(1)));
+    assert_eq!(on(&e, a), vec![(find_library("Shadow Cast"), 0)]);
+    // Turn 2: an undirected hunt: not usable.
+    next_own_turn(&mut e);
+    pick(&mut e, action(a, ActionKind::Hunt));
+    never_offered(&mut e, &ability(id));
+    assert_eq!(remembering(&e, "Shadow Cast").len(), 1);
+    // Turn 3: a bleed of the same Methuselah: burned for +1 stealth, the
+    // block attempt fails.
+    next_own_turn(&mut e);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, ability(id));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(remembering(&e, "Shadow Cast").is_empty());
+    assert_eq!(e.state.seats[0].ash, vec![find_library("Shadow Cast")]);
+    assert_eq!(pool(&e, 1), 28, "the second bleed went through");
+}
+
+// Shadow Cast [OBL] is not usable after an unsuccessful or undirected
+// action: a blocked bleed, or a hunt.
+#[test]
+fn shadow_cast_needs_a_successful_directed_action() {
+    for hunt in [false, true] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), plain("", "OBL", 0), 5, false);
+        e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+        let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+        hand(&mut e, 0, &["Shadow Cast"]);
+        if hunt {
+            pick(&mut e, action(a, ActionKind::Hunt));
+        } else {
+            pick(&mut e, action(a, ActionKind::Bleed));
+            pick_when(&mut e, Choice::DeclareBlock { minion: z });
+        }
+        never_offered(&mut e, &play(0, 1, a));
+    }
+}
+
+// Mirror Walk [THA] ends the action only "if this action is blocked": an
+// unblocked one keeps its after-resolution window's cards (Freak Drive
+// [for]); a blocked one takes none (RTR 20180719).
+#[test]
+fn mirror_walk_superior_leaves_an_unblocked_actions_after_resolution_open() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["THA", "for"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    hand(&mut e, 0, &["Mirror Walk", "Freak Drive"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, play(0, 1, a)); // [THA]: +1 stealth, the attempt fails
+    let req = until(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
+    assert!(req.options.contains(&play(0, 0, a)), "Freak Drive [for]");
+    pick(&mut e, play(0, 0, a));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e, 1), 29);
+    assert!(!e.state.minions[a.index()].locked);
+}
+
+// [LSJ 20100527] Shadow Cast [OBL]: "If the set of Methuselahs includes the
+// controller of the vampire this card is on, the controller of the vampire
+// is not considered as part of that set." Owner (2026-09-26, rules-qa
+// 24.5): usable when the recorded set is included in the set the current
+// action is directed at.
+#[test]
+fn shadow_cast_does_not_count_its_vampires_controller_in_the_set() {
+    for (recorded, usable) in [(0b011u8, true), (0b110, false)] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), plain("", "OBL", 0), 5, false);
+        e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+        let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+        e.state.cards.push(CardInPlay {
+            card: find_library("Shadow Cast"),
+            owner: SeatId(0),
+            controller: SeatId(0),
+            host: Some(a),
+            body: None,
+            mode: 1,
+            by: Some(a),
+            in_play: true,
+            contested: false,
+            locked: false,
+            counters: 0,
+            stored: Vec::new(),
+            effect_only: false,
+            against: SeatSet(recorded),
+            entered: 0,
+            chosen: Vec::new(),
+        });
+        let id = CardId(e.state.cards.len() as u32 - 1);
+        pick(&mut e, action(a, ActionKind::Bleed));
+        pick_when(&mut e, Choice::DeclareBlock { minion: z });
+        if usable {
+            pick_when(&mut e, ability(id));
+            until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+            assert_eq!(pool(&e, 1), 29, "stealth past the block");
+        } else {
+            // Seat 2 is not directed at: {1, 2} is not included in {1}.
+            never_offered(&mut e, &ability(id));
+        }
+    }
+}
+
+// ---- Corruption and multi-Discipline bleeds (slice 11m) ---------------------
+
+/// Has each Discipline, at either level.
+fn has_level(c: &zvtes::crypt::CryptCard, tags: &[&str]) -> bool {
+    tags.iter()
+        .all(|t| c.disciplines.contains(t) || c.disciplines.contains(&t.to_uppercase().as_str()))
+}
+
+/// The `nth` untitled Anarch with these Disciplines (either level) and
+/// none of `without`.
+fn anarch_with(tags: &[&str], without: &[&str], nth: usize) -> u16 {
+    vampire(
+        |c| {
+            c.sect == zvtes::crypt::Sect::Anarch
+                && c.title == Title::None
+                && has_level(c, tags)
+                && !without.iter().any(|w| has_level(c, &[w]))
+        },
+        nth,
+    )
+}
+
+fn corruption(e: &Engine, m: MinionId, seat: u8) -> u8 {
+    e.state.minions[m.index()].corruption_of(SeatId(seat))
+}
+
+// The Platinum Protocol: "Requires an Anarch. More than one Discipline can
+// be used to play this card. Ⓓ Bleed. [obf] This is a +1 stealth action.
+// [pre] The bleed is with +1 bleed. [pro] Put 1 corruption counter on a
+// minion controlled by the target Methuselah if the bleed is successful
+// (for 1 or more)." [LSJ 20011204-3] [PIB 20130704] played, it requires the
+// Disciplines used: any set of those the vampire has. [ANK 20240706] [LSJ
+// 20080608] the minion is chosen at resolution.
+#[test]
+fn platinum_protocol_uses_any_set_of_its_disciplines_and_corrupts() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(
+        SeatId(0),
+        anarch_with(&["pre", "pro"], &["obf"], 0),
+        5,
+        false,
+    );
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    let y = e.add_minion(SeatId(1), plain("Ventrue", "", 1), 5, true);
+    hand(&mut e, 0, &["Platinum Protocol, The"]);
+    let req = request(&mut e);
+    let modes: Vec<u8> = req
+        .options
+        .iter()
+        .filter_map(|o| match o {
+            Choice::Play {
+                mode,
+                actor: Some(m),
+                ..
+            } if *m == a => Some(*mode),
+            _ => None,
+        })
+        .collect();
+    // [pre], [pro], [pre][pro]: never a set with [obf].
+    assert_eq!(modes, vec![1, 2, 5]);
+    pick(&mut e, play(0, 5, a));
+    // Resolved for 2: a minion of the bled Methuselah, chosen now — the one
+    // in torpor too.
+    let req = until(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    assert_eq!(
+        req.options,
+        vec![Choice::ChooseMinion(z), Choice::ChooseMinion(y)]
+    );
+    pick(&mut e, Choice::ChooseMinion(y));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e, 1), 28);
+    assert_eq!((corruption(&e, z, 0), corruption(&e, y, 0)), (0, 1));
+}
+
+// The Platinum Protocol "requires an Anarch"; a non-Anarch cannot play it.
+// A prey ousted by the bleed has no minion left for the counter.
+#[test]
+fn platinum_protocol_needs_an_anarch_and_a_minion_to_corrupt() {
+    let mut e = Engine::bare(3);
+    let b = e.add_minion(
+        SeatId(0),
+        vampire(
+            |c| c.sect != zvtes::crypt::Sect::Anarch && has_level(c, &["pro"]),
+            0,
+        ),
+        5,
+        false,
+    );
+    let a = e.add_minion(SeatId(0), anarch_with(&["pro"], &[], 0), 5, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    e.state.seats[1].pool = 1;
+    hand(&mut e, 0, &["Platinum Protocol, The"]);
+    let req = request(&mut e);
+    assert!(!req
+        .options
+        .iter()
+        .any(|o| matches!(o, Choice::Play { actor: Some(m), .. } if *m == b)));
+    pick(&mut e, play(0, 2, a));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.seats[1].ousted);
+    assert_eq!(corruption(&e, z, 0), 0);
+}
+
+// Break the Bonds: "[ani] The bleed is with +1 bleed. [obf] If the bleed is
+// successful, you can lock a minion controlled by the target Methuselah.
+// [pre] If the bleed is successful, add 1 blood to a vampire in your
+// uncontrolled region." [ANK 20240706] "[pre] There must be an uncontrolled
+// vampire, and it is chosen upon declaration"; "[obf] The prey need not
+// control a minion, the target is chosen upon resolution." [LSJ
+// 20011204-3] [PIB 20130704] played with the Disciplines used: any set of
+// those the vampire has.
+#[test]
+fn break_the_bonds_locks_and_feeds_the_uncontrolled_region() {
+    let v = anarch_with(&["obf", "pre"], &["ani"], 0);
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), v, 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    hand(&mut e, 0, &["Break the Bonds"]);
+    // No uncontrolled vampire: no [pre] set.
+    let req = request(&mut e);
+    let offered = |req: &DecisionRequest| -> Vec<u8> {
+        req.options
+            .iter()
+            .filter_map(|o| match o {
+                Choice::Play {
+                    mode,
+                    actor: Some(m),
+                    ..
+                } if *m == a => Some(*mode),
+                _ => None,
+            })
+            .collect()
+    };
+    assert_eq!(offered(&req), vec![1]);
+    let slot = uncontrolled(&mut e, 0, plain("Toreador", "", 0));
+    let req = request(&mut e);
+    assert_eq!(offered(&req), vec![1, 2, 2 + 3]);
+    // [obf][pre] at the uncontrolled vampire.
+    pick(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 5,
+            actor: Some(a),
+            target: Target::Uncontrolled(slot),
+        },
+    );
+    // The lock is optional; its minion chosen now.
+    let req = until(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    assert_eq!(req.options, vec![Choice::Pass, Choice::ChooseMinion(z)]);
+    pick(&mut e, Choice::ChooseMinion(z));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.minions[z.index()].locked);
+    assert_eq!(e.state.seats[0].uncontrolled[slot as usize].counters, 1);
+    assert_eq!(pool(&e, 1), 29);
+}
+
+// Enchanting Gaze [PRE][PRO]: "+1 stealth, and once this action, you can
+// burn 1 of your corruption counters from a blocking minion to have their
+// block attempt fail, and they cannot attempt to block this action again."
+#[test]
+fn enchanting_gaze_superior_burns_a_counter_to_fail_a_block() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["PRE", "PRO"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), with(&["aus"], 0), 5, false);
+    e.state.minions[z.index()].add_corruption(SeatId(0), 2);
+    hand(&mut e, 0, &["Enchanting Gaze"]);
+    hand(&mut e, 1, &["Enhanced Senses"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick(&mut e, Choice::DeclareBlock { minion: z });
+    pick(&mut e, play(0, 1, a)); // +1 stealth: 1 against 0
+    pick_when(&mut e, play(0, 0, z)); // Enhanced Senses: 1 against 1
+    let fail = Choice::BurnCorruptionToFail { minion: z };
+    pick_when(&mut e, fail);
+    never_offered(&mut e, &Choice::DeclareBlock { minion: z });
+    assert_eq!(corruption(&e, z, 0), 1, "one burned");
+    assert_eq!(pool(&e, 1), 29);
+}
+
+// Revelation of the Serpent: "Only usable during a bleed action. [pre][pro]
+// +1 bleed (limited), or +1 stealth and +1 bleed (limited). [PRE][PRO] As
+// above, and if the bleed is successful, this vampire can burn 2 of your
+// corruption counters from a minion controlled by the target Methuselah to
+// unlock." The stealth option only when stealth is needed. [ANK 20220210]
+// "Cannot be used to unlock if the target is ousted by the bleed."
+#[test]
+fn revelation_of_the_serpent_superior_unlocks_for_two_counters() {
+    for ousted in [false, true] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), with(&["PRE", "PRO"], 0), 5, false);
+        e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+        let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+        e.state.minions[z.index()].add_corruption(SeatId(0), 2);
+        if ousted {
+            e.state.seats[1].pool = 2;
+        }
+        hand(&mut e, 0, &["Revelation of the Serpent"]);
+        pick(&mut e, action(a, ActionKind::Bleed));
+        let req = until(&mut e, SeatId(0), WindowLabel::ActionBlock);
+        assert!(req.options.contains(&play(0, 2, a)), "the bleed alone");
+        assert!(!req.options.contains(&play(0, 3, a)), "no stealth needed");
+        pick(&mut e, play(0, 2, a));
+        let unlock = Choice::BurnCorruptionToUnlock { minion: z };
+        if ousted {
+            never_offered(&mut e, &unlock);
+            assert!(e.state.seats[1].ousted);
+            assert!(e.state.minions[a.index()].locked);
+        } else {
+            // An unlocked vampire can unlock too, to no effect (owner,
+            // 2026-09-26: rules-qa 25.5).
+            let req = until(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
+            assert!(req.options.contains(&unlock));
+            e.state.minions[a.index()].locked = false;
+            let req = request(&mut e);
+            assert!(req.options.contains(&unlock), "unlocked");
+            e.state.minions[a.index()].locked = true;
+            pick_when(&mut e, unlock);
+            until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+            assert!(!e.state.minions[a.index()].locked);
+            assert_eq!(corruption(&e, z, 0), 0);
+            assert_eq!(pool(&e, 1), 28);
+        }
+    }
+}
+
+// Faruq Abd al-Qadir: "Minions with any of your corruption counters in
+// combat with Faruq cannot strike: combat ends."
+#[test]
+fn faruq_bars_combat_ends_from_minions_he_corrupted() {
+    for corrupted in [false, true] {
+        let mut e = Engine::bare(3);
+        let f = e.add_minion(
+            SeatId(0),
+            zvtes::state::find_card("Faruq Abd al-Qadir"),
+            6,
+            false,
+        );
+        e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+        let z = e.add_minion(SeatId(1), with(&["pre"], 0), 5, false);
+        if corrupted {
+            e.state.minions[z.index()].add_corruption(SeatId(0), 1);
+        }
+        hand(&mut e, 1, &["Majesty"]);
+        pick(&mut e, action(f, ActionKind::Bleed));
+        pick_when(&mut e, Choice::DeclareBlock { minion: z });
+        if corrupted {
+            // A lone hand strike: elided.
+            never_offered(&mut e, &play(0, 0, z));
+        } else {
+            let req = until(&mut e, SeatId(1), WindowLabel::CombatStrike);
+            assert!(req.options.contains(&play(0, 0, z)), "Majesty");
+        }
+    }
+}
+
+// Aniel: "Aniel can burn 1 corruption counter or a card requiring a
+// Discipline from another ready minion as a +1 stealth Ⓓ action that costs
+// 1 blood." One printed action: after burning a counter she cannot burn a
+// card the same turn (NRA). Several Methuselahs' counters: whose is chosen.
+#[test]
+fn aniel_burns_a_corruption_counter_as_one_printed_action() {
+    let mut e = Engine::bare(3);
+    let aniel = e.add_minion(SeatId(0), zvtes::state::find_card("Aniel"), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    e.state.minions[z.index()].add_corruption(SeatId(1), 1);
+    e.state.minions[z.index()].add_corruption(SeatId(2), 2);
+    // A card requiring a Discipline on the same minion: the other half.
+    e.state.cards.push(CardInPlay {
+        card: find_library("Shadow Cloak"),
+        owner: SeatId(1),
+        controller: SeatId(1),
+        host: Some(z),
+        body: None,
+        mode: 1,
+        by: Some(z),
+        in_play: true,
+        contested: false,
+        locked: false,
+        counters: 0,
+        stored: Vec::new(),
+        effect_only: false,
+        against: SeatSet::EMPTY,
+        entered: 0,
+        chosen: Vec::new(),
+    });
+    let cloak = CardId(e.state.cards.len() as u32 - 1);
+    let aniel_uses = |req: &DecisionRequest| -> Vec<u8> {
+        req.options
+            .iter()
+            .filter_map(|o| match o {
+                Choice::UseAbility {
+                    source: AbilitySource::Vampire(m),
+                    ability,
+                    ..
+                } if *m == aniel => Some(*ability),
+                _ => None,
+            })
+            .collect()
+    };
+    let req = request(&mut e);
+    assert_eq!(aniel_uses(&req), vec![0, 1]);
+    let burn = Choice::UseAbility {
+        source: AbilitySource::Vampire(aniel),
+        ability: 1,
+        actor: Some(aniel),
+        target: Target::Minion(z),
+    };
+    pick(&mut e, burn);
+    let req = until(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    assert_eq!(
+        req.options,
+        vec![Choice::ChooseSeat(SeatId(1)), Choice::ChooseSeat(SeatId(2))]
+    );
+    pick(&mut e, Choice::ChooseSeat(SeatId(2)));
+    let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((corruption(&e, z, 1), corruption(&e, z, 2)), (1, 1));
+    assert_eq!(blood(&e, aniel), 5);
+    assert!(aniel_uses(&req).is_empty(), "locked");
+    // Unlocked again: neither half of the printed action this turn.
+    e.state.minions[aniel.index()].locked = false;
+    let req = request(&mut e);
+    assert!(aniel_uses(&req).is_empty(), "the same action");
+    assert!(e.state.cards[cloak.index()].in_play);
+}
+
+// [ANK 20240706] Break the Bonds [obf]: "The prey need not control a minion,
+// the target is chosen upon resolution."
+#[test]
+fn break_the_bonds_needs_no_minion_of_the_prey() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), anarch_with(&["obf"], &[], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    hand(&mut e, 0, &["Break the Bonds"]);
+    pick(&mut e, play(0, 1, a));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e, 1), 29);
+    assert_eq!(e.last_outcome, Some(Outcome::Successful));
+}
+
+// The Platinum Protocol [pro] with one minion to choose: the lone choice
+// is elided, the counter put on it.
+#[test]
+fn platinum_protocol_corrupts_the_only_minion_without_asking() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), anarch_with(&["pro"], &[], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    hand(&mut e, 0, &["Platinum Protocol, The"]);
+    pick(&mut e, play(0, 2, a));
+    never_offered(&mut e, &Choice::ChooseMinion(z));
+    assert_eq!(corruption(&e, z, 0), 1);
+}
+
+// ---- Effect-widened block eligibility (slice 11n) ---------------------------
+
+// Eagle's Sight [AUS]: "This vampire attempts to block the current action,
+// ignoring the normal prey, predator or target restrictions for blocking
+// actions": a third Methuselah blocks a bleed directed at another.
+#[test]
+fn eagles_sight_superior_blocks_an_action_directed_at_another() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Brujah", "", 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    let z = e.add_minion(SeatId(2), with(&["AUS"], 0), 5, false);
+    hand(&mut e, 2, &["Eagle's Sight"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    // Never an ordinary attempt for seat 2.
+    let req = until(&mut e, SeatId(2), WindowLabel::ActionBlock);
+    assert!(!req.options.contains(&Choice::DeclareBlock { minion: z }));
+    assert!(!req.options.contains(&play(0, 0, z)), "[aus]: no attempt");
+    pick(&mut e, play(0, 1, z));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(Outcome::Blocked));
+    assert!(e.state.minions[z.index()].locked);
+    assert_eq!(pool(&e, 1), 30);
+}
+
+// [RTR 19950413] [RTR 20020501] Eagle's Sight [AUS]: "Only affects the rule
+// restricting who gets to block an action. The vampire must still meet all
+// other requirements to block. In particular, Blood Bond, Day Operation,
+// Seduction and prior decision not to block are not circumvented."
+#[test]
+fn eagles_sight_superior_does_not_undo_a_decline_or_seduction() {
+    for seduced in [false, true] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(
+            SeatId(0),
+            vampire(
+                |c| has(c, &["dom"]) && c.capacity >= 8 && c.title == Title::None,
+                0,
+            ),
+            5,
+            false,
+        );
+        e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+        // Younger than the acting vampire, for Seduction.
+        let young = vampire(
+            |c| has(c, &["AUS"]) && c.capacity <= 6 && c.title == Title::None,
+            0,
+        );
+        let z = e.add_minion(SeatId(1), young, 5, false);
+        hand(&mut e, 0, &["Seduction"]);
+        hand(&mut e, 1, &["Eagle's Sight"]);
+        pick(&mut e, action(a, ActionKind::Bleed));
+        if seduced {
+            pick_when(&mut e, play_at(0, 0, Some(a), Target::Minion(z)));
+        } else {
+            // Seat 1 declines first.
+            let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
+            assert!(req.options.contains(&play(0, 1, z)));
+            pick(&mut e, Choice::Pass);
+        }
+        never_offered(&mut e, &play(0, 1, z));
+        assert_eq!(pool(&e, 1), 29, "seduced: {seduced}");
+    }
+}
+
+// [LSJ 20030227] Eagle's Sight [AUS]: "Only applies to one block attempt. If
+// the action later continues as if unblocked (eg. Form of Mist), another one
+// is needed."
+#[test]
+fn eagles_sight_superior_covers_one_attempt() {
+    let mut e = Engine::bare(3);
+    let p = e.add_minion(SeatId(0), zvtes::state::find_card("Crystal Lynn"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    let z = e.add_minion(SeatId(2), with(&["AUS"], 0), 5, false);
+    let y = e.add_minion(SeatId(2), with(&["AUS"], 1), 5, false);
+    hand(&mut e, 0, &["Form of Mist"]);
+    hand(&mut e, 2, &["Eagle's Sight", "Eagle's Sight"]);
+    pick(&mut e, action(p, ActionKind::Bleed));
+    pick_when(&mut e, play(0, 1, z));
+    // Combat: Form of Mist [PRO], then the continuation.
+    pick_when(&mut e, play(0, 1, p));
+    pick_when(&mut e, Choice::ContinueAction);
+    // Back in the block loop: seat 2 still has no ordinary attempt; its
+    // other vampire needs the other Eagle's Sight.
+    let req = until(&mut e, SeatId(2), WindowLabel::ActionBlock);
+    assert!(!req.options.contains(&Choice::DeclareBlock { minion: y }));
+    assert!(req.options.contains(&play(0, 1, y)));
+    pick(&mut e, Choice::Pass);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(Outcome::Successful));
+}
+
+// ---- Actions (slice 11o) -----------------------------------------------------
+
+/// The Play choices offered for `m`, by (card, mode).
+fn plays_by(req: &DecisionRequest, m: MinionId) -> Vec<(u8, u8)> {
+    req.options
+        .iter()
+        .filter_map(|o| match o {
+            Choice::Play {
+                card,
+                mode,
+                actor: Some(a),
+                ..
+            } if *a == m => Some((*card, *mode)),
+            _ => None,
+        })
+        .collect()
+}
+
+// Fleetness [CEL]: "+1 stealth action. Ⓓ Enter combat with a locked
+// minion. This acting vampire gets 1 optional maneuver during that combat."
+// (1 blood.) [ANK 20210124] [LSJ 20070411] [LSJ 20090514] "If the action is
+// unblocked when it resolves and the target is unlocked, the action
+// 'fizzles' (cost, if any, is paid, and it is considered successful, but
+// has no effect)."
+#[test]
+fn fleetness_superior_enters_combat_with_a_locked_minion_or_fizzles() {
+    for unlocked in [false, true] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), with(&["CEL"], 0), 5, false);
+        e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+        let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+        e.state.minions[z.index()].locked = true;
+        hand(&mut e, 0, &["Fleetness"]);
+        pick(&mut e, play_at(0, 1, Some(a), Target::Minion(z)));
+        if unlocked {
+            e.state.minions[z.index()].locked = false;
+            never_offered(&mut e, &Choice::UseManeuver);
+            assert_eq!(e.last_outcome, Some(Outcome::Fizzled));
+            assert_eq!((blood(&e, a), blood(&e, z)), (4, 5), "paid, no combat");
+        } else {
+            let req = until(&mut e, SeatId(0), WindowLabel::CombatDetermineRange);
+            assert!(req.options.contains(&Choice::UseManeuver));
+            until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+            assert_eq!(e.last_outcome, Some(Outcome::Successful));
+            assert_eq!(blood(&e, z), 4, "a hand strike");
+        }
+    }
+}
+
+// Hunter's Mark: "[cel][tha] Ⓓ Enter combat with a minion. This acting
+// vampire gets 1 optional press during that combat. [CEL][THA] As above,
+// and the opposing minion cannot strike: combat ends during the first round
+// of that combat."
+#[test]
+fn hunters_mark_gives_a_press_and_bars_combat_ends_in_the_first_round() {
+    for superior in [false, true] {
+        let mut e = Engine::bare(3);
+        let name = if superior {
+            "Khadija Al-Kindi"
+        } else {
+            "Bijou"
+        };
+        let a = e.add_minion(SeatId(0), zvtes::state::find_card(name), 6, false);
+        e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+        let z = e.add_minion(SeatId(1), with(&["pre"], 0), 6, false);
+        hand(&mut e, 0, &["Hunter's Mark"]);
+        hand(&mut e, 1, &["Majesty", "Majesty"]);
+        pick(
+            &mut e,
+            play_at(0, u8::from(superior), Some(a), Target::Minion(z)),
+        );
+        // Round 1: Majesty only without the superior bar.
+        let mut majesty_in_round_1 = false;
+        loop {
+            let req = request(&mut e);
+            if req.seat == SeatId(1) && req.options.contains(&play(0, 0, z)) {
+                majesty_in_round_1 = true;
+            }
+            if (req.seat, req.window) == (SeatId(0), WindowLabel::CombatPress) {
+                assert!(req.options.contains(&Choice::UsePress));
+                break;
+            }
+            e.choose(fallback(&req));
+        }
+        assert_eq!(majesty_in_round_1, !superior);
+        // The press continues: in round 2 Majesty is back.
+        pick(&mut e, Choice::UsePress);
+        pick_when(&mut e, play(0, 0, z));
+    }
+}
+
+// Line Brawl: "Requires an Anarch. [cel] Ⓓ Steal 1 pool from another
+// Methuselah." [LSJ 20011204-3] [PIB 20130704] a choice: one Discipline.
+#[test]
+fn line_brawl_steals_a_pool_from_any_other_methuselah() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(
+        SeatId(0),
+        anarch_with(&["cel"], &["pot", "pre"], 0),
+        5,
+        false,
+    );
+    let b = e.add_minion(
+        SeatId(0),
+        vampire(
+            |c| c.sect != zvtes::crypt::Sect::Anarch && has_level(c, &["cel"]),
+            0,
+        ),
+        5,
+        false,
+    );
+    e.add_minion(SeatId(2), plain("Ventrue", "", 0), 5, false);
+    hand(&mut e, 0, &["Line Brawl"]);
+    let req = request(&mut e);
+    assert!(plays_by(&req, b).is_empty(), "requires an Anarch");
+    assert_eq!(plays_by(&req, a), vec![(0, 0), (0, 0)], "seats 1 and 2");
+    pick(&mut e, play_at(0, 0, Some(a), Target::Seat(SeatId(2))));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((pool(&e, 0), pool(&e, 2)), (31, 29));
+}
+
+// Show of Force [POT][PRE]: "Ⓓ Bleed with +2 bleed. If this action is
+// blocked, before range is determined during the first round of the
+// resulting combat, this vampire can gain +2 strength that combat."
+#[test]
+fn show_of_force_superior_gains_strength_when_blocked() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["POT", "PRE"], 0), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 6, false);
+    hand(&mut e, 0, &["Show of Force"]);
+    pick(&mut e, play(0, 1, a));
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    let req = until(&mut e, SeatId(0), WindowLabel::CombatBeforeRange);
+    assert!(req.options.contains(&Choice::GainStrength));
+    pick(&mut e, Choice::GainStrength);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, z), 6 - 3, "strength 3");
+}
+
+// Feast of the Soul's Secrets [DOM]: "Ⓓ Bleed with +2 bleed, and if the
+// bleed is successful (for 1 or more), add 2 blood to a younger vampire you
+// control or in your uncontrolled region." [ANK 20240628-2] "The target
+// vampire is chosen when the card is played."
+#[test]
+fn feast_of_the_souls_secrets_superior_feeds_a_younger_vampire() {
+    for uncontrolled_slot in [false, true] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), zvtes::state::find_card("Djeneba"), 5, false);
+        let young = vampire(|c| c.capacity <= 4 && c.title == Title::None, 0);
+        let y = e.add_minion(SeatId(0), young, 1, false);
+        hand(&mut e, 0, &["Feast of the Soul's Secrets"]);
+        if uncontrolled_slot {
+            let slot = uncontrolled(&mut e, 0, vampire(|c| c.capacity <= 4, 1));
+            pick(&mut e, play_at(0, 2, Some(a), Target::Uncontrolled(slot)));
+            until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+            assert_eq!(e.state.seats[0].uncontrolled[slot as usize].counters, 2);
+        } else {
+            pick(&mut e, play_at(0, 1, Some(a), Target::Minion(y)));
+            until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+            assert_eq!(blood(&e, y), 3);
+        }
+        assert_eq!(pool(&e, 1), 27);
+        assert_eq!(blood(&e, a), 4, "1 blood");
+    }
+}
+
+// Shroud of Decay [obl]: "Ⓓ Bleed with +1 bleed. If the bleed is successful
+// (for 1 or more), the target Methuselah discards 2 cards of their choice."
+#[test]
+fn shroud_of_decay_makes_the_bled_methuselah_discard_two() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["obl"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    hand(&mut e, 0, &["Shroud of Decay"]);
+    hand(&mut e, 1, &["Deflection", "Majesty", "Soak"]);
+    hand(&mut e, 1, &["Blur"; 4]);
+    let villein = find_library("Villein");
+    e.state.seats[1].library = vec![villein; 3];
+    pick(&mut e, play(0, 0, a));
+    let req = until(&mut e, SeatId(1), WindowLabel::ResolutionChoice);
+    assert_eq!(req.options.len(), 7);
+    pick(&mut e, Choice::Discard(2)); // Soak
+    pick(&mut e, Choice::Discard(0)); // Deflection
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    // Both discards made, then replaced (advanced rules 6.8.3).
+    let hand1 = &e.state.seats[1].hand;
+    assert_eq!(hand1.len(), 7);
+    assert!(!hand1.contains(&find_library("Soak")) && !hand1.contains(&find_library("Deflection")));
+    assert_eq!(hand1.iter().filter(|&&c| c == villein).count(), 2);
+    assert_eq!(pool(&e, 1), 28);
+}
+
+// [LSJ 20090710] Shroud of Decay [OBL]: "Ⓓ Remove 7 cards in your prey's
+// ash heap from the game to burn 3 of their pool." "The cards to remove are
+// chosen by the player playing it. There is no order to the ash heap."
+#[test]
+fn shroud_of_decay_superior_removes_seven_ash_cards_for_three_pool() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["OBL"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    hand(&mut e, 0, &["Shroud of Decay"]);
+    for _ in 0..6 {
+        e.state.seats[1].ash.push(find_library("Soak"));
+    }
+    let req = request(&mut e);
+    assert!(
+        !req.options
+            .contains(&play_at(0, 1, Some(a), Target::Seat(SeatId(1)))),
+        "6 cards"
+    );
+    e.state.seats[1].ash.push(find_library("Majesty"));
+    e.state.seats[1].ash.push(find_library("Deflection"));
+    pick(&mut e, play_at(0, 1, Some(a), Target::Seat(SeatId(1))));
+    // The player picks: Majesty and six Soaks, Deflection stays.
+    let majesty = find_library("Majesty");
+    pick_when(&mut e, Choice::FindCard(majesty));
+    for _ in 0..6 {
+        pick(&mut e, Choice::FindCard(find_library("Soak")));
+    }
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[1].ash, vec![find_library("Deflection")]);
+    assert_eq!(e.state.seats[1].removed.len(), 7);
+    assert_eq!(pool(&e, 1), 27);
+}
+
+// Rewilding: "Ⓓ Burn a location and burn 2 pool from its controller."
+// [LSJ 20090324] Directed at the location's controller.
+#[test]
+fn rewilding_burns_a_location_and_two_pool_from_its_controller() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Gangrel", "", 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(2), plain("Ventrue", "", 0), 5, false);
+    let place = location(&mut e, 2, "Elysian Fields");
+    hand(&mut e, 0, &["Rewilding"]);
+    pick(&mut e, play_at(0, 0, Some(a), Target::Card(place)));
+    // Directed at seat 2: its vampire may block.
+    let req = until(&mut e, SeatId(2), WindowLabel::ActionBlock);
+    assert!(req.options.contains(&Choice::DeclareBlock { minion: z }));
+    pick(&mut e, Choice::Pass);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.cards[place.index()].in_play);
+    assert_eq!(pool(&e, 2), 28);
+}
+
+/// `name` in play on `host` as if played in version `mode`, with that
+/// mode's layers.
+fn attach(e: &mut Engine, name: &str, host: MinionId, mode: u8) -> CardId {
+    let card = find_library(name);
+    let seat = e.state.minions[host.index()].owner;
+    e.state.cards.push(CardInPlay {
+        card,
+        owner: seat,
+        controller: seat,
+        host: Some(host),
+        body: None,
+        mode,
+        by: Some(host),
+        in_play: true,
+        contested: false,
+        locked: false,
+        counters: 0,
+        stored: Vec::new(),
+        effect_only: false,
+        against: SeatSet::EMPTY,
+        entered: 0,
+        chosen: Vec::new(),
+    });
+    let id = CardId(e.state.cards.len() as u32 - 1);
+    for effect in cards::lookup(card).expect("definition").modes[mode as usize].effects {
+        if let Effect::Layer(modifier) = effect {
+            e.state.layers.push(Layer {
+                scope: Scope::InPlay,
+                modifier: *modifier,
+                source: id,
+            });
+        }
+    }
+    id
+}
+
+// Preternatural Strength [POT]: "+2 stealth action. Put this card on this
+// vampire. This vampire gets +2 strength. They cannot play cards named Torn
+// Signpost. A vampire can have only one Preternatural Strength."
+#[test]
+fn preternatural_strength_superior_adds_strength_and_bars_torn_signpost() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["POT"], 0), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 6, false);
+    hand(
+        &mut e,
+        0,
+        &["Preternatural Strength", "Preternatural Strength"],
+    );
+    pick(&mut e, play(0, 1, a));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(on(&e, a), vec![(find_library("Preternatural Strength"), 0)]);
+    assert_eq!(blood(&e, a), 5, "1 blood");
+    assert!(e.state.bars_playing(a, find_library("Torn Signpost")));
+    // Next turn: no second one; a combat at strength 3, no Torn Signpost.
+    next_own_turn(&mut e);
+    let req = request(&mut e);
+    assert!(!req.options.contains(&play(0, 1, a)), "only one");
+    hand(&mut e, 0, &["Torn Signpost"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    never_offered(&mut e, &play(1, 0, a));
+    assert_eq!(blood(&e, z), 6 - 3);
+}
+
+// Heroic Might: "This vampire gets +1 strength. This vampire can strike:
+// burn equipment. Burn this card if this vampire is in torpor. [POT] As
+// above, with an additional +1 strength, and this vampire can strike: 2R
+// damage."
+#[test]
+fn heroic_might_strikes_to_burn_equipment_and_burns_in_torpor() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["POT"], 0), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 6, false);
+    let might = attach(&mut e, "Heroic Might", a, 1);
+    let vest = equip(&mut e, "Kevlar Vest", z);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    let req = until(&mut e, SeatId(0), WindowLabel::CombatStrike);
+    // No blood left: the opposing hand strike sends it to torpor.
+    e.state.minions[a.index()].blood = 0;
+    let burn = Choice::UseAbility {
+        source: AbilitySource::Card(might),
+        ability: 0,
+        actor: None,
+        target: Target::Card(vest),
+    };
+    assert!(req.options.contains(&burn), "{:?}", req.options);
+    let ranged = Choice::UseAbility {
+        source: AbilitySource::Card(might),
+        ability: 1,
+        actor: None,
+        target: Target::None,
+    };
+    assert!(req.options.contains(&ranged), "[POT]: 2R");
+    pick(&mut e, burn);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(
+        !e.state.cards[vest.index()].in_play,
+        "burned at close range"
+    );
+    assert!(e.state.minions[a.index()].in_torpor);
+    assert!(!e.state.cards[might.index()].in_play, "burned in torpor");
+}
+
+// Rutor's Hand: "+1 stealth action. [tha] Put this card on this vampire,
+// locked; this vampire takes 1 unpreventable environmental aggravated
+// damage. During your minion phase, this vampire can lock this card to
+// unlock. [THA] As above, and this vampire can burn 3 blood to be immune to
+// this aggravated damage." (1 blood.)
+#[test]
+fn rutors_hand_wounds_or_costs_blood_then_unlocks_its_vampire() {
+    for immune in [false, true] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), with(&["THA"], 0), 6, false);
+        let start = e.state.capacity_of(a).unwrap().min(6);
+        e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+        e.add_minion(SeatId(1), plain("Ventrue", "", 0), 6, false);
+        hand(&mut e, 0, &["Rutor's Hand"]);
+        pick(&mut e, play(0, 1, a));
+        let req = until(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+        assert_eq!(req.options, vec![Choice::Pass, Choice::BurnBloodToAvoid]);
+        pick(
+            &mut e,
+            if immune {
+                Choice::BurnBloodToAvoid
+            } else {
+                Choice::Pass
+            },
+        );
+        let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        let hand_id = remembering(&e, "Rutor's Hand")[0].0;
+        assert!(e.state.cards[hand_id.index()].locked, "locked");
+        if !immune {
+            assert!(e.state.minions[a.index()].in_torpor, "aggravated damage");
+            continue;
+        }
+        assert_eq!(blood(&e, a), start - 1 - 3);
+        // Locked itself: not usable this turn.
+        assert!(!req.options.contains(&ability(hand_id)));
+        // Next turn: the card unlocks; the vampire acts, then unlocks.
+        next_own_turn(&mut e);
+        pick(&mut e, action(a, ActionKind::Hunt));
+        let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert!(e.state.minions[a.index()].locked);
+        assert!(req.options.contains(&ability(hand_id)));
+        pick(&mut e, ability(hand_id));
+        let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert!(!e.state.minions[a.index()].locked);
+        assert!(e.state.cards[hand_id.index()].locked);
+        assert!(!req.options.contains(&ability(hand_id)));
+    }
+}
+
+// Monstrous Form [dom][pro]: "Only usable before range is determined. This
+// vampire gets +1 strength this combat. A vampire can play only one
+// Monstrous Form each round." [DOM][PRO]: "Put this card on this vampire.
+// During combat, you can lock this card to give this vampire +1 strength
+// this round, or 1 maneuver or press."
+#[test]
+fn monstrous_form_adds_strength_and_its_card_locks_for_a_bonus() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["DOM", "PRO"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    let form = attach(&mut e, "Monstrous Form", a, 1);
+    hand(&mut e, 0, &["Monstrous Form", "Monstrous Form"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, play(0, 0, a));
+    // One each round: the other copy is not offered again.
+    let req = request(&mut e);
+    assert!(!req.options.contains(&play(0, 0, a)), "{:?}", req.options);
+    // The card in play: +1 strength this round.
+    let strength = Choice::UseAbility {
+        source: AbilitySource::Card(form),
+        ability: 0,
+        actor: None,
+        target: Target::None,
+    };
+    pick_when(&mut e, strength);
+    assert!(e.state.cards[form.index()].locked);
+    // Round 1: 1 + 1 (combat) + 1 (round): 3 damage; then combat ends.
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, z), 5 - 3);
+}
+
+// Touch of Valeren: "[for] [ACTION] +1 stealth action. Add 3 blood or life
+// to a minion, not to exceed their starting life. [for] [COMBAT] Prevent
+// all damage from the opposing minion's strike. [FOR] [COMBAT] Only usable
+// by a ready vampire not involved in the combat involving another minion
+// you control. Prevent all damage to that minion from the opposing
+// minion's strike." (1 blood; Salubri.) [LSJ 20001114] "Cannot be used if
+// there is no damage to prevent."
+#[test]
+fn touch_of_valeren_heals_and_prevents_a_strike_even_from_outside() {
+    // [ACTION]: up to the starting life (capacity).
+    let mut e = Engine::bare(3);
+    let s = e.add_minion(
+        SeatId(0),
+        vampire(|c| c.clan == "Salubri" && has(c, &["FOR"]), 0),
+        5,
+        false,
+    );
+    let cap = e.state.capacity_of(s).unwrap();
+    let y = e.add_minion(SeatId(0), plain("Brujah", "", 1), 3, false);
+    let ycap = e.state.capacity_of(y).unwrap();
+    e.state.minions[y.index()].blood = ycap - 1;
+    hand(&mut e, 0, &["Touch of Valeren", "Touch of Valeren"]);
+    pick(&mut e, play_at(0, 0, Some(s), Target::Minion(y)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, y), ycap, "not above its capacity");
+    assert_eq!(blood(&e, s), 4, "1 blood");
+    let _ = cap;
+    // [FOR] [COMBAT]: another vampire of seat 0 fights; the Salubri, ready
+    // and out of the combat, prevents the strike's damage.
+    let mut e = Engine::bare(3);
+    let s = e.add_minion(
+        SeatId(0),
+        vampire(|c| c.clan == "Salubri" && has(c, &["FOR"]), 0),
+        5,
+        false,
+    );
+    let f = e.add_minion(SeatId(0), plain("Brujah", "", 1), 5, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    hand(&mut e, 0, &["Touch of Valeren"]);
+    pick(&mut e, action(f, ActionKind::Bleed));
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    let req = until(&mut e, SeatId(0), WindowLabel::CombatPrevention);
+    assert!(req.options.contains(&play(0, 2, s)), "{:?}", req.options);
+    assert!(
+        !req.options.contains(&play(0, 1, f)),
+        "[for]: a Salubri's card"
+    );
+    pick(&mut e, play(0, 2, s));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((blood(&e, f), blood(&e, s), blood(&e, z)), (5, 4, 4));
+    // [for] [COMBAT]: the Salubri itself in combat.
+    let mut e = Engine::bare(3);
+    let s = e.add_minion(
+        SeatId(0),
+        vampire(|c| c.clan == "Salubri" && has(c, &["FOR"]), 0),
+        5,
+        false,
+    );
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 5, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    hand(&mut e, 0, &["Touch of Valeren"]);
+    pick(&mut e, action(s, ActionKind::Bleed));
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, play(0, 1, s));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(
+        (blood(&e, s), blood(&e, z)),
+        (4, 4),
+        "1 blood paid, no damage taken"
+    );
+}
+
+// Rewilding on one's own location, at 2 pool: the acting Methuselah is
+// ousted by it, and the turn passes.
+#[test]
+fn rewilding_ousting_its_own_player_passes_the_turn() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Gangrel", "", 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    e.add_minion(SeatId(2), plain("Ventrue", "", 1), 5, false);
+    e.state.seats[0].pool = 2;
+    let place = location(&mut e, 0, "Elysian Fields");
+    hand(&mut e, 0, &["Rewilding"]);
+    pick(&mut e, play_at(0, 0, Some(a), Target::Card(place)));
+    // Undirected: prey and predator may block; both decline.
+    pick(&mut e, Choice::Pass);
+    pick(&mut e, Choice::Pass);
+    let req = request(&mut e);
+    assert!(e.state.seats[0].ousted);
+    assert_eq!(req.seat, SeatId(1), "{req:?}");
+    assert_eq!(e.state.active, SeatId(1));
+}
+
+// Biothaumaturgic Experiment [tha]: "+1 stealth action. Employ an animal
+// retainer from your hand ignoring requirements (pay cost as normal)." (1
+// pool.) [LSJ 20080803] a version depending on a Discipline level follows
+// the vampire's Disciplines: without Animalism, the basic one. [ANK
+// 20180817] Not an employ action. [LSJ 20100725] [LSJ 20100303] [ANK
+// 20180817] Its requirements do not become the action's.
+#[test]
+fn biothaumaturgic_experiment_employs_an_animal_ignoring_requirements() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(
+        SeatId(0),
+        vampire(
+            |c| has(c, &["tha"]) && !has_level(c, &["ani"]) && c.title == Title::None,
+            0,
+        ),
+        5,
+        false,
+    );
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    hand(&mut e, 0, &["Biothaumaturgic Experiment", "Raven Spy"]);
+    let spy = find_library("Raven Spy");
+    // Raven Spy alone: its Animalism is required.
+    let req = request(&mut e);
+    assert!(!plays_by(&req, a).contains(&(1, 0)));
+    // The retainer named with the play: a lone choice, elided.
+    pick(&mut e, play(0, 0, a));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(on(&e, a), vec![(spy, 1)], "the retainer, basic, 1 life");
+    assert_eq!(blood(&e, a), 4, "Raven Spy's blood");
+    assert_eq!(pool(&e, 0), 29, "the card's pool");
+}
+
+// Biothaumaturgic Experiment [THA]: "Put this card on a minion you control.
+// The attached minion gets 1 optional maneuver each combat and +1
+// strength."
+#[test]
+fn biothaumaturgic_experiment_superior_strengthens_a_minion() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["THA"], 0), 5, false);
+    let y = e.add_minion(SeatId(0), plain("Brujah", "", 1), 5, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    hand(&mut e, 0, &["Biothaumaturgic Experiment"]);
+    pick(&mut e, play_at(0, 1, Some(a), Target::Minion(y)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let bio = find_library("Biothaumaturgic Experiment");
+    assert_eq!(on(&e, y), vec![(bio, 0)]);
+    pick(&mut e, action(y, ActionKind::Bleed));
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    let req = until(&mut e, SeatId(0), WindowLabel::CombatDetermineRange);
+    assert!(req.options.iter().any(|o| matches!(
+        o,
+        Choice::UseAbility {
+            source: AbilitySource::Card(_),
+            ..
+        }
+    )));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, z), 5 - 2, "strength 2");
+}
+
+// Revelations [aus]: "+1 stealth action. Ⓓ Look at your prey's hand and
+// discard one card of your choice from it." (1 blood.) [LSJ 20100119] [PIB
+// 20121031] "You do not get to see the card drawn as replacement."
+#[test]
+fn revelations_discards_a_card_of_the_preys_hand() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["aus"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    hand(&mut e, 0, &["Revelations"]);
+    hand(&mut e, 1, &["Soak", "Majesty", "Soak"]);
+    let villein = find_library("Villein");
+    e.state.seats[1].library = vec![villein; 5];
+    pick(&mut e, play_at(0, 0, Some(a), Target::Seat(SeatId(1))));
+    let req = until(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    let majesty = find_library("Majesty");
+    let soak = find_library("Soak");
+    let mut want = vec![Choice::FindCard(soak), Choice::FindCard(majesty)];
+    want.sort_by_key(|c| match c {
+        Choice::FindCard(x) => *x,
+        _ => 0,
+    });
+    assert_eq!(req.options, want);
+    pick(&mut e, Choice::FindCard(majesty));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.seats[1].hand.contains(&majesty));
+    assert!(e.state.seats[1].hand.contains(&villein), "replaced");
+    assert!(!e.state.hand_visible_to(SeatId(1), SeatId(0)), "unseen");
+}
+
+// Revelations [AUS]: "Put this card in play. Your prey plays with an open
+// hand. Any minion can burn this card as a Ⓓ action."
+#[test]
+fn revelations_superior_opens_the_preys_hand_until_burned() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["AUS"], 0), 5, false);
+    let b = e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    hand(&mut e, 0, &["Revelations"]);
+    pick(&mut e, play(0, 1, a));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.hand_visible_to(SeatId(1), SeatId(0)));
+    assert!(e.state.hand_visible_to(SeatId(1), SeatId(2)), "open to all");
+    assert!(!e.state.hand_visible_to(SeatId(2), SeatId(0)));
+    let rev = remembering(&e, "Revelations")[0].0;
+    let burn = Choice::UseAbility {
+        source: AbilitySource::Card(rev),
+        ability: 0,
+        actor: Some(b),
+        target: Target::None,
+    };
+    pick(&mut e, burn);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.cards[rev.index()].in_play);
+    assert!(!e.state.hand_visible_to(SeatId(1), SeatId(0)));
+}
+
+// Rutor's Hand: "During your minion phase, this vampire can lock this card
+// to unlock" — at any time of it, during another vampire's action too
+// (owner, 2026-09-26: rules-qa 26.5), e.g. to then play Veil the Legions.
+#[test]
+fn rutors_hand_unlocks_during_another_vampires_action() {
+    let mut e = Engine::bare(3);
+    let r = e.add_minion(SeatId(0), with(&["OBF"], 0), 5, false);
+    let b = e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    e.state.minions[r.index()].locked = true;
+    let rutor = attach(&mut e, "Rutor's Hand", r, 0);
+    pick(&mut e, action(b, ActionKind::Bleed));
+    pick_when(&mut e, ability(rutor));
+    assert!(!e.state.minions[r.index()].locked);
+    assert!(e.state.cards[rutor.index()].locked);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e, 1), 29);
+}
+
+// ---- Actions, wave 2 (slice 11p) ----------------------------------------------
+
+// Obedient Flesh [dom][pro]: "+1 stealth. Allies get -1 intercept."
+// [DOM][PRO] [COMBAT]: "Only usable before range is determined. This round,
+// this vampire gets +1 strength and 1 optional maneuver, and can prevent 1
+// damage."
+#[test]
+fn obedient_flesh_hinders_allies_and_arms_a_round() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["DOM", "PRO"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let ally = e.add_ally(SeatId(1), find_library("Political Ally"));
+    let z = e.add_minion(SeatId(1), with(&["aus"], 0), 5, false);
+    hand(&mut e, 0, &["Obedient Flesh", "Obedient Flesh"]);
+    hand(&mut e, 1, &["Enhanced Senses"]);
+    // The ally attempts at 0 against 0: +1 stealth and -1 intercept.
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick(&mut e, Choice::DeclareBlock { minion: ally });
+    pick(&mut e, play(0, 0, a));
+    // Seat 1 again: its vampire could still reach 1 with Enhanced Senses.
+    until(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    let i = e.state.layers.iter().any(|l| {
+        matches!(
+            l.modifier,
+            cards::Modifier::InterceptMod {
+                younger_than: 0,
+                n: -1
+            }
+        )
+    });
+    assert!(i, "allies get -1 intercept");
+    // Then the vampire blocks with Enhanced Senses; the combat card.
+    pick(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, play(0, 0, z));
+    pick_when(&mut e, play(0, 1, a));
+    let req = until(&mut e, SeatId(0), WindowLabel::CombatDetermineRange);
+    assert!(req.options.contains(&Choice::UseManeuver));
+    pick_when(&mut e, Choice::UsePrevent);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, z), 5 - 2, "strength 2");
+    assert_eq!(
+        blood(&e, a),
+        5 - 1 - 1,
+        "1 blood each card, the hand strike prevented"
+    );
+}
+
+// The Gate of Acheron: "Put this card in play with 1 counter. During your
+// unlock phase, add 1 counter to this card. During your prey's unlock
+// phase, for each counter on this card, they burn 1 pool or remove a
+// library card at random in their ash heap from the game. Hecata you
+// control with capacity 4 or more can add 1 counter to this card as a +1
+// stealth action." [LSJ 20080604] the action requires Hecata.
+#[test]
+fn gate_of_acheron_grows_and_drains_the_prey() {
+    let mut e = Engine::bare(3);
+    let h = e.add_minion(SeatId(0), plain("Hecata", "", 0), 5, false);
+    let young = e.add_minion(SeatId(0), zvtes::state::find_card("Alek König"), 3, false);
+    e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    hand(&mut e, 0, &["Gate of Acheron, The"]);
+    pick(&mut e, play(0, 0, h));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let gate = remembering(&e, "Gate of Acheron, The")[0].0;
+    assert_eq!(e.state.cards[gate.index()].counters, 1);
+    // The action to add a counter: a Hecata of capacity 4 or more only.
+    let add = |m| Choice::UseAbility {
+        source: AbilitySource::Card(gate),
+        ability: 0,
+        actor: Some(m),
+        target: Target::None,
+    };
+    let req = request(&mut e);
+    assert!(!req.options.contains(&add(young)), "capacity 3");
+    assert!(!req.options.contains(&add(h)), "locked");
+    e.state.minions[h.index()].locked = false;
+    pick(&mut e, add(h));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.cards[gate.index()].counters, 2);
+    // The prey's unlock phase: 2 counters, 1 ash card and 1 pool.
+    e.state.seats[1].ash = vec![find_library("Soak")];
+    let req = until(&mut e, SeatId(1), WindowLabel::RiderTerms);
+    assert_eq!(req.options, vec![Choice::SetX(0), Choice::SetX(1)]);
+    pick(&mut e, Choice::SetX(1));
+    assert_eq!(pool(&e, 1), 29);
+    assert!(e.state.seats[1].ash.is_empty());
+    assert_eq!(e.state.seats[1].removed, vec![find_library("Soak")]);
+    // Seat 0's unlock phase: one more counter.
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.cards[gate.index()].counters, 3);
+}
+
+// Pit of Contemplation: "During your unlock phase, you can burn this card
+// to move a vampire controlled by your predator or prey with capacity
+// less than X to their owner's uncontrolled region, where X is the number
+// of counters on this card."
+#[test]
+fn pit_of_contemplation_moves_a_young_vampire_to_the_uncontrolled_region() {
+    let mut e = Engine::bare(3);
+    let h = e.add_minion(SeatId(0), plain("Hecata", "", 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let young = e.add_minion(SeatId(1), zvtes::state::find_card("Alek König"), 2, false);
+    let old = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    hand(&mut e, 0, &["Pit of Contemplation"]);
+    pick(&mut e, play(0, 0, h));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let pit = remembering(&e, "Pit of Contemplation")[0].0;
+    e.state.cards[pit.index()].counters = 4;
+    // Seat 0's next unlock phase: the Pit's burn, at capacity 3 only.
+    let burn = |t| Choice::UseAbility {
+        source: AbilitySource::Card(pit),
+        ability: 1,
+        actor: None,
+        target: Target::Minion(t),
+    };
+    let req = loop {
+        let req = request(&mut e);
+        if req.seat == SeatId(0) && req.options.contains(&burn(young)) {
+            break req;
+        }
+        e.choose(fallback(&req));
+    };
+    assert!(!req.options.contains(&burn(old)), "capacity 4 or more");
+    pick(&mut e, burn(young));
+    assert!(!e.state.cards[pit.index()].in_play);
+    let slot = e.state.seats[1].uncontrolled.last().expect("moved");
+    assert_eq!(
+        (slot.card, slot.counters),
+        (zvtes::state::find_card("Alek König"), 2)
+    );
+}
+
+// Deep Song [ANI]: "Frenzy. Ⓓ Enter combat with and lock a vampire. The
+// target vampire is considered the acting minion during that combat." [ANK
+// 20200702] "The lock and enter combat effects are simultaneous": the
+// target, locked, has the acting minion's side — its Methuselah first in
+// the combat.
+#[test]
+fn deep_song_superior_locks_and_fights_a_vampire_as_the_acting_minion() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["ANI"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    hand(&mut e, 0, &["Deep Song"]);
+    hand(&mut e, 1, &["Majesty"]);
+    pick(&mut e, play_at(0, 1, Some(a), Target::Minion(z)));
+    // The combat, Majesty offered at its strike: the target on the acting
+    // minion's side (its Methuselah first to act in each step).
+    until(&mut e, SeatId(1), WindowLabel::CombatStrike);
+    assert_eq!(e.state.combatants, Some([z, a]), "the target acts");
+    assert!(
+        e.state.minions[z.index()].locked,
+        "locked as the combat begins"
+    );
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(Outcome::Successful));
+}
+
+// A blocked employ action goes to the ash heap even when the acting vampire
+// already has a retainer of that name (the card never entered play).
+#[test]
+fn a_blocked_second_raven_spy_is_discarded() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["ani"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), with(&["aus"], 0), 5, false);
+    let spy = find_library("Raven Spy");
+    equip(&mut e, "Raven Spy", a);
+    hand(&mut e, 0, &["Raven Spy"]);
+    hand(&mut e, 1, &["Eagle's Sight"]);
+    pick(&mut e, play(0, 0, a));
+    pick(&mut e, Choice::DeclareBlock { minion: z });
+    pick(&mut e, play(0, 0, z)); // +1 intercept against the employ's 1
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(Outcome::Blocked));
+    assert_eq!(e.state.seats[0].ash, vec![spy]);
+}
+
+/// Seat 0's Djeneba (capacity 9, [DOM]) puts Puppet Master [DOM] on seat
+/// 1's younger vampire `z`, locked already (PIB 20150412); the turn passes
+/// to seat 0's next minion phase. Returns (engine, puppeteer, second
+/// vampire of seat 0, z, the card).
+fn puppet_master_next_turn() -> (Engine, MinionId, MinionId, MinionId, CardId) {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), zvtes::state::find_card("Djeneba"), 6, false);
+    let b = e.add_minion(SeatId(0), with(&["CEL"], 0), 5, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    e.add_minion(SeatId(1), plain("Ventrue", "", 1), 5, false);
+    e.state.minions[z.index()].locked = true;
+    hand(&mut e, 0, &["Puppet Master"]);
+    pick(&mut e, play_at(0, 1, Some(a), Target::Minion(z)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let pm = remembering(&e, "Puppet Master")[0].0;
+    assert_eq!(e.state.cards[pm.index()].host, Some(z));
+    assert_eq!(
+        e.state.card_controller(pm),
+        SeatId(0),
+        "you still control this card"
+    );
+    assert_eq!(blood(&e, a), 4, "2 blood");
+    next_own_turn(&mut e);
+    assert!(
+        e.state.minions[z.index()].locked,
+        "does not unlock as normal"
+    );
+    (e, a, b, z, pm)
+}
+
+// Puppet Master [DOM]: "Ⓓ Put this card on a younger vampire and lock them;
+// you still control this card. The attached vampire does not unlock as
+// normal. During your next minion phase, burn this card to unlock the
+// attached vampire and take control of them until the end of your turn."
+// [PIB 20150412] "Can be played on a locked vampire." [LSJ 20001201] "Can
+// be used … at any point during the appropriate minion phase. It does not
+// have to be done before non-mandatory actions."
+#[test]
+fn puppet_master_superior_takes_a_vampire_for_the_next_turn() {
+    let (mut e, a, _, z, pm) = puppet_master_next_turn();
+    // Due: the minion phase cannot end, but other actions come first.
+    let req = request(&mut e);
+    assert!(!req.options.contains(&Choice::Pass));
+    pick(&mut e, action(a, ActionKind::Hunt));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    pick(&mut e, ability(pm));
+    let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.cards[pm.index()].in_play, "burned");
+    let v = &e.state.minions[z.index()];
+    assert_eq!((v.owner, v.locked), (SeatId(0), false));
+    assert!(req.options.contains(&action(z, ActionKind::Hunt)));
+    // It hunts for seat 0, then returns as the turn ends.
+    pick(&mut e, action(z, ActionKind::Hunt));
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    let v = &e.state.minions[z.index()];
+    assert_eq!(v.owner, SeatId(1));
+    assert_eq!(v.temp_from, None);
+}
+
+// [LSJ 20080326] Stealing "a minion attempting to block, if the block
+// attempt becomes illegal, the block attempt fails." [LSJ 20020618] "If used
+// to steal a vampire in combat, combat ends. Any damage yet to resolve still
+// resolves before the change of control."
+#[test]
+fn puppet_master_steals_a_blocker_or_a_combatant() {
+    for in_combat in [false, true] {
+        let (mut e, _, b, z, pm) = puppet_master_next_turn();
+        hand(&mut e, 1, &["On the Qui Vive"]);
+        pick(&mut e, action(b, ActionKind::Bleed));
+        // Seat 1 wakes the locked vampire and blocks with it.
+        pick_when(&mut e, play(0, 0, z));
+        pick_when(&mut e, Choice::DeclareBlock { minion: z });
+        if in_combat {
+            until(&mut e, SeatId(0), WindowLabel::CombatStrike);
+            // A hand strike each, then the steal in the prevention step.
+            pick(&mut e, Choice::HandStrike);
+            pick_when(&mut e, ability(pm));
+            until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+            assert_eq!(e.last_outcome, Some(Outcome::Blocked));
+        } else {
+            pick_when(&mut e, ability(pm));
+            until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+            assert_eq!(pool(&e, 1), 29, "the attempt failed");
+        }
+        assert_eq!(e.state.minions[z.index()].owner, SeatId(0));
+    }
+}
+
+// [LSJ 20020725] "If used to steal a minion targeted by an action, the
+// action continues with the same target … If the target is not legal
+// anymore, the action fizzles (ends successfully with no effect)."
+#[test]
+fn puppet_master_stealing_the_target_fizzles_the_action() {
+    let (mut e, _, b, z, pm) = puppet_master_next_turn();
+    hand(&mut e, 0, &["Fleetness"]);
+    // Fleetness [CEL] at the locked vampire, then the steal.
+    pick(&mut e, play_at(0, 1, Some(b), Target::Minion(z)));
+    pick_when(&mut e, ability(pm));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(Outcome::Fizzled));
+    assert_eq!(e.state.minions[z.index()].owner, SeatId(0));
+}
+
+// [ANK 20181110] [LSJ 20081105] "If one is ousted while having temporary
+// control of a minion, the minion is removed from the game." [ANK
+// 20181110] "The stolen minion is removed from the game when he should
+// return to a Methuselah who has been ousted." [LSJ 20010119] "The stolen
+// minion returns to his previous controller even if he is in torpor."
+#[test]
+fn puppet_master_temporary_control_and_ousts() {
+    // Its controller ousted by its bleed: removed at the end of the turn.
+    let (mut e, _, _, z, pm) = puppet_master_next_turn();
+    pick(&mut e, ability(pm));
+    e.state.seats[1].pool = 1;
+    pick_when(&mut e, action(z, ActionKind::Bleed));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.seats[1].ousted);
+    assert!(
+        e.state.minions[z.index()].in_play,
+        "until the end of the turn"
+    );
+    pick(&mut e, Choice::Pass);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[z.index()].in_play, "removed, not returned");
+    // The taker ousted: removed with its minions.
+    let (mut e, a, _, z, pm) = puppet_master_next_turn();
+    pick(&mut e, ability(pm));
+    e.state.seats[0].pool = 2;
+    let place = location(&mut e, 0, "Elysian Fields");
+    hand(&mut e, 0, &["Rewilding"]);
+    e.state.minions[a.index()].locked = true;
+    e.state.minions[z.index()].locked = true;
+    let g = e.add_minion(SeatId(0), plain("Gangrel", "", 0), 5, false);
+    pick(&mut e, play_at(0, 0, Some(g), Target::Card(place)));
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(e.state.seats[0].ousted);
+    assert!(!e.state.minions[z.index()].in_play);
+    // In torpor at the end of the turn: it returns, in torpor.
+    let (mut e, _, _, z, pm) = puppet_master_next_turn();
+    pick(&mut e, ability(pm));
+    e.state.minions[z.index()].in_torpor = true;
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    let v = &e.state.minions[z.index()];
+    assert!(v.in_play && v.in_torpor);
+    assert_eq!(v.owner, SeatId(1));
+}
+
+// [LSJ 20031106] Rutor's Hand: "If the vampire is stolen before 'your next
+// turn', the Hand will not allow the vampire an extra unlock until a
+// Methuselah begins a turn with the vampire with the Hand under her
+// control": the card, locked as it entered, unlocks only in its
+// controller's unlock phase.
+#[test]
+fn rutors_hand_on_a_stolen_vampire_stays_locked() {
+    let (mut e, _, _, z, pm) = puppet_master_next_turn();
+    let hand_id = attach(&mut e, "Rutor's Hand", z, 0);
+    e.state.cards[hand_id.index()].locked = true;
+    pick(&mut e, ability(pm));
+    let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.minions[z.index()].owner, SeatId(0));
+    assert!(!req.options.contains(&ability(hand_id)));
+}
+
+// ---- Masters (slice 11q) ---------------------------------------------------
+
+// Oblivion (a Discipline master card): "Put this card on a vampire. This
+// vampire gets +1 level of Oblivion [obl] and +1 capacity. Cannot be put on
+// a vampire with superior Oblivion [OBL]." Any Methuselah's vampire; the
+// level and capacity are read live.
+#[test]
+fn oblivion_gives_a_level_of_oblivion_and_one_capacity() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), anarch_with(&[], &["obl", "OBL"], 0), 3, false);
+    let basic = e.add_minion(SeatId(1), with(&["obl"], 0), 3, false);
+    let superior = e.add_minion(SeatId(1), with(&["OBL"], 0), 3, false);
+    let torpid = e.add_minion(SeatId(2), plain("", "", 2), 0, true);
+    hand(&mut e, 0, &["Oblivion", "Oblivion", "Shroud of Decay"]);
+    e.at_master_phase();
+    let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    let on = |m| play_at(0, 0, None, Target::Minion(m));
+    assert!(!req.options.contains(&on(superior)), "superior Oblivion");
+    assert!(req.options.contains(&on(basic)) && req.options.contains(&on(torpid)));
+    let cap = e.state.capacity_of(a).unwrap();
+    assert_eq!(e.state.discipline_level(a, "obl"), 0);
+    pick(&mut e, on(a));
+    request(&mut e);
+    assert_eq!(e.state.capacity_of(a), Some(cap + 1));
+    assert_eq!(e.state.discipline_level(a, "obl"), 1);
+    // Now it can play a card requiring Oblivion, and gain blood to its new
+    // capacity.
+    e.state.minions[a.index()].blood = cap;
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let req = request(&mut e);
+    let shroud = e.state.seats[0]
+        .hand
+        .iter()
+        .position(|&c| c == find_library("Shroud of Decay"))
+        .unwrap() as u8;
+    assert!(
+        plays_by(&req, a).contains(&(shroud, 0)),
+        "[obl] Shroud of Decay"
+    );
+    assert!(!plays_by(&req, a).contains(&(shroud, 1)), "not [OBL]");
+    pick(&mut e, action(a, ActionKind::Hunt));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, a), cap + 1);
+}
+
+// A second level on an inferior vampire makes it superior; on the same
+// vampire a second copy stacks the same way (+1 capacity each).
+#[test]
+fn a_discipline_master_on_an_inferior_vampire_gives_superior() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["pot"], 0), 3, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 3, false);
+    e.add_minion(SeatId(1), plain("", "", 2), 3, false);
+    e.add_minion(SeatId(2), plain("", "", 3), 3, false);
+    hand(&mut e, 0, &["Potence", "Potence"]);
+    e.at_master_phase();
+    let cap = e.state.capacity_of(a).unwrap();
+    pick(&mut e, play_at(0, 0, None, Target::Minion(a)));
+    request(&mut e);
+    assert_eq!(e.state.discipline_level(a, "pot"), 2);
+    assert_eq!(e.state.capacity_of(a), Some(cap + 1));
+    // Next master phase: now superior, it cannot take another.
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    let req = until(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    assert!(!req
+        .options
+        .contains(&play_at(0, 0, None, Target::Minion(a))));
+}
+
+// Advanced rules 5.1.1: cards on an uncontrolled vampire are out of play, so
+// its capacity there is printed — blood held for the raised capacity does not
+// drain off, and returns with it.
+#[test]
+fn a_banished_vampire_keeps_the_blood_its_discipline_card_held() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), anarch_with(&[], &["obl", "OBL"], 0), 3, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 3, false);
+    let obl = attach(&mut e, "Oblivion", a, 0);
+    let cap = e.state.capacity_of(a).unwrap();
+    e.state.minions[a.index()].blood = cap;
+    // Banished (Banishment's move, by hand): out of play with its card.
+    let card = e.state.minions[a.index()].crypt_card().unwrap();
+    e.state.minions[a.index()].in_play = false;
+    e.state.minions[a.index()].blood = 0;
+    e.state.cards[obl.index()].in_play = false;
+    e.state.seats[0].uncontrolled.push(UncontrolledSlot {
+        card,
+        counters: cap,
+        banished: Some(zvtes::state::Banished {
+            minion: a,
+            cards: vec![obl],
+        }),
+    });
+    let slot = e.state.seats[0].uncontrolled.len() as u8 - 1;
+    let req = until(&mut e, SeatId(0), WindowLabel::InfluenceTransfers);
+    // Printed capacity there: already enough to influence out.
+    assert!(!req.options.contains(&Choice::Transfer { slot }));
+    pick(&mut e, Choice::InfluenceOut { slot });
+    request(&mut e);
+    assert!(e.state.minions[a.index()].in_play);
+    assert_eq!(e.state.capacity_of(a), Some(cap));
+    assert_eq!(blood(&e, a), cap);
+    assert_eq!(e.state.discipline_level(a, "obl"), 1);
+}
+
+// Childe of the Revolution: "+1 stealth action. Requires a non-sterile
+// baron. Put this card in play. It becomes a 1-capacity (non-unique) Anarch
+// vampire of the same clan as the acting vampire and must hunt this turn.
+// You can search your library (shuffle afterward), hand and/or ash heap for
+// a Discipline master card and put it on this new vampire."
+#[test]
+fn childe_of_the_revolution_becomes_a_vampire_that_must_hunt() {
+    let mut e = Engine::bare(3);
+    let b = e.add_minion(SeatId(0), baron(0), 5, false);
+    let other = e.add_minion(SeatId(0), plain("", "", 0), 5, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 5, false);
+    hand(&mut e, 0, &["Childe of the Revolution", "Oblivion"]);
+    hand(&mut e, 0, &["Blur"; 5]);
+    // The top card replaces Childe of the Revolution as it is played.
+    e.state.seats[0].library = vec![
+        find_library("Potence"),
+        find_library("Soak"),
+        find_library("Soak"),
+    ];
+    e.state.seats[0].ash = vec![find_library("Celerity")];
+    let req = request(&mut e);
+    assert!(!plays_by(&req, other).contains(&(0, 0)), "requires a baron");
+    let before = e.state.minions.len();
+    pick(&mut e, play(0, 0, b));
+    let req = until(&mut e, SeatId(0), WindowLabel::LibrarySearch);
+    use zvtes::decision::Zone;
+    let take = |zone, name| Choice::TakeFrom {
+        zone,
+        card: find_library(name),
+    };
+    assert!(req.options.contains(&take(Zone::Hand, "Oblivion")));
+    assert!(req.options.contains(&take(Zone::AshHeap, "Celerity")));
+    assert!(!req.options.contains(&take(Zone::Library, "Soak")));
+    pick(&mut e, take(Zone::Library, "Potence"));
+    let childe = MinionId(before as u32);
+    let v = &e.state.minions[childe.index()];
+    assert_eq!(v.clan(), e.state.minions[b.index()].clan());
+    assert_eq!(v.sect(), Some(zvtes::crypt::Sect::Anarch));
+    assert_eq!((v.blood, v.locked), (0, false));
+    assert_eq!(e.state.capacity_of(childe), Some(2), "1 + Potence");
+    assert_eq!(e.state.discipline_level(childe, "pot"), 1);
+    assert!(!e.state.seats[0].library.contains(&find_library("Potence")));
+    // It must hunt, even with blood: the only action on offer, taken at
+    // once (a single option), before any other minion may act.
+    e.state.minions[childe.index()].blood = 1;
+    let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, childe), 2);
+    assert!(e.state.minions[childe.index()].locked);
+    assert!(!e.state.minions[other.index()].locked);
+    assert!(req.options.contains(&Choice::Pass));
+}
+
+// [LSJ 20020115] "Is not a vampire in the ash heap". Diablerized, its card
+// goes to the ash heap as the library card it is; two of them never contest
+// (non-unique).
+#[test]
+fn a_burned_childe_is_a_library_card_in_the_ash_heap() {
+    let mut e = Engine::bare(3);
+    let b = e.add_minion(SeatId(0), baron(0), 5, false);
+    e.add_minion(SeatId(0), plain("", "", 0), 5, false);
+    let d = e.add_minion(SeatId(1), plain("", "", 1), 5, false);
+    e.add_minion(SeatId(1), plain("", "", 2), 5, false);
+    e.add_minion(SeatId(2), plain("", "", 3), 5, false);
+    hand(&mut e, 0, &["Childe of the Revolution"]);
+    let before = e.state.minions.len();
+    pick(&mut e, play(0, 0, b));
+    request(&mut e);
+    let childe = MinionId(before as u32);
+    assert!(e.state.card_rivals(childe).is_empty());
+    // Sent to torpor; the next Methuselah's vampire diablerizes it.
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    e.state.minions[childe.index()].in_torpor = true;
+    pick(
+        &mut e,
+        Choice::TakeAction {
+            minion: d,
+            action: ActionKind::Diablerie,
+            target: Some(childe),
+        },
+    );
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[childe.index()].in_play);
+    assert!(
+        e.state.seats[0].ash_crypt.is_empty(),
+        "no vampire in the ash heap"
+    );
+    assert!(e.state.seats[0]
+        .ash
+        .contains(&find_library("Childe of the Revolution")));
+}
+
+// [RTR 19990712] Moved to the uncontrolled region, it stays a vampire (its
+// capacity 1) and can be influenced out again.
+#[test]
+fn a_banished_childe_can_be_influenced_again() {
+    let mut e = Engine::bare(3);
+    let b = e.add_minion(SeatId(0), baron(0), 5, false);
+    e.add_minion(SeatId(0), plain("", "", 0), 5, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 5, false);
+    hand(&mut e, 0, &["Childe of the Revolution"]);
+    let before = e.state.minions.len();
+    pick(&mut e, play(0, 0, b));
+    request(&mut e);
+    let childe = MinionId(before as u32);
+    let card = e
+        .state
+        .cards
+        .iter()
+        .position(|c| c.body == Some(childe))
+        .unwrap();
+    // Banished (Banishment's move, by hand), with 1 blood as a counter.
+    e.state.minions[childe.index()].in_play = false;
+    e.state.minions[childe.index()].blood = 0;
+    e.state.cards[card].in_play = false;
+    e.state.seats[0].uncontrolled.push(UncontrolledSlot {
+        card: zvtes::state::CREATED,
+        counters: 1,
+        banished: Some(zvtes::state::Banished {
+            minion: childe,
+            cards: vec![CardId(card as u32)],
+        }),
+    });
+    let slot = e.state.seats[0].uncontrolled.len() as u8 - 1;
+    let req = until(&mut e, SeatId(0), WindowLabel::InfluenceTransfers);
+    assert!(req.options.contains(&Choice::InfluenceOut { slot }));
+    pick(&mut e, Choice::InfluenceOut { slot });
+    request(&mut e);
+    let v = &e.state.minions[childe.index()];
+    assert!(v.in_play && v.is_vampire());
+    assert_eq!((v.blood, e.state.capacity_of(childe)), (1, Some(1)));
+    assert!(e.state.cards[card].in_play);
+}
+
+/// Pass through every decision until `seat`'s `window`, asserting none
+/// offers `choice`.
+fn never_offered_until(e: &mut Engine, seat: SeatId, window: WindowLabel, choice: Choice) {
+    loop {
+        let req = request(e);
+        assert!(
+            !req.options.contains(&choice),
+            "{choice:?} offered in {:?}",
+            req.window
+        );
+        if (req.seat, req.window) == (seat, window) {
+            return;
+        }
+        let i = fallback(&req);
+        e.choose(i);
+    }
+}
+
+/// An ability of the card in play `source`, with its target.
+fn use_on(source: CardId, ability: u8, actor: Option<MinionId>, target: Target) -> Choice {
+    Choice::UseAbility {
+        source: AbilitySource::Card(source),
+        ability,
+        actor,
+        target,
+    }
+}
+
+// Arcane Library: "Unique location. You can lock this card during your
+// influence phase to add 1 blood to a Tremere in your uncontrolled region."
+#[test]
+fn arcane_library_adds_blood_to_an_uncontrolled_tremere_once() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.state.turn = 4;
+    let tremere = uncontrolled(&mut e, 0, vampire(|c| c.clan == "Tremere", 0));
+    let other = uncontrolled(&mut e, 0, vampire(|c| c.clan == "Brujah", 0));
+    let lib = location(&mut e, 0, "Arcane Library");
+    let req = until(&mut e, SeatId(0), WindowLabel::InfluenceTransfers);
+    let add = |slot| use_on(lib, 0, None, Target::Uncontrolled(slot));
+    assert!(!req.options.contains(&add(other)), "not a Tremere");
+    pick(&mut e, add(tremere));
+    let req = request(&mut e);
+    assert_eq!(e.state.seats[0].uncontrolled[tremere as usize].counters, 1);
+    assert!(e.state.cards[lib.index()].locked);
+    assert!(!req.options.contains(&add(tremere)), "locked");
+    // The transfers are all still there.
+    let transfers = req
+        .options
+        .iter()
+        .filter(|o| matches!(o, Choice::Transfer { .. }))
+        .count();
+    assert_eq!(transfers, 2);
+}
+
+// Wasserschloss Anif, Austria: "During your master phase, a Tremere you
+// control can move 1 blood from themselves to this card. Lock during your
+// influence phase to move all counters on this card to a Tremere in your
+// uncontrolled region." [RTR 19960221] "Can only receive blood from one
+// Tremere on any given turn."
+#[test]
+fn wasserschloss_anif_banks_one_tremeres_blood_for_the_uncontrolled_region() {
+    let mut e = Engine::bare(3);
+    let t1 = e.add_minion(SeatId(0), plain("Tremere", "", 0), 4, false);
+    let t2 = e.add_minion(SeatId(0), plain("Tremere", "", 1), 4, false);
+    e.state.turn = 4;
+    let slot = uncontrolled(
+        &mut e,
+        0,
+        vampire(|c| c.clan == "Tremere" && c.capacity >= 4, 2),
+    );
+    let w = location(&mut e, 0, "Wasserschloss Anif, Austria");
+    e.state.cards[w.index()].counters = 2;
+    e.at_master_phase();
+    let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    let give = |m| use_on(w, 0, None, Target::Minion(m));
+    assert!(req.options.contains(&give(t2)));
+    pick(&mut e, give(t1));
+    let req = request(&mut e);
+    assert_eq!((blood(&e, t1), e.state.cards[w.index()].counters), (3, 3));
+    assert!(!req.options.contains(&give(t2)), "one Tremere a turn");
+    pick_when(&mut e, use_on(w, 1, None, Target::Uncontrolled(slot)));
+    request(&mut e);
+    assert_eq!(e.state.seats[0].uncontrolled[slot as usize].counters, 3);
+    assert_eq!(e.state.cards[w.index()].counters, 0);
+}
+
+// "Any minion can burn this card as a Ⓓ action; Malkavians get +1 stealth
+// during that action."
+#[test]
+fn a_malkavian_burns_wasserschloss_anif_with_one_stealth() {
+    for (clan, stealth) in [("Malkavian", 1), ("Brujah", 0)] {
+        let mut e = Engine::bare(3);
+        let m = e.add_minion(SeatId(0), plain(clan, "", 0), 4, false);
+        e.add_minion(SeatId(0), plain("Ventrue", "", 0), 4, false);
+        e.add_minion(SeatId(1), plain("Gangrel", "", 0), 4, false);
+        let w = location(&mut e, 1, "Wasserschloss Anif, Austria");
+        pick(&mut e, use_on(w, 2, Some(m), Target::None));
+        // As announced, before any window runs.
+        let a = e.action().expect("the burn action");
+        assert_eq!(a.stealth(&e.state), stealth, "{clan}");
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert!(!e.state.cards[w.index()].in_play, "{clan}");
+    }
+}
+
+// Wider View: "Trifle. Put this card in play. You can use 1 transfer to
+// draw 1 card from your crypt and then remove a crypt card in your
+// uncontrolled region from the game. You can use 4 transfers to burn this
+// card and gain 2 pool." [LSJ 20080314] "Cards removed from the game are
+// public."
+#[test]
+fn wider_view_trades_transfers_for_crypt_cards_or_pool() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 2), 4, false);
+    e.state.turn = 4;
+    let keep = vampire(|c| c.clan == "Brujah", 0);
+    let drawn = vampire(|c| c.clan == "Ventrue", 0);
+    uncontrolled(&mut e, 0, keep);
+    e.state.seats[0].crypt = vec![drawn];
+    let w = location(&mut e, 0, "Wider View");
+    until(&mut e, SeatId(0), WindowLabel::InfluenceTransfers);
+    pick(&mut e, use_on(w, 0, None, Target::None));
+    // Two crypt cards now: which one goes.
+    let req = expect(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    assert_eq!(req.options, vec![Choice::Slot(0), Choice::Slot(1)]);
+    pick(&mut e, Choice::Slot(0));
+    let req = request(&mut e);
+    assert_eq!(e.state.seats[0].removed_crypt, vec![keep]);
+    assert_eq!(e.state.seats[0].uncontrolled[0].card, drawn);
+    // An empty crypt: no draw. 3 transfers left: not 4.
+    assert!(!req.options.contains(&use_on(w, 0, None, Target::None)));
+    assert!(!req.options.contains(&use_on(w, 1, None, Target::None)));
+    // Next turn, all 4 of them: burn it for 2 pool.
+    let pool0 = pool(&e, 0);
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    let req = until(&mut e, SeatId(0), WindowLabel::InfluenceTransfers);
+    assert!(req.options.contains(&use_on(w, 1, None, Target::None)));
+    pick(&mut e, use_on(w, 1, None, Target::None));
+    request(&mut e);
+    assert!(!e.state.cards[w.index()].in_play);
+    assert_eq!(pool(&e, 0), pool0 + 2);
+}
+
+// Family Gathering: "Trifle. Reveal the top card of your crypt. If it is a
+// Hecata, draw it and add 1 blood to it; otherwise, move it to the bottom
+// of your crypt." [RTR 20000501] [LSJ 20070411-2] Not playable on an empty
+// crypt.
+#[test]
+fn family_gathering_draws_a_hecata_or_bottoms_the_card() {
+    let hecata = vampire(|c| c.clan == "Hecata", 0);
+    let other = vampire(|c| c.clan == "Brujah", 0);
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("Hecata", "", 0), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    hand(&mut e, 0, &["Family Gathering", "Family Gathering"]);
+    e.state.seats[0].crypt = vec![other, hecata];
+    e.at_master_phase();
+    pick(&mut e, play_at(0, 0, None, Target::None));
+    let req = request(&mut e);
+    let slot = e.state.seats[0].uncontrolled.last().unwrap();
+    assert_eq!((slot.card, slot.counters), (hecata, 1));
+    // A trifle: the second one, with the master phase action.
+    assert!(req.options.contains(&play_at(0, 0, None, Target::None)));
+    pick(&mut e, play_at(0, 0, None, Target::None));
+    request(&mut e);
+    assert_eq!(e.state.seats[0].crypt, vec![other], "to the bottom");
+    // An empty crypt: not playable.
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("Hecata", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    hand(&mut e, 0, &["Family Gathering", "Misdirection"]);
+    e.at_master_phase();
+    let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    assert!(!req.options.contains(&play_at(0, 0, None, Target::None)));
+}
+
+// Powerbase: Montreal: "Unique location. During your influence phase, you
+// can add 1 blood to a vampire in your uncontrolled region. Vampires can
+// steal this location as a Ⓓ action."
+#[test]
+fn powerbase_montreal_feeds_the_uncontrolled_region_and_can_be_stolen() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let x = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 3), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 4), 4, false);
+    e.state.turn = 4;
+    let slot = uncontrolled(&mut e, 0, vampire(|c| c.capacity >= 4, 0));
+    let pb = location(&mut e, 0, "Powerbase: Montreal");
+    // Not by its controller's own vampire.
+    let req = request(&mut e);
+    assert!(!req.options.contains(&use_on(pb, 1, Some(a), Target::None)));
+    let req = until(&mut e, SeatId(0), WindowLabel::InfluenceTransfers);
+    let add = use_on(pb, 0, None, Target::Uncontrolled(slot));
+    assert!(req.options.contains(&add));
+    pick(&mut e, add);
+    let req = request(&mut e);
+    assert_eq!(e.state.seats[0].uncontrolled[slot as usize].counters, 1);
+    assert!(!req.options.contains(&add), "once each influence phase");
+    // Seat 1's vampire steals it.
+    pick_when(&mut e, use_on(pb, 1, Some(x), Target::None));
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert_eq!(e.state.card_controller(pb), SeatId(1));
+}
+
+// The Rack: "As this location is played or its controller changes, its
+// controller chooses a ready vampire they control. During this location's
+// controller's unlock phase, the chosen vampire can gain 2 blood. Vampires
+// controlled by another Methuselah can steal this location as a Ⓓ action."
+// [PIB 20150522] [LSJ 20010623] In torpor it gains blood; uncontrolled
+// (banished) it does not. [ANK 20200130-2] Stolen, its new controller
+// decides.
+#[test]
+fn the_rack_feeds_its_chosen_vampire_and_rechooses_when_stolen() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 2, false);
+    let b = e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let x = e.add_minion(SeatId(1), plain("", "", 2), 2, false);
+    let y = e.add_minion(SeatId(1), plain("", "", 3), 2, false);
+    e.add_minion(SeatId(2), plain("", "", 4), 4, false);
+    hand(&mut e, 0, &["Rack, The"]);
+    e.at_master_phase();
+    pick(&mut e, play_at(0, 0, None, Target::Minion(a)));
+    request(&mut e);
+    let rack = CardId(e.state.cards.len() as u32 - 1);
+    assert_eq!(e.state.cards[rack.index()].chosen, vec![a]);
+    // Seat 0's next unlock phase: a, in torpor, gains 2.
+    e.state.minions[a.index()].in_torpor = true;
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    let feed = use_on(rack, 0, None, Target::None);
+    let req = until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
+    assert!(req.options.contains(&feed));
+    pick(&mut e, feed);
+    request(&mut e);
+    assert_eq!(blood(&e, a), 4);
+    // Seat 1 steals it and chooses between its two vampires.
+    e.state.minions[a.index()].in_torpor = false;
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    pick(&mut e, use_on(rack, 1, Some(x), Target::None));
+    let req = until(&mut e, SeatId(1), WindowLabel::ResolutionChoice);
+    // Ready, locked or not: the stealing vampire too.
+    assert_eq!(
+        req.options,
+        vec![Choice::ChooseMinion(x), Choice::ChooseMinion(y)]
+    );
+    pick(&mut e, Choice::ChooseMinion(y));
+    request(&mut e);
+    assert_eq!(e.state.card_controller(rack), SeatId(1));
+    assert_eq!(e.state.cards[rack.index()].chosen, vec![y]);
+    let _ = b;
+}
+
+// [LSJ 20010809-2] [LSJ 20010809-3] The Rack "tracks the target if it
+// leaves the game by contesting or Banishment: if the target gets back into
+// play, The Rack gives it blood again." [TOM 19960122] "Will not target a
+// new copy of the same vampire if the original is burned." [RTR 19960112]
+// No new target for falling out of contention. [PIB 20150522] [LSJ 20010623] No blood
+// while it is uncontrolled.
+#[test]
+fn the_rack_tracks_its_vampire_out_of_play_and_back() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 2, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 3), 4, false);
+    hand(&mut e, 0, &["Rack, The"]);
+    e.at_master_phase();
+    pick(&mut e, play_at(0, 0, None, Target::Minion(a)));
+    request(&mut e);
+    let rack = CardId(e.state.cards.len() as u32 - 1);
+    let feed = use_on(rack, 0, None, Target::None);
+    // Banished: out of play, no blood; the choice stays.
+    let card = e.state.minions[a.index()].crypt_card().unwrap();
+    e.state.minions[a.index()].in_play = false;
+    e.state.seats[0].uncontrolled.push(UncontrolledSlot {
+        card,
+        counters: 2,
+        banished: Some(zvtes::state::Banished {
+            minion: a,
+            cards: vec![],
+        }),
+    });
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, feed);
+    assert_eq!(e.state.cards[rack.index()].chosen, vec![a]);
+    // Back in play: blood again at the next unlock phase.
+    e.state.minions[a.index()].in_play = true;
+    e.state.minions[a.index()].blood = 2;
+    e.state.seats[0].uncontrolled.pop();
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    pick_when(&mut e, feed);
+    assert_eq!(blood(&e, a), 4);
+    // Contested, then out of contention: still its choice, no new one.
+    e.state.minions[a.index()].contested = true;
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[a.index()].contested);
+    assert_eq!(e.state.cards[rack.index()].chosen, vec![a]);
+    // Burned: gone for good — a new copy is a new vampire.
+    e.state.minions[a.index()].in_play = false;
+    let copy = e.add_minion(SeatId(0), card, 2, false);
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, feed);
+    assert_eq!(blood(&e, copy), 2);
+}
+
+// Anarch Troublemaker: "Unique. Put this card in play. During your unlock
+// phase, you can give your prey control of the Anarch Troublemaker and
+// either lock up to two vampires they control or burn an equipment on one
+// of their minions." [PIB 20121031] "Can lock a vampire that is already
+// locked."
+#[test]
+fn anarch_troublemaker_passes_to_the_prey_locking_or_burning() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    let x = e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let y = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 3), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 4), 4, false);
+    let gun = equip(&mut e, ".44 Magnum", z);
+    let t = location(&mut e, 0, "Anarch Troublemaker");
+    e.state.minions[x.index()].locked = true;
+    until(&mut e, SeatId(2), WindowLabel::MinionPhase);
+    let req = until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
+    assert!(req.options.contains(&use_on(t, 1, None, Target::Card(gun))));
+    pick(&mut e, use_on(t, 0, None, Target::None));
+    // Up to two, a locked one too.
+    let req = expect(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    assert!(req.options.contains(&Choice::ChooseMinion(x)));
+    assert!(req.options.contains(&Choice::Pass));
+    pick(&mut e, Choice::ChooseMinion(x));
+    pick(&mut e, Choice::ChooseMinion(y));
+    request(&mut e);
+    assert!(e.state.minions[y.index()].locked && !e.state.minions[z.index()].locked);
+    assert_eq!(e.state.card_controller(t), SeatId(1));
+    assert!(e.state.cards[gun.index()].in_play);
+    // The other half, from seat 1 to seat 2 next: burn an equipment.
+    let w = e.add_minion(SeatId(2), plain("", "", 5), 4, false);
+    let bike = equip(&mut e, "Sport Bike", w);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    pick_when(&mut e, use_on(t, 1, None, Target::Card(bike)));
+    request(&mut e);
+    assert!(!e.state.cards[bike.index()].in_play);
+    assert_eq!(e.state.card_controller(t), SeatId(2));
+}
+
+// [ANK 20200130-2] The Rack: "If the target is stolen, the new controller
+// chooses if the vampire gains blood during The Rack controller's unlock
+// phase."
+#[test]
+fn the_racks_stolen_vampire_is_fed_at_its_new_controllers_choice() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 2, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 3), 4, false);
+    hand(&mut e, 0, &["Rack, The"]);
+    e.at_master_phase();
+    pick(&mut e, play_at(0, 0, None, Target::Minion(a)));
+    request(&mut e);
+    let rack = CardId(e.state.cards.len() as u32 - 1);
+    let feed = use_on(rack, 0, None, Target::None);
+    // Seat 1 has taken control of it.
+    e.state.minions[a.index()].owner = SeatId(1);
+    until(&mut e, SeatId(2), WindowLabel::MinionPhase);
+    let req = until(&mut e, SeatId(1), WindowLabel::UnlockAbilities);
+    assert!(req.options.contains(&feed));
+    assert_eq!(
+        e.state.active,
+        SeatId(0),
+        "during the Rack controller's unlock phase"
+    );
+    pick(&mut e, feed);
+    request(&mut e);
+    assert_eq!(blood(&e, a), 4);
+}
+
+// Powerbase: Los Angeles: "During your discard phase, you can lock this
+// location to get +1 discard phase action. If you use that discard phase
+// action to discard a card requiring an Anarch or making a vampire Anarch,
+// you can unlock a ready Anarch. Anarchs controlled by other Methuselahs
+// can steal this location as a Ⓓ action." [LSJ 20050128] [LSJ 20080603] A
+// card requiring a baron is a card requiring an Anarch ([LSJ 20080603]
+// [LSJ 20050128]: Bait and Switch, Organized Resistance, Childe of the
+// Revolution). [LSJ 20080604] The steal is an action requiring an Anarch.
+#[test]
+fn powerbase_los_angeles_unlocks_an_anarch_for_an_anarch_discard() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), anarch_with(&[], &[], 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    let x = e.add_minion(SeatId(1), anarch_with(&[], &[], 1), 4, false);
+    let y = e.add_minion(SeatId(1), plain("Ventrue", "", 1), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 2), 4, false);
+    hand(&mut e, 0, &["Soak", "Bait and Switch"]);
+    let la = location(&mut e, 0, "Powerbase: Los Angeles");
+    e.state.minions[a.index()].locked = true;
+    let req = until(&mut e, SeatId(0), WindowLabel::DiscardPhase);
+    pick(&mut e, use_on(la, 0, None, Target::None));
+    assert_eq!(e.state.seats[0].dpa, 2);
+    // A Soak first: the normal action.
+    pick(&mut e, Choice::Discard(0));
+    // Then the baron card with Los Angeles's: unlock a ready Anarch.
+    let k = e.state.seats[0]
+        .hand
+        .iter()
+        .position(|&c| c == find_library("Bait and Switch"))
+        .unwrap() as u8;
+    pick(&mut e, Choice::Discard(k));
+    let req2 = expect(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    assert_eq!(req2.options, vec![Choice::Pass, Choice::ChooseMinion(a)]);
+    pick(&mut e, Choice::ChooseMinion(a));
+    request(&mut e);
+    assert!(!e.state.minions[a.index()].locked);
+    let _ = req;
+    // Only Anarchs of other Methuselahs steal it: [LSJ 20080604] an action
+    // requiring an Anarch.
+    let req = until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(req.options.contains(&use_on(la, 1, Some(x), Target::None)));
+    assert!(!req.options.contains(&use_on(la, 1, Some(y), Target::None)));
+}
+
+// Garibaldi-Meucci Museum: "You can lock this location and burn 1 pool
+// during your unlock phase to exchange one card from your hand for one card
+// in your ash heap requiring an Anarch." [ANK 20250320] [LSJ 20080603]
+// [LSJ 20050128] Only cards whose requirements name Anarch or baron.
+// [LSJ 20000222] [LSJ 20011023] Both cards are named.
+#[test]
+fn garibaldi_meucci_museum_trades_a_hand_card_for_an_anarch_card() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), anarch_with(&[], &[], 0), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 2), 4, false);
+    hand(&mut e, 0, &["Soak", "Blur"]);
+    e.state.seats[0].ash = vec![
+        find_library("Open War"),
+        find_library("Majesty"),
+        find_library("Line Brawl"),
+        find_library("Reckless Agitation"),
+    ];
+    let g = location(&mut e, 0, "Garibaldi-Meucci Museum");
+    until(&mut e, SeatId(2), WindowLabel::MinionPhase);
+    let p0 = pool(&e, 0);
+    pick_when(&mut e, use_on(g, 0, None, Target::None));
+    let req = expect(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    let mut want = vec![
+        Choice::FindCard(find_library("Open War")),
+        Choice::FindCard(find_library("Line Brawl")),
+        Choice::FindCard(find_library("Reckless Agitation")),
+    ];
+    want.sort_by_key(|c| match c {
+        Choice::FindCard(k) => *k,
+        _ => 0,
+    });
+    assert_eq!(req.options, want, "not Majesty");
+    pick(&mut e, Choice::FindCard(find_library("Open War")));
+    pick(&mut e, Choice::Discard(0));
+    request(&mut e);
+    assert!(e.state.seats[0].hand.contains(&find_library("Open War")));
+    assert!(e.state.seats[0].ash.contains(&find_library("Soak")));
+    assert_eq!(pool(&e, 0), p0 - 1);
+    assert!(e.state.cards[g.index()].locked);
+}
+
+// Garibaldi-Meucci Museum: "You can lock this location before range is
+// determined to end a combat involving an Anarch you control and another
+// Anarch." [RTR 20001020] [LSJ 20001024] End-of-combat cards can still be
+// played.
+#[test]
+fn garibaldi_meucci_museum_ends_a_combat_between_anarchs() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), anarch_with(&[], &[], 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    let b = e.add_minion(SeatId(1), anarch_with(&[], &[], 1), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let g = location(&mut e, 0, "Garibaldi-Meucci Museum");
+    let start = |m| e.state.capacity_of(m).unwrap().min(4);
+    let (sa, sb) = (start(a), start(b));
+    hand(&mut e, 0, &["Taste of Vitae"]);
+    bleed_blocked(&mut e, a, b);
+    pick_when(&mut e, use_on(g, 1, None, Target::None));
+    // The end of the round still comes: Taste of Vitae is playable (it
+    // gains nothing, no blood lost).
+    pick_when(&mut e, play(0, 0, a));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.seats[0]
+        .ash
+        .contains(&find_library("Taste of Vitae")));
+    assert_eq!((blood(&e, a), blood(&e, b)), (sa, sb), "no strike");
+    assert!(e.state.cards[g.index()].locked);
+}
+
+// The Anarch Free Press: "You can lock this card to give an Anarch you
+// control +1 intercept."
+#[test]
+fn the_anarch_free_press_gives_a_blocking_anarch_intercept() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "obf", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 0), 4, false);
+    let z = e.add_minion(SeatId(1), anarch_with(&[], &[], 0), 3, false);
+    let press = location(&mut e, 1, "Anarch Free Press, The");
+    hand(&mut e, 0, &["Lost in Crowds"]);
+    let before = pool(&e, 1);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick(&mut e, Choice::DeclareBlock { minion: z });
+    pick(&mut e, play(0, 0, a)); // +1 stealth
+    pick_when(&mut e, ability(press));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e, 1), before, "blocked");
+}
+
+// "You can lock this card after an Anarch successfully hunts to add 1 blood
+// to that Anarch." [LSJ 20050720-2] A hunt gaining no blood is not
+// successful. [ANK 20220317] Not a hunt requiring an Anarch.
+#[test]
+fn the_anarch_free_press_adds_blood_after_a_successful_hunt_only() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), anarch_with(&[], &[], 0), 1, false);
+    let full = e.add_minion(SeatId(0), anarch_with(&[], &[], 1), 3, false);
+    e.state.minions[full.index()].blood = e.state.capacity_of(full).unwrap();
+    e.add_minion(SeatId(1), plain("", "", 0), 4, false);
+    let press = location(&mut e, 0, "Anarch Free Press, The");
+    let add = use_on(press, 1, None, Target::None);
+    pick(&mut e, action(full, ActionKind::Hunt));
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, add);
+    pick(&mut e, action(a, ActionKind::Hunt));
+    pick_when(&mut e, add);
+    request(&mut e);
+    assert_eq!(blood(&e, a), 3, "1, +1 hunting, +1");
+}
+
+// Channel 10: "You can lock this card to give a minion you control +2
+// intercept. Not usable during the first action in a minion phase."
+// [LSJ 20100505] [ANK 20210124] An action canceled "as played" (Direct
+// Intervention) was never announced: the next one is the first.
+#[test]
+fn channel_10_waits_for_the_second_action_of_a_minion_phase() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), baron(0), 4, false);
+    let b = e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    let ch = location(&mut e, 1, "Channel 10");
+    hand(
+        &mut e,
+        0,
+        &[
+            "Childe of the Revolution",
+            "Lost in Crowds",
+            "Lost in Crowds",
+        ],
+    );
+    hand(&mut e, 1, &["Direct Intervention"]);
+    e.state.seats[1].pool = 10;
+    // Childe of the Revolution, canceled as it is played.
+    pick(&mut e, play(0, 0, a));
+    pick_when(&mut e, play_at(0, 0, None, Target::None));
+    request(&mut e);
+    assert_eq!(e.state.phase_actions, 0, "no action announced");
+    let p1 = pool(&e, 1);
+    // The first action: b bleeds at +1 stealth; Channel 10 is not usable.
+    pick_when(&mut e, action(b, ActionKind::Bleed));
+    pick(&mut e, Choice::DeclareBlock { minion: z });
+    let lic = e.state.seats[0]
+        .hand
+        .iter()
+        .position(|&c| c == find_library("Lost in Crowds"))
+        .unwrap() as u8;
+    pick(&mut e, play(lic, 0, b));
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, ability(ch));
+    assert_eq!(pool(&e, 1), p1 - 1, "not blocked");
+    // The second: a bleeds; now it is.
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick(&mut e, Choice::DeclareBlock { minion: z });
+    let lic = e.state.seats[0]
+        .hand
+        .iter()
+        .position(|&c| c == find_library("Lost in Crowds"))
+        .unwrap() as u8;
+    pick(&mut e, play(lic, 0, a));
+    pick_when(&mut e, ability(ch));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e, 1), p1 - 1, "blocked");
+}
+
+// Creepshow Casino: "You can lock this card as a vampire you control
+// announces an undirected action to give that vampire +1 stealth, even if
+// stealth is not yet needed."
+#[test]
+fn creepshow_casino_gives_stealth_to_an_undirected_action_as_announced() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 2, false);
+    let b = e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    let casino = location(&mut e, 0, "Creepshow Casino");
+    // A bleed is directed: not offered.
+    pick(&mut e, action(b, ActionKind::Bleed));
+    let req = request(&mut e);
+    assert!(!req.options.contains(&ability(casino)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    pick(&mut e, action(a, ActionKind::Hunt));
+    let base = e.action().unwrap().stealth(&e.state);
+    pick(&mut e, ability(casino));
+    assert_eq!(e.action().unwrap().stealth(&e.state), base + 1);
+}
+
+// Club Illusion: "An Anarch can burn 1 blood once as they announce a bleed
+// action to get +1 bleed during that action." [ANK 20220317] Not an action
+// requiring an Anarch. Any Anarch: the location is another Methuselah's.
+#[test]
+fn club_illusion_lets_any_anarch_burn_blood_for_one_bleed_once() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), anarch_with(&[], &[], 0), 3, false);
+    let b = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let club = location(&mut e, 2, "Club Illusion");
+    let burn = use_on(club, 0, Some(a), Target::None);
+    pick(&mut e, action(b, ActionKind::Bleed));
+    let req = request(&mut e);
+    assert!(
+        !req.options
+            .iter()
+            .any(|o| matches!(o, Choice::UseAbility { .. })),
+        "not an Anarch"
+    );
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let p1 = pool(&e, 1);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick(&mut e, burn);
+    let req = request(&mut e);
+    assert!(!req.options.contains(&burn), "once");
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e, 1), p1 - 2);
+    assert_eq!(blood(&e, a), e.state.capacity_of(a).unwrap().min(3) - 1);
+}
+
+// Haqim's Law: Retribution: "During a bleed action, an Assamite you
+// control can discard a combat card to get +1 bleed." [ANK 20221102-2] Once
+// per action for each copy. [ANK 20220502] Only by the bleeding minion.
+// [ANK 20231124] [LSJ 19970718] Before action resolution.
+#[test]
+fn haqims_law_retribution_trades_a_combat_card_for_one_bleed_per_copy() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Banu Haqim", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    let law1 = location(&mut e, 0, "Haqim's Law: Retribution");
+    let law2 = location(&mut e, 0, "Haqim's Law: Retribution");
+    hand(&mut e, 0, &["Lost in Crowds", "Side Strike", "Roundhouse"]);
+    let p1 = pool(&e, 1);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick(&mut e, use_on(law1, 0, Some(a), Target::None));
+    // The combat card to discard (Lost in Crowds is not one).
+    let req = request(&mut e);
+    assert!(!req.options.contains(&Choice::Discard(0)));
+    pick(&mut e, Choice::Discard(1));
+    let req = request(&mut e);
+    assert!(
+        !req.options
+            .contains(&use_on(law1, 0, Some(a), Target::None)),
+        "once"
+    );
+    pick(&mut e, use_on(law2, 0, Some(a), Target::None));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e, 1), p1 - 3);
+}
+
+// Pentex™ Subversion: "Put this card on a ready minion. This minion cannot
+// block. Other minions can burn this card as a Ⓓ action."
+#[test]
+fn pentex_subversion_bars_blocking_until_another_minion_burns_it() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    let pentex = equip(&mut e, "Pentex(TM) Subversion", z);
+    e.state.cards[pentex.index()].owner = SeatId(0);
+    e.state.cards[pentex.index()].controller = SeatId(0);
+    for effect in cards::lookup(find_library("Pentex(TM) Subversion"))
+        .unwrap()
+        .modes[0]
+        .effects
+    {
+        if let Effect::Layer(modifier) = effect {
+            e.state.layers.push(Layer {
+                scope: Scope::InPlay,
+                modifier: *modifier,
+                source: pentex,
+            });
+        }
+    }
+    let p1 = pool(&e, 1);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        Choice::DeclareBlock { minion: z },
+    );
+    assert_eq!(pool(&e, 1), p1 - 1);
+    // Seat 1's turn: z itself cannot burn it; another minion can.
+    let y = e.add_minion(SeatId(1), plain("", "", 3), 4, false);
+    let req = until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(!req
+        .options
+        .contains(&use_on(pentex, 0, Some(z), Target::None)));
+    pick(&mut e, use_on(pentex, 0, Some(y), Target::None));
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(!e.state.cards[pentex.index()].in_play);
+}
+
+/// `name`, a master card of `seat`'s, in play on `host` with its layers.
+fn master_on(e: &mut Engine, seat: u8, name: &str, host: MinionId) -> CardId {
+    let id = location(e, seat, name);
+    e.state.cards[id.index()].host = Some(host);
+    id
+}
+
+// Haven Uncovered: "Put this card on a ready vampire. Minions can enter
+// combat with this vampire as a +1 stealth Ⓓ action. This vampire can burn
+// this card as a +1 stealth Ⓓ action."
+#[test]
+fn haven_uncovered_opens_its_vampire_to_combat_until_it_burns_it() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    let a2 = e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 3), 4, false);
+    let haven = master_on(&mut e, 0, "Haven Uncovered", z);
+    let rush = |m| use_on(haven, 0, Some(m), Target::Minion(z));
+    pick(&mut e, rush(a));
+    assert_eq!(e.action().unwrap().stealth(&e.state), 1);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.minions[z.index()].blood < 4, "the combat happened");
+    let _ = a2;
+    // z's turn: it burns the card.
+    let req = until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(req
+        .options
+        .contains(&use_on(haven, 1, Some(z), Target::None)));
+    pick(&mut e, use_on(haven, 1, Some(z), Target::None));
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(!e.state.cards[haven.index()].in_play);
+}
+
+// Chantry: "You can lock this card and burn 1 pool or 1 blood from a ready
+// Tremere you control during your master phase to move a Tremere from
+// torpor to their controller's ready region."
+#[test]
+fn chantry_brings_a_tremere_out_of_torpor_for_pool_or_blood() {
+    for blood_cost in [false, true] {
+        let mut e = Engine::bare(3);
+        let t = e.add_minion(SeatId(0), plain("Tremere", "", 0), 3, false);
+        e.add_minion(SeatId(1), plain("", "", 0), 4, false);
+        let torpid = e.add_minion(SeatId(1), plain("Tremere", "", 1), 1, true);
+        let ch = location(&mut e, 0, "Chantry");
+        let p0 = pool(&e, 0);
+        e.at_master_phase();
+        pick(
+            &mut e,
+            use_on(ch, u8::from(blood_cost), None, Target::Minion(torpid)),
+        );
+        request(&mut e);
+        assert!(
+            !e.state.minions[torpid.index()].in_torpor,
+            "another's Tremere too"
+        );
+        if blood_cost {
+            assert_eq!((blood(&e, t), pool(&e, 0)), (2, p0));
+        } else {
+            assert_eq!((blood(&e, t), pool(&e, 0)), (3, p0 - 1));
+        }
+    }
+}
+
+// Toreador Grand Ball: "Choose two ready Toreador you control, put this
+// card in play, and lock one of the two. The locked Toreador does not
+// unlock as normal. The other Toreador's non-bleed actions cannot be
+// blocked." [LSJ 19970814] Still after it bled. [TOM 19960528] The same
+// vampire can be the second Toreador of several Grand Balls.
+#[test]
+fn toreador_grand_ball_locks_one_toreador_and_frees_the_others_actions() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Toreador", "", 0), 4, false);
+    let b = e.add_minion(SeatId(0), plain("Toreador", "", 1), 4, false);
+    let c = e.add_minion(SeatId(0), plain("Toreador", "", 2), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 1), 4, false);
+    hand(&mut e, 0, &["Toreador Grand Ball"]);
+    e.at_master_phase();
+    pick(&mut e, play_at(0, 0, None, Target::Minion(a)));
+    let req = expect(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    assert_eq!(
+        req.options,
+        vec![Choice::ChooseMinion(b), Choice::ChooseMinion(c)]
+    );
+    pick(&mut e, Choice::ChooseMinion(b));
+    request(&mut e);
+    let ball = CardId(e.state.cards.len() as u32 - 1);
+    assert_eq!(e.state.cards[ball.index()].chosen, vec![a, b]);
+    assert!(e.state.minions[a.index()].locked);
+    // b bleeds: blockable; then hunts: not.
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    pick(&mut e, action(b, ActionKind::Bleed));
+    let req = request(&mut e);
+    assert!(req.options.contains(&Choice::DeclareBlock { minion: z }));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    e.state.minions[b.index()].locked = false;
+    e.state.minions[b.index()].acted.clear();
+    pick(&mut e, action(b, ActionKind::Hunt));
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        Choice::DeclareBlock { minion: z },
+    );
+    // a stays locked through seat 0's next unlock phase.
+    until(&mut e, SeatId(2), WindowLabel::MinionPhase);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.minions[a.index()].locked);
+}
+
+// "Minions can burn this card as a Ⓓ action; Nosferatu get -1 stealth
+// during that action."
+#[test]
+fn a_nosferatu_burns_toreador_grand_ball_at_minus_one_stealth() {
+    // At 0 stealth against 0 intercept the block succeeds; at 1 it fails.
+    for (clan, burned) in [("Nosferatu", false), ("Malkavian", true)] {
+        let mut e = Engine::bare(3);
+        let n = e.add_minion(SeatId(0), plain(clan, "obf", 0), 4, false);
+        e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+        let z = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+        let ball = location(&mut e, 1, "Toreador Grand Ball");
+        hand(&mut e, 0, &["Lost in Crowds"]);
+        pick(&mut e, use_on(ball, 0, Some(n), Target::None));
+        pick(&mut e, Choice::DeclareBlock { minion: z });
+        pick(&mut e, play(0, 0, n)); // +1 stealth
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert_eq!(!e.state.cards[ball.index()].in_play, burned, "{clan}");
+    }
+}
+
+// Priority Contract: [LSJ 20080604] its action requires the Assamite. "Choose
+// a ready Assamite you control and put this card on a minion controlled by
+// your prey. The chosen Assamite can enter
+// combat with the attached minion as a +1 stealth Ⓓ action. If the attached
+// minion is about to leave the ready region, you can burn this card to gain
+// 3 pool." [PIB 20150512] Even when the card goes with it.
+#[test]
+fn priority_contract_marks_a_prey_minion_for_the_chosen_assamite() {
+    let mut e = Engine::bare(3);
+    let haqim = |n| vampire(|c| c.clan == "Banu Haqim" && c.title == Title::None, n);
+    let h1 = e.add_minion(SeatId(0), haqim(0), 3, false);
+    let h2 = e.add_minion(SeatId(0), haqim(1), 3, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 3), 4, false);
+    hand(&mut e, 0, &["Priority Contract"]);
+    e.at_master_phase();
+    pick(&mut e, play_at(0, 0, None, Target::Minion(z)));
+    pick(&mut e, Choice::ChooseMinion(h2));
+    request(&mut e);
+    let pc = CardId(e.state.cards.len() as u32 - 1);
+    assert_eq!(e.state.cards[pc.index()].chosen, vec![h2]);
+    let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let rush = |m| use_on(pc, 0, Some(m), Target::Minion(z));
+    assert!(!req.options.contains(&rush(h1)), "the chosen one only");
+    pick(&mut e, rush(h2));
+    assert_eq!(e.action().unwrap().stealth(&e.state), 1);
+    // z goes to torpor in the combat: the contract pays.
+    e.state.minions[z.index()].blood = 0;
+    let p0 = pool(&e, 0);
+    pick_when(&mut e, Choice::ResolveRider { card: pc.0 });
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.minions[z.index()].in_torpor);
+    assert_eq!(pool(&e, 0), p0 + 3);
+    assert!(!e.state.cards[pc.index()].in_play);
+}
+
+// [ANK 20180129-2] Priority Contract: "Can be burned to get 3 pool when a
+// minion leaves the ready region because his controller is ousted."
+#[test]
+fn priority_contract_pays_when_the_prey_is_ousted() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("Banu Haqim", "", 0), 4, false);
+    let a = e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 3), 4, false);
+    let pc = master_on(&mut e, 0, "Priority Contract", z);
+    e.state.seats[1].pool = 1;
+    let p0 = pool(&e, 0);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, Choice::ResolveRider { card: pc.0 });
+    request(&mut e);
+    assert!(e.state.seats[1].ousted);
+    assert_eq!(pool(&e, 0), p0 + 6 + 3, "the oust's 6 and the contract's 3");
+}
+
+// Frontal Assault: "Each ready minion you control can enter combat with a
+// minion controlled by your prey as a Ⓓ action. You gain 1 pool after a
+// ready minion controlled by your prey is burned or sent to torpor. During
+// your influence phase, burn this card and burn 1 pool for each ready
+// minion controlled by your prey." [LSJ 20061018] Copies stack.
+#[test]
+fn frontal_assault_rushes_the_prey_pays_for_losses_and_costs_at_influence() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 2), 0, false);
+    e.add_minion(SeatId(1), plain("", "", 3), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 4), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 5), 4, false);
+    let f1 = location(&mut e, 0, "Frontal Assault");
+    let f2 = location(&mut e, 0, "Frontal Assault");
+    let p0 = pool(&e, 0);
+    pick(&mut e, use_on(f1, 0, Some(a), Target::Minion(z)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.minions[z.index()].in_torpor);
+    assert_eq!(pool(&e, 0), p0 + 2, "1 for each copy");
+    // The influence phase: both burn, 2 ready prey minions each.
+    pick(&mut e, Choice::Pass);
+    request(&mut e);
+    assert!(!e.state.cards[f1.index()].in_play && !e.state.cards[f2.index()].in_play);
+    assert_eq!(pool(&e, 0), p0 + 2 - 4);
+}
+
+// Piper: "Requires a ready Anarch. Lock a ready unlocked Anarch you
+// control. That Anarch recruits or employs an ally or retainer from your
+// hand (requirements and cost apply as normal). This is not an action and
+// cannot be blocked." [RBK recruit-ally] The ally cannot act this turn.
+// [LSJ 20100725] [LSJ 20100303] [ANK 20180817] The requirements apply.
+#[test]
+fn piper_has_an_anarch_recruit_an_ally_outside_an_action() {
+    let mut e = Engine::bare(3);
+    let brujah = vampire(
+        |c| c.sect == zvtes::crypt::Sect::Anarch && c.clan == "Brujah" && c.title == Title::None,
+        0,
+    );
+    let a = e.add_minion(SeatId(0), brujah, 3, false);
+    let other = e.add_minion(
+        SeatId(0),
+        vampire(|c| c.sect != zvtes::crypt::Sect::Anarch, 0),
+        3,
+        false,
+    );
+    e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    hand(
+        &mut e,
+        0,
+        &[
+            "Piper",
+            "47th Street Royals",
+            "Political Ally",
+            "Crypt's Sons",
+        ],
+    );
+    e.at_master_phase();
+    let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    assert!(
+        !req.options.contains(&play(0, 0, other)),
+        "requires an Anarch"
+    );
+    pick(&mut e, play(0, 0, a));
+    // The Ventrue ally is not his to recruit.
+    let royals = find_library("47th Street Royals");
+    let req = expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
+    assert!(req.options.contains(&Choice::EmployFromHand {
+        card: royals,
+        mode: 0
+    }));
+    let sons = find_library("Crypt's Sons");
+    assert!(req.options.contains(&Choice::EmployFromHand {
+        card: sons,
+        mode: 0
+    }));
+    assert!(!req.options.contains(&Choice::EmployFromHand {
+        card: find_library("Political Ally"),
+        mode: 0
+    }));
+    pick(
+        &mut e,
+        Choice::EmployFromHand {
+            card: royals,
+            mode: 0,
+        },
+    );
+    request(&mut e);
+    assert!(e.state.minions[a.index()].locked);
+    let ally = MinionId(e.state.minions.len() as u32 - 1);
+    assert!(e.state.minions[ally.index()].is_ally());
+    let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(
+        !req.options.contains(&action(ally, ActionKind::Bleed)),
+        "recruited this turn"
+    );
+}
+
+// [LSJ 20080803] Piper: "When recruiting an ally or retainer whose effect
+// depend on Discipline level, the chosen vampire decides in respect to his
+// disciplines the normal way." [LSJ 20080815] "This does not count as
+// performing the action to employ … The same vampire can play the
+// respective card in a normal fashion during their turn, if unlocked."
+// [RTR 20001020] Direct Intervention cannot cancel the retainer: it is not
+// played from the hand as an action card.
+#[test]
+fn piper_employs_by_the_anarchs_disciplines_and_is_no_action() {
+    let mut e = Engine::bare(3);
+    let superior_ani = vampire(
+        |c| {
+            c.sect == zvtes::crypt::Sect::Anarch
+                && c.title == Title::None
+                && c.disciplines.contains(&"ANI")
+        },
+        0,
+    );
+    let a = e.add_minion(SeatId(0), superior_ani, 4, false);
+    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    hand(&mut e, 0, &["Piper", "Raven Spy", "Raven Spy"]);
+    hand(&mut e, 1, &["Direct Intervention"]);
+    e.state.minions[a.index()].blood = e.state.capacity_of(a).unwrap().min(4);
+    let has_ani = e.state.discipline_level(a, "ani") == 2;
+    assert!(has_ani);
+    e.at_master_phase();
+    pick(&mut e, play(0, 0, a));
+    let spy = find_library("Raven Spy");
+    // Its superior version, by its Animalism.
+    let req = expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
+    let superior = Choice::EmployFromHand { card: spy, mode: 1 };
+    assert_eq!(req.options.contains(&superior), has_ani);
+    pick(
+        &mut e,
+        if has_ani {
+            superior
+        } else {
+            Choice::EmployFromHand { card: spy, mode: 0 }
+        },
+    );
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        play_at(0, 0, None, Target::None),
+    );
+    let spy_id = e
+        .state
+        .cards
+        .iter()
+        .position(|c| c.card == spy && c.host == Some(a))
+        .unwrap();
+    assert_eq!(e.state.cards[spy_id].counters, if has_ani { 2 } else { 1 });
+    // Unlocked, it may still employ one normally.
+    e.state.minions[a.index()].locked = false;
+    let k = e.state.seats[0]
+        .hand
+        .iter()
+        .position(|&c| c == spy)
+        .unwrap() as u8;
+    let req = request(&mut e);
+    assert!(plays_by(&req, a).iter().any(|&(c, _)| c == k));
+}
+
+// [TOM 19960528] Toreador Grand Ball: "The same vampire can serve as the
+// 'second Toreador' for multiple Toreador Grand Balls."
+#[test]
+fn a_toreador_can_be_the_second_of_two_grand_balls() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Toreador", "", 0), 4, false);
+    let b = e.add_minion(SeatId(0), plain("Toreador", "", 1), 4, false);
+    let c = e.add_minion(SeatId(0), plain("Toreador", "", 2), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 0), 4, false);
+    let first = location(&mut e, 0, "Toreador Grand Ball");
+    e.state.cards[first.index()].chosen = vec![a, b];
+    hand(&mut e, 0, &["Toreador Grand Ball"]);
+    e.at_master_phase();
+    pick(&mut e, play_at(0, 0, None, Target::Minion(c)));
+    let req = expect(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    assert!(req.options.contains(&Choice::ChooseMinion(b)));
+}
+
+// [RBK contested-cards] Priority Contract: "You still gain the trifle master
+// phase action, even if this card contests when played."
+#[test]
+fn a_contested_priority_contract_still_gives_the_trifle_action() {
+    let mut e = Engine::bare(3);
+    e.add_minion(
+        SeatId(0),
+        vampire(|c| c.clan == "Banu Haqim" && c.title == Title::None, 0),
+        3,
+        false,
+    );
+    let z = e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let y = e.add_minion(SeatId(2), plain("", "", 2), 4, false);
+    // Seat 2's copy already in play, on seat 0's... any minion.
+    master_on(&mut e, 2, "Priority Contract", y);
+    hand(&mut e, 0, &["Priority Contract", "Misdirection"]);
+    e.at_master_phase();
+    pick(&mut e, play_at(0, 0, None, Target::Minion(z)));
+    let req = request(&mut e);
+    assert!(
+        req.options.iter().any(|o| matches!(o, Choice::Play { .. })),
+        "a master phase action left"
+    );
+}
+
+// Warsaw Station: "You can lock this card as a Nosferatu announces an
+// undirected action; after action resolution, if that action was
+// successful, unlock the acting Nosferatu. You can burn this card (even if
+// it is locked) to move a Nosferatu in torpor to the ready region."
+// [ANK 20250120] The unlock applies even if Warsaw Station is not in play
+// when the action resolves.
+#[test]
+fn warsaw_station_unlocks_a_successful_nosferatu_even_once_burned() {
+    let mut e = Engine::bare(3);
+    let n = e.add_minion(SeatId(0), plain("Nosferatu", "", 0), 2, false);
+    let torpid = e.add_minion(SeatId(0), plain("Nosferatu", "", 1), 2, true);
+    e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    let w = location(&mut e, 0, "Warsaw Station");
+    pick(&mut e, action(n, ActionKind::Hunt));
+    pick(&mut e, use_on(w, 0, None, Target::None));
+    // Burned, locked as it is, to raise the other Nosferatu.
+    pick_when(&mut e, use_on(w, 1, None, Target::Minion(torpid)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.cards[w.index()].in_play);
+    assert!(!e.state.minions[torpid.index()].in_torpor);
+    assert!(
+        !e.state.minions[n.index()].locked,
+        "unlocked after the hunt"
+    );
+    assert_eq!(blood(&e, n), 3);
+}
+
+// [ANK 20220218] [ANK 20181107] Warsaw Station "can be burned after the
+// announcement of a diablerie action to bring the target Nosferatu out of
+// torpor. The action will still be successful if unblocked, but will have
+// no effect: no diablerie happen."
+#[test]
+fn warsaw_station_saves_a_nosferatu_from_a_diablerie() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let victim = e.add_minion(SeatId(1), plain("Nosferatu", "", 0), 1, true);
+    e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    let w = location(&mut e, 1, "Warsaw Station");
+    pick(
+        &mut e,
+        Choice::TakeAction {
+            minion: a,
+            action: ActionKind::Diablerie,
+            target: Some(victim),
+        },
+    );
+    pick_when(&mut e, use_on(w, 1, None, Target::Minion(victim)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let v = &e.state.minions[victim.index()];
+    assert!(v.in_play && !v.in_torpor, "no diablerie");
+    assert!(e.state.minions[a.index()].locked);
+}
+
+// [LSJ 20090216] [ANK 20180922] Warsaw Station: "The unlock effect is
+// applied after the action is resolved and the referendum (if any)
+// concluded."
+#[test]
+fn warsaw_station_unlocks_after_the_referendum() {
+    let mut e = Engine::bare(3);
+    let n = e.add_minion(SeatId(0), plain("Nosferatu", "", 0), 3, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 2), 4, false);
+    let w = location(&mut e, 0, "Warsaw Station");
+    hand(&mut e, 0, &["Anarchist Uprising"]);
+    pick(&mut e, play(0, 0, n));
+    pick(&mut e, use_on(w, 0, None, Target::None));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.action().is_none());
+    assert!(!e.state.minions[n.index()].locked);
+}
+
+// [ANK 20220218] "When the acting vampire leaves torpor before the action
+// resolves (e.g. Warsaw Station) the action immediately fizzles (cost, if
+// any, is paid, and it is considered successful, but has no effect)."
+#[test]
+fn a_leave_torpor_action_fizzles_once_warsaw_station_raised_its_vampire() {
+    let mut e = Engine::bare(3);
+    let n = e.add_minion(SeatId(0), plain("Nosferatu", "", 0), 3, true);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    let w = location(&mut e, 0, "Warsaw Station");
+    pick(&mut e, action(n, ActionKind::LeaveTorpor));
+    pick_when(&mut e, use_on(w, 1, None, Target::Minion(n)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let v = &e.state.minions[n.index()];
+    assert!(!v.in_torpor);
+    assert_eq!(v.blood, 1, "its cost paid");
+}
+
+// Anarch Railroad: "You can lock this card to give an Anarch +1 stealth."
+// Any Methuselah's Anarch: a third party's location helps the acting one,
+// holding the impulse in turn.
+#[test]
+fn anarch_railroad_gives_any_acting_anarch_stealth() {
+    let mut e = Engine::bare(4);
+    let a = e.add_minion(SeatId(0), anarch_with(&[], &[], 0), 3, false);
+    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 2), 4, false);
+    e.add_minion(SeatId(3), plain("", "", 3), 4, false);
+    let rr = location(&mut e, 2, "Anarch Railroad");
+    let p1 = pool(&e, 1);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, ability(rr));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e, 1), p1 - 1, "not blocked");
+    assert!(e.state.cards[rr.index()].locked);
+}
+
+// Fortune Teller Shop: "You can lock this card to give a Ravnos +1
+// stealth."
+#[test]
+fn fortune_teller_shop_gives_a_ravnos_stealth_only() {
+    for (clan, offered) in [("Ravnos", true), ("Brujah", false)] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(
+            SeatId(0),
+            vampire(|c| c.clan == clan && c.title == Title::None, 0),
+            3,
+            false,
+        );
+        e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+        let z = e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+        let shop = location(&mut e, 0, "Fortune Teller Shop");
+        pick(&mut e, action(a, ActionKind::Bleed));
+        pick(&mut e, Choice::DeclareBlock { minion: z });
+        if offered {
+            pick_when(&mut e, ability(shop));
+        } else {
+            never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, ability(shop));
+        }
+    }
+}
+
+// KRCG News Radio: "You can lock this card to give a minion you control +1
+// intercept. You can lock this card and burn 1 pool to give a minion
+// controlled by another Methuselah +1 intercept." [ANK 20200607]
+// Sequencing: the other Methuselahs declare their attempts, then the
+// impulse comes. The attempt it could make succeed is offered, not pruned.
+#[test]
+fn krcg_news_radio_pays_for_another_methuselahs_intercept() {
+    for with_radio in [false, true] {
+        let mut e = Engine::bare(4);
+        let a = e.add_minion(SeatId(0), plain("", "", 0), 3, false);
+        e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+        let z = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+        e.add_minion(SeatId(2), plain("", "", 3), 4, false);
+        e.add_minion(SeatId(3), plain("", "", 4), 4, false);
+        if with_radio {
+            location(&mut e, 2, "KRCG News Radio");
+        }
+        hand(&mut e, 0, &["Anarchist Uprising"]);
+        pick(&mut e, play(0, 0, a)); // a +1 stealth political action
+        let block = Choice::DeclareBlock { minion: z };
+        if !with_radio {
+            never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, block);
+            continue;
+        }
+        let radio = CardId(0);
+        let p2 = pool(&e, 2);
+        pick_when(&mut e, block);
+        pick_when(&mut e, use_on(radio, 1, None, Target::None));
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert_eq!(pool(&e, 2), p2 - 1);
+        assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Blocked));
+    }
+}
+
+// Carver's Meat Packing and Storage: "After a vampire with capacity 3 or
+// less goes to torpor, put 1 hostage counter on them. Vampires with any
+// hostage counters cannot be moved to the ready region or be diablerized.
+// Lock during your master phase to add X blood to a ready vampire you
+// control, where X is the number of vampires with any hostage counters.
+// During any unlock phase, any ready vampire can burn 2 blood to burn any
+// vampire's hostage counters. After this card leaves play, burn all the
+// hostage counters." [ANK 20200729] The burn once each turn.
+#[test]
+fn carvers_meat_packing_holds_young_vampires_hostage() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 2, false);
+    let b = e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let young = vampire(|c| c.capacity <= 3 && c.title == Title::None, 0);
+    let z = e.add_minion(SeatId(1), young, 0, false);
+    let y = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    let w = e.add_minion(
+        SeatId(2),
+        vampire(|c| c.capacity <= 3 && c.title == Title::None, 1),
+        0,
+        true,
+    );
+    e.add_minion(SeatId(2), plain("", "", 3), 4, false);
+    e.state.minions[w.index()].hostage = 1;
+    let carver = location(&mut e, 0, "Carver's Meat Packing and Storage");
+    bleed_blocked(&mut e, a, z);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.minions[z.index()].in_torpor);
+    assert_eq!(e.state.minions[z.index()].hostage, 1);
+    // No rescue, no diablerie of it.
+    let req = request(&mut e);
+    let rescue = Choice::TakeAction {
+        minion: b,
+        action: ActionKind::Rescue,
+        target: Some(z),
+    };
+    let diablerie = Choice::TakeAction {
+        minion: b,
+        action: ActionKind::Diablerie,
+        target: Some(z),
+    };
+    assert!(!req.options.contains(&rescue) && !req.options.contains(&diablerie));
+    // Seat 1's unlock phase: y burns 2 blood to free it; then no second
+    // burn this turn.
+    until(&mut e, SeatId(1), WindowLabel::UnlockAbilities);
+    let free = use_on(carver, 1, Some(y), Target::Minion(z));
+    pick(&mut e, free);
+    assert_eq!(e.state.minions[z.index()].hostage, 0);
+    assert_eq!(blood(&e, y), e.state.capacity_of(y).unwrap().min(4) - 2);
+    let again = use_on(carver, 1, Some(y), Target::Minion(w));
+    never_offered_until(&mut e, SeatId(1), WindowLabel::MinionPhase, again);
+}
+
+// "Lock during your master phase to add X blood to a ready vampire you
+// control"; "After this card leaves play, burn all the hostage counters."
+#[test]
+fn carvers_meat_packing_feeds_per_hostage_and_frees_them_as_it_goes() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 1, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let h1 = e.add_minion(SeatId(1), vampire(|c| c.capacity <= 3, 0), 0, true);
+    let h2 = e.add_minion(SeatId(2), vampire(|c| c.capacity <= 3, 1), 0, true);
+    e.state.minions[h1.index()].hostage = 1;
+    e.state.minions[h2.index()].hostage = 1;
+    let carver = location(&mut e, 0, "Carver's Meat Packing and Storage");
+    e.at_master_phase();
+    pick(&mut e, use_on(carver, 0, None, Target::Minion(a)));
+    request(&mut e);
+    assert_eq!(blood(&e, a), 3);
+    // Gone (contested, burned, out of play): the counters go.
+    e.state.cards[carver.index()].in_play = false;
+    request(&mut e);
+    assert_eq!(
+        e.state.minions[h1.index()].hostage + e.state.minions[h2.index()].hostage,
+        0
+    );
+}
+
+// Meditative Grove: "During your unlock phase, a ready Salubri you control
+// can gain 1 blood. You can lock this card to cancel a frenzy card as it is
+// played on a Salubri you control (cost is still paid)." [ANK 20260216]
+// [RBK cancel-a-card] The cost of a canceled card is paid. [LSJ 20061207]
+// [LSJ 20061013] Played at once in the as-played window. [ANK 20200813-2]
+// Action cards too.
+#[test]
+fn meditative_grove_cancels_a_frenzy_card_played_on_its_salubri() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["ANI"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let salubri = vampire(|c| c.clan == "Salubri" && c.title == Title::None, 0);
+    let z = e.add_minion(SeatId(1), salubri, 3, false);
+    let grove = location(&mut e, 1, "Meditative Grove");
+    hand(&mut e, 0, &["Deep Song"]);
+    let before = blood(&e, a);
+    pick(&mut e, play_at(0, 1, Some(a), Target::Minion(z)));
+    pick_when(&mut e, use_on(grove, 1, None, Target::None));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.action().is_none() && e.state.combatants.is_none());
+    assert!(!e.state.minions[z.index()].locked, "no combat, no lock");
+    // [RBK cancel-a-card] Not performed: its minion unlocked, free to act.
+    assert!(!e.state.minions[a.index()].locked);
+    assert_eq!(blood(&e, a), before);
+    assert!(e.state.cards[grove.index()].locked);
+}
+
+// The hunting ground: a Salubri only.
+#[test]
+fn meditative_grove_feeds_a_salubri() {
+    let mut e = Engine::bare(3);
+    let salubri = vampire(|c| c.clan == "Salubri" && c.title == Title::None, 0);
+    let s = e.add_minion(SeatId(0), salubri, 1, false);
+    let other = e.add_minion(SeatId(0), plain("Brujah", "", 0), 1, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let grove = location(&mut e, 0, "Meditative Grove");
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    let req = until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
+    assert!(!req
+        .options
+        .contains(&use_on(grove, 0, None, Target::Minion(other))));
+    pick(&mut e, use_on(grove, 0, None, Target::Minion(s)));
+    request(&mut e);
+    assert_eq!(blood(&e, s), 2);
+}
+
+fn ravnos(nth: usize) -> u16 {
+    vampire(|c| c.clan == "Ravnos" && c.title == Title::None, nth)
+}
+
+// Week of Nightmares: "Put this card in play with 10 nightmare counters.
+// Ravnos get +1 bleed and +1 strength and do not hunt as normal. Any Ravnos
+// can steal 1 blood from another Ravnos as a +1 stealth hunt action."
+// [LSJ 20050720-2] [RTR 20010711] [LSJ 20100915] It can target a vampire
+// with no blood; stealing none, the hunt is unsuccessful. [LSJ 20010809-1]
+// Blood it cannot hold goes to the blood bank. [LSJ 19970224] Directed at a
+// vampire. [LSJ 20080604] An action requiring a Ravnos.
+#[test]
+fn week_of_nightmares_replaces_the_ravnos_hunt_with_a_theft() {
+    let mut e = Engine::bare(3);
+    let r = e.add_minion(SeatId(0), ravnos(0), 1, false);
+    let other = e.add_minion(SeatId(0), plain("Brujah", "", 0), 4, false);
+    let victim = e.add_minion(SeatId(1), ravnos(1), 2, false);
+    let empty = e.add_minion(SeatId(1), ravnos(2), 0, false);
+    let week = location(&mut e, 0, "Week of Nightmares");
+    e.state.cards[week.index()].counters = 10;
+    let req = request(&mut e);
+    assert!(
+        !req.options.contains(&action(r, ActionKind::Hunt)),
+        "no hunt as normal"
+    );
+    assert!(req.options.contains(&action(other, ActionKind::Hunt)));
+    let steal = |t| use_on(week, 0, Some(r), Target::Minion(t));
+    assert!(
+        req.options.contains(&steal(empty)),
+        "a vampire with no blood too"
+    );
+    assert!(!req.options.contains(&steal(r)), "another Ravnos");
+    // At capacity, the stolen blood goes to the blood bank.
+    let cap = e.state.capacity_of(r).unwrap();
+    e.state.minions[r.index()].blood = cap;
+    pick(&mut e, steal(victim));
+    assert_eq!(e.action().unwrap().stealth(&e.state), 1);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((blood(&e, r), blood(&e, victim)), (cap, 1));
+    // +1 bleed for a Ravnos.
+    let p1 = pool(&e, 1);
+    e.state.minions[r.index()].locked = false;
+    e.state.minions[r.index()].acted.clear();
+    pick(&mut e, action(r, ActionKind::Bleed));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e, 1), p1 - 2);
+}
+
+// [RBK action-card-or-card-in-play] "A minion can only perform this special
+// hunt once per turn." A Ravnos with no blood must take it if it can.
+#[test]
+fn a_starving_ravnos_must_steal_once() {
+    let mut e = Engine::bare(3);
+    let r = e.add_minion(SeatId(0), ravnos(0), 0, false);
+    let b = e.add_minion(SeatId(0), plain("Brujah", "", 0), 4, false);
+    let v1 = e.add_minion(SeatId(1), ravnos(1), 3, false);
+    let week = location(&mut e, 0, "Week of Nightmares");
+    e.state.cards[week.index()].counters = 10;
+    // Its one theft is its only option: taken at once, before anything
+    // else.
+    let req = request(&mut e);
+    assert_eq!((blood(&e, r), blood(&e, v1)), (1, 2));
+    assert!(e.state.minions[b.index()].acted.is_empty());
+    assert!(req.options.contains(&Choice::Pass));
+    assert!(!req
+        .options
+        .iter()
+        .any(|o| matches!(o, Choice::UseAbility { actor: Some(m), .. } if *m == r)));
+}
+
+// "During each Methuselah's unlock phase, that Methuselah can move 1
+// nightmare counter from this card to a Ravnos. If this card has no
+// counters, each Ravnos burns 1 blood for each nightmare counter on them or
+// is burned, then burn this card and the nightmare counters." "Only one
+// Week of Nightmares can be played in a game."
+#[test]
+fn week_of_nightmares_ends_in_nightmares_and_never_comes_back() {
+    let mut e = Engine::bare(3);
+    let r1 = e.add_minion(SeatId(0), ravnos(0), 3, false);
+    let r2 = e.add_minion(SeatId(1), ravnos(1), 1, false);
+    e.add_minion(SeatId(2), plain("", "", 0), 4, false);
+    hand(&mut e, 0, &["Week of Nightmares", "Week of Nightmares"]);
+    e.at_master_phase();
+    pick(&mut e, play_at(0, 0, None, Target::None));
+    request(&mut e);
+    let week = CardId(e.state.cards.len() as u32 - 1);
+    assert_eq!(e.state.cards[week.index()].counters, 10);
+    // Down to one counter; the nightmares already spread.
+    e.state.cards[week.index()].counters = 1;
+    e.state.minions[r1.index()].nightmare = 2;
+    e.state.minions[r2.index()].nightmare = 3;
+    until(&mut e, SeatId(2), WindowLabel::MinionPhase);
+    let b1 = blood(&e, r1);
+    assert!(b1 >= 3);
+    // Seat 0's unlock phase: the last counter goes to r1.
+    pick_when(&mut e, use_on(week, 1, None, Target::Minion(r1)));
+    assert!(!e.state.cards[week.index()].in_play);
+    assert_eq!(blood(&e, r1), b1 - 3, "3 nightmares, 3 blood");
+    assert!(
+        !e.state.minions[r2.index()].in_play,
+        "burned: 3 counters, 1 blood"
+    );
+    // Never a second one this game.
+    assert!(e
+        .state
+        .once_played
+        .contains(&find_library("Week of Nightmares")));
+    until(&mut e, SeatId(2), WindowLabel::MinionPhase);
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        play_at(0, 0, None, Target::None),
+    );
 }

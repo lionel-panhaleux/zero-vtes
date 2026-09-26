@@ -28,6 +28,9 @@ pub enum ActionKind {
     /// Burn a card in play, granted by that card ("Minions can burn this
     /// card as a Ⓓ action"): directed at its controller.
     BurnCard,
+    /// Steal a card in play, granted by that card ("Vampires can steal this
+    /// location as a Ⓓ action"): directed at its controller.
+    StealCard,
     /// Equip with an equipment card from hand (rulebook "Equip": +1
     /// stealth, undirected; the cost paid at resolution).
     Equip,
@@ -104,6 +107,16 @@ pub enum Choice {
     /// A library search: take a copy of this card (LIBRARY index); `Pass`
     /// finds nothing. Offered to the searching player only (spec §6.8.4).
     FindCard(u16),
+    /// A card (LIBRARY index) taken from one of the player's zones, by
+    /// card: a search of library, hand and ash heap at once (Childe of the
+    /// Revolution).
+    TakeFrom {
+        zone: Zone,
+        card: u16,
+    },
+    /// A vampire in the player's uncontrolled region, by slot: removed
+    /// from the game (Wider View).
+    Slot(u8),
     /// A vampire in the player's ash heap, by crypt card (CRYPT index):
     /// Rotting Behemoth's entry removes it from the game.
     AshVampire(u16),
@@ -244,9 +257,34 @@ pub enum Choice {
     /// After combat: continue the action as if unblocked (Form of Mist
     /// [PRO]), paying the rider's blood.
     ContinueAction,
+    /// Gain the strength a card offers before range is determined (Show of
+    /// Force).
+    GainStrength,
+    /// Burn blood to be immune to damage instead (Rutor's Hand [THA]).
+    BurnBloodToAvoid,
+    /// Burn 1 of your corruption counters from the minion attempting to
+    /// block: its attempt fails, and it cannot attempt again this action
+    /// (Enchanting Gaze [PRE][PRO]).
+    BurnCorruptionToFail {
+        minion: MinionId,
+    },
+    /// Burn 2 of your corruption counters from a minion of the bled
+    /// Methuselah to unlock the acting vampire (Revelation of the Serpent
+    /// [PRE][PRO]).
+    BurnCorruptionToUnlock {
+        minion: MinionId,
+    },
     /// A blocked leave-torpor: the blocking vampire diablerises the acting
     /// vampire (rulebook "Leave Torpor").
     Diablerise,
+}
+
+/// Where a card is taken from (`Choice::TakeFrom`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Zone {
+    Library,
+    Hand,
+    AshHeap,
 }
 
 /// One name per legality filter (DESIGN §4.4).
@@ -279,9 +317,13 @@ pub enum WindowLabel {
     /// The block loop (rulebook states A and B): attempts, modifiers,
     /// reactions.
     ActionBlock,
-    /// After resolution of a successful action (Voter Captivation, Freak
-    /// Drive); for a political action, after the referendum.
+    /// After resolution of an action that reached it — successful, failed,
+    /// blocked or ended (Voter Captivation, Freak Drive); for a political
+    /// action, after the referendum.
     ActionAfterResolution,
+    /// A bleed would be successful: the cards played "instead" of its pool
+    /// loss (Spying Mission [OBF]), after every other modifier and reaction.
+    ActionWouldBeSuccessful,
     /// Blocks declined by all (rulebook state C): redirects, Archon
     /// Investigation, remaining modifiers.
     ActionBlocksDeclined,
@@ -295,6 +337,9 @@ pub enum WindowLabel {
     RescueCost,
     /// An entering ally's effect with a choice (War Ghoul's burn).
     EntryEffect,
+    /// A choice made as an effect resolves (a minion to lock or corrupt:
+    /// Break the Bonds, The Platinum Protocol).
+    ResolutionChoice,
     /// Pay a block attempt's toll or resign it (Where the Veil Thins).
     BlockToll,
     /// Distribute blood among pool and minions (Amici Noctis).

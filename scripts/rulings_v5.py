@@ -92,7 +92,7 @@ def implemented():
     """Printed names of the cards in `DEFS`, from the defs source."""
     src = open(os.path.join(ENGINE, "src", "cards", "defs.rs"), encoding="utf-8").read()
     names = dict(re.findall(r"pub static ([A-Z_0-9]+): CardDef = CardDef \{\s*name: \"([^\"]+)\"", src))
-    for m in re.finditer(r"(?:political|hunting_ground|stealth_location|vote_location)!\(\s*([A-Z_0-9]+)\s*,\s*\"([^\"]+)\"", src):
+    for m in re.finditer(r"(?:political|hunting_ground|stealth_location|vote_location|discipline_master|influence_location|any_stealth_location)!\(\s*([A-Z_0-9]+)\s*,\s*\"([^\"]+)\"", src):
         names[m.group(1)] = m.group(2)
     m = re.search(r"DEFS: \[&CardDef; (\d+)\] = \[(.*?)\];", src, re.S)
     idents = re.findall(r"&([A-Z_0-9]+)", m.group(2))

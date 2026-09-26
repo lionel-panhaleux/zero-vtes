@@ -154,8 +154,8 @@ impl ReferendumCtx {
         v.ready()
             && !v.expelled
             && !self.abstaining.contains(&m)
-            && v.vampire()
-                .is_some_and(|c| !(self.camarilla_only && c.sect != Sect::Camarilla))
+            && v.sect()
+                .is_some_and(|s| !(self.camarilla_only && s != Sect::Camarilla))
     }
 
     /// The votes `m` casts on `favor`'s side: its votes, plus printed votes
@@ -815,9 +815,7 @@ impl Engine {
                         loss[s.index()] += base as i32;
                         if st.minions_of(s).any(|m| {
                             st.minions[m.index()].ready()
-                                && st.minions[m.index()]
-                                    .capacity()
-                                    .is_some_and(|c| c <= young_cap)
+                                && st.capacity_of(m).is_some_and(|c| c <= young_cap)
                         }) {
                             loss[s.index()] += young_bonus as i32;
                         }
@@ -826,14 +824,14 @@ impl Engine {
                 RefEffect::GainPerClanVampire => {
                     let clan = ctx.terms.clan.expect("chosen clan");
                     for m in &st.minions {
-                        if m.present() && m.vampire().is_some_and(|v| v.clan == clan) {
+                        if m.present() && m.clan() == Some(clan) {
                             gain[m.owner.index()] += 1;
                         }
                     }
                 }
                 RefEffect::AnarchSalon => {
                     for m in &st.minions {
-                        if m.present() && m.vampire().is_some_and(|v| v.sect == Sect::Anarch) {
+                        if m.present() && m.sect() == Some(Sect::Anarch) {
                             gain[m.owner.index()] = 1;
                         }
                     }
@@ -851,45 +849,17 @@ impl Engine {
         }
         match effect {
             RefEffect::AnarchSalon => {
-                for m in &mut self.state.minions {
-                    if m.ready() && m.vampire().is_some_and(|v| v.sect == Sect::Anarch) {
-                        m.blood = m.cap_blood(m.blood + 1);
+                for i in 0..self.state.minions.len() {
+                    let m = &self.state.minions[i];
+                    if m.ready() && m.sect() == Some(Sect::Anarch) {
+                        self.state.gain_blood(crate::ids::MinionId(i as u32), 1);
                     }
                 }
             }
             RefEffect::Banish => {
-                // To the controller's uncontrolled region, blood kept as
-                // counters; cards on the vampire leave play with it.
                 let m = ctx.terms.minions[0];
-                let v = &mut self.state.minions[m.index()];
-                let was_ready = v.ready();
-                v.in_play = false;
-                let card = v.crypt_card().expect("a banished vampire");
-                let (owner, blood) = (v.owner, v.blood);
-                v.blood = 0;
-                // Face down on the vampire: out of play until it returns
-                // (the cards in play on it, not those burned from it).
-                let mut on = Vec::new();
-                for (ci, c) in self.state.cards.iter_mut().enumerate() {
-                    if c.in_play && c.host == Some(m) {
-                        c.in_play = false;
-                        on.push(crate::state::CardId(ci as u32));
-                    }
-                }
-                self.state.seats[owner.index()]
-                    .uncontrolled
-                    .push(UncontrolledSlot {
-                        card,
-                        counters: blood,
-                        banished: Some(crate::state::Banished {
-                            minion: m,
-                            cards: on,
-                        }),
-                    });
-                // It left the ready region (Slaughtering the Herd [DOM]).
-                if was_ready {
-                    self.by_left_ready(m);
-                }
+                let to = self.state.minions[m.index()].owner;
+                self.banish(m, to);
             }
             RefEffect::Expel => {
                 for &m in &ctx.terms.minions {
@@ -915,6 +885,9 @@ impl Engine {
                         counters: 0,
                         stored: Vec::new(),
                         effect_only: false,
+                        against: Default::default(),
+                        entered: 0,
+                        chosen: Vec::new(),
                     });
                     self.action
                         .as_mut()
@@ -957,10 +930,47 @@ impl Engine {
         }
     }
 
+    /// A vampire moved to `to`'s uncontrolled region (Banishment, Pit of
+    /// Contemplation): its blood kept as counters, the cards on it leaving
+    /// play with it, face down, until it returns — everything it had
+    /// stays with it (rules-qa 25.1).
+    pub(crate) fn banish(&mut self, m: MinionId, to: SeatId) {
+        self.about_to_leave_ready(&[m]);
+        let v = &mut self.state.minions[m.index()];
+        let was_ready = v.ready();
+        v.in_play = false;
+        let card = v.crypt_card().unwrap_or(crate::state::CREATED);
+        let blood = v.blood;
+        v.blood = 0;
+        // Face down on the vampire: out of play until it returns (the cards
+        // in play on it, not those burned from it) — a created vampire's
+        // own card too.
+        let mut on = Vec::new();
+        for (ci, c) in self.state.cards.iter_mut().enumerate() {
+            if c.in_play && (c.host == Some(m) || c.body == Some(m)) {
+                c.in_play = false;
+                on.push(crate::state::CardId(ci as u32));
+            }
+        }
+        self.state.seats[to.index()]
+            .uncontrolled
+            .push(UncontrolledSlot {
+                card,
+                counters: blood,
+                banished: Some(crate::state::Banished {
+                    minion: m,
+                    cards: on,
+                }),
+            });
+        // It left the ready region (Slaughtering the Herd [DOM]).
+        if was_ready {
+            self.by_left_ready(m);
+        }
+    }
+
     /// The referendum concluded (passed, failed or canceled): the action
     /// resumes at its after-resolution window — unless the acting
-    /// Methuselah was ousted (the turn passes), the game ended, or the
-    /// action was blocked (a torpor-block diablerie's blood hunt).
+    /// Methuselah was ousted (the turn passes) or the game ended.
     fn after_referendum(&mut self) {
         if self.state.living() <= 1 {
             self.action = None;
@@ -974,15 +984,13 @@ impl Engine {
             self.next_turn();
             return;
         }
-        // A blocked leave-torpor whose blocker diablerised still opens the
-        // after-resolution window, for what the diablerie triggers
-        // (rules-qa 16.2).
-        if blocked && a.diablerist.is_none() {
-            self.end_action();
-        } else {
+        // A blocked leave-torpor whose blocker diablerised (its blood hunt)
+        // opens the after-resolution window too, for what the diablerie
+        // triggers (rules-qa 16.2).
+        if !(blocked && a.diablerist.is_none()) {
             self.own_referendum_failed_riders();
-            self.after_resolution();
         }
+        self.after_resolution();
     }
 
     /// "If the referendum of a political action called by this vampire is
@@ -1042,7 +1050,7 @@ impl Engine {
                             .minions_of(play.seat)
                             .filter(|v| {
                                 let v = &self.state.minions[v.index()];
-                                v.ready() && v.vampire().is_some_and(|c| c.sect == sect)
+                                v.ready() && v.sect() == Some(sect)
                             })
                             .count() as u8
                     }
@@ -1128,7 +1136,7 @@ impl Engine {
                 // available (LSJ 20020201).
                 let id = match (a.card, a.source) {
                     (Some(card), _) => Some(ActionId::Card(card.card)),
-                    (None, Some(src)) => a.ability.map(|ab| src.action_id(ab)),
+                    (None, Some(src)) => a.ability.map(|ab| src.action_id(&self.state, ab)),
                     (None, None) => None,
                 };
                 if let (true, Some(id)) = (forbid_repeat, id) {

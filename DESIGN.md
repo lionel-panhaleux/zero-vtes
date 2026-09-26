@@ -1663,7 +1663,10 @@ Recorded so nobody mistakes them for oversights:
     `Engine::damage_out_of_combat`): taken when the action reached
     resolution. The acting Methuselah orders it among the after-resolution
     effects (`Choice::TakeDamageAfterResolution`, before passing; rules-qa
-    23.3). Without that window, it is taken as the action ends.
+    23.3). Every action that reached resolution has that window — a
+    blocked one after its combat, a failed one, one ended before block
+    resolution (Change of Target, Mirror Walk: no card is played in it,
+    RTR 20180719) — owner, 2026-09-26.
   - **No unlocks**: "during this action, minions cannot unlock"
     (`ActionCtx.no_unlock`, The Sleeping Mind [DOM]) guards every unlock
     inside an action. Wakes still work; an unlock-and-block card finds no
@@ -1688,13 +1691,250 @@ Recorded so nobody mistakes them for oversights:
   tests; rules-qa Batch 23 answered). Ledger rows left blocked
   wait for Eagle's Sight, a lock on a minion attempting to block, and a
   few scripts (a fizzled action, the action card's replacement timing).
-  **P2 open items (2026-09-26, after 11k):**
-  - Still to do from the action modifiers: Spying Mission [OBF] and Shadow
-    Cast [OBL] (a card remembering the Methuselah an action was directed
-    at); Enchanting Gaze and Revelation of the Serpent (corruption); Eagle's
-    Sight (effect-widened block eligibility).
-  - Next: slice 11's remaining precon cards (the coverage probe lists
-    them); then the rest.
+  11l — cards remembering a Methuselah, and the resolution windows:
+  - **After resolution, always** (owner, 2026-09-26, correcting 23.3):
+    every action that reached resolution opens its after-resolution
+    window — successful, fizzled, failed (ANK 20221205), blocked (after its
+    combat) or ended before block resolution (Change of Target, Mirror
+    Walk: no card is played in it, RTR 20180719; `action_windows`). Daring
+    the Dawn's damage is taken there; Freak Drive [FOR] (blocked) is
+    reachable at last. Only an action canceled before resolution, or whose
+    acting minion left, skips it. A failed bleed or political action counts
+    for NRA (`Engine::mark_resolved`).
+  - **Would be successful** (`ActionState::WouldSucceed`,
+    `Window::ActionWouldBeSuccessful`): after the blocks are declined, a
+    bleed of 1 or more opens one more window, over the action's order, for
+    the cards played "if a bleed would be successful" (Spying Mission
+    [OBF]; advanced rules §3.4): only cards of that timing are played
+    there, none once the action has failed (LSJ 19980105, LSJ 20110502,
+    LSJ 20050607).
+  - **A successful bleed** is one of 1 or more (rulebook "Bleed"): only
+    it takes the Edge, and it alone sets `ActionCtx.bleed_successful`
+    (`R::BleedSuccessful`: Ilonka, Richard de Worde). A bleed at 0 is
+    still a successful action (after-resolution cards apply).
+  - **A bleed target ousted before resolution** (the cost of a cancel, LSJ
+    20050607): the bleed resolves without effect — fizzled, no pool, no
+    Edge (rules-qa 24.1). This was a latent assertion before.
+  - **A card remembering Methuselahs** (`CardInPlay.against`, a
+    `SeatSet`, set by `Effect::PutOnActorRemembering` to the action's
+    directed seats, `ActionCtx::directed_seats`, as the card enters play). Spying Mission [OBF]'s rider
+    (`Hook::HostAboutToBleedRemembered`) fires as the bleed resolves,
+    after costs and before the pool loss, every copy at once (ANK
+    20200609). Shadow Cast [OBL]'s burn for stealth needs an action
+    directed at the remembered seat, its host's controller not counted
+    (`R::DirectedAtRemembered`, LSJ 20100527). It is usable when that set
+    is fully included in the set the current action is directed at
+    (rules-qa 24.5). No action here is directed at several Methuselahs
+    yet.
+
+  Definitions: Spying Mission, Shadow Cast (231 defs, 529 tests; rules-qa
+  Batch 24 answered).
+  11m — corruption counters and multi-Discipline cards:
+  - **Multi-Discipline cards** ("more than one Discipline can be used to
+    play this card"): the generator gives them one mode per non-empty set
+    of their Disciplines — the single ones first, their indices kept —
+    and `Label::MultiDiscipline`. A mode's tags are then all required, as
+    on a combo card (LSJ 20011204-3: played, the card requires the
+    Disciplines used). The Platinum Protocol, Break the Bonds, and Make
+    the Misere, not implemented yet (rules-qa 25.2).
+  - **Split printed choices**: a definition may split a printed mode's
+    "or" into modes of its own, mapped back by `cards::library_mode`
+    (Revelation of the Serpent: the bleed alone, or with the stealth only
+    when stealth is needed; rules-qa 25.3). The plays test checks that the
+    split modes' windows cover the reviewed matrix's exactly.
+  - **Corruption counters** (`Minion.corruption`, per Methuselah whose
+    they are): kept through torpor, control changes and banishment (a
+    banished vampire keeps everything); cleared when the minion is burned
+    or removed with its ousted Methuselah (rules-qa 25.1).
+  - **"If the bleed is successful"** effects of a bleed action card
+    (`Effect::IfBleedSuccessful`), applied after the pool is burned. A
+    minion of the bled Methuselah is chosen then
+    (`Interrupt::MinionOf`: an optional lock, a mandatory counter; ANK
+    20240706). The uncontrolled vampire Break the Bonds [pre] feeds is
+    named at declaration (`TargetKind::Uncontrolled`).
+  - **Corruption spent in an action**: Enchanting Gaze [PRE][PRO]'s
+    once-per-card fail of a block attempt (`ActionCtx.corruption_fails`,
+    `Choice::BurnCorruptionToFail`, the Forced Confessional path
+    `ActionCtx::attempt_fails`). Revelation of the Serpent [PRE][PRO]'s
+    unlock after a successful bleed (`ActionCtx.corruption_unlock`,
+    `Choice::BurnCorruptionToUnlock`; none left on an ousted prey, ANK
+    20220210).
+  - **Faruq Abd al-Qadir**: a printed `Stat::NoCombatEnds` on his
+    opponents with his Methuselah's counters (`R::ActorCorruptedBySource`).
+    `GameState::combat_ends_barred(striker, opponent)` reads it with Dog
+    Pack's retainer.
+  - **Aniel**: one printed action on two kinds of target, one NRA identity
+    (`Effect::SameActionAs`). Burning a counter from a minion carrying
+    several Methuselahs' asks whose (`Interrupt::CorruptionOwner`; rules-qa
+    25.4).
+
+  Definitions: The Platinum Protocol, Break the Bonds, Enchanting Gaze,
+  Revelation of the Serpent; Faruq and Aniel complete (235 defs, 539
+  tests; rules-qa Batch 25 answered). Left: Cave of Apples, the one pool card
+  that steals through counters (ANK 20200925 waits for it), and Sergio
+  Bueno (not in a pre-built deck).
+  11n — Eagle's Sight [AUS]: an attempt to block "ignoring the normal
+  prey, predator or target restrictions" (`R::CanAttemptBlockAnyone`,
+  `Engine::can_attempt_block_anyone`). Only who may block is widened, so
+  `eligible_blockers` is unchanged. Not the acting Methuselah's own minion,
+  not a Methuselah who declined, not a barred blocker (Seduction; RTR
+  19950413). One attempt only: after a failed attempt or a continuation,
+  its Methuselah is no more eligible than before (LSJ 20030227). 236 defs,
+  543 tests.
+  11o — actions, wave 1:
+  - **Combat from a card action**: "Ⓓ enter combat with a minion"
+    (`Effect::EnterCombatWithTarget` in card actions): another
+    Methuselah's ready minion, re-checked at resolution (a locked target
+    unlocked by then fizzles, ANK 20210124). The combat is the
+    resolution; the action succeeds after it. `Effect::InResultingCombat`
+    riders apply in it through `Engine::combat_riders`, shared with the
+    block riders: an optional maneuver or press for the combat
+    (`Side.combat_presses`), "the opposing minion cannot strike: combat
+    ends" in round 1 (`Side.no_combat_ends_round`).
+  - **Action cards' "if blocked" riders** are read at announcement
+    (`ActionCtx.block_riders`): Show of Force's strength before range in
+    round 1 (`Side.strength_option`, `Choice::GainStrength`).
+  - **Seat targets** of card actions direct them at that seat (Line Brawl
+    [cel], Shroud of Decay [OBL], Revelations [aus]; `R::TargetPrey`,
+    `R::TargetAshAtLeast`), and are re-checked at resolution.
+  - **Resolution choices**: the bled Methuselah's discards
+    (`Interrupt::DiscardChosen`), replaced after all of them (advanced
+    rules §6.8.3); ash-heap removal chosen by the player
+    (`Interrupt::RemoveFromAsh`, LSJ 20090710); a look at the prey's hand
+    and a discard (`Interrupt::DiscardFromHandOf`, replaced unseen).
+  - **Cards on the acting vampire**: Preternatural Strength (bearer
+    strength, `Modifier::BearerCannotPlay`), Heroic Might (the "burn
+    equipment" strike, `StrikeKind::BurnEquipment`, naming the equipment on
+    the opponent, `R::TargetOnOpposingCombatant`; burned in torpor),
+    Rutor's Hand (put on locked, `Effect::LockPlayedCard`; aggravated
+    damage or [THA] 3 blood, `Interrupt::AvoidDamage`; lock to unlock the
+    host at any time of the minion phase, during an action too,
+    `Effect::UnlockHost`; rules-qa 26.5), Monstrous Form (lock
+    for strength, a maneuver or a press).
+  - **Playing for one's combatant from outside** (`Actor::OwnOutOfCombat`,
+    Touch of Valeren [FOR]): combat requirements and effects read the
+    player's combatant's side.
+  - **Employ ignoring requirements** (`Terms::EmployFromHandIgnoring`,
+    Biothaumaturgic Experiment [tha]): the basic version always, a
+    superior one as the vampire's Disciplines allow (LSJ 20080803).
+  - **Open hands**: `Modifier::PreyOpenHand` (Revelations [AUS]) in
+    `GameState::hand_visible_to`.
+  - **Fixed**: an action card's pool cost was never paid; it is now paid
+    at resolution, with the blood cost (Biothaumaturgic Experiment). An
+    action card's effects ousting the acting Methuselah (Rewilding on
+    their own location) pass the turn with the action.
+
+  Definitions: Feast of the Soul's Secrets, Fleetness, Hunter's Mark, Line
+  Brawl, Show of Force, Shroud of Decay, Rewilding, Preternatural
+  Strength, Heroic Might, Rutor's Hand, Monstrous Form, Touch of Valeren,
+  Biothaumaturgic Experiment, Revelations (250 defs, 563 tests; rules-qa
+  Batch 26 answered). Left for wave 2: Deep Song, Puppet Master, The Gate of
+  Acheron, Pit of Contemplation, Childe of the Revolution, Obedient Flesh.
+  11p — actions, wave 2:
+  - **Counter cards with their own actions** (The Gate of Acheron, Pit of
+    Contemplation): a granted action for the card's controller's minions
+    (`R::YouControlThisCard`, `R::ActorOfClan`) adding a counter at
+    resolution. The Gate's prey pays in its unlock phase
+    (`RiderScope::Prey`, `Effect::PoolOrAshCardsPerCounter`). The Pit's
+    unlock-phase burn moves a vampire younger than its counters
+    (`R::TargetCapacityBelowCounters`) to the uncontrolled region
+    (`Engine::banish`, shared with Banishment).
+  - **Obedient Flesh**: allies' -1 intercept for the action
+    (`Effect::AlliesIntercept`), a banked maneuver for the round
+    (`Effect::OptionalManeuver`).
+  - **Deep Song [ANI]**: the target locks as the combat begins and takes
+    the acting minion's side (`Effect::TargetActsInCombat`). The action's
+    own riders (Invigorate's aggravated hands, Form of Mist's
+    continuation) stay with the action's acting minion. `Effect::Frenzy`
+    marks the frenzy mode for the cards that will read it.
+  - **Temporary control** (Puppet Master [DOM]): `Minion.temp_from`, and
+    `Engine::take_control`. A block attempt the minion was making fails,
+    unbarred; its combat ends after pending damage resolves. The minion
+    returns at the end of the taker's turn, as it is, and is removed from
+    the game (`Engine::remove_minion`) if the Methuselah it would return
+    to is ousted. The card stays its player's (`Effect::StillYours`, read
+    by `GameState::card_controller`); its host does not unlock as normal
+    (`Modifier::HostDoesNotUnlock`). The take is mandatory in the next
+    minion phase (`CardInPlay.entered`, `R::EnteredBeforeThisTurn`): the
+    phase cannot end before it.
+  - **Generator**: "Unique." after a card's first sentence is recognized
+    (the Gate, the Pit, Constant Revolution, Aranthebes, Khabar: Glory).
+  - **Fixed**: an action card was not discarded when the acting minion
+    already carried a card of the same name (a second Raven Spy employed
+    and blocked): only the action's own `card_entered_play` counts.
+
+  Definitions: Obedient Flesh, The Gate of Acheron, Pit of Contemplation,
+  Deep Song, Puppet Master (255 defs, 574 tests; rules-qa Batch 27 open).
+  Childe of the Revolution waits for the Discipline master cards it
+  searches for.
+  11q — masters and Childe of the Revolution (all the pre-built decks'
+  masters):
+  - **Live vampire traits**: capacity, Disciplines, clan and sect are read
+    through `GameState::capacity_of` / `discipline_level` /
+    `has_discipline` and `Minion::clan` / `sect`; printed data only via
+    `printed_*`. Blood gains cap through `GameState::gain_blood`; blood
+    above capacity drains off as the engine settles
+    (`drain_all_excess`), out of play kept (advanced rules 5.1.1). An
+    uncontrolled slot's capacity is its vampire's own when banished, cards
+    on it giving nothing (`slot_vampire`).
+  - **Discipline masters** (the six in the pool: Celerity, Dominate,
+    Obfuscate, Oblivion, Potence, Protean): `Modifier::DisciplineLevel` on
+    the host, +1 level and +1 capacity, not on a superior vampire
+    (`R::TargetNotSuperior`); `Label::Discipline` from the generator.
+  - **Created vampires** (Childe of the Revolution):
+    `MinionKind::Created { card, id, clan }` — a 1-capacity Anarch of the
+    acting vampire's clan, no Discipline or title, non-unique, its card
+    in play its `body` (burned to the ash heap as a library card;
+    banished with it, `state::CREATED` in the slot). `Minion::must_hunt`;
+    the Discipline card search (`Interrupt::DisciplineSearch`,
+    `Choice::TakeFrom`) puts a card on without playing it
+    (`Engine::put_on_minion`).
+  - **Influence-phase abilities**: `Window::InfluencePhaseOwn` (once per
+    phase) and `Window::Transfers` (paid in transfers,
+    `Effect::SpendTransfers`), offered in `influence_request`.
+  - **Control of cards in play**: `ActionKind::StealCard` (a granted Ⓓ
+    action), `Engine::give_card_control` (re-choosing on a control change,
+    `Effect::RechoosesOnControlChange`); `CardInPlay::chosen` for the
+    vampires a card chose, tracked out of play and back;
+    `Actor::ChosenController` (The Rack: the chosen vampire's controller
+    decides).
+  - **Actors**: `Actor::ActingMinion` for card abilities (Club Illusion,
+    Haqim's Law), `Actor::MasterForMinion` (Piper's Anarch plays the
+    ally or retainer; `Terms::RecruitOrEmployFromHand`),
+    `Actor::AnyReadyVampire` (Carver's). Granted actions from cards in
+    play take targets (Haven Uncovered, Priority Contract, Frontal
+    Assault), the card's host re-checked at resolution.
+  - **Generator labels** `RequiresAnarch` (requirements naming Anarch or
+    baron) and `MakesAnarch`: Powerbase: Los Angeles's tracked discard
+    phase action (`Seat::granted_dpa`), Garibaldi-Meucci Museum's
+    exchange.
+  - **Third-party help**: stealth for another Methuselah's acting minion
+    (Anarch Railroad, Fortune Teller Shop) and paid intercept for another's
+    blocker (KRCG News Radio). The block pruning now counts intercept from
+    unlocked cards in play not on the blocker (`location_intercept_reach`:
+    Market Square, Channel 10, The Anarch Free Press were not counted
+    before).
+  - **Others**: hostages (`Minion::hostage`, cleared live when no Carver's
+    is present), nightmares (`Minion::nightmare`, `Modifier::ClanStat`,
+    `ClanCannotHunt`, the special hunt `Effect::HuntAction`), once per
+    game (`GameState::once_played`), a card-leaving-ready pool offer
+    (`Interrupt::PoolForCard`, Priority Contract, ousts included), the
+    minion phase's action count (`GameState::phase_actions`, Channel 10),
+    `ActionCtx::hunt_gained` (a hunt is successful only if it gains
+    blood), a Warsaw Station unlock after resolution; a diablerie,
+    rescue or leave-torpor whose object left torpor fizzles.
+  - **Performance**: `cards::lookup` is indexed by LIBRARY index (it
+    scanned every definition's name; the masters fuzz ran 6× faster).
+
+  Definitions: the six Discipline masters, Childe of the Revolution, and
+  every pre-built deck master (292 defs, 626 tests; rules-qa Batch 28
+  open). The pre-built decks' last two cards are equipment: Living Manse
+  and Sword of the Archangel.
+  **P2 open items (2026-09-26, after 11q):**
+  - Next: Living Manse and Sword of the Archangel, then the rest of the
+    pool; the owner suggested hard cards to stress the engine (Rötschreck,
+    Outside the Hourglass, Rewind Time) and legacy cards to close testing
+    loops (a sterile baron: no printed vampire is both).
   - Self-contest of a unique title (advanced rules §1.13.1: "you can never
     choose to contest yourself"; a forced one burns the incoming copy).
     Saulot's Guiding Wisdom is covered by the unique-card gate
@@ -1702,12 +1942,8 @@ Recorded so nobody mistakes them for oversights:
     second Toreador of a Methuselah already holding the title: that choice
     should be masked for the caller's own vampires, and the incoming card
     burned for another Methuselah's. Valerius stealing Prince of a city
-    whose baron his Methuselah controls is the same case. Deferred: corruption (The Platinum
-    Protocol, Enchanting Gaze, Revelation of the Serpent, Aniel), frenzy
-    (Deep Song [ANI], Meditative Grove), Discipline masters (Oblivion),
-    Week of Nightmares, Carver's Meat Packing, Childe of the Revolution;
-    third-party stealth and intercept from locations (Anarch Railroad,
-    Fortune Teller Shop, KRCG News Radio) with the pruning item below.
+    whose baron his Methuselah controls is the same case. Deferred: frenzy
+    cards beyond Deep Song [ANI] (Terror Frenzy).
     Slice 10 landed whole (10a–10c). Left from it, waiting for cards that need them: damage to
     retainers from effects (Weather Control, Martyr's Resilience), immunity
     to damage from a source, subtype-reading effects (mortal, monster), an
@@ -1725,14 +1961,7 @@ Recorded so nobody mistakes them for oversights:
     in another seat's unlock phase), Keegan and "Mother" Anja Giovanni (no
     implemented action card requires their clans), Marchesa Liliana
     (unblocked by 10c: burned vampires now reach the ash heap; her seven
-    cards removed want a pick-seven terms flow); Aniel's corruption half
-    (corruption counters).
-  - Effect-widened block eligibility (Eagle's Sight): `eligible_blockers`
-    effect-aware (noted above).
-  - Third-party intercept during another seat's block attempt (KRCG News
-    Radio, Anarch Railroad and Fortune Teller Shop's stealth for another's
-    minion): `intercept_reachable` must count it (stealth strips are
-    counted since 11b-iii).
+    cards removed want a pick-seven terms flow).
   - Directedness beyond minions and cards in play (rules-qa 17): an action
     targeting another Methuselah's hand, library, crypt or uncontrolled
     region is directed at them; an ash heap target is undirected.
@@ -1769,6 +1998,20 @@ pool ⊃ training roster means the search space is already implemented.
   hill-climb. Cheap, exercises the whole loop, measures pilot bias, and a
   measurably improved precon is a community artifact by itself. Can start as
   soon as the P3/P4 bot is decent.
+
+## Glossary
+
+Terms the owner uses, as recorded in rules Q&A:
+
+- **Combo**: a single line of Discipline icons, "[dom][pre] X": every one
+  is needed (Iron Glare; KRCG `combo`).
+- **Choice**: separate lines, "[pre] X / [tem] Y": one Discipline is
+  chosen, at one level (Line Brawl). A card printing "more than one
+  Discipline can be used" lets any set of them combine, each effect
+  applying (Break the Bonds).
+- **Outferior**: the inferior-only option of a card that a vampire can use
+  without the card's bloodline Discipline (Outside the Hourglass; rules-qa
+  25.2).
 
 ## Resolved questions (2026-08-02)
 

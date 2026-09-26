@@ -15,6 +15,25 @@ pub fn transfers_for_turn(turn: u32) -> u8 {
 }
 
 impl Engine {
+    /// The transfers an ability use costs ("you can use 1 transfer to …").
+    fn transfer_cost(&self, choice: &Choice) -> u8 {
+        let Choice::UseAbility {
+            source, ability, ..
+        } = choice
+        else {
+            return 0;
+        };
+        source
+            .mode(&self.state, *ability)
+            .effects
+            .iter()
+            .map(|e| match e {
+                crate::cards::Effect::SpendTransfers(n) => *n,
+                _ => 0,
+            })
+            .sum()
+    }
+
     pub(crate) fn influence_request(&self, left: u8) -> DecisionRequest {
         let st = &self.state;
         let s = st.active;
@@ -22,7 +41,7 @@ impl Engine {
         let mut options = vec![Choice::Pass];
         for (i, slot) in seat.uncontrolled.iter().enumerate() {
             let i = i as u8;
-            let capacity = CRYPT[slot.card as usize].capacity;
+            let (capacity, _) = st.slot_vampire(s, i as usize);
             if left >= 1 && seat.pool > 0 && slot.counters < capacity {
                 options.push(Choice::Transfer { slot: i });
             }
@@ -31,7 +50,9 @@ impl Engine {
             }
             // No voluntary self-contest: a second copy of a vampire you
             // already have in play cannot be moved out.
-            if slot.counters >= capacity && !st.controls_copy(s, slot.card) {
+            if slot.counters >= capacity
+                && (slot.card == crate::state::CREATED || !st.controls_copy(s, slot.card))
+            {
                 options.push(Choice::InfluenceOut { slot: i });
             }
         }
@@ -39,6 +60,13 @@ impl Engine {
             options.push(Choice::DrawCrypt);
         }
         options.extend(self.ability_options(s, Window::AnyImpulse));
+        options.extend(self.ability_options(s, Window::InfluencePhaseOwn));
+        // Abilities paid in transfers: while enough are left.
+        options.extend(
+            self.ability_options(s, Window::Transfers)
+                .into_iter()
+                .filter(|o| self.transfer_cost(o) <= left),
+        );
         DecisionRequest {
             seat: s,
             window: WindowLabel::InfluenceTransfers,
@@ -55,6 +83,7 @@ impl Engine {
                 actor,
                 target,
             } => {
+                let left = left - self.transfer_cost(choice);
                 if !self.use_ability(*source, *ability, *actor, *target, Flow::Influence { left }) {
                     self.flow = Flow::Influence { left };
                 }
@@ -92,8 +121,9 @@ impl Engine {
                 let out = self.state.seats[s.index()]
                     .uncontrolled
                     .remove(*slot as usize);
-                // Counters become blood; excess over capacity drains off.
-                let capacity = CRYPT[out.card as usize].capacity;
+                // Counters become blood; excess over capacity drains off —
+                // a returning vampire's capacity counting the cards on it
+                // again (advanced rules 5.1.1).
                 let m = match out.banished.map(|b| (b.minion, b.cards)) {
                     // A banished vampire returns as the entry it left — its
                     // history (titles lost, contests) and the cards on it,
@@ -101,7 +131,6 @@ impl Engine {
                     Some((m, on)) => {
                         let v = &mut self.state.minions[m.index()];
                         v.in_play = true;
-                        v.blood = capacity;
                         v.locked = false;
                         v.in_torpor = false;
                         for c in on {
@@ -109,9 +138,14 @@ impl Engine {
                             c.in_play = true;
                             c.locked = false;
                         }
+                        let capacity = self.state.capacity_of(m).unwrap_or(1);
+                        self.state.minions[m.index()].blood = out.counters.min(capacity);
                         m
                     }
-                    None => self.add_minion(s, out.card, capacity, false),
+                    None => {
+                        let capacity = CRYPT[out.card as usize].capacity;
+                        self.add_minion(s, out.card, capacity, false)
+                    }
                 };
                 self.stage_contests(m);
                 self.flow = Flow::Influence { left };

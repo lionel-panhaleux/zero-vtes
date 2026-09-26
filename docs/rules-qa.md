@@ -1875,7 +1875,11 @@ either: players order effects as they wish. **Applied**: in the
 after-resolution window the acting Methuselah takes the damage
 (`Choice::TakeDamageAfterResolution`) whenever they choose among their
 after-resolution effects, and before passing. An action with no such
-window (blocked, or ended) takes it as it ends. **Tests** —
+window … _(corrected by the owner, 2026-09-26: there is always one.
+A blocked action has its after-resolution window after combat, and an
+action ended by Change of Target or Mirror Walk has one too — no card is
+played in it (RTR 20180719), but Daring the Dawn's damage is taken there.
+A failed action has one as well (ANK 20221205).)_ **Tests** —
 `daring_the_dawn_damage_is_ordered_among_after_resolution_effects`,
 `daring_the_dawn_burns_after_combat_or_an_ended_action`.
 
@@ -1901,3 +1905,378 @@ turn" per Methuselah?
 **Answer (2026-09-26)** — no: one in all, and a turn is one player's turn.
 **Applied**: a game-wide flag for the turn (`GameState.veil_superior`).
 **Test** — `veil_the_legions_superior_gives_the_next_actions_stealth`.
+
+## Batch 24 — Cards remembering a Methuselah (slice 11l)
+
+### 24.1 A bleed whose target is ousted before it resolves _(answered 2026-09-26)_
+
+LSJ 20050607: if the cost of canceling Spying Mission ousts a player, the
+oust is handled before the bleed resolves. If the ousted player is the
+bleed's target, the bleed has no one left to burn pool. **Applied**: the
+bleed resolves without effect: fizzled (after-resolution cards apply), no
+pool, no Edge. The oust already paid its predator. Right? **Test** —
+`spying_mission_canceled_lets_the_bleed_resolve_after_the_oust`.
+
+### 24.2 The "would be successful" window _(answered 2026-09-26)_
+
+After the blocks are declined, a bleed of 1 or more opens one more window
+over the action's order (acting Methuselah first). Only cards timed "if a
+bleed would be successful" are played in it (Spying Mission here; Dis
+Pater, Major Boon and Andre LeRoux are not in V5), and none once the
+action has failed (after a Spying Mission). A canceled Spying Mission lets
+only such cards follow, never a reaction (LSJ 20050607). Right? **Test** —
+`spying_mission_superior_replaces_a_bleed_then_boosts_the_next_ones`.
+
+### 24.3 Spying Mission [OBF]'s memory _(answered 2026-09-26)_
+
+"The same Methuselah" is the bleed's target as the card resolves, after
+any redirect. The copies already on the vampire burn only as a later bleed
+of that Methuselah resolves for 1 or more, after the would-be-successful
+window. So a second Spying Mission played in that window leaves the first
+in place: the bleed is no longer successful (ANK 20200609's "multiple
+Spying Missions against the same Methuselah"). Right? **Test** —
+`spying_mission_superior_replaces_a_bleed_then_boosts_the_next_ones`.
+
+### 24.4 A bleed of 0 _(answered 2026-09-26)_
+
+The rulebook calls a bleed successful only for 1 or more: a bleed at 0
+takes no Edge, and "after a successful bleed" effects (Ilonka, Richard de
+Worde) do not apply. Before this, the engine gave the Edge at 0. The
+action itself still succeeded (Freak Drive [for] can follow). Right?
+**Test** — `spying_mission_needs_a_bleed_of_one_or_more`.
+
+### 24.5 Shadow Cast [OBL]'s burn _(answered 2026-09-26)_
+
+It is a stealth effect, so it is usable only when stealth is needed (not
+Loup's exception), by the vampire it is on, during its own action. The
+action must be directed at the remembered Methuselah (an action is
+directed at one Methuselah at most here). Right? **Test** —
+`shadow_cast_superior_gives_stealth_against_the_same_methuselah`.
+
+**Answers (2026-09-26)** — 24.1 to 24.5: yes. On 24.5 the owner adds that
+an action can be directed at several Methuselahs. Shadow Cast can then be
+burned when the set it recorded as played (its vampire's controller not
+counted, LSJ 20100527) is fully included in the set the current action is
+directed at. **Applied**: `CardInPlay.against` is a `SeatSet`;
+`R::DirectedAtRemembered` tests inclusion in `ActionCtx::directed_seats`
+(one seat at most for now: no action here is directed at several yet).
+**Test** — `shadow_cast_does_not_count_its_vampires_controller_in_the_set`.
+
+## Batch 25 — Corruption counters and multi-Discipline cards (slice 11m)
+
+### 25.1 Corruption counters _(answered 2026-09-26)_
+
+Counters belong to the Methuselah who put them ("your corruption
+counters"). They stay on a minion through torpor and control changes, and
+go when it leaves play: burned, banished, or removed with its ousted
+controller. Counters are not cards, so a banished vampire keeps only its
+blood and the cards on it. An ousted Methuselah's counters stay on the
+minions of others. No card reads them as "yours" any more, but Aniel can
+still burn them as "a corruption counter". Right?
+
+### 25.2 Multi-Discipline cards _(answered 2026-09-26)_
+
+"More than one Discipline can be used to play this card": the card is
+played with any non-empty set of its Disciplines the vampire has, and gets
+each effect of the set (LSJ 20011204-3). So The Platinum Protocol from a
+vampire with [pre] and [pro] offers [pre], [pro] or [pre][pro]. Right?
+**Test** — `platinum_protocol_uses_any_set_of_its_disciplines_and_corrupts`.
+
+### 25.3 Revelation of the Serpent's "or" _(answered 2026-09-26)_
+
+"+1 bleed (limited), or +1 stealth and +1 bleed (limited)": two ways to
+play it. The bleed alone is always available during the bleed; the
+stealth option only when stealth is needed, as any stealth. The bleed
+alone stays a choice even when stealth is needed, for a player who wants
+the block. Right? **Test** —
+`revelation_of_the_serpent_superior_unlocks_for_two_counters`.
+
+### 25.4 Aniel's "burn 1 corruption counter" _(answered 2026-09-26)_
+
+On a minion carrying several Methuselahs' counters, Aniel's controller
+chooses whose counter burns, as the action resolves. The target must
+still carry a counter then, or the action fizzles. The counter half and
+the card half are one printed action for NRA. Right? **Test** —
+`aniel_burns_a_corruption_counter_as_one_printed_action`.
+
+### 25.5 Enchanting Gaze [PRE][PRO] and Revelation [PRE][PRO] _(answered 2026-09-26)_
+
+"You" is the acting Methuselah (who plays the card). Enchanting Gaze
+gives one use per card this action, usable while a minion carrying at
+least 1 of their counters attempts to block, whether or not stealth is
+needed. Revelation's unlock is offered after resolution while the acting
+vampire is locked, not under The Sleeping Mind [DOM]'s "cannot unlock".
+Right? **Tests** —
+`enchanting_gaze_superior_burns_a_counter_to_fail_a_block`,
+`revelation_of_the_serpent_superior_unlocks_for_two_counters`.
+
+### 25.6 "If the bleed is successful" choices _(answered 2026-09-26)_
+
+After the pool is burned: Break the Bonds [obf]'s lock is optional and may
+pick any minion of the bled Methuselah, a locked one or one in torpor
+included. The Platinum Protocol [pro]'s counter is mandatory, on any
+minion that Methuselah controls, one in torpor included. When a mode has
+both [obf] and [pre], the lock comes first, then the blood, in printed
+order. Right? **Tests** —
+`break_the_bonds_locks_and_feeds_the_uncontrolled_region`,
+`platinum_protocol_uses_any_set_of_its_disciplines_and_corrupts`.
+
+**Answers (2026-09-26)**:
+- **25.1** — no: a banished vampire keeps everything, its counters of any
+  kind included. **Applied**: banishment no longer clears them. A burned
+  minion, or one removed with its ousted Methuselah, loses them.
+- **25.2** — the printed layout decides. "[dom][pre] X" on one line is a
+  combo: both are needed (Iron Glare; KRCG `combo`). "[pre] X / [tem] Y" on
+  separate lines is a choice: one Discipline, at one level (Line Brawl).
+  Some cards say that several can be combined: any set of them, each
+  effect applying (Break the Bonds, The Platinum Protocol). Outside the
+  Hourglass is a choice with an "outferior" option (see the glossary,
+  DESIGN "Glossary"). **Applied**: already the model — one mode per line
+  (a choice), a combo line needing every tag, and `Label::MultiDiscipline`
+  subset modes only for "more than one Discipline can be used".
+- **25.3** — yes, a real choice. The stealth option cannot be used when
+  stealth is not needed (no block attempt), so the bleed option is what
+  makes the card playable without one. **Applied**: as is.
+- **25.4** — yes.
+- **25.5** — Revelation's unlock does not need the acting vampire to be
+  locked: an unlocked vampire can unlock, and a locked one lock, to no
+  effect. Only a "lock to" or "unlock to" cost cannot be paid that way.
+  **Applied**: the lock condition is dropped. Under The Sleeping Mind the
+  unlock is still usable, with no effect, like Freak Drive.
+- **25.6** — yes.
+
+## Batch 26 — Actions, wave 1 (slice 11o)
+
+Defaults chosen while implementing; each is applied and tested.
+
+### 26.1 "Enter combat with a minion" from an action card _(answered 2026-09-26)_
+
+The target is another Methuselah's ready minion, as for the printed
+actions (rules-qa 17.3: no combat with one's own). It is re-checked at
+resolution. Fleetness [CEL]'s "locked minion" unlocked by then fizzles the
+action (ANK 20210124). The combat is the resolution, and the action
+succeeds after it. Right? **Tests** —
+`fleetness_superior_enters_combat_with_a_locked_minion_or_fizzles`,
+`hunters_mark_gives_a_press_and_bars_combat_ends_in_the_first_round`.
+
+### 26.2 Show of Force's "can gain +N strength" _(answered 2026-09-26)_
+
+This is a choice offered before range in round 1 of the block's combat
+(`Choice::GainStrength`), not an automatic gain. Right? **Test** —
+`show_of_force_superior_gains_strength_when_blocked`.
+
+### 26.3 Targets of Line Brawl, Rewilding, Touch of Valeren _(answered 2026-09-26)_
+
+- Line Brawl [cel]'s "another Methuselah" is any other seat, not only
+  prey or predator.
+- Rewilding can target one's own location (undirected), burning one's own
+  2 pool.
+- Touch of Valeren [ACTION]'s "a minion" is any minion, directed when it
+  is another Methuselah's.
+
+Right? **Tests** — `line_brawl_steals_a_pool_from_any_other_methuselah`,
+`rewilding_burns_a_location_and_two_pool_from_its_controller`,
+`touch_of_valeren_heals_and_prevents_a_strike_even_from_outside`.
+
+### 26.4 Shroud of Decay [OBL] needs 7 cards _(answered 2026-09-26)_
+
+"Remove 7 cards in your prey's ash heap from the game to burn 3 of their
+pool": playable only with 7 or more cards there, re-checked at resolution
+(fewer by then fizzles). Right? **Test** —
+`shroud_of_decay_superior_removes_seven_ash_cards_for_three_pool`.
+
+### 26.5 Rutor's Hand's unlock _(answered 2026-09-26)_
+
+"During your minion phase, this vampire can lock this card to unlock":
+offered in one's own minion phase between actions, as Slaughtering the
+Herd [DOM]'s burn is. The card enters play locked and unlocks in its
+controller's unlock phase. Right? **Test** —
+`rutors_hand_wounds_or_costs_blood_then_unlocks_its_vampire`.
+
+### 26.6 Heroic Might's "strike: burn equipment" _(answered 2026-09-26)_
+
+A strike at close range only (rules-qa 21.1), naming the opposing
+minion's equipment as it is chosen; a dodge stops it. Right? **Test** —
+`heroic_might_strikes_to_burn_equipment_and_burns_in_torpor`.
+
+### 26.7 Monstrous Form's locked-card strength _(answered 2026-09-26)_
+
+"+1 strength this round" is usable at any combat impulse before strike
+resolution (as Claws of the Dead [pro]); the maneuver at the maneuver
+step, the press at the press step. Right? **Test** —
+`monstrous_form_adds_strength_and_its_card_locks_for_a_bonus`.
+
+### 26.8 Feast of the Soul's Secrets [DOM]'s "younger vampire" _(answered 2026-09-26)_
+
+"Younger" is relative to the acting vampire (lower capacity). A younger
+vampire one controls may be in torpor. Right? **Test** —
+`feast_of_the_souls_secrets_superior_feeds_a_younger_vampire`.
+
+**Answers (2026-09-26)** — yes to all, except:
+- **26.5** — "during your minion phase" is any time of it, during another
+  action too: e.g. another vampire is acting, and one unlocks with Rutor's
+  Hand to then play Veil the Legions. **Applied**:
+  `Engine::in_own_minion_phase` includes one's own actions and their
+  combats; Slaughtering the Herd [DOM]'s burn follows. **Test** —
+  `rutors_hand_unlocks_during_another_vampires_action`.
+- **26.8** — yes, and that younger target is chosen when the card is
+  played (as applied).
+
+## Batch 27 — Actions, wave 2 (slice 11p)
+
+Defaults chosen while implementing; each is applied and tested.
+
+### 27.1 Puppet Master [DOM]'s take is mandatory _(open)_
+
+"During your next minion phase, burn this card to unlock … and take
+control": it can be done at any point of that phase (LSJ 20001201), but
+the phase cannot end before it is done. Right? **Test** —
+`puppet_master_superior_takes_a_vampire_for_the_next_turn`.
+
+### 27.2 Targets _(open)_
+
+- Puppet Master [DOM]'s "a younger vampire" may be one of one's own
+  (undirected, a no-op in effect).
+- Deep Song [ANI]'s "a vampire" is another Methuselah's ready vampire
+  (no combat with one's own, rules-qa 17.3).
+
+Right?
+
+### 27.3 Stealing mid-action _(open)_
+
+A stolen blocker's attempt fails without barring it: its new controller
+could attempt again if eligible. A stolen combatant's combat ends after
+the damage still pending resolves (LSJ 20020618). Right? **Test** —
+`puppet_master_steals_a_blocker_or_a_combatant`.
+
+### 27.4 A minion removed from the game _(open)_
+
+When a temporarily controlled minion cannot return (its Methuselah is
+ousted), it is removed from the game. Its owner's cards on it go with it;
+other Methuselahs' cards on it are burned to their ash heaps (as for an
+ousted Methuselah's minions). Right? **Test** —
+`puppet_master_temporary_control_and_ousts`.
+
+### 27.5 Deep Song [ANI]'s "considered the acting minion" _(open)_
+
+In that combat, the target takes the acting minion's side, so its
+Methuselah acts first in each combat step. Effects of the action on "this
+acting vampire" (Invigorate [pro]'s aggravated hands, Form of Mist's
+continuation) stay with the vampire that took the action. Right? **Test** —
+`deep_song_superior_locks_and_fights_a_vampire_as_the_acting_minion`.
+
+### 27.6 The Gate of Acheron's payment _(open)_
+
+"For each counter … they burn 1 pool or remove a library card at random in
+their ash heap from the game": announced as one count of ash heap cards,
+the rest pool. The cards are random, so this is the same as unit by unit
+(as Constant Revolution, LSJ 20090618). Right? **Test** —
+`gate_of_acheron_grows_and_drains_the_prey`.
+
+### 27.7 Pit of Contemplation's "owner's uncontrolled region" _(open)_
+
+A vampire held on temporary control goes to the region of its controller
+(the Methuselah it would return to). The move is Banishment's: blood kept
+as counters, cards with it. Right? **Test** —
+`pit_of_contemplation_moves_a_young_vampire_to_the_uncontrolled_region`.
+
+## Batch 28 — Masters and Childe of the Revolution (slice 11q)
+
+Defaults chosen while implementing; each is applied and tested.
+
+### 28.1 Childe of the Revolution's new vampire _(open)_
+
+It enters the ready region unlocked with no blood (the text gives none),
+capacity 1 plus any Discipline card put on it, and may act that turn: it
+must hunt, even with blood, and does so at once when that is its only
+option. The library is shuffled after the search whatever was taken
+(or nothing). Right? **Test** —
+`childe_of_the_revolution_becomes_a_vampire_that_must_hunt`.
+
+### 28.2 "An Anarch", "a Ravnos", "a Nosferatu" on a location _(open)_
+
+Where the text does not say "you control", any Methuselah's minion:
+Club Illusion's Anarch burns its own blood; Anarch Railroad, Fortune
+Teller Shop and Warsaw Station are locked by their controller for another
+Methuselah's acting minion. Right? **Tests** —
+`club_illusion_lets_any_anarch_burn_blood_for_one_bleed_once`,
+`anarch_railroad_gives_any_acting_anarch_stealth`.
+
+### 28.3 Capacity in the uncontrolled region _(open)_
+
+Counters added by an effect (Wasserschloss Anif's, Powerbase: Montreal's,
+Family Gathering's) stop at the vampire's capacity there, the rest to the
+blood bank — as transfers do. A banished vampire keeps counters a
+Discipline card let it hold. Right? **Test** —
+`a_banished_vampire_keeps_the_blood_its_discipline_card_held`.
+
+### 28.4 Capacity lost _(open)_
+
+When a Discipline card leaves a vampire in play (burned, or its player
+ousted), blood above the new capacity drains off at once. Right?
+
+### 28.5 Choices made as the card resolves _(open)_
+
+The Rack's vampire is the play's target (none ready: not playable);
+Toreador Grand Ball's locked Toreador is the target and the other chosen
+as it resolves; Priority Contract's Assamite is chosen as it resolves; on a
+change of control with no ready vampire, The Rack has none chosen.
+Chantry's blood payer, Anarch Troublemaker's two vampires (a locked one
+allowed) and Garibaldi-Meucci Museum's two cards (no window between use
+and effect) are chosen as they resolve. Right?
+
+### 28.6 Wasserschloss Anif's Tremere _(open)_
+
+"A Tremere you control can move 1 blood from themselves": a ready one.
+Right? **Test** —
+`wasserschloss_anif_banks_one_tremeres_blood_for_the_uncontrolled_region`.
+
+### 28.7 Out of torpor before resolution _(open)_
+
+A rescue whose target already left torpor fizzles unpaid; a leave-torpor
+action fizzles paid (ANK 20220218); a diablerie fizzles with no blood hunt.
+Right? **Test** —
+`warsaw_station_saves_a_nosferatu_from_a_diablerie`.
+
+### 28.8 Week of Nightmares _(open)_
+
+A Ravnos with no blood (or that must hunt) must take the special hunt if it
+has a target, else nothing holds it. At the end, a Ravnos pays its
+nightmare blood if it can, and is burned only if it cannot. "Only one …
+can be played in a game" counts a play canceled as played. Right? **Tests**
+— `a_starving_ravnos_must_steal_once`,
+`week_of_nightmares_ends_in_nightmares_and_never_comes_back`.
+
+### 28.9 Frontal Assault's influence-phase burn _(open)_
+
+Applied as the influence phase begins, each copy (before any transfer).
+Right? **Test** —
+`frontal_assault_rushes_the_prey_pays_for_losses_and_costs_at_influence`.
+
+### 28.10 Piper's Anarch _(open)_
+
+The locked Anarch is the card's actor: it meets the ally's or retainer's
+requirements and pays its blood cost; its Disciplines pick the version.
+Piper itself stays a master card Sudden Reversal can cancel. Right?
+**Tests** — `piper_has_an_anarch_recruit_an_ally_outside_an_action`,
+`piper_employs_by_the_anarchs_disciplines_and_is_no_action`.
+
+### 28.11 Meditative Grove's "played on a Salubri" _(open)_
+
+The frenzy card's target (Deep Song [ANI]), or its player for a card
+played on itself (Terror Frenzy, once defined). Right? **Test** —
+`meditative_grove_cancels_a_frenzy_card_played_on_its_salubri`.
+
+### 28.12 Powerbase: Los Angeles's discard phase action _(open)_
+
+The player spends whichever discard phase action serves best: Los
+Angeles's on a card requiring an Anarch (its requirements name Anarch or
+baron) or making a vampire Anarch, another otherwise. Right? **Test** —
+`powerbase_los_angeles_unlocks_an_anarch_for_an_anarch_discard`.
+
+### 28.13 Note on advanced rules 6.4.1
+
+It says a temporarily controlled minion stays with its current controller
+if its permanent controller is ousted; Puppet Master's rulings (ANK
+20181110, a reversal) remove it from the game, which the engine follows
+(27.4). The advanced rules may want the same.

@@ -219,6 +219,7 @@ impl Engine {
                     mpa_next: 0,
                     veil_left: 0,
                     dpa: 0,
+                    granted_dpa: 0,
                     master_played: false,
                     turns_taken: 0,
                     held: Held::default(),
@@ -234,6 +235,8 @@ impl Engine {
                 phase_uses: Vec::new(),
                 turn_uses: Vec::new(),
                 veil_superior: false,
+                phase_actions: 0,
+                once_played: Vec::new(),
                 layers: Vec::new(),
                 active: SeatId(0),
                 turn: 0,
@@ -281,27 +284,8 @@ impl Engine {
     /// are *not* entered — use [`Engine::stage_contests`] to stage one.
     pub fn add_minion(&mut self, owner: SeatId, card: u16, blood: u8, in_torpor: bool) -> MinionId {
         self.state.minions.push(Minion {
-            owner,
-            kind: MinionKind::Vampire(card),
-            blood,
-            locked: false,
             in_torpor,
-            in_play: true,
-            contested: false,
-            title_contested: false,
-            title_lost: false,
-            granted_title: None,
-            bled_this_turn: false,
-            political_this_turn: false,
-            expelled: false,
-            hunting_ground_fed: false,
-            skip_unlock: false,
-            acted: Vec::new(),
-            recruited: false,
-            recruits_this_turn: 0,
-            played_since_unlock: Vec::new(),
-            unlock_at_discard: false,
-            no_life_gain: false,
+            ..Minion::new(owner, MinionKind::Vampire(card), blood)
         });
         MinionId(self.state.minions.len() as u32 - 1)
     }
@@ -350,6 +334,8 @@ impl Engine {
     pub fn run(&mut self) -> Step {
         loop {
             self.settle_interrupts();
+            self.state.drain_all_excess();
+            self.state.release_hostages();
             if matches!(self.flow, Flow::GameOver) {
                 return Step::Over(self.state.seats.iter().map(|s| s.half_vps).collect());
             }
@@ -618,7 +604,7 @@ impl Engine {
                             let controller = self.state.card_controller(CardId(*i as u32));
                             d.riders.iter().any(|r| {
                                 r.hook == Hook::UnlockPhase
-                                    && r.scope.applies(controller, s)
+                                    && r.scope.applies(&self.state, controller, s)
                                     && self.state.rider_holds(r, CardId(*i as u32))
                             })
                         })
@@ -638,10 +624,12 @@ impl Engine {
     /// or from a contest is not).
     pub(crate) fn burn_minion(&mut self, m: MinionId) {
         let was_ready = self.state.minions[m.index()].ready();
+        self.about_to_leave_ready(&[m]);
         {
             let v = &mut self.state.minions[m.index()];
             v.in_play = false;
             v.blood = 0;
+            v.corruption.clear();
             // A burned vampire goes to its Methuselah's ash heap (an ally's
             // card goes with the cards on it, below).
             if let Some(card) = v.crypt_card() {
@@ -675,6 +663,7 @@ impl Engine {
             self.burn_minion(m);
         }
         let ms = &ms[..];
+        self.about_to_leave_ready(ms);
         for &m in ms {
             self.state.minions[m.index()].in_torpor = true;
         }
@@ -743,11 +732,57 @@ impl Engine {
         };
     }
 
+    /// Frontal Assault: "During your influence phase, burn this card and
+    /// burn 1 pool for each ready minion controlled by your prey", as the
+    /// phase begins, each copy. True if it ousted the active Methuselah
+    /// (the turn passed).
+    fn influence_burns(&mut self) -> bool {
+        let s = self.state.active;
+        let mut loss = 0;
+        for ci in 0..self.state.cards.len() {
+            let id = CardId(ci as u32);
+            let c = &self.state.cards[ci];
+            let due = c.present()
+                && self.state.card_controller(id) == s
+                && crate::cards::lookup(c.card).is_some_and(|d| {
+                    d.modes[c.mode as usize]
+                        .effects
+                        .contains(&crate::cards::Effect::BurnAtInfluencePerPreyReady)
+                });
+            if due {
+                let prey = self.state.prey(s);
+                loss += self
+                    .state
+                    .minions_of(prey)
+                    .filter(|m| self.state.minions[m.index()].ready())
+                    .count() as i32;
+                self.burn_card_in_play(id);
+            }
+        }
+        if loss == 0 {
+            return false;
+        }
+        self.state.seats[s.index()].pool -= loss;
+        if self.state.seats[s.index()].pool <= 0 {
+            self.oust_and_pass(s);
+            return true;
+        }
+        false
+    }
+
     /// Everyone passed: the phase ends.
     pub(crate) fn close_phase(&mut self, phase: Flow) {
         match phase {
-            Flow::MasterPhase => self.flow = Flow::MinionPhase,
+            Flow::MasterPhase => {
+                self.state.phase_actions = 0;
+                self.flow = Flow::MinionPhase
+            }
             Flow::MinionPhase => {
+                // "During your influence phase" abilities: once per phase.
+                self.state.phase_uses.clear();
+                if self.influence_burns() {
+                    return;
+                }
                 self.flow = Flow::Influence {
                     left: transfers_for_turn(self.state.turn)
                         + self.state.transfer_bonus(self.state.active),
@@ -771,6 +806,7 @@ impl Engine {
         }
         let printed = self.state.printed_discard_actions(s);
         self.state.seats[s.index()].dpa = (1 + printed).max(0) as u8;
+        self.state.seats[s.index()].granted_dpa = 0;
         // "Unlock this vampire during the next discard phase" (Feral Hound).
         for m in &mut self.state.minions {
             if std::mem::take(&mut m.unlock_at_discard) {
@@ -785,6 +821,22 @@ impl Engine {
     /// turn passes.
     pub(crate) fn end_turn(&mut self) {
         let s = self.state.active;
+        // Temporary control "until the end of your turn" (Puppet Master
+        // [DOM]) ends: the minion returns as it is, in torpor included (LSJ
+        // 20010119) — removed from the game if its Methuselah was ousted
+        // meanwhile (ANK 20181110).
+        for i in 0..self.state.minions.len() {
+            let m = &self.state.minions[i];
+            let Some(back) = m.temp_from.filter(|_| m.owner == s && m.in_play) else {
+                continue;
+            };
+            self.state.minions[i].temp_from = None;
+            if self.state.seats[back.index()].ousted {
+                self.remove_minion(MinionId(i as u32));
+            } else {
+                self.state.minions[i].owner = back;
+            }
+        }
         self.state.seats[s.index()].hand_bonus = 0;
         self.next_turn();
     }
@@ -835,6 +887,27 @@ impl Engine {
         }
     }
 
+    /// A minion removed from the game (not burned: nothing triggers), the
+    /// cards on it with it — burned to their owners' ash heaps if another
+    /// Methuselah's (as an ousted Methuselah's minions, spec §1.10).
+    pub(crate) fn remove_minion(&mut self, m: MinionId) {
+        self.about_to_leave_ready(&[m]);
+        let v = &mut self.state.minions[m.index()];
+        v.in_play = false;
+        v.corruption.clear();
+        let owner = v.owner;
+        for ci in 0..self.state.cards.len() {
+            let c = &self.state.cards[ci];
+            if c.in_play && c.host == Some(m) {
+                if c.owner == owner {
+                    self.state.cards[ci].in_play = false;
+                } else {
+                    self.burn_card_in_play(CardId(ci as u32));
+                }
+            }
+        }
+    }
+
     /// Rulebook "Ending the Game": all the cards the ousted Methuselah
     /// controls are removed from the game — with the layers they carried.
     fn remove_seat(&mut self, s: SeatId) {
@@ -855,9 +928,12 @@ impl Engine {
         // not burned (§1.10: nothing triggers). Another Methuselah's card
         // on a removed minion is burned to its owner's ash heap (owner,
         // 2026-09-06).
+        let leaving: Vec<MinionId> = self.state.minions_of(s).collect();
+        self.about_to_leave_ready(&leaving);
         for m in &mut self.state.minions {
             if m.owner == s {
                 m.in_play = false;
+                m.corruption.clear();
             }
         }
         for ci in 0..self.state.cards.len() {
@@ -939,6 +1015,7 @@ impl Engine {
             m.acted.clear();
             m.recruited = false;
             m.recruits_this_turn = 0;
+            m.must_hunt = false;
             // Unlock phase: the active seat's minions unlock (torpor included).
             // Stolen Police Cruiser: "does not unlock as normal during their
             // next unlock phase".
@@ -954,6 +1031,10 @@ impl Engine {
             }
             if m.skip_unlock {
                 self.state.minions[i].skip_unlock = false;
+                continue;
+            }
+            // "Does not unlock as normal" (Puppet Master [DOM]).
+            if self.state.does_not_unlock(id) {
                 continue;
             }
             // "Burns 1 counter from this card instead of unlocking as normal"

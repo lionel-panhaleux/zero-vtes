@@ -63,6 +63,9 @@ fn put_on(e: &mut Engine, name: &str, host: MinionId) -> u32 {
         counters: 0,
         stored: Vec::new(),
         effect_only: false,
+        against: Default::default(),
+        entered: 0,
+        chosen: Vec::new(),
     });
     let id = CardId(e.state.cards.len() as u32 - 1);
     for effect in cards::lookup(card).expect("definition").modes[0].effects {

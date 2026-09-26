@@ -547,6 +547,9 @@ fn banishment_sends_a_younger_vampire_to_the_uncontrolled_region() {
         ]
     );
     pick(&mut e, Choice::ChooseMinion(bret));
+    // His corruption counters stay with him: a banished vampire keeps
+    // everything (owner, 2026-09-26: rules-qa 25.1).
+    e.state.minions[bret.index()].add_corruption(SeatId(0), 2);
     // A retainer on Bret goes face down with him (rules-qa 5.7).
     e.state.cards.push(zvtes::state::CardInPlay {
         card: find_library("Homunculus"),
@@ -562,6 +565,9 @@ fn banishment_sends_a_younger_vampire_to_the_uncontrolled_region() {
         counters: 1,
         stored: Vec::new(),
         effect_only: false,
+        against: Default::default(),
+        entered: 0,
+        chosen: Vec::new(),
     });
     // A card burned from him before does not (it stays in the ash heap).
     e.state.cards.push(zvtes::state::CardInPlay {
@@ -578,6 +584,9 @@ fn banishment_sends_a_younger_vampire_to_the_uncontrolled_region() {
         counters: 0,
         stored: Vec::new(),
         effect_only: false,
+        against: Default::default(),
+        entered: 0,
+        chosen: Vec::new(),
     });
     pick(&mut e, votes(alexa, true));
     close_polling(&mut e);
@@ -597,6 +606,7 @@ fn banishment_sends_a_younger_vampire_to_the_uncontrolled_region() {
     pick(&mut e, Choice::InfluenceOut { slot: 0 });
     let b = &e.state.minions[bret.index()];
     assert!(b.in_play && !b.locked && b.blood == 4);
+    assert_eq!(b.corruption_of(SeatId(0)), 2, "his counters too");
     assert!(e.state.cards[0].in_play && !e.state.cards[0].locked);
     assert!(!e.state.cards[1].in_play);
     assert!(e.state.seats[1].uncontrolled.is_empty());

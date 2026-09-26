@@ -235,6 +235,9 @@ fn in_play(e: &mut Engine, name: &str, owner: u8, host: Option<MinionId>) -> u32
         counters: 0,
         stored: Vec::new(),
         effect_only: false,
+        against: Default::default(),
+        entered: 0,
+        chosen: Vec::new(),
     });
     e.state.cards.len() as u32 - 1
 }
@@ -774,9 +777,9 @@ fn visit_from_the_capuchin_is_not_playable_beside_ones_own_copy() {
 // would be blocker is locked ... from Mirror Walk's effect." [ANK
 // 20220116] [ANK 20211207] [ANK 20210627] [RTR 19991206] [LSJ 20091125]
 // Triggered by block: "all 'if blocked' effects must be applied ... before
-// any other card or effect can be used". No combat, no window: the acting
-// Methuselah's minion phase goes on; the card is replaced as the discard
-// phase begins.
+// any other card or effect can be used". No combat, and no card in its
+// after-resolution window: the acting Methuselah's minion phase goes on;
+// the card is replaced as the discard phase begins.
 #[test]
 fn mirror_walk_superior_ends_the_blocked_action_before_block_resolution() {
     let mut e = game(2);

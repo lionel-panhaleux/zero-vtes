@@ -24,7 +24,7 @@ FULL_PRECON_SETS = ["Fifth Edition", "Fifth Edition (Anarch)", "Fifth Edition (C
 TYPES = ["Master", "Action", "Action Modifier", "Reaction", "Combat", "Political Action",
          "Ally", "Equipment", "Retainer", "Event"]
 LABELS = [
-    ("Unique", r"^unique\b|\bunique (location|\w+ with)"),
+    ("Unique", r"^unique\b|\bunique (location|\w+ with)|\. unique\."),
     ("Location", r"\blocation\b\."),
     ("HuntingGround", r"^hunting ground\."),
     ("Weapon", r"^(unique )?(melee )?weapon\b"),
@@ -37,6 +37,8 @@ LABELS = [
     ("Title", r"^title\."),
     ("OutOfTurn", r"^out-of-turn\."),
     ("Frenzy", r"^frenzy\."),
+    # A Discipline master card ("Discipline. Put this card on a vampire.").
+    ("Discipline", r"^discipline\."),
     # Ally and retainer subtypes: the type line only (advanced rules 5.7.1).
     ("Mortal", r"^(unique )?mortal with"),
     ("Animal", r"^(unique )?animal with"),
@@ -44,6 +46,16 @@ LABELS = [
     ("Zombie", r"^(unique )?zombie with"),
     ("Wraith", r"^(unique )?wraith with"),
     ("Werewolf", r"^(unique )?werewolf with"),
+    # "More than one Discipline can be used to play this card": one mode per
+    # non-empty set of its Disciplines, each set required in full (LSJ
+    # 20011204-3: played, it requires the Disciplines used).
+    ("MultiDiscipline", r"more than one discipline can be used"),
+    # A card "requiring an Anarch": its requirements name Anarch or baron
+    # (a baron card requires an Anarch, LSJ 20080603); a negative one such
+    # as "non-Camarilla" does not (ANK 20250320).
+    ("RequiresAnarch", r"\brequires? (?:an?|two) [^.]*(?<!non-)\b(?:anarch|baron)\b"),
+    # A card "making a vampire Anarch" (Powerbase: Los Angeles).
+    ("MakesAnarch", r"\bmake (?:that|a|this) [^.]*\bvampire (?:you control )?anarch\b"),
 ]
 # An ally's or retainer's type line: "Unique mortal with 2 life. 1 strength,
 # 0 bleed." (a retainer prints its life only).
@@ -77,6 +89,21 @@ def body_of(c):
     if "Ally" in c["types"] and strength is None:
         raise SystemExit(f"no strength and bleed on ally {c['_name']}")
     return f"Some(Body {{ life: {life}, strength: {strength or 0}, bleed: {bleed or 0} }})"
+
+
+def multi_modes(modes):
+    """The modes of a multi-Discipline card: its single-Discipline modes
+    first (their indices kept), then every larger set of them, windows and
+    flags merged."""
+    from itertools import combinations
+    out = list(modes)
+    for r in range(2, len(modes) + 1):
+        for combo in combinations(modes, r):
+            tags = [t for m in combo for t in m[0]]
+            wins = list(dict.fromkeys(w for m in combo for w in m[1]))
+            flags = list(dict.fromkeys(f for m in combo for f in m[2]))
+            out.append((tags, wins, flags))
+    return out
 
 
 def generate(cards):
@@ -115,7 +142,8 @@ def generate(cards):
     out.append("/// `ani`, `pro`, `COMBAT`; lower case = basic, upper = superior; empty for an")
     out.append("/// untagged card), the windows it is playable in, and per-mode flags.")
     out.append("/// Windows and flags are names from data/window-matrix-reviewed.csv. Two")
-    out.append("/// discipline tags on one mode mean *either* unless the card is a `combo`.")
+    out.append("/// discipline tags on one mode mean *either* unless the card is a `combo`")
+    out.append("/// or `Label::MultiDiscipline` (one mode per set of Disciplines used).")
     out.append("#[derive(Clone, Copy, Debug, PartialEq, Eq)]")
     out.append("pub struct Mode {")
     out.append("    pub tags: &'static [&'static str],")
@@ -172,7 +200,10 @@ def generate(cards):
         out.append(f"        labels: &[{labels}],")
         out.append(f"        body: {body_of(c)},")
         out.append("        modes: &[")
-        for tags, wins, flags in modes_for(c):
+        modes = modes_for(c)
+        if "MultiDiscipline" in labels_of(c["card_text"]):
+            modes = multi_modes(modes)
+        for tags, wins, flags in modes:
             t = ", ".join(rust_str(x) for x in tags)
             w = ", ".join(rust_str(x) for x in wins)
             f = ", ".join(rust_str(x) for x in flags)

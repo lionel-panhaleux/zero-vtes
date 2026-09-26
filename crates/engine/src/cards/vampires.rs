@@ -355,30 +355,47 @@ pub static ARIANE: VampireDef = VampireDef {
 /// (as the blood shuttles of cards in play).
 /// "Aniel can burn 1 corruption counter or a card requiring a Discipline
 /// from another ready minion as a +1 stealth Ⓓ action that costs 1
-/// blood." The card half: directed at the card's controller, undirected
-/// on a minion of Aniel's own Methuselah (rulebook "Directed and Undirected
-/// Actions": Ⓓ is a reminder).
+/// blood." One printed action on two kinds of target (one NRA identity,
+/// `Effect::SameActionAs`): a card, directed at its controller, or a
+/// minion with any corruption counters, directed at its controller;
+/// undirected on Aniel's own Methuselah's (rulebook "Directed and
+/// Undirected Actions": Ⓓ is a reminder).
 pub static ANIEL: VampireDef = VampireDef {
     name: "Aniel",
     printed: &[],
-    abilities: &[printed_action(
-        Some(TargetSpec {
-            kind: TargetKind::Card,
-            filter: &[
-                R::TargetCard(CardFilter::RequiresDiscipline),
-                R::TargetOnReadyMinion,
-                R::NotHost,
+    abilities: &[
+        printed_action(
+            Some(TargetSpec {
+                kind: TargetKind::Card,
+                filter: &[
+                    R::TargetCard(CardFilter::RequiresDiscipline),
+                    R::TargetOnReadyMinion,
+                    R::NotHost,
+                ],
+            }),
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::PayBlood(1),
+                Effect::BurnTargetCard,
             ],
-        }),
-        &[
-            Effect::DeclareAction(ActionKind::Ability),
-            Effect::AddStealth(1),
-            Effect::PayBlood(1),
-            Effect::BurnTargetCard,
-        ],
-    )],
+        ),
+        printed_action(
+            Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[R::TargetCorrupted, R::ActorReady, R::OtherThanActor],
+            }),
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::PayBlood(1),
+                Effect::BurnCorruptionFromTarget,
+                Effect::SameActionAs(0),
+            ],
+        ),
+    ],
     riders: &[],
-    incomplete: Some("Aniel can burn 1 corruption counter … (waits for corruption counters)."),
+    incomplete: None,
 };
 
 /// "Apolonia can steal 1 blood from a younger vampire as a Ⓓ action." Any
@@ -680,15 +697,23 @@ pub static EVAN_KLEIN: VampireDef = VampireDef {
     incomplete: None,
 };
 
+/// "Minions with any of your corruption counters in combat with Faruq
+/// cannot strike: combat ends. +1 strength."
 pub static FARUQ_ABD_AL_QADIR: VampireDef = VampireDef {
     name: "Faruq Abd al-Qadir",
-    printed: &[own(Stat::Strength, 1, &[])],
+    printed: &[
+        own(Stat::Strength, 1, &[]),
+        Printed {
+            stat: Stat::NoCombatEnds,
+            n: 1,
+            to: PrintedTo::Opponent,
+            per: Per::One,
+            requires: &[R::ActorCorruptedBySource],
+        },
+    ],
     abilities: &[],
     riders: &[],
-    incomplete: Some(
-        "Minions with any of your corruption counters in combat with Faruq cannot strike: \
-         combat ends.",
-    ),
+    incomplete: None,
 };
 
 pub static FLAVIO_GONCALVES: VampireDef = VampireDef {
@@ -778,7 +803,7 @@ pub static ILONKA: VampireDef = VampireDef {
             R::HostReady,
             R::IsBleed,
             R::DirectedAtYou,
-            R::ActionSuccessful,
+            R::BleedSuccessful,
         ],
         target: None,
         terms: Some(Terms::Count { min: 0, max: 1 }),
@@ -1203,7 +1228,7 @@ pub static RICHARD_DE_WORDE: VampireDef = VampireDef {
         requires: &[
             R::ActorActing,
             R::IsBleed,
-            R::ActionSuccessful,
+            R::BleedSuccessful,
             R::HostBloodAtLeast(1),
             R::DirectedHandNotEmpty,
         ],

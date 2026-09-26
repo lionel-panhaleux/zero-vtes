@@ -171,6 +171,15 @@ pub struct Side {
     pub additional_with: Option<CardId>,
     /// Optional presses only usable to continue combat (Righteous Blade).
     pub continue_presses: u8,
+    /// Optional presses usable in any round of this combat (Hunter's
+    /// Mark).
+    pub combat_presses: u8,
+    /// This side cannot strike: combat ends in this round (Hunter's Mark
+    /// [CEL][THA] on the opposing minion: the first).
+    pub no_combat_ends_round: Option<u8>,
+    /// Strength this side can gain for the combat before range is
+    /// determined in the first round (Show of Force): `Choice::GainStrength`.
+    pub strength_option: u8,
     /// A mandatory press, only usable to continue combat (Adrino
     /// Manauara): its controller cannot pass the press step while it can be
     /// used (rules-qa 14.1).
@@ -247,6 +256,9 @@ impl Side {
             committed: None,
             additional_with: None,
             continue_presses: 0,
+            combat_presses: 0,
+            no_combat_ends_round: None,
+            strength_option: 0,
             mandatory_press: 0,
             strength_mods: 0,
             fortitude_proof: false,
@@ -300,6 +312,8 @@ impl Side {
             strength_set: self.strength_set,
             strength_mods: self.strength_mods,
             combat_maneuvers: self.combat_maneuvers,
+            combat_presses: self.combat_presses,
+            no_combat_ends_round: self.no_combat_ends_round,
             no_equipment: self.no_equipment,
             combat_ends_round: self.combat_ends_round,
             environmental: self.environmental,
@@ -443,8 +457,10 @@ impl CombatCtx {
     /// card or weapon to maneuver again), a range not set twice.
     pub(crate) fn allows(&self, st: &GameState, mode: &cards::ModeDef, side: usize) -> bool {
         // "Minions in combat with the employer cannot strike: combat ends"
-        // (Dog Pack).
-        let no_ends = st.combat_ends_barred(self.sides[1 - side].minion);
+        // (Dog Pack; Faruq Abd al-Qadir for minions with his Methuselah's
+        // corruption counters).
+        let no_ends = st.combat_ends_barred(self.sides[side].minion, self.sides[1 - side].minion)
+            || self.sides[side].no_combat_ends_round == Some(self.round);
         mode.effects.iter().all(|e| match e {
             Effect::Strike(StrikeKind::CombatEnds { .. }) if no_ends => false,
             Effect::Maneuver if self.step == Step::DetermineRange => {
@@ -679,8 +695,11 @@ impl Engine {
                 // ends strikes or strikes other than hand strikes are
                 // barred (Dog Pack, a grapple).
                 if side.combat_ends_round == Some(c.round)
+                    && side.no_combat_ends_round != Some(c.round)
                     && !c.only_hand_strikes
-                    && !self.state.combat_ends_barred(c.sides[1 - i].minion)
+                    && !self
+                        .state
+                        .combat_ends_barred(c.sides[i].minion, c.sides[1 - i].minion)
                 {
                     options.push(Choice::StrikeCombatEnds);
                 }
@@ -744,9 +763,15 @@ impl Engine {
                     {
                         options.push(Choice::UseManeuver);
                     }
+                    // Show of Force: the strength, before range is
+                    // determined in the first round.
+                    Step::BeforeRange if c.round == 1 && c.sides[i].strength_option > 0 => {
+                        options.push(Choice::GainStrength);
+                    }
                     Step::Press
                         if c.last_press != Some(i)
                             && (c.sides[i].presses > 0
+                                || c.sides[i].combat_presses > 0
                                 || ((c.sides[i].continue_presses > 0
                                     || c.sides[i].mandatory_press > 0)
                                     && !c.press_continue)) =>
@@ -877,11 +902,22 @@ impl Engine {
                     c.sides[i].mandatory_press -= 1;
                 } else if !c.press_continue && c.sides[i].continue_presses > 0 {
                     c.sides[i].continue_presses -= 1;
-                } else {
+                } else if c.sides[i].presses > 0 {
                     c.sides[i].presses -= 1;
+                } else {
+                    c.sides[i].combat_presses -= 1;
                 }
                 c.window.play();
                 c.press(i);
+                None
+            }
+            (Step::BeforeRange, Choice::GainStrength) => {
+                let i = c
+                    .side_of(c.window.current().expect("impulse"))
+                    .expect("side");
+                let n = std::mem::take(&mut c.sides[i].strength_option);
+                c.sides[i].strength_mods += n;
+                c.window.play();
                 None
             }
             (_, Choice::Play { .. }) => {
@@ -1002,8 +1038,11 @@ impl Engine {
         // A combat ends strike against a minion whose retainer bars it has
         // no effect (Dog Pack put on it after the strike was chosen, ANK
         // 20190412).
-        let barred: [bool; 2] =
-            std::array::from_fn(|i| self.state.combat_ends_barred(c.sides[1 - i].minion));
+        let barred: [bool; 2] = std::array::from_fn(|i| {
+            self.state
+                .combat_ends_barred(c.sides[i].minion, c.sides[1 - i].minion)
+                || c.sides[i].no_combat_ends_round == Some(c.round)
+        });
         let ends: Vec<usize> = (0..2)
             .filter(|&i| !barred[i] && matches!(strikes[i], Some(StrikeKind::CombatEnds { .. })))
             .collect();
@@ -1021,8 +1060,12 @@ impl Engine {
                 }
                 if let Some((blood, stealth)) = c.sides[i].continue_rider.take() {
                     // Form of Mist [PRO]: only the acting minion "was
-                    // blocked" (every v1 combat arises from a block).
-                    if i == 0 {
+                    // blocked".
+                    if self
+                        .action
+                        .as_ref()
+                        .is_some_and(|a| a.acting == c.sides[i].minion)
+                    {
                         let a = self.action.as_mut().expect("action context");
                         a.continuation = Some((blood, stealth));
                     }
@@ -1120,6 +1163,7 @@ impl Engine {
                     // (owner, 2026-09-26: rules-qa 21.1).
                     Some(StrikeKind::TorporOrBurn | StrikeKind::CardEffect) => close,
                     Some(StrikeKind::BurnWeapon) => true,
+                    Some(StrikeKind::BurnEquipment) => close,
                     Some(StrikeKind::Dodge | StrikeKind::CombatEnds { .. }) | None => false,
                 }
         });
@@ -1215,7 +1259,9 @@ impl Engine {
                         let n = strength[i] + bonus;
                         let aggravated = c.sides[i].aggravated_hands
                             || c.sides[i].aggravated_strike
-                            || (i == 0 && self.action.as_ref().is_some_and(|a| a.aggravated_hands));
+                            || self.action.as_ref().is_some_and(|a| {
+                                a.aggravated_hands && a.acting == c.sides[i].minion
+                            });
                         c.sides[j].strike_hit(n, aggravated, false);
                     }
                 }
@@ -1277,8 +1323,9 @@ impl Engine {
                         c.sides[j].sent_to_torpor = true;
                     }
                 }
-                StrikeKind::BurnWeapon => {
-                    if !dodged {
+                StrikeKind::BurnWeapon | StrikeKind::BurnEquipment => {
+                    let reaches = k == StrikeKind::BurnWeapon || close;
+                    if !dodged && reaches {
                         if let Some(w) = c.sides[i].strike_weapon {
                             let wc = &st.cards[w.index()];
                             if wc.present() && wc.host == Some(c.sides[j].minion) {
@@ -1296,8 +1343,7 @@ impl Engine {
             self.state.minions[c.sides[1 - i].minion.index()].blood -= n;
         }
         for (i, &n) in steals.iter().enumerate() {
-            let m = &mut self.state.minions[c.sides[i].minion.index()];
-            m.blood = m.cap_blood(m.blood + n);
+            self.state.gain_blood(c.sides[i].minion, n);
         }
         // A retainer burns life for damage (aggravated alike, rulebook
         // "Damage Resolution"), and life stolen from it becomes blood.
@@ -1307,8 +1353,7 @@ impl Engine {
             let taken = n.min(card.counters);
             card.counters -= taken;
             if steal {
-                let m = &mut self.state.minions[c.sides[i].minion.index()];
-                m.blood = m.cap_blood(m.blood + taken);
+                self.state.gain_blood(c.sides[i].minion, taken);
             }
             if self.state.cards[r.index()].counters == 0 {
                 lifeless.push(r);
@@ -1358,6 +1403,9 @@ impl Engine {
             counters: h.counters,
             stored: Vec::new(),
             effect_only: true,
+            against: Default::default(),
+            entered: 0,
+            chosen: Vec::new(),
         });
         let mode = &cards::lookup(h.card).expect("definition").modes[h.mode as usize];
         for e in mode.effects {
@@ -1390,7 +1438,7 @@ impl Engine {
     /// combatant's Methuselah mid-combat — the game ended, the active
     /// Methuselah's turn passed, or the opponent left the game and the
     /// combat ended at once (DESIGN §10).
-    fn apply_damage(&mut self) -> bool {
+    pub(crate) fn apply_damage(&mut self) -> bool {
         let c = self.combat.as_mut().expect("combat context");
         let results: Vec<Resolved> = c
             .sides
@@ -1641,7 +1689,12 @@ impl Engine {
     pub(crate) fn apply_combat_effect(&mut self, effect: Effect, play: &PlayCtx) {
         let c = self.combat.as_mut().expect("combat context");
         let actor = play.actor.expect("combat card actor");
-        let i = c.side_of_minion(actor).expect("actor in combat");
+        // An actor out of the combat plays for its Methuselah's combatant
+        // (`Actor::OwnOutOfCombat`).
+        let i = c
+            .side_of_minion(actor)
+            .or_else(|| c.side_of(play.seat))
+            .expect("actor in combat");
         match effect {
             // A strike card's; `resolve_ability` names a card in play as
             // the source afterward.
@@ -1649,10 +1702,16 @@ impl Engine {
                 let initial = c.pair == 0;
                 let s = &mut c.sides[i];
                 s.set_strike(Some(k));
-                s.strike_at = match play.target {
-                    cards::Target::Card(r) => Some(r),
-                    _ => None,
-                };
+                // A card target: the retainer a ranged strike is aimed at,
+                // or the equipment a burn-equipment strike names.
+                match (k, play.target) {
+                    (StrikeKind::BurnEquipment, cards::Target::Card(w)) => {
+                        s.strike_at = None;
+                        s.strike_weapon = Some(w);
+                    }
+                    (_, cards::Target::Card(r)) => s.strike_at = Some(r),
+                    _ => s.strike_at = None,
+                }
                 s.chosen = true;
                 if initial {
                     s.committed = None;
@@ -1701,13 +1760,15 @@ impl Engine {
                 let v = &mut self.state.minions[actor.index()];
                 v.blood -= n.min(v.blood);
             }
-            Effect::PreventOpposingStrikesThisRound => {
+            Effect::PreventOpposingStrikesThisRound | Effect::PreventStrikeDamage => {
                 let s = &mut c.sides[i];
                 let d = std::mem::take(&mut s.strike_damage);
                 s.pending.normal -= d.normal.min(s.pending.normal);
                 s.pending.aggravated -= d.aggravated.min(s.pending.aggravated);
                 s.pending.gun = s.pending.gun.saturating_sub(d.gun).min(s.pending.normal);
-                s.strikes_prevented = true;
+                // Rolling with the Punches: the rest of the round's strikes
+                // too; Touch of Valeren: that strike only.
+                s.strikes_prevented |= effect == Effect::PreventOpposingStrikesThisRound;
             }
             Effect::NullifyOpposingWeapons => c.sides[i].nullifies_weapons = true,
             Effect::EnvironmentalDamage(n) => c.sides[i].environmental += n,
@@ -1736,6 +1797,7 @@ impl Engine {
                 }
             }
             Effect::NextRoundManeuver => c.sides[i].next_round_maneuvers += 1,
+            Effect::OptionalManeuver => c.sides[i].maneuvers += 1,
             Effect::AdditionalStrikes { n, limited } => {
                 c.sides[i].additional += n;
                 if limited {
@@ -1763,8 +1825,7 @@ impl Engine {
             Effect::NewRound => c.continued = true,
             Effect::GainBloodLostByOpponent => {
                 let gained = c.sides[1 - i].lost_to_damage;
-                let m = &mut self.state.minions[actor.index()];
-                m.blood = m.cap_blood(m.blood + gained);
+                self.state.gain_blood(actor, gained);
             }
             Effect::ContinueAfterCombat { blood, stealth } => {
                 c.sides[i].continue_rider = Some((blood, stealth));
@@ -1838,6 +1899,7 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::Maneuver
             | Effect::Press
             | Effect::OptionalPress
+            | Effect::OptionalManeuver
             | Effect::NextRoundManeuver
             | Effect::AdditionalStrikes { .. }
             | Effect::SetStrength(_)
@@ -1855,6 +1917,7 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::PressThisRound
             | Effect::ActorBurnsBlood(_)
             | Effect::PreventOpposingStrikesThisRound
+            | Effect::PreventStrikeDamage
             | Effect::NullifyOpposingWeapons
             | Effect::EnvironmentalDamage(_)
             | Effect::RoundStrike(_)

@@ -328,6 +328,9 @@ fn retainer(e: &mut Engine, name: &str, host: MinionId, mode: usize) -> CardId {
         counters: life,
         stored: Vec::new(),
         effect_only: false,
+        against: Default::default(),
+        entered: 0,
+        chosen: Vec::new(),
     });
     let id = CardId(e.state.cards.len() as u32 - 1);
     for effect in def.modes[mode].effects {
@@ -371,11 +374,13 @@ fn murder_of_crows_damages_the_opposing_minion_each_round_even_against_a_dodge()
 #[test]
 fn murder_of_crows_inflicts_nothing_once_a_combat_ends_strike_ended_the_combat() {
     let (mut e, _, z) = crows_bleed_blocked_by(with_discipline("pre", 0), "Majesty");
+    // Its 4 blood capped at its capacity.
+    let start = e.state.capacity_of(z).unwrap().min(4);
     pick(&mut e, play_mode(0, 0, z)); // combat ends
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(
         e.state.minions[z.index()].blood,
-        3,
+        start - 1,
         "Majesty's 1 blood only"
     );
 }
@@ -861,6 +866,9 @@ fn war_ghoul_locks_and_burns_itself_to_burn_a_location() {
         counters: 0,
         stored: Vec::new(),
         effect_only: false,
+        against: Default::default(),
+        entered: 0,
+        chosen: Vec::new(),
     });
     let hg = CardId(e.state.cards.len() as u32 - 1);
     pick(
@@ -1564,6 +1572,9 @@ fn entrancement_steal_of_an_ally_gone_before_resolution_does_nothing() {
         counters: 0,
         stored: Vec::new(),
         effect_only: false,
+        against: Default::default(),
+        entered: 0,
+        chosen: Vec::new(),
     });
     let hg = CardId(e.state.cards.len() as u32 - 1);
     hand(&mut e, 0, &["Entrancement"]);
@@ -1711,6 +1722,9 @@ fn libertas_bars_allies_and_taxes_dominate_and_presence_around_its_anarch() {
         counters: 0,
         stored: Vec::new(),
         effect_only: false,
+        against: Default::default(),
+        entered: 0,
+        chosen: Vec::new(),
     });
     let id = CardId(e.state.cards.len() as u32 - 1);
     for m in [
@@ -1786,6 +1800,9 @@ fn libertas_does_not_tax_the_action_card_once_its_anarchs_block_failed() {
         counters: 0,
         stored: Vec::new(),
         effect_only: false,
+        against: Default::default(),
+        entered: 0,
+        chosen: Vec::new(),
     });
     let id = CardId(e.state.cards.len() as u32 - 1);
     e.state.layers.push(Layer {

@@ -90,6 +90,9 @@ fn revolt_in_play(e: &mut Engine, owner: u8) -> u32 {
         counters: 0,
         stored: Vec::new(),
         effect_only: false,
+        against: Default::default(),
+        entered: 0,
+        chosen: Vec::new(),
     });
     e.state.cards.len() as u32 - 1
 }
@@ -364,6 +367,9 @@ fn anarch_revolt_burn_is_ordered_by_the_active_methuselah_before_the_impulse_pas
         counters: 0,
         stored: Vec::new(),
         effect_only: false,
+        against: Default::default(),
+        entered: 0,
+        chosen: Vec::new(),
     });
     e.state.minions[alexa.index()].locked = true;
     // Seat 0's own turn ends; seat 1 has a ready Anarch, so its two riders
@@ -516,6 +522,9 @@ fn guardian_angel_on(e: &mut Engine, owner: u8, host: MinionId) -> u32 {
         counters: 0,
         stored: Vec::new(),
         effect_only: false,
+        against: Default::default(),
+        entered: 0,
+        chosen: Vec::new(),
     });
     let id = e.state.cards.len() as u32 - 1;
     e.state.layers.push(Layer {
@@ -728,6 +737,9 @@ fn fame_on(e: &mut Engine, owner: u8, host: MinionId) -> u32 {
         counters: 0,
         stored: Vec::new(),
         effect_only: false,
+        against: Default::default(),
+        entered: 0,
+        chosen: Vec::new(),
     });
     e.state.cards.len() as u32 - 1
 }
@@ -1402,7 +1414,7 @@ fn the_coven_goes_to_the_predator_at_the_end_of_each_controllers_discard_phase()
     hand(&mut e, 0, &["Bonding"]);
     hand(&mut e, 2, &["Bonding"]);
     pick(&mut e, coven_use(coven, alexa));
-    let cap = e.state.minions[alexa.index()].capacity().unwrap();
+    let cap = e.state.capacity_of(alexa).unwrap();
     assert_eq!(blood(&e, alexa), 7.min(cap));
     let req = to_window(&mut e, SeatId(0), WindowLabel::DiscardPhase);
     assert!(uses(&req, coven).is_empty()); // locked
@@ -1567,11 +1579,13 @@ fn creeping_sabotage_x_cost_enters_play_and_prey_burns_at_unlock() {
     let (mut e, _a, x, _z) = bleed_table();
     // The card requires a Nosferatu (clan icon).
     let a = e.add_minion(SeatId(0), vampire_of_clan("Nosferatu", 0), 6, false);
+    // 6 blood, capped at its capacity.
+    let start = e.state.capacity_of(a).unwrap().min(6);
     hand(&mut e, 0, &["Creeping Sabotage", "Creeping Sabotage"]);
     pick(&mut e, card_play(0, 0, a));
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.last_outcome, Some(Outcome::Successful));
-    assert_eq!(blood(&e, a), 6);
+    assert_eq!(blood(&e, a), start);
     assert!(e.state.cards[0].in_play && e.state.cards[0].host.is_none());
     assert!(e.state.seats[0].ash.is_empty());
     // NRA: a acted with Creeping Sabotage (name identity) this turn.
@@ -1584,7 +1598,7 @@ fn creeping_sabotage_x_cost_enters_play_and_prey_burns_at_unlock() {
     e.state.minions[a.index()].acted.clear();
     pick(&mut e, card_play(0, 0, a));
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert_eq!(blood(&e, a), 5);
+    assert_eq!(blood(&e, a), start - 1);
     assert_eq!(e.state.cards.len(), 2);
     // Seat 1's and seat 2's unlock phases: nothing; seat 0's: prey burns 2.
     to_minion_phase(&mut e, SeatId(1));
@@ -1649,6 +1663,9 @@ fn revolt_like_in_play(e: &mut Engine, name: &str, owner: u8) -> u32 {
         counters: 0,
         stored: Vec::new(),
         effect_only: false,
+        against: Default::default(),
+        entered: 0,
+        chosen: Vec::new(),
     });
     e.state.cards.len() as u32 - 1
 }
@@ -1846,6 +1863,9 @@ fn blood_doll_usable_with_the_host_in_torpor() {
         counters: 0,
         stored: Vec::new(),
         effect_only: false,
+        against: Default::default(),
+        entered: 0,
+        chosen: Vec::new(),
     });
     e.state.minions[alexa.index()].in_torpor = true;
     let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
@@ -1883,6 +1903,9 @@ fn vessel_on_any_vampire_burns_any_blood_doll_and_is_the_controllers_to_use() {
         counters: 0,
         stored: Vec::new(),
         effect_only: false,
+        against: Default::default(),
+        entered: 0,
+        chosen: Vec::new(),
     });
     hand(&mut e, 0, &["Vessel", "Vessel"]);
     let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);

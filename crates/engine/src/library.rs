@@ -41,19 +41,24 @@ pub enum Label {
     Title,
     OutOfTurn,
     Frenzy,
+    Discipline,
     Mortal,
     Animal,
     Ghoul,
     Zombie,
     Wraith,
     Werewolf,
+    MultiDiscipline,
+    RequiresAnarch,
+    MakesAnarch,
 }
 
 /// One playable mode of a card: its bracket tags as printed (`DOM`,
 /// `ani`, `pro`, `COMBAT`; lower case = basic, upper = superior; empty for an
 /// untagged card), the windows it is playable in, and per-mode flags.
 /// Windows and flags are names from data/window-matrix-reviewed.csv. Two
-/// discipline tags on one mode mean *either* unless the card is a `combo`.
+/// discipline tags on one mode mean *either* unless the card is a `combo`
+/// or `Label::MultiDiscipline` (one mode per set of Disciplines used).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Mode {
     pub tags: &'static [&'static str],
@@ -312,7 +317,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::Fixed(1),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique],
+        labels: &[Label::Unique, Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -372,7 +377,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -527,7 +532,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::Fixed(1),
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Unique],
         body: None,
         modes: &[
             Mode {
@@ -732,7 +737,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -1182,7 +1187,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::MultiDiscipline, Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -1197,6 +1202,26 @@ pub static LIBRARY: [LibraryCard; 425] = [
             },
             Mode {
                 tags: &["pre"],
+                windows: &["ACTION_DECLARE"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["ani", "obf"],
+                windows: &["ACTION_DECLARE"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["ani", "pre"],
+                windows: &["ACTION_DECLARE"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["obf", "pre"],
+                windows: &["ACTION_DECLARE"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["ani", "obf", "pre"],
                 windows: &["ACTION_DECLARE"],
                 flags: &[],
             },
@@ -1312,7 +1337,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::Fixed(2),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique, Label::Location],
+        labels: &[Label::Unique, Label::Location, Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -1422,7 +1447,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Discipline],
         body: None,
         modes: &[
             Mode {
@@ -1522,7 +1547,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -1807,7 +1832,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Unique, Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -1912,7 +1937,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::Fixed(1),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique, Label::Mortal],
+        labels: &[Label::Unique, Label::Mortal, Label::RequiresAnarch],
         body: Some(Body { life: 3, strength: 0, bleed: 0 }),
         modes: &[
             Mode {
@@ -2022,7 +2047,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -2187,7 +2212,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -2282,7 +2307,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Discipline],
         body: None,
         modes: &[
             Mode {
@@ -2387,7 +2412,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -2997,7 +3022,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -3017,7 +3042,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -3037,7 +3062,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -3682,7 +3707,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Unique],
         body: None,
         modes: &[
             Mode {
@@ -4262,7 +4287,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -4412,7 +4437,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Unique],
         body: None,
         modes: &[
             Mode {
@@ -4512,7 +4537,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::Fixed(1),
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -4597,7 +4622,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -4742,7 +4767,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::MultiDiscipline, Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -4757,6 +4782,26 @@ pub static LIBRARY: [LibraryCard; 425] = [
             },
             Mode {
                 tags: &["pot"],
+                windows: &["ACTION_DECLARE"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["cel", "obf"],
+                windows: &["ACTION_DECLARE"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["cel", "pot"],
+                windows: &["ACTION_DECLARE"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["obf", "pot"],
+                windows: &["ACTION_DECLARE"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["cel", "obf", "pot"],
                 windows: &["ACTION_DECLARE"],
                 flags: &[],
             },
@@ -5072,7 +5117,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -5382,7 +5427,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Discipline],
         body: None,
         modes: &[
             Mode {
@@ -5402,7 +5447,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Discipline],
         body: None,
         modes: &[
             Mode {
@@ -5512,7 +5557,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -5552,7 +5597,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -5727,7 +5772,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -5897,7 +5942,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -5917,7 +5962,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Unique],
         body: None,
         modes: &[
             Mode {
@@ -5937,7 +5982,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::MultiDiscipline, Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -5952,6 +5997,26 @@ pub static LIBRARY: [LibraryCard; 425] = [
             },
             Mode {
                 tags: &["pro"],
+                windows: &["ACTION_DECLARE"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["obf", "pre"],
+                windows: &["ACTION_DECLARE"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["obf", "pro"],
+                windows: &["ACTION_DECLARE"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["pre", "pro"],
+                windows: &["ACTION_DECLARE"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["obf", "pre", "pro"],
                 windows: &["ACTION_DECLARE"],
                 flags: &[],
             },
@@ -6007,7 +6072,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Discipline],
         body: None,
         modes: &[
             Mode {
@@ -6202,7 +6267,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Discipline],
         body: None,
         modes: &[
             Mode {
@@ -6242,7 +6307,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -6602,7 +6667,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -6812,7 +6877,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::RequiresAnarch],
         body: None,
         modes: &[
             Mode {
@@ -8587,7 +8652,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::MakesAnarch],
         body: None,
         modes: &[
             Mode {
