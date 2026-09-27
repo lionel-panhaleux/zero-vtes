@@ -1170,16 +1170,29 @@ impl Engine {
     /// picked yet, while it costs something: "each time you play a location
     /// card, you can use up to 1 of Regina's blood", in torpor too (LSJ
     /// 20011022), a locquipment played as equipment included (LSJ
-    /// 20080107).
+    /// 20080107) — one another card puts in play too, which is still played
+    /// (a search, Contraband: rules-qa 41.13).
     pub(crate) fn blood_payers(&self, ctx: &PlayCtx) -> Vec<MinionId> {
         let st = &self.state;
-        if ctx.blood_payer.is_some() || ctx.named.is_some() {
+        // A card playing another (Piper, Contraband): the one it names.
+        let names = cards::lookup(ctx.card).is_some_and(|d| {
+            d.modes[ctx.mode as usize]
+                .effects
+                .iter()
+                .any(|e| matches!(e, Effect::EmployNamed | Effect::EquipNamed))
+        });
+        let (card, mode, target) = match (names, ctx.named) {
+            (true, None) => return Vec::new(),
+            (true, Some((c, m))) => (c, m, ctx.actor.into()),
+            (false, _) => (ctx.card, ctx.mode, ctx.target),
+        };
+        if ctx.blood_payer.is_some() {
             return Vec::new();
         }
-        let costs = cards::pool_cost(st, ctx.seat, ctx.card, ctx.target) > 0
-            || cards::blood_cost(st, ctx.card, ctx.x) > 0;
+        let costs = cards::pool_cost(st, ctx.seat, card, target) > 0
+            || cards::blood_cost(st, card, ctx.x) > 0;
         let pctx = crate::state::PrintedCtx {
-            card: Some((ctx.card, ctx.mode)),
+            card: Some((card, mode)),
             ..Default::default()
         };
         st.minions_of(ctx.seat)
@@ -1215,7 +1228,6 @@ impl Engine {
         &self,
         ctx: &PlayCtx,
         pending: Option<CardId>,
-        then: CostThen,
     ) -> DecisionRequest {
         let options = match pending {
             // How many counters (Ravnos Carnival, Ravnos Cache).
@@ -1232,10 +1244,7 @@ impl Engine {
                         .into_iter()
                         .map(|(c, _)| Choice::ResolveRider { card: c.0 }),
                 );
-                // Not for a card found by a search: it is not played.
-                if then != CostThen::EquipFound {
-                    options.extend(self.blood_payers(ctx).into_iter().map(Choice::ChooseMinion));
-                }
+                options.extend(self.blood_payers(ctx).into_iter().map(Choice::ChooseMinion));
                 options
             }
         };
@@ -1319,12 +1328,7 @@ impl Engine {
             (p, c) => unreachable!("illegal cost terms choice {c:?} ({p:?})"),
         }
         // More to pick, or done when nothing else applies.
-        let more = if then == CostThen::EquipFound {
-            !self.cost_sources(&ctx).is_empty()
-        } else {
-            self.cost_choices(&ctx)
-        };
-        if !more {
+        if !self.cost_choices(&ctx) {
             self.cost_terms_done(ctx, resume, then);
         } else {
             self.flow = Flow::CostTerms {
@@ -1370,6 +1374,10 @@ impl Engine {
             used.push((c, k));
         }
         self.spend_counters(&used);
+        // A vampire's blood paying 1 of what is left (Regina Blake).
+        if let Some(r) = self.blood_payment(ctx.blood_payer, &mut pool, &mut blood) {
+            self.state.minions[r.index()].blood -= 1;
+        }
         (pool, blood)
     }
 
@@ -1636,6 +1644,7 @@ impl Engine {
             | Some(Terms::Count { .. })
             | Some(Terms::LifeFromTarget)
             | Some(Terms::AshCard)
+            | Some(Terms::VampireToHoldTarget)
             | Some(Terms::XPool)
             | Some(Terms::XCounters)
             | Some(Terms::DirectedHandCard)
@@ -3787,6 +3796,12 @@ impl Engine {
                         if declares.is_some() && !self.may_direct(seat, m, target) {
                             continue;
                         }
+                        // A card with nowhere to go (Luciano Carvalho).
+                        if ability.terms == Some(Terms::VampireToHoldTarget)
+                            && self.vampires_to_hold(seat, target).is_empty()
+                        {
+                            continue;
+                        }
                         out.push(Choice::UseAbility {
                             source,
                             ability: ai as u8,
@@ -4022,6 +4037,18 @@ impl Engine {
             if mode.effects.contains(&Effect::ExchangeHandForAsh) {
                 self.flow = Flow::Exchange { ash: None };
             }
+            // The ash heap's ally too (Hel-Blá, rules-qa 41.6).
+            if let Some(of) = mode.effects.iter().find_map(|e| match e {
+                Effect::AllyFromAshLocked(of) => Some(*of),
+                _ => None,
+            }) {
+                let seat = self.state.minions[m.index()].owner;
+                self.interrupts.push(Interrupt::AllyFromAsh {
+                    seat,
+                    of,
+                    named: true,
+                });
+            }
             return true;
         }
         // Terms announced with the use (the master cards to discard, a
@@ -4031,6 +4058,7 @@ impl Engine {
             | Terms::Count { .. }
             | Terms::LifeFromTarget
             | Terms::AshCard
+            | Terms::VampireToHoldTarget
             | Terms::XPool
             | Terms::XCounters
             | Terms::DirectedHandCard,
@@ -4142,6 +4170,11 @@ impl Engine {
                     .map(Choice::FindCard)
                     .collect()
             }
+            Some(Terms::VampireToHoldTarget) => self
+                .vampires_to_hold(seat, target)
+                .into_iter()
+                .map(Choice::ChooseMinion)
+                .collect(),
             _ => unreachable!("ability terms without a choice"),
         };
         DecisionRequest::new(seat, WindowLabel::PlayTerms, options)
@@ -4193,6 +4226,36 @@ impl Engine {
         // rules-qa 37.1) — as a discard is.
         self.replace(seat, discarded, None);
         self.flow = *resume;
+        self.resolve_ability(source, ability, target, 0, None);
+    }
+
+    /// The vampires of `seat` the target card could move onto: another than
+    /// the one it is on, in torpor or not, able to hold it (Luciano
+    /// Carvalho).
+    pub(crate) fn vampires_to_hold(&self, seat: SeatId, target: Target) -> Vec<MinionId> {
+        let st = &self.state;
+        let c = &st.cards[target.card().index()];
+        st.minions_of(seat)
+            .filter(|&m| {
+                st.minions[m.index()].is_vampire()
+                    && c.host != Some(m)
+                    && st.can_hold(m, c.card, &[])
+            })
+            .collect()
+    }
+
+    /// The vampire chosen by an ability's terms (`VampireToHoldTarget`):
+    /// the target card moves onto it; then the ability resolves.
+    pub(crate) fn ability_minion_apply(
+        &mut self,
+        source: AbilitySource,
+        ability: u8,
+        target: Target,
+        resume: Flow,
+        m: MinionId,
+    ) {
+        self.state.cards[target.card().index()].host = Some(m);
+        self.flow = resume;
         self.resolve_ability(source, ability, target, 0, None);
     }
 
@@ -4515,15 +4578,6 @@ impl Engine {
                         }
                     }
                 }
-                Effect::MoveTargetToOwnVampire => {
-                    if self.state.cards[target.card().index()].present() {
-                        self.interrupts.push(Interrupt::MinionOf {
-                            seat: ctx.seat,
-                            of: ctx.seat,
-                            purpose: crate::draws::MinionPurpose::MoveCard(target.card()),
-                        });
-                    }
-                }
                 Effect::HostBloodToTarget(n) => {
                     let (h, t) = (host.expect("host"), target.minion());
                     let have = self.state.minions[h.index()].blood;
@@ -4532,14 +4586,15 @@ impl Engine {
                     self.state.minions[t.index()].blood = now;
                     self.state.minions[h.index()].blood -= now - was;
                 }
+                // Blood above the host's capacity drains off as the engine
+                // settles (rules-qa 41.8).
                 Effect::TargetBloodToHost(n) => {
                     let (h, t) = (host.expect("host"), target.minion());
-                    let was = self.state.minions[h.index()].blood;
                     let give = n.min(self.state.minions[t.index()].blood);
-                    let now = self.state.cap_starting(h, was.saturating_add(give));
-                    self.state.minions[h.index()].blood = now;
+                    let b = &mut self.state.minions[h.index()].blood;
+                    *b = b.saturating_add(give);
                     let v = &mut self.state.minions[t.index()];
-                    v.blood -= now - was;
+                    v.blood -= give;
                     if v.is_ally() && v.blood == 0 {
                         self.burn_minion(t);
                     }
@@ -4813,7 +4868,7 @@ impl Engine {
                         self.interrupts.push(Interrupt::AllyFromAsh {
                             seat: ctx.seat,
                             of,
-                            locked: false,
+                            named: false,
                         });
                     }
                 }

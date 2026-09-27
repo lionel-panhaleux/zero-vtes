@@ -187,11 +187,12 @@ pub(crate) enum Interrupt {
     },
     /// "Move a wraith or zombie ally from your ash heap to your ready
     /// region" (Split the Veil): the player's pick among the allies
-    /// matching one of `of`; `locked`: it enters locked (Hel-Blá).
+    /// matching one of `of`; with `named`, the pick is named for the
+    /// action being declared, put in play as it resolves (Hel-Blá).
     AllyFromAsh {
         seat: SeatId,
         of: &'static [crate::cards::CardFilter],
-        locked: bool,
+        named: bool,
     },
     /// "This acting vampire can burn n blood to move the stolen vampire to
     /// your ready region" (Graverobbing [DOM]): `ChooseMinion` it, or pass.
@@ -228,9 +229,6 @@ pub(crate) enum MinionPurpose {
     /// A vampire of a clan the user controls 3 or more of, burned
     /// (Recalled to the Founder): mandatory.
     BurnOfCrowdedClan,
-    /// Another of the user's vampires, in torpor or not, able to hold the
-    /// card, which moves onto it (Luciano Carvalho): mandatory.
-    MoveCard(CardId),
     /// A ready minion of the chooser's, which takes n unpreventable damage
     /// (Gnaeus Aemilius Augustinus): mandatory.
     Damage(u8),
@@ -811,7 +809,6 @@ impl Engine {
                         | MinionPurpose::HostCard(_)
                         | MinionPurpose::LockOldest(_)
                         | MinionPurpose::BurnOfCrowdedClan
-                        | MinionPurpose::MoveCard(_)
                         | MinionPurpose::Damage(_)
                 ) {
                     options.insert(0, Choice::Pass);
@@ -876,11 +873,6 @@ impl Engine {
                         v.ready() && st.can_hold(*m, st.cards[c.index()].card, &[])
                     }
                     MinionPurpose::Damage(_) => v.ready(),
-                    MinionPurpose::MoveCard(c) => {
-                        v.is_vampire()
-                            && st.cards[c.index()].host != Some(*m)
-                            && st.can_hold(*m, st.cards[c.index()].card, &[])
-                    }
                     MinionPurpose::BurnOfCrowdedClan => {
                         v.is_vampire()
                             && v.clan().is_some_and(|c| {
@@ -906,6 +898,18 @@ impl Engine {
                 }
             })
             .collect()
+    }
+
+    /// Move `card`, an ally in `s`'s ash heap, to the ready region (locked
+    /// with `locked`): put in play, not recruited — its inferior version,
+    /// its starting life, able to act this turn (LSJ 20100204).
+    pub(crate) fn raise_ash_ally(&mut self, s: SeatId, card: u16, locked: bool) {
+        let ash = &mut self.state.seats[s.index()].ash;
+        let k = ash.iter().rposition(|&c| c == card).expect("ash ally");
+        ash.remove(k);
+        let m = self.recruit_ally(s, card, 0);
+        self.state.minions[m.index()].recruited = false;
+        self.state.minions[m.index()].locked |= locked;
     }
 
     /// The allies in `seat`'s ash heap matching one of `of` (any, if
@@ -1225,16 +1229,13 @@ impl Engine {
                 self.interrupts.remove(0);
                 self.state.add_uncontrolled_blood(s, i as usize, n);
             }
-            (Interrupt::AllyFromAsh { locked, .. }, Choice::FindCard(card)) => {
+            (Interrupt::AllyFromAsh { named, .. }, Choice::FindCard(card)) => {
                 self.interrupts.remove(0);
-                let ash = &mut self.state.seats[s.index()].ash;
-                let k = ash.iter().rposition(|&c| c == card).expect("ash ally");
-                ash.remove(k);
-                // Put in play, not recruited: its inferior version, its
-                // starting life, able to act this turn (LSJ 20100204).
-                let m = self.recruit_ally(s, card, 0);
-                self.state.minions[m.index()].recruited = false;
-                self.state.minions[m.index()].locked |= locked;
+                if named {
+                    self.action.as_mut().expect("action").ash_named = Some(card);
+                } else {
+                    self.raise_ash_ally(s, card, false);
+                }
             }
             (Interrupt::MoveForBlood { payer, n, .. }, Choice::ChooseMinion(m)) => {
                 self.interrupts.remove(0);
@@ -1452,9 +1453,7 @@ impl Engine {
                     MinionPurpose::Lock
                     | MinionPurpose::LockVampire
                     | MinionPurpose::LockOldest(_) => v.locked = true,
-                    MinionPurpose::HostCard(c) | MinionPurpose::MoveCard(c) => {
-                        self.state.cards[c.index()].host = Some(m)
-                    }
+                    MinionPurpose::HostCard(c) => self.state.cards[c.index()].host = Some(m),
                     MinionPurpose::Damage(n) => self.damage_out_of_combat(m, n, false),
                     MinionPurpose::UnlockAnarch => v.locked = false,
                     MinionPurpose::BurnBloodOfClan(_) => v.blood -= 1,

@@ -746,7 +746,8 @@ pub static GNAEUS_AEMILIUS_AUGUSTINUS: VampireDef = VampireDef {
 /// unique older Nosferatu. The Guardian can lock after resolution of a
 /// successful bleed against you to enter combat with the acting minion."
 /// The acting minion acts first in that combat (ANK 20221102); it returns
-/// to the after-resolution window (rules-qa 41.5).
+/// to the after-resolution window. A created vampire is not unique
+/// (rules-qa 41.5).
 pub static GUARDIAN_THE: VampireDef = VampireDef {
     name: "Guardian, The",
     printed: &[own(
@@ -801,8 +802,8 @@ const HECATA_OR_OBLIVION: &[CardFilter] =
 /// life as a +1 stealth action that costs 1 blood." Put in play, not
 /// recruited: no requirement, X = 0, its inferior version, able to act this
 /// turn once unlocked (LSJ 20100204, 20040518-2, 20100302-1; RBK
-/// recruit-ally). Offered while the ash heap holds one; picked as the
-/// action resolves (rules-qa 41.6).
+/// recruit-ally). Offered while the ash heap holds one; named as the
+/// action is declared, gone by resolution: no effect (rules-qa 41.6).
 pub static HEL_BLA: VampireDef = VampireDef {
     name: "Hel-Blá",
     abilities: &[ModeDef {
@@ -1031,8 +1032,8 @@ pub static LENNY_BURKHEAD: VampireDef = VampireDef {
 
 /// "During your discard phase, you can move an animal retainer from a
 /// vampire you control to another vampire you control": once each discard
-/// phase (rules-qa 6.6), in torpor too (LSJ 20011022); the retainer named
-/// as the ability is used, the vampire it goes to as it resolves (rules-qa
+/// phase (rules-qa 6.6), in torpor too (LSJ 20011022); the retainer and
+/// the vampire it goes to both chosen as the ability is used (rules-qa
 /// 41.7).
 pub static LUCIANO_CARVALHO: VampireDef = VampireDef {
     name: "Luciano Carvalho",
@@ -1045,12 +1046,8 @@ pub static LUCIANO_CARVALHO: VampireDef = VampireDef {
                 R::Controlled,
             ],
         ),
-        ..mode_of(
-            &[Window::DiscardPhase],
-            Actor::Host,
-            &[],
-            &[Effect::MoveTargetToOwnVampire],
-        )
+        terms: Some(Terms::VampireToHoldTarget),
+        ..mode_of(&[Window::DiscardPhase], Actor::Host, &[], &[])
     }],
     ..VAMP
 };
@@ -1334,7 +1331,8 @@ pub static RAGNAR_NORDSTROM: VampireDef = VampireDef {
 /// blood to pay some or all of its blood or pool cost": announced with the
 /// card like a cost reduction, burned as the cost is paid; a locquipment
 /// played as equipment too (LSJ 20080107, LSJ 20080114); in torpor too
-/// (LSJ 20011022); not for a card found by a search (rules-qa 41.13).
+/// (LSJ 20011022); a card another puts in play is still played (a search,
+/// Contraband: rules-qa 41.13).
 pub static REGINA_BLAKE: VampireDef = VampireDef {
     name: "Regina Blake",
     printed: &[own(
@@ -1536,10 +1534,10 @@ pub static SREELEKHA: VampireDef = VampireDef {
 /// "During your unlock phase, you can move 1 blood or life between Sri and
 /// a mortal or mage ally you control, not to exceed their starting life":
 /// one move each unlock phase, either way (rules-qa 6.6), in torpor too
-/// (LSJ 20011022); a move that cannot take place — to an ally at its
-/// starting life, to Sri at her capacity — is not offered; an ally giving
-/// its last life burns (rules-qa 41.8). No mage ally is in the engine
-/// pool: the generator labels none.
+/// (LSJ 20011022); the starting-life cap is the ally's — not offered to an
+/// ally at its starting life —, Sri's blood above her capacity draining as
+/// usual; an ally giving its last life burns (rules-qa 41.8). No mage ally
+/// is in the engine pool: the generator labels none.
 pub static SRI_SANSA: VampireDef = VampireDef {
     name: "Sri Sansa",
     abilities: &[
@@ -1570,7 +1568,7 @@ pub static SRI_SANSA: VampireDef = VampireDef {
             ..mode_of(
                 &[Window::UnlockPhaseOwn],
                 Actor::Host,
-                &[R::HostBelowCapacity],
+                &[],
                 &[Effect::TargetBloodToHost(1)],
             )
         },

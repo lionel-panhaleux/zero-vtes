@@ -1234,9 +1234,14 @@ impl GameState {
                 reqs.iter()
                     .all(|&q| self.printed_holds(q, source, actor, ctx))
             }),
+            // Unique: a crypt card — not a created vampire (Childe of the
+            // Revolution, Waters of Duat; rules-qa 41.5).
             R::ControlsNoReadyOlderOfClan(clan) => !self.minions_of(src.owner).any(|o| {
                 let w = &self.minions[o.index()];
-                w.ready() && w.clan() == Some(clan) && self.younger_than(source, o)
+                matches!(w.kind, MinionKind::Vampire(_))
+                    && w.ready()
+                    && w.clan() == Some(clan)
+                    && self.younger_than(source, o)
             }),
             R::ControlsVampireNamed(name) => self
                 .minions

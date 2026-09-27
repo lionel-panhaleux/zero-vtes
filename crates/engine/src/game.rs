@@ -404,9 +404,7 @@ impl Engine {
         match &self.flow {
             Flow::MasterPhase => Some(self.master_request()),
             Flow::PlayTerms { ctx, .. } => Some(self.terms_request(ctx)),
-            Flow::CostTerms {
-                ctx, pending, then, ..
-            } => Some(self.cost_terms_request(ctx, *pending, *then)),
+            Flow::CostTerms { ctx, pending, .. } => Some(self.cost_terms_request(ctx, *pending)),
             Flow::AsPlayed { stack, .. } => self.as_played_request(stack),
             Flow::MinionPhase => Some(DecisionRequest::new(
                 st.active,
@@ -573,6 +571,16 @@ impl Engine {
                 },
                 Choice::FindCard(card),
             ) => self.ability_card_apply(source, ability, target, *resume, *card),
+            (
+                Flow::AbilityTerms {
+                    source,
+                    ability,
+                    target,
+                    resume,
+                    ..
+                },
+                Choice::ChooseMinion(m),
+            ) => self.ability_minion_apply(source, ability, target, *resume, *m),
             (Flow::RiderTerms { card, left, resume }, c) => {
                 self.rider_terms_apply(card, left, resume, c)
             }

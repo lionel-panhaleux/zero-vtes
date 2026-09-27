@@ -923,9 +923,9 @@ pub enum Requirement {
     /// The vampire's controller controls a vampire in play of this name
     /// ("while you control Mithras").
     ControlsVampireNamed(&'static str),
-    /// The vampire's controller controls no ready vampire of this clan
-    /// older than it (The Guardian: "unless you control a ready unique
-    /// older Nosferatu" — every vampire is unique).
+    /// The vampire's controller controls no ready unique vampire (a crypt
+    /// card, not a created one) of this clan older than it (The Guardian:
+    /// "unless you control a ready unique older Nosferatu").
     ControlsNoReadyOlderOfClan(&'static str),
     /// The Methuselah controls a locked minion ("if you control a locked
     /// minion", Elen Kamjian).
@@ -1622,6 +1622,10 @@ pub enum Terms {
     /// A card in the user's ash heap, chosen by name as the ability is used
     /// (Mora, the Death Seer).
     AshCard,
+    /// Another vampire of the user's, in torpor or not, able to hold the
+    /// target card, chosen as the ability is used; the card moves onto it
+    /// (Luciano Carvalho, rules-qa 41.7).
+    VampireToHoldTarget,
     /// X pool, 1 to the user's pool (Oxford University, England).
     XPool,
     /// X counters, 1 to the card's counters (Alamut).
@@ -2233,8 +2237,9 @@ pub enum Effect {
     /// Move n blood from the host to the target minion, not to exceed its
     /// starting life (Sri Sansa).
     HostBloodToTarget(u8),
-    /// Move n blood or life from the target minion to the host, not to
-    /// exceed its capacity (Sri Sansa); an ally left with no life burns.
+    /// Move n blood or life from the target minion to the host, blood above
+    /// its capacity draining as usual (Sri Sansa); an ally left with no
+    /// life burns.
     TargetBloodToHost(u8),
     /// The host enters combat with the acting minion, which acts first, the
     /// combat over returning to the after-resolution window (The Guardian;
@@ -2244,11 +2249,6 @@ pub enum Effect {
     /// takes n unpreventable damage" (Gnaeus Aemilius Augustinus): chosen
     /// as it resolves, none if they have none.
     PreyChoosesMinionDamaged(u8),
-    /// Move the target card from the vampire it is on to another vampire of
-    /// the user's that can hold it, chosen as the effect resolves (Luciano
-    /// Carvalho: "move an animal retainer from a vampire you control to
-    /// another vampire you control").
-    MoveTargetToOwnVampire,
     /// The acting minion gets -n stealth (Screamer).
     ReduceStealth(u8),
     /// Unlock this card — an ally's own card unlocks the ally (The Vozhd
@@ -2506,8 +2506,9 @@ pub enum Effect {
     RaiseAllyWhenEmpty(&'static [CardFilter]),
     /// "Move an ally requiring Hecata or Oblivion [obl] from your ash heap
     /// to your ready region, locked with life equal to its starting life"
-    /// (Hel-Blá): an ally matching one of these, picked as the action
-    /// resolves, put in play like Split the Veil's (LSJ 20100204).
+    /// (Hel-Blá): an ally matching one of these, named as the action is
+    /// declared (rules-qa 41.6), put in play like Split the Veil's as it
+    /// resolves (LSJ 20100204).
     AllyFromAshLocked(&'static [CardFilter]),
     /// "Remove an ally in any Methuselah's ash heap from the game to gain n
     /// blood (and unlock)" (Psychophagia): the ally named as it was played

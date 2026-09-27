@@ -55,8 +55,11 @@ open gaps, what remains); history in `git log` (commit messages are detailed).
   could change them yet.
 - Keep legal no-op plays (cycling a card is a real option); only illegal-target
   actions are masked (rules-qa 17.4).
-- A reading no ruling settles is implemented and recorded as a question in a
-  new rules-qa batch. Card text addresses its controller by default (32.7); Ⓓ
+- Before designing a card, apply rules-qa's "Default readings" (choices at
+  declaration; a card played by another card is still played, reductions
+  apply; costs payable even if the payer burns; caps read narrowly). A reading
+  no ruling settles is implemented and recorded as a question in a new
+  rules-qa batch. Card text addresses its controller by default (32.7); Ⓓ
   is only indicative (20.1).
 - The owner may add legacy cards to close test loops (e.g. a sterile baron);
   hard cards to stress the engine later: Rötschreck, Outside the Hourglass,

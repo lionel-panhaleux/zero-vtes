@@ -705,8 +705,10 @@ slice-11 cards by section).
   the card played (`PrintedCtx::card`, `R::PlayedCard`). Printed cost
   reductions (`GameState::printed_cost_off`: pool, blood, "blood or pool")
   apply wherever the minion pays a card's cost, a card another puts in play
-  included (Piper, Contraband); Regina Blake's blood is announced with the
-  card like a reduction (`PlayCtx::blood_payer`, `Engine::blood_payers`).
+  included — it is still played (Piper, Contraband, a search; rules-qa
+  41.13); Regina Blake's blood is announced with the card like a reduction
+  (`PlayCtx::blood_payer`, `Engine::blood_payers`), paid with the named or
+  found card's cost in `Engine::pay_named_discounts`.
 - "Plays cards requiring a <clan> as if" (`VampireDef::plays_as`) counts at
   card plays only (`GameState::meets_clan`: clan requirement, target, terms,
   `R::ControlsReadyClan`); a card's effects in play read the clan itself
@@ -787,8 +789,7 @@ Still true today; "(verify)" marks items inferred from older notes.
   (opponent's strike cards +1), Marchesa Liliana (a pick-seven removal terms
   flow), Mithras (block/vote toll: `Stat::BlockToll` and
   `Stat::VoteAgainstToll` now exist), Ragnar Nordstrom (Protean discount:
-  `Stat::BloodCostOff` now exists). Every other vampire is defined; the
-  slice-12a readings await the owner (rules-qa Batch 41).
+  `Stat::BloodCostOff` now exists). Every other vampire is defined.
 - **Inert clauses, no V5 tenant**: Blood Trade's boons; Fall of the Sabbat's
   Black Hand; The Fourth Cycle's conviction cards; "referendum passes
   automatically" (Amici Noctis, Voter Captivation rows blocked); first strike and
@@ -842,7 +843,7 @@ Still true today; "(verify)" marks items inferred from older notes.
   humans.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer.
 
-Definitions: 425, 880 tests
+Definitions: 425, 882 tests
 
 ## Outlook: deck building (post-v1)
 

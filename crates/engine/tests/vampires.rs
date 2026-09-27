@@ -2407,7 +2407,8 @@ fn adelino_and_doc_martina_rescue_for_less_whoever_pays() {
 
 // Sergio Bueno: a minion with his Methuselah's corruption counters burns 1
 // blood to attempt to block him — none with no blood; a clean one attempts
-// for free; an ally pays in life, never its last one. From torpor too (his
+// for free; an ally pays in life — its last one too: it burns and its
+// attempt fails, the other ally may still attempt. From torpor too (his
 // leave-torpor action).
 // Rulings: [LSJ 20011022].
 #[test]
@@ -2441,6 +2442,9 @@ fn sergio_bueno_makes_corrupted_minions_burn_blood_or_life_to_block_him() {
     }
     let life = blood(&e, agent);
     pick(&mut e, bleed(sergio));
+    until(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    pick(&mut e, block(hurt));
+    assert!(!e.state.minions[hurt.index()].in_play);
     let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     assert!(!req.options.contains(&block(hurt)));
     pick(&mut e, block(agent));
@@ -2578,8 +2582,9 @@ fn use_on_ally(m: MinionId, ability: u8, ally: MinionId) -> Choice {
 
 // Sri Sansa, in torpor, moves 1 blood or life between her and a mortal ally
 // her Methuselah controls during his unlock phase — once each unlock phase,
-// either way; not to an ally at its starting life, not to Sri at her
-// capacity, never with a zombie; an ally giving its last life burns.
+// either way; not to an ally at its starting life (its cap), never with a
+// zombie; to Sri at her capacity it drains off as usual; an ally giving its
+// last life burns.
 // Rulings: [LSJ 20011022].
 #[test]
 fn sri_sansa_moves_blood_or_life_with_a_mortal_ally_in_the_unlock_phase() {
@@ -2607,24 +2612,23 @@ fn sri_sansa_moves_blood_or_life_with_a_mortal_ally_in_the_unlock_phase() {
         |o| matches!(o, Choice::UseAbility { source: AbilitySource::Vampire(m), .. } if *m == sri),
     );
 
-    // At her capacity, nothing comes to her; an ally's last life burns it.
+    // At her capacity the blood still moves, and drains off from her; an
+    // ally's last life burns it.
     let cap = e.state.capacity_of(sri).unwrap();
     e.state.minions[sri.index()].blood = cap;
-    let req = own_unlock(&mut e, SeatId(0));
-    assert!(!req.options.contains(&use_on_ally(sri, 1, agent)));
-    e.state.minions[sri.index()].blood = cap - 1;
     e.state.minions[agent.index()].blood = 1;
-    let req = request(&mut e);
+    let req = own_unlock(&mut e, SeatId(0));
     assert!(req.options.contains(&use_on_ally(sri, 1, agent)));
     pick(&mut e, use_on_ally(sri, 1, agent));
+    request(&mut e);
     assert_eq!(blood(&e, sri), cap);
     assert!(!e.state.minions[agent.index()].in_play);
 }
 
 // Luciano Carvalho, in torpor, moves an animal retainer (Raven Spy) from a
 // vampire his Methuselah controls to another — himself included, not the
-// one it is on — during the discard phase, once; a non-animal retainer
-// (Revenant) is not offered.
+// one it is on — during the discard phase, once, both chosen as he uses it;
+// a non-animal retainer (Revenant) is not offered.
 // Rulings: [LSJ 20011022].
 #[test]
 fn luciano_carvalho_moves_an_animal_retainer_between_his_vampires() {
@@ -2644,7 +2648,8 @@ fn luciano_carvalho_moves_an_animal_retainer_between_his_vampires() {
     let req = until(&mut e, SeatId(0), WindowLabel::DiscardPhase);
     assert!(!req.options.contains(&move_card(ghoul)));
     pick(&mut e, move_card(spy));
-    let req = expect(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    // Where to, announced with the use.
+    let req = expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
     assert!(!req.options.contains(&Choice::ChooseMinion(a)));
     assert!(req.options.contains(&Choice::ChooseMinion(luciano)));
     pick(&mut e, Choice::ChooseMinion(b));
@@ -2718,6 +2723,42 @@ fn the_guardian_performs_directed_actions_only_beside_an_older_nosferatu() {
     }
 }
 
+// "A ready unique older Nosferatu": a created vampire is not unique — a
+// Nosferatu Childe of the Revolution raised to capacity 5 (four Discipline
+// master cards) does not free the Guardian's bleed.
+#[test]
+fn the_guardian_is_not_freed_by_a_created_older_nosferatu() {
+    use zvtes::cards::{Layer, Modifier, Scope};
+    use zvtes::state::{Minion, MinionKind};
+    let mut e = bare();
+    let guardian = add(&mut e, 0, "Guardian, The");
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let childe = in_play(&mut e, "Childe of the Revolution", 0, None);
+    e.state.minions.push(Minion::new(
+        SeatId(0),
+        MinionKind::Created {
+            card: find_library("Childe of the Revolution"),
+            id: CardId(childe as u32),
+            clan: "Nosferatu",
+            sect: zvtes::crypt::Sect::Anarch,
+        },
+        1,
+    ));
+    let created = MinionId(e.state.minions.len() as u32 - 1);
+    e.state.cards[childe].body = Some(created);
+    for _ in 0..4 {
+        let c = in_play(&mut e, "Celerity", 0, Some(created));
+        e.state.layers.push(Layer {
+            scope: Scope::InPlay,
+            modifier: Modifier::DisciplineLevel("cel"),
+            source: CardId(c as u32),
+        });
+    }
+    assert_eq!(e.state.capacity_of(created), Some(5));
+    let req = request(&mut e);
+    assert!(!req.options.contains(&bleed(guardian)));
+}
+
 // The Guardian locks after a successful bleed against his Methuselah to
 // enter combat with the bleeder, which acts first (the ledger row: "the
 // opponent is the acting minion and plays their combat effects first");
@@ -2752,10 +2793,11 @@ fn the_guardian_enters_combat_with_a_successful_bleeder() {
 
 // Hel-Blá moves an ally requiring Hecata or Oblivion from her Methuselah's
 // ash heap to the ready region as a +1 stealth action that costs 1 blood:
-// picked at resolution (Screamer or Bone Shambler, not ECTU Operative),
-// locked, at its starting life, put in play rather than recruited (no
-// requirement, no cost: it may act this turn once unlocked). Not offered
-// with no such ally in the ash heap.
+// named as the action is declared (Screamer or Bone Shambler, not ECTU
+// Operative), put in play at resolution locked, at its starting life, not
+// recruited (no requirement, no cost: it may act this turn once unlocked).
+// Not offered with no such ally in the ash heap; the named ally gone by
+// resolution, the action has no effect (its blood still paid).
 // Rulings: [LSJ 20100204] [LSJ 20040518-2] [LSJ 20100302-1] [RBK equip] [RBK recruit-ally] [RBK employ-retainer].
 #[test]
 fn hel_bla_moves_a_hecata_or_oblivion_ally_from_the_ash_heap() {
@@ -2767,13 +2809,15 @@ fn hel_bla_moves_a_hecata_or_oblivion_ally_from_the_ash_heap() {
 
     let mut e = bare();
     let hel = add(&mut e, 0, "Hel-Blá");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     for c in ["Screamer", "Bone Shambler", "ECTU Operative"] {
         e.state.seats[0].ash.push(find_library(c));
     }
     let pool_before = e.state.seats[0].pool;
     pick(&mut e, printed_action(hel, 0, Target::None));
-    let req = until(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    // Named at once, before any block.
+    let req = expect(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
     let shambler = find_library("Bone Shambler");
     assert!(req
         .options
@@ -2782,6 +2826,8 @@ fn hel_bla_moves_a_hecata_or_oblivion_ally_from_the_ash_heap() {
         .options
         .contains(&Choice::FindCard(find_library("ECTU Operative"))));
     pick(&mut e, Choice::FindCard(shambler));
+    assert!(e.state.minions.iter().all(|m| !m.is_ally()));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     let ally = e
         .state
         .minions
@@ -2800,6 +2846,17 @@ fn hel_bla_moves_a_hecata_or_oblivion_ally_from_the_ash_heap() {
     );
     assert!(!e.state.seats[0].ash.contains(&shambler));
     assert_eq!((blood(&e, hel), e.state.seats[0].pool), (3, pool_before));
+
+    let mut e = bare();
+    let hel = add(&mut e, 0, "Hel-Blá");
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.state.seats[0].ash.push(shambler);
+    // The only one: named without a decision.
+    pick(&mut e, printed_action(hel, 0, Target::None));
+    e.state.seats[0].ash.clear();
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.minions.iter().all(|m| !m.is_ally()));
+    assert_eq!(blood(&e, hel), 3);
 }
 
 // Anne-Marie Bourgeois equips a .44 Magnum (2 pool) for 1 pool.
@@ -2971,6 +3028,29 @@ fn lady_scarlett_churchill_plays_toreador_cards_as_a_toreador() {
     until(&mut e, SeatId(1), WindowLabel::MinionPhase);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.minions[lady.index()].locked);
+}
+
+// A card another card puts in play is still played: Regina Blake's blood
+// pays the Living Manse a Tzimisce's Vast Wealth finds (rules-qa 41.13).
+#[test]
+fn regina_blake_pays_for_a_location_found_by_a_search() {
+    let mut e = bare();
+    let regina = e.add_minion(SeatId(0), find_card("Regina Blake"), 3, false);
+    let tzimisce = e.add_minion(SeatId(0), plain("Tzimisce", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let wealth = in_play(&mut e, "Vast Wealth", 0, Some(tzimisce));
+    e.state.seats[0].library = vec![find_library("Living Manse")];
+    pick(&mut e, granted(wealth as u32, tzimisce));
+    let req = until(&mut e, SeatId(0), WindowLabel::PlayTerms);
+    assert!(req.options.contains(&Choice::Pass));
+    pick(&mut e, Choice::ChooseMinion(regina));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((blood(&e, tzimisce), blood(&e, regina)), (4, 2));
+    assert!(e
+        .state
+        .cards
+        .iter()
+        .any(|c| c.card == find_library("Living Manse") && c.host == Some(tzimisce)));
 }
 
 // Regina Blake, in torpor, pays 1 of a location's cost with her blood as

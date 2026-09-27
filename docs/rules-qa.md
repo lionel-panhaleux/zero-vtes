@@ -1,7 +1,7 @@
 # Rules Q&A — ruling reference
 
 Owner rulings (VEKN judge) on VTES rules questions raised while building the
-engine, Batches 1–41 (Batch 41 open). Each item is the settled rule, stated as fact; the
+engine, Batches 1–41. Each item is the settled rule, stated as fact; the
 question framing, engine mechanics, test names and confirmations are dropped
 deliberately: the code and its tests are the reference for how a rule is
 implemented, and they point back here through `rules-qa N.M` comments.
@@ -14,6 +14,36 @@ Conventions:
 - Ruling refs as in KRCG: [LSJ 19980302], ANK/RTR/TOM/PIB yyyymmdd; "advanced
   rules §x" = `../vtes-advanced-rules`; "spec §x" = its numbered sections.
 - _open_ marks an item with no recorded owner answer (engine reading stated).
+
+## Default readings — apply before asking
+
+Patterns the engine's first readings got wrong repeatedly; each was corrected
+by the owner. Apply them to every new card; only a ruling overrides them.
+
+- **Choices are made at declaration.** Whatever a card or ability names or
+  chooses (a target, an ally to fetch, a retainer and where it goes, an amount)
+  is chosen as it is played / used / the action is announced — never at
+  resolution. Only a random or searched result is known at resolution. At
+  resolution the choices are re-checked: gone or illegal → fizzle. (31.2,
+  32.12, 38.1, 41.6, 41.7)
+- **A played card is played, however it came.** A card played from a search,
+  from the ash heap, by Contraband, Piper, Vast Wealth… is played, not "the
+  normal way" but still played: cost reductions apply, "when played" effects
+  and "cannot play" bans apply. Only an effect that says *put in play* does not
+  play the card. (36.5, 38.5, 40.10, 41.13)
+- **A cost may be paid even if paying burns or ousts the payer**, as long as
+  the payer has it: an ally pays its last life and burns (its attempt/effect
+  then fails), a Methuselah pays their last pool and is ousted. (38.5, 41.4)
+- **Limits and caps read on the words they qualify**, no further: "not to exceed
+  their starting life" caps allies only; "once each round" is one use for one
+  strike or damaging effect. (38.8, 41.8)
+- **Properties are the card's, never assumed:** not every vampire is unique
+  (created vampires: Embrace, Childe of the Revolution); a card on a minion is
+  controlled by the minion's controller (38.4, 41.5).
+- **Choosing in a referendum's terms is never targeting.** (38.6)
+- **Card text addresses its controller** by default (32.7); **Ⓓ is only a
+  reminder** (20.1); **conditions are read live**; **legal no-op plays stay
+  offered** (25.5).
 
 ## Index
 
@@ -598,7 +628,7 @@ Conventions:
 
 **36.4** "Use a master phase action to …" (Open War, Twilight Camp) is not a "during your master phase" ability: usable as often as MPAs are spent.
 
-**36.5** Reductions reach a card put in play by another effect (Piper, Contraband) unless the reduction's text requires the card to be played normally through an action: The Line, The Shard, Ravnos Carnival, Ravnos Cache apply (announced once named); Charisma's "recruit ally actions" does not (33.3). Cards found by a search: 38.5.
+**36.5** Reductions reach a card put in play by another effect (Piper, Contraband) unless the reduction's text requires the card to be played normally through an action: The Line, The Shard, Ravnos Carnival, Ravnos Cache apply (announced once named); Charisma's "recruit ally actions" does not (33.3). Cards found by a search: 38.5. Such a card is still played (41.13).
 
 ## Batch 37 — Fleshforge Chamber
 
@@ -660,30 +690,30 @@ Conventions:
 
 ## Batch 41 — vampires' printed text (slice 12a)
 
-**41.1** Abraham Mellon _(open)_: "can play cards requiring a Tremere as if he were a Tremere" covers only the cards he plays, played normally (LSJ 20050119) — not his Methuselah's master cards requiring a ready Tremere (Chantry, Arcane Library…), unlike Lady Scarlett's "you and". No minion card in the pool requires a Tremere, so the clause has no tenant. Engine reading as stated.
+**41.1** Abraham Mellon plays cards requiring a Tremere as one only for the cards he plays, played normally (LSJ 20050119) — not his Methuselah's master cards requiring a ready Tremere (Chantry, Arcane Library…), unlike Lady Scarlett's "you and". No minion card in the pool requires a Tremere: the clause has no tenant.
 
-**41.2** Lady Scarlett Churchill _(open)_: her Methuselah's cards requiring a Toreador count her as one to be played (Art Museum, Society Hunting Ground; Toreador Grand Ball's two Toreador, its locked one, its second one); the card's effects in play never do — as the locked Toreador she unlocks as normal (ANK 20220816-2), and as the second one her non-bleed actions are not made unblockable either; a hunting ground's blood for a Toreador does not reach her. Engine reading as stated.
+**41.2** Lady Scarlett Churchill: her Methuselah's cards requiring a Toreador count her as one to be played (Art Museum, Society Hunting Ground; Toreador Grand Ball's two Toreador, its locked one, its second one); the card's effects in play never do — as the locked Toreador she unlocks as normal (ANK 20220816-2), as the second one her non-bleed actions are not made unblockable, a hunting ground's blood for a Toreador does not reach her.
 
-**41.3** Alexander Silverson _(open)_: each vampire casting votes against a referendum his political action called burns 1 blood (himself included; one with no blood cannot vote against); a Methuselah's ballots (the Edge, a political action card's vote) cost nothing — "vampires must burn" reads only vampire sources. A blood hunt called on him is not called by him. Engine reading as stated.
+**41.3** Alexander Silverson: each vampire casting votes against a referendum his political action called burns 1 blood (himself included; one with no blood cannot vote against); a Methuselah's ballots (the Edge, a political action card's vote) cost nothing. A blood hunt called on him is not called by him.
 
-**41.4** Sergio Bueno _(open)_: an ally with his Methuselah's corruption counters pays the block toll in life; one with 1 life cannot attempt (paying would burn it before the attempt exists). Engine reading; the alternative is to let it pay, burn, and fail the attempt.
+**41.4** Sergio Bueno: an ally with his Methuselah's corruption counters pays the block toll in life, its last one included — it then burns and its attempt fails (owner correction: it may pay).
 
-**41.5** The Guardian _(open)_: his combat begins as he uses the ability in the bleed's after-resolution window, the bleeder acting first (ANK 20221102; advanced rules §4.1.1 names him among "the minion the effect sends into combat takes that role" — read here as the ruling says); once it ends the after-resolution window opens again for every Methuselah. "Unique older Nosferatu": every vampire is unique; older is a higher capacity; ready, any of his Methuselah's. His directed actions are barred wherever an action is declared: bleeds, rescue or diablerie of another Methuselah's vampire, action cards and granted actions aimed at another Methuselah, their minion or their card. Engine reading as stated.
+**41.5** The Guardian: his combat begins as he uses the ability in the bleed's after-resolution window, the bleeder acting first (ANK 20221102); once it ends the after-resolution window opens again for every Methuselah. "Ready unique older Nosferatu": a vampire from the crypt — a created vampire (Childe of the Revolution, Waters of Duat) is not unique (owner correction) —, older being a higher capacity, any of his Methuselah's. His directed actions are barred wherever an action is declared: bleeds, rescue or diablerie of another Methuselah's vampire, action cards and granted actions aimed at another Methuselah, their minion or their card.
 
-**41.6** Hel-Blá _(open)_: the ally is chosen as the action resolves (as Sakhar's search, 17.1 — not named at declaration like Psychophagia's, 32.12); the action is offered only while her Methuselah's ash heap holds an ally requiring Hecata or printing Oblivion; none left by resolution: successful, no effect (blood paid). Engine reading as stated.
+**41.6** Hel-Blá: the ally is named as the action is declared, as Psychophagia's (32.12; owner correction); the action is offered only while her Methuselah's ash heap holds an ally requiring Hecata or printing Oblivion; the ally gone by resolution: no effect (blood paid).
 
-**41.7** Luciano Carvalho _(open)_: the animal retainer is chosen as the ability is used, the vampire it moves to as it resolves — any other vampire his Methuselah controls able to hold it, himself and torpid ones included; once each discard phase (6.6). Engine reading as stated.
+**41.7** Luciano Carvalho: the animal retainer and the vampire it moves to are both chosen as the ability is used (owner correction) — any other vampire his Methuselah controls able to hold it, himself and torpid ones included; once each discard phase (6.6).
 
-**41.8** Sri Sansa _(open)_: one move each unlock phase, either way; a move that cannot happen is not offered (to an ally at its starting life, to Sri at her capacity: "not to exceed their starting life" read on both); an ally giving its last life burns. No mage ally is in the pool. Engine reading as stated.
+**41.8** Sri Sansa: one move each unlock phase, either way; "not to exceed their starting life" caps the ally only (owner correction) — blood moved to Sri above her capacity drains off as usual; no move is offered to an ally at its starting life; an ally giving its last life burns. No mage ally is in the pool.
 
-**41.9** Roger de Camden _(open)_: his maneuver is given and used as the range is determined (not banked for a later step), for any minion of his Methuselah in combat, himself included; once each turn. His cost reduction reads the card played: requiring the Hecata clan, or played using Oblivion (38.4); blood only (nothing off a pool cost). Engine reading as stated.
+**41.9** Roger de Camden: his maneuver is given and used as the range is determined, for any minion of his Methuselah in combat, himself included; once each turn. His cost reduction reads the card played: requiring the Hecata clan, or played using Oblivion (38.4); blood only.
 
-**41.10** Tommaso Sforza _(open)_: usable in the before-range step of a combat whose combatant on his Methuselah's side is a wraith or zombie ally, from out of the combat; once each turn. Engine reading as stated.
+**41.10** Tommaso Sforza: usable in the before-range step of a combat whose combatant on his Methuselah's side is a wraith or zombie ally, from out of the combat; once each turn.
 
-**41.11** Gnaeus Aemilius Augustinus _(open)_: a mandatory unlock-phase effect his Methuselah orders among theirs (7.8), his readiness read then; the prey chooses as it resolves among their ready minions (an ally takes the damage in life); none: nothing. Engine reading as stated.
+**41.11** Gnaeus Aemilius Augustinus: a mandatory unlock-phase effect his Methuselah orders among theirs (7.8), his readiness read then; the prey chooses as it resolves among their ready minions (an ally takes the damage in life); none: nothing.
 
-**41.12** Keegan and "Mother" Anja Giovanni _(open)_: "an action requiring a Gangrel / Hecata or Oblivion" is an action card, a retainer or ally card, or a card in play's granted action requiring it (Rewilding, Dog Pack's employ; a recruit of Aggressive Corpse) — never a rulebook action. Anja may unlock an acting Hecata already unlocked (no effect, kept, 4.3). Engine reading as stated.
+**41.12** Keegan and "Mother" Anja Giovanni: "an action requiring a Gangrel / Hecata or Oblivion" is an action card, a retainer or ally card, or a card in play's granted action requiring it (Rewilding, Dog Pack's employ, a recruit of Aggressive Corpse) — never a rulebook action. Anja may unlock an acting Hecata already unlocked (no effect, kept, 4.3).
 
-**41.13** Printed cost reductions _(open)_: Anne-Marie Bourgeois's "-1 pool" takes nothing off a blood cost; hers, Kuyén's and Máddji's reach a card put in play by another card (Piper per ANK 20210913; Contraband, a search — 36.5); Kuyén's "animals (allies and retainers)" are ally and retainer cards whose type line makes them animals. Regina Blake's blood is announced with the card like a reduction (36.1) and burned as the cost is paid, only if something is left to pay; not for a locquipment found by a search (not played). Engine reading as stated.
+**41.13** A card another card puts in play (a search, Contraband, Piper…) is still played, not the normal way (owner correction): cost reductions reach it — Regina Blake's blood for a location or locquipment found by a search included. Anne-Marie Bourgeois's "-1 pool" takes nothing off a blood cost; Kuyén's "animals (allies and retainers)" are ally and retainer cards whose type line makes them animals. Regina's blood is announced with the card like a reduction (36.1) and burned as the cost is paid, only if something is left to pay.
 
-**41.14** Adelino Da Silva _(open)_: "an older vampire" is one of higher capacity than his. Engine reading as stated.
+**41.14** Adelino Da Silva: "an older vampire" is one of higher capacity than his.

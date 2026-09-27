@@ -291,6 +291,8 @@ pub struct ActionCtx {
     pub conditional: Vec<Conditional>,
     /// The ash card and the hand card an exchange action named (Lenelle).
     pub exchange: Option<(u16, u16)>,
+    /// The ally in the ash heap named as the action was declared (Hel-Blá).
+    pub ash_named: Option<u16>,
     /// The action resolved into a combat (entering combat as a Ⓓ action):
     /// its after-combat window leads to after resolution (rules-qa 17.3).
     pub resolved: bool,
@@ -1005,8 +1007,8 @@ impl Engine {
         let obl = st.has_discipline(m, "obl");
         let veil = u8::from(a.veil_thins && !obl);
         // A printed toll on the acting vampire (Sergio Bueno), in torpor too
-        // (LSJ 20011022): an ally pays it in life, never its last one — it
-        // would burn before attempting (rules-qa 41.4).
+        // (LSJ 20011022): an ally pays it in life, its last one too — it
+        // burns and the attempt fails (rules-qa 41.4).
         let printed = st
             .printed_mod(
                 m,
@@ -1018,10 +1020,7 @@ impl Engine {
             )
             .max(0) as u8;
         let blood = veil + printed;
-        if veil > 0 && v.is_ally()
-            || v.blood < blood
-            || v.is_ally() && v.blood == printed && printed > 0
-        {
+        if veil > 0 && v.is_ally() || v.blood < blood {
             return None;
         }
         let wraith_or_zombie = st.minions[a.acting.index()]
@@ -1062,6 +1061,15 @@ impl Engine {
         let owner = self.state.minions[m.index()].owner;
         let v = &mut self.state.minions[m.index()];
         v.blood = v.blood.saturating_sub(blood);
+        // An ally paying its last life burns: its attempt fails (rules-qa
+        // 41.4).
+        if blood > 0 && v.is_ally() && v.blood == 0 {
+            self.burn_minion(m);
+            if self.action.as_ref().map(|a| a.state) == Some(ActionState::Attempt(m)) {
+                self.resign_attempt();
+            }
+            return;
+        }
         if deferred {
             if cards > 0 {
                 self.action
@@ -3067,7 +3075,7 @@ impl Engine {
                         && self.payable_with_potential(&ctx, true)
                     {
                         self.action = Some(a);
-                        if self.cost_sources(&ctx).is_empty() {
+                        if !self.cost_choices(&ctx) {
                             self.equip_found(ctx);
                         } else {
                             self.flow = Flow::CostTerms {
@@ -3412,12 +3420,16 @@ impl Engine {
                                 .cap_starting(t, self.state.minions[t.index()].blood + n);
                             self.state.minions[t.index()].blood = b;
                         }
-                        Effect::AllyFromAshLocked(of) => {
-                            self.interrupts.push(crate::draws::Interrupt::AllyFromAsh {
-                                seat,
-                                of,
-                                locked: true,
-                            });
+                        // The ally named as the action was declared, if still
+                        // there; gone: no effect (as Psychophagia's, rules-qa
+                        // 32.12).
+                        Effect::AllyFromAshLocked(_) => {
+                            let named = self.action.as_ref().and_then(|a| a.ash_named);
+                            if let Some(card) =
+                                named.filter(|c| self.state.seats[seat.index()].ash.contains(c))
+                            {
+                                self.raise_ash_ally(seat, card, true);
+                            }
                         }
                         // Both still ready (the target was re-checked above).
                         Effect::EnterCombatWithTarget => {
@@ -4018,7 +4030,7 @@ impl Engine {
                 self.rng
                     .shuffle(&mut self.state.seats[seat.index()].library);
                 let ctx = found_play(seat, minion, card);
-                if self.cost_sources(&ctx).is_empty() {
+                if !self.cost_choices(&ctx) {
                     self.equip_found(ctx);
                 } else {
                     self.flow = Flow::CostTerms {
