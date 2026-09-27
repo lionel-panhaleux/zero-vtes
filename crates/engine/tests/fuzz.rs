@@ -10,7 +10,7 @@ use std::collections::HashSet;
 
 use zvtes::agent::RandomLegal;
 use zvtes::cards::AbilitySource;
-use zvtes::crypt::{CRYPT, PRECONS};
+use zvtes::crypt::{CryptCard, CRYPT, PRECONS};
 use zvtes::decision::{ActionKind, Choice, WindowLabel};
 use zvtes::game::{Engine, Step, TURN_LIMIT};
 use zvtes::ids::{MinionId, SeatId};
@@ -301,16 +301,6 @@ fn opening(seed: u64) -> Engine {
     Engine::new(seed, 4)
 }
 
-/// Mid-game position: low pools, ready vampires at assorted blood (some at
-/// 0, so they can be wounded into torpor when they block), one torpor
-/// vampire per seat at assorted blood, a short crypt, fully-funded
-/// uncontrolled copies of one shared vampire (card contests) and of the
-/// Mannheim prince/baron pair (title contests), the Edge, and the slice-1
-/// cards in every hand (master phase, terms, as-played cancels). Random
-/// play from the opening never reaches torpor in the card-less pool (a
-/// vampire is only ever unlocked at 0 blood on its own turn, where it must
-/// hunt), nor an oust; this fixture exercises those paths. Deterministic in
-/// `seed`, so replay rebuilds the same start.
 /// A small set of unused V5 vampires whose superior disciplines cover
 /// `discs`: each pick is the vampire covering the most still-missing ones.
 fn cover(discs: &[&str], used: &[u16]) -> Vec<u16> {
@@ -546,20 +536,16 @@ const PRECON_SLICE: &[&str] = &[
     "Soak",
 ];
 
-fn midgame(seed: u64) -> Engine {
-    table(seed, SLICE, &[])
-}
-
-/// As `midgame`, the ally tables.
-fn allies_midgame(seed: u64) -> Engine {
-    table(seed, ALLY_SLICE, &[])
-}
-
-/// As `midgame`, the slice 11a tables (Obfuscate covered too).
-fn precon_midgame(seed: u64) -> Engine {
-    table(seed, PRECON_SLICE, &["OBF"])
-}
-
+/// Mid-game position: low pools, ready vampires at assorted blood (some at
+/// 0, so they can be wounded into torpor when they block), one torpor
+/// vampire per seat at assorted blood, a short crypt, fully-funded
+/// uncontrolled copies of one shared vampire (card contests) and of the
+/// Mannheim prince/baron pair (title contests), the Edge, and the slice-1
+/// cards in every hand (master phase, terms, as-played cancels). Random
+/// play from the opening never reaches torpor in the card-less pool (a
+/// vampire is only ever unlocked at 0 blood on its own turn, where it must
+/// hunt), nor an oust; this fixture exercises those paths. Deterministic in
+/// `seed`, so replay rebuilds the same start.
 fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
     let mut e = Engine::new(seed, 4);
     let mut rng = Rng::new(seed ^ 0x5eed);
@@ -674,7 +660,7 @@ fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
     e
 }
 
-fn play(seed: u64, start: fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<String>) {
+fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<String>) {
     let mut e = start(seed);
     let totals = zone_totals(&e);
     let mut agent = RandomLegal::new(seed ^ 0x00c0_ffee);
@@ -746,8 +732,10 @@ fn play(seed: u64, start: fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<Strin
     }
 }
 
-fn fuzz(start: fn(u64) -> Engine) -> HashSet<String> {
-    let mut seen = HashSet::new();
+/// Plays and replays every seed: the decision kinds taken, and whether a
+/// game ended before the time limit with an oust and a full VP awarded.
+fn fuzz(start: &dyn Fn(u64) -> Engine) -> (HashSet<String>, bool) {
+    let (mut seen, mut ousted) = (HashSet::new(), false);
     // `SEED_FROM=n` starts the sweep at seed n (debugging one failure).
     let from: u64 = std::env::var("SEED_FROM")
         .ok()
@@ -756,6 +744,7 @@ fn fuzz(start: fn(u64) -> Engine) -> HashSet<String> {
     for seed in from..SEEDS {
         let (played, vps, chosen) = play(seed, start);
         seen.extend(chosen);
+        ousted |= played.state.seats.iter().any(|s| s.ousted) && vps.iter().any(|&v| v >= 2);
         let hash = played.state.hash();
 
         // Replay: the recorded decision log reproduces the identical game.
@@ -782,7 +771,7 @@ fn fuzz(start: fn(u64) -> Engine) -> HashSet<String> {
             "state hash mismatch on replay (seed {seed})"
         );
     }
-    seen
+    (seen, ousted)
 }
 
 /// Coverage: random play must actually take every listed kind of decision,
@@ -797,9 +786,124 @@ fn covers(seen: &HashSet<String>, kinds: &[&str]) {
     );
 }
 
+/// A random table: `table` over `slice` (its vampires covering `extra`
+/// Disciplines too), then `setup`; random play must take the first `plays`
+/// slice cards' plays and every `covers` kind.
+struct Fixture {
+    slice: &'static [&'static str],
+    extra: &'static [&'static str],
+    plays: usize,
+    covers: &'static [&'static str],
+    /// Remove torpid twins (`untwin`).
+    untwin: bool,
+    setup: fn(&mut Engine, u64),
+    /// At least one game must end before the time limit with an oust and
+    /// a full VP awarded.
+    ousts: bool,
+}
+
+const BASE: Fixture = Fixture {
+    slice: &[],
+    extra: &[],
+    plays: 0,
+    covers: &[],
+    untwin: false,
+    setup: |_, _| {},
+    ousts: false,
+};
+
+fn run(f: &Fixture) {
+    let (seen, ousted) = fuzz(&|seed| {
+        let mut e = table(seed, f.slice, f.extra);
+        if f.untwin {
+            untwin(&mut e);
+        }
+        (f.setup)(&mut e, seed);
+        e
+    });
+    let plays: Vec<String> = f.slice[..f.plays]
+        .iter()
+        .map(|n| format!("play:{n}"))
+        .collect();
+    let kinds: Vec<&str> = plays
+        .iter()
+        .map(String::as_str)
+        .chain(f.covers.iter().copied())
+        .collect();
+    covers(&seen, &kinds);
+    assert!(
+        !f.ousts || ousted,
+        "no oust in {SEEDS} mid-game random games"
+    );
+}
+
+/// `table` may give a seat's torpid vampire the name of a later seat's
+/// titled one, both uncontested: no game reaches that, and Graverobbing
+/// would put both under one Methuselah. The torpid copy leaves.
+fn untwin(e: &mut Engine) {
+    let st = &mut e.state;
+    for i in 0..st.minions.len() {
+        let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
+        let twin = st
+            .minions
+            .iter()
+            .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
+        if twin && st.minions[i].in_torpor {
+            st.minions[i].in_play = false;
+        }
+    }
+}
+
+/// Whether a vampire is nowhere on the table yet (no contest to stage).
+fn absent(e: &Engine, card: u16) -> bool {
+    !e.state.minions.iter().any(|m| m.crypt_card() == Some(card))
+        && !e
+            .state
+            .seats
+            .iter()
+            .any(|s| s.crypt.contains(&card) || s.uncontrolled.iter().any(|u| u.card == card))
+}
+
+/// One vampire per seat among the absent ones `of`, at up to `blood`.
+fn per_seat(e: &mut Engine, of: impl Fn(&CryptCard) -> bool, blood: u8) {
+    let cards: Vec<u16> = CRYPT
+        .iter()
+        .enumerate()
+        .filter(|(i, c)| of(c) && absent(e, *i as u16))
+        .map(|(i, _)| i as u16)
+        .take(4)
+        .collect();
+    for (s, &card) in cards.iter().enumerate() {
+        let blood = CRYPT[card as usize].capacity.min(blood);
+        e.add_minion(SeatId(s as u8), card, blood, false);
+    }
+}
+
+/// The named vampires, where absent, dealt around the table at 4 blood.
+fn named(e: &mut Engine, names: &[&str]) {
+    for (s, name) in names.iter().enumerate() {
+        let card = find_card(name);
+        if absent(e, card) {
+            e.add_minion(SeatId((s % 4) as u8), card, 4, false);
+        }
+    }
+}
+
+/// One #[test] per fixture (run in parallel). The attribute shares its line
+/// with the `fn`: scripts/rulings_v5.py reads a lone `#[test]` line as a
+/// test function at column 0.
+macro_rules! fuzz_tests {
+    ($($(#[$doc:meta])* $name:ident: $fixture:expr;)*) => {$(
+        $(#[$doc])*
+        #[test] fn $name() {
+            run(&$fixture);
+        }
+    )*};
+}
+
 #[test]
 fn random_games_from_the_opening_terminate_hold_invariants_and_replay() {
-    let seen = fuzz(opening);
+    let (seen, _) = fuzz(&opening);
     covers(
         &seen,
         &[
@@ -817,12 +921,12 @@ fn random_games_from_the_opening_terminate_hold_invariants_and_replay() {
     );
 }
 
-#[test]
-fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts() {
-    let seen = fuzz(midgame);
-    covers(
-        &seen,
-        &[
+fuzz_tests! {
+    /// The mid-game position (`table`): torpor, referendums, contests, card
+    /// plays and ousts.
+    random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts: Fixture {
+        slice: SLICE,
+        covers: &[
             "leave_torpor",
             "rescue",
             "pay_rescue",
@@ -1005,23 +1109,13 @@ fn random_games_from_midgame_reach_torpor_referendums_contests_plays_and_ousts()
             // ordered against another unlock effect; alone they elide, so
             // no key.)
         ],
-    );
-    // Ousts and game wins happen from here: at least one game must end
-    // before the time limit with a full VP awarded.
-    let ousted = (0..SEEDS).any(|seed| {
-        let (e, vps, _) = play(seed, midgame);
-        e.state.seats.iter().any(|s| s.ousted) && vps.iter().any(|&v| v >= 2)
-    });
-    assert!(ousted, "no oust in {SEEDS} mid-game random games");
-}
-
-/// Slice 10: random tables whose libraries are the allies and retainers.
-#[test]
-fn random_games_with_allies_and_retainers_hold_invariants_and_replay() {
-    let seen = fuzz(allies_midgame);
-    covers(
-        &seen,
-        &[
+        ousts: true,
+        ..BASE
+    };
+    /// Slice 10: random tables whose libraries are the allies and retainers.
+    random_games_with_allies_and_retainers_hold_invariants_and_replay: Fixture {
+        slice: ALLY_SLICE,
+        covers: &[
             // (Feral Hound needs a Ravnos to employ it, City Star Taxi's
             // ability a Ravnos acting beside it, Double Deuce's rider a
             // hurt Double Deuce, The Vozhd of Gravesend's cancel an
@@ -1073,17 +1167,14 @@ fn random_games_with_allies_and_retainers_hold_invariants_and_replay() {
             "rider:Spectral Servitor",
             "play:Owl Companion",
         ],
-    );
-}
-
-/// Slice 11a: random tables whose libraries are the pre-built decks' cards
-/// built from the existing vocabulary.
-#[test]
-fn random_games_with_precon_cards_hold_invariants_and_replay() {
-    let seen = fuzz(precon_midgame);
-    covers(
-        &seen,
-        &[
+        ..BASE
+    };
+    /// Slice 11a: random tables whose libraries are the pre-built decks' cards
+    /// built from the existing vocabulary.
+    random_games_with_precon_cards_hold_invariants_and_replay: Fixture {
+        slice: PRECON_SLICE,
+        extra: &["OBF"],
+        covers: &[
             "play:Govern the Unaligned",
             "play:Enchant Kindred",
             "play:Intimidation",
@@ -1156,70 +1247,43 @@ fn random_games_with_precon_cards_hold_invariants_and_replay() {
             "ability:Market Square",
             "set_x",
         ],
-    );
-}
-
-/// The slice 11e tables' library: title cards, vote locations and archetypes,
-/// with political actions to vote on and a few strikes to fight with.
-const TITLES_SLICE: &[&str] = &[
-    "Toreador Justicar",
-    "Saulot's Guiding Wisdom",
-    "Rebel",
-    "Perfectionist",
-    "Saulot's Avenging Fist",
-    "Saulot's Healing Touch",
-    "Amici Noctis",
-    "Elysium: The Palace of Versailles",
-    "Power Structure",
-    "Ventrue Headquarters",
-    "Anarchist Uprising",
-    "Kine Resources Contested",
-    "Consanguineous Boon",
-    "Bewitching Oration",
-    "Roundhouse",
-    "Soak",
-];
-
-/// As `midgame`, the slice 11e tables, with an Independent Salubri per
-/// seat for Saulot's Guiding Wisdom and Valerius to steal princes' titles.
-fn titles_midgame(seed: u64) -> Engine {
-    let mut e = table(seed, TITLES_SLICE, &[]);
-    // Vampires nowhere on the table yet (no contest to stage).
-    let absent =
-        |e: &Engine, card: u16| {
-            !e.state.minions.iter().any(|m| m.crypt_card() == Some(card))
-                && !e.state.seats.iter().any(|s| {
-                    s.crypt.contains(&card) || s.uncontrolled.iter().any(|u| u.card == card)
-                })
-        };
-    let salubri: Vec<u16> = CRYPT
-        .iter()
-        .enumerate()
-        .filter(|(i, c)| {
-            c.clan == "Salubri"
-                && c.sect == zvtes::crypt::Sect::Independent
-                && absent(&e, *i as u16)
-        })
-        .map(|(i, _)| i as u16)
-        .take(4)
-        .collect();
-    for (s, &card) in salubri.iter().enumerate() {
-        e.add_minion(SeatId(s as u8), card, 3, false);
-    }
-    let valerius = find_card("Valerius");
-    if absent(&e, valerius) {
-        e.add_minion(SeatId((seed % 4) as u8), valerius, 4, false);
-    }
-    e
-}
-
-/// Slice 11e: random tables with title cards and vote locations.
-#[test]
-fn random_games_with_titles_and_votes_hold_invariants_and_replay() {
-    let seen = fuzz(titles_midgame);
-    covers(
-        &seen,
-        &[
+        ..BASE
+    };
+    /// Slices 11e and 11ab: title cards, vote locations and archetypes, the
+    /// pool's last political actions, with political actions to vote on and
+    /// a few strikes to fight with; an Independent
+    /// Salubri per seat for Saulot's Guiding Wisdom and Valerius to steal
+    /// princes' titles.
+    random_games_with_titles_and_political_actions_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Toreador Justicar",
+            "Saulot's Guiding Wisdom",
+            "Rebel",
+            "Perfectionist",
+            "Saulot's Avenging Fist",
+            "Saulot's Healing Touch",
+            "Amici Noctis",
+            "Elysium: The Palace of Versailles",
+            "Power Structure",
+            "Ventrue Headquarters",
+            "Anarchist Uprising",
+            "Kine Resources Contested",
+            "Consanguineous Boon",
+            "Bewitching Oration",
+            "Roundhouse",
+            "Soak",
+            "Archon",
+            "Disputed Territory",
+            "Malkavian Justicar",
+            "Raising the Portcullis",
+            "Revolutionary Council",
+            "Mobile HQ, Operation Antigen",
+            "Parthenon, The",
+            "Living Manse",
+            ".44 Magnum",
+            "Villein",
+        ],
+        covers: &[
             "play:Toreador Justicar",
             "play:Saulot's Guiding Wisdom",
             "ability:Saulot's Guiding Wisdom",
@@ -1241,79 +1305,61 @@ fn random_games_with_titles_and_votes_hold_invariants_and_replay() {
             "choose_minion",
             "pay_contest",
             "yield_contest",
+            "play:Archon",
+            "play:Disputed Territory",
+            "play:Malkavian Justicar",
+            "play:Raising the Portcullis",
+            "play:Revolutionary Council",
+            "ability:Archon",
+            "ability:Raising the Portcullis",
+            "choose_card",
+            "allocate_to_card",
         ],
-    );
-}
-
-/// The slice 11f tables' library: the combat staples, with weapons, dodges,
-/// additional strikes and Fortitude prevention to meet them.
-const STAPLES_SLICE: &[&str] = &[
-    "Blood Rage",
-    "Soul Burn",
-    "Carrion Crows",
-    "Hunger of Marduk",
-    "Bear's Skin",
-    "Dust Up",
-    "Form of the Wolf",
-    "Rolling with the Punches",
-    "Sculpt the Flesh",
-    "Touch of Oblivion",
-    "Pass Through Shadow",
-    "Slam",
-    "Aid from Bats",
-    "Pack Alpha",
-    "Raven Spy",
-    "Voracious Vermin",
-    "Weighted Walking Stick",
-    ".44 Magnum",
-    "Side Strike",
-    "Quickness",
-    "Majesty",
-    "Soak",
-    "Hidden Strength",
-    "Roundhouse",
-];
-
-/// As `midgame`, the slice 11f tables, with a Banu Haqim of Blood Sorcery
-/// per seat for Hunger of Marduk.
-fn staples_midgame(seed: u64) -> Engine {
-    let mut e = table(seed, STAPLES_SLICE, &[]);
-    let absent =
-        |e: &Engine, card: u16| {
-            !e.state.minions.iter().any(|m| m.crypt_card() == Some(card))
-                && !e.state.seats.iter().any(|s| {
-                    s.crypt.contains(&card) || s.uncontrolled.iter().any(|u| u.card == card)
-                })
-        };
-    let assassins: Vec<u16> = CRYPT
-        .iter()
-        .enumerate()
-        .filter(|(i, c)| {
-            c.clan == "Banu Haqim"
-                && c.disciplines.iter().any(|d| d.eq_ignore_ascii_case("tha"))
-                && absent(&e, *i as u16)
-        })
-        .map(|(i, _)| i as u16)
-        .take(4)
-        .collect();
-    for (s, &card) in assassins.iter().enumerate() {
-        e.add_minion(
-            SeatId(s as u8),
-            card,
-            CRYPT[card as usize].capacity.min(4),
-            false,
-        );
-    }
-    e
-}
-
-/// Slice 11f: random tables with the combat staples.
-#[test]
-fn random_games_with_combat_staples_hold_invariants_and_replay() {
-    let seen = fuzz(staples_midgame);
-    covers(
-        &seen,
-        &[
+        setup: |e, seed| {
+            per_seat(
+                e,
+                |c| c.clan == "Salubri" && c.sect == zvtes::crypt::Sect::Independent,
+                3,
+            );
+            let valerius = find_card("Valerius");
+            if absent(e, valerius) {
+                e.add_minion(SeatId((seed % 4) as u8), valerius, 4, false);
+            }
+        },
+        untwin: true,
+        ..BASE
+    };
+    /// Slice 11f: the combat staples, with weapons, dodges, additional strikes
+    /// and Fortitude prevention to meet them; a Banu Haqim of Blood Sorcery per
+    /// seat for Hunger of Marduk.
+    random_games_with_combat_staples_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Blood Rage",
+            "Soul Burn",
+            "Carrion Crows",
+            "Hunger of Marduk",
+            "Bear's Skin",
+            "Dust Up",
+            "Form of the Wolf",
+            "Rolling with the Punches",
+            "Sculpt the Flesh",
+            "Touch of Oblivion",
+            "Pass Through Shadow",
+            "Slam",
+            "Aid from Bats",
+            "Pack Alpha",
+            "Raven Spy",
+            "Voracious Vermin",
+            "Weighted Walking Stick",
+            ".44 Magnum",
+            "Side Strike",
+            "Quickness",
+            "Majesty",
+            "Soak",
+            "Hidden Strength",
+            "Roundhouse",
+        ],
+        covers: &[
             "play:Blood Rage",
             "play:Soul Burn",
             "play:Carrion Crows",
@@ -1335,208 +1381,84 @@ fn random_games_with_combat_staples_hold_invariants_and_replay() {
             // choice, elided: scripted in tests/precon.rs.)
             "employ_from_hand",
         ],
-    );
-}
-
-/// The slice 11k tables' library: action modifiers and reactions, with
-/// blocks to modify and bleeds to react to.
-const MODIFIERS_SLICE: &[&str] = &[
-    "Cloak the Gathering",
-    "Veil the Legions",
-    "Daring the Dawn",
-    "Freak Drive",
-    "Seduction",
-    "Sleeping Mind, The",
-    "Unleashing the Bestial Soul",
-    "Visions of Zapathasura",
-    "Change of Target",
-    "Shadow Cloak",
-    "Deflection",
-    "Enhanced Senses",
-    "Roundhouse",
-];
-
-/// As `midgame`, the slice 11k tables (Obfuscate and Obtenebration too),
-/// with a Salubri of Dominate per seat for Unleashing the Bestial Soul.
-fn modifiers_midgame(seed: u64) -> Engine {
-    let mut e = table(seed, MODIFIERS_SLICE, &["OBF", "OBL"]);
-    let absent =
-        |e: &Engine, card: u16| {
-            !e.state.minions.iter().any(|m| m.crypt_card() == Some(card))
-                && !e.state.seats.iter().any(|s| {
-                    s.crypt.contains(&card) || s.uncontrolled.iter().any(|u| u.card == card)
-                })
-        };
-    let salubri: Vec<u16> = CRYPT
-        .iter()
-        .enumerate()
-        .filter(|(i, c)| {
-            c.clan == "Salubri"
-                && c.disciplines.iter().any(|d| d.eq_ignore_ascii_case("dom"))
-                && absent(&e, *i as u16)
-        })
-        .map(|(i, _)| i as u16)
-        .take(4)
-        .collect();
-    for (s, &card) in salubri.iter().enumerate() {
-        e.add_minion(
-            SeatId(s as u8),
-            card,
-            CRYPT[card as usize].capacity.min(4),
-            false,
-        );
-    }
-    e
-}
-
-/// Slice 11k: random tables with action modifiers and reactions.
-#[test]
-fn random_games_with_action_modifiers_hold_invariants_and_replay() {
-    let seen = fuzz(modifiers_midgame);
-    covers(
-        &seen,
-        &[
-            "play:Cloak the Gathering",
-            "play:Veil the Legions",
-            "play:Daring the Dawn",
-            "play:Freak Drive",
-            "play:Seduction",
-            "play:Sleeping Mind, The",
-            "play:Unleashing the Bestial Soul",
-            "play:Visions of Zapathasura",
-            "play:Change of Target",
-            "play:Shadow Cloak",
+        setup: |e, _| {
+            per_seat(
+                e,
+                |c| {
+                    c.clan == "Banu Haqim"
+                        && c.disciplines.iter().any(|d| d.eq_ignore_ascii_case("tha"))
+                },
+                4,
+            )
+        },
+        ..BASE
+    };
+    /// Slices 11k, 11l and 11n: action modifiers and reactions, the cards
+    /// remembering a Methuselah and Eagle's Sight, with blocks to modify and
+    /// stealth past, bleeds to react to and redirect, actions directed at
+    /// others and cards to cancel; a Salubri of Dominate per seat for
+    /// Unleashing the Bestial Soul.
+    random_games_with_action_modifiers_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Cloak the Gathering",
+            "Veil the Legions",
+            "Daring the Dawn",
+            "Freak Drive",
+            "Seduction",
+            "Sleeping Mind, The",
+            "Unleashing the Bestial Soul",
+            "Visions of Zapathasura",
+            "Change of Target",
+            "Shadow Cloak",
+            "Spying Mission",
+            "Shadow Cast",
+            "Eagle's Sight",
+            "Form of Mist",
+            "Deflection",
+            "Enhanced Senses",
+            "Direct Intervention",
+            "Roundhouse",
         ],
-    );
-}
-
-/// The slice 11l tables' library: cards remembering a Methuselah, with
-/// blocks to stealth past, bleeds to redirect and cards to cancel.
-const REMEMBERING_SLICE: &[&str] = &[
-    "Spying Mission",
-    "Shadow Cast",
-    "Deflection",
-    "Enhanced Senses",
-    "Direct Intervention",
-    "Freak Drive",
-];
-
-/// Slice 11l: random tables with Spying Mission and Shadow Cast.
-#[test]
-fn random_games_with_remembering_cards_hold_invariants_and_replay() {
-    let seen = fuzz(|seed| table(seed, REMEMBERING_SLICE, &["OBF", "OBL"]));
-    covers(
-        &seen,
-        &[
-            "play:Spying Mission",
-            "play:Shadow Cast",
+        extra: &["OBF", "OBL"],
+        plays: 14,
+        covers: &[
             "ability:Shadow Cast",
         ],
-    );
-}
-
-/// The slice 11m tables' library: corruption counters and the
-/// multi-Discipline Anarch bleeds.
-const CORRUPTION_SLICE: &[&str] = &[
-    "Platinum Protocol, The",
-    "Break the Bonds",
-    "Enchanting Gaze",
-    "Revelation of the Serpent",
-    "Enhanced Senses",
-    "Majesty",
-];
-
-/// As `table`, with an Anarch of Obfuscate, Presence and Protean per seat
-/// (the bleeds' requirement), Faruq Abd al-Qadir and Aniel.
-fn corruption_midgame(seed: u64) -> Engine {
-    let mut e = table(seed, CORRUPTION_SLICE, &["OBF"]);
-    let present = |e: &Engine, card: u16| {
-        e.state.minions.iter().any(|m| m.crypt_card() == Some(card))
-            || e.state
-                .seats
-                .iter()
-                .any(|s| s.crypt.contains(&card) || s.uncontrolled.iter().any(|u| u.card == card))
+        setup: |e, _| {
+            per_seat(
+                e,
+                |c| {
+                    c.clan == "Salubri"
+                        && c.disciplines.iter().any(|d| d.eq_ignore_ascii_case("dom"))
+                },
+                4,
+            )
+        },
+        ..BASE
     };
-    for (s, name) in [
-        "Jenny Silver",
-        "Crystal Lynn",
-        "Nonu Dis",
-        "Hesha Ruhadze",
-        "Faruq Abd al-Qadir",
-        "Aniel",
-    ]
-    .iter()
-    .enumerate()
-    {
-        let card = find_card(name);
-        if !present(&e, card) {
-            e.add_minion(SeatId((s % 4) as u8), card, 4, false);
-        }
-    }
-    e
-}
-
-/// Slice 11m: random tables with corruption counters.
-#[test]
-fn random_games_with_corruption_hold_invariants_and_replay() {
-    let seen = fuzz(corruption_midgame);
-    covers(
-        &seen,
-        &[
-            "play:Platinum Protocol, The",
-            "play:Break the Bonds",
-            "play:Enchanting Gaze",
-            "play:Revelation of the Serpent",
-            "ability:Aniel",
-            "burn_corruption_to_fail",
+    /// Slice 11o: action cards — bleeds with riders, combat-entering actions,
+    /// cards put on the acting vampire.
+    random_games_with_action_cards_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Feast of the Soul's Secrets",
+            "Fleetness",
+            "Hunter's Mark",
+            "Line Brawl",
+            "Show of Force",
+            "Shroud of Decay",
+            "Rewilding",
+            "Preternatural Strength",
+            "Heroic Might",
+            "Rutor's Hand",
+            "Monstrous Form",
+            "Touch of Valeren",
+            "Biothaumaturgic Experiment",
+            "Revelations",
+            "Raven Spy",
+            "Elysian Fields",
         ],
-    );
-}
-
-/// The slice 11n tables' library: Eagle's Sight, with actions directed at
-/// others, continuations and barred blockers.
-const EAGLE_SLICE: &[&str] = &[
-    "Eagle's Sight",
-    "Form of Mist",
-    "Seduction",
-    "Enhanced Senses",
-];
-
-/// Slice 11n: random tables with Eagle's Sight.
-#[test]
-fn random_games_with_eagles_sight_hold_invariants_and_replay() {
-    let seen = fuzz(|seed| table(seed, EAGLE_SLICE, &[]));
-    covers(&seen, &["play:Eagle's Sight", "play:Form of Mist"]);
-}
-
-/// The slice 11o tables' library: action cards — bleeds with riders,
-/// combat-entering actions, cards put on the acting vampire.
-const ACTIONS_SLICE: &[&str] = &[
-    "Feast of the Soul's Secrets",
-    "Fleetness",
-    "Hunter's Mark",
-    "Line Brawl",
-    "Show of Force",
-    "Shroud of Decay",
-    "Rewilding",
-    "Preternatural Strength",
-    "Heroic Might",
-    "Rutor's Hand",
-    "Monstrous Form",
-    "Touch of Valeren",
-    "Biothaumaturgic Experiment",
-    "Revelations",
-    "Raven Spy",
-    "Elysian Fields",
-];
-
-/// Slice 11o: random tables with the action cards.
-#[test]
-fn random_games_with_action_cards_hold_invariants_and_replay() {
-    let seen = fuzz(|seed| table(seed, ACTIONS_SLICE, &["OBL"]));
-    covers(
-        &seen,
-        &[
+        extra: &["OBL"],
+        covers: &[
             "play:Fleetness",
             "play:Hunter's Mark",
             "play:Show of Force",
@@ -1548,114 +1470,150 @@ fn random_games_with_action_cards_hold_invariants_and_replay() {
             "play:Touch of Valeren",
             "play:Revelations",
         ],
-    );
-}
-
-/// The slice 11p tables' library: the second wave of action cards.
-const ACTIONS_WAVE2_SLICE: &[&str] = &[
-    "Obedient Flesh",
-    "Gate of Acheron, The",
-    "Pit of Contemplation",
-    "Deep Song",
-    "Puppet Master",
-    "On the Qui Vive",
-];
-
-/// As `table`, with a Hecata per seat (The Gate of Acheron, Pit of
-/// Contemplation).
-fn wave2_midgame(seed: u64) -> Engine {
-    let mut e = table(seed, ACTIONS_WAVE2_SLICE, &[]);
-    for (s, name) in [
-        "Gebeyehu Abdu",
-        "Monica Giovanni",
-        "Hiromitsu Asano",
-        "Alek König",
-    ]
-    .iter()
-    .enumerate()
-    {
-        let card = find_card(name);
-        if !e.state.minions.iter().any(|m| m.crypt_card() == Some(card))
-            && !e.state.seats.iter().any(|st| st.crypt.contains(&card))
-        {
-            e.add_minion(SeatId(s as u8), card, 3, false);
-        }
-    }
-    e
-}
-
-/// Slice 11p: random tables with the second wave of action cards.
-#[test]
-fn random_games_with_action_cards_wave2_hold_invariants_and_replay() {
-    let seen = fuzz(wave2_midgame);
-    covers(
-        &seen,
-        &[
-            "play:Obedient Flesh",
-            "play:Gate of Acheron, The",
-            "play:Pit of Contemplation",
-            "play:Deep Song",
-            "play:Puppet Master",
+        ..BASE
+    };
+    /// Slice 11m: corruption counters and the multi-Discipline Anarch bleeds;
+    /// an Anarch of Obfuscate, Presence and Protean per seat (the bleeds'
+    /// requirement), Faruq Abd al-Qadir and Aniel.
+    random_games_with_corruption_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Platinum Protocol, The",
+            "Break the Bonds",
+            "Enchanting Gaze",
+            "Revelation of the Serpent",
+            "Enhanced Senses",
+            "Majesty",
+        ],
+        extra: &["OBF"],
+        plays: 4,
+        covers: &["ability:Aniel", "burn_corruption_to_fail"],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Jenny Silver",
+                    "Crystal Lynn",
+                    "Nonu Dis",
+                    "Hesha Ruhadze",
+                    "Faruq Abd al-Qadir",
+                    "Aniel",
+                ],
+            )
+        },
+        ..BASE
+    };
+    /// Slice 11p and the hunting grounds: the second wave of action cards,
+    /// the clans' hunting grounds and the legacy equipment and retainers; a
+    /// Hecata per seat (The Gate of Acheron, Pit of Contemplation).
+    random_games_with_action_cards_wave2_and_hunting_grounds_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Obedient Flesh",
+            "Gate of Acheron, The",
+            "Pit of Contemplation",
+            "Deep Song",
+            "Puppet Master",
+            "Academic Hunting Ground",
+            "Asylum Hunting Ground",
+            "Biotech Company Hunting Ground",
+            "Library Hunting Ground",
+            "Park Hunting Ground",
+            "Political Hunting Ground",
+            "Slum Hunting Ground",
+            "Society Hunting Ground",
+            "Temple Hunting Ground",
+            "Underworld Hunting Ground",
+            "Uptown Hunting Ground",
+            "Warzone Hunting Ground",
+            "Zoo Hunting Ground",
+            "Camera Phone",
+            "Laptop Computer",
+            "Mr. Winthrop",
+            "Revenant",
+            "On the Qui Vive",
+        ],
+        plays: 22,
+        covers: &[
             "ability:Puppet Master",
             "ability:Gate of Acheron, The",
             "ability:Pit of Contemplation",
+            "ability:Academic Hunting Ground",
+            "ability:Asylum Hunting Ground",
+            "ability:Biotech Company Hunting Ground",
+            "ability:Library Hunting Ground",
+            // (Park Hunting Ground needs a Ravnos to put it in play and
+            // seldom stays in play to an unlock phase; the same macro as
+            // the others: no ability key.)
+            "ability:Political Hunting Ground",
+            "ability:Slum Hunting Ground",
+            "ability:Society Hunting Ground",
+            "ability:Temple Hunting Ground",
+            "ability:Underworld Hunting Ground",
+            "ability:Uptown Hunting Ground",
+            "ability:Warzone Hunting Ground",
+            "ability:Zoo Hunting Ground",
+            "ability:Camera Phone",
         ],
-    );
-}
-
-const MASTERS_SLICE: &[&str] = &[
-    "Celerity",
-    "Dominate",
-    "Obfuscate",
-    "Oblivion",
-    "Potence",
-    "Protean",
-    "Childe of the Revolution",
-    "Arcane Library",
-    "Art Museum",
-    "Ecoterrorists",
-    "Wasserschloss Anif, Austria",
-    "Wider View",
-    "Family Gathering",
-    "Powerbase: Montreal",
-    "Rack, The",
-    "Anarch Troublemaker",
-    "Powerbase: Los Angeles",
-    "Garibaldi-Meucci Museum",
-    "Anarch Free Press, The",
-    "Channel 10",
-    "Creepshow Casino",
-    "Club Illusion",
-    "Haqim's Law: Retribution",
-    "Pentex(TM) Subversion",
-    "Haven Uncovered",
-    "Chantry",
-    "Toreador Grand Ball",
-    "Priority Contract",
-    "Frontal Assault",
-    "Piper",
-    "Crypt's Sons",
-    "Raven Spy",
-    "47th Street Royals",
-    "Warsaw Station",
-    "Anarch Railroad",
-    "Fortune Teller Shop",
-    "KRCG News Radio",
-    "Carver's Meat Packing and Storage",
-    "Meditative Grove",
-    "Week of Nightmares",
-    "Living Manse",
-    "Sword of the Archangel",
-];
-
-/// Slice 11q: random tables with the precon masters (and Childe of the
-/// Revolution, which fetches Discipline masters).
-#[test]
-fn random_games_with_masters_hold_invariants_and_replay() {
-    let seen = fuzz(|seed| table(seed, MASTERS_SLICE, &[]));
-    covers(
-        &seen,
-        &[
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Gebeyehu Abdu",
+                    "Monica Giovanni",
+                    "Hiromitsu Asano",
+                    "Alek König",
+                ],
+            )
+        },
+        ..BASE
+    };
+    /// Slice 11q: the precon masters (and Childe of the Revolution, which
+    /// fetches Discipline masters).
+    random_games_with_masters_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Celerity",
+            "Dominate",
+            "Obfuscate",
+            "Oblivion",
+            "Potence",
+            "Protean",
+            "Childe of the Revolution",
+            "Arcane Library",
+            "Art Museum",
+            "Ecoterrorists",
+            "Wasserschloss Anif, Austria",
+            "Wider View",
+            "Family Gathering",
+            "Powerbase: Montreal",
+            "Rack, The",
+            "Anarch Troublemaker",
+            "Powerbase: Los Angeles",
+            "Garibaldi-Meucci Museum",
+            "Anarch Free Press, The",
+            "Channel 10",
+            "Creepshow Casino",
+            "Club Illusion",
+            "Haqim's Law: Retribution",
+            "Pentex(TM) Subversion",
+            "Haven Uncovered",
+            "Chantry",
+            "Toreador Grand Ball",
+            "Priority Contract",
+            "Frontal Assault",
+            "Piper",
+            "Crypt's Sons",
+            "Raven Spy",
+            "47th Street Royals",
+            "Warsaw Station",
+            "Anarch Railroad",
+            "Fortune Teller Shop",
+            "KRCG News Radio",
+            "Carver's Meat Packing and Storage",
+            "Meditative Grove",
+            "Week of Nightmares",
+            "Living Manse",
+            "Sword of the Archangel",
+        ],
+        covers: &[
             "play:Oblivion",
             "play:Potence",
             "play:Childe of the Revolution",
@@ -1679,602 +1637,358 @@ fn random_games_with_masters_hold_invariants_and_replay() {
             "ability:KRCG News Radio",
             "play:Carver's Meat Packing and Storage",
         ],
-    );
-}
-
-const COMBAT2_SLICE: &[&str] = &[
-    "Blood Fury",
-    "No Trace",
-    "Shadow Shift",
-    "Wolf Claws",
-    "Rapid Change",
-    "Diversion",
-    "Lightning Reflexes",
-    "Wind Dance",
-    "Anticipation",
-    "Terror Frenzy",
-    "Tranquility Shield",
-    "Flesh of Marble",
-    "Weather Control",
-    "Disarm",
-    "Hide the Mind",
-    "Angel's Gift",
-    "Contraband",
-    "Martyr's Resilience",
-    "Righteous Blade",
-    ".44 Magnum",
-    "Owl Companion",
-    "Pursuit",
-    "Quickness",
-    "Slam",
-    "Telepathic Misdirection",
-    "Meditative Grove",
-];
-
-/// Slice 11s: random tables with the second wave of combat cards.
-#[test]
-fn random_games_with_combat_cards_wave_2_hold_invariants_and_replay() {
-    let seen = fuzz(|seed| table(seed, COMBAT2_SLICE, &["OBF"]));
-    let plays: Vec<String> = COMBAT2_SLICE[..18]
-        .iter()
-        .map(|n| format!("play:{n}"))
-        .collect();
-    let mut kinds: Vec<&str> = plays.iter().map(String::as_str).collect();
-    kinds.push("ability:Disarm");
-    covers(&seen, &kinds);
-}
-
-const REACTIONS2_SLICE: &[&str] = &[
-    "Threats",
-    "Forgotten Labyrinth",
-    "Go-getter",
-    "Elder Impersonation",
-    "Beast Meld",
-    "Paths in Two Worlds",
-    "Dawn Operation",
-    "Dogged Pursuit",
-    "Elder Intervention",
-    "Forced Awakening",
-    "Forced Vigilance",
-    "Melange",
-    "Rat's Warning",
-    "Redirection",
-    "Sense the Savage Way",
-    "Telepathic Counter",
-    "Bone Shambler",
-    ".44 Magnum",
-    "Lost in Crowds",
-    "Precognition",
-    "Form of Mist",
-];
-
-/// Slice 11t: random tables with the second wave of reactions and action
-/// modifiers.
-#[test]
-fn random_games_with_reactions_wave_2_hold_invariants_and_replay() {
-    let seen = fuzz(|seed| table(seed, REACTIONS2_SLICE, &["OBF"]));
-    let plays: Vec<String> = REACTIONS2_SLICE[..16]
-        .iter()
-        .map(|n| format!("play:{n}"))
-        .collect();
-    let mut kinds: Vec<&str> = plays.iter().map(String::as_str).collect();
-    kinds.extend(["ability:Dogged Pursuit", "ability:Melange"]);
-    covers(&seen, &kinds);
-}
-
-/// Slice 11u: the pool's actions, wave 1.
-const POOL_ACTIONS_SLICE: &[&str] = &[
-    "Scouting Mission",
-    "Social Charm",
-    "Public Trust",
-    "Restoration",
-    "Fifth Tradition: Hospitality",
-    "Fourth Tradition: The Accounting",
-    "Umbrous Clutch",
-    "Hunting the Beast",
-    "Make the Misere",
-    "Mind Numb",
-    "Propaganda",
-    "Conceal",
-    "Dominate Kine",
-    "Graverobbing",
-    ".44 Magnum",
-    "Elysian Fields",
-    "Telepathic Counter",
-    "Lost in Crowds",
-];
-
-/// Slice 11u: random tables with the first wave of the pool's actions.
-#[test]
-fn random_games_with_pool_actions_wave_1_hold_invariants_and_replay() {
-    let seen = fuzz(|seed| {
-        let mut e = table(seed, POOL_ACTIONS_SLICE, &["OBF"]);
-        // `table` may give a seat's torpid vampire the name of a later
-        // seat's titled one, both uncontested: no game reaches that, and
-        // Graverobbing would put both under one Methuselah. The torpid
-        // copy leaves.
-        let st = &mut e.state;
-        for i in 0..st.minions.len() {
-            let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
-            let twin = st
-                .minions
-                .iter()
-                .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
-            if twin && st.minions[i].in_torpor {
-                st.minions[i].in_play = false;
-            }
-        }
-        e
-    });
-    let plays: Vec<String> = POOL_ACTIONS_SLICE[..14]
-        .iter()
-        .map(|n| format!("play:{n}"))
-        .collect();
-    let kinds: Vec<&str> = plays.iter().map(String::as_str).collect();
-    covers(&seen, &kinds);
-}
-
-/// Slice 11v: the pool's actions, wave 2.
-const POOL_ACTIONS2_SLICE: &[&str] = &[
-    "Army of Rats",
-    "Judgment: Camarilla Segregation",
-    "Tier of Souls",
-    "Phantasmagoria",
-    "Aranthebes, The Immortal",
-    "Fee Stake: Boston",
-    "Fee Stake: New York",
-    "Fee Stake: Seattle",
-    "Waters of Duat",
-    "Split the Veil",
-    "Psychophagia",
-    "Khabar: Glory",
-    "Open War",
-    "Screamer",
-    "Bone Shambler",
-    "Elysian Fields",
-    "Graverobbing",
-];
-
-/// Slice 11v: random tables with the second wave of the pool's actions.
-#[test]
-fn random_games_with_pool_actions_wave_2_hold_invariants_and_replay() {
-    let seen = fuzz(|seed| {
-        let mut e = table(seed, POOL_ACTIONS2_SLICE, &["OBF"]);
-        // As in wave 1: no uncontrolled twin of another seat's vampire.
-        let st = &mut e.state;
-        for i in 0..st.minions.len() {
-            let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
-            let twin = st
-                .minions
-                .iter()
-                .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
-            if twin && st.minions[i].in_torpor {
-                st.minions[i].in_play = false;
-            }
-        }
-        e
-    });
-    let plays: Vec<String> = POOL_ACTIONS2_SLICE[..13]
-        .iter()
-        .map(|n| format!("play:{n}"))
-        .collect();
-    let mut kinds: Vec<&str> = plays.iter().map(String::as_str).collect();
-    kinds.extend([
-        "ability:Army of Rats",
-        "ability:Judgment: Camarilla Segregation",
-        "ability:Tier of Souls",
-        "ability:Phantasmagoria",
-        "ability:Aranthebes, The Immortal",
-        "ability:Fee Stake: Boston",
-        "ability:Split the Veil",
-        "ability:Open War",
-        "rider:Army of Rats",
-        "rider:Judgment: Camarilla Segregation",
-        "rider:Khabar: Glory",
-    ]);
-    covers(&seen, &kinds);
-}
-
-/// Slice 11w: the pool's masters, wave 1.
-const POOL_MASTERS_SLICE: &[&str] = &[
-    "Parthenon, The",
-    "Dummy Corporation",
-    "Ferraille",
-    "Oxford University, England",
-    "Black Throne, The",
-    "Kumpania",
-    "Sight Beyond Sight",
-    "Charisma",
-    "Giant's Blood",
-    "Golconda: Inner Peace",
-    "Grooming the Protégé",
-    "Gangrel Revel",
-    "Khabar: Community, The",
-    "New Carthage",
-    "Mob Connections",
-    "Fragment of the Book of Nod",
-    "Brujah Debate",
-    "Priority Contract",
-    "Anarchist Uprising",
-    "Double Deuce",
-    "Political Ally",
-];
-
-/// Slice 11w: random tables with the first wave of the pool's masters.
-#[test]
-fn random_games_with_pool_masters_wave_1_hold_invariants_and_replay() {
-    let seen = fuzz(|seed| {
-        let mut e = table(seed, POOL_MASTERS_SLICE, &["OBF"]);
-        let st = &mut e.state;
-        for i in 0..st.minions.len() {
-            let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
-            let twin = st
-                .minions
-                .iter()
-                .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
-            if twin && st.minions[i].in_torpor {
-                st.minions[i].in_play = false;
-            }
-        }
-        e
-    });
-    let mut kinds: Vec<String> = POOL_MASTERS_SLICE[..17]
-        .iter()
-        .map(|n| format!("play:{n}"))
-        .collect();
-    for k in [
-        "ability:Black Throne, The",
-        "ability:Brujah Debate",
-        "ability:Dummy Corporation",
-        "ability:Ferraille",
-        "ability:Fragment of the Book of Nod",
-        "ability:Gangrel Revel",
-        "ability:Khabar: Community, The",
-        "ability:Kumpania",
-        "ability:Mob Connections",
-        "ability:Oxford University, England",
-        "ability:Parthenon, The",
-        "rider:Black Throne, The",
-    ] {
-        kinds.push(k.into());
-    }
-    let kinds: Vec<&str> = kinds.iter().map(String::as_str).collect();
-    covers(&seen, &kinds);
-}
-
-/// Slice 11x: the pool's masters, wave 2.
-const POOL_MASTERS2_SLICE: &[&str] = &[
-    "WMRH Talk Radio",
-    "Rumor Mill, Tabloid Newspaper, The",
-    "Monster",
-    "Dabbler",
-    "Dead Pool",
-    "Alamut",
-    "Cappadocian Crypt",
-    "Powerbase: Munich",
-    "Twilight Camp",
-    "Mithraeum, London, The",
-    "Mithraic Cultist",
-    "Anarchist Uprising",
-    "Make the Misere",
-    "Umbrous Clutch",
-    "Lost in Crowds",
-];
-
-/// Slice 11x: random tables with the second wave of the pool's masters.
-#[test]
-fn random_games_with_pool_masters_wave_2_hold_invariants_and_replay() {
-    let seen = fuzz(|seed| {
-        let mut e = table(seed, POOL_MASTERS2_SLICE, &["OBF", "OBL"]);
-        let st = &mut e.state;
-        for i in 0..st.minions.len() {
-            let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
-            let twin = st
-                .minions
-                .iter()
-                .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
-            if twin && st.minions[i].in_torpor {
-                st.minions[i].in_play = false;
-            }
-        }
-        e
-    });
-    let mut kinds: Vec<String> = POOL_MASTERS2_SLICE[..11]
-        .iter()
-        .map(|n| format!("play:{n}"))
-        .collect();
-    for k in [
-        "ability:Alamut",
-        "ability:Cappadocian Crypt",
-        "ability:Dead Pool",
-        "ability:Mithraeum, London, The",
-        "ability:Monster",
-        "ability:Powerbase: Munich",
-        "ability:Rumor Mill, Tabloid Newspaper, The",
-        "ability:Twilight Camp",
-        "ability:WMRH Talk Radio",
-    ] {
-        kinds.push(k.into());
-    }
-    let kinds: Vec<&str> = kinds.iter().map(String::as_str).collect();
-    covers(&seen, &kinds);
-}
-
-/// Slice 11y: the pool's masters, wave 3.
-const POOL_MASTERS3_SLICE: &[&str] = &[
-    "Secure Haven",
-    "Yoruba Shrine",
-    "Cave of Apples",
-    "British Museum, London, The",
-    "Banishment",
-    "Anarchist Uprising",
-    "Umbrous Clutch",
-    "Open War",
-    "Living Manse",
-    "Kevlar Vest",
-    "Giant's Blood",
-    "Villein",
-    "Fleshforge Chamber",
-    "Szlachta Assistant",
-    "War Ghoul",
-];
-
-/// Slice 11y: random tables with the third wave of the pool's masters.
-#[test]
-fn random_games_with_pool_masters_wave_3_hold_invariants_and_replay() {
-    let seen = fuzz(|seed| {
-        let mut e = table(seed, POOL_MASTERS3_SLICE, &["OBF", "OBL"]);
-        let st = &mut e.state;
-        for i in 0..st.minions.len() {
-            let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
-            let twin = st
-                .minions
-                .iter()
-                .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
-            if twin && st.minions[i].in_torpor {
-                st.minions[i].in_play = false;
-            }
-        }
-        e
-    });
-    let mut kinds: Vec<String> = POOL_MASTERS3_SLICE[..4]
-        .iter()
-        .map(|n| format!("play:{n}"))
-        .collect();
-    for k in [
-        "play:Fleshforge Chamber",
-        "ability:Fleshforge Chamber",
-        "ability:British Museum, London, The",
-        "ability:Cave of Apples",
-        "ability:Yoruba Shrine",
-    ] {
-        kinds.push(k.into());
-    }
-    let kinds: Vec<&str> = kinds.iter().map(String::as_str).collect();
-    covers(&seen, &kinds);
-}
-
-/// Slice 11z: the cost-reduction masters.
-const COST_MASTERS_SLICE: &[&str] = &[
-    "Line, The",
-    "Shard, London, The",
-    "Ravnos Cache",
-    "Ravnos Carnival",
-    "Propaganda",
-    "Public Trust",
-    ".44 Magnum",
-    "Kevlar Vest",
-    "Parthenon, The",
-    "Direct Intervention",
-    "Wash",
-    "Political Ally",
-];
-
-/// Slice 11z: random tables with the cost-reduction masters.
-#[test]
-fn random_games_with_cost_reductions_hold_invariants_and_replay() {
-    let seen = fuzz(|seed| {
-        let mut e = table(seed, COST_MASTERS_SLICE, &["OBF"]);
-        let st = &mut e.state;
-        for i in 0..st.minions.len() {
-            let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
-            let twin = st
-                .minions
-                .iter()
-                .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
-            if twin && st.minions[i].in_torpor {
-                st.minions[i].in_play = false;
-            }
-        }
-        e
-    });
-    let mut kinds: Vec<String> = COST_MASTERS_SLICE[..4]
-        .iter()
-        .map(|n| format!("play:{n}"))
-        .collect();
-    for k in [
-        "ability:Line, The",
-        "ability:Shard, London, The",
-        "ability:Ravnos Cache",
-        "rider:Line, The",
-        "rider:Shard, London, The",
-        "rider:Ravnos Cache",
-        "rider:Ravnos Carnival",
-    ] {
-        kinds.push(k.into());
-    }
-    let kinds: Vec<&str> = kinds.iter().map(String::as_str).collect();
-    covers(&seen, &kinds);
-}
-
-/// Slice 11aa: the pool's last allies and equipment, Mobile HQ and Minion
-/// Tap.
-const ALLIES_EQUIPMENT_SLICE: &[&str] = &[
-    "ECTU Operative",
-    "Michael Harris, the Incinerator",
-    "Valerie Diaz, Antigen Commander",
-    "Mobile HQ, Operation Antigen",
-    "Enhanced Coagulant",
-    "Flaming Candle",
-    "Ritual Goblet",
-    "Minion Tap",
-    "Villein",
-    "Line Brawl",
-    ".44 Magnum",
-    "Soak",
-    "Side Strike",
-    "Conditioning",
-];
-
-/// Slice 11aa: random tables with the allies and equipment.
-#[test]
-fn random_games_with_allies_and_equipment_hold_invariants_and_replay() {
-    let seen = fuzz(|seed| {
-        let mut e = table(seed, ALLIES_EQUIPMENT_SLICE, &["OBF"]);
-        let st = &mut e.state;
-        for i in 0..st.minions.len() {
-            let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
-            let twin = st
-                .minions
-                .iter()
-                .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
-            if twin && st.minions[i].in_torpor {
-                st.minions[i].in_play = false;
-            }
-        }
-        e
-    });
-    let mut kinds: Vec<String> = ALLIES_EQUIPMENT_SLICE[..8]
-        .iter()
-        .map(|n| format!("play:{n}"))
-        .collect();
-    for k in [
-        "ability:ECTU Operative",
-        "ability:Michael Harris, the Incinerator",
-        "ability:Valerie Diaz, Antigen Commander",
-        "ability:Mobile HQ, Operation Antigen",
-        "ability:Enhanced Coagulant",
-        "ability:Flaming Candle",
-        "ability:Ritual Goblet",
-    ] {
-        kinds.push(k.into());
-    }
-    let kinds: Vec<&str> = kinds.iter().map(String::as_str).collect();
-    covers(&seen, &kinds);
-}
-
-/// Slice 11ab: the pool's last political actions.
-const POLITICAL_SLICE: &[&str] = &[
-    "Archon",
-    "Disputed Territory",
-    "Malkavian Justicar",
-    "Raising the Portcullis",
-    "Revolutionary Council",
-    "Anarchist Uprising",
-    "Kine Resources Contested",
-    "Mobile HQ, Operation Antigen",
-    "Parthenon, The",
-    "Living Manse",
-    ".44 Magnum",
-    "Villein",
-];
-
-/// Slice 11ab: random tables with the political actions.
-#[test]
-fn random_games_with_political_actions_hold_invariants_and_replay() {
-    let seen = fuzz(|seed| {
-        let mut e = table(seed, POLITICAL_SLICE, &["OBF"]);
-        let st = &mut e.state;
-        for i in 0..st.minions.len() {
-            let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
-            let twin = st
-                .minions
-                .iter()
-                .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
-            if twin && st.minions[i].in_torpor {
-                st.minions[i].in_play = false;
-            }
-        }
-        e
-    });
-    let mut kinds: Vec<String> = POLITICAL_SLICE[..5]
-        .iter()
-        .map(|n| format!("play:{n}"))
-        .collect();
-    for k in [
-        "ability:Archon",
-        "ability:Raising the Portcullis",
-        "choose_card",
-        "allocate_to_card",
-    ] {
-        kinds.push(k.into());
-    }
-    let kinds: Vec<&str> = kinds.iter().map(String::as_str).collect();
-    covers(&seen, &kinds);
-}
-
-/// Slice 11ac–11ae: the pool's events.
-const EVENTS_SLICE: &[&str] = &[
-    "Narrow Minds",
-    "Torpid Blood",
-    "Blood Weakens",
-    "Thirst",
-    "Fueled by Heart's Blood",
-    "Blood Trade",
-    "Nightmares upon Nightmares",
-    "Restricted Vitae",
-    "FBI Special Affairs Division",
-    "Uncoiling, The",
-    "Slow Withering, The",
-    "Wormwood",
-    "New Inquisition, The",
-    "Rise of the Nephtali",
-    "Absimiliard's Army",
-    "Conquest of Humanity",
-    "Recalled to the Founder",
-    "Fall of the Camarilla",
-    "Fall of the Sabbat",
-    "Fourth Cycle, The",
-    "Parthenon, The",
-    "Telepathic Misdirection",
-    "Conditioning",
-];
-
-/// Slices 11ac–11ae: random tables with the events.
-#[test]
-fn random_games_with_events_hold_invariants_and_replay() {
-    let seen = fuzz(|seed| {
-        let mut e = table(seed, EVENTS_SLICE, &["OBF"]);
-        let st = &mut e.state;
-        for i in 0..st.minions.len() {
-            let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
-            let twin = st
-                .minions
-                .iter()
-                .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
-            if twin && st.minions[i].in_torpor {
-                st.minions[i].in_play = false;
-            }
-        }
-        e
-    });
-    let kinds: Vec<String> = EVENTS_SLICE[..20]
-        .iter()
-        .map(|n| format!("play:{n}"))
-        .chain(
-            [
-                "ability:Blood Trade",
-                "ability:Absimiliard's Army",
-                "ability:New Inquisition, The",
-                "ability:Restricted Vitae",
-                "ability:Uncoiling, The",
-                "ability:Rise of the Nephtali",
-                "ability:Conquest of Humanity",
-            ]
-            .iter()
-            .map(|k| k.to_string()),
-        )
-        .collect();
-    let kinds: Vec<&str> = kinds.iter().map(String::as_str).collect();
-    covers(&seen, &kinds);
+        ..BASE
+    };
+    /// Slice 11s: the second wave of combat cards.
+    random_games_with_combat_cards_wave_2_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Blood Fury",
+            "No Trace",
+            "Shadow Shift",
+            "Wolf Claws",
+            "Rapid Change",
+            "Diversion",
+            "Lightning Reflexes",
+            "Wind Dance",
+            "Anticipation",
+            "Terror Frenzy",
+            "Tranquility Shield",
+            "Flesh of Marble",
+            "Weather Control",
+            "Disarm",
+            "Hide the Mind",
+            "Angel's Gift",
+            "Contraband",
+            "Martyr's Resilience",
+            "Righteous Blade",
+            ".44 Magnum",
+            "Owl Companion",
+            "Pursuit",
+            "Quickness",
+            "Slam",
+            "Telepathic Misdirection",
+            "Meditative Grove",
+        ],
+        extra: &["OBF"],
+        plays: 18,
+        covers: &[
+            "ability:Disarm",
+        ],
+        ..BASE
+    };
+    /// Slice 11t: the second wave of reactions and action modifiers.
+    random_games_with_reactions_wave_2_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Threats",
+            "Forgotten Labyrinth",
+            "Go-getter",
+            "Elder Impersonation",
+            "Beast Meld",
+            "Paths in Two Worlds",
+            "Dawn Operation",
+            "Dogged Pursuit",
+            "Elder Intervention",
+            "Forced Awakening",
+            "Forced Vigilance",
+            "Melange",
+            "Rat's Warning",
+            "Redirection",
+            "Sense the Savage Way",
+            "Telepathic Counter",
+            "Bone Shambler",
+            ".44 Magnum",
+            "Lost in Crowds",
+            "Precognition",
+            "Form of Mist",
+        ],
+        extra: &["OBF"],
+        plays: 16,
+        covers: &[
+            "ability:Dogged Pursuit",
+            "ability:Melange",
+        ],
+        ..BASE
+    };
+    /// Slice 11u: the pool's actions, wave 1.
+    random_games_with_pool_actions_wave_1_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Scouting Mission",
+            "Social Charm",
+            "Public Trust",
+            "Restoration",
+            "Fifth Tradition: Hospitality",
+            "Fourth Tradition: The Accounting",
+            "Umbrous Clutch",
+            "Hunting the Beast",
+            "Make the Misere",
+            "Mind Numb",
+            "Propaganda",
+            "Conceal",
+            "Dominate Kine",
+            "Graverobbing",
+            ".44 Magnum",
+            "Elysian Fields",
+            "Telepathic Counter",
+            "Lost in Crowds",
+        ],
+        extra: &["OBF"],
+        plays: 14,
+        covers: &[
+        ],
+        untwin: true,
+        ..BASE
+    };
+    /// Slice 11v: the pool's actions, wave 2.
+    random_games_with_pool_actions_wave_2_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Army of Rats",
+            "Judgment: Camarilla Segregation",
+            "Tier of Souls",
+            "Phantasmagoria",
+            "Aranthebes, The Immortal",
+            "Fee Stake: Boston",
+            "Fee Stake: New York",
+            "Fee Stake: Seattle",
+            "Waters of Duat",
+            "Split the Veil",
+            "Psychophagia",
+            "Khabar: Glory",
+            "Open War",
+            "Screamer",
+            "Bone Shambler",
+            "Elysian Fields",
+            "Graverobbing",
+        ],
+        extra: &["OBF"],
+        plays: 13,
+        covers: &[
+            "ability:Army of Rats",
+            "ability:Judgment: Camarilla Segregation",
+            "ability:Tier of Souls",
+            "ability:Phantasmagoria",
+            "ability:Aranthebes, The Immortal",
+            "ability:Fee Stake: Boston",
+            "ability:Split the Veil",
+            "ability:Open War",
+            "rider:Army of Rats",
+            "rider:Judgment: Camarilla Segregation",
+            "rider:Khabar: Glory",
+        ],
+        untwin: true,
+        ..BASE
+    };
+    /// Slice 11w: the pool's masters, wave 1.
+    random_games_with_pool_masters_wave_1_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Parthenon, The",
+            "Dummy Corporation",
+            "Ferraille",
+            "Oxford University, England",
+            "Black Throne, The",
+            "Kumpania",
+            "Sight Beyond Sight",
+            "Charisma",
+            "Giant's Blood",
+            "Golconda: Inner Peace",
+            "Grooming the Protégé",
+            "Gangrel Revel",
+            "Khabar: Community, The",
+            "New Carthage",
+            "Mob Connections",
+            "Fragment of the Book of Nod",
+            "Brujah Debate",
+            "Priority Contract",
+            "Anarchist Uprising",
+            "Double Deuce",
+            "Political Ally",
+        ],
+        extra: &["OBF"],
+        plays: 17,
+        covers: &[
+            "ability:Black Throne, The",
+            "ability:Brujah Debate",
+            "ability:Dummy Corporation",
+            "ability:Ferraille",
+            "ability:Fragment of the Book of Nod",
+            "ability:Gangrel Revel",
+            "ability:Khabar: Community, The",
+            "ability:Kumpania",
+            "ability:Mob Connections",
+            "ability:Oxford University, England",
+            "ability:Parthenon, The",
+            "rider:Black Throne, The",
+        ],
+        untwin: true,
+        ..BASE
+    };
+    /// Slice 11x: the pool's masters, wave 2.
+    random_games_with_pool_masters_wave_2_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "WMRH Talk Radio",
+            "Rumor Mill, Tabloid Newspaper, The",
+            "Monster",
+            "Dabbler",
+            "Dead Pool",
+            "Alamut",
+            "Cappadocian Crypt",
+            "Powerbase: Munich",
+            "Twilight Camp",
+            "Mithraeum, London, The",
+            "Mithraic Cultist",
+            "Anarchist Uprising",
+            "Make the Misere",
+            "Umbrous Clutch",
+            "Lost in Crowds",
+        ],
+        extra: &["OBF", "OBL"],
+        plays: 11,
+        covers: &[
+            "ability:Alamut",
+            "ability:Cappadocian Crypt",
+            "ability:Dead Pool",
+            "ability:Mithraeum, London, The",
+            "ability:Monster",
+            "ability:Powerbase: Munich",
+            "ability:Rumor Mill, Tabloid Newspaper, The",
+            "ability:Twilight Camp",
+            "ability:WMRH Talk Radio",
+        ],
+        untwin: true,
+        ..BASE
+    };
+    /// Slice 11y: the pool's masters, wave 3.
+    random_games_with_pool_masters_wave_3_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Secure Haven",
+            "Yoruba Shrine",
+            "Cave of Apples",
+            "British Museum, London, The",
+            "Banishment",
+            "Anarchist Uprising",
+            "Umbrous Clutch",
+            "Open War",
+            "Living Manse",
+            "Kevlar Vest",
+            "Giant's Blood",
+            "Villein",
+            "Fleshforge Chamber",
+            "Szlachta Assistant",
+            "War Ghoul",
+        ],
+        extra: &["OBF", "OBL"],
+        plays: 4,
+        covers: &[
+            "play:Fleshforge Chamber",
+            "ability:Fleshforge Chamber",
+            "ability:British Museum, London, The",
+            "ability:Cave of Apples",
+            "ability:Yoruba Shrine",
+        ],
+        untwin: true,
+        ..BASE
+    };
+    /// Slice 11z: the cost-reduction masters.
+    random_games_with_cost_reductions_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Line, The",
+            "Shard, London, The",
+            "Ravnos Cache",
+            "Ravnos Carnival",
+            "Propaganda",
+            "Public Trust",
+            ".44 Magnum",
+            "Kevlar Vest",
+            "Parthenon, The",
+            "Direct Intervention",
+            "Wash",
+            "Political Ally",
+        ],
+        extra: &["OBF"],
+        plays: 4,
+        covers: &[
+            "ability:Line, The",
+            "ability:Shard, London, The",
+            "ability:Ravnos Cache",
+            "rider:Line, The",
+            "rider:Shard, London, The",
+            "rider:Ravnos Cache",
+            "rider:Ravnos Carnival",
+        ],
+        untwin: true,
+        ..BASE
+    };
+    /// Slice 11aa: the pool's last allies and equipment, Mobile HQ and Minion
+    /// Tap.
+    random_games_with_allies_and_equipment_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "ECTU Operative",
+            "Michael Harris, the Incinerator",
+            "Valerie Diaz, Antigen Commander",
+            "Mobile HQ, Operation Antigen",
+            "Enhanced Coagulant",
+            "Flaming Candle",
+            "Ritual Goblet",
+            "Minion Tap",
+            "Villein",
+            "Line Brawl",
+            ".44 Magnum",
+            "Soak",
+            "Side Strike",
+            "Conditioning",
+        ],
+        extra: &["OBF"],
+        plays: 8,
+        covers: &[
+            "ability:ECTU Operative",
+            "ability:Michael Harris, the Incinerator",
+            "ability:Valerie Diaz, Antigen Commander",
+            "ability:Mobile HQ, Operation Antigen",
+            "ability:Enhanced Coagulant",
+            "ability:Flaming Candle",
+            "ability:Ritual Goblet",
+        ],
+        untwin: true,
+        ..BASE
+    };
+    /// Slices 11ac–11ae: the pool's events.
+    random_games_with_events_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Narrow Minds",
+            "Torpid Blood",
+            "Blood Weakens",
+            "Thirst",
+            "Fueled by Heart's Blood",
+            "Blood Trade",
+            "Nightmares upon Nightmares",
+            "Restricted Vitae",
+            "FBI Special Affairs Division",
+            "Uncoiling, The",
+            "Slow Withering, The",
+            "Wormwood",
+            "New Inquisition, The",
+            "Rise of the Nephtali",
+            "Absimiliard's Army",
+            "Conquest of Humanity",
+            "Recalled to the Founder",
+            "Fall of the Camarilla",
+            "Fall of the Sabbat",
+            "Fourth Cycle, The",
+            "Parthenon, The",
+            "Telepathic Misdirection",
+            "Conditioning",
+        ],
+        extra: &["OBF"],
+        plays: 20,
+        covers: &[
+            "ability:Blood Trade",
+            "ability:Absimiliard's Army",
+            "ability:New Inquisition, The",
+            "ability:Restricted Vitae",
+            "ability:Uncoiling, The",
+            "ability:Rise of the Nephtali",
+            "ability:Conquest of Humanity",
+        ],
+        untwin: true,
+        ..BASE
+    };
 }

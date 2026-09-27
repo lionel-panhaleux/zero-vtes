@@ -4,68 +4,14 @@
 //! additional strike, Sniper Rifle's range set. Windows with a single option
 //! are elided, so the scripts only stop where a real decision exists.
 
-use zvtes::cards::AbilitySource;
-use zvtes::cards::Target;
 use zvtes::crypt::CRYPT;
-use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
-use zvtes::game::{Engine, Step};
+use zvtes::decision::{Choice, WindowLabel};
+use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::state::{find_card, find_library, CardId, CardInPlay};
 
-fn request(e: &mut Engine) -> DecisionRequest {
-    match e.run() {
-        Step::Decision(req) => {
-            if std::env::var("TRACE").is_ok() {
-                eprintln!("REQ {:?} {:?} {:?}", req.seat, req.window, req.options);
-            }
-            req
-        }
-        Step::Over(_) => panic!("game over while expecting a decision"),
-    }
-}
-
-fn expect(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    let req = request(e);
-    assert_eq!((req.seat, req.window), (seat, window), "{:?}", req.options);
-    req
-}
-
-fn pick(e: &mut Engine, want: Choice) {
-    let req = request(e);
-    let idx = req
-        .options
-        .iter()
-        .position(|o| *o == want)
-        .unwrap_or_else(|| {
-            panic!(
-                "option {want:?} not in {:?} ({:?})",
-                req.options, req.window
-            )
-        });
-    e.choose(idx);
-}
-
-/// Pass through every decision until `seat`'s `window`.
-fn until(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    loop {
-        let req = request(e);
-        if (req.seat, req.window) == (seat, window) {
-            return req;
-        }
-        let i = req
-            .options
-            .iter()
-            .position(|o| matches!(o, Choice::Pass | Choice::HandStrike))
-            .unwrap_or(0);
-        e.choose(i);
-    }
-}
-
-fn hand(e: &mut Engine, seat: u8, cards: &[&str]) {
-    for c in cards {
-        e.state.seats[seat as usize].hand.push(find_library(c));
-    }
-}
+mod common;
+use common::*;
 
 /// A weapon already on `host` (no play; weapons carry no layers).
 fn equip(e: &mut Engine, name: &str, host: MinionId) -> u32 {
@@ -89,58 +35,6 @@ fn equip(e: &mut Engine, name: &str, host: MinionId) -> u32 {
         chosen: Vec::new(),
     });
     CardId(e.state.cards.len() as u32 - 1).0
-}
-
-fn bleed(minion: MinionId) -> Choice {
-    Choice::TakeAction {
-        minion,
-        action: ActionKind::Bleed,
-        target: None,
-    }
-}
-
-fn play(card: u8, mode: u8, actor: MinionId) -> Choice {
-    Choice::Play {
-        card,
-        mode,
-        actor: Some(actor),
-        target: Target::None,
-    }
-}
-
-/// A weapon's ability: its strike is `0`, its maneuver or range set `1`.
-fn ability(card: u32, ability: u8) -> Choice {
-    Choice::UseAbility {
-        source: AbilitySource::Card(CardId(card)),
-        ability,
-        actor: None,
-        target: Target::None,
-    }
-}
-
-fn take_from(minion: MinionId, giver: MinionId) -> Choice {
-    Choice::TakeAction {
-        minion,
-        action: ActionKind::EquipFrom,
-        target: Some(giver),
-    }
-}
-
-/// The `nth` V5 vampire with superior `disc`.
-fn vampire_with(disc: &str, nth: usize) -> u16 {
-    CRYPT
-        .iter()
-        .enumerate()
-        .filter(|(i, c)| {
-            c.disciplines.contains(&disc) && zvtes::cards::vampire(*i as u16).is_none()
-        })
-        .nth(nth)
-        .map(|(i, _)| i as u16)
-        .unwrap_or_else(|| panic!("no vampire with {disc}"))
-}
-
-fn blood(e: &Engine, m: MinionId) -> u8 {
-    e.state.minions[m.index()].blood
 }
 
 /// 2 seats at seat 0's minion phase, turn 4. Seat 0: A (POT), B (CEL);

@@ -5,27 +5,13 @@
 
 use zvtes::cards::Target;
 use zvtes::crypt::{Title, CRYPT};
-use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
-use zvtes::game::{Engine, Step};
+use zvtes::decision::{ActionKind, Choice, WindowLabel};
+use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::state::{find_card, find_library};
 
-fn request(e: &mut Engine) -> DecisionRequest {
-    match e.run() {
-        Step::Decision(req) => req,
-        Step::Over(_) => panic!("game over while expecting a decision"),
-    }
-}
-
-fn pick(e: &mut Engine, want: Choice) {
-    let req = request(e);
-    let idx = req
-        .options
-        .iter()
-        .position(|o| *o == want)
-        .unwrap_or_else(|| panic!("option {want:?} not in {:?}", req.options));
-    e.choose(idx);
-}
+mod common;
+use common::*;
 
 fn act(minion: MinionId, action: ActionKind, target: Option<MinionId>) -> Choice {
     Choice::TakeAction {

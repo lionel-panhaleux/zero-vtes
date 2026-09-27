@@ -8,12 +8,12 @@
 //! `Engine::interrupts` is served, in order, before any other decision. A
 //! Methuselah with no draw alternative and nothing queued draws at once.
 
-use crate::cards::{self, Effect, Hook};
+use crate::cards::{self, CardFilter, Effect, Hook};
 use crate::decision::{Choice, DecisionRequest, WindowLabel, Zone};
 use crate::game::Engine;
 use crate::ids::{MinionId, SeatId};
-use crate::library::{CardType, Label, LIBRARY};
-use crate::state::CardId;
+use crate::library::{Label, LIBRARY};
+use crate::state::{distinct, CardId};
 
 /// A pending choice about cards drawn, moved or stored.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -289,12 +289,11 @@ impl Engine {
             if !applies {
                 continue;
             }
-            let mut stored = c.stored.clone();
-            stored.sort_unstable();
-            stored.dedup();
-            out.extend(stored.into_iter().map(|stored| Choice::DrawStored {
-                card: i as u32,
-                stored,
+            out.extend(distinct(&c.stored, |_| true).into_iter().map(|stored| {
+                Choice::DrawStored {
+                    card: i as u32,
+                    stored,
+                }
             }));
         }
         out
@@ -416,29 +415,37 @@ impl Engine {
             }
             let empty = self.state.seats[s.index()].library.is_empty();
             let choice = !self.draw_alternatives(s).is_empty();
-            match front {
+            let attempting = |m: MinionId| {
+                self.action
+                    .as_ref()
+                    .is_some_and(|a| a.state == crate::actions::ActionState::Attempt(m))
+            };
+            let present = |m: MinionId| self.state.minions[m.index()].present();
+            // Waiting on a decision; if not, the arms that settle with an
+            // effect do it and go on, the others are dropped below.
+            let wait = match front {
                 Interrupt::Replacement { except, .. } => {
                     // With an empty library nothing is replaced, so nothing
                     // is replaced instead (rules-qa 8.3).
                     match self.replacement_rider(s, except).filter(|_| !empty) {
-                        None => {
-                            self.interrupts.remove(0);
-                        }
-                        Some(_) if choice => return,
+                        None => false,
+                        Some(_) if choice => true,
                         Some(id) => {
                             self.interrupts.remove(0);
                             self.apply_replacement_rider(id);
+                            continue;
                         }
                     }
                 }
                 Interrupt::DrawUp { .. } => {
                     let seat = &self.state.seats[s.index()];
                     if empty || seat.hand.len() + seat.held.total() >= self.state.hand_size(s) {
-                        self.interrupts.remove(0);
+                        false
                     } else if choice {
-                        return;
+                        true
                     } else {
                         self.draw_top(s);
+                        continue;
                     }
                 }
                 Interrupt::Draws { left, drawn, .. } => {
@@ -457,12 +464,10 @@ impl Engine {
                             drawn: drawn + 1,
                         };
                     }
+                    continue;
                 }
                 Interrupt::Bottom { left, .. } => {
-                    if left > 0 && !self.state.seats[s.index()].hand.is_empty() {
-                        return;
-                    }
-                    self.interrupts.remove(0);
+                    left > 0 && !self.state.seats[s.index()].hand.is_empty()
                 }
                 Interrupt::StoreSearch { card, left, .. } => {
                     if left > 0 {
@@ -470,42 +475,24 @@ impl Engine {
                     }
                     self.interrupts.remove(0);
                     self.finish_store_search(s, card);
+                    continue;
                 }
                 Interrupt::EntryRemoveOrBurn { ally, .. } => {
-                    if !self.state.minions[ally.index()].in_play {
-                        self.interrupts.remove(0);
-                    } else {
-                        return;
-                    }
+                    self.state.minions[ally.index()].in_play
                 }
                 // Nothing to cancel once the attempt is over.
-                Interrupt::CancelAttempt { minion, .. } => {
-                    let attempting = self
-                        .action
-                        .as_ref()
-                        .is_some_and(|a| a.state == crate::actions::ActionState::Attempt(minion));
-                    if attempting {
-                        return;
-                    }
-                    self.interrupts.remove(0);
-                }
+                Interrupt::CancelAttempt { minion, .. } => attempting(minion),
                 Interrupt::BlockToll { minion, .. } => {
-                    let attempting = self
-                        .action
-                        .as_ref()
-                        .is_some_and(|a| a.state == crate::actions::ActionState::Attempt(minion));
                     let affordable = self
                         .action
                         .as_ref()
                         .is_some_and(|a| self.block_toll(a, minion).is_some());
-                    if !attempting {
-                        self.interrupts.remove(0);
-                    } else if !affordable {
+                    if attempting(minion) && !affordable {
                         self.interrupts.remove(0);
                         self.resign_attempt();
-                    } else {
-                        return;
+                        continue;
                     }
+                    attempting(minion)
                 }
                 Interrupt::MarginPool { .. } => {
                     let range = self.margin_pool_range(front);
@@ -514,6 +501,7 @@ impl Engine {
                     }
                     self.interrupts.remove(0);
                     self.margin_to_pool(front, range[0]);
+                    continue;
                 }
                 Interrupt::MarginBlood { left, .. } => {
                     let open = self.margin_recipients(front);
@@ -524,44 +512,30 @@ impl Engine {
                     for m in open.into_iter().take(left as usize) {
                         self.state.gain_blood(m, 1);
                     }
+                    continue;
                 }
                 Interrupt::DiscardFromHandOf { of, .. } => {
-                    if !self.state.seats[of.index()].ousted
+                    !self.state.seats[of.index()].ousted
                         && !self.state.seats[of.index()].hand.is_empty()
-                    {
-                        return;
-                    }
-                    self.interrupts.remove(0);
                 }
-                Interrupt::AvoidDamage { minion, .. } => {
-                    if self.state.minions[minion.index()].present() {
-                        return;
-                    }
-                    self.interrupts.remove(0);
-                }
+                Interrupt::AvoidDamage { minion, .. } => present(minion),
                 Interrupt::DiscardChosen { seat, left, done } => {
-                    let held = self.state.seats[seat.index()].hand.len();
-                    if left > 0 && !self.state.seats[seat.index()].ousted && held > left as usize {
+                    if left > 0 && self.state.seats[seat.index()].hand.len() > left as usize {
                         return;
                     }
                     // As many as it holds, or fewer: all of them — then
                     // the replacements.
                     self.interrupts.remove(0);
-                    if self.state.seats[seat.index()].ousted {
-                        continue;
-                    }
                     let st = &mut self.state.seats[seat.index()];
                     let k = if left > 0 { st.hand.len() } else { 0 };
                     let cards: Vec<u16> = st.hand.drain(..k).collect();
                     st.ash.extend(cards);
                     self.replace(seat, done as usize + k, None);
+                    continue;
                 }
                 Interrupt::RemoveFromAsh { of, left, pool, .. } => {
-                    let ash = &self.state.seats[of.index()].ash;
-                    let mut kinds = ash.clone();
-                    kinds.sort_unstable();
-                    kinds.dedup();
-                    if left > 0 && !self.state.seats[of.index()].ousted && kinds.len() > 1 {
+                    let kinds = distinct(&self.state.seats[of.index()].ash, |_| true).len();
+                    if left > 0 && !self.state.seats[of.index()].ousted && kinds > 1 {
                         return;
                     }
                     // One kind of card left, or none: no choice.
@@ -573,47 +547,20 @@ impl Engine {
                     let mut loss = vec![0; self.state.seats.len()];
                     loss[of.index()] = pool as i32;
                     self.burn_pool_batch(&loss);
+                    continue;
                 }
-                Interrupt::StealForCorruption { minion, .. } => {
-                    if !self.state.minions[minion.index()].present() {
-                        self.interrupts.remove(0);
-                    } else {
-                        return;
-                    }
-                }
+                Interrupt::StealForCorruption { minion, .. } => present(minion),
                 Interrupt::MakeAnarch { card, minion, .. } => {
                     let c = &self.state.cards[card.index()];
-                    if !c.present()
-                        || c.counters == 0
-                        || !self.state.minions[minion.index()].present()
-                    {
-                        self.interrupts.remove(0);
-                    } else {
-                        return;
-                    }
+                    c.present() && c.counters > 0 && present(minion)
                 }
-                Interrupt::LockForPool { seat, card, .. } => {
+                Interrupt::LockForPool { card, .. } => {
                     let c = &self.state.cards[card.index()];
-                    if self.state.seats[seat.index()].ousted || !c.present() || c.locked {
-                        self.interrupts.remove(0);
-                    } else {
-                        return;
-                    }
+                    c.present() && !c.locked
                 }
-                Interrupt::PoolForCard { seat, .. } => {
-                    if self.state.seats[seat.index()].ousted {
-                        self.interrupts.remove(0);
-                    } else {
-                        return;
-                    }
-                }
+                Interrupt::PoolForCard { .. } => true,
                 Interrupt::ExchangeAnarch { seat, .. } => {
-                    let st = &self.state.seats[seat.index()];
-                    if st.ousted || st.hand.is_empty() {
-                        self.interrupts.remove(0);
-                    } else {
-                        return;
-                    }
+                    !self.state.seats[seat.index()].hand.is_empty()
                 }
                 Interrupt::ChooseForCard { card, .. } => {
                     let ready = self.choosable(front);
@@ -622,27 +569,26 @@ impl Engine {
                     }
                     self.interrupts.remove(0);
                     self.set_chosen(front, ready.first().copied());
+                    continue;
                 }
                 Interrupt::RemoveUncontrolled { seat } => {
                     match self.state.seats[seat.index()].uncontrolled.len() {
-                        0 => {
-                            self.interrupts.remove(0);
-                        }
+                        0 => false,
                         1 => {
                             self.interrupts.remove(0);
                             self.remove_uncontrolled(seat, 0);
+                            continue;
                         }
-                        _ => return,
+                        _ => true,
                     }
                 }
                 Interrupt::DisciplineSearch { minion, .. } => {
-                    if self.state.minions[minion.index()].present()
-                        && !self.discipline_masters(s).is_empty()
-                    {
+                    if present(minion) && !self.discipline_masters(s).is_empty() {
                         return;
                     }
                     self.interrupts.remove(0);
                     self.rng.shuffle(&mut self.state.seats[s.index()].library);
+                    continue;
                 }
                 Interrupt::CorruptionOwner { minion, .. } => {
                     if self.state.minions[minion.index()].corruption.len() > 1 {
@@ -653,68 +599,47 @@ impl Engine {
                     if let [(owner, _)] = v.corruption[..] {
                         v.burn_corruption(owner, 1);
                     }
+                    continue;
                 }
                 Interrupt::MinionOf { of, purpose, .. } => {
-                    if self.minion_of_options(of, purpose).is_empty() {
-                        self.interrupts.remove(0);
-                    } else {
-                        return;
-                    }
+                    !self.minion_of_options(of, purpose).is_empty()
                 }
                 Interrupt::AllyFromAsh { seat, labels } => {
-                    if self.ash_allies(seat, labels).is_empty() {
-                        self.interrupts.remove(0);
-                    } else {
-                        return;
-                    }
+                    !self.ash_allies(seat, labels).is_empty()
                 }
                 Interrupt::UncontrolledBlood { seat, clan, .. } => {
-                    if self.uncontrolled_of_clan(seat, clan).is_empty() {
-                        self.interrupts.remove(0);
-                    } else {
-                        return;
-                    }
+                    !self.uncontrolled_of_clan(seat, clan).is_empty()
                 }
                 Interrupt::MoveForBlood {
                     payer, minion, n, ..
                 } => {
                     let v = &self.state.minions[minion.index()];
                     let p = &self.state.minions[payer.index()];
-                    if v.present() && v.in_torpor && v.hostage == 0 && p.present() && p.blood >= n {
-                        return;
-                    }
-                    self.interrupts.remove(0);
+                    v.present() && v.in_torpor && v.hostage == 0 && p.present() && p.blood >= n
                 }
                 Interrupt::GiveBlood { seat, from } => {
                     let v = &self.state.minions[from.index()];
-                    if v.present() && v.blood > 0 && !self.blood_recipients(seat).is_empty() {
-                        return;
-                    }
-                    self.interrupts.remove(0);
+                    v.present() && v.blood > 0 && !self.blood_recipients(seat).is_empty()
                 }
-                Interrupt::PayOrBurn { card, .. } => {
-                    if self.state.cards[card.index()].present() {
-                        return;
-                    }
-                    self.interrupts.remove(0);
-                }
+                Interrupt::PayOrBurn { card, .. } => self.state.cards[card.index()].present(),
                 Interrupt::LockOrDiscard { minion, .. } => {
-                    if self.state.minions[minion.index()].in_play {
-                        return;
-                    }
-                    self.interrupts.remove(0);
+                    self.state.minions[minion.index()].in_play
                 }
                 Interrupt::EntryBurn { ally, .. } => {
-                    if !self.state.minions[ally.index()].in_play {
-                        self.interrupts.remove(0);
-                    } else if self.entry_burn_options(s, ally).is_empty() {
+                    if self.state.minions[ally.index()].in_play
+                        && self.entry_burn_options(s, ally).is_empty()
+                    {
                         self.interrupts.remove(0);
                         self.burn_minion(ally);
-                    } else {
-                        return;
+                        continue;
                     }
+                    self.state.minions[ally.index()].in_play
                 }
+            };
+            if wait {
+                return;
             }
+            self.interrupts.remove(0);
         }
     }
 
@@ -746,18 +671,9 @@ impl Engine {
             Interrupt::StoreSearch { .. } => {
                 // Any non-unique equipment, by card: out of play, it needs
                 // no definition to be drawn later.
-                let mut found: Vec<u16> = st.seats[s.index()]
-                    .library
-                    .iter()
-                    .copied()
-                    .filter(|&c| {
-                        let lib = &LIBRARY[c as usize];
-                        lib.types.contains(&CardType::Equipment)
-                            && !lib.labels.contains(&Label::Unique)
-                    })
-                    .collect();
-                found.sort_unstable();
-                found.dedup();
+                let found = distinct(&st.seats[s.index()].library, |c| {
+                    CardFilter::NonUniqueEquipment.matches(c)
+                });
                 let mut options = vec![Choice::Pass];
                 options.extend(found.into_iter().map(Choice::FindCard));
                 (WindowLabel::LibrarySearch, options)
@@ -784,25 +700,17 @@ impl Engine {
             // Lock it, or discard a card (one choice per card name).
             Interrupt::LockOrDiscard { .. } => {
                 let mut options = vec![Choice::Pass];
-                let mut seen = Vec::new();
-                for (i, &c) in st.seats[s.index()].hand.iter().enumerate() {
-                    if !seen.contains(&c) {
-                        seen.push(c);
-                        options.push(Choice::Discard(i as u8));
-                    }
-                }
+                options.extend(self.discard_choices(s));
                 (WindowLabel::ResolutionChoice, options)
             }
             // The look: every card, one choice per card name.
-            Interrupt::DiscardFromHandOf { of, .. } => {
-                let mut cards = st.seats[of.index()].hand.clone();
-                cards.sort_unstable();
-                cards.dedup();
-                (
-                    WindowLabel::ResolutionChoice,
-                    cards.into_iter().map(Choice::FindCard).collect(),
-                )
-            }
+            Interrupt::DiscardFromHandOf { of, .. } => (
+                WindowLabel::ResolutionChoice,
+                distinct(&st.seats[of.index()].hand, |_| true)
+                    .into_iter()
+                    .map(Choice::FindCard)
+                    .collect(),
+            ),
             Interrupt::AvoidDamage { .. } => (
                 WindowLabel::ResolutionChoice,
                 vec![Choice::Pass, Choice::BurnBloodToAvoid],
@@ -813,55 +721,36 @@ impl Engine {
                     .map(|i| Choice::Discard(i as u8))
                     .collect(),
             ),
-            Interrupt::RemoveFromAsh { of, .. } => {
-                let mut kinds = st.seats[of.index()].ash.clone();
-                kinds.sort_unstable();
-                kinds.dedup();
-                (
-                    WindowLabel::ResolutionChoice,
-                    kinds.into_iter().map(Choice::FindCard).collect(),
-                )
-            }
-            Interrupt::StealForCorruption { minion, .. } => (
+            Interrupt::RemoveFromAsh { of, .. } => (
+                WindowLabel::ResolutionChoice,
+                distinct(&st.seats[of.index()].ash, |_| true)
+                    .into_iter()
+                    .map(Choice::FindCard)
+                    .collect(),
+            ),
+            Interrupt::StealForCorruption { minion, .. }
+            | Interrupt::MoveForBlood { minion, .. }
+            | Interrupt::CancelAttempt { minion, .. } => (
                 WindowLabel::ResolutionChoice,
                 vec![Choice::Pass, Choice::ChooseMinion(minion)],
             ),
-            Interrupt::MakeAnarch { card, .. } => (
+            Interrupt::MakeAnarch { card, .. }
+            | Interrupt::LockForPool { card, .. }
+            | Interrupt::PoolForCard { card, .. } => (
                 WindowLabel::ResolutionChoice,
                 vec![Choice::Pass, Choice::ResolveRider { card: card.0 }],
             ),
-            Interrupt::LockForPool { card, .. } => (
+            Interrupt::ExchangeAnarch { ash: None, .. } => (
                 WindowLabel::ResolutionChoice,
-                vec![Choice::Pass, Choice::ResolveRider { card: card.0 }],
+                distinct(&st.seats[s.index()].ash, |c| {
+                    CardFilter::HasLabel(Label::RequiresAnarch).matches(c)
+                })
+                .into_iter()
+                .map(Choice::FindCard)
+                .collect(),
             ),
-            Interrupt::PoolForCard { card, .. } => (
-                WindowLabel::ResolutionChoice,
-                vec![Choice::Pass, Choice::ResolveRider { card: card.0 }],
-            ),
-            Interrupt::ExchangeAnarch { ash: None, .. } => {
-                let mut cards: Vec<u16> = st.seats[s.index()]
-                    .ash
-                    .iter()
-                    .copied()
-                    .filter(|&c| LIBRARY[c as usize].labels.contains(&Label::RequiresAnarch))
-                    .collect();
-                cards.sort_unstable();
-                cards.dedup();
-                (
-                    WindowLabel::ResolutionChoice,
-                    cards.into_iter().map(Choice::FindCard).collect(),
-                )
-            }
             Interrupt::ExchangeAnarch { ash: Some(_), .. } => {
-                let mut seen = Vec::new();
-                let mut options = Vec::new();
-                for (i, &c) in st.seats[s.index()].hand.iter().enumerate() {
-                    if !seen.contains(&c) {
-                        seen.push(c);
-                        options.push(Choice::Discard(i as u8));
-                    }
-                }
-                (WindowLabel::ResolutionChoice, options)
+                (WindowLabel::ResolutionChoice, self.discard_choices(s))
             }
             Interrupt::ChooseForCard { .. } => (
                 WindowLabel::ResolutionChoice,
@@ -903,10 +792,6 @@ impl Engine {
                     .map(Choice::FindCard)
                     .collect(),
             ),
-            Interrupt::MoveForBlood { minion, .. } => (
-                WindowLabel::ResolutionChoice,
-                vec![Choice::Pass, Choice::ChooseMinion(minion)],
-            ),
             Interrupt::MinionOf { of, purpose, .. } => {
                 let mut options: Vec<Choice> = self
                     .minion_of_options(of, purpose)
@@ -929,10 +814,6 @@ impl Engine {
                 WindowLabel::BlockToll,
                 vec![Choice::PayBlockToll, Choice::Pass],
             ),
-            Interrupt::CancelAttempt { minion, .. } => (
-                WindowLabel::ResolutionChoice,
-                vec![Choice::Pass, Choice::ChooseMinion(minion)],
-            ),
             Interrupt::MarginPool { .. } => (
                 WindowLabel::Distribution,
                 self.margin_pool_range(front)
@@ -949,29 +830,17 @@ impl Engine {
             }
             Interrupt::EntryRemoveOrBurn { .. } => {
                 // One choice per card: copies are alike.
-                let seat = &st.seats[s.index()];
-                let mut allies: Vec<u16> = seat
-                    .ash
-                    .iter()
-                    .copied()
-                    .filter(|&c| LIBRARY[c as usize].types.contains(&CardType::Ally))
-                    .collect();
-                allies.sort_unstable();
-                allies.dedup();
-                let mut vampires = seat.ash_crypt.clone();
-                vampires.sort_unstable();
-                vampires.dedup();
                 let mut options = vec![Choice::Pass];
-                options.extend(allies.into_iter().map(Choice::FindCard));
-                options.extend(vampires.into_iter().map(Choice::AshVampire));
+                options.extend(self.ash_allies(s, &[]).into_iter().map(Choice::FindCard));
+                options.extend(
+                    distinct(&st.seats[s.index()].ash_crypt, |_| true)
+                        .into_iter()
+                        .map(Choice::AshVampire),
+                );
                 (WindowLabel::EntryEffect, options)
             }
         };
-        Some(DecisionRequest {
-            seat: s,
-            window,
-            options,
-        })
+        Some(DecisionRequest::new(s, window, options))
     }
 
     /// The ready vampires a `ChooseForCard` may pick: its seat's, of its
@@ -1028,19 +897,11 @@ impl Engine {
     /// The allies in `seat`'s ash heap bearing one of `labels` (any, if
     /// empty), one entry per card.
     pub(crate) fn ash_allies(&self, seat: SeatId, labels: &[crate::library::Label]) -> Vec<u16> {
-        let mut out: Vec<u16> = self.state.seats[seat.index()]
-            .ash
-            .iter()
-            .copied()
-            .filter(|&c| {
-                let lib = &LIBRARY[c as usize];
-                lib.types.contains(&crate::library::CardType::Ally)
-                    && (labels.is_empty() || labels.iter().any(|l| lib.labels.contains(l)))
-            })
-            .collect();
-        out.sort_unstable();
-        out.dedup();
-        out
+        distinct(&self.state.seats[seat.index()].ash, |c| {
+            let lib = &LIBRARY[c as usize];
+            lib.types.contains(&crate::library::CardType::Ally)
+                && (labels.is_empty() || labels.iter().any(|l| lib.labels.contains(l)))
+        })
     }
 
     /// The Methuselahs still in the game with an ally in their ash heap.
@@ -1136,28 +997,19 @@ impl Engine {
 
     /// The Black Throne of `x`'s: unlocked, offered to lock for pool.
     fn contract_riders(&mut self, x: SeatId) {
-        for ci in 0..self.state.cards.len() {
-            let id = CardId(ci as u32);
-            let c = &self.state.cards[ci];
+        for (id, r) in self.state.card_riders(Hook::ContractHostLeaves) {
+            let c = &self.state.cards[id.index()];
             if !c.present() || c.locked || self.state.card_controller(id) != x {
                 continue;
             }
-            let Some(def) = cards::lookup(c.card) else {
-                continue;
-            };
-            for r in def
-                .riders
-                .iter()
-                .filter(|r| r.hook == Hook::ContractHostLeaves)
-            {
-                for e in r.effects {
-                    if let crate::cards::Effect::GainPool(n) = *e {
-                        self.interrupts.push(Interrupt::LockForPool {
-                            seat: x,
-                            card: id,
-                            n,
-                        });
-                    }
+
+            for e in r.effects {
+                if let crate::cards::Effect::GainPool(n) = *e {
+                    self.interrupts.push(Interrupt::LockForPool {
+                        seat: x,
+                        card: id,
+                        n,
+                    });
                 }
             }
         }
@@ -1254,27 +1106,40 @@ impl Engine {
             (Zone::Hand, &seat.hand),
             (Zone::AshHeap, &seat.ash),
         ] {
-            let mut found: Vec<u16> = cards
-                .iter()
-                .copied()
-                .filter(|&c| LIBRARY[c as usize].labels.contains(&Label::Discipline))
-                .collect();
-            found.sort_unstable();
-            found.dedup();
             out.extend(
-                found
-                    .into_iter()
-                    .map(|card| Choice::TakeFrom { zone, card }),
+                distinct(cards, |c| {
+                    CardFilter::HasLabel(Label::Discipline).matches(c)
+                })
+                .into_iter()
+                .map(|card| Choice::TakeFrom { zone, card }),
             );
         }
         out
+    }
+
+    /// One discard choice per card name in `s`'s hand (its first copy).
+    pub(crate) fn discard_choices(&self, s: SeatId) -> Vec<Choice> {
+        let hand = &self.state.seats[s.index()].hand;
+        (0..hand.len())
+            .filter(|&i| !hand[..i].contains(&hand[i]))
+            .map(|i| Choice::Discard(i as u8))
+            .collect()
     }
 
     pub(crate) fn interrupt_apply(&mut self, choice: &Choice) {
         let front = self.interrupts[0];
         let s = front.seat();
         match (front, *choice) {
-            (Interrupt::StealForCorruption { .. }, Choice::Pass) => {
+            (
+                Interrupt::StealForCorruption { .. }
+                | Interrupt::MakeAnarch { .. }
+                | Interrupt::LockForPool { .. }
+                | Interrupt::PoolForCard { .. }
+                | Interrupt::MoveForBlood { .. }
+                | Interrupt::CancelAttempt { .. }
+                | Interrupt::MinionOf { .. },
+                Choice::Pass,
+            ) => {
                 self.interrupts.remove(0);
             }
             // The player's counters burned; the minion theirs for good.
@@ -1295,9 +1160,6 @@ impl Engine {
                     }
                 }
             }
-            (Interrupt::MakeAnarch { .. }, Choice::Pass) => {
-                self.interrupts.remove(0);
-            }
             (Interrupt::MakeAnarch { card, minion, .. }, Choice::ResolveRider { .. }) => {
                 self.interrupts.remove(0);
                 self.state.minions[minion.index()].sect_override = Some(crate::crypt::Sect::Anarch);
@@ -1307,16 +1169,10 @@ impl Engine {
                     self.burn_card_in_play(card);
                 }
             }
-            (Interrupt::LockForPool { .. }, Choice::Pass) => {
-                self.interrupts.remove(0);
-            }
             (Interrupt::LockForPool { card, n, .. }, Choice::ResolveRider { .. }) => {
                 self.interrupts.remove(0);
                 self.state.cards[card.index()].locked = true;
                 self.state.seats[s.index()].pool += n as i32;
-            }
-            (Interrupt::PoolForCard { .. }, Choice::Pass) => {
-                self.interrupts.remove(0);
             }
             // Burned with its minion or not (PIB 20150512): the pool all
             // the same.
@@ -1366,9 +1222,6 @@ impl Engine {
                 // starting life, able to act this turn (LSJ 20100204).
                 let m = self.recruit_ally(s, card, 0);
                 self.state.minions[m.index()].recruited = false;
-            }
-            (Interrupt::MoveForBlood { .. }, Choice::Pass) => {
-                self.interrupts.remove(0);
             }
             (Interrupt::MoveForBlood { payer, n, .. }, Choice::ChooseMinion(m)) => {
                 self.interrupts.remove(0);
@@ -1485,9 +1338,6 @@ impl Engine {
                 self.interrupts.remove(0);
                 self.pay_block_toll(minion, false);
             }
-            (Interrupt::CancelAttempt { .. }, Choice::Pass) => {
-                self.interrupts.remove(0);
-            }
             (Interrupt::CancelAttempt { .. }, Choice::ChooseMinion(_)) => {
                 self.interrupts.remove(0);
                 self.resign_attempt();
@@ -1581,9 +1431,6 @@ impl Engine {
             (Interrupt::CorruptionOwner { minion, .. }, Choice::ChooseSeat(owner)) => {
                 self.interrupts.remove(0);
                 self.state.minions[minion.index()].burn_corruption(owner, 1);
-            }
-            (Interrupt::MinionOf { .. }, Choice::Pass) => {
-                self.interrupts.remove(0);
             }
             (Interrupt::MinionOf { seat, purpose, .. }, Choice::ChooseMinion(m)) => {
                 self.interrupts.remove(0);

@@ -8,9 +8,9 @@
 //! abilities; 9c: abilities in referendums, actions and phases.
 
 use super::{
-    Actor, CardFilter, Effect, Hook, Limit, ModeDef, Per, Printed, PrintedTo, Requirement as R,
-    Rider, RiderScope, Stat, StrikeKind, TargetKind, TargetSpec, Terms, TitleClass, VampireDef,
-    Window,
+    bleed, mode_of, target, Actor, CardFilter, Effect, Hook, Limit, ModeDef, Per, Printed,
+    PrintedTo, Requirement as R, Rider, RiderScope, Stat, StrikeKind, TargetKind, TargetSpec,
+    Terms, TitleClass, VampireDef, Window, VAMP,
 };
 use crate::crypt::Sect;
 use crate::decision::ActionKind;
@@ -113,7 +113,6 @@ const DODGE_EACH_COMBAT: ModeDef = ability(
 
 pub static ABADDON: VampireDef = VampireDef {
     name: "Abaddon",
-    printed: &[],
     abilities: &[
         MANEUVER_EACH_COMBAT,
         ability(
@@ -124,8 +123,7 @@ pub static ABADDON: VampireDef = VampireDef {
             &[Effect::Press],
         ),
     ],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "During an action, Abraham can discard a card requiring Blood Sorcery
@@ -134,44 +132,42 @@ pub static ABADDON: VampireDef = VampireDef {
 /// he can discard (advanced rules §1.5.4).
 pub static ABRAHAM_DUSABLE: VampireDef = VampireDef {
     name: "Abraham DuSable",
-    printed: &[],
     abilities: &[
         ModeDef {
-            windows: &[Window::ActionDuring],
-            actor: Actor::Host,
-            requires: &[
-                R::ActorActing,
-                R::StealthNeeded,
-                R::HandHas(CardFilter::Discipline("tha"), 1),
-            ],
-            target: None,
             terms: Some(Terms::Discard {
                 n: 1,
                 of: CardFilter::Discipline("tha"),
             }),
-            waives_needed: false,
             limit: Some(Limit::PerAction),
-            effects: &[Effect::AddStealth(1)],
+            ..mode_of(
+                &[Window::ActionDuring],
+                Actor::Host,
+                &[
+                    R::ActorActing,
+                    R::StealthNeeded,
+                    R::HandHas(CardFilter::Discipline("tha"), 1),
+                ],
+                &[Effect::AddStealth(1)],
+            )
         },
         ModeDef {
-            windows: &[Window::ActionStealthIntercept],
-            actor: Actor::Host,
-            requires: &[
-                R::InterceptNeeded,
-                R::HandHas(CardFilter::Discipline("tha"), 1),
-            ],
-            target: None,
             terms: Some(Terms::Discard {
                 n: 1,
                 of: CardFilter::Discipline("tha"),
             }),
-            waives_needed: false,
             limit: Some(Limit::PerAction),
-            effects: &[Effect::AddIntercept(1)],
+            ..mode_of(
+                &[Window::ActionStealthIntercept],
+                Actor::Host,
+                &[
+                    R::InterceptNeeded,
+                    R::HandHas(CardFilter::Discipline("tha"), 1),
+                ],
+                &[Effect::AddIntercept(1)],
+            )
         },
     ],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "Adrino gets 1 press (mandatory) each combat, only usable to continue
@@ -183,7 +179,6 @@ pub static ABRAHAM_DUSABLE: VampireDef = VampireDef {
 /// unlock phase." A successful hunt gains blood (spec §3.7.2.1).
 pub static ADISA: VampireDef = VampireDef {
     name: "Adisa",
-    printed: &[],
     abilities: &[enter_combat(&[
         R::NotControlled,
         R::ActorReady,
@@ -195,15 +190,13 @@ pub static ADISA: VampireDef = VampireDef {
         requires: &[],
         effects: &[Effect::SkipNextUnlock],
     }],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static ADRINO_MANAUARA: VampireDef = VampireDef {
     name: "Adrino Manauara",
     printed: &[own(Stat::MandatoryContinuePress, 1, &[])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static AISHA_AZ_ZAHRA: VampireDef = VampireDef {
@@ -221,8 +214,7 @@ pub static AISHA_AZ_ZAHRA: VampireDef = VampireDef {
             Effect::AddVotesPerReadySect(Sect::Anarch),
         ],
     )],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "If Alabástrom is ready during your turn, you can unlock another ready
@@ -230,50 +222,46 @@ pub static AISHA_AZ_ZAHRA: VampireDef = VampireDef {
 /// trait — no card in the engine pool requires it (rules-qa 16.6).
 pub static ALABASTROM: VampireDef = VampireDef {
     name: "Alabástrom",
-    printed: &[],
     abilities: &[ModeDef {
-        windows: &[Window::AnyImpulse],
-        actor: Actor::Host,
-        requires: &[R::OwnTurn, R::HostReady],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[
+        target: target(
+            TargetKind::Minion,
+            &[
                 R::Controlled,
                 R::ActorReady,
                 R::ActorClan("Gargoyle"),
                 R::NotHost,
             ],
-        }),
-        terms: None,
-        waives_needed: false,
+        ),
         limit: Some(Limit::PerTurn),
-        effects: &[Effect::UnlockTarget],
+        ..mode_of(
+            &[Window::AnyImpulse],
+            Actor::Host,
+            &[R::OwnTurn, R::HostReady],
+            &[Effect::UnlockTarget],
+        )
     }],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static ALEXA_DRAPER: VampireDef = VampireDef {
     name: "Alexa Draper",
-    printed: &[],
     abilities: &[ModeDef {
-        windows: &[Window::Referendum],
-        actor: Actor::Host,
-        requires: &[
-            R::AnyPollingStep,
-            R::HandHas(CardFilter::Discipline("dom"), 1),
-        ],
-        target: None,
         terms: Some(Terms::Discard {
             n: 1,
             of: CardFilter::Discipline("dom"),
         }),
-        waives_needed: false,
         limit: Some(Limit::PerReferendum),
-        effects: &[Effect::AddVotes(1)],
+        ..mode_of(
+            &[Window::Referendum],
+            Actor::Host,
+            &[
+                R::AnyPollingStep,
+                R::HandHas(CardFilter::Discipline("dom"), 1),
+            ],
+            &[Effect::AddVotes(1)],
+        )
     }],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "After Alicia performs a successful directed action, you can discard a
@@ -281,7 +269,6 @@ pub static ALEXA_DRAPER: VampireDef = VampireDef {
 /// the target Methuselah(s)." Once per action (rules-qa 16.1).
 pub static ALICIA_CORTEZ: VampireDef = VampireDef {
     name: "Alicia Cortez",
-    printed: &[],
     abilities: &[ModeDef {
         windows: &[Window::ActionAfterResolution],
         actor: Actor::Host,
@@ -305,49 +292,41 @@ pub static ALICIA_CORTEZ: VampireDef = VampireDef {
         limit: Some(Limit::PerAction),
         effects: &[Effect::LockTarget],
     }],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "Once each turn, Aline can burn 1 blood to unlock after another Anarch
 /// you control performs a successful action." In torpor too (LSJ 20011022).
 pub static ALINE_GADEKE: VampireDef = VampireDef {
     name: "Aline Gädeke",
-    printed: &[],
     abilities: &[ModeDef {
-        windows: &[Window::ActionAfterResolution],
-        actor: Actor::Host,
-        requires: &[
-            R::OtherActingControlled,
-            R::ActingSectIn(&[Sect::Anarch]),
-            R::ActionSuccessful,
-            R::HostLocked,
-            R::HostBloodAtLeast(1),
-        ],
-        target: None,
-        terms: None,
-        waives_needed: false,
         limit: Some(Limit::PerTurn),
-        effects: &[Effect::HostBurnBlood(1), Effect::UnlockActor],
+        ..mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::Host,
+            &[
+                R::OtherActingControlled,
+                R::ActingSectIn(&[Sect::Anarch]),
+                R::ActionSuccessful,
+                R::HostLocked,
+                R::HostBloodAtLeast(1),
+            ],
+            &[Effect::HostBurnBlood(1), Effect::UnlockActor],
+        )
     }],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static ANDRE_THE_MANIPULATOR: VampireDef = VampireDef {
     name: "André the Manipulator",
     printed: &[own(Stat::HandSize, 2, &[R::ThisVampireReady])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static ARIANE: VampireDef = VampireDef {
     name: "Ariane",
-    printed: &[own(Stat::Stealth, -1, &[R::IsUndirected])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    printed: &[own(Stat::Stealth, -1, &[R::ActionUndirected])],
+    ..VAMP
 };
 
 /// "If Ayse is ready, you can use a discard phase action to add 1 blood to
@@ -362,17 +341,16 @@ pub static ARIANE: VampireDef = VampireDef {
 /// Undirected Actions": Ⓓ is a reminder).
 pub static ANIEL: VampireDef = VampireDef {
     name: "Aniel",
-    printed: &[],
     abilities: &[
         printed_action(
-            Some(TargetSpec {
-                kind: TargetKind::Card,
-                filter: &[
+            target(
+                TargetKind::Card,
+                &[
                     R::TargetCard(CardFilter::RequiresDiscipline),
                     R::TargetOnReadyMinion,
                     R::NotHost,
                 ],
-            }),
+            ),
             &[
                 Effect::DeclareAction(ActionKind::Ability),
                 Effect::AddStealth(1),
@@ -381,10 +359,10 @@ pub static ANIEL: VampireDef = VampireDef {
             ],
         ),
         printed_action(
-            Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[R::TargetCorrupted, R::ActorReady, R::OtherThanActor],
-            }),
+            target(
+                TargetKind::Minion,
+                &[R::TargetCorrupted, R::ActorReady, R::OtherThanActor],
+            ),
             &[
                 Effect::DeclareAction(ActionKind::Ability),
                 Effect::AddStealth(1),
@@ -394,8 +372,7 @@ pub static ANIEL: VampireDef = VampireDef {
             ],
         ),
     ],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "Apolonia can steal 1 blood from a younger vampire as a Ⓓ action." Any
@@ -403,40 +380,29 @@ pub static ANIEL: VampireDef = VampireDef {
 /// "Target"); undirected on her own Methuselah's.
 pub static APOLONIA_CZARNECKI: VampireDef = VampireDef {
     name: "Apolonia Czarnecki",
-    printed: &[],
     abilities: &[printed_action(
-        Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[R::TargetVampire, R::Younger],
-        }),
+        target(TargetKind::Minion, &[R::TargetVampire, R::Younger]),
         &[
             Effect::DeclareAction(ActionKind::Ability),
             Effect::StealBloodFromTarget(1),
         ],
     )],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static AYSE_DHANIAL: VampireDef = VampireDef {
     name: "Ayse Dhanial",
-    printed: &[],
-    abilities: &[ModeDef {
-        windows: &[Window::DiscardPhaseAction],
-        actor: Actor::Host,
-        requires: &[
+    abilities: &[mode_of(
+        &[Window::DiscardPhaseAction],
+        Actor::Host,
+        &[
             R::HostReady,
             R::DiscardPhaseActionLeft,
             R::HostBelowCapacity,
         ],
-        target: None,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::SpendDiscardPhaseAction, Effect::AddHostBlood(1)],
-    }],
-    riders: &[],
-    incomplete: None,
+        &[Effect::SpendDiscardPhaseAction, Effect::AddHostBlood(1)],
+    )],
+    ..VAMP
 };
 
 pub static AZUCENA: VampireDef = VampireDef {
@@ -453,76 +419,60 @@ pub static AZUCENA: VampireDef = VampireDef {
             &[R::OpponentClan("Lasombra"), R::OpponentOlder],
         ),
     ],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "Barachiel can enter combat with a minion as a Ⓓ action."
 pub static BARACHIEL: VampireDef = VampireDef {
     name: "Barachiel",
-    printed: &[],
     abilities: &[enter_combat(&[R::NotControlled, R::ActorReady])],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static BRANIMIRA: VampireDef = VampireDef {
     name: "Branimira",
     printed: &[own(Stat::Intercept, 1, &[R::PoolAtMost(9)])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static BRET_STRYKER: VampireDef = VampireDef {
     name: "Bret Stryker",
     printed: &[own(Stat::Intercept, -1, &[R::OpponentTitled])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static CARMELITA_NEILLSON: VampireDef = VampireDef {
     name: "Carmelita Neillson",
     printed: &[own(Stat::HandSize, 1, &[R::ThisVampireReady])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static CASTELLAN: VampireDef = VampireDef {
     name: "Castellan",
     printed: &[
-        own(Stat::Intercept, 1, &[R::IsDirected]),
-        own(Stat::Intercept, -1, &[R::IsUndirected]),
+        own(Stat::Intercept, 1, &[R::ActionDirected]),
+        own(Stat::Intercept, -1, &[R::ActionUndirected]),
     ],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static CATALINA_VEGA: VampireDef = VampireDef {
     name: "Catalina Vega",
     printed: &[own(Stat::Bleed, 1, &[])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "If the referendum of a political action called by Cedrick is canceled
 /// or fails, he goes to torpor after resolution."
 pub static CEDRICK_CALHOUN: VampireDef = VampireDef {
     name: "Cedrick Calhoun",
-    printed: &[],
-    abilities: &[],
     riders: &[Rider {
         hook: Hook::OwnReferendumFailed,
         scope: RiderScope::Every,
         requires: &[],
         effects: &[Effect::GoToTorpor],
     }],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "Once each combat, Chun Hei can burn 1 blood to get 1 additional strike
@@ -543,8 +493,7 @@ pub static CHUN_HEI: VampireDef = VampireDef {
             },
         ],
     )],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "Daria can lock to give another Nosferatu +1 stealth": the acting
@@ -554,38 +503,30 @@ pub static CHUN_HEI: VampireDef = VampireDef {
 /// "Dafina can enter combat with a minion as a Ⓓ action."
 pub static DAFINA_HANGANU: VampireDef = VampireDef {
     name: "Dafina Hanganu",
-    printed: &[],
     abilities: &[enter_combat(&[R::NotControlled, R::ActorReady])],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static DARIA: VampireDef = VampireDef {
     name: "Daria",
-    printed: &[],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDuring, Window::ReactionDuringAction],
-        actor: Actor::Host,
-        requires: &[
+    abilities: &[mode_of(
+        &[Window::ActionDuring, Window::ReactionDuringAction],
+        Actor::Host,
+        &[
             R::HostUnlocked,
             R::OtherActingClan("Nosferatu"),
             R::StealthNeeded,
         ],
-        target: None,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::LockActor, Effect::AddStealth(1)],
-    }],
-    riders: &[],
+        &[Effect::LockActor, Effect::AddStealth(1)],
+    )],
     incomplete: Some("Directed actions cost her +1 blood."),
+    ..VAMP
 };
 
 /// "Darius can steal a non-electronic, non-vehicle, non-weapon equipment
 /// as a Ⓓ action." No electronic equipment is in the V5 pool.
 pub static DARIUS_SHIRAZI: VampireDef = VampireDef {
     name: "Darius Shirazi",
-    printed: &[],
     abilities: &[steal_equipment(
         &[
             R::TargetCard(CardFilter::EquipmentWithout(&[
@@ -601,23 +542,20 @@ pub static DARIUS_SHIRAZI: VampireDef = VampireDef {
             Effect::StealTargetCard,
         ],
     )],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static DJENEBA: VampireDef = VampireDef {
     name: "Djeneba",
     printed: &[own(Stat::Stealth, 1, &[])],
-    abilities: &[],
-    riders: &[],
     incomplete: Some("In combat, strike cards cost the opposing minion +1 blood or life."),
+    ..VAMP
 };
 
 /// "Dominica can search your library for a master archetype card, reveal it
 /// and move it to your hand as a +1 stealth action."
 pub static DOMINICA: VampireDef = VampireDef {
     name: "Dominica",
-    printed: &[],
     abilities: &[printed_action(
         None,
         &[
@@ -626,22 +564,18 @@ pub static DOMINICA: VampireDef = VampireDef {
             Effect::SearchToHand(CardFilter::Labeled(CardType::Master, Label::Archetype)),
         ],
     )],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static DOWAGER_THE: VampireDef = VampireDef {
     name: "Dowager, The",
-    printed: &[own(Stat::Intercept, 1, &[R::IsDirected])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    printed: &[own(Stat::Intercept, 1, &[R::ActionDirected])],
+    ..VAMP
 };
 
 pub static EGIDIA_ARRU: VampireDef = VampireDef {
     name: "Egidia Arrú",
     printed: &[own(Stat::Strength, 1, &[])],
-    abilities: &[],
     // "After a minion in combat with Egidia leaves the ready region, their
     // controller burns 1 pool."
     riders: &[Rider {
@@ -650,7 +584,7 @@ pub static EGIDIA_ARRU: VampireDef = VampireDef {
         requires: &[],
         effects: &[Effect::TheirControllerBurnsPool(1)],
     }],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "As a minion announces an action directed at Evan, flip a coin; if it is
@@ -662,39 +596,28 @@ pub static EGIDIA_ARRU: VampireDef = VampireDef {
 /// having bled before it attached she is stuck (spec §3.9, ANK 20211009-2).
 pub static ELEN_KAMJIAN: VampireDef = VampireDef {
     name: "Elen Kamjian",
-    printed: &[],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::Host,
-        requires: &[R::ControlsLockedMinion],
-        target: None,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    abilities: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::Host,
+        &[R::ControlsLockedMinion],
+        &[
             Effect::DeclareAction(ActionKind::Bleed),
             Effect::MandatoryAction,
-            Effect::BleedMod {
-                n: 1,
-                limited: false,
-            },
+            bleed(1, false),
         ],
-    }],
-    riders: &[],
-    incomplete: None,
+    )],
+    ..VAMP
 };
 
 pub static EVAN_KLEIN: VampireDef = VampireDef {
     name: "Evan Klein",
-    printed: &[],
-    abilities: &[],
     riders: &[Rider {
         hook: Hook::ActionAnnouncedAtTarget,
         scope: RiderScope::Every,
         requires: &[R::ActingOtherController],
         effects: &[Effect::CoinFlipActionFails],
     }],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "Minions with any of your corruption counters in combat with Faruq
@@ -711,17 +634,13 @@ pub static FARUQ_ABD_AL_QADIR: VampireDef = VampireDef {
             requires: &[R::ActorCorruptedBySource],
         },
     ],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static FLAVIO_GONCALVES: VampireDef = VampireDef {
     name: "Flávio Gonçalves",
-    printed: &[],
     abilities: &[DODGE_EACH_COMBAT],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "During an action Gathii performs, you can reveal the top card of your
@@ -730,22 +649,20 @@ pub static FLAVIO_GONCALVES: VampireDef = VampireDef {
 /// needed, the stealth then not gained (ANK 20231031).
 pub static GATHII: VampireDef = VampireDef {
     name: "Gathii",
-    printed: &[],
     abilities: &[ModeDef {
-        windows: &[Window::ActionDuring],
-        actor: Actor::Host,
-        requires: &[R::ActorActing],
-        target: None,
-        terms: None,
         waives_needed: true,
         limit: Some(Limit::PerAction),
-        effects: &[Effect::RevealTopCard {
-            burn: 1,
-            stealth: 1,
-        }],
+        ..mode_of(
+            &[Window::ActionDuring],
+            Actor::Host,
+            &[R::ActorActing],
+            &[Effect::RevealTopCard {
+                burn: 1,
+                stealth: 1,
+            }],
+        )
     }],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static GWENLLIAN_ARWYN: VampireDef = VampireDef {
@@ -754,25 +671,21 @@ pub static GWENLLIAN_ARWYN: VampireDef = VampireDef {
     // The minion attempting to block her action, while stealth is needed,
     // for the rest of the action; once per action (rules-qa 15.2).
     abilities: &[ModeDef {
-        windows: &[Window::ActionDuring],
-        actor: Actor::Host,
-        requires: &[R::ActorActing, R::StealthNeeded, R::HostBloodAtLeast(1)],
-        target: None,
-        terms: None,
-        waives_needed: false,
         limit: Some(Limit::PerAction),
-        effects: &[Effect::HostBurnBlood(1), Effect::AttemptingIntercept(-1)],
+        ..mode_of(
+            &[Window::ActionDuring],
+            Actor::Host,
+            &[R::ActorActing, R::StealthNeeded, R::HostBloodAtLeast(1)],
+            &[Effect::HostBurnBlood(1), Effect::AttemptingIntercept(-1)],
+        )
     }],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static HAFTHOR_THORSTEINSSON: VampireDef = VampireDef {
     name: "Hafthor Thorsteinsson",
     printed: &[own(Stat::Intercept, 1, &[])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static HESHA_RUHADZE: VampireDef = VampireDef {
@@ -784,9 +697,7 @@ pub static HESHA_RUHADZE: VampireDef = VampireDef {
         per: Per::UniqueEquipmentOn,
         requires: &[],
     }],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "Once each turn, if Ilonka is ready after a successful bleed against you,
@@ -795,24 +706,22 @@ pub static HESHA_RUHADZE: VampireDef = VampireDef {
 /// the look.
 pub static ILONKA: VampireDef = VampireDef {
     name: "Ilonka",
-    printed: &[],
     abilities: &[ModeDef {
-        windows: &[Window::ActionAfterResolution],
-        actor: Actor::Host,
-        requires: &[
-            R::HostReady,
-            R::IsBleed,
-            R::DirectedAtYou,
-            R::BleedSuccessful,
-        ],
-        target: None,
         terms: Some(Terms::Count { min: 0, max: 1 }),
-        waives_needed: false,
         limit: Some(Limit::PerTurn),
-        effects: &[Effect::ActingControllerDiscardsAtRandom],
+        ..mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::Host,
+            &[
+                R::HostReady,
+                R::IsBleed,
+                R::DirectedAtYou,
+                R::BleedSuccessful,
+            ],
+            &[Effect::ActingControllerDiscardsAtRandom],
+        )
     }],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static JASON_SON_NEWBERRY: VampireDef = VampireDef {
@@ -821,36 +730,29 @@ pub static JASON_SON_NEWBERRY: VampireDef = VampireDef {
         own(Stat::Bleed, 1, &[]),
         own(Stat::VotesAgainstBloodHunt, 2, &[]),
     ],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "During your turn, you can burn the Edge to unlock Kalinda": wherever her
 /// controller holds the impulse on their turn.
 pub static KALINDA: VampireDef = VampireDef {
     name: "Kalinda",
-    printed: &[],
     abilities: &[ModeDef {
-        windows: &[Window::AnyImpulse],
-        actor: Actor::Host,
-        requires: &[R::OwnTurn, R::HasEdge, R::HostLocked],
-        target: None,
-        terms: None,
-        waives_needed: false,
         limit: Some(Limit::PerTurn),
-        effects: &[Effect::BurnEdge, Effect::UnlockActor],
+        ..mode_of(
+            &[Window::AnyImpulse],
+            Actor::Host,
+            &[R::OwnTurn, R::HasEdge, R::HostLocked],
+            &[Effect::BurnEdge, Effect::UnlockActor],
+        )
     }],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static KAMILE_PAUKSTYS: VampireDef = VampireDef {
     name: "Kamile Paukstys",
     printed: &[own(Stat::Bleed, 1, &[])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "Once each combat, Kasim can discard a political action card before
@@ -859,20 +761,19 @@ pub static KASIM_BAYAR: VampireDef = VampireDef {
     name: "Kasim Bayar",
     printed: &[own(Stat::Bleed, 1, &[])],
     abilities: &[ModeDef {
-        windows: &[Window::CombatBeforeRange],
-        actor: Actor::Host,
-        requires: &[R::HandHas(CardFilter::Type(CardType::PoliticalAction), 1)],
-        target: None,
         terms: Some(Terms::Discard {
             n: 1,
             of: CardFilter::Type(CardType::PoliticalAction),
         }),
-        waives_needed: false,
         limit: Some(Limit::PerCombat),
-        effects: &[Effect::StrengthThisCombat(2)],
+        ..mode_of(
+            &[Window::CombatBeforeRange],
+            Actor::Host,
+            &[R::HandHas(CardFilter::Type(CardType::PoliticalAction), 1)],
+            &[Effect::StrengthThisCombat(2)],
+        )
     }],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static KEVIN_JACKSON: VampireDef = VampireDef {
@@ -887,9 +788,7 @@ pub static KEVIN_JACKSON: VampireDef = VampireDef {
             requires: &[R::ActorClan("Brujah")],
         },
     ],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "During a bleed action, Larissa can discard a card requiring Animalism
@@ -897,29 +796,24 @@ pub static KEVIN_JACKSON: VampireDef = VampireDef {
 /// as often as she can discard.
 pub static LARISSA_MOREIRA: VampireDef = VampireDef {
     name: "Larissa Moreira",
-    printed: &[],
     abilities: &[ModeDef {
-        windows: &[Window::ActionDuring],
-        actor: Actor::Host,
-        requires: &[
-            R::ActorActing,
-            R::IsBleed,
-            R::HandHas(CardFilter::Discipline("ani"), 1),
-        ],
-        target: None,
         terms: Some(Terms::Discard {
             n: 1,
             of: CardFilter::Discipline("ani"),
         }),
-        waives_needed: false,
         limit: Some(Limit::PerAction),
-        effects: &[Effect::BleedMod {
-            n: 1,
-            limited: false,
-        }],
+        ..mode_of(
+            &[Window::ActionDuring],
+            Actor::Host,
+            &[
+                R::ActorActing,
+                R::IsBleed,
+                R::HandHas(CardFilter::Discipline("ani"), 1),
+            ],
+            &[bleed(1, false)],
+        )
     }],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "Lenelle can exchange a card from your hand for a library card in your
@@ -928,7 +822,6 @@ pub static LARISSA_MOREIRA: VampireDef = VampireDef {
 /// resolution if both are still there.
 pub static LENELLE: VampireDef = VampireDef {
     name: "Lenelle, Mambo of Birmingham",
-    printed: &[],
     abilities: &[ModeDef {
         requires: &[R::HandHas(CardFilter::Any, 1), R::AshNotEmpty],
         ..printed_action(
@@ -941,65 +834,53 @@ pub static LENELLE: VampireDef = VampireDef {
             ],
         )
     }],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static LENNY_BURKHEAD: VampireDef = VampireDef {
     name: "Lenny Burkhead",
     printed: &[own(Stat::Bleed, 1, &[])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static MARCHESA_LILIANA: VampireDef = VampireDef {
     name: "Marchesa Liliana",
     printed: &[own(Stat::Bleed, 1, &[])],
-    abilities: &[],
-    riders: &[],
     incomplete: Some(
         "During a bleed action, Liliana can remove seven cards in your ash heap from the game \
          to get an additional +1 bleed.",
     ),
+    ..VAMP
 };
 
 /// "If Marialena is blocked, she burns 1 blood before block resolution."
 pub static MARIALENA: VampireDef = VampireDef {
     name: "Marialena",
-    printed: &[],
-    abilities: &[],
     riders: &[Rider {
         hook: Hook::HostBlocked,
         scope: RiderScope::Every,
         requires: &[],
         effects: &[Effect::HostBurnBlood(1)],
     }],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static MARTINA_SRNANKOVA: VampireDef = VampireDef {
     name: "Martina Srnankova",
     printed: &[own(Stat::Intercept, 1, &[R::IsBleed])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static MASSIMILIANO: VampireDef = VampireDef {
     name: "Massimiliano",
     printed: &[own(Stat::Strength, 1, &[])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static MICKEY_WHEELER: VampireDef = VampireDef {
     name: "Mickey Wheeler",
     printed: &[own(Stat::Strength, 1, &[R::OpponentOlder])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static MITHRAS: VampireDef = VampireDef {
@@ -1009,12 +890,11 @@ pub static MITHRAS: VampireDef = VampireDef {
         own(Stat::Strength, 1, &[]),
         own(Stat::Votes, 2, &[]),
     ],
-    abilities: &[],
-    riders: &[],
     incomplete: Some(
         "Younger vampires must burn 1 blood to attempt to block Mithras or to cast votes or \
          ballots against a referendum called by him.",
     ),
+    ..VAMP
 };
 
 pub static MORA_THE_DEATH_SEER: VampireDef = VampireDef {
@@ -1023,32 +903,28 @@ pub static MORA_THE_DEATH_SEER: VampireDef = VampireDef {
     // Once per discard phase (a phase-framed clause, advanced rules
     // §1.2.1).
     abilities: &[ModeDef {
-        windows: &[Window::DiscardPhase],
-        actor: Actor::Host,
-        requires: &[R::HostReady, R::AshNotEmpty],
-        target: None,
         terms: Some(Terms::AshCard),
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::AshCardToLibraryBottom],
+        ..mode_of(
+            &[Window::DiscardPhase],
+            Actor::Host,
+            &[R::HostReady, R::AshNotEmpty],
+            &[Effect::AshCardToLibraryBottom],
+        )
     }],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "Nathaniel can enter combat with a locked vampire as a Ⓓ action." A
 /// target unlocked by resolution: successful, no effect (ANK 20210124).
 pub static NATHANIEL_BORDRUFF: VampireDef = VampireDef {
     name: "Nathaniel Bordruff",
-    printed: &[],
     abilities: &[enter_combat(&[
         R::NotControlled,
         R::ActorReady,
         R::TargetVampire,
         R::TargetLocked,
     ])],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static NESERIAN: VampireDef = VampireDef {
@@ -1057,9 +933,7 @@ pub static NESERIAN: VampireDef = VampireDef {
         own(Stat::Bleed, -1, &[R::ControlsNoLocation]),
         own(Stat::Votes, 1, &[R::ControlsLocation]),
     ],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "Noluthando inflicts +1 damage with ranged strikes (even at close
@@ -1067,9 +941,7 @@ pub static NESERIAN: VampireDef = VampireDef {
 pub static NOLUTHANDO: VampireDef = VampireDef {
     name: "Noluthando",
     printed: &[own(Stat::RangedStrikeDamage, 1, &[])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static NONU_DIS: VampireDef = VampireDef {
@@ -1078,28 +950,24 @@ pub static NONU_DIS: VampireDef = VampireDef {
     // Once per master phase however many master cards are played in it
     // (ANK 20220617). "Follower of Set" is the clan's V5 name, Ministry.
     abilities: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Host,
-        requires: &[R::HostReady, R::MasterCardPlayed],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[R::Controlled, R::ActorReady, R::ActorClan("Ministry")],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::BloodToTarget(1)],
+        target: target(
+            TargetKind::Minion,
+            &[R::Controlled, R::ActorReady, R::ActorClan("Ministry")],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Host,
+            &[R::HostReady, R::MasterCardPlayed],
+            &[Effect::BloodToTarget(1)],
+        )
     }],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static OLUWAFUNMILAYO: VampireDef = VampireDef {
     name: "Oluwafunmilayo",
     printed: &[own(Stat::Intercept, 1, &[R::IsPolitical])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "Once each combat involving a vampire you control, Opikun can burn 1
@@ -1109,7 +977,6 @@ pub static OLUWAFUNMILAYO: VampireDef = VampireDef {
 /// stay out of this prevention when it lands.
 pub static OPIKUN: VampireDef = VampireDef {
     name: "Opikun",
-    printed: &[],
     abilities: &[ability(
         &[Window::CombatDamagePrevention],
         Actor::ForOwnCombatant,
@@ -1117,8 +984,7 @@ pub static OPIKUN: VampireDef = VampireDef {
         Limit::PerCombat,
         &[Effect::HostBurnBlood(1), Effect::PreventNonAggravated(2)],
     )],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static OSKAR_ANASOV: VampireDef = VampireDef {
@@ -1128,24 +994,21 @@ pub static OSKAR_ANASOV: VampireDef = VampireDef {
     // intercept (rules-qa 3.2), for the rest of the action; in torpor too
     // (LSJ 20011022); "during an action": once per action (rules-qa 15.2).
     abilities: &[ModeDef {
-        windows: &[Window::ActionStealthIntercept],
-        actor: Actor::Host,
-        requires: &[R::YourAttemptNeedsIntercept, R::HostBloodAtLeast(1)],
-        target: None,
-        terms: None,
-        waives_needed: false,
         limit: Some(Limit::PerAction),
-        effects: &[Effect::HostBurnBlood(1), Effect::AttemptingIntercept(1)],
+        ..mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::Host,
+            &[R::YourAttemptNeedsIntercept, R::HostBloodAtLeast(1)],
+            &[Effect::HostBurnBlood(1), Effect::AttemptingIntercept(1)],
+        )
     }],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "Once each combat, Phaibun can discard a card at random to strike:
 /// dodge."
 pub static PHAIBUN: VampireDef = VampireDef {
     name: "Phaibun",
-    printed: &[],
     abilities: &[ability(
         &[Window::CombatStrikeDeclaration],
         Actor::Host,
@@ -1156,8 +1019,7 @@ pub static PHAIBUN: VampireDef = VampireDef {
             Effect::Strike(StrikeKind::Dodge),
         ],
     )],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static QUEEN_ANNE: VampireDef = VampireDef {
@@ -1165,31 +1027,31 @@ pub static QUEEN_ANNE: VampireDef = VampireDef {
     printed: &[own(Stat::Bleed, 1, &[])],
     abilities: &[
         ModeDef {
-            windows: &[Window::Referendum],
-            actor: Actor::Host,
-            requires: &[
-                R::PollingStep,
-                R::ActorCalledReferendum,
-                R::HostBloodAtLeast(1),
-            ],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     R::Younger,
                     R::ActorSectIn(&[Sect::Camarilla]),
                     R::NotAbstaining,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
+            ),
             limit: Some(Limit::PerReferendum),
-            effects: &[
-                Effect::HostBurnBlood(1),
-                Effect::Abstain {
-                    lock: false,
-                    burn: 0,
-                },
-            ],
+            ..mode_of(
+                &[Window::Referendum],
+                Actor::Host,
+                &[
+                    R::PollingStep,
+                    R::ActorCalledReferendum,
+                    R::HostBloodAtLeast(1),
+                ],
+                &[
+                    Effect::HostBurnBlood(1),
+                    Effect::Abstain {
+                        lock: false,
+                        burn: 0,
+                    },
+                ],
+            )
         },
         ModeDef {
             windows: &[Window::ActionAfterResolution],
@@ -1204,16 +1066,14 @@ pub static QUEEN_ANNE: VampireDef = VampireDef {
             effects: &[Effect::UnlockActor],
         },
     ],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static RAGNAR_NORDSTROM: VampireDef = VampireDef {
     name: "Ragnar Nordstrom",
     printed: &[own(Stat::Strength, 1, &[R::OpponentAllyOrYounger])],
-    abilities: &[],
-    riders: &[],
     incomplete: Some("Cards requiring Protean [pro] cost Ragnar -1 blood."),
+    ..VAMP
 };
 
 /// "After Richard successfully bleeds, he can look at the target
@@ -1221,41 +1081,35 @@ pub static RAGNAR_NORDSTROM: VampireDef = VampireDef {
 /// Once per action (rules-qa 16.1).
 pub static RICHARD_DE_WORDE: VampireDef = VampireDef {
     name: "Richard de Worde",
-    printed: &[],
     abilities: &[ModeDef {
-        windows: &[Window::ActionAfterResolution],
-        actor: Actor::Host,
-        requires: &[
-            R::ActorActing,
-            R::IsBleed,
-            R::BleedSuccessful,
-            R::HostBloodAtLeast(1),
-            R::DirectedHandNotEmpty,
-        ],
-        target: None,
         terms: Some(Terms::DirectedHandCard),
-        waives_needed: false,
         limit: Some(Limit::PerAction),
-        effects: &[Effect::HostBurnBlood(1)],
+        ..mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::Host,
+            &[
+                R::ActorActing,
+                R::IsBleed,
+                R::BleedSuccessful,
+                R::HostBloodAtLeast(1),
+                R::DirectedHandNotEmpty,
+            ],
+            &[Effect::HostBurnBlood(1)],
+        )
     }],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static RINALDO_ALBIZZI: VampireDef = VampireDef {
     name: "Rinaldo Albizzi",
     printed: &[own(Stat::Intercept, 1, &[])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static ROSE_ABAWI: VampireDef = VampireDef {
     name: "Rose Abawi",
     printed: &[own(Stat::Bleed, 1, &[R::ControlsVampireNamed("Mithras")])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "Rowena can prevent 1 non-aggravated damage each round. She can strike:
@@ -1263,7 +1117,6 @@ pub static ROSE_ABAWI: VampireDef = VampireDef {
 /// subtype (advanced rules 5.7.1: the type line only).
 pub static ROWENA: VampireDef = VampireDef {
     name: "Rowena",
-    printed: &[],
     abilities: &[
         ability(
             &[Window::CombatDamagePrevention],
@@ -1272,25 +1125,19 @@ pub static ROWENA: VampireDef = VampireDef {
             Limit::PerRound,
             &[Effect::PreventNonAggravated(1)],
         ),
-        ModeDef {
-            windows: &[Window::CombatStrikeDeclaration],
-            actor: Actor::Host,
-            requires: &[R::OpponentSubtype(Label::Werewolf)],
-            target: None,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Strike(StrikeKind::CombatEnds { unlock: false })],
-        },
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Host,
+            &[R::OpponentSubtype(Label::Werewolf)],
+            &[Effect::Strike(StrikeKind::CombatEnds { unlock: false })],
+        ),
     ],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static ROY: VampireDef = VampireDef {
     name: "Roy",
     printed: &[own(Stat::Strength, 1, &[R::OpponentTitled])],
-    abilities: &[],
     // "If Roy is unlocked during your discard phase, lock him": as the phase
     // ends, in torpor too (LSJ 20011022).
     riders: &[Rider {
@@ -1299,7 +1146,7 @@ pub static ROY: VampireDef = VampireDef {
         requires: &[R::HostUnlocked],
         effects: &[Effect::LockActor],
     }],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "Sakhar can search your library for an equipment card, reveal it and
@@ -1308,7 +1155,6 @@ pub static ROY: VampireDef = VampireDef {
 /// Not a second vehicle (rules-qa 17.4).
 pub static SAANKALAXT: VampireDef = VampireDef {
     name: "Saankaláxt",
-    printed: &[],
     abilities: &[steal_equipment(
         &[
             R::TargetCard(CardFilter::EquipmentWithout(&[])),
@@ -1321,13 +1167,11 @@ pub static SAANKALAXT: VampireDef = VampireDef {
             Effect::StealTargetCard,
         ],
     )],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static SAKHAR: VampireDef = VampireDef {
     name: "Sakhar",
-    printed: &[],
     abilities: &[printed_action(
         None,
         &[
@@ -1336,16 +1180,13 @@ pub static SAKHAR: VampireDef = VampireDef {
             Effect::SearchToHand(CardFilter::Type(CardType::Equipment)),
         ],
     )],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static SAKU_PIHLAJAMAKI: VampireDef = VampireDef {
     name: "Saku Pihlajamäki",
-    printed: &[],
     abilities: &[MANEUVER_EACH_COMBAT],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "Seraphina can add 2 blood or life to a minion you control as a +1
@@ -1354,20 +1195,15 @@ pub static SAKU_PIHLAJAMAKI: VampireDef = VampireDef {
 /// 5.5.2); one in torpor, or Seraphina herself, may be chosen.
 pub static SERAPHINA: VampireDef = VampireDef {
     name: "Seraphina",
-    printed: &[],
     abilities: &[printed_action(
-        Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[R::Controlled],
-        }),
+        target(TargetKind::Minion, &[R::Controlled]),
         &[
             Effect::DeclareAction(ActionKind::Ability),
             Effect::AddStealth(1),
             Effect::BloodToTargetToStart(2),
         ],
     )],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static SREELEKHA: VampireDef = VampireDef {
@@ -1376,9 +1212,7 @@ pub static SREELEKHA: VampireDef = VampireDef {
         own(Stat::Bleed, 1, &[]),
         own(Stat::DiscardPhaseActions, 1, &[R::ThisVampireReady]),
     ],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "Blood hunt referendums called on Styles get +2 votes in favor of the
@@ -1386,40 +1220,31 @@ pub static SREELEKHA: VampireDef = VampireDef {
 pub static STYLES_MARGS: VampireDef = VampireDef {
     name: "Styles Margs",
     printed: &[own(Stat::BloodHuntVotesInFavor, 2, &[])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "You can unlock Sybren after a referendum called by him passes."
 pub static SYBREN_VAN_OOSTEN: VampireDef = VampireDef {
     name: "Sybren van Oosten",
-    printed: &[],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionAfterResolution],
-        actor: Actor::Host,
-        requires: &[
+    abilities: &[mode_of(
+        &[Window::ActionAfterResolution],
+        Actor::Host,
+        &[
             R::ActorActing,
             R::IsPolitical,
             R::ReferendumPassed,
             R::HostLocked,
         ],
-        target: None,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::UnlockActor],
-    }],
-    riders: &[],
-    incomplete: None,
+        &[Effect::UnlockActor],
+    )],
+    ..VAMP
 };
 
 pub static THEO_BELL: VampireDef = VampireDef {
     name: "Theo Bell",
     printed: &[own(Stat::Strength, 1, &[])],
     abilities: &[enter_combat(&[R::NotControlled, R::ActorReady])],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "If Valerius is Camarilla and not a prince, he can steal the title held
@@ -1435,26 +1260,23 @@ pub static VALERIUS: VampireDef = VampireDef {
             R::ActorTitleNotIn(&[TitleClass::Prince]),
         ],
         ..printed_action(
-            Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[R::TargetVampire, R::TargetTitleIn(&[TitleClass::Prince])],
-            }),
+            target(
+                TargetKind::Minion,
+                &[R::TargetVampire, R::TargetTitleIn(&[TitleClass::Prince])],
+            ),
             &[
                 Effect::DeclareAction(ActionKind::Ability),
                 Effect::StealTargetTitle,
             ],
         )
     }],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static VALERIYA_ZINOVIEVA: VampireDef = VampireDef {
     name: "Valeriya Zinovieva",
     printed: &[own(Stat::Strength, 1, &[])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static WEIRICH_WALDBURG: VampireDef = VampireDef {
@@ -1469,32 +1291,28 @@ pub static WEIRICH_WALDBURG: VampireDef = VampireDef {
             R::ActorTitleIn(&[TitleClass::Primogen]),
         ],
     }],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static YEWON_ONG: VampireDef = VampireDef {
     name: "Yewon Ong",
-    printed: &[],
     abilities: &[ModeDef {
-        windows: &[Window::Referendum],
-        actor: Actor::Host,
-        requires: &[
-            R::AnyPollingStep,
-            R::HandHas(CardFilter::Discipline("obl"), 1),
-        ],
-        target: None,
         terms: Some(Terms::Discard {
             n: 1,
             of: CardFilter::Discipline("obl"),
         }),
-        waives_needed: false,
         limit: Some(Limit::PerReferendum),
-        effects: &[Effect::AddVotes(1)],
+        ..mode_of(
+            &[Window::Referendum],
+            Actor::Host,
+            &[
+                R::AnyPollingStep,
+                R::HandHas(CardFilter::Discipline("obl"), 1),
+            ],
+            &[Effect::AddVotes(1)],
+        )
     }],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 /// "Independent: While Parijat is ready, minions must burn the top card of
@@ -1504,9 +1322,7 @@ pub static YEWON_ONG: VampireDef = VampireDef {
 pub static PARIJAT: VampireDef = VampireDef {
     name: "Parijat, the Dark Oracle",
     printed: &[own(Stat::WraithZombieBlockToll, 1, &[])],
-    abilities: &[],
-    riders: &[],
-    incomplete: None,
+    ..VAMP
 };
 
 pub static VAMPIRES: [&VampireDef; 82] = [

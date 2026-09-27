@@ -1,7 +1,8 @@
-use crate::cards::Layer;
+use crate::cards::{self, AbilitySource, Holding, Layer, Modifier, Requirement, Scope, Stat};
 use crate::crypt::{CryptCard, Sect, Title, CRYPT};
+use crate::decision::ActionKind;
 use crate::ids::{MinionId, SeatId};
-use crate::library::LIBRARY;
+use crate::library::{Body, CardType, Label, LIBRARY};
 
 pub const START_POOL: i32 = 30;
 pub const UNCONTROLLED_START: usize = 4;
@@ -23,10 +24,19 @@ pub fn find_library(name: &str) -> u16 {
         .unwrap_or_else(|| panic!("no V5 library card named {name:?}")) as u16
 }
 
+/// The cards of `cards` that `keep` keeps, one of each (copies are alike),
+/// in card order.
+pub fn distinct(cards: &[u16], keep: impl Fn(u16) -> bool) -> Vec<u16> {
+    let mut out: Vec<u16> = cards.iter().copied().filter(|&c| keep(c)).collect();
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+
 /// Contest identity of a title (rulebook "Contested Titles" / "Vampiric
 /// Sects"): prince, baron (and archbishop) of one city contest each other;
 /// each clan's justicar is unique; primogen is not unique.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TitleKey {
     City(&'static str),
     Justicar(&'static str),
@@ -59,7 +69,7 @@ pub fn title_votes(t: Title) -> u8 {
 /// attempt, the opposing combatant in combat.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct PrintedCtx {
-    pub kind: Option<crate::decision::ActionKind>,
+    pub kind: Option<ActionKind>,
     pub directed: Option<bool>,
     pub opponent: Option<MinionId>,
 }
@@ -69,13 +79,13 @@ pub struct PrintedCtx {
 /// minion in its own right (rulebook "Ally cards"), with the type line of
 /// the version that entered play (`body`: its starting life, strength and
 /// bleed; advanced rules 5.5.2).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum MinionKind {
     Vampire(u16),
     Ally {
         card: u16,
         id: CardId,
-        body: crate::library::Body,
+        body: Body,
     },
     /// A library card in play as a vampire (Childe of the Revolution,
     /// Waters of Duat): only what the effect describes — a non-unique
@@ -94,7 +104,7 @@ pub enum MinionKind {
     /// 20040623); its card removed from the game as it leaves.
     Token {
         card: u16,
-        body: crate::library::Body,
+        body: Body,
         source: CardId,
     },
 }
@@ -119,7 +129,7 @@ impl MinionKind {
 /// gained with no card to represent it (Valerius's steal); a title card
 /// on the vampire represents its own (`GameState::claimed_title`). `bled_this_turn` is the
 /// NRA special cap (rules-qa 1.4).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash)]
 pub struct Minion {
     pub owner: SeatId,
     pub kind: MinionKind,
@@ -199,7 +209,7 @@ pub struct Minion {
 }
 
 /// Identity of an action for the no-repeat-action rule (spec §3.5.2).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ActionId {
     /// An action card played from hand: same printed name.
     Card(u16),
@@ -215,7 +225,7 @@ pub enum ActionId {
     /// forbids repeating it ("this minion cannot perform the same action
     /// again this turn", Change of Target): rulebook actions are otherwise
     /// repeatable (LSJ 20060522).
-    Rulebook(crate::decision::ActionKind, Option<MinionId>),
+    Rulebook(ActionKind, Option<MinionId>),
 }
 
 impl ActionId {
@@ -256,8 +266,6 @@ impl Minion {
         self.corruption.retain(|&(_, k)| k > 0);
     }
 
-    /// The vampire's crypt card; `None` for an ally (no clan, sect,
-    /// Disciplines, capacity or title).
     /// A minion entering play: ready, unlocked and uncontested, with no
     /// history.
     pub fn new(owner: SeatId, kind: MinionKind, blood: u8) -> Minion {
@@ -295,6 +303,8 @@ impl Minion {
         }
     }
 
+    /// The vampire's crypt card; `None` for an ally (no clan, sect,
+    /// Disciplines, capacity or title).
     pub fn vampire(&self) -> Option<&'static CryptCard> {
         match self.kind {
             MinionKind::Vampire(c) => Some(&CRYPT[c as usize]),
@@ -402,7 +412,7 @@ impl Minion {
 }
 
 /// A library card in play (a master on a vampire, a location, …).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash)]
 pub struct CardInPlay {
     pub card: u16,
     /// The Methuselah who played it: where it goes when it leaves play.
@@ -454,6 +464,29 @@ pub struct CardInPlay {
 }
 
 impl CardInPlay {
+    /// A library card entering play under `owner`'s control, on `host` if
+    /// any, in the version of `mode`.
+    pub fn new(card: u16, owner: SeatId, host: Option<MinionId>, mode: u8) -> Self {
+        CardInPlay {
+            card,
+            owner,
+            controller: owner,
+            host,
+            body: None,
+            mode,
+            by: None,
+            in_play: true,
+            contested: false,
+            locked: false,
+            counters: 0,
+            stored: Vec::new(),
+            effect_only: false,
+            against: Default::default(),
+            entered: 0,
+            chosen: Vec::new(),
+        }
+    }
+
     /// In play and controlled: not contested.
     pub fn present(&self) -> bool {
         self.in_play && !self.contested
@@ -466,7 +499,7 @@ impl CardInPlay {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct CardId(pub u32);
 
 impl CardId {
@@ -479,7 +512,7 @@ impl CardId {
 /// crypt card (its identity is its arena entry, `banished`).
 pub const CREATED: u16 = u16::MAX;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash)]
 pub struct UncontrolledSlot {
     pub card: u16,
     pub counters: u8,
@@ -491,7 +524,7 @@ pub struct UncontrolledSlot {
 
 /// A banished vampire's arena entry and the cards that were in play on it
 /// as it left — face down on it, out of play, until it returns.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Banished {
     pub minion: MinionId,
     pub cards: Vec<CardId>,
@@ -499,14 +532,14 @@ pub struct Banished {
 
 /// An out-of-turn master card played since the seat's last master phase
 /// (rulebook "Out-of-turn"; rules-qa 3.3).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct OutOfTurn {
     pub trifle: bool,
 }
 
 /// Cards played but not replaced yet, by the moment their replacement is
 /// drawn (spec §1.9.2).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Held {
     /// "Do not replace until your next unlock phase" (Old Friends).
     pub unlock: u8,
@@ -557,7 +590,7 @@ impl Held {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default, Hash)]
 pub struct Seat {
     pub pool: i32,
     pub ousted: bool,
@@ -630,7 +663,7 @@ pub struct Seat {
     pub forbidden_political: Vec<ActionId>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default, Hash)]
 pub struct GameState {
     pub seats: Vec<Seat>,
     /// Arena: minions are never removed, only marked out of play.
@@ -639,10 +672,10 @@ pub struct GameState {
     pub cards: Vec<CardInPlay>,
     /// Abilities (card in play, ability index) used this phase ("during
     /// X": once per phase per copy, rules-qa 6.6); cleared at each phase.
-    pub phase_uses: Vec<(crate::cards::AbilitySource, u8)>,
+    pub phase_uses: Vec<(AbilitySource, u8)>,
     /// Abilities used this turn ("once each turn", `Limit::PerTurn`);
     /// cleared as each Methuselah's turn begins.
-    pub turn_uses: Vec<(crate::cards::AbilitySource, u8)>,
+    pub turn_uses: Vec<(AbilitySource, u8)>,
     /// A superior Veil the Legions was played this turn, by anyone ("only
     /// one … at superior each turn"; owner, 2026-09-26: rules-qa 23.6).
     pub veil_superior: bool,
@@ -737,7 +770,7 @@ impl GameState {
 
     /// An ally's type line, of the version that entered play (`None` for
     /// a vampire).
-    pub fn ally_body(&self, m: MinionId) -> Option<crate::library::Body> {
+    pub fn ally_body(&self, m: MinionId) -> Option<Body> {
         match self.minions[m.index()].kind {
             MinionKind::Ally { body, .. } | MinionKind::Token { body, .. } => Some(body),
             MinionKind::Vampire(_) | MinionKind::Created { .. } => None,
@@ -749,7 +782,7 @@ impl GameState {
     /// uncontrolled vampire, they give nothing (advanced rules 5.1.1).
     fn discipline_grants(&self, m: MinionId) -> impl Iterator<Item = &'static str> + '_ {
         self.layers.iter().filter_map(move |l| match l.modifier {
-            crate::cards::Modifier::DisciplineLevel(d)
+            Modifier::DisciplineLevel(d)
                 if self.layer_active(l) && self.cards[l.source.index()].host == Some(m) =>
             {
                 Some(d)
@@ -775,13 +808,8 @@ impl GameState {
     /// The capacity every vampire is ceiled to (Wormwood's counters, at
     /// least 1), if any.
     pub fn capacity_ceiling(&self) -> Option<u8> {
-        self.layers
-            .iter()
-            .filter(|l| {
-                l.scope == crate::cards::Scope::InPlay
-                    && self.layer_active(l)
-                    && l.modifier == crate::cards::Modifier::CapacityCapByCounters
-            })
+        self.in_play_layers()
+            .filter(|l| l.modifier == Modifier::CapacityCapByCounters)
             .map(|l| self.cards[l.source.index()].counters.max(1))
             .min()
     }
@@ -790,7 +818,7 @@ impl GameState {
     /// torpor), and on rescuing an older vampire (`target` older than
     /// `rescuer`).
     pub fn torpid_surcharge(&self, rescuer: Option<MinionId>, target: MinionId) -> u8 {
-        if self.global(crate::cards::Modifier::TorpidBlood).is_none() {
+        if self.global(Modifier::TorpidBlood).is_none() {
             return 0;
         }
         match rescuer {
@@ -800,15 +828,19 @@ impl GameState {
     }
 
     /// Is a card in play giving this modifier (an event's global effect)?
-    pub fn global(&self, modifier: crate::cards::Modifier) -> Option<CardId> {
-        self.layers
-            .iter()
-            .find(|l| {
-                l.scope == crate::cards::Scope::InPlay
-                    && self.layer_active(l)
-                    && l.modifier == modifier
-            })
+    pub fn global(&self, modifier: Modifier) -> Option<CardId> {
+        self.in_play_layers()
+            .find(|l| l.modifier == modifier)
             .map(|l| l.source)
+    }
+
+    /// The card in play burning allies in combat with an acting vampire
+    /// (FBI Special Affairs Division), with its damage and burn threshold.
+    pub fn ally_burned_in_combat(&self) -> Option<(CardId, u8, u8)> {
+        self.in_play_layers().find_map(|l| match l.modifier {
+            Modifier::AllyBurnedInCombat { damage, burn_at } => Some((l.source, damage, burn_at)),
+            _ => None,
+        })
     }
 
     /// `m`'s level in Discipline `d` (lower case): 0 none, 1 inferior, 2
@@ -838,7 +870,7 @@ impl GameState {
             .layers
             .iter()
             .filter(|l| match l.modifier {
-                crate::cards::Modifier::BearerDisciplineLevel(g) => {
+                Modifier::BearerDisciplineLevel(g) => {
                     self.layer_active(l)
                         && g.eq_ignore_ascii_case(d)
                         && self.cards[l.source.index()].host == Some(m)
@@ -933,6 +965,12 @@ impl GameState {
         self.minions[m.index()].blood = b;
     }
 
+    /// Burn up to `n` blood (life) from `m`.
+    pub fn burn_blood(&mut self, m: MinionId, n: u8) {
+        let v = &mut self.minions[m.index()];
+        v.blood -= n.min(v.blood);
+    }
+
     /// Blood above capacity drains off from every vampire in play,
     /// however the capacity went (a Discipline master card burned, or out
     /// of play with its ousted player; advanced rules 5.1.1). Out of play,
@@ -945,11 +983,11 @@ impl GameState {
         }
         let held = self.cards.iter().any(|c| {
             c.present()
-                && crate::cards::lookup(c.card).is_some_and(|d| {
+                && cards::lookup(c.card).is_some_and(|d| {
                     d.riders.iter().any(|r| {
                         r.effects
                             .iter()
-                            .any(|e| matches!(e, crate::cards::Effect::HostageOnTorpor(_)))
+                            .any(|e| matches!(e, cards::Effect::HostageOnTorpor(_)))
                     })
                 })
         });
@@ -991,7 +1029,7 @@ impl GameState {
 
     /// Hand indices of the seat's cards — master cards only with
     /// `masters`.
-    pub fn hand_picks(&self, seat: SeatId, of: crate::cards::CardFilter) -> Vec<u8> {
+    pub fn hand_picks(&self, seat: SeatId, of: cards::CardFilter) -> Vec<u8> {
         self.seats[seat.index()]
             .hand
             .iter()
@@ -1010,14 +1048,12 @@ impl GameState {
         if let Some(m) = c.body {
             return self.minions[m.index()].owner;
         }
-        let master = LIBRARY[c.card as usize]
-            .types
-            .contains(&crate::library::CardType::Master);
+        let master = LIBRARY[c.card as usize].types.contains(&CardType::Master);
         // "You still control this card" (Puppet Master [DOM]).
-        let still_yours = crate::cards::lookup(c.card).is_some_and(|d| {
+        let still_yours = cards::lookup(c.card).is_some_and(|d| {
             d.modes
                 .get(c.mode as usize)
-                .is_some_and(|m| m.effects.contains(&crate::cards::Effect::StillYours))
+                .is_some_and(|m| m.effects.contains(&cards::Effect::StillYours))
         });
         match c.host {
             Some(h) if !master && !still_yours => self.minions[h.index()].owner,
@@ -1030,9 +1066,7 @@ impl GameState {
     /// voluntarily contest cards with yourself", rulebook "Contested
     /// Cards"; spec §1.13.1; rules-qa 7.1).
     pub fn controls_unique_copy(&self, seat: SeatId, card: u16) -> bool {
-        LIBRARY[card as usize]
-            .labels
-            .contains(&crate::library::Label::Unique)
+        LIBRARY[card as usize].labels.contains(&Label::Unique)
             && self.cards.iter().enumerate().any(|(i, c)| {
                 c.in_play
                     && self.card_controller(CardId(i as u32)) == seat
@@ -1044,7 +1078,7 @@ impl GameState {
     /// (`cards::vampires`): its own text and other vampires' ("Brujah get
     /// +1 strength in combat with him"), read live — in torpor included
     /// (LSJ 20011022), nothing from a contested vampire.
-    pub fn printed_mod(&self, m: MinionId, stat: crate::cards::Stat, ctx: PrintedCtx) -> i32 {
+    pub fn printed_mod(&self, m: MinionId, stat: Stat, ctx: PrintedCtx) -> i32 {
         use crate::cards::PrintedTo;
         let owner = self.minions[m.index()].owner;
         let mut total = 0;
@@ -1052,7 +1086,7 @@ impl GameState {
             let source = MinionId(i as u32);
             let Some(def) = v
                 .crypt_card()
-                .and_then(crate::cards::vampire)
+                .and_then(cards::vampire)
                 .filter(|_| v.present())
             else {
                 continue;
@@ -1079,20 +1113,19 @@ impl GameState {
     /// (`source`), the modified minion (`actor`) and the opposing minion.
     fn printed_holds(
         &self,
-        r: crate::cards::Requirement,
+        r: Requirement,
         source: MinionId,
         actor: MinionId,
         ctx: PrintedCtx,
     ) -> bool {
         use crate::cards::Requirement as R;
-        use crate::decision::ActionKind;
         let src = &self.minions[source.index()];
         let me = &self.minions[actor.index()];
         let opp = ctx.opponent.map(|o| &self.minions[o.index()]);
         match r {
             R::ThisVampireReady => src.ready(),
-            R::IsDirected => ctx.directed == Some(true),
-            R::IsUndirected => ctx.directed == Some(false),
+            R::ActionDirected => ctx.directed == Some(true),
+            R::ActionUndirected => ctx.directed == Some(false),
             R::IsBleed => ctx.kind == Some(ActionKind::Bleed),
             R::IsPolitical => ctx.kind == Some(ActionKind::Political),
             R::OpponentClan(c) => opp.and_then(|o| o.clan()) == Some(c),
@@ -1116,9 +1149,7 @@ impl GameState {
                 let any = self.cards.iter().enumerate().any(|(i, c)| {
                     c.present()
                         && self.card_controller(CardId(i as u32)) == src.owner
-                        && LIBRARY[c.card as usize]
-                            .labels
-                            .contains(&crate::library::Label::Location)
+                        && LIBRARY[c.card as usize].labels.contains(&Label::Location)
                 });
                 any == (r == R::ControlsLocation)
             }
@@ -1130,11 +1161,10 @@ impl GameState {
         }
     }
 
-    fn printed_count(&self, per: crate::cards::Per, source: MinionId) -> i32 {
-        use crate::library::{CardType, Label};
+    fn printed_count(&self, per: cards::Per, source: MinionId) -> i32 {
         match per {
-            crate::cards::Per::One => 1,
-            crate::cards::Per::UniqueEquipmentOn => self
+            cards::Per::One => 1,
+            cards::Per::UniqueEquipmentOn => self
                 .cards
                 .iter()
                 .filter(|c| {
@@ -1158,13 +1188,7 @@ impl GameState {
     /// phase action"), read as the phase begins.
     pub fn printed_discard_actions(&self, s: SeatId) -> i32 {
         self.minions_of(s)
-            .map(|m| {
-                self.printed_mod(
-                    m,
-                    crate::cards::Stat::DiscardPhaseActions,
-                    PrintedCtx::default(),
-                )
-            })
+            .map(|m| self.printed_mod(m, Stat::DiscardPhaseActions, PrintedCtx::default()))
             .sum()
     }
 
@@ -1181,13 +1205,13 @@ impl GameState {
             .filter(|(_, v)| v.owner == s && v.present())
             .filter_map(|(i, v)| {
                 v.crypt_card()
-                    .and_then(crate::cards::vampire)
+                    .and_then(cards::vampire)
                     .map(|d| (MinionId(i as u32), d))
             })
             .flat_map(|(m, d)| {
                 d.printed
                     .iter()
-                    .filter(|p| p.stat == crate::cards::Stat::HandSize)
+                    .filter(|p| p.stat == Stat::HandSize)
                     .map(move |p| (m, p))
             })
             .filter(|(m, p)| {
@@ -1207,16 +1231,10 @@ impl GameState {
                 }
             }
         }
-        for l in &self.layers {
-            if l.scope != crate::cards::Scope::InPlay
-                || !self.layer_active(l)
-                || self.card_controller(l.source) != s
-            {
-                continue;
-            }
+        for l in self.controlled_layers(s) {
             match l.modifier {
-                crate::cards::Modifier::HandSize(n) => size += n as i32,
-                crate::cards::Modifier::HandSizePerCounter => {
+                Modifier::HandSize(n) => size += n as i32,
+                Modifier::HandSizePerCounter => {
                     size += self.cards[l.source.index()].counters as i32
                 }
                 _ => {}
@@ -1227,18 +1245,7 @@ impl GameState {
 
     /// Transfers seat `s` gets from cards in play (Information Highway).
     pub fn transfer_bonus(&self, s: SeatId) -> u8 {
-        self.layers
-            .iter()
-            .filter(|l| {
-                l.scope == crate::cards::Scope::InPlay
-                    && self.layer_active(l)
-                    && self.card_controller(l.source) == s
-            })
-            .map(|l| match l.modifier {
-                crate::cards::Modifier::Transfers(n) => n,
-                _ => 0,
-            })
-            .sum()
+        sum_n!(self.controlled_layers(s), Modifier::Transfers)
     }
 
     /// Cards over hand size, the cards not replaced yet counting against
@@ -1250,25 +1257,42 @@ impl GameState {
 
     /// A rider's card and host predicates hold (a hostless card has no
     /// host predicate to fail).
-    pub fn rider_holds(&self, r: &crate::cards::Rider, id: CardId) -> bool {
+    pub fn rider_holds(&self, r: &cards::Rider, id: CardId) -> bool {
         let c = &self.cards[id.index()];
         r.requires.iter().all(|&req| match req {
-            crate::cards::Requirement::CountersAtLeast(n) => c.counters >= n,
-            crate::cards::Requirement::SuperiorVersion => c.mode > 0,
-            crate::cards::Requirement::BasicVersion => c.mode == 0,
-            crate::cards::Requirement::OneCopyPerTurn => true,
-            crate::cards::Requirement::ActiveControlsNonSect(sect) => self
+            Requirement::CountersAtLeast(n) => c.counters >= n,
+            Requirement::SuperiorVersion => c.mode > 0,
+            Requirement::BasicVersion => c.mode == 0,
+            Requirement::OneCopyPerTurn => true,
+            Requirement::ActiveControlsNonSect(sect) => self
                 .minions_of(self.active)
                 .any(|m| self.minions[m.index()].is_vampire() && self.sect_of(m) != Some(sect)),
             _ => match c.bearer() {
-                Some(h) => crate::cards::holds_for_host(req, self, h),
+                Some(h) => cards::holds_for_host(req, self, h),
                 None => true,
             },
         })
     }
 
+    /// The riders on `hook` of every card in the arena, in arena order —
+    /// in play or not: the caller reads each card as it gets to it (one
+    /// rider per hook on a card, but for `Hook::UnlockPhase`).
+    pub fn card_riders(&self, hook: cards::Hook) -> Vec<(CardId, &'static cards::Rider)> {
+        self.cards
+            .iter()
+            .enumerate()
+            .filter_map(|(i, c)| Some((CardId(i as u32), cards::lookup(c.card)?)))
+            .flat_map(|(id, d)| {
+                d.riders
+                    .iter()
+                    .filter(move |r| r.hook == hook)
+                    .map(move |r| (id, r))
+            })
+            .collect()
+    }
+
     /// Does minion `m` have a card in play of this kind on it?
-    pub fn holds_a(&self, m: MinionId, h: crate::cards::Holding) -> bool {
+    pub fn holds_a(&self, m: MinionId, h: Holding) -> bool {
         self.cards
             .iter()
             .any(|c| c.in_play && c.host == Some(m) && holding_matches(c.card, h))
@@ -1281,14 +1305,14 @@ impl GameState {
         if self.no_equipment_or_retainers(m) {
             return false;
         }
-        let Some(def) = crate::cards::lookup(card) else {
+        let Some(def) = cards::lookup(card) else {
             return true;
         };
         def.modes
             .iter()
             .flat_map(|mode| mode.requires.iter())
             .all(|r| match *r {
-                crate::cards::Requirement::ActorWithout(h) => {
+                Requirement::ActorWithout(h) => {
                     !self.holds_a(m, h) && !with.iter().any(|&w| holding_matches(w, h))
                 }
                 _ => true,
@@ -1305,9 +1329,9 @@ impl GameState {
             .filter(|(_, c)| {
                 c.present()
                     && c.host == Some(m)
-                    && !crate::cards::became(c.card, c.mode)
-                    && (crate::cards::CardFilter::EquipmentWithout(&[]).matches(c.card)
-                        || crate::cards::becomes_weapon(c.card))
+                    && !cards::became(c.card, c.mode)
+                    && (cards::CardFilter::EquipmentWithout(&[]).matches(c.card)
+                        || cards::becomes_weapon(c.card))
             })
             .map(|(i, _)| CardId(i as u32))
             .collect()
@@ -1317,75 +1341,48 @@ impl GameState {
     /// action of `kind` (`Modifier::Bearer`; contested cards give
     /// nothing).
     /// How card `c` in play reduces its controller's costs, if it does.
-    pub fn cost_source_of(&self, c: CardId) -> Option<crate::cards::CostSource> {
-        self.layers.iter().find_map(|l| match l.modifier {
-            crate::cards::Modifier::CostSource(k)
-                if l.source == c
-                    && l.scope == crate::cards::Scope::InPlay
-                    && self.layer_active(l) =>
-            {
-                Some(k)
-            }
-            _ => None,
-        })
+    pub fn cost_source_of(&self, c: CardId) -> Option<cards::CostSource> {
+        self.in_play_layers()
+            .filter(|l| l.source == c)
+            .find_map(|l| match l.modifier {
+                Modifier::CostSource(k) => Some(k),
+                _ => None,
+            })
     }
 
     /// Secure Havens on `m`.
     pub fn havens_on(&self, m: MinionId) -> u8 {
-        self.layers
-            .iter()
-            .filter(|l| {
-                l.scope == crate::cards::Scope::InPlay
-                    && self.layer_active(l)
-                    && l.modifier == crate::cards::Modifier::Haven
-                    && self.cards[l.source.index()].bearer() == Some(m)
-            })
+        self.borne(m)
+            .filter(|l| l.modifier == Modifier::Haven)
             .count() as u8
     }
 
     /// British Museum: what `m`'s equip with `card` costs less.
     pub fn equip_discount(&self, m: MinionId, card: u16) -> u8 {
-        if !crate::cards::plain_equipment(card) {
+        if !cards::plain_equipment(card) {
             return 0;
         }
         let owner = self.minions[m.index()].owner;
-        self.layers
-            .iter()
-            .filter(|l| l.scope == crate::cards::Scope::InPlay && self.layer_active(l))
-            .map(|l| match l.modifier {
-                crate::cards::Modifier::PlainEquipDiscount(n)
-                    if self.card_controller(l.source) == owner =>
-                {
-                    n
-                }
-                _ => 0,
-            })
-            .sum()
+        sum_n!(self.controlled_layers(owner), Modifier::PlainEquipDiscount)
     }
 
     /// A Mithraic Mysteries member: a Mithraic Cultist on it.
     pub fn mithraic_member(&self, m: MinionId) -> bool {
-        self.layers.iter().any(|l| {
-            l.scope == crate::cards::Scope::InPlay
-                && self.layer_active(l)
-                && l.modifier == crate::cards::Modifier::MithraicMember
-                && self.cards[l.source.index()].bearer() == Some(m)
-        })
+        self.bears(m, Modifier::MithraicMember)
+    }
+
+    /// /Mithras/, or a Mithraic Mysteries member.
+    pub fn is_mithraic(&self, m: MinionId) -> bool {
+        self.minions[m.index()].name() == "Mithras" || self.mithraic_member(m)
     }
 
     /// Votes the host's cards give it (Mithraic Cultist: "+1 vote while you
     /// control /Mithras/").
     pub fn host_votes(&self, m: MinionId) -> i32 {
         let owner = self.minions[m.index()].owner;
-        self.layers
-            .iter()
-            .filter(|l| {
-                l.scope == crate::cards::Scope::InPlay
-                    && self.layer_active(l)
-                    && self.cards[l.source.index()].bearer() == Some(m)
-            })
+        self.borne(m)
             .map(|l| match l.modifier {
-                crate::cards::Modifier::HostVotesWhileControlling { name, n }
+                Modifier::HostVotesWhileControlling { name, n }
                     if self
                         .minions_of(owner)
                         .any(|o| self.minions[o.index()].name() == name) =>
@@ -1399,31 +1396,15 @@ impl GameState {
 
     /// Charisma on `m`: its recruit ally actions cost this much less.
     pub fn recruit_discount(&self, m: MinionId) -> u8 {
-        self.layers
-            .iter()
-            .filter(|l| {
-                l.scope == crate::cards::Scope::InPlay
-                    && self.layer_active(l)
-                    && self.cards[l.source.index()].bearer() == Some(m)
-            })
-            .map(|l| match l.modifier {
-                crate::cards::Modifier::HostRecruitDiscount(n) => n,
-                _ => 0,
-            })
-            .sum()
+        sum_n!(self.borne(m), Modifier::HostRecruitDiscount)
     }
 
     /// Optional maneuvers each combat for `m` from clan-wide layers
     /// (Brujah Debate).
     pub fn clan_combat_maneuvers(&self, m: MinionId) -> u8 {
         let clan = self.minions[m.index()].clan();
-        self.layers
-            .iter()
-            .filter(|l| l.scope == crate::cards::Scope::InPlay && self.layer_active(l))
-            .filter(|l| {
-                matches!(l.modifier, crate::cards::Modifier::ClanCombatManeuver(c)
-                if clan == Some(c))
-            })
+        self.in_play_layers()
+            .filter(|l| matches!(l.modifier, Modifier::ClanCombatManeuver(c) if clan == Some(c)))
             .count() as u8
     }
 
@@ -1431,14 +1412,10 @@ impl GameState {
     /// it is of their clans (Fee Stake: Boston).
     pub fn calling_votes(&self, m: MinionId) -> i32 {
         let clan = self.minions[m.index()].clan();
-        self.layers
-            .iter()
+        self.borne(m)
             .filter(|l| {
-                l.scope == crate::cards::Scope::InPlay
-                    && self.layer_active(l)
-                    && self.cards[l.source.index()].bearer() == Some(m)
-                    && matches!(l.modifier, crate::cards::Modifier::HostVoteWhenCalling(cs)
-                        if clan.is_some_and(|c| cs.contains(&c)))
+                matches!(l.modifier, Modifier::HostVoteWhenCalling(cs)
+                    if clan.is_some_and(|c| cs.contains(&c)))
             })
             .count() as i32
     }
@@ -1446,19 +1423,17 @@ impl GameState {
     /// The layers reading who a bleed is against (Tier of Souls [ANI],
     /// Aranthebes, The Immortal), for `m` bleeding `target`.
     pub fn bleed_against_mod(&self, m: MinionId, target: SeatId) -> i32 {
-        self.layers
-            .iter()
-            .filter(|l| l.scope == crate::cards::Scope::InPlay && self.layer_active(l))
+        self.in_play_layers()
             .map(|l| {
                 let c = &self.cards[l.source.index()];
                 let controller = self.card_controller(l.source);
                 match l.modifier {
-                    crate::cards::Modifier::HostBleedAgainstPrey(n)
+                    Modifier::HostBleedAgainstPrey(n)
                         if c.bearer() == Some(m) && target == self.prey(controller) =>
                     {
                         n as i32
                     }
-                    crate::cards::Modifier::OwnBleedWhilePreyTorpor(n)
+                    Modifier::OwnBleedWhilePreyTorpor(n)
                         if self.minions[m.index()].owner == controller
                             && self.minions[m.index()].is_vampire()
                             && self.minions_of(self.prey(controller)).any(|t| {
@@ -1468,7 +1443,7 @@ impl GameState {
                     {
                         n as i32
                     }
-                    crate::cards::Modifier::YoungBleedAgainstController { max, n }
+                    Modifier::YoungBleedAgainstController { max, n }
                         if !c.locked
                             && target == controller
                             && self.minions[m.index()].is_vampire()
@@ -1482,12 +1457,7 @@ impl GameState {
             .sum()
     }
 
-    pub fn bearer_mod(
-        &self,
-        m: MinionId,
-        stat: crate::cards::Stat,
-        kind: crate::decision::ActionKind,
-    ) -> i32 {
+    pub fn bearer_mod(&self, m: MinionId, stat: Stat, kind: ActionKind) -> i32 {
         self.bearer_mods(m, stat, kind).map(|(_, n)| n).sum()
     }
 
@@ -1502,26 +1472,17 @@ impl GameState {
         {
             return false;
         }
-        self.layers.iter().all(|l| {
-            !(l.scope == crate::cards::Scope::InPlay
-                && self.layer_active(l)
-                && self.cards[l.source.index()].bearer() == Some(m))
-                || !matches!(l.modifier, crate::cards::Modifier::DirectedOnlyBy(ds)
-                    if !ds.iter().any(|d| self.has_discipline(actor, d)))
+        self.borne(m).all(|l| {
+            !matches!(l.modifier, Modifier::DirectedOnlyBy(ds)
+                if !ds.iter().any(|d| self.has_discipline(actor, d)))
         })
     }
 
     /// Cards on `m` whose counter burns instead of its unlocking as normal
     /// (Touch of Oblivion).
     pub fn counter_instead_of_unlock(&self, m: MinionId) -> Vec<CardId> {
-        self.layers
-            .iter()
-            .filter(|l| {
-                l.scope == crate::cards::Scope::InPlay
-                    && self.layer_active(l)
-                    && l.modifier == crate::cards::Modifier::CounterInsteadOfUnlock
-                    && self.cards[l.source.index()].bearer() == Some(m)
-            })
+        self.borne(m)
+            .filter(|l| l.modifier == Modifier::CounterInsteadOfUnlock)
             .map(|l| l.source)
             .collect()
     }
@@ -1531,15 +1492,9 @@ impl GameState {
     /// Touch).
     pub fn rescue_discount(&self, rescuer: MinionId, target: MinionId) -> (u8, u8) {
         let clan = self.minions[target.index()].clan();
-        self.layers
-            .iter()
-            .filter(|l| {
-                l.scope == crate::cards::Scope::InPlay
-                    && self.layer_active(l)
-                    && self.cards[l.source.index()].bearer() == Some(rescuer)
-            })
+        self.borne(rescuer)
             .fold((0, 0), |(d, g), l| match l.modifier {
-                crate::cards::Modifier::RescueDiscount { not_clan, n, gain }
+                Modifier::RescueDiscount { not_clan, n, gain }
                     if not_clan.is_none() || clan != not_clan =>
                 {
                     (d + n, g + gain)
@@ -1554,12 +1509,12 @@ impl GameState {
     pub fn bearer_mod_without_equipment_increase(
         &self,
         m: MinionId,
-        stat: crate::cards::Stat,
-        kind: crate::decision::ActionKind,
+        stat: Stat,
+        kind: ActionKind,
     ) -> i32 {
         self.bearer_mods(m, stat, kind)
             .map(|(card, n)| {
-                let equipment = crate::cards::is_equipment_in_play(card);
+                let equipment = cards::is_equipment_in_play(card);
                 if equipment {
                     n.min(0)
                 } else {
@@ -1586,13 +1541,11 @@ impl GameState {
     /// Votes the clan-wide layers give `m` (New Carthage: "titled Brujah get
     /// +1 vote, Ventrue get -1 vote").
     pub fn clan_votes(&self, m: MinionId) -> i32 {
-        self.layers
-            .iter()
-            .filter(|l| l.scope == crate::cards::Scope::InPlay && self.layer_active(l))
+        self.in_play_layers()
             .map(|l| match l.modifier {
-                crate::cards::Modifier::ClanStat {
+                Modifier::ClanStat {
                     clan,
-                    stat: crate::cards::Stat::Votes,
+                    stat: Stat::Votes,
                     n,
                     own,
                     titled,
@@ -1608,59 +1561,45 @@ impl GameState {
     fn bearer_mods(
         &self,
         m: MinionId,
-        stat: crate::cards::Stat,
-        kind: crate::decision::ActionKind,
+        stat: Stat,
+        kind: ActionKind,
     ) -> impl Iterator<Item = (u16, i32)> + '_ {
-        self.layers
-            .iter()
-            .filter(move |l| l.scope == crate::cards::Scope::InPlay && self.layer_active(l))
-            .filter_map(move |l| match l.modifier {
-                crate::cards::Modifier::Bearer {
-                    stat: s,
-                    n,
-                    during,
-                    who,
-                } if s == stat
-                    && self.cards[l.source.index()].bearer() == Some(m)
-                    && (during.is_empty() || during.contains(&kind))
-                    && who.is(self, m) =>
-                {
-                    Some((self.cards[l.source.index()].card, n as i32))
-                }
-                // Every minion of the clan (Week of Nightmares: "Ravnos get
-                // +1 bleed and +1 strength").
-                crate::cards::Modifier::ClanStat {
-                    clan,
-                    stat: s,
-                    n,
-                    own,
-                    titled,
-                    during,
-                } if s == stat
-                    && self.clan_stat_reaches(l.source, m, clan, own, titled)
-                    && (during.is_empty() || during.contains(&kind)) =>
-                {
-                    Some((self.cards[l.source.index()].card, n as i32))
-                }
-                _ => None,
-            })
+        self.in_play_layers().filter_map(move |l| match l.modifier {
+            Modifier::Bearer {
+                stat: s,
+                n,
+                during,
+                who,
+            } if s == stat
+                && self.cards[l.source.index()].bearer() == Some(m)
+                && (during.is_empty() || during.contains(&kind))
+                && who.is(self, m) =>
+            {
+                Some((self.cards[l.source.index()].card, n as i32))
+            }
+            // Every minion of the clan (Week of Nightmares: "Ravnos get
+            // +1 bleed and +1 strength").
+            Modifier::ClanStat {
+                clan,
+                stat: s,
+                n,
+                own,
+                titled,
+                during,
+            } if s == stat
+                && self.clan_stat_reaches(l.source, m, clan, own, titled)
+                && (during.is_empty() || during.contains(&kind)) =>
+            {
+                Some((self.cards[l.source.index()].card, n as i32))
+            }
+            _ => None,
+        })
     }
 
     /// Damage the retainers on minion `m` inflict on its opponent each
     /// round during normal strike resolution (`Modifier::RetainerDamage`).
     pub fn retainer_damage(&self, m: MinionId) -> u8 {
-        self.layers
-            .iter()
-            .filter(|l| {
-                l.scope == crate::cards::Scope::InPlay
-                    && self.layer_active(l)
-                    && self.cards[l.source.index()].host == Some(m)
-            })
-            .map(|l| match l.modifier {
-                crate::cards::Modifier::RetainerDamage(n) => n,
-                _ => 0,
-            })
-            .sum()
+        sum_n!(self.hosted(m), Modifier::RetainerDamage)
     }
 
     /// Whether `viewer` sees `seat`'s hand: their own, or an open hand — the
@@ -1669,21 +1608,14 @@ impl GameState {
     /// The legal view reads it.
     pub fn hand_visible_to(&self, seat: SeatId, viewer: SeatId) -> bool {
         viewer == seat
-            || self.layers.iter().any(|l| {
-                l.modifier == crate::cards::Modifier::PreyOpenHand
-                    && l.scope == crate::cards::Scope::InPlay
-                    && self.layer_active(l)
+            || self.in_play_layers().any(|l| {
+                l.modifier == Modifier::PreyOpenHand
                     && self.prey(self.card_controller(l.source)) == seat
             })
             || self.combatants.is_some_and(|pair| {
                 (0..2).any(|i| {
                     self.minions[pair[1 - i].index()].owner == seat
-                        && self.layers.iter().any(|l| {
-                            l.modifier == crate::cards::Modifier::OpponentOpenHandInCombat
-                                && l.scope == crate::cards::Scope::InPlay
-                                && self.layer_active(l)
-                                && self.cards[l.source.index()].host == Some(pair[i])
-                        })
+                        && self.hosts(pair[i], Modifier::OpponentOpenHandInCombat)
                 })
             })
     }
@@ -1691,90 +1623,51 @@ impl GameState {
     /// Hand size the retainers on combatant `m` take from its opponent's
     /// controller (`Modifier::OpponentHandSizeInCombat`).
     pub fn combat_hand_penalty(&self, m: MinionId) -> u8 {
-        self.layers
-            .iter()
-            .filter(|l| {
-                l.scope == crate::cards::Scope::InPlay
-                    && self.layer_active(l)
-                    && self.cards[l.source.index()].host == Some(m)
-            })
-            .map(|l| match l.modifier {
-                crate::cards::Modifier::OpponentHandSizeInCombat(n) => n,
-                _ => 0,
-            })
-            .sum()
+        sum_n!(self.hosted(m), Modifier::OpponentHandSizeInCombat)
     }
 
     /// `m` cannot have or use equipment or retainers (Bone Shambler's own
     /// text): it takes none, by any means.
     pub fn no_equipment_or_retainers(&self, m: MinionId) -> bool {
-        self.layers.iter().any(|l| {
-            l.modifier == crate::cards::Modifier::NoEquipmentOrRetainers
-                && l.scope == crate::cards::Scope::InPlay
-                && self.layer_active(l)
-                && self.cards[l.source.index()].bearer() == Some(m)
-        })
+        self.bears(m, Modifier::NoEquipmentOrRetainers)
     }
 
     /// `m` cannot be the target of a directed action requiring one of the
     /// Disciplines of `tags` (a mode's tags, any level).
     pub fn immune_to_directed(&self, m: MinionId, tags: &[&str]) -> bool {
-        self.layers.iter().any(|l| {
-            l.scope == crate::cards::Scope::InPlay
-                && self.layer_active(l)
-                && self.cards[l.source.index()].bearer() == Some(m)
-                && matches!(l.modifier, crate::cards::Modifier::ImmuneToDirectedActions(ds)
-                    if tags.iter().any(|t| ds.contains(&t.to_ascii_lowercase().as_str())))
+        self.borne(m).any(|l| {
+            matches!(l.modifier, Modifier::ImmuneToDirectedActions(ds)
+                if tags.iter().any(|t| ds.contains(&t.to_ascii_lowercase().as_str())))
         })
     }
 
     /// What `m` — an ally — may play "as a vampire", if anything.
-    pub fn plays_as_vampire(&self, m: MinionId) -> Option<crate::cards::AsVampire> {
-        self.layers.iter().find_map(|l| match l.modifier {
-            crate::cards::Modifier::PlaysAsVampire(g)
-                if l.scope == crate::cards::Scope::InPlay
-                    && self.layer_active(l)
-                    && self.cards[l.source.index()].bearer() == Some(m) =>
-            {
-                Some(g)
-            }
+    pub fn plays_as_vampire(&self, m: MinionId) -> Option<cards::AsVampire> {
+        self.borne(m).find_map(|l| match l.modifier {
+            Modifier::PlaysAsVampire(g) => Some(g),
             _ => None,
         })
     }
 
     /// Allies cannot block `m` (Libertas on it).
     pub fn allies_cannot_block(&self, m: MinionId) -> bool {
-        self.layers.iter().any(|l| {
-            l.modifier == crate::cards::Modifier::AlliesCannotBlockBearer
-                && l.scope == crate::cards::Scope::InPlay
-                && self.layer_active(l)
-                && self.cards[l.source.index()].host == Some(m)
-        })
+        self.hosts(m, Modifier::AlliesCannotBlockBearer)
     }
 
     /// The strikes of `m` cannot be dodged (Aggressive Corpse's own text).
     pub fn undodgeable(&self, m: MinionId) -> bool {
-        self.layers.iter().any(|l| {
-            l.modifier == crate::cards::Modifier::UndodgeableStrikes
-                && l.scope == crate::cards::Scope::InPlay
-                && self.layer_active(l)
-                && self.cards[l.source.index()].bearer() == Some(m)
-        })
+        self.bears(m, Modifier::UndodgeableStrikes)
     }
 
     /// `m` does not hunt as normal (Week of Nightmares: its clan).
     pub fn cannot_hunt(&self, m: MinionId) -> bool {
         let clan = self.minions[m.index()].clan();
-        self.layers.iter().any(|l| {
-            l.scope == crate::cards::Scope::InPlay
-                && self.layer_active(l)
-                && match l.modifier {
-                    crate::cards::Modifier::ClanCannotHunt(c) => Some(c) == clan,
-                    // "Vampires cannot hunt unless they must hunt"
-                    // (Restricted Vitae).
-                    crate::cards::Modifier::OnlyMustHunt => !self.must_hunt(m),
-                    _ => false,
-                }
+        self.in_play_layers().any(|l| match l.modifier {
+            Modifier::ClanCannotHunt(c) => Some(c) == clan,
+            // "Vampires cannot hunt unless they must hunt" (Restricted
+            // Vitae).
+            Modifier::OnlyMustHunt => !self.must_hunt(m),
+            _ => false,
         })
     }
 
@@ -1786,65 +1679,43 @@ impl GameState {
 
     /// `m` cannot block (Pentex™ Subversion): a card on it.
     pub fn cannot_block(&self, m: MinionId) -> bool {
-        self.layers.iter().any(|l| {
-            l.modifier == crate::cards::Modifier::HostCannotBlock
-                && l.scope == crate::cards::Scope::InPlay
-                && self.layer_active(l)
-                && self.cards[l.source.index()].host == Some(m)
-        })
+        self.hosts(m, Modifier::HostCannotBlock)
     }
 
     /// `m`'s actions of `kind` cannot be blocked (Toreador Grand Ball: "the
     /// other Toreador's non-bleed actions cannot be blocked", still after it
     /// bled, LSJ 19970814).
-    pub fn unblockable(&self, m: MinionId, kind: crate::decision::ActionKind) -> bool {
-        kind != crate::decision::ActionKind::Bleed
-            && self.layers.iter().any(|l| {
-                l.modifier == crate::cards::Modifier::SecondChosenUnblockable
-                    && l.scope == crate::cards::Scope::InPlay
-                    && self.layer_active(l)
+    pub fn unblockable(&self, m: MinionId, kind: ActionKind) -> bool {
+        kind != ActionKind::Bleed
+            && self.in_play_layers().any(|l| {
+                l.modifier == Modifier::SecondChosenUnblockable
                     && self.cards[l.source.index()].chosen.get(1) == Some(&m)
             })
     }
 
     /// `m` cannot block vampires (Vagabond Mystic's own text).
     pub fn cannot_block_vampires(&self, m: MinionId) -> bool {
-        self.layers.iter().any(|l| {
-            l.modifier == crate::cards::Modifier::CannotBlockVampires
-                && l.scope == crate::cards::Scope::InPlay
-                && self.layer_active(l)
-                && self.cards[l.source.index()].bearer() == Some(m)
-        })
+        self.bears(m, Modifier::CannotBlockVampires)
     }
 
     /// "Does not unlock as normal": a card on `m` (Puppet Master [DOM]),
     /// or one that chose it to (Toreador Grand Ball's locked Toreador).
     pub fn does_not_unlock(&self, m: MinionId) -> bool {
-        self.layers.iter().any(|l| {
-            l.scope == crate::cards::Scope::InPlay
-                && self.layer_active(l)
-                && match l.modifier {
-                    crate::cards::Modifier::HostDoesNotUnlock => {
-                        self.cards[l.source.index()].host == Some(m)
-                    }
-                    crate::cards::Modifier::FirstChosenDoesNotUnlock => {
-                        self.cards[l.source.index()].chosen.first() == Some(&m)
-                    }
-                    _ => false,
-                }
+        self.in_play_layers().any(|l| {
+            let c = &self.cards[l.source.index()];
+            match l.modifier {
+                Modifier::HostDoesNotUnlock => c.host == Some(m),
+                Modifier::FirstChosenDoesNotUnlock => c.chosen.first() == Some(&m),
+                _ => false,
+            }
         })
     }
 
     /// Whether `m` cannot play `card` (Preternatural Strength: "they cannot
     /// play cards named Torn Signpost").
     pub fn bars_playing(&self, m: MinionId, card: u16) -> bool {
-        let name = crate::library::LIBRARY[card as usize].name;
-        self.layers.iter().any(|l| {
-            l.modifier == crate::cards::Modifier::BearerCannotPlay(name)
-                && l.scope == crate::cards::Scope::InPlay
-                && self.layer_active(l)
-                && self.cards[l.source.index()].bearer() == Some(m)
-        })
+        let name = LIBRARY[card as usize].name;
+        self.bears(m, Modifier::BearerCannotPlay(name))
     }
 
     /// `striker`, in combat with `m`, cannot strike: combat ends — a
@@ -1856,13 +1727,8 @@ impl GameState {
             directed: None,
             opponent: Some(m),
         };
-        self.printed_mod(striker, crate::cards::Stat::NoCombatEnds, ctx) > 0
-            || self.layers.iter().any(|l| {
-                l.modifier == crate::cards::Modifier::NoCombatEndsAgainstHost
-                    && l.scope == crate::cards::Scope::InPlay
-                    && self.layer_active(l)
-                    && self.cards[l.source.index()].host == Some(m)
-            })
+        self.printed_mod(striker, Stat::NoCombatEnds, ctx) > 0
+            || self.hosts(m, Modifier::NoCombatEndsAgainstHost)
     }
 
     /// Vampires in torpor, any controller — rescue and diablerie targets.
@@ -1883,9 +1749,7 @@ impl GameState {
                 i != but.index()
                     && c.present()
                     && !c.effect_only
-                    && LIBRARY[c.card as usize]
-                        .types
-                        .contains(&crate::library::CardType::Event)
+                    && LIBRARY[c.card as usize].types.contains(&CardType::Event)
             })
             .count()
     }
@@ -1897,20 +1761,14 @@ impl GameState {
             .filter(|c| {
                 c.present()
                     && !c.effect_only
-                    && LIBRARY[c.card as usize]
-                        .labels
-                        .contains(&crate::library::Label::Gehenna)
+                    && LIBRARY[c.card as usize].labels.contains(&Label::Gehenna)
             })
             .count()
     }
 
     /// "Gehenna events cannot be played" (The Fourth Cycle in play).
     pub fn gehenna_barred(&self) -> bool {
-        self.layers.iter().any(|l| {
-            l.scope == crate::cards::Scope::InPlay
-                && self.layer_active(l)
-                && l.modifier == crate::cards::Modifier::NoGehennaEvents
-        })
+        self.global(Modifier::NoGehennaEvents).is_some()
     }
 
     /// `m`'s sect: its own, unless its sect is no more (Fall of the
@@ -1919,34 +1777,18 @@ impl GameState {
     pub fn sect_of(&self, m: MinionId) -> Option<Sect> {
         let s = self.minions[m.index()].underlying_sect()?;
         let fallen = matches!(s, Sect::Camarilla | Sect::Sabbat)
-            && self.global(crate::cards::Modifier::SectFallen(s)).is_some();
+            && self.global(Modifier::SectFallen(s)).is_some();
         Some(if fallen { Sect::Independent } else { s })
     }
 
     /// Blood vampires attempting to block `m` burn (Archon, per copy).
     pub fn blockers_of_burn(&self, m: MinionId) -> u8 {
-        self.layers
-            .iter()
-            .filter(|l| {
-                l.scope == crate::cards::Scope::InPlay
-                    && self.layer_active(l)
-                    && self.cards[l.source.index()].host == Some(m)
-            })
-            .map(|l| match l.modifier {
-                crate::cards::Modifier::BlockersOfHostBurn(n) => n,
-                _ => 0,
-            })
-            .sum()
+        sum_n!(self.hosted(m), Modifier::BlockersOfHostBurn)
     }
 
     /// Can no blood hunt be called on `m` (Archon)?
     pub fn blood_hunt_barred(&self, m: MinionId) -> bool {
-        self.layers.iter().any(|l| {
-            l.scope == crate::cards::Scope::InPlay
-                && self.layer_active(l)
-                && self.cards[l.source.index()].host == Some(m)
-                && l.modifier == crate::cards::Modifier::NoBloodHuntOnHost
-        })
+        self.hosts(m, Modifier::NoBloodHuntOnHost)
     }
 
     /// Does `s` control a copy of this library card in play ("a Methuselah
@@ -1979,11 +1821,11 @@ impl GameState {
         if matches!(me.kind, MinionKind::Created { .. }) {
             return Vec::new();
         }
-        if me.kind.ally_card().is_some_and(|c| {
-            !LIBRARY[c as usize]
-                .labels
-                .contains(&crate::library::Label::Unique)
-        }) {
+        if me
+            .kind
+            .ally_card()
+            .is_some_and(|c| !LIBRARY[c as usize].labels.contains(&Label::Unique))
+        {
             return Vec::new();
         }
         self.minions
@@ -2022,7 +1864,43 @@ impl GameState {
     /// A layer applies: action-scoped, or sourced by a card in play that
     /// is not contested (a contested card's effects are suspended).
     pub fn layer_active(&self, l: &Layer) -> bool {
-        l.scope == crate::cards::Scope::Action || self.cards[l.source.index()].present()
+        l.scope == Scope::Action || self.cards[l.source.index()].present()
+    }
+
+    /// The layers of the uncontested cards in play (`Scope::InPlay`).
+    pub fn in_play_layers(&self) -> impl Iterator<Item = &Layer> + '_ {
+        self.layers
+            .iter()
+            .filter(|l| l.scope == Scope::InPlay && self.layer_active(l))
+    }
+
+    /// The in-play layers of the cards `s` controls.
+    pub fn controlled_layers(&self, s: SeatId) -> impl Iterator<Item = &Layer> + '_ {
+        self.in_play_layers()
+            .filter(move |l| self.card_controller(l.source) == s)
+    }
+
+    /// The in-play layers of the cards `m` bears (`CardInPlay::bearer`: on
+    /// it, or the ally it is).
+    pub fn borne(&self, m: MinionId) -> impl Iterator<Item = &Layer> + '_ {
+        self.in_play_layers()
+            .filter(move |l| self.cards[l.source.index()].bearer() == Some(m))
+    }
+
+    /// The in-play layers of the cards on `m` (`CardInPlay::host`).
+    pub fn hosted(&self, m: MinionId) -> impl Iterator<Item = &Layer> + '_ {
+        self.in_play_layers()
+            .filter(move |l| self.cards[l.source.index()].host == Some(m))
+    }
+
+    /// Does a card `m` bears give `modifier`?
+    pub fn bears(&self, m: MinionId, modifier: Modifier) -> bool {
+        self.borne(m).any(|l| l.modifier == modifier)
+    }
+
+    /// Does a card on `m` give `modifier`?
+    pub fn hosts(&self, m: MinionId, modifier: Modifier) -> bool {
+        self.hosted(m).any(|l| l.modifier == modifier)
     }
 
     /// The title card on vampire `m`, with the title it represents: face
@@ -2033,7 +1911,7 @@ impl GameState {
         let title_contested = self.minions[m.index()].title_contested;
         self.cards.iter().enumerate().find_map(|(i, c)| {
             (c.in_play && c.host == Some(m) && (!c.contested || title_contested))
-                .then(|| crate::cards::card_title(c.card))
+                .then(|| cards::card_title(c.card))
                 .flatten()
                 .map(|t| (CardId(i as u32), t))
         })
@@ -2114,184 +1992,32 @@ impl GameState {
             .collect()
     }
 
-    /// FNV-1a over a canonical serialization; used for replay equivalence.
-    /// Every field that can influence a later decision must be mixed in.
+    /// FNV-1a over every field; used for replay equivalence.
     pub fn hash(&self) -> u64 {
-        let mut h: u64 = 0xcbf2_9ce4_8422_2325;
-        let mut mix = |x: u64| {
-            h ^= x;
-            h = h.wrapping_mul(0x0000_0100_0000_01b3);
-        };
-        mix(self.active.0 as u64);
-        mix(self.turn as u64);
-        mix(self
-            .combatants
-            .map_or(0, |[a, b]| 1 + ((a.0 as u64) << 20 | b.0 as u64)));
-        for s in &self.seats {
-            mix(s.pool as u64);
-            mix(s.ousted as u64);
-            mix(s.half_vps as u64);
-            mix(s.has_edge as u64);
-            mix(s.turns_taken as u64);
-            mix(s.mpa as u64);
-            mix(s.hand_bonus as u64);
-            mix(s.trifle_used as u64);
-            mix(s.burn_option_used as u64);
-            mix(s.dpa as u64);
-            mix(s.granted_dpa as u64);
-            mix(s.master_played as u64);
-            mix(s.held.unlock as u64);
-            mix(s.held.discard as u64);
-            mix(s.held.action as u64);
-            mix(s.held.total() as u64);
-            mix(s.held_in_play.len() as u64);
-            mix(s.event_played as u64);
-            mix(s.forbidden_political.len() as u64);
-            for a in &s.forbidden_political {
-                mix(match a {
-                    ActionId::Card(c) => *c as u64,
-                    ActionId::InPlay(c, i) => 1 << 32 | (*i as u64) << 24 | c.0 as u64,
-                    ActionId::Printed(m, i) => 2 << 40 | (m.0 as u64) << 8 | *i as u64,
-                    ActionId::Rulebook(k, t) => {
-                        3 << 40 | (*k as u64) << 32 | t.map_or(u32::MAX, |t| t.0) as u64
-                    }
-                });
-            }
-            mix(match s.out_of_turn {
-                None => 0,
-                Some(OutOfTurn { trifle }) => 1 + trifle as u64,
-            });
-            mix(s.mpa_next as u64);
-            mix(s.veil_left as u64);
-            for zone in [
-                &s.crypt,
-                &s.uncontrolled_cards(),
-                &s.library,
-                &s.hand,
-                &s.ash,
-                &s.ash_crypt,
-                &s.removed_crypt,
-                &s.removed,
-            ] {
-                mix(zone.len() as u64);
-                for &c in zone.iter() {
-                    mix(c as u64);
-                }
-            }
-            for u in &s.uncontrolled {
-                mix(u.counters as u64);
-                mix(u.banished.as_ref().map_or(0, |b| b.minion.0 as u64 + 1));
-                for c in u.banished.iter().flat_map(|b| &b.cards) {
-                    mix(c.0 as u64);
-                }
-            }
-        }
-        mix(self.minions.len() as u64);
-        for m in &self.minions {
-            mix(m.owner.0 as u64);
-            mix(m.hostage as u64);
-            mix(m.nightmare as u64);
-            mix(match m.kind {
-                MinionKind::Vampire(c) => c as u64,
-                MinionKind::Created { card, id, .. } => 2 << 40 | (id.0 as u64) << 16 | card as u64,
-                MinionKind::Token { card, source, body } => {
-                    3 << 40 | (body.life as u64) << 48 | (source.0 as u64) << 16 | card as u64
-                }
-                MinionKind::Ally { card, id, body } => {
-                    1 << 40
-                        | (body.life as u64) << 48
-                        | (body.strength as u64) << 44
-                        | (id.0 as u64) << 16
-                        | card as u64
-                }
-            });
-            mix(m.recruited as u64);
-            mix(m.recruits_this_turn as u64);
-            for &c in &m.played_since_unlock {
-                mix(c as u64);
-            }
-            mix(m.unlock_at_discard as u64);
-            mix(m.no_life_gain as u64);
-            mix(m.blood as u64);
-            mix(m.locked as u64);
-            mix(m.in_torpor as u64);
-            mix(m.in_play as u64);
-            mix(m.contested as u64);
-            mix(m.title_contested as u64);
-            mix(m.title_lost as u64);
-            mix(match m.granted_title {
-                None => 0,
-                Some(t) => format!("{t:?}")
-                    .bytes()
-                    .fold(1u64, |h, b| h.wrapping_mul(31).wrapping_add(b as u64)),
-            });
-            mix(m.bled_this_turn as u64);
-            mix(m.political_this_turn as u64);
-            mix(m.expelled as u64);
-            mix(m.hunting_ground_fed as u64);
-            mix(m.skip_unlock as u64);
-            mix(m.origin.map_or(0, |s| s.0 as u64 + 1));
-            mix(m.sect_override.map_or(0, |s| s as u64 + 1));
-            mix(m.acted.len() as u64);
-            for &c in &m.acted {
-                mix(match c {
-                    ActionId::Card(c) => c as u64,
-                    ActionId::InPlay(id, i) => (id.0 as u64) << 20 | (i as u64) << 12,
-                    ActionId::Printed(m, i) => 1 << 52 | (m.0 as u64) << 8 | i as u64,
-                    ActionId::Rulebook(k, t) => {
-                        1 << 53 | (k as u64) << 32 | t.map_or(u32::MAX, |t| t.0) as u64
-                    }
-                });
-            }
-        }
-        mix(self.phase_uses.len() as u64);
-        mix(self.phase_actions as u64);
-        mix(self.optional_action as u64);
-        mix(self.once_played.len() as u64);
-        mix(self.turn_uses.len() as u64);
-        mix(self.veil_superior as u64);
-        for (c, a) in self.phase_uses.iter().chain(&self.turn_uses) {
-            let source = match c {
-                crate::cards::AbilitySource::Card(id) => id.0 as u64,
-                crate::cards::AbilitySource::Vampire(m) => (m.0 as u64) << 32,
-            };
-            mix((source + 1) << 8 ^ *a as u64);
-        }
-        mix(self.cards.len() as u64);
-        for c in &self.cards {
-            mix(c.card as u64);
-            mix(c.owner.0 as u64);
-            mix(c.controller.0 as u64);
-            mix(c.host.map(|m| m.0 as u64 + 1).unwrap_or(0));
-            mix(c.body.map(|m| m.0 as u64 + 1).unwrap_or(0));
-            for m in &c.chosen {
-                mix((m.0 as u64 + 1) << 8);
-            }
-            mix(c.mode as u64);
-            mix(c.by.map_or(0, |m| m.0 as u64 + 1));
-            mix(c.in_play as u64);
-            mix(c.contested as u64);
-            mix(c.locked as u64);
-            mix(c.counters as u64);
-            mix(c.effect_only as u64);
-        }
-        mix(self.layers.len() as u64);
-        for l in &self.layers {
-            mix(l.hash());
-        }
-        h
+        let mut h = Fnv(0xcbf2_9ce4_8422_2325);
+        std::hash::Hash::hash(self, &mut h);
+        h.0
     }
 }
 
-fn holding_matches(card: u16, h: crate::cards::Holding) -> bool {
+/// FNV-1a: a stable hash, the same across runs and builds.
+struct Fnv(u64);
+
+impl std::hash::Hasher for Fnv {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        for &b in bytes {
+            self.0 = (self.0 ^ b as u64).wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    }
+}
+
+fn holding_matches(card: u16, h: Holding) -> bool {
     match h {
-        crate::cards::Holding::Label(l) => LIBRARY[card as usize].labels.contains(&l),
-        crate::cards::Holding::Named(n) => LIBRARY[card as usize].name == n,
-    }
-}
-
-impl Seat {
-    fn uncontrolled_cards(&self) -> Vec<u16> {
-        self.uncontrolled.iter().map(|u| u.card).collect()
+        Holding::Label(l) => LIBRARY[card as usize].labels.contains(&l),
+        Holding::Named(n) => LIBRARY[card as usize].name == n,
     }
 }

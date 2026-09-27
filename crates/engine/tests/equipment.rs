@@ -9,65 +9,13 @@
 use zvtes::actions::Outcome;
 use zvtes::cards::AbilitySource;
 use zvtes::cards::{self, Effect, Layer, Scope, Target};
-use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
-use zvtes::game::{Engine, Step};
+use zvtes::decision::{ActionKind, Choice, WindowLabel};
+use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::state::{find_card, find_library, CardId, CardInPlay};
 
-fn request(e: &mut Engine) -> DecisionRequest {
-    match e.run() {
-        Step::Decision(req) => {
-            if std::env::var("TRACE").is_ok() {
-                eprintln!("REQ {:?} {:?} {:?}", req.seat, req.window, req.options);
-            }
-            req
-        }
-        Step::Over(_) => panic!("game over while expecting a decision"),
-    }
-}
-
-fn expect(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    let req = request(e);
-    assert_eq!((req.seat, req.window), (seat, window), "{:?}", req.options);
-    req
-}
-
-fn pick(e: &mut Engine, want: Choice) {
-    let req = request(e);
-    let idx = req
-        .options
-        .iter()
-        .position(|o| *o == want)
-        .unwrap_or_else(|| {
-            panic!(
-                "option {want:?} not in {:?} ({:?})",
-                req.options, req.window
-            )
-        });
-    e.choose(idx);
-}
-
-/// Pass (or hand strike) through every decision until `seat`'s `window`.
-fn until(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    loop {
-        let req = request(e);
-        if (req.seat, req.window) == (seat, window) {
-            return req;
-        }
-        let i = req
-            .options
-            .iter()
-            .position(|o| matches!(o, Choice::Pass | Choice::HandStrike))
-            .unwrap_or(0);
-        e.choose(i);
-    }
-}
-
-fn hand(e: &mut Engine, seat: u8, cards: &[&str]) {
-    for c in cards {
-        e.state.seats[seat as usize].hand.push(find_library(c));
-    }
-}
+mod common;
+use common::*;
 
 /// An equipment already on `host`, with its layers (no play).
 fn equip(e: &mut Engine, name: &str, host: MinionId) -> u32 {
@@ -104,40 +52,6 @@ fn equip(e: &mut Engine, name: &str, host: MinionId) -> u32 {
     id.0
 }
 
-fn play(card: u8, actor: MinionId) -> Choice {
-    Choice::Play {
-        card,
-        mode: 0,
-        actor: Some(actor),
-        target: Target::None,
-    }
-}
-
-fn action(minion: MinionId, action: ActionKind) -> Choice {
-    Choice::TakeAction {
-        minion,
-        action,
-        target: None,
-    }
-}
-
-fn take_from(minion: MinionId, giver: MinionId) -> Choice {
-    Choice::TakeAction {
-        minion,
-        action: ActionKind::EquipFrom,
-        target: Some(giver),
-    }
-}
-
-fn granted(card: u32, actor: MinionId) -> Choice {
-    Choice::UseAbility {
-        source: AbilitySource::Card(CardId(card)),
-        ability: 0,
-        actor: Some(actor),
-        target: Target::None,
-    }
-}
-
 fn host_of(e: &Engine, card: u32) -> Option<MinionId> {
     let c = &e.state.cards[card as usize];
     c.in_play.then_some(c.host).flatten()
@@ -152,7 +66,7 @@ fn equip_from_hand_is_an_undirected_plus_one_stealth_action_paid_at_resolution()
     equip(&mut e, "Sport Bike", kevin);
     hand(&mut e, 0, &["Sport Bike"]);
     let pool = e.state.seats[0].pool;
-    pick(&mut e, play(0, horst));
+    pick(&mut e, play(0, 0, horst));
     let req = expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
     assert!(req
         .options
@@ -210,8 +124,8 @@ fn a_minion_can_have_only_one_vehicle() {
     let codex = equip(&mut e, "Codex of the Edenic Groundskeepers", alice);
     hand(&mut e, 0, &["Stolen Police Cruiser"]);
     let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert!(!req.options.contains(&play(0, horst)));
-    assert!(!req.options.contains(&play(0, alice)));
+    assert!(!req.options.contains(&play(0, 0, horst)));
+    assert!(!req.options.contains(&play(0, 0, alice)));
     // Alice cannot take the bike; Horst can take the Codex but not the
     // Taxicab, so the equipment terms elide.
     assert!(!req.options.contains(&take_from(alice, horst)));
@@ -517,8 +431,8 @@ fn laptop_computer_adds_a_bleed_and_a_minion_has_only_one() {
     equip(&mut e, "Laptop Computer", horst);
     hand(&mut e, 0, &["Laptop Computer"]);
     let req = request(&mut e);
-    assert!(!req.options.contains(&play(0, horst)));
-    assert!(req.options.contains(&play(0, alice)));
+    assert!(!req.options.contains(&play(0, 0, horst)));
+    assert!(req.options.contains(&play(0, 0, alice)));
     pick(&mut e, action(horst, ActionKind::Bleed));
     let a = e.action().expect("action");
     assert_eq!(a.bleed_amount(&e.state), 2);

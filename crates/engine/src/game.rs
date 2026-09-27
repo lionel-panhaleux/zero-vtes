@@ -16,7 +16,7 @@ use crate::plays::PendingPlay;
 use crate::referendum::ReferendumCtx;
 use crate::rng::Rng;
 use crate::state::{
-    CardId, GameState, Held, Minion, MinionKind, Seat, UncontrolledSlot, HAND_SIZE, START_POOL,
+    CardId, GameState, Minion, MinionKind, Seat, UncontrolledSlot, HAND_SIZE, START_POOL,
     UNCONTROLLED_START,
 };
 use crate::window::OrderedWindow;
@@ -213,52 +213,18 @@ impl Engine {
                 let hand = library.split_off(library.len() - HAND_SIZE);
                 Seat {
                     pool: START_POOL,
-                    ousted: false,
-                    half_vps: 0,
-                    has_edge: false,
                     crypt,
                     uncontrolled,
                     library,
                     hand,
-                    ash: Vec::new(),
-                    removed: Vec::new(),
-                    ash_crypt: Vec::new(),
-                    removed_crypt: Vec::new(),
-                    mpa: 0,
-                    hand_bonus: 0,
-                    trifle_used: false,
-                    burn_option_used: false,
-                    out_of_turn: None,
-                    mpa_next: 0,
-                    veil_left: 0,
-                    dpa: 0,
-                    granted_dpa: 0,
-                    master_played: false,
-                    turns_taken: 0,
-                    held: Held::default(),
-                    held_in_play: Vec::new(),
-                    event_played: false,
-                    recalled_ignored: false,
-                    uncoiling_due: None,
-                    forbidden_political: Vec::new(),
+                    ..Default::default()
                 }
             })
             .collect();
         let mut engine = Self {
             state: GameState {
                 seats,
-                minions: Vec::new(),
-                cards: Vec::new(),
-                phase_uses: Vec::new(),
-                turn_uses: Vec::new(),
-                veil_superior: false,
-                phase_actions: 0,
-                optional_action: false,
-                once_played: Vec::new(),
-                layers: Vec::new(),
-                active: SeatId(0),
-                turn: 0,
-                combatants: None,
+                ..Default::default()
             },
             log: Vec::new(),
             decisions: 0,
@@ -437,11 +403,11 @@ impl Engine {
             Flow::PlayTerms { ctx, .. } => Some(self.terms_request(ctx)),
             Flow::CostTerms { ctx, pending, .. } => Some(self.cost_terms_request(ctx, *pending)),
             Flow::AsPlayed { stack, .. } => self.as_played_request(stack),
-            Flow::MinionPhase => Some(DecisionRequest {
-                seat: st.active,
-                window: WindowLabel::MinionPhase,
-                options: self.minion_phase_options(),
-            }),
+            Flow::MinionPhase => Some(DecisionRequest::new(
+                st.active,
+                WindowLabel::MinionPhase,
+                self.minion_phase_options(),
+            )),
             Flow::AbilityTerms {
                 source,
                 ability,
@@ -682,17 +648,15 @@ impl Engine {
         // acting vampire (not an ally acting as one, ANK 20180913-2).
         if self.state.minions[m.index()].is_ally() {
             let acting = self.action.as_ref().map(|a| a.acting);
-            let fbi = self
-                .state
-                .global(crate::cards::Modifier::AllyBurnedInCombat);
-            if let (Some(c), Some(a), Some(f)) = (self.combat.as_mut(), acting, fbi) {
+            let fbi = self.state.ally_burned_in_combat();
+            if let (Some(c), Some(a), Some((f, damage, _))) = (self.combat.as_mut(), acting, fbi) {
                 let pair = [c.sides[0].minion, c.sides[1].minion];
                 if pair.contains(&m)
                     && pair.contains(&a)
                     && a != m
                     && self.state.minions[a.index()].is_vampire()
                 {
-                    c.fbi_damage += 2;
+                    c.fbi_damage += damage;
                     self.state.cards[f.index()].counters += 1;
                 }
             }
@@ -759,12 +723,18 @@ impl Engine {
         self.leave_riders(Hook::ReadyMinionBurnedOrTorpor, ms);
     }
 
+    /// Unlock minion `m` by an effect — not during an action that forbids
+    /// it (`ActionCtx::no_unlock`).
+    pub(crate) fn effect_unlock(&mut self, m: MinionId) {
+        if !self.action.as_ref().is_some_and(|a| a.no_unlock) {
+            self.state.minions[m.index()].locked = false;
+        }
+    }
+
     /// Unlock a card in play — an ally's own card unlocks the ally.
     pub(crate) fn unlock_card(&mut self, id: CardId) {
-        let barred = self.action.as_ref().is_some_and(|a| a.no_unlock);
         match self.state.cards[id.index()].body {
-            Some(_) if barred => {}
-            Some(m) => self.state.minions[m.index()].locked = false,
+            Some(m) => self.effect_unlock(m),
             None => self.state.cards[id.index()].locked = false,
         }
     }
@@ -808,17 +778,12 @@ impl Engine {
                 }
             }
         }
-        let c = &self.state.cards[id.index()];
         // A lingering effect ends; its card is already in the ash heap.
-        if c.effect_only {
-            self.state
-                .layers
-                .retain(|l| l.scope == crate::cards::Scope::Action || l.source != id);
-            return;
+        if !self.state.cards[id.index()].effect_only {
+            let ash = &mut self.state.seats[owner.index()].ash;
+            ash.push(card);
+            ash.extend(stored);
         }
-        let ash = &mut self.state.seats[owner.index()].ash;
-        ash.push(card);
-        ash.extend(stored);
         self.state
             .layers
             .retain(|l| l.scope == crate::cards::Scope::Action || l.source != id);
@@ -964,8 +929,7 @@ impl Engine {
                 && !v.hunted
                 && (self.state.capacity_of(m).unwrap_or(0) as usize) < n
             {
-                let v = &mut self.state.minions[m.index()];
-                v.blood = v.blood.saturating_sub(1);
+                self.state.burn_blood(m, 1);
             }
         }
     }
@@ -1084,15 +1048,13 @@ impl Engine {
                 // (Khabar: Glory), per copy.
                 let extra: i32 = self
                     .state
-                    .cards
-                    .iter()
-                    .enumerate()
-                    .filter(|&(i, c)| {
-                        c.present() && self.state.card_controller(CardId(i as u32)) == *pred
+                    .card_riders(Hook::PreyOusted)
+                    .into_iter()
+                    .filter(|&(id, _)| {
+                        self.state.cards[id.index()].present()
+                            && self.state.card_controller(id) == *pred
                     })
-                    .filter_map(|(_, c)| cards::lookup(c.card))
-                    .flat_map(|d| d.riders.iter().filter(|r| r.hook == Hook::PreyOusted))
-                    .flat_map(|r| r.effects.iter())
+                    .flat_map(|(_, r)| r.effects.iter())
                     .map(|e| match *e {
                         cards::Effect::GainPool(n) => n as i32,
                         other => unreachable!("not a prey-ousted rider effect: {other:?}"),

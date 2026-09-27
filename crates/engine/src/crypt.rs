@@ -2,7 +2,7 @@
 //! Do not edit by hand; regenerate and check with `--check`.
 
 /// Sect printed on the card (rulebook "Vampiric Sects").
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Sect {
     Camarilla,
     Anarch,
@@ -14,7 +14,7 @@ pub enum Sect {
 /// contest each other; each clan's Justicar is unique; primogen is not
 /// unique. `Independent`: a unique Independent title a card names, worth
 /// its votes (Saulot's Guiding Wisdom); no V5 vampire prints one.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Title {
     None,
     Primogen,
@@ -24,7 +24,7 @@ pub enum Title {
     Independent { name: &'static str, votes: u8 },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct CryptCard {
     pub id: u32,
     /// Printed name: the contest identity (the `(Gn)` suffix is KRCG's).

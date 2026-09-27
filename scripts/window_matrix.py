@@ -4,9 +4,8 @@
 Classifies each library card's play window(s) and flags from KRCG card data,
 by type and text patterns. This is a *draft* generator: its output seeds the
 hand-reviewed per-card matrix (`data/window-matrix-reviewed.csv`); the
-conventions encoded here are the ones recorded in
-`docs/window-review-questions.md` ("Convention notes") and `docs/rules-qa.md`
-Batch 2.
+conventions encoded here are the owner's window arbitration (`docs/rules-qa.md`
+Batch 2).
 
 Classification is per *mode*: card text is split into a preamble (shared
 restrictions such as "Only usable during a bleed action.") and one block per
@@ -22,7 +21,7 @@ Within a mode, an explicit *timing* window ("as the action is announced",
 generic stealth/intercept/bleed-modifier windows of the same mode: the printed
 timing is the legality filter.
 
-Usage: python3 scripts/window_matrix.py [path/to/vtes.json] > data/window-matrix-draft.csv
+Usage: python3 scripts/window_matrix.py [path/to/vtes.json] > draft.csv
        python3 scripts/window_matrix.py [path/to/vtes.json] --check data/window-matrix-reviewed.csv
 Downloads https://static.krcg.org/data/vtes.json if no path is given.
 `--check` prints every card whose generated windows/flags differ from the

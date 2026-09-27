@@ -8,56 +8,14 @@
 
 use zvtes::cards::AbilitySource;
 use zvtes::cards::Target;
-use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
-use zvtes::game::{Engine, Step};
+use zvtes::decision::{Choice, WindowLabel};
+use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::state::CardId;
 use zvtes::state::{find_card, find_library, CardInPlay};
 
-fn request(e: &mut Engine) -> DecisionRequest {
-    match e.run() {
-        Step::Decision(req) => {
-            if std::env::var("TRACE").is_ok() {
-                eprintln!("REQ {:?} {:?} {:?}", req.seat, req.window, req.options);
-            }
-            req
-        }
-        Step::Over(_) => panic!("game over while expecting a decision"),
-    }
-}
-
-fn expect(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    let req = request(e);
-    assert_eq!((req.seat, req.window), (seat, window), "{:?}", req.options);
-    req
-}
-
-fn pick(e: &mut Engine, want: Choice) {
-    let req = request(e);
-    let idx = req
-        .options
-        .iter()
-        .position(|o| *o == want)
-        .unwrap_or_else(|| panic!("option {want:?} not in {:?}", req.options));
-    e.choose(idx);
-}
-
-fn bleed(minion: MinionId) -> Choice {
-    Choice::TakeAction {
-        minion,
-        action: ActionKind::Bleed,
-        target: None,
-    }
-}
-
-fn play(card: u8, mode: u8, actor: MinionId) -> Choice {
-    Choice::Play {
-        card,
-        mode,
-        actor: Some(actor),
-        target: Target::None,
-    }
-}
+mod common;
+use common::*;
 
 fn redirect(mode: u8, actor: MinionId, to: SeatId) -> Choice {
     Choice::Play {
@@ -66,14 +24,6 @@ fn redirect(mode: u8, actor: MinionId, to: SeatId) -> Choice {
         actor: Some(actor),
         target: Target::Seat(to),
     }
-}
-
-fn plays(req: &DecisionRequest) -> Vec<Choice> {
-    req.options
-        .iter()
-        .copied()
-        .filter(|o| matches!(o, Choice::Play { .. }))
-        .collect()
 }
 
 /// 3 seats at seat 0's minion phase, turn 4, 6 blood each. Seat 0: A

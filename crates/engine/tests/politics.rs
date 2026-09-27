@@ -7,47 +7,13 @@
 
 use zvtes::actions::Outcome;
 use zvtes::cards::Target;
-use zvtes::decision::{Choice, DecisionRequest, WindowLabel};
+use zvtes::decision::{Choice, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::state::{find_card, find_library};
 
-fn request(e: &mut Engine) -> DecisionRequest {
-    match e.run() {
-        Step::Decision(req) => {
-            if std::env::var("TRACE").is_ok() {
-                eprintln!("REQ {:?} {:?} {:?}", req.seat, req.window, req.options);
-            }
-            req
-        }
-        Step::Over(_) => panic!("game over while expecting a decision"),
-    }
-}
-
-fn expect(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    let req = request(e);
-    assert_eq!((req.seat, req.window), (seat, window), "{:?}", req.options);
-    req
-}
-
-fn pick(e: &mut Engine, want: Choice) {
-    let req = request(e);
-    let idx = req
-        .options
-        .iter()
-        .position(|o| *o == want)
-        .unwrap_or_else(|| panic!("option {want:?} not in {:?}", req.options));
-    e.choose(idx);
-}
-
-fn play(card: u8, mode: u8, actor: MinionId) -> Choice {
-    Choice::Play {
-        card,
-        mode,
-        actor: Some(actor),
-        target: Target::None,
-    }
-}
+mod common;
+use common::*;
 
 fn play_on(card: u8, mode: u8, actor: MinionId, target: MinionId) -> Choice {
     Choice::Play {
@@ -56,35 +22,6 @@ fn play_on(card: u8, mode: u8, actor: MinionId, target: MinionId) -> Choice {
         actor: Some(actor),
         target: Target::Minion(target),
     }
-}
-
-fn plays(req: &DecisionRequest) -> Vec<Choice> {
-    req.options
-        .iter()
-        .copied()
-        .filter(|o| matches!(o, Choice::Play { .. }))
-        .collect()
-}
-
-fn votes(minion: MinionId, favor: bool) -> Choice {
-    Choice::CastVotes { minion, favor }
-}
-
-fn alloc(seat: u8, n: u8) -> Choice {
-    Choice::AllocateTo {
-        seat: SeatId(seat),
-        n,
-    }
-}
-
-fn hand(e: &mut Engine, seat: u8, cards: &[&str]) {
-    for c in cards {
-        e.state.seats[seat as usize].hand.push(find_library(c));
-    }
-}
-
-fn pool(e: &Engine) -> Vec<i32> {
-    e.state.seats.iter().map(|s| s.pool).collect()
 }
 
 /// 3 seats at seat 0's minion phase, turn 4, 10 pool each. Seat 0: Alexa
@@ -119,23 +56,6 @@ fn table() -> Table {
         kevin,
         bret,
         lenny,
-    }
-}
-
-/// Everyone passes the polling step until it closes.
-fn close_polling(e: &mut Engine) {
-    loop {
-        match e.run() {
-            Step::Decision(req)
-                if matches!(
-                    req.window,
-                    WindowLabel::ReferendumPolling | WindowLabel::BloodHuntPolling
-                ) =>
-            {
-                e.choose(0);
-            }
-            _ => return,
-        }
     }
 }
 
@@ -442,10 +362,6 @@ fn blocked_political_action_calls_no_referendum() {
     assert!(e.state.minions[alexa.index()].political_this_turn);
 }
 
-fn set_x(n: u8) -> Choice {
-    Choice::SetX(n)
-}
-
 // Parity Shift: the chosen Methuselah must have more pool than the caller;
 // the allocation runs over everyone but the chosen one, and a shortfall at
 // resolution is re-allocated by the caller within the terms.
@@ -640,14 +556,7 @@ fn expulsion_bars_blocks_reactions_and_votes_this_turn() {
     // (no candidate: the block loop elides).
     e.state.minions[mateo.index()].locked = false;
     close_polling(&mut e);
-    pick(
-        &mut e,
-        Choice::TakeAction {
-            minion: mateo,
-            action: zvtes::decision::ActionKind::Bleed,
-            target: None,
-        },
-    );
+    pick(&mut e, bleed(mateo));
     let _ = request(&mut e);
     assert_eq!(pool(&e), vec![8, 7, 9]);
 }
@@ -791,14 +700,7 @@ fn protected_district_reduces_a_bleed() {
     let Table { mut e, mateo, .. } = table();
     let chrys = e.add_minion(SeatId(1), find_card("Chrysanthemum"), 3, false);
     hand(&mut e, 1, &["Protected District"]);
-    pick(
-        &mut e,
-        Choice::TakeAction {
-            minion: mateo,
-            action: zvtes::decision::ActionKind::Bleed,
-            target: None,
-        },
-    );
+    pick(&mut e, bleed(mateo));
     pick(&mut e, play(0, 0, chrys));
     pick(&mut e, Choice::Pass); // no block
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
@@ -836,14 +738,7 @@ fn old_friends_is_replaced_at_the_next_unlock_phase() {
     for _ in 0..3 {
         e.state.seats[0].library.push(find_library("Villein"));
     }
-    pick(
-        &mut e,
-        Choice::TakeAction {
-            minion: silverson,
-            action: zvtes::decision::ActionKind::Bleed,
-            target: None,
-        },
-    );
+    pick(&mut e, bleed(silverson));
     pick(&mut e, play(0, 0, silverson));
     pick(&mut e, Choice::Pass); // seat 1 declines to block
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
@@ -869,14 +764,7 @@ fn party_out_of_bounds_reduces_a_bleed() {
     let Table { mut e, mateo, .. } = table();
     let sergio = e.add_minion(SeatId(1), find_card("Sergio Bueno"), 5, false);
     hand(&mut e, 1, &["Party Out Of Bounds"]);
-    pick(
-        &mut e,
-        Choice::TakeAction {
-            minion: mateo,
-            action: zvtes::decision::ActionKind::Bleed,
-            target: None,
-        },
-    );
+    pick(&mut e, bleed(mateo));
     let req = expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
     assert_eq!(plays(&req), vec![play(0, 0, sergio)]);
     pick(&mut e, play(0, 0, sergio));

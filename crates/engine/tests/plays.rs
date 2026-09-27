@@ -3,35 +3,15 @@
 //! and out-of-turn accounting, the discard phase. Cards: Villein, Sudden
 //! Reversal.
 
-use zvtes::cards::{self, Target, Window};
-use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
-use zvtes::game::{Engine, Step};
+use zvtes::cards::{self, vampires::VAMPIRES, Target, Window};
+use zvtes::decision::{Choice, WindowLabel};
+use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::library::LIBRARY;
 use zvtes::state::{find_card, find_library};
 
-fn request(e: &mut Engine) -> DecisionRequest {
-    match e.run() {
-        Step::Decision(req) => req,
-        Step::Over(_) => panic!("game over while expecting a decision"),
-    }
-}
-
-fn expect(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    let req = request(e);
-    assert_eq!((req.seat, req.window), (seat, window), "{:?}", req.options);
-    req
-}
-
-fn pick(e: &mut Engine, want: Choice) {
-    let req = request(e);
-    let idx = req
-        .options
-        .iter()
-        .position(|o| *o == want)
-        .unwrap_or_else(|| panic!("option {want:?} not in {:?}", req.options));
-    e.choose(idx);
-}
+mod common;
+use common::*;
 
 fn play(card: u8, target: MinionId) -> Choice {
     Choice::Play {
@@ -54,475 +34,46 @@ fn table() -> Engine {
     e
 }
 
+/// The whole V5 pool is defined: every library card, and every vampire
+/// definition names a V5 crypt card that resolves back to it (a vampire
+/// without printed text has none).
 #[test]
-fn implemented_definitions_cover_the_slice() {
-    let implemented: Vec<&str> = LIBRARY
-        .iter()
-        .enumerate()
-        .filter(|(i, _)| cards::lookup(*i as u16).is_some())
-        .map(|(_, c)| c.name)
-        .collect();
-    assert_eq!(
-        implemented,
-        vec![
-            ".44 Magnum",
-            "47th Street Royals",
-            "AK-47",
-            "Absimiliard's Army",
-            "Academic Hunting Ground",
-            "Aggressive Corpse",
-            "Aid from Bats",
-            "Aire of Elation",
-            "Alamut",
-            "Amici Noctis",
-            "Anarch Free Press, The",
-            "Anarch Railroad",
-            "Anarch Revolt",
-            "Anarch Salon",
-            "Anarch Troublemaker",
-            "Anarchist Uprising",
-            "Ancilla Empowerment",
-            "Angel's Gift",
-            "Anticipation",
-            "Apportation",
-            "Aranthebes, The Immortal",
-            "Arcane Library",
-            "Archon",
-            "Archon Investigation",
-            "Arms of Ahriman",
-            "Army of Rats",
-            "Art Museum",
-            "Assault Rifle",
-            "Asylum Hunting Ground",
-            "Backways",
-            "Bait and Switch",
-            "Banishment",
-            "Barrens, The",
-            "Bear's Skin",
-            "Beast Meld",
-            "Bewitching Oration",
-            "Biotech Company Hunting Ground",
-            "Biothaumaturgic Experiment",
-            "Black Market Cache",
-            "Black Throne, The",
-            "Blood Doll",
-            "Blood Fury",
-            "Blood Rage",
-            "Blood Trade",
-            "Blood Weakens",
-            "Blur",
-            "Body Flare",
-            "Bonding",
-            "Bone Shambler",
-            "Bowl of Convergence",
-            "Break the Bonds",
-            "British Museum, London, The",
-            "Brujah Debate",
-            "Camarilla's Iron Fist",
-            "Camera Phone",
-            "Cappadocian Crypt",
-            "Carfax Abbey",
-            "Carrion Crows",
-            "Carver's Meat Packing and Storage",
-            "Cats' Guidance",
-            "Cave of Apples",
-            "Celerity",
-            "Change of Target",
-            "Channel 10",
-            "Chantry",
-            "Charisma",
-            "Childe of the Revolution",
-            "City Star Taxi",
-            "Claws of the Dead",
-            "Cloak the Gathering",
-            "Closed Session",
-            "Club Illusion",
-            "Codex of the Edenic Groundskeepers",
-            "Conceal",
-            "Conditioning",
-            "Conquest of Humanity",
-            "Consanguineous Boon",
-            "Conservative Agitation",
-            "Consign to Oblivion",
-            "Constant Revolution",
-            "Contraband",
-            "Coven, The",
-            "Creeping Sabotage",
-            "Creepshow Casino",
-            "Crypt's Sons",
-            "Dabbler",
-            "Daring the Dawn",
-            "Dawn Operation",
-            "Dead Pool",
-            "Deep Ecology",
-            "Deep Song",
-            "Deflection",
-            "Delaying Tactics",
-            "Direct Intervention",
-            "Disarm",
-            "Disputed Territory",
-            "Diversion",
-            "Dog Pack",
-            "Dogged Pursuit",
-            "Domain Challenge",
-            "Dominate",
-            "Dominate Kine",
-            "Double Deuce",
-            "Dreams of the Sphinx",
-            "Dummy Corporation",
-            "Dust Up",
-            "ECTU Operative",
-            "Eagle's Sight",
-            "Earth Control",
-            "Earth Meld",
-            "Ecoterrorists",
-            "Elder Impersonation",
-            "Elder Intervention",
-            "Elder Library",
-            "Elysian Fields",
-            "Elysium: The Palace of Versailles",
-            "Enchant Kindred",
-            "Enchanting Gaze",
-            "Enhanced Coagulant",
-            "Enhanced Senses",
-            "Entrancement",
-            "Expulsion",
-            "Eyes of Argus",
-            "Eyes of the Wild",
-            "FBI Special Affairs Division",
-            "Faceless Night",
-            "Fall of the Camarilla",
-            "Fall of the Sabbat",
-            "Fame",
-            "Family Gathering",
-            "Far Mastery",
-            "Feast of the Soul's Secrets",
-            "Fee Stake: Boston",
-            "Fee Stake: New York",
-            "Fee Stake: Seattle",
-            "Femur of Toomler",
-            "Feral Hound",
-            "Ferraille",
-            "Fifth Tradition: Hospitality",
-            "Flamethrower",
-            "Flaming Candle",
-            "Flash",
-            "Fleetness",
-            "Flesh of Marble",
-            "Fleshforge Chamber",
-            "Forced Awakening",
-            "Forced Confessional",
-            "Forced Vigilance",
-            "Foreshadowing Destruction",
-            "Forgotten Labyrinth",
-            "Form of Mist",
-            "Form of the Bat",
-            "Form of the Cobra",
-            "Form of the Wolf",
-            "Fortune Teller Shop",
-            "Fourth Cycle, The",
-            "Fourth Tradition: The Accounting",
-            "Fragment of the Book of Nod",
-            "Freak Drive",
-            "Frontal Assault",
-            "Fueled by Heart's Blood",
-            "Gangrel Revel",
-            "Garibaldi-Meucci Museum",
-            "Gate of Acheron, The",
-            "Giant's Blood",
-            "Go-getter",
-            "Golconda: Inner Peace",
-            "Govern the Unaligned",
-            "Graverobbing",
-            "Grooming the Protégé",
-            "Guard Dogs",
-            "Guardian Angel",
-            "Haqim's Law: Retribution",
-            "Haven Uncovered",
-            "Heart of Nizchetus",
-            "Heart of the City",
-            "Heroic Might",
-            "Hidden Strength",
-            "Hide the Mind",
-            "Homunculus",
-            "Hunger of Marduk",
-            "Hunter's Mark",
-            "Hunting the Beast",
-            "Immortal Grapple",
-            "Indomitability",
-            "Information Highway",
-            "Instinctive Reaction",
-            "Intimidation",
-            "Invigorate",
-            "Ivory Bow",
-            "Judgment: Camarilla Segregation",
-            "KRCG News Radio",
-            "Kali's Fang",
-            "Kevlar Vest",
-            "Khabar: Community, The",
-            "Khabar: Glory",
-            "Kine Resources Contested",
-            "Kumpania",
-            "Labyrinth, The",
-            "Laptop Computer",
-            "Libertas",
-            "Library Hunting Ground",
-            "Life in the City",
-            "Lightning Reflexes",
-            "Line Brawl",
-            "Line, The",
-            "Living Manse",
-            "Lost in Crowds",
-            "Magic of the Smith",
-            "Majesty",
-            "Make the Misere",
-            "Malkavian Justicar",
-            "Market Square",
-            "Martyr's Resilience",
-            "Meditative Grove",
-            "Melange",
-            "Michael Harris, the Incinerator",
-            "Mind Numb",
-            "Minion Tap",
-            "Mirror Walk",
-            "Misdirection",
-            "Mithraeum, London, The",
-            "Mithraic Cultist",
-            "Mob Connections",
-            "Mobile HQ, Operation Antigen",
-            "Monkey Wrench",
-            "Monster",
-            "Monstrous Form",
-            "Mr. Winthrop",
-            "Murder of Crows",
-            "My Enemy's Enemy",
-            "Narrow Minds",
-            "Neonate Breach",
-            "New Carthage",
-            "New Inquisition, The",
-            "Night Terrors",
-            "Nightmares upon Nightmares",
-            "No Trace",
-            "Obedient Flesh",
-            "Obfuscate",
-            "Oblivion",
-            "Old Friends",
-            "Ominous Chorus",
-            "On the Qui Vive",
-            "One With the Land",
-            "Open War",
-            "Opium Den",
-            "Organized Resistance",
-            "Owl Companion",
-            "Oxford University, England",
-            "Pack Alpha",
-            "Papillon",
-            "Parity Shift",
-            "Park Hunting Ground",
-            "Parthenon, The",
-            "Party Out Of Bounds",
-            "Pass Through Shadow",
-            "Paths in Two Worlds",
-            "Pentex(TM) Subversion",
-            "Perfect Paragon",
-            "Perfectionist",
-            "Phantasmagoria",
-            "Piper",
-            "Pit of Contemplation",
-            "Platinum Protocol, The",
-            "Political Ally",
-            "Political Hunting Ground",
-            "Potence",
-            "Power Structure",
-            "Powerbase: Los Angeles",
-            "Powerbase: Montreal",
-            "Powerbase: Munich",
-            "Precognition",
-            "Preternatural Strength",
-            "Priority Contract",
-            "Propaganda",
-            "Protean",
-            "Protected District",
-            "Protection Racket",
-            "Psychophagia",
-            "Public Trust",
-            "Puppet Master",
-            "Pursuit",
-            "Quickness",
-            "Rack, The",
-            "Raising the Portcullis",
-            "Rapid Change",
-            "Raptor",
-            "Rat's Warning",
-            "Raven Spy",
-            "Ravnos Cache",
-            "Ravnos Carnival",
-            "Rebel",
-            "Recalled to the Founder",
-            "Reckless Agitation",
-            "Redirection",
-            "Rego Motum",
-            "Resist Earth's Grasp",
-            "Restoration",
-            "Restricted Vitae",
-            "Revelation of the Serpent",
-            "Revelations",
-            "Revenant",
-            "Revolutionary Council",
-            "Rewilding",
-            "Righteous Blade",
-            "Rise of the Nephtali",
-            "Ritual Goblet",
-            "Rolling with the Punches",
-            "Rotting Behemoth",
-            "Roundhouse",
-            "Rumor Mill, Tabloid Newspaper, The",
-            "Rutor's Hand",
-            "Saulot's Avenging Fist",
-            "Saulot's Guiding Wisdom",
-            "Saulot's Healing Touch",
-            "Scalpel Tongue",
-            "Scorn of Adonis",
-            "Scouting Mission",
-            "Screamer",
-            "Sculpt the Flesh",
-            "Second Tradition: Domain",
-            "Secure Haven",
-            "Seduction",
-            "Sense the Savage Way",
-            "Shadow Cast",
-            "Shadow Cloak",
-            "Shadow Sentinel",
-            "Shadow Shift",
-            "Shard, London, The",
-            "Shilmulo Tarot",
-            "Show of Force",
-            "Shroud of Decay",
-            "Side Strike",
-            "Sight Beyond Sight",
-            "Slam",
-            "Slaughtering the Herd",
-            "Sleeping Mind, The",
-            "Slow Withering, The",
-            "Slum Hunting Ground",
-            "Smiling Jack, The Anarch",
-            "Sniper Rifle",
-            "Soak",
-            "Social Charm",
-            "Society Hunting Ground",
-            "Soul Burn",
-            "Spectral Servitor",
-            "Spirit's Touch",
-            "Split the Veil",
-            "Sport Bike",
-            "Spying Mission",
-            "Stolen Police Cruiser",
-            "Stygian Shroud",
-            "Sudden Reversal",
-            "Swallowed by the Night",
-            "Sword of the Archangel",
-            "Szlachta Assistant",
-            "Szlachta Bodyguard",
-            "Taste of Vitae",
-            "Telepathic Counter",
-            "Telepathic Misdirection",
-            "Telepathic Tracking",
-            "Telepathic Vote Counting",
-            "Temple Hunting Ground",
-            "Tension in the Ranks",
-            "Terror Frenzy",
-            "Theft of Vitae",
-            "Thing",
-            "Thirst",
-            "Threats",
-            "Tier of Souls",
-            "Toreador Grand Ball",
-            "Toreador Justicar",
-            "Torn Signpost",
-            "Torpid Blood",
-            "Touch of Oblivion",
-            "Touch of Valeren",
-            "Tranquility Shield",
-            "Treasured Samadji",
-            "True Love's Face",
-            "Truth in Darkness",
-            "Twilight Camp",
-            "Umbrous Clutch",
-            "Uncoiling, The",
-            "Underbridge Stray",
-            "Underworld Hunting Ground",
-            "Unleashing the Bestial Soul",
-            "Unlicensed Taxicab",
-            "Uptown Hunting Ground",
-            "Vagabond Mystic",
-            "Valerie Diaz, Antigen Commander",
-            "Vast Wealth",
-            "Veil the Legions",
-            "Ventrue Headquarters",
-            "Vessel",
-            "Villein",
-            "Visions of Gehenna",
-            "Visions of Zapathasura",
-            "Visit from the Capuchin",
-            "Voracious Vermin",
-            "Voter Captivation",
-            "Vozhd of Gravesend, The",
-            "Vozhd of Juiz de Fora, The",
-            "Vozhd of Sofia, The",
-            "Vozhd of Szczecin, The",
-            "WMRH Talk Radio",
-            "Wake with Evening's Freshness",
-            "Walk of Flame",
-            "War Ghoul",
-            "Warrens, The",
-            "Warsaw Station",
-            "Warzone Hunting Ground",
-            "Wash",
-            "Wasserschloss Anif, Austria",
-            "Waters of Duat",
-            "Weather Control",
-            "Week of Nightmares",
-            "Weighted Walking Stick",
-            "Where the Veil Thins",
-            "Wider View",
-            "Wind Dance",
-            "Wolf Claws",
-            "Wormwood",
-            "Yoruba Shrine",
-            "Zoo Hunting Ground",
-        ]
-    );
+fn every_card_is_defined_and_its_modes_match_the_reviewed_windows() {
+    for def in VAMPIRES {
+        let card = find_card(def.name);
+        assert_eq!(cards::vampire(card).map(|d| d.name), Some(def.name));
+    }
+    assert!(cards::vampire(find_card("Alice Chen")).is_none());
     // Definition modes line up with the generated per-mode static half:
     // each maps to a library mode (`cards::library_mode`: the same index
     // unless a printed choice is split), every library mode is covered, and
     // the windows of the definition modes on one library mode are exactly
     // the reviewed matrix's (the matrix is authoritative).
     for (i, c) in LIBRARY.iter().enumerate() {
-        if let Some(def) = cards::lookup(i as u16) {
-            let mapped: Vec<usize> = (0..def.modes.len())
-                .map(|mi| cards::library_mode(i as u16, mi))
+        let def = cards::lookup(i as u16).unwrap_or_else(|| panic!("{} undefined", c.name));
+        let mapped: Vec<usize> = (0..def.modes.len())
+            .map(|mi| cards::library_mode(i as u16, mi))
+            .collect();
+        for lm in 0..c.modes.len() {
+            assert!(mapped.contains(&lm), "{} library mode {lm}", c.name);
+        }
+        for (lmi, lm) in c.modes.iter().enumerate() {
+            let mut want: Vec<Window> = lm
+                .windows
+                .iter()
+                .map(|w| Window::from_name(w).unwrap())
                 .collect();
-            for lm in 0..c.modes.len() {
-                assert!(mapped.contains(&lm), "{} library mode {lm}", c.name);
-            }
-            for (lmi, lm) in c.modes.iter().enumerate() {
-                let mut want: Vec<Window> = lm
-                    .windows
-                    .iter()
-                    .map(|w| Window::from_name(w).unwrap())
-                    .collect();
-                let mut have: Vec<Window> = def
-                    .modes
-                    .iter()
-                    .zip(&mapped)
-                    .filter(|(_, &m)| m == lmi)
-                    .flat_map(|(dm, _)| dm.windows.iter().copied())
-                    .collect();
-                want.sort_by_key(|w| *w as u8);
-                have.sort_by_key(|w| *w as u8);
-                have.dedup();
-                assert_eq!(have, want, "{} mode {lmi}", c.name);
-            }
+            let mut have: Vec<Window> = def
+                .modes
+                .iter()
+                .zip(&mapped)
+                .filter(|(_, &m)| m == lmi)
+                .flat_map(|(dm, _)| dm.windows.iter().copied())
+                .collect();
+            want.sort_by_key(|w| *w as u8);
+            have.sort_by_key(|w| *w as u8);
+            have.dedup();
+            assert_eq!(have, want, "{} mode {lmi}", c.name);
         }
     }
 }
@@ -581,8 +132,7 @@ fn villein_costs_one_more_on_a_vampire_that_already_has_one() {
     let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
     assert_eq!(req.options, vec![Choice::Pass, play(0, MinionId(1))]);
     e.state.seats[0].pool = 1;
-    let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
-    assert!(req.options.contains(&play(0, MinionId(0))));
+    expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
     pick(&mut e, play(0, MinionId(0)));
     pick(&mut e, Choice::SetX(3));
     // Cost 1 paid, the 3 blood left taken (pool 1 - 1 + 3): the second
@@ -714,9 +264,5 @@ fn cards_without_a_definition_are_not_playable() {
     e.state.seats[0].hand.push(find_library(".44 Magnum"));
     // Master phase with only an equipment card: Pass alone, elided.
     let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert!(req.options.contains(&Choice::TakeAction {
-        minion: MinionId(0),
-        action: ActionKind::Bleed,
-        target: None
-    }));
+    assert!(req.options.contains(&bleed(MinionId(0))));
 }

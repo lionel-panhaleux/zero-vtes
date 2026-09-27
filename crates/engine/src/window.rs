@@ -1,22 +1,44 @@
 use crate::ids::SeatId;
+use std::marker::PhantomData;
+
+/// The impulse rotating through `order` (index 0 being the acting
+/// Methuselah), closed by a full rotation of consecutive passes: the core
+/// of both window primitives (DESIGN §4.2), `K` telling which.
+#[derive(Clone, Debug, Default)]
+pub struct Rotation<K> {
+    order: Vec<SeatId>,
+    cursor: usize,
+    quiet: usize,
+    kind: PhantomData<K>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct Ordered;
+
+#[derive(Clone, Debug, Default)]
+pub struct Polling;
 
 /// Ordered window (rulebook Sequencing; DESIGN §4.2). Offers rotate through
 /// `order`, index 0 being the acting Methuselah. Any play returns the impulse
 /// to the acting Methuselah and voids every prior pass (rules-qa 1.2,
 /// impulse-reset); the window closes only when all seats pass consecutively.
-#[derive(Clone, Debug)]
-pub struct OrderedWindow {
-    order: Vec<SeatId>,
-    cursor: usize,
-    quiet: usize,
-}
+pub type OrderedWindow = Rotation<Ordered>;
 
-impl OrderedWindow {
+/// Unordered commitment window (polling; DESIGN §4.2). No priority holder and
+/// no impulse reset: commitments are irrevocable, a pass does not forfeit
+/// later rotations, and closure requires a full rotation of consecutive
+/// passes — so every commitment reopens a response opportunity for every
+/// other seat before tally (rules-qa 1.1: sources commit independently,
+/// possibly on different rotations).
+pub type PollingWindow = Rotation<Polling>;
+
+impl<K> Rotation<K> {
     pub fn new(order: Vec<SeatId>) -> Self {
         Self {
             order,
             cursor: 0,
             quiet: 0,
+            kind: PhantomData,
         }
     }
 
@@ -39,7 +61,9 @@ impl OrderedWindow {
             self.cursor = (self.cursor + 1) % self.order.len();
         }
     }
+}
 
+impl OrderedWindow {
     /// A seat left the game mid-window (ousted by a play it resolved): it
     /// drops out of the rotation, the impulse and the passes so far kept.
     pub fn remove(&mut self, seat: SeatId) {
@@ -65,47 +89,7 @@ impl OrderedWindow {
     }
 }
 
-/// Unordered commitment window (polling; DESIGN §4.2). No priority holder and
-/// no impulse reset: commitments are irrevocable, a pass does not forfeit
-/// later rotations, and closure requires a full rotation of consecutive
-/// passes — so every commitment reopens a response opportunity for every
-/// other seat before tally (rules-qa 1.1: sources commit independently,
-/// possibly on different rotations).
-#[derive(Clone, Debug)]
-pub struct PollingWindow {
-    order: Vec<SeatId>,
-    cursor: usize,
-    quiet: usize,
-}
-
 impl PollingWindow {
-    pub fn new(order: Vec<SeatId>) -> Self {
-        Self {
-            order,
-            cursor: 0,
-            quiet: 0,
-        }
-    }
-
-    pub fn current(&self) -> Option<SeatId> {
-        if self.is_closed() {
-            None
-        } else {
-            Some(self.order[self.cursor])
-        }
-    }
-
-    pub fn is_closed(&self) -> bool {
-        self.order.is_empty() || self.quiet >= self.order.len()
-    }
-
-    pub fn pass(&mut self) {
-        self.quiet += 1;
-        if !self.is_closed() {
-            self.cursor = (self.cursor + 1) % self.order.len();
-        }
-    }
-
     /// The current seat makes an irrevocable commitment. The rotation
     /// continues from the next seat; no reset to a priority holder.
     pub fn commit(&mut self) {

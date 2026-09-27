@@ -6,80 +6,14 @@
 //! decision exists.
 
 use zvtes::cards::{self, vampires::VAMPIRES, AbilitySource, Stat, Target};
-use zvtes::crypt::{Title, CRYPT};
+use zvtes::crypt::CRYPT;
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
-use zvtes::game::{Engine, Step};
+use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::state::{find_card, find_library, ActionId, CardId, CardInPlay, PrintedCtx};
 
-fn request(e: &mut Engine) -> DecisionRequest {
-    match e.run() {
-        Step::Decision(req) => {
-            if std::env::var("TRACE").is_ok() {
-                eprintln!("REQ {:?} {:?} {:?}", req.seat, req.window, req.options);
-            }
-            req
-        }
-        Step::Over(_) => panic!("game over while expecting a decision"),
-    }
-}
-
-fn pick(e: &mut Engine, want: Choice) {
-    let req = request(e);
-    let idx = req
-        .options
-        .iter()
-        .position(|o| *o == want)
-        .unwrap_or_else(|| {
-            panic!(
-                "option {want:?} not in {:?} ({:?})",
-                req.options, req.window
-            )
-        });
-    e.choose(idx);
-}
-
-/// Pass through every decision (hand strikes in combat) until `seat`'s
-/// `window`.
-fn until(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    loop {
-        let req = request(e);
-        if (req.seat, req.window) == (seat, window) {
-            return req;
-        }
-        let i = req
-            .options
-            .iter()
-            .position(|o| matches!(o, Choice::Pass | Choice::HandStrike))
-            .unwrap_or(0);
-        e.choose(i);
-    }
-}
-
-fn act(minion: MinionId, action: ActionKind) -> Choice {
-    Choice::TakeAction {
-        minion,
-        action,
-        target: None,
-    }
-}
-
-/// The `nth` untitled V5 vampire of `clan` with no printed-text definition
-/// and capacity at least 4.
-fn plain(clan: &str, nth: usize) -> u16 {
-    CRYPT
-        .iter()
-        .enumerate()
-        .filter(|(i, c)| {
-            c.clan == clan
-                && c.title == Title::None
-                && c.capacity >= 4
-                && cards::vampire(*i as u16).is_none()
-        })
-        .nth(nth)
-        .map(|(i, _)| i as u16)
-        .unwrap_or_else(|| panic!("no plain {clan} vampire"))
-}
+mod common;
+use common::*;
 
 fn add(e: &mut Engine, seat: u8, name: &str) -> MinionId {
     e.add_minion(SeatId(seat), find_card(name), 4, false)
@@ -130,15 +64,6 @@ fn bare() -> Engine {
     e
 }
 
-#[test]
-fn every_vampire_definition_names_a_v5_crypt_card() {
-    for def in VAMPIRES {
-        let card = find_card(def.name);
-        assert_eq!(cards::vampire(card).map(|d| d.name), Some(def.name));
-    }
-    assert!(cards::vampire(find_card("Alice Chen")).is_none());
-}
-
 // Catalina Vega's "+1 bleed": her bleed takes 2 pool.
 #[test]
 fn a_printed_bleed_bonus_adds_to_the_bleed_amount() {
@@ -147,7 +72,7 @@ fn a_printed_bleed_bonus_adds_to_the_bleed_amount() {
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     e.add_minion(SeatId(1), plain("Nosferatu", 0), 4, false);
     let before = e.state.seats[1].pool;
-    pick(&mut e, act(catalina, ActionKind::Bleed));
+    pick(&mut e, action(catalina, ActionKind::Bleed));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.seats[1].pool, before - 2);
 }
@@ -176,7 +101,7 @@ fn a_printed_intercept_bonus_opens_a_block_on_an_undirected_action() {
     let hunter = e.add_minion(SeatId(0), plain("Brujah", 0), 1, false);
     let rinaldo = add(&mut e, 1, "Rinaldo Albizzi");
     let other = e.add_minion(SeatId(1), plain("Nosferatu", 0), 4, false);
-    pick(&mut e, act(hunter, ActionKind::Hunt));
+    pick(&mut e, action(hunter, ActionKind::Hunt));
     let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     assert!(req
         .options
@@ -193,7 +118,7 @@ fn ariane_hunts_with_no_stealth() {
     let mut e = bare();
     let ariane = e.add_minion(SeatId(0), find_card("Ariane"), 1, false);
     let other = e.add_minion(SeatId(1), plain("Nosferatu", 0), 4, false);
-    pick(&mut e, act(ariane, ActionKind::Hunt));
+    pick(&mut e, action(ariane, ActionKind::Hunt));
     let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     assert!(req
         .options
@@ -261,7 +186,7 @@ fn a_printed_strength_bonus_adds_to_hand_strike_damage() {
     let a = e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     let massimiliano = add(&mut e, 1, "Massimiliano");
-    pick(&mut e, act(a, ActionKind::Bleed));
+    pick(&mut e, action(a, ActionKind::Bleed));
     pick(
         &mut e,
         Choice::DeclareBlock {
@@ -285,7 +210,7 @@ fn kevin_jackson_and_a_brujah_opposing_him_each_strike_one_harder() {
     let strength = |e: &Engine, m, o| e.state.printed_mod(m, Stat::Strength, in_combat_with(o));
     assert_eq!(strength(&e, kevin, ventrue), 0);
     assert_eq!(strength(&e, other_brujah, ventrue), 0);
-    pick(&mut e, act(brujah, ActionKind::Bleed));
+    pick(&mut e, action(brujah, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: kevin });
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     let blood = |m: MinionId| e.state.minions[m.index()].blood;
@@ -435,16 +360,6 @@ fn card_ability(card: usize, ability: u8) -> Choice {
     }
 }
 
-fn hand(e: &mut Engine, seat: u8, cards: &[&str]) {
-    for c in cards {
-        e.state.seats[seat as usize].hand.push(find_library(c));
-    }
-}
-
-fn blood(e: &Engine, m: MinionId) -> u8 {
-    e.state.minions[m.index()].blood
-}
-
 /// As `until`, counting the decisions on the way that offered any of
 /// `watched`.
 fn until_counting(e: &mut Engine, seat: SeatId, window: WindowLabel, watched: &[Choice]) -> usize {
@@ -484,13 +399,11 @@ fn blocked_by(name: &str) -> (Engine, MinionId, MinionId) {
 fn abaddon_maneuvers_and_presses_once_each_combat() {
     let (mut e, a, abaddon) = blocked_by("Abaddon");
     let (maneuver, press) = (vampire_ability(abaddon, 0), vampire_ability(abaddon, 1));
-    pick(&mut e, act(a, ActionKind::Bleed));
+    pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: abaddon });
-    let req = until(&mut e, SeatId(1), WindowLabel::CombatDetermineRange);
-    assert!(req.options.contains(&maneuver));
+    until(&mut e, SeatId(1), WindowLabel::CombatDetermineRange);
     pick(&mut e, maneuver);
-    let req = until(&mut e, SeatId(1), WindowLabel::CombatPress);
-    assert!(req.options.contains(&press));
+    until(&mut e, SeatId(1), WindowLabel::CombatPress);
     pick(&mut e, press);
     let again = until_counting(
         &mut e,
@@ -512,10 +425,9 @@ fn flavio_goncalves_dodges_once_each_combat() {
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     let flavio = add(&mut e, 1, "Flávio Gonçalves");
     let dodge = vampire_ability(flavio, 0);
-    pick(&mut e, act(abaddon, ActionKind::Bleed));
+    pick(&mut e, action(abaddon, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: flavio });
-    let req = until(&mut e, SeatId(1), WindowLabel::CombatStrike);
-    assert!(req.options.contains(&dodge));
+    until(&mut e, SeatId(1), WindowLabel::CombatStrike);
     pick(&mut e, dodge);
     until(&mut e, SeatId(0), WindowLabel::CombatPress);
     pick(&mut e, vampire_ability(abaddon, 1));
@@ -534,10 +446,9 @@ fn phaibun_discards_a_card_at_random_to_dodge() {
     hand(&mut e, 1, &["Elder Library", "Elder Library"]);
     e.state.seats[1].library.push(find_library("Elder Library"));
     let dodge = vampire_ability(phaibun, 0);
-    pick(&mut e, act(a, ActionKind::Bleed));
+    pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: phaibun });
-    let req = until(&mut e, SeatId(1), WindowLabel::CombatStrike);
-    assert!(req.options.contains(&dodge));
+    until(&mut e, SeatId(1), WindowLabel::CombatStrike);
     pick(&mut e, dodge);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     let seat = &e.state.seats[1];
@@ -549,7 +460,7 @@ fn phaibun_discards_a_card_at_random_to_dodge() {
 
     let (mut e, a, phaibun) = blocked_by("Phaibun");
     let dodge = vampire_ability(phaibun, 0);
-    pick(&mut e, act(a, ActionKind::Bleed));
+    pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: phaibun });
     assert_eq!(
         until_counting(&mut e, SeatId(0), WindowLabel::MinionPhase, &[dodge]),
@@ -568,10 +479,9 @@ fn opikun_in_torpor_prevents_damage_to_a_vampire_in_combat() {
     let x = e.add_minion(SeatId(1), plain("Nosferatu", 0), 4, false);
     let opikun = e.add_minion(SeatId(1), find_card("Opikun"), 2, true);
     let prevent = vampire_ability(opikun, 0);
-    pick(&mut e, act(a, ActionKind::Bleed));
+    pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: x });
-    let req = until(&mut e, SeatId(1), WindowLabel::CombatPrevention);
-    assert!(req.options.contains(&prevent));
+    until(&mut e, SeatId(1), WindowLabel::CombatPrevention);
     pick(&mut e, prevent);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(
@@ -590,7 +500,7 @@ fn printed_non_aggravated_prevention_leaves_aggravated_damage() {
     let bow = in_play(&mut e, "Ivory Bow", 0, Some(a));
     let opikun = e.add_minion(SeatId(1), find_card("Opikun"), 2, true);
     let watched = [vampire_ability(rowena, 0), vampire_ability(opikun, 0)];
-    pick(&mut e, act(a, ActionKind::Bleed));
+    pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: rowena });
     until(&mut e, SeatId(0), WindowLabel::CombatStrike);
     pick(&mut e, card_ability(bow, 0));
@@ -607,10 +517,9 @@ fn printed_non_aggravated_prevention_leaves_aggravated_damage() {
 fn rowena_prevents_one_non_aggravated_damage() {
     let (mut e, a, rowena) = blocked_by("Rowena");
     let prevent = vampire_ability(rowena, 0);
-    pick(&mut e, act(a, ActionKind::Bleed));
+    pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: rowena });
-    let req = until(&mut e, SeatId(1), WindowLabel::CombatPrevention);
-    assert!(req.options.contains(&prevent));
+    until(&mut e, SeatId(1), WindowLabel::CombatPrevention);
     pick(&mut e, prevent);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!((blood(&e, a), blood(&e, rowena)), (4 - 1, 4));
@@ -622,10 +531,9 @@ fn rowena_prevents_one_non_aggravated_damage() {
 fn chun_hei_burns_blood_for_an_additional_strike() {
     let (mut e, a, chun) = blocked_by("Chun Hei");
     let strike = vampire_ability(chun, 0);
-    pick(&mut e, act(a, ActionKind::Bleed));
+    pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: chun });
-    let req = until(&mut e, SeatId(1), WindowLabel::CombatBeforeStrikes);
-    assert!(req.options.contains(&strike));
+    until(&mut e, SeatId(1), WindowLabel::CombatBeforeStrikes);
     pick(&mut e, strike);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     // Two hand strikes of strength 2 on A; one of 1 on Chun Hei.
@@ -640,10 +548,9 @@ fn kasim_bayar_discards_a_political_action_for_two_strength() {
     let (mut e, a, kasim) = blocked_by("Kasim Bayar");
     hand(&mut e, 1, &["Elder Library", "Kine Resources Contested"]);
     let ability = vampire_ability(kasim, 0);
-    pick(&mut e, act(a, ActionKind::Bleed));
+    pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: kasim });
-    let req = until(&mut e, SeatId(1), WindowLabel::CombatBeforeRange);
-    assert!(req.options.contains(&ability));
+    until(&mut e, SeatId(1), WindowLabel::CombatBeforeRange);
     pick(&mut e, ability);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!((blood(&e, a), blood(&e, kasim)), (4 - 3, 4 - 1));
@@ -659,22 +566,12 @@ fn kasim_bayar_discards_a_political_action_for_two_strength() {
 fn noluthando_adds_one_damage_to_his_ranged_strikes() {
     let (mut e, a, noluthando) = blocked_by("Noluthando");
     let gun = in_play(&mut e, ".44 Magnum", 1, Some(noluthando));
-    pick(&mut e, act(a, ActionKind::Bleed));
+    pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: noluthando });
     until(&mut e, SeatId(1), WindowLabel::CombatStrike);
     pick(&mut e, card_ability(gun, 0));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!((blood(&e, a), blood(&e, noluthando)), (4 - 3, 4 - 1));
-}
-
-/// A card played from hand in its first mode.
-fn play_card(card: u8, actor: MinionId) -> Choice {
-    Choice::Play {
-        card,
-        mode: 0,
-        actor: Some(actor),
-        target: Target::None,
-    }
 }
 
 fn polls(req: &DecisionRequest) -> bool {
@@ -702,7 +599,7 @@ fn alexa_draper_discards_a_dominate_card_for_a_vote_once_per_referendum() {
         0,
         &["Ancilla Empowerment", "Conditioning", "Bonding"],
     );
-    pick(&mut e, play_card(0, alexa));
+    pick(&mut e, play(0, 0, alexa));
     until(&mut e, SeatId(0), WindowLabel::ReferendumPolling);
     assert!(e.state.minions[alexa.index()].locked);
     pick(&mut e, vampire_ability(alexa, 0));
@@ -748,9 +645,8 @@ fn yewon_ong_uses_her_referendum_ability_in_torpor() {
     add(&mut e, 1, "Kevin Jackson");
     hand(&mut e, 0, &["Ancilla Empowerment"]);
     hand(&mut e, 1, &["Arms of Ahriman", "Consign to Oblivion"]);
-    pick(&mut e, play_card(0, alexa));
-    let req = until(&mut e, SeatId(1), WindowLabel::ReferendumPolling);
-    assert!(req.options.contains(&vampire_ability(yewon, 0)));
+    pick(&mut e, play(0, 0, alexa));
+    until(&mut e, SeatId(1), WindowLabel::ReferendumPolling);
     pick(&mut e, vampire_ability(yewon, 0));
     pick(&mut e, Choice::Discard(1));
     assert_eq!(
@@ -855,7 +751,7 @@ fn queen_anne_forces_a_younger_camarilla_vampire_to_abstain() {
     add(&mut e, 1, "Anita Wainwright");
     let arjun = e.add_minion(SeatId(1), find_card("Arjun Shah"), 2, true);
     hand(&mut e, 0, &["Ancilla Empowerment"]);
-    pick(&mut e, play_card(0, anne));
+    pick(&mut e, play(0, 0, anne));
     let req = until(&mut e, SeatId(0), WindowLabel::ReferendumPolling);
     let force = |t| Choice::UseAbility {
         source: AbilitySource::Vampire(anne),
@@ -902,7 +798,7 @@ fn oskar_anasov_in_torpor_gives_intercept_to_a_blocker() {
     e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
     let blocker = e.add_minion(SeatId(1), plain("Nosferatu", 0), 4, false);
     let oskar = e.add_minion(SeatId(1), find_card("Oskar Anasov"), 2, true);
-    pick(&mut e, act(hunter, ActionKind::Hunt));
+    pick(&mut e, action(hunter, ActionKind::Hunt));
     let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     assert!(req
         .options
@@ -932,7 +828,7 @@ fn gwenllian_arwyn_lowers_a_blockers_intercept_as_she_leaves_torpor() {
     let gwen = e.add_minion(SeatId(0), find_card("Gwenllian Arwyn"), 4, true);
     e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
     let rinaldo = add(&mut e, 1, "Rinaldo Albizzi");
-    pick(&mut e, act(gwen, ActionKind::LeaveTorpor));
+    pick(&mut e, action(gwen, ActionKind::LeaveTorpor));
     pick(&mut e, Choice::DeclareBlock { minion: rinaldo });
     until(&mut e, SeatId(0), WindowLabel::ActionBlock);
     pick(&mut e, vampire_ability(gwen, 0));
@@ -962,7 +858,7 @@ fn larissa_moreira_discards_animalism_cards_for_bleed_during_a_bleed() {
     };
     let (mut e, larissa) = setup();
     let before = e.state.seats[1].pool;
-    pick(&mut e, act(larissa, ActionKind::Bleed));
+    pick(&mut e, action(larissa, ActionKind::Bleed));
     until(&mut e, SeatId(0), WindowLabel::ActionBlock);
     pick(&mut e, vampire_ability(larissa, 0));
     pick(&mut e, Choice::Discard(0));
@@ -977,7 +873,7 @@ fn larissa_moreira_discards_animalism_cards_for_bleed_during_a_bleed() {
     assert_eq!(e.state.seats[1].pool, before - 2);
 
     let (mut e, larissa) = setup();
-    pick(&mut e, act(larissa, ActionKind::Hunt));
+    pick(&mut e, action(larissa, ActionKind::Hunt));
     let offered = until_counting(
         &mut e,
         SeatId(0),
@@ -998,7 +894,7 @@ fn abraham_dusable_discards_blood_sorcery_cards_for_stealth_or_intercept() {
     e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
     let rinaldo = add(&mut e, 1, "Rinaldo Albizzi");
     hand(&mut e, 0, &["Apportation", "Blood Fury", "Blood Rage"]);
-    pick(&mut e, act(abraham, ActionKind::Bleed));
+    pick(&mut e, action(abraham, ActionKind::Bleed));
     // No block attempt yet: stealth is not needed.
     let offered = until_counting(
         &mut e,
@@ -1026,7 +922,7 @@ fn abraham_dusable_discards_blood_sorcery_cards_for_stealth_or_intercept() {
     e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
     let abraham = add(&mut e, 1, "Abraham DuSable");
     hand(&mut e, 1, &["Apportation"]);
-    pick(&mut e, act(hunter, ActionKind::Hunt));
+    pick(&mut e, action(hunter, ActionKind::Hunt));
     pick(&mut e, Choice::DeclareBlock { minion: abraham });
     until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     pick(&mut e, vampire_ability(abraham, 1));
@@ -1045,7 +941,7 @@ fn daria_in_torpor_locks_to_give_an_acting_nosferatu_stealth() {
     let daria = e.add_minion(SeatId(0), find_card("Daria"), 2, true);
     e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
     let blocker = e.add_minion(SeatId(1), plain("Brujah", 0), 4, false);
-    pick(&mut e, act(nosferatu, ActionKind::Bleed));
+    pick(&mut e, action(nosferatu, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: blocker });
     until(&mut e, SeatId(0), WindowLabel::ActionBlock);
     pick(&mut e, vampire_ability(daria, 0));
@@ -1141,8 +1037,7 @@ fn mora_moves_an_ash_heap_card_to_the_library_bottom_once_per_discard_phase() {
     );
     e.state.seats[0].ash = vec![bonding, bonding, conditioning];
     e.state.seats[0].library = vec![villein];
-    let req = until(&mut e, SeatId(0), WindowLabel::DiscardPhase);
-    assert!(req.options.contains(&vampire_ability(mora, 0)));
+    until(&mut e, SeatId(0), WindowLabel::DiscardPhase);
     pick(&mut e, vampire_ability(mora, 0));
     let req = request(&mut e);
     let mut names = vec![Choice::FindCard(bonding), Choice::FindCard(conditioning)];
@@ -1211,7 +1106,7 @@ fn kalinda_burns_the_edge_to_unlock_on_her_turn() {
     until(&mut e, SeatId(1), WindowLabel::MinionPhase);
     e.state.minions[kalinda.index()].locked = true;
     e.state.seats[0].has_edge = true;
-    pick(&mut e, act(x, ActionKind::Bleed));
+    pick(&mut e, action(x, ActionKind::Bleed));
     let req = until(&mut e, SeatId(0), WindowLabel::ActionBlock);
     assert!(!req.options.contains(&vampire_ability(kalinda, 0)));
 }
@@ -1264,7 +1159,7 @@ fn sybren_van_oosten_unlocks_after_his_referendum_passes() {
             s.pool = 10;
         }
         hand(&mut e, 0, &["Ancilla Empowerment"]);
-        pick(&mut e, play_card(0, sybren));
+        pick(&mut e, play(0, 0, sybren));
         until(&mut e, SeatId(0), WindowLabel::ReferendumPolling);
         let mut votes = vec![(kevin, false)];
         if passes {
@@ -1327,14 +1222,14 @@ fn aline_gadeke_unlocks_after_another_anarchs_successful_action() {
     let (mut e, aline) = setup();
     let dario = add(&mut e, 0, "Dario Ziggler");
     let crow = add(&mut e, 0, "Crow");
-    pick(&mut e, act(dario, ActionKind::Hunt));
+    pick(&mut e, action(dario, ActionKind::Hunt));
     until(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
     pick(&mut e, vampire_ability(aline, 0));
     assert!(!e.state.minions[aline.index()].locked);
     assert_eq!(blood(&e, aline), 2);
     e.state.minions[aline.index()].locked = true;
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    pick(&mut e, act(crow, ActionKind::Hunt));
+    pick(&mut e, action(crow, ActionKind::Hunt));
     let again = until_counting(
         &mut e,
         SeatId(0),
@@ -1345,7 +1240,7 @@ fn aline_gadeke_unlocks_after_another_anarchs_successful_action() {
 
     let (mut e, aline) = setup();
     let dario = e.add_minion(SeatId(0), find_card("Dario Ziggler"), 2, true);
-    pick(&mut e, act(dario, ActionKind::LeaveTorpor));
+    pick(&mut e, action(dario, ActionKind::LeaveTorpor));
     // Blood lost during the action: the leave-torpor fizzles.
     e.state.minions[dario.index()].blood = 1;
     let req = until(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
@@ -1365,7 +1260,7 @@ fn alicia_cortez_locks_a_younger_vampire_of_the_bled_methuselah() {
     let amelia = add(&mut e, 1, "Amelia Locke");
     e.state.minions[amelia.index()].locked = true;
     hand(&mut e, 0, &["Ancilla Empowerment"]);
-    pick(&mut e, act(alicia, ActionKind::Bleed));
+    pick(&mut e, action(alicia, ActionKind::Bleed));
     let req = until(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
     assert!(req.options.contains(&use_on(alicia, 0, madison)));
     assert!(req.options.contains(&use_on(alicia, 0, amelia)));
@@ -1389,7 +1284,7 @@ fn ilonka_discards_at_random_from_the_bleeders_hand_once_each_turn() {
     let b = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     let ilonka = add(&mut e, 1, "Ilonka");
     hand(&mut e, 0, &["Blood Rage", "Army of Rats"]);
-    pick(&mut e, act(a, ActionKind::Bleed));
+    pick(&mut e, action(a, ActionKind::Bleed));
     until(&mut e, SeatId(1), WindowLabel::ActionAfterResolution);
     pick(&mut e, vampire_ability(ilonka, 0));
     let req = request(&mut e);
@@ -1398,7 +1293,7 @@ fn ilonka_discards_at_random_from_the_bleeders_hand_once_each_turn() {
     assert_eq!(e.state.seats[0].hand.len(), 1);
     assert_eq!(e.state.seats[0].ash.len(), 1);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    pick(&mut e, act(b, ActionKind::Bleed));
+    pick(&mut e, action(b, ActionKind::Bleed));
     let again = until_counting(
         &mut e,
         SeatId(0),
@@ -1418,7 +1313,7 @@ fn richard_de_worde_discards_a_card_from_the_bled_methuselahs_hand() {
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     hand(&mut e, 1, &["Blood Rage", "Army of Rats"]);
-    pick(&mut e, act(richard, ActionKind::Bleed));
+    pick(&mut e, action(richard, ActionKind::Bleed));
     until(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
     pick(&mut e, vampire_ability(richard, 0));
     let req = request(&mut e);
@@ -1453,7 +1348,7 @@ fn marialena_burns_a_blood_when_blocked() {
     let marialena = add(&mut e, 0, "Marialena");
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     let blocker = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
-    pick(&mut e, act(marialena, ActionKind::Bleed));
+    pick(&mut e, action(marialena, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: blocker });
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(
@@ -1466,7 +1361,7 @@ fn marialena_burns_a_blood_when_blocked() {
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     // +1 intercept reaches the leave-torpor action's stealth.
     let blocker = add(&mut e, 1, "Rinaldo Albizzi");
-    pick(&mut e, act(marialena, ActionKind::LeaveTorpor));
+    pick(&mut e, action(marialena, ActionKind::LeaveTorpor));
     pick(&mut e, Choice::DeclareBlock { minion: blocker });
     until(&mut e, SeatId(1), WindowLabel::TorporBlock);
     assert_eq!(blood(&e, marialena), 2);
@@ -1481,7 +1376,7 @@ fn egidia_arru_makes_a_minion_leaving_the_ready_region_cost_a_pool() {
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     let egidia = add(&mut e, 1, "Egidia Arrú");
     let before = e.state.seats[0].pool;
-    pick(&mut e, act(a, ActionKind::Bleed));
+    pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: egidia });
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(e.state.minions[a.index()].in_torpor);
@@ -1516,7 +1411,7 @@ fn cedrick_calhoun_goes_to_torpor_if_his_referendum_fails() {
             s.pool = 10;
         }
         hand(&mut e, 0, &["Ancilla Empowerment"]);
-        pick(&mut e, play_card(0, cedrick));
+        pick(&mut e, play(0, 0, cedrick));
         until(&mut e, SeatId(0), WindowLabel::ReferendumPolling);
         let votes = if passes { vec![] } else { vec![(kevin, false)] };
         poll(&mut e, &votes, Some(true));
@@ -1582,7 +1477,7 @@ fn queen_anne_unlocks_after_a_diablerie_as_the_blocker() {
     e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
     let anne = add(&mut e, 1, "Queen Anne");
     let oskar = add(&mut e, 1, "Oskar Anasov");
-    pick(&mut e, act(leaver, ActionKind::LeaveTorpor));
+    pick(&mut e, action(leaver, ActionKind::LeaveTorpor));
     pick(&mut e, Choice::DeclareBlock { minion: anne });
     until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     pick(&mut e, vampire_ability(oskar, 0));
@@ -1612,7 +1507,7 @@ fn gathii_reveals_the_top_card_for_blood_or_stealth() {
     };
     // A master card on top: 1 blood, whatever the block attempt.
     let (mut e, gathii, blocker) = setup("Dreams of the Sphinx");
-    pick(&mut e, act(gathii, ActionKind::Bleed));
+    pick(&mut e, action(gathii, ActionKind::Bleed));
     // (Gathii's reveal is offered before any attempt: seat 0's window
     // does not elide.)
     until(&mut e, SeatId(1), WindowLabel::ActionBlock);
@@ -1632,7 +1527,7 @@ fn gathii_reveals_the_top_card_for_blood_or_stealth() {
     // Another card, with an attempt pending: +1 stealth, the attempt fails.
     let (mut e, gathii, blocker) = setup("Conditioning");
     let before = e.state.seats[1].pool;
-    pick(&mut e, act(gathii, ActionKind::Bleed));
+    pick(&mut e, action(gathii, ActionKind::Bleed));
     // (Gathii's reveal is offered before any attempt: seat 0's window
     // does not elide.)
     until(&mut e, SeatId(1), WindowLabel::ActionBlock);
@@ -1646,7 +1541,7 @@ fn gathii_reveals_the_top_card_for_blood_or_stealth() {
     // The same card revealed before any attempt: no stealth gained, so the
     // block still reaches the bleed.
     let (mut e, gathii, blocker) = setup("Conditioning");
-    pick(&mut e, act(gathii, ActionKind::Bleed));
+    pick(&mut e, action(gathii, ActionKind::Bleed));
     pick(&mut e, vampire_ability(gathii, 0));
     until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     pick(&mut e, Choice::DeclareBlock { minion: blocker });
@@ -1662,7 +1557,7 @@ fn gathii_reveals_the_top_card_for_blood_or_stealth() {
     e.state.seats[0]
         .library
         .push(find_library("Dreams of the Sphinx"));
-    pick(&mut e, act(gathii, ActionKind::LeaveTorpor));
+    pick(&mut e, action(gathii, ActionKind::LeaveTorpor));
     pick(&mut e, vampire_ability(gathii, 0));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(blood(&e, gathii), 4 - 1 - 2); // the reveal, then the cost
@@ -1735,7 +1630,7 @@ fn adrino_manauara_must_use_his_press_to_continue() {
     let a = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
     let adrino = add(&mut e, 1, "Adrino Manauara");
-    pick(&mut e, act(a, ActionKind::Bleed));
+    pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: adrino });
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     // Two rounds of hand strikes, one damage each.
@@ -1747,7 +1642,7 @@ fn adrino_manauara_must_use_his_press_to_continue() {
     let a = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
     let x = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
-    pick(&mut e, act(a, ActionKind::Bleed));
+    pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: x });
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!((blood(&e, a), blood(&e, x)), (3, 3));
@@ -1885,7 +1780,7 @@ fn elen_kamjian_must_bleed_while_you_control_a_locked_minion() {
     assert!(!req.options.contains(&forced));
     let pool = e.state.seats[1].pool;
     assert!(req.options.contains(&codex_bleed));
-    pick(&mut e, act(other, ActionKind::Hunt));
+    pick(&mut e, action(other, ActionKind::Hunt));
     let offered = until_counting(&mut e, SeatId(1), WindowLabel::MinionPhase, &[codex_bleed]);
     assert_eq!(offered, 0);
     // Her +1 bleed, taken alone (the Codex's would take 1: a ready unlocked
@@ -1903,7 +1798,7 @@ fn elen_kamjian_must_bleed_while_you_control_a_locked_minion() {
     v.bled_this_turn = true;
     let req = request(&mut e);
     assert!(req.options.contains(&Choice::Pass));
-    assert!(req.options.contains(&act(elen, ActionKind::Hunt)));
+    assert!(req.options.contains(&action(elen, ActionKind::Hunt)));
 }
 
 // Having bled before the obligation attaches, Elen is stuck: she takes no
@@ -1915,7 +1810,7 @@ fn elen_kamjian_is_stuck_if_she_bled_before_her_bleed_became_mandatory() {
     let elen = add(&mut e, 0, "Elen Kamjian");
     let other = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
-    pick(&mut e, act(elen, ActionKind::Bleed));
+    pick(&mut e, action(elen, ActionKind::Bleed));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     e.state.minions[elen.index()].locked = false;
     // The obligation attaches once another minion is locked.
@@ -1926,7 +1821,7 @@ fn elen_kamjian_is_stuck_if_she_bled_before_her_bleed_became_mandatory() {
         .options
         .iter()
         .all(|o| !matches!(o, Choice::TakeAction { minion, .. } if *minion == elen)));
-    assert!(req.options.contains(&act(other, ActionKind::Hunt)));
+    assert!(req.options.contains(&action(other, ActionKind::Hunt)));
     assert!(req.options.contains(&Choice::Pass));
 }
 
@@ -2027,7 +1922,7 @@ fn a_rulebook_hunt_and_elens_bleed_are_ordered_by_their_methuselah() {
     assert_eq!(
         req.options,
         vec![
-            act(starving, ActionKind::Hunt),
+            action(starving, ActionKind::Hunt),
             printed_action(elen, 0, Target::None)
         ]
     );
@@ -2123,7 +2018,7 @@ fn adisa_enters_combat_with_younger_vampires_and_stays_locked_after_hunting() {
     assert!(!req
         .options
         .contains(&printed_action(adisa, 0, Target::Minion(o))));
-    pick(&mut e, act(adisa, ActionKind::Hunt));
+    pick(&mut e, action(adisa, ActionKind::Hunt));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(blood(&e, adisa), 3);
     assert!(e.state.minions[adisa.index()].skip_unlock);
@@ -2132,7 +2027,7 @@ fn adisa_enters_combat_with_younger_vampires_and_stays_locked_after_hunting() {
     let adisa = e.add_minion(SeatId(0), find_card("Adisa"), cap, false);
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
-    pick(&mut e, act(adisa, ActionKind::Hunt));
+    pick(&mut e, action(adisa, ActionKind::Hunt));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.minions[adisa.index()].skip_unlock);
 }

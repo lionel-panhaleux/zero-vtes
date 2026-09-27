@@ -3,6 +3,19 @@
 //! crypt cards (titles, contests), library zones and card plays (P1).
 //! Replay = (seed, decision log).
 
+/// The sum of the `n` of every `$v(n)` modifier among the layers `$layers`
+/// (the others count 0).
+macro_rules! sum_n {
+    ($layers:expr, $v:path) => {
+        $layers
+            .map(|l| match l.modifier {
+                $v(n) => n,
+                _ => 0,
+            })
+            .sum()
+    };
+}
+
 pub mod actions;
 pub mod agent;
 pub mod cards;

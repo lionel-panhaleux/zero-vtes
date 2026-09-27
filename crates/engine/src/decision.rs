@@ -3,8 +3,9 @@ use crate::game::Contest;
 use crate::ids::{MinionId, SeatId};
 
 /// Action kinds: the card-free rulebook actions, plus card actions.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum ActionKind {
+    #[default]
     Bleed,
     Hunt,
     LeaveTorpor,
@@ -411,4 +412,14 @@ pub struct DecisionRequest {
     pub seat: SeatId,
     pub window: WindowLabel,
     pub options: Vec<Choice>,
+}
+
+impl DecisionRequest {
+    pub fn new(seat: SeatId, window: WindowLabel, options: Vec<Choice>) -> Self {
+        Self {
+            seat,
+            window,
+            options,
+        }
+    }
 }

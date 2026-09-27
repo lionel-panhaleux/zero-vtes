@@ -259,14 +259,8 @@ impl ReferendumCtx {
 
 /// A location or equipment in play (Revolutionary Council's recipients).
 fn allocatable_card(st: &crate::state::GameState, c: crate::state::CardId) -> bool {
-    let card = &st.cards[c.index()];
-    card.present()
-        && !card.effect_only
-        && !cards::became(card.card, card.mode)
-        && (cards::CardFilter::Location.matches(card.card)
-            || LIBRARY[card.card as usize]
-                .types
-                .contains(&CardType::Equipment))
+    chooseable_card(st, c, cards::CardFilter::Location)
+        || chooseable_card(st, c, cards::CardFilter::Type(CardType::Equipment))
 }
 
 /// A card in play a `ChooseCard` term may pick.
@@ -564,11 +558,7 @@ impl Engine {
                 }
             }
         };
-        DecisionRequest {
-            seat: ctx.caller,
-            window: WindowLabel::ReferendumTerms,
-            options,
-        }
+        DecisionRequest::new(ctx.caller, WindowLabel::ReferendumTerms, options)
     }
 
     /// Re-allocation of a shortfall: each recipient may get at most what
@@ -591,11 +581,7 @@ impl Engine {
             .into_iter()
             .map(|n| Choice::AllocateTo { seat, n })
             .collect();
-        DecisionRequest {
-            seat: ctx.caller,
-            window: WindowLabel::ReferendumTerms,
-            options,
-        }
+        DecisionRequest::new(ctx.caller, WindowLabel::ReferendumTerms, options)
     }
 
     fn polling_request(&self, ctx: &ReferendumCtx) -> Option<DecisionRequest> {
@@ -667,11 +653,7 @@ impl Engine {
                 WindowLabel::ReferendumPolling
             }
         };
-        Some(DecisionRequest {
-            seat,
-            window,
-            options,
-        })
+        Some(DecisionRequest::new(seat, window, options))
     }
 
     pub(crate) fn referendum_apply(&mut self, choice: &Choice) {
@@ -1015,24 +997,12 @@ impl Engine {
                 let a = self.action.as_ref().expect("political action");
                 let (seat, play) = (a.seat, a.card.expect("a political action card"));
                 if self.state.minions[m.index()].present() {
-                    let id = self.enter_play(crate::state::CardInPlay {
-                        card: play.card,
-                        owner: seat,
-                        controller: seat,
-                        host: Some(m),
-                        body: None,
-                        mode: play.mode,
-                        by: None,
-                        in_play: true,
-                        contested: false,
-                        locked: false,
-                        counters: 0,
-                        stored: Vec::new(),
-                        effect_only: false,
-                        against: Default::default(),
-                        entered: 0,
-                        chosen: Vec::new(),
-                    });
+                    let id = self.enter_play(crate::state::CardInPlay::new(
+                        play.card,
+                        seat,
+                        Some(m),
+                        play.mode,
+                    ));
                     self.action
                         .as_mut()
                         .expect("political action")
@@ -1062,24 +1032,9 @@ impl Engine {
                 let (seat, play) = (a.seat, a.card.expect("a political action card"));
                 // "A Methuselah can have only one": not a second.
                 if !self.state.controls_card_copy(seat, play.card) {
-                    let id = self.enter_play(crate::state::CardInPlay {
-                        card: play.card,
-                        owner: seat,
-                        controller: seat,
-                        host: None,
-                        body: None,
-                        mode: play.mode,
-                        by: None,
-                        in_play: true,
-                        contested: false,
-                        locked: false,
-                        counters: 0,
-                        stored: Vec::new(),
-                        effect_only: false,
-                        against: Default::default(),
-                        entered: self.state.turn,
-                        chosen: Vec::new(),
-                    });
+                    let id = self.enter_play(crate::state::CardInPlay::new(
+                        play.card, seat, None, play.mode,
+                    ));
                     self.push_mode_layers(id);
                     self.action
                         .as_mut()
@@ -1111,9 +1066,10 @@ impl Engine {
         self.burn_pool_batch(&loss);
     }
 
-    /// The layers of the mode a political action card entered play with
-    /// (Archon, Raising the Portcullis).
-    fn push_mode_layers(&mut self, id: crate::state::CardId) {
+    /// The layers of the mode card `id` is in play with (a political action
+    /// card: Archon, Raising the Portcullis; a card placed or become in
+    /// combat).
+    pub(crate) fn push_mode_layers(&mut self, id: crate::state::CardId) {
         let c = &self.state.cards[id.index()];
         let mode = &cards::lookup(c.card).expect("definition").modes[c.mode as usize];
         for e in mode.effects {
@@ -1317,9 +1273,7 @@ impl Engine {
                 }
             }
             cards::Effect::Abstain { lock, burn } => {
-                let cards::Target::Minion(t) = play.target else {
-                    unreachable!("abstain without a minion target");
-                };
+                let t = play.target.minion();
                 for r in &mut ctx.records {
                     if r.source == Source::Vampire(t) {
                         r.canceled = true;

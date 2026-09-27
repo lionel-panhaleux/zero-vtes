@@ -5,63 +5,13 @@
 
 use zvtes::cards::AbilitySource;
 use zvtes::cards::Target;
-use zvtes::decision::{Choice, DecisionRequest, WindowLabel};
-use zvtes::game::{Contest, Engine, Step};
+use zvtes::decision::{Choice, WindowLabel};
+use zvtes::game::{Contest, Engine};
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::state::{find_card, find_library, CardId, CardInPlay};
 
-fn request(e: &mut Engine) -> DecisionRequest {
-    match e.run() {
-        Step::Decision(req) => {
-            if std::env::var("TRACE").is_ok() {
-                eprintln!("REQ {:?} {:?} {:?}", req.seat, req.window, req.options);
-            }
-            req
-        }
-        Step::Over(_) => panic!("game over while expecting a decision"),
-    }
-}
-
-fn expect(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    let req = request(e);
-    assert_eq!((req.seat, req.window), (seat, window), "{:?}", req.options);
-    req
-}
-
-fn pick(e: &mut Engine, want: Choice) {
-    let req = request(e);
-    let idx = req
-        .options
-        .iter()
-        .position(|o| *o == want)
-        .unwrap_or_else(|| panic!("option {want:?} not in {:?}", req.options));
-    e.choose(idx);
-}
-
-/// Pass every window until `seat`'s `window` opens as a real decision.
-fn to_window(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    loop {
-        let req = request(e);
-        if (req.seat, req.window) == (seat, window) {
-            return req;
-        }
-        assert!(
-            matches!(req.options[0], Choice::Pass | Choice::ResolveRider { .. }),
-            "{:?}",
-            req
-        );
-        e.choose(0);
-    }
-}
-
-fn master_play(card: u8) -> Choice {
-    Choice::Play {
-        card,
-        mode: 0,
-        actor: None,
-        target: Target::None,
-    }
-}
+mod common;
+use common::*;
 
 fn feed(card: u32, ability: u8, vampire: MinionId) -> Choice {
     Choice::UseAbility {
@@ -69,20 +19,6 @@ fn feed(card: u32, ability: u8, vampire: MinionId) -> Choice {
         ability,
         actor: None,
         target: Target::Minion(vampire),
-    }
-}
-
-fn abilities(req: &DecisionRequest) -> Vec<Choice> {
-    req.options
-        .iter()
-        .copied()
-        .filter(|o| matches!(o, Choice::UseAbility { .. }))
-        .collect()
-}
-
-fn hand(e: &mut Engine, seat: u8, cards: &[&str]) {
-    for c in cards {
-        e.state.seats[seat as usize].hand.push(find_library(c));
     }
 }
 
@@ -106,10 +42,6 @@ fn in_play(e: &mut Engine, name: &str, owner: u8) -> u32 {
         chosen: Vec::new(),
     });
     e.state.cards.len() as u32 - 1
-}
-
-fn blood(e: &Engine, m: MinionId) -> u8 {
-    e.state.minions[m.index()].blood
 }
 
 /// 3 seats at seat 0's master phase, turn 4, 10 pool each. Seat 0: Alexa

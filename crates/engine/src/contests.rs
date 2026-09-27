@@ -99,32 +99,20 @@ impl Engine {
     /// paid themselves to 0: ousted, the turn has passed.
     pub(crate) fn settle_contest(&mut self, item: Contest, pay: bool) -> bool {
         let s = self.state.active;
-        match item {
-            Contest::Card(m) => {
-                if pay {
-                    self.state.seats[s.index()].pool -= 1;
-                } else {
-                    // Yielded: burned with everything on it (not ready:
-                    // no "ready minion burned" rider).
-                    self.burn_minion(m);
-                }
+        match (item, pay) {
+            (Contest::Card(_) | Contest::Library(_), true) => {
+                self.state.seats[s.index()].pool -= 1;
             }
-            Contest::Title(m) => {
-                if pay {
-                    self.state.minions[m.index()].blood -= 1;
-                } else {
-                    self.set_title_contested(m, false);
-                    self.lose_title(m);
-                }
+            (Contest::Title(m), true) => self.state.minions[m.index()].blood -= 1,
+            // Yielded: burned with everything on it (not ready: no "ready
+            // minion burned" rider).
+            (Contest::Card(m), false) => self.burn_minion(m),
+            (Contest::Title(m), false) => {
+                self.set_title_contested(m, false);
+                self.lose_title(m);
             }
-            Contest::Library(c) => {
-                if pay {
-                    self.state.seats[s.index()].pool -= 1;
-                } else {
-                    // Yielded: burned, counters and all.
-                    self.burn_card_in_play(c);
-                }
-            }
+            // Yielded: burned, counters and all.
+            (Contest::Library(c), false) => self.burn_card_in_play(c),
         }
         if self.state.seats[s.index()].pool == 0 {
             self.oust_and_pass(s);

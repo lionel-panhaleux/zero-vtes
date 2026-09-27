@@ -1,5 +1,4 @@
-//! Card behavior: the agreed representation (DESIGN §4.5,
-//! docs/effects-framework.md). A card is a set of modes; a mode's *legality
+//! Card behavior: the agreed representation (DESIGN §4.5). A card is a set of modes; a mode's *legality
 //! half* (windows, actor, requirements, cost, targets, terms) is a closed
 //! vocabulary evaluated here by the engine, so the option mask is enumerated
 //! from data; its *execution half* (effects) is interpreted at resolution.
@@ -139,8 +138,8 @@ impl Window {
     }
 }
 
-/// Who may use a mode (effects-framework §2.2).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Who may use a mode.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Actor {
     /// The Methuselah, no minion (masters, events).
     Methuselah,
@@ -198,7 +197,7 @@ pub enum Actor {
 
 /// A class of printed title, for "requires a prince or justicar" style
 /// requirements.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TitleClass {
     Any,
     Primogen,
@@ -226,14 +225,14 @@ impl TitleClass {
 
 /// What a minion may hold only one of ("a minion can have only one
 /// vehicle", "… only one Kevlar Vest").
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Holding {
     Label(crate::library::Label),
     Named(&'static str),
 }
 
 /// An ally's permission to play cards "as a vampire".
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct AsVampire {
     /// The basic Discipline it meets (one).
     pub disciplines: &'static [&'static str],
@@ -246,7 +245,7 @@ pub struct AsVampire {
 /// The trait printed text names the bearer by ("this Ravnos", "this
 /// Anarch", "the bearer with Auspex"): read on the current bearer, so a
 /// minion without it gets nothing from that text (rules-qa 9.1).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Bearer {
     Any,
     Clan(&'static str),
@@ -272,7 +271,7 @@ impl Bearer {
 /// case: superior)?
 /// The hand cards a cost or a requirement names ("discard two master
 /// cards", "a card requiring Dominate [dom]").
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum CardFilter {
     Any,
     Type(CardType),
@@ -328,7 +327,7 @@ impl CardFilter {
 }
 
 /// A minion statistic a card in play modifies on its bearer.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Stat {
     /// Of the bearer's bleeds.
     Bleed,
@@ -366,10 +365,10 @@ pub enum Stat {
     NoCombatEnds,
 }
 
-/// Legality predicates — the closed vocabulary (effects-framework §2.3).
+/// Legality predicates — the closed vocabulary.
 /// Evaluated by the engine over game state and the current context; a
 /// predicate on a target reads the candidate target.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Requirement {
     /// On a rider: once one copy of the card its controller controls has
     /// resolved it this turn, the others' are no longer due ("you can burn
@@ -433,8 +432,6 @@ pub enum Requirement {
     /// The referendum's terms chose a ready vampire of this clan the player
     /// controls (Yoruba Shrine).
     TermsChoseYourReadyClan(&'static str),
-    /// The acting minion is a vampire the player controls (The Line).
-    ActingOwnVampire,
     /// The action is an equip with a non-electronic, non-vehicle,
     /// non-weapon equipment card from hand, and the acting minion has not
     /// unlocked this way this turn (British Museum).
@@ -583,7 +580,8 @@ pub enum Requirement {
     OthersAttemptNeedsIntercept,
     /// The acting minion is of the clan.
     ActingClan(&'static str),
-    /// The current action is undirected.
+    /// The current action is undirected; in a printed modifier, the action
+    /// performed (Castellan).
     ActionUndirected,
     /// Not the first action announced in this minion phase (Channel 10).
     NotFirstActionOfPhase,
@@ -678,14 +676,13 @@ pub enum Requirement {
     /// The action rescued a vampire from torpor: a successful rescue
     /// (Ritual Goblet), not one that fizzled.
     RescuedFromTorpor,
-    /// The current action is directed.
+    /// The current action is directed; in a printed modifier, the action
+    /// performed (Castellan).
     ActionDirected,
     /// The current action is directed at every Methuselah this card in
     /// play remembers (`CardInPlay::against`), its host's controller not
     /// counted (Shadow Cast [OBL]; LSJ 20100527, rules-qa 24.5).
     DirectedAtRemembered,
-    /// The current action is a diablerie.
-    IsDiablerie,
     /// The actor diablerised a vampire in this action: as the acting minion
     /// or as the blocker of a leave-torpor action (rules-qa 16.2).
     ActorDiablerised,
@@ -767,9 +764,6 @@ pub enum Requirement {
     /// This card in play entered before the current turn ("during your next
     /// minion phase", Puppet Master [DOM]).
     EnteredBeforeThisTurn,
-    /// The actor is a vampire of this clan ("Hecata you control can …", The
-    /// Gate of Acheron).
-    ActorOfClan(&'static str),
     /// The card in play whose ability this is is the player's ("… you
     /// control can …"). Engine-checked.
     YouControlThisCard,
@@ -863,9 +857,6 @@ pub enum Requirement {
     /// opposing minion — the acting minion for a block attempt, the
     /// opposing combatant in combat. "While this vampire is ready".
     ThisVampireReady,
-    /// The action performed is directed / not directed (Castellan).
-    IsDirected,
-    IsUndirected,
     /// The opposing minion is of this clan ("in combat with a Brujah").
     OpponentClan(&'static str),
     /// The opposing minion is younger / older than the modified minion.
@@ -880,7 +871,8 @@ pub enum Requirement {
     /// vampire's Methuselah ("minions with any of your corruption
     /// counters", Faruq Abd al-Qadir).
     ActorCorruptedBySource,
-    /// The modified minion is of this clan ("Brujah get +1 strength").
+    /// The actor (the modified minion, for a printed modifier) is of this
+    /// clan ("Brujah get +1 strength", "Hecata you control can …").
     ActorClan(&'static str),
     /// The vampire's controller has at most n pool ("while you have 9 or
     /// fewer pool").
@@ -1035,7 +1027,7 @@ pub enum Requirement {
 }
 
 /// A reaction's gift to its minion in the combat a block begins.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum BlockRider {
     /// "1 optional maneuver during the resulting combat" (Spirit's Touch).
     Maneuver,
@@ -1076,20 +1068,21 @@ pub enum BlockRider {
 }
 
 /// How a card in play reduces its controller's costs.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum CostSource {
     /// Lock: an action card a vampire plays costs 1 blood less (The Line).
     Line,
     /// With the Edge, lock: a card costs 2 pool or blood less (The Shard).
     Shard,
-    /// Its counters pay a Ravnos's action card's blood (Ravnos Carnival).
-    Carnival,
+    /// Its counters pay the blood of an action card a vampire of this clan
+    /// plays (Ravnos Carnival).
+    Carnival(&'static str),
     /// Lock: its counters pay an equip's blood or pool (Ravnos Cache).
     Cache,
 }
 
 /// Whom a conditional bonus reads its condition on.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum On {
     /// The minion playing the card.
     Actor,
@@ -1098,7 +1091,7 @@ pub enum On {
 }
 
 /// How many points a referendum allocates.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Points {
     Fixed(u8),
     /// "X is the number of Methuselahs in the game" (Conservative
@@ -1111,7 +1104,7 @@ pub enum Points {
 }
 
 /// Which Methuselahs may receive points.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Among {
     /// Any Methuselah, the caller included.
     Any,
@@ -1124,7 +1117,7 @@ pub enum Among {
 }
 
 /// Which Methuselahs a `ChooseSeat` term may pick.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SeatFilter {
     Any,
     /// "A Methuselah who has more pool than you do" (Parity Shift).
@@ -1133,7 +1126,7 @@ pub enum SeatFilter {
 
 /// One term of a referendum, chosen stepwise by the caller once the action
 /// succeeds (rulebook "The Referendum" step 1; rules-qa 3.5).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Term {
     /// Allocate points among at least `min_seats` Methuselahs (a point
     /// total may exceed a Methuselah's pool: KRC rulings).
@@ -1164,7 +1157,7 @@ pub enum Term {
 }
 
 /// What a passed referendum does.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RefEffect {
     /// Each Methuselah burns 1 pool per point allocated.
     BurnAllocated,
@@ -1217,7 +1210,7 @@ pub enum RefEffect {
 /// A political action card's referendum: its terms, its effect, and the
 /// votes it grants while it lasts ("in this referendum, each ready
 /// Toreador gets +1 vote", Toreador Justicar).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ReferendumDef {
     pub terms: &'static [Term],
     pub effect: RefEffect,
@@ -1230,7 +1223,7 @@ pub struct ReferendumDef {
 /// The vampires a vote grant reaches, read live while the referendum lasts
 /// (a vampire that qualifies when it casts gets them; one that has cast
 /// when the grant is made adds them to its cast).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Voters {
     /// "Each ready Toreador" (Toreador Justicar), "each Lasombra you
     /// control" (Power Structure).
@@ -1242,7 +1235,7 @@ pub enum Voters {
 
 /// +n votes to each vampire `voters` names (of the granting Methuselah's
 /// when the grant comes from a card in play).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct VoteGrant {
     pub voters: Voters,
     pub n: u8,
@@ -1358,7 +1351,7 @@ pub fn seat_filter_holds(filter: SeatFilter, st: &GameState, caller: SeatId, s: 
 }
 
 /// A strike (rulebook "Strike Effects"), from the hands, a card or a weapon.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum StrikeKind {
     /// Hand strike: strength (+bonus) damage at close range.
     Hand { bonus: u8 },
@@ -1401,7 +1394,7 @@ pub enum StrikeKind {
 /// "A vampire can play only one X each round / combat / action": one play
 /// of the card name per minion per scope (a canceled play still counts:
 /// Immortal Grapple rulings).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Limit {
     PerRound,
     PerCombat,
@@ -1429,7 +1422,7 @@ pub enum Limit {
     BetweenUnlockPhases,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TargetKind {
     Minion,
     Seat,
@@ -1439,15 +1432,16 @@ pub enum TargetKind {
     Card,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct TargetSpec {
     pub kind: TargetKind,
     pub filter: &'static [Requirement],
 }
 
 /// A resolved target of a play.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Target {
+    #[default]
     None,
     Minion(MinionId),
     Seat(SeatId),
@@ -1459,9 +1453,29 @@ pub enum Target {
     Card(CardId),
 }
 
+impl Target {
+    /// The minion targeted, where the mode's target spec makes one.
+    #[track_caller]
+    pub fn minion(self) -> MinionId {
+        match self {
+            Target::Minion(m) => m,
+            _ => unreachable!("{self:?}: no minion target"),
+        }
+    }
+
+    /// The card in play targeted, where the mode's target spec makes one.
+    #[track_caller]
+    pub fn card(self) -> CardId {
+        match self {
+            Target::Card(c) => c,
+            _ => unreachable!("{self:?}: no card target"),
+        }
+    }
+}
+
 /// Where an ability used with `Choice::UseAbility` is printed: a card in
 /// play (arena index) or a vampire's own text (`cards::vampires`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum AbilitySource {
     Card(CardId),
     Vampire(MinionId),
@@ -1525,7 +1539,7 @@ impl AbilitySource {
 }
 
 /// Numeric terms chosen as the card is played (rules-qa 3.5).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Terms {
     /// An integer in `min..=max` (the amount actually taken at resolution
     /// is capped by what is there: Villein rulings).
@@ -1604,8 +1618,8 @@ pub enum Terms {
     OwnOfClan { clan: &'static str, other: bool },
 }
 
-/// Continuous-effect modifiers carried by layers (effects-framework §3.2).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Continuous-effect modifiers carried by layers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Modifier {
     /// The layer source's host gets n bleed against its controller's prey
     /// (Tier of Souls [ANI]).
@@ -1811,10 +1825,11 @@ pub enum Modifier {
     /// as it leaves play, its ghouls are removed from the game.
     GhoulArmy,
     /// "If an ally is burned in combat with an acting vampire, add 1
-    /// counter to this card and inflict 2 unpreventable environmental
-    /// damage on the acting vampire after the combat ends. If this card has
-    /// 4 counters, burn it" (FBI Special Affairs Division).
-    AllyBurnedInCombat,
+    /// counter to this card and inflict 2 (`damage`) unpreventable
+    /// environmental damage on the acting vampire after the combat ends. If
+    /// this card has 4 (`burn_at`) counters, burn it" (FBI Special Affairs
+    /// Division).
+    AllyBurnedInCombat { damage: u8, burn_at: u8 },
     /// "While your prey controls a vampire in torpor, vampires you control
     /// get +n bleed" (Raising the Portcullis), read live.
     OwnBleedWhilePreyTorpor(i8),
@@ -1829,7 +1844,7 @@ pub enum Modifier {
     UndodgeableStrikes,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Scope {
     /// While the source card stays in play.
     InPlay,
@@ -1837,156 +1852,20 @@ pub enum Scope {
     Action,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Layer {
     pub scope: Scope,
     pub modifier: Modifier,
     pub source: CardId,
 }
 
-impl Layer {
-    pub fn hash(&self) -> u64 {
-        let m = match self.modifier {
-            Modifier::CostMod {
-                name,
-                on_host_only,
-                owner_only,
-                pool,
-            } => {
-                (name.len() as u64) << 16
-                    ^ (on_host_only as u64) << 9
-                    ^ (owner_only as u64) << 8
-                    ^ (pool as i64 as u64 & 0xff)
-            }
-            Modifier::ReactionBloodCost(n) => 1 << 32 ^ (n as i64 as u64 & 0xff),
-            Modifier::HostBleedAgainstPrey(n) => 1 << 32 ^ 1 << 20 ^ (n as i64 as u64 & 0xff),
-            Modifier::HostVoteWhenCalling(clans) => 1 << 32 ^ 1 << 22 ^ clans.len() as u64,
-            Modifier::HostRecruitDiscount(n) => 1 << 32 ^ 1 << 23 ^ n as u64,
-            Modifier::HostVotesWhileControlling { name, n } => {
-                1 << 32 ^ 1 << 25 ^ (name.len() as u64) << 8 ^ (n as u8 as u64)
-            }
-            Modifier::HostInterceptVsMithraic(n) => 1 << 32 ^ 1 << 26 ^ (n as u8 as u64),
-            Modifier::MithraicMember => 1 << 32 ^ 1 << 27,
-            Modifier::CostSource(k) => 1 << 32 ^ 1 << 30 ^ k as u64,
-            Modifier::Haven => 1 << 32 ^ 1 << 28,
-            Modifier::PlainEquipDiscount(n) => 1 << 32 ^ 1 << 29 ^ n as u64,
-            Modifier::ClanCombatManeuver(clan) => 1 << 32 ^ 1 << 24 ^ clan.len() as u64,
-            Modifier::YoungBleedAgainstController { max, n } => {
-                1 << 32 ^ 1 << 21 ^ (max as u64) << 8 ^ (n as i64 as u64 & 0xff)
-            }
-            Modifier::InterceptMod { younger_than, n } => {
-                1 << 33 ^ (younger_than as u64) << 8 ^ (n as i64 as u64 & 0xff)
-            }
-            Modifier::HostInterceptOnBleedAtYou(n) => 1 << 34 ^ (n as i64 as u64 & 0xff),
-            Modifier::HandSize(n) => 1 << 35 ^ (n as i64 as u64 & 0xff),
-            Modifier::HandSizePerCounter => 1 << 35 ^ 1 << 12,
-            Modifier::Transfers(n) => 1 << 35 ^ 1 << 13 ^ n as u64,
-            Modifier::Bearer {
-                stat,
-                n,
-                during,
-                who,
-            } => {
-                1 << 37
-                    ^ (stat as u64) << 24
-                    ^ (during.len() as u64) << 16
-                    ^ bearer_hash(who) << 8
-                    ^ (n as i64 as u64 & 0xff)
-            }
-            Modifier::YoungerInterceptAgainstBearer { n, who } => {
-                1 << 38 ^ bearer_hash(who) << 8 ^ (n as i64 as u64 & 0xff)
-            }
-            Modifier::RescueDiscount { not_clan, n, gain } => {
-                1 << 38
-                    ^ 1 << 20
-                    ^ (not_clan.map_or(0, str::len) as u64) << 12
-                    ^ (n as u64) << 4
-                    ^ gain as u64
-            }
-            Modifier::CounterInsteadOfUnlock => 1 << 38 ^ 1 << 21,
-            Modifier::DirectedOnlyBy(d) => 1 << 38 ^ 1 << 22 ^ d.len() as u64,
-            Modifier::RetainerDamage(n) => 1 << 39 ^ n as u64,
-            Modifier::NoCombatEndsAgainstHost => 1 << 39 ^ 1 << 12,
-            Modifier::CannotBlockVampires => 1 << 39 ^ 1 << 13,
-            Modifier::NoEquipmentOrRetainers => 1 << 39 ^ 1 << 14,
-            Modifier::OpponentHandSizeInCombat(n) => 1 << 39 ^ 1 << 15 ^ n as u64,
-            Modifier::OpponentOpenHandInCombat => 1 << 39 ^ 1 << 21,
-            Modifier::PreyOpenHand => 1 << 39 ^ 1 << 22,
-            Modifier::HostDoesNotUnlock => 1 << 39 ^ 1 << 24,
-            Modifier::BearerCannotPlay(name) => 1 << 39 ^ 1 << 23 ^ name.len() as u64,
-            Modifier::ImmuneToDirectedActions(d) => 1 << 39 ^ 1 << 16 ^ d.len() as u64,
-            Modifier::UndodgeableStrikes => 1 << 39 ^ 1 << 17,
-            Modifier::HostCannotBlock => 1 << 39 ^ 1 << 19,
-            Modifier::ClanStat {
-                clan,
-                stat,
-                n,
-                own,
-                titled,
-                during,
-            } => {
-                1 << 39
-                    ^ 1 << 22
-                    ^ (clan.len() as u64) << 8
-                    ^ (stat as u64) << 4
-                    ^ (n as u8 as u64)
-                    ^ (own as u64) << 30
-                    ^ (titled as u64) << 31
-                    ^ (during.len() as u64) << 32
-            }
-            Modifier::ClanCannotHunt(clan) => 1 << 39 ^ 1 << 23 ^ clan.len() as u64,
-            Modifier::SecondChosenUnblockable => 1 << 39 ^ 1 << 20,
-            Modifier::FirstChosenDoesNotUnlock => 1 << 39 ^ 1 << 21,
-            Modifier::DisciplineLevel(d) => {
-                1 << 39 ^ 1 << 18 ^ d.bytes().fold(0u64, |h, b| h << 8 | b as u64)
-            }
-            Modifier::BearerDisciplineLevel(d) => {
-                1 << 39 ^ 1 << 25 ^ d.bytes().fold(0u64, |h, b| h << 8 | b as u64)
-            }
-            Modifier::AlliesCannotBlockBearer => 1 << 39 ^ 1 << 18,
-            Modifier::PlaysAsVampire(g) => {
-                1 << 39 ^ 1 << 20 ^ (g.capacity as u64) << 1 ^ g.non_action as u64
-            }
-            Modifier::DisciplineSurchargeAround(d, n) => {
-                1 << 39 ^ 1 << 19 ^ (d.len() as u64) << 8 ^ n as u64
-            }
-            Modifier::HostDisciplineCardsCost(n) => 1 << 39 ^ 1 << 26 ^ n as u64,
-            Modifier::NoGehennaEvents => 1 << 39 ^ 1 << 30,
-            Modifier::RedirectCardsCost(n) => 1 << 40 ^ 1 << 1 ^ n as u64,
-            Modifier::TorpidBlood => 1 << 40 ^ 1 << 2,
-            Modifier::SuperiorCardsCost(n) => 1 << 40 ^ 1 << 3 ^ n as u64,
-            Modifier::HoldDisciplineReplacements => 1 << 40 ^ 1 << 4,
-            Modifier::Thirst => 1 << 40 ^ 1 << 5,
-            Modifier::CapacityCapByCounters => 1 << 40 ^ 1 << 6,
-            Modifier::NoBloodHuntAboveCounters => 1 << 40 ^ 1 << 7,
-            Modifier::BurnsAnEventEachDiscard => 1 << 40 ^ 1 << 8,
-            Modifier::OnlyMustHunt => 1 << 40 ^ 1 << 9,
-            Modifier::SectFallen(s) => 1 << 40 ^ 1 << 11 ^ s as u64,
-            Modifier::GhoulArmy => 1 << 40 ^ 1 << 12,
-            Modifier::AllyBurnedInCombat => 1 << 40 ^ 1 << 10,
-            Modifier::OwnBleedWhilePreyTorpor(n) => 1 << 39 ^ 1 << 27 ^ (n as i64 as u64 & 0xff),
-            Modifier::BlockersOfHostBurn(n) => 1 << 39 ^ 1 << 28 ^ n as u64,
-            Modifier::NoBloodHuntOnHost => 1 << 39 ^ 1 << 29,
-        };
-        (self.source.0 as u64) << 40 ^ (self.scope as u64) << 36 ^ m
-    }
-}
-
-fn bearer_hash(who: Bearer) -> u64 {
-    match who {
-        Bearer::Any => 0,
-        Bearer::Clan(c) => 1 ^ (c.len() as u64) << 2,
-        Bearer::Sect(s) => 2 ^ (s as u64) << 2,
-        Bearer::Discipline(d) => 3 ^ (d.as_bytes()[0] as u64) << 2,
-    }
-}
-
-/// Effect primitives (effects-framework §3.1); `X` is the play's terms.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Effect primitives; `X` is the play's terms.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Effect {
     /// Move 1 counter from this card to the target minion (Week of
-    /// Nightmares' nightmare counters); none left, the card's end.
-    CounterToTarget,
+    /// Nightmares' nightmare counters); none left, the card's end: each
+    /// vampire of this clan burns 1 blood per counter on it or is burned.
+    CounterToTarget(&'static str),
     /// The granted action is a hunt ("… as a +1 stealth hunt action", Week
     /// of Nightmares): a hunt for everything reading one, successful only
     /// if it gains blood (LSJ 20050720-2).
@@ -2720,12 +2599,11 @@ pub enum Effect {
         blood: u8,
         stealth: u8,
     },
-    /// Set this round's range to long, skipping the determine range step;
-    /// usable only while no other effect has set it (Sniper Rifle).
-    SetRangeLong,
-    /// As `SetRangeLong`, to close range (Michael Harris: "set the range for
-    /// the round"; the first effect setting it has priority, PIB 20120214).
-    SetRangeClose,
+    /// Set this round's range, skipping the determine range step; usable
+    /// only while no other effect has set it (Sniper Rifle; Michael Harris:
+    /// "set the range for the round"; the first effect setting it has
+    /// priority, PIB 20120214).
+    SetRange(crate::combat::Range),
     /// "Immune to all non-aggravated damage from a strike" (Valerie Diaz):
     /// the normal damage pending from the opposing strike is gone — not
     /// prevented.
@@ -3070,9 +2948,9 @@ pub enum Effect {
     YoungerIntercept(i8),
 }
 
-/// Trigger points where riders of cards in play fire (effects-framework
-/// §4: mandatory effects in canonical order).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Trigger points where riders of cards in play fire (mandatory
+/// effects in canonical order).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Hook {
     /// "During their unlock phase": a mandatory effect the active
     /// Methuselah resolves among their own unlock-phase effects, in the
@@ -3091,8 +2969,7 @@ pub enum Hook {
     /// Methuselah is not burned (spec §1.10), nor is one burned from
     /// torpor or from a contest.
     ReadyMinionBurnedOrTorpor,
-    /// The controller would replace a card (effects-framework §5
-    /// `replacement`): the rider's effects happen instead of the draw
+    /// The controller would replace a card: the rider's effects happen instead of the draw
     /// (Visit from the Capuchin). Every replacement draw counts, whatever
     /// took the card out of hand (spec §6.8.3), a delayed one when it
     /// finally comes due included.
@@ -3158,7 +3035,7 @@ pub enum Hook {
 }
 
 /// Whose turn a phase rider fires on.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RiderScope {
     /// Every Methuselah's ("during their unlock phase": Anarch Revolt).
     Every,
@@ -3173,7 +3050,7 @@ pub enum RiderScope {
 }
 
 /// A mandatory effect of a card in play, fired at its hook.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Rider {
     pub hook: Hook,
     pub scope: RiderScope,
@@ -3195,7 +3072,7 @@ impl RiderScope {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ModeDef {
     pub windows: &'static [Window],
     pub actor: Actor,
@@ -3212,7 +3089,7 @@ pub struct ModeDef {
 /// When a card played with a "do not replace until" clause is replaced:
 /// at the first moment the condition is met, ahead of any other effect
 /// (spec §1.9.2). A canceled card is replaced at once (§1.9.3).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Until {
     /// "Until your next unlock phase": before cards unlock.
     NextUnlockPhase,
@@ -3238,7 +3115,48 @@ pub enum Until {
     Liaison,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// A mode of `actor` in `windows`: no target, terms or limit (spread
+/// `..mode_of(..)` under the fields that differ).
+pub const fn mode_of(
+    windows: &'static [Window],
+    actor: Actor,
+    requires: &'static [Requirement],
+    effects: &'static [Effect],
+) -> ModeDef {
+    ModeDef {
+        windows,
+        actor,
+        requires,
+        target: None,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects,
+    }
+}
+
+/// A target of `kind` passing `filter`.
+pub const fn target(kind: TargetKind, filter: &'static [Requirement]) -> Option<TargetSpec> {
+    Some(TargetSpec { kind, filter })
+}
+
+/// `+n bleed`, limited or not.
+pub const fn bleed(n: u8, limited: bool) -> Effect {
+    Effect::BleedMod { n, limited }
+}
+
+/// A card's defaults, spread as `..CARD` under its name and modes.
+pub const CARD: CardDef = CardDef {
+    name: "",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[],
+    abilities: &[],
+    riders: &[],
+};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct CardDef {
     /// Printed name; matched against `library::LIBRARY`.
     pub name: &'static str,
@@ -3253,8 +3171,7 @@ pub struct CardDef {
     /// In-play abilities (the same shape; actor is the host, or a ready
     /// unlocked minion declaring a granted action).
     pub abilities: &'static [ModeDef],
-    /// Riders of the card in play: mandatory effects fired at a hook
-    /// (effects-framework §4, `phase_trigger`).
+    /// Riders of the card in play: mandatory effects fired at a hook.
     pub riders: &'static [Rider],
 }
 
@@ -3278,6 +3195,14 @@ pub fn becomes_weapon(card: u16) -> bool {
             .iter()
             .any(|m| m.effects.contains(&Effect::BecomesWeapon))
     })
+}
+
+/// A weapon: printed so, or one once in play (`becomes_weapon`).
+pub fn is_weapon(card: u16) -> bool {
+    LIBRARY[card as usize]
+        .labels
+        .contains(&crate::library::Label::Weapon)
+        || becomes_weapon(card)
 }
 
 /// The title a title card represents (`Effect::RepresentsTitle` in one of
@@ -3401,7 +3326,7 @@ pub fn lookup(card: u16) -> Option<&'static CardDef> {
 }
 
 /// Whom a vampire's printed modifier applies to.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PrintedTo {
     /// The vampire itself.
     Itself,
@@ -3414,7 +3339,7 @@ pub enum PrintedTo {
 }
 
 /// How many times a printed modifier counts.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Per {
     One,
     /// "For each unique equipment attached to him" (uncontested).
@@ -3424,7 +3349,7 @@ pub enum Per {
 /// A modifier printed on a vampire, read live by `GameState::printed_mod`
 /// while the vampire is in play — in torpor included (LSJ 20011022), not
 /// while contested.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Printed {
     pub stat: Stat,
     pub n: i8,
@@ -3432,6 +3357,15 @@ pub struct Printed {
     pub per: Per,
     pub requires: &'static [Requirement],
 }
+
+/// A vampire's defaults, spread as `..VAMP` under its name.
+pub const VAMP: VampireDef = VampireDef {
+    name: "",
+    printed: &[],
+    abilities: &[],
+    riders: &[],
+    incomplete: None,
+};
 
 /// Behavior of a vampire's printed text (`crypt.rs` stays the generated
 /// printed data: sect, title, disciplines).
@@ -3477,7 +3411,7 @@ pub fn vampire(card: u16) -> Option<&'static VampireDef> {
 }
 
 /// The card play under announcement / in its as-played window.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct PlayCtx {
     pub seat: SeatId,
     pub card: u16,
@@ -3505,6 +3439,33 @@ pub struct PlayCtx {
     /// The card in play the card was played from, not the hand (Fleshforge
     /// Chamber): it is not replaced.
     pub from: Option<CardId>,
+}
+
+impl PlayCtx {
+    /// A play with no cost source, burn, name, chosen minion or found card.
+    pub fn new(
+        seat: SeatId,
+        card: u16,
+        mode: u8,
+        actor: Option<MinionId>,
+        target: Target,
+        x: u8,
+    ) -> Self {
+        PlayCtx {
+            seat,
+            card,
+            mode,
+            actor,
+            target,
+            x,
+            burn: None,
+            named: None,
+            chosen: None,
+            ash: None,
+            discounts: [None; 3],
+            from: None,
+        }
+    }
 }
 
 /// Does `m` meet a mode's discipline tags? Lower case needs the discipline
@@ -3744,14 +3705,10 @@ pub fn holds(
         }
         Requirement::NoSuperiorVeilThisTurn => !st.veil_superior,
         Requirement::OpposingWeapon => combat.zip(actor).is_some_and(|(c, m)| {
-            c.side_of_minion(m).is_some_and(|i| {
-                st.equipment_on(c.sides[1 - i].minion).into_iter().any(|w| {
-                    let card = st.cards[w.index()].card;
-                    LIBRARY[card as usize]
-                        .labels
-                        .contains(&crate::library::Label::Weapon)
-                        || becomes_weapon(card)
-                })
+            c.opponent_of(m).is_some_and(|o| {
+                st.equipment_on(o)
+                    .into_iter()
+                    .any(|w| is_weapon(st.cards[w.index()].card))
             })
         }),
         Requirement::ManeuverToClose => combat.is_none_or(|c| {
@@ -3870,7 +3827,6 @@ pub fn holds(
             )
         }),
         Requirement::ActionDirected => action.is_some_and(|a| a.directed_seat(st).is_some()),
-        Requirement::IsDiablerie => action.is_some_and(|a| a.kind == ActionKind::Diablerie),
         Requirement::ActorDiablerised => action
             .zip(actor)
             .is_some_and(|(a, m)| a.diablerist == Some(m)),
@@ -3922,7 +3878,7 @@ pub fn holds(
             });
             let from_source = a.source.zip(a.ability).is_some_and(|(src, ab)| {
                 src.mode(st, ab).requires.iter().any(|r| match r {
-                    Requirement::ActorClan(c) | Requirement::ActorOfClan(c) => *c == clan,
+                    Requirement::ActorClan(c) => *c == clan,
                     _ => false,
                 })
             });
@@ -3951,10 +3907,6 @@ pub fn holds(
                 let v = &st.minions[m.index()];
                 v.owner == seat && v.ready() && v.clan() == Some(clan)
             })
-        }),
-        Requirement::ActingOwnVampire => action.is_some_and(|a| {
-            let v = &st.minions[a.acting.index()];
-            v.owner == seat && v.is_vampire()
         }),
         Requirement::OwnActionCardCosts(kind) => action.is_some_and(|a| {
             a.seat == seat
@@ -4086,7 +4038,7 @@ pub fn holds(
             political.zip(actor).is_some_and(|(r, m)| !r.voting_for(m))
         }
         Requirement::ActorWithout(h) => actor.is_some_and(|m| !st.holds_a(m, h)),
-        Requirement::ActorOfClan(c) => actor.and_then(|m| st.minions[m.index()].clan()) == Some(c),
+        Requirement::ActorClan(c) => actor.and_then(|m| st.minions[m.index()].clan()) == Some(c),
         Requirement::YouControlThisCard
         | Requirement::OthersControlThisCard
         | Requirement::CardControllersTurn
@@ -4096,15 +4048,12 @@ pub fn holds(
         Requirement::ControlledByPredatorOrPrey => true, // target predicate
         Requirement::HostClan(_) | Requirement::HostDiscipline(_) => true, // host predicates
         Requirement::ThisVampireReady
-        | Requirement::IsDirected
-        | Requirement::IsUndirected
         | Requirement::OpponentClan(_)
         | Requirement::OpponentYounger
         | Requirement::OpponentOlder
         | Requirement::OpponentAllyOrYounger
         | Requirement::OpponentTitled
         | Requirement::ActorCorruptedBySource
-        | Requirement::ActorClan(_)
         | Requirement::PoolAtMost(_)
         | Requirement::ControlsLocation
         | Requirement::ControlsNoLocation
@@ -4190,7 +4139,7 @@ pub fn holds_for_minion(
         Requirement::TargetSectNot(sect) => v.is_vampire() && st.sect_of(m) != Some(sect),
         Requirement::TargetCapacityAtLeast(n) => st.capacity_of(m).is_some_and(|c| c >= n),
         Requirement::TargetDiscipline(d) => st.has_discipline(m, d),
-        Requirement::TargetMithraic => v.name() == "Mithras" || st.mithraic_member(m),
+        Requirement::TargetMithraic => st.is_mithraic(m),
         Requirement::TargetNotNamed(name) => v.name() != name,
         Requirement::TargetAnarch => st.sect_of(m) == Some(Sect::Anarch),
         Requirement::TargetTitleIn(classes) => {

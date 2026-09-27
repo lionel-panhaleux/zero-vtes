@@ -4,46 +4,15 @@
 //! afterward). Windows with a single option are elided, so the scripts
 //! only stop where a real decision exists.
 
-use zvtes::cards::AbilitySource;
 use zvtes::cards::{self, Effect, Layer, Scope, Target};
 use zvtes::crypt::CRYPT;
-use zvtes::decision::{Choice, DecisionRequest, WindowLabel};
-use zvtes::game::{Engine, Step};
+use zvtes::decision::{Choice, WindowLabel};
+use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::state::{find_card, find_library, CardId, CardInPlay};
 
-fn request(e: &mut Engine) -> DecisionRequest {
-    match e.run() {
-        Step::Decision(req) => {
-            if std::env::var("TRACE").is_ok() {
-                eprintln!("REQ {:?} {:?} {:?}", req.seat, req.window, req.options);
-            }
-            req
-        }
-        Step::Over(_) => panic!("game over while expecting a decision"),
-    }
-}
-
-fn expect(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    let req = request(e);
-    assert_eq!((req.seat, req.window), (seat, window), "{:?}", req.options);
-    req
-}
-
-fn pick(e: &mut Engine, want: Choice) {
-    let req = request(e);
-    let idx = req
-        .options
-        .iter()
-        .position(|o| *o == want)
-        .unwrap_or_else(|| {
-            panic!(
-                "option {want:?} not in {:?} ({:?})",
-                req.options, req.window
-            )
-        });
-    e.choose(idx);
-}
+mod common;
+use common::*;
 
 /// A card already on `host`, with its layers (no play).
 fn put_on(e: &mut Engine, name: &str, host: MinionId) -> u32 {
@@ -83,28 +52,6 @@ fn put_on(e: &mut Engine, name: &str, host: MinionId) -> u32 {
 /// Seat 0's library, bottom first.
 fn library(e: &mut Engine, cards: &[&str]) {
     e.state.seats[0].library = cards.iter().map(|c| find_library(c)).collect();
-}
-
-fn granted(card: u32, actor: MinionId) -> Choice {
-    Choice::UseAbility {
-        source: AbilitySource::Card(CardId(card)),
-        ability: 0,
-        actor: Some(actor),
-        target: Target::None,
-    }
-}
-
-/// The `nth` V5 vampire with superior `disc`.
-fn vampire_with(disc: &str, nth: usize) -> u16 {
-    CRYPT
-        .iter()
-        .enumerate()
-        .filter(|(i, c)| {
-            c.disciplines.contains(&disc) && zvtes::cards::vampire(*i as u16).is_none()
-        })
-        .nth(nth)
-        .map(|(i, _)| i as u16)
-        .unwrap_or_else(|| panic!("no vampire with {disc}"))
 }
 
 fn in_play(e: &Engine, name: &str) -> Option<MinionId> {

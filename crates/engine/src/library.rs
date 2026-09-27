@@ -2,7 +2,7 @@
 //! vtes.json (windows from scripts/window_matrix.py). Do not edit by hand;
 //! regenerate and check with `--check`.
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum CardType {
     Master,
     Action,
@@ -16,7 +16,7 @@ pub enum CardType {
     Event,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Cost {
     None,
     Fixed(u8),
@@ -26,7 +26,7 @@ pub enum Cost {
 
 /// Printed labels the rules key on (uniqueness, one hunting ground per
 /// turn, one vehicle, one archetype, trifle accounting, …).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Label {
     Unique,
     Location,
@@ -62,7 +62,7 @@ pub enum Label {
 /// Windows and flags are names from data/window-matrix-reviewed.csv. Two
 /// discipline tags on one mode mean *either* unless the card is a `combo`
 /// or `Label::MultiDiscipline` (one mode per set of Disciplines used).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Mode {
     pub tags: &'static [&'static str],
     pub windows: &'static [&'static str],
@@ -71,14 +71,14 @@ pub struct Mode {
 
 /// An ally's or retainer's printed type line: its starting life, and an
 /// ally's strength and bleed (0 for a retainer, which has neither).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Body {
     pub life: u8,
     pub strength: u8,
     pub bleed: u8,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct LibraryCard {
     pub id: u32,
     pub name: &'static str,

@@ -15,7 +15,7 @@ use crate::game::{Engine, Flow, Pending};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, Label, LIBRARY};
 use crate::referendum::is_vote_effect;
-use crate::state::{ActionId, CardId, CardInPlay, OutOfTurn};
+use crate::state::{distinct, ActionId, CardId, CardInPlay, OutOfTurn};
 use crate::window::OrderedWindow;
 
 /// The once-per-phase key of an in-play ability: the copy, or the copy and
@@ -34,6 +34,9 @@ pub(crate) struct PendingPlay {
     pub ctx: PlayCtx,
     pub window: OrderedWindow,
     pub canceled: bool,
+    /// Canceled "(cost is still paid)" (Meditative Grove): its cost is
+    /// paid as it is settled.
+    pub cost_paid: bool,
 }
 
 impl Engine {
@@ -103,6 +106,16 @@ impl Engine {
             if n > 0 && !self.state.seats[i].ousted {
                 self.replace(SeatId(i as u8), n as usize, None);
             }
+        }
+    }
+
+    /// `n` cards of `seat`'s hand to the ash heap at random, one at a time.
+    fn discard_at_random(&mut self, seat: SeatId, n: usize) {
+        for _ in 0..n {
+            let s = &mut self.state.seats[seat.index()];
+            let i = self.rng.below(s.hand.len());
+            let c = s.hand.remove(i);
+            s.ash.push(c);
         }
     }
 
@@ -190,30 +203,21 @@ impl Engine {
         self.flow = Flow::MasterPhase;
         // "During each Methuselah's master phase, that Methuselah locks one
         // of the oldest Brujah they control" (Brujah Debate), per copy.
-        for ci in 0..self.state.cards.len() {
-            let c = &self.state.cards[ci];
-            if !c.present() {
+        for (id, r) in self.state.card_riders(Hook::MasterPhaseStart) {
+            if !self.state.cards[id.index()].present() {
                 continue;
             }
-            let Some(def) = cards::lookup(c.card) else {
-                continue;
-            };
-            for r in def
-                .riders
-                .iter()
-                .filter(|r| r.hook == Hook::MasterPhaseStart)
-            {
-                for e in r.effects {
-                    match *e {
-                        Effect::LockOldestOfClan(clan) => {
-                            self.interrupts.push(Interrupt::MinionOf {
-                                seat: s,
-                                of: s,
-                                purpose: crate::draws::MinionPurpose::LockOldest(clan),
-                            });
-                        }
-                        other => unreachable!("not a master-phase rider effect: {other:?}"),
+
+            for e in r.effects {
+                match *e {
+                    Effect::LockOldestOfClan(clan) => {
+                        self.interrupts.push(Interrupt::MinionOf {
+                            seat: s,
+                            of: s,
+                            purpose: crate::draws::MinionPurpose::LockOldest(clan),
+                        });
                     }
+                    other => unreachable!("not a master-phase rider effect: {other:?}"),
                 }
             }
         }
@@ -347,6 +351,18 @@ impl Engine {
             }
             _ => vec![],
         }
+    }
+
+    /// What `seat` may play or use at an impulse in `windows`: the cards,
+    /// the abilities of cards in play timed like them (Bowl of Convergence
+    /// [AUS] on a block attempt), and the untimed abilities.
+    pub(crate) fn impulse_options(&self, seat: SeatId, windows: &[Window]) -> Vec<Choice> {
+        let mut out = self.play_options(seat, windows, None);
+        for &w in windows {
+            out.extend(self.ability_options(seat, w));
+        }
+        out.extend(self.ability_options(seat, Window::AnyImpulse));
+        out
     }
 
     /// Every legal play of a card from `seat`'s hand in any of `windows`,
@@ -581,20 +597,14 @@ impl Engine {
                         let blood = cards::blood_cost(st, card, x) + self.reaction_surcharge(card);
                         // What announced reductions could take off (The
                         // Line, The Shard, Ravnos Carnival, Ravnos Cache).
-                        let potential = self.cost_potential(&PlayCtx {
+                        let potential = self.cost_potential(&PlayCtx::new(
                             seat,
                             card,
-                            mode: mi as u8,
-                            actor: Some(m),
-                            target: Target::None,
+                            mi as u8,
+                            Some(m),
+                            Target::None,
                             x,
-                            burn: None,
-                            named: None,
-                            chosen: None,
-                            ash: None,
-                            discounts: [None; 3],
-                            from: None,
-                        });
+                        ));
                         if (blood
                             + self.discipline_surcharge(m, card, mi as u8)
                             + self.combat_card_surcharge(m, card))
@@ -821,20 +831,9 @@ impl Engine {
                         _ => 0,
                     };
                     for target in targets {
-                        let potential = self.cost_potential(&PlayCtx {
-                            seat,
-                            card,
-                            mode: mi as u8,
-                            actor,
-                            target,
-                            x: 0,
-                            burn: None,
-                            named: None,
-                            chosen: None,
-                            ash: None,
-                            discounts: [None; 3],
-                            from: None,
-                        }) as i32;
+                        let potential = self
+                            .cost_potential(&PlayCtx::new(seat, card, mi as u8, actor, target, 0))
+                            as i32;
                         if cards::pool_cost(st, seat, card, target) - discount - potential <= pool {
                             out.push(Choice::Play {
                                 card: hi as u8,
@@ -870,11 +869,7 @@ impl Engine {
         // Doll): no master phase action spent; and the untimed ones.
         options.extend(self.ability_options(s, Window::MasterPhase));
         options.extend(self.ability_options(s, Window::AnyImpulse));
-        DecisionRequest {
-            seat: s,
-            window: WindowLabel::MasterPhase,
-            options,
-        }
+        DecisionRequest::new(s, WindowLabel::MasterPhase, options)
     }
 
     pub(crate) fn master_apply(&mut self, choice: &Choice) {
@@ -986,21 +981,10 @@ impl Engine {
                 a.reaction_played = true;
             }
         }
-        let ctx = PlayCtx {
-            seat: s,
-            card,
-            mode,
-            actor,
-            target,
-            x: 0,
-            burn: None,
-            named: None,
-            chosen: None,
-            ash: None,
-            discounts: [None; 3],
+        let mut ctx = PlayCtx {
             from,
+            ..PlayCtx::new(s, card, mode, actor, target, 0)
         };
-        let mut ctx = ctx;
         if let Some(x) = cards::terms_x(&self.state, s, card, &def.modes[mode as usize]) {
             ctx.x = x;
         }
@@ -1075,7 +1059,6 @@ impl Engine {
     /// picked: the source and what it takes off at most.
     pub(crate) fn cost_sources(&self, ctx: &PlayCtx) -> Vec<(CardId, u8)> {
         let st = &self.state;
-        let lib = &LIBRARY[ctx.card as usize];
         let Some(def) = cards::lookup(ctx.card) else {
             return Vec::new();
         };
@@ -1118,8 +1101,6 @@ impl Engine {
         };
         let actor = ctx.actor.map(|m| &st.minions[m.index()]);
         let vampire = actor.is_some_and(|v| v.is_vampire());
-        let ravnos = actor.is_some_and(|v| v.clan() == Some("Ravnos"));
-        let _ = lib;
         let mut out = Vec::new();
         for (ci, c) in st.cards.iter().enumerate() {
             let id = CardId(ci as u32);
@@ -1143,9 +1124,9 @@ impl Engine {
                     2
                 }
                 // Not a political action card's cost (LSJ 20091021).
-                Some(cards::CostSource::Carnival)
+                Some(cards::CostSource::Carnival(clan))
                     if action_card
-                        && ravnos
+                        && actor.is_some_and(|v| v.clan() == Some(clan))
                         && blood > 0
                         && !mode
                             .effects
@@ -1165,6 +1146,14 @@ impl Engine {
         out
     }
 
+    /// What reduction `c` could take off `ctx`'s card at most.
+    fn cost_source_max(&self, ctx: &PlayCtx, c: CardId) -> u8 {
+        self.cost_sources(ctx)
+            .iter()
+            .find(|(d, _)| *d == c)
+            .map_or(0, |&(_, n)| n)
+    }
+
     /// What the reductions could still take off `ctx`'s card (its
     /// affordability as it is offered).
     pub(crate) fn cost_potential(&self, ctx: &PlayCtx) -> u8 {
@@ -1178,14 +1167,9 @@ impl Engine {
     ) -> DecisionRequest {
         let options = match pending {
             // How many counters (Ravnos Carnival, Ravnos Cache).
-            Some(c) => {
-                let max = self
-                    .cost_sources(ctx)
-                    .iter()
-                    .find(|(d, _)| *d == c)
-                    .map_or(0, |&(_, n)| n);
-                (1..=max).map(Choice::SetX).collect()
-            }
+            Some(c) => (1..=self.cost_source_max(ctx, c))
+                .map(Choice::SetX)
+                .collect(),
             None => {
                 let mut options = Vec::new();
                 if self.affordable_with_discounts(ctx) {
@@ -1199,11 +1183,7 @@ impl Engine {
                 options
             }
         };
-        DecisionRequest {
-            seat: ctx.seat,
-            window: WindowLabel::PlayTerms,
-            options,
-        }
+        DecisionRequest::new(ctx.seat, WindowLabel::PlayTerms, options)
     }
 
     /// Could the card's cost be paid with every reduction it may take
@@ -1216,13 +1196,8 @@ impl Engine {
         let off = self.cost_potential(ctx) + st.equip_discount(m, ctx.card);
         let blood = cards::blood_cost(st, ctx.card, ctx.x);
         let pool = cards::pool_cost(st, ctx.seat, ctx.card, ctx.target);
-        let (have_blood, have_pool) =
-            (st.minions[m.index()].blood, st.seats[ctx.seat.index()].pool);
-        if pool > 0 {
-            (pool_may_oust || (pool - off as i32).max(0) <= have_pool) && blood <= have_blood
-        } else {
-            blood.saturating_sub(off) <= have_blood
-        }
+        let have = (st.seats[ctx.seat.index()].pool, st.minions[m.index()].blood);
+        payable((pool, blood), off, have, pool_may_oust)
     }
 
     /// Can the card's cost be paid with the reductions picked so far (an
@@ -1233,13 +1208,12 @@ impl Engine {
         let blood = cards::blood_cost(st, ctx.card, ctx.x);
         let pool = cards::pool_cost(st, ctx.seat, ctx.card, ctx.target);
         let have_blood = ctx.actor.map_or(u8::MAX, |m| st.minions[m.index()].blood);
-        let have_pool = st.seats[ctx.seat.index()].pool;
-        // The reduction takes the pool first when the card costs pool.
-        if pool > 0 {
-            (pool - off as i32).max(0) <= have_pool && blood <= have_blood
-        } else {
-            blood.saturating_sub(off) <= have_blood
-        }
+        payable(
+            (pool, blood),
+            off,
+            (st.seats[ctx.seat.index()].pool, have_blood),
+            false,
+        )
     }
 
     pub(crate) fn cost_terms_apply(
@@ -1253,7 +1227,7 @@ impl Engine {
         let counter_source = |e: &Engine, c: CardId| {
             matches!(
                 e.state.cost_source_of(c),
-                Some(cards::CostSource::Carnival | cards::CostSource::Cache)
+                Some(cards::CostSource::Carnival(_) | cards::CostSource::Cache)
             )
         };
         match (pending, choice) {
@@ -1273,11 +1247,7 @@ impl Engine {
                     };
                     return;
                 }
-                let n = self
-                    .cost_sources(&ctx)
-                    .iter()
-                    .find(|(d, _)| *d == c)
-                    .map_or(0, |&(_, n)| n);
+                let n = self.cost_source_max(&ctx, c);
                 if let Some(slot) = ctx.discounts.iter_mut().find(|d| d.is_none()) {
                     *slot = Some((c, n));
                 }
@@ -1307,35 +1277,9 @@ impl Engine {
     /// blood-only, then counters: rules-qa 36.2).
     pub(crate) fn pay_named_discounts(&mut self, ctx: &PlayCtx, pool: i32, blood: u8) -> (i32, u8) {
         let (mut pool, mut blood) = (pool, blood);
-        let mut counters = Vec::new();
-        for (c, n) in ctx.discounts.into_iter().flatten() {
-            let card = &self.state.cards[c.index()];
-            if !card.present() {
-                continue;
-            }
-            match self.state.cost_source_of(c) {
-                Some(cards::CostSource::Shard)
-                    if !card.locked && self.state.seats[ctx.seat.index()].has_edge =>
-                {
-                    self.state.cards[c.index()].locked = true;
-                    if pool > 0 {
-                        pool = (pool - n as i32).max(0);
-                    } else {
-                        blood = blood.saturating_sub(n);
-                    }
-                }
-                Some(cards::CostSource::Line) if !card.locked => {
-                    self.state.cards[c.index()].locked = true;
-                    blood = blood.saturating_sub(n);
-                }
-                Some(cards::CostSource::Cache) if !card.locked => {
-                    self.state.cards[c.index()].locked = true;
-                    counters.push((c, n));
-                }
-                Some(cards::CostSource::Carnival) => counters.push((c, n)),
-                _ => {}
-            }
-        }
+        let (either, blood_off, counters) = self.take_discounts(ctx);
+        reduce(&mut pool, &mut blood, either);
+        blood = blood.saturating_sub(blood_off);
         let mut used = Vec::new();
         for (c, n) in counters {
             let avail = n.min(self.state.cards[c.index()].counters);
@@ -1415,10 +1359,8 @@ impl Engine {
         blood_share: bool,
     ) -> Vec<(u16, u8)> {
         let st = &self.state;
-        let mut hand = st.seats[seat.index()].hand.clone();
-        hand.sort_unstable();
-        hand.dedup();
-        hand.into_iter()
+        distinct(&st.seats[seat.index()].hand, |_| true)
+            .into_iter()
             .filter(|&card| {
                 let pool = cards::pool_cost(st, seat, card, Target::Minion(m));
                 let blood = cards::blood_cost(st, card, 0);
@@ -1465,11 +1407,8 @@ impl Engine {
         ignore: bool,
     ) -> Vec<(u16, u8)> {
         let st = &self.state;
-        let mut hand = st.seats[seat.index()].hand.clone();
-        hand.sort_unstable();
-        hand.dedup();
         let mut out = Vec::new();
-        for card in hand {
+        for card in distinct(&st.seats[seat.index()].hand, |_| true) {
             let lib = &LIBRARY[card as usize];
             // A retainer of the label, or (none) any ally or retainer.
             let fits = match label {
@@ -1521,9 +1460,7 @@ impl Engine {
             // you take what you can (Villein rulings, LSJ 20100216).
             Some(Terms::BloodRange { min, max }) => (min..=max).map(Choice::SetX).collect(),
             Some(Terms::UpToTargetBlood) => {
-                let Target::Minion(t) = ctx.target else {
-                    unreachable!("blood terms without a minion target");
-                };
+                let t = ctx.target.minion();
                 (0..=self.state.minions[t.index()].blood)
                     .map(Choice::SetX)
                     .collect()
@@ -1627,11 +1564,7 @@ impl Engine {
                 unreachable!("terms window without a choice")
             }
         };
-        DecisionRequest {
-            seat: ctx.seat,
-            window: WindowLabel::PlayTerms,
-            options,
-        }
+        DecisionRequest::new(ctx.seat, WindowLabel::PlayTerms, options)
     }
 
     pub(crate) fn terms_apply(&mut self, mut ctx: PlayCtx, resume: Flow, choice: &Choice) {
@@ -1709,6 +1642,7 @@ impl Engine {
             ctx,
             window: OrderedWindow::new(order),
             canceled: false,
+            cost_paid: false,
         };
         let flow = std::mem::replace(&mut self.flow, Flow::GameOver);
         match flow {
@@ -1802,22 +1736,22 @@ impl Engine {
                     _ => true,
                 }),
         );
-        Some(DecisionRequest {
+        Some(DecisionRequest::new(
             seat,
-            window: WindowLabel::CardAsPlayed,
+            WindowLabel::CardAsPlayed,
             options,
-        })
+        ))
     }
 
     /// Week of Nightmares with no counters left: "each Ravnos burns 1 blood
     /// for each nightmare counter on them or is burned, then burn this card
     /// and the nightmare counters" — paying if it can.
-    pub(crate) fn nightmares_end(&mut self, card: CardId) {
+    pub(crate) fn nightmares_end(&mut self, card: CardId, clan: &str) {
         for i in 0..self.state.minions.len() {
             let m = MinionId(i as u32);
             let v = &self.state.minions[i];
             let n = v.nightmare;
-            if n == 0 || !v.present() || v.clan() != Some("Ravnos") {
+            if n == 0 || !v.present() || v.clan() != Some(clan) {
                 continue;
             }
             if v.blood >= n {
@@ -1871,7 +1805,7 @@ impl Engine {
             )
         });
         match (on_opponent, self.combat.as_ref(), actor) {
-            (true, Some(c), Some(m)) => c.side_of_minion(m).map(|i| c.sides[1 - i].minion),
+            (true, Some(c), Some(m)) => c.opponent_of(m),
             _ => actor,
         }
     }
@@ -1912,13 +1846,18 @@ impl Engine {
                 top.window.play();
                 // "Cancel a card as it is played": the play below is
                 // canceled, settled as the window closes.
-                if source
-                    .mode(&self.state, *ability)
-                    .effects
-                    .iter()
-                    .any(|e| matches!(e, Effect::CancelPlayed { .. }))
+                if let Some(refund) =
+                    source
+                        .mode(&self.state, *ability)
+                        .effects
+                        .iter()
+                        .find_map(|e| match e {
+                            Effect::CancelPlayed { refund } => Some(*refund),
+                            _ => None,
+                        })
                 {
                     top.canceled = true;
+                    top.cost_paid = !refund;
                 }
                 let flow = Flow::AsPlayed { stack, resume };
                 if !self.use_ability(*source, *ability, *actor, *target, flow.clone()) {
@@ -1958,10 +1897,11 @@ impl Engine {
         let labels = LIBRARY[ctx.card as usize].labels;
         let kind = labels.contains(&Label::Grapple) || labels.contains(&Label::Aim);
         let host = self.state.cards[c.index()].bearer();
-        kind && self.combat.as_ref().zip(host).is_some_and(|(cb, h)| {
-            cb.side_of_minion(h)
-                .is_some_and(|i| ctx.actor == Some(cb.sides[1 - i].minion))
-        })
+        kind && self
+            .combat
+            .as_ref()
+            .zip(host)
+            .is_some_and(|(cb, h)| cb.opponent_of(h).is_some_and(|o| ctx.actor == Some(o)))
     }
 
     /// The card played (`ctx`) is a strike card of the minion opposing
@@ -2003,13 +1943,13 @@ impl Engine {
         debug_assert!(top.window.is_closed());
         let mut declared_action = false;
         if top.canceled {
-            self.settle_canceled(top.ctx);
+            self.settle_canceled(top.ctx, top.cost_paid);
         } else {
             declared_action = self.resolve_play(top.ctx, &mut stack);
         }
         while stack.last().is_some_and(|p| p.canceled) {
             let p = stack.pop().expect("canceled play");
-            self.settle_canceled(p.ctx);
+            self.settle_canceled(p.ctx, p.cost_paid);
         }
         // Resolution may have ousted the player (pool paid down to 0), in
         // which case the flow already moved on and must not be resumed; a
@@ -2032,12 +1972,52 @@ impl Engine {
     /// A canceled card was still played (spec §1.8.3): it goes to the ash
     /// heap and is replaced normally (§1.9.3) — not one played from a
     /// Fleshforge Chamber (rules-qa 37.1); with "its cost is not paid"
-    /// nothing was paid, since costs are paid at resolution (§1.7.1).
-    fn settle_canceled(&mut self, ctx: PlayCtx) {
+    /// nothing was paid, since costs are paid at resolution (§1.7.1). A
+    /// cancel whose cost "is still paid" (Meditative Grove) has a non-action
+    /// card's cost paid now, its surcharges included (ANK 20260216); an
+    /// action card's is paid at its action's resolution, which never comes.
+    fn settle_canceled(&mut self, ctx: PlayCtx, cost_paid: bool) {
+        let action_card = cards::lookup(ctx.card).is_some_and(|d| {
+            d.modes[ctx.mode as usize]
+                .effects
+                .iter()
+                .any(|e| matches!(e, Effect::DeclareAction(_)))
+        });
+        if cost_paid && !action_card {
+            let pool = cards::pool_cost(&self.state, ctx.seat, ctx.card, ctx.target);
+            self.state.seats[ctx.seat.index()].pool -= pool.max(0);
+            self.pay_play_blood(&ctx, 0);
+        }
         self.state.seats[ctx.seat.index()].ash.push(ctx.card);
         if ctx.from.is_none() {
             self.replace(ctx.seat, 1, None);
         }
+    }
+
+    /// The blood (or, for an ally playing as a vampire, life) a card costs
+    /// its player, surcharges included, less `blood_off`: true if that
+    /// burned the ally paying it.
+    fn pay_play_blood(&mut self, ctx: &PlayCtx, blood_off: u8) -> bool {
+        let Some(m) = ctx.actor else {
+            return false;
+        };
+        let surcharge = self.reaction_surcharge(ctx.card);
+        if surcharge > 0 {
+            // "The next reaction card": this one takes it.
+            self.action.as_mut().expect("action").reaction_surcharge = 0;
+        }
+        let blood = (cards::blood_cost(&self.state, ctx.card, ctx.x)
+            + surcharge
+            + self.discipline_surcharge(m, ctx.card, ctx.mode)
+            + self.combat_card_surcharge(m, ctx.card))
+        .saturating_sub(blood_off);
+        let v = &mut self.state.minions[m.index()];
+        v.blood = v.blood.saturating_sub(blood);
+        if blood > 0 && v.is_ally() && v.blood == 0 {
+            self.burn_minion(m);
+            return true;
+        }
+        false
     }
 
     /// Resolution: pay the cost, apply the effects, move the card, replace.
@@ -2123,25 +2103,7 @@ impl Engine {
         // burns it, and the card has no effect — an action modifier so
         // played fails the action, a strike ends the combat (ANK
         // 20180928-1).
-        let mut payer_burned = false;
-        if let Some(m) = ctx.actor {
-            let surcharge = self.reaction_surcharge(ctx.card);
-            if surcharge > 0 {
-                // "The next reaction card": this one takes it.
-                self.action.as_mut().expect("action").reaction_surcharge = 0;
-            }
-            let blood = (cards::blood_cost(&self.state, ctx.card, ctx.x)
-                + surcharge
-                + self.discipline_surcharge(m, ctx.card, ctx.mode)
-                + self.combat_card_surcharge(m, ctx.card))
-            .saturating_sub(blood_off);
-            let v = &mut self.state.minions[m.index()];
-            v.blood = v.blood.saturating_sub(blood);
-            if blood > 0 && v.is_ally() && v.blood == 0 {
-                self.burn_minion(m);
-                payer_burned = true;
-            }
-        }
+        let payer_burned = self.pay_play_blood(&ctx, blood_off);
         let mut in_play: Option<CardId> = None;
         let mut search = None;
         // A card whose delayed effect is represented in play takes its
@@ -2159,11 +2121,12 @@ impl Engine {
                 Effect::Layer(_) if held => {}
                 // Once the card is replaced (rules-qa 12.4).
                 Effect::SearchStore(n) => search = Some(n),
-                Effect::CancelPlayed { refund: _ } => {
+                Effect::CancelPlayed { refund } => {
                     // The play beneath this one on the stack is the card
                     // being played that this cancel targets.
                     if let Some(below) = stack.last_mut() {
                         below.canceled = true;
+                        below.cost_paid = !refund;
                     }
                 }
                 Effect::CanceledGetsMasterAction => {
@@ -2318,9 +2281,7 @@ impl Engine {
             // vampire in the uncontrolled region an action card chose
             // (Govern the Unaligned [DOM]); re-checked at resolution.
             Effect::BloodToTarget(n) => {
-                let Target::Minion(t) = ctx.target else {
-                    unreachable!("blood to a target without a minion");
-                };
+                let t = ctx.target.minion();
                 self.state.gain_blood(t, n);
             }
             Effect::BloodToUncontrolledTarget(n) => {
@@ -2330,9 +2291,7 @@ impl Engine {
                 self.state.add_uncontrolled_blood(s, i as usize, n);
             }
             Effect::LockTarget => {
-                let Target::Minion(t) = ctx.target else {
-                    unreachable!("a lock without a minion target");
-                };
+                let t = ctx.target.minion();
                 self.state.minions[t.index()].locked = true;
             }
             // Out of an action (Piper's Anarch, in the master phase).
@@ -2430,22 +2389,9 @@ impl Engine {
                     _ => Default::default(),
                 };
                 *in_play = Some(self.enter_play(CardInPlay {
-                    card: ctx.card,
-                    owner: s,
-                    controller: s,
-                    host,
-                    body: None,
-                    mode: ctx.mode,
                     by: ctx.actor,
-                    in_play: true,
-                    contested: false,
-                    locked: false,
-                    counters: 0,
-                    stored: Vec::new(),
-                    effect_only: false,
                     against,
-                    entered: 0,
-                    chosen: Vec::new(),
+                    ..CardInPlay::new(ctx.card, s, host, ctx.mode)
                 }));
                 // A title card: its vampire gains the title it represents —
                 // once a unique one's card contest is over (rules-qa 19.1).
@@ -2501,20 +2447,7 @@ impl Engine {
                     let share = share.min(pool.max(0) as u8);
                     self.state.seats[s.index()].pool -= pool - share as i32;
                     self.state.minions[m.index()].blood -= blood + share;
-                    let play = PlayCtx {
-                        seat: s,
-                        card,
-                        mode,
-                        actor: Some(m),
-                        target: Target::Minion(m),
-                        x: 0,
-                        burn: None,
-                        named: None,
-                        chosen: None,
-                        ash: None,
-                        discounts: [None; 3],
-                        from: None,
-                    };
+                    let play = PlayCtx::new(s, card, mode, Some(m), Target::Minion(m), 0);
                     // Paid down to 0 pool: ousted as the play resolves.
                     self.put_equipment(s, m, play);
                     self.replace(s, 1, None);
@@ -2546,20 +2479,7 @@ impl Engine {
                     self.state.seats[s.index()].pool -= pool;
                     self.state.minions[m.index()].blood -=
                         blood.min(self.state.minions[m.index()].blood);
-                    let play = PlayCtx {
-                        seat: s,
-                        card,
-                        mode,
-                        actor: Some(m),
-                        target: Target::Minion(m),
-                        x: 0,
-                        burn: None,
-                        named: None,
-                        chosen: None,
-                        ash: None,
-                        discounts: [None; 3],
-                        from: None,
-                    };
+                    let play = PlayCtx::new(s, card, mode, Some(m), Target::Minion(m), 0);
                     // An ally recruited so cannot act this turn (RBK
                     // recruit-ally).
                     if LIBRARY[card as usize].types.contains(&CardType::Ally) {
@@ -2607,9 +2527,7 @@ impl Engine {
                 self.store_top_cards(id, n);
             }
             Effect::MoveBloodTargetToPoolX => {
-                let Target::Minion(t) = ctx.target else {
-                    unreachable!("blood move without a minion target");
-                };
+                let t = ctx.target.minion();
                 let moved = ctx.x.min(self.state.minions[t.index()].blood);
                 self.state.minions[t.index()].blood -= moved;
                 self.state.seats[s.index()].pool += moved as i32;
@@ -2644,9 +2562,7 @@ impl Engine {
             // left with no life is burned; blood the acting vampire cannot
             // hold goes to the bank.
             Effect::StealBloodFromTarget(n) => {
-                let Target::Minion(t) = ctx.target else {
-                    unreachable!("a steal without a minion target");
-                };
+                let t = ctx.target.minion();
                 let v = &mut self.state.minions[t.index()];
                 let taken = n.min(v.blood);
                 v.blood -= taken;
@@ -2685,9 +2601,7 @@ impl Engine {
             }
             // "Gains enough blood to reach full capacity" (Giant's Blood).
             Effect::BloodToTargetFull => {
-                let Target::Minion(t) = ctx.target else {
-                    unreachable!("blood without a minion target");
-                };
+                let t = ctx.target.minion();
                 if let Some(cap) = self.state.capacity_of(t) {
                     let v = &mut self.state.minions[t.index()];
                     v.blood = v.blood.max(cap);
@@ -2696,9 +2610,7 @@ impl Engine {
             // Removed from the game, not burned; its controller gains pool
             // equal to its capacity (Golconda: Inner Peace).
             Effect::RemoveTargetForCapacityPool => {
-                let Target::Minion(t) = ctx.target else {
-                    unreachable!("a removal without a minion target");
-                };
+                let t = ctx.target.minion();
                 if self.state.minions[t.index()].present() {
                     let cap = self.state.capacity_of(t).unwrap_or(0);
                     let v = &self.state.minions[t.index()];
@@ -2726,9 +2638,7 @@ impl Engine {
             }
             Effect::CancelableForPoolByTargetController(_) => {}
             Effect::Stun => {
-                let Target::Minion(t) = ctx.target else {
-                    unreachable!("a stun without a minion target");
-                };
+                let t = ctx.target.minion();
                 let v = &mut self.state.minions[t.index()];
                 v.locked = true;
                 v.skip_unlock = true;
@@ -2769,9 +2679,7 @@ impl Engine {
             // For good: the cards on it go with it; its ash heap stays its
             // owner's; a title it carries may now be contested.
             Effect::StealTargetVampire => {
-                let Target::Minion(t) = ctx.target else {
-                    unreachable!("a steal without a minion target");
-                };
+                let t = ctx.target.minion();
                 let v = &mut self.state.minions[t.index()];
                 if v.owner != s {
                     let origin = v.origin.or(v.temp_from).unwrap_or(v.owner);
@@ -2782,9 +2690,7 @@ impl Engine {
                 }
             }
             Effect::StolenToReadyForBlood(n) => {
-                let Target::Minion(t) = ctx.target else {
-                    unreachable!("a move without a minion target");
-                };
+                let t = ctx.target.minion();
                 if let Some(a) = ctx.actor {
                     self.interrupts.push(Interrupt::MoveForBlood {
                         seat: s,
@@ -2999,11 +2905,7 @@ impl Engine {
         options.extend(self.ability_options(s, Window::DiscardPhase));
         options.extend(self.ability_options(s, Window::DiscardPhaseAction));
         options.extend(self.ability_options(s, Window::AnyImpulse));
-        DecisionRequest {
-            seat: s,
-            window: WindowLabel::DiscardPhase,
-            options,
-        }
+        DecisionRequest::new(s, WindowLabel::DiscardPhase, options)
     }
 
     /// "During your discard phase" riders printed on the active
@@ -3119,6 +3021,7 @@ impl Engine {
         let st = &self.state;
         let mut out = Vec::new();
         for (ci, c) in st.cards.iter().enumerate() {
+            let id = CardId(ci as u32);
             // A contested card is out of play: nothing printed on it
             // applies; nor on a card that became another (Enhanced
             // Coagulant).
@@ -3141,11 +3044,7 @@ impl Engine {
                 }
                 // "During X" abilities: once per phase per copy (rules-qa
                 // 6.6) — per mode with `Limit::PerPhaseEach`.
-                let key = phase_key(
-                    AbilitySource::Card(CardId(ci as u32)),
-                    ai as u8,
-                    ability.limit,
-                );
+                let key = phase_key(AbilitySource::Card(id), ai as u8, ability.limit);
                 // Not an ability paid with a master phase action (Open War,
                 // Twilight Camp): as often as they are spent.
                 let per_mpa = ability.effects.contains(&Effect::SpendMasterPhaseAction);
@@ -3156,22 +3055,12 @@ impl Engine {
                     // The controller picks the ability's target (a hunting
                     // ground: "a ready vampire you control can gain 1 blood").
                     Actor::Controller => {
-                        if st.card_controller(CardId(ci as u32)) != seat {
+                        if st.card_controller(id) != seat {
                             continue;
                         }
                         let ok = ability.requires.iter().all(|&r| {
-                            cards::holds_for_card(r, st, CardId(ci as u32), self.action.as_ref())
-                                && cards::holds(
-                                    r,
-                                    st,
-                                    seat,
-                                    None,
-                                    None,
-                                    self.action.as_ref(),
-                                    self.combat.as_ref(),
-                                    self.referendum.as_ref(),
-                                    false,
-                                )
+                            cards::holds_for_card(r, st, id, self.action.as_ref())
+                                && self.holds_live(r, seat, None)
                         });
                         if !ok {
                             continue;
@@ -3191,12 +3080,7 @@ impl Engine {
                                     continue;
                                 }
                             }
-                            out.push(Choice::UseAbility {
-                                source: AbilitySource::Card(CardId(ci as u32)),
-                                ability: ai as u8,
-                                actor: None,
-                                target,
-                            });
+                            out.push(use_card(id, ai, None, target));
                         }
                     }
                     // The acting minion, whoever controls the card ("an
@@ -3206,7 +3090,6 @@ impl Engine {
                         let Some(a) = self.action.as_ref().filter(|a| a.seat == seat) else {
                             continue;
                         };
-                        let id = CardId(ci as u32);
                         if ability.requires.contains(&Requirement::YouControlThisCard)
                             && st.card_controller(id) != seat
                         {
@@ -3240,17 +3123,11 @@ impl Engine {
                         {
                             continue;
                         }
-                        out.push(Choice::UseAbility {
-                            source: AbilitySource::Card(id),
-                            ability: ai as u8,
-                            actor: Some(m),
-                            target: Target::None,
-                        });
+                        out.push(use_card(id, ai, Some(m), Target::None));
                     }
                     // Any ready vampire of the user's, whoever controls the
                     // card (Carver's Meat Packing and Storage).
                     Actor::AnyReadyVampire => {
-                        let id = CardId(ci as u32);
                         if ability.limit == Some(Limit::PerTurn)
                             && st
                                 .turn_uses
@@ -3265,35 +3142,19 @@ impl Engine {
                                     && st.minions[m.index()].is_vampire()
                                     && ability.requires.iter().all(|&r| {
                                         cards::holds_for_card(r, st, id, self.action.as_ref())
-                                            && cards::holds(
-                                                r,
-                                                st,
-                                                seat,
-                                                Some(m),
-                                                None,
-                                                self.action.as_ref(),
-                                                self.combat.as_ref(),
-                                                self.referendum.as_ref(),
-                                                false,
-                                            )
+                                            && self.holds_live(r, seat, Some(m))
                                     })
                             })
                             .collect();
                         for m in users {
                             for target in self.ability_targets(seat, ability.target, None) {
-                                out.push(Choice::UseAbility {
-                                    source: AbilitySource::Card(id),
-                                    ability: ai as u8,
-                                    actor: Some(m),
-                                    target,
-                                });
+                                out.push(use_card(id, ai, Some(m), target));
                             }
                         }
                     }
                     // The chosen vampire's controller, the vampire in
                     // play (in torpor too; not uncontrolled: PIB 20150522).
                     Actor::ChosenController => {
-                        let id = CardId(ci as u32);
                         let Some(&m) = c.chosen.first() else {
                             continue;
                         };
@@ -3306,18 +3167,12 @@ impl Engine {
                         {
                             continue;
                         }
-                        out.push(Choice::UseAbility {
-                            source: AbilitySource::Card(id),
-                            ability: ai as u8,
-                            actor: None,
-                            target: Target::None,
-                        });
+                        out.push(use_card(id, ai, None, Target::None));
                     }
                     // "Methuselahs can …": any Methuselah, in their own
                     // window, whoever controls the card.
                     Actor::Methuselah => {
                         // "Other Methuselahs can …" (The Uncoiling).
-                        let id = CardId(ci as u32);
                         if ability
                             .requires
                             .contains(&Requirement::OthersControlThisCard)
@@ -3334,27 +3189,12 @@ impl Engine {
                             continue;
                         }
                         let ok = ability.requires.iter().all(|&r| {
-                            cards::holds_for_card(r, st, CardId(ci as u32), self.action.as_ref())
-                                && cards::holds(
-                                    r,
-                                    st,
-                                    seat,
-                                    None,
-                                    None,
-                                    self.action.as_ref(),
-                                    self.combat.as_ref(),
-                                    self.referendum.as_ref(),
-                                    false,
-                                )
+                            cards::holds_for_card(r, st, id, self.action.as_ref())
+                                && self.holds_live(r, seat, None)
                         });
                         if ok {
                             for target in self.ability_targets(seat, ability.target, None) {
-                                out.push(Choice::UseAbility {
-                                    source: AbilitySource::Card(CardId(ci as u32)),
-                                    ability: ai as u8,
-                                    actor: None,
-                                    target,
-                                });
+                                out.push(use_card(id, ai, None, target));
                             }
                         }
                     }
@@ -3382,7 +3222,7 @@ impl Engine {
                             && !self
                                 .combat
                                 .as_ref()
-                                .is_some_and(|cb| cb.burned_by.contains(&CardId(ci as u32)))
+                                .is_some_and(|cb| cb.burned_by.contains(&id))
                         {
                             continue;
                         }
@@ -3421,52 +3261,22 @@ impl Engine {
                             _ => Some(host),
                         };
                         // Per-copy limits ("each combat").
-                        let id = CardId(ci as u32);
-                        let spent = match ability.limit {
-                            // Kevlar Vest's gun branch stays usable while
-                            // points are left (rules-qa 10.3).
-                            Some(Limit::PerCombat) => self.combat.as_ref().is_some_and(|cb| {
-                                let allowance = ability
-                                    .effects
+                        // Kevlar Vest's gun branch stays usable while points
+                        // are left (rules-qa 10.3).
+                        let allowance = ability.limit == Some(Limit::PerCombat)
+                            && ability
+                                .effects
+                                .iter()
+                                .any(|e| matches!(e, Effect::PreventGunStrikeAllowance(_)))
+                            && self.combat.as_ref().is_some_and(|cb| {
+                                cb.gun_prevention_left
                                     .iter()
-                                    .any(|e| matches!(e, Effect::PreventGunStrikeAllowance(_)));
-                                cb.abilities_used
-                                    .contains(&AbilitySource::Card(id).use_key(ai as u8))
-                                    && !(allowance
-                                        && cb
-                                            .gun_prevention_left
-                                            .iter()
-                                            .any(|&(c, n)| c == id && n > 0))
-                            }),
-                            // "During an action": once per action per copy
-                            // (rules-qa 6.6, 9.6).
-                            Some(Limit::PerAction) => self.action.as_ref().is_some_and(|a| {
-                                a.abilities_used
-                                    .contains(&AbilitySource::Card(id).use_key(ai as u8))
-                            }),
-                            Some(Limit::PerRound) => self.combat.as_ref().is_some_and(|cb| {
-                                cb.abilities_used_round
-                                    .contains(&AbilitySource::Card(id).use_key(ai as u8))
-                            }),
-                            Some(Limit::PerReferendum) => {
-                                self.referendum.as_ref().is_some_and(|r| {
-                                    r.abilities_used
-                                        .contains(&AbilitySource::Card(id).use_key(ai as u8))
-                                })
-                            }
-                            Some(Limit::PerTurn) => st
-                                .turn_uses
-                                .contains(&AbilitySource::Card(id).use_key(ai as u8)),
-                            Some(Limit::PerPhaseEach) | None => false,
-                            Some(
-                                Limit::BetweenUnlockPhases
-                                | Limit::OnePerAction
-                                | Limit::PerCombatThisMode,
-                            ) => {
-                                unreachable!("a card-play limit on an ability")
-                            }
-                        };
-                        if spent {
+                                    .any(|&(c, n)| c == id && n > 0)
+                            });
+                        if self
+                            .limit_spent(ability.limit, AbilitySource::Card(id).use_key(ai as u8))
+                            && !allowance
+                        {
                             continue;
                         }
                         // Effect-derived combat legality (a dodge under a
@@ -3514,17 +3324,7 @@ impl Engine {
                                         .is_none_or(|cb| cb.side_of_minion(host).is_none()))
                                 && cards::holds_for_card(r, st, id, self.action.as_ref())
                                 && cards::holds_for_host(r, st, host)
-                                && cards::holds(
-                                    r,
-                                    st,
-                                    seat,
-                                    combatant,
-                                    None,
-                                    self.action.as_ref(),
-                                    self.combat.as_ref(),
-                                    self.referendum.as_ref(),
-                                    false,
-                                )
+                                && self.holds_live(r, seat, combatant)
                         });
                         if ok {
                             // A target of its own (War Ghoul's rush).
@@ -3532,12 +3332,7 @@ impl Engine {
                                 if declares.is_some() && !self.may_direct(seat, host, target) {
                                     continue;
                                 }
-                                out.push(Choice::UseAbility {
-                                    source: AbilitySource::Card(CardId(ci as u32)),
-                                    ability: ai as u8,
-                                    actor: declares.map(|_| host),
-                                    target,
-                                });
+                                out.push(use_card(id, ai, declares.map(|_| host), target));
                             }
                         }
                     }
@@ -3548,7 +3343,7 @@ impl Engine {
                         if political
                             && st.seats[seat.index()]
                                 .forbidden_political
-                                .contains(&ActionId::InPlay(CardId(ci as u32), ai as u8))
+                                .contains(&ActionId::InPlay(id, ai as u8))
                         {
                             continue;
                         }
@@ -3561,7 +3356,7 @@ impl Engine {
                             if st.minions[m.index()]
                                 .acted
                                 .iter()
-                                .any(|a| a.same(ActionId::InPlay(CardId(ci as u32), ai as u8)))
+                                .any(|a| a.same(ActionId::InPlay(id, ai as u8)))
                             {
                                 continue;
                             }
@@ -3574,13 +3369,13 @@ impl Engine {
                             if !ability.requires.iter().all(|&r| {
                                 cards::holds(r, st, seat, Some(m), None, None, None, None, false)
                                     && (r != Requirement::CardUnlocked
-                                        || cards::holds_for_card(r, st, CardId(ci as u32), None))
+                                        || cards::holds_for_card(r, st, id, None))
                             }) {
                                 continue;
                             }
                             // "… you control can …" (The Gate of Acheron).
                             if ability.requires.contains(&Requirement::YouControlThisCard)
-                                && st.card_controller(CardId(ci as u32)) != seat
+                                && st.card_controller(id) != seat
                             {
                                 continue;
                             }
@@ -3589,7 +3384,7 @@ impl Engine {
                             if ability
                                 .requires
                                 .contains(&Requirement::OthersControlThisCard)
-                                && st.card_controller(CardId(ci as u32)) == seat
+                                && st.card_controller(id) == seat
                             {
                                 continue;
                             }
@@ -3621,12 +3416,7 @@ impl Engine {
                                 if !self.may_direct(seat, m, target) {
                                     continue;
                                 }
-                                out.push(Choice::UseAbility {
-                                    source: AbilitySource::Card(CardId(ci as u32)),
-                                    ability: ai as u8,
-                                    actor: Some(m),
-                                    target,
-                                });
+                                out.push(use_card(id, ai, Some(m), target));
                             }
                         }
                     }
@@ -3636,6 +3426,46 @@ impl Engine {
         }
         self.vampire_ability_options(seat, window, &mut out);
         out
+    }
+
+    /// Has the ability of use key `used` spent its per-copy `limit`
+    /// ("each combat", "during an action": once per action per copy,
+    /// rules-qa 6.6, 9.6)?
+    fn limit_spent(&self, limit: Option<Limit>, used: (AbilitySource, u8)) -> bool {
+        let cb = self.combat.as_ref();
+        match limit {
+            Some(Limit::PerCombat) => cb.is_some_and(|cb| cb.abilities_used.contains(&used)),
+            Some(Limit::PerRound) => cb.is_some_and(|cb| cb.abilities_used_round.contains(&used)),
+            Some(Limit::PerAction) => self
+                .action
+                .as_ref()
+                .is_some_and(|a| a.abilities_used.contains(&used)),
+            Some(Limit::PerReferendum) => self
+                .referendum
+                .as_ref()
+                .is_some_and(|r| r.abilities_used.contains(&used)),
+            Some(Limit::PerTurn) => self.state.turn_uses.contains(&used),
+            Some(Limit::PerPhaseEach) | None => false,
+            Some(Limit::BetweenUnlockPhases | Limit::OnePerAction | Limit::PerCombatThisMode) => {
+                unreachable!("a card-play limit on an ability")
+            }
+        }
+    }
+
+    /// `cards::holds` for `seat` and `actor` in the live action, combat and
+    /// referendum, no card being played.
+    fn holds_live(&self, r: Requirement, seat: SeatId, actor: Option<MinionId>) -> bool {
+        cards::holds(
+            r,
+            &self.state,
+            seat,
+            actor,
+            None,
+            self.action.as_ref(),
+            self.combat.as_ref(),
+            self.referendum.as_ref(),
+            false,
+        )
     }
 
     /// The targets an ability picks from (no target spec: one untargeted
@@ -3761,10 +3591,11 @@ impl Engine {
         let opposing = !spec
             .filter
             .contains(&Requirement::TargetOnOpposingCombatant)
-            || self.combat.as_ref().zip(host).is_some_and(|(cb, h)| {
-                cb.side_of_minion(h)
-                    .is_some_and(|i| c.host == Some(cb.sides[1 - i].minion))
-            });
+            || self
+                .combat
+                .as_ref()
+                .zip(host)
+                .is_some_and(|(cb, h)| cb.opponent_of(h).is_some_and(|o| c.host == Some(o)));
         // A retainer in combat with damage pending (Martyr's Resilience).
         let damaged = !spec.filter.contains(&Requirement::TargetInCombatWithDamage)
             || self
@@ -3812,31 +3643,7 @@ impl Engine {
                     (Actor::ForOwnCombatant, None) => continue,
                     (other, _) => unreachable!("not a vampire ability actor: {other:?}"),
                 };
-                let used = source.use_key(ai as u8);
-                let spent = match ability.limit {
-                    Some(Limit::PerCombat) => {
-                        cb.is_some_and(|cb| cb.abilities_used.contains(&used))
-                    }
-                    Some(Limit::PerRound) => {
-                        cb.is_some_and(|cb| cb.abilities_used_round.contains(&used))
-                    }
-                    Some(Limit::PerAction) => self
-                        .action
-                        .as_ref()
-                        .is_some_and(|a| a.abilities_used.contains(&used)),
-                    Some(Limit::PerReferendum) => self
-                        .referendum
-                        .as_ref()
-                        .is_some_and(|r| r.abilities_used.contains(&used)),
-                    Some(Limit::PerTurn) => st.turn_uses.contains(&used),
-                    Some(Limit::PerPhaseEach) | None => false,
-                    Some(
-                        Limit::BetweenUnlockPhases | Limit::OnePerAction | Limit::PerCombatThisMode,
-                    ) => {
-                        unreachable!("a card-play limit on an ability")
-                    }
-                };
-                if spent {
+                if self.limit_spent(ability.limit, source.use_key(ai as u8)) {
                     continue;
                 }
                 // The vampire's printed action ("Sakhar can search your
@@ -3927,9 +3734,7 @@ impl Engine {
         let v = &st.minions[actor.index()];
         let def = cards::lookup(card);
         let effects = def.map_or(&[][..], |d| d.modes[mode as usize].effects);
-        st.layers
-            .iter()
-            .filter(|l| l.scope == cards::Scope::InPlay && st.layer_active(l))
+        st.in_play_layers()
             .map(|l| match l.modifier {
                 cards::Modifier::HostDisciplineCardsCost(n)
                     if disc && st.cards[l.source.index()].host == Some(actor) =>
@@ -3964,9 +3769,7 @@ impl Engine {
         // The Disciplines the card is played using (rules-qa 38.4).
         let discs = played_disciplines(card, mode);
         let own = self.card_surcharge(actor, card, mode);
-        st.layers
-            .iter()
-            .filter(|l| l.scope == cards::Scope::InPlay && st.layer_active(l))
+        st.in_play_layers()
             .filter_map(|l| match l.modifier {
                 cards::Modifier::DisciplineSurchargeAround(ds, n) => {
                     Some((st.cards[l.source.index()].host?, ds, n))
@@ -4081,14 +3884,7 @@ impl Engine {
             // The stealth of a granted action is the card's own ("as a +1
             // stealth political action"), not the rulebook's for political
             // action cards (rules-qa 6.2).
-            let stealth: u8 = mode
-                .effects
-                .iter()
-                .map(|e| match e {
-                    Effect::AddStealth(n) => *n,
-                    _ => 0,
-                })
-                .sum();
+            let stealth = crate::actions::printed_stealth(mode.effects);
             let a = self.action.as_mut().expect("action");
             a.ability = Some(ability);
             a.target = target;
@@ -4101,7 +3897,7 @@ impl Engine {
             // blocking seats and the sequencing order follow (spec §3.1.5).
             if let Some(t) = a.directed_seat(&self.state) {
                 let seat = a.seat;
-                let order = self.action_order_for(seat, Some(t));
+                let order = self.action_order(seat, Some(t));
                 let a = self.action.as_mut().expect("action");
                 a.order = order.clone();
                 a.window = crate::window::OrderedWindow::new(order);
@@ -4212,9 +4008,7 @@ impl Engine {
                     AbilitySource::Vampire(m) => Some(m),
                 }
                 .expect("host");
-                let Target::Minion(t) = target else {
-                    unreachable!("life from a target without a minion");
-                };
+                let t = target.minion();
                 let room = st
                     .ally_body(host)
                     .map_or(0, |b| b.life.saturating_sub(st.minions[host.index()].blood));
@@ -4222,30 +4016,24 @@ impl Engine {
                 (1..=max).map(Choice::SetX).collect()
             }
             // One choice per card name: copies are alike.
-            Some(Terms::AshCard) => {
-                let mut ash = self.state.seats[seat.index()].ash.clone();
-                ash.sort_unstable();
-                ash.dedup();
-                ash.into_iter().map(Choice::FindCard).collect()
-            }
+            Some(Terms::AshCard) => distinct(&self.state.seats[seat.index()].ash, |_| true)
+                .into_iter()
+                .map(Choice::FindCard)
+                .collect(),
             Some(Terms::DirectedHandCard) => {
                 let t = self
                     .action
                     .as_ref()
                     .and_then(|a| a.directed_seat(&self.state))
                     .expect("directed action");
-                let mut hand = self.state.seats[t.index()].hand.clone();
-                hand.sort_unstable();
-                hand.dedup();
-                hand.into_iter().map(Choice::FindCard).collect()
+                distinct(&self.state.seats[t.index()].hand, |_| true)
+                    .into_iter()
+                    .map(Choice::FindCard)
+                    .collect()
             }
             _ => unreachable!("ability terms without a choice"),
         };
-        DecisionRequest {
-            seat,
-            window: WindowLabel::PlayTerms,
-            options,
-        }
+        DecisionRequest::new(seat, WindowLabel::PlayTerms, options)
     }
 
     pub(crate) fn ability_terms_apply(
@@ -4408,20 +4196,7 @@ impl Engine {
             (Actor::ForOwnCombatant, Some(cb)) => cb.side_of(seat).map(|i| cb.sides[i].minion),
             _ => host,
         };
-        let ctx = PlayCtx {
-            seat,
-            card,
-            mode: ability,
-            actor,
-            target,
-            x,
-            burn: None,
-            named: None,
-            chosen: None,
-            ash: None,
-            discounts: [None; 3],
-            from: None,
-        };
+        let ctx = PlayCtx::new(seat, card, ability, actor, target, x);
         if let (Some(Limit::PerAction), Some(a)) = (mode.limit, self.action.as_mut()) {
             a.abilities_used.push(source.use_key(ability));
         }
@@ -4462,7 +4237,7 @@ impl Engine {
                 // Spent from the influence phase's as it is used
                 // (`influence_apply`).
                 Effect::SpendTransfers(_) => {}
-                Effect::CounterToTarget => {
+                Effect::CounterToTarget(clan) => {
                     if let Target::Minion(t) = target {
                         let c = &mut self.state.cards[source.card().index()];
                         if c.counters > 0 {
@@ -4470,7 +4245,7 @@ impl Engine {
                             self.state.minions[t.index()].nightmare += 1;
                         }
                         if self.state.cards[source.card().index()].counters == 0 {
-                            self.nightmares_end(source.card());
+                            self.nightmares_end(source.card(), clan);
                         }
                     }
                 }
@@ -4549,9 +4324,7 @@ impl Engine {
                     }
                 }
                 Effect::BloodToCard(n) => {
-                    let Target::Minion(t) = target else {
-                        unreachable!("blood to a card without a minion");
-                    };
+                    let t = target.minion();
                     let moved = n.min(self.state.minions[t.index()].blood);
                     self.state.minions[t.index()].blood -= moved;
                     self.state.cards[source.card().index()].counters += moved;
@@ -4580,9 +4353,7 @@ impl Engine {
                 Effect::TakeControlOfHost => {
                     if let Some(h) = self.state.cards[source.card().index()].host {
                         if self.state.minions[h.index()].present() {
-                            if !self.action.as_ref().is_some_and(|a| a.no_unlock) {
-                                self.state.minions[h.index()].locked = false;
-                            }
+                            self.effect_unlock(h);
                             self.take_control(h, ctx.seat);
                         }
                     }
@@ -4590,26 +4361,20 @@ impl Engine {
                 // To its owner's uncontrolled region: the Methuselah it
                 // returns to, if held temporarily.
                 Effect::TargetToUncontrolled => {
-                    let Target::Minion(t) = target else {
-                        unreachable!("a move without a minion target");
-                    };
+                    let t = target.minion();
                     if self.state.minions[t.index()].present() {
                         let owner = self.state.minions[t.index()].owner;
                         self.banish(t, owner);
                     }
                 }
                 Effect::BloodToTarget(n) => {
-                    let Target::Minion(t) = target else {
-                        unreachable!("blood to a target without a minion");
-                    };
+                    let t = target.minion();
                     self.state.gain_blood(t, n);
                 }
                 // "Add enough life to … reach their starting life" (Mobile
                 // HQ): up to it, no further.
                 Effect::BloodToTargetToStart(n) => {
-                    let Target::Minion(t) = target else {
-                        unreachable!("life to a target without a minion");
-                    };
+                    let t = target.minion();
                     let v = &self.state.minions[t.index()];
                     if v.present() {
                         let b = self.state.cap_starting(t, v.blood.saturating_add(n));
@@ -4627,19 +4392,14 @@ impl Engine {
                     self.state.add_uncontrolled_blood(ctx.seat, i as usize, n);
                 }
                 Effect::HuntingGroundBlood(n) => {
-                    let Target::Minion(t) = target else {
-                        unreachable!("hunting ground without a vampire");
-                    };
+                    let t = target.minion();
                     self.state.gain_blood(t, n);
                     self.state.minions[t.index()].hunting_ground_fed = true;
                 }
                 Effect::HostBurnBloodToUnlock => {
-                    let barred = self.action.as_ref().is_some_and(|a| a.no_unlock);
-                    let h = &mut self.state.minions[host.expect("host").index()];
-                    h.blood -= 1;
-                    if !barred {
-                        h.locked = false;
-                    }
+                    let h = host.expect("host");
+                    self.state.minions[h.index()].blood -= 1;
+                    self.effect_unlock(h);
                 }
                 Effect::HostBloodToPool(n) => {
                     let h = &mut self.state.minions[host.expect("host").index()];
@@ -4701,21 +4461,12 @@ impl Engine {
                     self.state.minions[host.expect("host").index()].locked = true;
                 }
                 Effect::EndCombat => self.end_combat_now(),
-                Effect::UnlockActor => {
-                    if !self.action.as_ref().is_some_and(|a| a.no_unlock) {
-                        self.state.minions[actor.expect("actor").index()].locked = false;
-                    }
-                }
-                Effect::UnlockHost => {
-                    if !self.action.as_ref().is_some_and(|a| a.no_unlock) {
-                        self.state.minions[host.expect("host").index()].locked = false;
-                    }
-                }
+                Effect::UnlockActor => self.effect_unlock(actor.expect("actor")),
+                Effect::UnlockHost => self.effect_unlock(host.expect("host")),
                 Effect::BurnEdge => self.state.seats[ctx.seat.index()].has_edge = false,
                 Effect::UnlockTarget => {
-                    let barred = self.action.as_ref().is_some_and(|a| a.no_unlock);
-                    if let (Target::Minion(m), false) = (ctx.target, barred) {
-                        self.state.minions[m.index()].locked = false;
+                    if let Target::Minion(m) = ctx.target {
+                        self.effect_unlock(m);
                     }
                 }
                 // The revealed card stays on top (Gathii).
@@ -4728,8 +4479,7 @@ impl Engine {
                     });
                     let h = host.expect("host");
                     if master {
-                        let v = &mut self.state.minions[h.index()];
-                        v.blood -= burn.min(v.blood);
+                        self.state.burn_blood(h, burn);
                     } else if top.is_some() && self.stealth_needed(ctx.seat, h) {
                         self.apply_action_effect(Effect::AddStealth(stealth), &ctx);
                     }
@@ -4774,8 +4524,7 @@ impl Engine {
                 }
                 Effect::TargetBurnsBlood(n) => {
                     if let Target::Minion(m) = target {
-                        let v = &mut self.state.minions[m.index()];
-                        v.blood = v.blood.saturating_sub(n);
+                        self.state.burn_blood(m, n);
                     }
                 }
                 // Marked on the play as the ability was used.
@@ -4792,12 +4541,7 @@ impl Engine {
                 Effect::ActingControllerDiscardsAtRandom => {
                     let s = self.action.as_ref().expect("action").seat;
                     let k = (ctx.x as usize).min(self.state.seats[s.index()].hand.len());
-                    for _ in 0..k {
-                        let hand = &mut self.state.seats[s.index()].hand;
-                        let i = self.rng.below(hand.len());
-                        let c = hand.remove(i);
-                        self.state.seats[s.index()].ash.push(c);
-                    }
+                    self.discard_at_random(s, k);
                     self.replace(s, k, None);
                 }
                 Effect::SpendDiscardPhaseAction => self.state.seats[ctx.seat.index()].dpa -= 1,
@@ -4869,14 +4613,8 @@ impl Engine {
                 // A cost: cards discarded at random from the user's hand,
                 // then replaced (Phaibun).
                 Effect::DiscardAtRandom(n) => {
-                    let seat = &mut self.state.seats[ctx.seat.index()];
-                    let k = (n as usize).min(seat.hand.len());
-                    for _ in 0..k {
-                        let seat = &mut self.state.seats[ctx.seat.index()];
-                        let i = self.rng.below(seat.hand.len());
-                        let c = seat.hand.remove(i);
-                        seat.ash.push(c);
-                    }
+                    let k = (n as usize).min(self.state.seats[ctx.seat.index()].hand.len());
+                    self.discard_at_random(ctx.seat, k);
                     self.replace(ctx.seat, k, None);
                 }
                 // The number picked, capped by the library as the ability
@@ -4944,9 +4682,7 @@ impl Engine {
                                 .turn_uses
                                 .push((AbilitySource::Vampire(m), u8::MAX - 1));
                         }
-                        if !self.action.as_ref().is_some_and(|a| a.no_unlock) {
-                            self.state.minions[m.index()].locked = false;
-                        }
+                        self.effect_unlock(m);
                     }
                 }
                 Effect::ReduceActionBlood(n) => {
@@ -5158,11 +4894,11 @@ impl Engine {
         }
         options.extend(self.ability_options(seat, Window::AnyImpulse));
         options.extend(self.burn_option_discards(seat));
-        Some(DecisionRequest {
+        Some(DecisionRequest::new(
             seat,
-            window: WindowLabel::UnlockAbilities,
+            WindowLabel::UnlockAbilities,
             options,
-        })
+        ))
     }
 
     /// Rulebook (advanced) "Burn option": a Methuselah who controls no
@@ -5470,11 +5206,7 @@ impl Engine {
                 }
             }
         }
-        DecisionRequest {
-            seat: s,
-            window: WindowLabel::RiderTerms,
-            options,
-        }
+        DecisionRequest::new(s, WindowLabel::RiderTerms, options)
     }
 
     /// Whether a card in play carries a rider with this effect.
@@ -5513,12 +5245,7 @@ impl Engine {
             Choice::SetX(k) => {
                 // k cards burned at random, all at once, then the rest of
                 // the units from the pool; the hand is drawn up afterward.
-                for _ in 0..*k {
-                    let seat = &mut self.state.seats[s.index()];
-                    let i = self.rng.below(seat.hand.len());
-                    let c = seat.hand.remove(i);
-                    seat.ash.push(c);
-                }
+                self.discard_at_random(s, *k as usize);
                 let seat = &mut self.state.seats[s.index()];
                 seat.pool = (seat.pool - (left - k) as i32).max(0);
                 if seat.pool == 0 {
@@ -5638,11 +5365,11 @@ impl Engine {
         } else {
             options.extend(pending.iter().map(|c| Choice::ResolveRider { card: c.0 }));
         }
-        Some(DecisionRequest {
+        Some(DecisionRequest::new(
             seat,
-            window: WindowLabel::PhaseImpulse,
+            WindowLabel::PhaseImpulse,
             options,
-        })
+        ))
     }
 
     pub(crate) fn phase_rotation_apply(
@@ -5809,36 +5536,54 @@ impl Engine {
     /// card").
     pub(crate) fn own_bleed_riders(&mut self, seat: SeatId, acting: MinionId, amount: u8) {
         let clan = self.state.minions[acting.index()].clan();
-        for ci in 0..self.state.cards.len() {
-            let id = CardId(ci as u32);
-            let c = &self.state.cards[ci];
+        for (id, r) in self.state.card_riders(Hook::OwnBleedSuccessful) {
+            let c = &self.state.cards[id.index()];
             if !c.present() || self.state.card_controller(id) != seat {
                 continue;
             }
-            let Some(def) = cards::lookup(c.card) else {
-                continue;
-            };
-            for r in def
-                .riders
-                .iter()
-                .filter(|r| r.hook == Hook::OwnBleedSuccessful)
-            {
-                for e in r.effects {
-                    match *e {
-                        Effect::CountersFromOwnBleed(k) if clan == Some(k) => {
-                            self.state.cards[ci].counters += amount;
-                        }
-                        Effect::CountersFromOwnBleed(_) => {}
-                        other => unreachable!("not an own-bleed rider effect: {other:?}"),
+
+            for e in r.effects {
+                match *e {
+                    Effect::CountersFromOwnBleed(k) if clan == Some(k) => {
+                        self.state.cards[id.index()].counters += amount;
                     }
+                    Effect::CountersFromOwnBleed(_) => {}
+                    other => unreachable!("not an own-bleed rider effect: {other:?}"),
                 }
             }
         }
     }
+}
 
-    /// Name of a library card (debugging / tests).
-    pub fn card_name(card: u16) -> &'static str {
-        LIBRARY[card as usize].name
+/// Use ability `ai` of card `id` in play.
+fn use_card(id: CardId, ai: usize, actor: Option<MinionId>, target: Target) -> Choice {
+    Choice::UseAbility {
+        source: AbilitySource::Card(id),
+        ability: ai as u8,
+        actor,
+        target,
+    }
+}
+
+/// A reduction "by n blood or pool": off the cost's pool if it has any,
+/// else off its blood.
+pub(crate) fn reduce(pool: &mut i32, blood: &mut u8, n: u8) {
+    if *pool > 0 {
+        *pool = (*pool - n as i32).max(0);
+    } else {
+        *blood = blood.saturating_sub(n);
+    }
+}
+
+/// Is a cost of `(pool, blood)` payable out of `have`, `off` reducing it
+/// (`reduce`)? A pool cost paid down to 0 counts; with `pool_may_oust`, any
+/// pool cost does.
+fn payable(cost: (i32, u8), off: u8, have: (i32, u8), pool_may_oust: bool) -> bool {
+    let (pool, blood) = cost;
+    if pool > 0 {
+        (pool_may_oust || (pool - off as i32).max(0) <= have.0) && blood <= have.1
+    } else {
+        blood.saturating_sub(off) <= have.1
     }
 }
 

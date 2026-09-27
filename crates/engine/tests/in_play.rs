@@ -13,65 +13,8 @@ use zvtes::game::{Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::state::{find_card, find_library, ActionId, CardId, CardInPlay, UncontrolledSlot};
 
-fn request(e: &mut Engine) -> DecisionRequest {
-    match e.run() {
-        Step::Decision(req) => {
-            if std::env::var("TRACE").is_ok() {
-                eprintln!("REQ {:?} {:?} {:?}", req.seat, req.window, req.options);
-            }
-            req
-        }
-        Step::Over(_) => panic!("game over while expecting a decision"),
-    }
-}
-
-fn expect(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    let req = request(e);
-    assert_eq!((req.seat, req.window), (seat, window), "{:?}", req.options);
-    req
-}
-
-fn pick(e: &mut Engine, want: Choice) {
-    let req = request(e);
-    let idx = req
-        .options
-        .iter()
-        .position(|o| *o == want)
-        .unwrap_or_else(|| panic!("option {want:?} not in {:?}", req.options));
-    e.choose(idx);
-}
-
-fn master_play(card: u8) -> Choice {
-    Choice::Play {
-        card,
-        mode: 0,
-        actor: None,
-        target: Target::None,
-    }
-}
-
-fn granted(card: u32, actor: MinionId) -> Choice {
-    Choice::UseAbility {
-        source: AbilitySource::Card(CardId(card)),
-        ability: 0,
-        actor: Some(actor),
-        target: Target::None,
-    }
-}
-
-fn votes(minion: MinionId, favor: bool) -> Choice {
-    Choice::CastVotes { minion, favor }
-}
-
-fn hand(e: &mut Engine, seat: u8, cards: &[&str]) {
-    for c in cards {
-        e.state.seats[seat as usize].hand.push(find_library(c));
-    }
-}
-
-fn pool(e: &Engine) -> Vec<i32> {
-    e.state.seats.iter().map(|s| s.pool).collect()
-}
+mod common;
+use common::*;
 
 /// Anarch Revolt in play under `owner`, with no play (the master phase
 /// path is `anarch_revolt_enters_play_with_no_host`).
@@ -95,36 +38,6 @@ fn revolt_in_play(e: &mut Engine, owner: u8) -> u32 {
         chosen: Vec::new(),
     });
     e.state.cards.len() as u32 - 1
-}
-
-/// Pass every window until `seat`'s minion phase opens (with empty hands
-/// the master phase has only Pass, so it is elided); pending mandatory
-/// unlock-phase riders are resolved in offer order.
-fn to_minion_phase(e: &mut Engine, seat: SeatId) -> DecisionRequest {
-    loop {
-        let req = request(e);
-        if (req.seat, req.window) == (seat, WindowLabel::MinionPhase) {
-            return req;
-        }
-        assert!(
-            matches!(req.options[0], Choice::Pass | Choice::ResolveRider { .. }),
-            "{:?}",
-            req
-        );
-        e.choose(0);
-    }
-}
-
-/// Everyone passes the polling step until it closes.
-fn close_polling(e: &mut Engine) {
-    loop {
-        match e.run() {
-            Step::Decision(req) if req.window == WindowLabel::ReferendumPolling => {
-                e.choose(0);
-            }
-            _ => return,
-        }
-    }
 }
 
 /// 3 seats at seat 0's master phase, turn 4, 10 pool each. Seat 0: Alexa
@@ -460,20 +373,6 @@ fn granted_action_nra_is_per_copy() {
 
 // ---- Guardian Angel, Creeping Sabotage ---------------------------------
 
-/// The `nth` V5 vampire with `disc` and no printed text implemented (a plain
-/// fixture: printed abilities would add decisions to the script).
-fn vampire_with(disc: &str, nth: usize) -> u16 {
-    CRYPT
-        .iter()
-        .enumerate()
-        .filter(|(i, c)| {
-            c.disciplines.contains(&disc) && zvtes::cards::vampire(*i as u16).is_none()
-        })
-        .nth(nth)
-        .map(|(i, _)| i as u16)
-        .unwrap_or_else(|| panic!("no vampire with {disc}"))
-}
-
 fn vampire_of_clan(clan: &str, nth: usize) -> u16 {
     CRYPT
         .iter()
@@ -482,27 +381,6 @@ fn vampire_of_clan(clan: &str, nth: usize) -> u16 {
         .nth(nth)
         .map(|(i, _)| i as u16)
         .unwrap_or_else(|| panic!("no {clan}"))
-}
-
-fn bleed(minion: MinionId) -> Choice {
-    Choice::TakeAction {
-        minion,
-        action: ActionKind::Bleed,
-        target: None,
-    }
-}
-
-fn block(minion: MinionId) -> Choice {
-    Choice::DeclareBlock { minion }
-}
-
-fn card_play(card: u8, mode: u8, actor: MinionId) -> Choice {
-    Choice::Play {
-        card,
-        mode,
-        actor: Some(actor),
-        target: Target::None,
-    }
 }
 
 /// A Guardian Angel already in play on `host` (its intercept layer
@@ -535,10 +413,6 @@ fn guardian_angel_on(e: &mut Engine, owner: u8, host: MinionId) -> u32 {
     id
 }
 
-fn blood(e: &Engine, m: MinionId) -> u8 {
-    e.state.minions[m.index()].blood
-}
-
 /// 3 seats at seat 0's minion phase, turn 4, 10 pool each: seat 0 has a
 /// (DOM, 6 blood) and a second vampire (so its minion phase stays a real
 /// decision once a is locked), seat 1 x (4 blood), seat 2 z (4 blood).
@@ -568,8 +442,8 @@ fn guardian_angel_intercept_on_bleeds_at_its_controller_and_prevention() {
     pick(&mut e, bleed(a));
     pick(&mut e, Choice::Pass); // seat 0: no modifier before an attempt
     pick(&mut e, block(x));
-    pick(&mut e, card_play(0, 1, a)); // [DOM] +1 stealth, +1 bleed
-                                      // Blocked all the same: combat; a's hand strike puts 1 damage on x.
+    pick(&mut e, play(0, 1, a)); // [DOM] +1 stealth, +1 bleed
+                                 // Blocked all the same: combat; a's hand strike puts 1 damage on x.
     let req = expect(&mut e, SeatId(1), WindowLabel::CombatPrevention);
     assert_eq!(
         req.options,
@@ -598,14 +472,7 @@ fn guardian_angel_intercept_on_bleeds_at_its_controller_and_prevention() {
 fn guardian_angel_gives_nothing_outside_bleeds_at_its_controller() {
     let (mut e, a, x, _z) = bleed_table();
     guardian_angel_on(&mut e, 1, x);
-    pick(
-        &mut e,
-        Choice::TakeAction {
-            minion: a,
-            action: ActionKind::Hunt,
-            target: None,
-        },
-    );
+    pick(&mut e, action(a, ActionKind::Hunt));
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.last_outcome, Some(Outcome::Successful));
     assert_eq!(blood(&e, a), 7);
@@ -624,7 +491,7 @@ fn guardian_angel_prevents_once_per_combat_per_copy() {
     hand(&mut e, 0, &["Roundhouse"]);
     pick(&mut e, bleed(a));
     pick(&mut e, block(x));
-    pick(&mut e, card_play(0, 0, a)); // [pot] hand strike +2: 3 damage
+    pick(&mut e, play(0, 0, a)); // [pot] hand strike +2: 3 damage
     let req = expect(&mut e, SeatId(1), WindowLabel::CombatPrevention);
     assert_eq!(
         req.options,
@@ -990,8 +857,7 @@ fn tension_in_the_ranks_burned_by_a_master_phase_action_and_two_master_discards(
         .iter()
         .any(|o| matches!(o, Choice::UseAbility { .. })));
     e.state.seats[0].hand.push(find_library("Blood Doll"));
-    let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
-    assert!(req.options.contains(&ability(t, 0)));
+    expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
     pick(&mut e, ability(t, 0));
     let req = expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
     assert_eq!(req.options, vec![Choice::Discard(1), Choice::Discard(2)]);
@@ -1020,23 +886,6 @@ fn tension_in_the_ranks_burn_needs_a_master_phase_action() {
     hand(&mut e, 0, &["Villein", "Blood Doll", "Bonding"]);
     e.state.seats[0].mpa = 0;
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-}
-
-/// Pass every window until `seat` faces `window` (a mandatory rider's
-/// payment window, say); single-option windows elide on the way.
-fn to_window(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    loop {
-        let req = request(e);
-        if (req.seat, req.window) == (seat, window) {
-            return req;
-        }
-        assert!(
-            matches!(req.options[0], Choice::Pass | Choice::ResolveRider { .. }),
-            "{:?}",
-            req
-        );
-        e.choose(0);
-    }
 }
 
 // Smiling Jack: "During your unlock phase, move 1 counter from your pool
@@ -1146,14 +995,6 @@ fn smiling_jack_can_be_burned_as_a_directed_action() {
     );
 }
 
-fn uses(req: &DecisionRequest, card: u32) -> Vec<Choice> {
-    req.options
-        .iter()
-        .filter(|o| matches!(o, Choice::UseAbility { source: AbilitySource::Card(CardId(c)), .. } if *c == card))
-        .copied()
-        .collect()
-}
-
 // Dreams of the Sphinx: "You can lock this card to get +2 hand size until
 // the end of the turn" — the hand is drawn up to 9 at once, the card locks
 // and gains a counter, and stays locked until its controller's next unlock
@@ -1228,8 +1069,7 @@ fn dreams_of_the_sphinx_edge_lock_in_own_unlock_phase() {
     assert!(e.state.cards[dreams as usize].locked);
     // The Edge, kept for the lock, is burned afterward in the same unlock
     // phase: +2 pool in all.
-    let req = expect(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
-    assert!(req.options.contains(&Choice::BurnEdge));
+    expect(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
     pick(&mut e, Choice::BurnEdge);
     assert_eq!(pool(&e), vec![12, 10, 10]);
     assert!(!e.state.seats[0].has_edge);
@@ -1254,8 +1094,7 @@ fn dreams_of_the_sphinx_blood_to_uncontrolled_and_burn_at_three_counters() {
         actor: None,
         target: Target::Uncontrolled(0),
     };
-    let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
-    assert!(req.options.contains(&pick_slot));
+    expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
     pick(&mut e, pick_slot);
     assert_eq!(e.state.seats[0].uncontrolled[0].counters, 1);
     assert!(!e.state.cards[dreams as usize].in_play);
@@ -1507,9 +1346,8 @@ fn constant_revolution_needs_an_anarch_and_counts_up() {
     let anarch = e.add_minion(SeatId(0), vampire_of_sect(Sect::Anarch, 0), 6, false);
     hand(&mut e, 0, &["Constant Revolution"]);
     let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert!(!req.options.contains(&card_play(0, 0, a)));
-    assert!(req.options.contains(&card_play(0, 0, anarch)));
-    pick(&mut e, card_play(0, 0, anarch));
+    assert!(!req.options.contains(&play(0, 0, a)));
+    pick(&mut e, play(0, 0, anarch));
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.last_outcome, Some(Outcome::Successful));
     let cr = e.state.cards.len() as u32 - 1;
@@ -1582,7 +1420,7 @@ fn creeping_sabotage_x_cost_enters_play_and_prey_burns_at_unlock() {
     // 6 blood, capped at its capacity.
     let start = e.state.capacity_of(a).unwrap().min(6);
     hand(&mut e, 0, &["Creeping Sabotage", "Creeping Sabotage"]);
-    pick(&mut e, card_play(0, 0, a));
+    pick(&mut e, play(0, 0, a));
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.last_outcome, Some(Outcome::Successful));
     assert_eq!(blood(&e, a), start);
@@ -1596,7 +1434,7 @@ fn creeping_sabotage_x_cost_enters_play_and_prey_burns_at_unlock() {
         .iter()
         .any(|o| matches!(o, Choice::Play { actor: Some(m), .. } if *m == a)));
     e.state.minions[a.index()].acted.clear();
-    pick(&mut e, card_play(0, 0, a));
+    pick(&mut e, play(0, 0, a));
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(blood(&e, a), start - 1);
     assert_eq!(e.state.cards.len(), 2);
@@ -1781,23 +1619,6 @@ fn to_master_phase(e: &mut Engine, seat: SeatId) -> DecisionRequest {
         );
         e.choose(0);
     }
-}
-
-fn ability(card: u32, ability: u8) -> Choice {
-    Choice::UseAbility {
-        source: AbilitySource::Card(CardId(card)),
-        ability,
-        actor: None,
-        target: Target::None,
-    }
-}
-
-fn abilities(req: &DecisionRequest) -> Vec<Choice> {
-    req.options
-        .iter()
-        .copied()
-        .filter(|o| matches!(o, Choice::UseAbility { .. }))
-        .collect()
 }
 
 // Blood Doll: on a vampire you control (others' vampires not offered);

@@ -9,98 +9,12 @@
 use zvtes::cards::{self, AbilitySource, Effect, Layer, Scope, Stat, Target};
 use zvtes::crypt::{Title, CRYPT};
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
-use zvtes::game::{Engine, Step};
+use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::state::{find_card, find_library, CardId, CardInPlay, PrintedCtx};
 
-fn request(e: &mut Engine) -> DecisionRequest {
-    match e.run() {
-        Step::Decision(req) => {
-            if std::env::var("TRACE").is_ok() {
-                eprintln!("REQ {:?} {:?} {:?}", req.seat, req.window, req.options);
-            }
-            req
-        }
-        Step::Over(_) => panic!("game over while expecting a decision"),
-    }
-}
-
-fn expect(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    let req = request(e);
-    assert_eq!((req.seat, req.window), (seat, window), "{:?}", req.options);
-    req
-}
-
-fn pick(e: &mut Engine, want: Choice) {
-    let req = request(e);
-    let idx = req
-        .options
-        .iter()
-        .position(|o| *o == want)
-        .unwrap_or_else(|| {
-            panic!(
-                "option {want:?} not in {:?} ({:?})",
-                req.options, req.window
-            )
-        });
-    e.choose(idx);
-}
-
-/// Pass (or hand strike) through every decision until `seat`'s `window`.
-fn until(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    loop {
-        let req = request(e);
-        if (req.seat, req.window) == (seat, window) {
-            return req;
-        }
-        let i = req
-            .options
-            .iter()
-            .position(|o| matches!(o, Choice::Pass | Choice::HandStrike))
-            .unwrap_or(0);
-        e.choose(i);
-    }
-}
-
-fn hand(e: &mut Engine, seat: u8, cards: &[&str]) {
-    for c in cards {
-        e.state.seats[seat as usize].hand.push(find_library(c));
-    }
-}
-
-fn play(card: u8, actor: MinionId) -> Choice {
-    Choice::Play {
-        card,
-        mode: 0,
-        actor: Some(actor),
-        target: Target::None,
-    }
-}
-
-fn action(minion: MinionId, action: ActionKind) -> Choice {
-    Choice::TakeAction {
-        minion,
-        action,
-        target: None,
-    }
-}
-
-/// The `nth` untitled V5 vampire of `clan` with no printed-text definition
-/// and capacity at least 4.
-fn plain(clan: &str, nth: usize) -> u16 {
-    CRYPT
-        .iter()
-        .enumerate()
-        .filter(|(i, c)| {
-            c.clan == clan
-                && c.title == Title::None
-                && c.capacity >= 4
-                && cards::vampire(*i as u16).is_none()
-        })
-        .nth(nth)
-        .map(|(i, _)| i as u16)
-        .unwrap_or_else(|| panic!("no plain {clan} vampire"))
-}
+mod common;
+use common::*;
 
 /// The actions `m` is offered in the current request.
 fn actions_of(req: &DecisionRequest, m: MinionId) -> Vec<Choice> {
@@ -124,7 +38,7 @@ fn recruit_ally_is_a_plus_one_stealth_undirected_action_paid_at_resolution() {
     e.add_minion(SeatId(1), plain("Brujah", 0), 4, false);
     hand(&mut e, 0, &["Political Ally"]);
     let pool = e.state.seats[0].pool;
-    pick(&mut e, play(0, v));
+    pick(&mut e, play(0, 0, v));
     // +1 stealth against no intercept: nobody may block; the ally is in
     // play before the next decision.
     let req = request(&mut e);
@@ -173,7 +87,7 @@ fn a_unique_ally_another_methuselah_controls_is_contested_and_ones_own_copy_bars
     e.add_minion(SeatId(0), plain("Ventrue", 1), 4, false);
     let theirs = e.add_ally(SeatId(1), find_library("Political Ally"));
     hand(&mut e, 0, &["Political Ally", "Political Ally"]);
-    pick(&mut e, play(0, v));
+    pick(&mut e, play(0, 0, v));
     let req = request(&mut e);
     let mine = MinionId(e.state.minions.len() as u32 - 1);
     for m in [mine, theirs] {
@@ -243,15 +157,6 @@ fn of_clan_with(clan: &str, tag: &str, nth: usize) -> u16 {
         .unwrap_or_else(|| panic!("no plain vampire with {tag}"))
 }
 
-fn play_mode(card: u8, mode: u8, actor: MinionId) -> Choice {
-    Choice::Play {
-        card,
-        mode,
-        actor: Some(actor),
-        target: Target::None,
-    }
-}
-
 /// The retainer `card` (a LIBRARY index) in play on `host`, if any.
 fn retainer_on(e: &Engine, card: u16, host: MinionId) -> Option<&CardInPlay> {
     e.state
@@ -272,12 +177,12 @@ fn raven_spy_is_the_version_it_was_employed_at_and_gives_the_employer_intercept(
     hand(&mut e, 0, &["Raven Spy", "Raven Spy"]);
     let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(
-        !req.options.contains(&play_mode(0, 1, basic)),
+        !req.options.contains(&play(0, 1, basic)),
         "[ANI] needs superior"
     );
-    pick(&mut e, play_mode(0, 1, sup));
+    pick(&mut e, play(0, 1, sup));
     let pool = e.state.seats[0].pool;
-    pick(&mut e, play_mode(0, 0, basic));
+    pick(&mut e, play(0, 0, basic));
     request(&mut e);
     let spy = find_library("Raven Spy");
     assert_eq!(retainer_on(&e, spy, sup).map(|c| c.counters), Some(2));
@@ -296,8 +201,8 @@ fn revenant_is_employed_by_a_tzimisce_only() {
     let ventrue = e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
     hand(&mut e, 0, &["Revenant"]);
     let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert!(req.options.contains(&play(0, tzimisce)));
-    assert!(!req.options.contains(&play(0, ventrue)));
+    assert!(req.options.contains(&play(0, 0, tzimisce)));
+    assert!(!req.options.contains(&play(0, 0, ventrue)));
 }
 
 /// A retainer already on `host` in the version `mode`, with its life and
@@ -365,7 +270,7 @@ fn crows_bleed_blocked_by(z_card: u16, z_hand: &str) -> (Engine, MinionId, Minio
 fn murder_of_crows_damages_the_opposing_minion_each_round_even_against_a_dodge() {
     let (mut e, a, z) = crows_bleed_blocked_by(with_discipline("cel", 0), "Side Strike");
     // A's hand strike is its only strike (elided).
-    pick(&mut e, play_mode(0, 0, z)); // dodge
+    pick(&mut e, play(0, 0, z)); // dodge
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.minions[z.index()].blood, 3, "1R from the crows");
     assert_eq!(e.state.minions[a.index()].blood, 4);
@@ -376,7 +281,7 @@ fn murder_of_crows_inflicts_nothing_once_a_combat_ends_strike_ended_the_combat()
     let (mut e, _, z) = crows_bleed_blocked_by(with_discipline("pre", 0), "Majesty");
     // Its 4 blood capped at its capacity.
     let start = e.state.capacity_of(z).unwrap().min(4);
-    pick(&mut e, play_mode(0, 0, z)); // combat ends
+    pick(&mut e, play(0, 0, z)); // combat ends
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(
         e.state.minions[z.index()].blood,
@@ -391,12 +296,33 @@ fn murder_of_crows_inflicts_nothing_once_a_combat_ends_strike_ended_the_combat()
 fn murder_of_crows_does_not_repeat_on_additional_strikes() {
     let (mut e, a, z) = crows_bleed_blocked_by(with_discipline("CEL", 0), "Side Strike");
     expect(&mut e, SeatId(1), WindowLabel::CombatBeforeStrikes);
-    pick(&mut e, play_mode(0, 1, z)); // an additional strike
+    pick(&mut e, play(0, 1, z)); // an additional strike
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     // Normal pair: hand strikes both ways and the crows; then Z's
     // additional hand strike alone.
     assert_eq!(e.state.minions[z.index()].blood, 2);
     assert_eq!(e.state.minions[a.index()].blood, 2);
+}
+
+// [ANK 20180612] [ANK 20211127] Murder of Crows: "The damage is
+// environmental, the retainer is the damage source." Rolling with the
+// Punches [FOR] prevents "all damage from the opposing minion's strikes":
+// not the crows' 1R.
+#[test]
+fn murder_of_crows_damage_is_not_the_opposing_minions_strike() {
+    let (mut e, a, z) =
+        crows_bleed_blocked_by(with_discipline("FOR", 0), "Rolling with the Punches");
+    let start = e.state.minions[z.index()]
+        .blood
+        .min(e.state.capacity_of(z).unwrap());
+    pick_when(&mut e, play(0, 1, z)); // [FOR]: 1 blood
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(
+        e.state.minions[z.index()].blood,
+        start - 1 - 1,
+        "its blood, and the crows' 1R"
+    );
+    assert_eq!(e.state.minions[a.index()].blood, 4 - 1, "z's hand strike");
 }
 
 // Rulebook "Leave Torpor": a blocked leave-torpor has no combat; "if they
@@ -456,19 +382,7 @@ fn taste_of_vitae_cannot_be_played_against_an_ally() {
     hand(&mut e, 0, &["Taste of Vitae"]);
     pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: ghoul });
-    loop {
-        let req = request(&mut e);
-        if (req.seat, req.window) == (SeatId(0), WindowLabel::MinionPhase) {
-            break;
-        }
-        assert!(!req.options.contains(&play(0, a)), "{req:?}");
-        let i = req
-            .options
-            .iter()
-            .position(|o| matches!(o, Choice::Pass | Choice::HandStrike))
-            .unwrap_or(0);
-        e.choose(i);
-    }
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, play(0, 0, a));
     // Both still ready at the end of the round, A mended its 4 damage.
     assert_eq!(e.state.minions[ghoul.index()].blood, 4, "1 of its 5 life");
     let v = &e.state.minions[a.index()];
@@ -487,7 +401,7 @@ fn a_recruit_the_methuselah_cannot_pay_at_resolution_fizzles_and_the_card_is_dis
     let z = e.add_minion(SeatId(1), plain("Brujah", 0), 4, false);
     retainer(&mut e, "Mr. Winthrop", z, 0);
     hand(&mut e, 0, &["Political Ally"]);
-    pick(&mut e, play(0, v));
+    pick(&mut e, play(0, 0, v));
     expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
     e.state.seats[0].pool = 1;
     pick(&mut e, Choice::Pass);
@@ -542,8 +456,7 @@ fn city_star_taxi_locks_to_give_the_acting_ravnos_stealth_when_needed() {
     pick(&mut e, action(r, ActionKind::Bleed));
     // Not needed yet: no stealth before an attempt needs it (0 against 0).
     pick(&mut e, Choice::DeclareBlock { minion: z });
-    let req = expect(&mut e, SeatId(0), WindowLabel::ActionBlock);
-    assert!(req.options.contains(&ability_of(id, 2, None)), "{req:?}");
+    expect(&mut e, SeatId(0), WindowLabel::ActionBlock);
     pick(&mut e, ability_of(id, 2, None));
     assert!(
         e.state.minions[taxi.index()].locked,
@@ -622,7 +535,7 @@ fn feral_hound_unlocks_its_employer_at_resolution_or_in_the_discard_phase() {
     let v = e.add_minion(SeatId(0), of_clan_with("Ravnos", "ANI", 0), 4, false);
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     hand(&mut e, 0, &["Feral Hound"]);
-    pick(&mut e, play_mode(0, 1, v));
+    pick(&mut e, play(0, 1, v));
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.minions[v.index()].locked);
     // [ani]: locked until the discard phase.
@@ -630,7 +543,7 @@ fn feral_hound_unlocks_its_employer_at_resolution_or_in_the_discard_phase() {
     let v = e.add_minion(SeatId(0), of_clan_with("Ravnos", "ani", 0), 4, false);
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     hand(&mut e, 0, &["Feral Hound"]);
-    pick(&mut e, play_mode(0, 0, v));
+    pick(&mut e, play(0, 0, v));
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(e.state.minions[v.index()].locked);
     // A card in hand keeps the discard phase from eliding.
@@ -676,8 +589,7 @@ fn szlachta_bodyguard_burns_to_fail_an_action_directed_at_your_minion() {
             target: Target::Minion(ally),
         },
     );
-    let req = expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
-    assert!(req.options.contains(&ability_of(guard, 1, None)), "{req:?}");
+    expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
     pick(&mut e, ability_of(guard, 1, None));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     // Failed, not blocked; it reached resolution (NRA).
@@ -723,22 +635,12 @@ fn szlachta_bodyguard_cannot_fail_an_action_under_a_block_attempt() {
         },
     );
     pick(&mut e, Choice::DeclareBlock { minion: ally });
-    loop {
-        let req = request(&mut e);
-        if (req.seat, req.window) == (SeatId(0), WindowLabel::MinionPhase) {
-            break;
-        }
-        assert!(
-            !req.options.contains(&ability_of(guard, 1, None)),
-            "{req:?}"
-        );
-        let i = req
-            .options
-            .iter()
-            .position(|o| matches!(o, Choice::Pass | Choice::HandStrike))
-            .unwrap_or(0);
-        e.choose(i);
-    }
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        ability_of(guard, 1, None),
+    );
     assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Blocked));
 }
 
@@ -753,7 +655,7 @@ fn a_combat_ends_strike_has_no_effect_once_dog_pack_is_on_its_opponent() {
     hand(&mut e, 1, &["Majesty"]);
     pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: z });
-    pick(&mut e, play_mode(0, 0, z));
+    pick(&mut e, play(0, 0, z));
     // (As Pack Alpha would, before strike resolution.)
     retainer(&mut e, "Dog Pack", a, 0);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
@@ -785,7 +687,7 @@ fn war_ghoul_burns_an_ally_or_retainer_on_entry_or_itself() {
     let pa = e.add_ally(SeatId(0), find_library("Political Ally"));
     let pa_card = e.state.minions[pa.index()].ally_id().unwrap();
     hand(&mut e, 0, &["War Ghoul"]);
-    pick(&mut e, play(0, v));
+    pick(&mut e, play(0, 0, v));
     let req = expect(&mut e, SeatId(0), WindowLabel::EntryEffect);
     assert_eq!(
         req.options,
@@ -806,7 +708,7 @@ fn war_ghoul_burns_an_ally_or_retainer_on_entry_or_itself() {
     let v = e.add_minion(SeatId(0), plain("Tzimisce", 0), 4, false);
     e.add_minion(SeatId(0), plain("Tzimisce", 1), 4, false);
     hand(&mut e, 0, &["War Ghoul"]);
-    pick(&mut e, play(0, v));
+    pick(&mut e, play(0, 0, v));
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(e.state.minions.iter().all(|m| !m.is_ally() || !m.in_play));
     assert_eq!(e.state.seats[0].ash, vec![find_library("War Ghoul")]);
@@ -897,8 +799,7 @@ fn vozhd_of_sofia_discards_an_ally_or_retainer_card_for_2_life() {
     hand(&mut e, 0, &["Political Ally", "Majesty"]);
     // Around to seat 0's next unlock phase.
     pick(&mut e, Choice::Pass);
-    let req = until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
-    assert!(req.options.contains(&ability_of(id, 2, None)), "{req:?}");
+    until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
     pick(&mut e, ability_of(id, 2, None));
     // The discard: the ally card, the only one that qualifies.
     request(&mut e);
@@ -949,17 +850,6 @@ fn vagabond_mystic_heals_a_hurt_ally_and_cannot_block_vampires() {
     assert!(req
         .options
         .contains(&Choice::DeclareBlock { minion: mystic }));
-}
-
-#[test]
-fn underbridge_stray_superior_has_2_life_and_1_strength() {
-    let mut e = Engine::bare(3);
-    let basic = e.add_ally(SeatId(0), find_library("Underbridge Stray"));
-    let sup = e.add_ally_version(SeatId(0), find_library("Underbridge Stray"), 1);
-    assert_eq!(e.state.minions[basic.index()].blood, 1);
-    assert_eq!(e.state.minions[sup.index()].blood, 2);
-    assert_eq!(e.state.base_strength(basic), 0);
-    assert_eq!(e.state.base_strength(sup), 1);
 }
 
 // [ANK 20180517] "He can burn 1 life to give a minion you control a press
@@ -1044,12 +934,8 @@ fn szlachta_assistant_takes_2_off_a_tzimisce_ghoul_ally_recruit() {
     retainer(&mut e, "Mr. Winthrop", z, 0);
     hand(&mut e, 0, &["War Ghoul"]);
     let pool = e.state.seats[0].pool;
-    pick(&mut e, play(0, v));
-    let req = expect(&mut e, SeatId(0), WindowLabel::ActionBlock);
-    assert!(
-        req.options.contains(&ability_of(assistant, 0, None)),
-        "{req:?}"
-    );
+    pick(&mut e, play(0, 0, v));
+    expect(&mut e, SeatId(0), WindowLabel::ActionBlock);
     pick(&mut e, ability_of(assistant, 0, None));
     // Seat 1 lets it through; with the assistant gone, the Revenant is the
     // entry burn's only choice.
@@ -1074,8 +960,8 @@ fn bone_shambler_bleeds_more_with_another_copy_and_at_obl_a_hecatas_blood() {
     // It cannot have or use equipment.
     hand(&mut e, 0, &["Sport Bike"]);
     let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert!(req.options.contains(&play(0, h)));
-    assert!(!req.options.contains(&play(0, a)) && !req.options.contains(&play(0, b)));
+    assert!(req.options.contains(&play(0, 0, h)));
+    assert!(!req.options.contains(&play(0, 0, a)) && !req.options.contains(&play(0, 0, b)));
     let pool = e.state.seats[1].pool;
     pick(&mut e, action(a, ActionKind::Bleed));
     let with = |ability, t| Choice::UseAbility {
@@ -1103,8 +989,8 @@ fn crypts_sons_is_employed_by_an_anarch_only() {
     );
     hand(&mut e, 0, &["Crypt's Sons"]);
     let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert!(req.options.contains(&play(0, anarch)));
-    assert!(!req.options.contains(&play(0, other)));
+    assert!(req.options.contains(&play(0, 0, anarch)));
+    assert!(!req.options.contains(&play(0, 0, other)));
 }
 
 // [ANK 20190116] "If the action continues as if unblocked, any Methuselahs
@@ -1200,8 +1086,7 @@ fn screamer_burns_for_minus_1_stealth_on_a_predator_or_prey_action() {
     let id = e.state.minions[screamer.index()].ally_id().unwrap();
     // A hunt (+1 stealth): no block possible for Z until the -1.
     pick(&mut e, action(a, ActionKind::Hunt));
-    let req = expect(&mut e, SeatId(1), WindowLabel::ActionAsAnnounced);
-    assert!(req.options.contains(&ability_of(id, 0, None)), "{req:?}");
+    expect(&mut e, SeatId(1), WindowLabel::ActionAsAnnounced);
     pick(&mut e, ability_of(id, 0, None));
     let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     assert!(req.options.contains(&Choice::DeclareBlock { minion: z }));
@@ -1229,8 +1114,7 @@ fn screamer_burns_to_fail_an_action_directed_at_your_ally_as_announced() {
             target: Target::Minion(pa),
         },
     );
-    let req = expect(&mut e, SeatId(1), WindowLabel::ActionAsAnnounced);
-    assert!(req.options.contains(&ability_of(id, 1, None)), "{req:?}");
+    expect(&mut e, SeatId(1), WindowLabel::ActionAsAnnounced);
     pick(&mut e, ability_of(id, 1, None));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Failed));
@@ -1279,8 +1163,7 @@ fn vozhd_of_szczecin_unlocks_for_a_tzimisces_blood_in_another_minion_phase() {
         actor: None,
         target: Target::Minion(t),
     };
-    let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
-    assert!(req.options.contains(&unlock), "{req:?}");
+    until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     pick(&mut e, unlock);
     assert!(!e.state.minions[vozhd.index()].locked);
     assert_eq!(e.state.minions[t.index()].blood, 3);
@@ -1308,8 +1191,7 @@ fn vozhd_of_szczecin_discards_a_protean_card_to_prevent_2_once_each_combat() {
     pick(&mut e, action(a, ActionKind::Bleed));
     until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     pick(&mut e, Choice::DeclareBlock { minion: vozhd });
-    let req = until(&mut e, SeatId(1), WindowLabel::CombatPrevention);
-    assert!(req.options.contains(&ability_of(id, 1, None)), "{req:?}");
+    until(&mut e, SeatId(1), WindowLabel::CombatPrevention);
     pick(&mut e, ability_of(id, 1, None));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.seats[1].hand.len(), 1, "one Form of Mist discarded");
@@ -1357,8 +1239,7 @@ fn rowena_strikes_combat_ends_against_a_werewolf_only() {
     pick(&mut e, action(rowena, ActionKind::Bleed));
     until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     pick(&mut e, Choice::DeclareBlock { minion: deuce });
-    let req = until(&mut e, SeatId(0), WindowLabel::CombatStrike);
-    assert!(req.options.contains(&ends), "{req:?}");
+    until(&mut e, SeatId(0), WindowLabel::CombatStrike);
     pick(&mut e, ends);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.minions[rowena.index()].blood, 4, "no damage");
@@ -1370,19 +1251,7 @@ fn rowena_strikes_combat_ends_against_a_werewolf_only() {
     let z = e.add_minion(SeatId(1), plain("Brujah", 1), 4, false);
     pick(&mut e, action(rowena, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: z });
-    loop {
-        let req = request(&mut e);
-        if (req.seat, req.window) == (SeatId(0), WindowLabel::MinionPhase) {
-            break;
-        }
-        assert!(!req.options.contains(&ends), "{req:?}");
-        let i = req
-            .options
-            .iter()
-            .position(|o| matches!(o, Choice::Pass | Choice::HandStrike))
-            .unwrap_or(0);
-        e.choose(i);
-    }
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, ends);
 }
 
 fn play_at(card: u8, mode: u8, actor: MinionId, target: Target) -> Choice {
@@ -1446,16 +1315,13 @@ fn entrancement_bleeds_at_plus_1_and_not_after_a_bleed() {
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     hand(&mut e, 0, &["Entrancement", "Entrancement"]);
     let pool = e.state.seats[1].pool;
-    pick(&mut e, play_mode(0, 0, v));
+    pick(&mut e, play(0, 0, v));
     let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.seats[1].pool, pool - 2);
     e.state.minions[v.index()].locked = false;
     let _ = req;
     let req = request(&mut e);
-    assert!(
-        !req.options.contains(&play_mode(0, 0, v)),
-        "one bleed a turn"
-    );
+    assert!(!req.options.contains(&play(0, 0, v)), "one bleed a turn");
 }
 
 // [TOM 19960226-1] "Requirements do not apply when taking control of a
@@ -1516,7 +1382,7 @@ fn aggressive_corpse_strikes_through_a_dodge_and_gains_no_life() {
     until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     pick(&mut e, Choice::DeclareBlock { minion: corpse });
     until(&mut e, SeatId(0), WindowLabel::CombatStrike);
-    pick(&mut e, play_mode(0, 0, z)); // dodge
+    pick(&mut e, play(0, 0, z)); // dodge
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(
         e.state.minions[z.index()].blood,
@@ -1537,8 +1403,7 @@ fn aggressive_corpse_strikes_through_a_dodge_and_gains_no_life() {
         actor: None,
         target: Target::Minion(corpse),
     };
-    let req = until(&mut e, SeatId(1), WindowLabel::MinionPhase);
-    assert!(req.options.contains(&heal), "{req:?}");
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
     pick(&mut e, heal);
     assert_eq!(e.state.minions[corpse.index()].blood, 1);
     assert!(e.state.minions[mystic.index()].locked);
@@ -1585,8 +1450,7 @@ fn entrancement_steal_of_an_ally_gone_before_resolution_does_nothing() {
         actor: None,
         target: Target::Card(hg),
     };
-    let req = until(&mut e, SeatId(1), WindowLabel::ActionAsAnnounced);
-    assert!(req.options.contains(&burn), "{req:?}");
+    until(&mut e, SeatId(1), WindowLabel::ActionAsAnnounced);
     pick(&mut e, burn);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.minions[ghoul.index()].in_play);
@@ -1613,14 +1477,13 @@ fn a_ranged_strike_at_long_range_may_be_aimed_at_a_retainer() {
     pick(&mut e, Choice::DeclareBlock { minion: taxi });
     until(&mut e, SeatId(1), WindowLabel::CombatDetermineRange);
     pick(&mut e, ability_of(id, 1, None)); // to long range
-    let req = until(&mut e, SeatId(1), WindowLabel::CombatStrike);
+    until(&mut e, SeatId(1), WindowLabel::CombatStrike);
     let aimed = Choice::UseAbility {
         source: AbilitySource::Card(id),
         ability: 0,
         actor: None,
         target: Target::Card(spy),
     };
-    assert!(req.options.contains(&aimed), "{req:?}");
     pick(&mut e, aimed);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.cards[spy.index()].in_play, "its 1 life burned");
@@ -1648,7 +1511,7 @@ fn visions_of_gehenna_keeps_allies_from_blocking_the_action() {
     let ally = e.add_ally(SeatId(1), find_library("Political Ally"));
     hand(&mut e, 0, &["Visions of Gehenna"]);
     pick(&mut e, action(r, ActionKind::Bleed));
-    pick(&mut e, play_mode(0, 0, r));
+    pick(&mut e, play(0, 0, r));
     let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     assert_eq!(blocks(&req), vec![z]);
     let _ = ally;
@@ -1666,7 +1529,7 @@ fn invigorate_gives_strength_bars_allies_or_aggravates_hand_strikes() {
     e.add_ally(SeatId(1), find_library("Political Ally"));
     hand(&mut e, 0, &["Invigorate"]);
     pick(&mut e, action(a, ActionKind::Bleed));
-    pick(&mut e, play_mode(0, 1, a));
+    pick(&mut e, play(0, 1, a));
     let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     assert_eq!(blocks(&req), vec![z]);
 
@@ -1677,7 +1540,7 @@ fn invigorate_gives_strength_bars_allies_or_aggravates_hand_strikes() {
     let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     hand(&mut e, 0, &["Invigorate"]);
     pick(&mut e, action(a, ActionKind::Bleed));
-    pick(&mut e, play_mode(0, 0, a));
+    pick(&mut e, play(0, 0, a));
     until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     pick(&mut e, Choice::DeclareBlock { minion: z });
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
@@ -1690,7 +1553,7 @@ fn invigorate_gives_strength_bars_allies_or_aggravates_hand_strikes() {
     let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     hand(&mut e, 0, &["Invigorate"]);
     pick(&mut e, action(a, ActionKind::Bleed));
-    pick(&mut e, play_mode(0, 2, a));
+    pick(&mut e, play(0, 2, a));
     until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     pick(&mut e, Choice::DeclareBlock { minion: z });
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
@@ -1743,19 +1606,7 @@ fn libertas_bars_allies_and_taxes_dominate_and_presence_around_its_anarch() {
     assert_eq!(blocks(&req), vec![z]);
     pick(&mut e, Choice::DeclareBlock { minion: z });
     // Majesty costs Z 2 blood beside the Anarch: with 1, not offered.
-    loop {
-        let req = request(&mut e);
-        if (req.seat, req.window) == (SeatId(0), WindowLabel::MinionPhase) {
-            break;
-        }
-        assert!(!req.options.contains(&play_mode(0, 0, z)), "{req:?}");
-        let i = req
-            .options
-            .iter()
-            .position(|o| matches!(o, Choice::Pass | Choice::HandStrike))
-            .unwrap_or(0);
-        e.choose(i);
-    }
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, play(0, 0, z));
 }
 
 /// An untitled Anarch with the Discipline `tag`, no printed text.
@@ -1845,7 +1696,7 @@ fn slaughtering_the_herd_bleeds_at_plus_2_and_allies_cannot_block() {
     e.add_ally(SeatId(1), find_library("Political Ally"));
     hand(&mut e, 0, &["Slaughtering the Herd"]);
     let pool = e.state.seats[1].pool;
-    pick(&mut e, play_mode(0, 0, v));
+    pick(&mut e, play(0, 0, v));
     let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     assert_eq!(blocks(&req), vec![z]);
     pick(&mut e, Choice::Pass);
@@ -1894,8 +1745,7 @@ fn slaughtering_the_herds_host_burns_4_blood_in_its_minion_phase_to_burn_it() {
         target: Target::None,
     };
     pick(&mut e, Choice::Pass);
-    let req = until(&mut e, SeatId(2), WindowLabel::MinionPhase);
-    assert!(req.options.contains(&burn), "{req:?}");
+    until(&mut e, SeatId(2), WindowLabel::MinionPhase);
     pick(&mut e, burn);
     assert!(!e.state.cards[card.index()].in_play);
     assert_eq!(e.state.minions[p.index()].blood, 1);
@@ -2026,8 +1876,7 @@ fn rotting_behemoth_superior_burns_life_for_a_press_in_the_first_round() {
             target: Target::Minion(z),
         },
     );
-    let req = until(&mut e, SeatId(0), WindowLabel::CombatPress);
-    assert!(req.options.contains(&ability_of(id, 1, None)), "{req:?}");
+    until(&mut e, SeatId(0), WindowLabel::CombatPress);
     pick(&mut e, ability_of(id, 1, None));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     // 6 life, 1 for the rush, 1 for the press, 1 per round from Z.
@@ -2056,8 +1905,7 @@ fn vozhd_of_gravesend_burns_life_to_cancel_an_opposing_strike_card() {
         .find(|o| matches!(o, Choice::Play { .. }))
         .expect("Roundhouse");
     pick(&mut e, rh);
-    let req = expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
-    assert!(req.options.contains(&ability_of(id, 2, None)), "{req:?}");
+    expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
     pick(&mut e, ability_of(id, 2, None));
     // Canceled, unpaid: A chooses a strike again (its hand strike, elided).
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
@@ -2092,16 +1940,16 @@ fn vozhd_of_juiz_de_fora_employs_an_animalism_retainer_as_a_vampire_paying_life(
     let (mut e, _, vozhd, _) = juiz();
     hand(&mut e, 0, &["Raven Spy", "Feral Hound"]);
     let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert!(req.options.contains(&play_mode(0, 0, vozhd)));
+    assert!(req.options.contains(&play(0, 0, vozhd)));
     assert!(
-        !req.options.contains(&play_mode(0, 1, vozhd)),
+        !req.options.contains(&play(0, 1, vozhd)),
         "[ANI] needs superior"
     );
     assert!(
-        !req.options.contains(&play_mode(1, 0, vozhd)),
+        !req.options.contains(&play(1, 0, vozhd)),
         "Feral Hound needs a Ravnos"
     );
-    pick(&mut e, play_mode(0, 0, vozhd));
+    pick(&mut e, play(0, 0, vozhd));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(
         e.state.minions[vozhd.index()].blood,
@@ -2119,7 +1967,7 @@ fn an_ally_paying_its_last_life_as_a_vampire_resolves_the_action_then_burns() {
     let (mut e, _, vozhd, _) = juiz();
     e.state.minions[vozhd.index()].blood = 1;
     hand(&mut e, 0, &["Raven Spy"]);
-    pick(&mut e, play_mode(0, 0, vozhd));
+    pick(&mut e, play(0, 0, vozhd));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.minions[vozhd.index()].in_play);
     assert!(
@@ -2127,6 +1975,31 @@ fn an_ally_paying_its_last_life_as_a_vampire_resolves_the_action_then_burns() {
         "burned with it"
     );
     assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Successful));
+}
+
+// [LSJ 20080205-2] [LSJ 20060417] "While using their ability to meet a
+// discipline requirement, they also meet that requirement for any other
+// cards associated with the original effect (e.g. meeting the [ani]
+// requirement for Pack Alpha or Muricia's Call also meets the [ani]
+// requirement for the Raven Spy employed)." The Vozhd of Juiz de Fora,
+// blocking, plays Pack Alpha [ani] as a vampire and employs a Raven Spy.
+#[test]
+fn vozhd_of_juiz_de_fora_meets_animalism_for_pack_alpha_and_its_raven_spy() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let t = e.add_minion(SeatId(1), plain("Tzimisce", 0), 4, false);
+    retainer(&mut e, "Revenant", t, 0);
+    let vozhd = e.add_ally(SeatId(1), find_library("Vozhd of Juiz de Fora, The"));
+    request(&mut e); // its entry burns the Revenant
+    hand(&mut e, 1, &["Pack Alpha", "Raven Spy"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, Choice::DeclareBlock { minion: vozhd });
+    pick_when(&mut e, play(0, 0, vozhd)); // Pack Alpha [ani]
+    request(&mut e);
+    let spy = find_library("Raven Spy");
+    assert!(retainer_on(&e, spy, vozhd).is_some(), "employed");
+    assert!(e.state.seats[1].hand.is_empty());
 }
 
 #[test]
@@ -2140,8 +2013,7 @@ fn vozhd_of_juiz_de_fora_takes_a_tzimisces_blood_as_life_up_to_its_starting_life
         actor: None,
         target: Target::Minion(t),
     };
-    let req = until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
-    assert!(req.options.contains(&steal), "{req:?}");
+    until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
     pick(&mut e, steal);
     let req = request(&mut e);
     assert_eq!(req.options, vec![Choice::SetX(1), Choice::SetX(2)]);
@@ -2162,7 +2034,7 @@ fn spectral_servitor_acts_at_once_unlocks_its_recruiter_and_plays_oblivion_modif
         0,
         &["Spectral Servitor", "Consign to Oblivion", "Bone Shambler"],
     );
-    pick(&mut e, play_mode(0, 0, v));
+    pick(&mut e, play(0, 0, v));
     let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     let servitor = MinionId(e.state.minions.len() as u32 - 1);
     assert!(
@@ -2176,7 +2048,7 @@ fn spectral_servitor_acts_at_once_unlocks_its_recruiter_and_plays_oblivion_modif
         .iter()
         .position(|&c| c == find_library("Bone Shambler"))
         .unwrap() as u8;
-    assert!(!req.options.contains(&play_mode(shambler, 0, servitor)));
+    assert!(!req.options.contains(&play(shambler, 0, servitor)));
     // Its bleed: it may play Consign to Oblivion as a vampire.
     pick(&mut e, action(servitor, ActionKind::Bleed));
     let req = expect(&mut e, SeatId(0), WindowLabel::ActionAsAnnounced);
@@ -2185,10 +2057,7 @@ fn spectral_servitor_acts_at_once_unlocks_its_recruiter_and_plays_oblivion_modif
         .iter()
         .position(|&c| c == find_library("Consign to Oblivion"))
         .unwrap() as u8;
-    assert!(
-        req.options.contains(&play_mode(consign, 0, servitor)),
-        "{req:?}"
-    );
+    assert!(req.options.contains(&play(consign, 0, servitor)), "{req:?}");
 }
 
 #[test]
@@ -2235,7 +2104,7 @@ fn spectral_servitor_paying_its_last_life_for_a_modifier_burns_and_the_action_fa
     hand(&mut e, 0, &["Consign to Oblivion"]);
     let pool = e.state.seats[1].pool;
     pick(&mut e, action(servitor, ActionKind::Bleed));
-    pick(&mut e, play_mode(0, 0, servitor));
+    pick(&mut e, play(0, 0, servitor));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.minions[servitor.index()].in_play);
     assert_eq!(e.state.seats[1].pool, pool, "no bleed");
@@ -2294,8 +2163,7 @@ fn a_ranged_strike_card_may_be_aimed_at_a_retainer_and_steals_its_life() {
     until(&mut e, SeatId(1), WindowLabel::CombatDetermineRange);
     pick(&mut e, ability_of(taxi_id, 1, None)); // to long range
     let aimed = play_at(0, 0, v, Target::Card(spy));
-    let req = until(&mut e, SeatId(0), WindowLabel::CombatStrike);
-    assert!(req.options.contains(&aimed), "{req:?}");
+    until(&mut e, SeatId(0), WindowLabel::CombatStrike);
     pick(&mut e, aimed);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.cards[spy.index()].in_play, "its 1 life stolen");

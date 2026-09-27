@@ -5,98 +5,13 @@
 //! decision exists.
 
 use zvtes::actions::Outcome;
-use zvtes::cards::Target;
-use zvtes::crypt::CRYPT;
-use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
-use zvtes::game::{Engine, Step};
+use zvtes::decision::{ActionKind, Choice, WindowLabel};
+use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::{find_card, find_library};
+use zvtes::state::find_card;
 
-fn request(e: &mut Engine) -> DecisionRequest {
-    match e.run() {
-        Step::Decision(req) => {
-            if std::env::var("TRACE").is_ok() {
-                eprintln!("REQ {:?} {:?} {:?}", req.seat, req.window, req.options);
-            }
-            req
-        }
-        Step::Over(_) => panic!("game over while expecting a decision"),
-    }
-}
-
-fn expect(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    let req = request(e);
-    assert_eq!((req.seat, req.window), (seat, window), "{:?}", req.options);
-    req
-}
-
-fn pick(e: &mut Engine, want: Choice) {
-    let req = request(e);
-    let idx = req
-        .options
-        .iter()
-        .position(|o| *o == want)
-        .unwrap_or_else(|| panic!("option {want:?} not in {:?}", req.options));
-    e.choose(idx);
-}
-
-fn bleed(minion: MinionId) -> Choice {
-    Choice::TakeAction {
-        minion,
-        action: ActionKind::Bleed,
-        target: None,
-    }
-}
-
-fn block(minion: MinionId) -> Choice {
-    Choice::DeclareBlock { minion }
-}
-
-#[allow(dead_code)]
-fn play(card: u8, mode: u8, actor: MinionId) -> Choice {
-    Choice::Play {
-        card,
-        mode,
-        actor: Some(actor),
-        target: Target::None,
-    }
-}
-
-#[allow(dead_code)]
-fn plays(req: &DecisionRequest) -> Vec<Choice> {
-    req.options
-        .iter()
-        .copied()
-        .filter(|o| matches!(o, Choice::Play { .. }))
-        .collect()
-}
-
-/// The `nth` V5 vampire with superior `disc`.
-fn vampire_with(disc: &str, nth: usize) -> u16 {
-    CRYPT
-        .iter()
-        .enumerate()
-        .filter(|(i, c)| {
-            c.disciplines.contains(&disc) && zvtes::cards::vampire(*i as u16).is_none()
-        })
-        .nth(nth)
-        .map(|(i, _)| i as u16)
-        .unwrap_or_else(|| panic!("no vampire with {disc}"))
-}
-
-fn blood(e: &Engine, m: MinionId) -> u8 {
-    e.state.minions[m.index()].blood
-}
-
-fn hand(e: &mut Engine, seat: u8, cards: &[&str]) {
-    for c in cards {
-        e.state.seats[seat as usize].hand.push(find_library(c));
-    }
-}
-
-fn set_x(n: u8) -> Choice {
-    Choice::SetX(n)
-}
+mod common;
+use common::*;
 
 /// 2 seats at seat 0's minion phase, turn 4. Seat 0: A (POT), B (CEL);
 /// seat 1: X (FOR), Y (PRO). 4 blood each.
@@ -396,14 +311,7 @@ fn continuation_keeps_declines() {
     hand(&mut e, 0, &["Form of Mist"]);
     hand(&mut e, 1, &["Cats' Guidance", "Cats' Guidance"]);
     hand(&mut e, 2, &["Cats' Guidance", "Cats' Guidance"]);
-    pick(
-        &mut e,
-        Choice::TakeAction {
-            minion: p,
-            action: ActionKind::Hunt,
-            target: None,
-        },
-    );
+    pick(&mut e, action(p, ActionKind::Hunt));
     // Prey declines; predator attempts and reaches 1 intercept.
     let req = expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
     assert!(req.options.contains(&block(x)));
@@ -524,14 +432,7 @@ fn blocked_leave_torpor_blocker_may_diablerise() {
     let z = e.add_minion(SeatId(1), find_card("Ángel Guerrero"), 4, false);
     let tor = e.add_minion(SeatId(0), vampire_with("DOM", 0), 2, true);
     hand(e, 1, &["Cats' Guidance"]);
-    pick(
-        e,
-        Choice::TakeAction {
-            minion: tor,
-            action: ActionKind::LeaveTorpor,
-            target: None,
-        },
-    );
+    pick(e, action(tor, ActionKind::LeaveTorpor));
     pick(e, block(z));
     pick(e, play(0, 1, z)); // +1 intercept
     let req = expect(e, SeatId(1), WindowLabel::TorporBlock);

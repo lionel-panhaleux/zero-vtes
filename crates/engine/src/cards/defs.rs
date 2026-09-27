@@ -13,16 +13,15 @@
 use super::vampires::{ability, enter_combat, printed_action, MANEUVER_EACH_COMBAT};
 use super::CostSource;
 use super::{
-    Actor, Among, AsVampire, Bearer, BlockRider, CardDef, CardFilter, Effect, Holding, Hook, Limit,
-    ModeDef, Modifier, On, Points, RefEffect, ReferendumDef, Requirement, Rider, RiderScope,
-    SeatFilter, Stat, StrikeKind, TargetKind, TargetSpec, Term, Terms, TitleClass, Until,
-    VoteGrant, Voters, Window,
+    bleed, mode_of, target, Actor, Among, AsVampire, Bearer, BlockRider, CardDef, CardFilter,
+    Effect, Holding, Hook, Limit, ModeDef, Modifier, On, Points, RefEffect, ReferendumDef,
+    Requirement, Rider, RiderScope, SeatFilter, Stat, StrikeKind, TargetKind, TargetSpec, Term,
+    Terms, TitleClass, Until, VoteGrant, Voters, Window, CARD,
 };
+use crate::combat::Range;
 use crate::crypt::Sect;
 use crate::decision::ActionKind;
 use crate::library::{CardType, Label};
-
-const NO_TARGET: Option<TargetSpec> = None;
 
 /// "Move any amount of blood from a vampire you control to your pool." The
 /// amount is announced as it is played, from 0 to what the vampire has
@@ -31,24 +30,20 @@ const NO_TARGET: Option<TargetSpec> = None;
 /// between (LSJ 20020620).
 pub static MINION_TAP: CardDef = CardDef {
     name: "Minion Tap",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::TargetVampire, Requirement::Controlled],
-        }),
+        target: target(
+            TargetKind::Minion,
+            &[Requirement::TargetVampire, Requirement::Controlled],
+        ),
         terms: Some(Terms::UpToTargetBlood),
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::MoveBloodTargetToPoolX],
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[Effect::MoveBloodTargetToPoolX],
+        )
     }],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Trifle. Put this card on a vampire you control who has any amount of
@@ -58,106 +53,78 @@ pub static MINION_TAP: CardDef = CardDef {
 pub static VILLEIN: CardDef = CardDef {
     name: "Villein",
     trifle: true,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[
+        target: target(
+            TargetKind::Minion,
+            &[
                 Requirement::TargetVampire,
                 Requirement::Controlled,
                 Requirement::BloodAtLeast(1),
             ],
-        }),
+        ),
         terms: Some(Terms::BloodRange { min: 2, max: 5 }),
-        waives_needed: false,
-        limit: None,
-        effects: &[
-            Effect::PutOnTarget,
-            Effect::MoveBloodTargetToPoolX,
-            Effect::Layer(Modifier::CostMod {
-                name: "Minion Tap",
-                on_host_only: false,
-                owner_only: true,
-                pool: 1,
-            }),
-            Effect::Layer(Modifier::CostMod {
-                name: "Villein",
-                on_host_only: true,
-                owner_only: true,
-                pool: 1,
-            }),
-        ],
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutOnTarget,
+                Effect::MoveBloodTargetToPoolX,
+                Effect::Layer(Modifier::CostMod {
+                    name: "Minion Tap",
+                    on_host_only: false,
+                    owner_only: true,
+                    pool: 1,
+                }),
+                Effect::Layer(Modifier::CostMod {
+                    name: "Villein",
+                    on_host_only: true,
+                    owner_only: true,
+                    pool: 1,
+                }),
+            ],
+        )
     }],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Out-of-turn. Cancel a master card as it is played by another Methuselah,
 /// and its cost is not paid."
 pub static SUDDEN_REVERSAL: CardDef = CardDef {
     name: "Sudden Reversal",
-    trifle: false,
     out_of_turn: true,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::CardAsPlayed],
-        actor: Actor::Methuselah,
-        requires: &[
+    modes: &[mode_of(
+        &[Window::CardAsPlayed],
+        Actor::Methuselah,
+        &[
             Requirement::NotOwnTurn,
             Requirement::PlayedCardIsMaster,
             Requirement::PlayedByOtherSeat,
         ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::CancelPlayed { refund: true }],
-    }],
-    abilities: &[],
-    riders: &[],
+        &[Effect::CancelPlayed { refund: true }],
+    )],
+    ..CARD
 };
 
 /// "Only usable during a bleed action. [dom] +2 bleed (limited). [DOM] +3
 /// bleed (limited)."
 pub static CONDITIONING: CardDef = CardDef {
     name: "Conditioning",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::ActionDuring],
-            actor: Actor::ActingMinion,
-            requires: &[Requirement::IsBleed],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::BleedMod {
-                n: 2,
-                limited: true,
-            }],
-        },
-        ModeDef {
-            windows: &[Window::ActionDuring],
-            actor: Actor::ActingMinion,
-            requires: &[Requirement::IsBleed],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::BleedMod {
-                n: 3,
-                limited: true,
-            }],
-        },
+        mode_of(
+            &[Window::ActionDuring],
+            Actor::ActingMinion,
+            &[Requirement::IsBleed],
+            &[bleed(2, true)],
+        ),
+        mode_of(
+            &[Window::ActionDuring],
+            Actor::ActingMinion,
+            &[Requirement::IsBleed],
+            &[bleed(3, true)],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable as the action is announced. [obl] Reaction cards cost +1
@@ -165,36 +132,24 @@ pub static CONDITIONING: CardDef = CardDef {
 /// end of the action."
 pub static CONSIGN_TO_OBLIVION: CardDef = CardDef {
     name: "Consign to Oblivion",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::ActionAsAnnounced],
-            actor: Actor::ActingMinion,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::ActionLayer(Modifier::ReactionBloodCost(1))],
-        },
-        ModeDef {
-            windows: &[Window::ActionAsAnnounced],
-            actor: Actor::ActingMinion,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+        mode_of(
+            &[Window::ActionAsAnnounced],
+            Actor::ActingMinion,
+            &[],
+            &[Effect::ActionLayer(Modifier::ReactionBloodCost(1))],
+        ),
+        mode_of(
+            &[Window::ActionAsAnnounced],
+            Actor::ActingMinion,
+            &[],
+            &[
                 Effect::ActionLayer(Modifier::ReactionBloodCost(1)),
                 Effect::DeferReactionReplacement,
             ],
-        },
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[PRO] [ACTION MODIFIER] Only usable as the action is announced. +1
@@ -202,37 +157,28 @@ pub static CONSIGN_TO_OBLIVION: CardDef = CardDef {
 /// mode waits for the combat slice.)
 pub static FORM_OF_THE_COBRA: CardDef = CardDef {
     name: "Form of the Cobra",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         // [pro] [COMBAT] Strike: steal 1 blood or life (becoming blood).
-        ModeDef {
-            windows: &[Window::CombatStrikeDeclaration],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Strike(StrikeKind::StealBlood {
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Combatant,
+            &[],
+            &[Effect::Strike(StrikeKind::StealBlood {
                 n: 1,
                 ranged: false,
             })],
-        },
+        ),
         ModeDef {
-            windows: &[Window::ActionAsAnnounced],
-            actor: Actor::ActingMinion,
-            requires: &[Requirement::StealthNeeded],
-            target: NO_TARGET,
-            terms: None,
             waives_needed: true,
-            limit: None,
-            effects: &[Effect::AddStealth(1)],
+            ..mode_of(
+                &[Window::ActionAsAnnounced],
+                Actor::ActingMinion,
+                &[Requirement::StealthNeeded],
+                &[Effect::AddStealth(1)],
+            )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[aus] Only usable during an action directed at you (or a card you
@@ -240,33 +186,21 @@ pub static FORM_OF_THE_COBRA: CardDef = CardDef {
 /// vampire wakes."
 pub static EYES_OF_ARGUS: CardDef = CardDef {
     name: "Eyes of Argus",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::ActionStealthIntercept],
-            actor: Actor::ReactingMinion,
-            requires: &[Requirement::DirectedAtYou, Requirement::InterceptNeeded],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::AddIntercept(2)],
-        },
-        ModeDef {
-            windows: &[Window::Wake, Window::CardAsPlayed],
-            actor: Actor::ReactingMinion,
-            requires: &[Requirement::LockedActor],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Wake],
-        },
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::ReactingMinion,
+            &[Requirement::DirectedAtYou, Requirement::InterceptNeeded],
+            &[Effect::AddIntercept(2)],
+        ),
+        mode_of(
+            &[Window::Wake, Window::CardAsPlayed],
+            Actor::ReactingMinion,
+            &[Requirement::LockedActor],
+            &[Effect::Wake],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable if a minion is bleeding you, after blocks are declined.
@@ -276,47 +210,41 @@ pub static EYES_OF_ARGUS: CardDef = CardDef {
 /// vampire."
 pub static DEFLECTION: CardDef = CardDef {
     name: "Deflection",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
-            windows: &[Window::ActionBlocksDeclined],
-            actor: Actor::ReactingMinion,
-            requires: &[
-                Requirement::DirectedAtYou,
-                Requirement::IsBleed,
-                Requirement::BlocksDeclined,
-            ],
-            target: Some(TargetSpec {
-                kind: TargetKind::Seat,
-                filter: &[Requirement::NotActingController, Requirement::NotSelf],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockActor, Effect::RedirectBleed],
+            target: target(
+                TargetKind::Seat,
+                &[Requirement::NotActingController, Requirement::NotSelf],
+            ),
+            ..mode_of(
+                &[Window::ActionBlocksDeclined],
+                Actor::ReactingMinion,
+                &[
+                    Requirement::DirectedAtYou,
+                    Requirement::IsBleed,
+                    Requirement::BlocksDeclined,
+                ],
+                &[Effect::LockActor, Effect::RedirectBleed],
+            )
         },
         ModeDef {
-            windows: &[Window::ActionBlocksDeclined],
-            actor: Actor::ReactingMinion,
-            requires: &[
-                Requirement::DirectedAtYou,
-                Requirement::IsBleed,
-                Requirement::BlocksDeclined,
-            ],
-            target: Some(TargetSpec {
-                kind: TargetKind::Seat,
-                filter: &[Requirement::NotActingController, Requirement::NotSelf],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::RedirectBleed],
+            target: target(
+                TargetKind::Seat,
+                &[Requirement::NotActingController, Requirement::NotSelf],
+            ),
+            ..mode_of(
+                &[Window::ActionBlocksDeclined],
+                Actor::ReactingMinion,
+                &[
+                    Requirement::DirectedAtYou,
+                    Requirement::IsBleed,
+                    Requirement::BlocksDeclined,
+                ],
+                &[Effect::RedirectBleed],
+            )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Out-of-turn. Only usable if a minion is bleeding you and the bleed
@@ -324,27 +252,20 @@ pub static DEFLECTION: CardDef = CardDef {
 /// (The action is not successful.)"
 pub static ARCHON_INVESTIGATION: CardDef = CardDef {
     name: "Archon Investigation",
-    trifle: false,
     out_of_turn: true,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::ActionBlocksDeclined],
-        actor: Actor::Methuselah,
-        requires: &[
+    modes: &[mode_of(
+        &[Window::ActionBlocksDeclined],
+        Actor::Methuselah,
+        &[
             Requirement::NotOwnTurn,
             Requirement::DirectedAtYou,
             Requirement::IsBleed,
             Requirement::BleedAmountAtLeast(4),
             Requirement::BlocksDeclined,
         ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::BurnActingMinion, Effect::ActionFails],
-    }],
-    abilities: &[],
-    riders: &[],
+        &[Effect::BurnActingMinion, Effect::ActionFails],
+    )],
+    ..CARD
 };
 
 /// A recruit ally mode: the ally enters play in the acting Methuselah's
@@ -354,7 +275,7 @@ const fn recruit(effects: &'static [Effect]) -> ModeDef {
         windows: &[Window::ActionDeclareRecruit],
         actor: Actor::ActingCandidate,
         requires: &[],
-        target: NO_TARGET,
+        target: None,
         terms: None,
         waives_needed: false,
         limit: None,
@@ -367,21 +288,14 @@ const fn recruit(effects: &'static [Effect]) -> ModeDef {
 /// during the bleed, locked or not.
 pub static FORTY_SEVENTH_STREET_ROYALS: CardDef = CardDef {
     name: "47th Street Royals",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
-    abilities: &[ModeDef {
-        windows: &[Window::ReactionDuringAction],
-        actor: Actor::Controller,
-        requires: &[Requirement::IsBleed, Requirement::DirectedAtYou],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::BurnSelf, Effect::ReduceBleed(3)],
-    }],
-    riders: &[],
+    abilities: &[mode_of(
+        &[Window::ReactionDuringAction],
+        Actor::Controller,
+        &[Requirement::IsBleed, Requirement::DirectedAtYou],
+        &[Effect::BurnSelf, Effect::ReduceBleed(3)],
+    )],
+    ..CARD
 };
 
 /// "Mortal with 2 life. 0 strength, 0 bleed. This ally can strike: 1R
@@ -391,43 +305,32 @@ pub static FORTY_SEVENTH_STREET_ROYALS: CardDef = CardDef {
 /// recruited (ANK 20180517).
 pub static CITY_STAR_TAXI: CardDef = CardDef {
     name: "City Star Taxi",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
     abilities: &[
-        ModeDef {
-            windows: &[Window::CombatStrikeDeclaration],
-            actor: Actor::Host,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Strike(StrikeKind::Damage {
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Host,
+            &[],
+            &[Effect::Strike(StrikeKind::Damage {
                 n: 1,
                 ranged: true,
                 aggravated: false,
             })],
-        },
+        ),
         MANEUVER_EACH_COMBAT,
-        ModeDef {
-            windows: &[Window::ActionDuring],
-            actor: Actor::Host,
-            requires: &[
+        mode_of(
+            &[Window::ActionDuring],
+            Actor::Host,
+            &[
                 Requirement::CardUnlocked,
                 Requirement::OtherActingControlled,
                 Requirement::OtherActingClan("Ravnos"),
                 Requirement::StealthNeeded,
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::AddStealth(1)],
-        },
+            &[Effect::LockSelf, Effect::AddStealth(1)],
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique werewolf with 3 life. 1 strength, 1 bleed. Double Deuce has +1
@@ -436,9 +339,6 @@ pub static CITY_STAR_TAXI: CardDef = CardDef {
 /// orders among their own (rules-qa 6.1).
 pub static DOUBLE_DEUCE: CardDef = CardDef {
     name: "Double Deuce",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[recruit(&[
         Effect::DeclareAction(ActionKind::Recruit),
         Effect::Layer(Modifier::Bearer {
@@ -448,13 +348,13 @@ pub static DOUBLE_DEUCE: CardDef = CardDef {
             who: Bearer::Any,
         }),
     ])],
-    abilities: &[],
     riders: &[Rider {
         hook: Hook::UnlockPhase,
         scope: RiderScope::Controller,
         requires: &[Requirement::HostBloodAtMost(2)],
         effects: &[Effect::AddHostBlood(1)],
     }],
+    ..CARD
 };
 
 /// "Animal with 1 life. Minions in combat with the employer cannot
@@ -462,16 +362,12 @@ pub static DOUBLE_DEUCE: CardDef = CardDef {
 /// strike has no effect (ANK 20190412).
 pub static DOG_PACK: CardDef = CardDef {
     name: "Dog Pack",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[employ(&[
         Effect::DeclareAction(ActionKind::Employ),
         Effect::EmployRetainer { life: 1 },
         Effect::Layer(Modifier::NoCombatEndsAgainstHost),
     ])],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Animal with 1 life. [ani] If the action to employ this retainer is
@@ -481,9 +377,6 @@ pub static DOG_PACK: CardDef = CardDef {
 /// intercept goes to the employer's block attempt, when needed.
 pub static FERAL_HOUND: CardDef = CardDef {
     name: "Feral Hound",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         employ(&[
             Effect::DeclareAction(ActionKind::Employ),
@@ -496,17 +389,13 @@ pub static FERAL_HOUND: CardDef = CardDef {
             Effect::UnlockActor,
         ]),
     ],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionStealthIntercept],
-        actor: Actor::Host,
-        requires: &[Requirement::CardUnlocked, Requirement::InterceptNeeded],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::LockSelf, Effect::AddIntercept(1)],
-    }],
-    riders: &[],
+    abilities: &[mode_of(
+        &[Window::ActionStealthIntercept],
+        Actor::Host,
+        &[Requirement::CardUnlocked, Requirement::InterceptNeeded],
+        &[Effect::LockSelf, Effect::AddIntercept(1)],
+    )],
+    ..CARD
 };
 
 /// "Ghoul with 2 life. The employer can lock this retainer to prevent 1
@@ -517,39 +406,28 @@ pub static FERAL_HOUND: CardDef = CardDef {
 /// 20180719, LSJ 20070219).
 pub static SZLACHTA_BODYGUARD: CardDef = CardDef {
     name: "Szlachta Bodyguard",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[employ(&[
         Effect::DeclareAction(ActionKind::Employ),
         Effect::EmployRetainer { life: 2 },
     ])],
     abilities: &[
-        ModeDef {
-            windows: &[Window::CombatDamagePrevention],
-            actor: Actor::Host,
-            requires: &[Requirement::CardUnlocked, Requirement::DamagePending],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::Prevent(1)],
-        },
-        ModeDef {
-            windows: &[Window::ReactionDuringAction],
-            actor: Actor::Controller,
-            requires: &[
+        mode_of(
+            &[Window::CombatDamagePrevention],
+            Actor::Host,
+            &[Requirement::CardUnlocked, Requirement::DamagePending],
+            &[Effect::LockSelf, Effect::Prevent(1)],
+        ),
+        mode_of(
+            &[Window::ReactionDuringAction],
+            Actor::Controller,
+            &[
                 Requirement::DirectedAtYourMinion,
                 Requirement::NoBlockAttempt,
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::BurnSelf, Effect::ActionFails],
-        },
+            &[Effect::BurnSelf, Effect::ActionFails],
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Ghoul with 5 life. 4 strength, 0 bleed. After this ally enters play,
@@ -561,9 +439,6 @@ pub static SZLACHTA_BODYGUARD: CardDef = CardDef {
 /// that location (PIB 20121031).
 pub static WAR_GHOUL: CardDef = CardDef {
     name: "War Ghoul",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[recruit(&[
         Effect::DeclareAction(ActionKind::Recruit),
         Effect::EntryBurnAllyOrRetainer,
@@ -582,20 +457,19 @@ pub static WAR_GHOUL: CardDef = CardDef {
             Requirement::TargetVampire,
         ]),
         ModeDef {
-            windows: &[Window::AnyImpulse],
-            actor: Actor::Host,
-            requires: &[Requirement::CardUnlocked, Requirement::NotInCombat],
-            target: Some(TargetSpec {
-                kind: TargetKind::Card,
-                filter: &[Requirement::TargetCard(CardFilter::Location)],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::BurnTargetCard, Effect::BurnSelf],
+            target: target(
+                TargetKind::Card,
+                &[Requirement::TargetCard(CardFilter::Location)],
+            ),
+            ..mode_of(
+                &[Window::AnyImpulse],
+                Actor::Host,
+                &[Requirement::CardUnlocked, Requirement::NotInCombat],
+                &[Effect::LockSelf, Effect::BurnTargetCard, Effect::BurnSelf],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique ghoul with 5 life. 3 strength, 0 bleed. After this ally enters
@@ -605,44 +479,36 @@ pub static WAR_GHOUL: CardDef = CardDef {
 /// The unlock discard is once per phase (rules-qa 6.6).
 pub static VOZHD_OF_SOFIA: CardDef = CardDef {
     name: "Vozhd of Sofia, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[recruit(&[
         Effect::DeclareAction(ActionKind::Recruit),
         Effect::EntryBurnAllyOrRetainer,
     ])],
     abilities: &[
-        ModeDef {
-            windows: &[Window::CombatStrikeDeclaration],
-            actor: Actor::Host,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Strike(StrikeKind::Damage {
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Host,
+            &[],
+            &[Effect::Strike(StrikeKind::Damage {
                 n: 3,
                 ranged: true,
                 aggravated: false,
             })],
-        },
+        ),
         enter_combat(&[Requirement::NotControlled, Requirement::ActorReady]),
         ModeDef {
-            windows: &[Window::UnlockPhaseOwn],
-            actor: Actor::Host,
-            requires: &[Requirement::HandHas(CardFilter::AllyOrRetainer, 1)],
-            target: NO_TARGET,
             terms: Some(Terms::Discard {
                 n: 1,
                 of: CardFilter::AllyOrRetainer,
             }),
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::AddHostBlood(2)],
+            ..mode_of(
+                &[Window::UnlockPhaseOwn],
+                Actor::Host,
+                &[Requirement::HandHas(CardFilter::AllyOrRetainer, 1)],
+                &[Effect::AddHostBlood(2)],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Zombie with 1 life. 1 strength, 1 bleed. [obl] This ally cannot have or
@@ -653,9 +519,6 @@ pub static VOZHD_OF_SOFIA: CardDef = CardDef {
 /// 20231124); a copy recruited this turn may be locked (ANK 20180517).
 pub static BONE_SHAMBLER: CardDef = CardDef {
     name: "Bone Shambler",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         recruit(&[
             Effect::DeclareAction(ActionKind::Recruit),
@@ -668,57 +531,43 @@ pub static BONE_SHAMBLER: CardDef = CardDef {
     ],
     abilities: &[
         ModeDef {
-            windows: &[Window::ActionDuring],
-            actor: Actor::Host,
-            requires: &[Requirement::ActorActing, Requirement::IsBleed],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::Controlled,
                     Requirement::TargetOtherCopy,
                     Requirement::TargetUnlocked,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::LockTarget,
-                Effect::BleedMod {
-                    n: 1,
-                    limited: false,
-                },
-            ],
+            ),
+            ..mode_of(
+                &[Window::ActionDuring],
+                Actor::Host,
+                &[Requirement::ActorActing, Requirement::IsBleed],
+                &[Effect::LockTarget, bleed(1, false)],
+            )
         },
         ModeDef {
-            windows: &[Window::ActionDuring],
-            actor: Actor::Host,
-            requires: &[
-                Requirement::SuperiorVersion,
-                Requirement::ActorActing,
-                Requirement::IsBleed,
-            ],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::Controlled,
                     Requirement::ActorClan("Hecata"),
                     Requirement::BloodAtLeast(1),
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::TargetBurnsBlood(1),
-                Effect::BleedMod {
-                    n: 1,
-                    limited: false,
-                },
-            ],
+            ),
+            ..mode_of(
+                &[Window::ActionDuring],
+                Actor::Host,
+                &[
+                    Requirement::SuperiorVersion,
+                    Requirement::ActorActing,
+                    Requirement::IsBleed,
+                ],
+                &[Effect::TargetBurnsBlood(1), bleed(1, false)],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique mortal with 3 life. Requires an Anarch. If this Anarch is
@@ -730,38 +579,27 @@ pub static BONE_SHAMBLER: CardDef = CardDef {
 /// 19941109, ANK 20190116).
 pub static CRYPTS_SONS: CardDef = CardDef {
     name: "Crypt's Sons",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::ActionDeclareEmploy],
-        actor: Actor::ActingCandidate,
-        requires: &[Requirement::ActorSectIn(&[Sect::Anarch])],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    modes: &[mode_of(
+        &[Window::ActionDeclareEmploy],
+        Actor::ActingCandidate,
+        &[Requirement::ActorSectIn(&[Sect::Anarch])],
+        &[
             Effect::DeclareAction(ActionKind::Employ),
             Effect::EmployRetainer { life: 3 },
             Effect::Layer(Modifier::RetainerDamage(1)),
         ],
-    }],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionBlocked],
-        actor: Actor::Host,
-        requires: &[
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionBlocked],
+        Actor::Host,
+        &[
             Requirement::ActorActing,
             Requirement::NotContinued,
             Requirement::LifeAtLeast(1),
         ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::BurnOwnLife(1), Effect::ContinueUnblocked],
-    }],
-    riders: &[],
+        &[Effect::BurnOwnLife(1), Effect::ContinueUnblocked],
+    )],
+    ..CARD
 };
 
 /// "Ghoul with 2 life. The employer can burn this retainer to reduce the
@@ -769,27 +607,20 @@ pub static CRYPTS_SONS: CardDef = CardDef {
 /// pool." During that recruit action, the cost paid at resolution.
 pub static SZLACHTA_ASSISTANT: CardDef = CardDef {
     name: "Szlachta Assistant",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[employ(&[
         Effect::DeclareAction(ActionKind::Employ),
         Effect::EmployRetainer { life: 2 },
     ])],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDuring],
-        actor: Actor::Host,
-        requires: &[
+    abilities: &[mode_of(
+        &[Window::ActionDuring],
+        Actor::Host,
+        &[
             Requirement::ActorActing,
             Requirement::RecruitingTzimisceGhoul,
         ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::BurnSelf, Effect::ReduceActionCost(2)],
-    }],
-    riders: &[],
+        &[Effect::BurnSelf, Effect::ReduceActionCost(2)],
+    )],
+    ..CARD
 };
 
 /// "Animal with 1 life. 0 strength, 0 bleed. [ani] This ally can burn 1
@@ -800,9 +631,6 @@ pub static SZLACHTA_ASSISTANT: CardDef = CardDef {
 /// recruited (ANK 20180517).
 pub static UNDERBRIDGE_STRAY: CardDef = CardDef {
     name: "Underbridge Stray",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         recruit(&[Effect::DeclareAction(ActionKind::Recruit)]),
         recruit(&[
@@ -815,31 +643,26 @@ pub static UNDERBRIDGE_STRAY: CardDef = CardDef {
         ]),
     ],
     abilities: &[
+        mode_of(
+            &[Window::CombatPress],
+            Actor::ForOwnCombatant,
+            &[Requirement::LifeAtLeast(1)],
+            &[Effect::BurnOwnLife(1), Effect::Press],
+        ),
         ModeDef {
-            windows: &[Window::CombatPress],
-            actor: Actor::ForOwnCombatant,
-            requires: &[Requirement::LifeAtLeast(1)],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::BurnOwnLife(1), Effect::Press],
-        },
-        ModeDef {
-            windows: &[Window::ReactionDuringAction],
-            actor: Actor::Host,
-            requires: &[Requirement::DirectedAtYou, Requirement::ActorNotBlocking],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[Requirement::Controlled, Requirement::ActorReady],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::BurnSelf, Effect::UnlockTarget],
+            target: target(
+                TargetKind::Minion,
+                &[Requirement::Controlled, Requirement::ActorReady],
+            ),
+            ..mode_of(
+                &[Window::ReactionDuringAction],
+                Actor::Host,
+                &[Requirement::DirectedAtYou, Requirement::ActorNotBlocking],
+                &[Effect::BurnSelf, Effect::UnlockTarget],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Mortal with 3 life. 1 strength, 0 bleed. Operation Antigen. ECTU
@@ -849,38 +672,31 @@ pub static UNDERBRIDGE_STRAY: CardDef = CardDef {
 /// 20.1, 38.2); out of torpor by resolution, the action fizzles.
 pub static ECTU_OPERATIVE: CardDef = CardDef {
     name: "ECTU Operative",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
     abilities: &[
-        ModeDef {
-            windows: &[Window::CombatStrikeDeclaration],
-            actor: Actor::Host,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Strike(StrikeKind::Damage {
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Host,
+            &[],
+            &[Effect::Strike(StrikeKind::Damage {
                 n: 1,
                 ranged: true,
                 aggravated: false,
             })],
-        },
+        ),
         MANEUVER_EACH_COMBAT,
         printed_action(
-            Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[Requirement::TargetVampire, Requirement::TargetInTorpor],
-            }),
+            target(
+                TargetKind::Minion,
+                &[Requirement::TargetVampire, Requirement::TargetInTorpor],
+            ),
             &[
                 Effect::DeclareAction(ActionKind::Ability),
                 Effect::BurnTargetMinion,
             ],
         ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique mortal with 3 life. 1 strength, 1 bleed. Operation Antigen.
@@ -896,41 +712,30 @@ pub static ECTU_OPERATIVE: CardDef = CardDef {
 /// once a round.
 pub static MICHAEL_HARRIS: CardDef = CardDef {
     name: "Michael Harris, the Incinerator",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
     abilities: &[
         printed_action(
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Ability),
                 Effect::AddStealth(1),
                 Effect::SearchEquip,
             ],
         ),
-        ModeDef {
-            windows: &[Window::CombatBeforeRange],
-            actor: Actor::Host,
-            requires: &[Requirement::OpponentVampire, Requirement::PoolAtLeast(1)],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::PayPool(1), Effect::SetRangeClose],
-        },
-        ModeDef {
-            windows: &[Window::CombatBeforeRange],
-            actor: Actor::Host,
-            requires: &[Requirement::OpponentVampire, Requirement::PoolAtLeast(1)],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::PayPool(1), Effect::SetRangeLong],
-        },
+        mode_of(
+            &[Window::CombatBeforeRange],
+            Actor::Host,
+            &[Requirement::OpponentVampire, Requirement::PoolAtLeast(1)],
+            &[Effect::PayPool(1), Effect::SetRange(Range::Close)],
+        ),
+        mode_of(
+            &[Window::CombatBeforeRange],
+            Actor::Host,
+            &[Requirement::OpponentVampire, Requirement::PoolAtLeast(1)],
+            &[Effect::PayPool(1), Effect::SetRange(Range::Long)],
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique mortal with 3 life. 1 strength, 1 bleed. Operation Antigen. If
@@ -943,40 +748,35 @@ pub static MICHAEL_HARRIS: CardDef = CardDef {
 /// effects, as Monster's.
 pub static VALERIE_DIAZ: CardDef = CardDef {
     name: "Valerie Diaz, Antigen Commander",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
     abilities: &[
         ModeDef {
-            windows: &[Window::CombatDamagePrevention],
-            actor: Actor::Host,
-            requires: &[
-                Requirement::OpponentVampire,
-                Requirement::PoolAtLeast(1),
-                Requirement::DamagePending,
-                Requirement::StrikeNormalDamagePending,
-            ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
             limit: Some(Limit::PerRound),
-            effects: &[Effect::PayPool(1), Effect::ImmuneStrikeNonAggravated],
+            ..mode_of(
+                &[Window::CombatDamagePrevention],
+                Actor::Host,
+                &[
+                    Requirement::OpponentVampire,
+                    Requirement::PoolAtLeast(1),
+                    Requirement::DamagePending,
+                    Requirement::StrikeNormalDamagePending,
+                ],
+                &[Effect::PayPool(1), Effect::ImmuneStrikeNonAggravated],
+            )
         },
         ModeDef {
-            windows: &[Window::CombatDamagePrevention],
-            actor: Actor::Host,
-            requires: &[
-                Requirement::OpponentVampire,
-                Requirement::PoolAtLeast(1),
-                Requirement::DamagePending,
-                Requirement::EffectNormalDamagePending,
-            ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
             limit: Some(Limit::PerRound),
-            effects: &[Effect::PayPool(1), Effect::ImmuneEffectNonAggravated],
+            ..mode_of(
+                &[Window::CombatDamagePrevention],
+                Actor::Host,
+                &[
+                    Requirement::OpponentVampire,
+                    Requirement::PoolAtLeast(1),
+                    Requirement::DamagePending,
+                    Requirement::EffectNormalDamagePending,
+                ],
+                &[Effect::PayPool(1), Effect::ImmuneEffectNonAggravated],
+            )
         },
         ability(
             &[Window::ActionAfterCombat],
@@ -986,7 +786,7 @@ pub static VALERIE_DIAZ: CardDef = CardDef {
             &[Effect::UnlockHost],
         ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique mortal with 2 life. 0 strength, 0 bleed. Vagabond Mystic can lock
@@ -996,30 +796,26 @@ pub static VALERIE_DIAZ: CardDef = CardDef {
 /// entering version's (advanced rules 5.5.2).
 pub static VAGABOND_MYSTIC: CardDef = CardDef {
     name: "Vagabond Mystic",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[recruit(&[
         Effect::DeclareAction(ActionKind::Recruit),
         Effect::Layer(Modifier::CannotBlockVampires),
     ])],
     abilities: &[ModeDef {
-        windows: &[Window::AnyImpulse],
-        actor: Actor::Host,
-        requires: &[
-            Requirement::CardUnlocked,
-            Requirement::NotInDamageResolution,
-        ],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::Controlled, Requirement::TargetAllyHurt],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::LockSelf, Effect::BloodToTarget(1)],
+        target: target(
+            TargetKind::Minion,
+            &[Requirement::Controlled, Requirement::TargetAllyHurt],
+        ),
+        ..mode_of(
+            &[Window::AnyImpulse],
+            Actor::Host,
+            &[
+                Requirement::CardUnlocked,
+                Requirement::NotInDamageResolution,
+            ],
+            &[Effect::LockSelf, Effect::BloodToTarget(1)],
+        )
     }],
-    riders: &[],
+    ..CARD
 };
 
 /// "Animal with 1 life. [ani] The employer gets +1 intercept. [ANI] As
@@ -1030,9 +826,6 @@ pub static VAGABOND_MYSTIC: CardDef = CardDef {
 /// 20180318).
 pub static RAPTOR: CardDef = CardDef {
     name: "Raptor",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         employ(&[
             Effect::DeclareAction(ActionKind::Employ),
@@ -1046,8 +839,7 @@ pub static RAPTOR: CardDef = CardDef {
             Effect::Layer(Modifier::OpponentHandSizeInCombat(1)),
         ]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Wraith with 1 life. 1 strength, 1 bleed. You can burn this ally to give
@@ -1059,33 +851,22 @@ pub static RAPTOR: CardDef = CardDef {
 /// resolution (NRA) and was not blocked.
 pub static SCREAMER: CardDef = CardDef {
     name: "Screamer",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
     abilities: &[
-        ModeDef {
-            windows: &[Window::ReactionAsAnnounced, Window::ReactionDuringAction],
-            actor: Actor::Controller,
-            requires: &[Requirement::ActingByPredatorOrPrey],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::BurnSelf, Effect::ReduceStealth(1)],
-        },
-        ModeDef {
-            windows: &[Window::ReactionAsAnnounced],
-            actor: Actor::Controller,
-            requires: &[Requirement::DirectedAtYourAlly],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::BurnSelf, Effect::ActionFails],
-        },
+        mode_of(
+            &[Window::ReactionAsAnnounced, Window::ReactionDuringAction],
+            Actor::Controller,
+            &[Requirement::ActingByPredatorOrPrey],
+            &[Effect::BurnSelf, Effect::ReduceStealth(1)],
+        ),
+        mode_of(
+            &[Window::ReactionAsAnnounced],
+            Actor::Controller,
+            &[Requirement::DirectedAtYourAlly],
+            &[Effect::BurnSelf, Effect::ActionFails],
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique ghoul with 5 life. 4 strength, 0 bleed. After this ally enters
@@ -1096,9 +877,6 @@ pub static SCREAMER: CardDef = CardDef {
 /// unlock this ally." The unlock is offered while the ally is locked.
 pub static VOZHD_OF_SZCZECIN: CardDef = CardDef {
     name: "Vozhd of Szczecin, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[recruit(&[
         Effect::DeclareAction(ActionKind::Recruit),
         Effect::EntryBurnAllyOrRetainer,
@@ -1110,40 +888,39 @@ pub static VOZHD_OF_SZCZECIN: CardDef = CardDef {
             Requirement::TargetVampire,
         ]),
         ModeDef {
-            windows: &[Window::CombatDamagePrevention],
-            actor: Actor::Host,
-            requires: &[
-                Requirement::DamagePending,
-                Requirement::HandHas(CardFilter::Discipline("pro"), 1),
-            ],
-            target: NO_TARGET,
             terms: Some(Terms::Discard {
                 n: 1,
                 of: CardFilter::Discipline("pro"),
             }),
-            waives_needed: false,
             limit: Some(Limit::PerCombat),
-            effects: &[Effect::Prevent(2)],
+            ..mode_of(
+                &[Window::CombatDamagePrevention],
+                Actor::Host,
+                &[
+                    Requirement::DamagePending,
+                    Requirement::HandHas(CardFilter::Discipline("pro"), 1),
+                ],
+                &[Effect::Prevent(2)],
+            )
         },
         ModeDef {
-            windows: &[Window::AnyImpulse],
-            actor: Actor::Controller,
-            requires: &[Requirement::OthersMinionPhase, Requirement::CardLocked],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::Controlled,
                     Requirement::ActorClan("Tzimisce"),
                     Requirement::BloodAtLeast(1),
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::TargetBurnsBlood(1), Effect::UnlockSelf],
+            ),
+            ..mode_of(
+                &[Window::AnyImpulse],
+                Actor::Controller,
+                &[Requirement::OthersMinionPhase, Requirement::CardLocked],
+                &[Effect::TargetBurnsBlood(1), Effect::UnlockSelf],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Zombie with 3 life. 2 strength, 0 bleed. This ally can enter combat
@@ -1154,9 +931,6 @@ pub static VOZHD_OF_SZCZECIN: CardDef = CardDef {
 /// no effect on its strikes, but may still be played (LSJ 20030902-2).
 pub static AGGRESSIVE_CORPSE: CardDef = CardDef {
     name: "Aggressive Corpse",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[recruit(&[
         Effect::DeclareAction(ActionKind::Recruit),
         Effect::Layer(Modifier::ImmuneToDirectedActions(&["dom", "pre"])),
@@ -1167,7 +941,7 @@ pub static AGGRESSIVE_CORPSE: CardDef = CardDef {
         Requirement::NotControlled,
         Requirement::ActorReady,
     ])],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pre] Ⓓ Bleed with +1 bleed. [PRE] +1 stealth action. Ⓓ Steal an ally
@@ -1176,46 +950,31 @@ pub static AGGRESSIVE_CORPSE: CardDef = CardDef {
 /// successful with no effect (PIB 20121031).
 pub static ENTRANCEMENT: CardDef = CardDef {
     name: "Entrancement",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[],
+            &[Effect::DeclareAction(ActionKind::Bleed), bleed(1, false)],
+        ),
         ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::DeclareAction(ActionKind::Bleed),
-                Effect::BleedMod {
-                    n: 1,
-                    limited: false,
-                },
-            ],
-        },
-        ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[Requirement::NotControlled, Requirement::TargetAlly],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::DeclareAction(ActionKind::Card),
-                Effect::AddStealth(1),
-                Effect::StealTargetAlly,
-            ],
+            target: target(
+                TargetKind::Minion,
+                &[Requirement::NotControlled, Requirement::TargetAlly],
+            ),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::ActingCandidate,
+                &[],
+                &[
+                    Effect::DeclareAction(ActionKind::Card),
+                    Effect::AddStealth(1),
+                    Effect::StealTargetAlly,
+                ],
+            )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "+1 stealth action. [dom] Ⓓ Steal a retainer controlled by another
@@ -1225,52 +984,46 @@ pub static ENTRANCEMENT: CardDef = CardDef {
 /// vampires makes the action undirected (rules-qa 17.4).
 pub static FAR_MASTERY: CardDef = CardDef {
     name: "Far Mastery",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[],
-            target: Some(TargetSpec {
-                kind: TargetKind::Card,
-                filter: &[
+            target: target(
+                TargetKind::Card,
+                &[
                     Requirement::TargetCard(CardFilter::Type(CardType::Retainer)),
                     Requirement::TargetOnVampire,
                     Requirement::NotHost,
                     Requirement::ActorMayHoldTarget,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::DeclareAction(ActionKind::Card),
-                Effect::AddStealth(1),
-                Effect::StealTargetCard,
-            ],
+            ),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::ActingCandidate,
+                &[],
+                &[
+                    Effect::DeclareAction(ActionKind::Card),
+                    Effect::AddStealth(1),
+                    Effect::StealTargetCard,
+                ],
+            )
         },
         ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[Requirement::NotControlled, Requirement::TargetAlly],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::DeclareAction(ActionKind::Card),
-                Effect::AddStealth(1),
-                Effect::StealTargetAlly,
-            ],
+            target: target(
+                TargetKind::Minion,
+                &[Requirement::NotControlled, Requirement::TargetAlly],
+            ),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::ActingCandidate,
+                &[],
+                &[
+                    Effect::DeclareAction(ActionKind::Card),
+                    Effect::AddStealth(1),
+                    Effect::StealTargetAlly,
+                ],
+            )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// An action modifier of the acting minion's.
@@ -1279,7 +1032,7 @@ const fn modifier(requires: &'static [Requirement], effects: &'static [Effect]) 
         windows: &[Window::ActionDuring],
         actor: Actor::ActingMinion,
         requires,
-        target: NO_TARGET,
+        target: None,
         terms: None,
         waives_needed: false,
         limit: None,
@@ -1295,16 +1048,12 @@ const ANARCH: Requirement = Requirement::ActorSectIn(&[Sect::Anarch]);
 /// the Discipline used (LSJ 20011204-3).
 pub static INVIGORATE: CardDef = CardDef {
     name: "Invigorate",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         modifier(&[ANARCH], &[Effect::StrengthThisAction(1)]),
         modifier(&[ANARCH], &[Effect::AlliesCannotBlock]),
         modifier(&[ANARCH], &[Effect::AggravatedHandsThisAction]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Requires an Anarch. Put this card on an Anarch. Allies cannot block
@@ -1315,52 +1064,34 @@ pub static INVIGORATE: CardDef = CardDef {
 /// not to an action card paid at resolution (LSJ 20080818).
 pub static LIBERTAS: CardDef = CardDef {
     name: "Libertas",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[Requirement::ControlsReadySect(&[Sect::Anarch])],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::TargetVampire, ANARCH],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
-            Effect::PutOnTarget,
-            Effect::Layer(Modifier::AlliesCannotBlockBearer),
-            Effect::Layer(Modifier::DisciplineSurchargeAround(&["dom", "pre"], 1)),
-        ],
+        target: target(TargetKind::Minion, &[Requirement::TargetVampire, ANARCH]),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[Requirement::ControlsReadySect(&[Sect::Anarch])],
+            &[
+                Effect::PutOnTarget,
+                Effect::Layer(Modifier::AlliesCannotBlockBearer),
+                Effect::Layer(Modifier::DisciplineSurchargeAround(&["dom", "pre"], 1)),
+            ],
+        )
     }],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pre] Allies cannot block this action. [PRE] Only usable during a bleed
 /// action. As above, with +2 bleed (limited)." (Requires a Ravnos.)
 pub static VISIONS_OF_GEHENNA: CardDef = CardDef {
     name: "Visions of Gehenna",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         modifier(&[], &[Effect::AlliesCannotBlock]),
         modifier(
             &[Requirement::IsBleed],
-            &[
-                Effect::AlliesCannotBlock,
-                Effect::BleedMod {
-                    n: 2,
-                    limited: true,
-                },
-            ],
+            &[Effect::AlliesCannotBlock, bleed(2, true)],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[dom] Ⓓ Bleed with +2 bleed. Allies cannot block this action. [DOM] Ⓓ
@@ -1373,57 +1104,42 @@ pub static VISIONS_OF_GEHENNA: CardDef = CardDef {
 /// predator's by resolution makes the action fizzle (LSJ 20020725).
 pub static SLAUGHTERING_THE_HERD: CardDef = CardDef {
     name: "Slaughtering the Herd",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[],
+            &[
                 Effect::DeclareAction(ActionKind::Bleed),
-                Effect::BleedMod {
-                    n: 2,
-                    limited: false,
-                },
+                bleed(2, false),
                 Effect::AlliesCannotBlock,
             ],
-        },
+        ),
         ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::TargetVampire,
                     Requirement::ControlledByPredator,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::DeclareAction(ActionKind::Card), Effect::PutOnTarget],
+            ),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::ActingCandidate,
+                &[],
+                &[Effect::DeclareAction(ActionKind::Card), Effect::PutOnTarget],
+            )
         },
     ],
-    abilities: &[ModeDef {
-        windows: &[Window::AnyImpulse],
-        actor: Actor::Host,
-        requires: &[
+    abilities: &[mode_of(
+        &[Window::AnyImpulse],
+        Actor::Host,
+        &[
             Requirement::OwnMinionPhase,
             Requirement::HostBloodAtLeast(4),
         ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::HostBurnBlood(4), Effect::BurnSelf],
-    }],
+        &[Effect::HostBurnBlood(4), Effect::BurnSelf],
+    )],
     riders: &[
         Rider {
             hook: Hook::HostAnnouncesAction,
@@ -1438,6 +1154,7 @@ pub static SLAUGHTERING_THE_HERD: CardDef = CardDef {
             effects: &[Effect::BurnSelf],
         },
     ],
+    ..CARD
 };
 
 /// "Zombie with 6 life. 3 strength, 0 bleed. [obl] After this ally enters
@@ -1450,9 +1167,6 @@ pub static SLAUGHTERING_THE_HERD: CardDef = CardDef {
 /// (LSJ 20080512).
 pub static ROTTING_BEHEMOTH: CardDef = CardDef {
     name: "Rotting Behemoth",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         recruit(&[
             Effect::DeclareAction(ActionKind::Recruit),
@@ -1467,38 +1181,33 @@ pub static ROTTING_BEHEMOTH: CardDef = CardDef {
     ],
     abilities: &[
         ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::Host,
-            requires: &[],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[Requirement::NotControlled, Requirement::ActorReady],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::DeclareAction(ActionKind::Ability),
-                Effect::PayLife(1),
-                Effect::EnterCombatWithTarget,
-            ],
+            target: target(
+                TargetKind::Minion,
+                &[Requirement::NotControlled, Requirement::ActorReady],
+            ),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::Host,
+                &[],
+                &[
+                    Effect::DeclareAction(ActionKind::Ability),
+                    Effect::PayLife(1),
+                    Effect::EnterCombatWithTarget,
+                ],
+            )
         },
-        ModeDef {
-            windows: &[Window::CombatPress],
-            actor: Actor::Host,
-            requires: &[
+        mode_of(
+            &[Window::CombatPress],
+            Actor::Host,
+            &[
                 Requirement::SuperiorVersion,
                 Requirement::FirstRound,
                 Requirement::LifeAtLeast(1),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::BurnOwnLife(1), Effect::Press],
-        },
+            &[Effect::BurnOwnLife(1), Effect::Press],
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique ghoul with 5 life. 4 strength, 0 bleed. After this ally enters
@@ -1510,9 +1219,6 @@ pub static ROTTING_BEHEMOTH: CardDef = CardDef {
 /// and replaced (spec §1.8.3).
 pub static VOZHD_OF_GRAVESEND: CardDef = CardDef {
     name: "Vozhd of Gravesend, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[recruit(&[
         Effect::DeclareAction(ActionKind::Recruit),
         Effect::EntryBurnAllyOrRetainer,
@@ -1530,24 +1236,20 @@ pub static VOZHD_OF_GRAVESEND: CardDef = CardDef {
             Limit::PerRound,
             &[Effect::Prevent(1)],
         ),
-        ModeDef {
-            windows: &[Window::CardAsPlayed],
-            actor: Actor::Host,
-            requires: &[
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::Host,
+            &[
                 Requirement::PlayedStrikeByOpponent,
                 Requirement::LifeAtLeast(1),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+            &[
                 Effect::BurnOwnLife(1),
                 Effect::CancelPlayed { refund: true },
             ],
-        },
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique ghoul with 5 life. 4 strength, 0 bleed. After this ally enters
@@ -1561,9 +1263,6 @@ pub static VOZHD_OF_GRAVESEND: CardDef = CardDef {
 /// ANK 20180111), and does not have the Discipline (LSJ 19980303).
 pub static VOZHD_OF_JUIZ_DE_FORA: CardDef = CardDef {
     name: "Vozhd of Juiz de Fora, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[recruit(&[
         Effect::DeclareAction(ActionKind::Recruit),
         Effect::EntryBurnAllyOrRetainer,
@@ -1580,24 +1279,24 @@ pub static VOZHD_OF_JUIZ_DE_FORA: CardDef = CardDef {
             Requirement::TargetVampire,
         ]),
         ModeDef {
-            windows: &[Window::UnlockPhaseOwn],
-            actor: Actor::Host,
-            requires: &[Requirement::HostBelowStartingLife],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::Controlled,
                     Requirement::ActorClan("Tzimisce"),
                     Requirement::BloodAtLeast(1),
                 ],
-            }),
+            ),
             terms: Some(Terms::LifeFromTarget),
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::StealBloodToHostX],
+            ..mode_of(
+                &[Window::UnlockPhaseOwn],
+                Actor::Host,
+                &[Requirement::HostBelowStartingLife],
+                &[Effect::StealBloodToHostX],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Wraith with 1 life. 1 strength, 1 bleed. [obl] This ally can perform
@@ -1610,9 +1309,6 @@ pub static VOZHD_OF_JUIZ_DE_FORA: CardDef = CardDef {
 /// vampire, it counts as independent (LSJ 20020503).
 pub static SPECTRAL_SERVITOR: CardDef = CardDef {
     name: "Spectral Servitor",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         recruit(&[
             Effect::DeclareAction(ActionKind::Recruit),
@@ -1635,7 +1331,6 @@ pub static SPECTRAL_SERVITOR: CardDef = CardDef {
             })),
         ]),
     ],
-    abilities: &[],
     riders: &[
         Rider {
             hook: Hook::UnlockPhase,
@@ -1650,6 +1345,7 @@ pub static SPECTRAL_SERVITOR: CardDef = CardDef {
             effects: &[Effect::BurnSelfUnlessPool(1)],
         },
     ],
+    ..CARD
 };
 
 /// "Animal with 1 life. [ani] While the employer is in combat, the opposing
@@ -1658,9 +1354,6 @@ pub static SPECTRAL_SERVITOR: CardDef = CardDef {
 /// it (`GameState::hand_visible_to`).
 pub static OWL_COMPANION: CardDef = CardDef {
     name: "Owl Companion",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         employ(&[
             Effect::DeclareAction(ActionKind::Employ),
@@ -1673,8 +1366,7 @@ pub static OWL_COMPANION: CardDef = CardDef {
             Effect::Layer(Modifier::OpponentOpenHandInCombat),
         ]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// An employ retainer mode: the retainer enters play on the acting minion
@@ -1685,7 +1377,7 @@ const fn employ(effects: &'static [Effect]) -> ModeDef {
         windows: &[Window::ActionDeclareEmploy],
         actor: Actor::ActingCandidate,
         requires: &[],
-        target: NO_TARGET,
+        target: None,
         terms: None,
         waives_needed: false,
         limit: None,
@@ -1704,16 +1396,12 @@ const EMPLOYER_INTERCEPT: Effect = Effect::Layer(Modifier::Bearer {
 /// "Unique mortal with 1 life. The employer gets +1 intercept."
 pub static MR_WINTHROP: CardDef = CardDef {
     name: "Mr. Winthrop",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[employ(&[
         Effect::DeclareAction(ActionKind::Employ),
         Effect::EmployRetainer { life: 1 },
         EMPLOYER_INTERCEPT,
     ])],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Animal with 1 life. [ani] Murder of Crows inflicts 1R damage on the
@@ -1724,9 +1412,6 @@ pub static MR_WINTHROP: CardDef = CardDef {
 /// 19951216), and not again for additional strikes (RTR 19941109).
 pub static MURDER_OF_CROWS: CardDef = CardDef {
     name: "Murder of Crows",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         employ(&[
             Effect::DeclareAction(ActionKind::Employ),
@@ -1739,8 +1424,7 @@ pub static MURDER_OF_CROWS: CardDef = CardDef {
             Effect::Layer(Modifier::RetainerDamage(1)),
         ]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Animal with 1 life. [ani] The employer gets +1 intercept. [ANI] As
@@ -1749,9 +1433,6 @@ pub static MURDER_OF_CROWS: CardDef = CardDef {
 /// 20180612).
 pub static RAVEN_SPY: CardDef = CardDef {
     name: "Raven Spy",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         employ(&[
             Effect::DeclareAction(ActionKind::Employ),
@@ -1764,36 +1445,27 @@ pub static RAVEN_SPY: CardDef = CardDef {
             EMPLOYER_INTERCEPT,
         ]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Ghoul with 2 life. The employer gets +1 intercept." Employed by a
 /// Tzimisce (the card's clan requirement).
 pub static REVENANT: CardDef = CardDef {
     name: "Revenant",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[employ(&[
         Effect::DeclareAction(ActionKind::Employ),
         Effect::EmployRetainer { life: 2 },
         EMPLOYER_INTERCEPT,
     ])],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique mortal with 1 life. 0 strength, 3 bleed." Recruited by a Ventrue
 /// (the card's clan requirement); its type line is all its text.
 pub static POLITICAL_ALLY: CardDef = CardDef {
     name: "Political Ally",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Retainer with 1 life. [pro] During any Methuselah's unlock phase, the
@@ -1801,71 +1473,46 @@ pub static POLITICAL_ALLY: CardDef = CardDef {
 /// life."
 pub static HOMUNCULUS: CardDef = CardDef {
     name: "Homunculus",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::ActionDeclareEmploy],
-            actor: Actor::ActingCandidate,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+        mode_of(
+            &[Window::ActionDeclareEmploy],
+            Actor::ActingCandidate,
+            &[],
+            &[
                 Effect::DeclareAction(ActionKind::Employ),
                 Effect::EmployRetainer { life: 1 },
             ],
-        },
-        ModeDef {
-            windows: &[Window::ActionDeclareEmploy],
-            actor: Actor::ActingCandidate,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+        ),
+        mode_of(
+            &[Window::ActionDeclareEmploy],
+            Actor::ActingCandidate,
+            &[],
+            &[
                 Effect::DeclareAction(ActionKind::Employ),
                 Effect::EmployRetainer { life: 2 },
             ],
-        },
+        ),
     ],
-    abilities: &[ModeDef {
-        windows: &[Window::UnlockPhaseAny],
-        actor: Actor::Host,
-        requires: &[Requirement::HostLocked, Requirement::HostBloodAtLeast(1)],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::HostBurnBloodToUnlock],
-    }],
-    riders: &[],
+    abilities: &[mode_of(
+        &[Window::UnlockPhaseAny],
+        Actor::Host,
+        &[Requirement::HostLocked, Requirement::HostBloodAtLeast(1)],
+        &[Effect::HostBurnBloodToUnlock],
+    )],
+    ..CARD
 };
 
 /// "Only usable during a bleed action. [dom] +1 bleed (limited). [DOM] +1
 /// stealth and +1 bleed (limited)."
 pub static BONDING: CardDef = CardDef {
     name: "Bonding",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::ActionDuring],
-            actor: Actor::ActingMinion,
-            requires: &[Requirement::IsBleed],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::BleedMod {
-                n: 1,
-                limited: true,
-            }],
-        },
+        mode_of(
+            &[Window::ActionDuring],
+            Actor::ActingMinion,
+            &[Requirement::IsBleed],
+            &[bleed(1, true)],
+        ),
         ModeDef {
             // "+1 stealth and +1 bleed": the stealth is the effect's, so
             // it is playable only while stealth is needed — a block attempt
@@ -1874,54 +1521,35 @@ pub static BONDING: CardDef = CardDef {
             windows: &[Window::ActionDuring, Window::ActionStealthIntercept],
             actor: Actor::ActingMinion,
             requires: &[Requirement::IsBleed, Requirement::StealthNeeded],
-            target: NO_TARGET,
+            target: None,
             terms: None,
             waives_needed: false,
             limit: None,
-            effects: &[
-                Effect::AddStealth(1),
-                Effect::BleedMod {
-                    n: 1,
-                    limited: true,
-                },
-            ],
+            effects: &[Effect::AddStealth(1), bleed(1, true)],
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pro] +1 stealth. [PRO] +2 stealth." — a pure stealth modifier: only
 /// when needed (rules-qa 3.2).
 pub static EARTH_CONTROL: CardDef = CardDef {
     name: "Earth Control",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::ActionStealthIntercept],
-            actor: Actor::ActingMinion,
-            requires: &[Requirement::StealthNeeded],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::AddStealth(1)],
-        },
-        ModeDef {
-            windows: &[Window::ActionStealthIntercept],
-            actor: Actor::ActingMinion,
-            requires: &[Requirement::StealthNeeded],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::AddStealth(2)],
-        },
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::ActingMinion,
+            &[Requirement::StealthNeeded],
+            &[Effect::AddStealth(1)],
+        ),
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::ActingMinion,
+            &[Requirement::StealthNeeded],
+            &[Effect::AddStealth(2)],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[cel] Maneuver or press. [CEL] Maneuver with 1 optional press." The
@@ -1929,286 +1557,190 @@ pub static EARTH_CONTROL: CardDef = CardDef {
 /// press in the press step).
 pub static FLASH: CardDef = CardDef {
     name: "Flash",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::CombatDetermineRange, Window::CombatPress],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Maneuver, Effect::Press],
-        },
-        ModeDef {
-            windows: &[Window::CombatDetermineRange],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Maneuver, Effect::OptionalPress],
-        },
+        mode_of(
+            &[Window::CombatDetermineRange, Window::CombatPress],
+            Actor::Combatant,
+            &[],
+            &[Effect::Maneuver, Effect::Press],
+        ),
+        mode_of(
+            &[Window::CombatDetermineRange],
+            Actor::Combatant,
+            &[],
+            &[Effect::Maneuver, Effect::OptionalPress],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable before range is determined. [pot] This vampire gets a
 /// strength of 2 this combat. [POT] … strength of 3 this combat."
 pub static TORN_SIGNPOST: CardDef = CardDef {
     name: "Torn Signpost",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::CombatBeforeRange],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::SetStrength(2)],
-        },
-        ModeDef {
-            windows: &[Window::CombatBeforeRange],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::SetStrength(3)],
-        },
+        mode_of(
+            &[Window::CombatBeforeRange],
+            Actor::Combatant,
+            &[],
+            &[Effect::SetStrength(2)],
+        ),
+        mode_of(
+            &[Window::CombatBeforeRange],
+            Actor::Combatant,
+            &[],
+            &[Effect::SetStrength(3)],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pot] Strike: hand strike at +2 damage. [POT] Strike: hand strike at
 /// +3 damage."
 pub static ROUNDHOUSE: CardDef = CardDef {
     name: "Roundhouse",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::CombatStrikeDeclaration],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Strike(StrikeKind::Hand { bonus: 2 })],
-        },
-        ModeDef {
-            windows: &[Window::CombatStrikeDeclaration],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Strike(StrikeKind::Hand { bonus: 3 })],
-        },
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Combatant,
+            &[],
+            &[Effect::Strike(StrikeKind::Hand { bonus: 2 })],
+        ),
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Combatant,
+            &[],
+            &[Effect::Strike(StrikeKind::Hand { bonus: 3 })],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pro] Strike: 2 aggravated damage. [PRO] Strike: 2R aggravated
 /// damage." (2 blood.)
 pub static BODY_FLARE: CardDef = CardDef {
     name: "Body Flare",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::CombatStrikeDeclaration],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Strike(StrikeKind::Damage {
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Combatant,
+            &[],
+            &[Effect::Strike(StrikeKind::Damage {
                 n: 2,
                 ranged: false,
                 aggravated: true,
             })],
-        },
-        ModeDef {
-            windows: &[Window::CombatStrikeDeclaration],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Strike(StrikeKind::Damage {
+        ),
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Combatant,
+            &[],
+            &[Effect::Strike(StrikeKind::Damage {
                 n: 2,
                 ranged: true,
                 aggravated: true,
             })],
-        },
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[tha] Strike, ranged: steal 1 blood or life (becoming blood). [THA]
 /// … steal 2 blood or life."
 pub static THEFT_OF_VITAE: CardDef = CardDef {
     name: "Theft of Vitae",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::CombatStrikeDeclaration],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Strike(StrikeKind::StealBlood {
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Combatant,
+            &[],
+            &[Effect::Strike(StrikeKind::StealBlood {
                 n: 1,
                 ranged: true,
             })],
-        },
-        ModeDef {
-            windows: &[Window::CombatStrikeDeclaration],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Strike(StrikeKind::StealBlood {
+        ),
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Combatant,
+            &[],
+            &[Effect::Strike(StrikeKind::StealBlood {
                 n: 2,
                 ranged: true,
             })],
-        },
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pre] Strike: combat ends. [PRE] As above, and unlock this vampire
 /// before combat ends." (1 blood.)
 pub static MAJESTY: CardDef = CardDef {
     name: "Majesty",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::CombatStrikeDeclaration],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Strike(StrikeKind::CombatEnds { unlock: false })],
-        },
-        ModeDef {
-            windows: &[Window::CombatStrikeDeclaration],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Strike(StrikeKind::CombatEnds { unlock: true })],
-        },
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Combatant,
+            &[],
+            &[Effect::Strike(StrikeKind::CombatEnds { unlock: false })],
+        ),
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Combatant,
+            &[],
+            &[Effect::Strike(StrikeKind::CombatEnds { unlock: true })],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[cel] Strike: dodge. [CEL] Additional strike (limited)."
 pub static SIDE_STRIKE: CardDef = CardDef {
     name: "Side Strike",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::CombatStrikeDeclaration],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Strike(StrikeKind::Dodge)],
-        },
-        ModeDef {
-            windows: &[Window::CombatAdditionalStrike],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::AdditionalStrikes {
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Combatant,
+            &[],
+            &[Effect::Strike(StrikeKind::Dodge)],
+        ),
+        mode_of(
+            &[Window::CombatAdditionalStrike],
+            Actor::Combatant,
+            &[],
+            &[Effect::AdditionalStrikes {
                 n: 1,
                 limited: true,
             }],
-        },
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[cel] Additional strike (limited). [CEL] 2 additional strikes
 /// (limited)." (1 blood.)
 pub static BLUR: CardDef = CardDef {
     name: "Blur",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::CombatAdditionalStrike],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::AdditionalStrikes {
+        mode_of(
+            &[Window::CombatAdditionalStrike],
+            Actor::Combatant,
+            &[],
+            &[Effect::AdditionalStrikes {
                 n: 1,
                 limited: true,
             }],
-        },
-        ModeDef {
-            windows: &[Window::CombatAdditionalStrike],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::AdditionalStrikes {
+        ),
+        mode_of(
+            &[Window::CombatAdditionalStrike],
+            Actor::Combatant,
+            &[],
+            &[Effect::AdditionalStrikes {
                 n: 2,
                 limited: true,
             }],
-        },
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Grapple. Only usable at close range before strikes are chosen. A
@@ -2219,37 +1751,31 @@ pub static BLUR: CardDef = CardDef {
 /// step for that round)."
 pub static IMMORTAL_GRAPPLE: CardDef = CardDef {
     name: "Immortal Grapple",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
-            windows: &[Window::CombatBeforeStrikes],
-            actor: Actor::Combatant,
-            requires: &[Requirement::RangeClose],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
             limit: Some(Limit::PerRound),
-            effects: &[Effect::OnlyHandStrikes],
+            ..mode_of(
+                &[Window::CombatBeforeStrikes],
+                Actor::Combatant,
+                &[Requirement::RangeClose],
+                &[Effect::OnlyHandStrikes],
+            )
         },
         ModeDef {
-            windows: &[Window::CombatBeforeStrikes],
-            actor: Actor::Combatant,
-            requires: &[Requirement::RangeClose],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
             limit: Some(Limit::PerRound),
-            effects: &[
-                Effect::OnlyHandStrikes,
-                Effect::OptionalPress,
-                Effect::NextRoundClose,
-            ],
+            ..mode_of(
+                &[Window::CombatBeforeStrikes],
+                Actor::Combatant,
+                &[Requirement::RangeClose],
+                &[
+                    Effect::OnlyHandStrikes,
+                    Effect::OptionalPress,
+                    Effect::NextRoundClose,
+                ],
+            )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[for] Prevent X+1 damage. [FOR] As above, with 1 optional press." X is
@@ -2257,99 +1783,75 @@ pub static IMMORTAL_GRAPPLE: CardDef = CardDef {
 /// exceed what is needed, and the card needs damage to prevent (rulings).
 pub static HIDDEN_STRENGTH: CardDef = CardDef {
     name: "Hidden Strength",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
-            windows: &[Window::CombatDamagePrevention],
-            actor: Actor::Combatant,
-            requires: &[Requirement::DamagePending],
-            target: NO_TARGET,
             terms: Some(Terms::XBlood),
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::PreventXPlus(1)],
+            ..mode_of(
+                &[Window::CombatDamagePrevention],
+                Actor::Combatant,
+                &[Requirement::DamagePending],
+                &[Effect::PreventXPlus(1)],
+            )
         },
         ModeDef {
-            windows: &[Window::CombatDamagePrevention],
-            actor: Actor::Combatant,
-            requires: &[Requirement::DamagePending],
-            target: NO_TARGET,
             terms: Some(Terms::XBlood),
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::PreventXPlus(1), Effect::OptionalPress],
+            ..mode_of(
+                &[Window::CombatDamagePrevention],
+                Actor::Combatant,
+                &[Requirement::DamagePending],
+                &[Effect::PreventXPlus(1), Effect::OptionalPress],
+            )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "A vampire can play only one Soak each round. [for] Prevent 2
 /// non-aggravated damage. [FOR] Prevent 4 non-aggravated damage."
 pub static SOAK: CardDef = CardDef {
     name: "Soak",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
-            windows: &[Window::CombatDamagePrevention],
-            actor: Actor::Combatant,
-            requires: &[Requirement::NonAggravatedDamagePending],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
             limit: Some(Limit::PerRound),
-            effects: &[Effect::PreventNonAggravated(2)],
+            ..mode_of(
+                &[Window::CombatDamagePrevention],
+                Actor::Combatant,
+                &[Requirement::NonAggravatedDamagePending],
+                &[Effect::PreventNonAggravated(2)],
+            )
         },
         ModeDef {
-            windows: &[Window::CombatDamagePrevention],
-            actor: Actor::Combatant,
-            requires: &[Requirement::NonAggravatedDamagePending],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
             limit: Some(Limit::PerRound),
-            effects: &[Effect::PreventNonAggravated(4)],
+            ..mode_of(
+                &[Window::CombatDamagePrevention],
+                Actor::Combatant,
+                &[Requirement::NonAggravatedDamagePending],
+                &[Effect::PreventNonAggravated(4)],
+            )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[for] Prevent 1 damage. [FOR] Press, or prevent 1 damage with 1
 /// optional press." In the press step only the press applies.
 pub static INDOMITABILITY: CardDef = CardDef {
     name: "Indomitability",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::CombatDamagePrevention],
-            actor: Actor::Combatant,
-            requires: &[Requirement::DamagePending],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Prevent(1)],
-        },
-        ModeDef {
-            windows: &[Window::CombatDamagePrevention, Window::CombatPress],
-            actor: Actor::Combatant,
-            requires: &[Requirement::DamagePending],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Prevent(1), Effect::OptionalPress, Effect::Press],
-        },
+        mode_of(
+            &[Window::CombatDamagePrevention],
+            Actor::Combatant,
+            &[Requirement::DamagePending],
+            &[Effect::Prevent(1)],
+        ),
+        mode_of(
+            &[Window::CombatDamagePrevention, Window::CombatPress],
+            Actor::Combatant,
+            &[Requirement::DamagePending],
+            &[Effect::Prevent(1), Effect::OptionalPress, Effect::Press],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pro] Damage from this vampire's hand strikes is aggravated this round.
@@ -2357,33 +1859,21 @@ pub static INDOMITABILITY: CardDef = CardDef {
 /// impulse before the strike resolution it affects (rules-qa 2.2).
 pub static CLAWS_OF_THE_DEAD: CardDef = CardDef {
     name: "Claws of the Dead",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::CombatUntimed],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::AggravatedHands],
-        },
-        ModeDef {
-            windows: &[Window::CombatDetermineRange],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Maneuver],
-        },
+        mode_of(
+            &[Window::CombatUntimed],
+            Actor::Combatant,
+            &[],
+            &[Effect::AggravatedHands],
+        ),
+        mode_of(
+            &[Window::CombatDetermineRange],
+            Actor::Combatant,
+            &[],
+            &[Effect::Maneuver],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable at the end of a round of combat. Not usable by a vampire
@@ -2392,25 +1882,20 @@ pub static CLAWS_OF_THE_DEAD: CardDef = CardDef {
 /// lost by the opposing vampire to damage this round."
 pub static TASTE_OF_VITAE: CardDef = CardDef {
     name: "Taste of Vitae",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::CombatEndOfRound],
-        actor: Actor::Combatant,
-        requires: &[
-            Requirement::ActorVampire,
-            Requirement::OpponentVampire,
-            Requirement::ActorReady,
-        ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
         limit: Some(Limit::PerRound),
-        effects: &[Effect::GainBloodLostByOpponent],
+        ..mode_of(
+            &[Window::CombatEndOfRound],
+            Actor::Combatant,
+            &[
+                Requirement::ActorVampire,
+                Requirement::OpponentVampire,
+                Requirement::ActorReady,
+            ],
+            &[Effect::GainBloodLostByOpponent],
+        )
     }],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[aus] Press, only usable to continue combat. If another round of combat
@@ -2419,36 +1904,24 @@ pub static TASTE_OF_VITAE: CardDef = CardDef {
 /// Instead, start a new round." (1 blood.)
 pub static TELEPATHIC_TRACKING: CardDef = CardDef {
     name: "Telepathic Tracking",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::CombatPress],
-            actor: Actor::Combatant,
-            requires: &[Requirement::NoContinuePress],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Press, Effect::NextRoundManeuver],
-        },
-        ModeDef {
-            windows: &[Window::CombatWouldEnd],
-            actor: Actor::Combatant,
-            requires: &[
+        mode_of(
+            &[Window::CombatPress],
+            Actor::Combatant,
+            &[Requirement::NoContinuePress],
+            &[Effect::Press, Effect::NextRoundManeuver],
+        ),
+        mode_of(
+            &[Window::CombatWouldEnd],
+            Actor::Combatant,
+            &[
                 Requirement::BothCombatantsReady,
                 Requirement::CombatWouldEnd,
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::NewRound],
-        },
+            &[Effect::NewRound],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[ani] Only usable by a locked vampire who has blocked, after block
@@ -2456,33 +1929,21 @@ pub static TELEPATHIC_TRACKING: CardDef = CardDef {
 /// point is the after-combat window (rules-qa 2.1).
 pub static CATS_GUIDANCE: CardDef = CardDef {
     name: "Cats' Guidance",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::ActionAfterCombat],
-            actor: Actor::ReactingMinion,
-            requires: &[Requirement::LockedActor, Requirement::ActorHasBlocked],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::UnlockActor],
-        },
-        ModeDef {
-            windows: &[Window::ActionStealthIntercept],
-            actor: Actor::ReactingMinion,
-            requires: &[Requirement::InterceptNeeded],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::AddIntercept(1)],
-        },
+        mode_of(
+            &[Window::ActionAfterCombat],
+            Actor::ReactingMinion,
+            &[Requirement::LockedActor, Requirement::ActorHasBlocked],
+            &[Effect::UnlockActor],
+        ),
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::ReactingMinion,
+            &[Requirement::InterceptNeeded],
+            &[Effect::AddIntercept(1)],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pro] Strike: dodge. [PRO] Strike: combat ends. After combat ends, if
@@ -2491,39 +1952,30 @@ pub static CATS_GUIDANCE: CardDef = CardDef {
 /// vampire can play only one Form of Mist at superior each action."
 pub static FORM_OF_MIST: CardDef = CardDef {
     name: "Form of Mist",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Combatant,
+            &[],
+            &[Effect::Strike(StrikeKind::Dodge)],
+        ),
         ModeDef {
-            windows: &[Window::CombatStrikeDeclaration],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Strike(StrikeKind::Dodge)],
-        },
-        ModeDef {
-            windows: &[Window::CombatStrikeDeclaration],
-            actor: Actor::Combatant,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
             limit: Some(Limit::PerAction),
-            effects: &[
-                Effect::Strike(StrikeKind::CombatEnds { unlock: false }),
-                Effect::ContinueAfterCombat {
-                    blood: 1,
-                    stealth: 1,
-                },
-            ],
+            ..mode_of(
+                &[Window::CombatStrikeDeclaration],
+                Actor::Combatant,
+                &[],
+                &[
+                    Effect::Strike(StrikeKind::CombatEnds { unlock: false }),
+                    Effect::ContinueAfterCombat {
+                        blood: 1,
+                        stealth: 1,
+                    },
+                ],
+            )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Politics (slice 4) -------------------------------------------------
@@ -2535,24 +1987,16 @@ macro_rules! political {
         #[doc = $doc]
         pub static $name: CardDef = CardDef {
             name: $printed,
-            trifle: false,
-            out_of_turn: false,
-            delayed_replacement: None,
-            modes: &[ModeDef {
-                windows: &[Window::ActionDeclarePolitical],
-                actor: Actor::ActingCandidate,
-                requires: $requires,
-                target: NO_TARGET,
-                terms: None,
-                waives_needed: false,
-                limit: None,
-                effects: &[
+            modes: &[mode_of(
+                &[Window::ActionDeclarePolitical],
+                Actor::ActingCandidate,
+                $requires,
+                &[
                     Effect::DeclareAction(ActionKind::Political),
                     Effect::CallReferendum(&$r),
                 ],
-            }],
-            abilities: &[],
-            riders: &[],
+            )],
+            ..CARD
         };
     };
 }
@@ -2664,39 +2108,24 @@ political!(
 /// vampire gets +2 votes. [PRE] This vampire gets +4 votes."
 pub static BEWITCHING_ORATION: CardDef = CardDef {
     name: "Bewitching Oration",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::Referendum],
-            actor: Actor::ActingMinion,
-            requires: &[Requirement::PollingStep],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::AddVotes(2)],
-        },
-        ModeDef {
-            windows: &[Window::Referendum],
-            actor: Actor::ActingMinion,
-            requires: &[Requirement::PollingStep],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::AddVotes(4)],
-        },
+        mode_of(
+            &[Window::Referendum],
+            Actor::ActingMinion,
+            &[Requirement::PollingStep],
+            &[Effect::AddVotes(2)],
+        ),
+        mode_of(
+            &[Window::Referendum],
+            Actor::ActingMinion,
+            &[Requirement::PollingStep],
+            &[Effect::AddVotes(4)],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
-const HAS_CAST_VOTES: Option<TargetSpec> = Some(TargetSpec {
-    kind: TargetKind::Minion,
-    filter: &[Requirement::HasCastVotes],
-});
+const HAS_CAST_VOTES: Option<TargetSpec> = target(TargetKind::Minion, &[Requirement::HasCastVotes]);
 
 /// "Only usable during the polling step of a political action. [cel][pre]
 /// Choose a vampire who has cast votes or ballots in this referendum. The
@@ -2705,39 +2134,33 @@ const HAS_CAST_VOTES: Option<TargetSpec> = Some(TargetSpec {
 /// blood." Action Modifier/Reaction: the acting minion, or a reacting one.
 pub static SCALPEL_TONGUE: CardDef = CardDef {
     name: "Scalpel Tongue",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
-            windows: &[Window::Referendum],
-            actor: Actor::ActingOrReactingMinion,
-            requires: &[Requirement::PollingStep],
             target: HAS_CAST_VOTES,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Abstain {
-                lock: true,
-                burn: 0,
-            }],
+            ..mode_of(
+                &[Window::Referendum],
+                Actor::ActingOrReactingMinion,
+                &[Requirement::PollingStep],
+                &[Effect::Abstain {
+                    lock: true,
+                    burn: 0,
+                }],
+            )
         },
         ModeDef {
-            windows: &[Window::Referendum],
-            actor: Actor::ActingOrReactingMinion,
-            requires: &[Requirement::PollingStep],
             target: HAS_CAST_VOTES,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Abstain {
-                lock: true,
-                burn: 1,
-            }],
+            ..mode_of(
+                &[Window::Referendum],
+                Actor::ActingOrReactingMinion,
+                &[Requirement::PollingStep],
+                &[Effect::Abstain {
+                    lock: true,
+                    burn: 1,
+                }],
+            )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 static RECKLESS_AGITATION_REFERENDUM: ReferendumDef = ReferendumDef {
@@ -2899,16 +2322,7 @@ political!(
 /// A polling-step vote modifier: one mode, `actor`, +`n` votes.
 macro_rules! polling_mode {
     ($actor:expr, $requires:expr, $effects:expr) => {
-        ModeDef {
-            windows: &[Window::Referendum],
-            actor: $actor,
-            requires: $requires,
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: $effects,
-        }
+        mode_of(&[Window::Referendum], $actor, $requires, $effects)
     };
 }
 
@@ -2916,16 +2330,12 @@ macro_rules! polling_mode {
 /// Lasombra gets +3 votes." Action Modifier/Reaction.
 pub static OMINOUS_CHORUS: CardDef = CardDef {
     name: "Ominous Chorus",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[polling_mode!(
         Actor::ActingOrReactingMinion,
         &[Requirement::PollingStep],
         &[Effect::AddVotes(3)]
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pre] Only usable during the polling step of a political action. This
@@ -2934,28 +2344,20 @@ pub static OMINOUS_CHORUS: CardDef = CardDef {
 /// before resolution (LSJ 20020612).
 pub static PERFECT_PARAGON: CardDef = CardDef {
     name: "Perfect Paragon",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         polling_mode!(
             Actor::ActingMinion,
             &[Requirement::PollingStep],
             &[Effect::AddVotes(3)]
         ),
-        ModeDef {
-            windows: &[Window::ActionDuring],
-            actor: Actor::ActingMinion,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::YoungerIntercept(-1)],
-        },
+        mode_of(
+            &[Window::ActionDuring],
+            Actor::ActingMinion,
+            &[],
+            &[Effect::YoungerIntercept(-1)],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Do not replace until your next unlock phase. [obf] Only usable during a
@@ -2963,31 +2365,21 @@ pub static PERFECT_PARAGON: CardDef = CardDef {
 /// step of a political action. This vampire gets +2 votes."
 pub static OLD_FRIENDS: CardDef = CardDef {
     name: "Old Friends",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::NextUnlockPhase),
     modes: &[
-        ModeDef {
-            windows: &[Window::ActionDuring],
-            actor: Actor::ActingMinion,
-            requires: &[Requirement::IsBleed],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::BleedMod {
-                n: 1,
-                limited: true,
-            }],
-        },
+        mode_of(
+            &[Window::ActionDuring],
+            Actor::ActingMinion,
+            &[Requirement::IsBleed],
+            &[bleed(1, true)],
+        ),
         polling_mode!(
             Actor::ActingMinion,
             &[Requirement::PollingStep],
             &[Effect::AddVotes(2)]
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Requires an Anarch. [obf] Reduce a bleed against you by 2. [pre] Only
@@ -2995,24 +2387,17 @@ pub static OLD_FRIENDS: CardDef = CardDef {
 /// +2 votes. [pro] +1 intercept."
 pub static PARTY_OUT_OF_BOUNDS: CardDef = CardDef {
     name: "Party Out Of Bounds",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::ReactionDuringAction],
-            actor: Actor::ReactingMinion,
-            requires: &[
+        mode_of(
+            &[Window::ReactionDuringAction],
+            Actor::ReactingMinion,
+            &[
                 Requirement::ActorSectIn(&[Sect::Anarch]),
                 Requirement::DirectedAtYou,
                 Requirement::IsBleed,
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::ReduceBleed(2)],
-        },
+            &[Effect::ReduceBleed(2)],
+        ),
         polling_mode!(
             Actor::ReactingMinion,
             &[
@@ -3021,22 +2406,17 @@ pub static PARTY_OUT_OF_BOUNDS: CardDef = CardDef {
             ],
             &[Effect::AddVotes(2)]
         ),
-        ModeDef {
-            windows: &[Window::ActionStealthIntercept],
-            actor: Actor::ReactingMinion,
-            requires: &[
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::ReactingMinion,
+            &[
                 Requirement::ActorSectIn(&[Sect::Anarch]),
                 Requirement::InterceptNeeded,
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::AddIntercept(1)],
-        },
+            &[Effect::AddIntercept(1)],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Requires a primogen. Only usable during a bleed action against you or
@@ -3046,27 +2426,19 @@ pub static PARTY_OUT_OF_BOUNDS: CardDef = CardDef {
 /// 20031115, 20031119).
 pub static PROTECTED_DISTRICT: CardDef = CardDef {
     name: "Protected District",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::Referendum, Window::ReactionDuringAction],
-        actor: Actor::ReactingMinion,
-        requires: &[
+    modes: &[mode_of(
+        &[Window::Referendum, Window::ReactionDuringAction],
+        Actor::ReactingMinion,
+        &[
             Requirement::ActorTitleIn(&[TitleClass::Primogen]),
             Requirement::AnyOf(&[
                 &[Requirement::DirectedAtYou, Requirement::IsBleed],
                 &[Requirement::PollingStep, Requirement::ActorNotVotingFor],
             ]),
         ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::ReduceBleed(3), Effect::AddVotesAgainst(3)],
-    }],
-    abilities: &[],
-    riders: &[],
+        &[Effect::ReduceBleed(3), Effect::AddVotesAgainst(3)],
+    )],
+    ..CARD
 };
 
 /// "Only usable during the polling step of a political action. Methuselahs
@@ -3076,22 +2448,15 @@ pub static PROTECTED_DISTRICT: CardDef = CardDef {
 /// 19951110).
 pub static SCORN_OF_ADONIS: CardDef = CardDef {
     name: "Scorn of Adonis",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[polling_mode!(
         Actor::ActingMinion,
         &[Requirement::PollingStep],
         &[Effect::TallyPenaltyAgainst(1)]
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
-const ANY_VAMPIRE: Option<TargetSpec> = Some(TargetSpec {
-    kind: TargetKind::Minion,
-    filter: &[],
-});
+const ANY_VAMPIRE: Option<TargetSpec> = target(TargetKind::Minion, &[]);
 
 /// "Only usable during the polling step of a political action. [aus] Cancel
 /// the referendum. If you played a political action card to call this
@@ -3100,9 +2465,6 @@ const ANY_VAMPIRE: Option<TargetSpec> = Some(TargetSpec {
 /// ballots)."
 pub static TELEPATHIC_VOTE_COUNTING: CardDef = CardDef {
     name: "Telepathic Vote Counting",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         polling_mode!(
             Actor::ActingMinion,
@@ -3113,21 +2475,19 @@ pub static TELEPATHIC_VOTE_COUNTING: CardDef = CardDef {
             }]
         ),
         ModeDef {
-            windows: &[Window::Referendum],
-            actor: Actor::ActingMinion,
-            requires: &[Requirement::PollingStep],
             target: ANY_VAMPIRE,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Abstain {
-                lock: false,
-                burn: 0,
-            }],
+            ..mode_of(
+                &[Window::Referendum],
+                Actor::ActingMinion,
+                &[Requirement::PollingStep],
+                &[Effect::Abstain {
+                    lock: false,
+                    burn: 0,
+                }],
+            )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable during the polling step of a political action. Cancel the
@@ -3138,9 +2498,6 @@ pub static TELEPATHIC_VOTE_COUNTING: CardDef = CardDef {
 /// has still taken its political action (RTR 19970630).
 pub static DELAYING_TACTICS: CardDef = CardDef {
     name: "Delaying Tactics",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[polling_mode!(
         Actor::ReactingMinion,
         &[Requirement::PollingStep],
@@ -3149,8 +2506,7 @@ pub static DELAYING_TACTICS: CardDef = CardDef {
             forbid_repeat: true,
         }]
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Requires a prince, justicar or Inner Circle member. Only usable during
@@ -3159,9 +2515,6 @@ pub static DELAYING_TACTICS: CardDef = CardDef {
 /// referendum."
 pub static CLOSED_SESSION: CardDef = CardDef {
     name: "Closed Session",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[polling_mode!(
         Actor::ActingMinion,
         &[
@@ -3171,8 +2524,7 @@ pub static CLOSED_SESSION: CardDef = CardDef {
         ],
         &[Effect::BarNonCamarillaVotes]
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable after resolution of a political action whose referendum
@@ -3185,25 +2537,17 @@ pub static CLOSED_SESSION: CardDef = CardDef {
 /// with no polling step passes by 0 (LSJ 19980107, PIB 20150105).
 pub static AMICI_NOCTIS: CardDef = CardDef {
     name: "Amici Noctis",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::ActionAfterResolution],
-        actor: Actor::ActingMinion,
-        requires: &[Requirement::IsPolitical, Requirement::ReferendumPassed],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::DistributeMargin {
+    modes: &[mode_of(
+        &[Window::ActionAfterResolution],
+        Actor::ActingMinion,
+        &[Requirement::IsPolitical, Requirement::ReferendumPassed],
+        &[Effect::DistributeMargin {
             clan: "Lasombra",
             pool: 1,
             titled_pool: 2,
         }],
-    }],
-    abilities: &[],
-    riders: &[],
+    )],
+    ..CARD
 };
 
 /// "Only usable after resolution of a political action whose referendum
@@ -3212,33 +2556,24 @@ pub static AMICI_NOCTIS: CardDef = CardDef {
 /// your pool instead of this vampire."
 pub static VOTER_CAPTIVATION: CardDef = CardDef {
     name: "Voter Captivation",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
+        mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::ActingMinion,
+            &[Requirement::IsPolitical, Requirement::ReferendumPassed],
+            &[Effect::GainBloodPerMargin],
+        ),
         ModeDef {
-            windows: &[Window::ActionAfterResolution],
-            actor: Actor::ActingMinion,
-            requires: &[Requirement::IsPolitical, Requirement::ReferendumPassed],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::GainBloodPerMargin],
-        },
-        ModeDef {
-            windows: &[Window::ActionAfterResolution],
-            actor: Actor::ActingMinion,
-            requires: &[Requirement::IsPolitical, Requirement::ReferendumPassed],
-            target: NO_TARGET,
             terms: Some(Terms::UpToMargin(2)),
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::GainBloodPerMargin],
+            ..mode_of(
+                &[Window::ActionAfterResolution],
+                Actor::ActingMinion,
+                &[Requirement::IsPolitical, Requirement::ReferendumPassed],
+                &[Effect::GainBloodPerMargin],
+            )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 pub static DEFS: [&CardDef; 425] = [
@@ -3689,33 +3024,22 @@ static BURN_THIS_CARD: ReferendumDef = ReferendumDef {
 /// with (rules-qa 6.2).
 pub static ANARCH_REVOLT: CardDef = CardDef {
     name: "Anarch Revolt",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::PutInPlay],
-    }],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDeclarePolitical],
-        actor: Actor::ActingCandidate,
-        requires: &[Requirement::ActorVampire],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[],
+        &[Effect::PutInPlay],
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionDeclarePolitical],
+        Actor::ActingCandidate,
+        &[Requirement::ActorVampire],
+        &[
             Effect::DeclareAction(ActionKind::Political),
             Effect::AddStealth(1),
             Effect::CallReferendum(&BURN_THIS_CARD),
         ],
-    }],
+    )],
     riders: &[Rider {
         hook: Hook::UnlockPhase,
         scope: RiderScope::Every,
@@ -3725,6 +3049,7 @@ pub static ANARCH_REVOLT: CardDef = CardDef {
             pool: 1,
         }],
     }],
+    ..CARD
 };
 
 /// "Put this card on a ready vampire you control. This vampire gets +1
@@ -3734,38 +3059,33 @@ pub static ANARCH_REVOLT: CardDef = CardDef {
 /// no as-played window); the burn fires as the host goes to torpor.
 pub static GUARDIAN_ANGEL: CardDef = CardDef {
     name: "Guardian Angel",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[
+        target: target(
+            TargetKind::Minion,
+            &[
                 Requirement::TargetVampire,
                 Requirement::Controlled,
                 Requirement::ActorReady,
             ],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
-            Effect::PutOnTarget,
-            Effect::Layer(Modifier::HostInterceptOnBleedAtYou(1)),
-        ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutOnTarget,
+                Effect::Layer(Modifier::HostInterceptOnBleedAtYou(1)),
+            ],
+        )
     }],
     abilities: &[ModeDef {
-        windows: &[Window::CombatDamagePrevention],
-        actor: Actor::Host,
-        requires: &[Requirement::DamagePending],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
         limit: Some(Limit::PerCombat),
-        effects: &[Effect::Prevent(1)],
+        ..mode_of(
+            &[Window::CombatDamagePrevention],
+            Actor::Host,
+            &[Requirement::DamagePending],
+            &[Effect::Prevent(1)],
+        )
     }],
     riders: &[Rider {
         hook: Hook::HostToTorpor,
@@ -3773,6 +3093,7 @@ pub static GUARDIAN_ANGEL: CardDef = CardDef {
         requires: &[],
         effects: &[Effect::BurnSelf],
     }],
+    ..CARD
 };
 
 /// "Unique. Put this card on a ready vampire. After this vampire goes to
@@ -3783,23 +3104,18 @@ pub static GUARDIAN_ANGEL: CardDef = CardDef {
 /// unlock rider is every Methuselah's own, read at their unlock phase.
 pub static FAME: CardDef = CardDef {
     name: "Fame",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::TargetVampire, Requirement::ActorReady],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::PutOnTarget],
+        target: target(
+            TargetKind::Minion,
+            &[Requirement::TargetVampire, Requirement::ActorReady],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[Effect::PutOnTarget],
+        )
     }],
-    abilities: &[],
     riders: &[
         Rider {
             hook: Hook::HostToTorpor,
@@ -3814,6 +3130,7 @@ pub static FAME: CardDef = CardDef {
             effects: &[Effect::BurnPool(1)],
         },
     ],
+    ..CARD
 };
 
 /// "Unique. Put this card in play. After a ready minion is burned or sent
@@ -3824,34 +3141,26 @@ pub static FAME: CardDef = CardDef {
 /// own master phase, its two discards announced with the use.
 pub static TENSION_IN_THE_RANKS: CardDef = CardDef {
     name: "Tension in the Ranks",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::PutInPlay],
-    }],
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[],
+        &[Effect::PutInPlay],
+    )],
     abilities: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[
-            Requirement::MasterPhaseActionLeft,
-            Requirement::HandHas(CardFilter::Type(CardType::Master), 2),
-        ],
-        target: NO_TARGET,
         terms: Some(Terms::Discard {
             n: 2,
             of: CardFilter::Type(CardType::Master),
         }),
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::SpendMasterPhaseAction, Effect::BurnSelf],
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[
+                Requirement::MasterPhaseActionLeft,
+                Requirement::HandHas(CardFilter::Type(CardType::Master), 2),
+            ],
+            &[Effect::SpendMasterPhaseAction, Effect::BurnSelf],
+        )
     }],
     riders: &[Rider {
         hook: Hook::ReadyMinionBurnedOrTorpor,
@@ -3859,6 +3168,7 @@ pub static TENSION_IN_THE_RANKS: CardDef = CardDef {
         requires: &[],
         effects: &[Effect::TheirControllerBurnsPool(1)],
     }],
+    ..CARD
 };
 
 /// "Unique. Put this card in play. During your unlock phase, move 1
@@ -3870,32 +3180,21 @@ pub static TENSION_IN_THE_RANKS: CardDef = CardDef {
 /// (`Flow::RiderTerms`); the burn is a granted directed action.
 pub static SMILING_JACK: CardDef = CardDef {
     name: "Smiling Jack, The Anarch",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::PutInPlay],
-    }],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::ActingCandidate,
-        requires: &[Requirement::ActorVampire],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[],
+        &[Effect::PutInPlay],
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::ActingCandidate,
+        &[Requirement::ActorVampire],
+        &[
             Effect::DeclareAction(ActionKind::BurnCard),
             Effect::BurnSource,
         ],
-    }],
+    )],
     riders: &[
         Rider {
             hook: Hook::UnlockPhase,
@@ -3910,6 +3209,7 @@ pub static SMILING_JACK: CardDef = CardDef {
             effects: &[Effect::PoolOrBloodPerCounter],
         },
     ],
+    ..CARD
 };
 
 /// "Unique. Put this card in play. Add 1 counter to this card each time
@@ -3923,70 +3223,51 @@ pub static SMILING_JACK: CardDef = CardDef {
 /// its effect resolves.
 pub static DREAMS_OF_THE_SPHINX: CardDef = CardDef {
     name: "Dreams of the Sphinx",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::PutInPlay],
-    }],
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[],
+        &[Effect::PutInPlay],
+    )],
     abilities: &[
-        ModeDef {
-            windows: &[Window::AnyImpulse],
-            actor: Actor::Controller,
-            requires: &[Requirement::CardUnlocked],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+        mode_of(
+            &[Window::AnyImpulse],
+            Actor::Controller,
+            &[Requirement::CardUnlocked],
+            &[
                 Effect::LockSelf,
                 Effect::AddCounter(1),
                 Effect::HandSizeBonusUntilEndOfTurn(2),
                 Effect::BurnSelfAtCounters(3),
             ],
-        },
-        ModeDef {
-            windows: &[Window::UnlockPhaseOwn],
-            actor: Actor::Controller,
-            requires: &[Requirement::CardUnlocked, Requirement::HasEdge],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+        ),
+        mode_of(
+            &[Window::UnlockPhaseOwn],
+            Actor::Controller,
+            &[Requirement::CardUnlocked, Requirement::HasEdge],
+            &[
                 Effect::LockSelf,
                 Effect::AddCounter(1),
                 Effect::GainPool(1),
                 Effect::BurnSelfAtCounters(3),
             ],
-        },
+        ),
         ModeDef {
-            windows: &[Window::AnyImpulse],
-            actor: Actor::Controller,
-            requires: &[Requirement::CardUnlocked],
-            target: Some(TargetSpec {
-                kind: TargetKind::Uncontrolled,
-                filter: &[],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::LockSelf,
-                Effect::AddCounter(1),
-                Effect::BloodToUncontrolledTarget(1),
-                Effect::BurnSelfAtCounters(3),
-            ],
+            target: target(TargetKind::Uncontrolled, &[]),
+            ..mode_of(
+                &[Window::AnyImpulse],
+                Actor::Controller,
+                &[Requirement::CardUnlocked],
+                &[
+                    Effect::LockSelf,
+                    Effect::AddCounter(1),
+                    Effect::BloodToUncontrolledTarget(1),
+                    Effect::BurnSelfAtCounters(3),
+                ],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. You can lock this card to discard a card (draw up
@@ -3995,33 +3276,25 @@ pub static DREAMS_OF_THE_SPHINX: CardDef = CardDef {
 /// discard is announced with the use and replaced.
 pub static THE_BARRENS: CardDef = CardDef {
     name: "Barrens, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::PutInPlay],
-    }],
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[],
+        &[Effect::PutInPlay],
+    )],
     abilities: &[ModeDef {
-        windows: &[Window::AnyImpulse],
-        actor: Actor::Controller,
-        requires: &[Requirement::CardUnlocked, Requirement::HandNotEmpty],
-        target: NO_TARGET,
         terms: Some(Terms::Discard {
             n: 1,
             of: CardFilter::Any,
         }),
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::LockSelf],
+        ..mode_of(
+            &[Window::AnyImpulse],
+            Actor::Controller,
+            &[Requirement::CardUnlocked, Requirement::HandNotEmpty],
+            &[Effect::LockSelf],
+        )
     }],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique. Trifle. Put this card in play. You can lock this card to add 2
@@ -4035,34 +3308,27 @@ pub static THE_BARRENS: CardDef = CardDef {
 pub static THE_COVEN: CardDef = CardDef {
     name: "Coven, The",
     trifle: true,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::PutInPlay],
-    }],
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[],
+        &[Effect::PutInPlay],
+    )],
     abilities: &[ModeDef {
-        windows: &[Window::AnyImpulse],
-        actor: Actor::Controller,
-        requires: &[Requirement::CardUnlocked],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[
+        target: target(
+            TargetKind::Minion,
+            &[
                 Requirement::TargetVampire,
                 Requirement::Controlled,
                 Requirement::ActorReady,
             ],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::LockSelf, Effect::BloodToTarget(2)],
+        ),
+        ..mode_of(
+            &[Window::AnyImpulse],
+            Actor::Controller,
+            &[Requirement::CardUnlocked],
+            &[Effect::LockSelf, Effect::BloodToTarget(2)],
+        )
     }],
     riders: &[Rider {
         hook: Hook::DiscardPhase,
@@ -4070,6 +3336,7 @@ pub static THE_COVEN: CardDef = CardDef {
         requires: &[],
         effects: &[Effect::PredatorTakesControl],
     }],
+    ..CARD
 };
 
 /// "+1 stealth action. Requires an Anarch. Unique. Put this card in play
@@ -4081,38 +3348,27 @@ pub static THE_COVEN: CardDef = CardDef {
 /// rest pool; LSJ 20090618); the burn's pool is paid at resolution.
 pub static CONSTANT_REVOLUTION: CardDef = CardDef {
     name: "Constant Revolution",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::ActingCandidate,
-        requires: &[Requirement::ActorSectIn(&[Sect::Anarch])],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    modes: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::ActingCandidate,
+        &[Requirement::ActorSectIn(&[Sect::Anarch])],
+        &[
             Effect::DeclareAction(ActionKind::Card),
             Effect::AddStealth(1),
             Effect::PutInPlay,
             Effect::EnterWithCounters(1),
         ],
-    }],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::ActingCandidate,
-        requires: &[Requirement::ActorVampire, Requirement::PoolAtLeast(1)],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::ActingCandidate,
+        &[Requirement::ActorVampire, Requirement::PoolAtLeast(1)],
+        &[
             Effect::DeclareAction(ActionKind::BurnCard),
             Effect::PayPool(1),
             Effect::BurnSource,
         ],
-    }],
+    )],
     riders: &[
         Rider {
             hook: Hook::UnlockPhase,
@@ -4127,6 +3383,7 @@ pub static CONSTANT_REVOLUTION: CardDef = CardDef {
             effects: &[Effect::PoolOrRandomCardsPerCounter],
         },
     ],
+    ..CARD
 };
 
 /// Nosferatu. "+1 stealth action. X is the number of copies of this card
@@ -4137,42 +3394,35 @@ pub static CONSTANT_REVOLUTION: CardDef = CardDef {
 /// controller (undirected, +1 stealth, for their own minions).
 pub static CREEPING_SABOTAGE: CardDef = CardDef {
     name: "Creeping Sabotage",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::ActingCandidate,
-        requires: &[],
-        target: NO_TARGET,
         terms: Some(Terms::CopiesControlled),
-        waives_needed: false,
-        limit: None,
-        effects: &[
-            Effect::DeclareAction(ActionKind::Card),
-            Effect::AddStealth(1),
-            Effect::PutInPlay,
-        ],
+        ..mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[],
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::PutInPlay,
+            ],
+        )
     }],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::ActingCandidate,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    abilities: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::ActingCandidate,
+        &[],
+        &[
             Effect::DeclareAction(ActionKind::BurnCard),
             Effect::BurnSource,
         ],
-    }],
+    )],
     riders: &[Rider {
         hook: Hook::UnlockPhase,
         scope: RiderScope::Controller,
         requires: &[],
         effects: &[Effect::PreyBurnsPool(1)],
     }],
+    ..CARD
 };
 
 /// The two directions of "move 1 blood from this vampire to their pool or
@@ -4182,29 +3432,21 @@ pub static CREEPING_SABOTAGE: CardDef = CardDef {
 macro_rules! blood_shuttle {
     ($window:expr) => {
         &[
-            ModeDef {
-                windows: &[$window],
-                actor: Actor::Host,
-                requires: &[Requirement::HostBloodAtLeast(1)],
-                target: NO_TARGET,
-                terms: None,
-                waives_needed: false,
-                limit: None,
-                effects: &[Effect::HostBloodToPool(1)],
-            },
-            ModeDef {
-                windows: &[$window],
-                actor: Actor::Host,
-                requires: &[
+            mode_of(
+                &[$window],
+                Actor::Host,
+                &[Requirement::HostBloodAtLeast(1)],
+                &[Effect::HostBloodToPool(1)],
+            ),
+            mode_of(
+                &[$window],
+                Actor::Host,
+                &[
                     Requirement::HostBelowCapacity,
                     Requirement::HostControllerPoolAtLeast(1),
                 ],
-                target: NO_TARGET,
-                terms: None,
-                waives_needed: false,
-                limit: None,
-                effects: &[Effect::PoolToHostBlood(1)],
-            },
+                &[Effect::PoolToHostBlood(1)],
+            ),
         ]
     };
 }
@@ -4214,24 +3456,20 @@ macro_rules! blood_shuttle {
 /// from their pool to this vampire."
 pub static BLOOD_DOLL: CardDef = CardDef {
     name: "Blood Doll",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::TargetVampire, Requirement::Controlled],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::PutOnTarget],
+        target: target(
+            TargetKind::Minion,
+            &[Requirement::TargetVampire, Requirement::Controlled],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[Effect::PutOnTarget],
+        )
     }],
     abilities: blood_shuttle!(Window::MasterPhase),
-    riders: &[],
+    ..CARD
 };
 
 /// "Trifle. Put this card on a vampire and you can burn a card named Blood
@@ -4243,23 +3481,18 @@ pub static BLOOD_DOLL: CardDef = CardDef {
 pub static VESSEL: CardDef = CardDef {
     name: "Vessel",
     trifle: true,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::TargetVampire],
-        }),
+        target: target(TargetKind::Minion, &[Requirement::TargetVampire]),
         terms: Some(Terms::BurnNamedInPlay("Blood Doll")),
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::PutOnTarget, Effect::BurnChosenInPlay],
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[Effect::PutOnTarget, Effect::BurnChosenInPlay],
+        )
     }],
     abilities: blood_shuttle!(Window::UnlockPhaseOwn),
-    riders: &[],
+    ..CARD
 };
 
 // ---- Hunting grounds (slice 5c: unique locations, library contests) -----
@@ -4273,17 +3506,13 @@ pub static VESSEL: CardDef = CardDef {
 macro_rules! hunting_ground_pick {
     ($n:expr, $filter:expr) => {
         ModeDef {
-            windows: &[Window::UnlockPhaseOwn],
-            actor: Actor::Controller,
-            requires: &[],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: $filter,
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::HuntingGroundBlood($n)],
+            target: target(TargetKind::Minion, $filter),
+            ..mode_of(
+                &[Window::UnlockPhaseOwn],
+                Actor::Controller,
+                &[],
+                &[Effect::HuntingGroundBlood($n)],
+            )
         }
     };
 }
@@ -4296,19 +3525,12 @@ macro_rules! hunting_ground {
     ($name:ident, $printed:expr) => {
         pub static $name: CardDef = CardDef {
             name: $printed,
-            trifle: false,
-            out_of_turn: false,
-            delayed_replacement: None,
-            modes: &[ModeDef {
-                windows: &[Window::MasterPhase],
-                actor: Actor::Methuselah,
-                requires: &[],
-                target: NO_TARGET,
-                terms: None,
-                waives_needed: false,
-                limit: None,
-                effects: &[Effect::PutInPlay],
-            }],
+            modes: &[mode_of(
+                &[Window::MasterPhase],
+                Actor::Methuselah,
+                &[],
+                &[Effect::PutInPlay],
+            )],
             abilities: &[hunting_ground_pick!(
                 1,
                 &[
@@ -4318,7 +3540,7 @@ macro_rules! hunting_ground {
                     Requirement::NotHuntingGroundFed,
                 ]
             )],
-            riders: &[],
+            ..CARD
         };
     };
 }
@@ -4346,22 +3568,15 @@ hunting_ground!(ZOO_HUNTING_GROUND, "Zoo Hunting Ground");
 /// turn." The play needs a ready prince or baron; the pick, any title.
 pub static PAPILLON: CardDef = CardDef {
     name: "Papillon",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[Requirement::ControlsReadyTitled(&[
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[Requirement::ControlsReadyTitled(&[
             TitleClass::Prince,
             TitleClass::Baron,
         ])],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::PutInPlay],
-    }],
+        &[Effect::PutInPlay],
+    )],
     abilities: &[hunting_ground_pick!(
         2,
         &[
@@ -4371,7 +3586,7 @@ pub static PAPILLON: CardDef = CardDef {
             Requirement::NotHuntingGroundFed,
         ]
     )],
-    riders: &[],
+    ..CARD
 };
 
 /// "Requires a ready Anarch. Unique location. Hunting ground. During your
@@ -4382,58 +3597,51 @@ pub static PAPILLON: CardDef = CardDef {
 /// baron and cannot be the first's vampire (fed this turn).
 pub static CARFAX_ABBEY: CardDef = CardDef {
     name: "Carfax Abbey",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[Requirement::ControlsReadySect(&[Sect::Anarch])],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::PutInPlay],
-    }],
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[Requirement::ControlsReadySect(&[Sect::Anarch])],
+        &[Effect::PutInPlay],
+    )],
     abilities: &[
         ModeDef {
-            windows: &[Window::UnlockPhaseOwn],
-            actor: Actor::Controller,
-            requires: &[],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::Controlled,
                     Requirement::ActorReady,
                     Requirement::ActorSectIn(&[Sect::Anarch]),
                     Requirement::NotHuntingGroundFed,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
+            ),
             limit: Some(Limit::PerPhaseEach),
-            effects: &[Effect::HuntingGroundBlood(1)],
+            ..mode_of(
+                &[Window::UnlockPhaseOwn],
+                Actor::Controller,
+                &[],
+                &[Effect::HuntingGroundBlood(1)],
+            )
         },
         ModeDef {
-            windows: &[Window::UnlockPhaseOwn],
-            actor: Actor::Controller,
-            requires: &[Requirement::ControlsReadyTitled(&[TitleClass::Baron])],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::Controlled,
                     Requirement::ActorReady,
                     Requirement::ActorSectIn(&[Sect::Anarch]),
                     Requirement::NotHuntingGroundFed,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
+            ),
             limit: Some(Limit::PerPhaseEach),
-            effects: &[Effect::HuntingGroundBlood(1)],
+            ..mode_of(
+                &[Window::UnlockPhaseOwn],
+                Actor::Controller,
+                &[Requirement::ControlsReadyTitled(&[TitleClass::Baron])],
+                &[Effect::HuntingGroundBlood(1)],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Replacement and hand size (slice 7) ----------------------------------
@@ -4443,21 +3651,13 @@ pub static CARFAX_ABBEY: CardDef = CardDef {
 /// enters contest without modifying the hand size).
 pub static ELDER_LIBRARY: CardDef = CardDef {
     name: "Elder Library",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::PutInPlay, Effect::Layer(Modifier::HandSize(1))],
-    }],
-    abilities: &[],
-    riders: &[],
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[],
+        &[Effect::PutInPlay, Effect::Layer(Modifier::HandSize(1))],
+    )],
+    ..CARD
 };
 
 /// "Unique. Put this card in play with 4 counters. You get +1 hand size for
@@ -4470,30 +3670,23 @@ pub static ELDER_LIBRARY: CardDef = CardDef {
 /// (PIB 20121031: the self-contest rule, rules-qa 7.1).
 pub static VISIT_FROM_THE_CAPUCHIN: CardDef = CardDef {
     name: "Visit from the Capuchin",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[],
+        &[
             Effect::PutInPlay,
             Effect::EnterWithCounters(4),
             Effect::Layer(Modifier::HandSizePerCounter),
         ],
-    }],
-    abilities: &[],
+    )],
     riders: &[Rider {
         hook: Hook::WouldReplace,
         scope: RiderScope::Controller,
         requires: &[Requirement::CountersAtLeast(1)],
         effects: &[Effect::RemoveCounter(1), Effect::BurnSelfWithoutCounters],
     }],
+    ..CARD
 };
 
 /// "Only usable by a locked vampire. Do not replace until your next unlock
@@ -4503,21 +3696,14 @@ pub static VISIT_FROM_THE_CAPUCHIN: CardDef = CardDef {
 /// next unlock phase.
 pub static WAKE_WITH_EVENINGS_FRESHNESS: CardDef = CardDef {
     name: "Wake with Evening's Freshness",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::NextUnlockPhase),
-    modes: &[ModeDef {
-        windows: &[Window::Wake, Window::CardAsPlayed],
-        actor: Actor::ReactingMinion,
-        requires: &[Requirement::ActorVampire, Requirement::LockedActor],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::Wake],
-    }],
-    abilities: &[],
-    riders: &[],
+    modes: &[mode_of(
+        &[Window::Wake, Window::CardAsPlayed],
+        Actor::ReactingMinion,
+        &[Requirement::ActorVampire, Requirement::LockedActor],
+        &[Effect::Wake],
+    )],
+    ..CARD
 };
 
 /// "Do not replace until your next discard phase. [tha] +1 stealth. [THA]
@@ -4529,33 +3715,22 @@ pub static WAKE_WITH_EVENINGS_FRESHNESS: CardDef = CardDef {
 /// 20180719).
 pub static MIRROR_WALK: CardDef = CardDef {
     name: "Mirror Walk",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::NextDiscardPhase),
     modes: &[
-        ModeDef {
-            windows: &[Window::ActionStealthIntercept],
-            actor: Actor::ActingMinion,
-            requires: &[Requirement::StealthNeeded],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::AddStealth(1)],
-        },
-        ModeDef {
-            windows: &[Window::ActionStealthIntercept],
-            actor: Actor::ActingMinion,
-            requires: &[Requirement::StealthNeeded],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::AddStealth(1), Effect::EndActionIfBlocked],
-        },
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::ActingMinion,
+            &[Requirement::StealthNeeded],
+            &[Effect::AddStealth(1)],
+        ),
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::ActingMinion,
+            &[Requirement::StealthNeeded],
+            &[Effect::AddStealth(1), Effect::EndActionIfBlocked],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Equipment (slice 8a) ---------------------------------------------------
@@ -4567,18 +3742,11 @@ const ONE_VEHICLE: &[Requirement] = &[Requirement::ActorWithout(Holding::Label(L
 /// vehicle."
 pub static SPORT_BIKE: CardDef = CardDef {
     name: "Sport Bike",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::ActionDeclareEquip],
-        actor: Actor::ActingCandidate,
-        requires: ONE_VEHICLE,
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    modes: &[mode_of(
+        &[Window::ActionDeclareEquip],
+        Actor::ActingCandidate,
+        ONE_VEHICLE,
+        &[
             Effect::DeclareAction(ActionKind::Equip),
             Effect::Layer(Modifier::Bearer {
                 stat: Stat::Intercept,
@@ -4587,9 +3755,8 @@ pub static SPORT_BIKE: CardDef = CardDef {
                 who: Bearer::Any,
             }),
         ],
-    }],
-    abilities: &[],
-    riders: &[],
+    )],
+    ..CARD
 };
 
 /// "Vehicle. The action to equip with this vehicle is with an additional +1
@@ -4602,18 +3769,11 @@ pub static SPORT_BIKE: CardDef = CardDef {
 /// (`TitleClass::Archbishop`).
 pub static UNLICENSED_TAXICAB: CardDef = CardDef {
     name: "Unlicensed Taxicab",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::ActionDeclareEquip],
-        actor: Actor::ActingCandidate,
-        requires: ONE_VEHICLE,
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    modes: &[mode_of(
+        &[Window::ActionDeclareEquip],
+        Actor::ActingCandidate,
+        ONE_VEHICLE,
+        &[
             Effect::DeclareAction(ActionKind::Equip),
             Effect::AddStealth(1),
             Effect::Layer(Modifier::Bearer {
@@ -4623,8 +3783,7 @@ pub static UNLICENSED_TAXICAB: CardDef = CardDef {
                 who: Bearer::Any,
             }),
         ],
-    }],
-    abilities: &[],
+    )],
     riders: &[Rider {
         hook: Hook::HostBlocked,
         scope: RiderScope::Every,
@@ -4634,6 +3793,7 @@ pub static UNLICENSED_TAXICAB: CardDef = CardDef {
         ])],
         effects: &[Effect::BurnSelf],
     }],
+    ..CARD
 };
 
 /// "Unique. This Ravnos gets +1 bleed. Once each combat, this Ravnos can
@@ -4641,18 +3801,11 @@ pub static UNLICENSED_TAXICAB: CardDef = CardDef {
 /// minion (ANK 20180719-3) and gets nothing from it (rules-qa 9.1).
 pub static TREASURED_SAMADJI: CardDef = CardDef {
     name: "Treasured Samadji",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::ActionDeclareEquip],
-        actor: Actor::ActingCandidate,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    modes: &[mode_of(
+        &[Window::ActionDeclareEquip],
+        Actor::ActingCandidate,
+        &[],
+        &[
             Effect::DeclareAction(ActionKind::Equip),
             Effect::Layer(Modifier::Bearer {
                 stat: Stat::Bleed,
@@ -4661,18 +3814,17 @@ pub static TREASURED_SAMADJI: CardDef = CardDef {
                 who: Bearer::Clan("Ravnos"),
             }),
         ],
-    }],
+    )],
     abilities: &[ModeDef {
-        windows: &[Window::CombatStrikeDeclaration],
-        actor: Actor::Host,
-        requires: &[Requirement::HostClan("Ravnos")],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
         limit: Some(Limit::PerCombat),
-        effects: &[Effect::Strike(StrikeKind::Dodge)],
+        ..mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Host,
+            &[Requirement::HostClan("Ravnos")],
+            &[Effect::Strike(StrikeKind::Dodge)],
+        )
     }],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique. The bearer gets -2 stealth during bleed actions. This vampire
@@ -4683,18 +3835,11 @@ pub static TREASURED_SAMADJI: CardDef = CardDef {
 /// the acting vampire then (RTR 19960221).
 pub static CODEX_OF_THE_EDENIC_GROUNDSKEEPERS: CardDef = CardDef {
     name: "Codex of the Edenic Groundskeepers",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::ActionDeclareEquip],
-        actor: Actor::ActingCandidate,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    modes: &[mode_of(
+        &[Window::ActionDeclareEquip],
+        Actor::ActingCandidate,
+        &[],
+        &[
             Effect::DeclareAction(ActionKind::Equip),
             Effect::Layer(Modifier::Bearer {
                 stat: Stat::Stealth,
@@ -4703,22 +3848,18 @@ pub static CODEX_OF_THE_EDENIC_GROUNDSKEEPERS: CardDef = CardDef {
                 who: Bearer::Any,
             }),
         ],
-    }],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::Host,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::Host,
+        &[],
+        &[
             Effect::DeclareAction(ActionKind::Bleed),
             Effect::PayBlood(1),
             Effect::BleedIfTargetHasNoReadyUnlocked(3),
         ],
-    }],
-    riders: &[],
+    )],
+    ..CARD
 };
 
 /// "Electronic equipment. The minion with this equipment may bleed at +1
@@ -4728,55 +3869,34 @@ pub static CODEX_OF_THE_EDENIC_GROUNDSKEEPERS: CardDef = CardDef {
 /// fizzles if the phone is no longer on the acting minion (RTR 19960221).
 pub static CAMERA_PHONE: CardDef = CardDef {
     name: "Camera Phone",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::ActionDeclareEquip],
-        actor: Actor::ActingCandidate,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::DeclareAction(ActionKind::Equip)],
-    }],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::Host,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    modes: &[mode_of(
+        &[Window::ActionDeclareEquip],
+        Actor::ActingCandidate,
+        &[],
+        &[Effect::DeclareAction(ActionKind::Equip)],
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::Host,
+        &[],
+        &[
             Effect::DeclareAction(ActionKind::Bleed),
-            Effect::BleedMod {
-                n: 1,
-                limited: false,
-            },
+            bleed(1, false),
             Effect::NoOtherEquipmentBleed,
         ],
-    }],
-    riders: &[],
+    )],
+    ..CARD
 };
 
 /// "Electronic. The bearer gets +1 bleed. A minion can have only one Laptop
 /// Computer." A legacy card the owner added to the pool (2026-09-25).
 pub static LAPTOP_COMPUTER: CardDef = CardDef {
     name: "Laptop Computer",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::ActionDeclareEquip],
-        actor: Actor::ActingCandidate,
-        requires: &[Requirement::ActorWithout(Holding::Named("Laptop Computer"))],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    modes: &[mode_of(
+        &[Window::ActionDeclareEquip],
+        Actor::ActingCandidate,
+        &[Requirement::ActorWithout(Holding::Named("Laptop Computer"))],
+        &[
             Effect::DeclareAction(ActionKind::Equip),
             Effect::Layer(Modifier::Bearer {
                 stat: Stat::Bleed,
@@ -4785,9 +3905,8 @@ pub static LAPTOP_COMPUTER: CardDef = CardDef {
                 who: Bearer::Any,
             }),
         ],
-    }],
-    abilities: &[],
-    riders: &[],
+    )],
+    ..CARD
 };
 
 /// "Vehicle. This Anarch gets +1 bleed. Allies and younger vampires get -1
@@ -4798,18 +3917,11 @@ pub static LAPTOP_COMPUTER: CardDef = CardDef {
 /// (rules-qa 9.1); the burn is directed at the card's controller.
 pub static STOLEN_POLICE_CRUISER: CardDef = CardDef {
     name: "Stolen Police Cruiser",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::ActionDeclareEquip],
-        actor: Actor::ActingCandidate,
-        requires: ONE_VEHICLE,
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    modes: &[mode_of(
+        &[Window::ActionDeclareEquip],
+        Actor::ActingCandidate,
+        ONE_VEHICLE,
+        &[
             Effect::DeclareAction(ActionKind::Equip),
             Effect::Layer(Modifier::Bearer {
                 stat: Stat::Bleed,
@@ -4822,23 +3934,19 @@ pub static STOLEN_POLICE_CRUISER: CardDef = CardDef {
                 who: Bearer::Sect(Sect::Anarch),
             }),
         ],
-    }],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::ActingCandidate,
-        requires: &[Requirement::ActorVampire, Requirement::PoolAtLeast(1)],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::ActingCandidate,
+        &[Requirement::ActorVampire, Requirement::PoolAtLeast(1)],
+        &[
             Effect::DeclareAction(ActionKind::BurnCard),
             Effect::PayPool(1),
             Effect::BurnSource,
             Effect::LockHostSkipNextUnlock(Bearer::Sect(Sect::Anarch)),
         ],
-    }],
-    riders: &[],
+    )],
+    ..CARD
 };
 
 /// "Unique. The bearer with Auspex [aus] gets +1 intercept. The bearer with
@@ -4848,18 +3956,11 @@ pub static STOLEN_POLICE_CRUISER: CardDef = CardDef {
 /// and the intercept is needed (rules-qa 3.2, 9.6).
 pub static BOWL_OF_CONVERGENCE: CardDef = CardDef {
     name: "Bowl of Convergence",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::ActionDeclareEquip],
-        actor: Actor::ActingCandidate,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    modes: &[mode_of(
+        &[Window::ActionDeclareEquip],
+        Actor::ActingCandidate,
+        &[],
+        &[
             Effect::DeclareAction(ActionKind::Equip),
             Effect::Layer(Modifier::Bearer {
                 stat: Stat::Intercept,
@@ -4868,37 +3969,32 @@ pub static BOWL_OF_CONVERGENCE: CardDef = CardDef {
                 who: Bearer::Discipline("aus"),
             }),
         ],
-    }],
+    )],
     abilities: &[ModeDef {
-        windows: &[Window::ActionStealthIntercept],
-        actor: Actor::Host,
-        requires: &[
-            Requirement::HostDiscipline("AUS"),
-            Requirement::HostBloodAtLeast(1),
-            Requirement::InterceptNeeded,
-        ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
         limit: Some(Limit::PerAction),
-        effects: &[Effect::HostBurnBlood(1), Effect::AddIntercept(1)],
+        ..mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::Host,
+            &[
+                Requirement::HostDiscipline("AUS"),
+                Requirement::HostBloodAtLeast(1),
+                Requirement::InterceptNeeded,
+            ],
+            &[Effect::HostBurnBlood(1), Effect::AddIntercept(1)],
+        )
     }],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Weapons (slice 8b) -----------------------------------------------------
 
 /// The equip action of an equipment with nothing else on its mode.
-const EQUIP: ModeDef = ModeDef {
-    windows: &[Window::ActionDeclareEquip],
-    actor: Actor::ActingCandidate,
-    requires: &[],
-    target: NO_TARGET,
-    terms: None,
-    waives_needed: false,
-    limit: None,
-    effects: &[Effect::DeclareAction(ActionKind::Equip)],
-};
+const EQUIP: ModeDef = mode_of(
+    &[Window::ActionDeclareEquip],
+    Actor::ActingCandidate,
+    &[],
+    &[Effect::DeclareAction(ActionKind::Equip)],
+);
 
 /// A weapon's strike, chosen by its bearer at the strike step.
 const fn weapon_strike(requires: &'static [Requirement], effects: &'static [Effect]) -> ModeDef {
@@ -4906,7 +4002,7 @@ const fn weapon_strike(requires: &'static [Requirement], effects: &'static [Effe
         windows: &[Window::CombatStrikeDeclaration],
         actor: Actor::Host,
         requires,
-        target: NO_TARGET,
+        target: None,
         terms: None,
         waives_needed: false,
         limit: None,
@@ -4918,22 +4014,18 @@ const fn weapon_strike(requires: &'static [Requirement], effects: &'static [Effe
 /// (LSJ 19980302-2), and using it chooses the bearer's initial strike
 /// (rulebook "Determine Range"; LSJ 20090528-2-2).
 const GUN_MANEUVER: ModeDef = ModeDef {
-    windows: &[Window::CombatDetermineRange],
-    actor: Actor::Host,
-    requires: &[],
-    target: NO_TARGET,
-    terms: None,
-    waives_needed: false,
     limit: Some(Limit::PerCombat),
-    effects: &[Effect::Maneuver, Effect::CommitStrike],
+    ..mode_of(
+        &[Window::CombatDetermineRange],
+        Actor::Host,
+        &[],
+        &[Effect::Maneuver, Effect::CommitStrike],
+    )
 };
 
 /// "Weapon: gun. Strike: 2R damage, with 1 optional maneuver each combat."
 pub static MAGNUM_44: CardDef = CardDef {
     name: ".44 Magnum",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[EQUIP],
     abilities: &[
         weapon_strike(
@@ -4946,7 +4038,7 @@ pub static MAGNUM_44: CardDef = CardDef {
         ),
         GUN_MANEUVER,
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Weapon: gun. Strike: 2R damage, with 1 optional maneuver each combat.
@@ -4954,9 +4046,6 @@ pub static MAGNUM_44: CardDef = CardDef {
 /// strike (limited), only usable to strike with this gun, this round."
 pub static AK_47: CardDef = CardDef {
     name: "AK-47",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[EQUIP],
     abilities: &[
         weapon_strike(
@@ -4972,15 +4061,12 @@ pub static AK_47: CardDef = CardDef {
         ),
         GUN_MANEUVER,
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Weapon: gun. Strike: 4R damage, with 1 optional maneuver each combat."
 pub static ASSAULT_RIFLE: CardDef = CardDef {
     name: "Assault Rifle",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[EQUIP],
     abilities: &[
         weapon_strike(
@@ -4993,15 +4079,12 @@ pub static ASSAULT_RIFLE: CardDef = CardDef {
         ),
         GUN_MANEUVER,
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Weapon. Strike: 2R aggravated damage."
 pub static FLAMETHROWER: CardDef = CardDef {
     name: "Flamethrower",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[EQUIP],
     abilities: &[weapon_strike(
         &[],
@@ -5011,15 +4094,12 @@ pub static FLAMETHROWER: CardDef = CardDef {
             aggravated: true,
         })],
     )],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique weapon. Strike: 1R aggravated damage."
 pub static IVORY_BOW: CardDef = CardDef {
     name: "Ivory Bow",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[EQUIP],
     abilities: &[weapon_strike(
         &[],
@@ -5029,7 +4109,7 @@ pub static IVORY_BOW: CardDef = CardDef {
             aggravated: true,
         })],
     )],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique melee weapon. Strike: strength+1 aggravated damage." (Tzimisce.)
@@ -5037,9 +4117,6 @@ pub static IVORY_BOW: CardDef = CardDef {
 /// needs none (ANK 20180719-3), and the strike names no clan.
 pub static FEMUR_OF_TOOMLER: CardDef = CardDef {
     name: "Femur of Toomler",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[EQUIP],
     abilities: &[weapon_strike(
         &[],
@@ -5048,16 +4125,13 @@ pub static FEMUR_OF_TOOMLER: CardDef = CardDef {
             aggravated: true,
         })],
     )],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique melee weapon. Strike: strength+1 aggravated damage." (Banu
 /// Haqim; as Femur of Toomler.)
 pub static KALIS_FANG: CardDef = CardDef {
     name: "Kali's Fang",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[EQUIP],
     abilities: &[weapon_strike(
         &[],
@@ -5066,7 +4140,7 @@ pub static KALIS_FANG: CardDef = CardDef {
             aggravated: true,
         })],
     )],
-    riders: &[],
+    ..CARD
 };
 
 /// "Weapon: gun. Strike: 2R damage, only usable at long range. If the
@@ -5078,9 +4152,6 @@ pub static KALIS_FANG: CardDef = CardDef {
 /// first round is the one.
 pub static SNIPER_RIFLE: CardDef = CardDef {
     name: "Sniper Rifle",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[EQUIP],
     abilities: &[
         weapon_strike(
@@ -5091,22 +4162,18 @@ pub static SNIPER_RIFLE: CardDef = CardDef {
                 aggravated: false,
             })],
         ),
-        ModeDef {
-            windows: &[Window::CombatBeforeRange],
-            actor: Actor::Host,
-            requires: &[
+        mode_of(
+            &[Window::CombatBeforeRange],
+            Actor::Host,
+            &[
                 Requirement::ActorHasBlocked,
                 Requirement::FirstRound,
                 Requirement::SourceHeldWhenBlocking,
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::SetRangeLong, Effect::CommitStrike],
-        },
+            &[Effect::SetRange(Range::Long), Effect::CommitStrike],
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Melee weapon. Strike: strength+1 damage, with 1 optional press, only
@@ -5115,9 +4182,6 @@ pub static SNIPER_RIFLE: CardDef = CardDef {
 /// resolve, once each combat per Blade (rules-qa 10.4).
 pub static RIGHTEOUS_BLADE: CardDef = CardDef {
     name: "Righteous Blade",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[EQUIP],
     abilities: &[weapon_strike(
         &[],
@@ -5129,7 +4193,7 @@ pub static RIGHTEOUS_BLADE: CardDef = CardDef {
             Effect::ContinuePressEachCombat,
         ],
     )],
-    riders: &[],
+    ..CARD
 };
 
 /// "Weapon. Strike: 3 unpreventable damage and put this card on the
@@ -5141,21 +4205,14 @@ pub static RIGHTEOUS_BLADE: CardDef = CardDef {
 /// card, no weapon (ANK 20220818): its second mode, never played.
 pub static ENHANCED_COAGULANT: CardDef = CardDef {
     name: "Enhanced Coagulant",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         EQUIP,
-        ModeDef {
-            windows: &[],
-            actor: Actor::Host,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Layer(Modifier::HostDisciplineCardsCost(1))],
-        },
+        mode_of(
+            &[],
+            Actor::Host,
+            &[],
+            &[Effect::Layer(Modifier::HostDisciplineCardsCost(1))],
+        ),
     ],
     abilities: &[weapon_strike(
         &[Requirement::OpponentVampire],
@@ -5175,6 +4232,7 @@ pub static ENHANCED_COAGULANT: CardDef = CardDef {
         requires: &[],
         effects: &[Effect::BurnSelf],
     }],
+    ..CARD
 };
 
 /// "Only one Flaming Candle can be played or equipped in a game. This
@@ -5184,28 +4242,21 @@ pub static ENHANCED_COAGULANT: CardDef = CardDef {
 /// afterwards (ANK 20221103).
 pub static FLAMING_CANDLE: CardDef = CardDef {
     name: "Flaming Candle",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
         requires: &[Requirement::NotPlayedThisGame],
         ..EQUIP
     }],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionAsAnnounced],
-        actor: Actor::Host,
-        requires: &[Requirement::ActorActing, Requirement::HostBloodAtLeast(1)],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    abilities: &[mode_of(
+        &[Window::ActionAsAnnounced],
+        Actor::Host,
+        &[Requirement::ActorActing, Requirement::HostBloodAtLeast(1)],
+        &[
             Effect::HostBurnBlood(1),
             Effect::BurnSelf,
             Effect::VampiresCannotBlock,
         ],
-    }],
-    riders: &[],
+    )],
+    ..CARD
 };
 
 /// "Unique. This vampire gets +1 level of Blood Sorcery [tha]. Rescuing a
@@ -5215,9 +4266,6 @@ pub static FLAMING_CANDLE: CardDef = CardDef {
 /// 20020304-2); the level adds no capacity.
 pub static RITUAL_GOBLET: CardDef = CardDef {
     name: "Ritual Goblet",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
         effects: &[
             Effect::DeclareAction(ActionKind::Equip),
@@ -5237,7 +4285,7 @@ pub static RITUAL_GOBLET: CardDef = CardDef {
         Limit::PerTurn,
         &[Effect::UnlockActing],
     )],
-    riders: &[],
+    ..CARD
 };
 
 /// "Once each combat, the bearer can prevent 2 damage from gun strikes or 1
@@ -5248,42 +4296,33 @@ pub static RITUAL_GOBLET: CardDef = CardDef {
 /// LSJ 20081210).
 pub static KEVLAR_VEST: CardDef = CardDef {
     name: "Kevlar Vest",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::ActionDeclareEquip],
-        actor: Actor::ActingCandidate,
-        requires: &[Requirement::ActorWithout(Holding::Named("Kevlar Vest"))],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::DeclareAction(ActionKind::Equip)],
-    }],
+    modes: &[mode_of(
+        &[Window::ActionDeclareEquip],
+        Actor::ActingCandidate,
+        &[Requirement::ActorWithout(Holding::Named("Kevlar Vest"))],
+        &[Effect::DeclareAction(ActionKind::Equip)],
+    )],
     abilities: &[
         ModeDef {
-            windows: &[Window::CombatDamagePrevention],
-            actor: Actor::Host,
-            requires: &[Requirement::GunStrikeDamagePending],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
             limit: Some(Limit::PerCombat),
-            effects: &[Effect::PreventGunStrikeAllowance(2)],
+            ..mode_of(
+                &[Window::CombatDamagePrevention],
+                Actor::Host,
+                &[Requirement::GunStrikeDamagePending],
+                &[Effect::PreventGunStrikeAllowance(2)],
+            )
         },
         ModeDef {
-            windows: &[Window::CombatDamagePrevention],
-            actor: Actor::Host,
-            requires: &[Requirement::NonGunDamagePending],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
             limit: Some(Limit::PerCombat),
-            effects: &[Effect::PreventNonGun(1)],
+            ..mode_of(
+                &[Window::CombatDamagePrevention],
+                Actor::Host,
+                &[Requirement::NonGunDamagePending],
+                &[Effect::PreventNonGun(1)],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Library search (slice 8c) ----------------------------------------------
@@ -5295,41 +4334,29 @@ pub static KEVLAR_VEST: CardDef = CardDef {
 /// whose blood cost the vampire cannot pay is not offered (rules-qa 9.3).
 pub static MAGIC_OF_THE_SMITH: CardDef = CardDef {
     name: "Magic of the Smith",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[],
+            &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(1),
                 Effect::SearchEquip,
             ],
-        },
-        ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+        ),
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[],
+            &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(3),
                 Effect::SearchEquip,
             ],
-        },
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Put this card on a ready minion you control. If you control this
@@ -5338,37 +4365,29 @@ pub static MAGIC_OF_THE_SMITH: CardDef = CardDef {
 /// and cost apply as normal; shuffle afterward)."
 pub static VAST_WEALTH: CardDef = CardDef {
     name: "Vast Wealth",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::Controlled, Requirement::ActorReady],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::PutOnTarget],
+        target: target(
+            TargetKind::Minion,
+            &[Requirement::Controlled, Requirement::ActorReady],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[Effect::PutOnTarget],
+        )
     }],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::Host,
-        requires: &[Requirement::ControllerControlsHost],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    abilities: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::Host,
+        &[Requirement::ControllerControlsHost],
+        &[
             Effect::DeclareAction(ActionKind::EquipFound),
             Effect::AddStealth(1),
             Effect::EquipFirstFound,
         ],
-    }],
-    riders: &[],
+    )],
+    ..CARD
 };
 
 // ---- Stored cards and draw alternatives (slice 8c-ii) ----------------------
@@ -5384,26 +4403,19 @@ pub static VAST_WEALTH: CardDef = CardDef {
 /// from the library may be one of them instead (rules-qa 9.4).
 pub static BLACK_MARKET_CACHE: CardDef = CardDef {
     name: "Black Market Cache",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::PutInPlay, Effect::SearchStore(3)],
-    }],
-    abilities: &[],
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[],
+        &[Effect::PutInPlay, Effect::SearchStore(3)],
+    )],
     riders: &[Rider {
         hook: Hook::WouldDraw,
         scope: RiderScope::Controller,
         requires: &[],
         effects: &[Effect::BurnSelfWithoutStored],
     }],
+    ..CARD
 };
 
 /// "Unique. Move the top 2 cards of your library to this equipment, face
@@ -5420,9 +4432,6 @@ pub static BLACK_MARKET_CACHE: CardDef = CardDef {
 /// 11.2).
 pub static SHILMULO_TAROT: CardDef = CardDef {
     name: "Shilmulo Tarot",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
         effects: &[
             Effect::DeclareAction(ActionKind::Equip),
@@ -5430,22 +4439,19 @@ pub static SHILMULO_TAROT: CardDef = CardDef {
         ],
         ..EQUIP
     }],
-    abilities: &[ModeDef {
-        windows: &[Window::UnlockPhaseOwn],
-        actor: Actor::Controller,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::StoreTopCards(1)],
-    }],
+    abilities: &[mode_of(
+        &[Window::UnlockPhaseOwn],
+        Actor::Controller,
+        &[],
+        &[Effect::StoreTopCards(1)],
+    )],
     riders: &[Rider {
         hook: Hook::WouldDraw,
         scope: RiderScope::Controller,
         requires: &[Requirement::HostClan("Ravnos"), Requirement::HostReady],
         effects: &[],
     }],
+    ..CARD
 };
 
 /// "Unique. If the bearer is ready during your unlock phase, you can draw
@@ -5456,21 +4462,17 @@ pub static SHILMULO_TAROT: CardDef = CardDef {
 /// card (rules-qa 9.5, 11.1).
 pub static HEART_OF_NIZCHETUS: CardDef = CardDef {
     name: "Heart of Nizchetus",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[EQUIP],
     abilities: &[ModeDef {
-        windows: &[Window::UnlockPhaseOwn],
-        actor: Actor::Host,
-        requires: &[Requirement::HostReady],
-        target: NO_TARGET,
         terms: Some(Terms::Count { min: 1, max: 3 }),
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::DrawThenBottom],
+        ..mode_of(
+            &[Window::UnlockPhaseOwn],
+            Actor::Host,
+            &[Requirement::HostReady],
+            &[Effect::DrawThenBottom],
+        )
     }],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Precon coverage (slice 11a) --------------------------------------------
@@ -5478,22 +4480,12 @@ pub static HEART_OF_NIZCHETUS: CardDef = CardDef {
 /// "Ⓓ Bleed with +n bleed": an action card's bleed mode.
 macro_rules! bleed_action {
     ($n:expr) => {
-        ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::DeclareAction(ActionKind::Bleed),
-                Effect::BleedMod {
-                    n: $n,
-                    limited: false,
-                },
-            ],
-        }
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[],
+            &[Effect::DeclareAction(ActionKind::Bleed), bleed($n, false)],
+        )
     };
 }
 
@@ -5504,7 +4496,7 @@ const fn stealth(effects: &'static [Effect]) -> ModeDef {
         windows: &[Window::ActionStealthIntercept],
         actor: Actor::ActingMinion,
         requires: &[Requirement::StealthNeeded],
-        target: NO_TARGET,
+        target: None,
         terms: None,
         waives_needed: false,
         limit: None,
@@ -5519,7 +4511,7 @@ const fn intercept(requires: &'static [Requirement], effects: &'static [Effect])
         windows: &[Window::ActionStealthIntercept],
         actor: Actor::ReactingMinion,
         requires,
-        target: NO_TARGET,
+        target: None,
         terms: None,
         waives_needed: false,
         limit: None,
@@ -5537,7 +4529,7 @@ const fn combat(
         windows,
         actor: Actor::Combatant,
         requires,
-        target: NO_TARGET,
+        target: None,
         terms: None,
         waives_needed: false,
         limit: None,
@@ -5551,21 +4543,17 @@ const fn combat(
 macro_rules! uncontrolled_blood {
     ($filter:expr, $n:expr) => {
         ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[],
-            target: Some(TargetSpec {
-                kind: TargetKind::Uncontrolled,
-                filter: $filter,
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::DeclareAction(ActionKind::Card),
-                Effect::AddStealth(1),
-                Effect::BloodToUncontrolledTarget($n),
-            ],
+            target: target(TargetKind::Uncontrolled, $filter),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::ActingCandidate,
+                &[],
+                &[
+                    Effect::DeclareAction(ActionKind::Card),
+                    Effect::AddStealth(1),
+                    Effect::BloodToUncontrolledTarget($n),
+                ],
+            )
         }
     };
 }
@@ -5574,56 +4562,40 @@ macro_rules! uncontrolled_blood {
 /// a younger vampire in your uncontrolled region."
 pub static GOVERN_THE_UNALIGNED: CardDef = CardDef {
     name: "Govern the Unaligned",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         bleed_action!(2),
         uncontrolled_blood!(&[Requirement::Younger], 3),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pre] Ⓓ Bleed with +1 bleed. [PRE] +1 stealth action. Add 2 blood to
 /// a younger vampire in your uncontrolled region."
 pub static ENCHANT_KINDRED: CardDef = CardDef {
     name: "Enchant Kindred",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         bleed_action!(1),
         uncontrolled_blood!(&[Requirement::Younger], 2),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pre] Ⓓ Bleed with +1 bleed. [PRE] Ⓓ Bleed with +2 bleed."
 pub static INTIMIDATION: CardDef = CardDef {
     name: "Intimidation",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[bleed_action!(1), bleed_action!(2)],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "+1 stealth action. Add 2 blood to a Gangrel in your uncontrolled
 /// region."
 pub static THING: CardDef = CardDef {
     name: "Thing",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[uncontrolled_blood!(
         &[Requirement::TargetClan("Gangrel")],
         2
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "+1 stealth action. [pre] Put this card on this vampire. This vampire
@@ -5631,21 +4603,14 @@ pub static THING: CardDef = CardDef {
 /// above, but this vampire gets +2 bleed." (2 blood.)
 pub static HEART_OF_THE_CITY: CardDef = CardDef {
     name: "Heart of the City",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[Requirement::ActorWithout(Holding::Named(
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[Requirement::ActorWithout(Holding::Named(
                 "Heart of the City",
             ))],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+            &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(1),
                 Effect::PutOnActor,
@@ -5656,18 +4621,14 @@ pub static HEART_OF_THE_CITY: CardDef = CardDef {
                     who: Bearer::Any,
                 }),
             ],
-        },
-        ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[Requirement::ActorWithout(Holding::Named(
+        ),
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[Requirement::ActorWithout(Holding::Named(
                 "Heart of the City",
             ))],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+            &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(1),
                 Effect::PutOnActor,
@@ -5678,10 +4639,9 @@ pub static HEART_OF_THE_CITY: CardDef = CardDef {
                     who: Bearer::Any,
                 }),
             ],
-        },
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[obf] +1 stealth. Lost in Crowds and cards named Into Thin Air cannot
@@ -5689,29 +4649,21 @@ pub static HEART_OF_THE_CITY: CardDef = CardDef {
 /// stealth." (Into Thin Air is not in the V5 pool.)
 pub static LOST_IN_CROWDS: CardDef = CardDef {
     name: "Lost in Crowds",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         stealth(&[Effect::AddStealth(1)]),
         stealth(&[Effect::AddStealth(2)]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[obf] [ACTION MODIFIER] +1 stealth. [OBF] [COMBAT] Maneuver."
 pub static SWALLOWED_BY_THE_NIGHT: CardDef = CardDef {
     name: "Swallowed by the Night",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         stealth(&[Effect::AddStealth(1)]),
         combat(&[Window::CombatDetermineRange], &[], &[Effect::Maneuver]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[cel] [COMBAT] Press, or maneuver with 1 optional press. [CEL] [ACTION
@@ -5719,9 +4671,6 @@ pub static SWALLOWED_BY_THE_NIGHT: CardDef = CardDef {
 /// it is had in (TOM 19960521).
 pub static RESIST_EARTHS_GRASP: CardDef = CardDef {
     name: "Resist Earth's Grasp",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatDetermineRange, Window::CombatPress],
@@ -5730,8 +4679,7 @@ pub static RESIST_EARTHS_GRASP: CardDef = CardDef {
         ),
         stealth(&[Effect::AddStealth(1)]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable during a bleed action. [pre] +1 bleed, with an additional
@@ -5739,47 +4687,31 @@ pub static RESIST_EARTHS_GRASP: CardDef = CardDef {
 /// additional +1 bleed if this vampire is Toreador (limited)." (1 blood.)
 pub static AIRE_OF_ELATION: CardDef = CardDef {
     name: "Aire of Elation",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         modifier(
             &[Requirement::IsBleed],
             &[
-                Effect::BleedMod {
-                    n: 1,
-                    limited: true,
-                },
+                bleed(1, true),
                 Effect::If {
                     on: On::Actor,
                     requires: &[Requirement::ActorClan("Toreador")],
-                    then: &Effect::BleedMod {
-                        n: 1,
-                        limited: true,
-                    },
+                    then: &bleed(1, true),
                 },
             ],
         ),
         modifier(
             &[Requirement::IsBleed],
             &[
-                Effect::BleedMod {
-                    n: 2,
-                    limited: true,
-                },
+                bleed(2, true),
                 Effect::If {
                     on: On::Actor,
                     requires: &[Requirement::ActorClan("Toreador")],
-                    then: &Effect::BleedMod {
-                        n: 1,
-                        limited: true,
-                    },
+                    then: &bleed(1, true),
                 },
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable during a bleed action. [dom] +1 bleed (limited). [DOM] +3
@@ -5790,61 +4722,43 @@ pub static AIRE_OF_ELATION: CardDef = CardDef {
 /// limited increase may be played (RTR 20191031, ANK 20211019-2).
 pub static FORESHADOWING_DESTRUCTION: CardDef = CardDef {
     name: "Foreshadowing Destruction",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        modifier(
-            &[Requirement::IsBleed],
-            &[Effect::BleedMod {
-                n: 1,
-                limited: true,
-            }],
-        ),
+        modifier(&[Requirement::IsBleed], &[bleed(1, true)]),
         modifier(
             &[Requirement::IsBleed],
             &[Effect::If {
                 on: On::Acting,
                 requires: &[Requirement::BleedTargetPoolAtMost(9)],
-                then: &Effect::BleedMod {
-                    n: 3,
-                    limited: true,
-                },
+                then: &bleed(3, true),
             }],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Requires an Anarch. Only usable during a bleed action. +X bleed
 /// (limited). X must be 1, 2 or 3." (X blood.)
 pub static MONKEY_WRENCH: CardDef = CardDef {
     name: "Monkey Wrench",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::ActionDuring],
-        actor: Actor::ActingMinion,
-        requires: &[ANARCH, Requirement::IsBleed],
-        target: NO_TARGET,
         terms: Some(Terms::XBloodIn { min: 1, max: 3 }),
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::BleedModX { limited: true }],
+        ..mode_of(
+            &[Window::ActionDuring],
+            Actor::ActingMinion,
+            &[ANARCH, Requirement::IsBleed],
+            &[Effect::BleedModX { limited: true }],
+        )
     }],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Change the target of the bleed to another Methuselah other than the
 /// acting minion's controller (that Methuselah can attempt to block)",
 /// locking the reacting vampire: Deflection's shape.
-const REDIRECT_TARGET: Option<TargetSpec> = Some(TargetSpec {
-    kind: TargetKind::Seat,
-    filter: &[Requirement::NotActingController, Requirement::NotSelf],
-});
+const REDIRECT_TARGET: Option<TargetSpec> = target(
+    TargetKind::Seat,
+    &[Requirement::NotActingController, Requirement::NotSelf],
+);
 
 /// "[aus] +1 intercept. [AUS] Only usable if a minion is bleeding you,
 /// after blocks are declined. Lock this reacting vampire. Change the target
@@ -5852,28 +4766,23 @@ const REDIRECT_TARGET: Option<TargetSpec> = Some(TargetSpec {
 /// controller (that Methuselah can attempt to block)." (1 blood.)
 pub static TELEPATHIC_MISDIRECTION: CardDef = CardDef {
     name: "Telepathic Misdirection",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         intercept(&[Requirement::InterceptNeeded], &[Effect::AddIntercept(1)]),
         ModeDef {
-            windows: &[Window::ActionBlocksDeclined],
-            actor: Actor::ReactingMinion,
-            requires: &[
-                Requirement::DirectedAtYou,
-                Requirement::IsBleed,
-                Requirement::BlocksDeclined,
-            ],
             target: REDIRECT_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockActor, Effect::RedirectBleed],
+            ..mode_of(
+                &[Window::ActionBlocksDeclined],
+                Actor::ReactingMinion,
+                &[
+                    Requirement::DirectedAtYou,
+                    Requirement::IsBleed,
+                    Requirement::BlocksDeclined,
+                ],
+                &[Effect::LockActor, Effect::RedirectBleed],
+            )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Requires a baron. Only usable if a minion is bleeding you, after
@@ -5882,26 +4791,21 @@ pub static TELEPATHIC_MISDIRECTION: CardDef = CardDef {
 /// controller (that Methuselah can attempt to block)."
 pub static BAIT_AND_SWITCH: CardDef = CardDef {
     name: "Bait and Switch",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::ActionBlocksDeclined],
-        actor: Actor::ReactingMinion,
-        requires: &[
-            Requirement::ActorTitleIn(&[TitleClass::Baron]),
-            Requirement::DirectedAtYou,
-            Requirement::IsBleed,
-            Requirement::BlocksDeclined,
-        ],
         target: REDIRECT_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::LockActor, Effect::RedirectBleed],
+        ..mode_of(
+            &[Window::ActionBlocksDeclined],
+            Actor::ReactingMinion,
+            &[
+                Requirement::ActorTitleIn(&[TitleClass::Baron]),
+                Requirement::DirectedAtYou,
+                Requirement::IsBleed,
+                Requirement::BlocksDeclined,
+            ],
+            &[Effect::LockActor, Effect::RedirectBleed],
+        )
     }],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[aus] +1 intercept. [AUS] Only usable if a minion controlled by your
@@ -5911,47 +4815,35 @@ pub static BAIT_AND_SWITCH: CardDef = CardDef {
 /// attempt to block)."
 pub static MY_ENEMYS_ENEMY: CardDef = CardDef {
     name: "My Enemy's Enemy",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         intercept(&[Requirement::InterceptNeeded], &[Effect::AddIntercept(1)]),
         ModeDef {
-            windows: &[Window::ActionBlocksDeclined],
-            actor: Actor::ReactingMinion,
-            requires: &[
-                Requirement::DirectedAtYou,
-                Requirement::IsBleed,
-                Requirement::BlocksDeclined,
-                Requirement::ActingByPredator,
-                Requirement::MoreThanTwoLeft,
-            ],
-            target: Some(TargetSpec {
-                kind: TargetKind::Seat,
-                filter: &[Requirement::PredatorsPredator],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockActor, Effect::RedirectBleed],
+            target: target(TargetKind::Seat, &[Requirement::PredatorsPredator]),
+            ..mode_of(
+                &[Window::ActionBlocksDeclined],
+                Actor::ReactingMinion,
+                &[
+                    Requirement::DirectedAtYou,
+                    Requirement::IsBleed,
+                    Requirement::BlocksDeclined,
+                    Requirement::ActingByPredator,
+                    Requirement::MoreThanTwoLeft,
+                ],
+                &[Effect::LockActor, Effect::RedirectBleed],
+            )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[aus] +1 intercept. [AUS] +2 intercept."
 pub static ENHANCED_SENSES: CardDef = CardDef {
     name: "Enhanced Senses",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         intercept(&[Requirement::InterceptNeeded], &[Effect::AddIntercept(1)]),
         intercept(&[Requirement::InterceptNeeded], &[Effect::AddIntercept(2)]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Requires an Anarch. +1 intercept, with an additional +1 intercept if
@@ -5959,9 +4851,6 @@ pub static ENHANCED_SENSES: CardDef = CardDef {
 /// the action (ANK 20190416).
 pub static PROTECTION_RACKET: CardDef = CardDef {
     name: "Protection Racket",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[intercept(
         &[ANARCH, Requirement::InterceptNeeded],
         &[
@@ -5973,8 +4862,7 @@ pub static PROTECTION_RACKET: CardDef = CardDef {
             },
         ],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable during an action directed at you (or a card you control).
@@ -5982,9 +4870,6 @@ pub static PROTECTION_RACKET: CardDef = CardDef {
 /// titled." (Nosferatu, 1 blood.)
 pub static THE_WARRENS: CardDef = CardDef {
     name: "Warrens, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[intercept(
         &[Requirement::DirectedAtYou, Requirement::InterceptNeeded],
         &[
@@ -5996,17 +4881,13 @@ pub static THE_WARRENS: CardDef = CardDef {
             },
         ],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pro] Strike: combat ends. [PRO] As above, and unlock this vampire
 /// before combat ends."
 pub static EARTH_MELD: CardDef = CardDef {
     name: "Earth Meld",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatStrikeDeclaration],
@@ -6019,16 +4900,12 @@ pub static EARTH_MELD: CardDef = CardDef {
             &[Effect::Strike(StrikeKind::CombatEnds { unlock: true })],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[cel] Maneuver. [CEL] Additional strike (limited)."
 pub static PURSUIT: CardDef = CardDef {
     name: "Pursuit",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(&[Window::CombatDetermineRange], &[], &[Effect::Maneuver]),
         combat(
@@ -6040,16 +4917,12 @@ pub static PURSUIT: CardDef = CardDef {
             }],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[tha] Press, only usable to continue combat. [THA] Maneuver."
 pub static APPORTATION: CardDef = CardDef {
     name: "Apportation",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatPress],
@@ -6058,17 +4931,13 @@ pub static APPORTATION: CardDef = CardDef {
         ),
         combat(&[Window::CombatDetermineRange], &[], &[Effect::Maneuver]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[obl] Additional strike (limited). [OBL] Strike: dodge, with 1
 /// additional strike (limited)."
 pub static ARMS_OF_AHRIMAN: CardDef = CardDef {
     name: "Arms of Ahriman",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatAdditionalStrike],
@@ -6090,17 +4959,13 @@ pub static ARMS_OF_AHRIMAN: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Not usable during the first round. [tha] Strike: 1R aggravated damage.
 /// [THA] Strike: 2R aggravated damage."
 pub static WALK_OF_FLAME: CardDef = CardDef {
     name: "Walk of Flame",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatStrikeDeclaration],
@@ -6121,8 +4986,7 @@ pub static WALK_OF_FLAME: CardDef = CardDef {
             })],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "A vampire can play only one Quickness each round. [cel] Additional
@@ -6130,9 +4994,6 @@ pub static WALK_OF_FLAME: CardDef = CardDef {
 /// the limit."
 pub static QUICKNESS: CardDef = CardDef {
     name: "Quickness",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
             limit: Some(Limit::PerRound),
@@ -6157,8 +5018,7 @@ pub static QUICKNESS: CardDef = CardDef {
             )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "A vampire can play only one Rego Motum each round. [tha] Prevent 2
@@ -6166,9 +5026,6 @@ pub static QUICKNESS: CardDef = CardDef {
 /// the opposing minion's strike." (1 blood.)
 pub static REGO_MOTUM: CardDef = CardDef {
     name: "Rego Motum",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
             limit: Some(Limit::PerRound),
@@ -6187,88 +5044,63 @@ pub static REGO_MOTUM: CardDef = CardDef {
             )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Trifle. Add 1 blood to a ready vampire."
 pub static LIFE_IN_THE_CITY: CardDef = CardDef {
     name: "Life in the City",
     trifle: true,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::TargetVampire, Requirement::ActorReady],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::BloodToTarget(1)],
+        target: target(
+            TargetKind::Minion,
+            &[Requirement::TargetVampire, Requirement::ActorReady],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[Effect::BloodToTarget(1)],
+        )
     }],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Lock a minion." (1 pool.) Any minion in play, a locked one included:
 /// playing it to no effect is legal (and cycles the card).
 pub static MISDIRECTION: CardDef = CardDef {
     name: "Misdirection",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::LockTarget],
+        target: target(TargetKind::Minion, &[]),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[Effect::LockTarget],
+        )
     }],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. +2 transfers." (Its controller's influence phase.)
 pub static INFORMATION_HIGHWAY: CardDef = CardDef {
     name: "Information Highway",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::PutInPlay, Effect::Layer(Modifier::Transfers(2))],
-    }],
-    abilities: &[],
-    riders: &[],
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[],
+        &[Effect::PutInPlay, Effect::Layer(Modifier::Transfers(2))],
+    )],
+    ..CARD
 };
 
 /// A location put in play in the master phase.
-const LOCATION: ModeDef = ModeDef {
-    windows: &[Window::MasterPhase],
-    actor: Actor::Methuselah,
-    requires: &[],
-    target: NO_TARGET,
-    terms: None,
-    waives_needed: false,
-    limit: None,
-    effects: &[Effect::PutInPlay],
-};
+const LOCATION: ModeDef = mode_of(
+    &[Window::MasterPhase],
+    Actor::Methuselah,
+    &[],
+    &[Effect::PutInPlay],
+);
 
 /// "Lock this card to give a <clan> you control +1 stealth": to the acting
 /// minion of that clan, when stealth is needed (City Star Taxi's shape).
@@ -6277,26 +5109,19 @@ macro_rules! stealth_location {
         #[doc = $doc]
         pub static $name: CardDef = CardDef {
             name: $printed,
-            trifle: false,
-            out_of_turn: false,
-            delayed_replacement: None,
             modes: &[LOCATION],
-            abilities: &[ModeDef {
-                windows: &[Window::ActionDuring],
-                actor: Actor::Controller,
-                requires: &[
+            abilities: &[mode_of(
+                &[Window::ActionDuring],
+                Actor::Controller,
+                &[
                     Requirement::CardUnlocked,
                     Requirement::OtherActingControlled,
                     Requirement::OtherActingClan($clan),
                     Requirement::StealthNeeded,
                 ],
-                target: NO_TARGET,
-                terms: None,
-                waives_needed: false,
-                limit: None,
-                effects: &[Effect::LockSelf, Effect::AddStealth(1)],
-            }],
-            riders: &[],
+                &[Effect::LockSelf, Effect::AddStealth(1)],
+            )],
+            ..CARD
         };
     };
 }
@@ -6334,25 +5159,18 @@ stealth_location!(
 /// block, while intercept is needed (Oskar Anasov's shape).
 pub static MARKET_SQUARE: CardDef = CardDef {
     name: "Market Square",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionStealthIntercept],
-        actor: Actor::Controller,
-        requires: &[
+    abilities: &[mode_of(
+        &[Window::ActionStealthIntercept],
+        Actor::Controller,
+        &[
             Requirement::CardUnlocked,
             Requirement::YourAttemptNeedsIntercept,
             Requirement::AttemptingClan("Banu Haqim"),
         ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::LockSelf, Effect::AttemptingIntercept(1)],
-    }],
-    riders: &[],
+        &[Effect::LockSelf, Effect::AttemptingIntercept(1)],
+    )],
+    ..CARD
 };
 
 // ---- Wakes and "if this vampire blocks" riders (slice 11b) -----------------
@@ -6361,14 +5179,13 @@ pub static MARKET_SQUARE: CardDef = CardDef {
 macro_rules! wake {
     ($requires:expr, $effects:expr) => {
         ModeDef {
-            windows: &[Window::Wake, Window::CardAsPlayed],
-            actor: Actor::ReactingMinion,
-            requires: $requires,
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
             limit: Some(Limit::BetweenUnlockPhases),
-            effects: $effects,
+            ..mode_of(
+                &[Window::Wake, Window::CardAsPlayed],
+                Actor::ReactingMinion,
+                $requires,
+                $effects,
+            )
         }
     };
 }
@@ -6380,15 +5197,11 @@ macro_rules! wake {
 /// not unlock as normal during their next unlock phase."
 pub static ON_THE_QUI_VIVE: CardDef = CardDef {
     name: "On the Qui Vive",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[wake!(
         &[Requirement::LockedActor],
         &[Effect::Wake, Effect::AllySkipsNextUnlock]
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "A vampire can play only one Shadow Sentinel between their unlock
@@ -6397,31 +5210,27 @@ pub static ON_THE_QUI_VIVE: CardDef = CardDef {
 /// control. The chosen ally wakes."
 pub static SHADOW_SENTINEL: CardDef = CardDef {
     name: "Shadow Sentinel",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         wake!(
             &[Requirement::LockedActor, Requirement::ActorVampire],
             &[Effect::Wake]
         ),
         ModeDef {
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::Controlled,
                     Requirement::TargetLocked,
                     Requirement::TargetSubtypeIn(&[Label::Wraith, Label::Zombie]),
                 ],
-            }),
+            ),
             ..wake!(
                 &[Requirement::MayBeLocked, Requirement::ActorVampire],
                 &[Effect::WakeTarget]
             )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable by a locked vampire during a bleed action directed at you.
@@ -6429,52 +5238,37 @@ pub static SHADOW_SENTINEL: CardDef = CardDef {
 /// during the resulting combat if this vampire blocks."
 pub static GUARD_DOGS: CardDef = CardDef {
     name: "Guard Dogs",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::ReactionUnlock],
-            actor: Actor::ReactingMinion,
-            requires: &[
+        mode_of(
+            &[Window::ReactionUnlock],
+            Actor::ReactingMinion,
+            &[
                 Requirement::LockedActor,
                 Requirement::ActorVampire,
                 Requirement::DirectedAtYou,
                 Requirement::IsBleed,
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::UnlockActor],
-        },
-        ModeDef {
-            windows: &[Window::ReactionUnlock],
-            actor: Actor::ReactingMinion,
-            requires: &[
+            &[Effect::UnlockActor],
+        ),
+        mode_of(
+            &[Window::ReactionUnlock],
+            Actor::ReactingMinion,
+            &[
                 Requirement::LockedActor,
                 Requirement::ActorVampire,
                 Requirement::DirectedAtYou,
                 Requirement::IsBleed,
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::UnlockActor, Effect::IfBlocks(BlockRider::Maneuver)],
-        },
+            &[Effect::UnlockActor, Effect::IfBlocks(BlockRider::Maneuver)],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[aus] +1 intercept. [AUS] As above, with 1 optional maneuver during the
 /// resulting combat if this vampire blocks."
 pub static SPIRITS_TOUCH: CardDef = CardDef {
     name: "Spirit's Touch",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         intercept(&[Requirement::InterceptNeeded], &[Effect::AddIntercept(1)]),
         intercept(
@@ -6485,8 +5279,7 @@ pub static SPIRITS_TOUCH: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable if a minion controlled by your predator is acting. [ani]
@@ -6494,9 +5287,6 @@ pub static SPIRITS_TOUCH: CardDef = CardDef {
 /// resulting combat if this vampire blocks."
 pub static INSTINCTIVE_REACTION: CardDef = CardDef {
     name: "Instinctive Reaction",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         intercept(
             &[Requirement::ActingByPredator, Requirement::InterceptNeeded],
@@ -6510,17 +5300,13 @@ pub static INSTINCTIVE_REACTION: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[aus] +1 intercept. [AUS] As above, and this vampire can prevent 1
 /// damage during the first round of the resulting combat if they block."
 pub static PRECOGNITION: CardDef = CardDef {
     name: "Precognition",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         intercept(&[Requirement::InterceptNeeded], &[Effect::AddIntercept(1)]),
         intercept(
@@ -6531,8 +5317,7 @@ pub static PRECOGNITION: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Forced block attempts and more block riders (slice 11b-ii) ------------
@@ -6542,14 +5327,13 @@ pub static PRECOGNITION: CardDef = CardDef {
 macro_rules! unlock_attempt {
     ($requires:expr, $effects:expr) => {
         ModeDef {
-            windows: &[Window::ReactionUnlockAttempt],
-            actor: Actor::ReactingMinion,
-            requires: $requires,
-            target: NO_TARGET,
-            terms: None,
             waives_needed: true,
-            limit: None,
-            effects: $effects,
+            ..mode_of(
+                &[Window::ReactionUnlockAttempt],
+                Actor::ReactingMinion,
+                $requires,
+                $effects,
+            )
         }
     };
 }
@@ -6564,9 +5348,6 @@ const PRINCE_OR_JUSTICAR: Requirement =
 /// the card is not playable without it (ANK 20210226).
 pub static SECOND_TRADITION_DOMAIN: CardDef = CardDef {
     name: "Second Tradition: Domain",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         intercept(
             &[PRINCE_OR_JUSTICAR, Requirement::InterceptNeeded],
@@ -6587,8 +5368,7 @@ pub static SECOND_TRADITION_DOMAIN: CardDef = CardDef {
             ]
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Requires an Anarch. [ani] Only usable during an action directed at you
@@ -6597,9 +5377,6 @@ pub static SECOND_TRADITION_DOMAIN: CardDef = CardDef {
 /// to unlock."
 pub static DEEP_ECOLOGY: CardDef = CardDef {
     name: "Deep Ecology",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         intercept(
             &[
@@ -6609,34 +5386,25 @@ pub static DEEP_ECOLOGY: CardDef = CardDef {
             ],
             &[Effect::AddIntercept(2)],
         ),
-        ModeDef {
-            windows: &[Window::ReactionDuringAction],
-            actor: Actor::ReactingMinion,
-            requires: &[ANARCH, Requirement::DirectedAtYou, Requirement::IsBleed],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::ReduceBleed(2)],
-        },
-        ModeDef {
-            windows: &[Window::ReactionUnlock],
-            actor: Actor::ReactingMinion,
-            requires: &[
+        mode_of(
+            &[Window::ReactionDuringAction],
+            Actor::ReactingMinion,
+            &[ANARCH, Requirement::DirectedAtYou, Requirement::IsBleed],
+            &[Effect::ReduceBleed(2)],
+        ),
+        mode_of(
+            &[Window::ReactionUnlock],
+            Actor::ReactingMinion,
+            &[
                 ANARCH,
                 Requirement::LockedActor,
                 Requirement::ActorVampire,
                 Requirement::ActorBloodAtLeast(1),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::BurnActorBlood(1), Effect::UnlockActor],
-        },
+            &[Effect::BurnActorBlood(1), Effect::UnlockActor],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable during an action directed at you (or a card you control).
@@ -6645,9 +5413,6 @@ pub static DEEP_ECOLOGY: CardDef = CardDef {
 /// strike during the first round of the resulting combat." (Tzimisce.)
 pub static ONE_WITH_THE_LAND: CardDef = CardDef {
     name: "One With the Land",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         intercept(
             &[Requirement::DirectedAtYou, Requirement::InterceptNeeded],
@@ -6667,8 +5432,7 @@ pub static ONE_WITH_THE_LAND: CardDef = CardDef {
             ]
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pro] [ACTION MODIFIER] Only usable if a minion attempts to block. The
@@ -6679,24 +5443,17 @@ pub static ONE_WITH_THE_LAND: CardDef = CardDef {
 /// resulting combat."
 pub static FORM_OF_THE_BAT: CardDef = CardDef {
     name: "Form of the Bat",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::ActionBlockAttempt],
-            actor: Actor::ActingMinion,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+        mode_of(
+            &[Window::ActionBlockAttempt],
+            Actor::ActingMinion,
+            &[],
+            &[
                 Effect::AttemptingIntercept(-1),
                 Effect::IfBlocks(BlockRider::Maneuver),
                 Effect::IfBlocks(BlockRider::NoEquipment),
             ],
-        },
+        ),
         intercept(
             &[Requirement::InterceptNeeded],
             &[
@@ -6706,17 +5463,13 @@ pub static FORM_OF_THE_BAT: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[obl] +1 intercept. [OBL] As above, and if this vampire blocks, they
 /// can burn 1 blood to unlock after block resolution."
 pub static TRUTH_IN_DARKNESS: CardDef = CardDef {
     name: "Truth in Darkness",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         intercept(&[Requirement::InterceptNeeded], &[Effect::AddIntercept(1)]),
         intercept(
@@ -6727,8 +5480,7 @@ pub static TRUTH_IN_DARKNESS: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 const BARON: Requirement = Requirement::ActorTitleIn(&[TitleClass::Baron]);
@@ -6740,46 +5492,38 @@ const BARON: Requirement = Requirement::ActorTitleIn(&[TitleClass::Baron]);
 /// forced attempt keeps the blocking restrictions (ANK 20180623).
 pub static ORGANIZED_RESISTANCE: CardDef = CardDef {
     name: "Organized Resistance",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::ActionStealthIntercept],
-            actor: Actor::ReactingMinion,
-            requires: &[
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::ReactingMinion,
+            &[
                 BARON,
                 Requirement::MayBeLocked,
                 Requirement::YourAttemptNeedsIntercept,
                 Requirement::AttemptingSectIn(&[Sect::Anarch]),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::AttemptingIntercept(1)],
-        },
+            &[Effect::AttemptingIntercept(1)],
+        ),
         ModeDef {
-            windows: &[Window::ReactionUnlockAttempt],
-            actor: Actor::ReactingMinion,
-            requires: &[BARON, Requirement::MayBeLocked],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::Controlled,
                     Requirement::TargetLocked,
                     ANARCH,
                     Requirement::CanAttemptBlock,
                 ],
-            }),
-            terms: None,
+            ),
             waives_needed: true,
-            limit: None,
-            effects: &[Effect::TargetAttemptsBlock(1)],
+            ..mode_of(
+                &[Window::ReactionUnlockAttempt],
+                Actor::ReactingMinion,
+                &[BARON, Requirement::MayBeLocked],
+                &[Effect::TargetAttemptsBlock(1)],
+            )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable by a locked Gangrel. This Gangrel unlocks and attempts to
@@ -6788,9 +5532,6 @@ pub static ORGANIZED_RESISTANCE: CardDef = CardDef {
 /// block this action."
 pub static EYES_OF_THE_WILD: CardDef = CardDef {
     name: "Eyes of the Wild",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[unlock_attempt!(
         &[Requirement::LockedActor, Requirement::CanAttemptBlock,],
         &[
@@ -6800,8 +5541,7 @@ pub static EYES_OF_THE_WILD: CardDef = CardDef {
             Effect::LockIfNoBlock,
         ]
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[obf][pre] Reduce the acting minion's stealth to 0. (The acting minion
@@ -6812,36 +5552,24 @@ pub static EYES_OF_THE_WILD: CardDef = CardDef {
 /// (RTR 20030519) — the exception to live conditions.
 pub static NIGHT_TERRORS: CardDef = CardDef {
     name: "Night Terrors",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        ModeDef {
-            windows: &[Window::ReactionDuringAction],
-            actor: Actor::ReactingMinion,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::ReduceStealthToZero],
-        },
-        ModeDef {
-            windows: &[Window::ReactionDuringAction],
-            actor: Actor::ReactingMinion,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+        mode_of(
+            &[Window::ReactionDuringAction],
+            Actor::ReactingMinion,
+            &[],
+            &[Effect::ReduceStealthToZero],
+        ),
+        mode_of(
+            &[Window::ReactionDuringAction],
+            Actor::ReactingMinion,
+            &[],
+            &[
                 Effect::ReduceStealthToZero,
                 Effect::IfBlocks(BlockRider::CombatEndsFirstRound),
             ],
-        },
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Block attempts that fail or cost (slice 11c) ---------------------------
@@ -6849,16 +5577,12 @@ pub static NIGHT_TERRORS: CardDef = CardDef {
 /// An action modifier during a block attempt.
 macro_rules! on_attempt {
     ($requires:expr, $effects:expr) => {
-        ModeDef {
-            windows: &[Window::ActionBlockAttempt],
-            actor: Actor::ActingMinion,
-            requires: $requires,
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: $effects,
-        }
+        mode_of(
+            &[Window::ActionBlockAttempt],
+            Actor::ActingMinion,
+            $requires,
+            $effects,
+        )
     };
 }
 
@@ -6868,9 +5592,6 @@ macro_rules! on_attempt {
 /// is an effect (ANK 20210226).
 pub static STYGIAN_SHROUD: CardDef = CardDef {
     name: "Stygian Shroud",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         on_attempt!(&[], &[Effect::AttemptingIntercept(-1)]),
         on_attempt!(
@@ -6878,8 +5599,7 @@ pub static STYGIAN_SHROUD: CardDef = CardDef {
             &[Effect::BurnActorBlood(1), Effect::AttemptFails]
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable if a minion attempts to block. [dom] The blocking minion
@@ -6887,15 +5607,11 @@ pub static STYGIAN_SHROUD: CardDef = CardDef {
 /// cannot attempt to block this action again." (Salubri, 1 blood.)
 pub static FORCED_CONFESSIONAL: CardDef = CardDef {
     name: "Forced Confessional",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         on_attempt!(&[], &[Effect::AttemptingIntercept(-1)]),
         on_attempt!(&[], &[Effect::AttemptFails]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[obf][pre] Only usable during a bleed action. +1 bleed (limited).
@@ -6905,21 +5621,11 @@ pub static FORCED_CONFESSIONAL: CardDef = CardDef {
 /// is played."
 pub static TRUE_LOVES_FACE: CardDef = CardDef {
     name: "True Love's Face",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        modifier(
-            &[Requirement::IsBleed],
-            &[Effect::BleedMod {
-                n: 1,
-                limited: true,
-            }],
-        ),
+        modifier(&[Requirement::IsBleed], &[bleed(1, true)]),
         on_attempt!(&[], &[Effect::CancelableForPool(1), Effect::AttemptFails]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[obl] +1 stealth. [OBL] As above, and minions without Oblivion must
@@ -6927,15 +5633,11 @@ pub static TRUE_LOVES_FACE: CardDef = CardDef {
 /// already attempting pays or resigns its attempt (LSJ 20031121-2).
 pub static WHERE_THE_VEIL_THINS: CardDef = CardDef {
     name: "Where the Veil Thins",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         stealth(&[Effect::AddStealth(1)]),
         stealth(&[Effect::AddStealth(1), Effect::VeilThins]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[obf] +1 stealth. [OBF] As above, and minions who attempt to block this
@@ -6945,15 +5647,11 @@ pub static WHERE_THE_VEIL_THINS: CardDef = CardDef {
 /// 20171017).
 pub static FACELESS_NIGHT: CardDef = CardDef {
     name: "Faceless Night",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         stealth(&[Effect::AddStealth(1)]),
         stealth(&[Effect::AddStealth(1), Effect::LockFailedBlockers]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Cancellation (slice 11d) ------------------------------------------------
@@ -6965,21 +5663,14 @@ pub static FACELESS_NIGHT: CardDef = CardDef {
 /// no action: its minion may take the same action again.
 pub static DIRECT_INTERVENTION: CardDef = CardDef {
     name: "Direct Intervention",
-    trifle: false,
     out_of_turn: true,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::CardAsPlayed],
-        actor: Actor::Methuselah,
-        requires: &[Requirement::NotOwnTurn, Requirement::PlayedCardIsMinionCard],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::CancelPlayed { refund: true }],
-    }],
-    abilities: &[],
-    riders: &[],
+    modes: &[mode_of(
+        &[Window::CardAsPlayed],
+        Actor::Methuselah,
+        &[Requirement::NotOwnTurn, Requirement::PlayedCardIsMinionCard],
+        &[Effect::CancelPlayed { refund: true }],
+    )],
+    ..CARD
 };
 
 /// "Out-of-turn. Trifle. Do not replace until your unlock phase. Cancel a
@@ -6993,25 +5684,20 @@ pub static WASH: CardDef = CardDef {
     trifle: true,
     out_of_turn: true,
     delayed_replacement: Some(Until::NextUnlockPhase),
-    modes: &[ModeDef {
-        windows: &[Window::CardAsPlayed],
-        actor: Actor::Methuselah,
-        requires: &[
+    modes: &[mode_of(
+        &[Window::CardAsPlayed],
+        Actor::Methuselah,
+        &[
             Requirement::NotOwnTurn,
             Requirement::PlayedCardIsMaster,
             Requirement::PlayedByPredatorOrPrey,
         ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+        &[
             Effect::CancelPlayed { refund: true },
             Effect::CanceledGetsMasterAction,
         ],
-    }],
-    abilities: &[],
-    riders: &[],
+    )],
+    ..CARD
 };
 
 // ---- Titles and votes (slice 11e) ---------------------------------------
@@ -7046,25 +5732,17 @@ static TOREADOR_JUSTICAR_REFERENDUM: ReferendumDef = ReferendumDef {
 /// contest (advanced rules §5.8.1).
 pub static TOREADOR_JUSTICAR: CardDef = CardDef {
     name: "Toreador Justicar",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::ActionDeclarePolitical],
-        actor: Actor::ActingCandidate,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    modes: &[mode_of(
+        &[Window::ActionDeclarePolitical],
+        Actor::ActingCandidate,
+        &[],
+        &[
             Effect::DeclareAction(ActionKind::Political),
             Effect::CallReferendum(&TOREADOR_JUSTICAR_REFERENDUM),
             Effect::RepresentsTitle(crate::crypt::Title::Justicar("Toreador")),
         ],
-    }],
-    abilities: &[],
-    riders: &[],
+    )],
+    ..CARD
 };
 
 /// A political action card's mode, by a minion meeting `requires`
@@ -7074,7 +5752,7 @@ const fn political(requires: &'static [Requirement], effects: &'static [Effect])
         windows: &[Window::ActionDeclarePolitical],
         actor: Actor::ActingCandidate,
         requires,
-        target: NO_TARGET,
+        target: None,
         terms: None,
         waives_needed: false,
         limit: None,
@@ -7107,9 +5785,6 @@ static MALKAVIAN_JUSTICAR_REFERENDUM: ReferendumDef = ReferendumDef {
 /// 20100129).
 pub static MALKAVIAN_JUSTICAR: CardDef = CardDef {
     name: "Malkavian Justicar",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[political(
         &[],
         &[
@@ -7118,8 +5793,7 @@ pub static MALKAVIAN_JUSTICAR: CardDef = CardDef {
             Effect::RepresentsTitle(crate::crypt::Title::Justicar("Malkavian")),
         ],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 static ARCHON_REFERENDUM: ReferendumDef = ReferendumDef {
@@ -7147,9 +5821,6 @@ static ARCHON_REFERENDUM: ReferendumDef = ReferendumDef {
 /// of blood burns what it has and still blocks (LSJ 19970707).
 pub static ARCHON: CardDef = CardDef {
     name: "Archon",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[political(
         &[PRINCE_OR_JUSTICAR],
         &[
@@ -7161,45 +5832,40 @@ pub static ARCHON: CardDef = CardDef {
     )],
     abilities: &[
         ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[Requirement::ActorIsHost],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::NotControlled,
                     Requirement::ActorReady,
                     Requirement::TargetVampire,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::DeclareAction(ActionKind::Ability),
-                Effect::AddStealth(1),
-                Effect::EnterCombatWithTarget,
-            ],
+            ),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::ActingCandidate,
+                &[Requirement::ActorIsHost],
+                &[
+                    Effect::DeclareAction(ActionKind::Ability),
+                    Effect::AddStealth(1),
+                    Effect::EnterCombatWithTarget,
+                ],
+            )
         },
-        ModeDef {
-            windows: &[Window::ActionDeclarePolitical],
-            actor: Actor::ActingCandidate,
-            requires: &[
+        mode_of(
+            &[Window::ActionDeclarePolitical],
+            Actor::ActingCandidate,
+            &[
                 Requirement::ActorVampire,
                 Requirement::ActorSectIn(&[Sect::Camarilla]),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+            &[
                 Effect::DeclareAction(ActionKind::Political),
                 Effect::AddStealth(1),
                 Effect::CallReferendum(&BURN_THIS_CARD),
             ],
-        },
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 static RAISING_THE_PORTCULLIS_REFERENDUM: ReferendumDef = ReferendumDef {
@@ -7217,9 +5883,6 @@ static RAISING_THE_PORTCULLIS_REFERENDUM: ReferendumDef = ReferendumDef {
 /// 20100129); the bleed read live.
 pub static RAISING_THE_PORTCULLIS: CardDef = CardDef {
     name: "Raising the Portcullis",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[political(
         &[Requirement::OnePerMethuselah],
         &[
@@ -7228,21 +5891,17 @@ pub static RAISING_THE_PORTCULLIS: CardDef = CardDef {
             Effect::Layer(Modifier::OwnBleedWhilePreyTorpor(1)),
         ],
     )],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDeclarePolitical],
-        actor: Actor::ActingCandidate,
-        requires: &[Requirement::ActorVampire],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    abilities: &[mode_of(
+        &[Window::ActionDeclarePolitical],
+        Actor::ActingCandidate,
+        &[Requirement::ActorVampire],
+        &[
             Effect::DeclareAction(ActionKind::Political),
             Effect::AddStealth(1),
             Effect::CallReferendum(&BURN_THIS_CARD),
         ],
-    }],
-    riders: &[],
+    )],
+    ..CARD
 };
 
 static DISPUTED_TERRITORY_REFERENDUM: ReferendumDef = ReferendumDef {
@@ -7263,9 +5922,6 @@ static DISPUTED_TERRITORY_REFERENDUM: ReferendumDef = ReferendumDef {
 /// in play (LSJ 20100129).
 pub static DISPUTED_TERRITORY: CardDef = CardDef {
     name: "Disputed Territory",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[political(
         &[],
         &[
@@ -7273,8 +5929,7 @@ pub static DISPUTED_TERRITORY: CardDef = CardDef {
             Effect::CallReferendum(&DISPUTED_TERRITORY_REFERENDUM),
         ],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 static REVOLUTIONARY_COUNCIL_REFERENDUM: ReferendumDef = ReferendumDef {
@@ -7307,9 +5962,6 @@ static REVOLUTIONARY_COUNCIL_REFERENDUM: ReferendumDef = ReferendumDef {
 /// (CrimethInc.; rules-qa 39.1).
 pub static REVOLUTIONARY_COUNCIL: CardDef = CardDef {
     name: "Revolutionary Council",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[political(
         &[BARON],
         &[
@@ -7317,8 +5969,7 @@ pub static REVOLUTIONARY_COUNCIL: CardDef = CardDef {
             Effect::CallReferendum(&REVOLUTIONARY_COUNCIL_REFERENDUM),
         ],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique archetype. Title. Put this card on an Independent Salubri you
@@ -7331,77 +5982,71 @@ pub static REVOLUTIONARY_COUNCIL: CardDef = CardDef {
 /// cast yet (advanced rules §3.7.6.3).
 pub static SAULOTS_GUIDING_WISDOM: CardDef = CardDef {
     name: "Saulot's Guiding Wisdom",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[
+        target: target(
+            TargetKind::Minion,
+            &[
                 Requirement::Controlled,
                 Requirement::TargetClan("Salubri"),
                 Requirement::ActorSectIn(&[Sect::Independent]),
                 NO_ARCHETYPE,
             ],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
-            Effect::PutOnTarget,
-            Effect::RepresentsTitle(crate::crypt::Title::Independent {
-                name: "Saulot's Guiding Wisdom",
-                votes: 2,
-            }),
-        ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutOnTarget,
+                Effect::RepresentsTitle(crate::crypt::Title::Independent {
+                    name: "Saulot's Guiding Wisdom",
+                    votes: 2,
+                }),
+            ],
+        )
     }],
     abilities: &[
         ModeDef {
-            windows: &[Window::Referendum],
-            actor: Actor::Host,
-            requires: &[
-                Requirement::AnyPollingStep,
-                Requirement::HostReady,
-                Requirement::HostUnlocked,
-            ],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::TargetVampire,
                     Requirement::ActorReady,
                     Requirement::NotAbstaining,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::LockHost,
-                Effect::Abstain {
-                    lock: false,
-                    burn: 0,
-                },
-            ],
+            ),
+            ..mode_of(
+                &[Window::Referendum],
+                Actor::Host,
+                &[
+                    Requirement::AnyPollingStep,
+                    Requirement::HostReady,
+                    Requirement::HostUnlocked,
+                ],
+                &[
+                    Effect::LockHost,
+                    Effect::Abstain {
+                        lock: false,
+                        burn: 0,
+                    },
+                ],
+            )
         },
         ModeDef {
-            windows: &[Window::CombatBeforeRange],
-            actor: Actor::ForOwnCombatant,
-            requires: &[
-                Requirement::HostOutOfCombat,
-                Requirement::HostReady,
-                Requirement::HostUnlocked,
-            ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
             limit: Some(Limit::PerTurn),
-            effects: &[Effect::LockHost, Effect::EndCombat],
+            ..mode_of(
+                &[Window::CombatBeforeRange],
+                Actor::ForOwnCombatant,
+                &[
+                    Requirement::HostOutOfCombat,
+                    Requirement::HostReady,
+                    Requirement::HostUnlocked,
+                ],
+                &[Effect::LockHost, Effect::EndCombat],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Archetype. Trifle. Put this card on a vampire you control. Once each
@@ -7411,26 +6056,22 @@ pub static SAULOTS_GUIDING_WISDOM: CardDef = CardDef {
 pub static REBEL: CardDef = CardDef {
     name: "Rebel",
     trifle: true,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[
+        target: target(
+            TargetKind::Minion,
+            &[
                 Requirement::Controlled,
                 Requirement::TargetVampire,
                 NO_ARCHETYPE,
             ],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::PutOnTarget],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[Effect::PutOnTarget],
+        )
     }],
-    abilities: &[],
     riders: &[Rider {
         hook: Hook::HostBlocks,
         scope: RiderScope::Every,
@@ -7443,6 +6084,7 @@ pub static REBEL: CardDef = CardDef {
         ],
         effects: &[Effect::AddHostBlood(1)],
     }],
+    ..CARD
 };
 
 /// A location locked during the polling step for votes: its master phase
@@ -7452,22 +6094,10 @@ macro_rules! vote_location {
         #[doc = $doc]
         pub static $name: CardDef = CardDef {
             name: $printed,
-            trifle: false,
-            out_of_turn: false,
-            delayed_replacement: None,
             modes: &[LOCATION],
-            abilities: &[$(ModeDef {
-                windows: &[Window::Referendum],
-                actor: Actor::Methuselah,
-                requires: $requires,
-                target: NO_TARGET,
-                terms: None,
-                waives_needed: false,
-                limit: None,
-                effects: $effects,
-            }),+],
-            riders: &[],
-        };
+            abilities: &[$(mode_of(&[Window::Referendum], Actor::Methuselah, $requires, $effects)),+],
+..CARD
+};
     };
 }
 
@@ -7534,9 +6164,6 @@ vote_location!(
 /// weapons (LSJ 20040928).
 pub static BLOOD_RAGE: CardDef = CardDef {
     name: "Blood Rage",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatStrikeDeclaration],
@@ -7557,8 +6184,7 @@ pub static BLOOD_RAGE: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[tha] Strike: 1R damage. This damage cannot be prevented by cards
@@ -7567,9 +6193,6 @@ pub static BLOOD_RAGE: CardDef = CardDef {
 /// weapons are nullified as it resolves (ANK 20170519).
 pub static SOUL_BURN: CardDef = CardDef {
     name: "Soul Burn",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatStrikeDeclaration],
@@ -7598,8 +6221,7 @@ pub static SOUL_BURN: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable before range is determined. A vampire can play only one
@@ -7609,9 +6231,6 @@ pub static SOUL_BURN: CardDef = CardDef {
 /// dodge; a strike: combat ends comes first (RTR 19941109, TOM 19951216).
 pub static CARRION_CROWS: CardDef = CardDef {
     name: "Carrion Crows",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
             limit: Some(Limit::PerCombat),
@@ -7630,8 +6249,7 @@ pub static CARRION_CROWS: CardDef = CardDef {
             )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable before range is determined. [tha] This round, this vampire
@@ -7640,9 +6258,6 @@ pub static CARRION_CROWS: CardDef = CardDef {
 /// in the round (ANK 20220207).
 pub static HUNGER_OF_MARDUK: CardDef = CardDef {
     name: "Hunger of Marduk",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatBeforeRange],
@@ -7661,8 +6276,7 @@ pub static HUNGER_OF_MARDUK: CardDef = CardDef {
             })],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Archetypes (slice 11g) --------------------------------------------------
@@ -7693,9 +6307,6 @@ const fn archetype(filter: &'static [Requirement], effects: &'static [Effect]) -
 /// 20070411); after-resolution cards may follow the gain (ANK 20190113).
 pub static PERFECTIONIST: CardDef = CardDef {
     name: "Perfectionist",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[archetype(
         &[
             Requirement::Controlled,
@@ -7705,20 +6316,19 @@ pub static PERFECTIONIST: CardDef = CardDef {
         &[Effect::PutOnTarget],
     )],
     abilities: &[ModeDef {
-        windows: &[Window::ActionAfterResolution],
-        actor: Actor::Host,
-        requires: &[
-            Requirement::ActorActing,
-            Requirement::ActionSuccessful,
-            Requirement::NoReactionPlayed,
-        ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
         limit: Some(Limit::PerTurn),
-        effects: &[Effect::AddHostBlood(1)],
+        ..mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::Host,
+            &[
+                Requirement::ActorActing,
+                Requirement::ActionSuccessful,
+                Requirement::NoReactionPlayed,
+            ],
+            &[Effect::AddHostBlood(1)],
+        )
     }],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique archetype. Put this card on a Salubri you control. This Salubri
@@ -7727,9 +6337,6 @@ pub static PERFECTIONIST: CardDef = CardDef {
 /// action. A vampire can have only one archetype."
 pub static SAULOTS_AVENGING_FIST: CardDef = CardDef {
     name: "Saulot's Avenging Fist",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[archetype(
         &[
             Requirement::Controlled,
@@ -7754,14 +6361,14 @@ pub static SAULOTS_AVENGING_FIST: CardDef = CardDef {
             Requirement::TargetClanNotIn(&["Salubri", "Tremere"]),
         ]),
         printed_action(
-            Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target(
+                TargetKind::Minion,
+                &[
                     Requirement::NotControlled,
                     Requirement::ActorReady,
                     Requirement::TargetClan("Tremere"),
                 ],
-            }),
+            ),
             &[
                 Effect::DeclareAction(ActionKind::Ability),
                 Effect::AddStealth(1),
@@ -7769,7 +6376,7 @@ pub static SAULOTS_AVENGING_FIST: CardDef = CardDef {
             ],
         ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique archetype. Put this card on a Salubri you control. Rescuing a
@@ -7783,9 +6390,6 @@ pub static SAULOTS_AVENGING_FIST: CardDef = CardDef {
 /// rules-qa 20.1).
 pub static SAULOTS_HEALING_TOUCH: CardDef = CardDef {
     name: "Saulot's Healing Touch",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[archetype(
         &[
             Requirement::Controlled,
@@ -7802,17 +6406,17 @@ pub static SAULOTS_HEALING_TOUCH: CardDef = CardDef {
         ],
     )],
     abilities: &[printed_action(
-        Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::ActorReady, Requirement::OtherThanActor],
-        }),
+        target(
+            TargetKind::Minion,
+            &[Requirement::ActorReady, Requirement::OtherThanActor],
+        ),
         &[
             Effect::DeclareAction(ActionKind::Ability),
             Effect::AddStealth(1),
             Effect::BloodToTargetToStart(1),
         ],
     )],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Combat cards (slice 11i) ----------------------------------------------
@@ -7823,9 +6427,6 @@ pub static SAULOTS_HEALING_TOUCH: CardDef = CardDef {
 /// gets +1 strength and can prevent 1 damage each round."
 pub static BEARS_SKIN: CardDef = CardDef {
     name: "Bear's Skin",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
             limit: Some(Limit::PerCombat),
@@ -7844,8 +6445,7 @@ pub static BEARS_SKIN: CardDef = CardDef {
             )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Requires an Anarch. [ani] Strike: hand strike at +1 damage. This strike
@@ -7856,9 +6456,6 @@ pub static BEARS_SKIN: CardDef = CardDef {
 /// one is used (ANK 20220204).
 pub static DUST_UP: CardDef = CardDef {
     name: "Dust Up",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatStrikeDeclaration],
@@ -7885,8 +6482,7 @@ pub static DUST_UP: CardDef = CardDef {
             &[Effect::Strike(StrikeKind::Hand { bonus: 2 })],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable before range is determined. A vampire can play only one
@@ -7895,9 +6491,6 @@ pub static DUST_UP: CardDef = CardDef {
 /// combat." The press is usable this round only (TOM 19960521).
 pub static FORM_OF_THE_WOLF: CardDef = CardDef {
     name: "Form of the Wolf",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
             limit: Some(Limit::PerCombat),
@@ -7916,8 +6509,7 @@ pub static FORM_OF_THE_WOLF: CardDef = CardDef {
             )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[for] Prevent 1 damage. [FOR] Burn 1 blood to prevent all damage from
@@ -7926,9 +6518,6 @@ pub static FORM_OF_THE_WOLF: CardDef = CardDef {
 /// with no damage to prevent (LSJ 20001114).
 pub static ROLLING_WITH_THE_PUNCHES: CardDef = CardDef {
     name: "Rolling with the Punches",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatDamagePrevention],
@@ -7947,8 +6536,7 @@ pub static ROLLING_WITH_THE_PUNCHES: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pro] Strike: hand strike, aggravated. [PRO] Strike: hand strike at +1
@@ -7958,9 +6546,6 @@ pub static ROLLING_WITH_THE_PUNCHES: CardDef = CardDef {
 /// lands; an ally at no life is burned.
 pub static SCULPT_THE_FLESH: CardDef = CardDef {
     name: "Sculpt the Flesh",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatStrikeDeclaration],
@@ -7979,26 +6564,23 @@ pub static SCULPT_THE_FLESH: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::ActingCandidate,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    abilities: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::ActingCandidate,
+        &[],
+        &[
             Effect::DeclareAction(ActionKind::BurnCard),
             Effect::AddStealth(1),
             Effect::BurnSource,
         ],
-    }],
+    )],
     riders: &[Rider {
         hook: Hook::UnlockPhase,
         scope: RiderScope::Controller,
         requires: &[],
         effects: &[Effect::HostBurnBlood(1)],
     }],
+    ..CARD
 };
 
 /// "[obl] Strike: put this card on the opposing minion with 2 counters. The
@@ -8008,9 +6590,6 @@ pub static SCULPT_THE_FLESH: CardDef = CardDef {
 /// is wounded (LSJ 20090622-2).
 pub static TOUCH_OF_OBLIVION: CardDef = CardDef {
     name: "Touch of Oblivion",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatStrikeDeclaration],
@@ -8027,8 +6606,7 @@ pub static TOUCH_OF_OBLIVION: CardDef = CardDef {
             &[Effect::Strike(StrikeKind::TorporOrBurn)],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[obl] Strike: combat ends. [OBL] Strike: combat ends. After combat
@@ -8037,9 +6615,6 @@ pub static TOUCH_OF_OBLIVION: CardDef = CardDef {
 /// 20020501, LSJ 19980109).
 pub static PASS_THROUGH_SHADOW: CardDef = CardDef {
     name: "Pass Through Shadow",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatStrikeDeclaration],
@@ -8055,17 +6630,13 @@ pub static PASS_THROUGH_SHADOW: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDuring],
-        actor: Actor::Host,
-        requires: &[Requirement::ActorActing, Requirement::StealthNeeded],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::BurnSelf, Effect::AddStealth(1)],
-    }],
-    riders: &[],
+    abilities: &[mode_of(
+        &[Window::ActionDuring],
+        Actor::Host,
+        &[Requirement::ActorActing, Requirement::StealthNeeded],
+        &[Effect::BurnSelf, Effect::AddStealth(1)],
+    )],
+    ..CARD
 };
 
 // ---- Combat cards with their own mechanisms (slice 11j) ---------------------
@@ -8076,9 +6647,6 @@ pub static PASS_THROUGH_SHADOW: CardDef = CardDef {
 /// 20021028: not while the strike cannot be used).
 pub static SLAM: CardDef = CardDef {
     name: "Slam",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatStrikeDeclaration],
@@ -8094,8 +6662,7 @@ pub static SLAM: CardDef = CardDef {
             &[Effect::CommittedStrike(StrikeKind::Hand { bonus: 2 })],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[ani] Strike: 1R damage, with 1 optional maneuver. [ANI] As above, with
@@ -8103,9 +6670,6 @@ pub static SLAM: CardDef = CardDef {
 /// initial strike.
 pub static AID_FROM_BATS: CardDef = CardDef {
     name: "Aid from Bats",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[
@@ -8135,8 +6699,7 @@ pub static AID_FROM_BATS: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "A vampire can play only one Pack Alpha each round. [ani] Only usable
@@ -8148,9 +6711,6 @@ pub static AID_FROM_BATS: CardDef = CardDef {
 /// employ action's riders do not apply (LSJ 20090115-1).
 pub static PACK_ALPHA: CardDef = CardDef {
     name: "Pack Alpha",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
             limit: Some(Limit::PerRound),
@@ -8158,33 +6718,32 @@ pub static PACK_ALPHA: CardDef = CardDef {
             ..combat(&[Window::CombatBeforeRange], &[], &[Effect::EmployNamed])
         },
         ModeDef {
-            windows: &[Window::CombatUntimed],
-            actor: Actor::Combatant,
-            requires: &[Requirement::ActorWithout(Holding::Named("Pack Alpha"))],
-            target: Some(TargetSpec {
-                kind: TargetKind::Card,
-                filter: &[
+            target: target(
+                TargetKind::Card,
+                &[
                     Requirement::TargetCard(CardFilter::Labeled(CardType::Retainer, Label::Animal)),
                     Requirement::TargetOnActor,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
+            ),
             limit: Some(Limit::PerRound),
-            effects: &[
-                Effect::BurnTargetCard,
-                Effect::PutOnActor,
-                Effect::Layer(Modifier::Bearer {
-                    stat: Stat::Strength,
-                    n: 1,
-                    during: &[],
-                    who: Bearer::Any,
-                }),
-            ],
+            ..mode_of(
+                &[Window::CombatUntimed],
+                Actor::Combatant,
+                &[Requirement::ActorWithout(Holding::Named("Pack Alpha"))],
+                &[
+                    Effect::BurnTargetCard,
+                    Effect::PutOnActor,
+                    Effect::Layer(Modifier::Bearer {
+                        stat: Stat::Strength,
+                        n: 1,
+                        during: &[],
+                        who: Bearer::Any,
+                    }),
+                ],
+            )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[ani] Strike: dodge. [ANI] As above, with 1 additional ranged strike:
@@ -8193,9 +6752,6 @@ pub static PACK_ALPHA: CardDef = CardDef {
 /// range, unless dodged (owner, 2026-09-26: rules-qa 22.3).
 pub static VORACIOUS_VERMIN: CardDef = CardDef {
     name: "Voracious Vermin",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatStrikeDeclaration],
@@ -8214,8 +6770,7 @@ pub static VORACIOUS_VERMIN: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable before range is determined during the first round. Put this
@@ -8227,9 +6782,6 @@ pub static VORACIOUS_VERMIN: CardDef = CardDef {
 /// 20100519); full damage while any counter is left (ANK 20201229-2).
 pub static WEIGHTED_WALKING_STICK: CardDef = CardDef {
     name: "Weighted Walking Stick",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[combat(
         &[Window::CombatBeforeRange],
         &[
@@ -8252,29 +6804,10 @@ pub static WEIGHTED_WALKING_STICK: CardDef = CardDef {
             Effect::CountersPerDamage,
         ],
     )],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Action modifiers and reactions (slice 11k) ----------------------------
-
-/// A mode of `actor` in `windows`, no target.
-const fn mode_of(
-    windows: &'static [Window],
-    actor: Actor,
-    requires: &'static [Requirement],
-    effects: &'static [Effect],
-) -> ModeDef {
-    ModeDef {
-        windows,
-        actor,
-        requires,
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects,
-    }
-}
 
 /// "[obf] +1 stealth. [OBF] Only usable by a ready vampire other than the
 /// acting minion. The acting minion gets +1 stealth." The [OBF] vampire is
@@ -8282,9 +6815,6 @@ const fn mode_of(
 /// 19941109, LSJ 19980210); several may each play one (ANK 20200515).
 pub static CLOAK_THE_GATHERING: CardDef = CardDef {
     name: "Cloak the Gathering",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         stealth(&[Effect::AddStealth(1)]),
         mode_of(
@@ -8294,8 +6824,7 @@ pub static CLOAK_THE_GATHERING: CardDef = CardDef {
             &[Effect::AddStealth(1)],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable by a ready unlocked vampire other than the acting minion.
@@ -8307,9 +6836,6 @@ pub static CLOAK_THE_GATHERING: CardDef = CardDef {
 /// the next X (LSJ 20070526).
 pub static VEIL_THE_LEGIONS: CardDef = CardDef {
     name: "Veil the Legions",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
             limit: Some(Limit::OnePerAction),
@@ -8340,8 +6866,7 @@ pub static VEIL_THE_LEGIONS: CardDef = CardDef {
             )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[for] Vampires cannot block this action. This vampire takes 2
@@ -8352,9 +6877,6 @@ pub static VEIL_THE_LEGIONS: CardDef = CardDef {
 /// 20220401).
 pub static DARING_THE_DAWN: CardDef = CardDef {
     name: "Daring the Dawn",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         mode_of(
             &[Window::ActionDuring],
@@ -8375,8 +6897,7 @@ pub static DARING_THE_DAWN: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable after action resolution. [for] Only usable if the action
@@ -8385,9 +6906,6 @@ pub static DARING_THE_DAWN: CardDef = CardDef {
 /// (ANK 20220218); after an ended action no card is played (RTR 20180719).
 pub static FREAK_DRIVE: CardDef = CardDef {
     name: "Freak Drive",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         mode_of(
             &[Window::ActionAfterResolution],
@@ -8402,8 +6920,7 @@ pub static FREAK_DRIVE: CardDef = CardDef {
             &[Effect::UnlockActor],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable as the action is announced. [dom] Choose a younger vampire.
@@ -8411,15 +6928,12 @@ pub static FREAK_DRIVE: CardDef = CardDef {
 /// any vampire."
 pub static SEDUCTION: CardDef = CardDef {
     name: "Seduction",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[Requirement::TargetVampire, Requirement::Younger],
-            }),
+            target: target(
+                TargetKind::Minion,
+                &[Requirement::TargetVampire, Requirement::Younger],
+            ),
             ..mode_of(
                 &[Window::ActionAsAnnounced],
                 Actor::ActingMinion,
@@ -8428,10 +6942,7 @@ pub static SEDUCTION: CardDef = CardDef {
             )
         },
         ModeDef {
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[Requirement::TargetVampire],
-            }),
+            target: target(TargetKind::Minion, &[Requirement::TargetVampire]),
             ..mode_of(
                 &[Window::ActionAsAnnounced],
                 Actor::ActingMinion,
@@ -8440,8 +6951,7 @@ pub static SEDUCTION: CardDef = CardDef {
             )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable as the action is announced. [dom] Choose a locked vampire.
@@ -8450,15 +6960,12 @@ pub static SEDUCTION: CardDef = CardDef {
 /// resolution do not (PIB 20150703).
 pub static THE_SLEEPING_MIND: CardDef = CardDef {
     name: "Sleeping Mind, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[Requirement::TargetVampire, Requirement::TargetLocked],
-            }),
+            target: target(
+                TargetKind::Minion,
+                &[Requirement::TargetVampire, Requirement::TargetLocked],
+            ),
             ..mode_of(
                 &[Window::ActionAsAnnounced],
                 Actor::ActingMinion,
@@ -8473,8 +6980,7 @@ pub static THE_SLEEPING_MIND: CardDef = CardDef {
             &[Effect::NoUnlockThisAction],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable as the action is announced. [dom] Choose a minion. The
@@ -8483,15 +6989,9 @@ pub static THE_SLEEPING_MIND: CardDef = CardDef {
 /// (Salubri, 1 blood.)
 pub static UNLEASHING_THE_BESTIAL_SOUL: CardDef = CardDef {
     name: "Unleashing the Bestial Soul",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[],
-            }),
+            target: target(TargetKind::Minion, &[]),
             ..mode_of(
                 &[Window::ActionAsAnnounced],
                 Actor::ActingMinion,
@@ -8500,10 +7000,7 @@ pub static UNLEASHING_THE_BESTIAL_SOUL: CardDef = CardDef {
             )
         },
         ModeDef {
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[],
-            }),
+            target: target(TargetKind::Minion, &[]),
             ..mode_of(
                 &[Window::ActionAsAnnounced],
                 Actor::ActingMinion,
@@ -8512,8 +7009,7 @@ pub static UNLEASHING_THE_BESTIAL_SOUL: CardDef = CardDef {
             )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[obf][pre] Reduce a bleed against you by 3. [OBF][PRE] Lock this
@@ -8521,9 +7017,6 @@ pub static UNLEASHING_THE_BESTIAL_SOUL: CardDef = CardDef {
 /// still increase the bleed amount.)" (1 blood; a combo card.)
 pub static VISIONS_OF_ZAPATHASURA: CardDef = CardDef {
     name: "Visions of Zapathasura",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         mode_of(
             &[Window::ReactionDuringAction],
@@ -8538,8 +7031,7 @@ pub static VISIONS_OF_ZAPATHASURA: CardDef = CardDef {
             &[Effect::LockActor, Effect::ReduceBleedToZero],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable if this minion is blocked, before block resolution. Unlock
@@ -8549,17 +7041,13 @@ pub static VISIONS_OF_ZAPATHASURA: CardDef = CardDef {
 /// leave-torpor gives no diablerie (LSJ 20050105-2).
 pub static CHANGE_OF_TARGET: CardDef = CardDef {
     name: "Change of Target",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[mode_of(
         &[Window::ActionBlocked],
         Actor::ActingMinion,
         &[],
         &[Effect::EndBlockedAction],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[obl] +1 stealth. [OBL] Only usable after resolution of a successful
@@ -8568,9 +7056,6 @@ pub static CHANGE_OF_TARGET: CardDef = CardDef {
 /// phase, burn this card."
 pub static SHADOW_CLOAK: CardDef = CardDef {
     name: "Shadow Cloak",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         stealth(&[Effect::AddStealth(1)]),
         mode_of(
@@ -8583,13 +7068,13 @@ pub static SHADOW_CLOAK: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
     riders: &[Rider {
         hook: Hook::UnlockPhase,
         scope: RiderScope::Controller,
         requires: &[],
         effects: &[Effect::BurnSelf],
     }],
+    ..CARD
 };
 
 // ---- Cards remembering a Methuselah (slice 11l) ------------------------------
@@ -8605,9 +7090,6 @@ pub static SHADOW_CLOAK: CardDef = CardDef {
 /// resolves against it (ANK 20200609), after every card (LSJ 19980105).
 pub static SPYING_MISSION: CardDef = CardDef {
     name: "Spying Mission",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         stealth(&[Effect::AddStealth(1)]),
         mode_of(
@@ -8617,19 +7099,13 @@ pub static SPYING_MISSION: CardDef = CardDef {
             &[Effect::ActionFails, Effect::PutOnActorRemembering],
         ),
     ],
-    abilities: &[],
     riders: &[Rider {
         hook: Hook::HostAboutToBleedRemembered,
         scope: RiderScope::Controller,
         requires: &[],
-        effects: &[
-            Effect::BurnSelf,
-            Effect::BleedMod {
-                n: 2,
-                limited: false,
-            },
-        ],
+        effects: &[Effect::BurnSelf, bleed(2, false)],
     }],
+    ..CARD
 };
 
 /// "[obl] +1 stealth. [OBL] Only usable after resolution of a successful
@@ -8641,9 +7117,6 @@ pub static SPYING_MISSION: CardDef = CardDef {
 /// (LSJ 20100527).
 pub static SHADOW_CAST: CardDef = CardDef {
     name: "Shadow Cast",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         stealth(&[Effect::AddStealth(1)]),
         mode_of(
@@ -8653,21 +7126,17 @@ pub static SHADOW_CAST: CardDef = CardDef {
             &[Effect::PutOnActorRemembering],
         ),
     ],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionStealthIntercept],
-        actor: Actor::Host,
-        requires: &[
+    abilities: &[mode_of(
+        &[Window::ActionStealthIntercept],
+        Actor::Host,
+        &[
             Requirement::ActorActing,
             Requirement::StealthNeeded,
             Requirement::DirectedAtRemembered,
         ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::BurnSelf, Effect::AddStealth(1)],
-    }],
-    riders: &[],
+        &[Effect::BurnSelf, Effect::AddStealth(1)],
+    )],
+    ..CARD
 };
 
 // ---- Corruption and multi-Discipline bleeds (slice 11m) ---------------------
@@ -8688,10 +7157,7 @@ const fn anarch_bleed(target: Option<TargetSpec>, effects: &'static [Effect]) ->
     }
 }
 
-const PLUS_ONE_BLEED: Effect = Effect::BleedMod {
-    n: 1,
-    limited: false,
-};
+const PLUS_ONE_BLEED: Effect = bleed(1, false);
 
 /// "[obf] This is a +1 stealth action. [pre] The bleed is with +1 bleed.
 /// [pro] Put 1 corruption counter on a minion controlled by the target
@@ -8701,30 +7167,27 @@ const PLUS_ONE_BLEED: Effect = Effect::BleedMod {
 /// each larger set of them.
 pub static PLATINUM_PROTOCOL: CardDef = CardDef {
     name: "Platinum Protocol, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         anarch_bleed(
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Bleed),
                 Effect::AddStealth(1),
             ],
         ),
         anarch_bleed(
-            NO_TARGET,
+            None,
             &[Effect::DeclareAction(ActionKind::Bleed), PLUS_ONE_BLEED],
         ),
         anarch_bleed(
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Bleed),
                 Effect::IfBleedSuccessful(&[Effect::CorruptMinionOfTarget]),
             ],
         ),
         anarch_bleed(
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Bleed),
                 Effect::AddStealth(1),
@@ -8732,7 +7195,7 @@ pub static PLATINUM_PROTOCOL: CardDef = CardDef {
             ],
         ),
         anarch_bleed(
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Bleed),
                 Effect::AddStealth(1),
@@ -8740,7 +7203,7 @@ pub static PLATINUM_PROTOCOL: CardDef = CardDef {
             ],
         ),
         anarch_bleed(
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Bleed),
                 PLUS_ONE_BLEED,
@@ -8748,7 +7211,7 @@ pub static PLATINUM_PROTOCOL: CardDef = CardDef {
             ],
         ),
         anarch_bleed(
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Bleed),
                 Effect::AddStealth(1),
@@ -8757,17 +7220,13 @@ pub static PLATINUM_PROTOCOL: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// The vampire in the player's uncontrolled region Break the Bonds [pre]
 /// names: "there must be an uncontrolled vampire, and it is chosen upon
 /// declaration" (ANK 20240706).
-const UNCONTROLLED_VAMPIRE: Option<TargetSpec> = Some(TargetSpec {
-    kind: TargetKind::Uncontrolled,
-    filter: &[],
-});
+const UNCONTROLLED_VAMPIRE: Option<TargetSpec> = target(TargetKind::Uncontrolled, &[]);
 
 /// "[ani] The bleed is with +1 bleed. [obf] If the bleed is successful, you
 /// can lock a minion controlled by the target Methuselah. [pre] If the
@@ -8776,16 +7235,13 @@ const UNCONTROLLED_VAMPIRE: Option<TargetSpec> = Some(TargetSpec {
 /// none (ANK 20240706). Modes: [ani], [obf], [pre], then each larger set.
 pub static BREAK_THE_BONDS: CardDef = CardDef {
     name: "Break the Bonds",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         anarch_bleed(
-            NO_TARGET,
+            None,
             &[Effect::DeclareAction(ActionKind::Bleed), PLUS_ONE_BLEED],
         ),
         anarch_bleed(
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Bleed),
                 Effect::IfBleedSuccessful(&[Effect::LockMinionOfTarget]),
@@ -8799,7 +7255,7 @@ pub static BREAK_THE_BONDS: CardDef = CardDef {
             ],
         ),
         anarch_bleed(
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Bleed),
                 PLUS_ONE_BLEED,
@@ -8836,8 +7292,7 @@ pub static BREAK_THE_BONDS: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pre][pro] +1 stealth. [PRE][PRO] As above, and once this action, you
@@ -8846,21 +7301,14 @@ pub static BREAK_THE_BONDS: CardDef = CardDef {
 /// again."
 pub static ENCHANTING_GAZE: CardDef = CardDef {
     name: "Enchanting Gaze",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         stealth(&[Effect::AddStealth(1)]),
         stealth(&[Effect::AddStealth(1), Effect::FailBlockForCorruption]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
-const LIMITED_BLEED: Effect = Effect::BleedMod {
-    n: 1,
-    limited: true,
-};
+const LIMITED_BLEED: Effect = bleed(1, true);
 
 /// "Only usable during a bleed action. [pre][pro] +1 bleed (limited), or +1
 /// stealth and +1 bleed (limited). [PRE][PRO] As above, and if the bleed is
@@ -8871,9 +7319,6 @@ const LIMITED_BLEED: Effect = Effect::BleedMod {
 /// target is ousted by the bleed (ANK 20220210).
 pub static REVELATION_OF_THE_SERPENT: CardDef = CardDef {
     name: "Revelation of the Serpent",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         mode_of(
             &[Window::ActionDuring],
@@ -8904,8 +7349,7 @@ pub static REVELATION_OF_THE_SERPENT: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Effect-widened block eligibility (slice 11n) ---------------------------
@@ -8918,24 +7362,16 @@ pub static REVELATION_OF_THE_SERPENT: CardDef = CardDef {
 /// needs another (LSJ 20030227).
 pub static EAGLES_SIGHT: CardDef = CardDef {
     name: "Eagle's Sight",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         intercept(&[Requirement::InterceptNeeded], &[Effect::AddIntercept(1)]),
-        ModeDef {
-            windows: &[Window::ActionStealthIntercept],
-            actor: Actor::ReactingMinion,
-            requires: &[Requirement::CanAttemptBlockAnyone],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::AttemptBlock],
-        },
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::ReactingMinion,
+            &[Requirement::CanAttemptBlockAnyone],
+            &[Effect::AttemptBlock],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Actions (slice 11o) -----------------------------------------------------
@@ -8961,10 +7397,10 @@ const fn action_at(
 
 /// "Enter combat with a minion": another Methuselah's ready minion (no
 /// combat with one's own, rules-qa 17.3).
-const COMBAT_TARGET: Option<TargetSpec> = Some(TargetSpec {
-    kind: TargetKind::Minion,
-    filter: &[Requirement::NotControlled, Requirement::ActorReady],
-});
+const COMBAT_TARGET: Option<TargetSpec> = target(
+    TargetKind::Minion,
+    &[Requirement::NotControlled, Requirement::ActorReady],
+);
 
 /// "[dom] Ⓓ Bleed with +2 bleed. [DOM] As above, and if the bleed is
 /// successful (for 1 or more), add 2 blood to a younger vampire you control
@@ -8973,58 +7409,39 @@ const COMBAT_TARGET: Option<TargetSpec> = Some(TargetSpec {
 /// it is (`cards::library_mode`).
 pub static FEAST_OF_THE_SOULS_SECRETS: CardDef = CardDef {
     name: "Feast of the Soul's Secrets",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[],
-            NO_TARGET,
-            &[
-                Effect::DeclareAction(ActionKind::Bleed),
-                Effect::BleedMod {
-                    n: 2,
-                    limited: false,
-                },
-            ],
+            None,
+            &[Effect::DeclareAction(ActionKind::Bleed), bleed(2, false)],
         ),
         action_at(
             &[],
-            Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target(
+                TargetKind::Minion,
+                &[
                     Requirement::Controlled,
                     Requirement::TargetVampire,
                     Requirement::Younger,
                 ],
-            }),
+            ),
             &[
                 Effect::DeclareAction(ActionKind::Bleed),
-                Effect::BleedMod {
-                    n: 2,
-                    limited: false,
-                },
+                bleed(2, false),
                 Effect::IfBleedSuccessful(&[Effect::BloodToTarget(2)]),
             ],
         ),
         action_at(
             &[],
-            Some(TargetSpec {
-                kind: TargetKind::Uncontrolled,
-                filter: &[Requirement::Younger],
-            }),
+            target(TargetKind::Uncontrolled, &[Requirement::Younger]),
             &[
                 Effect::DeclareAction(ActionKind::Bleed),
-                Effect::BleedMod {
-                    n: 2,
-                    limited: false,
-                },
+                bleed(2, false),
                 Effect::IfBleedSuccessful(&[Effect::BloodToUncontrolledTarget(2)]),
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "+1 stealth action. [cel] Ⓓ Bleed. [CEL] Ⓓ Enter combat with a locked
@@ -9033,13 +7450,10 @@ pub static FEAST_OF_THE_SOULS_SECRETS: CardDef = CardDef {
 /// (ANK 20210124, LSJ 20070411, LSJ 20090514).
 pub static FLEETNESS: CardDef = CardDef {
     name: "Fleetness",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[],
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Bleed),
                 Effect::AddStealth(1),
@@ -9047,14 +7461,14 @@ pub static FLEETNESS: CardDef = CardDef {
         ),
         action_at(
             &[],
-            Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target(
+                TargetKind::Minion,
+                &[
                     Requirement::NotControlled,
                     Requirement::ActorReady,
                     Requirement::TargetLocked,
                 ],
-            }),
+            ),
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(1),
@@ -9063,8 +7477,7 @@ pub static FLEETNESS: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[cel][tha] Ⓓ Enter combat with a minion. This acting vampire gets 1
@@ -9073,9 +7486,6 @@ pub static FLEETNESS: CardDef = CardDef {
 /// combat."
 pub static HUNTERS_MARK: CardDef = CardDef {
     name: "Hunter's Mark",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[],
@@ -9097,8 +7507,7 @@ pub static HUNTERS_MARK: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Requires an Anarch. [cel] Ⓓ Steal 1 pool from another Methuselah. [pot]
@@ -9106,16 +7515,10 @@ pub static HUNTERS_MARK: CardDef = CardDef {
 /// one Discipline (owner, 2026-09-26: rules-qa 25.2).
 pub static LINE_BRAWL: CardDef = CardDef {
     name: "Line Brawl",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[Requirement::ActorSectIn(&[Sect::Anarch])],
-            Some(TargetSpec {
-                kind: TargetKind::Seat,
-                filter: &[Requirement::NotSelf],
-            }),
+            target(TargetKind::Seat, &[Requirement::NotSelf]),
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::StealPoolFromTarget(1),
@@ -9131,12 +7534,11 @@ pub static LINE_BRAWL: CardDef = CardDef {
         ),
         action_at(
             &[Requirement::ActorSectIn(&[Sect::Anarch])],
-            NO_TARGET,
+            None,
             &[Effect::DeclareAction(ActionKind::Bleed), PLUS_ONE_BLEED],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pot][pre] Ⓓ Bleed with +1 bleed. If this action is blocked, before
@@ -9145,13 +7547,10 @@ pub static LINE_BRAWL: CardDef = CardDef {
 /// at +2 bleed and this vampire can gain +2 strength."
 pub static SHOW_OF_FORCE: CardDef = CardDef {
     name: "Show of Force",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[],
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Bleed),
                 PLUS_ONE_BLEED,
@@ -9160,19 +7559,15 @@ pub static SHOW_OF_FORCE: CardDef = CardDef {
         ),
         action_at(
             &[],
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Bleed),
-                Effect::BleedMod {
-                    n: 2,
-                    limited: false,
-                },
+                bleed(2, false),
                 Effect::IfBlocks(BlockRider::StrengthBeforeRange(2)),
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[obl] Ⓓ Bleed with +1 bleed. If the bleed is successful (for 1 or
@@ -9182,13 +7577,10 @@ pub static SHOW_OF_FORCE: CardDef = CardDef {
 /// the ash heap (LSJ 20090710).
 pub static SHROUD_OF_DECAY: CardDef = CardDef {
     name: "Shroud of Decay",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[],
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Bleed),
                 PLUS_ONE_BLEED,
@@ -9197,18 +7589,17 @@ pub static SHROUD_OF_DECAY: CardDef = CardDef {
         ),
         action_at(
             &[],
-            Some(TargetSpec {
-                kind: TargetKind::Seat,
-                filter: &[Requirement::TargetPrey, Requirement::TargetAshAtLeast(7)],
-            }),
+            target(
+                TargetKind::Seat,
+                &[Requirement::TargetPrey, Requirement::TargetAshAtLeast(7)],
+            ),
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::RemovePreyAshToBurnPool { remove: 7, pool: 3 },
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Ⓓ Burn a location and burn 2 pool from its controller." (Gangrel.)
@@ -9216,23 +7607,19 @@ pub static SHROUD_OF_DECAY: CardDef = CardDef {
 /// undirected.
 pub static REWILDING: CardDef = CardDef {
     name: "Rewilding",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[action_at(
         &[],
-        Some(TargetSpec {
-            kind: TargetKind::Card,
-            filter: &[Requirement::TargetCard(CardFilter::Location)],
-        }),
+        target(
+            TargetKind::Card,
+            &[Requirement::TargetCard(CardFilter::Location)],
+        ),
         &[
             Effect::DeclareAction(ActionKind::Card),
             Effect::TargetControllerBurnsPool(2),
             Effect::BurnTargetCard,
         ],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 const fn strength_on_bearer(n: i8) -> Effect {
@@ -9250,15 +7637,12 @@ const fn strength_on_bearer(n: i8) -> Effect {
 /// vampire gets +2 strength." (1 blood.)
 pub static PRETERNATURAL_STRENGTH: CardDef = CardDef {
     name: "Preternatural Strength",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[Requirement::ActorWithout(Holding::Named(
                 "Preternatural Strength",
             ))],
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(2),
@@ -9271,7 +7655,7 @@ pub static PRETERNATURAL_STRENGTH: CardDef = CardDef {
             &[Requirement::ActorWithout(Holding::Named(
                 "Preternatural Strength",
             ))],
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(2),
@@ -9281,8 +7665,7 @@ pub static PRETERNATURAL_STRENGTH: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "+3 stealth action. [pot] Put this card on this vampire. This vampire
@@ -9293,13 +7676,10 @@ pub static PRETERNATURAL_STRENGTH: CardDef = CardDef {
 /// strike.
 pub static HEROIC_MIGHT: CardDef = CardDef {
     name: "Heroic Might",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[Requirement::ActorWithout(Holding::Named("Heroic Might"))],
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(3),
@@ -9309,7 +7689,7 @@ pub static HEROIC_MIGHT: CardDef = CardDef {
         ),
         action_at(
             &[Requirement::ActorWithout(Holding::Named("Heroic Might"))],
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(3),
@@ -9320,35 +7700,30 @@ pub static HEROIC_MIGHT: CardDef = CardDef {
     ],
     abilities: &[
         ModeDef {
-            windows: &[Window::CombatStrikeDeclaration],
-            actor: Actor::Host,
-            requires: &[],
-            target: Some(TargetSpec {
-                kind: TargetKind::Card,
-                filter: &[
+            target: target(
+                TargetKind::Card,
+                &[
                     Requirement::TargetCard(CardFilter::Type(CardType::Equipment)),
                     Requirement::TargetOnOpposingCombatant,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Strike(StrikeKind::BurnEquipment)],
+            ),
+            ..mode_of(
+                &[Window::CombatStrikeDeclaration],
+                Actor::Host,
+                &[],
+                &[Effect::Strike(StrikeKind::BurnEquipment)],
+            )
         },
-        ModeDef {
-            windows: &[Window::CombatStrikeDeclaration],
-            actor: Actor::Host,
-            requires: &[Requirement::SuperiorVersion],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::Strike(StrikeKind::Damage {
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Host,
+            &[Requirement::SuperiorVersion],
+            &[Effect::Strike(StrikeKind::Damage {
                 n: 2,
                 ranged: true,
                 aggravated: false,
             })],
-        },
+        ),
     ],
     riders: &[Rider {
         hook: Hook::HostToTorpor,
@@ -9356,6 +7731,7 @@ pub static HEROIC_MIGHT: CardDef = CardDef {
         requires: &[],
         effects: &[Effect::BurnSelf],
     }],
+    ..CARD
 };
 
 /// "+1 stealth action. [tha] Put this card on this vampire, locked; this
@@ -9366,13 +7742,10 @@ pub static HEROIC_MIGHT: CardDef = CardDef {
 /// card unlocks in its controller's unlock phase like any.
 pub static RUTORS_HAND: CardDef = CardDef {
     name: "Rutor's Hand",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[Requirement::ActorWithout(Holding::Named("Rutor's Hand"))],
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(1),
@@ -9386,7 +7759,7 @@ pub static RUTORS_HAND: CardDef = CardDef {
         ),
         action_at(
             &[Requirement::ActorWithout(Holding::Named("Rutor's Hand"))],
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(1),
@@ -9399,17 +7772,13 @@ pub static RUTORS_HAND: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[ModeDef {
-        windows: &[Window::AnyImpulse],
-        actor: Actor::Host,
-        requires: &[Requirement::OwnMinionPhase, Requirement::CardUnlocked],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::LockSelf, Effect::UnlockHost],
-    }],
-    riders: &[],
+    abilities: &[mode_of(
+        &[Window::AnyImpulse],
+        Actor::Host,
+        &[Requirement::OwnMinionPhase, Requirement::CardUnlocked],
+        &[Effect::LockSelf, Effect::UnlockHost],
+    )],
+    ..CARD
 };
 
 /// "[dom][pro] Only usable before range is determined. This vampire gets
@@ -9419,23 +7788,19 @@ pub static RUTORS_HAND: CardDef = CardDef {
 /// this round, or 1 maneuver or press."
 pub static MONSTROUS_FORM: CardDef = CardDef {
     name: "Monstrous Form",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
-            windows: &[Window::CombatBeforeRange],
-            actor: Actor::Combatant,
-            requires: &[Requirement::ActorVampire],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
             limit: Some(Limit::PerRound),
-            effects: &[Effect::StrengthThisCombat(1)],
+            ..mode_of(
+                &[Window::CombatBeforeRange],
+                Actor::Combatant,
+                &[Requirement::ActorVampire],
+                &[Effect::StrengthThisCombat(1)],
+            )
         },
         action_at(
             &[],
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(1),
@@ -9444,38 +7809,26 @@ pub static MONSTROUS_FORM: CardDef = CardDef {
         ),
     ],
     abilities: &[
-        ModeDef {
-            windows: &[Window::CombatUntimed],
-            actor: Actor::Host,
-            requires: &[Requirement::CardUnlocked],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::StrengthThisRound(1)],
-        },
-        ModeDef {
-            windows: &[Window::CombatDetermineRange],
-            actor: Actor::Host,
-            requires: &[Requirement::CardUnlocked],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::Maneuver],
-        },
-        ModeDef {
-            windows: &[Window::CombatPress],
-            actor: Actor::Host,
-            requires: &[Requirement::CardUnlocked],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::Press],
-        },
+        mode_of(
+            &[Window::CombatUntimed],
+            Actor::Host,
+            &[Requirement::CardUnlocked],
+            &[Effect::LockSelf, Effect::StrengthThisRound(1)],
+        ),
+        mode_of(
+            &[Window::CombatDetermineRange],
+            Actor::Host,
+            &[Requirement::CardUnlocked],
+            &[Effect::LockSelf, Effect::Maneuver],
+        ),
+        mode_of(
+            &[Window::CombatPress],
+            Actor::Host,
+            &[Requirement::CardUnlocked],
+            &[Effect::LockSelf, Effect::Press],
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "[for] [ACTION] +1 stealth action. Add 3 blood or life to a minion, not
@@ -9487,45 +7840,30 @@ pub static MONSTROUS_FORM: CardDef = CardDef {
 /// 20001114).
 pub static TOUCH_OF_VALEREN: CardDef = CardDef {
     name: "Touch of Valeren",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[],
-            Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[],
-            }),
+            target(TargetKind::Minion, &[]),
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(1),
                 Effect::BloodToTargetToStart(3),
             ],
         ),
-        ModeDef {
-            windows: &[Window::CombatDamagePrevention],
-            actor: Actor::Combatant,
-            requires: &[Requirement::StrikeDamagePending],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::PreventStrikeDamage],
-        },
-        ModeDef {
-            windows: &[Window::CombatDamagePrevention],
-            actor: Actor::OwnOutOfCombat,
-            requires: &[Requirement::StrikeDamagePending],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::PreventStrikeDamage],
-        },
+        mode_of(
+            &[Window::CombatDamagePrevention],
+            Actor::Combatant,
+            &[Requirement::StrikeDamagePending],
+            &[Effect::PreventStrikeDamage],
+        ),
+        mode_of(
+            &[Window::CombatDamagePrevention],
+            Actor::OwnOutOfCombat,
+            &[Requirement::StrikeDamagePending],
+            &[Effect::PreventStrikeDamage],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "+1 stealth action. [tha] Employ an animal retainer from your hand
@@ -9536,30 +7874,23 @@ pub static TOUCH_OF_VALEREN: CardDef = CardDef {
 /// Disciplines (LSJ 20080803); it is not an employ action (ANK 20180817).
 pub static BIOTHAUMATURGIC_EXPERIMENT: CardDef = CardDef {
     name: "Biothaumaturgic Experiment",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[],
-            target: NO_TARGET,
             terms: Some(Terms::EmployFromHandIgnoring(Label::Animal)),
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::DeclareAction(ActionKind::Card),
-                Effect::AddStealth(1),
-                Effect::EmployNamed,
-            ],
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::ActingCandidate,
+                &[],
+                &[
+                    Effect::DeclareAction(ActionKind::Card),
+                    Effect::AddStealth(1),
+                    Effect::EmployNamed,
+                ],
+            )
         },
         action_at(
             &[],
-            Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[Requirement::Controlled],
-            }),
+            target(TargetKind::Minion, &[Requirement::Controlled]),
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(1),
@@ -9569,7 +7900,7 @@ pub static BIOTHAUMATURGIC_EXPERIMENT: CardDef = CardDef {
         ),
     ],
     abilities: &[super::vampires::MANEUVER_EACH_COMBAT],
-    riders: &[],
+    ..CARD
 };
 
 /// "+1 stealth action. [aus] Ⓓ Look at your prey's hand and discard one
@@ -9578,16 +7909,10 @@ pub static BIOTHAUMATURGIC_EXPERIMENT: CardDef = CardDef {
 /// (1 blood.) The replacement is not seen (LSJ 20100119, PIB 20121031).
 pub static REVELATIONS: CardDef = CardDef {
     name: "Revelations",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[],
-            Some(TargetSpec {
-                kind: TargetKind::Seat,
-                filter: &[Requirement::TargetPrey],
-            }),
+            target(TargetKind::Seat, &[Requirement::TargetPrey]),
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(1),
@@ -9596,7 +7921,7 @@ pub static REVELATIONS: CardDef = CardDef {
         ),
         action_at(
             &[],
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(1),
@@ -9605,20 +7930,16 @@ pub static REVELATIONS: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::ActingCandidate,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    abilities: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::ActingCandidate,
+        &[],
+        &[
             Effect::DeclareAction(ActionKind::BurnCard),
             Effect::BurnSource,
         ],
-    }],
-    riders: &[],
+    )],
+    ..CARD
 };
 
 // ---- Actions, wave 2 (slice 11p) ----------------------------------------------
@@ -9630,44 +7951,35 @@ pub static REVELATIONS: CardDef = CardDef {
 /// blood.)
 pub static OBEDIENT_FLESH: CardDef = CardDef {
     name: "Obedient Flesh",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         stealth(&[Effect::AddStealth(1), Effect::AlliesIntercept(-1)]),
         ModeDef {
-            windows: &[Window::CombatBeforeRange],
-            actor: Actor::Combatant,
-            requires: &[Requirement::ActorVampire],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
             limit: Some(Limit::PerRound),
-            effects: &[
-                Effect::StrengthThisRound(1),
-                Effect::OptionalManeuver,
-                Effect::PreventThisRound(1),
-            ],
+            ..mode_of(
+                &[Window::CombatBeforeRange],
+                Actor::Combatant,
+                &[Requirement::ActorVampire],
+                &[
+                    Effect::StrengthThisRound(1),
+                    Effect::OptionalManeuver,
+                    Effect::PreventThisRound(1),
+                ],
+            )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Vampires can burn this card as a Ⓓ action."
-const VAMPIRES_BURN_THIS: ModeDef = ModeDef {
-    windows: &[Window::ActionDeclare],
-    actor: Actor::ActingCandidate,
-    requires: &[Requirement::ActorVampire],
-    target: NO_TARGET,
-    terms: None,
-    waives_needed: false,
-    limit: None,
-    effects: &[
+const VAMPIRES_BURN_THIS: ModeDef = mode_of(
+    &[Window::ActionDeclare],
+    Actor::ActingCandidate,
+    &[Requirement::ActorVampire],
+    &[
         Effect::DeclareAction(ActionKind::BurnCard),
         Effect::BurnSource,
     ],
-};
+);
 
 /// "+1 stealth action. Unique. Put this card in play with 1 counter. During
 /// your unlock phase, add 1 counter to this card. During your prey's unlock
@@ -9680,12 +7992,9 @@ const VAMPIRES_BURN_THIS: ModeDef = ModeDef {
 /// requires Hecata (LSJ 20080604).
 pub static GATE_OF_ACHERON: CardDef = CardDef {
     name: "Gate of Acheron, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[action_at(
         &[],
-        NO_TARGET,
+        None,
         &[
             Effect::DeclareAction(ActionKind::Card),
             Effect::AddStealth(1),
@@ -9694,24 +8003,20 @@ pub static GATE_OF_ACHERON: CardDef = CardDef {
         ],
     )],
     abilities: &[
-        ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[
                 Requirement::YouControlThisCard,
-                Requirement::ActorOfClan("Hecata"),
+                Requirement::ActorClan("Hecata"),
                 Requirement::ActorCapacityAtLeast(4),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+            &[
                 Effect::DeclareAction(ActionKind::Ability),
                 Effect::AddStealth(1),
                 Effect::AddCounter(1),
             ],
-        },
+        ),
         VAMPIRES_BURN_THIS,
     ],
     riders: &[
@@ -9728,6 +8033,7 @@ pub static GATE_OF_ACHERON: CardDef = CardDef {
             effects: &[Effect::PoolOrAshCardsPerCounter],
         },
     ],
+    ..CARD
 };
 
 /// "+1 stealth action. Unique. Put this card in play with 1 counter. Hecata
@@ -9739,12 +8045,9 @@ pub static GATE_OF_ACHERON: CardDef = CardDef {
 /// Banishment's: blood kept as counters, the cards on it with it.
 pub static PIT_OF_CONTEMPLATION: CardDef = CardDef {
     name: "Pit of Contemplation",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[action_at(
         &[],
-        NO_TARGET,
+        None,
         &[
             Effect::DeclareAction(ActionKind::Card),
             Effect::AddStealth(1),
@@ -9753,43 +8056,38 @@ pub static PIT_OF_CONTEMPLATION: CardDef = CardDef {
         ],
     )],
     abilities: &[
-        ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[
                 Requirement::YouControlThisCard,
-                Requirement::ActorOfClan("Hecata"),
+                Requirement::ActorClan("Hecata"),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+            &[
                 Effect::DeclareAction(ActionKind::Ability),
                 Effect::AddStealth(1),
                 Effect::AddCounter(1),
             ],
-        },
+        ),
         ModeDef {
-            windows: &[Window::UnlockPhaseOwn],
-            actor: Actor::Controller,
-            requires: &[],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::TargetVampire,
                     Requirement::ControlledByPredatorOrPrey,
                     Requirement::TargetCapacityBelowCounters,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::TargetToUncontrolled, Effect::BurnSelf],
+            ),
+            ..mode_of(
+                &[Window::UnlockPhaseOwn],
+                Actor::Controller,
+                &[],
+                &[Effect::TargetToUncontrolled, Effect::BurnSelf],
+            )
         },
         VAMPIRES_BURN_THIS,
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "[ani] Ⓓ Bleed with +1 bleed. [ANI] Frenzy. Ⓓ Enter combat with and lock
@@ -9800,25 +8098,22 @@ pub static PIT_OF_CONTEMPLATION: CardDef = CardDef {
 /// ready vampire (rules-qa 17.3).
 pub static DEEP_SONG: CardDef = CardDef {
     name: "Deep Song",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[],
-            NO_TARGET,
+            None,
             &[Effect::DeclareAction(ActionKind::Bleed), PLUS_ONE_BLEED],
         ),
         action_at(
             &[],
-            Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target(
+                TargetKind::Minion,
+                &[
                     Requirement::NotControlled,
                     Requirement::ActorReady,
                     Requirement::TargetVampire,
                 ],
-            }),
+            ),
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::Frenzy,
@@ -9827,8 +8122,7 @@ pub static DEEP_SONG: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[dom] Ⓓ Bleed with +2 bleed. [DOM] Ⓓ Put this card on a younger vampire
@@ -9842,27 +8136,18 @@ pub static DEEP_SONG: CardDef = CardDef {
 /// 20181110).
 pub static PUPPET_MASTER: CardDef = CardDef {
     name: "Puppet Master",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[],
-            NO_TARGET,
-            &[
-                Effect::DeclareAction(ActionKind::Bleed),
-                Effect::BleedMod {
-                    n: 2,
-                    limited: false,
-                },
-            ],
+            None,
+            &[Effect::DeclareAction(ActionKind::Bleed), bleed(2, false)],
         ),
         action_at(
             &[],
-            Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[Requirement::TargetVampire, Requirement::Younger],
-            }),
+            target(
+                TargetKind::Minion,
+                &[Requirement::TargetVampire, Requirement::Younger],
+            ),
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::StillYours,
@@ -9872,20 +8157,16 @@ pub static PUPPET_MASTER: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[ModeDef {
-        windows: &[Window::AnyImpulse],
-        actor: Actor::Controller,
-        requires: &[
+    abilities: &[mode_of(
+        &[Window::AnyImpulse],
+        Actor::Controller,
+        &[
             Requirement::OwnMinionPhase,
             Requirement::EnteredBeforeThisTurn,
         ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::TakeControlOfHost, Effect::BurnSelf],
-    }],
-    riders: &[],
+        &[Effect::TakeControlOfHost, Effect::BurnSelf],
+    )],
+    ..CARD
 };
 
 // ---- Masters (slice 11q) ---------------------------------------------------
@@ -9900,30 +8181,25 @@ macro_rules! discipline_master {
     ($name:ident, $printed:expr, $tag:expr) => {
         pub static $name: CardDef = CardDef {
             name: $printed,
-            trifle: false,
-            out_of_turn: false,
-            delayed_replacement: None,
             modes: &[ModeDef {
-                windows: &[Window::MasterPhase],
-                actor: Actor::Methuselah,
-                requires: &[],
-                target: Some(TargetSpec {
-                    kind: TargetKind::Minion,
-                    filter: &[
+                target: target(
+                    TargetKind::Minion,
+                    &[
                         Requirement::TargetVampire,
                         Requirement::TargetNotSuperior($tag),
                     ],
-                }),
-                terms: None,
-                waives_needed: false,
-                limit: None,
-                effects: &[
-                    Effect::PutOnTarget,
-                    Effect::Layer(Modifier::DisciplineLevel($tag)),
-                ],
+                ),
+                ..mode_of(
+                    &[Window::MasterPhase],
+                    Actor::Methuselah,
+                    &[],
+                    &[
+                        Effect::PutOnTarget,
+                        Effect::Layer(Modifier::DisciplineLevel($tag)),
+                    ],
+                )
             }],
-            abilities: &[],
-            riders: &[],
+            ..CARD
         };
     };
 }
@@ -9946,12 +8222,9 @@ discipline_master!(PROTEAN, "Protean", "pro");
 /// region, it stays a vampire and can be influenced (RTR 19990712).
 pub static CHILDE_OF_THE_REVOLUTION: CardDef = CardDef {
     name: "Childe of the Revolution",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[action_at(
         &[BARON],
-        NO_TARGET,
+        None,
         &[
             Effect::DeclareAction(ActionKind::Card),
             Effect::AddStealth(1),
@@ -9959,8 +8232,7 @@ pub static CHILDE_OF_THE_REVOLUTION: CardDef = CardDef {
             Effect::BecomesVampire(Some(Sect::Anarch)),
         ],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. [You can] lock during your influence phase to add 1
@@ -9971,24 +8243,17 @@ macro_rules! influence_location {
         #[doc = $doc]
         pub static $name: CardDef = CardDef {
             name: $printed,
-            trifle: false,
-            out_of_turn: false,
-            delayed_replacement: None,
             modes: &[LOCATION],
             abilities: &[ModeDef {
-                windows: &[Window::InfluencePhaseOwn],
-                actor: Actor::Controller,
-                requires: &[Requirement::CardUnlocked],
-                target: Some(TargetSpec {
-                    kind: TargetKind::Uncontrolled,
-                    filter: &[Requirement::TargetClan($clan)],
-                }),
-                terms: None,
-                waives_needed: false,
-                limit: None,
-                effects: &[Effect::LockSelf, Effect::BloodToUncontrolledTarget(1)],
+                target: target(TargetKind::Uncontrolled, &[Requirement::TargetClan($clan)]),
+                ..mode_of(
+                    &[Window::InfluencePhaseOwn],
+                    Actor::Controller,
+                    &[Requirement::CardUnlocked],
+                    &[Effect::LockSelf, Effect::BloodToUncontrolledTarget(1)],
+                )
             }],
-            riders: &[],
+            ..CARD
         };
     };
 }
@@ -10025,50 +8290,41 @@ influence_location!(
 /// counters go on in full, over capacity too (rules-qa 28.3).
 pub static WASSERSCHLOSS_ANIF: CardDef = CardDef {
     name: "Wasserschloss Anif, Austria",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[
         ModeDef {
-            windows: &[Window::MasterPhase],
-            actor: Actor::Controller,
-            requires: &[],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::Controlled,
                     Requirement::TargetClan("Tremere"),
                     Requirement::BloodAtLeast(1),
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::BloodToCard(1)],
+            ),
+            ..mode_of(
+                &[Window::MasterPhase],
+                Actor::Controller,
+                &[],
+                &[Effect::BloodToCard(1)],
+            )
         },
         ModeDef {
-            windows: &[Window::InfluencePhaseOwn],
-            actor: Actor::Controller,
-            requires: &[Requirement::CardUnlocked],
-            target: Some(TargetSpec {
-                kind: TargetKind::Uncontrolled,
-                filter: &[Requirement::TargetClan("Tremere")],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::CountersToUncontrolledTarget],
+            target: target(
+                TargetKind::Uncontrolled,
+                &[Requirement::TargetClan("Tremere")],
+            ),
+            ..mode_of(
+                &[Window::InfluencePhaseOwn],
+                Actor::Controller,
+                &[Requirement::CardUnlocked],
+                &[Effect::LockSelf, Effect::CountersToUncontrolledTarget],
+            )
         },
-        ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[],
+            &[
                 Effect::DeclareAction(ActionKind::BurnCard),
                 Effect::BurnSource,
                 Effect::StealthForClan {
@@ -10076,9 +8332,9 @@ pub static WASSERSCHLOSS_ANIF: CardDef = CardDef {
                     n: 1,
                 },
             ],
-        },
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Trifle. Put this card in play. You can use 1 transfer to draw 1 card
@@ -10089,36 +8345,26 @@ pub static WASSERSCHLOSS_ANIF: CardDef = CardDef {
 pub static WIDER_VIEW: CardDef = CardDef {
     name: "Wider View",
     trifle: true,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[
-        ModeDef {
-            windows: &[Window::Transfers],
-            actor: Actor::Controller,
-            requires: &[Requirement::CryptNotEmpty],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::SpendTransfers(1), Effect::DrawCryptThenRemove],
-        },
-        ModeDef {
-            windows: &[Window::Transfers],
-            actor: Actor::Controller,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+        mode_of(
+            &[Window::Transfers],
+            Actor::Controller,
+            &[Requirement::CryptNotEmpty],
+            &[Effect::SpendTransfers(1), Effect::DrawCryptThenRemove],
+        ),
+        mode_of(
+            &[Window::Transfers],
+            Actor::Controller,
+            &[],
+            &[
                 Effect::SpendTransfers(4),
                 Effect::BurnSelf,
                 Effect::GainPool(2),
             ],
-        },
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Trifle. Reveal the top card of your crypt. If it is a Hecata, draw it
@@ -10128,20 +8374,13 @@ pub static WIDER_VIEW: CardDef = CardDef {
 pub static FAMILY_GATHERING: CardDef = CardDef {
     name: "Family Gathering",
     trifle: true,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[Requirement::CryptNotEmpty],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::RevealCryptTop("Hecata")],
-    }],
-    abilities: &[],
-    riders: &[],
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[Requirement::CryptNotEmpty],
+        &[Effect::RevealCryptTop("Hecata")],
+    )],
+    ..CARD
 };
 
 /// "<Minions> can steal this location as a Ⓓ action", for a card another
@@ -10151,7 +8390,7 @@ const fn steal_this(requires: &'static [Requirement]) -> ModeDef {
         windows: &[Window::ActionDeclare],
         actor: Actor::ActingCandidate,
         requires,
-        target: NO_TARGET,
+        target: None,
         terms: None,
         waives_needed: false,
         limit: None,
@@ -10165,30 +8404,23 @@ const fn steal_this(requires: &'static [Requirement]) -> ModeDef {
 /// transfer taken (LSJ 20100527).
 pub static POWERBASE_MONTREAL: CardDef = CardDef {
     name: "Powerbase: Montreal",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[
         ModeDef {
-            windows: &[Window::InfluencePhaseOwn],
-            actor: Actor::Controller,
-            requires: &[],
-            target: Some(TargetSpec {
-                kind: TargetKind::Uncontrolled,
-                filter: &[],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::BloodToUncontrolledTarget(1)],
+            target: target(TargetKind::Uncontrolled, &[]),
+            ..mode_of(
+                &[Window::InfluencePhaseOwn],
+                Actor::Controller,
+                &[],
+                &[Effect::BloodToUncontrolledTarget(1)],
+            )
         },
         steal_this(&[
             Requirement::ActorVampire,
             Requirement::OthersControlThisCard,
         ]),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. As this location is played or its controller
@@ -10203,47 +8435,39 @@ pub static POWERBASE_MONTREAL: CardDef = CardDef {
 /// no new choice (RTR 19960112).
 pub static THE_RACK: CardDef = CardDef {
     name: "Rack, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[
+        target: target(
+            TargetKind::Minion,
+            &[
                 Requirement::Controlled,
                 Requirement::TargetVampire,
                 Requirement::ActorReady,
             ],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
-            Effect::PutInPlay,
-            Effect::ChooseTarget,
-            Effect::RechoosesOnControlChange,
-        ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutInPlay,
+                Effect::ChooseTarget,
+                Effect::RechoosesOnControlChange,
+            ],
+        )
     }],
     abilities: &[
-        ModeDef {
-            windows: &[Window::UnlockPhaseAny],
-            actor: Actor::ChosenController,
-            requires: &[Requirement::CardControllersTurn],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::BloodToChosen(2)],
-        },
+        mode_of(
+            &[Window::UnlockPhaseAny],
+            Actor::ChosenController,
+            &[Requirement::CardControllersTurn],
+            &[Effect::BloodToChosen(2)],
+        ),
         steal_this(&[
             Requirement::ActorVampire,
             Requirement::OthersControlThisCard,
         ]),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique. Put this card in play. During your unlock phase, you can give
@@ -10252,39 +8476,31 @@ pub static THE_RACK: CardDef = CardDef {
 /// A locked vampire is a legal choice (PIB 20121031).
 pub static ANARCH_TROUBLEMAKER: CardDef = CardDef {
     name: "Anarch Troublemaker",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[
+        mode_of(
+            &[Window::UnlockPhaseOwn],
+            Actor::Controller,
+            &[],
+            &[Effect::GiveToPrey, Effect::LockPreyVampires(2)],
+        ),
         ModeDef {
-            windows: &[Window::UnlockPhaseOwn],
-            actor: Actor::Controller,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::GiveToPrey, Effect::LockPreyVampires(2)],
-        },
-        ModeDef {
-            windows: &[Window::UnlockPhaseOwn],
-            actor: Actor::Controller,
-            requires: &[],
-            target: Some(TargetSpec {
-                kind: TargetKind::Card,
-                filter: &[
+            target: target(
+                TargetKind::Card,
+                &[
                     Requirement::TargetCard(CardFilter::Type(CardType::Equipment)),
                     Requirement::TargetOnPreyMinion,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::GiveToPrey, Effect::BurnTargetCard],
+            ),
+            ..mode_of(
+                &[Window::UnlockPhaseOwn],
+                Actor::Controller,
+                &[],
+                &[Effect::GiveToPrey, Effect::BurnTargetCard],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. During your discard phase, you can lock this location
@@ -10296,27 +8512,20 @@ pub static ANARCH_TROUBLEMAKER: CardDef = CardDef {
 /// Anarch (LSJ 20080604).
 pub static POWERBASE_LOS_ANGELES: CardDef = CardDef {
     name: "Powerbase: Los Angeles",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[
-        ModeDef {
-            windows: &[Window::DiscardPhase],
-            actor: Actor::Controller,
-            requires: &[Requirement::CardUnlocked],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::GrantDiscardAction],
-        },
+        mode_of(
+            &[Window::DiscardPhase],
+            Actor::Controller,
+            &[Requirement::CardUnlocked],
+            &[Effect::LockSelf, Effect::GrantDiscardAction],
+        ),
         steal_this(&[
             Requirement::ActorSectIn(&[Sect::Anarch]),
             Requirement::OthersControlThisCard,
         ]),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. You can lock this location and burn 1 pool during
@@ -10328,44 +8537,33 @@ pub static POWERBASE_LOS_ANGELES: CardDef = CardDef {
 /// cards can still be played (RTR 20001020).
 pub static GARIBALDI_MEUCCI_MUSEUM: CardDef = CardDef {
     name: "Garibaldi-Meucci Museum",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[
-        ModeDef {
-            windows: &[Window::UnlockPhaseOwn],
-            actor: Actor::Controller,
-            requires: &[
+        mode_of(
+            &[Window::UnlockPhaseOwn],
+            Actor::Controller,
+            &[
                 Requirement::CardUnlocked,
                 Requirement::PoolAtLeast(1),
                 Requirement::AnarchCardInAshAndHand,
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+            &[
                 Effect::LockSelf,
                 Effect::PayPool(1),
                 Effect::ExchangeForAnarchCard,
             ],
-        },
-        ModeDef {
-            windows: &[Window::CombatBeforeRange],
-            actor: Actor::Controller,
-            requires: &[
+        ),
+        mode_of(
+            &[Window::CombatBeforeRange],
+            Actor::Controller,
+            &[
                 Requirement::CardUnlocked,
                 Requirement::AnarchCombatWithYours,
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::EndCombat],
-        },
+            &[Effect::LockSelf, Effect::EndCombat],
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// A master card put in play by its player, requiring nothing.
@@ -10374,7 +8572,7 @@ const fn master_in_play(requires: &'static [Requirement], effects: &'static [Eff
         windows: &[Window::MasterPhase],
         actor: Actor::Methuselah,
         requires,
-        target: NO_TARGET,
+        target: None,
         terms: None,
         waives_needed: false,
         limit: None,
@@ -10389,40 +8587,29 @@ const fn master_in_play(requires: &'static [Requirement], effects: &'static [Eff
 /// does not make the hunt one requiring an Anarch (ANK 20220317).
 pub static ANARCH_FREE_PRESS: CardDef = CardDef {
     name: "Anarch Free Press, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(
         &[Requirement::ControlsReadySect(&[Sect::Anarch])],
         &[Effect::PutInPlay],
     )],
     abilities: &[
-        ModeDef {
-            windows: &[Window::ActionStealthIntercept],
-            actor: Actor::Controller,
-            requires: &[
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::Controller,
+            &[
                 Requirement::CardUnlocked,
                 Requirement::YourAttemptNeedsIntercept,
                 Requirement::AttemptingSectIn(&[Sect::Anarch]),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::AttemptingIntercept(1)],
-        },
-        ModeDef {
-            windows: &[Window::ActionAfterResolution],
-            actor: Actor::Controller,
-            requires: &[Requirement::CardUnlocked, Requirement::AnarchHuntedYours],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::BloodToActing(1)],
-        },
+            &[Effect::LockSelf, Effect::AttemptingIntercept(1)],
+        ),
+        mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::Controller,
+            &[Requirement::CardUnlocked, Requirement::AnarchHuntedYours],
+            &[Effect::LockSelf, Effect::BloodToActing(1)],
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. You can lock this card to give a minion you control
@@ -10431,25 +8618,18 @@ pub static ANARCH_FREE_PRESS: CardDef = CardDef {
 /// canceled after it was played is (LSJ 20100505, ANK 20210124).
 pub static CHANNEL_10: CardDef = CardDef {
     name: "Channel 10",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionStealthIntercept],
-        actor: Actor::Controller,
-        requires: &[
+    abilities: &[mode_of(
+        &[Window::ActionStealthIntercept],
+        Actor::Controller,
+        &[
             Requirement::CardUnlocked,
             Requirement::YourAttemptNeedsIntercept,
             Requirement::NotFirstActionOfPhase,
         ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::LockSelf, Effect::AttemptingIntercept(2)],
-    }],
-    riders: &[],
+        &[Effect::LockSelf, Effect::AttemptingIntercept(2)],
+    )],
+    ..CARD
 };
 
 /// "Unique location. You can lock this card as a vampire you control
@@ -10457,26 +8637,22 @@ pub static CHANNEL_10: CardDef = CardDef {
 /// stealth is not yet needed."
 pub static CREEPSHOW_CASINO: CardDef = CardDef {
     name: "Creepshow Casino",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[ModeDef {
-        windows: &[Window::ActionAsAnnounced],
-        actor: Actor::Controller,
-        requires: &[
-            Requirement::CardUnlocked,
-            Requirement::OtherActingControlled,
-            Requirement::ActingVampire,
-            Requirement::ActionUndirected,
-        ],
-        target: NO_TARGET,
-        terms: None,
         waives_needed: true,
-        limit: None,
-        effects: &[Effect::LockSelf, Effect::AddStealth(1)],
+        ..mode_of(
+            &[Window::ActionAsAnnounced],
+            Actor::Controller,
+            &[
+                Requirement::CardUnlocked,
+                Requirement::OtherActingControlled,
+                Requirement::ActingVampire,
+                Requirement::ActionUndirected,
+            ],
+            &[Effect::LockSelf, Effect::AddStealth(1)],
+        )
     }],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. An Anarch can burn 1 blood once as they announce a
@@ -10485,31 +8661,21 @@ pub static CREEPSHOW_CASINO: CardDef = CardDef {
 /// 20220317).
 pub static CLUB_ILLUSION: CardDef = CardDef {
     name: "Club Illusion",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[ModeDef {
-        windows: &[Window::ActionAsAnnounced],
-        actor: Actor::ActingMinion,
-        requires: &[
-            Requirement::IsBleed,
-            Requirement::ActorSectIn(&[Sect::Anarch]),
-            Requirement::ActorBloodAtLeast(1),
-        ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
         limit: Some(Limit::PerAction),
-        effects: &[
-            Effect::HostBurnBlood(1),
-            Effect::BleedMod {
-                n: 1,
-                limited: false,
-            },
-        ],
+        ..mode_of(
+            &[Window::ActionAsAnnounced],
+            Actor::ActingMinion,
+            &[
+                Requirement::IsBleed,
+                Requirement::ActorSectIn(&[Sect::Anarch]),
+                Requirement::ActorBloodAtLeast(1),
+            ],
+            &[Effect::HostBurnBlood(1), bleed(1, false)],
+        )
     }],
-    riders: &[],
+    ..CARD
 };
 
 /// "Put this card in play. During a bleed action, an Assamite you control
@@ -10518,71 +8684,54 @@ pub static CLUB_ILLUSION: CardDef = CardDef {
 /// 20220502), before resolution (ANK 20231124, LSJ 19970718).
 pub static HAQIMS_LAW_RETRIBUTION: CardDef = CardDef {
     name: "Haqim's Law: Retribution",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(&[], &[Effect::PutInPlay])],
     abilities: &[ModeDef {
-        windows: &[Window::ActionAsAnnounced, Window::ActionDuring],
-        actor: Actor::ActingMinion,
-        requires: &[
-            Requirement::IsBleed,
-            Requirement::YouControlThisCard,
-            Requirement::ActorClan("Banu Haqim"),
-            Requirement::HandHas(CardFilter::Type(CardType::Combat), 1),
-        ],
-        target: NO_TARGET,
         terms: Some(Terms::Discard {
             n: 1,
             of: CardFilter::Type(CardType::Combat),
         }),
-        waives_needed: false,
         limit: Some(Limit::PerAction),
-        effects: &[Effect::BleedMod {
-            n: 1,
-            limited: false,
-        }],
+        ..mode_of(
+            &[Window::ActionAsAnnounced, Window::ActionDuring],
+            Actor::ActingMinion,
+            &[
+                Requirement::IsBleed,
+                Requirement::YouControlThisCard,
+                Requirement::ActorClan("Banu Haqim"),
+                Requirement::HandHas(CardFilter::Type(CardType::Combat), 1),
+            ],
+            &[bleed(1, false)],
+        )
     }],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique. Put this card on a ready minion. This minion cannot block.
 /// Other minions can burn this card as a Ⓓ action."
 pub static PENTEX_SUBVERSION: CardDef = CardDef {
     name: "Pentex(TM) Subversion",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::ActorReady],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
-            Effect::PutOnTarget,
-            Effect::Layer(Modifier::HostCannotBlock),
-        ],
+        target: target(TargetKind::Minion, &[Requirement::ActorReady]),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutOnTarget,
+                Effect::Layer(Modifier::HostCannotBlock),
+            ],
+        )
     }],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::ActingCandidate,
-        requires: &[Requirement::NotHost],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    abilities: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::ActingCandidate,
+        &[Requirement::NotHost],
+        &[
             Effect::DeclareAction(ActionKind::BurnCard),
             Effect::BurnSource,
         ],
-    }],
-    riders: &[],
+    )],
+    ..CARD
 };
 
 /// "Put this card on a ready vampire. Minions can enter combat with this
@@ -10590,60 +8739,51 @@ pub static PENTEX_SUBVERSION: CardDef = CardDef {
 /// +1 stealth Ⓓ action." Not with a minion of one's own (rules-qa 17.3).
 pub static HAVEN_UNCOVERED: CardDef = CardDef {
     name: "Haven Uncovered",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::TargetVampire, Requirement::ActorReady],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::PutOnTarget],
+        target: target(
+            TargetKind::Minion,
+            &[Requirement::TargetVampire, Requirement::ActorReady],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[Effect::PutOnTarget],
+        )
     }],
     abilities: &[
         ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::TargetIsHost,
                     Requirement::NotControlled,
                     Requirement::ActorReady,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::DeclareAction(ActionKind::Ability),
-                Effect::AddStealth(1),
-                Effect::EnterCombatWithTarget,
-            ],
+            ),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::ActingCandidate,
+                &[],
+                &[
+                    Effect::DeclareAction(ActionKind::Ability),
+                    Effect::AddStealth(1),
+                    Effect::EnterCombatWithTarget,
+                ],
+            )
         },
-        ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[Requirement::ActorIsHost],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[Requirement::ActorIsHost],
+            &[
                 Effect::DeclareAction(ActionKind::BurnCard),
                 Effect::AddStealth(1),
                 Effect::BurnSource,
             ],
-        },
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. You can lock this card and burn 1 pool or 1 blood from
@@ -10652,56 +8792,51 @@ pub static HAVEN_UNCOVERED: CardDef = CardDef {
 /// Methuselah's Tremere; once each master phase.
 pub static CHANTRY: CardDef = CardDef {
     name: "Chantry",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[
         ModeDef {
-            windows: &[Window::MasterPhase],
-            actor: Actor::Controller,
-            requires: &[Requirement::CardUnlocked, Requirement::PoolAtLeast(1)],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::TargetClan("Tremere"),
                     Requirement::TargetInTorpor,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::LockSelf,
-                Effect::PayPool(1),
-                Effect::TargetLeavesTorpor,
-            ],
+            ),
+            ..mode_of(
+                &[Window::MasterPhase],
+                Actor::Controller,
+                &[Requirement::CardUnlocked, Requirement::PoolAtLeast(1)],
+                &[
+                    Effect::LockSelf,
+                    Effect::PayPool(1),
+                    Effect::TargetLeavesTorpor,
+                ],
+            )
         },
         ModeDef {
-            windows: &[Window::MasterPhase],
-            actor: Actor::Controller,
-            requires: &[
-                Requirement::CardUnlocked,
-                Requirement::OwnReadyClanWithBlood("Tremere"),
-            ],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::TargetClan("Tremere"),
                     Requirement::TargetInTorpor,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::LockSelf,
-                Effect::OwnClanBurnsBlood("Tremere"),
-                Effect::TargetLeavesTorpor,
-            ],
+            ),
+            ..mode_of(
+                &[Window::MasterPhase],
+                Actor::Controller,
+                &[
+                    Requirement::CardUnlocked,
+                    Requirement::OwnReadyClanWithBlood("Tremere"),
+                ],
+                &[
+                    Effect::LockSelf,
+                    Effect::OwnClanBurnsBlood("Tremere"),
+                    Effect::TargetLeavesTorpor,
+                ],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Choose two ready Toreador you control, put this card in play, and lock
@@ -10714,45 +8849,38 @@ pub static CHANTRY: CardDef = CardDef {
 /// unblockable on non-bleed actions after a bleed (LSJ 19970814).
 pub static TOREADOR_GRAND_BALL: CardDef = CardDef {
     name: "Toreador Grand Ball",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[Requirement::ControlsReadyClan("Toreador", 2)],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[
+        target: target(
+            TargetKind::Minion,
+            &[
                 Requirement::Controlled,
                 Requirement::ActorReady,
                 Requirement::TargetClan("Toreador"),
             ],
-        }),
+        ),
         terms: Some(Terms::OwnOfClan {
             clan: "Toreador",
             other: true,
         }),
-        waives_needed: false,
-        limit: None,
-        effects: &[
-            Effect::PutInPlay,
-            Effect::ChooseTarget,
-            Effect::LockTarget,
-            Effect::ChooseSecondOfClan("Toreador"),
-            Effect::Layer(Modifier::FirstChosenDoesNotUnlock),
-            Effect::Layer(Modifier::SecondChosenUnblockable),
-        ],
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[Requirement::ControlsReadyClan("Toreador", 2)],
+            &[
+                Effect::PutInPlay,
+                Effect::ChooseTarget,
+                Effect::LockTarget,
+                Effect::ChooseSecondOfClan("Toreador"),
+                Effect::Layer(Modifier::FirstChosenDoesNotUnlock),
+                Effect::Layer(Modifier::SecondChosenUnblockable),
+            ],
+        )
     }],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::ActingCandidate,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    abilities: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::ActingCandidate,
+        &[],
+        &[
             Effect::DeclareAction(ActionKind::BurnCard),
             Effect::BurnSource,
             Effect::StealthForClan {
@@ -10760,8 +8888,8 @@ pub static TOREADOR_GRAND_BALL: CardDef = CardDef {
                 n: -1,
             },
         ],
-    }],
-    riders: &[],
+    )],
+    ..CARD
 };
 
 /// "Unique contract. Trifle. Choose a ready Assamite you control and put
@@ -10775,50 +8903,44 @@ pub static TOREADOR_GRAND_BALL: CardDef = CardDef {
 pub static PRIORITY_CONTRACT: CardDef = CardDef {
     name: "Priority Contract",
     trifle: true,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[Requirement::ControlsReadyClan("Banu Haqim", 1)],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::ControlledByPrey],
-        }),
+        target: target(TargetKind::Minion, &[Requirement::ControlledByPrey]),
         terms: Some(Terms::OwnOfClan {
             clan: "Banu Haqim",
             other: false,
         }),
-        waives_needed: false,
-        limit: None,
-        effects: &[
-            Effect::PutOnTarget,
-            Effect::ChooseOwnOfClan("Banu Haqim"),
-            Effect::PoolWhenHostLeaves(3),
-        ],
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[Requirement::ControlsReadyClan("Banu Haqim", 1)],
+            &[
+                Effect::PutOnTarget,
+                Effect::ChooseOwnOfClan("Banu Haqim"),
+                Effect::PoolWhenHostLeaves(3),
+            ],
+        )
     }],
     abilities: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::ActingCandidate,
-        requires: &[Requirement::ActorIsChosen],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[
+        target: target(
+            TargetKind::Minion,
+            &[
                 Requirement::TargetIsHost,
                 Requirement::NotControlled,
                 Requirement::ActorReady,
             ],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
-            Effect::DeclareAction(ActionKind::Ability),
-            Effect::AddStealth(1),
-            Effect::EnterCombatWithTarget,
-        ],
+        ),
+        ..mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[Requirement::ActorIsChosen],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::EnterCombatWithTarget,
+            ],
+        )
     }],
-    riders: &[],
+    ..CARD
 };
 
 /// "Put this card in play. Each ready minion you control can enter combat
@@ -10829,28 +8951,24 @@ pub static PRIORITY_CONTRACT: CardDef = CardDef {
 /// 20061018).
 pub static FRONTAL_ASSAULT: CardDef = CardDef {
     name: "Frontal Assault",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(
         &[],
         &[Effect::PutInPlay, Effect::BurnAtInfluencePerPreyReady],
     )],
     abilities: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::ActingCandidate,
-        requires: &[Requirement::YouControlThisCard],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::ControlledByPrey, Requirement::ActorReady],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
-            Effect::DeclareAction(ActionKind::Ability),
-            Effect::EnterCombatWithTarget,
-        ],
+        target: target(
+            TargetKind::Minion,
+            &[Requirement::ControlledByPrey, Requirement::ActorReady],
+        ),
+        ..mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[Requirement::YouControlThisCard],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::EnterCombatWithTarget,
+            ],
+        )
     }],
     riders: &[Rider {
         hook: Hook::ReadyMinionBurnedOrTorpor,
@@ -10858,6 +8976,7 @@ pub static FRONTAL_ASSAULT: CardDef = CardDef {
         requires: &[],
         effects: &[Effect::ControllerGainsPoolIfPrey(1)],
     }],
+    ..CARD
 };
 
 /// "Requires a ready Anarch. Lock a ready unlocked Anarch you control. That
@@ -10872,21 +8991,16 @@ pub static FRONTAL_ASSAULT: CardDef = CardDef {
 /// Direct Intervention could cancel (RTR 20001020).
 pub static PIPER: CardDef = CardDef {
     name: "Piper",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::MasterForMinion,
-        requires: &[Requirement::ActorSectIn(&[Sect::Anarch])],
-        target: NO_TARGET,
         terms: Some(Terms::RecruitOrEmployFromHand),
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::LockActor, Effect::EmployNamed],
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::MasterForMinion,
+            &[Requirement::ActorSectIn(&[Sect::Anarch])],
+            &[Effect::LockActor, Effect::EmployNamed],
+        )
     }],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. You can lock this card as a Nosferatu announces an
@@ -10900,46 +9014,38 @@ pub static PIPER: CardDef = CardDef {
 /// diablerie or leave-torpor action fizzles (ANK 20220218).
 pub static WARSAW_STATION: CardDef = CardDef {
     name: "Warsaw Station",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[
-        ModeDef {
-            windows: &[Window::ActionAsAnnounced, Window::ReactionAsAnnounced],
-            actor: Actor::Controller,
-            requires: &[
+        mode_of(
+            &[Window::ActionAsAnnounced, Window::ReactionAsAnnounced],
+            Actor::Controller,
+            &[
                 Requirement::CardUnlocked,
                 Requirement::ActingClan("Nosferatu"),
                 Requirement::ActionUndirected,
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+            &[
                 Effect::LockSelf,
                 Effect::UnlockActingIfSuccessful("Nosferatu"),
             ],
-        },
+        ),
         ModeDef {
-            windows: &[Window::AnyImpulse],
-            actor: Actor::Controller,
-            requires: &[],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::TargetClan("Nosferatu"),
                     Requirement::TargetInTorpor,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::BurnSelf, Effect::TargetLeavesTorpor],
+            ),
+            ..mode_of(
+                &[Window::AnyImpulse],
+                Actor::Controller,
+                &[],
+                &[Effect::BurnSelf, Effect::TargetLeavesTorpor],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "You can lock this card to give <any minion of the kind> +1 stealth":
@@ -10949,21 +9055,14 @@ macro_rules! any_stealth_location {
         #[doc = $doc]
         pub static $name: CardDef = CardDef {
             name: $printed,
-            trifle: false,
-            out_of_turn: false,
-            delayed_replacement: None,
             modes: &[LOCATION],
-            abilities: &[ModeDef {
-                windows: &[Window::ActionDuring, Window::ReactionDuringAction],
-                actor: Actor::Controller,
-                requires: $requires,
-                target: NO_TARGET,
-                terms: None,
-                waives_needed: false,
-                limit: None,
-                effects: &[Effect::LockSelf, Effect::AddStealth(1)],
-            }],
-            riders: &[],
+            abilities: &[mode_of(
+                &[Window::ActionDuring, Window::ReactionDuringAction],
+                Actor::Controller,
+                $requires,
+                &[Effect::LockSelf, Effect::AddStealth(1)],
+            )],
+            ..CARD
         };
     };
 }
@@ -10999,24 +9098,17 @@ any_stealth_location!(
 /// 20221120).
 pub static KRCG_NEWS_RADIO: CardDef = CardDef {
     name: "KRCG News Radio",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[
-        ModeDef {
-            windows: &[Window::ActionStealthIntercept],
-            actor: Actor::Controller,
-            requires: &[
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::Controller,
+            &[
                 Requirement::CardUnlocked,
                 Requirement::YourAttemptNeedsIntercept,
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::AttemptingIntercept(1)],
-        },
+            &[Effect::LockSelf, Effect::AttemptingIntercept(1)],
+        ),
         ModeDef {
             windows: &[Window::ActionStealthIntercept],
             actor: Actor::Controller,
@@ -11026,7 +9118,7 @@ pub static KRCG_NEWS_RADIO: CardDef = CardDef {
                 // Not burning a last pool this way (as True Love's Face).
                 Requirement::PoolAtLeast(2),
             ],
-            target: NO_TARGET,
+            target: None,
             terms: None,
             waives_needed: false,
             limit: None,
@@ -11037,7 +9129,7 @@ pub static KRCG_NEWS_RADIO: CardDef = CardDef {
             ],
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. After a vampire with capacity 3 or less goes to
@@ -11051,40 +9143,33 @@ pub static KRCG_NEWS_RADIO: CardDef = CardDef {
 /// hostage is no target for leaving torpor, rescue or diablerie.
 pub static CARVERS_MEAT_PACKING: CardDef = CardDef {
     name: "Carver's Meat Packing and Storage",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[
         ModeDef {
-            windows: &[Window::MasterPhase],
-            actor: Actor::Controller,
-            requires: &[Requirement::CardUnlocked],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::Controlled,
                     Requirement::ActorReady,
                     Requirement::TargetVampire,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::BloodPerHostage],
+            ),
+            ..mode_of(
+                &[Window::MasterPhase],
+                Actor::Controller,
+                &[Requirement::CardUnlocked],
+                &[Effect::LockSelf, Effect::BloodPerHostage],
+            )
         },
         ModeDef {
-            windows: &[Window::UnlockPhaseAny],
-            actor: Actor::AnyReadyVampire,
-            requires: &[Requirement::ActorBloodAtLeast(2)],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[Requirement::TargetHostage],
-            }),
-            terms: None,
-            waives_needed: false,
+            target: target(TargetKind::Minion, &[Requirement::TargetHostage]),
             limit: Some(Limit::PerTurn),
-            effects: &[Effect::HostBurnBlood(2), Effect::BurnTargetHostages],
+            ..mode_of(
+                &[Window::UnlockPhaseAny],
+                Actor::AnyReadyVampire,
+                &[Requirement::ActorBloodAtLeast(2)],
+                &[Effect::HostBurnBlood(2), Effect::BurnTargetHostages],
+            )
         },
     ],
     riders: &[Rider {
@@ -11093,6 +9178,7 @@ pub static CARVERS_MEAT_PACKING: CardDef = CardDef {
         requires: &[],
         effects: &[Effect::HostageOnTorpor(3)],
     }],
+    ..CARD
 };
 
 /// "Unique location. Hunting ground. During your unlock phase, a ready
@@ -11105,9 +9191,6 @@ pub static CARVERS_MEAT_PACKING: CardDef = CardDef {
 /// limited effect canceled leaves the limit untouched (LSJ 20030224).
 pub static MEDITATIVE_GROVE: CardDef = CardDef {
     name: "Meditative Grove",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[
         hunting_ground_pick!(
@@ -11120,21 +9203,17 @@ pub static MEDITATIVE_GROVE: CardDef = CardDef {
                 Requirement::NotHuntingGroundFed,
             ]
         ),
-        ModeDef {
-            windows: &[Window::CardAsPlayed],
-            actor: Actor::Controller,
-            requires: &[
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::Controller,
+            &[
                 Requirement::CardUnlocked,
                 Requirement::PlayedFrenzyOnYour("Salubri"),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::CancelPlayed { refund: false }],
-        },
+            &[Effect::LockSelf, Effect::CancelPlayed { refund: false }],
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only one Week of Nightmares can be played in a game. Put this card in
@@ -11154,9 +9233,6 @@ pub static MEDITATIVE_GROVE: CardDef = CardDef {
 /// it cannot.
 pub static WEEK_OF_NIGHTMARES: CardDef = CardDef {
     name: "Week of Nightmares",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(
         &[Requirement::NotPlayedThisGame],
         &[
@@ -11183,45 +9259,43 @@ pub static WEEK_OF_NIGHTMARES: CardDef = CardDef {
     )],
     abilities: &[
         ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[Requirement::ActorClan("Ravnos")],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::TargetVampire,
                     Requirement::TargetClan("Ravnos"),
                     Requirement::OtherThanActor,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::DeclareAction(ActionKind::Ability),
-                Effect::AddStealth(1),
-                Effect::HuntAction,
-                Effect::StealBloodFromTarget(1),
-            ],
+            ),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::ActingCandidate,
+                &[Requirement::ActorClan("Ravnos")],
+                &[
+                    Effect::DeclareAction(ActionKind::Ability),
+                    Effect::AddStealth(1),
+                    Effect::HuntAction,
+                    Effect::StealBloodFromTarget(1),
+                ],
+            )
         },
         ModeDef {
-            windows: &[Window::UnlockPhaseOwn],
-            actor: Actor::Methuselah,
-            requires: &[Requirement::CountersAtLeast(1)],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::TargetVampire,
                     Requirement::TargetClan("Ravnos"),
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::CounterToTarget],
+            ),
+            ..mode_of(
+                &[Window::UnlockPhaseOwn],
+                Actor::Methuselah,
+                &[Requirement::CountersAtLeast(1)],
+                &[Effect::CounterToTarget("Ravnos")],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 // ---- The pre-built decks' last equipment (slice 11r) ------------------------
@@ -11235,9 +9309,6 @@ pub static WEEK_OF_NIGHTMARES: CardDef = CardDef {
 /// it is directed at its controller (LSJ 20090324).
 pub static LIVING_MANSE: CardDef = CardDef {
     name: "Living Manse",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
         requires: &[Requirement::ActorWithout(Holding::Named("Living Manse"))],
         effects: &[
@@ -11251,17 +9322,13 @@ pub static LIVING_MANSE: CardDef = CardDef {
         ],
         ..EQUIP
     }],
-    abilities: &[ModeDef {
-        windows: &[Window::CombatBeforeRange],
-        actor: Actor::Host,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::BurnSelf, Effect::EndCombat],
-    }],
-    riders: &[],
+    abilities: &[mode_of(
+        &[Window::CombatBeforeRange],
+        Actor::Host,
+        &[],
+        &[Effect::BurnSelf, Effect::EndCombat],
+    )],
+    ..CARD
 };
 
 /// "Unique melee weapon. Strike: strength+1 aggravated damage. Once each
@@ -11273,9 +9340,6 @@ pub static LIVING_MANSE: CardDef = CardDef {
 /// (in the as-played window, nothing but wakes around it: LSJ 20061207).
 pub static SWORD_OF_THE_ARCHANGEL: CardDef = CardDef {
     name: "Sword of the Archangel",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[EQUIP],
     abilities: &[
         weapon_strike(
@@ -11286,34 +9350,32 @@ pub static SWORD_OF_THE_ARCHANGEL: CardDef = CardDef {
             })],
         ),
         ModeDef {
-            windows: &[Window::CardAsPlayed],
-            actor: Actor::Host,
-            requires: &[
-                Requirement::HostClan("Salubri"),
-                Requirement::HostBloodAtLeast(1),
-                Requirement::PlayedGrappleOrAimByOpponent,
-            ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
             limit: Some(Limit::PerCombat),
-            effects: &[
-                Effect::HostBurnBlood(1),
-                Effect::CancelPlayed { refund: true },
-            ],
+            ..mode_of(
+                &[Window::CardAsPlayed],
+                Actor::Host,
+                &[
+                    Requirement::HostClan("Salubri"),
+                    Requirement::HostBloodAtLeast(1),
+                    Requirement::PlayedGrappleOrAimByOpponent,
+                ],
+                &[
+                    Effect::HostBurnBlood(1),
+                    Effect::CancelPlayed { refund: true },
+                ],
+            )
         },
         ModeDef {
-            windows: &[Window::CombatWouldEnd],
-            actor: Actor::Host,
-            requires: &[Requirement::HostReady, Requirement::WeaponBurnedOpponent],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
             limit: Some(Limit::PerTurn),
-            effects: &[Effect::UnlockHost],
+            ..mode_of(
+                &[Window::CombatWouldEnd],
+                Actor::Host,
+                &[Requirement::HostReady, Requirement::WeaponBurnedOpponent],
+                &[Effect::UnlockHost],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Combat cards, wave 2 (slice 11s) --------------------------------------
@@ -11327,9 +9389,6 @@ pub static SWORD_OF_THE_ARCHANGEL: CardDef = CardDef {
 /// opponent's strike (LSJ 19980216).
 pub static BLOOD_FURY: CardDef = CardDef {
     name: "Blood Fury",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatStrikeDeclaration],
@@ -11350,17 +9409,13 @@ pub static BLOOD_FURY: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[obf] Only usable at long range. Strike: combat ends. [OBF] Strike:
 /// combat ends." (1 blood.)
 pub static NO_TRACE: CardDef = CardDef {
     name: "No Trace",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatStrikeDeclaration],
@@ -11373,16 +9428,12 @@ pub static NO_TRACE: CardDef = CardDef {
             &[Effect::Strike(StrikeKind::CombatEnds { unlock: false })],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[obl] Additional strike (limited). [OBL] Maneuver."
 pub static SHADOW_SHIFT: CardDef = CardDef {
     name: "Shadow Shift",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatAdditionalStrike],
@@ -11394,8 +9445,7 @@ pub static SHADOW_SHIFT: CardDef = CardDef {
         ),
         combat(&[Window::CombatDetermineRange], &[], &[Effect::Maneuver]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pro] Damage from this vampire's hand strikes is aggravated this round.
@@ -11403,24 +9453,17 @@ pub static SHADOW_SHIFT: CardDef = CardDef {
 /// reaches this round's strike, not once it has resolved (RTR 19960112).
 pub static WOLF_CLAWS: CardDef = CardDef {
     name: "Wolf Claws",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(&[Window::CombatUntimed], &[], &[Effect::AggravatedHands]),
         combat(&[Window::CombatPress], &[], &[Effect::Press]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pro] [ACTION MODIFIER] +1 stealth. [PRO] [COMBAT] Strike: combat
 /// ends." (1 blood.)
 pub static RAPID_CHANGE: CardDef = CardDef {
     name: "Rapid Change",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         stealth(&[Effect::AddStealth(1)]),
         combat(
@@ -11429,8 +9472,7 @@ pub static RAPID_CHANGE: CardDef = CardDef {
             &[Effect::Strike(StrikeKind::CombatEnds { unlock: false })],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Requires an Anarch. [cel] Additional strike (limited). [for] Prevent 2
@@ -11441,9 +9483,6 @@ pub static RAPID_CHANGE: CardDef = CardDef {
 /// 20001114). Played at the maneuver, [tha] commits the round's strike.
 pub static DIVERSION: CardDef = CardDef {
     name: "Diversion",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatAdditionalStrike],
@@ -11470,8 +9509,7 @@ pub static DIVERSION: CardDef = CardDef {
             })],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[cel] Additional strike (limited). [CEL] Burn X blood to get X
@@ -11480,9 +9518,6 @@ pub static DIVERSION: CardDef = CardDef {
 /// effect no cost reduction reaches (ANK 20210226).
 pub static LIGHTNING_REFLEXES: CardDef = CardDef {
     name: "Lightning Reflexes",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatAdditionalStrike],
@@ -11504,17 +9539,13 @@ pub static LIGHTNING_REFLEXES: CardDef = CardDef {
             )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[tha] Strike: dodge. [THA] As above, with 1 additional strike: dodge
 /// (limited)."
 pub static WIND_DANCE: CardDef = CardDef {
     name: "Wind Dance",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatStrikeDeclaration],
@@ -11533,8 +9564,7 @@ pub static WIND_DANCE: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[aus] Strike: hand strike or use a melee weapon strike. This strike is
@@ -11545,9 +9575,6 @@ pub static WIND_DANCE: CardDef = CardDef {
 /// [AUS] is an effect (ANK 20210226).
 pub static ANTICIPATION: CardDef = CardDef {
     name: "Anticipation",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatStrikeDeclaration],
@@ -11555,13 +9582,13 @@ pub static ANTICIPATION: CardDef = CardDef {
             &[Effect::Strike(StrikeKind::Hand { bonus: 2 })],
         ),
         ModeDef {
-            target: Some(TargetSpec {
-                kind: TargetKind::Card,
-                filter: &[
+            target: target(
+                TargetKind::Card,
+                &[
                     Requirement::TargetOnActor,
                     Requirement::TargetCard(CardFilter::MeleeWeapon),
                 ],
-            }),
+            ),
             ..combat(
                 &[Window::CombatStrikeDeclaration],
                 &[Requirement::ActorMayUseEquipment],
@@ -11580,8 +9607,7 @@ pub static ANTICIPATION: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Frenzy. Only usable before range is determined. [ani] Only usable
@@ -11594,9 +9620,6 @@ pub static ANTICIPATION: CardDef = CardDef {
 /// round (ANK 20191221).
 pub static TERROR_FRENZY: CardDef = CardDef {
     name: "Terror Frenzy",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatBeforeRange],
@@ -11612,8 +9635,7 @@ pub static TERROR_FRENZY: CardDef = CardDef {
             )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable before range is determined during the first round. [for]
@@ -11624,9 +9646,6 @@ pub static TERROR_FRENZY: CardDef = CardDef {
 /// (Salubri; 1 blood.)
 pub static TRANQUILITY_SHIELD: CardDef = CardDef {
     name: "Tranquility Shield",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatBeforeRange],
@@ -11639,8 +9658,7 @@ pub static TRANQUILITY_SHIELD: CardDef = CardDef {
             &[Effect::PreventEachRound(2), Effect::FrenzyShield],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable before range is determined. [pro] This combat, if a damage
@@ -11653,9 +9671,6 @@ pub static TRANQUILITY_SHIELD: CardDef = CardDef {
 /// 20021001).
 pub static FLESH_OF_MARBLE: CardDef = CardDef {
     name: "Flesh of Marble",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatBeforeRange],
@@ -11668,8 +9683,7 @@ pub static FLESH_OF_MARBLE: CardDef = CardDef {
             &[Effect::FleshOfMarble { aggravated: true }],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable before range is determined during the first round. A
@@ -11682,9 +9696,6 @@ pub static FLESH_OF_MARBLE: CardDef = CardDef {
 /// then (LSJ 19971110, ANK 20190725).
 pub static WEATHER_CONTROL: CardDef = CardDef {
     name: "Weather Control",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
             limit: Some(Limit::PerCombat),
@@ -11703,8 +9714,7 @@ pub static WEATHER_CONTROL: CardDef = CardDef {
             )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable at close range at the end of a round during which this
@@ -11720,9 +9730,6 @@ pub static WEATHER_CONTROL: CardDef = CardDef {
 /// the vampire (rules-qa 21.1).
 pub static DISARM: CardDef = CardDef {
     name: "Disarm",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CombatEndOfRound],
@@ -11743,17 +9750,13 @@ pub static DISARM: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[ModeDef {
-        windows: &[Window::AnyImpulse],
-        actor: Actor::Host,
-        requires: &[Requirement::HostBloodAtLeast(3)],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::HostBurnBlood(3), Effect::BurnSelf],
-    }],
-    riders: &[],
+    abilities: &[mode_of(
+        &[Window::AnyImpulse],
+        Actor::Host,
+        &[Requirement::HostBloodAtLeast(3)],
+        &[Effect::HostBurnBlood(3), Effect::BurnSelf],
+    )],
+    ..CARD
 };
 
 const DISARM_REQUIRES: [Requirement; 5] = [
@@ -11771,9 +9774,6 @@ const DISARM_REQUIRES: [Requirement; 5] = [
 /// Discipline (PIB 20130704).
 pub static HIDE_THE_MIND: CardDef = CardDef {
     name: "Hide the Mind",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         combat(
             &[Window::CardAsPlayed],
@@ -11783,22 +9783,17 @@ pub static HIDE_THE_MIND: CardDef = CardDef {
             ],
             &[Effect::CancelPlayed { refund: true }],
         ),
-        ModeDef {
-            windows: &[Window::CardAsPlayed],
-            actor: Actor::ActingMinion,
-            requires: &[
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::ActingMinion,
+            &[
                 Requirement::PlayedCardType(CardType::Reaction),
                 Requirement::PlayedRequiresDiscipline("aus"),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::CancelPlayed { refund: true }],
-        },
+            &[Effect::CancelPlayed { refund: true }],
+        ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable before range is determined. A vampire can play only one
@@ -11810,9 +9805,6 @@ pub static HIDE_THE_MIND: CardDef = CardDef {
 /// weapon's own (LSJ 20100725).
 pub static ANGELS_GIFT: CardDef = CardDef {
     name: "Angel's Gift",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
             terms: Some(Terms::EquipFromHand {
@@ -11831,8 +9823,7 @@ pub static ANGELS_GIFT: CardDef = CardDef {
             )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable before range is determined. A vampire can play only one
@@ -11845,9 +9836,6 @@ pub static ANGELS_GIFT: CardDef = CardDef {
 /// not played by the vampire (ANK 20201229).
 pub static CONTRABAND: CardDef = CardDef {
     name: "Contraband",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
             terms: Some(Terms::EquipFromHand {
@@ -11866,8 +9854,7 @@ pub static CONTRABAND: CardDef = CardDef {
             ..combat(&[Window::CombatBeforeRange], &[], &[Effect::EquipNamed])
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable by an unlocked vampire not involved in the combat.
@@ -11879,9 +9866,6 @@ pub static CONTRABAND: CardDef = CardDef {
 /// the kind of target: a minion, or a retainer.
 pub static MARTYRS_RESILIENCE: CardDef = CardDef {
     name: "Martyr's Resilience",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         martyr(TargetKind::Minion, None, &[Effect::PreventOnTarget(1)]),
         martyr(TargetKind::Card, None, &[Effect::PreventOnTarget(1)]),
@@ -11896,8 +9880,7 @@ pub static MARTYRS_RESILIENCE: CardDef = CardDef {
             &[Effect::ActorBurnsBloodX, Effect::PreventOnTargetXPlus(1)],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 const fn martyr(kind: TargetKind, terms: Option<Terms>, effects: &'static [Effect]) -> ModeDef {
@@ -11922,36 +9905,17 @@ const fn martyr(kind: TargetKind, terms: Option<Terms>, effects: &'static [Effec
 /// bleed (limited)."
 pub static THREATS: CardDef = CardDef {
     name: "Threats",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
-        modifier(
-            &[Requirement::IsBleed],
-            &[Effect::BleedMod {
-                n: 1,
-                limited: true,
-            }],
-        ),
-        modifier(
-            &[Requirement::IsBleed],
-            &[Effect::BleedMod {
-                n: 2,
-                limited: true,
-            }],
-        ),
+        modifier(&[Requirement::IsBleed], &[bleed(1, true)]),
+        modifier(&[Requirement::IsBleed], &[bleed(2, true)]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Not usable during a bleed action. [obf] +2 stealth. [OBF] +3 stealth."
 /// (1 blood.)
 pub static FORGOTTEN_LABYRINTH: CardDef = CardDef {
     name: "Forgotten Labyrinth",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
             requires: &[Requirement::StealthNeeded, Requirement::NotBleed],
@@ -11962,8 +9926,7 @@ pub static FORGOTTEN_LABYRINTH: CardDef = CardDef {
             ..stealth(&[Effect::AddStealth(3)])
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Not usable during a bleed action. [obf] +1 stealth. [OBF] Only usable
@@ -11972,9 +9935,6 @@ pub static FORGOTTEN_LABYRINTH: CardDef = CardDef {
 /// (ANK 20210226).
 pub static GO_GETTER: CardDef = CardDef {
     name: "Go-getter",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
             requires: &[Requirement::StealthNeeded, Requirement::NotBleed],
@@ -11992,8 +9952,7 @@ pub static GO_GETTER: CardDef = CardDef {
             &[Effect::BurnActorBlood(1), Effect::ContinueAfterResolution],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[obf] +1 stealth. [OBF] Only usable if a minion attempts to block. That
@@ -12001,15 +9960,11 @@ pub static GO_GETTER: CardDef = CardDef {
 /// action again." (1 blood.)
 pub static ELDER_IMPERSONATION: CardDef = CardDef {
     name: "Elder Impersonation",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         stealth(&[Effect::AddStealth(1)]),
         on_attempt!(&[], &[Effect::AttemptFails]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[ani][pro] +1 stealth. If this vampire is blocked, they can prevent 1
@@ -12019,9 +9974,6 @@ pub static ELDER_IMPERSONATION: CardDef = CardDef {
 /// block (LSJ 20010813, 20010819-2, 20010814-2).
 pub static BEAST_MELD: CardDef = CardDef {
     name: "Beast Meld",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         stealth(&[
             Effect::AddStealth(1),
@@ -12034,8 +9986,7 @@ pub static BEAST_MELD: CardDef = CardDef {
             &[Effect::VampiresCannotBlock],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable as an action to recruit or employ a wraith or zombie is
@@ -12044,9 +9995,6 @@ pub static BEAST_MELD: CardDef = CardDef {
 /// unlock after action resolution."
 pub static PATHS_IN_TWO_WORLDS: CardDef = CardDef {
     name: "Paths in Two Worlds",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
             waives_needed: true,
@@ -12067,8 +10015,7 @@ pub static PATHS_IN_TWO_WORLDS: CardDef = CardDef {
             )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 const WRAITH_OR_ZOMBIE: Requirement =
@@ -12082,15 +10029,11 @@ const WRAITH_OR_ZOMBIE: Requirement =
 /// retainer damage too (PIB 20150603-1).
 pub static DAWN_OPERATION: CardDef = CardDef {
     name: "Dawn Operation",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         modifier(&[], &[Effect::DawnOperation { cancel: true }]),
         modifier(&[], &[Effect::DawnOperation { cancel: false }]),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable by a locked vampire. [ani] This vampire unlocks and attempts
@@ -12101,9 +10044,6 @@ pub static DAWN_OPERATION: CardDef = CardDef {
 /// one Dogged Pursuit." (Ravnos.)
 pub static DOGGED_PURSUIT: CardDef = CardDef {
     name: "Dogged Pursuit",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         unlock_attempt!(
             &[Requirement::LockedActor, Requirement::CanAttemptBlock],
@@ -12123,20 +10063,16 @@ pub static DOGGED_PURSUIT: CardDef = CardDef {
             ]
         ),
     ],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionStealthIntercept],
-        actor: Actor::Host,
-        requires: &[
+    abilities: &[mode_of(
+        &[Window::ActionStealthIntercept],
+        Actor::Host,
+        &[
             Requirement::HostAttempting,
             Requirement::YourAttemptNeedsIntercept,
         ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::BurnSelf, Effect::AttemptingIntercept(1)],
-    }],
-    riders: &[],
+        &[Effect::BurnSelf, Effect::AttemptingIntercept(1)],
+    )],
+    ..CARD
 };
 
 /// "Only usable during a bleed action directed at you. Do not replace until
@@ -12146,8 +10082,6 @@ pub static DOGGED_PURSUIT: CardDef = CardDef {
 /// Pack Tactics is not in V5.
 pub static ELDER_INTERVENTION: CardDef = CardDef {
     name: "Elder Intervention",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::EndOfAction),
     modes: &[intercept(
         &[
@@ -12157,8 +10091,7 @@ pub static ELDER_INTERVENTION: CardDef = CardDef {
         ],
         &[Effect::AddIntercept(2)],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only usable by a locked vampire. This vampire wakes (they ignore the
@@ -12172,21 +10105,13 @@ pub static ELDER_INTERVENTION: CardDef = CardDef {
 /// (ANK 20210819), after resolution too (LSJ 20091123).
 pub static FORCED_AWAKENING: CardDef = CardDef {
     name: "Forced Awakening",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
-    modes: &[ModeDef {
-        windows: &[Window::Wake, Window::CardAsPlayed],
-        actor: Actor::ReactingMinion,
-        requires: &[Requirement::LockedActor],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::Wake, Effect::BurnIfNoBlock(1)],
-    }],
-    abilities: &[],
-    riders: &[],
+    modes: &[mode_of(
+        &[Window::Wake, Window::CardAsPlayed],
+        Actor::ReactingMinion,
+        &[Requirement::LockedActor],
+        &[Effect::Wake, Effect::BurnIfNoBlock(1)],
+    )],
+    ..CARD
 };
 
 /// "[for] Only usable by a locked vampire who has blocked, after block
@@ -12195,9 +10120,6 @@ pub static FORCED_AWAKENING: CardDef = CardDef {
 /// vampire." (1 blood.)
 pub static FORCED_VIGILANCE: CardDef = CardDef {
     name: "Forced Vigilance",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         mode_of(
             &[Window::ActionAfterCombat],
@@ -12212,8 +10134,7 @@ pub static FORCED_VIGILANCE: CardDef = CardDef {
             &[Effect::UnlockActor],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[aus] +1 intercept. [AUS] As above, and if this vampire blocks, put this
@@ -12224,9 +10145,6 @@ pub static FORCED_VIGILANCE: CardDef = CardDef {
 /// bleed burn only before resolution (ANK 20180531, 20231124).
 pub static MELANGE: CardDef = CardDef {
     name: "Melange",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         intercept(&[Requirement::InterceptNeeded], &[Effect::AddIntercept(1)]),
         intercept(
@@ -12238,28 +10156,18 @@ pub static MELANGE: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDuring],
-        actor: Actor::ActingMinion,
-        requires: &[
+    abilities: &[mode_of(
+        &[Window::ActionDuring],
+        Actor::ActingMinion,
+        &[
             Requirement::YouControlThisCard,
             Requirement::ActingIsBy,
             Requirement::IsBleed,
             Requirement::BleedAgainstHostController,
         ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
-            Effect::BurnSelf,
-            Effect::BleedMod {
-                n: 1,
-                limited: false,
-            },
-        ],
-    }],
-    riders: &[],
+        &[Effect::BurnSelf, bleed(1, false)],
+    )],
+    ..CARD
 };
 
 /// "Only usable by a locked vampire during a bleed action against you.
@@ -12267,9 +10175,6 @@ pub static MELANGE: CardDef = CardDef {
 /// the resulting combat if this vampire blocks."
 pub static RATS_WARNING: CardDef = CardDef {
     name: "Rat's Warning",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         mode_of(
             &[Window::ReactionUnlock],
@@ -12284,8 +10189,7 @@ pub static RATS_WARNING: CardDef = CardDef {
             &[Effect::UnlockActor, Effect::IfBlocks(BlockRider::Press)],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 const RATS_WARNING_REQUIRES: [Requirement; 3] = [
@@ -12303,9 +10207,6 @@ const RATS_WARNING_REQUIRES: [Requirement; 3] = [
 /// only to a Methuselah the bleed could target (PIB 20130711).
 pub static REDIRECTION: CardDef = CardDef {
     name: "Redirection",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
             target: REDIRECT_TARGET,
@@ -12337,8 +10238,7 @@ pub static REDIRECTION: CardDef = CardDef {
             )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Requires a vampire with capacity 7 or more. [ani] +1 intercept. [ANI]
@@ -12349,9 +10249,6 @@ pub static REDIRECTION: CardDef = CardDef {
 /// target left (LSJ 20090514).
 pub static SENSE_THE_SAVAGE_WAY: CardDef = CardDef {
     name: "Sense the Savage Way",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         intercept(
             &[
@@ -12369,8 +10266,7 @@ pub static SENSE_THE_SAVAGE_WAY: CardDef = CardDef {
             &[Effect::UnlockActor, Effect::AttemptBlock]
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[aus] Reduce a bleed against you by 1. [AUS] Reduce a bleed against you
@@ -12378,9 +10274,6 @@ pub static SENSE_THE_SAVAGE_WAY: CardDef = CardDef {
 /// before or after block attempts.
 pub static TELEPATHIC_COUNTER: CardDef = CardDef {
     name: "Telepathic Counter",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         mode_of(
             &[Window::ReactionDuringAction],
@@ -12395,8 +10288,7 @@ pub static TELEPATHIC_COUNTER: CardDef = CardDef {
             &[Effect::ReduceBleed(2)],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Pool actions, wave 1 (slice 11u) ---------------------------------------
@@ -12405,29 +10297,22 @@ pub static TELEPATHIC_COUNTER: CardDef = CardDef {
 /// younger vampire in your uncontrolled region."
 pub static SCOUTING_MISSION: CardDef = CardDef {
     name: "Scouting Mission",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         bleed_action!(1),
         uncontrolled_blood!(&[Requirement::Younger], 2),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pre] Ⓓ Bleed with +1 bleed. [PRE] As above, and gain 1 pool if the
 /// bleed is successful (for 1 or more)."
 pub static SOCIAL_CHARM: CardDef = CardDef {
     name: "Social Charm",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         bleed_action!(1),
         action_at(
             &[],
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Bleed),
                 PLUS_ONE_BLEED,
@@ -12435,8 +10320,7 @@ pub static SOCIAL_CHARM: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pre] Ⓓ Bleed with +2 bleed. [PRE] As above, and if the bleed is
@@ -12445,42 +10329,29 @@ pub static SOCIAL_CHARM: CardDef = CardDef {
 /// (ANK 20240706).
 pub static PUBLIC_TRUST: CardDef = CardDef {
     name: "Public Trust",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         bleed_action!(2),
         action_at(
             &[],
-            Some(TargetSpec {
-                kind: TargetKind::Uncontrolled,
-                filter: &[],
-            }),
+            target(TargetKind::Uncontrolled, &[]),
             &[
                 Effect::DeclareAction(ActionKind::Bleed),
-                Effect::BleedMod {
-                    n: 2,
-                    limited: false,
-                },
+                bleed(2, false),
                 Effect::IfBleedSuccessful(&[Effect::BloodToUncontrolledTarget(1)]),
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "+1 stealth action. [for] This vampire gains 2 blood. [FOR] This vampire
 /// gains 3 blood."
 pub static RESTORATION: CardDef = CardDef {
     name: "Restoration",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[],
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(1),
@@ -12489,7 +10360,7 @@ pub static RESTORATION: CardDef = CardDef {
         ),
         action_at(
             &[],
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(1),
@@ -12497,8 +10368,7 @@ pub static RESTORATION: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "+1 stealth action. Requires a prince or justicar. Add 4 blood to
@@ -12507,55 +10377,41 @@ pub static RESTORATION: CardDef = CardDef {
 /// at them (Ⓓ is only indicative, rules-qa 20.1).
 pub static FIFTH_TRADITION: CardDef = CardDef {
     name: "Fifth Tradition: Hospitality",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[action_at(
         &[PRINCE_OR_JUSTICAR],
-        Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::TargetVampire, Requirement::OtherThanActor],
-        }),
+        target(
+            TargetKind::Minion,
+            &[Requirement::TargetVampire, Requirement::OtherThanActor],
+        ),
         &[
             Effect::DeclareAction(ActionKind::Card),
             Effect::AddStealth(1),
             Effect::BloodToTarget(4),
         ],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "+1 stealth action. Requires a prince or justicar. Add 3 blood to a
 /// younger vampire in your uncontrolled region." (1 blood.)
 pub static FOURTH_TRADITION: CardDef = CardDef {
     name: "Fourth Tradition: The Accounting",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[action_at(
         &[PRINCE_OR_JUSTICAR],
-        Some(TargetSpec {
-            kind: TargetKind::Uncontrolled,
-            filter: &[Requirement::Younger],
-        }),
+        target(TargetKind::Uncontrolled, &[Requirement::Younger]),
         &[
             Effect::DeclareAction(ActionKind::Card),
             Effect::AddStealth(1),
             Effect::BloodToUncontrolledTarget(3),
         ],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "+1 stealth action. [obl] Ⓓ Enter combat with a minion. [OBL] As above,
 /// and this acting vampire gets 1 optional maneuver during that combat."
 pub static UMBROUS_CLUTCH: CardDef = CardDef {
     name: "Umbrous Clutch",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[],
@@ -12577,19 +10433,18 @@ pub static UMBROUS_CLUTCH: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Enter combat with a vampire": another Methuselah's ready vampire.
-const VAMPIRE_COMBAT_TARGET: Option<TargetSpec> = Some(TargetSpec {
-    kind: TargetKind::Minion,
-    filter: &[
+const VAMPIRE_COMBAT_TARGET: Option<TargetSpec> = target(
+    TargetKind::Minion,
+    &[
         Requirement::NotControlled,
         Requirement::ActorReady,
         Requirement::TargetVampire,
     ],
-});
+);
 
 /// "+1 stealth action. [aus] Ⓓ Enter combat with a vampire. [AUS] As
 /// above, and at the end of that combat, if this vampire is ready and the
@@ -12597,9 +10452,6 @@ const VAMPIRE_COMBAT_TARGET: Option<TargetSpec> = Some(TargetSpec {
 /// region." (Salubri.) The Salubri is chosen then.
 pub static HUNTING_THE_BEAST: CardDef = CardDef {
     name: "Hunting the Beast",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[],
@@ -12624,19 +10476,18 @@ pub static HUNTING_THE_BEAST: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Enter combat with a locked minion".
-const LOCKED_COMBAT_TARGET: Option<TargetSpec> = Some(TargetSpec {
-    kind: TargetKind::Minion,
-    filter: &[
+const LOCKED_COMBAT_TARGET: Option<TargetSpec> = target(
+    TargetKind::Minion,
+    &[
         Requirement::NotControlled,
         Requirement::ActorReady,
         Requirement::TargetLocked,
     ],
-});
+);
 
 /// Make the Misere: one mode per set of Disciplines used.
 macro_rules! misere {
@@ -12664,9 +10515,6 @@ const MISERE_POT: Effect = Effect::InResultingCombat(BlockRider::Strength(1));
 /// 20210124).
 pub static MAKE_THE_MISERE: CardDef = CardDef {
     name: "Make the Misere",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         misere!(MISERE_CEL),
         misere!(Effect::AddStealth(1)),
@@ -12676,28 +10524,24 @@ pub static MAKE_THE_MISERE: CardDef = CardDef {
         misere!(Effect::AddStealth(1), MISERE_POT),
         misere!(Effect::AddStealth(1), MISERE_CEL, MISERE_POT),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Ⓓ Stun an unlocked vampire".
-const STUN_TARGET: Option<TargetSpec> = Some(TargetSpec {
-    kind: TargetKind::Minion,
-    filter: &[
+const STUN_TARGET: Option<TargetSpec> = target(
+    TargetKind::Minion,
+    &[
         Requirement::NotControlled,
         Requirement::TargetVampire,
         Requirement::TargetUnlocked,
     ],
-});
+);
 
 /// "[pre] Ⓓ Stun an unlocked vampire. [PRE] As above, and this is a +1
 /// stealth action." (1 blood.) A target locked by resolution: the action
 /// fizzles (ANK 20210124).
 pub static MIND_NUMB: CardDef = CardDef {
     name: "Mind Numb",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[],
@@ -12714,8 +10558,7 @@ pub static MIND_NUMB: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[pre] Ⓓ Bleed with +1 bleed. Titled vampires cannot block this action.
@@ -12724,13 +10567,10 @@ pub static MIND_NUMB: CardDef = CardDef {
 /// (rules-qa 31.2).
 pub static PROPAGANDA: CardDef = CardDef {
     name: "Propaganda",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[],
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Bleed),
                 PLUS_ONE_BLEED,
@@ -12739,14 +10579,14 @@ pub static PROPAGANDA: CardDef = CardDef {
         ),
         action_at(
             &[],
-            Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target(
+                TargetKind::Minion,
+                &[
                     Requirement::ControlledByPrey,
                     Requirement::ActorReady,
                     Requirement::TargetUnlocked,
                 ],
-            }),
+            ),
             &[
                 Effect::DeclareAction(ActionKind::Bleed),
                 PLUS_ONE_BLEED,
@@ -12755,8 +10595,7 @@ pub static PROPAGANDA: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[obf] Ⓓ Burn an equipment. [OBF] Ⓓ Burn a location." Directed at the
@@ -12764,18 +10603,15 @@ pub static PROPAGANDA: CardDef = CardDef {
 /// undirected. A location in play is no equipment (Living Manse).
 pub static CONCEAL: CardDef = CardDef {
     name: "Conceal",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[],
-            Some(TargetSpec {
-                kind: TargetKind::Card,
-                filter: &[Requirement::TargetCard(CardFilter::Type(
+            target(
+                TargetKind::Card,
+                &[Requirement::TargetCard(CardFilter::Type(
                     CardType::Equipment,
                 ))],
-            }),
+            ),
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::BurnTargetCard,
@@ -12783,18 +10619,17 @@ pub static CONCEAL: CardDef = CardDef {
         ),
         action_at(
             &[],
-            Some(TargetSpec {
-                kind: TargetKind::Card,
-                filter: &[Requirement::TargetCard(CardFilter::Location)],
-            }),
+            target(
+                TargetKind::Card,
+                &[Requirement::TargetCard(CardFilter::Location)],
+            ),
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::BurnTargetCard,
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "[dom] +1 stealth action. Ⓓ Bleed with +1 bleed. [DOM] Ⓓ Steal a
@@ -12803,13 +10638,10 @@ pub static CONCEAL: CardDef = CardDef {
 /// the player's (RTR 19960112).
 pub static DOMINATE_KINE: CardDef = CardDef {
     name: "Dominate Kine",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[],
-            NO_TARGET,
+            None,
             &[
                 Effect::DeclareAction(ActionKind::Bleed),
                 Effect::AddStealth(1),
@@ -12818,32 +10650,31 @@ pub static DOMINATE_KINE: CardDef = CardDef {
         ),
         action_at(
             &[],
-            Some(TargetSpec {
-                kind: TargetKind::Card,
-                filter: &[
+            target(
+                TargetKind::Card,
+                &[
                     Requirement::TargetCard(CardFilter::Location),
                     Requirement::NotControlled,
                 ],
-            }),
+            ),
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::StealLocation,
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Ⓓ Steal a vampire in torpor controlled by another Methuselah".
-const GRAVEROBBING_TARGET: Option<TargetSpec> = Some(TargetSpec {
-    kind: TargetKind::Minion,
-    filter: &[
+const GRAVEROBBING_TARGET: Option<TargetSpec> = target(
+    TargetKind::Minion,
+    &[
         Requirement::NotControlled,
         Requirement::TargetVampire,
         Requirement::TargetInTorpor,
     ],
-});
+);
 
 /// "[dom] Ⓓ Steal a vampire in torpor controlled by another Methuselah.
 /// [DOM] As above, and this acting vampire can burn 2 blood to move the
@@ -12852,9 +10683,6 @@ const GRAVEROBBING_TARGET: Option<TargetSpec> = Some(TargetSpec {
 /// 20210226).
 pub static GRAVEROBBING: CardDef = CardDef {
     name: "Graverobbing",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[],
@@ -12874,8 +10702,7 @@ pub static GRAVEROBBING: CardDef = CardDef {
             ],
         ),
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Pool actions, wave 2 (slice 11v) ---------------------------------------
@@ -12887,37 +10714,31 @@ pub static GRAVEROBBING: CardDef = CardDef {
 /// minions).
 pub static ARMY_OF_RATS: CardDef = CardDef {
     name: "Army of Rats",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[action_at(
         &[],
-        NO_TARGET,
+        None,
         &[
             Effect::DeclareAction(ActionKind::Card),
             Effect::AddStealth(1),
             Effect::PutInPlay,
         ],
     )],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::ActingCandidate,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    abilities: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::ActingCandidate,
+        &[],
+        &[
             Effect::DeclareAction(ActionKind::BurnCard),
             Effect::BurnSource,
         ],
-    }],
+    )],
     riders: &[Rider {
         hook: Hook::UnlockPhase,
         scope: RiderScope::Controller,
         requires: &[Requirement::OneCopyPerTurn],
         effects: &[Effect::PreyBurnsPool(1)],
     }],
+    ..CARD
 };
 
 /// "+1 stealth action. Requires a prince or justicar. Put this card in
@@ -12929,12 +10750,9 @@ pub static ARMY_OF_RATS: CardDef = CardDef {
 /// 20181016).
 pub static JUDGMENT_CAMARILLA_SEGREGATION: CardDef = CardDef {
     name: "Judgment: Camarilla Segregation",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[action_at(
         &[PRINCE_OR_JUSTICAR],
-        NO_TARGET,
+        None,
         &[
             Effect::DeclareAction(ActionKind::Card),
             Effect::AddStealth(1),
@@ -12942,20 +10760,19 @@ pub static JUDGMENT_CAMARILLA_SEGREGATION: CardDef = CardDef {
         ],
     )],
     abilities: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[
+        target: target(
+            TargetKind::Minion,
+            &[
                 Requirement::Controlled,
                 Requirement::TargetSectNot(Sect::Camarilla),
             ],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::BurnTargetMinion, Effect::BurnSelf],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[Effect::BurnTargetMinion, Effect::BurnSelf],
+        )
     }],
     riders: &[Rider {
         hook: Hook::UnlockPhase,
@@ -12963,29 +10780,24 @@ pub static JUDGMENT_CAMARILLA_SEGREGATION: CardDef = CardDef {
         requires: &[Requirement::ActiveControlsNonSect(Sect::Camarilla)],
         effects: &[Effect::BurnPool(1)],
     }],
+    ..CARD
 };
 
 /// "Minions can burn this card as a Ⓓ action": directed at its controller
 /// (undirected for their own minions).
-const BURN_ACTION: ModeDef = ModeDef {
-    windows: &[Window::ActionDeclare],
-    actor: Actor::ActingCandidate,
-    requires: &[],
-    target: NO_TARGET,
-    terms: None,
-    waives_needed: false,
-    limit: None,
-    effects: &[
+const BURN_ACTION: ModeDef = mode_of(
+    &[Window::ActionDeclare],
+    Actor::ActingCandidate,
+    &[],
+    &[
         Effect::DeclareAction(ActionKind::BurnCard),
         Effect::BurnSource,
     ],
-};
+);
 
 /// "Ⓓ Steal 1 blood or life from a minion controlled by your prey".
-const TIER_TARGET: Option<TargetSpec> = Some(TargetSpec {
-    kind: TargetKind::Minion,
-    filter: &[Requirement::ControlledByPrey],
-});
+const TIER_TARGET: Option<TargetSpec> =
+    target(TargetKind::Minion, &[Requirement::ControlledByPrey]);
 
 /// "[ani] Ⓓ Steal 1 blood or life from a minion controlled by your prey.
 /// [ANI] As above, and put this card on this vampire. This vampire gets +1
@@ -12994,9 +10806,6 @@ const TIER_TARGET: Option<TargetSpec> = Some(TargetSpec {
 /// burned. "Your prey": the card's controller's, read live.
 pub static TIER_OF_SOULS: CardDef = CardDef {
     name: "Tier of Souls",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[],
@@ -13018,7 +10827,7 @@ pub static TIER_OF_SOULS: CardDef = CardDef {
         ),
     ],
     abilities: &[BURN_ACTION],
-    riders: &[],
+    ..CARD
 };
 
 /// "+1 stealth action. [pre] Ⓓ Put this card on a minion; you still control
@@ -13028,16 +10837,10 @@ pub static TIER_OF_SOULS: CardDef = CardDef {
 /// Ravnos.) Any minion: at the player's own, undirected (rules-qa 20.1).
 pub static PHANTASMAGORIA: CardDef = CardDef {
     name: "Phantasmagoria",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         action_at(
             &[],
-            Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[],
-            }),
+            target(TargetKind::Minion, &[]),
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(1),
@@ -13053,10 +10856,7 @@ pub static PHANTASMAGORIA: CardDef = CardDef {
         ),
         action_at(
             &[],
-            Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[],
-            }),
+            target(TargetKind::Minion, &[]),
             &[
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(1),
@@ -13078,6 +10878,7 @@ pub static PHANTASMAGORIA: CardDef = CardDef {
         requires: &[Requirement::SuperiorVersion],
         effects: &[Effect::HostBurnBlood(1)],
     }],
+    ..CARD
 };
 
 /// "+1 stealth action. Unique. Put this card in play. You can lock
@@ -13090,12 +10891,9 @@ pub static PHANTASMAGORIA: CardDef = CardDef {
 /// capacity 5 or more (LSJ 20080604).
 pub static ARANTHEBES: CardDef = CardDef {
     name: "Aranthebes, The Immortal",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[action_at(
         &[],
-        NO_TARGET,
+        None,
         &[
             Effect::DeclareAction(ActionKind::Card),
             Effect::AddStealth(1),
@@ -13104,34 +10902,26 @@ pub static ARANTHEBES: CardDef = CardDef {
         ],
     )],
     abilities: &[
-        ModeDef {
-            windows: &[Window::ReactionAsAnnounced, Window::ReactionDuringAction],
-            actor: Actor::Controller,
-            requires: &[Requirement::CardUnlocked, Requirement::ActingByPredator],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::ReduceStealth(1)],
-        },
-        ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[
+        mode_of(
+            &[Window::ReactionAsAnnounced, Window::ReactionDuringAction],
+            Actor::Controller,
+            &[Requirement::CardUnlocked, Requirement::ActingByPredator],
+            &[Effect::LockSelf, Effect::ReduceStealth(1)],
+        ),
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[
                 Requirement::ActorVampire,
                 Requirement::ActorCapacityAtLeast(5),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+            &[
                 Effect::DeclareAction(ActionKind::BurnCard),
                 Effect::ShuffleSourceIntoLibrary,
             ],
-        },
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// Fee Stake's referendum: "burn this card; during that referendum,
@@ -13155,15 +10945,12 @@ macro_rules! fee_stake {
     ($name:ident, $printed:expr, $city:expr, $clans:expr) => {
         pub static $name: CardDef = CardDef {
             name: $printed,
-            trifle: false,
-            out_of_turn: false,
-            delayed_replacement: None,
             modes: &[action_at(
                 &[
                     Requirement::ActorSectIn(&[Sect::Anarch]),
                     Requirement::ActorCapacityAtLeast(5),
                 ],
-                NO_TARGET,
+                None,
                 &[
                     Effect::DeclareAction(ActionKind::Card),
                     Effect::AddStealth(1),
@@ -13172,21 +10959,17 @@ macro_rules! fee_stake {
                     Effect::Layer(Modifier::HostVoteWhenCalling($clans)),
                 ],
             )],
-            abilities: &[ModeDef {
-                windows: &[Window::ActionDeclarePolitical],
-                actor: Actor::ActingCandidate,
-                requires: &[Requirement::ActorVampire],
-                target: NO_TARGET,
-                terms: None,
-                waives_needed: false,
-                limit: None,
-                effects: &[
+            abilities: &[mode_of(
+                &[Window::ActionDeclarePolitical],
+                Actor::ActingCandidate,
+                &[Requirement::ActorVampire],
+                &[
                     Effect::DeclareAction(ActionKind::Political),
                     Effect::AddStealth(1),
                     Effect::CallReferendum(&FEE_STAKE_BURN),
                 ],
-            }],
-            riders: &[],
+            )],
+            ..CARD
         };
     };
 }
@@ -13221,12 +11004,9 @@ fee_stake!(
 /// vampire (RTR 19990712).
 pub static WATERS_OF_DUAT: CardDef = CardDef {
     name: "Waters of Duat",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[action_at(
         &[Requirement::ActorCapacityAtLeast(5)],
-        NO_TARGET,
+        None,
         &[
             Effect::DeclareAction(ActionKind::Card),
             Effect::AddStealth(1),
@@ -13234,8 +11014,7 @@ pub static WATERS_OF_DUAT: CardDef = CardDef {
             Effect::BecomesVampire(None),
         ],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "+1 stealth action. Put this card in play with 2 counters. During your
@@ -13247,12 +11026,9 @@ pub static WATERS_OF_DUAT: CardDef = CardDef {
 /// able to act this turn (LSJ 20100204, 20040518-2, 20100302-1).
 pub static SPLIT_THE_VEIL: CardDef = CardDef {
     name: "Split the Veil",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[action_at(
         &[],
-        NO_TARGET,
+        None,
         &[
             Effect::DeclareAction(ActionKind::Card),
             Effect::AddStealth(1),
@@ -13260,26 +11036,22 @@ pub static SPLIT_THE_VEIL: CardDef = CardDef {
             Effect::EnterWithCounters(2),
         ],
     )],
-    abilities: &[ModeDef {
-        windows: &[Window::UnlockPhaseOwn],
-        actor: Actor::Controller,
-        requires: &[
+    abilities: &[mode_of(
+        &[Window::UnlockPhaseOwn],
+        Actor::Controller,
+        &[
             Requirement::CountersAtLeast(1),
             Requirement::FewerCopiesUsedThisPhase(2),
         ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+        &[
             Effect::RemoveCounter(1),
             Effect::RaiseAllyWhenEmpty(&[
                 crate::library::Label::Wraith,
                 crate::library::Label::Zombie,
             ]),
         ],
-    }],
-    riders: &[],
+    )],
+    ..CARD
 };
 
 /// "+1 stealth hunt action. Remove an ally in any Methuselah's ash heap from
@@ -13292,15 +11064,12 @@ pub static SPLIT_THE_VEIL: CardDef = CardDef {
 /// special hunt a turn (NRA).
 pub static PSYCHOPHAGIA: CardDef = CardDef {
     name: "Psychophagia",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[
         ModeDef {
             terms: Some(Terms::AnyAshAlly),
             ..action_at(
                 &[Requirement::AllyInAnyAsh],
-                NO_TARGET,
+                None,
                 &[
                     Effect::DeclareAction(ActionKind::Card),
                     Effect::AddStealth(1),
@@ -13316,7 +11085,7 @@ pub static PSYCHOPHAGIA: CardDef = CardDef {
             terms: Some(Terms::AnyAshAlly),
             ..action_at(
                 &[Requirement::AllyInAnyAsh],
-                NO_TARGET,
+                None,
                 &[
                     Effect::DeclareAction(ActionKind::Card),
                     Effect::AddStealth(1),
@@ -13329,8 +11098,7 @@ pub static PSYCHOPHAGIA: CardDef = CardDef {
             )
         },
     ],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "+1 stealth action. Unique. Not usable if any non-mandatory actions have
@@ -13340,12 +11108,9 @@ pub static PSYCHOPHAGIA: CardDef = CardDef {
 /// the Assamites' V5 name.)
 pub static KHABAR_GLORY: CardDef = CardDef {
     name: "Khabar: Glory",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[action_at(
         &[Requirement::NoOptionalActionThisTurn],
-        NO_TARGET,
+        None,
         &[
             Effect::DeclareAction(ActionKind::Card),
             Effect::AddStealth(1),
@@ -13359,7 +11124,6 @@ pub static KHABAR_GLORY: CardDef = CardDef {
             }),
         ],
     )],
-    abilities: &[],
     riders: &[
         Rider {
             hook: Hook::PreyOusted,
@@ -13374,6 +11138,7 @@ pub static KHABAR_GLORY: CardDef = CardDef {
             effects: &[Effect::BurnSelf],
         },
     ],
+    ..CARD
 };
 
 /// "+1 stealth action. Requires a baron. Only one Open War can be played in
@@ -13388,12 +11153,9 @@ pub static KHABAR_GLORY: CardDef = CardDef {
 /// 32.7).
 pub static OPEN_WAR: CardDef = CardDef {
     name: "Open War",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[action_at(
         &[BARON, Requirement::NotPlayedThisGame],
-        NO_TARGET,
+        None,
         &[
             Effect::DeclareAction(ActionKind::Card),
             Effect::AddStealth(1),
@@ -13402,54 +11164,48 @@ pub static OPEN_WAR: CardDef = CardDef {
     )],
     abilities: &[
         ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[Requirement::ActorSectIn(&[Sect::Anarch])],
             target: COMBAT_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::DeclareAction(ActionKind::Ability),
-                Effect::EnterCombatWithTarget,
-            ],
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::ActingCandidate,
+                &[Requirement::ActorSectIn(&[Sect::Anarch])],
+                &[
+                    Effect::DeclareAction(ActionKind::Ability),
+                    Effect::EnterCombatWithTarget,
+                ],
+            )
         },
         ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[
-                Requirement::ActorSectIn(&[Sect::Anarch]),
-                Requirement::PoolAtLeast(2),
-            ],
-            target: Some(TargetSpec {
-                kind: TargetKind::Card,
-                filter: &[Requirement::TargetCard(CardFilter::Location)],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::DeclareAction(ActionKind::Ability),
-                Effect::PayPool(2),
-                Effect::BurnTargetCard,
-            ],
+            target: target(
+                TargetKind::Card,
+                &[Requirement::TargetCard(CardFilter::Location)],
+            ),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::ActingCandidate,
+                &[
+                    Requirement::ActorSectIn(&[Sect::Anarch]),
+                    Requirement::PoolAtLeast(2),
+                ],
+                &[
+                    Effect::DeclareAction(ActionKind::Ability),
+                    Effect::PayPool(2),
+                    Effect::BurnTargetCard,
+                ],
+            )
         },
-        ModeDef {
-            windows: &[Window::MasterPhase],
-            actor: Actor::Methuselah,
-            requires: &[Requirement::MasterPhaseActionLeft],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+        mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[Requirement::MasterPhaseActionLeft],
+            &[
                 Effect::SpendMasterPhaseAction,
                 Effect::PoolToCounter(1),
                 Effect::AtCountersBurnAndGain { at: 4, pool: 4 },
             ],
-        },
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Pool masters, wave 1 (slice 11w) ---------------------------------------
@@ -13461,7 +11217,7 @@ const fn burn_this_by(requires: &'static [Requirement]) -> ModeDef {
         windows: &[Window::ActionDeclare],
         actor: Actor::ActingCandidate,
         requires,
-        target: NO_TARGET,
+        target: None,
         terms: None,
         waives_needed: false,
         limit: None,
@@ -13476,42 +11232,28 @@ const fn burn_this_by(requires: &'static [Requirement]) -> ModeDef {
 /// get +1 master phase action." (2 pool.)
 pub static THE_PARTHENON: CardDef = CardDef {
     name: "Parthenon, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
-    abilities: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Controller,
-        requires: &[Requirement::CardUnlocked],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::LockSelf, Effect::GainMasterPhaseAction],
-    }],
-    riders: &[],
+    abilities: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Controller,
+        &[Requirement::CardUnlocked],
+        &[Effect::LockSelf, Effect::GainMasterPhaseAction],
+    )],
+    ..CARD
 };
 
 /// "Unique location. You can burn this card if a minion is bleeding you to
 /// reduce the bleed amount by 2."
 pub static DUMMY_CORPORATION: CardDef = CardDef {
     name: "Dummy Corporation",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
-    abilities: &[ModeDef {
-        windows: &[Window::ReactionDuringAction],
-        actor: Actor::Controller,
-        requires: &[Requirement::DirectedAtYou, Requirement::IsBleed],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::BurnSelf, Effect::ReduceBleed(2)],
-    }],
-    riders: &[],
+    abilities: &[mode_of(
+        &[Window::ReactionDuringAction],
+        Actor::Controller,
+        &[Requirement::DirectedAtYou, Requirement::IsBleed],
+        &[Effect::BurnSelf, Effect::ReduceBleed(2)],
+    )],
+    ..CARD
 };
 
 /// "Unique. Put this card in play. Once each turn, you can burn 1 pool to
@@ -13520,86 +11262,76 @@ pub static DUMMY_CORPORATION: CardDef = CardDef {
 /// turn (ANK 20180719-4).
 pub static FERRAILLE: CardDef = CardDef {
     name: "Ferraille",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(&[], &[Effect::PutInPlay])],
     abilities: &[
         ModeDef {
-            windows: &[Window::Referendum],
-            actor: Actor::Controller,
-            requires: &[Requirement::AnyPollingStep],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
             limit: Some(Limit::PerTurn),
-            effects: &[
-                Effect::PayPool(1),
-                Effect::MethuselahVotes { n: 3, favor: true },
-            ],
+            ..mode_of(
+                &[Window::Referendum],
+                Actor::Controller,
+                &[Requirement::AnyPollingStep],
+                &[
+                    Effect::PayPool(1),
+                    Effect::MethuselahVotes { n: 3, favor: true },
+                ],
+            )
         },
         ModeDef {
-            windows: &[Window::Referendum],
-            actor: Actor::Controller,
-            requires: &[Requirement::AnyPollingStep],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
             limit: Some(Limit::PerTurn),
-            effects: &[
-                Effect::PayPool(1),
-                Effect::MethuselahVotes { n: 3, favor: false },
-            ],
+            ..mode_of(
+                &[Window::Referendum],
+                Actor::Controller,
+                &[Requirement::AnyPollingStep],
+                &[
+                    Effect::PayPool(1),
+                    Effect::MethuselahVotes { n: 3, favor: false },
+                ],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. You can lock this card and burn X pool during the
 /// polling step of a political action to get +2X votes." (Brujah.)
 pub static OXFORD_UNIVERSITY: CardDef = CardDef {
     name: "Oxford University, England",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[
         ModeDef {
-            windows: &[Window::Referendum],
-            actor: Actor::Controller,
-            requires: &[Requirement::PollingStep, Requirement::CardUnlocked],
-            target: NO_TARGET,
             terms: Some(Terms::XPool),
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::LockSelf,
-                Effect::PayPoolX,
-                Effect::MethuselahVotesX {
-                    per: 2,
-                    favor: true,
-                },
-            ],
+            ..mode_of(
+                &[Window::Referendum],
+                Actor::Controller,
+                &[Requirement::PollingStep, Requirement::CardUnlocked],
+                &[
+                    Effect::LockSelf,
+                    Effect::PayPoolX,
+                    Effect::MethuselahVotesX {
+                        per: 2,
+                        favor: true,
+                    },
+                ],
+            )
         },
         ModeDef {
-            windows: &[Window::Referendum],
-            actor: Actor::Controller,
-            requires: &[Requirement::PollingStep, Requirement::CardUnlocked],
-            target: NO_TARGET,
             terms: Some(Terms::XPool),
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::LockSelf,
-                Effect::PayPoolX,
-                Effect::MethuselahVotesX {
-                    per: 2,
-                    favor: false,
-                },
-            ],
+            ..mode_of(
+                &[Window::Referendum],
+                Actor::Controller,
+                &[Requirement::PollingStep, Requirement::CardUnlocked],
+                &[
+                    Effect::LockSelf,
+                    Effect::PayPoolX,
+                    Effect::MethuselahVotesX {
+                        per: 2,
+                        favor: false,
+                    },
+                ],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. You can lock this card during the polling step of any
@@ -13610,37 +11342,26 @@ pub static OXFORD_UNIVERSITY: CardDef = CardDef {
 /// 20150512, ANK 20180129-2).
 pub static THE_BLACK_THRONE: CardDef = CardDef {
     name: "Black Throne, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[
-        ModeDef {
-            windows: &[Window::Referendum],
-            actor: Actor::Controller,
-            requires: &[Requirement::AnyPollingStep, Requirement::CardUnlocked],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+        mode_of(
+            &[Window::Referendum],
+            Actor::Controller,
+            &[Requirement::AnyPollingStep, Requirement::CardUnlocked],
+            &[
                 Effect::LockSelf,
                 Effect::MethuselahVotes { n: 2, favor: true },
             ],
-        },
-        ModeDef {
-            windows: &[Window::Referendum],
-            actor: Actor::Controller,
-            requires: &[Requirement::AnyPollingStep, Requirement::CardUnlocked],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+        ),
+        mode_of(
+            &[Window::Referendum],
+            Actor::Controller,
+            &[Requirement::AnyPollingStep, Requirement::CardUnlocked],
+            &[
                 Effect::LockSelf,
                 Effect::MethuselahVotes { n: 2, favor: false },
             ],
-        },
+        ),
     ],
     riders: &[Rider {
         hook: Hook::ContractHostLeaves,
@@ -13648,91 +11369,75 @@ pub static THE_BLACK_THRONE: CardDef = CardDef {
         requires: &[],
         effects: &[Effect::GainPool(1)],
     }],
+    ..CARD
 };
 
 /// "Unique. Put this card in play. You can lock this card to give a Ravnos
 /// with capacity 5 or more you control +1 intercept." (1 pool; Ravnos.)
 pub static KUMPANIA: CardDef = CardDef {
     name: "Kumpania",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(&[], &[Effect::PutInPlay])],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionStealthIntercept],
-        actor: Actor::Controller,
-        requires: &[
+    abilities: &[mode_of(
+        &[Window::ActionStealthIntercept],
+        Actor::Controller,
+        &[
             Requirement::CardUnlocked,
             Requirement::YourAttemptNeedsIntercept,
             Requirement::AttemptingClan("Ravnos"),
             Requirement::AttemptingCapacityAtLeast(5),
         ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::LockSelf, Effect::AttemptingIntercept(1)],
-    }],
-    riders: &[],
+        &[Effect::LockSelf, Effect::AttemptingIntercept(1)],
+    )],
+    ..CARD
 };
 
 /// "Unique. Put this card on a Salubri you control. This Salubri gets +1
 /// intercept." (Salubri.)
 pub static SIGHT_BEYOND_SIGHT: CardDef = CardDef {
     name: "Sight Beyond Sight",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::Controlled, Requirement::TargetClan("Salubri")],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
-            Effect::PutOnTarget,
-            Effect::Layer(Modifier::Bearer {
-                stat: Stat::Intercept,
-                n: 1,
-                during: &[],
-                who: Bearer::Any,
-            }),
-        ],
+        target: target(
+            TargetKind::Minion,
+            &[Requirement::Controlled, Requirement::TargetClan("Salubri")],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutOnTarget,
+                Effect::Layer(Modifier::Bearer {
+                    stat: Stat::Intercept,
+                    n: 1,
+                    during: &[],
+                    who: Bearer::Any,
+                }),
+            ],
+        )
     }],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique. Put this card on a ready vampire. Recruit ally actions cost this
 /// vampire -1 blood or pool." Any Methuselah's.
 pub static CHARISMA: CardDef = CardDef {
     name: "Charisma",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::TargetVampire, Requirement::ActorReady],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
-            Effect::PutOnTarget,
-            Effect::Layer(Modifier::HostRecruitDiscount(1)),
-        ],
+        target: target(
+            TargetKind::Minion,
+            &[Requirement::TargetVampire, Requirement::ActorReady],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutOnTarget,
+                Effect::Layer(Modifier::HostRecruitDiscount(1)),
+            ],
+        )
     }],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Only one Giant's Blood can be played in a game. Choose a vampire. The
@@ -13740,24 +11445,16 @@ pub static CHARISMA: CardDef = CardDef {
 /// uncontrolled one (LSJ 20061109).
 pub static GIANTS_BLOOD: CardDef = CardDef {
     name: "Giant's Blood",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[Requirement::NotPlayedThisGame],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::TargetVampire],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::BloodToTargetFull],
+        target: target(TargetKind::Minion, &[Requirement::TargetVampire]),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[Requirement::NotPlayedThisGame],
+            &[Effect::BloodToTargetFull],
+        )
     }],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Remove a vampire with capacity 8 or more from the game. Their
@@ -13765,30 +11462,25 @@ pub static GIANTS_BLOOD: CardDef = CardDef {
 /// can burn 2 pool to cancel this card as it is played."
 pub static GOLCONDA_INNER_PEACE: CardDef = CardDef {
     name: "Golconda: Inner Peace",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[
+        target: target(
+            TargetKind::Minion,
+            &[
                 Requirement::TargetVampire,
                 Requirement::TargetCapacityAtLeast(8),
             ],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
-            Effect::CancelableForPoolByTargetController(2),
-            Effect::RemoveTargetForCapacityPool,
-        ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::CancelableForPoolByTargetController(2),
+                Effect::RemoveTargetForCapacityPool,
+            ],
+        )
     }],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Move up to 3 blood from a ready vampire you control to a younger
@@ -13796,33 +11488,26 @@ pub static GOLCONDA_INNER_PEACE: CardDef = CardDef {
 /// giving is the card's actor (not locked: no action).
 pub static GROOMING_THE_PROTEGE: CardDef = CardDef {
     name: "Grooming the Protégé",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::AnyReadyVampire,
-        requires: &[Requirement::ActorBloodAtLeast(1)],
-        target: Some(TargetSpec {
-            kind: TargetKind::Uncontrolled,
-            filter: &[Requirement::Younger, Requirement::SameClanAsActor],
-        }),
+        target: target(
+            TargetKind::Uncontrolled,
+            &[Requirement::Younger, Requirement::SameClanAsActor],
+        ),
         terms: Some(Terms::BloodRange { min: 1, max: 3 }),
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::MoveBloodXToUncontrolledTarget],
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::AnyReadyVampire,
+            &[Requirement::ActorBloodAtLeast(1)],
+            &[Effect::MoveBloodXToUncontrolledTarget],
+        )
     }],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique. Put this card in play. Gangrel you control get +1 strength.
 /// Non-Ravnos minions can burn this card as a Ⓓ action." (1 pool; Gangrel.)
 pub static GANGREL_REVEL: CardDef = CardDef {
     name: "Gangrel Revel",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(
         &[],
         &[
@@ -13838,7 +11523,7 @@ pub static GANGREL_REVEL: CardDef = CardDef {
         ],
     )],
     abilities: &[burn_this_by(&[Requirement::ActorNotClan("Ravnos")])],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique. Put this card in play. Assamites get +1 stealth when bleeding.
@@ -13846,9 +11531,6 @@ pub static GANGREL_REVEL: CardDef = CardDef {
 /// that action." (2 pool; Banu Haqim.) Every Assamite, whoever controls it.
 pub static KHABAR_COMMUNITY: CardDef = CardDef {
     name: "Khabar: Community, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(
         &[],
         &[
@@ -13863,15 +11545,11 @@ pub static KHABAR_COMMUNITY: CardDef = CardDef {
             }),
         ],
     )],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::ActingCandidate,
-        requires: &[],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+    abilities: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::ActingCandidate,
+        &[],
+        &[
             Effect::DeclareAction(ActionKind::BurnCard),
             Effect::StealthForClan {
                 clan: "Tremere",
@@ -13879,8 +11557,8 @@ pub static KHABAR_COMMUNITY: CardDef = CardDef {
             },
             Effect::BurnSource,
         ],
-    }],
-    riders: &[],
+    )],
+    ..CARD
 };
 
 /// "Unique location. Titled Brujah get +1 bleed and +1 vote. Ventrue get -1
@@ -13888,9 +11566,6 @@ pub static KHABAR_COMMUNITY: CardDef = CardDef {
 /// as none (ANK 20251125, LSJ 20050221-2).
 pub static NEW_CARTHAGE: CardDef = CardDef {
     name: "New Carthage",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(
         &[],
         &[
@@ -13921,8 +11596,7 @@ pub static NEW_CARTHAGE: CardDef = CardDef {
             }),
         ],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique. Put this card in play. You can lock this card to give a minion
@@ -13930,24 +11604,17 @@ pub static NEW_CARTHAGE: CardDef = CardDef {
 /// this card as a Ⓓ action."
 pub static MOB_CONNECTIONS: CardDef = CardDef {
     name: "Mob Connections",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(&[], &[Effect::PutInPlay])],
     abilities: &[
-        ModeDef {
-            windows: &[Window::CombatPress],
-            actor: Actor::Controller,
-            requires: &[Requirement::CardUnlocked, Requirement::OwnMinionInCombat],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::ContinuePressForOwnCombatant],
-        },
+        mode_of(
+            &[Window::CombatPress],
+            Actor::Controller,
+            &[Requirement::CardUnlocked, Requirement::OwnMinionInCombat],
+            &[Effect::LockSelf, Effect::ContinuePressForOwnCombatant],
+        ),
         burn_this_by(&[]),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique Nod fragment. Put this card in play. You can lock this card to
@@ -13956,24 +11623,17 @@ pub static MOB_CONNECTIONS: CardDef = CardDef {
 /// too (ANK 20200616).
 pub static FRAGMENT_OF_THE_BOOK_OF_NOD: CardDef = CardDef {
     name: "Fragment of the Book of Nod",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(&[], &[Effect::PutInPlay])],
     abilities: &[
-        ModeDef {
-            windows: &[Window::AnyImpulse],
-            actor: Actor::Controller,
-            requires: &[Requirement::CardUnlocked],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::DrawThenDiscardDown(2)],
-        },
+        mode_of(
+            &[Window::AnyImpulse],
+            Actor::Controller,
+            &[Requirement::CardUnlocked],
+            &[Effect::LockSelf, Effect::DrawThenDiscardDown(2)],
+        ),
         steal_this(&[Requirement::ActorVampire]),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Put this card in play. During each Methuselah's master phase, that
@@ -13983,9 +11643,6 @@ pub static FRAGMENT_OF_THE_BOOK_OF_NOD: CardDef = CardDef {
 /// the oldest (LSJ 19980224), a locked one too (LSJ 20010508).
 pub static BRUJAH_DEBATE: CardDef = CardDef {
     name: "Brujah Debate",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(
         &[],
         &[
@@ -14008,6 +11665,7 @@ pub static BRUJAH_DEBATE: CardDef = CardDef {
         requires: &[],
         effects: &[Effect::LockOldestOfClan("Brujah")],
     }],
+    ..CARD
 };
 
 // ---- Pool masters, wave 2 (slice 11x) ---------------------------------------
@@ -14019,28 +11677,21 @@ pub static BRUJAH_DEBATE: CardDef = CardDef {
 /// usual (ANK 20200607).
 pub static WMRH_TALK_RADIO: CardDef = CardDef {
     name: "WMRH Talk Radio",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionStealthIntercept],
-        actor: Actor::Controller,
-        requires: &[
+    abilities: &[mode_of(
+        &[Window::ActionStealthIntercept],
+        Actor::Controller,
+        &[
             Requirement::CardUnlocked,
             Requirement::AnyAttemptNeedsIntercept,
         ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+        &[
             Effect::LockSelf,
             Effect::AttemptingIntercept(1),
             Effect::PoolIfAttemptingDoesNotBlock,
         ],
-    }],
-    riders: &[],
+    )],
+    ..CARD
 };
 
 /// "Unique location. You can lock this card during an action to choose a
@@ -14049,24 +11700,20 @@ pub static WMRH_TALK_RADIO: CardDef = CardDef {
 /// 20200607).
 pub static THE_RUMOR_MILL: CardDef = CardDef {
     name: "Rumor Mill, Tabloid Newspaper, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[ModeDef {
-        windows: &[Window::ActionDuring, Window::ReactionDuringAction],
-        actor: Actor::Controller,
-        requires: &[Requirement::CardUnlocked],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::TargetVampire, Requirement::ActorReady],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::LockSelf, Effect::TargetBurnsBloodForIntercept],
+        target: target(
+            TargetKind::Minion,
+            &[Requirement::TargetVampire, Requirement::ActorReady],
+        ),
+        ..mode_of(
+            &[Window::ActionDuring, Window::ReactionDuringAction],
+            Actor::Controller,
+            &[Requirement::CardUnlocked],
+            &[Effect::LockSelf, Effect::TargetBurnsBloodForIntercept],
+        )
     }],
-    riders: &[],
+    ..CARD
 };
 
 /// "Archetype. Put this card on a ready vampire you control. Once each turn
@@ -14076,9 +11723,6 @@ pub static THE_RUMOR_MILL: CardDef = CardDef {
 /// turn": each player's (ANK 20180719-4).
 pub static MONSTER: CardDef = CardDef {
     name: "Monster",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[archetype(
         &[
             Requirement::Controlled,
@@ -14089,19 +11733,18 @@ pub static MONSTER: CardDef = CardDef {
         &[Effect::PutOnTarget],
     )],
     abilities: &[ModeDef {
-        windows: &[Window::ActionAfterCombat],
-        actor: Actor::Host,
-        requires: &[
-            Requirement::HostCombatOpponentNotReady,
-            Requirement::HostBloodAtLeast(1),
-        ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
         limit: Some(Limit::PerTurn),
-        effects: &[Effect::HostBurnBloodToUnlock],
+        ..mode_of(
+            &[Window::ActionAfterCombat],
+            Actor::Host,
+            &[
+                Requirement::HostCombatOpponentNotReady,
+                Requirement::HostBloodAtLeast(1),
+            ],
+            &[Effect::HostBurnBloodToUnlock],
+        )
     }],
-    riders: &[],
+    ..CARD
 };
 
 /// "Archetype. Trifle. Put this card on a vampire you control. Once each
@@ -14112,8 +11755,6 @@ pub static MONSTER: CardDef = CardDef {
 pub static DABBLER: CardDef = CardDef {
     name: "Dabbler",
     trifle: true,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[archetype(
         &[
             Requirement::Controlled,
@@ -14124,30 +11765,28 @@ pub static DABBLER: CardDef = CardDef {
     )],
     abilities: &[
         ModeDef {
-            windows: &[Window::ActionAfterResolution],
-            actor: Actor::Host,
-            requires: &[
-                Requirement::HostUsedDisciplines(3),
-                Requirement::HostBloodAtLeast(1),
-            ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
             limit: Some(Limit::PerTurn),
-            effects: &[Effect::HostBurnBloodToUnlock],
+            ..mode_of(
+                &[Window::ActionAfterResolution],
+                Actor::Host,
+                &[
+                    Requirement::HostUsedDisciplines(3),
+                    Requirement::HostBloodAtLeast(1),
+                ],
+                &[Effect::HostBurnBloodToUnlock],
+            )
         },
         ModeDef {
-            windows: &[Window::ActionAfterResolution],
-            actor: Actor::Host,
-            requires: &[Requirement::HostUsedDisciplines(3)],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
             limit: Some(Limit::PerTurn),
-            effects: &[Effect::AddHostBlood(1)],
+            ..mode_of(
+                &[Window::ActionAfterResolution],
+                Actor::Host,
+                &[Requirement::HostUsedDisciplines(3)],
+                &[Effect::AddHostBlood(1)],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique. Put this card in play. After a vampire in combat with a
@@ -14158,47 +11797,30 @@ pub static DABBLER: CardDef = CardDef {
 /// resolution (ANK 20231124, LSJ 19970718).
 pub static DEAD_POOL: CardDef = CardDef {
     name: "Dead Pool",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(&[], &[Effect::PutInPlay])],
     abilities: &[
-        ModeDef {
-            windows: &[Window::ActionDuring],
-            actor: Actor::AnyReadyVampire,
-            requires: &[
+        mode_of(
+            &[Window::ActionDuring],
+            Actor::AnyReadyVampire,
+            &[
                 Requirement::ActorActing,
                 Requirement::IsBleed,
-                Requirement::ActorOfClan("Lasombra"),
+                Requirement::ActorClan("Lasombra"),
                 Requirement::CountersAtLeast(1),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::RemoveCounter(1),
-                Effect::BleedMod {
-                    n: 2,
-                    limited: false,
-                },
-            ],
-        },
-        ModeDef {
-            windows: &[Window::Referendum],
-            actor: Actor::AnyReadyVampire,
-            requires: &[
+            &[Effect::RemoveCounter(1), bleed(2, false)],
+        ),
+        mode_of(
+            &[Window::Referendum],
+            Actor::AnyReadyVampire,
+            &[
                 Requirement::AnyPollingStep,
-                Requirement::ActorOfClan("Lasombra"),
+                Requirement::ActorClan("Lasombra"),
                 Requirement::NotAbstaining,
                 Requirement::CountersAtLeast(1),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::RemoveCounter(1), Effect::AddVotes(2)],
-        },
+            &[Effect::RemoveCounter(1), Effect::AddVotes(2)],
+        ),
     ],
     riders: &[Rider {
         hook: Hook::CombatOpponentOfOwnClanLeft("Lasombra"),
@@ -14206,6 +11828,7 @@ pub static DEAD_POOL: CardDef = CardDef {
         requires: &[],
         effects: &[Effect::AddCounter(1)],
     }],
+    ..CARD
 };
 
 /// "Unique location. After an Assamite you control successfully bleeds a
@@ -14214,23 +11837,19 @@ pub static DEAD_POOL: CardDef = CardDef {
 /// this card to give a vampire you control +X votes." (1 pool; Banu Haqim.)
 pub static ALAMUT: CardDef = CardDef {
     name: "Alamut",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[ModeDef {
-        windows: &[Window::Referendum],
-        actor: Actor::AnyReadyVampire,
-        requires: &[
-            Requirement::PollingStep,
-            Requirement::NotAbstaining,
-            Requirement::CountersAtLeast(1),
-        ],
-        target: NO_TARGET,
         terms: Some(Terms::XCounters),
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::RemoveCountersX, Effect::AddVotesX],
+        ..mode_of(
+            &[Window::Referendum],
+            Actor::AnyReadyVampire,
+            &[
+                Requirement::PollingStep,
+                Requirement::NotAbstaining,
+                Requirement::CountersAtLeast(1),
+            ],
+            &[Effect::RemoveCountersX, Effect::AddVotesX],
+        )
     }],
     riders: &[Rider {
         hook: Hook::OwnBleedSuccessful,
@@ -14238,6 +11857,7 @@ pub static ALAMUT: CardDef = CardDef {
         requires: &[],
         effects: &[Effect::CountersFromOwnBleed("Banu Haqim")],
     }],
+    ..CARD
 };
 
 /// "Unique location. You can lock this location after resolution of a
@@ -14246,28 +11866,24 @@ pub static ALAMUT: CardDef = CardDef {
 /// requiring Hecata counts (LSJ 20080604).
 pub static CAPPADOCIAN_CRYPT: CardDef = CardDef {
     name: "Cappadocian Crypt",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[ModeDef {
-        windows: &[Window::ActionAfterResolution],
-        actor: Actor::Controller,
-        requires: &[
-            Requirement::CardUnlocked,
-            Requirement::ActionSuccessful,
-            Requirement::ActionRequiresClanOrDiscipline("Hecata", "obl"),
-        ],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::Controlled, Requirement::TargetClan("Hecata")],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::LockSelf, Effect::BloodToTarget(1)],
+        target: target(
+            TargetKind::Minion,
+            &[Requirement::Controlled, Requirement::TargetClan("Hecata")],
+        ),
+        ..mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::Controller,
+            &[
+                Requirement::CardUnlocked,
+                Requirement::ActionSuccessful,
+                Requirement::ActionRequiresClanOrDiscipline("Hecata", "obl"),
+            ],
+            &[Effect::LockSelf, Effect::BloodToTarget(1)],
+        )
     }],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. During your master phase, you can lock this location to
@@ -14278,66 +11894,57 @@ pub static CAPPADOCIAN_CRYPT: CardDef = CardDef {
 /// 20080604).
 pub static POWERBASE_MUNICH: CardDef = CardDef {
     name: "Powerbase: Munich",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[
         ModeDef {
-            windows: &[Window::MasterPhase],
-            actor: Actor::Controller,
-            requires: &[Requirement::CardUnlocked],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::Controlled,
                     Requirement::TargetVampire,
                     Requirement::TargetDiscipline("obl"),
                     Requirement::BloodAtLeast(1),
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::TargetBloodToPool(1)],
+            ),
+            ..mode_of(
+                &[Window::MasterPhase],
+                Actor::Controller,
+                &[Requirement::CardUnlocked],
+                &[Effect::LockSelf, Effect::TargetBloodToPool(1)],
+            )
         },
         ModeDef {
-            windows: &[Window::MasterPhase],
-            actor: Actor::Controller,
-            requires: &[Requirement::CardUnlocked],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::Controlled,
                     Requirement::TargetVampire,
                     Requirement::ActorReady,
                     Requirement::TargetDiscipline("obl"),
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::PoolToTargetBlood(1)],
+            ),
+            ..mode_of(
+                &[Window::MasterPhase],
+                Actor::Controller,
+                &[Requirement::CardUnlocked],
+                &[Effect::LockSelf, Effect::PoolToTargetBlood(1)],
+            )
         },
-        ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[
                 Requirement::ActorSectIn(&[Sect::Independent]),
                 Requirement::ActorBloodAtLeast(1),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+            &[
                 Effect::DeclareAction(ActionKind::BurnCard),
                 Effect::PayBlood(1),
                 Effect::BurnSource,
             ],
-        },
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Put this card in play with 4 blood. After you put a non-titled
@@ -14347,32 +11954,28 @@ pub static POWERBASE_MUNICH: CardDef = CardDef {
 /// has no blood, burn it." Its blood as counters.
 pub static TWILIGHT_CAMP: CardDef = CardDef {
     name: "Twilight Camp",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(
         &[],
         &[Effect::PutInPlay, Effect::EnterWithCounters(4)],
     )],
     abilities: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Controller,
-        requires: &[
-            Requirement::MasterPhaseActionLeft,
-            Requirement::CountersAtLeast(1),
-        ],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::TargetVampire, Requirement::TargetAnarch],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
-            Effect::SpendMasterPhaseAction,
-            Effect::CounterToTargetBlood,
-            Effect::BurnSelfWithoutCounters,
-        ],
+        target: target(
+            TargetKind::Minion,
+            &[Requirement::TargetVampire, Requirement::TargetAnarch],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Controller,
+            &[
+                Requirement::MasterPhaseActionLeft,
+                Requirement::CountersAtLeast(1),
+            ],
+            &[
+                Effect::SpendMasterPhaseAction,
+                Effect::CounterToTargetBlood,
+                Effect::BurnSelfWithoutCounters,
+            ],
+        )
     }],
     riders: &[Rider {
         hook: Hook::OwnVampireInfluenced,
@@ -14380,6 +11983,7 @@ pub static TWILIGHT_CAMP: CardDef = CardDef {
         requires: &[],
         effects: &[],
     }],
+    ..CARD
 };
 
 /// "Unique location. Mithraic Mysteries. If you do not control /Mithras/
@@ -14390,36 +11994,28 @@ pub static TWILIGHT_CAMP: CardDef = CardDef {
 /// pool.)
 pub static THE_MITHRAEUM: CardDef = CardDef {
     name: "Mithraeum, London, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[
+        mode_of(
+            &[Window::InfluencePhaseOwn],
+            Actor::Controller,
+            &[Requirement::NoVampireNamedButInCrypt("Mithras")],
+            &[Effect::CryptNamedToUncontrolled("Mithras")],
+        ),
         ModeDef {
-            windows: &[Window::InfluencePhaseOwn],
-            actor: Actor::Controller,
-            requires: &[Requirement::NoVampireNamedButInCrypt("Mithras")],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::CryptNamedToUncontrolled("Mithras")],
-        },
-        ModeDef {
-            windows: &[Window::UnlockPhaseOwn],
-            actor: Actor::Controller,
-            requires: &[],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[Requirement::Controlled, Requirement::TargetMithraic],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::BloodToTarget(1)],
+            target: target(
+                TargetKind::Minion,
+                &[Requirement::Controlled, Requirement::TargetMithraic],
+            ),
+            ..mode_of(
+                &[Window::UnlockPhaseOwn],
+                Actor::Controller,
+                &[],
+                &[Effect::BloodToTarget(1)],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Trifle. Put this card on a vampire you control who is not /Mithras/.
@@ -14430,36 +12026,32 @@ pub static THE_MITHRAEUM: CardDef = CardDef {
 pub static MITHRAIC_CULTIST: CardDef = CardDef {
     name: "Mithraic Cultist",
     trifle: true,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[
+        target: target(
+            TargetKind::Minion,
+            &[
                 Requirement::Controlled,
                 Requirement::TargetVampire,
                 Requirement::TargetNotNamed("Mithras"),
                 Requirement::TargetWithout(Holding::Named("Mithraic Cultist")),
             ],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
-            Effect::PutOnTarget,
-            Effect::Layer(Modifier::MithraicMember),
-            Effect::Layer(Modifier::HostVotesWhileControlling {
-                name: "Mithras",
-                n: 1,
-            }),
-            Effect::Layer(Modifier::HostInterceptVsMithraic(1)),
-        ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutOnTarget,
+                Effect::Layer(Modifier::MithraicMember),
+                Effect::Layer(Modifier::HostVotesWhileControlling {
+                    name: "Mithras",
+                    n: 1,
+                }),
+                Effect::Layer(Modifier::HostInterceptVsMithraic(1)),
+            ],
+        )
     }],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Pool masters, wave 3 (slice 11y) ---------------------------------------
@@ -14474,32 +12066,28 @@ pub static MITHRAIC_CULTIST: CardDef = CardDef {
 /// in torpor (LSJ 20010610).
 pub static SECURE_HAVEN: CardDef = CardDef {
     name: "Secure Haven",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Methuselah,
-        requires: &[],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[
+        target: target(
+            TargetKind::Minion,
+            &[
                 Requirement::Controlled,
                 Requirement::TargetWithout(Holding::Named("Secure Haven")),
             ],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::PutOnTarget, Effect::Layer(Modifier::Haven)],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[Effect::PutOnTarget, Effect::Layer(Modifier::Haven)],
+        )
     }],
-    abilities: &[],
     riders: &[Rider {
         hook: Hook::HostToTorpor,
         scope: RiderScope::Controller,
         requires: &[],
         effects: &[Effect::BurnSelf],
     }],
+    ..CARD
 };
 
 /// "Unique location. If a ready Assamite you control is the target of a
@@ -14513,45 +12101,34 @@ pub static SECURE_HAVEN: CardDef = CardDef {
 /// 20211015, RTR 20180719) and was not blocked (LSJ 20070219).
 pub static YORUBA_SHRINE: CardDef = CardDef {
     name: "Yoruba Shrine",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[
-        ModeDef {
-            windows: &[Window::ReactionAsAnnounced],
-            actor: Actor::Controller,
-            requires: &[
+        mode_of(
+            &[Window::ReactionAsAnnounced],
+            Actor::Controller,
+            &[
                 Requirement::CardUnlocked,
                 Requirement::DirectedAtYourReadyClan("Banu Haqim"),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::UnlockActing, Effect::ActionFails],
-        },
-        ModeDef {
-            windows: &[Window::Referendum],
-            actor: Actor::Controller,
-            requires: &[
+            &[Effect::LockSelf, Effect::UnlockActing, Effect::ActionFails],
+        ),
+        mode_of(
+            &[Window::Referendum],
+            Actor::Controller,
+            &[
                 Requirement::CardUnlocked,
                 Requirement::PollingStep,
                 Requirement::NoVotesCast,
                 Requirement::TermsChoseYourReadyClan("Banu Haqim"),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+            &[
                 Effect::LockSelf,
                 Effect::UnlockActing,
                 Effect::FailReferendum,
             ],
-        },
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. Followers of Set you control can put 1 corruption
@@ -14562,27 +12139,23 @@ pub static YORUBA_SHRINE: CardDef = CardDef {
 /// a Follower of Set (LSJ 20080604).
 pub static CAVE_OF_APPLES: CardDef = CardDef {
     name: "Cave of Apples",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::ActingCandidate,
-        requires: &[Requirement::ActorOfClan("Ministry")],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[Requirement::ControlledByPrey, Requirement::AllyOrYounger],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
-            Effect::DeclareAction(ActionKind::Ability),
-            Effect::CorruptTargetMayStealAtCapacity,
-        ],
+        target: target(
+            TargetKind::Minion,
+            &[Requirement::ControlledByPrey, Requirement::AllyOrYounger],
+        ),
+        ..mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[Requirement::ActorClan("Ministry")],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::CorruptTargetMayStealAtCapacity,
+            ],
+        )
     }],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. Operation Antigen. An Operation Antigen ally you
@@ -14599,77 +12172,68 @@ pub static CAVE_OF_APPLES: CardDef = CardDef {
 /// 20001020).
 pub static MOBILE_HQ: CardDef = CardDef {
     name: "Mobile HQ, Operation Antigen",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[LOCATION],
     abilities: &[
         ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[
-                Requirement::YouControlThisCard,
-                Requirement::CardUnlocked,
-                Requirement::ActorAllyCard(OPERATION_ANTIGEN),
-            ],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::NotControlled,
                     Requirement::ActorReady,
                     Requirement::TargetVampire,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
-                Effect::DeclareAction(ActionKind::Ability),
-                Effect::AddStealth(1),
-                Effect::LockSelf,
-                Effect::EnterCombatWithTarget,
-            ],
+            ),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::ActingCandidate,
+                &[
+                    Requirement::YouControlThisCard,
+                    Requirement::CardUnlocked,
+                    Requirement::ActorAllyCard(OPERATION_ANTIGEN),
+                ],
+                &[
+                    Effect::DeclareAction(ActionKind::Ability),
+                    Effect::AddStealth(1),
+                    Effect::LockSelf,
+                    Effect::EnterCombatWithTarget,
+                ],
+            )
         },
         ModeDef {
-            windows: &[Window::AnyImpulse],
-            actor: Actor::Controller,
-            requires: &[
-                Requirement::CardUnlocked,
-                Requirement::NotInDamageResolution,
-            ],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::Controlled,
                     Requirement::TargetAllyCard(OPERATION_ANTIGEN),
                     Requirement::TargetAllyHurt,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::BloodToTargetToStart(u8::MAX)],
+            ),
+            ..mode_of(
+                &[Window::AnyImpulse],
+                Actor::Controller,
+                &[
+                    Requirement::CardUnlocked,
+                    Requirement::NotInDamageResolution,
+                ],
+                &[Effect::LockSelf, Effect::BloodToTargetToStart(u8::MAX)],
+            )
         },
-        ModeDef {
-            windows: &[Window::CardAsPlayed],
-            actor: Actor::Controller,
-            requires: &[
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::Controller,
+            &[
                 Requirement::CardUnlocked,
                 Requirement::PoolAtLeast(2),
                 Requirement::PlayedActionCardAtYour(crate::library::Label::OperationAntigen),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+            &[
                 Effect::LockSelf,
                 Effect::PayPool(2),
                 Effect::CancelPlayed { refund: true },
             ],
-        },
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// An Operation Antigen card.
@@ -14684,9 +12248,6 @@ const OPERATION_ANTIGEN: CardFilter = CardFilter::HasLabel(crate::library::Label
 /// included, ANK 20220824); the reduction always (ANK 20221026).
 pub static BRITISH_MUSEUM: CardDef = CardDef {
     name: "British Museum, London, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(
         &[],
         &[
@@ -14695,21 +12256,17 @@ pub static BRITISH_MUSEUM: CardDef = CardDef {
             Effect::Layer(Modifier::PlainEquipDiscount(1)),
         ],
     )],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionAfterResolution],
-        actor: Actor::Controller,
-        requires: &[
+    abilities: &[mode_of(
+        &[Window::ActionAfterResolution],
+        Actor::Controller,
+        &[
             Requirement::ActionSuccessful,
             Requirement::OtherActingControlled,
             Requirement::PlainEquipFromHandOncePerTurn,
         ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::UnlockActing],
-    }],
-    riders: &[],
+        &[Effect::UnlockActing],
+    )],
+    ..CARD
 };
 
 // ---- Pool masters, wave 4: cost reductions (slice 11z) ----------------------
@@ -14726,9 +12283,6 @@ pub static BRITISH_MUSEUM: CardDef = CardDef {
 /// too (ANK 20230824, RTR 20070707; rules-qa 36.5).
 pub static THE_LINE: CardDef = CardDef {
     name: "Line, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(
         &[],
         &[
@@ -14737,22 +12291,18 @@ pub static THE_LINE: CardDef = CardDef {
         ],
     )],
     abilities: &[
-        ModeDef {
-            windows: &[Window::ActionDuring, Window::ActionWouldBeSuccessful],
-            actor: Actor::Controller,
-            requires: &[
+        mode_of(
+            &[Window::ActionDuring, Window::ActionWouldBeSuccessful],
+            Actor::Controller,
+            &[
                 Requirement::CardUnlocked,
                 Requirement::OwnActionCardCosts(CostSource::Line),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::ReduceActionBlood(1)],
-        },
+            &[Effect::LockSelf, Effect::ReduceActionBlood(1)],
+        ),
         steal_this(&[Requirement::ActorVampire]),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. If you have the Edge, you can lock this card to reduce
@@ -14761,9 +12311,6 @@ pub static THE_LINE: CardDef = CardDef {
 /// pool.) Minion cards too (ANK 20221102); the same timing as The Line.
 pub static THE_SHARD: CardDef = CardDef {
     name: "Shard, London, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(
         &[],
         &[
@@ -14772,38 +12319,30 @@ pub static THE_SHARD: CardDef = CardDef {
         ],
     )],
     abilities: &[
-        ModeDef {
-            windows: &[Window::ActionDuring, Window::ActionWouldBeSuccessful],
-            actor: Actor::Controller,
-            requires: &[
+        mode_of(
+            &[Window::ActionDuring, Window::ActionWouldBeSuccessful],
+            Actor::Controller,
+            &[
                 Requirement::CardUnlocked,
                 Requirement::HasEdge,
                 Requirement::OwnActionCardCosts(CostSource::Shard),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::ReduceActionCost(2)],
-        },
-        ModeDef {
-            windows: &[Window::ActionDeclare],
-            actor: Actor::ActingCandidate,
-            requires: &[Requirement::ActorVampire],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+            &[Effect::LockSelf, Effect::ReduceActionCost(2)],
+        ),
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[Requirement::ActorVampire],
+            &[
                 Effect::DeclareAction(ActionKind::StealCard),
                 Effect::StealthForClan {
                     clan: "Ventrue",
                     n: 1,
                 },
             ],
-        },
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. During your master phase, you can move 1 counter from
@@ -14813,9 +12352,6 @@ pub static THE_SHARD: CardDef = CardDef {
 /// place of pool or blood, as the cost is (RTR 19960112).
 pub static RAVNOS_CACHE: CardDef = CardDef {
     name: "Ravnos Cache",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(
         &[],
         &[
@@ -14824,32 +12360,27 @@ pub static RAVNOS_CACHE: CardDef = CardDef {
         ],
     )],
     abilities: &[
+        mode_of(
+            &[Window::MasterPhase],
+            Actor::Controller,
+            &[],
+            &[Effect::PoolToCounterPlusBank { pool: 1, bank: 1 }],
+        ),
         ModeDef {
-            windows: &[Window::MasterPhase],
-            actor: Actor::Controller,
-            requires: &[],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::PoolToCounterPlusBank { pool: 1, bank: 1 }],
-        },
-        ModeDef {
-            windows: &[Window::ActionDuring, Window::ActionWouldBeSuccessful],
-            actor: Actor::Controller,
-            requires: &[
-                Requirement::CardUnlocked,
-                Requirement::CountersAtLeast(1),
-                Requirement::OwnActionCardCosts(CostSource::Cache),
-            ],
-            target: NO_TARGET,
             terms: Some(Terms::XCounters),
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::LockSelf, Effect::PayActionWithCountersX],
+            ..mode_of(
+                &[Window::ActionDuring, Window::ActionWouldBeSuccessful],
+                Actor::Controller,
+                &[
+                    Requirement::CardUnlocked,
+                    Requirement::CountersAtLeast(1),
+                    Requirement::OwnActionCardCosts(CostSource::Cache),
+                ],
+                &[Effect::LockSelf, Effect::PayActionWithCountersX],
+            )
         },
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. This location comes into play with 1 counter for each
@@ -14861,19 +12392,15 @@ pub static RAVNOS_CACHE: CardDef = CardDef {
 /// play (ANK 20180109, LSJ 20070224).
 pub static RAVNOS_CARNIVAL: CardDef = CardDef {
     name: "Ravnos Carnival",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(
         &[],
         &[
             Effect::PutInPlay,
             Effect::EnterWithCountersPerOwnClan("Ravnos"),
-            Effect::Layer(Modifier::CostSource(CostSource::Carnival)),
+            Effect::Layer(Modifier::CostSource(CostSource::Carnival("Ravnos"))),
         ],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Unique location. During your master phase, you can put a ghoul (ally or
@@ -14883,30 +12410,27 @@ pub static RAVNOS_CARNIVAL: CardDef = CardDef {
 /// replaced; played from there, neither (rules-qa 37.1).
 pub static FLESHFORGE_CHAMBER: CardDef = CardDef {
     name: "Fleshforge Chamber",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[master_in_play(
         &[],
         &[Effect::PutInPlay, Effect::PlayableFromStore("Tzimisce")],
     )],
     abilities: &[ModeDef {
-        windows: &[Window::MasterPhase],
-        actor: Actor::Controller,
-        requires: &[Requirement::HandHas(
-            CardFilter::HasLabel(crate::library::Label::Ghoul),
-            1,
-        )],
-        target: NO_TARGET,
         terms: Some(Terms::Discard {
             n: 1,
             of: CardFilter::HasLabel(crate::library::Label::Ghoul),
         }),
-        waives_needed: false,
         limit: Some(Limit::PerPhaseEach),
-        effects: &[Effect::StorePickedFromHand],
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Controller,
+            &[Requirement::HandHas(
+                CardFilter::HasLabel(crate::library::Label::Ghoul),
+                1,
+            )],
+            &[Effect::StorePickedFromHand],
+        )
     }],
-    riders: &[],
+    ..CARD
 };
 
 // ---- Events (slice 11ac) -----------------------------------------------------
@@ -14918,7 +12442,7 @@ const fn event(requires: &'static [Requirement], effects: &'static [Effect]) -> 
         windows: &[Window::DiscardPhase],
         actor: Actor::Methuselah,
         requires,
-        target: NO_TARGET,
+        target: None,
         terms: None,
         waives_needed: false,
         limit: None,
@@ -14939,8 +12463,6 @@ const GEHENNA_COUNTDOWN: Rider = Rider {
 /// before cards unlock (ANK 20200129, LSJ 20091208, RTR 19951017).
 pub static NARROW_MINDS: CardDef = CardDef {
     name: "Narrow Minds",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::NextUnlockPhase),
     modes: &[event(
         &[],
@@ -14949,8 +12471,7 @@ pub static NARROW_MINDS: CardDef = CardDef {
             Effect::Layer(Modifier::RedirectCardsCost(1)),
         ],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Gehenna. Do not replace until a vampire moves from torpor to the ready
@@ -14959,15 +12480,12 @@ pub static NARROW_MINDS: CardDef = CardDef {
 /// condition, burned or not (LSJ 20080805).
 pub static TORPID_BLOOD: CardDef = CardDef {
     name: "Torpid Blood",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::LeavesTorpor),
     modes: &[event(
         &[],
         &[Effect::PutInPlay, Effect::Layer(Modifier::TorpidBlood)],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Gehenna. Requires 1 or more other Gehenna events in play. Do not
@@ -14978,8 +12496,6 @@ pub static TORPID_BLOOD: CardDef = CardDef {
 /// played only (PIB 20121031).
 pub static SLOW_WITHERING: CardDef = CardDef {
     name: "Slow Withering, The",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::Diablerie),
     modes: &[event(
         &[Requirement::GehennaInPlay(1)],
@@ -14988,8 +12504,7 @@ pub static SLOW_WITHERING: CardDef = CardDef {
             Effect::Layer(Modifier::SuperiorCardsCost(1)),
         ],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Gehenna. Do not replace until a vampire commits diablerie. During an
@@ -15000,8 +12515,6 @@ pub static SLOW_WITHERING: CardDef = CardDef {
 /// 20201015); several held cards are drawn one at a time (ANK 20180925-1).
 pub static BLOOD_WEAKENS: CardDef = CardDef {
     name: "Blood Weakens",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::Diablerie),
     modes: &[event(
         &[],
@@ -15010,8 +12523,7 @@ pub static BLOOD_WEAKENS: CardDef = CardDef {
             Effect::Layer(Modifier::HoldDisciplineReplacements),
         ],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Gehenna. After each Methuselah's minion phase ends, each ready vampire
@@ -15020,15 +12532,11 @@ pub static BLOOD_WEAKENS: CardDef = CardDef {
 /// 1 blood." An unsuccessful hunt counts (LSJ 20050727).
 pub static THIRST: CardDef = CardDef {
     name: "Thirst",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[event(
         &[],
         &[Effect::PutInPlay, Effect::Layer(Modifier::Thirst)],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Gehenna. Requires 1 or more other Gehenna events in play. Do not
@@ -15040,8 +12548,6 @@ pub static THIRST: CardDef = CardDef {
 /// ceiled (LSJ 20051205); excess blood drains as it applies.
 pub static WORMWOOD: CardDef = CardDef {
     name: "Wormwood",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::NextDiscardPhase),
     modes: &[event(
         &[Requirement::GehennaInPlay(1)],
@@ -15051,8 +12557,8 @@ pub static WORMWOOD: CardDef = CardDef {
             Effect::Layer(Modifier::CapacityCapByCounters),
         ],
     )],
-    abilities: &[],
     riders: &[GEHENNA_COUNTDOWN],
+    ..CARD
 };
 
 /// "Gehenna. Do not replace until a vampire commits diablerie. This card
@@ -15062,8 +12568,6 @@ pub static WORMWOOD: CardDef = CardDef {
 /// who diablerize a younger vampire."
 pub static FUELED_BY_HEARTS_BLOOD: CardDef = CardDef {
     name: "Fueled by Heart's Blood",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::Diablerie),
     modes: &[event(
         &[],
@@ -15073,8 +12577,8 @@ pub static FUELED_BY_HEARTS_BLOOD: CardDef = CardDef {
             Effect::Layer(Modifier::NoBloodHuntAboveCounters),
         ],
     )],
-    abilities: &[],
     riders: &[GEHENNA_COUNTDOWN],
+    ..CARD
 };
 
 /// "Requires 2 or more Gehenna events in play. After this card enters
@@ -15083,9 +12587,6 @@ pub static FUELED_BY_HEARTS_BLOOD: CardDef = CardDef {
 /// played." No conviction card in V5.
 pub static FOURTH_CYCLE: CardDef = CardDef {
     name: "Fourth Cycle, The",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[event(
         &[Requirement::GehennaInPlay(2)],
         &[
@@ -15094,8 +12595,7 @@ pub static FOURTH_CYCLE: CardDef = CardDef {
             Effect::FourthCycle(3),
         ],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Do not replace as long as this card is in play. During your discard
@@ -15105,8 +12605,6 @@ pub static FOURTH_CYCLE: CardDef = CardDef {
 /// discard phase begins.
 pub static UNCOILING: CardDef = CardDef {
     name: "Uncoiling, The",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::LeavesPlay),
     modes: &[event(
         &[],
@@ -15115,24 +12613,20 @@ pub static UNCOILING: CardDef = CardDef {
             Effect::Layer(Modifier::BurnsAnEventEachDiscard),
         ],
     )],
-    abilities: &[ModeDef {
-        windows: &[Window::DiscardPhaseAction],
-        actor: Actor::Methuselah,
-        requires: &[
+    abilities: &[mode_of(
+        &[Window::DiscardPhaseAction],
+        Actor::Methuselah,
+        &[
             Requirement::OthersControlThisCard,
             Requirement::DiscardPhaseActionLeft,
         ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+        &[
             Effect::SpendDiscardPhaseAction,
             Effect::PayPoolPerOtherEvent,
             Effect::BurnSelf,
         ],
-    }],
-    riders: &[],
+    )],
+    ..CARD
 };
 
 /// "Gehenna. Burn all boons. No more boons can be put in play. During each
@@ -15142,28 +12636,24 @@ pub static UNCOILING: CardDef = CardDef {
 /// still playable: LSJ 20040531-2).
 pub static BLOOD_TRADE: CardDef = CardDef {
     name: "Blood Trade",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[event(&[], &[Effect::PutInPlay])],
     abilities: &[ModeDef {
-        windows: &[Window::UnlockPhaseAny],
-        actor: Actor::Methuselah,
-        requires: &[Requirement::OwnTurn],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[
+        target: target(
+            TargetKind::Minion,
+            &[
                 Requirement::Controlled,
                 Requirement::TargetVampire,
                 Requirement::BloodAtLeast(1),
             ],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::GiveBloodToOthers],
+        ),
+        ..mode_of(
+            &[Window::UnlockPhaseAny],
+            Actor::Methuselah,
+            &[Requirement::OwnTurn],
+            &[Effect::GiveBloodToOthers],
+        )
     }],
-    riders: &[],
+    ..CARD
 };
 
 /// "Gehenna. Requires 2 or more other Gehenna events in play. Do not
@@ -15172,30 +12662,27 @@ pub static BLOOD_TRADE: CardDef = CardDef {
 /// The chosen location is burned unless its controller burns 2 pool."
 pub static CONQUEST_OF_HUMANITY: CardDef = CardDef {
     name: "Conquest of Humanity",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::NextDiscardPhase),
     modes: &[event(
         &[Requirement::GehennaInPlay(2)],
         &[Effect::PutInPlay],
     )],
     abilities: &[ModeDef {
-        windows: &[Window::UnlockPhaseAny],
-        actor: Actor::Methuselah,
-        requires: &[Requirement::OwnTurn],
-        target: Some(TargetSpec {
-            kind: TargetKind::Card,
-            filter: &[
+        target: target(
+            TargetKind::Card,
+            &[
                 Requirement::TargetCard(CardFilter::Location),
                 Requirement::CardControlledByPrey,
             ],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::BurnUnlessControllerPays(2)],
+        ),
+        ..mode_of(
+            &[Window::UnlockPhaseAny],
+            Actor::Methuselah,
+            &[Requirement::OwnTurn],
+            &[Effect::BurnUnlessControllerPays(2)],
+        )
     }],
-    riders: &[],
+    ..CARD
 };
 
 /// "Gehenna. Requires 1 or more other Gehenna events in play. Do not
@@ -15207,8 +12694,6 @@ pub static CONQUEST_OF_HUMANITY: CardDef = CardDef {
 /// 20100527).
 pub static NEW_INQUISITION: CardDef = CardDef {
     name: "New Inquisition, The",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::TitledToTorpor),
     modes: &[event(
         &[Requirement::GehennaInPlay(1)],
@@ -15216,41 +12701,36 @@ pub static NEW_INQUISITION: CardDef = CardDef {
     )],
     abilities: &[
         ModeDef {
-            windows: &[Window::UnlockPhaseAny],
-            actor: Actor::Methuselah,
-            requires: &[Requirement::OwnTurn],
-            target: Some(TargetSpec {
-                kind: TargetKind::Minion,
-                filter: &[
+            target: target(
+                TargetKind::Minion,
+                &[
                     Requirement::ControlledByPrey,
                     Requirement::TargetVampire,
                     Requirement::ActorReady,
                 ],
-            }),
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[Effect::DamageTarget(1)],
+            ),
+            ..mode_of(
+                &[Window::UnlockPhaseAny],
+                Actor::Methuselah,
+                &[Requirement::OwnTurn],
+                &[Effect::DamageTarget(1)],
+            )
         },
-        ModeDef {
-            windows: &[Window::ActionDeclarePolitical],
-            actor: Actor::ActingCandidate,
-            requires: &[
+        mode_of(
+            &[Window::ActionDeclarePolitical],
+            Actor::ActingCandidate,
+            &[
                 Requirement::ActorVampire,
                 Requirement::ActorTitleIn(&[TitleClass::Any]),
             ],
-            target: NO_TARGET,
-            terms: None,
-            waives_needed: false,
-            limit: None,
-            effects: &[
+            &[
                 Effect::DeclareAction(ActionKind::Political),
                 Effect::AddStealth(1),
                 Effect::CallReferendum(&BURN_THIS_CARD),
             ],
-        },
+        ),
     ],
-    riders: &[],
+    ..CARD
 };
 
 /// "Gehenna. Do not replace until your next discard phase. During each
@@ -15262,17 +12742,15 @@ pub static NEW_INQUISITION: CardDef = CardDef {
 /// 20250121); a locked minion may be "locked" (ANK 20210322-2).
 pub static NIGHTMARES_UPON_NIGHTMARES: CardDef = CardDef {
     name: "Nightmares upon Nightmares",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::NextDiscardPhase),
     modes: &[event(&[], &[Effect::PutInPlay])],
-    abilities: &[],
     riders: &[Rider {
         hook: Hook::UnlockPhase,
         scope: RiderScope::Every,
         requires: &[],
         effects: &[Effect::LockUnlessDiscard],
     }],
+    ..CARD
 };
 
 /// "Gehenna. Requires 2 or more other Gehenna events in play. Do not
@@ -15282,20 +12760,18 @@ pub static NIGHTMARES_UPON_NIGHTMARES: CardDef = CardDef {
 /// more, that Methuselah ignores this effect until the end of the game."
 pub static RECALLED_TO_THE_FOUNDER: CardDef = CardDef {
     name: "Recalled to the Founder",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::LeavesPlay),
     modes: &[event(
         &[Requirement::GehennaInPlay(2)],
         &[Effect::PutInPlay],
     )],
-    abilities: &[],
     riders: &[Rider {
         hook: Hook::UnlockPhase,
         scope: RiderScope::Every,
         requires: &[],
         effects: &[Effect::BurnOfCrowdedClan],
     }],
+    ..CARD
 };
 
 /// "Gehenna. Do not replace until a vampire successfully hunts. Vampires
@@ -15305,36 +12781,33 @@ pub static RECALLED_TO_THE_FOUNDER: CardDef = CardDef {
 /// successful hunt; at a vampire, none other, no action).
 pub static RESTRICTED_VITAE: CardDef = CardDef {
     name: "Restricted Vitae",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::SuccessfulHunt),
     modes: &[event(
         &[],
         &[Effect::PutInPlay, Effect::Layer(Modifier::OnlyMustHunt)],
     )],
     abilities: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::ActingCandidate,
-        requires: &[Requirement::ActorVampire, Requirement::ActorMustHunt],
-        target: Some(TargetSpec {
-            kind: TargetKind::Minion,
-            filter: &[
+        target: target(
+            TargetKind::Minion,
+            &[
                 Requirement::TargetVampire,
                 Requirement::Younger,
                 Requirement::OtherThanActor,
             ],
-        }),
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
-            Effect::DeclareAction(ActionKind::Ability),
-            Effect::AddStealth(1),
-            Effect::HuntAction,
-            Effect::StealBloodFromTarget(1),
-        ],
+        ),
+        ..mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[Requirement::ActorVampire, Requirement::ActorMustHunt],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::HuntAction,
+                Effect::StealBloodFromTarget(1),
+            ],
+        )
     }],
-    riders: &[],
+    ..CARD
 };
 
 /// "Government. If an ally is burned in combat with an acting vampire, add
@@ -15344,18 +12817,17 @@ pub static RESTRICTED_VITAE: CardDef = CardDef {
 /// 20180913-2).
 pub static FBI_SPECIAL_AFFAIRS_DIVISION: CardDef = CardDef {
     name: "FBI Special Affairs Division",
-    trifle: false,
-    out_of_turn: false,
-    delayed_replacement: None,
     modes: &[event(
         &[],
         &[
             Effect::PutInPlay,
-            Effect::Layer(Modifier::AllyBurnedInCombat),
+            Effect::Layer(Modifier::AllyBurnedInCombat {
+                damage: 2,
+                burn_at: 4,
+            }),
         ],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Gehenna. Requires 3 or more other Gehenna events in play. Do not
@@ -15365,8 +12837,6 @@ pub static FBI_SPECIAL_AFFAIRS_DIVISION: CardDef = CardDef {
 /// title gives nothing meanwhile (LSJ 20060904).
 pub static FALL_OF_THE_CAMARILLA: CardDef = CardDef {
     name: "Fall of the Camarilla",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::LeavesPlay),
     modes: &[event(
         &[Requirement::GehennaInPlay(3)],
@@ -15375,8 +12845,7 @@ pub static FALL_OF_THE_CAMARILLA: CardDef = CardDef {
             Effect::Layer(Modifier::SectFallen(Sect::Camarilla)),
         ],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Gehenna. Requires 3 or more other Gehenna events in play. Not usable if
@@ -15385,8 +12854,6 @@ pub static FALL_OF_THE_CAMARILLA: CardDef = CardDef {
 /// Independent." No Black Hand vampire in V5.
 pub static FALL_OF_THE_SABBAT: CardDef = CardDef {
     name: "Fall of the Sabbat",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::LeavesPlay),
     modes: &[event(
         &[Requirement::GehennaInPlay(3)],
@@ -15395,8 +12862,7 @@ pub static FALL_OF_THE_SABBAT: CardDef = CardDef {
             Effect::Layer(Modifier::SectFallen(Sect::Sabbat)),
         ],
     )],
-    abilities: &[],
-    riders: &[],
+    ..CARD
 };
 
 /// "Gehenna. Requires 1 or more other Gehenna events in play. Do not
@@ -15407,30 +12873,24 @@ pub static FALL_OF_THE_SABBAT: CardDef = CardDef {
 /// stays as the card leaves play (LSJ 20070125).
 pub static RISE_OF_THE_NEPHTALI: CardDef = CardDef {
     name: "Rise of the Nephtali",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::Liaison),
     modes: &[event(
         &[Requirement::GehennaInPlay(1)],
         &[Effect::PutInPlay],
     )],
-    abilities: &[ModeDef {
-        windows: &[Window::ActionDeclare],
-        actor: Actor::ActingCandidate,
-        requires: &[
+    abilities: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::ActingCandidate,
+        &[
             Requirement::ActorVampire,
             Requirement::ActorSectIn(&[Sect::Independent]),
         ],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[
+        &[
             Effect::DeclareAction(ActionKind::Ability),
             Effect::GainLiaison,
         ],
-    }],
-    riders: &[],
+    )],
+    ..CARD
 };
 
 /// "Gehenna. Requires 1 or more other Gehenna events in play. Do not
@@ -15445,26 +12905,20 @@ pub static RISE_OF_THE_NEPHTALI: CardDef = CardDef {
 /// 20200203-2).
 pub static ABSIMILIARDS_ARMY: CardDef = CardDef {
     name: "Absimiliard's Army",
-    trifle: false,
-    out_of_turn: false,
     delayed_replacement: Some(Until::MethuselahOusted),
     modes: &[event(
         &[Requirement::GehennaInPlay(1)],
         &[Effect::PutInPlay, Effect::Layer(Modifier::GhoulArmy)],
     )],
-    abilities: &[ModeDef {
-        windows: &[Window::UnlockPhaseAny],
-        actor: Actor::Methuselah,
-        requires: &[Requirement::OwnTurn],
-        target: NO_TARGET,
-        terms: None,
-        waives_needed: false,
-        limit: None,
-        effects: &[Effect::GhoulFromLibraryTop(crate::library::Body {
+    abilities: &[mode_of(
+        &[Window::UnlockPhaseAny],
+        Actor::Methuselah,
+        &[Requirement::OwnTurn],
+        &[Effect::GhoulFromLibraryTop(crate::library::Body {
             life: 2,
             strength: 2,
             bleed: 1,
         })],
-    }],
-    riders: &[],
+    )],
+    ..CARD
 };

@@ -75,11 +75,7 @@ impl Engine {
             options.retain(|o| *o != Choice::Pass);
             options.extend(due.iter().map(|c| Choice::ResolveRider { card: c.0 }));
         }
-        DecisionRequest {
-            seat: s,
-            window: WindowLabel::InfluenceTransfers,
-            options,
-        }
+        DecisionRequest::new(s, WindowLabel::InfluenceTransfers, options)
     }
 
     pub(crate) fn influence_apply(&mut self, left: u8, choice: &Choice) {

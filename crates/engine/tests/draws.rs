@@ -7,55 +7,13 @@
 use zvtes::cards::AbilitySource;
 use zvtes::cards::{self, Effect, Layer, Scope, Target};
 use zvtes::crypt::CRYPT;
-use zvtes::decision::{Choice, DecisionRequest, WindowLabel};
-use zvtes::game::{Contest, Engine, Step};
+use zvtes::decision::{Choice, WindowLabel};
+use zvtes::game::{Contest, Engine};
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::state::{find_library, CardId, CardInPlay};
 
-fn request(e: &mut Engine) -> DecisionRequest {
-    match e.run() {
-        Step::Decision(req) => {
-            if std::env::var("TRACE").is_ok() {
-                eprintln!("REQ {:?} {:?} {:?}", req.seat, req.window, req.options);
-            }
-            req
-        }
-        Step::Over(_) => panic!("game over while expecting a decision"),
-    }
-}
-
-fn expect(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    let req = request(e);
-    assert_eq!((req.seat, req.window), (seat, window), "{:?}", req.options);
-    req
-}
-
-fn pick(e: &mut Engine, want: Choice) {
-    let req = request(e);
-    let idx = req
-        .options
-        .iter()
-        .position(|o| *o == want)
-        .unwrap_or_else(|| {
-            panic!(
-                "option {want:?} not in {:?} ({:?})",
-                req.options, req.window
-            )
-        });
-    e.choose(idx);
-}
-
-/// Pass every window until `seat`'s `window` opens as a real decision.
-fn to_window(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    loop {
-        let req = request(e);
-        if (req.seat, req.window) == (seat, window) {
-            return req;
-        }
-        assert!(matches!(req.options[0], Choice::Pass), "{req:?}");
-        e.choose(0);
-    }
-}
+mod common;
+use common::*;
 
 /// A card already in play on `host` (or hostless), with its layers (no
 /// play).
@@ -403,8 +361,7 @@ fn shilmulo_tarot_moves_the_top_card_once_each_unlock_phase() {
     // window open once the Tarot is used.
     hand(&mut e, &["Deflection"; 7]);
     e.state.seats[0].has_edge = true;
-    let req = to_window(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
-    assert!(req.options.contains(&use_ability(tarot)));
+    to_window(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
     pick(&mut e, use_ability(tarot));
     assert_eq!(
         e.state.cards[tarot as usize].stored,
@@ -430,8 +387,7 @@ fn a_shilmulo_tarot_leaving_play_burns_the_cards_on_it() {
     // Seat 2's turn first: seat 0's unlock phase comes before seat 1's.
     e.state.active = SeatId(2);
     let item = Contest::Library(CardId(tarot));
-    let req = to_window(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
-    assert!(req.options.contains(&Choice::YieldContest(item)));
+    to_window(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
     pick(&mut e, Choice::YieldContest(item));
     assert!(!e.state.cards[tarot as usize].in_play);
     assert!(e.state.cards[tarot as usize].stored.is_empty());
@@ -453,8 +409,7 @@ fn heart_of_nizchetus_draws_the_number_picked_capped_by_the_library_then_as_many
     library(&mut e, &["Kevlar Vest", "Sport Bike"]);
     // The Edge keeps the unlock window open once the Heart is used.
     e.state.seats[0].has_edge = true;
-    let req = to_window(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
-    assert!(req.options.contains(&use_ability(heart)));
+    to_window(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
     pick(&mut e, use_ability(heart));
     let req = expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
     assert_eq!(

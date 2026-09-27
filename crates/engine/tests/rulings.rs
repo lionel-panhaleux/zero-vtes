@@ -9,48 +9,15 @@
 use zvtes::actions::Outcome;
 use zvtes::cards::AbilitySource;
 use zvtes::cards::{Layer, Modifier, Scope, Target};
-use zvtes::crypt::CRYPT;
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
-use zvtes::game::{Engine, Step};
+use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::state::{find_card, find_library, CardId, CardInPlay};
 
+mod common;
+use common::*;
+
 // ---- Script helpers ---------------------------------------------------------
-
-fn request(e: &mut Engine) -> DecisionRequest {
-    match e.run() {
-        Step::Decision(req) => {
-            if std::env::var("TRACE").is_ok() {
-                eprintln!("REQ {:?} {:?} {:?}", req.seat, req.window, req.options);
-            }
-            req
-        }
-        Step::Over(_) => panic!("game over while expecting a decision"),
-    }
-}
-
-fn expect(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    let req = request(e);
-    assert_eq!((req.seat, req.window), (seat, window), "{:?}", req.options);
-    req
-}
-
-fn index_of(req: &DecisionRequest, want: Choice) -> usize {
-    req.options
-        .iter()
-        .position(|o| *o == want)
-        .unwrap_or_else(|| {
-            panic!(
-                "option {want:?} not in {:?} ({:?})",
-                req.options, req.window
-            )
-        })
-}
-
-fn pick(e: &mut Engine, want: Choice) {
-    let req = request(e);
-    e.choose(index_of(&req, want));
-}
 
 /// The fallback answer for a window the script does not care about: pass,
 /// or hand strike, or the first option.
@@ -82,70 +49,6 @@ fn drive(
     }
 }
 
-/// Pass every window until `seat`'s `window` opens (mandatory riders are
-/// resolved in offer order on the way).
-fn to_window(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    drive(e, |_, req| {
-        if (req.seat, req.window) == (seat, window) {
-            return None;
-        }
-        assert!(
-            matches!(req.options[0], Choice::Pass | Choice::ResolveRider { .. }),
-            "{:?}",
-            req
-        );
-        Some(req.options[0])
-    })
-}
-
-/// Pass every window until `seat`'s minion phase opens.
-fn to_minion_phase(e: &mut Engine, seat: SeatId) -> DecisionRequest {
-    to_window(e, seat, WindowLabel::MinionPhase)
-}
-
-/// Everyone passes the polling step until it closes.
-fn close_polling(e: &mut Engine) {
-    loop {
-        match e.run() {
-            Step::Decision(req)
-                if matches!(
-                    req.window,
-                    WindowLabel::ReferendumPolling | WindowLabel::BloodHuntPolling
-                ) =>
-            {
-                e.choose(0);
-            }
-            _ => return,
-        }
-    }
-}
-
-fn take(minion: MinionId, action: ActionKind) -> Choice {
-    Choice::TakeAction {
-        minion,
-        action,
-        target: None,
-    }
-}
-
-fn bleed(minion: MinionId) -> Choice {
-    take(minion, ActionKind::Bleed)
-}
-
-fn block(minion: MinionId) -> Choice {
-    Choice::DeclareBlock { minion }
-}
-
-/// A card played by a minion (modifiers, reactions, combat, action cards).
-fn play(card: u8, mode: u8, actor: MinionId) -> Choice {
-    Choice::Play {
-        card,
-        mode,
-        actor: Some(actor),
-        target: Target::None,
-    }
-}
-
 /// A card played by the Methuselah (master cards, Archon Investigation).
 fn master(card: u8, target: Target) -> Choice {
     Choice::Play {
@@ -162,56 +65,6 @@ fn ability(card: u32, ability: u8, target: Target) -> Choice {
         ability,
         actor: None,
         target,
-    }
-}
-
-fn granted(card: u32, actor: MinionId) -> Choice {
-    Choice::UseAbility {
-        source: AbilitySource::Card(CardId(card)),
-        ability: 0,
-        actor: Some(actor),
-        target: Target::None,
-    }
-}
-
-fn votes(minion: MinionId, favor: bool) -> Choice {
-    Choice::CastVotes { minion, favor }
-}
-
-fn alloc(seat: u8, n: u8) -> Choice {
-    Choice::AllocateTo {
-        seat: SeatId(seat),
-        n,
-    }
-}
-
-fn plays(req: &DecisionRequest) -> Vec<Choice> {
-    req.options
-        .iter()
-        .copied()
-        .filter(|o| matches!(o, Choice::Play { .. }))
-        .collect()
-}
-
-fn uses(req: &DecisionRequest, card: u32) -> Vec<Choice> {
-    req.options
-        .iter()
-        .copied()
-        .filter(|o| matches!(o, Choice::UseAbility { source: AbilitySource::Card(CardId(c)), .. } if *c == card))
-        .collect()
-}
-
-fn uses_any(req: &DecisionRequest) -> Vec<Choice> {
-    req.options
-        .iter()
-        .copied()
-        .filter(|o| matches!(o, Choice::UseAbility { .. }))
-        .collect()
-}
-
-fn hand(e: &mut Engine, seat: u8, cards: &[&str]) {
-    for c in cards {
-        e.state.seats[seat as usize].hand.push(find_library(c));
     }
 }
 
@@ -248,16 +101,8 @@ fn set_pool(e: &mut Engine, pool: i32) {
     }
 }
 
-fn pool(e: &Engine) -> Vec<i32> {
-    e.state.seats.iter().map(|s| s.pool).collect()
-}
-
 fn half_vps(e: &Engine) -> Vec<u32> {
     e.state.seats.iter().map(|s| s.half_vps).collect()
-}
-
-fn blood(e: &Engine, m: MinionId) -> u8 {
-    e.state.minions[m.index()].blood
 }
 
 fn locked(e: &Engine, m: MinionId) -> bool {
@@ -266,21 +111,6 @@ fn locked(e: &Engine, m: MinionId) -> bool {
 
 fn in_torpor(e: &Engine, m: MinionId) -> bool {
     e.state.minions[m.index()].in_torpor
-}
-
-/// The `nth` V5 vampire with superior `disc`.
-/// The `nth` V5 vampire with `disc` and no printed text implemented (a plain
-/// fixture: printed abilities would add decisions to the script).
-fn vampire_with(disc: &str, nth: usize) -> u16 {
-    CRYPT
-        .iter()
-        .enumerate()
-        .filter(|(i, c)| {
-            c.disciplines.contains(&disc) && zvtes::cards::vampire(*i as u16).is_none()
-        })
-        .nth(nth)
-        .map(|(i, _)| i as u16)
-        .unwrap_or_else(|| panic!("no vampire with {disc}"))
 }
 
 /// `n` seats at seat 0's minion phase, turn 4, 10 pool each.
@@ -356,7 +186,7 @@ fn delaying_tactics_on_one_copys_referendum_leaves_the_other_copy() {
     assert!(!locked(&e, kevin));
     // Kevin has taken his political action; Anita may still call the
     // other copy's referendum, not the canceled copy's.
-    assert_eq!(uses_any(&req), vec![granted(second, anita)]);
+    assert_eq!(abilities(&req), vec![granted(second, anita)]);
 }
 
 // [PIB 20121031] The Coven "can be locked during damage resolution, but
@@ -373,7 +203,7 @@ fn the_coven_can_feed_in_the_prevention_window_but_damage_lands_at_once() {
     pick(&mut e, bleed(p));
     // Every impulse is a real window for seat 1 while The Coven is
     // unlocked; x blocks, p strikes with Roundhouse [pot] (3 damage).
-    let req = drive(&mut e, |_, req| {
+    drive(&mut e, |_, req| {
         if (req.seat, req.window) == (SeatId(1), WindowLabel::CombatPrevention) {
             return None;
         }
@@ -386,7 +216,6 @@ fn the_coven_can_feed_in_the_prevention_window_but_damage_lands_at_once() {
         Some(fallback(req))
     });
     let feed = ability(coven, 0, Target::Minion(x));
-    assert!(req.options.contains(&feed), "{:?}", req.options);
     pick(&mut e, feed);
     assert_eq!(blood(&e, x), 2);
     drive(&mut e, |_, req| {
@@ -561,7 +390,7 @@ fn old_friends_is_replaced_before_the_unlock_effects() {
             && e.state.active == SeatId(0);
         (!own).then(|| fallback(req))
     });
-    assert!(!uses_any(&req).is_empty());
+    assert!(!abilities(&req).is_empty());
     assert_eq!(e.state.seats[0].hand.len(), 7);
     assert_eq!(e.state.seats[0].held.unlock, 0);
 }
@@ -656,7 +485,7 @@ fn bleed_cards_are_not_playable_after_resolution() {
 fn bonding_gives_no_stealth_to_a_non_bleed_action() {
     let (mut e, a, _x, _z) = bleed_table();
     hand(&mut e, 0, &["Bonding"]);
-    pick(&mut e, take(a, ActionKind::Hunt));
+    pick(&mut e, action(a, ActionKind::Hunt));
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(blood(&e, a), 7);
     assert_eq!(e.state.seats[0].hand.len(), 1);
@@ -692,6 +521,29 @@ fn the_action_cards_replacement_is_playable_as_the_action_is_announced() {
     pick(&mut e, play(0, 0, a));
     let req = expect(&mut e, SeatId(0), WindowLabel::ActionAsAnnounced);
     assert_eq!(plays(&req), vec![play(0, 0, a), play(0, 1, a)]);
+}
+
+// [ANK 20181208] Seduction, The Sleeping Mind: "Replace the action card (if
+// any) before playing it." Either one, drawn as the action card's
+// replacement, is playable as the action is announced.
+#[test]
+fn an_as_announced_modifier_drawn_as_the_replacement_is_playable() {
+    for card in ["Seduction", "Sleeping Mind, The"] {
+        let mut e = game(2);
+        let a = e.add_minion(SeatId(0), find_card("Aintzane Arriaga"), 6, false); // DOM OBL POT
+        e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
+        hand(&mut e, 0, &["Kine Resources Contested"]);
+        library(&mut e, 0, card, 1);
+        pick(&mut e, play(0, 0, a));
+        let req = expect(&mut e, SeatId(0), WindowLabel::ActionAsAnnounced);
+        assert!(
+            plays(&req)
+                .iter()
+                .any(|p| matches!(p, Choice::Play { card: 0, actor: Some(m), .. } if *m == a)),
+            "{card}: {:?}",
+            req.options
+        );
+    }
 }
 
 // ---- Replacement and hand size ----------------------------------------------
@@ -823,7 +675,7 @@ fn mirror_walk_on_a_blocked_leave_torpor_gives_no_diablerie_opportunity() {
     let z = e.add_minion(SeatId(1), find_card("Ángel Guerrero"), 4, false);
     hand(&mut e, 0, &["Mirror Walk"]);
     hand(&mut e, 1, &["Cats' Guidance", "Cats' Guidance"]);
-    pick(&mut e, take(tor, ActionKind::LeaveTorpor));
+    pick(&mut e, action(tor, ActionKind::LeaveTorpor));
     pick(&mut e, block(z));
     pick(&mut e, play(0, 1, z)); // +1 intercept: 1 against 1 stealth
     pick(&mut e, play(0, 1, tor)); // Mirror Walk [THA]
@@ -1084,46 +936,32 @@ fn immediate_prevention_needs_damage() {
     }
 }
 
-// [RTR 20020501] Majesty: "The vampire still unlocks if an effect
-// continues the combat or begins a new combat."
+// [RTR 20020501] Majesty [PRE], Earth Meld [PRO]: "The vampire still
+// unlocks if an effect continues the combat or begins a new combat."
 #[test]
-fn majesty_still_unlocks_when_the_combat_continues() {
-    let mut e = game(2);
-    let a = e.add_minion(SeatId(0), find_card("Monica Giovanni"), 6, false);
-    e.add_minion(SeatId(0), find_card("Asmin Kobane"), 4, false);
-    let x = e.add_minion(SeatId(1), vampire_with("PRE", 0), 6, false);
-    hand(&mut e, 0, &["Telepathic Tracking"]);
-    hand(&mut e, 1, &["Majesty"]);
-    pick(&mut e, bleed(a));
-    pick(&mut e, block(x));
-    pick(&mut e, play(0, 1, x)); // Majesty [PRE]: combat ends, unlock
-    pick(&mut e, play(0, 1, a)); // Telepathic Tracking [AUS]: a new round
-    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert!(!locked(&e, x));
-    // Round 2 was fought: hand strikes both ways (Majesty and Tracking
-    // cost 1 blood each).
-    assert_eq!((blood(&e, a), blood(&e, x)), (6 - 1 - 1, 6 - 1 - 1));
-}
-
-// [RTR 20020501] Earth Meld [PRO]: "The vampire still unlocks if an
-// effect continues the combat or begins a new combat."
-#[test]
-fn earth_meld_still_unlocks_when_the_combat_continues() {
-    let mut e = game(2);
-    let a = e.add_minion(SeatId(0), find_card("Monica Giovanni"), 6, false);
-    e.add_minion(SeatId(0), find_card("Asmin Kobane"), 4, false);
-    let x = e.add_minion(SeatId(1), vampire_with("PRO", 0), 6, false);
-    hand(&mut e, 0, &["Telepathic Tracking"]);
-    hand(&mut e, 1, &["Earth Meld"]);
-    let x_start = blood(&e, x);
-    pick(&mut e, bleed(a));
-    pick(&mut e, block(x));
-    pick(&mut e, play(0, 1, x)); // Earth Meld [PRO]: combat ends, unlock
-    pick(&mut e, play(0, 1, a)); // Telepathic Tracking [AUS]: a new round
-    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert!(!locked(&e, x));
-    // Round 2 was fought: hand strikes both ways (Tracking costs 1 blood).
-    assert_eq!((blood(&e, a), blood(&e, x)), (6 - 1 - 1, x_start - 1));
+fn majesty_and_earth_meld_still_unlock_when_the_combat_continues() {
+    for (card, disc, cost) in [("Majesty", "PRE", 1), ("Earth Meld", "PRO", 0)] {
+        let mut e = game(2);
+        let a = e.add_minion(SeatId(0), find_card("Monica Giovanni"), 6, false);
+        e.add_minion(SeatId(0), find_card("Asmin Kobane"), 4, false);
+        let x = e.add_minion(SeatId(1), vampire_with(disc, 0), 6, false);
+        hand(&mut e, 0, &["Telepathic Tracking"]);
+        hand(&mut e, 1, &[card]);
+        let x_start = blood(&e, x);
+        pick(&mut e, bleed(a));
+        pick(&mut e, block(x));
+        pick(&mut e, play(0, 1, x)); // combat ends, unlock
+        pick(&mut e, play(0, 1, a)); // Telepathic Tracking [AUS]: a new round
+        expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert!(!locked(&e, x), "{card}");
+        // Round 2 was fought: hand strikes both ways (the card's cost and
+        // Tracking's 1 blood paid).
+        assert_eq!(
+            (blood(&e, a), blood(&e, x)),
+            (6 - 1 - 1, x_start - cost - 1),
+            "{card}"
+        );
+    }
 }
 
 // [RTR 20041202] "If fewer points of (preventable) damage are being
