@@ -157,6 +157,8 @@ pub enum Step {
     Over(Vec<u32>),
 }
 
+/// Cloneable: search (perft, rollouts) branches on copies.
+#[derive(Clone)]
 pub struct Engine {
     pub state: GameState,
     /// Chosen option indices for real (non-elided) decisions only.

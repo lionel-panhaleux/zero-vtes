@@ -72,9 +72,11 @@ open gaps, what remains); history in `git log` (commit messages are detailed).
   — cargo stops at the first failing binary, so sum the "test result" lines and
   grep for panics; the ledger, window-matrix and generator `--check`s; the count
   line at the end of DESIGN §11.
-- Refactors: record per-seed fuzz decision logs before and after (a temporary
-  dump in `tests/fuzz.rs` `fuzz()`) and a `{:#?}` dump of `DEFS`/`VAMPIRES`;
-  diff both. `FUZZ_TRACE=1 SEED_FROM=n` prints one seed's choices.
+- Refactors: the fuzz golden replays and perft counts (`tests/golden/`,
+  DESIGN §7.3/§7.5) must stay green; a failure names the seed and decision
+  range (`FUZZ_TRACE=1 SEED_FROM=n` traces it). Re-bless an intended change
+  with `GOLDEN_BLESS=1 cargo test --release --test fuzz --test perft`. Games
+  never reach every definition: also diff a `{:#?}` dump of `DEFS`/`VAMPIRES`.
 - `data/rulings-v5.csv` is CRLF: edit it byte-wise. Tests in `tests/rulings.rs`
   must back a ledger row; put regressions elsewhere.
 - Window elision breaks naive tests: single-option windows auto-apply, a

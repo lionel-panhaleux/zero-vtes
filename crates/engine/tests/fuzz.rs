@@ -4,14 +4,15 @@
 //! final state hash. Two starting positions: the rulebook opening, and a
 //! seeded mid-game position that reaches the torpor / referendum / contest /
 //! oust / card-play paths random play from the opening rarely or never gets
-//! to.
+//! to. Every game is pinned in `tests/golden/<test>.txt` (golden replays,
+//! DESIGN §7.3; `GOLDEN_BLESS=1` rewrites them).
 
 use std::collections::HashSet;
 
 use zvtes::agent::RandomLegal;
 use zvtes::cards::AbilitySource;
 use zvtes::crypt::{CryptCard, CRYPT, PRECONS};
-use zvtes::decision::{ActionKind, Choice, WindowLabel};
+use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step, TURN_LIMIT};
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::library::LIBRARY;
@@ -661,11 +662,21 @@ fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
     e
 }
 
-fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<String>) {
+/// One played game: the final engine, its VPs, the decision kinds taken,
+/// and its golden checkpoints (`Trail`).
+struct Played {
+    e: Engine,
+    vps: Vec<u32>,
+    chosen: HashSet<String>,
+    trail: Trail,
+}
+
+fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> Played {
     let mut e = start(seed);
     let totals = zone_totals(&e);
     let mut agent = RandomLegal::new(seed ^ 0x00c0_ffee);
     let mut chosen = HashSet::new();
+    let mut trail = Trail::default();
     loop {
         assert!(
             e.decisions < DECISION_BUDGET,
@@ -707,7 +718,8 @@ fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<
                 let idx = agent.choose(&req);
                 if std::env::var("FUZZ_TRACE").is_ok() {
                     eprintln!(
-                        "{:?} {:?} -> {:?} {}",
+                        "#{} {:?} {:?} -> {:?} {}",
+                        e.log.len() + 1,
                         req.seat,
                         req.window,
                         req.options[idx],
@@ -715,6 +727,7 @@ fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<
                     );
                 }
                 chosen.insert(kind(&e, req.seat, &req.options[idx]));
+                trail.step(&e, &req, idx);
                 e.choose(idx);
             }
             Step::Over(vps) => {
@@ -727,24 +740,34 @@ fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> (Engine, Vec<u32>, HashSet<
                     e.state.living(),
                     e.state.turn
                 );
-                return (e, vps, chosen);
+                return Played {
+                    e,
+                    vps,
+                    chosen,
+                    trail,
+                };
             }
         }
     }
 }
 
-/// Plays and replays every seed: the decision kinds taken, and whether a
-/// game ended before the time limit with an oust and a full VP awarded.
-fn fuzz(start: &dyn Fn(u64) -> Engine) -> (HashSet<String>, bool) {
+/// Plays and replays every seed, then checks the games against the golden
+/// file of `name`: the decision kinds taken, and whether a game ended before
+/// the time limit with an oust and a full VP awarded.
+fn fuzz(name: &str, start: &dyn Fn(u64) -> Engine) -> (HashSet<String>, bool) {
     let (mut seen, mut ousted) = (HashSet::new(), false);
     // `SEED_FROM=n` starts the sweep at seed n (debugging one failure).
-    let from: u64 = std::env::var("SEED_FROM")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(0);
-    for seed in from..SEEDS {
-        let (played, vps, chosen) = play(seed, start);
+    let from = std::env::var("SEED_FROM").ok().and_then(|v| v.parse().ok());
+    let mut lines = Vec::new();
+    for seed in from.unwrap_or(0)..SEEDS {
+        let Played {
+            e: played,
+            vps,
+            chosen,
+            trail,
+        } = play(seed, start);
         seen.extend(chosen);
+        lines.push(trail.line(seed, &played, &vps));
         ousted |= played.state.seats.iter().any(|s| s.ousted) && vps.iter().any(|&v| v >= 2);
         let hash = played.state.hash();
 
@@ -772,7 +795,137 @@ fn fuzz(start: &dyn Fn(u64) -> Engine) -> (HashSet<String>, bool) {
             "state hash mismatch on replay (seed {seed})"
         );
     }
+    if from.is_none() {
+        golden(name, &lines);
+    }
     (seen, ousted)
+}
+
+// ---- Golden replays (DESIGN §7.3) ---------------------------------------------
+
+/// Real decisions between two golden checkpoints.
+const CHECKPOINT: usize = 64;
+
+/// A game's golden trail: an FNV-1a fold of every real decision (seat,
+/// window, option count, chosen index) and, every `CHECKPOINT` decisions,
+/// of the state hash; the fold's low 32 bits are kept at each checkpoint to
+/// localize a divergence.
+struct Trail {
+    fold: u64,
+    checkpoints: Vec<u32>,
+}
+
+impl Default for Trail {
+    fn default() -> Self {
+        Trail {
+            fold: 0xcbf2_9ce4_8422_2325,
+            checkpoints: Vec::new(),
+        }
+    }
+}
+
+impl std::hash::Hasher for Trail {
+    fn finish(&self) -> u64 {
+        self.fold
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        for &b in bytes {
+            self.fold = (self.fold ^ b as u64).wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    }
+}
+
+impl Trail {
+    /// Before `e` takes option `idx` of `req`. The window by name: a label
+    /// added elsewhere in the enum leaves the trail as it was.
+    fn step(&mut self, e: &Engine, req: &DecisionRequest, idx: usize) {
+        use std::hash::Hasher;
+        self.write(format!("{:?}", req.window).as_bytes());
+        self.write_u64(req.seat.index() as u64);
+        self.write_u64(req.options.len() as u64);
+        self.write_u64(idx as u64);
+        if (e.log.len() + 1).is_multiple_of(CHECKPOINT) {
+            self.write_u64(e.state.hash());
+            self.checkpoints.push(self.fold as u32);
+        }
+    }
+
+    /// `seed decisions turn vps final-hash : checkpoints…` (VPs in half
+    /// points).
+    fn line(&self, seed: u64, e: &Engine, vps: &[u32]) -> String {
+        let vps: Vec<String> = vps.iter().map(u32::to_string).collect();
+        let mut line = format!(
+            "{seed} {} {} {} {:016x} :",
+            e.log.len(),
+            e.state.turn,
+            vps.join(","),
+            e.state.hash()
+        );
+        for c in &self.checkpoints {
+            line.push_str(&format!(" {c:08x}"));
+        }
+        line
+    }
+}
+
+/// Compare a full sweep's lines with `tests/golden/<name>.txt`, or rewrite
+/// it under `GOLDEN_BLESS=1`.
+fn golden(name: &str, lines: &[String]) {
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/golden");
+    let path = format!("{dir}/{name}.txt");
+    let header =
+        format!("# seed decisions turn vps final-hash : a checkpoint every {CHECKPOINT} decisions");
+    let bless = "GOLDEN_BLESS=1 cargo test --release --test fuzz";
+    if std::env::var("GOLDEN_BLESS").is_ok() {
+        std::fs::create_dir_all(dir).unwrap();
+        std::fs::write(&path, format!("{header}\n{}\n", lines.join("\n"))).unwrap();
+        return;
+    }
+    let Ok(text) = std::fs::read_to_string(&path) else {
+        panic!(
+            "{name}: no golden file {path}; if the games are meant to change, re-bless: {bless}"
+        );
+    };
+    let mut want = text.lines();
+    assert_eq!(
+        want.next(),
+        Some(header.as_str()),
+        "{name}: golden header differs (checkpoint interval changed?); re-bless: {bless}"
+    );
+    let want: Vec<&str> = want.collect();
+    let differ = lines.iter().zip(&want).filter(|(g, w)| g != w).count();
+    if let Some((got, want)) = lines.iter().zip(&want).find(|(g, w)| g != w) {
+        let seed = got.split(' ').next().unwrap();
+        let cps = |l: &str| -> Vec<String> {
+            let tail = l.split(" :").nth(1).unwrap_or("");
+            tail.split_whitespace().map(String::from).collect()
+        };
+        let (g, w) = (cps(got), cps(want));
+        let first = g.iter().zip(&w).take_while(|(a, b)| a == b).count();
+        let range = if first < g.len().min(w.len()) {
+            format!("{}..={}", first * CHECKPOINT + 1, (first + 1) * CHECKPOINT)
+        } else {
+            format!("{}.. (after the last checkpoint)", first * CHECKPOINT + 1)
+        };
+        panic!(
+            "{name}: golden replay diverges at seed {seed} ({differ} of {} seeds differ), \
+             first in decisions {range}\n  \
+             golden: {}\n  now:    {}\n\
+             inspect: FUZZ_TRACE=1 SEED_FROM={seed} cargo test --release --test fuzz {name}\n\
+             if the change is intended, re-bless: {bless}",
+            lines.len(),
+            want.split(" :").next().unwrap(),
+            got.split(" :").next().unwrap(),
+        );
+    }
+    assert_eq!(
+        lines.len(),
+        want.len(),
+        "{name}: {} games, golden has {}; re-bless: {bless}",
+        lines.len(),
+        want.len()
+    );
 }
 
 /// Coverage: random play must actually take every listed kind of decision,
@@ -813,8 +966,8 @@ const BASE: Fixture = Fixture {
     ousts: false,
 };
 
-fn run(f: &Fixture) {
-    let (seen, ousted) = fuzz(&|seed| {
+fn run(name: &str, f: &Fixture) {
+    let (seen, ousted) = fuzz(name, &|seed| {
         let mut e = table(seed, f.slice, f.extra);
         if f.untwin {
             untwin(&mut e);
@@ -897,14 +1050,17 @@ macro_rules! fuzz_tests {
     ($($(#[$doc:meta])* $name:ident: $fixture:expr;)*) => {$(
         $(#[$doc])*
         #[test] fn $name() {
-            run(&$fixture);
+            run(stringify!($name), &$fixture);
         }
     )*};
 }
 
 #[test]
 fn random_games_from_the_opening_terminate_hold_invariants_and_replay() {
-    let (seen, _) = fuzz(&opening);
+    let (seen, _) = fuzz(
+        "random_games_from_the_opening_terminate_hold_invariants_and_replay",
+        &opening,
+    );
     covers(
         &seen,
         &[

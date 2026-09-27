@@ -323,7 +323,17 @@ tested once observations exist (P3).
 
 ### 7.3 Golden replays
 
-Pinned `(seed, log)` replays across refactors — not built yet.
+`tests/golden/<fuzz test>.txt` pins every §7.2 game, checked in the same sweep
+(no extra runs): per seed the real decisions, final turn, VPs and state hash,
+and a checkpoint every 64 decisions — the low 32 bits of an FNV fold of each
+decision (window name, seat, option count, choice) and of the state hash at the
+checkpoint (~470 KB for 22 tests × 300 seeds). A mismatch names the test, the
+first diverging seed (and how many differ) and the 64-decision range of its
+first divergence, with the command tracing it (`FUZZ_TRACE=1 SEED_FROM=n`,
+decisions numbered). An intended change re-blesses: `GOLDEN_BLESS=1 cargo test
+--release --test fuzz`; a missing file fails, a partial sweep (`SEED_FROM`)
+skips the check. Identical in debug and release; the state hash is stable on
+64-bit little-endian targets (lengths hash as `usize`).
 
 ### 7.4 Coverage checklist
 
@@ -334,8 +344,16 @@ in §11.2).
 
 ### 7.5 Perft-style counts
 
-Number of legal decision sequences to depth k on scripted positions, to catch
-legality regressions numerically — not built yet.
+`tests/perft.rs`: the real-decision sequences to depth k (elided windows do not
+branch; a game over is a leaf) from 7 positions — the opening, two random-play
+midgames (canaries: any earlier change moves them), and scripted ones: an action
+against modifiers and reactions, a blocked bleed's combat, a political action's
+terms and polling, a master phase. Pinned with a per-window breakdown (decision
+nodes, options offered) in `tests/golden/perft.txt`, so a legality regression
+names its window; re-bless with `GOLDEN_BLESS=1 cargo test --release --test
+perft`. 0.2 s release, 2.5 s debug. Speed baseline (`perft_speed`, ignored,
+depth +1, one `Engine` clone per step, one thread): ~0.6 M steps/s on an Apple
+M3 (0.17 M on the later midgame/5).
 
 ## 8. Community surface
 
@@ -417,6 +435,7 @@ titles; `git log` has the detail.
 | P2 · 11ac–11ae | 09-27 | The 20 events: Gehenna and held replacements (ac), unlock-phase events (ad), sect falls, Liaison, token allies (ae) — every library card defined |
 | P2 · 12a | 09-27 | The last 19 vampires' printed text: every vampire defined (5 partial) |
 | P2 · 12b | 09-27 | The 5 partial vampires finished (Daria, Djeneba, Marchesa Liliana, Mithras, Ragnar Nordstrom): every vampire has all its text |
+| P2 · 12c | 09-27 | Regression tooling: golden replays of every fuzz game (§7.3), perft counts (§7.5), `Engine: Clone` |
 
 ### 11.2 Engine reference (by mechanism)
 
@@ -838,8 +857,7 @@ Still true today; "(verify)" marks items inferred from older notes.
   - Directed actions name one Methuselah at most (`ActionCtx::directed_seats`);
     Shadow Cast's remembered-set test is written for several.
   - Rapid Change [PRO] and Wolf Claws [PRO] are covered by fuzz only.
-- **P2 deliverables not started**: perft baselines (§7.5), golden replays (§7.3),
-  observation-equivalence test of elision, protocol server (§8), scripted
+- **P2 deliverables not started**: observation-equivalence test of elision, protocol server (§8), scripted
   reference bots (aggro-bleed, wall, vote), the New Blood minis as decklist
   data.
 - Owner suggestions: hard legacy cards to stress the engine (Rötschreck, Outside
@@ -855,7 +873,7 @@ Still true today; "(verify)" marks items inferred from older notes.
   humans.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer.
 
-Definitions: 425, 888 tests
+Definitions: 425, 889 tests
 
 ## Outlook: deck building (post-v1)
 
