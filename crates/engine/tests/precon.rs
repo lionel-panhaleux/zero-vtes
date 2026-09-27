@@ -76,24 +76,9 @@ fn uncontrolled(e: &mut Engine, seat: u8, card: u16) -> u8 {
 /// its layers (no play): its index.
 fn location(e: &mut Engine, seat: u8, name: &str) -> CardId {
     let card = find_library(name);
-    e.state.cards.push(CardInPlay {
-        card,
-        owner: SeatId(seat),
-        controller: SeatId(seat),
-        host: None,
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    e.state
+        .cards
+        .push(CardInPlay::new(card, SeatId(seat), None, 0));
     let id = CardId(e.state.cards.len() as u32 - 1);
     for effect in cards::lookup(card).expect("definition").modes[0].effects {
         if let Effect::Layer(modifier) = effect {
@@ -137,19 +122,6 @@ fn govern_the_unaligned_adds_3_blood_to_a_younger_vampire_in_your_uncontrolled_r
     assert!(e.state.minions[g.index()].locked);
 }
 
-// Govern the Unaligned [dom]: "Ⓓ Bleed with +2 bleed."
-#[test]
-fn govern_the_unaligned_bleeds_with_plus_2_bleed() {
-    let mut e = Engine::bare(3);
-    let g = e.add_minion(SeatId(0), plain("", "dom", 0), 4, false);
-    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
-    hand(&mut e, 0, &["Govern the Unaligned"]);
-    let before = pool(&e, 1);
-    pick(&mut e, play(0, 0, g));
-    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert_eq!(pool(&e, 1), before - 3);
-}
-
 // Thing (Gangrel): "+1 stealth action. Add 2 blood to a Gangrel in your
 // uncontrolled region." A vampire of another clan is not offered.
 #[test]
@@ -168,18 +140,23 @@ fn thing_adds_2_blood_to_a_gangrel_in_your_uncontrolled_region() {
     assert_eq!(e.state.seats[0].uncontrolled[gangrel as usize].counters, 2);
 }
 
-// Intimidation [PRE]: "Ⓓ Bleed with +2 bleed."
+// Intimidation [pre]/[PRE]: "Ⓓ Bleed with +1 bleed." / "+2 bleed."
+// Govern the Unaligned [dom]: "Ⓓ Bleed with +2 bleed."
 #[test]
-fn intimidation_bleeds_with_plus_1_or_plus_2_bleed() {
-    for (mode, tag, n) in [(0, "pre", 1), (1, "PRE", 2)] {
+fn bleed_cards_bleed_with_their_printed_bonus() {
+    for (card, mode, tag, n) in [
+        ("Intimidation", 0, "pre", 1),
+        ("Intimidation", 1, "PRE", 2),
+        ("Govern the Unaligned", 0, "dom", 2),
+    ] {
         let mut e = Engine::bare(3);
         let a = e.add_minion(SeatId(0), plain("", tag, 0), 4, false);
         e.add_minion(SeatId(0), plain("", "", 0), 4, false);
-        hand(&mut e, 0, &["Intimidation"]);
+        hand(&mut e, 0, &[card]);
         let before = pool(&e, 1);
         pick(&mut e, play(0, mode, a));
         until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-        assert_eq!(pool(&e, 1), before - 1 - n, "{tag}");
+        assert_eq!(pool(&e, 1), before - 1 - n, "{card} [{tag}]");
     }
 }
 
@@ -1048,6 +1025,29 @@ fn second_tradition_needs_the_blood_it_burns() {
     hand(&mut e, 1, &["Second Tradition: Domain"]);
     pick(&mut e, action(a, ActionKind::Bleed));
     never_offered(&mut e, &play(0, 1, p));
+}
+
+// Second Tradition's attempt still pays the acting vampire's block toll:
+// against Mithras ("younger vampires must burn 1 blood to attempt to
+// block"), a prince left with no blood after burning 1 to unlock cannot
+// pay it — unlocked, it makes no attempt (its +2 intercept is its own,
+// unused) and the bleed goes through.
+#[test]
+fn second_tradition_attempt_fails_on_an_unpayable_block_toll() {
+    let mut e = Engine::bare(3);
+    let m = e.add_minion(SeatId(0), crypt("Mithras"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let p = e.add_minion(SeatId(1), prince(0), 1, false);
+    assert!(CRYPT[prince(0) as usize].capacity < CRYPT[crypt("Mithras") as usize].capacity);
+    e.state.minions[p.index()].locked = true;
+    hand(&mut e, 1, &["Second Tradition: Domain"]);
+    pick(&mut e, action(m, ActionKind::Bleed));
+    pick_when(&mut e, play(0, 1, p));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let v = &e.state.minions[p.index()];
+    assert_eq!((v.blood, v.locked), (0, false), "1 blood burned, unlocked");
+    assert_eq!(pool(&e, 1), 30 - 3, "Mithras' +2 bleed, unblocked");
+    assert_eq!(e.state.seats[1].ash.len(), 1, "the card played");
 }
 
 // [ANK 20180623] "Unlocks and attempts to block" "does not ignore the
@@ -2034,6 +2034,48 @@ fn valerius_steals_a_princes_title() {
             .any(|o| matches!(o, Choice::UseAbility { .. })),
         "a prince now"
     );
+}
+
+// Valerius's stolen title is his without a card: contested by the Baron of
+// the same city (a prince and a baron of one city contest, rulebook
+// "Titles") and yielded, it is gone — no card to burn, no printed title
+// back — and the baron holds his title uncontested.
+#[test]
+fn valerius_yields_a_stolen_title_and_keeps_none() {
+    let mut e = Engine::bare(3);
+    let v = e.add_minion(SeatId(0), crypt("Valerius"), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let p = e.add_minion(SeatId(1), crypt("Donny Kowalczyk"), 5, false);
+    let b = e.add_minion(SeatId(2), crypt("Elisha Tucker"), 5, false);
+    // Added as fixtures, Donny and Elisha do not contest Pittsburgh yet.
+    assert!(!e.state.minions[b.index()].title_contested);
+    pick(
+        &mut e,
+        Choice::UseAbility {
+            source: AbilitySource::Vampire(v),
+            ability: 0,
+            actor: Some(v),
+            target: Target::Minion(p),
+        },
+    );
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(
+        e.state.minions[v.index()].granted_title,
+        Some(Title::Prince("Pittsburgh"))
+    );
+    assert!(e.state.minions[v.index()].title_contested);
+    assert!(e.state.minions[b.index()].title_contested);
+    let yield_it = Choice::YieldContest(zvtes::game::Contest::Title(v));
+    let req = until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
+    assert!(req.options.contains(&yield_it), "{:?}", req.options);
+    pick(&mut e, yield_it);
+    let m = &e.state.minions[v.index()];
+    assert_eq!(m.granted_title, None);
+    assert!(m.title_lost && !m.title_contested && m.in_play);
+    assert_eq!(e.state.title_of(v), Title::None);
+    until(&mut e, SeatId(2), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[b.index()].title_contested);
+    assert_eq!(e.state.title_of(b), Title::Baron("Pittsburgh"));
 }
 
 // Rebel: "Once each turn, if they block a titled vampire or a political
@@ -3785,22 +3827,9 @@ fn shadow_cast_does_not_count_its_vampires_controller_in_the_set() {
         e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
         let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
         e.state.cards.push(CardInPlay {
-            card: find_library("Shadow Cast"),
-            owner: SeatId(0),
-            controller: SeatId(0),
-            host: Some(a),
-            body: None,
-            mode: 1,
             by: Some(a),
-            in_play: true,
-            contested: false,
-            locked: false,
-            counters: 0,
-            stored: Vec::new(),
-            effect_only: false,
             against: SeatSet(recorded),
-            entered: 0,
-            chosen: Vec::new(),
+            ..CardInPlay::new(find_library("Shadow Cast"), SeatId(0), Some(a), 1)
         });
         let id = CardId(e.state.cards.len() as u32 - 1);
         pick(&mut e, action(a, ActionKind::Bleed));
@@ -4081,22 +4110,9 @@ fn aniel_burns_a_corruption_counter_as_one_printed_action() {
     e.state.minions[z.index()].add_corruption(SeatId(2), 2);
     // A card requiring a Discipline on the same minion: the other half.
     e.state.cards.push(CardInPlay {
-        card: find_library("Shadow Cloak"),
-        owner: SeatId(1),
-        controller: SeatId(1),
-        host: Some(z),
-        body: None,
-        mode: 1,
         by: Some(z),
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
         against: SeatSet::EMPTY,
-        entered: 0,
-        chosen: Vec::new(),
+        ..CardInPlay::new(find_library("Shadow Cloak"), SeatId(1), Some(z), 1)
     });
     let cloak = CardId(e.state.cards.len() as u32 - 1);
     let aniel_uses = |req: &DecisionRequest| -> Vec<u8> {
@@ -4501,22 +4517,9 @@ fn attach(e: &mut Engine, name: &str, host: MinionId, mode: u8) -> CardId {
     let card = find_library(name);
     let seat = e.state.minions[host.index()].owner;
     e.state.cards.push(CardInPlay {
-        card,
-        owner: seat,
-        controller: seat,
-        host: Some(host),
-        body: None,
-        mode,
         by: Some(host),
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
         against: SeatSet::EMPTY,
-        entered: 0,
-        chosen: Vec::new(),
+        ..CardInPlay::new(card, seat, Some(host), mode)
     });
     let id = CardId(e.state.cards.len() as u32 - 1);
     for effect in cards::lookup(card).expect("definition").modes[mode as usize].effects {
@@ -6739,6 +6742,42 @@ fn a_rescue_fizzles_paid_once_warsaw_station_raised_its_vampire() {
     assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Fizzled));
     assert!(!e.state.minions[n.index()].in_torpor);
     assert_eq!((blood(&e, a), blood(&e, n)), (2, 1), "its cost paid");
+}
+
+// Rules-qa 28.7, ANK 20220218: a rescue whose vampire is no longer in play
+// as it resolves fizzles, its cost paid by the rescuer. Here the vampire's
+// Methuselah pays their last pool for Direct Intervention (canceling The
+// Sleeping Mind) and is ousted mid-action.
+#[test]
+fn a_rescue_fizzles_paid_once_its_vampire_left_play() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "dom", 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 3), 4, false);
+    let n = e.add_minion(SeatId(1), plain("", "", 1), 1, true);
+    let z = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    e.state.minions[z.index()].locked = true;
+    e.add_minion(SeatId(2), plain("", "", 4), 4, false);
+    e.state.seats[1].pool = 1;
+    hand(&mut e, 0, &["Sleeping Mind, The"]);
+    hand(&mut e, 1, &["Direct Intervention"]);
+    pick(
+        &mut e,
+        Choice::TakeAction {
+            minion: a,
+            action: ActionKind::Rescue,
+            target: Some(n),
+        },
+    );
+    pick_when(&mut e, play_at(0, 0, Some(a), Target::Minion(z)));
+    let req = expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
+    let intervene = play_at(0, 0, None, Target::None);
+    assert!(req.options.contains(&intervene), "{:?}", req.options);
+    pick(&mut e, intervene);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.seats[1].ousted);
+    assert!(!e.state.minions[n.index()].in_play);
+    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Fizzled));
+    assert_eq!(blood(&e, a), 2, "its cost paid");
 }
 
 // Anarch Railroad: "You can lock this card to give an Anarch +1 stealth."
@@ -11596,45 +11635,31 @@ fn michael_harris_yields_to_a_range_already_set() {
     never_offered(&mut e, &card_ability(card, 1));
 }
 
-// Rules-qa 38.4 (owner, 2026-09-26): "Cards requiring a Discipline are those
-// played using a Discipline." Party Out Of Bounds played with Obfuscate
-// beside Libertas' Anarch costs no blood, though the card lists Presence.
-#[test]
-fn libertas_does_not_tax_a_card_played_with_another_discipline() {
-    let mut e = Engine::bare(3);
-    let a = e.add_minion(SeatId(0), anarch_with(&[], &[], 0), 4, false);
-    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
-    let z = e.add_minion(SeatId(1), anarch_with(&["obf"], &[], 0), 0, false);
-    let lib = location(&mut e, 0, "Libertas");
-    e.state.cards[lib.index()].host = Some(a);
-    hand(&mut e, 1, &["Party Out Of Bounds"]);
-    pick(&mut e, action(a, ActionKind::Bleed));
-    pick_when(&mut e, play(0, 0, z));
-    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert_eq!(pool(&e, 1), 30, "the bleed of 1 reduced by 2");
-}
-
 // [LSJ 20011204-3] [PIB 20130704] "When played, a multi-Disciplines card
 // counts as requiring the Discipline(s) being used. In the hand, library,
 // or ash heap, the card is considered to require any and/or all
 // Disciplines listed on it." Party Out Of Bounds played with Obfuscate
 // beside Libertas' Anarch costs no blood (it lists Presence); in the hand,
 // it is a card requiring Protean for The Vozhd of Szczecin to discard.
+// Rules-qa 38.4 (owner, 2026-09-26): "Cards requiring a Discipline are those
+// played using a Discipline."
 #[test]
 fn party_out_of_bounds_requires_the_discipline_used_or_any_listed_in_hand() {
-    // As played: Obfuscate only.
-    let mut e = Engine::bare(3);
-    let a = e.add_minion(SeatId(0), anarch_with(&[], &[], 0), 4, false);
-    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
-    let z = e.add_minion(SeatId(1), anarch_with(&["obf"], &[], 0), 1, false);
-    let lib = location(&mut e, 0, "Libertas");
-    e.state.cards[lib.index()].host = Some(a);
-    hand(&mut e, 1, &["Party Out Of Bounds"]);
-    pick(&mut e, action(a, ActionKind::Bleed));
-    pick_when(&mut e, play(0, 0, z));
-    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert_eq!(pool(&e, 1), 30, "the bleed of 1 reduced by 2");
-    assert_eq!(blood(&e, z), 1, "no Libertas surcharge");
+    // As played: Obfuscate only — offered at 0 blood, and nothing paid at 1.
+    for b in [0, 1] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), anarch_with(&[], &[], 0), 4, false);
+        e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+        let z = e.add_minion(SeatId(1), anarch_with(&["obf"], &[], 0), b, false);
+        let lib = location(&mut e, 0, "Libertas");
+        e.state.cards[lib.index()].host = Some(a);
+        hand(&mut e, 1, &["Party Out Of Bounds"]);
+        pick(&mut e, action(a, ActionKind::Bleed));
+        pick_when(&mut e, play(0, 0, z));
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert_eq!(pool(&e, 1), 30, "the bleed of 1 reduced by 2 ({b} blood)");
+        assert_eq!(blood(&e, z), b, "no Libertas surcharge");
+    }
     // In hand: listing Protean, it may be discarded to prevent.
     for (card, offered) in [("Party Out Of Bounds", true), ("Soak", false)] {
         let mut e = Engine::bare(3);

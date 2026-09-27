@@ -68,14 +68,16 @@ open gaps, what remains); history in `git log` (commit messages are detailed).
 ## Working lessons
 
 - Checks before calling work done: `cargo fmt --check`; `cargo clippy
-  --all-targets --release -- -D warnings`; `cargo test --release -q` (and debug)
-  — cargo stops at the first failing binary, so sum the "test result" lines and
-  grep for panics; the ledger, window-matrix and generator `--check`s; the count
-  line at the end of DESIGN §11.
+  --all-targets --profile ci -- -D warnings`; `cargo test --profile ci -q` (the
+  `ci` profile: release speed plus debug assertions and overflow checks,
+  incremental; no separate debug run) — cargo stops at the first failing
+  binary, so sum the "test result" lines and grep for panics; the ledger,
+  window-matrix and generator `--check`s; the count line at the end of DESIGN
+  §11.
 - Refactors: the fuzz golden replays and perft counts (`tests/golden/`,
   DESIGN §7.3/§7.5) must stay green; a failure names the seed and decision
   range (`FUZZ_TRACE=1 SEED_FROM=n` traces it). Re-bless an intended change
-  with `GOLDEN_BLESS=1 cargo test --release --test fuzz --test perft`. Games
+  with `GOLDEN_BLESS=1 cargo test --profile ci --test fuzz --test perft`. Games
   never reach every definition: also diff a `{:#?}` dump of `DEFS`/`VAMPIRES`.
 - `data/rulings-v5.csv` is CRLF: edit it byte-wise. Tests in `tests/rulings.rs`
   must back a ledger row; put regressions elsewhere.
@@ -84,7 +86,12 @@ open gaps, what remains); history in `git log` (commit messages are detailed).
   from elided follow-ups lands on the next `run()`. Prove a non-offer with
   `never_offered_until` (`tests/common`).
 - Adding a card to a fuzz fixture reshuffles its random games: rare coverage
-  keys may starve and latent bugs surface.
+  keys may starve and latent bugs surface. A fixture's `seeds` is about twice
+  the seed where its last key first appears (at most 300); `FUZZ_SEEDS=n` sweeps
+  deeper (checked against the goldens' seeds). Every 4th seed is replayed.
+- Tests: one binary per file under `crates/engine/tests/` (merging them into
+  one binary was measured slower to rebuild); shared helpers in
+  `tests/common` (`CardInPlay::new` for a card put in play).
 - Test fixtures: blood above capacity drains at the first `run()`; library
   cards carry clan requirements (check `LIBRARY` clans before picking test
   vampires).

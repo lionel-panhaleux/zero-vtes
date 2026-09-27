@@ -10,7 +10,7 @@ use zvtes::cards::Target;
 use zvtes::decision::{Choice, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::{find_card, find_library};
+use zvtes::state::{find_card, find_library, CardInPlay};
 
 mod common;
 use common::*;
@@ -467,42 +467,15 @@ fn banishment_sends_a_younger_vampire_to_the_uncontrolled_region() {
     // everything (owner, 2026-09-26: rules-qa 25.1).
     e.state.minions[bret.index()].add_corruption(SeatId(0), 2);
     // A retainer on Bret goes face down with him (rules-qa 5.7).
-    e.state.cards.push(zvtes::state::CardInPlay {
-        card: find_library("Homunculus"),
-        owner: SeatId(1),
-        controller: SeatId(1),
-        host: Some(bret),
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
+    e.state.cards.push(CardInPlay {
         locked: true,
         counters: 1,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
+        ..CardInPlay::new(find_library("Homunculus"), SeatId(1), Some(bret), 0)
     });
     // A card burned from him before does not (it stays in the ash heap).
-    e.state.cards.push(zvtes::state::CardInPlay {
-        card: find_library("Homunculus"),
-        owner: SeatId(1),
-        controller: SeatId(1),
-        host: Some(bret),
-        body: None,
-        mode: 0,
-        by: None,
+    e.state.cards.push(CardInPlay {
         in_play: false,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
+        ..CardInPlay::new(find_library("Homunculus"), SeatId(1), Some(bret), 0)
     });
     pick(&mut e, votes(alexa, true));
     close_polling(&mut e);

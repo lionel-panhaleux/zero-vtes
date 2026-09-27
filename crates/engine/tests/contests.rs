@@ -23,24 +23,9 @@ fn feed(card: u32, ability: u8, vampire: MinionId) -> Choice {
 }
 
 fn in_play(e: &mut Engine, name: &str, owner: u8) -> u32 {
-    e.state.cards.push(CardInPlay {
-        card: find_library(name),
-        owner: SeatId(owner),
-        controller: SeatId(owner),
-        host: None,
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    e.state
+        .cards
+        .push(CardInPlay::new(find_library(name), SeatId(owner), None, 0));
     e.state.cards.len() as u32 - 1
 }
 

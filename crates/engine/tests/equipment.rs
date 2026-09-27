@@ -21,24 +21,9 @@ use common::*;
 fn equip(e: &mut Engine, name: &str, host: MinionId) -> u32 {
     let card = find_library(name);
     let owner = e.state.minions[host.index()].owner;
-    e.state.cards.push(CardInPlay {
-        card,
-        owner,
-        controller: owner,
-        host: Some(host),
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    e.state
+        .cards
+        .push(CardInPlay::new(card, owner, Some(host), 0));
     let id = CardId(e.state.cards.len() as u32 - 1);
     for effect in cards::lookup(card).expect("definition").modes[0].effects {
         if let Effect::Layer(modifier) = effect {
@@ -86,24 +71,12 @@ fn equip_from_hand_is_an_undirected_plus_one_stealth_action_paid_at_resolution()
 }
 
 #[test]
-fn unlicensed_taxicab_gives_stealth_during_hunt_actions() {
+fn unlicensed_taxicab_gives_stealth_during_hunt_recruit_and_employ_actions() {
     let mut e = Engine::bare(3);
     let horst = e.add_minion(SeatId(0), find_card("Horst von Brühl"), 3, false);
     let kevin = e.add_minion(SeatId(1), find_card("Kevin Jackson"), 3, false);
     equip(&mut e, "Unlicensed Taxicab", horst);
     equip(&mut e, "Sport Bike", kevin);
-    pick(&mut e, action(horst, ActionKind::Hunt));
-    // +2 stealth against 1 intercept: no block attempt is offered.
-    let req = request(&mut e);
-    assert_ne!(req.window, WindowLabel::ActionBlock, "{req:?}");
-    assert_eq!(e.state.minions[horst.index()].blood, 4);
-}
-
-#[test]
-fn unlicensed_taxicab_gives_stealth_during_recruit_and_employ_actions() {
-    let mut e = Engine::bare(3);
-    let horst = e.add_minion(SeatId(0), find_card("Horst von Brühl"), 3, false);
-    equip(&mut e, "Unlicensed Taxicab", horst);
     for kind in [ActionKind::Hunt, ActionKind::Recruit, ActionKind::Employ] {
         assert_eq!(e.state.bearer_mod(horst, cards::Stat::Stealth, kind), 1);
     }
@@ -112,6 +85,11 @@ fn unlicensed_taxicab_gives_stealth_during_recruit_and_employ_actions() {
             .bearer_mod(horst, cards::Stat::Stealth, ActionKind::Bleed),
         0
     );
+    pick(&mut e, action(horst, ActionKind::Hunt));
+    // +2 stealth against 1 intercept: no block attempt is offered.
+    let req = request(&mut e);
+    assert_ne!(req.window, WindowLabel::ActionBlock, "{req:?}");
+    assert_eq!(e.state.minions[horst.index()].blood, 4);
 }
 
 #[test]
@@ -396,24 +374,12 @@ fn a_locquipment_in_play_is_not_taken_from_another_minion() {
     let horst = e.add_minion(SeatId(0), find_card("Horst von Brühl"), 3, false);
     let alice = e.add_minion(SeatId(0), find_card("Kevin Jackson"), 3, false);
     e.add_minion(SeatId(1), find_card("Kevin Jackson"), 3, false);
-    e.state.cards.push(CardInPlay {
-        card: find_library("Living Manse"),
-        owner: SeatId(0),
-        controller: SeatId(0),
-        host: Some(alice),
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    e.state.cards.push(CardInPlay::new(
+        find_library("Living Manse"),
+        SeatId(0),
+        Some(alice),
+        0,
+    ));
     let req = request(&mut e);
     assert!(!req.options.contains(&take_from(horst, alice)));
     equip(&mut e, "Kevlar Vest", alice);

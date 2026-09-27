@@ -16,24 +16,9 @@ use common::*;
 /// A weapon already on `host` (no play; weapons carry no layers).
 fn equip(e: &mut Engine, name: &str, host: MinionId) -> u32 {
     let owner = e.state.minions[host.index()].owner;
-    e.state.cards.push(CardInPlay {
-        card: find_library(name),
-        owner,
-        controller: owner,
-        host: Some(host),
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    e.state
+        .cards
+        .push(CardInPlay::new(find_library(name), owner, Some(host), 0));
     CardId(e.state.cards.len() as u32 - 1).0
 }
 

@@ -1,3 +1,12 @@
 [workspace]
 members = ["crates/engine"]
 resolver = "2"
+
+# The one test profile: release speed with debug's checks (debug assertions,
+# overflow checks), incremental (an engine edit rebuilds in ~9 s, not ~20 s;
+# no runtime cost measured). `cargo test --profile ci`.
+[profile.ci]
+inherits = "release"
+debug-assertions = true
+overflow-checks = true
+incremental = true

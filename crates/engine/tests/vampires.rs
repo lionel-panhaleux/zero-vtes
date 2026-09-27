@@ -21,24 +21,9 @@ fn add(e: &mut Engine, seat: u8, name: &str) -> MinionId {
 
 /// A library card in play, on `host` if any.
 fn in_play(e: &mut Engine, name: &str, owner: u8, host: Option<MinionId>) -> usize {
-    e.state.cards.push(CardInPlay {
-        card: find_library(name),
-        owner: SeatId(owner),
-        controller: SeatId(owner),
-        host,
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    e.state
+        .cards
+        .push(CardInPlay::new(find_library(name), SeatId(owner), host, 0));
     e.state.cards.len() - 1
 }
 

@@ -298,33 +298,3 @@ fn no_two_out_of_turn_between_turns() {
     assert_eq!(e.state.minions[0].blood, 3);
     assert_eq!(e.state.seats[1].hand.len(), 1);
 }
-
-// rules-qa 3.5 — numeric terms are announced as the card is played, before
-// the as-played window opens, so a cancel is decided knowing them.
-#[test]
-fn terms_announced_at_play() {
-    let mut e = Engine::bare(3);
-    e.add_minion(SeatId(0), find_card("Abraham DuSable"), 5, false);
-    e.add_minion(SeatId(0), find_card("Abraham Mellon"), 5, false);
-    e.state.turn = 4;
-    e.at_master_phase();
-    e.state.seats[0].hand.push(find_library("Villein"));
-    e.state.seats[1].hand.push(find_library("Sudden Reversal"));
-    pick(
-        &mut e,
-        Choice::Play {
-            card: 0,
-            mode: 0,
-            actor: None,
-            target: Target::Minion(MinionId(0)),
-        },
-    );
-    let req = request(&mut e);
-    assert_eq!((req.seat, req.window), (SeatId(0), WindowLabel::PlayTerms));
-    pick(&mut e, Choice::SetX(5));
-    let req = request(&mut e);
-    assert_eq!(
-        (req.seat, req.window),
-        (SeatId(1), WindowLabel::CardAsPlayed)
-    );
-}

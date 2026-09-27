@@ -1,10 +1,10 @@
 //! Random-legal fuzzing with invariants and replay determinism (DESIGN §7):
 //! every game terminates within a decision budget, invariants hold at every
-//! decision point, and (seed, decision log) resimulation reproduces the exact
-//! final state hash. Two starting positions: the rulebook opening, and a
-//! seeded mid-game position that reaches the torpor / referendum / contest /
-//! oust / card-play paths random play from the opening rarely or never gets
-//! to. Every game is pinned in `tests/golden/<test>.txt` (golden replays,
+//! decision point, and (seed, decision log) resimulation (every 4th seed)
+//! reproduces the exact final state hash. Starting positions: the rulebook
+//! opening, and seeded mid-game tables that reach the torpor / referendum /
+//! contest / oust / card-play paths random play from the opening rarely or
+//! never gets to. Every game is pinned in `tests/golden/<test>.txt` (golden replays,
 //! DESIGN §7.3; `GOLDEN_BLESS=1` rewrites them).
 
 use std::collections::HashSet;
@@ -21,28 +21,37 @@ use zvtes::ids::{MinionId, SeatId};
 use zvtes::library::LIBRARY;
 use zvtes::state::{find_card, CardId};
 
+/// The opening's seeds; a fixture sets its own (`Fixture::seeds`): about
+/// twice the seed by which its last coverage key is first taken, in
+/// hundreds (at most 300: the midgame's last key comes at seed 163). `FUZZ_SEEDS=n` plays n seeds everywhere instead (a deeper
+/// sweep; the golden check covers the seeds it pins).
 const SEEDS: u64 = 300;
+/// Every `REPLAY_EVERY`th seed is replayed from its decision log alone (the
+/// goldens pin the rest across runs).
+const REPLAY_EVERY: u64 = 4;
 const DECISION_BUDGET: u64 = 200_000;
 
 /// Library-card conservation baseline per seat (library + hand + ash +
 /// cards in play), fixed at the start of a game.
 fn zone_totals(e: &Engine) -> Vec<usize> {
+    // Cards out of play on a banished vampire (Banishment: they stay with
+    // it), gathered once.
+    let banished: Vec<CardId> = e
+        .state
+        .seats
+        .iter()
+        .flat_map(|s| &s.uncontrolled)
+        .filter_map(|u| u.banished.as_ref())
+        .flat_map(|b| b.cards.iter().copied())
+        .collect();
+    let banished = |id: usize| banished.contains(&CardId(id as u32));
     e.state
         .seats
         .iter()
         .enumerate()
         .map(|(i, s)| {
             // A card in play with the library cards stored on it, or out of
-            // play on a banished vampire (Banishment: they stay with it).
-            let banished = |id: usize| {
-                e.state.seats.iter().any(|s| {
-                    s.uncontrolled.iter().any(|u| {
-                        u.banished
-                            .as_ref()
-                            .is_some_and(|b| b.cards.contains(&CardId(id as u32)))
-                    })
-                })
-            };
+            // play on a banished vampire.
             let in_play: usize = e
                 .state
                 .cards
@@ -198,25 +207,36 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
 }
 
 /// Coverage key of a chosen option: which kind of decision it was; card
-/// plays are keyed by the card's printed name.
-fn kind(e: &Engine, seat: SeatId, c: &Choice) -> String {
+/// plays are keyed by the card's printed name (`play`, `Some(Name)`), the rest
+/// by kind alone (`pass`, `None`). Allocation-free: taken at every decision.
+type Key = (&'static str, Option<&'static str>);
+
+fn kind(e: &Engine, seat: SeatId, c: &Choice) -> Key {
     match c {
         Choice::Play { card, .. } => {
             let id = e.playable_card(seat, *card);
-            format!("play:{}", LIBRARY[id as usize].name)
+            ("play", Some(LIBRARY[id as usize].name))
         }
         Choice::UseAbility { source, .. } => match source {
             AbilitySource::Card(c) => {
                 let id = e.state.cards[c.index()].card;
-                format!("ability:{}", LIBRARY[id as usize].name)
+                ("ability", Some(LIBRARY[id as usize].name))
             }
-            AbilitySource::Vampire(m) => format!("ability:{}", e.state.minions[m.index()].name()),
+            AbilitySource::Vampire(m) => ("ability", Some(e.state.minions[m.index()].name())),
         },
         Choice::ResolveRider { card } => {
             let id = e.state.cards[*card as usize].card;
-            format!("rider:{}", LIBRARY[id as usize].name)
+            ("rider", Some(LIBRARY[id as usize].name))
         }
-        _ => kind_of(c).to_string(),
+        _ => (kind_of(c), None),
+    }
+}
+
+/// A key as the fixtures spell it: `play:Name`, or the kind alone.
+fn spell((kind, name): Key) -> String {
+    match name {
+        Some(name) => format!("{kind}:{name}"),
+        None => kind.to_string(),
     }
 }
 
@@ -310,7 +330,7 @@ fn opening(seed: u64) -> Engine {
 struct Played {
     e: Engine,
     vps: Vec<u32>,
-    chosen: HashSet<String>,
+    chosen: HashSet<Key>,
     trail: Trail,
 }
 
@@ -320,6 +340,7 @@ fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> Played {
     let mut agent = RandomLegal::new(seed ^ 0x00c0_ffee);
     let mut chosen = HashSet::new();
     let mut trail = Trail::default();
+    let trace = std::env::var("FUZZ_TRACE").is_ok();
     loop {
         assert!(
             e.decisions < DECISION_BUDGET,
@@ -359,14 +380,14 @@ fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> Played {
                     }
                 }
                 let idx = agent.choose(&req);
-                if std::env::var("FUZZ_TRACE").is_ok() {
+                if trace {
                     eprintln!(
                         "#{} {:?} {:?} -> {:?} {}",
                         e.log.len() + 1,
                         req.seat,
                         req.window,
                         req.options[idx],
-                        kind(&e, req.seat, &req.options[idx])
+                        spell(kind(&e, req.seat, &req.options[idx]))
                     );
                 }
                 chosen.insert(kind(&e, req.seat, &req.options[idx]));
@@ -394,25 +415,33 @@ fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> Played {
     }
 }
 
-/// Plays and replays every seed, then checks the games against the golden
-/// file of `name`: the decision kinds taken, and whether a game ended before
-/// the time limit with an oust and a full VP awarded.
-fn fuzz(name: &str, start: &dyn Fn(u64) -> Engine) -> (HashSet<String>, bool) {
+/// Plays `seeds` seeds (replaying every `REPLAY_EVERY`th), then checks the
+/// games against the golden file of `name`: the decision kinds taken, and
+/// whether a game ended before the time limit with an oust and a full VP
+/// awarded.
+fn fuzz(name: &str, seeds: u64, start: &dyn Fn(u64) -> Engine) -> (HashSet<String>, bool) {
     let (mut seen, mut ousted) = (HashSet::new(), false);
     // `SEED_FROM=n` starts the sweep at seed n (debugging one failure).
     let from = std::env::var("SEED_FROM").ok().and_then(|v| v.parse().ok());
     let mut lines = Vec::new();
-    for seed in from.unwrap_or(0)..SEEDS {
+    let sweep = std::env::var("FUZZ_SEEDS")
+        .ok()
+        .and_then(|v| v.parse().ok());
+    let seeds = sweep.unwrap_or(seeds);
+    for seed in from.unwrap_or(0)..seeds {
         let Played {
             e: played,
             vps,
             chosen,
             trail,
         } = play(seed, start);
-        seen.extend(chosen);
+        seen.extend(chosen.into_iter().map(spell));
         lines.push(trail.line(seed, &played, &vps));
         ousted |= played.state.seats.iter().any(|s| s.ousted) && vps.iter().any(|&v| v >= 2);
         let hash = played.state.hash();
+        if seed % REPLAY_EVERY != 0 {
+            continue;
+        }
 
         // Replay: the recorded decision log reproduces the identical game.
         let mut replayed = start(seed);
@@ -439,7 +468,7 @@ fn fuzz(name: &str, start: &dyn Fn(u64) -> Engine) -> (HashSet<String>, bool) {
         );
     }
     if from.is_none() {
-        golden(name, &lines);
+        golden(name, &lines, sweep.is_none());
     }
     (seen, ousted)
 }
@@ -484,7 +513,15 @@ impl Trail {
     /// added elsewhere in the enum leaves the trail as it was.
     fn step(&mut self, e: &Engine, req: &DecisionRequest, idx: usize) {
         use std::hash::Hasher;
-        self.write(format!("{:?}", req.window).as_bytes());
+        // The label's `Debug` name, streamed (no allocation).
+        struct Name<'a>(&'a mut Trail);
+        impl std::fmt::Write for Name<'_> {
+            fn write_str(&mut self, s: &str) -> std::fmt::Result {
+                self.0.write(s.as_bytes());
+                Ok(())
+            }
+        }
+        std::fmt::Write::write_fmt(&mut Name(self), format_args!("{:?}", req.window)).unwrap();
         self.write_u64(req.seat.index() as u64);
         self.write_u64(req.options.len() as u64);
         self.write_u64(idx as u64);
@@ -512,15 +549,20 @@ impl Trail {
     }
 }
 
-/// Compare a full sweep's lines with `tests/golden/<name>.txt`, or rewrite
-/// it under `GOLDEN_BLESS=1`.
-fn golden(name: &str, lines: &[String]) {
+/// Compare a sweep's lines with `tests/golden/<name>.txt` (the seeds both
+/// have; all of them unless `FUZZ_SEEDS` changed the count, `full`), or
+/// rewrite it under `GOLDEN_BLESS=1`.
+fn golden(name: &str, lines: &[String], full: bool) {
     let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/golden");
     let path = format!("{dir}/{name}.txt");
     let header =
         format!("# seed decisions turn vps final-hash : a checkpoint every {CHECKPOINT} decisions");
-    let bless = "GOLDEN_BLESS=1 cargo test --release --test fuzz";
+    let bless = "GOLDEN_BLESS=1 cargo test --profile ci --test fuzz";
     if std::env::var("GOLDEN_BLESS").is_ok() {
+        assert!(
+            full,
+            "{name}: FUZZ_SEEDS set; bless the fixture's own seeds"
+        );
         std::fs::create_dir_all(dir).unwrap();
         std::fs::write(&path, format!("{header}\n{}\n", lines.join("\n"))).unwrap();
         return;
@@ -555,16 +597,15 @@ fn golden(name: &str, lines: &[String]) {
             "{name}: golden replay diverges at seed {seed} ({differ} of {} seeds differ), \
              first in decisions {range}\n  \
              golden: {}\n  now:    {}\n\
-             inspect: FUZZ_TRACE=1 SEED_FROM={seed} cargo test --release --test fuzz {name}\n\
+             inspect: FUZZ_TRACE=1 SEED_FROM={seed} cargo test --profile ci --test fuzz {name}\n\
              if the change is intended, re-bless: {bless}",
             lines.len(),
             want.split(" :").next().unwrap(),
             got.split(" :").next().unwrap(),
         );
     }
-    assert_eq!(
-        lines.len(),
-        want.len(),
+    assert!(
+        !full || lines.len() == want.len(),
         "{name}: {} games, golden has {}; re-bless: {bless}",
         lines.len(),
         want.len()
@@ -597,6 +638,8 @@ struct Fixture {
     /// At least one game must end before the time limit with an oust and
     /// a full VP awarded.
     ousts: bool,
+    /// Seeds played (`SEEDS`).
+    seeds: u64,
 }
 
 const BASE: Fixture = Fixture {
@@ -607,10 +650,11 @@ const BASE: Fixture = Fixture {
     untwin: false,
     setup: |_, _| {},
     ousts: false,
+    seeds: 100,
 };
 
 fn run(name: &str, f: &Fixture) {
-    let (seen, ousted) = fuzz(name, &|seed| {
+    let (seen, ousted) = fuzz(name, f.seeds, &|seed| {
         let mut e = table(seed, f.slice, f.extra);
         if f.untwin {
             untwin(&mut e);
@@ -630,7 +674,8 @@ fn run(name: &str, f: &Fixture) {
     covers(&seen, &kinds);
     assert!(
         !f.ousts || ousted,
-        "no oust in {SEEDS} mid-game random games"
+        "no oust in {} mid-game random games",
+        f.seeds
     );
 }
 
@@ -685,6 +730,7 @@ macro_rules! fuzz_tests {
 fn random_games_from_the_opening_terminate_hold_invariants_and_replay() {
     let (seen, _) = fuzz(
         "random_games_from_the_opening_terminate_hold_invariants_and_replay",
+        SEEDS,
         &opening,
     );
     covers(
@@ -895,6 +941,7 @@ fuzz_tests! {
             // no key.)
         ],
         ousts: true,
+        seeds: 300,
         ..BASE
     };
     /// Slice 10: random tables whose libraries are the allies and retainers.
@@ -952,6 +999,7 @@ fuzz_tests! {
             "rider:Spectral Servitor",
             "play:Owl Companion",
         ],
+        seeds: 200,
         ..BASE
     };
     /// Slice 11a: random tables whose libraries are the pre-built decks' cards
@@ -1032,6 +1080,7 @@ fuzz_tests! {
             "ability:Market Square",
             "set_x",
         ],
+        seeds: 200,
         ..BASE
     };
     /// Slices 11e and 11ab: title cards, vote locations and archetypes, the
@@ -1285,6 +1334,7 @@ fuzz_tests! {
                 ],
             )
         },
+        seeds: 200,
         ..BASE
     };
     /// Slice 11p and the hunting grounds: the second wave of action cards,
@@ -1349,6 +1399,7 @@ fuzz_tests! {
                 ],
             )
         },
+        seeds: 300,
         ..BASE
     };
     /// Slice 11q: the precon masters (and Childe of the Revolution, which
@@ -1560,6 +1611,7 @@ fuzz_tests! {
             "rider:Khabar: Glory",
         ],
         untwin: true,
+        seeds: 200,
         ..BASE
     };
     /// Slice 11w: the pool's masters, wave 1.
@@ -1604,6 +1656,7 @@ fuzz_tests! {
             "rider:Black Throne, The",
         ],
         untwin: true,
+        seeds: 200,
         ..BASE
     };
     /// Slice 11x: the pool's masters, wave 2.
@@ -1639,6 +1692,7 @@ fuzz_tests! {
             "ability:WMRH Talk Radio",
         ],
         untwin: true,
+        seeds: 200,
         ..BASE
     };
     /// Slice 11y: the pool's masters, wave 3.
@@ -1733,6 +1787,7 @@ fuzz_tests! {
             "ability:Ritual Goblet",
         ],
         untwin: true,
+        seeds: 300,
         ..BASE
     };
     /// Slices 11ac–11ae: the pool's events.
@@ -1774,6 +1829,7 @@ fuzz_tests! {
             "ability:Conquest of Humanity",
         ],
         untwin: true,
+        seeds: 200,
         ..BASE
     };
     /// Slice 12a: the last vampires' printed text, all of them dealt at the

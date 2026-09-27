@@ -19,24 +19,9 @@ use common::*;
 /// play).
 fn put(e: &mut Engine, name: &str, owner: u8, host: Option<MinionId>) -> u32 {
     let card = find_library(name);
-    e.state.cards.push(CardInPlay {
-        card,
-        owner: SeatId(owner),
-        controller: SeatId(owner),
-        host,
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    e.state
+        .cards
+        .push(CardInPlay::new(card, SeatId(owner), host, 0));
     let id = CardId(e.state.cards.len() as u32 - 1);
     for effect in cards::lookup(card).expect("definition").modes[0].effects {
         if let Effect::Layer(modifier) = effect {

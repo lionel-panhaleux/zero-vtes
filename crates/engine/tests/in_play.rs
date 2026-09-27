@@ -19,24 +19,12 @@ use common::*;
 /// Anarch Revolt in play under `owner`, with no play (the master phase
 /// path is `anarch_revolt_enters_play_with_no_host`).
 fn revolt_in_play(e: &mut Engine, owner: u8) -> u32 {
-    e.state.cards.push(CardInPlay {
-        card: find_library("Anarch Revolt"),
-        owner: SeatId(owner),
-        controller: SeatId(owner),
-        host: None,
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    e.state.cards.push(CardInPlay::new(
+        find_library("Anarch Revolt"),
+        SeatId(owner),
+        None,
+        0,
+    ));
     e.state.cards.len() as u32 - 1
 }
 
@@ -266,24 +254,12 @@ fn anarch_revolt_burn_is_ordered_by_the_active_methuselah_before_the_impulse_pas
     let Table { mut e, alexa, .. } = table();
     let first = revolt_in_play(&mut e, 0);
     let second = revolt_in_play(&mut e, 2);
-    e.state.cards.push(CardInPlay {
-        card: find_library("Homunculus"),
-        owner: SeatId(0),
-        controller: SeatId(0),
-        host: Some(alexa),
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    e.state.cards.push(CardInPlay::new(
+        find_library("Homunculus"),
+        SeatId(0),
+        Some(alexa),
+        0,
+    ));
     e.state.minions[alexa.index()].locked = true;
     // Seat 0's own turn ends; seat 1 has a ready Anarch, so its two riders
     // resolve to nothing (still ordered: two options, no Pass).
@@ -386,24 +362,12 @@ fn vampire_of_clan(clan: &str, nth: usize) -> u16 {
 /// A Guardian Angel already in play on `host` (its intercept layer
 /// included, as the play would have pushed it).
 fn guardian_angel_on(e: &mut Engine, owner: u8, host: MinionId) -> u32 {
-    e.state.cards.push(CardInPlay {
-        card: find_library("Guardian Angel"),
-        owner: SeatId(owner),
-        controller: SeatId(owner),
-        host: Some(host),
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    e.state.cards.push(CardInPlay::new(
+        find_library("Guardian Angel"),
+        SeatId(owner),
+        Some(host),
+        0,
+    ));
     let id = e.state.cards.len() as u32 - 1;
     e.state.layers.push(Layer {
         scope: Scope::InPlay,
@@ -591,24 +555,12 @@ fn guardian_angel_burned_when_its_host_goes_to_torpor() {
 }
 
 fn fame_on(e: &mut Engine, owner: u8, host: MinionId) -> u32 {
-    e.state.cards.push(CardInPlay {
-        card: find_library("Fame"),
-        owner: SeatId(owner),
-        controller: SeatId(owner),
-        host: Some(host),
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    e.state.cards.push(CardInPlay::new(
+        find_library("Fame"),
+        SeatId(owner),
+        Some(host),
+        0,
+    ));
     e.state.cards.len() as u32 - 1
 }
 
@@ -1488,24 +1440,9 @@ fn creeping_sabotage_burn_action_is_directed_at_its_controller() {
 }
 
 fn revolt_like_in_play(e: &mut Engine, name: &str, owner: u8) -> u32 {
-    e.state.cards.push(CardInPlay {
-        card: find_library(name),
-        owner: SeatId(owner),
-        controller: SeatId(owner),
-        host: None,
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    e.state
+        .cards
+        .push(CardInPlay::new(find_library(name), SeatId(owner), None, 0));
     e.state.cards.len() as u32 - 1
 }
 
@@ -1671,24 +1608,12 @@ fn blood_doll_moves_blood_either_way_once_per_master_phase() {
 #[test]
 fn blood_doll_usable_with_the_host_in_torpor() {
     let Table { mut e, alexa, .. } = table();
-    e.state.cards.push(CardInPlay {
-        card: find_library("Blood Doll"),
-        owner: SeatId(0),
-        controller: SeatId(0),
-        host: Some(alexa),
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    e.state.cards.push(CardInPlay::new(
+        find_library("Blood Doll"),
+        SeatId(0),
+        Some(alexa),
+        0,
+    ));
     e.state.minions[alexa.index()].in_torpor = true;
     let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
     assert_eq!(abilities(&req), vec![ability(0, 0), ability(0, 1)]);
@@ -1711,24 +1636,12 @@ fn vessel_on_any_vampire_burns_any_blood_doll_and_is_the_controllers_to_use() {
         lenny,
     } = table();
     let doll = e.state.cards.len() as u32;
-    e.state.cards.push(CardInPlay {
-        card: find_library("Blood Doll"),
-        owner: SeatId(2),
-        controller: SeatId(2),
-        host: Some(lenny),
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    e.state.cards.push(CardInPlay::new(
+        find_library("Blood Doll"),
+        SeatId(2),
+        Some(lenny),
+        0,
+    ));
     hand(&mut e, 0, &["Vessel", "Vessel"]);
     let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
     let targets: Vec<Target> = req

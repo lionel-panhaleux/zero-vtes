@@ -310,24 +310,12 @@ fn archon_sequence(t: &mut Table) -> Choice {
 fn archon_investigation_under_tension_in_the_ranks_ousts_the_bleeder_s_methuselah() {
     let mut t = table();
     t.e.state.seats[0].pool = 1;
-    t.e.state.cards.push(CardInPlay {
-        card: find_library("Tension in the Ranks"),
-        owner: SeatId(2),
-        controller: SeatId(2),
-        host: None,
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    t.e.state.cards.push(CardInPlay::new(
+        find_library("Tension in the Ranks"),
+        SeatId(2),
+        None,
+        0,
+    ));
     archon_sequence(&mut t);
     let e = &mut t.e;
     let req = request(e);
@@ -519,24 +507,12 @@ fn homunculus_employ_then_unlock_ability_and_nra_by_card_name() {
 fn archon_investigation_costs_one_more_against_a_secure_haven() {
     let mut t = table();
     let e = &mut t.e;
-    e.state.cards.push(zvtes::state::CardInPlay {
-        card: find_library("Secure Haven"),
-        owner: SeatId(0),
-        controller: SeatId(0),
-        host: Some(t.a),
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    e.state.cards.push(zvtes::state::CardInPlay::new(
+        find_library("Secure Haven"),
+        SeatId(0),
+        Some(t.a),
+        0,
+    ));
     e.state.layers.push(zvtes::cards::Layer {
         scope: zvtes::cards::Scope::InPlay,
         modifier: zvtes::cards::Modifier::Haven,

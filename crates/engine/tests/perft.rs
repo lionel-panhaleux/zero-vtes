@@ -4,7 +4,7 @@
 //! A legality regression changes an option list, hence a count; the
 //! breakdown names the window. Single-option windows elide inside `run()`
 //! and never branch; a game over before the depth is one leaf.
-//! `GOLDEN_BLESS=1 cargo test --release --test perft` rewrites the pins.
+//! `GOLDEN_BLESS=1 cargo test --profile ci --test perft` rewrites the pins.
 //! The `midgame` positions are reached by random play from a seed: it is a
 //! canary (any change in their first decisions moves the position), the
 //! scripted ones localize.
@@ -236,7 +236,7 @@ fn perft_counts_match_the_pinned_ones() {
         got.push_str(&render(name, depth, &c));
     }
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/golden/perft.txt");
-    let bless = "GOLDEN_BLESS=1 cargo test --release --test perft";
+    let bless = "GOLDEN_BLESS=1 cargo test --profile ci --test perft";
     if std::env::var("GOLDEN_BLESS").is_ok() {
         std::fs::write(path, &got).unwrap();
         return;

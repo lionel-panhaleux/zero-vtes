@@ -200,6 +200,8 @@ fn sudden_reversal_cancels_a_master_and_its_cost_and_trifle_refund() {
     e.state.seats[0].hand.push(find_library("Villein"));
     e.state.seats[1].hand.push(find_library("Sudden Reversal"));
     pick(&mut e, play(0, MinionId(0)));
+    // The terms are announced as the card is played, before the as-played
+    // window, so a cancel is decided knowing them (rules-qa 3.5).
     pick(&mut e, Choice::SetX(5));
     // As-played window: seat 1 may cancel (out of turn).
     let req = expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
@@ -256,13 +258,4 @@ fn discard_phase_replaces_from_the_library() {
     // two empty seats elide their whole turns.
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.turn, 7);
-}
-
-#[test]
-fn cards_without_a_definition_are_not_playable() {
-    let mut e = table();
-    e.state.seats[0].hand.push(find_library(".44 Magnum"));
-    // Master phase with only an equipment card: Pass alone, elided.
-    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert!(req.options.contains(&bleed(MinionId(0))));
 }

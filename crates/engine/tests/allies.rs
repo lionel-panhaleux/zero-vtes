@@ -220,22 +220,8 @@ fn retainer(e: &mut Engine, name: &str, host: MinionId, mode: usize) -> CardId {
         })
         .expect("a retainer");
     e.state.cards.push(CardInPlay {
-        card,
-        owner,
-        controller: owner,
-        host: Some(host),
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
         counters: life,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
+        ..CardInPlay::new(card, owner, Some(host), 0)
     });
     let id = CardId(e.state.cards.len() as u32 - 1);
     for effect in def.modes[mode].effects {
@@ -754,24 +740,12 @@ fn war_ghoul_enters_combat_with_a_vampire_and_prevents_1_damage_each_round() {
 fn war_ghoul_locks_and_burns_itself_to_burn_a_location() {
     let (mut e, ghoul, id) = war_ghoul();
     e.state.minions[ghoul.index()].recruited = true;
-    e.state.cards.push(CardInPlay {
-        card: find_library("Academic Hunting Ground"),
-        owner: SeatId(1),
-        controller: SeatId(1),
-        host: None,
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    e.state.cards.push(CardInPlay::new(
+        find_library("Academic Hunting Ground"),
+        SeatId(1),
+        None,
+        0,
+    ));
     let hg = CardId(e.state.cards.len() as u32 - 1);
     pick(
         &mut e,
@@ -1452,24 +1426,12 @@ fn entrancement_steal_of_an_ally_gone_before_resolution_does_nothing() {
     let ghoul = e.add_ally(SeatId(1), find_library("War Ghoul"));
     request(&mut e); // the entry burn: the Revenant
     let id = e.state.minions[ghoul.index()].ally_id().unwrap();
-    e.state.cards.push(CardInPlay {
-        card: find_library("Academic Hunting Ground"),
-        owner: SeatId(2),
-        controller: SeatId(2),
-        host: None,
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    e.state.cards.push(CardInPlay::new(
+        find_library("Academic Hunting Ground"),
+        SeatId(2),
+        None,
+        0,
+    ));
     let hg = CardId(e.state.cards.len() as u32 - 1);
     hand(&mut e, 0, &["Entrancement"]);
     pick(&mut e, play_at(0, 1, v, Target::Minion(ghoul)));
@@ -1600,24 +1562,12 @@ fn libertas_bars_allies_and_taxes_dominate_and_presence_around_its_anarch() {
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     let z = e.add_minion(SeatId(1), with_discipline("pre", 0), 1, false);
     e.add_ally(SeatId(1), find_library("Political Ally"));
-    e.state.cards.push(CardInPlay {
-        card: find_library("Libertas"),
-        owner: SeatId(0),
-        controller: SeatId(0),
-        host: Some(a),
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    e.state.cards.push(CardInPlay::new(
+        find_library("Libertas"),
+        SeatId(0),
+        Some(a),
+        0,
+    ));
     let id = CardId(e.state.cards.len() as u32 - 1);
     for m in [
         cards::Modifier::AlliesCannotBlockBearer,
@@ -1666,24 +1616,12 @@ fn libertas_does_not_tax_the_action_card_once_its_anarchs_block_failed() {
     let a = e.add_minion(SeatId(1), anarch(0), 4, false);
     retainer(&mut e, "Mr. Winthrop", a, 0);
     let ally = e.add_ally(SeatId(1), find_library("Political Ally"));
-    e.state.cards.push(CardInPlay {
-        card: find_library("Libertas"),
-        owner: SeatId(1),
-        controller: SeatId(1),
-        host: Some(a),
-        body: None,
-        mode: 0,
-        by: None,
-        in_play: true,
-        contested: false,
-        locked: false,
-        counters: 0,
-        stored: Vec::new(),
-        effect_only: false,
-        against: Default::default(),
-        entered: 0,
-        chosen: Vec::new(),
-    });
+    e.state.cards.push(CardInPlay::new(
+        find_library("Libertas"),
+        SeatId(1),
+        Some(a),
+        0,
+    ));
     let id = CardId(e.state.cards.len() as u32 - 1);
     e.state.layers.push(Layer {
         scope: Scope::InPlay,
