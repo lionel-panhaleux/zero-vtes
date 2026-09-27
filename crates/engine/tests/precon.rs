@@ -116,14 +116,12 @@ fn location(e: &mut Engine, seat: u8, name: &str) -> CardId {
 #[test]
 fn govern_the_unaligned_adds_3_blood_to_a_younger_vampire_in_your_uncontrolled_region() {
     let mut e = Engine::bare(3);
-    let g_card = vampire(
-        |c| c.disciplines.contains(&"DOM") && c.title == Title::None && c.capacity >= 7,
-        0,
-    );
+    // Abraham's text (+1 hand size, Tremere cards) is inert here.
+    let g_card = crypt("Abraham Mellon");
     let g = e.add_minion(SeatId(0), g_card, 4, false);
     e.add_minion(SeatId(0), plain("", "", 0), 4, false);
-    let cap = CRYPT[g_card as usize].capacity;
-    let older = uncontrolled(&mut e, 0, vampire(|c| c.capacity >= cap, 0));
+    // Anja's text (unlocking another Hecata after its action) is inert here.
+    let older = uncontrolled(&mut e, 0, crypt("\"Mother\" Anja Giovanni"));
     let younger = uncontrolled(&mut e, 0, vampire(|c| c.capacity == 4, 0));
     hand(&mut e, 0, &["Govern the Unaligned"]);
     let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
@@ -222,9 +220,15 @@ fn heart_of_the_city_goes_on_the_vampire_for_plus_1_bleed_one_per_vampire() {
 // vampire is Toreador (limited)."
 #[test]
 fn aire_of_elation_gives_a_toreador_an_additional_bleed() {
-    for (clan, n) in [("Toreador", 2), ("Ventrue", 1)] {
+    // No Toreador with basic Presence lacks printed text: Anne-Marie's
+    // (equipment costs her 1 pool less) does not come into play here.
+    for (a, n) in [
+        (crypt("Anne-Marie Bourgeois, Inconnu Recruiter"), 2),
+        (plain("Ventrue", "pre", 0), 1),
+    ] {
         let mut e = Engine::bare(3);
-        let a = e.add_minion(SeatId(0), plain(clan, "pre", 0), 4, false);
+        let clan = CRYPT[a as usize].clan;
+        let a = e.add_minion(SeatId(0), a, 4, false);
         e.add_minion(SeatId(0), plain("", "", 0), 4, false);
         hand(&mut e, 0, &["Aire of Elation"]);
         let before = pool(&e, 1);
@@ -719,7 +723,8 @@ fn information_highway_gives_2_more_transfers() {
     let mut e = Engine::bare(3);
     e.add_minion(SeatId(0), plain("", "", 0), 4, false);
     e.state.turn = 1;
-    uncontrolled(&mut e, 0, vampire(|c| c.capacity >= 8, 0));
+    // Anja's text (unlocking another Hecata after its action) is inert here.
+    uncontrolled(&mut e, 0, crypt("\"Mother\" Anja Giovanni"));
     location(&mut e, 0, "Information Highway");
     let mut req = until(&mut e, SeatId(0), WindowLabel::InfluenceTransfers);
     let mut transfers = 0;
@@ -857,7 +862,8 @@ fn guard_dogs_maneuver_is_given_again_to_a_second_block() {
     let mut e = Engine::bare(3);
     let a = e.add_minion(SeatId(0), plain("", "PRO", 0), 5, false);
     e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
-    let z = e.add_minion(SeatId(1), vampire(|c| has(c, &["ANI", "aus"]), 0), 5, false);
+    // Keegan's text (unlock after his own Gangrel action) is inert here.
+    let z = e.add_minion(SeatId(1), crypt("Keegan"), 5, false);
     e.state.minions[z.index()].locked = true;
     hand(&mut e, 0, &["Form of Mist"]);
     hand(
@@ -2263,7 +2269,8 @@ fn carrion_crows_damages_through_a_dodge_but_not_a_combat_ends() {
         let mut e = Engine::bare(3);
         let a = e.add_minion(SeatId(0), with(&["ani"], 0), 5, false);
         e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
-        let b = e.add_minion(SeatId(1), with(&["cel", "pre"], 0), 5, false);
+        // Adelino's text (cheaper rescues) is inert here.
+        let b = e.add_minion(SeatId(1), crypt("Adelino Da Silva"), 5, false);
         hand(&mut e, 0, &["Carrion Crows", "Carrion Crows"]);
         hand(&mut e, 1, &[strike]);
         bleed_blocked(&mut e, a, b);
@@ -2715,7 +2722,9 @@ fn rolling_with_the_punches_prevents_the_strikes_for_1_blood() {
     never_offered(&mut e, &play(0, 1, b));
     // Environmental damage only: nothing from the strikes to prevent.
     let mut e = Engine::bare(3);
-    let a = e.add_minion(SeatId(0), with(&["ani", "cel"], 0), 5, false);
+    // Animalism and Celerity: Keegan's text (unlock after his own Gangrel
+    // action) is inert here.
+    let a = e.add_minion(SeatId(0), crypt("Keegan"), 5, false);
     e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
     let b = e.add_minion(SeatId(1), with(&["FOR"], 0), 4, false);
     hand(&mut e, 0, &["Carrion Crows", "Side Strike"]);
@@ -3264,15 +3273,8 @@ fn freak_drive_unlocks_unless_the_sleeping_mind_bars_it() {
 #[test]
 fn seduction_bars_a_younger_vampire_from_blocking() {
     let mut e = Engine::bare(3);
-    let a = e.add_minion(
-        SeatId(0),
-        vampire(
-            |c| has(c, &["dom"]) && c.capacity >= 8 && c.title == Title::None,
-            0,
-        ),
-        5,
-        false,
-    );
+    // Anja's text (unlocking another Hecata after its action) is inert here.
+    let a = e.add_minion(SeatId(0), crypt("\"Mother\" Anja Giovanni"), 5, false);
     e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
     let z = e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
     hand(&mut e, 0, &["Seduction"]);
@@ -3295,8 +3297,9 @@ fn unleashing_the_bestial_soul_bars_and_taxes_reactions() {
         false,
     );
     e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
-    let z = e.add_minion(SeatId(1), with(&["dom"], 0), 5, false);
-    let y = e.add_minion(SeatId(1), with(&["dom"], 1), 5, false);
+    // Anja's text (unlocking another Hecata after its action) is inert here.
+    let z = e.add_minion(SeatId(1), crypt("\"Mother\" Anja Giovanni"), 5, false);
+    let y = e.add_minion(SeatId(1), crypt("Amelia Locke"), 5, false);
     hand(&mut e, 0, &["Unleashing the Bestial Soul"]);
     hand(&mut e, 1, &["Deflection", "Deflection"]);
     pick(&mut e, action(a, ActionKind::Bleed));
@@ -3754,7 +3757,8 @@ fn shadow_cast_needs_a_successful_directed_action() {
 #[test]
 fn mirror_walk_superior_leaves_an_unblocked_actions_after_resolution_open() {
     let mut e = Engine::bare(3);
-    let a = e.add_minion(SeatId(0), with(&["THA", "for"], 0), 5, false);
+    // Tommaso's text (ending a wraith's or zombie's combat) is inert here.
+    let a = e.add_minion(SeatId(0), crypt("Tommaso Sforza"), 5, false);
     e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
     let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
     hand(&mut e, 0, &["Mirror Walk", "Freak Drive"]);
@@ -3892,15 +3896,8 @@ fn platinum_protocol_uses_any_set_of_its_disciplines_and_corrupts() {
 #[test]
 fn platinum_protocol_needs_an_anarch_and_a_minion_to_corrupt() {
     let mut e = Engine::bare(3);
-    let b = e.add_minion(
-        SeatId(0),
-        vampire(
-            |c| c.sect != zvtes::crypt::Sect::Anarch && has_level(c, &["pro"]),
-            0,
-        ),
-        5,
-        false,
-    );
+    // Gnaeus's text (unlock-phase damage to his prey) is not reached here.
+    let b = e.add_minion(SeatId(0), crypt("Gnaeus Aemilius Augustinus"), 5, false);
     let a = e.add_minion(SeatId(0), anarch_with(&["pro"], &[], 0), 5, false);
     let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
     e.state.seats[1].pool = 1;
@@ -4202,15 +4199,8 @@ fn eagles_sight_superior_blocks_an_action_directed_at_another() {
 fn eagles_sight_superior_does_not_undo_a_decline_or_seduction() {
     for seduced in [false, true] {
         let mut e = Engine::bare(3);
-        let a = e.add_minion(
-            SeatId(0),
-            vampire(
-                |c| has(c, &["dom"]) && c.capacity >= 8 && c.title == Title::None,
-                0,
-            ),
-            5,
-            false,
-        );
+        // Anja's text (unlocking another Hecata after its action) is inert here.
+        let a = e.add_minion(SeatId(0), crypt("\"Mother\" Anja Giovanni"), 5, false);
         e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
         // Younger than the acting vampire, for Seduction.
         let young = vampire(
@@ -4358,12 +4348,8 @@ fn hunters_mark_gives_a_press_and_bars_combat_ends_in_the_first_round() {
 #[test]
 fn line_brawl_steals_a_pool_from_any_other_methuselah() {
     let mut e = Engine::bare(3);
-    let a = e.add_minion(
-        SeatId(0),
-        anarch_with(&["cel"], &["pot", "pre"], 0),
-        5,
-        false,
-    );
+    // Its text (unlock after its own Gangrel action) is inert here.
+    let a = e.add_minion(SeatId(0), crypt("Keegan"), 5, false);
     let b = e.add_minion(
         SeatId(0),
         vampire(
@@ -4672,7 +4658,8 @@ fn rutors_hand_wounds_or_costs_blood_then_unlocks_its_vampire() {
 #[test]
 fn monstrous_form_adds_strength_and_its_card_locks_for_a_bonus() {
     let mut e = Engine::bare(3);
-    let a = e.add_minion(SeatId(0), with(&["DOM", "PRO"], 0), 5, false);
+    // Máddji's text (cheaper Tzimisce allies and retainers) is inert here.
+    let a = e.add_minion(SeatId(0), crypt("Máddji, Mistress of Szlachtas"), 5, false);
     e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
     let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
     let form = attach(&mut e, "Monstrous Form", a, 1);
@@ -4936,7 +4923,8 @@ fn rutors_hand_unlocks_during_another_vampires_action() {
 #[test]
 fn obedient_flesh_hinders_allies_and_arms_a_round() {
     let mut e = Engine::bare(3);
-    let a = e.add_minion(SeatId(0), with(&["DOM", "PRO"], 0), 5, false);
+    // Máddji's text (cheaper Tzimisce allies and retainers) is inert here.
+    let a = e.add_minion(SeatId(0), crypt("Máddji, Mistress of Szlachtas"), 5, false);
     e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
     let ally = e.add_ally(SeatId(1), find_library("Political Ally"));
     let z = e.add_minion(SeatId(1), with(&["aus"], 0), 5, false);
@@ -6284,7 +6272,14 @@ fn toreador_grand_ball_locks_one_toreador_and_frees_the_others_actions() {
     let mut e = Engine::bare(3);
     let a = e.add_minion(SeatId(0), plain("Toreador", "", 0), 4, false);
     let b = e.add_minion(SeatId(0), plain("Toreador", "", 1), 4, false);
-    let c = e.add_minion(SeatId(0), plain("Toreador", "", 2), 4, false);
+    // Only two untitled Toreador of capacity 5+ lack printed text:
+    // Anne-Marie's (equipment costs her 1 pool less) is inert here.
+    let c = e.add_minion(
+        SeatId(0),
+        crypt("Anne-Marie Bourgeois, Inconnu Recruiter"),
+        4,
+        false,
+    );
     let z = e.add_minion(SeatId(1), plain("", "", 0), 4, false);
     e.add_minion(SeatId(2), plain("", "", 1), 4, false);
     hand(&mut e, 0, &["Toreador Grand Ball"]);
@@ -6584,7 +6579,14 @@ fn a_toreador_can_be_the_second_of_two_grand_balls() {
     let mut e = Engine::bare(3);
     let a = e.add_minion(SeatId(0), plain("Toreador", "", 0), 4, false);
     let b = e.add_minion(SeatId(0), plain("Toreador", "", 1), 4, false);
-    let c = e.add_minion(SeatId(0), plain("Toreador", "", 2), 4, false);
+    // Only two untitled Toreador of capacity 5+ lack printed text:
+    // Anne-Marie's (equipment costs her 1 pool less) is inert here.
+    let c = e.add_minion(
+        SeatId(0),
+        crypt("Anne-Marie Bourgeois, Inconnu Recruiter"),
+        4,
+        false,
+    );
     e.add_minion(SeatId(1), plain("", "", 0), 4, false);
     let first = location(&mut e, 0, "Toreador Grand Ball");
     e.state.cards[first.index()].chosen = vec![a, b];
@@ -7452,7 +7454,9 @@ fn anticipation_superior_cancels_a_strike_card_unpaid() {
 #[test]
 fn terror_frenzy_keeps_the_opponent_away_from_its_equipment_and_close_range() {
     let mut e = Engine::bare(3);
-    let a = e.add_minion(SeatId(0), with(&["ani", "cel"], 0), 5, false);
+    // Animalism and Celerity: Keegan's text (unlock after his own Gangrel
+    // action) is inert here.
+    let a = e.add_minion(SeatId(0), crypt("Keegan"), 5, false);
     e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
     let z = e.add_minion(
         SeatId(1),
@@ -7635,15 +7639,12 @@ fn weather_control_damages_both_combatants_and_their_retainers() {
 #[test]
 fn weather_control_superior_grows_each_round() {
     let mut e = Engine::bare(3);
-    let big = |tag: &'static str| {
-        move |c: &zvtes::crypt::CryptCard| {
-            has(c, &[tag]) && c.capacity >= 7 && c.title == Title::None
-        }
-    };
-    let a = e.add_minion(SeatId(0), vampire(big("THA"), 0), 8, false);
+    // Tommaso's text (ending a wraith's or zombie's combat) is inert here.
+    let a = e.add_minion(SeatId(0), crypt("Tommaso Sforza"), 8, false);
     let start = capped(&e, a);
     e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
-    let z = e.add_minion(SeatId(1), vampire(big("AUS"), 0), 8, false);
+    // Anja's text (unlocking another Hecata after its action) is inert here.
+    let z = e.add_minion(SeatId(1), crypt("\"Mother\" Anja Giovanni"), 8, false);
     let zs = capped(&e, z);
     hand(&mut e, 0, &["Weather Control", "Apportation"]);
     bleed_blocked(&mut e, a, z);
@@ -7957,15 +7958,8 @@ fn martyrs_resilience_superior_saves_a_retainer() {
 fn disarm_and_telepathic_tracking_share_the_end_of_round() {
     for tracking_first in [true, false] {
         let mut e = Engine::bare(3);
-        let a = e.add_minion(
-            SeatId(0),
-            vampire(
-                |c| has(c, &["AUS"]) && has_level(c, &["pot"]) && c.title == Title::None,
-                0,
-            ),
-            5,
-            false,
-        );
+        // Anja's text (unlocking another Hecata after its action) is inert here.
+        let a = e.add_minion(SeatId(0), crypt("\"Mother\" Anja Giovanni"), 5, false);
         e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
         let z = e.add_minion(SeatId(1), plain("Brujah", "", 0), 5, false);
         hand(&mut e, 0, &["Slam", "Disarm", "Telepathic Tracking"]);
@@ -8255,7 +8249,8 @@ fn beast_meld_prevents_a_damage_once_blocked() {
 fn beast_meld_superior_keeps_vampires_from_blocking_a_non_bleed() {
     for kind in [ActionKind::Hunt, ActionKind::Bleed] {
         let mut e = Engine::bare(3);
-        let a = e.add_minion(SeatId(0), with(&["ANI", "PRO"], 0), 5, false);
+        // Keegan's text (unlock after his own Gangrel action) is inert here.
+        let a = e.add_minion(SeatId(0), crypt("Keegan"), 5, false);
         e.add_minion(SeatId(0), plain("", "", 1), 4, false);
         let z = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
         e.add_minion(SeatId(2), plain("", "", 3), 4, false);
@@ -8544,16 +8539,13 @@ fn redirection_redirects_a_younger_bleeder_or_any_at_superior() {
         ("DOM", false, true),
     ] {
         let mut e = Engine::bare(3);
-        let acting = vampire(
-            |c| {
-                (if young {
-                    c.capacity <= 4
-                } else {
-                    c.capacity >= 9
-                }) && c.title == Title::None
-            },
-            0,
-        );
+        // No untitled vampire of capacity 9+ lacks printed text: Hel-Blá's
+        // (a printed action of its own) is inert as it bleeds.
+        let acting = if young {
+            vampire(|c| c.capacity <= 4 && c.title == Title::None, 0)
+        } else {
+            crypt("Hel-Blá")
+        };
         let a = e.add_minion(SeatId(0), acting, 3, false);
         e.add_minion(SeatId(0), plain("", "", 1), 4, false);
         let r = e.add_minion(
@@ -8590,15 +8582,18 @@ fn sense_the_savage_way_unlocks_an_elder_to_block() {
         let mut e = Engine::bare(3);
         let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
         e.add_minion(SeatId(0), plain("", "", 1), 4, false);
-        let z = e.add_minion(
-            SeatId(1),
+        // No untitled capacity-8 vampire with superior Animalism lacks
+        // printed text: Keegan's (unlock after his own Gangrel action) is
+        // inert as he blocks.
+        let z = if cap == 8 {
+            crypt("Keegan")
+        } else {
             vampire(
                 |c| has(c, &["ANI"]) && c.capacity == cap && c.title == Title::None,
                 0,
-            ),
-            4,
-            false,
-        );
+            )
+        };
+        let z = e.add_minion(SeatId(1), z, 4, false);
         e.state.minions[z.index()].locked = true;
         hand(&mut e, 1, &["Sense the Savage Way"]);
         pick(&mut e, action(a, ActionKind::Bleed));
@@ -10033,7 +10028,8 @@ fn golconda_removes_an_elder_for_its_capacity_in_pool() {
     for cancel in [false, true] {
         let mut e = Engine::bare(3);
         e.add_minion(SeatId(0), plain("", "", 0), 4, false);
-        let big = vampire(|c| c.capacity >= 8 && c.title == Title::None, 0);
+        // Anja's text (unlocking another Hecata after its action) is inert here.
+        let big = crypt("\"Mother\" Anja Giovanni");
         let z = e.add_minion(SeatId(1), big, 4, false);
         let small = e.add_minion(SeatId(1), vampire(|c| c.capacity < 8, 0), 4, false);
         hand(&mut e, 0, &["Golconda: Inner Peace"]);
@@ -12489,7 +12485,8 @@ fn wormwood_ceils_capacity_by_its_counters() {
 fn fueled_by_hearts_blood_bars_a_blood_hunt_on_a_big_diablerist() {
     for counters in [10, 3] {
         let mut e = Engine::bare(3);
-        let d = e.add_minion(SeatId(0), of_capacity(8, 0), 5, false);
+        // Anja's text (unlocking another Hecata after its action) is inert here.
+        let d = e.add_minion(SeatId(0), crypt("\"Mother\" Anja Giovanni"), 5, false);
         e.add_minion(SeatId(0), plain("Brujah", "", 0), 5, false);
         let t = e.add_minion(SeatId(1), of_capacity(3, 0), 1, true);
         e.add_minion(SeatId(1), plain("Gangrel", "", 1), 5, false);
@@ -12834,8 +12831,10 @@ fn recalled_to_the_founder_burns_one_of_three_and_spares_after_an_elder() {
 #[test]
 fn restricted_vitae_leaves_only_the_starving_hunting() {
     let mut e = Engine::bare(3);
-    let fed = e.add_minion(SeatId(0), of_capacity(8, 0), 3, false);
-    let hungry = e.add_minion(SeatId(0), of_capacity(8, 1), 0, false);
+    // Anja's text (unlocking another Hecata after its action) is inert here.
+    let fed = e.add_minion(SeatId(0), crypt("\"Mother\" Anja Giovanni"), 3, false);
+    // Abraham's text (+1 hand size, Tremere cards) is inert here.
+    let hungry = e.add_minion(SeatId(0), crypt("Abraham Mellon"), 0, false);
     let young = e.add_minion(SeatId(1), of_capacity(3, 0), 2, false);
     let rv = event_in_play(&mut e, 1, "Restricted Vitae", 0);
     e.state.seats[1].held.hunt = 1;
@@ -12875,8 +12874,10 @@ fn restricted_vitae_leaves_only_the_starving_hunting() {
 #[test]
 fn fbi_special_affairs_division_wounds_the_vampire_that_burned_an_ally() {
     let mut e = Engine::bare(3);
-    let a = e.add_minion(SeatId(0), with(&["pot"], 0), 5, false);
-    e.add_minion(SeatId(0), plain("Brujah", "", 0), 5, false);
+    // Anja's text (unlocking another Hecata after its action) is inert here.
+    let a = e.add_minion(SeatId(0), crypt("\"Mother\" Anja Giovanni"), 5, false);
+    // Adelino's text (cheaper rescues) is inert here.
+    e.add_minion(SeatId(0), crypt("Adelino Da Silva"), 5, false);
     let ally = e.add_ally(SeatId(1), find_library("Underbridge Stray"));
     let fbi = event_in_play(&mut e, 2, "FBI Special Affairs Division", 3);
     bleed_blocked(&mut e, a, ally);
@@ -12956,7 +12957,8 @@ fn rise_of_the_nephtali_makes_an_independent_liaison_the_younger_yielding() {
     use zvtes::crypt::Sect;
     let mut e = Engine::bare(3);
     let young = e.add_minion(SeatId(0), of_capacity(3, 0), 3, false);
-    let old = e.add_minion(SeatId(0), of_capacity(8, 0), 3, false);
+    // Anja's text (unlocking another Hecata after its action) is inert here.
+    let old = e.add_minion(SeatId(0), crypt("\"Mother\" Anja Giovanni"), 3, false);
     let cam = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 3, false);
     for m in [young, old] {
         e.state.minions[m.index()].sect_override = Some(Sect::Independent);
@@ -13161,8 +13163,8 @@ fn blood_weakens_holds_an_action_card_played_with_a_discipline() {
 // ---- Rulings re-triage: riders of a second block --------------------------
 
 /// Seat 0's `a` (superior Protean, with any Obfuscate) bleeds with Form of
-/// Mist and Lost in Crowds in hand; seat 1's `z` printing `tags`.
-fn second_block_table(tags: &'static [&'static str]) -> (Engine, MinionId, MinionId) {
+/// Mist and Lost in Crowds in hand; seat 1's `z`, the crypt card `blocker`.
+fn second_block_table(blocker: u16) -> (Engine, MinionId, MinionId) {
     let mut e = Engine::bare(3);
     let a = e.add_minion(
         SeatId(0),
@@ -13174,7 +13176,7 @@ fn second_block_table(tags: &'static [&'static str]) -> (Engine, MinionId, Minio
         false,
     );
     e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
-    let z = e.add_minion(SeatId(1), with(tags, 0), 5, false);
+    let z = e.add_minion(SeatId(1), blocker, 5, false);
     hand(&mut e, 0, &["Form of Mist", "Lost in Crowds"]);
     (e, a, z)
 }
@@ -13197,12 +13199,16 @@ fn form_of_mist_then_second_block(e: &mut Engine, a: MinionId, z: MinionId) {
 // (Enhanced Senses against its +1 stealth) and has the rider again.
 #[test]
 fn intercept_riders_come_again_with_a_second_block_after_form_of_mist() {
-    for (tags, card) in [
-        (&["ANI", "aus"][..], "Instinctive Reaction"),
-        (&["AUS"][..], "Spirit's Touch"),
-        (&["AUS"][..], "Precognition"),
+    // Blockers with the card's Discipline; their texts (unlock after
+    // Keegan's own Gangrel action, after another Hecata's action for Anja)
+    // are inert here.
+    let anja = crypt("\"Mother\" Anja Giovanni");
+    for (blocker, card) in [
+        (crypt("Keegan"), "Instinctive Reaction"),
+        (anja, "Spirit's Touch"),
+        (anja, "Precognition"),
     ] {
-        let (mut e, a, z) = second_block_table(tags);
+        let (mut e, a, z) = second_block_table(blocker);
         hand(&mut e, 1, &[card, "On the Qui Vive", "Enhanced Senses"]);
         pick(&mut e, action(a, ActionKind::Bleed));
         pick(&mut e, Choice::DeclareBlock { minion: z });
@@ -13330,15 +13336,15 @@ fn one_with_the_land_bars_strikes_again_after_a_second_block() {
 fn forced_block_attempts_are_not_offered_under_daring_the_dawn() {
     for case in 0..4 {
         let mut e = Engine::bare(3);
-        let a = e.add_minion(SeatId(0), with(&["FOR"], 0), 5, false);
+        // Anja's text (unlocking another Hecata after its action) is inert here.
+        let a = e.add_minion(SeatId(0), crypt("\"Mother\" Anja Giovanni"), 5, false);
         e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
         hand(&mut e, 0, &["Daring the Dawn"]);
         let (card, z) = match case {
             0 => {
-                let elder = vampire(
-                    |c| has(c, &["ANI"]) && c.capacity >= 7 && c.title == Title::None,
-                    0,
-                );
+                // Its text (unlock after its own Gangrel action) is inert
+                // here.
+                let elder = crypt("Keegan");
                 (
                     "Sense the Savage Way",
                     e.add_minion(SeatId(1), elder, 4, false),
@@ -13405,7 +13411,8 @@ fn a_guns_maneuver_is_not_used_while_its_strike_is_barred() {
 #[test]
 fn daring_the_dawn_burns_after_mirror_walk_ends_the_action() {
     let mut e = Engine::bare(3);
-    let a = e.add_minion(SeatId(0), with(&["for", "THA"], 0), 1, false);
+    // Tommaso's text (ending a wraith's or zombie's combat) is inert here.
+    let a = e.add_minion(SeatId(0), crypt("Tommaso Sforza"), 1, false);
     e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
     let ally = e.add_ally(SeatId(1), find_library("47th Street Royals"));
     equip(&mut e, "Raven Spy", ally); // +1 intercept
@@ -13705,7 +13712,8 @@ fn nightmares_upon_nightmares_reaches_animal_and_ghoul_allies() {
         "Political Ally",
     ] {
         let mut e = Engine::bare(3);
-        let v = e.add_minion(SeatId(0), of_capacity(9, 0), 3, false);
+        // Hel-Blá's text (a printed action) is inert here.
+        let v = e.add_minion(SeatId(0), crypt("Hel-Blá"), 3, false);
         // A retainer for a ghoul's entry to burn.
         let spy = equip(&mut e, "Raven Spy", v);
         let ally = e.add_ally(SeatId(0), find_library(name));
@@ -13956,7 +13964,8 @@ fn a_sniper_rifle_equipped_after_the_block_does_not_set_the_range() {
 #[test]
 fn taste_of_vitae_is_played_when_the_opponent_was_burned() {
     let mut e = Engine::bare(3);
-    let a = e.add_minion(SeatId(0), vampire(|c| has(c, &["POT", "PRO"]), 0), 6, false);
+    // Gnaeus's text (unlock-phase damage to his prey) is not reached here.
+    let a = e.add_minion(SeatId(0), crypt("Gnaeus Aemilius Augustinus"), 6, false);
     e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
     let z = e.add_minion(SeatId(1), plain("", "", 1), 0, false);
     hand(

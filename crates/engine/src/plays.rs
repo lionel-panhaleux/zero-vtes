@@ -537,18 +537,15 @@ impl Engine {
                         continue;
                     }
                     // Clan requirement: the playing minion's clan, or (a
-                    // Methuselah's card) a ready vampire of the clan.
+                    // Methuselah's card) a ready vampire of the clan — or
+                    // playing as one (Abraham Mellon, Lady Scarlett
+                    // Churchill).
                     if !clans.is_empty() {
-                        let of_clan = |m: MinionId| {
-                            st.minions[m.index()]
-                                .clan()
-                                .is_some_and(|c| clans.contains(&c))
-                        };
                         let ok = match actor {
-                            Some(m) => of_clan(m),
-                            None => st
-                                .minions_of(seat)
-                                .any(|m| st.minions[m.index()].ready() && of_clan(m)),
+                            Some(m) => st.meets_clan(m, clans, false),
+                            None => st.minions_of(seat).any(|m| {
+                                st.minions[m.index()].ready() && st.meets_clan(m, clans, true)
+                            }),
                         };
                         if !ok {
                             continue;
@@ -605,12 +602,16 @@ impl Engine {
                             Target::None,
                             x,
                         ));
-                        if (blood
+                        // Less the minion's printed reductions (Roger de
+                        // Camden).
+                        let mut blood = blood
                             + self.discipline_surcharge(m, card, mi as u8)
-                            + self.combat_card_surcharge(m, card))
-                        .saturating_sub(potential)
-                            > st.minions[m.index()].blood
-                        {
+                            + self.combat_card_surcharge(m, card);
+                        st.printed_cost_off(m, card, mi as u8).apply(
+                            &mut cards::pool_cost(st, seat, card, Target::None),
+                            &mut blood,
+                        );
+                        if blood.saturating_sub(potential) > st.minions[m.index()].blood {
                             continue;
                         }
                         // "This ally cannot have or use equipment or
@@ -777,8 +778,20 @@ impl Engine {
                                         && !(declares_action
                                             && st.minions[id.index()].owner != seat
                                             && actor.is_some_and(|a| !st.may_direct_at(a, id)))
-                                        && spec.filter.iter().all(|&r| {
-                                            cards::holds_for_minion(
+                                        && spec.filter.iter().all(|&r| match r {
+                                            // A vampire playing as the clan
+                                            // the card requires (Lady
+                                            // Scarlett, Toreador Grand
+                                            // Ball's Toreador: ANK
+                                            // 20220816-2).
+                                            Requirement::TargetClan(c)
+                                                if LIBRARY[card as usize]
+                                                    .clans
+                                                    .contains(&c) =>
+                                            {
+                                                st.meets_clan(id, &[c], actor != Some(id))
+                                            }
+                                            _ => cards::holds_for_minion(
                                                 r,
                                                 st,
                                                 seat,
@@ -786,7 +799,7 @@ impl Engine {
                                                 action.map(|a| a.acting).or(actor),
                                                 id,
                                                 action,
-                                            )
+                                            ),
                                         })
                                         // "Unlock a locked Anarch you
                                         // control; that Anarch attempts to
@@ -834,7 +847,14 @@ impl Engine {
                         let potential = self
                             .cost_potential(&PlayCtx::new(seat, card, mi as u8, actor, target, 0))
                             as i32;
-                        if cards::pool_cost(st, seat, card, target) - discount - potential <= pool {
+                        // Less the minion's printed reductions (Anne-Marie
+                        // Bourgeois, Kuyén, Máddji).
+                        let mut cost = cards::pool_cost(st, seat, card, target);
+                        if let Some(m) = actor {
+                            st.printed_cost_off(m, card, mi as u8)
+                                .apply(&mut cost, &mut cards::blood_cost(st, card, 0));
+                        }
+                        if cost - discount - potential <= pool {
                             out.push(Choice::Play {
                                 card: hi as u8,
                                 mode: mi as u8,
@@ -989,7 +1009,7 @@ impl Engine {
             ctx.x = x;
         }
         // Cost reductions to announce with the card, if any apply.
-        if !self.cost_sources(&ctx).is_empty() {
+        if self.cost_choices(&ctx) {
             let resume = match std::mem::replace(&mut self.flow, Flow::GameOver) {
                 outer @ Flow::AsPlayed { .. } => outer,
                 _ => resume,
@@ -1146,6 +1166,36 @@ impl Engine {
         out
     }
 
+    /// The vampires whose blood may pay 1 of `ctx`'s card's cost, none
+    /// picked yet, while it costs something: "each time you play a location
+    /// card, you can use up to 1 of Regina's blood", in torpor too (LSJ
+    /// 20011022), a locquipment played as equipment included (LSJ
+    /// 20080107).
+    pub(crate) fn blood_payers(&self, ctx: &PlayCtx) -> Vec<MinionId> {
+        let st = &self.state;
+        if ctx.blood_payer.is_some() || ctx.named.is_some() {
+            return Vec::new();
+        }
+        let costs = cards::pool_cost(st, ctx.seat, ctx.card, ctx.target) > 0
+            || cards::blood_cost(st, ctx.card, ctx.x) > 0;
+        let pctx = crate::state::PrintedCtx {
+            card: Some((ctx.card, ctx.mode)),
+            ..Default::default()
+        };
+        st.minions_of(ctx.seat)
+            .filter(|&m| {
+                costs
+                    && st.minions[m.index()].blood > 0
+                    && st.printed_mod(m, cards::Stat::BloodPaysCost, pctx) > 0
+            })
+            .collect()
+    }
+
+    /// Anything to announce with the card: a reduction, a vampire's blood.
+    pub(crate) fn cost_choices(&self, ctx: &PlayCtx) -> bool {
+        !self.cost_sources(ctx).is_empty() || !self.blood_payers(ctx).is_empty()
+    }
+
     /// What reduction `c` could take off `ctx`'s card at most.
     fn cost_source_max(&self, ctx: &PlayCtx, c: CardId) -> u8 {
         self.cost_sources(ctx)
@@ -1157,13 +1207,15 @@ impl Engine {
     /// What the reductions could still take off `ctx`'s card (its
     /// affordability as it is offered).
     pub(crate) fn cost_potential(&self, ctx: &PlayCtx) -> u8 {
-        self.cost_sources(ctx).iter().map(|&(_, n)| n).sum()
+        self.cost_sources(ctx).iter().map(|&(_, n)| n).sum::<u8>()
+            + u8::from(!self.blood_payers(ctx).is_empty())
     }
 
     pub(crate) fn cost_terms_request(
         &self,
         ctx: &PlayCtx,
         pending: Option<CardId>,
+        then: CostThen,
     ) -> DecisionRequest {
         let options = match pending {
             // How many counters (Ravnos Carnival, Ravnos Cache).
@@ -1180,6 +1232,10 @@ impl Engine {
                         .into_iter()
                         .map(|(c, _)| Choice::ResolveRider { card: c.0 }),
                 );
+                // Not for a card found by a search: it is not played.
+                if then != CostThen::EquipFound {
+                    options.extend(self.blood_payers(ctx).into_iter().map(Choice::ChooseMinion));
+                }
                 options
             }
         };
@@ -1194,8 +1250,10 @@ impl Engine {
         let st = &self.state;
         let m = ctx.actor.expect("minion");
         let off = self.cost_potential(ctx) + st.equip_discount(m, ctx.card);
-        let blood = cards::blood_cost(st, ctx.card, ctx.x);
-        let pool = cards::pool_cost(st, ctx.seat, ctx.card, ctx.target);
+        let mut blood = cards::blood_cost(st, ctx.card, ctx.x);
+        let mut pool = cards::pool_cost(st, ctx.seat, ctx.card, ctx.target);
+        st.printed_cost_off(m, ctx.card, ctx.mode)
+            .apply(&mut pool, &mut blood);
         let have = (st.seats[ctx.seat.index()].pool, st.minions[m.index()].blood);
         payable((pool, blood), off, have, pool_may_oust)
     }
@@ -1204,7 +1262,8 @@ impl Engine {
     /// unaffordable card must announce them: LSJ 20090705)?
     fn affordable_with_discounts(&self, ctx: &PlayCtx) -> bool {
         let st = &self.state;
-        let off: u8 = ctx.discounts.iter().flatten().map(|&(_, n)| n).sum();
+        let off: u8 = ctx.discounts.iter().flatten().map(|&(_, n)| n).sum::<u8>()
+            + u8::from(ctx.blood_payer.is_some());
         let blood = cards::blood_cost(st, ctx.card, ctx.x);
         let pool = cards::pool_cost(st, ctx.seat, ctx.card, ctx.target);
         let have_blood = ctx.actor.map_or(u8::MAX, |m| st.minions[m.index()].blood);
@@ -1252,6 +1311,7 @@ impl Engine {
                     *slot = Some((c, n));
                 }
             }
+            (None, Choice::ChooseMinion(m)) => ctx.blood_payer = Some(*m),
             (None, Choice::Pass) => {
                 self.cost_terms_done(ctx, resume, then);
                 return;
@@ -1259,7 +1319,12 @@ impl Engine {
             (p, c) => unreachable!("illegal cost terms choice {c:?} ({p:?})"),
         }
         // More to pick, or done when nothing else applies.
-        if self.cost_sources(&ctx).is_empty() {
+        let more = if then == CostThen::EquipFound {
+            !self.cost_sources(&ctx).is_empty()
+        } else {
+            self.cost_choices(&ctx)
+        };
+        if !more {
             self.cost_terms_done(ctx, resume, then);
         } else {
             self.flow = Flow::CostTerms {
@@ -1274,9 +1339,16 @@ impl Engine {
     /// A named card's cost after the reductions announced with the card
     /// that played it, those taken now: The Line and The Shard locked, the
     /// counters spent for what they cover ("blood or pool" first, then
-    /// blood-only, then counters: rules-qa 36.2).
+    /// blood-only, then counters: rules-qa 36.2) — after the paying
+    /// minion's printed ones (Kuyén: ANK 20210913).
     pub(crate) fn pay_named_discounts(&mut self, ctx: &PlayCtx, pool: i32, blood: u8) -> (i32, u8) {
         let (mut pool, mut blood) = (pool, blood);
+        if let Some(m) = ctx.actor {
+            let (card, mode) = ctx.named.unwrap_or((ctx.card, ctx.mode));
+            self.state
+                .printed_cost_off(m, card, mode)
+                .apply(&mut pool, &mut blood);
+        }
         let (either, blood_off, counters) = self.take_discounts(ctx);
         reduce(&mut pool, &mut blood, either);
         blood = blood.saturating_sub(blood_off);
@@ -1362,8 +1434,9 @@ impl Engine {
         distinct(&st.seats[seat.index()].hand, |_| true)
             .into_iter()
             .filter(|&card| {
-                let pool = cards::pool_cost(st, seat, card, Target::Minion(m));
-                let blood = cards::blood_cost(st, card, 0);
+                let mut pool = cards::pool_cost(st, seat, card, Target::Minion(m));
+                let mut blood = cards::blood_cost(st, card, 0);
+                st.printed_cost_off(m, card, 0).apply(&mut pool, &mut blood);
                 let have = st.minions[m.index()].blood;
                 let share = if blood_share {
                     (pool as u8 / 2).min(have.saturating_sub(blood)) as i32
@@ -1432,8 +1505,9 @@ impl Engine {
             {
                 continue;
             }
-            let pool = cards::pool_cost(st, seat, card, Target::Minion(m));
-            let blood = cards::blood_cost(st, card, 0);
+            let mut pool = cards::pool_cost(st, seat, card, Target::Minion(m));
+            let mut blood = cards::blood_cost(st, card, 0);
+            st.printed_cost_off(m, card, 0).apply(&mut pool, &mut blood);
             if st.seats[seat.index()].pool < pool || st.minions[m.index()].blood < blood {
                 continue;
             }
@@ -1489,9 +1563,14 @@ impl Engine {
                 .minions_of(ctx.seat)
                 .filter(|&m| {
                     let v = &self.state.minions[m.index()];
-                    v.ready()
-                        && v.clan() == Some(clan)
-                        && !(other && ctx.target == Target::Minion(m))
+                    // A vampire playing as the clan the card requires may
+                    // be chosen (ANK 20220816-2).
+                    let of_clan = if LIBRARY[ctx.card as usize].clans.contains(&clan) {
+                        self.state.meets_clan(m, &[clan], true)
+                    } else {
+                        v.clan() == Some(clan)
+                    };
+                    v.ready() && of_clan && !(other && ctx.target == Target::Minion(m))
                 })
                 .map(Choice::ChooseMinion)
                 .collect(),
@@ -1609,7 +1688,7 @@ impl Engine {
         }
         // The card just named may take reductions (Piper's ally,
         // Contraband's equipment; ANK 20230824, RTR 20070707).
-        if ctx.named.is_some() && !self.cost_sources(&ctx).is_empty() {
+        if ctx.named.is_some() && self.cost_choices(&ctx) {
             self.flow = Flow::CostTerms {
                 ctx,
                 resume: Box::new(resume),
@@ -2083,6 +2162,17 @@ impl Engine {
             .effects
             .iter()
             .any(|e| matches!(e, Effect::EmployNamed | Effect::EquipNamed));
+        // The playing minion's printed reductions (Roger de Camden).
+        if let Some(m) = ctx.actor.filter(|_| !names) {
+            let off = self.state.printed_cost_off(m, ctx.card, ctx.mode);
+            pool = (pool - off.pool as i32).max(0);
+            blood_off += off.blood;
+            if pool > 0 {
+                pool = (pool - off.either as i32).max(0);
+            } else {
+                blood_off += off.either;
+            }
+        }
         for (c, n) in ctx.discounts.into_iter().flatten().filter(|_| !names) {
             let card = &self.state.cards[c.index()];
             if card.present()
@@ -2096,6 +2186,15 @@ impl Engine {
                 } else {
                     blood_off += n;
                 }
+            }
+        }
+        // A vampire's blood paying 1 of it (Regina Blake).
+        if let Some(r) = ctx.blood_payer.filter(|_| !names) {
+            let before = cards::blood_cost(&self.state, ctx.card, ctx.x).saturating_sub(blood_off);
+            let mut blood = before;
+            if let Some(r) = self.blood_payment(Some(r), &mut pool, &mut blood) {
+                self.state.minions[r.index()].blood -= 1;
+                blood_off += before - blood;
             }
         }
         self.state.seats[s.index()].pool -= pool;
@@ -3719,6 +3818,18 @@ impl Engine {
             .unwrap_or(0)
     }
 
+    /// The blood a card with no pool cost to pay (a bleed or political
+    /// action card) costs `actor` as it is paid: its cost with X, its
+    /// surcharges, less the actor's printed reductions (Roger de Camden).
+    pub(crate) fn card_blood(&self, actor: MinionId, play: PlayCtx, x: u8) -> u8 {
+        let mut blood = cards::blood_cost(&self.state, play.card, x)
+            + self.card_surcharge(actor, play.card, play.mode);
+        self.state
+            .printed_cost_off(actor, play.card, play.mode)
+            .apply(&mut 0, &mut blood);
+        blood
+    }
+
     /// What `actor`'s card costs more (mode `mode`), action cards paid at
     /// resolution included: "cards requiring a Discipline cost this
     /// vampire +n blood" (Enhanced Coagulant become: played using one,
@@ -4290,7 +4401,16 @@ impl Engine {
                 }
                 // An ability's pool cost ("lock this location and burn 1
                 // pool"): paid down to 0, its user is ousted.
-                Effect::PayPool(n) => self.pay_pool_for_ability(ctx.seat, n as i32),
+                // Paid down to 0: its user is ousted, nothing more resolves
+                // (Michael Harris's range, its combat gone). The active
+                // Methuselah's oust passed the turn: the flow moved on.
+                Effect::PayPool(n) => {
+                    let active = self.state.active;
+                    self.pay_pool_for_ability(ctx.seat, n as i32);
+                    if self.state.seats[ctx.seat.index()].ousted {
+                        return ctx.seat == active;
+                    }
+                }
                 Effect::ExchangeForAnarchCard => {
                     self.interrupts.push(Interrupt::ExchangeAnarch {
                         seat: ctx.seat,
@@ -4379,6 +4499,49 @@ impl Engine {
                     if v.present() {
                         let b = self.state.cap_starting(t, v.blood.saturating_add(n));
                         self.state.minions[t.index()].blood = b;
+                    }
+                }
+                // "Lock after resolution of a successful bleed against you to
+                // enter combat with the acting minion" (The Guardian): both
+                // still ready, the acting minion acting first.
+                Effect::EnterCombatWithActing => {
+                    let h = host.expect("host");
+                    if let Some(acting) = self.action.as_ref().map(|a| a.acting) {
+                        if self.state.minions[acting.index()].ready()
+                            && self.state.minions[h.index()].ready()
+                        {
+                            self.start_combat_after_resolution(acting, h);
+                            return true;
+                        }
+                    }
+                }
+                Effect::MoveTargetToOwnVampire => {
+                    if self.state.cards[target.card().index()].present() {
+                        self.interrupts.push(Interrupt::MinionOf {
+                            seat: ctx.seat,
+                            of: ctx.seat,
+                            purpose: crate::draws::MinionPurpose::MoveCard(target.card()),
+                        });
+                    }
+                }
+                Effect::HostBloodToTarget(n) => {
+                    let (h, t) = (host.expect("host"), target.minion());
+                    let have = self.state.minions[h.index()].blood;
+                    let was = self.state.minions[t.index()].blood;
+                    let now = self.state.cap_starting(t, was.saturating_add(n.min(have)));
+                    self.state.minions[t.index()].blood = now;
+                    self.state.minions[h.index()].blood -= now - was;
+                }
+                Effect::TargetBloodToHost(n) => {
+                    let (h, t) = (host.expect("host"), target.minion());
+                    let was = self.state.minions[h.index()].blood;
+                    let give = n.min(self.state.minions[t.index()].blood);
+                    let now = self.state.cap_starting(h, was.saturating_add(give));
+                    self.state.minions[h.index()].blood = now;
+                    let v = &mut self.state.minions[t.index()];
+                    v.blood -= now - was;
+                    if v.is_ally() && v.blood == 0 {
+                        self.burn_minion(t);
                     }
                 }
                 Effect::HandSizeBonusUntilEndOfTurn(n) => {
@@ -4641,7 +4804,7 @@ impl Engine {
                     let c = &mut self.state.cards[source.card().index()];
                     c.counters -= n.min(c.counters);
                 }
-                Effect::RaiseAllyWhenEmpty(labels) => {
+                Effect::RaiseAllyWhenEmpty(of) => {
                     let id = source.card();
                     if self.state.cards[id.index()].in_play
                         && self.state.cards[id.index()].counters == 0
@@ -4649,7 +4812,8 @@ impl Engine {
                         self.burn_card_in_play(id);
                         self.interrupts.push(Interrupt::AllyFromAsh {
                             seat: ctx.seat,
-                            labels,
+                            of,
+                            locked: false,
                         });
                     }
                 }
@@ -4676,8 +4840,13 @@ impl Engine {
                 Effect::UnlockActing => {
                     if let Some(a) = self.action.as_mut() {
                         let m = a.acting;
-                        // British Museum: once each turn per minion.
-                        if a.kind == ActionKind::Equip {
+                        // British Museum: once each turn per minion (its
+                        // mark only, not another source's unlock).
+                        if a.kind == ActionKind::Equip
+                            && mode
+                                .requires
+                                .contains(&Requirement::PlainEquipFromHandOncePerTurn)
+                        {
                             self.state
                                 .turn_uses
                                 .push((AbilitySource::Vampire(m), u8::MAX - 1));
@@ -4852,6 +5021,23 @@ impl Engine {
         }
     }
 
+    /// The unlock-phase riders printed on vampire `m` due in its
+    /// controller's unlock phase, their requirements read on it now.
+    pub(crate) fn printed_unlock_riders(&self, m: MinionId) -> Vec<&'static cards::Rider> {
+        let st = &self.state;
+        let v = &st.minions[m.index()];
+        cards::vampire_of(v)
+            .filter(|_| v.present())
+            .map_or(&[][..], |d| d.riders)
+            .iter()
+            .filter(|r| {
+                r.hook == Hook::UnlockPhase
+                    && r.scope.applies(st, v.owner, st.active)
+                    && r.requires.iter().all(|&q| cards::holds_for_host(q, st, m))
+            })
+            .collect()
+    }
+
     /// Unlock-phase effects: an ordered window over the seats clockwise
     /// from the active one. The active Methuselah orders their pending
     /// mandatory riders (Anarch Revolt) among their own optional abilities
@@ -4875,6 +5061,7 @@ impl Engine {
             for p in live {
                 match *p {
                     Pending::Rider(c) => options.push(Choice::ResolveRider { card: c.0 }),
+                    Pending::Printed(m) => options.push(Choice::ResolvePrinted { minion: m }),
                     // Re-read: a title's vampire may have lost its blood
                     // to another unlock effect since (a forced yield now).
                     Pending::Contest(item) => options.extend(self.contest_choices(item)),
@@ -4922,9 +5109,9 @@ impl Engine {
                         let v = &st.minions[m.index()];
                         // Ready minions only (owner, 2026-09-26: rules-qa
                         // 33.8).
+                        let master = lib.types.contains(&CardType::Master);
                         v.ready()
-                            && (lib.clans.is_empty()
-                                || v.clan().is_some_and(|c| lib.clans.contains(&c)))
+                            && (lib.clans.is_empty() || st.meets_clan(m, lib.clans, master))
                             && (lib.disciplines.is_empty()
                                 || lib.disciplines.iter().any(|d| st.has_discipline(m, d)))
                     })
@@ -4991,6 +5178,26 @@ impl Engine {
                 };
                 if self.use_ability(*source, *ability, *actor, *target, resume) {
                     return; // ousted (the turn has passed) or terms pending
+                }
+            }
+            Choice::ResolvePrinted { minion } => {
+                pending.retain(|p| *p != Pending::Printed(*minion));
+                window.play();
+                // Its requirements read again as it resolves.
+                for r in self.printed_unlock_riders(*minion) {
+                    for e in r.effects {
+                        match *e {
+                            Effect::PreyChoosesMinionDamaged(n) => {
+                                let prey = self.state.prey(self.state.active);
+                                self.interrupts.push(Interrupt::MinionOf {
+                                    seat: prey,
+                                    of: prey,
+                                    purpose: crate::draws::MinionPurpose::Damage(n),
+                                });
+                            }
+                            other => unreachable!("not a printed unlock rider effect: {other:?}"),
+                        }
+                    }
                 }
             }
             Choice::ResolveRider { card } => {
@@ -5589,7 +5796,7 @@ fn payable(cost: (i32, u8), off: u8, have: (i32, u8), pool_may_oust: bool) -> bo
 
 /// The tags a card is played with in definition mode `mode` (its library
 /// mode's: the Disciplines used, card-type markers of a combo card).
-fn played_disciplines(card: u16, mode: u8) -> &'static [&'static str] {
+pub(crate) fn played_disciplines(card: u16, mode: u8) -> &'static [&'static str] {
     LIBRARY[card as usize]
         .modes
         .get(cards::library_mode(card, mode as usize))

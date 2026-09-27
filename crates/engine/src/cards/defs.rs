@@ -11046,8 +11046,8 @@ pub static SPLIT_THE_VEIL: CardDef = CardDef {
         &[
             Effect::RemoveCounter(1),
             Effect::RaiseAllyWhenEmpty(&[
-                crate::library::Label::Wraith,
-                crate::library::Label::Zombie,
+                CardFilter::HasLabel(crate::library::Label::Wraith),
+                CardFilter::HasLabel(crate::library::Label::Zombie),
             ]),
         ],
     )],

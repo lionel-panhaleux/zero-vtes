@@ -450,6 +450,9 @@ pub struct CombatCtx {
     /// action), not by a block: part of the action (spec §4.1.2), its
     /// after-combat window leading to after resolution (rules-qa 17.3).
     pub at_resolution: bool,
+    /// Begun by an ability used after the action's resolution (The
+    /// Guardian): over, it returns to the after-resolution window.
+    pub after_resolution: bool,
     /// Cards to put on their minion after combat ends (Pass Through Shadow
     /// [OBL]), from the ash heap; not if the combat continues.
     pub after_combat: Vec<Held>,
@@ -660,6 +663,13 @@ impl Engine {
     /// only if it actually blocked).
     pub(crate) fn start_combat(&mut self, acting: MinionId, opposing: MinionId) {
         self.begin_combat(acting, opposing, false);
+    }
+
+    /// After the action's resolution, a minion enters combat with the
+    /// acting minion, which acts first (The Guardian, ANK 20221102).
+    pub(crate) fn start_combat_after_resolution(&mut self, acting: MinionId, opposing: MinionId) {
+        self.begin_combat(acting, opposing, false);
+        self.combat.as_mut().expect("combat").after_resolution = true;
     }
 
     /// A successful action enters combat with its target (Theo Bell).
@@ -2000,7 +2010,11 @@ impl Engine {
                 self.draw_up(s);
             }
         }
-        self.after_combat();
+        if ended.as_ref().is_some_and(|c| c.after_resolution) {
+            self.back_to_after_resolution();
+        } else {
+            self.after_combat();
+        }
     }
 
     /// At long range, each ranged strike among `options` may instead be

@@ -72,6 +72,28 @@ pub struct PrintedCtx {
     pub kind: Option<ActionKind>,
     pub directed: Option<bool>,
     pub opponent: Option<MinionId>,
+    /// The card the modified minion plays or puts in play, and the mode
+    /// it is played with (a printed cost reduction).
+    pub card: Option<(u16, u8)>,
+}
+
+/// What a minion's printed text takes off a card's cost
+/// (`GameState::printed_cost_off`): pool only, blood only, and "blood or
+/// pool" — off whichever the card costs.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CostOff {
+    pub pool: u8,
+    pub blood: u8,
+    pub either: u8,
+}
+
+impl CostOff {
+    /// Take the reductions off a `(pool, blood)` cost.
+    pub fn apply(self, pool: &mut i32, blood: &mut u8) {
+        *pool = (*pool - self.pool as i32).max(0);
+        *blood = blood.saturating_sub(self.blood);
+        crate::plays::reduce(pool, blood, self.either);
+    }
 }
 
 /// What a minion is: a vampire (its crypt card) or an ally — a library card
@@ -1109,6 +1131,53 @@ impl GameState {
         total
     }
 
+    /// Does `m` meet a card's requirement of one of `clans` for playing it
+    /// — `m` playing it, or with `by_methuselah` its Methuselah? Its own
+    /// clan, or a printed "can play cards requiring a Tremere as if he were
+    /// a Tremere" (Abraham Mellon; "you and Lady Scarlett", its Methuselah
+    /// too). Only for playing the card normally, not for a card another
+    /// puts in play (LSJ 20050119); the effects the card has once in play
+    /// read the clan itself (`of_card_clan`; LSJ 20101013).
+    pub fn meets_clan(&self, m: MinionId, clans: &[&str], by_methuselah: bool) -> bool {
+        let v = &self.minions[m.index()];
+        v.clan().is_some_and(|c| clans.contains(&c))
+            || v.present()
+                && cards::vampire_of(v)
+                    .and_then(|d| d.plays_as)
+                    .is_some_and(|p| clans.contains(&p.clan) && (p.methuselah || !by_methuselah))
+    }
+
+    /// Is `m` of the clan `card` requires, itself — what the card's effects
+    /// in play read: a vampire playing as the clan does not qualify (Lady
+    /// Scarlett chosen by Toreador Grand Ball unlocks as normal, ANK
+    /// 20220816-2).
+    pub fn of_card_clan(&self, m: MinionId, card: u16) -> bool {
+        let clans = LIBRARY[card as usize].clans;
+        clans.is_empty()
+            || self.minions[m.index()]
+                .clan()
+                .is_some_and(|c| clans.contains(&c))
+    }
+
+    /// What `m`'s printed text takes off the cost of `card`, played in
+    /// `mode`, that it plays or puts in play ("Equipment cost Anne-Marie -1
+    /// pool"; "Animals … cost Kuyén -1 blood or pool"; "Cards requiring
+    /// Hecata and/or Oblivion cost Roger -1 blood"): reductions reaching a
+    /// card put in play by another (Piper, Contraband; rules-qa 36.5, ANK
+    /// 20210913).
+    pub fn printed_cost_off(&self, m: MinionId, card: u16, mode: u8) -> CostOff {
+        let ctx = PrintedCtx {
+            card: Some((card, mode)),
+            ..PrintedCtx::default()
+        };
+        let n = |stat| self.printed_mod(m, stat, ctx).max(0) as u8;
+        CostOff {
+            pool: n(Stat::PoolCostOff),
+            blood: n(Stat::BloodCostOff),
+            either: n(Stat::CostOff),
+        }
+    }
+
     /// A printed-modifier predicate, read on the vampire whose text it is
     /// (`source`), the modified minion (`actor`) and the opposing minion.
     fn printed_holds(
@@ -1153,6 +1222,22 @@ impl GameState {
                 });
                 any == (r == R::ControlsLocation)
             }
+            // The card played, in the mode played ("requiring" = played
+            // using, rules-qa 38.4).
+            R::PlayedCard(f) => ctx.card.is_some_and(|(c, _)| f.matches(c)),
+            R::PlayedRequiresDiscipline(d) => ctx.card.is_some_and(|(c, mode)| {
+                crate::plays::played_disciplines(c, mode)
+                    .iter()
+                    .any(|t| cards::discipline_key(t) == d)
+            }),
+            R::AnyOf(alternatives) => alternatives.iter().any(|reqs| {
+                reqs.iter()
+                    .all(|&q| self.printed_holds(q, source, actor, ctx))
+            }),
+            R::ControlsNoReadyOlderOfClan(clan) => !self.minions_of(src.owner).any(|o| {
+                let w = &self.minions[o.index()];
+                w.ready() && w.clan() == Some(clan) && self.younger_than(source, o)
+            }),
             R::ControlsVampireNamed(name) => self
                 .minions
                 .iter()
@@ -1487,13 +1572,23 @@ impl GameState {
             .collect()
     }
 
-    /// The discount on `rescuer`'s rescue of `target` from its cards in play,
-    /// and the blood the rescued vampire gains on success (Saulot's Healing
-    /// Touch).
+    /// The discount on `rescuer`'s rescue of `target` from its cards in play
+    /// and its printed text (Adelino Da Silva, Doc Martina), and the blood
+    /// the rescued vampire gains on success (Saulot's Healing Touch).
     pub fn rescue_discount(&self, rescuer: MinionId, target: MinionId) -> (u8, u8) {
         let clan = self.minions[target.index()].clan();
+        let printed = self
+            .printed_mod(
+                rescuer,
+                Stat::RescueDiscount,
+                PrintedCtx {
+                    opponent: Some(target),
+                    ..PrintedCtx::default()
+                },
+            )
+            .max(0) as u8;
         self.borne(rescuer)
-            .fold((0, 0), |(d, g), l| match l.modifier {
+            .fold((printed, 0), |(d, g), l| match l.modifier {
                 Modifier::RescueDiscount { not_clan, n, gain }
                     if not_clan.is_none() || clan != not_clan =>
                 {
@@ -1690,6 +1785,7 @@ impl GameState {
             && self.in_play_layers().any(|l| {
                 l.modifier == Modifier::SecondChosenUnblockable
                     && self.cards[l.source.index()].chosen.get(1) == Some(&m)
+                    && self.of_card_clan(m, self.cards[l.source.index()].card)
             })
     }
 
@@ -1705,7 +1801,9 @@ impl GameState {
             let c = &self.cards[l.source.index()];
             match l.modifier {
                 Modifier::HostDoesNotUnlock => c.host == Some(m),
-                Modifier::FirstChosenDoesNotUnlock => c.chosen.first() == Some(&m),
+                Modifier::FirstChosenDoesNotUnlock => {
+                    c.chosen.first() == Some(&m) && self.of_card_clan(m, c.card)
+                }
                 _ => false,
             }
         })
@@ -1723,9 +1821,8 @@ impl GameState {
     /// al-Qadir: "minions with any of your corruption counters").
     pub fn combat_ends_barred(&self, striker: MinionId, m: MinionId) -> bool {
         let ctx = PrintedCtx {
-            kind: None,
-            directed: None,
             opponent: Some(m),
+            ..PrintedCtx::default()
         };
         self.printed_mod(striker, Stat::NoCombatEnds, ctx) > 0
             || self.hosts(m, Modifier::NoCombatEndsAgainstHost)

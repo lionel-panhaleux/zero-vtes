@@ -418,7 +418,8 @@ fn guardian_angel_on(e: &mut Engine, owner: u8, host: MinionId) -> u32 {
 /// decision once a is locked), seat 1 x (4 blood), seat 2 z (4 blood).
 fn bleed_table() -> (Engine, MinionId, MinionId, MinionId) {
     let mut e = Engine::bare(3);
-    let a = e.add_minion(SeatId(0), vampire_with("DOM", 0), 6, false);
+    // Its text (+1 hand size, Tremere cards) does not come into play here.
+    let a = e.add_minion(SeatId(0), find_card("Abraham Mellon"), 6, false);
     e.add_minion(SeatId(0), find_card("Farah Sarroub"), 6, false);
     let x = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
     let z = e.add_minion(SeatId(2), find_card("Crystal Lynn"), 4, false);

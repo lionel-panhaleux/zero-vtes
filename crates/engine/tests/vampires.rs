@@ -47,6 +47,7 @@ fn during(kind: ActionKind, directed: bool, opponent: Option<MinionId>) -> Print
         kind: Some(kind),
         directed: Some(directed),
         opponent,
+        ..PrintedCtx::default()
     }
 }
 
@@ -2216,12 +2217,15 @@ fn apolonia_czarnecki_steals_one_blood_from_a_younger_vampire() {
     let mut e = bare();
     let apolonia = add(&mut e, 0, "Apolonia Czarnecki");
     let cap = e.state.capacity_of(apolonia).unwrap();
-    let (younger, older): (Vec<u16>, Vec<u16>) = (0..CRYPT.len() as u16)
-        .filter(|&c| cards::vampire(c).is_none() && CRYPT[c as usize].capacity != cap)
-        .partition(|&c| CRYPT[c as usize].capacity < cap);
+    let younger: Vec<u16> = (0..CRYPT.len() as u16)
+        .filter(|&c| cards::vampire(c).is_none() && CRYPT[c as usize].capacity < cap)
+        .collect();
     let y = e.add_minion(SeatId(1), younger[0], 2, false);
     let dry = e.add_minion(SeatId(1), younger[1], 0, true);
-    let o = e.add_minion(SeatId(1), older[0], 2, false);
+    // No vampire older than her lacks printed text: Keegan's (unlock after
+    // his own Gangrel action) does not come into play here.
+    let o = add(&mut e, 1, "Keegan");
+    e.state.minions[o.index()].blood = 2;
     let mine = e.add_minion(SeatId(0), younger[2], 2, false);
     let req = request(&mut e);
     let at = |t| printed_action(apolonia, 0, Target::Minion(t));
@@ -2244,4 +2248,758 @@ fn apolonia_czarnecki_steals_one_blood_from_a_younger_vampire() {
     assert_eq!(e.action().expect("action").directed_seat(&e.state), None);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!((blood(&e, apolonia), blood(&e, mine)), (5, 1));
+}
+
+// ---- Slice 12a: the last vampires' printed text -------------------------
+
+/// A card from hand played by `actor` at `target`.
+fn play_at(card: u8, actor: MinionId, target: Target) -> Choice {
+    Choice::Play {
+        card,
+        mode: 0,
+        actor: Some(actor),
+        target,
+    }
+}
+
+// Keegan unlocks after his successful action requiring a Gangrel
+// (Rewilding), once each turn: not after his next one (Dog Pack's employ).
+#[test]
+fn keegan_unlocks_after_a_successful_action_requiring_a_gangrel() {
+    let mut e = bare();
+    let keegan = add(&mut e, 0, "Keegan");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let place = in_play(&mut e, "Elysian Fields", 1, None);
+    hand(&mut e, 0, &["Rewilding", "Dog Pack"]);
+    pick(
+        &mut e,
+        play_at(0, keegan, Target::Card(CardId(place as u32))),
+    );
+    until(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
+    assert!(!e.state.cards[place].in_play);
+    pick(&mut e, vampire_ability(keegan, 0));
+    assert!(!e.state.minions[keegan.index()].locked);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    pick(&mut e, play(0, 0, keegan));
+    let again = until_counting(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        &[vampire_ability(keegan, 0)],
+    );
+    assert_eq!(again, 0);
+    assert!(e.state.minions[keegan.index()].locked);
+}
+
+// Keegan's and Anja's "successful action" includes a fizzled one: Keegan's
+// Rewilding whose location is gone by resolution; a Hecata's recruit of
+// Aggressive Corpse with too little blood left to pay for it.
+// Rulings: [ANK 20220218].
+#[test]
+fn keegan_and_anja_unlock_after_a_fizzled_action() {
+    let mut e = bare();
+    let keegan = add(&mut e, 0, "Keegan");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let place = in_play(&mut e, "Elysian Fields", 1, None);
+    hand(&mut e, 0, &["Rewilding"]);
+    pick(
+        &mut e,
+        play_at(0, keegan, Target::Card(CardId(place as u32))),
+    );
+    e.state.cards[place].in_play = false;
+    let req = until(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
+    assert!(req.options.contains(&vampire_ability(keegan, 0)));
+
+    let mut e = bare();
+    let anja = add(&mut e, 0, "\"Mother\" Anja Giovanni");
+    let hecata = e.add_minion(SeatId(0), plain("Hecata", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Aggressive Corpse"]);
+    pick(&mut e, play(0, 0, hecata));
+    e.state.minions[hecata.index()].blood = 1;
+    let req = until(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
+    assert!(e.state.minions.iter().all(|m| !m.is_ally()));
+    assert!(req.options.contains(&vampire_ability(anja, 0)));
+}
+
+// "Mother" Anja Giovanni, ready, burns 1 blood to unlock another Hecata
+// after its successful action requiring Hecata (a recruit of Aggressive
+// Corpse), once each turn; never after its hunt.
+#[test]
+fn mother_anja_giovanni_unlocks_another_hecata_after_its_hecata_action() {
+    let mut e = bare();
+    let anja = add(&mut e, 0, "\"Mother\" Anja Giovanni");
+    let hecata = e.add_minion(SeatId(0), plain("Hecata", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Aggressive Corpse", "Split the Veil"]);
+    pick(&mut e, action(hecata, ActionKind::Hunt));
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        vampire_ability(anja, 0),
+    );
+    e.state.minions[hecata.index()].locked = false;
+    pick(&mut e, play(0, 0, hecata));
+    until(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
+    pick(&mut e, vampire_ability(anja, 0));
+    assert!(!e.state.minions[hecata.index()].locked);
+    assert_eq!(blood(&e, anja), 3);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    pick(&mut e, play(0, 0, hecata));
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        vampire_ability(anja, 0),
+    );
+}
+
+fn rescue(minion: MinionId, target: MinionId) -> Choice {
+    Choice::TakeAction {
+        minion,
+        action: ActionKind::Rescue,
+        target: Some(target),
+    }
+}
+
+/// A vampire with no printed text of the capacities `caps`.
+fn plain_of(caps: impl Fn(u8) -> bool, nth: usize) -> u16 {
+    (0..CRYPT.len() as u16)
+        .filter(|&c| cards::vampire(c).is_none() && caps(CRYPT[c as usize].capacity))
+        .nth(nth)
+        .expect("a plain vampire")
+}
+
+// Adelino Da Silva rescues an older vampire for free — with 1 blood
+// between them, the rescue is offered — but a younger one costs the full 2;
+// Doc Martina rescues any vampire for 1, which the rescued vampire may pay:
+// the discount is the action's, whoever pays.
+// Rulings: [PIB 20110918] [LSJ 20020304-2].
+#[test]
+fn adelino_and_doc_martina_rescue_for_less_whoever_pays() {
+    let mut e = bare();
+    let adelino = e.add_minion(SeatId(0), find_card("Adelino Da Silva"), 1, false);
+    let older = e.add_minion(SeatId(0), plain_of(|c| c > 5, 0), 0, true);
+    let younger = e.add_minion(SeatId(0), plain_of(|c| c < 5, 0), 0, true);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let req = request(&mut e);
+    assert!(req.options.contains(&rescue(adelino, older)));
+    assert!(!req.options.contains(&rescue(adelino, younger)));
+    pick(&mut e, rescue(adelino, older));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[older.index()].in_torpor);
+
+    let mut e = bare();
+    let doc = e.add_minion(SeatId(0), find_card("Doc Martina"), 1, false);
+    let t = e.add_minion(SeatId(0), plain_of(|c| c > 6, 0), 2, true);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    pick(&mut e, rescue(doc, t));
+    let req = until(&mut e, SeatId(0), WindowLabel::RescueCost);
+    assert!(!req.options.contains(&Choice::PayRescue { from_acting: 2 }));
+    pick(&mut e, Choice::PayRescue { from_acting: 0 });
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[t.index()].in_torpor);
+    assert_eq!((blood(&e, doc), blood(&e, t)), (1, 1));
+}
+
+// Sergio Bueno: a minion with his Methuselah's corruption counters burns 1
+// blood to attempt to block him — none with no blood; a clean one attempts
+// for free; an ally pays in life, never its last one. From torpor too (his
+// leave-torpor action).
+// Rulings: [LSJ 20011022].
+#[test]
+fn sergio_bueno_makes_corrupted_minions_burn_blood_or_life_to_block_him() {
+    let setup = |torpor: bool| {
+        let mut e = bare();
+        let sergio = e.add_minion(SeatId(0), find_card("Sergio Bueno"), 4, torpor);
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        (e, sergio)
+    };
+    let (mut e, sergio) = setup(false);
+    let dry = e.add_minion(SeatId(1), plain("Ventrue", 0), 0, false);
+    let corrupted = e.add_minion(SeatId(1), plain("Ventrue", 1), 2, false);
+    let clean = e.add_minion(SeatId(1), plain("Ventrue", 2), 2, false);
+    for m in [dry, corrupted] {
+        e.state.minions[m.index()].add_corruption(SeatId(0), 1);
+    }
+    pick(&mut e, bleed(sergio));
+    let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    assert!(!req.options.contains(&block(dry)));
+    assert!(req.options.contains(&block(clean)));
+    pick(&mut e, block(corrupted));
+    assert_eq!(blood(&e, corrupted), 1);
+
+    let (mut e, sergio) = setup(false);
+    let agent = e.add_ally(SeatId(1), find_library("ECTU Operative"));
+    let hurt = e.add_ally(SeatId(1), find_library("ECTU Operative"));
+    e.state.minions[hurt.index()].blood = 1;
+    for m in [agent, hurt] {
+        e.state.minions[m.index()].add_corruption(SeatId(0), 1);
+    }
+    let life = blood(&e, agent);
+    pick(&mut e, bleed(sergio));
+    let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    assert!(!req.options.contains(&block(hurt)));
+    pick(&mut e, block(agent));
+    assert_eq!(blood(&e, agent), life - 1);
+
+    let (mut e, sergio) = setup(true);
+    // +1 intercept against the +1 stealth leave-torpor action.
+    let corrupted = add(&mut e, 1, "Rinaldo Albizzi");
+    e.state.minions[corrupted.index()].blood = 2;
+    e.state.minions[corrupted.index()].add_corruption(SeatId(0), 1);
+    pick(&mut e, action(sergio, ActionKind::LeaveTorpor));
+    until(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    pick(&mut e, block(corrupted));
+    assert_eq!(blood(&e, corrupted), 1);
+}
+
+// Alexander Silverson: a vampire burns 1 blood to cast votes against his
+// referendum — not offered with no blood, free in favor; a Methuselah's
+// ballot (the Edge) is not a vampire's and costs nothing.
+#[test]
+fn alexander_silverson_makes_votes_against_his_referendum_cost_a_blood() {
+    let mut e = bare();
+    let alexander = add(&mut e, 0, "Alexander Silverson");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let dry = e.add_minion(SeatId(1), find_card("Alice Chen"), 0, false);
+    let prince = e.add_minion(SeatId(1), find_card("Andi Liu"), 2, false);
+    e.state.seats[1].has_edge = true;
+    for s in &mut e.state.seats {
+        s.pool = 10;
+    }
+    hand(&mut e, 0, &["Ancilla Empowerment"]);
+    pick(&mut e, play(0, 0, alexander));
+    let req = until(&mut e, SeatId(1), WindowLabel::ReferendumPolling);
+    assert!(!req.options.contains(&votes(dry, false)));
+    assert!(req.options.contains(&votes(dry, true)));
+    pick(&mut e, votes(prince, false));
+    assert_eq!(blood(&e, prince), 1);
+    let req = until(&mut e, SeatId(1), WindowLabel::ReferendumPolling);
+    assert!(req.options.contains(&Choice::CastEdge { favor: false }));
+    pick(&mut e, Choice::CastEdge { favor: false });
+    assert_eq!(blood(&e, prince), 1);
+}
+
+// Tommaso Sforza, ready and out of the combat, burns 1 blood before range is
+// determined to end the combat of the zombie ally his Methuselah controls
+// (Aggressive Corpse, blocking) — not a combat of his vampire, nor from
+// torpor.
+#[test]
+fn tommaso_sforza_ends_the_combat_of_a_wraith_or_zombie_ally() {
+    let use_it = |t: MinionId| vampire_ability(t, 0);
+    let (mut e, a, corpse) = {
+        let mut e = bare();
+        let a = e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        let corpse = e.add_ally(SeatId(1), find_library("Aggressive Corpse"));
+        (e, a, corpse)
+    };
+    let tommaso = add(&mut e, 1, "Tommaso Sforza");
+    pick(&mut e, bleed(a));
+    pick(&mut e, block(corpse));
+    until(&mut e, SeatId(1), WindowLabel::CombatBeforeRange);
+    let life = blood(&e, corpse);
+    pick(&mut e, use_it(tommaso));
+    // No strike: both unhurt.
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((blood(&e, a), blood(&e, tommaso)), (4, 3));
+    assert_eq!(blood(&e, corpse), life);
+
+    for torpor in [false, true] {
+        let (mut e, a, blocker) = blocked_by("Tommaso Sforza");
+        let tommaso = blocker;
+        let (e, a, blocker) = if torpor {
+            let corpse = e.add_ally(SeatId(1), find_library("Aggressive Corpse"));
+            e.state.minions[tommaso.index()].in_torpor = true;
+            (e, a, corpse)
+        } else {
+            (e, a, blocker)
+        };
+        let mut e = e;
+        pick(&mut e, bleed(a));
+        pick(&mut e, block(blocker));
+        never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, use_it(tommaso));
+    }
+}
+
+// Roger de Camden, ready and out of the combat, discards a card requiring
+// Oblivion to give his Methuselah's blocker a maneuver (to long range),
+// once each turn.
+#[test]
+fn roger_de_camden_discards_an_oblivion_card_for_a_maneuver() {
+    let (mut e, a, blocker) = blocked_by("Roger de Camden");
+    let roger = blocker;
+    let blocker = e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    let second = e.add_minion(SeatId(0), plain("Ventrue", 2), 4, false);
+    hand(&mut e, 1, &["Shadow Sentinel", "Shadow Sentinel"]);
+    pick(&mut e, bleed(a));
+    pick(&mut e, block(blocker));
+    until(&mut e, SeatId(1), WindowLabel::CombatDetermineRange);
+    pick(&mut e, vampire_ability(roger, 0));
+    pick(&mut e, Choice::Discard(0));
+    assert_eq!(e.state.seats[1].hand.len(), 1);
+    // At long range the hand strikes miss.
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((blood(&e, a), blood(&e, blocker)), (4, 4));
+    pick(&mut e, bleed(second));
+    pick(&mut e, block(roger));
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        vampire_ability(roger, 0),
+    );
+}
+
+/// Pass until `seat`'s own unlock phase offers it its unlock abilities.
+fn own_unlock(e: &mut Engine, seat: SeatId) -> DecisionRequest {
+    loop {
+        let req = until(e, seat, WindowLabel::UnlockAbilities);
+        if e.state.active == seat {
+            return req;
+        }
+        let i = fallback(&req);
+        e.choose(i);
+    }
+}
+
+fn use_on_ally(m: MinionId, ability: u8, ally: MinionId) -> Choice {
+    Choice::UseAbility {
+        source: AbilitySource::Vampire(m),
+        ability,
+        actor: None,
+        target: Target::Minion(ally),
+    }
+}
+
+// Sri Sansa, in torpor, moves 1 blood or life between her and a mortal ally
+// her Methuselah controls during his unlock phase — once each unlock phase,
+// either way; not to an ally at its starting life, not to Sri at her
+// capacity, never with a zombie; an ally giving its last life burns.
+// Rulings: [LSJ 20011022].
+#[test]
+fn sri_sansa_moves_blood_or_life_with_a_mortal_ally_in_the_unlock_phase() {
+    let mut e = bare();
+    let sri = e.add_minion(SeatId(0), find_card("Sri Sansa"), 3, true);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let mystic = e.add_ally(SeatId(0), find_library("Vagabond Mystic"));
+    let agent = e.add_ally(SeatId(0), find_library("ECTU Operative"));
+    let corpse = e.add_ally(SeatId(0), find_library("Aggressive Corpse"));
+    let full = blood(&e, mystic);
+    e.state.minions[mystic.index()].blood = full - 1;
+    e.state.minions[corpse.index()].blood -= 1;
+    let req = own_unlock(&mut e, SeatId(0));
+    let offered = |m, a, t| req.options.contains(&use_on_ally(m, a, t));
+    assert!(offered(sri, 0, mystic) && offered(sri, 1, mystic));
+    assert!(!offered(sri, 0, agent) && offered(sri, 1, agent));
+    assert!(!offered(sri, 0, corpse) && !offered(sri, 1, corpse));
+    pick(&mut e, use_on_ally(sri, 0, mystic));
+    assert_eq!((blood(&e, sri), blood(&e, mystic)), (2, full));
+    never_offered_where(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        |o| matches!(o, Choice::UseAbility { source: AbilitySource::Vampire(m), .. } if *m == sri),
+    );
+
+    // At her capacity, nothing comes to her; an ally's last life burns it.
+    let cap = e.state.capacity_of(sri).unwrap();
+    e.state.minions[sri.index()].blood = cap;
+    let req = own_unlock(&mut e, SeatId(0));
+    assert!(!req.options.contains(&use_on_ally(sri, 1, agent)));
+    e.state.minions[sri.index()].blood = cap - 1;
+    e.state.minions[agent.index()].blood = 1;
+    let req = request(&mut e);
+    assert!(req.options.contains(&use_on_ally(sri, 1, agent)));
+    pick(&mut e, use_on_ally(sri, 1, agent));
+    assert_eq!(blood(&e, sri), cap);
+    assert!(!e.state.minions[agent.index()].in_play);
+}
+
+// Luciano Carvalho, in torpor, moves an animal retainer (Raven Spy) from a
+// vampire his Methuselah controls to another — himself included, not the
+// one it is on — during the discard phase, once; a non-animal retainer
+// (Revenant) is not offered.
+// Rulings: [LSJ 20011022].
+#[test]
+fn luciano_carvalho_moves_an_animal_retainer_between_his_vampires() {
+    let mut e = bare();
+    let luciano = e.add_minion(SeatId(0), find_card("Luciano Carvalho"), 3, true);
+    let a = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let b = e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let spy = in_play(&mut e, "Raven Spy", 0, Some(a));
+    let ghoul = in_play(&mut e, "Revenant", 0, Some(a));
+    let move_card = |c: usize| Choice::UseAbility {
+        source: AbilitySource::Vampire(luciano),
+        ability: 0,
+        actor: None,
+        target: Target::Card(CardId(c as u32)),
+    };
+    let req = until(&mut e, SeatId(0), WindowLabel::DiscardPhase);
+    assert!(!req.options.contains(&move_card(ghoul)));
+    pick(&mut e, move_card(spy));
+    let req = expect(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    assert!(!req.options.contains(&Choice::ChooseMinion(a)));
+    assert!(req.options.contains(&Choice::ChooseMinion(luciano)));
+    pick(&mut e, Choice::ChooseMinion(b));
+    assert_eq!(e.state.cards[spy].host, Some(b));
+    let req = request(&mut e);
+    assert!(!req.options.contains(&move_card(spy)));
+}
+
+// Gnaeus Aemilius Augustinus, ready in his Methuselah's unlock phase: the
+// prey chooses one of their ready minions (not a torpid one), which takes
+// 1 unpreventable damage — ordered among the unlock phase's mandatory
+// effects; nothing while he is in torpor.
+#[test]
+fn gnaeus_aemilius_augustinus_makes_the_prey_damage_a_ready_minion() {
+    let mut e = bare();
+    let gnaeus = add(&mut e, 0, "Gnaeus Aemilius Augustinus");
+    let v = e.add_minion(SeatId(1), plain("Ventrue", 0), 2, false);
+    let agent = e.add_ally(SeatId(1), find_library("ECTU Operative"));
+    let torpid = e.add_minion(SeatId(1), plain("Ventrue", 1), 2, true);
+    e.state.seats[0].has_edge = true;
+    let req = own_unlock(&mut e, SeatId(0));
+    assert!(req
+        .options
+        .contains(&Choice::ResolvePrinted { minion: gnaeus }));
+    assert!(!req.options.contains(&Choice::Pass));
+    pick(&mut e, Choice::ResolvePrinted { minion: gnaeus });
+    let req = expect(&mut e, SeatId(1), WindowLabel::ResolutionChoice);
+    assert!(req.options.contains(&Choice::ChooseMinion(agent)));
+    assert!(!req.options.contains(&Choice::ChooseMinion(torpid)));
+    assert!(!req.options.contains(&Choice::Pass));
+    pick(&mut e, Choice::ChooseMinion(v));
+    assert_eq!(blood(&e, v), 1);
+
+    e.state.minions[gnaeus.index()].in_torpor = true;
+    let req = own_unlock(&mut e, SeatId(0));
+    assert!(!req
+        .options
+        .contains(&Choice::ResolvePrinted { minion: gnaeus }));
+}
+
+// The Guardian performs no directed action (a bleed, a rescue of another
+// Methuselah's vampire) unless his Methuselah controls a ready Nosferatu
+// older than him — not one in torpor; undirected ones stay (a hunt).
+#[test]
+fn the_guardian_performs_directed_actions_only_beside_an_older_nosferatu() {
+    let older = (0..CRYPT.len() as u16)
+        .find(|&c| {
+            cards::vampire(c).is_none()
+                && CRYPT[c as usize].clan == "Nosferatu"
+                && CRYPT[c as usize].capacity > 4
+        })
+        .expect("a plain Nosferatu older than him");
+    for (nosferatu, torpor, directed) in [
+        (false, false, false),
+        (true, true, false),
+        (true, false, true),
+    ] {
+        let mut e = bare();
+        let guardian = add(&mut e, 0, "Guardian, The");
+        if nosferatu {
+            e.add_minion(SeatId(0), older, 4, torpor);
+        } else {
+            e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        }
+        let theirs = e.add_minion(SeatId(1), plain("Ventrue", 0), 2, true);
+        e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+        let req = request(&mut e);
+        assert_eq!(req.options.contains(&bleed(guardian)), directed);
+        assert_eq!(req.options.contains(&rescue(guardian, theirs)), directed);
+        assert!(req.options.contains(&action(guardian, ActionKind::Hunt)));
+    }
+}
+
+// The Guardian locks after a successful bleed against his Methuselah to
+// enter combat with the bleeder, which acts first (the ledger row: "the
+// opponent is the acting minion and plays their combat effects first");
+// the after-resolution window opens again once the combat is over, and the
+// action ends.
+// Rulings: [ANK 20221102].
+#[test]
+fn the_guardian_enters_combat_with_a_successful_bleeder() {
+    let mut e = bare();
+    // Abaddon's maneuver makes his determine-range step a decision.
+    let a = add(&mut e, 0, "Abaddon");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let guardian = add(&mut e, 1, "Guardian, The");
+    let before = e.state.seats[1].pool;
+    pick(&mut e, bleed(a));
+    until(&mut e, SeatId(1), WindowLabel::ActionAfterResolution);
+    assert_eq!(e.state.seats[1].pool, before - 1);
+    pick(&mut e, vampire_ability(guardian, 0));
+    assert!(e.state.minions[guardian.index()].locked);
+    assert_eq!(e.state.combatants, Some([a, guardian]));
+    let req = request(&mut e);
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(0), WindowLabel::CombatDetermineRange)
+    );
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.combatants, None);
+    assert!(e.action().is_none());
+    // Both struck for 1.
+    assert_eq!((blood(&e, a), blood(&e, guardian)), (3, 3));
+}
+
+// Hel-Blá moves an ally requiring Hecata or Oblivion from her Methuselah's
+// ash heap to the ready region as a +1 stealth action that costs 1 blood:
+// picked at resolution (Screamer or Bone Shambler, not ECTU Operative),
+// locked, at its starting life, put in play rather than recruited (no
+// requirement, no cost: it may act this turn once unlocked). Not offered
+// with no such ally in the ash heap.
+// Rulings: [LSJ 20100204] [LSJ 20040518-2] [LSJ 20100302-1] [RBK equip] [RBK recruit-ally] [RBK employ-retainer].
+#[test]
+fn hel_bla_moves_a_hecata_or_oblivion_ally_from_the_ash_heap() {
+    let mut e = bare();
+    let hel = add(&mut e, 0, "Hel-Blá");
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let req = request(&mut e);
+    assert!(!req.options.contains(&printed_action(hel, 0, Target::None)));
+
+    let mut e = bare();
+    let hel = add(&mut e, 0, "Hel-Blá");
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    for c in ["Screamer", "Bone Shambler", "ECTU Operative"] {
+        e.state.seats[0].ash.push(find_library(c));
+    }
+    let pool_before = e.state.seats[0].pool;
+    pick(&mut e, printed_action(hel, 0, Target::None));
+    let req = until(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    let shambler = find_library("Bone Shambler");
+    assert!(req
+        .options
+        .contains(&Choice::FindCard(find_library("Screamer"))));
+    assert!(!req
+        .options
+        .contains(&Choice::FindCard(find_library("ECTU Operative"))));
+    pick(&mut e, Choice::FindCard(shambler));
+    let ally = e
+        .state
+        .minions
+        .iter()
+        .position(|m| m.in_play && m.is_ally())
+        .map(|i| MinionId(i as u32))
+        .expect("the ally in play");
+    let v = &e.state.minions[ally.index()];
+    assert!(v.locked && !v.recruited);
+    assert_eq!(
+        v.blood,
+        zvtes::library::LIBRARY[shambler as usize]
+            .body
+            .unwrap()
+            .life
+    );
+    assert!(!e.state.seats[0].ash.contains(&shambler));
+    assert_eq!((blood(&e, hel), e.state.seats[0].pool), (3, pool_before));
+}
+
+// Anne-Marie Bourgeois equips a .44 Magnum (2 pool) for 1 pool.
+#[test]
+fn anne_marie_bourgeois_equips_for_a_pool_less() {
+    let mut e = bare();
+    let anne = add(&mut e, 0, "Anne-Marie Bourgeois, Inconnu Recruiter");
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &[".44 Magnum"]);
+    let before = e.state.seats[0].pool;
+    pick(&mut e, play(0, 0, anne));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[0].pool, before - 1);
+    assert!(e
+        .state
+        .cards
+        .iter()
+        .any(|c| c.card == find_library(".44 Magnum") && c.host == Some(anne)));
+}
+
+// Kuyén's animals cost 1 blood or pool less, one employed through Piper
+// included: Raven Spy (1 blood) for nothing; then Dog Pack (2 pool) for 1.
+// Rulings: [ANK 20210913] [LSJ 20090116].
+#[test]
+fn kuyen_pays_less_for_animals_through_piper_too() {
+    let mut e = bare();
+    let kuyen = add(&mut e, 0, "Kuyén");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Piper", "Raven Spy", "Dog Pack"]);
+    e.at_master_phase();
+    pick(&mut e, play(0, 0, kuyen));
+    let spy = find_library("Raven Spy");
+    pick(&mut e, Choice::EmployFromHand { card: spy, mode: 1 });
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e
+        .state
+        .cards
+        .iter()
+        .any(|c| c.card == spy && c.host == Some(kuyen)));
+    assert_eq!(blood(&e, kuyen), 4);
+    e.state.minions[kuyen.index()].locked = false;
+    let before = e.state.seats[0].pool;
+    let pack = e.state.seats[0]
+        .hand
+        .iter()
+        .position(|&c| c == find_library("Dog Pack"))
+        .unwrap() as u8;
+    pick(&mut e, play(pack, 0, kuyen));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[0].pool, before - 1);
+}
+
+// Máddji recruits War Ghoul, an ally requiring a Tzimisce (3 pool), for 2.
+#[test]
+fn maddji_pays_less_for_tzimisce_allies_and_retainers() {
+    let mut e = bare();
+    let maddji = add(&mut e, 0, "Máddji, Mistress of Szlachtas");
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["War Ghoul"]);
+    let before = e.state.seats[0].pool;
+    pick(&mut e, play(0, 0, maddji));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[0].pool, before - 2);
+    assert!(e.state.minions.iter().any(|m| m.is_ally()));
+}
+
+// Roger de Camden recruits Aggressive Corpse, requiring Hecata (2 blood),
+// for 1 blood.
+#[test]
+fn roger_de_camden_pays_a_blood_less_for_hecata_and_oblivion_cards() {
+    let mut e = bare();
+    let roger = add(&mut e, 0, "Roger de Camden");
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Aggressive Corpse"]);
+    pick(&mut e, play(0, 0, roger));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, roger), 3);
+    assert!(e.state.minions.iter().any(|m| m.is_ally()));
+    let st = &e.state;
+    let off = st.printed_cost_off(roger, find_library("Touch of Oblivion"), 0);
+    assert_eq!((off.pool, off.blood, off.either), (0, 1, 0));
+    let off = st.printed_cost_off(roger, find_library(".44 Magnum"), 0);
+    assert_eq!(off, Default::default());
+}
+
+// Abraham Mellon: +1 hand size while ready. He plays cards requiring a
+// Tremere as one — only those he plays: a master card requiring a ready
+// Tremere (Chantry) is not his Methuselah's to play with him.
+#[test]
+fn abraham_mellon_adds_hand_size_but_plays_no_tremere_master() {
+    let mut e = bare();
+    let abraham = add(&mut e, 0, "Abraham Mellon");
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    assert_eq!(e.state.hand_size(SeatId(0)), 8);
+    assert!(e.state.meets_clan(abraham, &["Tremere"], false));
+    assert!(!e.state.meets_clan(abraham, &["Tremere"], true));
+    hand(&mut e, 0, &["Chantry"]);
+    e.at_master_phase();
+    never_offered_where(&mut e, SeatId(0), WindowLabel::MinionPhase, |o| {
+        matches!(o, Choice::Play { actor: None, .. })
+    });
+    e.state.minions[abraham.index()].in_torpor = true;
+    assert_eq!(e.state.hand_size(SeatId(0)), 7);
+}
+
+// Lady Scarlett Churchill plays a card requiring a Toreador as one (Scorn
+// of Adonis, calling a referendum), and her Methuselah plays Toreador Grand
+// Ball with her as one of its two Toreador — she may be the one it locks
+// (a Ventrue may not), but she unlocks as normal after: the card's effect
+// in play does not take her for a Toreador.
+// Rulings: [ANK 20220816-2] [LSJ 20101013] [ANK 20190228] [ANK 20200705-2] [LSJ 20070708] [RTR 20070707].
+#[test]
+fn lady_scarlett_churchill_plays_toreador_cards_as_a_toreador() {
+    let mut e = bare();
+    let lady = add(&mut e, 0, "Lady Scarlett Churchill");
+    let toreador = e.add_minion(SeatId(0), plain("Toreador", 0), 4, false);
+    let ventrue = e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    hand(
+        &mut e,
+        0,
+        &[
+            "Toreador Grand Ball",
+            "Ancilla Empowerment",
+            "Scorn of Adonis",
+        ],
+    );
+    for s in &mut e.state.seats {
+        s.pool = 10;
+    }
+    e.at_master_phase();
+    let ball = |t| Choice::Play {
+        card: 0,
+        mode: 0,
+        actor: None,
+        target: Target::Minion(t),
+    };
+    let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    assert!(req.options.contains(&ball(toreador)));
+    assert!(!req.options.contains(&ball(ventrue)));
+    // The other Toreador, the only one left to choose (no Ventrue): the
+    // terms elide.
+    pick(&mut e, ball(lady));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.minions[lady.index()].locked);
+    let grand_ball = find_library("Toreador Grand Ball");
+    assert!(e
+        .state
+        .cards
+        .iter()
+        .any(|c| c.card == grand_ball && c.chosen == vec![lady, toreador]));
+    // Her own card requiring a Toreador, as she calls a referendum.
+    pick(&mut e, play(0, 0, toreador));
+    let req = until(&mut e, SeatId(0), WindowLabel::ReferendumPolling);
+    assert!(req.options.iter().any(|o| matches!(o,
+        Choice::Play { card: 0, actor: Some(m), .. } if *m == toreador)));
+    close_polling(&mut e);
+    e.state.minions[lady.index()].locked = false;
+    hand(&mut e, 0, &["Ancilla Empowerment"]);
+    let calls = e.state.seats[0].hand.len() as u8 - 1;
+    pick(&mut e, play(calls, 0, lady));
+    let req = until(&mut e, SeatId(0), WindowLabel::ReferendumPolling);
+    assert!(req.options.iter().any(|o| matches!(o,
+        Choice::Play { card: 0, actor: Some(m), .. } if *m == lady)));
+    close_polling(&mut e);
+    // Locked by the Ball, she unlocks as normal.
+    e.state.minions[lady.index()].locked = true;
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[lady.index()].locked);
+}
+
+// Regina Blake, in torpor, pays 1 of a location's cost with her blood as
+// her Methuselah plays it — optional, announced with the card: Elder
+// Library's 1 pool; a locquipment played as equipment too (Living Manse's
+// 1 blood, equipped by a Tzimisce).
+// Rulings: [LSJ 20080107] [LSJ 20080114] [LSJ 20011022].
+#[test]
+fn regina_blake_pays_one_of_a_location_cost_with_her_blood() {
+    let mut e = bare();
+    let regina = e.add_minion(SeatId(0), find_card("Regina Blake"), 3, true);
+    let tzimisce = e.add_minion(SeatId(0), plain("Tzimisce", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Elder Library", "Living Manse"]);
+    let before = e.state.seats[0].pool;
+    e.at_master_phase();
+    pick(&mut e, master_play(0));
+    let req = expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
+    assert!(req.options.contains(&Choice::Pass));
+    pick(&mut e, Choice::ChooseMinion(regina));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((e.state.seats[0].pool, blood(&e, regina)), (before, 2));
+    pick(&mut e, play(0, 0, tzimisce));
+    pick(&mut e, Choice::ChooseMinion(regina));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((blood(&e, tzimisce), blood(&e, regina)), (4, 1));
+    assert!(e
+        .state
+        .cards
+        .iter()
+        .any(|c| c.card == find_library("Living Manse") && c.in_play));
 }

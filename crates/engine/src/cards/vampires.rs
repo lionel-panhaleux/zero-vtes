@@ -5,10 +5,12 @@
 //! actor `Host` is the vampire itself). A vampire may land with part of
 //! its text — every vampire ends with all of it (rules-qa 13.1) — the rest
 //! quoted in `incomplete`. Slice 9a: plain stat modifiers; 9b: combat
-//! abilities; 9c: abilities in referendums, actions and phases.
+//! abilities; 9c: abilities in referendums, actions and phases; 12a: the
+//! pool's last vampires (cost reductions, clans played as, tolls, unlock
+//! riders).
 
 use super::{
-    bleed, mode_of, target, Actor, CardFilter, Effect, Hook, Limit, ModeDef, Per, Printed,
+    bleed, mode_of, target, Actor, CardFilter, Effect, Hook, Limit, ModeDef, Per, PlaysAs, Printed,
     PrintedTo, Requirement as R, Rider, RiderScope, Stat, StrikeKind, TargetKind, TargetSpec,
     Terms, TitleClass, VampireDef, Window, VAMP,
 };
@@ -170,10 +172,29 @@ pub static ABRAHAM_DUSABLE: VampireDef = VampireDef {
     ..VAMP
 };
 
-/// "Adrino gets 1 press (mandatory) each combat, only usable to continue
-/// combat": he must use it before passing the press step, unless a press to
-/// continue already stands — it then waits for a later round (rules-qa
-/// 14.1).
+/// "Abraham can play cards requiring a Tremere as if he were a Tremere.
+/// While he is ready, you get +1 hand size." Cards he plays, played
+/// normally (LSJ 20050119), not his Methuselah's: no minion card in the
+/// engine pool requires a Tremere (rules-qa 41.1).
+pub static ABRAHAM_MELLON: VampireDef = VampireDef {
+    name: "Abraham Mellon",
+    printed: &[own(Stat::HandSize, 1, &[R::ThisVampireReady])],
+    plays_as: Some(PlaysAs {
+        clan: "Tremere",
+        methuselah: false,
+    }),
+    ..VAMP
+};
+
+/// "Rescuing an older vampire from torpor costs Adelino -2 blood": the
+/// action's cost, whoever pays it (PIB 20110918, LSJ 20020304-2); older:
+/// of higher capacity (rules-qa 41.14).
+pub static ADELINO_DA_SILVA: VampireDef = VampireDef {
+    name: "Adelino Da Silva",
+    printed: &[own(Stat::RescueDiscount, 2, &[R::OpponentOlder])],
+    ..VAMP
+};
+
 /// "Adisa can enter combat with an ally or younger vampire as a Ⓓ action. If
 /// she successfully hunts, she does not unlock as normal during her next
 /// unlock phase." A successful hunt gains blood (spec §3.7.2.1).
@@ -193,6 +214,10 @@ pub static ADISA: VampireDef = VampireDef {
     ..VAMP
 };
 
+/// "Adrino gets 1 press (mandatory) each combat, only usable to continue
+/// combat": he must use it before passing the press step, unless a press to
+/// continue already stands — it then waits for a later round (rules-qa
+/// 14.1).
 pub static ADRINO_MANAUARA: VampireDef = VampireDef {
     name: "Adrino Manauara",
     printed: &[own(Stat::MandatoryContinuePress, 1, &[])],
@@ -264,6 +289,22 @@ pub static ALEXA_DRAPER: VampireDef = VampireDef {
     ..VAMP
 };
 
+/// "Vampires must burn 1 blood to cast votes and ballots against
+/// referendums called by Alexander": each vampire casting against his
+/// political action's referendum, himself included; a Methuselah's ballots
+/// are not a vampire's (rules-qa 41.3).
+pub static ALEXANDER_SILVERSON: VampireDef = VampireDef {
+    name: "Alexander Silverson",
+    printed: &[Printed {
+        stat: Stat::VoteAgainstToll,
+        n: 1,
+        to: PrintedTo::Opponent,
+        per: Per::One,
+        requires: &[],
+    }],
+    ..VAMP
+};
+
 /// "After Alicia performs a successful directed action, you can discard a
 /// political action card to lock a younger vampire controlled by (one of)
 /// the target Methuselah(s)." Once per action (rules-qa 16.1).
@@ -329,9 +370,6 @@ pub static ARIANE: VampireDef = VampireDef {
     ..VAMP
 };
 
-/// "If Ayse is ready, you can use a discard phase action to add 1 blood to
-/// her": each use spends one, not once per phase; not offered at capacity
-/// (as the blood shuttles of cards in play).
 /// "Aniel can burn 1 corruption counter or a card requiring a Discipline
 /// from another ready minion as a +1 stealth Ⓓ action that costs 1
 /// blood." One printed action on two kinds of target (one NRA identity,
@@ -375,6 +413,18 @@ pub static ANIEL: VampireDef = VampireDef {
     ..VAMP
 };
 
+/// "Equipment cost Anne-Marie -1 pool": equipment she equips, from hand or
+/// put on her by another card (Contraband, a search; rules-qa 36.5, 41.13).
+pub static ANNE_MARIE_BOURGEOIS: VampireDef = VampireDef {
+    name: "Anne-Marie Bourgeois, Inconnu Recruiter",
+    printed: &[own(
+        Stat::PoolCostOff,
+        1,
+        &[R::PlayedCard(CardFilter::Type(CardType::Equipment))],
+    )],
+    ..VAMP
+};
+
 /// "Apolonia can steal 1 blood from a younger vampire as a Ⓓ action." Any
 /// younger vampire, one in torpor or with no blood included (rulebook
 /// "Target"); undirected on her own Methuselah's.
@@ -390,6 +440,9 @@ pub static APOLONIA_CZARNECKI: VampireDef = VampireDef {
     ..VAMP
 };
 
+/// "If Ayse is ready, you can use a discard phase action to add 1 blood to
+/// her": each use spends one, not once per phase; not offered at capacity
+/// (as the blood shuttles of cards in play).
 pub static AYSE_DHANIAL: VampireDef = VampireDef {
     name: "Ayse Dhanial",
     abilities: &[mode_of(
@@ -496,10 +549,6 @@ pub static CHUN_HEI: VampireDef = VampireDef {
     ..VAMP
 };
 
-/// "Daria can lock to give another Nosferatu +1 stealth": the acting
-/// minion's, when needed (rules-qa 3.2), any Methuselah's; the lock cost
-/// makes it once per unlock (advanced rules §1.5.4), in torpor too (LSJ
-/// 20011022).
 /// "Dafina can enter combat with a minion as a Ⓓ action."
 pub static DAFINA_HANGANU: VampireDef = VampireDef {
     name: "Dafina Hanganu",
@@ -507,6 +556,10 @@ pub static DAFINA_HANGANU: VampireDef = VampireDef {
     ..VAMP
 };
 
+/// "Daria can lock to give another Nosferatu +1 stealth": the acting
+/// minion's, when needed (rules-qa 3.2), any Methuselah's; the lock cost
+/// makes it once per unlock (advanced rules §1.5.4), in torpor too (LSJ
+/// 20011022).
 pub static DARIA: VampireDef = VampireDef {
     name: "Daria",
     abilities: &[mode_of(
@@ -552,6 +605,14 @@ pub static DJENEBA: VampireDef = VampireDef {
     ..VAMP
 };
 
+/// "Rescuing a vampire from torpor costs Doc Martina -1 blood": the
+/// action's cost, whoever pays it (PIB 20110918, LSJ 20020304-2).
+pub static DOC_MARTINA: VampireDef = VampireDef {
+    name: "Doc Martina",
+    printed: &[own(Stat::RescueDiscount, 1, &[])],
+    ..VAMP
+};
+
 /// "Dominica can search your library for a master archetype card, reveal it
 /// and move it to your hand as a +1 stealth action."
 pub static DOMINICA: VampireDef = VampireDef {
@@ -587,9 +648,6 @@ pub static EGIDIA_ARRU: VampireDef = VampireDef {
     ..VAMP
 };
 
-/// "As a minion announces an action directed at Evan, flip a coin; if it is
-/// tails, the action fails." An action of his controller's own minions is
-/// undirected, so it is not flipped (LSJ 20030214-2).
 /// "If you control a locked minion, Elen must bleed with +1 bleed as a Ⓓ
 /// action unless she must hunt." Her own action, mandatory while the
 /// condition holds; a bleed of another source does not discharge it, and
@@ -609,6 +667,9 @@ pub static ELEN_KAMJIAN: VampireDef = VampireDef {
     ..VAMP
 };
 
+/// "As a minion announces an action directed at Evan, flip a coin; if it is
+/// tails, the action fails." An action of his controller's own minions is
+/// undirected, so it is not flipped (LSJ 20030214-2).
 pub static EVAN_KLEIN: VampireDef = VampireDef {
     name: "Evan Klein",
     riders: &[Rider {
@@ -665,6 +726,49 @@ pub static GATHII: VampireDef = VampireDef {
     ..VAMP
 };
 
+/// "If Aemilius is ready during your unlock phase, your prey chooses a ready
+/// minion they control; the chosen minion takes 1 unpreventable damage": a
+/// mandatory unlock-phase effect his controller orders among theirs
+/// (rules-qa 7.8), his readiness read then too; the minion chosen as it
+/// resolves (rules-qa 41.11).
+pub static GNAEUS_AEMILIUS_AUGUSTINUS: VampireDef = VampireDef {
+    name: "Gnaeus Aemilius Augustinus",
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        requires: &[R::HostReady],
+        effects: &[Effect::PreyChoosesMinionDamaged(1)],
+    }],
+    ..VAMP
+};
+
+/// "The Guardian cannot perform directed actions unless you control a ready
+/// unique older Nosferatu. The Guardian can lock after resolution of a
+/// successful bleed against you to enter combat with the acting minion."
+/// The acting minion acts first in that combat (ANK 20221102); it returns
+/// to the after-resolution window (rules-qa 41.5).
+pub static GUARDIAN_THE: VampireDef = VampireDef {
+    name: "Guardian, The",
+    printed: &[own(
+        Stat::NoDirectedActions,
+        1,
+        &[R::ControlsNoReadyOlderOfClan("Nosferatu")],
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionAfterResolution],
+        Actor::Host,
+        &[
+            R::HostReady,
+            R::HostUnlocked,
+            R::IsBleed,
+            R::DirectedAtYou,
+            R::BleedSuccessful,
+        ],
+        &[Effect::LockActor, Effect::EnterCombatWithActing],
+    )],
+    ..VAMP
+};
+
 pub static GWENLLIAN_ARWYN: VampireDef = VampireDef {
     name: "Gwenllian Arwyn",
     printed: &[own(Stat::Strength, 1, &[])],
@@ -685,6 +789,34 @@ pub static GWENLLIAN_ARWYN: VampireDef = VampireDef {
 pub static HAFTHOR_THORSTEINSSON: VampireDef = VampireDef {
     name: "Hafthor Thorsteinsson",
     printed: &[own(Stat::Intercept, 1, &[])],
+    ..VAMP
+};
+
+/// An ally requiring Hecata, or printing Oblivion [obl] (Hel-Blá).
+const HECATA_OR_OBLIVION: &[CardFilter] =
+    &[CardFilter::Clan("Hecata"), CardFilter::Discipline("obl")];
+
+/// "Hel-Blá can move an ally requiring Hecata or Oblivion [obl] from your
+/// ash heap to your ready region, locked with life equal to its starting
+/// life as a +1 stealth action that costs 1 blood." Put in play, not
+/// recruited: no requirement, X = 0, its inferior version, able to act this
+/// turn once unlocked (LSJ 20100204, 20040518-2, 20100302-1; RBK
+/// recruit-ally). Offered while the ash heap holds one; picked as the
+/// action resolves (rules-qa 41.6).
+pub static HEL_BLA: VampireDef = VampireDef {
+    name: "Hel-Blá",
+    abilities: &[ModeDef {
+        requires: &[R::AshHasAlly(HECATA_OR_OBLIVION)],
+        ..printed_action(
+            None,
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::PayBlood(1),
+                Effect::AllyFromAshLocked(HECATA_OR_OBLIVION),
+            ],
+        )
+    }],
     ..VAMP
 };
 
@@ -776,6 +908,29 @@ pub static KASIM_BAYAR: VampireDef = VampireDef {
     ..VAMP
 };
 
+/// "Once each turn, Keegan can unlock after performing a successful action
+/// requiring a Gangrel": a fizzled action counts (ANK 20220218); locked,
+/// the unlock self-limits like Aline Gädeke's; an action card, a retainer
+/// or ally card, or a granted action requiring the clan (rules-qa 41.12).
+pub static KEEGAN: VampireDef = VampireDef {
+    name: "Keegan",
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerTurn),
+        ..mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::Host,
+            &[
+                R::ActorActing,
+                R::ActionSuccessful,
+                R::ActionRequiresClanOrDiscipline("Gangrel", ""),
+                R::HostLocked,
+            ],
+            &[Effect::UnlockActor],
+        )
+    }],
+    ..VAMP
+};
+
 pub static KEVIN_JACKSON: VampireDef = VampireDef {
     name: "Kevin Jackson",
     printed: &[
@@ -788,6 +943,37 @@ pub static KEVIN_JACKSON: VampireDef = VampireDef {
             requires: &[R::ActorClan("Brujah")],
         },
     ],
+    ..VAMP
+};
+
+/// "Animals (allies and retainers) cost Kuyén -1 blood or pool": off
+/// whichever the card costs, one recruited or employed in a non-standard
+/// way too (Piper; ANK 20210913, LSJ 20090116; rules-qa 41.13).
+pub static KUYEN: VampireDef = VampireDef {
+    name: "Kuyén",
+    printed: &[own(
+        Stat::CostOff,
+        1,
+        &[
+            R::PlayedCard(CardFilter::AllyOrRetainer),
+            R::PlayedCard(CardFilter::HasLabel(Label::Animal)),
+        ],
+    )],
+    ..VAMP
+};
+
+/// "You and Lady Scarlett can play cards requiring a Toreador as if she
+/// were a Toreador": her own cards (Scorn of Adonis) and her Methuselah's
+/// (Art Museum, Toreador Grand Ball — she may be its locked Toreador),
+/// played normally (LSJ 20050119); the card's effects in play do not take
+/// her for one — chosen by Toreador Grand Ball, she unlocks as normal (ANK
+/// 20220816-2, LSJ 20101013; rules-qa 41.2).
+pub static LADY_SCARLETT_CHURCHILL: VampireDef = VampireDef {
+    name: "Lady Scarlett Churchill",
+    plays_as: Some(PlaysAs {
+        clan: "Toreador",
+        methuselah: true,
+    }),
     ..VAMP
 };
 
@@ -840,6 +1026,48 @@ pub static LENELLE: VampireDef = VampireDef {
 pub static LENNY_BURKHEAD: VampireDef = VampireDef {
     name: "Lenny Burkhead",
     printed: &[own(Stat::Bleed, 1, &[])],
+    ..VAMP
+};
+
+/// "During your discard phase, you can move an animal retainer from a
+/// vampire you control to another vampire you control": once each discard
+/// phase (rules-qa 6.6), in torpor too (LSJ 20011022); the retainer named
+/// as the ability is used, the vampire it goes to as it resolves (rules-qa
+/// 41.7).
+pub static LUCIANO_CARVALHO: VampireDef = VampireDef {
+    name: "Luciano Carvalho",
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Card,
+            &[
+                R::TargetCard(CardFilter::Labeled(CardType::Retainer, Label::Animal)),
+                R::TargetOnVampire,
+                R::Controlled,
+            ],
+        ),
+        ..mode_of(
+            &[Window::DiscardPhase],
+            Actor::Host,
+            &[],
+            &[Effect::MoveTargetToOwnVampire],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Allies and retainers requiring a Tzimisce cost Máddji -1 blood or
+/// pool": off whichever the card costs, however it is put in play
+/// (rules-qa 36.5, 41.13).
+pub static MADDJI: VampireDef = VampireDef {
+    name: "Máddji, Mistress of Szlachtas",
+    printed: &[own(
+        Stat::CostOff,
+        1,
+        &[
+            R::PlayedCard(CardFilter::AllyOrRetainer),
+            R::PlayedCard(CardFilter::Clan("Tzimisce")),
+        ],
+    )],
     ..VAMP
 };
 
@@ -909,6 +1137,32 @@ pub static MORA_THE_DEATH_SEER: VampireDef = VampireDef {
             Actor::Host,
             &[R::HostReady, R::AshNotEmpty],
             &[Effect::AshCardToLibraryBottom],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Once each turn, if she is ready, Anja can burn 1 blood after another
+/// Hecata you control performs a successful action requiring Hecata or
+/// Oblivion [obl] to unlock that Hecata": a fizzled action counts (ANK
+/// 20220218); an acting Hecata unlocked since is a legal no-effect target
+/// (rules-qa 4.3, 41.12).
+pub static MOTHER_ANJA_GIOVANNI: VampireDef = VampireDef {
+    name: "\"Mother\" Anja Giovanni",
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerTurn),
+        ..mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::Host,
+            &[
+                R::HostReady,
+                R::OtherActingControlled,
+                R::ActingClan("Hecata"),
+                R::ActionSuccessful,
+                R::ActionRequiresClanOrDiscipline("Hecata", "obl"),
+                R::HostBloodAtLeast(1),
+            ],
+            &[Effect::HostBurnBlood(1), Effect::UnlockActing],
         )
     }],
     ..VAMP
@@ -1076,6 +1330,21 @@ pub static RAGNAR_NORDSTROM: VampireDef = VampireDef {
     ..VAMP
 };
 
+/// "Each time you play a location card, you can use up to 1 of Regina's
+/// blood to pay some or all of its blood or pool cost": announced with the
+/// card like a cost reduction, burned as the cost is paid; a locquipment
+/// played as equipment too (LSJ 20080107, LSJ 20080114); in torpor too
+/// (LSJ 20011022); not for a card found by a search (rules-qa 41.13).
+pub static REGINA_BLAKE: VampireDef = VampireDef {
+    name: "Regina Blake",
+    printed: &[own(
+        Stat::BloodPaysCost,
+        1,
+        &[R::PlayedCard(CardFilter::Location)],
+    )],
+    ..VAMP
+};
+
 /// "After Richard successfully bleeds, he can look at the target
 /// Methuselah's hand, then he can burn 1 blood to discard 1 card from it."
 /// Once per action (rules-qa 16.1).
@@ -1103,6 +1372,39 @@ pub static RICHARD_DE_WORDE: VampireDef = VampireDef {
 pub static RINALDO_ALBIZZI: VampireDef = VampireDef {
     name: "Rinaldo Albizzi",
     printed: &[own(Stat::Intercept, 1, &[])],
+    ..VAMP
+};
+
+/// "Once each turn, if Roger is ready during a combat involving a minion
+/// you control, he can discard a card requiring Oblivion [obl] to give that
+/// minion 1 maneuver": used as the range is determined (rules-qa 41.9).
+const ROGER_MANEUVER: ModeDef = ModeDef {
+    terms: Some(Terms::Discard {
+        n: 1,
+        of: CardFilter::Discipline("obl"),
+    }),
+    limit: Some(Limit::PerTurn),
+    ..mode_of(
+        &[Window::CombatDetermineRange],
+        Actor::ForOwnCombatant,
+        &[R::HostReady, R::HandHas(CardFilter::Discipline("obl"), 1)],
+        &[Effect::Maneuver],
+    )
+};
+
+/// "Cards requiring Hecata and/or Oblivion [obl] cost Roger -1 blood": a
+/// card requiring the clan, or played using Oblivion (rules-qa 38.4).
+pub static ROGER_DE_CAMDEN: VampireDef = VampireDef {
+    name: "Roger de Camden",
+    printed: &[own(
+        Stat::BloodCostOff,
+        1,
+        &[R::AnyOf(&[
+            &[R::PlayedCard(CardFilter::Clan("Hecata"))],
+            &[R::PlayedRequiresDiscipline("obl")],
+        ])],
+    )],
+    abilities: &[ROGER_MANEUVER],
     ..VAMP
 };
 
@@ -1149,8 +1451,6 @@ pub static ROY: VampireDef = VampireDef {
     ..VAMP
 };
 
-/// "Sakhar can search your library for an equipment card, reveal it and
-/// move it to your hand as a +1 stealth action."
 /// "Saankaláxt can steal an equipment as a Ⓓ action that costs 1 blood."
 /// Not a second vehicle (rules-qa 17.4).
 pub static SAANKALAXT: VampireDef = VampireDef {
@@ -1170,6 +1470,8 @@ pub static SAANKALAXT: VampireDef = VampireDef {
     ..VAMP
 };
 
+/// "Sakhar can search your library for an equipment card, reveal it and
+/// move it to your hand as a +1 stealth action."
 pub static SAKHAR: VampireDef = VampireDef {
     name: "Sakhar",
     abilities: &[printed_action(
@@ -1206,11 +1508,72 @@ pub static SERAPHINA: VampireDef = VampireDef {
     ..VAMP
 };
 
+/// "Minions with 1 or more of your corruption counters must burn 1 blood or
+/// life to attempt to block Sergio": a toll on the attempt
+/// (`Engine::block_toll`), in torpor too — his leave-torpor action (LSJ
+/// 20011022).
+pub static SERGIO_BUENO: VampireDef = VampireDef {
+    name: "Sergio Bueno",
+    printed: &[Printed {
+        stat: Stat::BlockToll,
+        n: 1,
+        to: PrintedTo::Opponent,
+        per: Per::One,
+        requires: &[R::ActorCorruptedBySource],
+    }],
+    ..VAMP
+};
+
 pub static SREELEKHA: VampireDef = VampireDef {
     name: "Sreelekha",
     printed: &[
         own(Stat::Bleed, 1, &[]),
         own(Stat::DiscardPhaseActions, 1, &[R::ThisVampireReady]),
+    ],
+    ..VAMP
+};
+
+/// "During your unlock phase, you can move 1 blood or life between Sri and
+/// a mortal or mage ally you control, not to exceed their starting life":
+/// one move each unlock phase, either way (rules-qa 6.6), in torpor too
+/// (LSJ 20011022); a move that cannot take place — to an ally at its
+/// starting life, to Sri at her capacity — is not offered; an ally giving
+/// its last life burns (rules-qa 41.8). No mage ally is in the engine
+/// pool: the generator labels none.
+pub static SRI_SANSA: VampireDef = VampireDef {
+    name: "Sri Sansa",
+    abilities: &[
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[
+                    R::Controlled,
+                    R::TargetAllyCard(CardFilter::HasLabel(Label::Mortal)),
+                    R::TargetAllyHurt,
+                ],
+            ),
+            ..mode_of(
+                &[Window::UnlockPhaseOwn],
+                Actor::Host,
+                &[R::HostBloodAtLeast(1)],
+                &[Effect::HostBloodToTarget(1)],
+            )
+        },
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[
+                    R::Controlled,
+                    R::TargetAllyCard(CardFilter::HasLabel(Label::Mortal)),
+                ],
+            ),
+            ..mode_of(
+                &[Window::UnlockPhaseOwn],
+                Actor::Host,
+                &[R::HostBelowCapacity],
+                &[Effect::TargetBloodToHost(1)],
+            )
+        },
     ],
     ..VAMP
 };
@@ -1244,6 +1607,29 @@ pub static THEO_BELL: VampireDef = VampireDef {
     name: "Theo Bell",
     printed: &[own(Stat::Strength, 1, &[])],
     abilities: &[enter_combat(&[R::NotControlled, R::ActorReady])],
+    ..VAMP
+};
+
+/// "Once each turn, if he is ready, Tommaso can burn 1 blood before range
+/// is determined in a combat involving a wraith or zombie ally you control
+/// to end that combat." From out of the combat, his ally the combatant
+/// (rules-qa 41.10).
+pub static TOMMASO_SFORZA: VampireDef = VampireDef {
+    name: "Tommaso Sforza",
+    abilities: &[ability(
+        &[Window::CombatBeforeRange],
+        Actor::ForOwnCombatant,
+        &[
+            R::HostReady,
+            R::HostBloodAtLeast(1),
+            R::AnyOf(&[
+                &[R::ActorAllyCard(CardFilter::HasLabel(Label::Wraith))],
+                &[R::ActorAllyCard(CardFilter::HasLabel(Label::Zombie))],
+            ]),
+        ],
+        Limit::PerTurn,
+        &[Effect::HostBurnBlood(1), Effect::EndCombat],
+    )],
     ..VAMP
 };
 
@@ -1325,19 +1711,23 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 82] = [
+pub static VAMPIRES: [&VampireDef; 101] = [
     &PARIJAT,
     &ABADDON,
     &ABRAHAM_DUSABLE,
+    &ABRAHAM_MELLON,
+    &ADELINO_DA_SILVA,
     &ADISA,
     &ADRINO_MANAUARA,
     &ALABASTROM,
     &AISHA_AZ_ZAHRA,
     &ALEXA_DRAPER,
+    &ALEXANDER_SILVERSON,
     &ALICIA_CORTEZ,
     &ALINE_GADEKE,
     &ANDRE_THE_MANIPULATOR,
     &ANIEL,
+    &ANNE_MARIE_BOURGEOIS,
     &APOLONIA_CZARNECKI,
     &ARIANE,
     &AYSE_DHANIAL,
@@ -1354,6 +1744,7 @@ pub static VAMPIRES: [&VampireDef; 82] = [
     &DARIA,
     &DARIUS_SHIRAZI,
     &DJENEBA,
+    &DOC_MARTINA,
     &DOMINICA,
     &DOWAGER_THE,
     &EGIDIA_ARRU,
@@ -1362,18 +1753,26 @@ pub static VAMPIRES: [&VampireDef; 82] = [
     &FARUQ_ABD_AL_QADIR,
     &FLAVIO_GONCALVES,
     &GATHII,
+    &GNAEUS_AEMILIUS_AUGUSTINUS,
+    &GUARDIAN_THE,
     &GWENLLIAN_ARWYN,
     &HAFTHOR_THORSTEINSSON,
+    &HEL_BLA,
     &HESHA_RUHADZE,
     &ILONKA,
     &JASON_SON_NEWBERRY,
     &KALINDA,
     &KAMILE_PAUKSTYS,
     &KASIM_BAYAR,
+    &KEEGAN,
     &KEVIN_JACKSON,
+    &KUYEN,
+    &LADY_SCARLETT_CHURCHILL,
     &LARISSA_MOREIRA,
     &LENELLE,
     &LENNY_BURKHEAD,
+    &LUCIANO_CARVALHO,
+    &MADDJI,
     &MARCHESA_LILIANA,
     &MARIALENA,
     &MARTINA_SRNANKOVA,
@@ -1381,6 +1780,7 @@ pub static VAMPIRES: [&VampireDef; 82] = [
     &MICKEY_WHEELER,
     &MITHRAS,
     &MORA_THE_DEATH_SEER,
+    &MOTHER_ANJA_GIOVANNI,
     &NATHANIEL_BORDRUFF,
     &NESERIAN,
     &NOLUTHANDO,
@@ -1391,8 +1791,10 @@ pub static VAMPIRES: [&VampireDef; 82] = [
     &PHAIBUN,
     &QUEEN_ANNE,
     &RAGNAR_NORDSTROM,
+    &REGINA_BLAKE,
     &RICHARD_DE_WORDE,
     &RINALDO_ALBIZZI,
+    &ROGER_DE_CAMDEN,
     &ROSE_ABAWI,
     &ROWENA,
     &ROY,
@@ -1400,10 +1802,13 @@ pub static VAMPIRES: [&VampireDef; 82] = [
     &SAKHAR,
     &SAKU_PIHLAJAMAKI,
     &SERAPHINA,
+    &SERGIO_BUENO,
     &SREELEKHA,
+    &SRI_SANSA,
     &STYLES_MARGS,
     &SYBREN_VAN_OOSTEN,
     &THEO_BELL,
+    &TOMMASO_SFORZA,
     &VALERIUS,
     &VALERIYA_ZINOVIEVA,
     &WEIRICH_WALDBURG,

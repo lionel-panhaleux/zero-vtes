@@ -296,6 +296,8 @@ pub enum CardFilter {
     NonUniqueEquipment,
     /// Any card bearing this label (a ghoul ally or retainer).
     HasLabel(crate::library::Label),
+    /// A card requiring this clan ("an ally requiring Hecata").
+    Clan(&'static str),
 }
 
 impl CardFilter {
@@ -318,6 +320,7 @@ impl CardFilter {
             CardFilter::Location => c.labels.contains(&crate::library::Label::Location),
             CardFilter::MeleeWeapon => melee_strike(card).is_some(),
             CardFilter::HasLabel(l) => c.labels.contains(&l),
+            CardFilter::Clan(k) => c.clans.contains(&k),
             CardFilter::NonUniqueEquipment => {
                 c.types.contains(&CardType::Equipment)
                     && !c.labels.contains(&crate::library::Label::Unique)
@@ -363,6 +366,35 @@ pub enum Stat {
     /// Cannot strike: combat ends (Faruq Abd al-Qadir's opponents with
     /// his Methuselah's corruption counters): any positive total bars it.
     NoCombatEnds,
+    /// Blood off its rescue of a vampire from torpor, the rescued one its
+    /// opponent ("rescuing an older vampire from torpor costs Adelino -2
+    /// blood"): the action's cost, whoever pays it (PIB 20110918).
+    RescueDiscount,
+    /// Blood or life a minion burns to attempt to block the vampire whose
+    /// text it is, its opponent ("minions with 1 or more of your corruption
+    /// counters must burn 1 blood or life to attempt to block Sergio").
+    BlockToll,
+    /// Blood a vampire burns to cast votes against a referendum called by
+    /// the vampire whose text it is, its opponent ("vampires must burn 1
+    /// blood to cast votes and ballots against referendums called by
+    /// Alexander").
+    VoteAgainstToll,
+    /// Pool off a card the vampire plays or puts in play ("Equipment cost
+    /// Anne-Marie -1 pool"), the card read by the printed predicates.
+    PoolCostOff,
+    /// Blood off such a card ("cost Roger -1 blood").
+    BloodCostOff,
+    /// Blood or pool off such a card, whichever it costs ("cost Kuyén -1
+    /// blood or pool").
+    CostOff,
+    /// Its blood may pay up to n of the blood or pool cost of a card its
+    /// Methuselah plays, the card read by the printed predicates ("each
+    /// time you play a location card, you can use up to 1 of Regina's
+    /// blood to pay some or all of its blood or pool cost").
+    BloodPaysCost,
+    /// Cannot perform directed actions (The Guardian, "unless you control a
+    /// ready unique older Nosferatu"): any positive total bars them.
+    NoDirectedActions,
 }
 
 /// Legality predicates — the closed vocabulary.
@@ -413,7 +445,9 @@ pub enum Requirement {
     /// (Dabbler).
     HostUsedDisciplines(u8),
     /// The action requires this clan or this Discipline: its card's, or its
-    /// granting card's requirement (Cappadocian Crypt).
+    /// granting card's requirement (Cappadocian Crypt). An empty Discipline
+    /// matches none: the clan alone ("an action requiring a Gangrel",
+    /// Keegan).
     ActionRequiresClanOrDiscipline(&'static str, &'static str),
     /// The target has this Discipline (Powerbase: Munich).
     TargetDiscipline(&'static str),
@@ -449,6 +483,9 @@ pub enum Requirement {
     /// An ally is in some Methuselah's ash heap (Psychophagia: ANK
     /// 20200420-3).
     AllyInAnyAsh,
+    /// The player's ash heap holds an ally matching one of these (Hel-Blá:
+    /// "an ally requiring Hecata or Oblivion [obl]").
+    AshHasAlly(&'static [CardFilter]),
     /// On an unlock-phase rider: the active Methuselah controls a vampire
     /// not of this sect, read as it resolves (Judgment: Camarilla
     /// Segregation; ANK 20181016).
@@ -823,6 +860,9 @@ pub enum Requirement {
     /// The card being played requires this Discipline as played — the mode
     /// used, not the card's other Disciplines (PIB 20130704).
     PlayedRequiresDiscipline(&'static str),
+    /// On a printed cost reduction: the card played or put in play matches
+    /// (`PrintedCtx::card`).
+    PlayedCard(CardFilter),
     /// Card target: on the minion in combat with the ability's host (a
     /// strike naming equipment, Heroic Might). Engine-checked.
     TargetOnOpposingCombatant,
@@ -883,6 +923,10 @@ pub enum Requirement {
     /// The vampire's controller controls a vampire in play of this name
     /// ("while you control Mithras").
     ControlsVampireNamed(&'static str),
+    /// The vampire's controller controls no ready vampire of this clan
+    /// older than it (The Guardian: "unless you control a ready unique
+    /// older Nosferatu" — every vampire is unique).
+    ControlsNoReadyOlderOfClan(&'static str),
     /// The Methuselah controls a locked minion ("if you control a locked
     /// minion", Elen Kamjian).
     ControlsLockedMinion,
@@ -2186,6 +2230,25 @@ pub enum Effect {
     /// Add n blood or life to the target minion, not to exceed starting
     /// life (a vampire's capacity; Seraphina).
     BloodToTargetToStart(u8),
+    /// Move n blood from the host to the target minion, not to exceed its
+    /// starting life (Sri Sansa).
+    HostBloodToTarget(u8),
+    /// Move n blood or life from the target minion to the host, not to
+    /// exceed its capacity (Sri Sansa); an ally left with no life burns.
+    TargetBloodToHost(u8),
+    /// The host enters combat with the acting minion, which acts first, the
+    /// combat over returning to the after-resolution window (The Guardian;
+    /// ANK 20221102).
+    EnterCombatWithActing,
+    /// "Your prey chooses a ready minion they control; the chosen minion
+    /// takes n unpreventable damage" (Gnaeus Aemilius Augustinus): chosen
+    /// as it resolves, none if they have none.
+    PreyChoosesMinionDamaged(u8),
+    /// Move the target card from the vampire it is on to another vampire of
+    /// the user's that can hold it, chosen as the effect resolves (Luciano
+    /// Carvalho: "move an animal retainer from a vampire you control to
+    /// another vampire you control").
+    MoveTargetToOwnVampire,
     /// The acting minion gets -n stealth (Screamer).
     ReduceStealth(u8),
     /// Unlock this card — an ally's own card unlocks the ally (The Vozhd
@@ -2440,7 +2503,12 @@ pub enum Effect {
     /// starting life" (Split the Veil): the ally put in play, not
     /// recruited — its inferior version, no requirement or cost, able to
     /// act this turn (LSJ 20100204).
-    RaiseAllyWhenEmpty(&'static [crate::library::Label]),
+    RaiseAllyWhenEmpty(&'static [CardFilter]),
+    /// "Move an ally requiring Hecata or Oblivion [obl] from your ash heap
+    /// to your ready region, locked with life equal to its starting life"
+    /// (Hel-Blá): an ally matching one of these, picked as the action
+    /// resolves, put in play like Split the Veil's (LSJ 20100204).
+    AllyFromAshLocked(&'static [CardFilter]),
     /// "Remove an ally in any Methuselah's ash heap from the game to gain n
     /// blood (and unlock)" (Psychophagia): the ally named as it was played
     /// (`PlayCtx::ash`), if still there.
@@ -3175,6 +3243,13 @@ pub struct CardDef {
     pub riders: &'static [Rider],
 }
 
+/// Is library card `card` an ally matching one of `of` (any ally, if
+/// empty)? The allies an ash heap offers (Split the Veil, Hel-Blá).
+pub fn ash_ally(card: u16, of: &[CardFilter]) -> bool {
+    LIBRARY[card as usize].types.contains(&CardType::Ally)
+        && (of.is_empty() || of.iter().any(|f| f.matches(card)))
+}
+
 /// The printed strike of a melee weapon (Anticipation's "melee weapon
 /// strike"): its strike ability's `Melee` kind, if it has one.
 pub fn melee_strike(card: u16) -> Option<(usize, StrikeKind)> {
@@ -3358,12 +3433,22 @@ pub struct Printed {
     pub requires: &'static [Requirement],
 }
 
+/// "<Vampire> can play cards requiring a <clan> as if he were a <clan>"
+/// (Abraham Mellon); with `methuselah`, "you and <vampire> can" (Lady
+/// Scarlett Churchill): its Methuselah's cards too.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct PlaysAs {
+    pub clan: &'static str,
+    pub methuselah: bool,
+}
+
 /// A vampire's defaults, spread as `..VAMP` under its name.
 pub const VAMP: VampireDef = VampireDef {
     name: "",
     printed: &[],
     abilities: &[],
     riders: &[],
+    plays_as: None,
     incomplete: None,
 };
 
@@ -3380,6 +3465,8 @@ pub struct VampireDef {
     /// Mandatory effects printed on the vampire, fired at their hooks
     /// (host predicates read on the vampire).
     pub riders: &'static [Rider],
+    /// The clan it plays cards requiring as if it were of it.
+    pub plays_as: Option<PlaysAs>,
     /// The printed text not implemented yet, if any: a vampire lands with
     /// part of its text and ends with all of it (rules-qa 13.1).
     pub incomplete: Option<&'static str>,
@@ -3436,6 +3523,9 @@ pub struct PlayCtx {
     /// The cost reductions announced with the card: the source in play and
     /// the amount (The Line, The Shard, Ravnos Carnival, Ravnos Cache).
     pub discounts: [Option<(CardId, u8)>; 3],
+    /// The vampire whose blood pays 1 of the card's cost, announced with the
+    /// reductions (Regina Blake).
+    pub blood_payer: Option<MinionId>,
     /// The card in play the card was played from, not the hand (Fleshforge
     /// Chamber): it is not replaced.
     pub from: Option<CardId>,
@@ -3463,6 +3553,7 @@ impl PlayCtx {
             chosen: None,
             ash: None,
             discounts: [None; 3],
+            blood_payer: None,
             from: None,
         }
     }
@@ -3585,11 +3676,11 @@ pub fn holds(
         Requirement::HasEdge => st.seats[seat.index()].has_edge,
         Requirement::HandNotEmpty => !st.seats[seat.index()].hand.is_empty(),
         Requirement::CryptNotEmpty => !st.seats[seat.index()].crypt.is_empty(),
+        // Only master cards requiring the clan print it: a vampire playing
+        // as one for its Methuselah counts (Lady Scarlett Churchill).
         Requirement::ControlsReadyClan(clan, n) => {
             st.minions_of(seat)
-                .filter(|&m| {
-                    st.minions[m.index()].ready() && st.minions[m.index()].clan() == Some(clan)
-                })
+                .filter(|&m| st.minions[m.index()].ready() && st.meets_clan(m, &[clan], true))
                 .count()
                 >= n as usize
         }
@@ -3610,6 +3701,7 @@ pub fn holds(
         | Requirement::FewerCopiesUsedThisPhase(_)
         | Requirement::ActiveControlsNonSect(_) => true, // engine-checked
         Requirement::NoOptionalActionThisTurn => !st.optional_action,
+        Requirement::AshHasAlly(of) => st.seats[seat.index()].ash.iter().any(|&c| ash_ally(c, of)),
         Requirement::AllyInAnyAsh => st.seats.iter().any(|s| {
             !s.ousted
                 && s.ash
@@ -3691,6 +3783,7 @@ pub fn holds(
         Requirement::PlayedCardType(t) => {
             played.is_some_and(|p| LIBRARY[p.card as usize].types.contains(&t))
         }
+        Requirement::PlayedCard(f) => played.is_some_and(|p| f.matches(p.card)),
         Requirement::PlayedRequiresDiscipline(d) => played.is_some_and(|p| {
             LIBRARY[p.card as usize].modes[library_mode(p.card, p.mode as usize)]
                 .tags
@@ -4057,7 +4150,8 @@ pub fn holds(
         | Requirement::PoolAtMost(_)
         | Requirement::ControlsLocation
         | Requirement::ControlsNoLocation
-        | Requirement::ControlsVampireNamed(_) => true, // printed-modifier predicates
+        | Requirement::ControlsVampireNamed(_)
+        | Requirement::ControlsNoReadyOlderOfClan(_) => true, // printed-modifier predicates
         Requirement::ControlsLockedMinion => {
             st.minions_of(seat).any(|m| st.minions[m.index()].locked)
         }
@@ -4217,6 +4311,7 @@ pub fn holds_for_card_target(
     let c = &st.cards[id.index()];
     match req {
         Requirement::NotControlled => st.card_controller(id) != seat,
+        Requirement::Controlled => st.card_controller(id) == seat,
         Requirement::NotHost => actor.is_none() || c.host != actor,
         Requirement::TargetOnActor => actor.is_some() && c.host == actor,
         // A location in play is no equipment, whatever its type (Living

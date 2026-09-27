@@ -225,6 +225,7 @@ fn kind_of(c: &Choice) -> &'static str {
         Choice::YieldContest(_) => "yield_contest",
         Choice::Play { .. } => "play",
         Choice::UseAbility { .. } => "use_ability",
+        Choice::ResolvePrinted { .. } => "resolve_printed",
         Choice::ResolveRider { .. } => "resolve_rider",
         Choice::BurnInPlay { .. } => "burn_in_play",
         Choice::BurnPool => "burn_pool",
@@ -1988,6 +1989,75 @@ fuzz_tests! {
             "ability:Rise of the Nephtali",
             "ability:Conquest of Humanity",
         ],
+        untwin: true,
+        ..BASE
+    };
+    /// Slice 12a: the last vampires' printed text, all of them dealt at the
+    /// table, with the cards their text reads (Gangrel and Hecata actions,
+    /// animals, Tzimisce and Hecata allies, locations, Toreador cards,
+    /// Oblivion cards, a referendum, corruption).
+    random_games_with_the_last_vampires_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Rewilding",
+            "Dog Pack",
+            "Raven Spy",
+            "Aggressive Corpse",
+            "Screamer",
+            "War Ghoul",
+            ".44 Magnum",
+            "Elder Library",
+            "Living Manse",
+            "Toreador Grand Ball",
+            "Ancilla Empowerment",
+            "Scorn of Adonis",
+            "Shadow Sentinel",
+            "Vagabond Mystic",
+            "Platinum Protocol, The",
+            "Piper",
+        ],
+        extra: &["OBF"],
+        plays: 16,
+        // (The passive texts — the cost reductions, Regina's blood, the
+        // rescue discounts, Alexander's and Sergio's tolls, Abraham's and
+        // Lady Scarlett's clans — take no decision of their own: covered by
+        // the invariants, scripted in tests/vampires.rs.)
+        covers: &[
+            "ability:\"Mother\" Anja Giovanni",
+            "ability:Guardian, The",
+            "ability:Hel-Blá",
+            "ability:Keegan",
+            "ability:Luciano Carvalho",
+            "ability:Roger de Camden",
+            "ability:Sri Sansa",
+            "ability:Tommaso Sforza",
+            "resolve_printed",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Abraham Mellon",
+                    "Adelino Da Silva",
+                    "Alexander Silverson",
+                    "Anne-Marie Bourgeois, Inconnu Recruiter",
+                    "Doc Martina",
+                    "Gnaeus Aemilius Augustinus",
+                    "Hel-Blá",
+                    "Keegan",
+                    "Kuyén",
+                    "Lady Scarlett Churchill",
+                    "Luciano Carvalho",
+                    "Máddji, Mistress of Szlachtas",
+                    "Regina Blake",
+                    "Roger de Camden",
+                    "Sergio Bueno",
+                    "Sri Sansa",
+                    "Tommaso Sforza",
+                    "\"Mother\" Anja Giovanni",
+                    "Guardian, The",
+                ],
+            )
+        },
         untwin: true,
         ..BASE
     };

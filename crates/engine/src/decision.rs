@@ -89,6 +89,11 @@ pub enum Choice {
     ResolveRider {
         card: u32,
     },
+    /// Resolve a mandatory effect printed on this vampire, pending at this
+    /// hook (Gnaeus Aemilius Augustinus's unlock-phase damage).
+    ResolvePrinted {
+        minion: MinionId,
+    },
     /// Terms of a play: burn this card in play (arena index) at resolution
     /// — "you can burn a card named X (if any)"; `Pass` for none.
     BurnInPlay {

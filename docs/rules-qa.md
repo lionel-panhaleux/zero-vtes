@@ -1,7 +1,7 @@
 # Rules Q&A — ruling reference
 
 Owner rulings (VEKN judge) on VTES rules questions raised while building the
-engine, Batches 1–40. Each item is the settled rule, stated as fact; the
+engine, Batches 1–41 (Batch 41 open). Each item is the settled rule, stated as fact; the
 question framing, engine mechanics, test names and confirmations are dropped
 deliberately: the code and its tests are the reference for how a rule is
 implemented, and they point back here through `rules-qa N.M` comments.
@@ -49,7 +49,7 @@ Conventions:
 - **Discard phase, events** — 8.4, 15.2, 28.12, 33.8, 40.1–40.11
 - **Conditions read live; card-text defaults** — 4.3, 9.1, 13.2, 18.4, 19.3, 28.2, 28.6, 29.11, 32.4, 32.7, 39.5
 - **Corruption counters, multi-Discipline cards** — 25.1–25.6, 34.3, 35.2, 38.4
-- **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4
+- **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14
 - **Game end, VP, ousting** — 6.9, 18.2, 24.1, 33.2
 ## Batch 1 — sequencing, impulse, windows
 
@@ -78,7 +78,7 @@ Conventions:
 
 **2.3** Vocabulary accepted: block attempt pending vs blocked-before-resolution split; `CARD_AS_PLAYED` (as-played cancel sub-window); out-of-turn is a card flag (Archon Investigation, Sudden Reversal), not a window.
 
-**2.4** Wakes vs unlock reactions. True wakes (Wake with Evening's Freshness, On the Qui Vive, Forced Awakening, Eyes of Argus [AUS], Shadow Sentinel) are playable in the as-played window — e.g. before a card is canceled (Rewind Time) or before a modifier's effect resolves (wake before Consign to Oblivion raises the wake's cost). Unlock-and-attempt reactions (Dogged Pursuit, Eyes of the Wild, Second Tradition 2nd mode, Sense the Savage Way [ANI], One With the Land [PRO], Organized Resistance) and plain unlock reactions (Guard Dogs, Rat's Warning, Forced Vigilance [FOR]) are not. The as-played window admits **only wakes and cancellations** — not even card abilities (locking The Barrens). _Engine reading, not owner-confirmed:_ the as-played window opens after every card play during an action; a wake there resolves before the played card's effect; wakes are action-scoped, so master-phase as-played windows admit cancels only. Organized Resistance's first mode (locked baron gives +1 intercept) is an intercept play usable while locked. Second Tradition / Organized Resistance's "even if intercept is not yet needed" is evidence "only when needed" is the default (3.2).
+**2.4** Wakes vs unlock reactions. True wakes (Wake with Evening's Freshness, On the Qui Vive, Forced Awakening, Eyes of Argus [AUS], Shadow Sentinel) are playable in the as-played window — e.g. before a card is canceled (Rewind Time) or before a modifier's effect resolves (wake before Consign to Oblivion raises the wake's cost). Unlock-and-attempt reactions (Dogged Pursuit, Eyes of the Wild, Second Tradition 2nd mode, Sense the Savage Way [ANI], One With the Land [PRO], Organized Resistance) and plain unlock reactions (Guard Dogs, Rat's Warning, Forced Vigilance [FOR]) are not. The as-played window admits **only wakes and cancellations** — not even card abilities (locking The Barrens). It opens after every card play, during an action or not (Rewind Time is usable outside actions). Wakes need an action: an action card just played (still in its cancel window, not yet replaced) has already opened it, so wakes are playable there; a wake resolves before the played card's effect. Outside an action (master phase…) the window admits cancels only. Organized Resistance's first mode (locked baron gives +1 intercept) is an intercept play usable while locked. Second Tradition / Organized Resistance's "even if intercept is not yet needed" is evidence "only when needed" is the default (3.2).
 
 **2.5** Strike-card riders (owner, 2026-08-04): the rider's timing relative to the strike step decides the play window. A strike with an optional *maneuver* rider (Aid from Bats, Slam, Diversion) is playable at determine range, committing the strike early (DESIGN §4.4); one with a *press* or *additional strike* rider is played at strike declaration (Hidden Strength's press is a rider, not a mode — unlike Flash, Indomitability, Resist Earth's Grasp, whose "or press" wordings are real press modes). Any card's riders firing after its own play step add no play window.
 
@@ -134,7 +134,7 @@ Conventions:
 
 **6.1** "During their unlock phase" mandatory effects (Anarch Revolt's burn) must resolve before the impulse passes to another player; the active Methuselah orders them before or after their other unlock-phase effects; the condition is read when the effect resolves.
 
-**6.2** A referendum/action granted by a card in play (Anarch Revolt): a political action in every respect — locks, blockable, the one-political-action-per-minion cap. Stealth is **not** implied: the default +1 stealth applies to political action *cards* only; a granted action has only the stealth its text prints (directed or not). NRA is keyed to the *copy* (1.4). No calling card, so no card vote for the caller. Delaying Tactics cancels it (nothing to return to hand). _Engine reading, not owner-confirmed:_ Delaying Tactics' "same political action" ban is keyed by name (contrast 23.2).
+**6.2** A referendum/action granted by a card in play (Anarch Revolt): a political action in every respect — locks, blockable, the one-political-action-per-minion cap. Stealth is **not** implied: the default +1 stealth applies to political action *cards* only; a granted action has only the stealth its text prints (directed or not). NRA is keyed to the *copy* (1.4). No calling card, so no card vote for the caller. Delaying Tactics cancels it (nothing to return to hand). Its "same political action" ban uses the ordinary NRA identity (23.2): the card's name from hand, the copy for a card in play (another copy's referendum stays open, LSJ 20020201).
 
 **6.3** A passed "burn this card" referendum burns the copy whose action was taken (to its owner's ash heap); if that copy already left play, nothing.
 
@@ -242,7 +242,7 @@ Conventions:
 
 ## Batch 14 — printed combat abilities
 
-**14.1** Adrino Manauara's mandatory press _(owner answer not recorded — open)_. Engine reading: at the press step his controller must use it to continue before passing, unless a press to continue already stands, in which case it waits for a later round of the combat.
+**14.1** Adrino Manauara's mandatory press: at the press step his controller must use it to continue before passing, unless a press to continue already stands, in which case it waits for a later round of the combat.
 
 **14.2** Other printed combat abilities:
 - "1 optional maneuver / press each combat" (Abaddon, Saku Pihlajamäki): one use over the whole combat, any round, under the no-two-in-a-row rule.
@@ -255,7 +255,7 @@ Conventions:
 
 ## Batch 15 — printed abilities outside combat
 
-**15.1** Gathii's reveal _(partly open)_. Once per action (read from the "during" template, 15.2 — not explicitly confirmed). Engine reading of (b), unconfirmed: usable before stealth is needed, the +1 stealth then not gained (ANK 20231031), so the master-card blood burn is the only effect.
+**15.1** Gathii's reveal: once per action (the "during" template, 15.2); usable before stealth is needed, the +1 stealth then not gained (ANK 20231031), so the master-card blood burn is the only effect.
 
 **15.2** Printed abilities outside combat:
 - **"During" template:** most abilities print "during X" and are once during it — not repeatable while payable. Abraham DuSable (each mode), Oskar Anasov, Gwenllian Arwyn, Larissa Moreira: once per action; Kalinda: once per turn.
@@ -444,7 +444,7 @@ Conventions:
 
 **28.6** Wasserschloss Anif's "a Tremere you control" is not limited to ready: a Tremere in torpor can move its blood.
 
-**28.7** Out of torpor before resolution: a leave-torpor action fizzles paid (ANK 20220218, Warsaw Station); a rescue whose vampire left torpor also fizzles paid (split as normal; a vampire gone from play pays nothing, the rescuer pays what it can) — engine alignment after the owner questioned the asymmetry, no ruling covers the rescue; a diablerie fizzles with no blood hunt.
+**28.7** Out of torpor before resolution: a leave-torpor action fizzles paid (ANK 20220218, Warsaw Station); a rescue whose vampire left torpor also fizzles paid (split as normal; a vampire gone from play pays nothing, the rescuer pays what it can); a diablerie fizzles with no blood hunt.
 
 **28.8** Week of Nightmares: a Ravnos that must hunt must take the special hunt; with no target it is frozen (takes no action; other minions act). At the end a Ravnos pays its nightmare blood if it can, burned only if it cannot. "Only one … per game" counts a play canceled as played.
 
@@ -657,3 +657,33 @@ Conventions:
 **40.10** Absimiliard's Army's ghoul is put in play (not recruited) and may act the turn it enters; the card stays its controller's (removed from the game from their library).
 
 **40.11** Rise of the Nephtali: the Liaison action has no stealth of its own; "younger" = lower capacity (rulebook).
+
+## Batch 41 — vampires' printed text (slice 12a)
+
+**41.1** Abraham Mellon _(open)_: "can play cards requiring a Tremere as if he were a Tremere" covers only the cards he plays, played normally (LSJ 20050119) — not his Methuselah's master cards requiring a ready Tremere (Chantry, Arcane Library…), unlike Lady Scarlett's "you and". No minion card in the pool requires a Tremere, so the clause has no tenant. Engine reading as stated.
+
+**41.2** Lady Scarlett Churchill _(open)_: her Methuselah's cards requiring a Toreador count her as one to be played (Art Museum, Society Hunting Ground; Toreador Grand Ball's two Toreador, its locked one, its second one); the card's effects in play never do — as the locked Toreador she unlocks as normal (ANK 20220816-2), and as the second one her non-bleed actions are not made unblockable either; a hunting ground's blood for a Toreador does not reach her. Engine reading as stated.
+
+**41.3** Alexander Silverson _(open)_: each vampire casting votes against a referendum his political action called burns 1 blood (himself included; one with no blood cannot vote against); a Methuselah's ballots (the Edge, a political action card's vote) cost nothing — "vampires must burn" reads only vampire sources. A blood hunt called on him is not called by him. Engine reading as stated.
+
+**41.4** Sergio Bueno _(open)_: an ally with his Methuselah's corruption counters pays the block toll in life; one with 1 life cannot attempt (paying would burn it before the attempt exists). Engine reading; the alternative is to let it pay, burn, and fail the attempt.
+
+**41.5** The Guardian _(open)_: his combat begins as he uses the ability in the bleed's after-resolution window, the bleeder acting first (ANK 20221102; advanced rules §4.1.1 names him among "the minion the effect sends into combat takes that role" — read here as the ruling says); once it ends the after-resolution window opens again for every Methuselah. "Unique older Nosferatu": every vampire is unique; older is a higher capacity; ready, any of his Methuselah's. His directed actions are barred wherever an action is declared: bleeds, rescue or diablerie of another Methuselah's vampire, action cards and granted actions aimed at another Methuselah, their minion or their card. Engine reading as stated.
+
+**41.6** Hel-Blá _(open)_: the ally is chosen as the action resolves (as Sakhar's search, 17.1 — not named at declaration like Psychophagia's, 32.12); the action is offered only while her Methuselah's ash heap holds an ally requiring Hecata or printing Oblivion; none left by resolution: successful, no effect (blood paid). Engine reading as stated.
+
+**41.7** Luciano Carvalho _(open)_: the animal retainer is chosen as the ability is used, the vampire it moves to as it resolves — any other vampire his Methuselah controls able to hold it, himself and torpid ones included; once each discard phase (6.6). Engine reading as stated.
+
+**41.8** Sri Sansa _(open)_: one move each unlock phase, either way; a move that cannot happen is not offered (to an ally at its starting life, to Sri at her capacity: "not to exceed their starting life" read on both); an ally giving its last life burns. No mage ally is in the pool. Engine reading as stated.
+
+**41.9** Roger de Camden _(open)_: his maneuver is given and used as the range is determined (not banked for a later step), for any minion of his Methuselah in combat, himself included; once each turn. His cost reduction reads the card played: requiring the Hecata clan, or played using Oblivion (38.4); blood only (nothing off a pool cost). Engine reading as stated.
+
+**41.10** Tommaso Sforza _(open)_: usable in the before-range step of a combat whose combatant on his Methuselah's side is a wraith or zombie ally, from out of the combat; once each turn. Engine reading as stated.
+
+**41.11** Gnaeus Aemilius Augustinus _(open)_: a mandatory unlock-phase effect his Methuselah orders among theirs (7.8), his readiness read then; the prey chooses as it resolves among their ready minions (an ally takes the damage in life); none: nothing. Engine reading as stated.
+
+**41.12** Keegan and "Mother" Anja Giovanni _(open)_: "an action requiring a Gangrel / Hecata or Oblivion" is an action card, a retainer or ally card, or a card in play's granted action requiring it (Rewilding, Dog Pack's employ; a recruit of Aggressive Corpse) — never a rulebook action. Anja may unlock an acting Hecata already unlocked (no effect, kept, 4.3). Engine reading as stated.
+
+**41.13** Printed cost reductions _(open)_: Anne-Marie Bourgeois's "-1 pool" takes nothing off a blood cost; hers, Kuyén's and Máddji's reach a card put in play by another card (Piper per ANK 20210913; Contraband, a search — 36.5); Kuyén's "animals (allies and retainers)" are ally and retainer cards whose type line makes them animals. Regina Blake's blood is announced with the card like a reduction (36.1) and burned as the cost is paid, only if something is left to pay; not for a locquipment found by a search (not played). Engine reading as stated.
+
+**41.14** Adelino Da Silva _(open)_: "an older vampire" is one of higher capacity than his. Engine reading as stated.

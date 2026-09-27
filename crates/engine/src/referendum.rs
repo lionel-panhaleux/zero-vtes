@@ -584,6 +584,22 @@ impl Engine {
         DecisionRequest::new(ctx.caller, WindowLabel::ReferendumTerms, options)
     }
 
+    /// The blood `m` burns to cast votes against the referendum: printed on
+    /// the vampire calling it (Alexander Silverson) — a political action's,
+    /// not a blood hunt's, which has no calling vampire.
+    fn vote_against_toll(&self, ctx: &ReferendumCtx, m: MinionId) -> u8 {
+        self.state
+            .printed_mod(
+                m,
+                cards::Stat::VoteAgainstToll,
+                crate::state::PrintedCtx {
+                    opponent: ctx.calling,
+                    ..Default::default()
+                },
+            )
+            .max(0) as u8
+    }
+
     fn polling_request(&self, ctx: &ReferendumCtx) -> Option<DecisionRequest> {
         let st = &self.state;
         let seat = ctx.window.current()?;
@@ -600,7 +616,9 @@ impl Engine {
                     favor: true,
                 });
             }
-            if ctx.votes_cast(st, id, false) > 0 {
+            if ctx.votes_cast(st, id, false) > 0
+                && st.minions[id.index()].blood >= self.vote_against_toll(ctx, id)
+            {
                 options.push(Choice::CastVotes {
                     minion: id,
                     favor: false,
@@ -765,11 +783,17 @@ impl Engine {
                 ctx.window.pass();
                 return None;
             }
-            Choice::CastVotes { minion, favor } => (
-                Source::Vampire(*minion),
-                *favor,
-                ctx.votes_cast(&self.state, *minion, *favor),
-            ),
+            Choice::CastVotes { minion, favor } => {
+                if !*favor {
+                    let toll = self.vote_against_toll(ctx, *minion);
+                    self.state.minions[minion.index()].blood -= toll;
+                }
+                (
+                    Source::Vampire(*minion),
+                    *favor,
+                    ctx.votes_cast(&self.state, *minion, *favor),
+                )
+            }
             Choice::CastEdge { favor } => {
                 self.state.seats[seat.index()].has_edge = false;
                 (Source::Edge(seat), *favor, 1)

@@ -14,8 +14,8 @@ Key facts:
   window elision (auto-pass provably empty windows); replay = (seed, decision log).
 - Card legality and execution derive from one representation — masks are
   generated, never hand-written.
-- v1 scope: full 625-card V5 engine pool (200 crypt, 425 library — all defined); training on the 14 full-size precon
-  decklists (379 uniques). Stack: Rust engine + PyO3 + PyTorch training.
+- v1 scope: full 625-card V5 engine pool (200 crypt, 425 library — all
+  defined); training on the 14 full-size precon decklists (379 uniques). Stack: Rust engine + PyO3 + PyTorch training.
 - `docs/rules-qa.md`: the owner's rulings (a VEKN judge and author of the
   KRCG library/API), one line per item, with a topical index; code cites items
   as `rules-qa N.M` (never renumber). New questions go in a new batch at the
@@ -29,11 +29,59 @@ Key facts:
   `scripts/rulings_v5.py --check data/rulings-v5.csv` verifies it against the
   tests offline — keep both in sync (regeneration keeps the statuses).
 - Card data source: https://static.krcg.org/data/vtes.json (the `v5/` dir there
-  is a *schema* version, not the V5 format). Engine crypt data is generated
-  from it: `scripts/gen_crypt.py` → `crates/engine/src/crypt.rs` (never edit by
-  hand; `--check` verifies).
+  is a *schema* version, not the V5 format). Generated from it, never edited by
+  hand: `scripts/gen_crypt.py` → `crypt.rs`, `scripts/gen_library.py` →
+  `library.rs` (`python3 scripts/gen_library.py <vtes.json> --check
+  crates/engine/src/library.rs`; same for crypt).
 - Reference material: the `vtes` skill (rulebook, tournament rules, judges'
   guides); `../vtes-advanced-rules` (judge-level semantics + machine-readable
   rulings YAML — the spec for effect semantics and a scenario-test generator);
   play procedures gist (shortcuts, declarations):
   https://gist.github.com/lionel-panhaleux/766eedd27ff26ae30169508ddc6bf95c
+
+State and next steps: DESIGN §11 (slice table, engine reference by mechanism,
+open gaps, what remains); history in `git log` (commit messages are detailed).
+
+## Owner rules
+
+- Commit only when the owner says so (often mid-turn).
+- Apply every ruling of the cards you add: read the card's KRCG rulings, its
+  ledger rows and `../vtes-advanced-rules` before designing, and make the design
+  satisfy each.
+- Never invent stand-ins for card-printed data; card-printed numbers and names
+  live in `cards/defs.rs`, not engine code. Every vampire ends with ALL its text
+  (partial definitions quote the rest in `incomplete`, rules-qa 13.1).
+- Conditions are evaluated live, never snapshotted — even when no pool card
+  could change them yet.
+- Keep legal no-op plays (cycling a card is a real option); only illegal-target
+  actions are masked (rules-qa 17.4).
+- A reading no ruling settles is implemented and recorded as a question in a
+  new rules-qa batch. Card text addresses its controller by default (32.7); Ⓓ
+  is only indicative (20.1).
+- The owner may add legacy cards to close test loops (e.g. a sterile baron);
+  hard cards to stress the engine later: Rötschreck, Outside the Hourglass,
+  Rewind Time.
+
+## Working lessons
+
+- Checks before calling work done: `cargo fmt --check`; `cargo clippy
+  --all-targets --release -- -D warnings`; `cargo test --release -q` (and debug)
+  — cargo stops at the first failing binary, so sum the "test result" lines and
+  grep for panics; the ledger, window-matrix and generator `--check`s; the count
+  line at the end of DESIGN §11.
+- Refactors: record per-seed fuzz decision logs before and after (a temporary
+  dump in `tests/fuzz.rs` `fuzz()`) and a `{:#?}` dump of `DEFS`/`VAMPIRES`;
+  diff both. `FUZZ_TRACE=1 SEED_FROM=n` prints one seed's choices.
+- `data/rulings-v5.csv` is CRLF: edit it byte-wise. Tests in `tests/rulings.rs`
+  must back a ledger row; put regressions elsewhere.
+- Window elision breaks naive tests: single-option windows auto-apply, a
+  lone-Pass minion phase elides into the next turn (add a second minion), state
+  from elided follow-ups lands on the next `run()`. Prove a non-offer with
+  `never_offered_until` (`tests/common`).
+- Adding a card to a fuzz fixture reshuffles its random games: rare coverage
+  keys may starve and latent bugs surface.
+- Test fixtures: blood above capacity drains at the first `run()`; library
+  cards carry clan requirements (check `LIBRARY` clans before picking test
+  vampires).
+- zsh: never write `"$VAR:x"` in shell arguments (history modifiers eat
+  `:t`/`:e`/`:r`/`:s`).

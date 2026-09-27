@@ -484,10 +484,12 @@ fn bleed_cards_are_not_playable_after_resolution() {
 #[test]
 fn bonding_gives_no_stealth_to_a_non_bleed_action() {
     let (mut e, a, _x, _z) = bleed_table();
+    // Room for the hunt's blood whatever a's capacity.
+    e.state.minions[a.index()].blood = 5;
     hand(&mut e, 0, &["Bonding"]);
     pick(&mut e, action(a, ActionKind::Hunt));
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert_eq!(blood(&e, a), 7);
+    assert_eq!(blood(&e, a), 6);
     assert_eq!(e.state.seats[0].hand.len(), 1);
 }
 

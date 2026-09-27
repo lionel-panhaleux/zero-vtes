@@ -43,6 +43,9 @@ pub enum Contest {
 pub enum Pending {
     /// A card in play's "during their unlock phase" rider.
     Rider(CardId),
+    /// A vampire's printed one ("if Aemilius is ready during your unlock
+    /// phase", Gnaeus Aemilius Augustinus).
+    Printed(crate::ids::MinionId),
     /// Contest upkeep: pay or yield.
     Contest(Contest),
 }
@@ -401,7 +404,9 @@ impl Engine {
         match &self.flow {
             Flow::MasterPhase => Some(self.master_request()),
             Flow::PlayTerms { ctx, .. } => Some(self.terms_request(ctx)),
-            Flow::CostTerms { ctx, pending, .. } => Some(self.cost_terms_request(ctx, *pending)),
+            Flow::CostTerms {
+                ctx, pending, then, ..
+            } => Some(self.cost_terms_request(ctx, *pending, *then)),
             Flow::AsPlayed { stack, .. } => self.as_played_request(stack),
             Flow::MinionPhase => Some(DecisionRequest::new(
                 st.active,
@@ -632,6 +637,13 @@ impl Engine {
                 })
                 .map(|(i, _)| Pending::Rider(CardId(i as u32))),
         );
+        let printed: Vec<Pending> = self
+            .state
+            .minions_of(s)
+            .filter(|&m| !self.printed_unlock_riders(m).is_empty())
+            .map(Pending::Printed)
+            .collect();
+        pending.extend(printed);
         let order = self.state.clockwise_from(s);
         self.flow = Flow::Abilities {
             window: OrderedWindow::new(order),

@@ -415,6 +415,7 @@ titles; `git log` has the detail.
 | P2 · 11w–11z | 09-26 | Pool masters (w–y), cost reductions and Fleshforge Chamber (z) |
 | P2 · 11aa–11ab | 09-27 | Last allies, equipment, Mobile HQ, Minion Tap (aa); last political actions (ab) |
 | P2 · 11ac–11ae | 09-27 | The 20 events: Gehenna and held replacements (ac), unlock-phase events (ad), sect falls, Liaison, token allies (ae) — every library card defined |
+| P2 · 12a | 09-27 | The last 19 vampires' printed text: every vampire defined (5 partial) |
 
 ### 11.2 Engine reference (by mechanism)
 
@@ -699,6 +700,22 @@ slice-11 cards by section).
   `AbilitySource::{Card, Vampire}` keys uses and resolution.
 - A vampire may land with part of its text, the rest quoted in `incomplete`
   (rules-qa 13.1); fixtures wanting a plain vampire pin one by name.
+- Printed predicates read `PrintedCtx`: the action, the opposing minion
+  (the blocker for a block toll, the calling vampire for a vote toll) and
+  the card played (`PrintedCtx::card`, `R::PlayedCard`). Printed cost
+  reductions (`GameState::printed_cost_off`: pool, blood, "blood or pool")
+  apply wherever the minion pays a card's cost, a card another puts in play
+  included (Piper, Contraband); Regina Blake's blood is announced with the
+  card like a reduction (`PlayCtx::blood_payer`, `Engine::blood_payers`).
+- "Plays cards requiring a <clan> as if" (`VampireDef::plays_as`) counts at
+  card plays only (`GameState::meets_clan`: clan requirement, target, terms,
+  `R::ControlsReadyClan`); a card's effects in play read the clan itself
+  (`GameState::of_card_clan`).
+- Vampire unlock-phase riders are pending mandatory effects
+  (`Pending::Printed`, `Choice::ResolvePrinted`); `Stat::NoDirectedActions`
+  filters the minion phase's offers (`Engine::directed_actor`); a combat an
+  ability begins after resolution returns to that window
+  (`CombatCtx::after_resolution`).
 
 **Equipment** (`plays.rs`, `actions.rs`)
 - Equip from hand: +1 stealth plus printed, cost at resolution (unpayable or no
@@ -766,23 +783,19 @@ slice-11 cards by section).
 
 Still true today; "(verify)" marks items inferred from older notes.
 
-- **Undefined vampire text (19)**: Abraham Mellon, Adelino Da Silva, Alexander
-  Silverson, Anne-Marie Bourgeois, Doc Martina, Gnaeus Aemilius Augustinus
-  (out-of-combat damage in another seat's unlock phase — `Effect::DamageTarget`
-  now exists, verify), Hel-Blá, Keegan and "Mother" Anja Giovanni (held for "no
-  action requires their clans", verify after 11o–11v), Kuyén, Lady Scarlett
-  Churchill, Luciano Carvalho, Máddji, Regina Blake, Roger de Camden, Sergio
-  Bueno, Sri Sansa, Tommaso Sforza, The Guardian (combat begun outside an
-  action, verify). Their ledger rows have no status yet.
 - **Incomplete vampires (5)**: Daria (+1 blood on directed actions), Djeneba
   (opponent's strike cards +1), Marchesa Liliana (a pick-seven removal terms
-  flow), Mithras (block/vote toll), Ragnar Nordstrom (Protean discount).
+  flow), Mithras (block/vote toll: `Stat::BlockToll` and
+  `Stat::VoteAgainstToll` now exist), Ragnar Nordstrom (Protean discount:
+  `Stat::BloodCostOff` now exists). Every other vampire is defined; the
+  slice-12a readings await the owner (rules-qa Batch 41).
 - **Inert clauses, no V5 tenant**: Blood Trade's boons; Fall of the Sabbat's
   Black Hand; The Fourth Cycle's conviction cards; "referendum passes
   automatically" (Amici Noctis, Voter Captivation rows blocked); first strike and
   self-damaging weapons (rows n/a).
-- **Mechanisms missing** (ledger `blocked:` rows name the rest): effects reading
-  mortal/monster subtypes (Sri Sansa is a tenant); immunity to damage from a
+- **Mechanisms missing** (ledger `blocked:` rows name the rest): a mage
+  subtype (Sri Sansa's "mortal or mage ally": no mage in the pool, none
+  generated); immunity to damage from a
   source; tournament withdrawal (§10.6); allies paying blood costs under The
   Shard (ANK 20230721, not modeled).
 - **Known edges**:
@@ -796,6 +809,8 @@ Still true today; "(verify)" marks items inferred from older notes.
     ousting the active Methuselah there finishes the play's bookkeeping first.
   - True Love's Face's pay-to-cancel is not offered for a last pool (an oust in
     the middle of a play).
+  - A canceled card whose cost "is still paid" (Meditative Grove) pays it in
+    full: Regina Blake's announced blood is not used (`settle_canceled`).
   - `Effect::PoolToHostBlood` ousts through `oust_and_pass`, assuming the user is
     the active seat — true for Blood Doll; route through `oust` when a
     pool-paying untimed ability reaches a non-active seat.
@@ -819,14 +834,15 @@ Still true today; "(verify)" marks items inferred from older notes.
 
 ### 11.4 What remains
 
-- **P2 — full engine pool**: finish the vampires and the deliverables above.
+- **P2 — full engine pool**: finish the 5 incomplete vampires and the
+  deliverables above.
 - **P3 — training loop**: observations (§5), PyO3 batched stepping, encoder, PPO
   self-play at 4p; evaluation ladder vs scripted bots and frozen snapshots.
 - **P4 — league & 5p**: exploiters, PFSP, deck/seat sampling, evaluation vs
   humans.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer.
 
-Definitions: 425, 858 tests
+Definitions: 425, 880 tests
 
 ## Outlook: deck building (post-v1)
 

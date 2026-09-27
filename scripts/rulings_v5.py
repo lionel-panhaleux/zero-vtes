@@ -102,7 +102,9 @@ def implemented():
     found = {names[i] for i in idents}
     # Vampires with printed text (crates/engine/src/cards/vampires.rs `VAMPIRES`).
     src = open(os.path.join(ENGINE, "src", "cards", "vampires.rs"), encoding="utf-8").read()
-    vnames = dict(re.findall(r"pub static ([A-Z_0-9]+): VampireDef = VampireDef \{\s*name: \"([^\"]+)\"", src))
+    # A name may hold escaped quotes ("\"Mother\" Anja Giovanni").
+    vnames = {k: v.replace('\\"', '"') for k, v in re.findall(
+        r'pub static ([A-Z_0-9]+): VampireDef = VampireDef \{\s*name: "((?:[^"\\]|\\.)*)"', src)}
     m = re.search(r"VAMPIRES: \[&VampireDef; (\d+)\] = \[(.*?)\];", src, re.S)
     idents = re.findall(r"&([A-Z_0-9]+)", m.group(2))
     assert len(idents) == int(m.group(1)), "VAMPIRES length literal out of sync"
