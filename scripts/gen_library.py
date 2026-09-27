@@ -4,9 +4,10 @@
 Static card data is generated, never hand-typed (DESIGN §4.5). Output:
 `crates/engine/src/library.rs` — the 421 V5 library cards (id, printed name,
 types, discipline requirement per mode, clan requirement, costs, labels,
-per-mode play windows and flags from `window_matrix.modes_for`) and the 14
-full-size precon libraries. Behavior (effects) is *not* here: this module is
-the mask-side static half of the representation.
+per-mode play windows and flags from `window_matrix.modes_for`), the 14
+full-size precon libraries and the 14 New Blood mini-starter libraries.
+Behavior (effects) is *not* here: this module is the mask-side static half of
+the representation.
 
 Usage: python3 scripts/gen_library.py [path/to/vtes.json] > crates/engine/src/library.rs
        python3 scripts/gen_library.py [path/to/vtes.json] --check crates/engine/src/library.rs
@@ -21,6 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from window_matrix import in_pool, modes_for  # noqa: E402
 
 FULL_PRECON_SETS = ["Fifth Edition", "Fifth Edition (Anarch)", "Fifth Edition (Companion)"]
+MINI_PRECON_SETS = ["New Blood", "New Blood II", "New Blood III"]
 TYPES = ["Master", "Action", "Action Modifier", "Reaction", "Combat", "Political Action",
          "Ally", "Equipment", "Retainer", "Event"]
 LABELS = [
@@ -224,24 +226,36 @@ def generate(cards):
         out.append("    },")
     out.append("];")
     out.append("")
+    precon_table(out, lib, lambda c: index[c["id"]], FULL_PRECON_SETS, "PRECON_LIBRARIES", [
+        "/// The 14 full-size preconstructed libraries as (name, [(LIBRARY index, copies)]).",
+        "/// Names match crypt::PRECONS.",
+    ])
+    out.append("")
+    precon_table(out, lib, lambda c: index[c["id"]], MINI_PRECON_SETS, "MINI_LIBRARIES", [
+        "/// The 14 New Blood mini-starter libraries as (name, [(LIBRARY index, copies)]).",
+        "/// Names match crypt::MINI_PRECONS.",
+    ])
+    return "\n".join(out) + "\n"
+
+
+def precon_table(out, cards, index_of, sets, name, doc):
+    """One table of preconstructed decks from `sets`, sorted by (set, deck)."""
     precons = {}
-    for c in lib:
+    for c in cards:
         for s, entries in c["sets"].items():
-            if s not in FULL_PRECON_SETS:
+            if s not in sets:
                 continue
             for e in entries:
                 if "precon" in e:
-                    precons.setdefault((s, e["precon"]), []).append((index[c["id"]], e["copies"]))
+                    precons.setdefault((s, e["precon"]), []).append((index_of(c), e["copies"]))
     precons = sorted(precons.items())
-    out.append("/// The 14 full-size preconstructed libraries as (name, [(LIBRARY index, copies)]).")
-    out.append("/// Names match crypt::PRECONS.")
+    out.extend(doc)
     out.append("#[rustfmt::skip]")
-    out.append(f"pub static PRECON_LIBRARIES: [(&str, &[(u16, u8)]); {len(precons)}] = [")
+    out.append(f"pub static {name}: [(&str, &[(u16, u8)]); {len(precons)}] = [")
     for (s, p), entries in precons:
         body = ", ".join(f"({i}, {k})" for i, k in sorted(entries))
         out.append(f"    ({rust_str(p + ' (' + s + ')')}, &[{body}]),")
     out.append("];")
-    return "\n".join(out) + "\n"
 
 
 def main():

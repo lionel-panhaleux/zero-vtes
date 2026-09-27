@@ -18,11 +18,13 @@ macro_rules! sum_n {
 
 pub mod actions;
 pub mod agent;
+pub mod bots;
 pub mod cards;
 pub mod combat;
 pub mod contests;
 pub mod crypt;
 pub mod decision;
+pub mod decks;
 pub mod draws;
 pub mod game;
 pub mod ids;

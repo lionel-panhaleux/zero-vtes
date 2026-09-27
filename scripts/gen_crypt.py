@@ -3,7 +3,8 @@
 
 Static card data is generated, never hand-typed (DESIGN §4.5). Output:
 `crates/engine/src/crypt.rs` — the 200 V5 vampires (id, printed name,
-capacity, group, clan, sect, title) and the 14 full-size precon crypts.
+capacity, group, clan, sect, title), the 14 full-size precon crypts and the
+14 New Blood mini-starter crypts.
 
 Usage: python3 scripts/gen_crypt.py [path/to/vtes.json] > crates/engine/src/crypt.rs
        python3 scripts/gen_crypt.py [path/to/vtes.json] --check crates/engine/src/crypt.rs
@@ -20,6 +21,7 @@ V5_SETS = [
     "Fall of London", "Shadows of Berlin", "Echoes of Gehenna",
 ]
 FULL_PRECON_SETS = ["Fifth Edition", "Fifth Edition (Anarch)", "Fifth Edition (Companion)"]
+MINI_PRECON_SETS = ["New Blood", "New Blood II", "New Blood III"]
 
 # Title is the card-text prefix (rulebook "Vampiric Sects"): sect, then an
 # optional title. Prince/Baron of a city contest by city; Justicar by clan;
@@ -113,26 +115,39 @@ def generate(cards):
         out.append("    },")
     out.append("];")
     out.append("")
+    precon_table(out, vamps, lambda c: index[c["name"]], FULL_PRECON_SETS, "PRECONS", [
+        "/// The 14 full-size preconstructed crypts (12 cards each) as",
+        "/// (name, [(CRYPT index, copies)]).",
+    ], 12)
+    out.append("")
+    precon_table(out, vamps, lambda c: index[c["name"]], MINI_PRECON_SETS, "MINI_PRECONS", [
+        "/// The 14 New Blood mini-starter crypts (6 cards each) as",
+        "/// (name, [(CRYPT index, copies)]).",
+    ], 6)
+    return "\n".join(out) + "\n"
+
+
+def precon_table(out, cards, index_of, sets, name, doc, size=None):
+    """One table of preconstructed decks from `sets`, sorted by (set, deck)."""
     precons = {}
-    for c in vamps:
+    for c in cards:
         for s, entries in c["sets"].items():
-            if s not in FULL_PRECON_SETS:
+            if s not in sets:
                 continue
             for e in entries:
                 if "precon" in e:
-                    precons.setdefault((s, e["precon"]), []).append((index[c["name"]], e["copies"]))
+                    precons.setdefault((s, e["precon"]), []).append((index_of(c), e["copies"]))
     precons = sorted(precons.items())
-    out.append("/// The 14 full-size preconstructed crypts (12 cards each) as")
-    out.append("/// (name, [(CRYPT index, copies)]).")
+    out.extend(doc)
     out.append("#[rustfmt::skip]")
-    out.append(f"pub static PRECONS: [(&str, &[(u16, u8)]); {len(precons)}] = [")
+    out.append(f"pub static {name}: [(&str, &[(u16, u8)]); {len(precons)}] = [")
     for (s, p), entries in precons:
-        total = sum(k for _, k in entries)
-        assert total == 12, (s, p, total)
+        if size:
+            total = sum(k for _, k in entries)
+            assert total == size, (s, p, total)
         body = ", ".join(f"({i}, {k})" for i, k in sorted(entries))
         out.append(f"    ({rust_str(p + ' (' + s + ')')}, &[{body}]),")
     out.append("];")
-    return "\n".join(out) + "\n"
 
 
 def main():

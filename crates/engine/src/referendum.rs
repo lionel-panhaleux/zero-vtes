@@ -247,7 +247,7 @@ impl ReferendumCtx {
             })
     }
 
-    fn current_term(&self) -> Option<Term> {
+    pub fn current_term(&self) -> Option<Term> {
         self.def.and_then(|d| d.terms.get(self.terms.term).copied())
     }
 

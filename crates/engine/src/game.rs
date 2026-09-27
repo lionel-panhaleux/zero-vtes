@@ -8,10 +8,10 @@ use crate::cards::{self, Hook, PlayCtx};
 use crate::combat::CombatCtx;
 use crate::crypt::PRECONS;
 use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
+use crate::decks::Deck;
 use crate::draws::Interrupt;
 use crate::ids::{MinionId, SeatId};
 use crate::influence::transfers_for_turn;
-use crate::library::PRECON_LIBRARIES;
 use crate::plays::PendingPlay;
 use crate::referendum::ReferendumCtx;
 use crate::rng::Rng;
@@ -186,46 +186,55 @@ pub struct Engine {
 }
 
 impl Engine {
-    /// A new game: each seat gets a random full-size V5 precon crypt,
-    /// shuffled, with the top four cards dealt face down to the uncontrolled
-    /// region (rulebook "Setup").
+    /// A new game: each seat gets a random full-size V5 precon (rulebook
+    /// "Setup", as [`Engine::with_decks`]).
     pub fn new(seed: u64, n_seats: usize) -> Self {
         assert!((2..=6).contains(&n_seats));
         let mut rng = Rng::new(seed);
         let seats = (0..n_seats)
             .map(|_| {
                 let precon = rng.below(PRECONS.len());
-                let (_, list) = PRECONS[precon];
-                let mut crypt: Vec<u16> = list
-                    .iter()
-                    .flat_map(|&(card, copies)| std::iter::repeat_n(card, copies as usize))
-                    .collect();
-                rng.shuffle(&mut crypt);
-                let uncontrolled = (0..UNCONTROLLED_START)
-                    .map(|_| UncontrolledSlot {
-                        card: crypt.pop().expect("crypt larger than initial draw"),
-                        counters: 0,
-                        banished: None,
-                    })
-                    .collect();
-                // The matching precon library, shuffled; hand of 7.
-                let (_, list) = PRECON_LIBRARIES[precon];
-                let mut library: Vec<u16> = list
-                    .iter()
-                    .flat_map(|&(card, copies)| std::iter::repeat_n(card, copies as usize))
-                    .collect();
-                rng.shuffle(&mut library);
-                let hand = library.split_off(library.len() - HAND_SIZE);
-                Seat {
-                    pool: START_POOL,
-                    crypt,
-                    uncontrolled,
-                    library,
-                    hand,
-                    ..Default::default()
-                }
+                Self::seat_from(&mut rng, &Deck::precon(precon))
             })
             .collect();
+        Self::from_seats(rng, seats)
+    }
+
+    /// A new game with these decks, one per seat in seating order: each
+    /// crypt shuffled, the top four cards dealt face down to the
+    /// uncontrolled region, each library shuffled and a hand of 7 drawn
+    /// (rulebook "Setup").
+    pub fn with_decks(seed: u64, decks: &[Deck]) -> Self {
+        assert!((2..=6).contains(&decks.len()));
+        let mut rng = Rng::new(seed);
+        let seats = decks.iter().map(|d| Self::seat_from(&mut rng, d)).collect();
+        Self::from_seats(rng, seats)
+    }
+
+    fn seat_from(rng: &mut Rng, deck: &Deck) -> Seat {
+        let mut crypt = deck.crypt_cards();
+        rng.shuffle(&mut crypt);
+        let uncontrolled = (0..UNCONTROLLED_START)
+            .map(|_| UncontrolledSlot {
+                card: crypt.pop().expect("crypt larger than initial draw"),
+                counters: 0,
+                banished: None,
+            })
+            .collect();
+        let mut library = deck.library_cards();
+        rng.shuffle(&mut library);
+        let hand = library.split_off(library.len() - HAND_SIZE);
+        Seat {
+            pool: START_POOL,
+            crypt,
+            uncontrolled,
+            library,
+            hand,
+            ..Default::default()
+        }
+    }
+
+    fn from_seats(rng: Rng, seats: Vec<Seat>) -> Self {
         let mut engine = Self {
             state: GameState {
                 seats,

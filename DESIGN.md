@@ -57,9 +57,10 @@ ledger): Camera Phone, Laptop Computer, Direct Intervention, Wash (2026-09-25).
   stress the effects framework, not the decision protocol.
 - **v1 training roster**: the 14 full-size precons (Fifth Edition 7 · Anarch 4 ·
   Companion 3), from KRCG `_set` bundle codes: 379 unique cards (138 crypt, 241
-  library), 17–41 uniques per deck. The New Blood mini-starters and the
-  singles-only cards (Fall of London, Echoes of Gehenna, part of Shadows of
-  Berlin — all the events) are implemented but in no v1 decklist.
+  library), 17–41 uniques per deck. The New Blood mini-starters are decklist
+  data (`Deck::mini`) outside the roster; the singles-only cards (Fall of
+  London, Echoes of Gehenna, part of Shadows of Berlin — all the events) are
+  implemented but in no decklist.
 - **Deferred — zero V5 tenants** (hooks designed, never opened): torpor
   replacement (`WOULD_GO_TO_TORPOR`), burn replacement (`WOULD_BE_BURNED`),
   bidding free-for-alls.
@@ -480,6 +481,7 @@ titles; `git log` has the detail.
 | P2 · 12b | 09-27 | The 5 partial vampires finished (Daria, Djeneba, Marchesa Liliana, Mithras, Ragnar Nordstrom): every vampire has all its text |
 | P2 · 12c | 09-27 | Regression tooling: golden replays of every fuzz game (§7.3), perft counts (§7.5), `Engine: Clone` |
 | P2 · 12d | 09-27 | Elision's observational equivalence (`tests/elision.rs`, §7.2), `GameState::legal_view` (§5); block pruning no longer reads third parties' hands |
+| P2 · 13 | 09-27 | Decklists: the New Blood mini-starters as data, `Engine::with_decks` (`decks.rs`); scripted reference bots aggro-bleed and wall (`bots.rs`, `agent::Agent`) |
 
 ### 11.2 Engine reference (by mechanism)
 
@@ -493,6 +495,7 @@ turn structure, ousts), `window.rs` (primitives), `decision.rs` (`Choice`,
 `combat.rs` (`CombatCtx`, `Side`), `referendum.rs` (`ReferendumCtx`),
 `contests.rs`, `influence.rs`, `draws.rs` (`Interrupt`, draws, searches),
 `state.rs` (`GameState`, `Minion`, `CardInPlay`, `Seat`, live stat reads),
+`decks.rs` (decklists), `agent.rs` and `bots.rs` (policies),
 `cards/mod.rs` (the vocabulary: `Window`, `Actor`, `Requirement`, `Terms`,
 `Effect`, `Modifier`, `Hook`, `Limit`, `CardDef`, `VampireDef`), `cards/defs.rs`
 and `cards/vampires.rs` (definitions), `crypt.rs`/`library.rs` (generated).
@@ -864,6 +867,55 @@ slice-11 cards by section).
   `MultiDiscipline`; "Unique." after the first sentence; ally body (life,
   strength, bleed) and subtypes. `Title::Independent { name, votes }`. Printed
   justicars keep the clan's old name.
+- Decklists: `PRECONS`/`PRECON_LIBRARIES` (the 14 full-size precons) and
+  `MINI_PRECONS`/`MINI_LIBRARIES` (the 14 New Blood mini-starters: 6 crypt
+  cards, 48–49 library cards), each sorted by set then deck, joined by
+  `decks::Deck` (`precon`, `mini`, `all`). `Engine::with_decks(seed, decks)`
+  seats them in order; `Engine::new` draws random precons with the same random
+  sequence as before (goldens unchanged).
+
+**Agents and scripted bots** (`agent.rs`: `Agent`, `RandomLegal`, `play_out`;
+`bots.rs`: `Scripted`, `Style`)
+- `Agent::decide(&Engine, &DecisionRequest)`: a policy may read the engine, but
+  only what its seat's legal view shows. `tests/bots.rs` answers every 3rd
+  decision of bot tables again from `legal_view` (a bot reads the action's
+  `seat`, `acting`, `kind`, `bleed_target`, `directed_seats`, the referendum's
+  `caller`; never `ActionCtx::card`/`exchange`, which name a card from hand and
+  are not redacted).
+- The bots score the options of the windows that define a style; everything
+  else scores 0 and ties are broken by a seeded random draw ("random with a
+  spine": the difference from `RandomLegal` is exactly these rules).
+  Deck-agnostic. Common to all styles: master cards played rather than passing;
+  contests paid; influence brings out every funded vampire, transfers onto the
+  slot nearest funding while under a vampire target (3; wall 4) and above a pool
+  floor (6; wall 8), draws from the crypt with at most one uncontrolled vampire
+  left, never withdraws; hunt when empty or under a third of capacity (wall:
+  half); combat cards that strike or prevent over other combat cards over the
+  hand strike; the discard phase discards a card no controlled minion could
+  play; own referendums voted for (the Edge and political cards burned for
+  them, vote cards played on the side they add to), everyone else's against;
+  political actions taken (over a bleed of 1 for aggro-bleed). Referendum
+  terms by what the referendum does: damage (pool burned by allocation or
+  choice, a victim of Parity Shift) at the prey when it may be named, the
+  predator otherwise; gains (Parity Shift's points, Camarilla's Iron Fist's
+  chosen Methuselah, Disputed Territory's taker) to the caller; minions to
+  banish, expel or lock among the prey's and the predator's at random; title
+  cards on the caller's own; the clan with the most of the caller's vampires
+  (owner, 2026-09-27). A failed block
+  attempt is not repeated with the same minion in the same action (the rulebook
+  allows it as often as wished: an always-block policy loops, so the bot
+  remembers its attempts).
+- Aggro-bleed: bleeds with every minion (the biggest bleed first), plays bleed
+  modifiers, blocks only actions directed at it. Wall: keeps one ready unlocked
+  minion home (other actions only with two or more), blocks everything, plays
+  intercept. No vote style: no style is assigned to a precon, and political
+  actions are part of both (owner, 2026-09-27).
+- Measured 2026-09-27 (precons rotated). Random play alone (200 games): 94.7
+  turns a game, 1.58 ousts, 75% of games at the time limit. Against three
+  random seats (200 games per style): aggro-bleed 94% game wins and 3.75 VPs a
+  game, wall 83% and 3.29, the random seats 0.08–0.21. Two of each style at
+  one table (480 games): aggro-bleed 1.51 VPs a seat, wall 0.49; 45 turns a
+  game, none at the time limit; 2–5 ms a game.
 
 ### 11.3 Open gaps
 
@@ -905,23 +957,26 @@ Still true today; "(verify)" marks items inferred from older notes.
   - Directed actions name one Methuselah at most (`ActionCtx::directed_seats`);
     Shadow Cast's remembered-set test is written for several.
   - Rapid Change [PRO] and Wolf Claws [PRO] are covered by fuzz only.
-- **P2 deliverables not started**: protocol server (§8), scripted
-  reference bots (aggro-bleed, wall, vote), the New Blood minis as decklist
-  data.
+  - Decisions are unbounded within an action: `TURN_LIMIT` bounds turns, but
+    the rulebook allows block re-attempts as often as wished, so a policy
+    that always declares a block never ends the action. A driver with a
+    deterministic policy (the P3 greedy evaluation, a human client) needs a
+    decision budget; the scripted bots remember their attempts.
+- **P2 deliverable not started**: the protocol server (§8).
 - Owner suggestions: hard legacy cards to stress the engine (Rötschreck, Outside
   the Hourglass, Rewind Time) and legacy cards closing test loops (a sterile
   baron); more `EXTRA_CARDS` at the owner's call (§3).
 
 ### 11.4 What remains
 
-- **P2 — full engine pool**: the deliverables above.
+- **P2 — full engine pool**: the deliverable above.
 - **P3 — training loop**: observations (§5), PyO3 batched stepping, encoder, PPO
   self-play at 4p; evaluation ladder vs scripted bots and frozen snapshots.
 - **P4 — league & 5p**: exploiters, PFSP, deck/seat sampling, evaluation vs
   humans.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer.
 
-Definitions: 425, 891 tests
+Definitions: 425, 895 tests
 
 ## Outlook: deck building (post-v1)
 
