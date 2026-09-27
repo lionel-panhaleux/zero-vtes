@@ -921,8 +921,8 @@ impl Engine {
     /// Can `m` of `seat` attempt to block the current action, its lock
     /// aside ("unlocks and attempts to block"): the normal prey, predator
     /// and target restrictions apply (ANK 20180623), and a minion that
-    /// cannot block cannot (LSJ 20010714-2); one already attempting may
-    /// (ANK 20181122-2).
+    /// cannot block cannot (LSJ 20010714-2), nor one that cannot pay the
+    /// attempt's toll; one already attempting may (ANK 20181122-2).
     pub(crate) fn can_attempt_block(&self, seat: SeatId, m: MinionId) -> bool {
         let Some(a) = self.action.as_ref() else {
             return false;
@@ -936,6 +936,8 @@ impl Engine {
                     // An unlock-and-block card needs the unlock (The
                     // Sleeping Mind [DOM] bars it).
                     && self.block_candidates_locked(a, seat, !a.no_unlock).contains(&m)
+                    // The attempt's toll payable (Sergio Bueno, Mithras).
+                    && self.block_toll(a, m).is_some()
             }
             _ => false,
         }
@@ -956,6 +958,7 @@ impl Engine {
             && seat != a.seat
             && !a.declined.contains(&seat)
             && self.block_candidates_locked(a, seat, false).contains(&m)
+            && self.block_toll(a, m).is_some()
     }
 
     /// `to` takes control of `m` until the end of their turn (Puppet Master
@@ -1319,14 +1322,16 @@ impl Engine {
             let Some(def) = cards::lookup(c.card) else {
                 continue;
             };
-            for ab in def
+            for (ai, ab) in def
                 .abilities
                 .iter()
-                .filter(|ab| ab.windows.contains(&Window::ActionStealthIntercept))
+                .enumerate()
+                .filter(|(_, ab)| ab.windows.contains(&Window::ActionStealthIntercept))
             {
                 if ab.limit == Some(Limit::PerAction)
-                    && a.abilities_used
-                        .contains(&cards::AbilitySource::Card(CardId(ci as u32)).use_key(0))
+                    && a.abilities_used.contains(
+                        &cards::AbilitySource::Card(CardId(ci as u32)).action_key(ai as u8),
+                    )
                 {
                     continue;
                 }
@@ -1472,7 +1477,7 @@ impl Engine {
                     Some(Limit::PerAction) => {
                         let used = self.action.as_ref().is_some_and(|a| {
                             a.abilities_used
-                                .contains(&cards::AbilitySource::Vampire(v).use_key(ai as u8))
+                                .contains(&cards::AbilitySource::Vampire(v).action_key(ai as u8))
                         });
                         if used {
                             0
@@ -2267,7 +2272,9 @@ impl Engine {
                 let t = play.target.minion();
                 self.state.minions[t.index()].locked = false;
                 a.intercept_given.push((t, n as i8));
-                if a.state == ActionState::Open {
+                // Its toll unpayable by now (the card's own blood paid
+                // first): no attempt (rules-qa 42.8).
+                if a.state == ActionState::Open && self.block_toll(&a, t).is_some() {
                     a.state = ActionState::Attempt(t);
                     self.action = Some(a);
                     self.pay_block_toll(t, true);
@@ -2319,8 +2326,8 @@ impl Engine {
                     .push((play.actor.expect("actor"), n));
             }
             Effect::AttemptBlock => {
-                if a.state == ActionState::Open {
-                    let m = play.actor.expect("attempting minion");
+                let m = play.actor.expect("attempting minion");
+                if a.state == ActionState::Open && self.block_toll(&a, m).is_some() {
                     a.state = ActionState::Attempt(m);
                     self.action = Some(a);
                     self.pay_block_toll(m, true);
@@ -2744,6 +2751,50 @@ impl Engine {
         }
     }
 
+    /// Blood `m`'s printed text adds to its directed actions (Daria), the
+    /// action read by `ctx`.
+    pub(crate) fn directed_action_toll(&self, m: MinionId, ctx: crate::state::PrintedCtx) -> u8 {
+        self.state
+            .printed_mod(m, cards::Stat::DirectedActionCost, ctx)
+            .max(0) as u8
+    }
+
+    /// The blood `o`, an action `m` announces, costs it before any toll:
+    /// an action card's (surcharges and printed reductions in, less the
+    /// reductions it could announce), a granted action's printed blood;
+    /// none for a rulebook action (a rescue's may be the rescued one's).
+    fn announced_blood(&self, seat: SeatId, m: MinionId, o: &Choice) -> u8 {
+        match *o {
+            Choice::Play {
+                card, mode, target, ..
+            } => {
+                let Some(&(lib, _)) = self.virtual_hand(seat).get(card as usize) else {
+                    return 0;
+                };
+                let Some(def) = cards::lookup(lib) else {
+                    return 0;
+                };
+                let x =
+                    cards::terms_x(&self.state, seat, lib, &def.modes[mode as usize]).unwrap_or(0);
+                let ctx = PlayCtx::new(seat, lib, mode, Some(m), target, x);
+                self.card_blood(m, ctx, x)
+                    .saturating_sub(self.cost_potential(&ctx))
+            }
+            Choice::UseAbility {
+                source, ability, ..
+            } => source
+                .mode(&self.state, ability)
+                .effects
+                .iter()
+                .map(|e| match e {
+                    Effect::PayBlood(n) => *n,
+                    _ => 0,
+                })
+                .sum(),
+            _ => 0,
+        }
+    }
+
     /// A granted action's printed pool and blood costs.
     fn granted_cost(&self, a: &ActionCtx) -> (u8, u8) {
         self.granted_effects(a)
@@ -2772,6 +2823,18 @@ impl Engine {
         let mut a = self.action.take().expect("action context");
         let seat = a.seat;
         a.outcome = Some(Outcome::Successful);
+        // "Directed actions cost her +1 blood" (Daria): the action's cost,
+        // paid first as it resolves; unpayable by then, the action fizzles
+        // (rules-qa 3.6, 42.1, 42.6).
+        let toll = self.directed_action_toll(a.acting, a.printed_ctx(&self.state, None));
+        if toll > 0 {
+            if self.state.minions[a.acting.index()].blood < toll {
+                // It reached resolution: NRA holds (rules-qa 1.4).
+                self.mark_resolved(a.acting, a.kind);
+                return self.fizzle(a);
+            }
+            self.state.minions[a.acting.index()].blood -= toll;
+        }
         match a.kind {
             ActionKind::Bleed => {
                 let prey = a.bleed_target.expect("bleed target");
@@ -4423,6 +4486,19 @@ impl Engine {
                     .is_some_and(|m| barred.contains(&m))
             });
         }
+        // "Directed actions cost her +1 blood" (Daria): payable with the
+        // action's own blood as it is announced (rules-qa 42.1).
+        options.retain(|o| {
+            let Some(m) = self.directed_actor(s, o) else {
+                return true;
+            };
+            let directed = crate::state::PrintedCtx {
+                directed: Some(true),
+                ..Default::default()
+            };
+            let toll = self.directed_action_toll(m, directed);
+            toll == 0 || st.minions[m.index()].blood >= toll + self.announced_blood(s, m, o)
+        });
         self.mandatory_actions(s, options)
     }
 

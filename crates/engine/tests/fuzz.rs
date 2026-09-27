@@ -1019,7 +1019,9 @@ fuzz_tests! {
             "ability:Kalinda",
             "ability:Alicia Cortez",
             "ability:Aline Gädeke",
-            "ability:Ilonka",
+            // (Ilonka needs a successful bleed at her Methuselah while she
+            // is ready: taken at 600 seeds only since slice 12b reshuffled
+            // the fixture; scripted in tests/vampires.rs.)
             "play:Creeping Sabotage",
             "ability:Creeping Sabotage",
             "play:Blood Doll",
@@ -1995,7 +1997,8 @@ fuzz_tests! {
     /// Slice 12a: the last vampires' printed text, all of them dealt at the
     /// table, with the cards their text reads (Gangrel and Hecata actions,
     /// animals, Tzimisce and Hecata allies, locations, Toreador cards,
-    /// Oblivion cards, a referendum, corruption).
+    /// Oblivion cards, a referendum, corruption; a directed action card, a
+    /// dodge, a Protean strike).
     random_games_with_the_last_vampires_hold_invariants_and_replay: Fixture {
         slice: &[
             "Rewilding",
@@ -2014,13 +2017,17 @@ fuzz_tests! {
             "Vagabond Mystic",
             "Platinum Protocol, The",
             "Piper",
+            "Revelations",
+            "Side Strike",
+            "Body Flare",
         ],
         extra: &["OBF"],
         plays: 16,
         // (The passive texts — the cost reductions, Regina's blood, the
-        // rescue discounts, Alexander's and Sergio's tolls, Abraham's and
-        // Lady Scarlett's clans — take no decision of their own: covered by
-        // the invariants, scripted in tests/vampires.rs.)
+        // rescue discounts, Alexander's, Sergio's and Mithras's tolls,
+        // Daria's and Djeneba's surcharges, Abraham's and Lady Scarlett's
+        // clans — take no decision of their own: covered by the invariants,
+        // scripted in tests/vampires.rs.)
         covers: &[
             "ability:\"Mother\" Anja Giovanni",
             "ability:Guardian, The",
@@ -2055,6 +2062,11 @@ fuzz_tests! {
                     "Tommaso Sforza",
                     "\"Mother\" Anja Giovanni",
                     "Guardian, The",
+                    "Daria",
+                    "Djeneba",
+                    "Marchesa Liliana",
+                    "Mithras",
+                    "Ragnar Nordstrom",
                 ],
             )
         },

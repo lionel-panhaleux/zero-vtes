@@ -7,7 +7,8 @@
 //! quoted in `incomplete`. Slice 9a: plain stat modifiers; 9b: combat
 //! abilities; 9c: abilities in referendums, actions and phases; 12a: the
 //! pool's last vampires (cost reductions, clans played as, tolls, unlock
-//! riders).
+//! riders); 12b: the partial ones finished (action and strike-card
+//! surcharges, an ash heap cost).
 
 use super::{
     bleed, mode_of, target, Actor, CardFilter, Effect, Hook, Limit, ModeDef, Per, PlaysAs, Printed,
@@ -556,10 +557,13 @@ pub static DAFINA_HANGANU: VampireDef = VampireDef {
     ..VAMP
 };
 
-/// "Daria can lock to give another Nosferatu +1 stealth": the acting
-/// minion's, when needed (rules-qa 3.2), any Methuselah's; the lock cost
-/// makes it once per unlock (advanced rules §1.5.4), in torpor too (LSJ
-/// 20011022).
+/// "Daria can lock to give another Nosferatu +1 stealth. Directed actions
+/// cost her +1 blood." The stealth: the acting minion's, when needed
+/// (rules-qa 3.2), any Methuselah's; the lock cost makes it once per unlock
+/// (advanced rules §1.5.4), in torpor too (LSJ 20011022). The blood: the
+/// action's cost — with the action's own blood cost, payable as it is
+/// announced; paid first as it resolves, unpaid if it is blocked; unpayable
+/// by then, the action fizzles (rules-qa 3.6, 42.1, 42.6).
 pub static DARIA: VampireDef = VampireDef {
     name: "Daria",
     abilities: &[mode_of(
@@ -572,7 +576,7 @@ pub static DARIA: VampireDef = VampireDef {
         ],
         &[Effect::LockActor, Effect::AddStealth(1)],
     )],
-    incomplete: Some("Directed actions cost her +1 blood."),
+    printed: &[own(Stat::DirectedActionCost, 1, &[R::ActionDirected])],
     ..VAMP
 };
 
@@ -598,10 +602,24 @@ pub static DARIUS_SHIRAZI: VampireDef = VampireDef {
     ..VAMP
 };
 
+/// "In combat, strike cards cost the opposing minion +1 blood or life. +1
+/// stealth." A card played in a strike mode (a dodge included) by the
+/// minion in combat with her, whether she acts or blocks — never her own;
+/// an ally pays in life, its last one too: it burns and the combat ends
+/// (rules-qa 41.4, 42.2; ANK 20180928-1). Read live
+/// (`Engine::combat_card_surcharge`).
 pub static DJENEBA: VampireDef = VampireDef {
     name: "Djeneba",
-    printed: &[own(Stat::Stealth, 1, &[])],
-    incomplete: Some("In combat, strike cards cost the opposing minion +1 blood or life."),
+    printed: &[
+        Printed {
+            stat: Stat::StrikeCardToll,
+            n: 1,
+            to: PrintedTo::Opponent,
+            per: Per::One,
+            requires: &[],
+        },
+        own(Stat::Stealth, 1, &[]),
+    ],
     ..VAMP
 };
 
@@ -1068,13 +1086,25 @@ pub static MADDJI: VampireDef = VampireDef {
     ..VAMP
 };
 
+/// "During a bleed action, Liliana can remove seven cards in your ash heap
+/// from the game to get an additional +1 bleed. +1 bleed." On her own
+/// bleed, before resolution, once per action (the "during" template,
+/// rules-qa 6.6, 15.2, 42.3, as Larissa Moreira); the seven cards are her
+/// Methuselah's picks as she uses it, one at a time (there is no order to
+/// the ash heap, LSJ 20090710) — burned vampires included. Not the limited
+/// bleed bonus (rules-qa 42.7).
 pub static MARCHESA_LILIANA: VampireDef = VampireDef {
     name: "Marchesa Liliana",
     printed: &[own(Stat::Bleed, 1, &[])],
-    incomplete: Some(
-        "During a bleed action, Liliana can remove seven cards in your ash heap from the game \
-         to get an additional +1 bleed.",
-    ),
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerAction),
+        ..mode_of(
+            &[Window::ActionDuring],
+            Actor::Host,
+            &[R::ActorActing, R::IsBleed, R::AshAtLeast(7)],
+            &[Effect::RemoveOwnAshCards(7), bleed(1, false)],
+        )
+    }],
     ..VAMP
 };
 
@@ -1108,17 +1138,35 @@ pub static MICKEY_WHEELER: VampireDef = VampireDef {
     ..VAMP
 };
 
+/// "Younger vampires must burn 1 blood to attempt to block Mithras or to
+/// cast votes or ballots against a referendum called by him. +2 bleed. +1
+/// strength. +2 votes." Tolls on the attempt (`Engine::block_toll`) and on
+/// votes against his political action's referendum
+/// (`Engine::vote_against_toll`), read live: a vampire of lower capacity —
+/// never an ally, never himself; a Methuselah's ballots are not a vampire's
+/// and a blood hunt called on him is not called by him (rules-qa 41.3,
+/// 42.4). In torpor too — his leave-torpor action (LSJ 20011022).
 pub static MITHRAS: VampireDef = VampireDef {
     name: "Mithras",
     printed: &[
+        Printed {
+            stat: Stat::BlockToll,
+            n: 1,
+            to: PrintedTo::Opponent,
+            per: Per::One,
+            requires: &[R::OpponentOlder],
+        },
+        Printed {
+            stat: Stat::VoteAgainstToll,
+            n: 1,
+            to: PrintedTo::Opponent,
+            per: Per::One,
+            requires: &[R::OpponentOlder],
+        },
         own(Stat::Bleed, 2, &[]),
         own(Stat::Strength, 1, &[]),
         own(Stat::Votes, 2, &[]),
     ],
-    incomplete: Some(
-        "Younger vampires must burn 1 blood to attempt to block Mithras or to cast votes or \
-         ballots against a referendum called by him.",
-    ),
     ..VAMP
 };
 
@@ -1320,10 +1368,16 @@ pub static QUEEN_ANNE: VampireDef = VampireDef {
     ..VAMP
 };
 
+/// "Cards requiring Protean [pro] cost Ragnar -1 blood. Ragnar gets +1
+/// strength in combat with an ally or younger vampire." Requiring = played
+/// using Protean (rules-qa 38.4, 42.5): wherever he pays the card's blood,
+/// combat cards included.
 pub static RAGNAR_NORDSTROM: VampireDef = VampireDef {
     name: "Ragnar Nordstrom",
-    printed: &[own(Stat::Strength, 1, &[R::OpponentAllyOrYounger])],
-    incomplete: Some("Cards requiring Protean [pro] cost Ragnar -1 blood."),
+    printed: &[
+        own(Stat::BloodCostOff, 1, &[R::PlayedRequiresDiscipline("pro")]),
+        own(Stat::Strength, 1, &[R::OpponentAllyOrYounger]),
+    ],
     ..VAMP
 };
 

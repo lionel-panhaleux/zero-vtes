@@ -606,7 +606,7 @@ impl Engine {
                         // Camden).
                         let mut blood = blood
                             + self.discipline_surcharge(m, card, mi as u8)
-                            + self.combat_card_surcharge(m, card);
+                            + self.combat_card_surcharge(m, card, mi as u8);
                         st.printed_cost_off(m, card, mi as u8).apply(
                             &mut cards::pool_cost(st, seat, card, Target::None),
                             &mut blood,
@@ -645,8 +645,11 @@ impl Engine {
                                 tags.iter().any(|t| g.disciplines.contains(t))
                                     && !(g.non_action && declares)
                             });
+                            // Djeneba's toll is a minion's "blood or life":
+                            // an ally pays it in life (rules-qa 42.2).
+                            let toll = self.strike_card_toll(m, card, mi as u8);
                             if !as_vampire
-                                && (blood > 0
+                                && (blood.saturating_sub(toll) > 0
                                     || lib
                                         .types
                                         .contains(&crate::library::CardType::PoliticalAction))
@@ -2012,15 +2015,7 @@ impl Engine {
         let Some(i) = cb.side_of_minion(m) else {
             return false;
         };
-        let strike = cards::lookup(ctx.card).is_some_and(|d| {
-            d.modes[ctx.mode as usize].effects.iter().any(|e| {
-                matches!(
-                    e,
-                    Effect::Strike(_) | Effect::CommittedStrike(_) | Effect::WeaponStrikePlus(_)
-                )
-            })
-        });
-        strike && ctx.actor == Some(cb.sides[1 - i].minion)
+        is_strike_mode(ctx.card, ctx.mode) && ctx.actor == Some(cb.sides[1 - i].minion)
     }
 
     /// The top as-played window closed: resolve (or discard) that play, then
@@ -2072,13 +2067,44 @@ impl Engine {
                 .any(|e| matches!(e, Effect::DeclareAction(_)))
         });
         if cost_paid && !action_card {
-            let pool = cards::pool_cost(&self.state, ctx.seat, ctx.card, ctx.target);
+            let mut pool = cards::pool_cost(&self.state, ctx.seat, ctx.card, ctx.target);
+            // Less the playing minion's printed reductions, as at resolution
+            // (Roger de Camden, Ragnar Nordstrom) — not a card naming
+            // another's (Piper): those are the named card's.
+            let names = cards::lookup(ctx.card).is_some_and(|d| {
+                d.modes[ctx.mode as usize]
+                    .effects
+                    .iter()
+                    .any(|e| matches!(e, Effect::EmployNamed | Effect::EquipNamed))
+            });
+            let blood_off = if names {
+                0
+            } else {
+                self.printed_off_play(&ctx, &mut pool)
+            };
             self.state.seats[ctx.seat.index()].pool -= pool.max(0);
-            self.pay_play_blood(&ctx, 0);
+            self.pay_play_blood(&ctx, blood_off);
         }
         self.state.seats[ctx.seat.index()].ash.push(ctx.card);
         if ctx.from.is_none() {
             self.replace(ctx.seat, 1, None);
+        }
+    }
+
+    /// The playing minion's printed reductions on `ctx`'s card: taken off
+    /// `pool` — "blood or pool" off the pool while some is left —, the
+    /// blood they take off returned.
+    fn printed_off_play(&self, ctx: &PlayCtx, pool: &mut i32) -> u8 {
+        let Some(m) = ctx.actor else {
+            return 0;
+        };
+        let off = self.state.printed_cost_off(m, ctx.card, ctx.mode);
+        *pool = (*pool - off.pool as i32).max(0);
+        if *pool > 0 {
+            *pool = (*pool - off.either as i32).max(0);
+            off.blood
+        } else {
+            off.blood + off.either
         }
     }
 
@@ -2097,12 +2123,21 @@ impl Engine {
         let blood = (cards::blood_cost(&self.state, ctx.card, ctx.x)
             + surcharge
             + self.discipline_surcharge(m, ctx.card, ctx.mode)
-            + self.combat_card_surcharge(m, ctx.card))
+            + self.combat_card_surcharge(m, ctx.card, ctx.mode))
         .saturating_sub(blood_off);
         let v = &mut self.state.minions[m.index()];
         v.blood = v.blood.saturating_sub(blood);
         if blood > 0 && v.is_ally() && v.blood == 0 {
+            let combatant = self
+                .combat
+                .as_ref()
+                .is_some_and(|c| c.side_of_minion(m).is_some());
             self.burn_minion(m);
+            // A combatant gone, the combat ends: no strike resolves (ANK
+            // 20180928-1).
+            if combatant && self.combat.is_some() {
+                self.end_combat_now();
+            }
             return true;
         }
         false
@@ -2172,15 +2207,8 @@ impl Engine {
             .iter()
             .any(|e| matches!(e, Effect::EmployNamed | Effect::EquipNamed));
         // The playing minion's printed reductions (Roger de Camden).
-        if let Some(m) = ctx.actor.filter(|_| !names) {
-            let off = self.state.printed_cost_off(m, ctx.card, ctx.mode);
-            pool = (pool - off.pool as i32).max(0);
-            blood_off += off.blood;
-            if pool > 0 {
-                pool = (pool - off.either as i32).max(0);
-            } else {
-                blood_off += off.either;
-            }
+        if !names {
+            blood_off += self.printed_off_play(&ctx, &mut pool);
         }
         for (c, n) in ctx.discounts.into_iter().flatten().filter(|_| !names) {
             let card = &self.state.cards[c.index()];
@@ -3207,7 +3235,7 @@ impl Engine {
                         // ANK 20221102-2).
                         if ability.limit == Some(Limit::PerAction)
                             && a.abilities_used
-                                .contains(&AbilitySource::Card(id).use_key(ai as u8))
+                                .contains(&AbilitySource::Card(id).action_key(ai as u8))
                         {
                             continue;
                         }
@@ -3381,8 +3409,7 @@ impl Engine {
                                     .iter()
                                     .any(|&(c, n)| c == id && n > 0)
                             });
-                        if self
-                            .limit_spent(ability.limit, AbilitySource::Card(id).use_key(ai as u8))
+                        if self.limit_spent(ability.limit, AbilitySource::Card(id), ai as u8)
                             && !allowance
                         {
                             continue;
@@ -3536,10 +3563,11 @@ impl Engine {
         out
     }
 
-    /// Has the ability of use key `used` spent its per-copy `limit`
-    /// ("each combat", "during an action": once per action per copy,
-    /// rules-qa 6.6, 9.6)?
-    fn limit_spent(&self, limit: Option<Limit>, used: (AbilitySource, u8)) -> bool {
+    /// Has `ability` of `source` spent its per-copy `limit` ("each
+    /// combat", "during an action": once per action per copy and ability,
+    /// rules-qa 6.6, 9.6, 42.9)?
+    fn limit_spent(&self, limit: Option<Limit>, source: AbilitySource, ability: u8) -> bool {
+        let used = source.use_key(ability);
         let cb = self.combat.as_ref();
         match limit {
             Some(Limit::PerCombat) => cb.is_some_and(|cb| cb.abilities_used.contains(&used)),
@@ -3547,7 +3575,7 @@ impl Engine {
             Some(Limit::PerAction) => self
                 .action
                 .as_ref()
-                .is_some_and(|a| a.abilities_used.contains(&used)),
+                .is_some_and(|a| a.abilities_used.contains(&source.action_key(ability))),
             Some(Limit::PerReferendum) => self
                 .referendum
                 .as_ref()
@@ -3751,7 +3779,7 @@ impl Engine {
                     (Actor::ForOwnCombatant, None) => continue,
                     (other, _) => unreachable!("not a vampire ability actor: {other:?}"),
                 };
-                if self.limit_spent(ability.limit, source.use_key(ai as u8)) {
+                if self.limit_spent(ability.limit, source, ai as u8) {
                     continue;
                 }
                 // The vampire's printed action ("Sakhar can search your
@@ -3819,8 +3847,10 @@ impl Engine {
     /// or in combat — not the bearer itself (Libertas). A failed block
     /// attempt no longer counts (LSJ 20080818).
     /// "This combat, combat cards cost the opposing vampire +1 blood"
-    /// (Terror Frenzy [ANI]): `actor`'s combat cards in its combat.
-    pub(crate) fn combat_card_surcharge(&self, actor: MinionId, card: u16) -> u8 {
+    /// (Terror Frenzy [ANI]): `actor`'s combat cards in its combat. Plus
+    /// the opposing combatant's printed toll on `actor`'s strike cards,
+    /// read live (`strike_card_toll`).
+    pub(crate) fn combat_card_surcharge(&self, actor: MinionId, card: u16, mode: u8) -> u8 {
         if !LIBRARY[card as usize].types.contains(&CardType::Combat) {
             return 0;
         }
@@ -3831,6 +3861,30 @@ impl Engine {
                     .map(|i| c.sides[i].combat_card_surcharge)
             })
             .unwrap_or(0)
+            + self.strike_card_toll(actor, card, mode)
+    }
+
+    /// "In combat, strike cards cost the opposing minion +1 blood or life"
+    /// (Djeneba): `actor`'s card played in a strike mode (a dodge
+    /// included), printed on the minion in combat with it — an ally's paid
+    /// in life (rules-qa 42.2).
+    pub(crate) fn strike_card_toll(&self, actor: MinionId, card: u16, mode: u8) -> u8 {
+        let Some(c) = self.combat.as_ref() else {
+            return 0;
+        };
+        let Some(i) = c.side_of_minion(actor) else {
+            return 0;
+        };
+        if !is_strike_mode(card, mode) {
+            return 0;
+        }
+        let ctx = crate::state::PrintedCtx {
+            opponent: Some(c.sides[1 - i].minion),
+            ..Default::default()
+        };
+        self.state
+            .printed_mod(actor, cards::Stat::StrikeCardToll, ctx)
+            .max(0) as u8
     }
 
     /// The blood a card with no pool cost to pay (a bleed or political
@@ -4372,7 +4426,7 @@ impl Engine {
         };
         let ctx = PlayCtx::new(seat, card, ability, actor, target, x);
         if let (Some(Limit::PerAction), Some(a)) = (mode.limit, self.action.as_mut()) {
-            a.abilities_used.push(source.use_key(ability));
+            a.abilities_used.push(source.action_key(ability));
         }
         if let (Some(Limit::PerReferendum), Some(r)) = (mode.limit, self.referendum.as_mut()) {
             r.abilities_used.push(source.use_key(ability));
@@ -5053,6 +5107,13 @@ impl Engine {
                         }
                     }
                 }
+                // Its picks come next, before any other decision.
+                Effect::RemoveOwnAshCards(n) => self.interrupts.push(Interrupt::RemoveFromAsh {
+                    seat: ctx.seat,
+                    of: ctx.seat,
+                    left: n,
+                    pool: 0,
+                }),
                 e if is_combat_effect(&e) => self.apply_combat_effect(e, &ctx),
                 // A referendum ability's votes and abstentions (Alexa Draper,
                 // Queen Anne).
@@ -5870,4 +5931,18 @@ pub enum CostThen {
     /// The equipment a library search found is paid and equipped (Magic of
     /// the Smith, Michael Harris: offered once it is chosen, rules-qa 38.5).
     EquipFound,
+}
+
+/// A strike card, as played in `mode`: a strike — a dodge included — played
+/// at strike declaration or at the maneuver (Slam), or a card using a melee
+/// weapon's strike (Anticipation [aus]).
+pub(crate) fn is_strike_mode(card: u16, mode: u8) -> bool {
+    cards::lookup(card).is_some_and(|d| {
+        d.modes[mode as usize].effects.iter().any(|e| {
+            matches!(
+                e,
+                Effect::Strike(_) | Effect::CommittedStrike(_) | Effect::WeaponStrikePlus(_)
+            )
+        })
+    })
 }

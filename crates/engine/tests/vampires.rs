@@ -307,10 +307,11 @@ fn printed_text_stays_in_torpor_and_is_lost_while_contested() {
     assert_eq!(e.state.printed_mod(catalina, Stat::Bleed, bleed), 0);
 }
 
-// Rules-qa 13.1: a vampire lands with part of its text, the rest quoted in
-// `incomplete` — the plain stat half of a two-part vampire applies.
+// Rules-qa 13.1: a vampire may land with part of its text, the rest quoted
+// in `incomplete` — every vampire now has all of it; the plain stat halves
+// of two-part vampires apply.
 #[test]
-fn the_plain_half_of_a_two_part_vampire_applies_and_the_rest_is_named() {
+fn plain_stat_halves_apply_and_every_vampire_has_all_its_text() {
     let mut e = bare();
     let mithras = add(&mut e, 0, "Mithras");
     let oskar = add(&mut e, 0, "Oskar Anasov");
@@ -335,10 +336,7 @@ fn the_plain_half_of_a_two_part_vampire_applies_and_the_rest_is_named() {
     let strength = |m, o| st.printed_mod(m, Stat::Strength, in_combat_with(o));
     assert_eq!([alexa, braden].map(|o| strength(roy, o)), [1, 0]);
     assert_eq!([alexa, braden].map(|o| strength(ragnar, o)), [0, 1]);
-    let incomplete = VAMPIRES.iter().filter(|d| d.incomplete.is_some()).count();
-    assert_eq!(incomplete, 5);
-    assert!(cards::vampire(find_card("Mithras")).is_some_and(|d| d.incomplete.is_some()));
-    assert!(cards::vampire(find_card("Catalina Vega")).is_some_and(|d| d.incomplete.is_none()));
+    assert!(VAMPIRES.iter().all(|d| d.incomplete.is_none()));
 }
 
 // ---- Slice 9b: printed combat abilities --------------------------------
@@ -3082,4 +3080,303 @@ fn regina_blake_pays_one_of_a_location_cost_with_her_blood() {
         .cards
         .iter()
         .any(|c| c.card == find_library("Living Manse") && c.in_play));
+}
+
+// ---- Slice 12b: the last five vampires' text ----------------------------
+
+// Mithras: a younger vampire burns 1 blood to attempt to block him — none
+// with no blood — and to cast votes against his referendum (in favor free);
+// an ally, himself and a Methuselah's ballot (the Edge) pay nothing. From
+// torpor too: his leave-torpor action.
+// Rulings: [LSJ 20011022].
+#[test]
+fn mithras_makes_younger_vampires_burn_blood_to_block_him_or_vote_against_him() {
+    let setup = |torpor: bool| {
+        let mut e = bare();
+        let mithras = e.add_minion(SeatId(0), find_card("Mithras"), 4, torpor);
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        (e, mithras)
+    };
+    let (mut e, mithras) = setup(false);
+    let dry = e.add_minion(SeatId(1), plain("Ventrue", 0), 0, false);
+    let younger = e.add_minion(SeatId(1), plain("Ventrue", 1), 2, false);
+    let agent = e.add_ally(SeatId(1), find_library("ECTU Operative"));
+    let toll = |e: &Engine, m, stat| e.state.printed_mod(m, stat, in_combat_with(mithras));
+    for stat in [Stat::BlockToll, Stat::VoteAgainstToll] {
+        assert_eq!(
+            [younger, agent, mithras].map(|m| toll(&e, m, stat)),
+            [1, 0, 0]
+        );
+    }
+    pick(&mut e, bleed(mithras));
+    let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    assert!(!req.options.contains(&block(dry)));
+    assert!(req.options.contains(&block(agent)));
+    pick(&mut e, block(younger));
+    assert_eq!(blood(&e, younger), 1);
+
+    let (mut e, mithras) = setup(false);
+    let agent = e.add_ally(SeatId(1), find_library("ECTU Operative"));
+    let life = blood(&e, agent);
+    pick(&mut e, bleed(mithras));
+    until(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    pick(&mut e, block(agent));
+    assert_eq!(blood(&e, agent), life);
+
+    let (mut e, mithras) = setup(true);
+    // +1 intercept against the +1 stealth leave-torpor action.
+    let younger = add(&mut e, 1, "Rinaldo Albizzi");
+    e.state.minions[younger.index()].blood = 2;
+    pick(&mut e, action(mithras, ActionKind::LeaveTorpor));
+    until(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    pick(&mut e, block(younger));
+    assert_eq!(blood(&e, younger), 1);
+
+    let (mut e, mithras) = setup(false);
+    let dry = e.add_minion(SeatId(1), find_card("Alice Chen"), 0, false);
+    let prince = e.add_minion(SeatId(1), find_card("Andi Liu"), 2, false);
+    e.state.seats[1].has_edge = true;
+    for s in &mut e.state.seats {
+        s.pool = 10;
+    }
+    hand(&mut e, 0, &["Ancilla Empowerment"]);
+    pick(&mut e, play(0, 0, mithras));
+    let req = until(&mut e, SeatId(1), WindowLabel::ReferendumPolling);
+    assert!(!req.options.contains(&votes(dry, false)));
+    assert!(req.options.contains(&votes(dry, true)));
+    pick(&mut e, votes(prince, false));
+    assert_eq!(blood(&e, prince), 1);
+    let req = until(&mut e, SeatId(1), WindowLabel::ReferendumPolling);
+    assert!(req.options.contains(&Choice::CastEdge { favor: false }));
+    pick(&mut e, Choice::CastEdge { favor: false });
+    assert_eq!(blood(&e, prince), 1);
+}
+
+// Ragnar Nordstrom plays a card requiring Protean for 1 blood less, a
+// combat card too (Body Flare's 2 blood: 1); a card played using another
+// Discipline takes nothing off (Invigorate's [ani] mode, not its [pro] one).
+#[test]
+fn ragnar_nordstrom_pays_a_blood_less_for_protean_cards() {
+    let mut e = bare();
+    let ragnar = add(&mut e, 0, "Ragnar Nordstrom");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let blocker = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Body Flare"]);
+    pick(&mut e, bleed(ragnar));
+    pick(&mut e, block(blocker));
+    pick_when(&mut e, play(0, 0, ragnar));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    // 1 blood for Body Flare, 1 damage from the blocker's hand strike.
+    assert_eq!(blood(&e, ragnar), 2);
+    let st = &e.state;
+    let invigorate = find_library("Invigorate");
+    let off = |mode| st.printed_cost_off(ragnar, invigorate, mode).blood;
+    assert_eq!([0, 2].map(off), [0, 1]);
+    let off = st.printed_cost_off(ragnar, find_library("Roundhouse"), 0);
+    assert_eq!(off, Default::default());
+}
+
+// Daria: a directed action costs her 1 blood more, payable as it is
+// announced with the action's own cost, paid as it resolves — a plain bleed
+// 1, a 0-cost directed card (Deep Song's bleed) 1, a 1-blood one
+// (Revelations [aus] at her prey) 2, not offered at 1 blood; her undirected
+// actions are not affected (Revelations [AUS], hunting). Unpayable by
+// resolution, the action fizzles.
+#[test]
+fn daria_pays_a_blood_more_for_directed_actions() {
+    let setup = |b: u8| {
+        let mut e = bare();
+        let daria = e.add_minion(SeatId(0), find_card("Daria"), b, false);
+        e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
+        e.add_minion(SeatId(1), plain("Brujah", 0), 4, false);
+        hand(&mut e, 0, &["Revelations", "Deep Song"]);
+        (e, daria)
+    };
+    let at_prey = |daria| Choice::Play {
+        card: 0,
+        mode: 0,
+        actor: Some(daria),
+        target: Target::Seat(SeatId(1)),
+    };
+    let (mut e, daria) = setup(1);
+    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(req.options.contains(&bleed(daria)));
+    assert!(req.options.contains(&play(1, 0, daria)));
+    assert!(req.options.contains(&play(0, 1, daria)));
+    assert!(!req.options.contains(&at_prey(daria)));
+    let before = e.state.seats[1].pool;
+    pick(&mut e, bleed(daria));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((blood(&e, daria), e.state.seats[1].pool), (0, before - 1));
+
+    let (mut e, daria) = setup(1);
+    pick(&mut e, play(1, 0, daria));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((blood(&e, daria), e.state.seats[1].pool), (0, before - 2));
+
+    let (mut e, daria) = setup(2);
+    pick(&mut e, at_prey(daria));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, daria), 0);
+    assert_eq!(e.state.seats[1].hand.len(), 0);
+
+    let (mut e, daria) = setup(1);
+    pick(&mut e, play(0, 1, daria));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, daria), 0);
+
+    let (mut e, daria) = setup(1);
+    pick(&mut e, action(daria, ActionKind::Hunt));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, daria), 2);
+
+    // Her blood gone by resolution: the bleed fizzles, still her bleed of
+    // the turn.
+    let (mut e, daria) = setup(1);
+    pick(&mut e, bleed(daria));
+    e.state.minions[daria.index()].blood = 0;
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[1].pool, before);
+    assert!(e.state.minions[daria.index()].bled_this_turn);
+}
+
+// Djeneba: the strike cards of the minion in combat with her cost it 1
+// blood more — a dodge (Side Strike) too —, not offered unpayable; a
+// maneuver card (Pursuit) is not a strike, her own strike cards (Voracious
+// Vermin) cost nothing more; the same whether she blocks or acts. An ally
+// pays in life (The Vozhd of Juiz de Fora, playing [ani] as a vampire), its
+// last one too: it burns and the combat ends, no strike resolving.
+// Rulings: [ANK 20180928-1].
+#[test]
+fn djeneba_makes_the_opposing_minions_strike_cards_cost_a_blood_or_life() {
+    let blocked = |b: u8, cards: &[&str]| {
+        let mut e = bare();
+        let a = e.add_minion(SeatId(0), vampire_with("cel", 0), b, false);
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        let djeneba = add(&mut e, 1, "Djeneba");
+        hand(&mut e, 0, cards);
+        hand(&mut e, 1, &["Voracious Vermin"]);
+        pick(&mut e, bleed(a));
+        pick(&mut e, block(djeneba));
+        (e, a, djeneba)
+    };
+    let (mut e, a, djeneba) = blocked(3, &["Pursuit", "Side Strike"]);
+    pick_when(&mut e, play(0, 0, a));
+    assert_eq!(blood(&e, a), 3);
+    pick_when(&mut e, play(0, 0, a));
+    pick_when(&mut e, play(0, 0, djeneba));
+    // Both dodge: no damage.
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((blood(&e, a), blood(&e, djeneba)), (2, 4));
+    let st = &e.state;
+    let toll = |m, o| st.printed_mod(m, Stat::StrikeCardToll, in_combat_with(o));
+    assert_eq!((toll(a, djeneba), toll(djeneba, a)), (1, 0));
+
+    let (mut e, a, _) = blocked(1, &["Side Strike"]);
+    e.state.minions[a.index()].blood = 0;
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, play(0, 0, a));
+
+    let ally = |life: u8| {
+        let mut e = bare();
+        // Its entry burn takes the Tzimisce's Revenant.
+        let t = e.add_minion(SeatId(0), plain("Tzimisce", 0), 4, false);
+        in_play(&mut e, "Revenant", 0, Some(t));
+        let vozhd = e.add_ally(SeatId(0), find_library("Vozhd of Juiz de Fora, The"));
+        let djeneba = add(&mut e, 1, "Djeneba");
+        request(&mut e);
+        e.state.minions[vozhd.index()].blood = life;
+        hand(&mut e, 0, &["Voracious Vermin"]);
+        // Its "enter combat with a vampire" action (0 bleed: no bleed).
+        let id = e.state.minions[vozhd.index()].ally_id().unwrap();
+        pick(
+            &mut e,
+            Choice::UseAbility {
+                source: AbilitySource::Card(id),
+                ability: 0,
+                actor: Some(vozhd),
+                target: Target::Minion(djeneba),
+            },
+        );
+        pick_when(&mut e, play(0, 0, vozhd));
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        (e, vozhd, djeneba)
+    };
+    // Its dodge: Djeneba's hand strike has no effect.
+    let (e, vozhd, _) = ally(2);
+    assert_eq!(blood(&e, vozhd), 1);
+    let (e, vozhd, djeneba) = ally(1);
+    assert!(!e.state.minions[vozhd.index()].in_play);
+    assert_eq!(blood(&e, djeneba), 4);
+}
+
+// Marchesa Liliana, during her own bleed, removes seven cards of her
+// Methuselah's ash heap from the game, picked one at a time — burned
+// vampires included — for an additional +1 bleed (with her own +1: 3
+// pool); once per action however many cards are left (the "during"
+// template); not with fewer than seven.
+#[test]
+fn marchesa_liliana_removes_seven_ash_cards_for_bleed_once_per_action() {
+    let setup = |ash: &[&str]| {
+        let mut e = bare();
+        let liliana = add(&mut e, 0, "Marchesa Liliana");
+        e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
+        e.add_minion(SeatId(1), plain("Brujah", 0), 4, false);
+        e.state.seats[0].ash = ash.iter().map(|c| find_library(c)).collect();
+        (e, liliana)
+    };
+    let mut ash = vec!["Roundhouse"; 8];
+    ash.extend(["Pursuit"; 8]);
+    let (mut e, liliana) = setup(&ash);
+    let before = e.state.seats[1].pool;
+    pick(&mut e, bleed(liliana));
+    until(&mut e, SeatId(0), WindowLabel::ActionBlock);
+    pick(&mut e, vampire_ability(liliana, 0));
+    for _ in 0..6 {
+        let req = expect(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+        assert_eq!(req.options.len(), 2);
+        pick(&mut e, Choice::FindCard(find_library("Roundhouse")));
+    }
+    pick(&mut e, Choice::FindCard(find_library("Pursuit")));
+    let again = until_counting(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        &[vampire_ability(liliana, 0)],
+    );
+    assert_eq!(again, 0);
+    let s = &e.state.seats[0];
+    assert_eq!((s.ash.len(), s.removed.len()), (9, 7));
+    assert_eq!(e.state.seats[1].pool, before - 3);
+
+    let (mut e, liliana) = setup(&["Roundhouse"; 6]);
+    pick(&mut e, bleed(liliana));
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        vampire_ability(liliana, 0),
+    );
+    assert_eq!(e.state.seats[1].pool, before - 2);
+
+    // A burned vampire is an ash heap card too: 6 library cards and 1
+    // vampire make seven, the vampire picked among them.
+    let (mut e, liliana) = setup(&["Roundhouse"; 6]);
+    let burned = plain("Nosferatu", 0);
+    e.state.seats[0].ash_crypt.push(burned);
+    pick(&mut e, bleed(liliana));
+    until(&mut e, SeatId(0), WindowLabel::ActionBlock);
+    pick(&mut e, vampire_ability(liliana, 0));
+    let req = expect(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    assert!(req
+        .options
+        .contains(&Choice::FindCard(find_library("Roundhouse"))));
+    pick(&mut e, Choice::AshVampire(burned));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let s = &e.state.seats[0];
+    assert!(s.ash.is_empty() && s.ash_crypt.is_empty());
+    assert_eq!(
+        (s.removed.len(), s.removed_crypt.clone()),
+        (6, vec![burned])
+    );
+    assert_eq!(e.state.seats[1].pool, before - 3);
 }

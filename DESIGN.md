@@ -416,6 +416,7 @@ titles; `git log` has the detail.
 | P2 · 11aa–11ab | 09-27 | Last allies, equipment, Mobile HQ, Minion Tap (aa); last political actions (ab) |
 | P2 · 11ac–11ae | 09-27 | The 20 events: Gehenna and held replacements (ac), unlock-phase events (ad), sect falls, Liaison, token allies (ae) — every library card defined |
 | P2 · 12a | 09-27 | The last 19 vampires' printed text: every vampire defined (5 partial) |
+| P2 · 12b | 09-27 | The 5 partial vampires finished (Daria, Djeneba, Marchesa Liliana, Mithras, Ragnar Nordstrom): every vampire has all its text |
 
 ### 11.2 Engine reference (by mechanism)
 
@@ -552,7 +553,9 @@ slice-11 cards by section).
 - Forced attempts (`Effect::AttemptBlock`, `R::CanAttemptBlock` →
   `can_attempt_block`). A card-made failure bars re-attempts this action.
 - Tolls (`block_toll`): paid as the attempt is made; an attempt under way when a
-  toll lands pays or resigns (`Interrupt::BlockToll`).
+  toll lands pays or resigns (`Interrupt::BlockToll`). A forced attempt
+  (`can_attempt_block[_anyone]`, `AttemptBlock`, `TargetAttemptsBlock`) needs
+  the toll payable (rules-qa 42.8).
 - **Reachability pruning** (`intercept_reachable`): an attempt that cannot reach
   the stealth is not offered. It counts the blocker's own and printed intercept,
   intercept abilities of cards on it, other cards in play
@@ -699,7 +702,7 @@ slice-11 cards by section).
   nothing. Abilities are `ModeDef`s with actor `Host` = the vampire;
   `AbilitySource::{Card, Vampire}` keys uses and resolution.
 - A vampire may land with part of its text, the rest quoted in `incomplete`
-  (rules-qa 13.1); fixtures wanting a plain vampire pin one by name.
+  (rules-qa 13.1; none left); fixtures wanting a plain vampire pin one by name.
 - Printed predicates read `PrintedCtx`: the action, the opposing minion
   (the blocker for a block toll, the calling vampire for a vote toll) and
   the card played (`PrintedCtx::card`, `R::PlayedCard`). Printed cost
@@ -718,6 +721,18 @@ slice-11 cards by section).
   filters the minion phase's offers (`Engine::directed_actor`); a combat an
   ability begins after resolution returns to that window
   (`CombatCtx::after_resolution`).
+- `Stat::DirectedActionCost` (Daria, `Engine::directed_action_toll`): masked
+  at announce with the action's own blood (`announced_blood`), paid first in
+  `succeed` (unpayable: fizzle). `Stat::StrikeCardToll` (Djeneba,
+  `strike_card_toll` inside `combat_card_surcharge`): on the opposing
+  combatant's strike-mode cards (`plays::is_strike_mode`), an ally paying
+  life. Liliana's seven cards: `Effect::RemoveOwnAshCards` →
+  `Interrupt::RemoveFromAsh` on her own heap (one pick a step; burned
+  vampires, `Seat::ash_crypt`, count and are offered, as for Shroud of Decay).
+- Ability limits: "each combat / round" count per copy
+  (`AbilitySource::use_key`, Kevlar Vest's branches share one use); "during
+  an action" per copy and ability (`AbilitySource::action_key`, Bone
+  Shambler's two, rules-qa 42.9).
 
 **Equipment** (`plays.rs`, `actions.rs`)
 - Equip from hand: +1 stealth plus printed, cost at resolution (unpayable or no
@@ -756,8 +771,10 @@ slice-11 cards by section).
   spent only as a cost is paid). Found or named cards take their reductions once
   chosen (`CostThen`, `pay_named_discounts`, `payable_with_potential`).
 - Surcharges: `card_surcharge` (Discipline and event surcharges),
-  `discipline_surcharge` (Libertas), `torpid_surcharge`, Haven's +1 on masters
-  targeting its minion.
+  `discipline_surcharge` (Libertas), `combat_card_surcharge` (Terror Frenzy,
+  Djeneba), `torpid_surcharge`, Haven's +1 on masters targeting its minion;
+  Daria's on the action (`directed_action_toll`). An ally combatant burned by
+  paying its last life for a card ends the combat (`pay_play_blood`).
 - Paying the last pool ousts: out of turn or from an ability, without passing the
   active turn (`pay_pool_for_ability`); a play whose effects already ousted its
   player does not oust again.
@@ -785,11 +802,6 @@ slice-11 cards by section).
 
 Still true today; "(verify)" marks items inferred from older notes.
 
-- **Incomplete vampires (5)**: Daria (+1 blood on directed actions), Djeneba
-  (opponent's strike cards +1), Marchesa Liliana (a pick-seven removal terms
-  flow), Mithras (block/vote toll: `Stat::BlockToll` and
-  `Stat::VoteAgainstToll` now exist), Ragnar Nordstrom (Protean discount:
-  `Stat::BloodCostOff` now exists). Every other vampire is defined.
 - **Inert clauses, no V5 tenant**: Blood Trade's boons; Fall of the Sabbat's
   Black Hand; The Fourth Cycle's conviction cards; "referendum passes
   automatically" (Amici Noctis, Voter Captivation rows blocked); first strike and
@@ -810,8 +822,9 @@ Still true today; "(verify)" marks items inferred from older notes.
     ousting the active Methuselah there finishes the play's bookkeeping first.
   - True Love's Face's pay-to-cancel is not offered for a last pool (an oust in
     the middle of a play).
-  - A canceled card whose cost "is still paid" (Meditative Grove) pays it in
-    full: Regina Blake's announced blood is not used (`settle_canceled`).
+  - A canceled card whose cost "is still paid" (Meditative Grove) takes the
+    player's printed reductions but not Regina Blake's announced blood
+    (`settle_canceled`).
   - `Effect::PoolToHostBlood` ousts through `oust_and_pass`, assuming the user is
     the active seat — true for Blood Doll; route through `oust` when a
     pool-paying untimed ability reaches a non-active seat.
@@ -835,15 +848,14 @@ Still true today; "(verify)" marks items inferred from older notes.
 
 ### 11.4 What remains
 
-- **P2 — full engine pool**: finish the 5 incomplete vampires and the
-  deliverables above.
+- **P2 — full engine pool**: the deliverables above.
 - **P3 — training loop**: observations (§5), PyO3 batched stepping, encoder, PPO
   self-play at 4p; evaluation ladder vs scripted bots and frozen snapshots.
 - **P4 — league & 5p**: exploiters, PFSP, deck/seat sampling, evaluation vs
   humans.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer.
 
-Definitions: 425, 882 tests
+Definitions: 425, 888 tests
 
 ## Outlook: deck building (post-v1)
 

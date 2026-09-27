@@ -395,6 +395,15 @@ pub enum Stat {
     /// Cannot perform directed actions (The Guardian, "unless you control a
     /// ready unique older Nosferatu"): any positive total bars them.
     NoDirectedActions,
+    /// Blood its directed actions cost it more ("directed actions cost her
+    /// +1 blood", Daria): payable as the action is announced, paid first at
+    /// its resolution (`Engine::directed_action_toll`).
+    DirectedActionCost,
+    /// Blood or life the opposing minion's strike cards cost it more in
+    /// combat with the vampire whose text it is ("in combat, strike cards
+    /// cost the opposing minion +1 blood or life", Djeneba): an ally pays
+    /// in life (`Engine::combat_card_surcharge`).
+    StrikeCardToll,
 }
 
 /// Legality predicates — the closed vocabulary.
@@ -758,9 +767,13 @@ pub enum Requirement {
     /// The player has played a master card in the current master phase
     /// ("after playing a master card", Nonu Dis).
     MasterCardPlayed,
-    /// The player's ash heap is not empty (it holds library cards only:
-    /// burned vampires are not kept in it).
+    /// The player's ash heap holds a library card ("a library card in your
+    /// ash heap": Lenelle, Mora) — burned vampires aside (`Seat::ash_crypt`).
     AshNotEmpty,
+    /// The player's ash heap holds at least n cards, burned vampires
+    /// included ("remove seven cards in your ash heap", Marchesa Liliana;
+    /// rules-qa 42.7).
+    AshAtLeast(u8),
     /// No votes or ballots have been cast yet in this referendum.
     NoVotesCast,
     /// The action's referendum passed (Voter Captivation).
@@ -1062,8 +1075,9 @@ pub enum Requirement {
     /// Seat target: the player's prey ("your prey's ash heap", Shroud of
     /// Decay [OBL]).
     TargetPrey,
-    /// Seat target: at least n cards in their ash heap ("remove 7 cards in
-    /// your prey's ash heap", Shroud of Decay [OBL]).
+    /// Seat target: at least n cards in their ash heap, burned vampires
+    /// included ("remove 7 cards in your prey's ash heap", Shroud of Decay
+    /// [OBL]; rules-qa 42.7).
     TargetAshAtLeast(u8),
     /// Seat target: the predator of the actor's predator (My Enemy's
     /// Enemy [AUS]).
@@ -1545,6 +1559,13 @@ impl AbilitySource {
             AbilitySource::Card(_) => (self, 0),
             AbilitySource::Vampire(_) => (self, ability),
         }
+    }
+
+    /// The key a "during an action" limit counts uses by: each ability of
+    /// a copy on its own (Bone Shambler's lock and Hecata's blood, rules-qa
+    /// 42.9).
+    pub fn action_key(self, ability: u8) -> (AbilitySource, u8) {
+        (self, ability)
     }
 
     /// The NRA identity of the action this ability grants: the copy of a
@@ -2897,6 +2918,10 @@ pub enum Effect {
         remove: u8,
         pool: u8,
     },
+    /// Ability cost "remove n cards in your ash heap from the game"
+    /// (Marchesa Liliana): the user's picks, one card at a time, as the
+    /// ability is used (`Interrupt::RemoveFromAsh` on their own ash heap).
+    RemoveOwnAshCards(u8),
     /// Unlock the host of this card in play ("this vampire can lock this
     /// card to unlock", Rutor's Hand); not under "cannot unlock".
     UnlockHost,
@@ -4059,6 +4084,10 @@ pub fn holds(
         Requirement::DiscardPhaseActionLeft => st.seats[seat.index()].dpa > 0,
         Requirement::MasterCardPlayed => st.seats[seat.index()].master_played,
         Requirement::AshNotEmpty => !st.seats[seat.index()].ash.is_empty(),
+        Requirement::AshAtLeast(n) => {
+            let s = &st.seats[seat.index()];
+            s.ash.len() + s.ash_crypt.len() >= n as usize
+        }
         Requirement::ActorCalledReferendum => {
             political.is_some() && action.zip(actor).is_some_and(|(a, m)| a.acting == m)
         }
@@ -4295,7 +4324,10 @@ pub fn holds_for_seat(
         Requirement::NotSelf => t != seat,
         Requirement::PredatorsPredator => t == st.predator(st.predator(seat)),
         Requirement::TargetPrey => t == st.prey(seat),
-        Requirement::TargetAshAtLeast(n) => st.seats[t.index()].ash.len() >= n as usize,
+        Requirement::TargetAshAtLeast(n) => {
+            let s = &st.seats[t.index()];
+            s.ash.len() + s.ash_crypt.len() >= n as usize
+        }
         _ => true,
     }
 }

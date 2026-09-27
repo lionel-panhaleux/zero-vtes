@@ -130,7 +130,9 @@ pub(crate) enum Interrupt {
     DiscardChosen { seat: SeatId, left: u8, done: u8 },
     /// `seat` removes `left` more cards of their choice from `of`'s ash
     /// heap from the game; then `of` burns `pool` pool (Shroud of Decay
-    /// [OBL]; LSJ 20090710: there is no order to the ash heap).
+    /// [OBL]; LSJ 20090710: there is no order to the ash heap) — from their
+    /// own, pool 0, Marchesa Liliana's cost. Burned vampires are ash heap
+    /// cards too (rules-qa 42.7).
     RemoveFromAsh {
         seat: SeatId,
         of: SeatId,
@@ -540,8 +542,12 @@ impl Engine {
                     continue;
                 }
                 Interrupt::RemoveFromAsh { of, left, pool, .. } => {
-                    let kinds = distinct(&self.state.seats[of.index()].ash, |_| true).len();
-                    if left > 0 && !self.state.seats[of.index()].ousted && kinds > 1 {
+                    // Library cards and burned vampires alike (rules-qa
+                    // 42.7).
+                    let st = &self.state.seats[of.index()];
+                    let kinds =
+                        distinct(&st.ash, |_| true).len() + distinct(&st.ash_crypt, |_| true).len();
+                    if left > 0 && !st.ousted && kinds > 1 {
                         return;
                     }
                     // One kind of card left, or none: no choice.
@@ -550,6 +556,9 @@ impl Engine {
                     let n = (left as usize).min(seat.ash.len());
                     let removed: Vec<u16> = seat.ash.drain(..n).collect();
                     seat.removed.extend(removed);
+                    let k = (left as usize - n).min(seat.ash_crypt.len());
+                    let removed: Vec<u16> = seat.ash_crypt.drain(..k).collect();
+                    seat.removed_crypt.extend(removed);
                     let mut loss = vec![0; self.state.seats.len()];
                     loss[of.index()] = pool as i32;
                     self.burn_pool_batch(&loss);
@@ -730,6 +739,11 @@ impl Engine {
                 distinct(&st.seats[of.index()].ash, |_| true)
                     .into_iter()
                     .map(Choice::FindCard)
+                    .chain(
+                        distinct(&st.seats[of.index()].ash_crypt, |_| true)
+                            .into_iter()
+                            .map(Choice::AshVampire),
+                    )
                     .collect(),
             ),
             Interrupt::StealForCorruption { minion, .. }
@@ -1425,16 +1439,30 @@ impl Engine {
                     left,
                     pool,
                 },
-                Choice::FindCard(card),
+                c @ (Choice::FindCard(_) | Choice::AshVampire(_)),
             ) => {
                 let st = &mut self.state.seats[of.index()];
-                let i = st
-                    .ash
-                    .iter()
-                    .position(|&c| c == card)
-                    .expect("in the ash heap");
-                st.ash.remove(i);
-                st.removed.push(card);
+                match c {
+                    Choice::FindCard(card) => {
+                        let i = st
+                            .ash
+                            .iter()
+                            .position(|&x| x == card)
+                            .expect("in the ash heap");
+                        st.ash.remove(i);
+                        st.removed.push(card);
+                    }
+                    Choice::AshVampire(card) => {
+                        let i = st
+                            .ash_crypt
+                            .iter()
+                            .position(|&x| x == card)
+                            .expect("in the ash heap");
+                        st.ash_crypt.remove(i);
+                        st.removed_crypt.push(card);
+                    }
+                    _ => unreachable!(),
+                }
                 self.interrupts[0] = Interrupt::RemoveFromAsh {
                     seat,
                     of,

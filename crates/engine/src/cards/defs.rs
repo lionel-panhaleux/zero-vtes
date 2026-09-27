@@ -517,6 +517,8 @@ pub static VOZHD_OF_SOFIA: CardDef = CardDef {
 /// above, and during a bleed action, a Hecata you control can burn 1 blood
 /// to give this ally +1 bleed." During its bleed, before resolution (ANK
 /// 20231124); a copy recruited this turn may be locked (ANK 20180517).
+/// Each ability once per action per copy (the "during" template, rules-qa
+/// 6.6, 42.3, 42.9).
 pub static BONE_SHAMBLER: CardDef = CardDef {
     name: "Bone Shambler",
     modes: &[
@@ -539,6 +541,7 @@ pub static BONE_SHAMBLER: CardDef = CardDef {
                     Requirement::TargetUnlocked,
                 ],
             ),
+            limit: Some(Limit::PerAction),
             ..mode_of(
                 &[Window::ActionDuring],
                 Actor::Host,
@@ -555,6 +558,7 @@ pub static BONE_SHAMBLER: CardDef = CardDef {
                     Requirement::BloodAtLeast(1),
                 ],
             ),
+            limit: Some(Limit::PerAction),
             ..mode_of(
                 &[Window::ActionDuring],
                 Actor::Host,

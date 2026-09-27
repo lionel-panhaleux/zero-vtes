@@ -1,7 +1,7 @@
 # Rules Q&A — ruling reference
 
 Owner rulings (VEKN judge) on VTES rules questions raised while building the
-engine, Batches 1–41. Each item is the settled rule, stated as fact; the
+engine, Batches 1–42. Each item is the settled rule, stated as fact; the
 question framing, engine mechanics, test names and confirmations are dropped
 deliberately: the code and its tests are the reference for how a rule is
 implemented, and they point back here through `rules-qa N.M` comments.
@@ -50,26 +50,26 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
-- **Periodicity ("during X" = once per X, once each …)** — 6.6, 7.4, 9.6, 10.4, 11.2, 15.1, 15.2, 16.1, 36.3, 36.4, 37.1, 38.8
+- **Periodicity ("during X" = once per X, once each …)** — 6.6, 7.4, 9.6, 10.4, 11.2, 15.1, 15.2, 16.1, 36.3, 36.4, 37.1, 38.8, 42.3, 42.9
 - **No-repeat-action, "same action"** — 1.4, 6.2, 16.6, 23.2, 25.4, 32.1
-- **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6
-- **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4
+- **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6
+- **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
-- **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5
-- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1
-- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6
+- **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7
+- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8
+- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9
 - **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6
-- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4
+- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4
 - **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9
 - **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1
-- **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4
-- **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5
+- **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7
+- **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6
 - **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4
 - **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6
 - **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7
-- **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10
+- **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9
 - **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4
 - **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7
 - **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2
@@ -717,3 +717,23 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 **41.13** A card another card puts in play (a search, Contraband, Piper…) is still played, not the normal way (owner correction): cost reductions reach it — Regina Blake's blood for a location or locquipment found by a search included. Anne-Marie Bourgeois's "-1 pool" takes nothing off a blood cost; Kuyén's "animals (allies and retainers)" are ally and retainer cards whose type line makes them animals. Regina's blood is announced with the card like a reduction (36.1) and burned as the cost is paid, only if something is left to pay.
 
 **41.14** Adelino Da Silva: "an older vampire" is one of higher capacity than his.
+
+## Batch 42 — the last five vampires' text (slice 12b)
+
+**42.1** Daria: "directed actions cost her +1 blood" is a cost of the action itself, not of a card: a plain directed bleed costs her 1 blood, a directed action card its own cost plus 1. It follows the action-cost timing: payable, with the action's own blood cost, as the action is announced (not offered otherwise); paid as it resolves — a blocked action pays nothing. Her undirected actions are unaffected.
+
+**42.2** Djeneba: "strike cards" are cards played in a strike mode, a dodge included; a combat card played otherwise (maneuver, press, additional strike, strength) is untouched, and so are her own. The minion in combat with her pays, whether she acts or blocks; an ally pays in life, its last one too (41.4): it burns and the combat ends (ANK 20180928-1). A strike card its player cannot pay for is not offered.
+
+**42.3** Marchesa Liliana: the "during" template ("during a bleed action, … can …") is once per action.
+
+**42.4** Mithras: "younger vampires" are vampires of lower capacity, read live — never an ally, never Mithras himself; a Methuselah's ballots (the Edge, a political action card's vote) cost nothing, and a blood hunt called on him is not called by him (41.3). The block toll applies from torpor too (his leave-torpor action).
+
+**42.5** Ragnar Nordstrom: "cards requiring Protean" are cards played using Protean (38.4); the discount applies wherever he pays the card's blood, combat cards included.
+
+**42.6** Daria's +1 at resolution is paid first, before the action's own cost: unpayable by then (blood spent during the action), the action fizzles (3.6); paid, then the action card's own cost unpayable, it fizzles with the +1 paid (a fizzled action's cost is paid, ANK 20220218).
+
+**42.7** Marchesa Liliana: her additional +1 bleed is not the rulebook's limited bleed bonus (a "(limited)" card still adds to it). The seven cards are her Methuselah's picks, by name (copies alike), one at a time as she uses the ability. "Cards in your ash heap" are all its cards, burned vampires included (owner correction) — for Shroud of Decay's seven too.
+
+**42.8** A forced block attempt ("… attempts to block": Eagle's Sight, Second Tradition, Organized Resistance, Eyes of the Wild, Dogged Pursuit, Sense the Savage Way, One With the Land) by a minion owing a block toll (Sergio Bueno, Mithras): offered only while the toll is payable; if the card's own blood, paid first, leaves it unpayable, no attempt is made (the card's other effects stand).
+
+**42.9** Bone Shambler: both its abilities are "during" abilities (42.3), each usable once per action per copy — the lock of another copy and the Hecata's blood, both in the same bleed, neither twice; another copy bleeding in a later action uses its own again.

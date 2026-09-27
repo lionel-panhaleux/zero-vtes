@@ -978,6 +978,35 @@ fn bone_shambler_bleeds_more_with_another_copy_and_at_obl_a_hecatas_blood() {
     assert_eq!(e.state.minions[h.index()].blood, 3);
 }
 
+// Rules-qa 42.9: each of Bone Shambler's "during a bleed action" abilities
+// is once per action per copy — during one bleed, one lock and one
+// Hecata's blood, neither again (a third copy and blood left to spare).
+#[test]
+fn bone_shamblers_abilities_are_each_once_per_action() {
+    let mut e = Engine::bare(3);
+    let h = e.add_minion(SeatId(0), plain("Hecata", 0), 4, false);
+    let a = e.add_ally_version(SeatId(0), find_library("Bone Shambler"), 1);
+    let b = e.add_ally(SeatId(0), find_library("Bone Shambler"));
+    let c = e.add_ally(SeatId(0), find_library("Bone Shambler"));
+    let id = e.state.minions[a.index()].ally_id().unwrap();
+    let pool = e.state.seats[1].pool;
+    pick(&mut e, action(a, ActionKind::Bleed));
+    let with = |ability, t| Choice::UseAbility {
+        source: AbilitySource::Card(id),
+        ability,
+        actor: None,
+        target: Target::Minion(t),
+    };
+    pick(&mut e, with(0, b));
+    pick(&mut e, with(1, h));
+    never_offered_where(&mut e, SeatId(0), WindowLabel::MinionPhase, |o| {
+        *o == with(0, c) || *o == with(1, h)
+    });
+    assert_eq!(e.state.seats[1].pool, pool - 3);
+    assert!(!e.state.minions[c.index()].locked);
+    assert_eq!(e.state.minions[h.index()].blood, 3);
+}
+
 #[test]
 fn crypts_sons_is_employed_by_an_anarch_only() {
     let mut e = Engine::bare(3);
