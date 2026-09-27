@@ -64,10 +64,8 @@ pub(crate) enum Flow {
         ctx: PlayCtx,
         resume: Box<Flow>,
         pending: Option<crate::state::CardId>,
-        /// Asked after the card's terms named the card the reductions are
-        /// for (Piper's ally, Contraband's equipment): the as-played window
-        /// next.
-        after_terms: bool,
+        /// What follows the reductions.
+        then: crate::plays::CostThen,
     },
     /// As-played windows of pending plays, innermost last; `resume` is the
     /// flow to return to once the stack empties.
@@ -497,10 +495,10 @@ impl Engine {
                     ctx,
                     resume,
                     pending,
-                    after_terms,
+                    then,
                 },
                 c,
-            ) => self.cost_terms_apply(ctx, *resume, pending, after_terms, c),
+            ) => self.cost_terms_apply(ctx, *resume, pending, then, c),
             (Flow::AsPlayed { stack, resume }, c) => self.as_played_apply(stack, resume, c),
             (Flow::Discard, c) => self.discard_apply(c),
             (Flow::MinionPhase, Choice::Pass) => self.open_phase_rotation(Flow::MinionPhase),

@@ -392,6 +392,24 @@ pub enum Requirement {
     /// The host was in the combat that just ended and its opponent is not
     /// ready (Monster).
     HostCombatOpponentNotReady,
+    /// As above, the opponent a vampire (Valerie Diaz: "if the opposing
+    /// vampire is not ready").
+    HostCombatOpposingVampireNotReady,
+    /// Normal damage from the opposing strike is pending on the actor's
+    /// side (Valerie Diaz).
+    StrikeNormalDamagePending,
+    /// Normal damage from other sources than the opposing strike is pending
+    /// on the actor's side (Valerie Diaz).
+    EffectNormalDamagePending,
+    /// The actor is an ally whose card matches (Mobile HQ: "an Operation
+    /// Antigen ally you control").
+    ActorAllyCard(CardFilter),
+    /// The target minion is an ally whose card matches.
+    TargetAllyCard(CardFilter),
+    /// The card being played is an action card, its target a minion or
+    /// card of the user's with this label (Mobile HQ: "an action card that
+    /// targets an Operation Antigen card you control").
+    PlayedActionCardAtYour(crate::library::Label),
     /// The host used at least n Disciplines to play cards during the action
     /// (Dabbler).
     HostUsedDisciplines(u8),
@@ -525,6 +543,9 @@ pub enum Requirement {
     TargetHostage,
     /// This card was not played before in this game.
     NotPlayedThisGame,
+    /// "A Methuselah can have only one" (Raising the Portcullis): not
+    /// playable while its player controls a copy (LSJ 20100129).
+    OnePerMethuselah,
     /// The card being played is a grapple or aim card played by the minion
     /// opposing this card's bearer (Sword of the Archangel): engine-checked.
     PlayedGrappleOrAimByOpponent,
@@ -648,6 +669,9 @@ pub enum Requirement {
     /// The current action succeeded, read after resolution; a fizzled
     /// action counts (ANK 20220218).
     ActionSuccessful,
+    /// The action rescued a vampire from torpor: a successful rescue
+    /// (Ritual Goblet), not one that fizzled.
+    RescuedFromTorpor,
     /// The current action is directed.
     ActionDirected,
     /// The current action is directed at every Methuselah this card in
@@ -1121,6 +1145,13 @@ pub enum Term {
     },
     /// Choose a clan.
     ChooseClan,
+    /// Choose a card in play matching the filter ("choose a location",
+    /// Disputed Territory): a choice, never a target (rules-qa 38.6).
+    ChooseCard(CardFilter),
+    /// Allocate `per` points for each minion chosen by the previous term
+    /// among one or more Methuselahs, locations and equipment
+    /// (Revolutionary Council: "2X points").
+    AllocatePerChosenWithCards { per: u8 },
 }
 
 /// What a passed referendum does.
@@ -1160,6 +1191,18 @@ pub enum RefEffect {
     /// The political action card is put on the chosen vampire, if still in
     /// play (Toreador Justicar: its title card).
     PutOnChosen,
+    /// The political action card is put in play, its caller's (Raising the
+    /// Portcullis).
+    PutInPlay,
+    /// The chosen Methuselah takes control of the chosen card (Disputed
+    /// Territory): one on a minion moves onto one of theirs (RTR
+    /// 19960112), not when it stays with the same Methuselah (LSJ
+    /// 19971002).
+    ChosenTakesChosenCard,
+    /// Each chosen minion is locked, each Methuselah burns 1 pool per point
+    /// allocated, each card allocated a point is burned (Revolutionary
+    /// Council).
+    LockChosenBurnAllocated,
 }
 
 /// A political action card's referendum: its terms, its effect, and the
@@ -1263,7 +1306,14 @@ impl ReferendumDef {
                         return false;
                     }
                 }
-                Term::ChooseClan => {}
+                Term::ChooseClan | Term::AllocatePerChosenWithCards { .. } => {}
+                Term::ChooseCard(filter) => {
+                    if !(0..st.cards.len())
+                        .any(|i| crate::referendum::chooseable_card(st, CardId(i as u32), filter))
+                    {
+                        return false;
+                    }
+                }
             }
             i += 1;
         }
@@ -1469,6 +1519,10 @@ pub enum Terms {
     /// An integer in `min..=max` (the amount actually taken at resolution
     /// is capped by what is there: Villein rulings).
     BloodRange { min: u8, max: u8 },
+    /// "Any amount of blood" of the target vampire: 0 up to what it has as
+    /// the card is played (Minion Tap; rules-qa 38.1), what is left taken
+    /// at resolution.
+    UpToTargetBlood,
     /// X blood, 0 up to the actor's blood (Hidden Strength: X may exceed
     /// what is needed, never below zero).
     XBlood,
@@ -1601,6 +1655,9 @@ pub enum Modifier {
     /// "+1 level of <Discipline> and +1 capacity" on the host (a Discipline
     /// master card: Oblivion).
     DisciplineLevel(&'static str),
+    /// "This vampire gets +1 level of <Discipline>" (Ritual Goblet): an
+    /// equipment's, no capacity with it; nothing on an ally.
+    BearerDisciplineLevel(&'static str),
     /// Cards with this printed name cost `pool` more (or less) to play;
     /// with `on_host_only`, only when played on the layer source's host;
     /// with `owner_only`, only for the layer source's controller ("cost
@@ -1649,12 +1706,12 @@ pub enum Modifier {
     /// of Oblivion): a substitution — an unlocked host burns one too, a
     /// host kept from unlocking does not (advanced rules §5.2.2).
     CounterInsteadOfUnlock,
-    /// "Rescuing a non-<clan> vampire from torpor costs this <host> -n
+    /// "Rescuing a (non-<clan>) vampire from torpor costs this <host> -n
     /// blood, and if the action is successful, the rescued vampire gains
     /// `gain` blood" (Saulot's Healing Touch): the action's cost, whoever
     /// pays it (PIB 20110918, LSJ 20020304-2).
     RescueDiscount {
-        not_clan: &'static str,
+        not_clan: Option<&'static str>,
         n: u8,
         gain: u8,
     },
@@ -1701,6 +1758,19 @@ pub enum Modifier {
     /// while this Anarch is acting, attempting to block or in combat"
     /// (Libertas): the Disciplines and the surcharge.
     DisciplineSurchargeAround(&'static [&'static str], u8),
+    /// "Cards requiring a Discipline cost this vampire +n blood" (Enhanced
+    /// Coagulant, once it became that card): the host's cards requiring
+    /// a Discipline.
+    HostDisciplineCardsCost(u8),
+    /// "While your prey controls a vampire in torpor, vampires you control
+    /// get +n bleed" (Raising the Portcullis), read live.
+    OwnBleedWhilePreyTorpor(i8),
+    /// "Vampires attempting to block the attached vampire burn n blood"
+    /// (Archon): cumulative (LSJ 19980225); a vampire with too little
+    /// burns what it has and still blocks (LSJ 19970707).
+    BlockersOfHostBurn(u8),
+    /// "Blood hunts cannot be called on the attached vampire" (Archon).
+    NoBloodHuntOnHost,
     /// The strikes of the minion this card is cannot be dodged: a dodge has
     /// no effect on them (Aggressive Corpse; LSJ 20030902-2).
     UndodgeableStrikes,
@@ -1774,7 +1844,11 @@ impl Layer {
                 1 << 38 ^ bearer_hash(who) << 8 ^ (n as i64 as u64 & 0xff)
             }
             Modifier::RescueDiscount { not_clan, n, gain } => {
-                1 << 38 ^ 1 << 20 ^ (not_clan.len() as u64) << 12 ^ (n as u64) << 4 ^ gain as u64
+                1 << 38
+                    ^ 1 << 20
+                    ^ (not_clan.map_or(0, str::len) as u64) << 12
+                    ^ (n as u64) << 4
+                    ^ gain as u64
             }
             Modifier::CounterInsteadOfUnlock => 1 << 38 ^ 1 << 21,
             Modifier::DirectedOnlyBy(d) => 1 << 38 ^ 1 << 22 ^ d.len() as u64,
@@ -1813,6 +1887,9 @@ impl Layer {
             Modifier::DisciplineLevel(d) => {
                 1 << 39 ^ 1 << 18 ^ d.bytes().fold(0u64, |h, b| h << 8 | b as u64)
             }
+            Modifier::BearerDisciplineLevel(d) => {
+                1 << 39 ^ 1 << 25 ^ d.bytes().fold(0u64, |h, b| h << 8 | b as u64)
+            }
             Modifier::AlliesCannotBlockBearer => 1 << 39 ^ 1 << 18,
             Modifier::PlaysAsVampire(g) => {
                 1 << 39 ^ 1 << 20 ^ (g.capacity as u64) << 1 ^ g.non_action as u64
@@ -1820,6 +1897,10 @@ impl Layer {
             Modifier::DisciplineSurchargeAround(d, n) => {
                 1 << 39 ^ 1 << 19 ^ (d.len() as u64) << 8 ^ n as u64
             }
+            Modifier::HostDisciplineCardsCost(n) => 1 << 39 ^ 1 << 26 ^ n as u64,
+            Modifier::OwnBleedWhilePreyTorpor(n) => 1 << 39 ^ 1 << 27 ^ (n as i64 as u64 & 0xff),
+            Modifier::BlockersOfHostBurn(n) => 1 << 39 ^ 1 << 28 ^ n as u64,
+            Modifier::NoBloodHuntOnHost => 1 << 39 ^ 1 << 29,
         };
         (self.source.0 as u64) << 40 ^ (self.scope as u64) << 36 ^ m
     }
@@ -2576,6 +2657,16 @@ pub enum Effect {
     /// Set this round's range to long, skipping the determine range step;
     /// usable only while no other effect has set it (Sniper Rifle).
     SetRangeLong,
+    /// As `SetRangeLong`, to close range (Michael Harris: "set the range for
+    /// the round"; the first effect setting it has priority, PIB 20120214).
+    SetRangeClose,
+    /// "Immune to all non-aggravated damage from a strike" (Valerie Diaz):
+    /// the normal damage pending from the opposing strike is gone — not
+    /// prevented.
+    ImmuneStrikeNonAggravated,
+    /// "… or damaging effect": the normal damage pending from other sources
+    /// (environmental, retainers), taken as one effect (rules-qa 38.3).
+    ImmuneEffectNonAggravated,
     /// The host's initial strike this round must be this card's strike: a
     /// weapon's maneuver used (rulebook "Determine Range"), Sniper Rifle's
     /// range set. One such commitment a round.
@@ -2584,6 +2675,17 @@ pub enum Effect {
     /// bearer gets 1 optional additional strike (limited) this round, only
     /// usable to strike with this weapon (AK-47).
     AdditionalStrikeWithSource,
+    /// Rider of a weapon's strike, read as it resolves: its damage is
+    /// unpreventable (Enhanced Coagulant) — kept apart from the pending
+    /// damage, out of every prevention's reach, and added as the damage
+    /// resolves.
+    UnpreventableStrike,
+    /// Rider of a weapon's strike, read as it lands on a vampire: the
+    /// weapon moves onto the opposing vampire and becomes its other mode —
+    /// a card with no type or printed ability, only that mode's layers and
+    /// the riders it carries (Enhanced Coagulant; dodged, it stays where it
+    /// was, ANK 20220923).
+    BecomesOnOpponent,
     /// "Once each combat, can prevent n damage from gun strikes": one point
     /// a use, the rest kept for later in the combat (rules-qa 10.3).
     PreventGunStrikeAllowance(u8),
@@ -3111,12 +3213,57 @@ pub fn library_mode(card: u16, mi: usize) -> usize {
         "Martyr's Resilience" => [0, 0, 1, 1][mi],
         // "To gain 3 blood or to gain 2 blood and unlock".
         "Psychophagia" => [0, 0][mi],
+        // The card it becomes, never played.
+        "Enhanced Coagulant" => [0, 0][mi],
         _ => mi,
     }
 }
 
 /// Behavior of a library card, if implemented. A card without a definition
 /// is unplayable (but can be discarded); coverage grows as defs land.
+/// Is `p` an action card whose target is a minion or card of `seat`'s with
+/// `label` (Mobile HQ)? Played from hand or as if from it (Fleshforge
+/// Chamber, LSJ 20060106) — a card Piper names has no as-played window
+/// (RTR 20001020). Engine-checked in the as-played window.
+pub fn played_action_card_at(
+    st: &GameState,
+    seat: SeatId,
+    label: crate::library::Label,
+    p: &PlayCtx,
+) -> bool {
+    // A political action card's terms choose, never target (rules-qa
+    // 38.6).
+    let action_card = lookup(p.card).is_some_and(|d| {
+        d.modes[p.mode as usize].effects.iter().any(|e| {
+            matches!(e, Effect::DeclareAction(k) if *k != crate::decision::ActionKind::Political)
+        })
+    });
+    let labeled = |card: u16| LIBRARY[card as usize].labels.contains(&label);
+    action_card
+        && match p.target {
+            Target::Minion(m) => {
+                let v = &st.minions[m.index()];
+                v.owner == seat
+                    && matches!(v.kind, crate::state::MinionKind::Ally { card, .. }
+                        if labeled(card))
+            }
+            Target::Card(c) => st.card_controller(c) == seat && labeled(st.cards[c.index()].card),
+            _ => false,
+        }
+}
+
+/// A card in play that became another ("it becomes a card with …",
+/// Enhanced Coagulant): its mode with no window. Typeless — no equipment,
+/// no weapon, no printed ability — only that mode's layers and the riders
+/// it carries apply.
+pub fn became(card: u16, mode: u8) -> bool {
+    lookup(card).is_some_and(|d| {
+        d.modes
+            .get(mode as usize)
+            .is_some_and(|m| m.windows.is_empty())
+    })
+}
+
 /// Equipment once in play: an equipment card that is not a location
 /// ("while in play, this card does not count as equipment", Living Manse).
 pub fn is_equipment_in_play(card: u16) -> bool {
@@ -3321,7 +3468,8 @@ pub fn holds(
         | Requirement::ActorMayHoldTarget
         | Requirement::DirectedAtRemembered
         | Requirement::TargetCorrupted
-        | Requirement::TargetOnOpposingCombatant => true, // target or card predicates
+        | Requirement::TargetOnOpposingCombatant
+        | Requirement::TargetAllyCard(_) => true, // target or card predicates
         Requirement::PlayedCardIsMaster => {
             played.is_some_and(|p| LIBRARY[p.card as usize].types.contains(&CardType::Master))
         }
@@ -3371,6 +3519,7 @@ pub fn holds(
         | Requirement::ActorIsChosen
         | Requirement::PlayedFrenzyOnYour(_)
         | Requirement::NotPlayedThisGame
+        | Requirement::OnePerMethuselah
         | Requirement::PlayedGrappleOrAimByOpponent
         | Requirement::WeaponBurnedOpponent
         | Requirement::TargetInCombatWithDamage
@@ -3489,6 +3638,19 @@ pub fn holds(
         Requirement::StrikeDamagePending => combat
             .zip(side)
             .is_some_and(|(c, i)| c.sides[i].strike_damage.total() > 0),
+        Requirement::StrikeNormalDamagePending => combat
+            .zip(side)
+            .is_some_and(|(c, i)| c.sides[i].strike_damage.normal > 0),
+        Requirement::EffectNormalDamagePending => combat
+            .zip(side)
+            .is_some_and(|(c, i)| c.sides[i].pending.normal > c.sides[i].strike_damage.normal),
+        Requirement::ActorAllyCard(f) => actor.is_some_and(|m| {
+            matches!(st.minions[m.index()].kind, crate::state::MinionKind::Ally { card, .. }
+                if f.matches(card))
+        }),
+        Requirement::PlayedActionCardAtYour(label) => {
+            played.is_none_or(|p| played_action_card_at(st, seat, label, p))
+        }
         Requirement::NoReactionPlayed => action.is_some_and(|a| !a.reaction_played),
         Requirement::ControlsReadyTitled(classes) => st.minions_of(seat).any(|m| {
             st.minions[m.index()].ready() && classes.iter().any(|c| c.matches(st.title_of(m)))
@@ -3577,6 +3739,9 @@ pub fn holds(
         Requirement::PollingStep => political.is_some_and(|r| r.step == RefStep::Polling),
         Requirement::AnyPollingStep => referendum.is_some_and(|r| r.step == RefStep::Polling),
         Requirement::ActorActing => action.zip(actor).is_some_and(|(a, m)| a.acting == m),
+        Requirement::RescuedFromTorpor => action.is_some_and(|a| {
+            a.kind == ActionKind::Rescue && a.outcome == Some(crate::actions::Outcome::Successful)
+        }),
         Requirement::ActionSuccessful => action.is_some_and(|a| {
             matches!(
                 a.outcome,
@@ -3654,7 +3819,9 @@ pub fn holds(
                     .iter()
                     .any(|&c| crate::crypt::CRYPT[c as usize].name == name)
         }
-        Requirement::HostCombatOpponentNotReady | Requirement::HostUsedDisciplines(_) => true, // engine-checked
+        Requirement::HostCombatOpponentNotReady
+        | Requirement::HostCombatOpposingVampireNotReady
+        | Requirement::HostUsedDisciplines(_) => true, // engine-checked
         Requirement::DirectedAtYourReadyClan(clan) => action.is_some_and(|a| {
             a.directed_seat(st).is_some()
                 && a.target_minion().is_some_and(|m| {
@@ -3878,6 +4045,9 @@ pub fn holds_for_minion(
         Requirement::NotHuntingGroundFed => !v.hunting_ground_fed,
         Requirement::Younger => acting.is_some_and(|a| st.younger_than(m, a)),
         Requirement::TargetAllyHurt => st.ally_body(m).is_some_and(|b| v.blood < b.life),
+        Requirement::TargetAllyCard(f) => {
+            matches!(v.kind, crate::state::MinionKind::Ally { card, .. } if f.matches(card))
+        }
         Requirement::TargetUnlocked => !v.locked,
         Requirement::TargetAlly => v.is_ally(),
         Requirement::ControlledByPredator => v.owner == st.predator(seat),
@@ -3984,6 +4154,9 @@ pub fn holds_for_card_target(
         Requirement::TargetOnActor => actor.is_some() && c.host == actor,
         // A location in play is no equipment, whatever its type (Living
         // Manse; rules-qa 17.4).
+        // A card that became another has no type nor label (Enhanced
+        // Coagulant): still a card.
+        Requirement::TargetCard(f) if f != CardFilter::Any && became(c.card, c.mode) => false,
         Requirement::TargetCard(CardFilter::Type(CardType::Equipment)) => {
             is_equipment_in_play(c.card)
         }
@@ -4017,6 +4190,17 @@ pub fn holds_for_card(
                     && pair
                         .iter()
                         .any(|&o| Some(o) != host && !st.minions[o.index()].ready())
+            })
+        }
+        // A burned vampire is not ready; an ally opponent does not count.
+        Requirement::HostCombatOpposingVampireNotReady => {
+            let host = c.bearer();
+            action.and_then(|a| a.last_combat).is_some_and(|pair| {
+                host.is_some_and(|h| pair.contains(&h))
+                    && pair.iter().any(|&o| {
+                        let v = &st.minions[o.index()];
+                        Some(o) != host && v.is_vampire() && !v.ready()
+                    })
             })
         }
         Requirement::HostUsedDisciplines(n) => {

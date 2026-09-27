@@ -2529,6 +2529,9 @@ checked again, as for any card changing hands). If none can hold it, it
 stays where it is. Right? **Test** —
 `dominate_kine_superior_steals_a_location`.
 
+Revised (owner, 2026-09-27; rules-qa 39.4, LSJ 19990928): on a ready
+minion, burned if none can hold it.
+
 ### 31.5 Graverobbing _(answered 2026-09-26)_
 
 The stolen vampire keeps its cards and blood; burned later, it goes to
@@ -2900,3 +2903,178 @@ rules-qa 6.6). Right? **Test** —
 
 **Answer (owner):** "No, it is replaced when put on the Chamber. One
 played from the Chamber is not replaced." Applied.
+
+## Batch 38 — allies, equipment, Mobile HQ, Minion Tap (slice 11aa)
+
+### 38.1 Minion Tap's amount _(answered 2026-09-26)_
+
+"Move any amount of blood": announced as it is played, from 0 up to the
+vampire's blood then (a vampire with no blood a legal, empty target, as a
+legal no-op play); what is left taken at resolution (LSJ 20100216). Right?
+**Tests** —
+`minion_tap_moves_any_amount_paying_its_villein_surcharge_as_pool_is_gained`,
+`minion_tap_takes_what_is_left_at_resolution`.
+
+**Answer (owner):** right.
+
+### 38.2 ECTU Operative's burn _(answered 2026-09-26)_
+
+"He can burn a vampire in torpor as a Ⓓ action": any vampire in torpor —
+another Methuselah's (directed at them) or one's own (undirected, as rules-qa
+20.1). Out of torpor by resolution, the action fizzles. Right? **Test** —
+`ectu_operative_burns_a_vampire_in_torpor`.
+
+**Answer (owner):** right.
+
+### 38.3 Valerie Diaz's immunity _(answered 2026-09-26, open follow-up)_
+
+"Immune to all non-aggravated damage from a strike or damaging effect":
+used as the damage is to be prevented (the damage prevention step), one
+use a round, for either the opposing strike's normal damage or the other
+normal damage pending that round (environmental, retainers), taken as one
+damaging effect. An immunity, not a prevention: nothing "cannot be
+prevented" stops it. Right? **Test** —
+`valerie_diaz_is_immune_to_a_strike_and_unlocks_after_torporing_a_vampire`.
+
+**Answer (owner):** "No 'during' in the card text: her immunity ability can
+be used multiple times." Asked back (38.8): the card says "once each round".
+
+### 38.4 Enhanced Coagulant _(answered 2026-09-26)_
+
+At close range (a strike not said to be ranged, rules-qa 21.1). A strike
+nullified for weapons (Blood Rage: "the opposing vampire's strikes with
+weapons inflict no damage") still puts the card on the vampire. Once
+there, the card stays its player's (owner and controller), and "cards
+requiring a Discipline" are those printing one, action cards paid at
+resolution included; its burn follows any successful hunt of the vampire.
+Right? **Tests** —
+`enhanced_coagulant_strikes_unpreventably_and_moves_onto_the_vampire`,
+`enhanced_coagulant_become_costs_discipline_cards_one_more_until_a_hunt`.
+
+**Answer (owner):** "No, it is the controller of the vampire it is on:
+minion cards are controlled by who controls the minion. Cards requiring a
+Discipline are those played using a Discipline." Applied: the engine gives
+a card on a minion to that minion's controller already
+(`GameState::card_controller`); the surcharges (the Coagulant's, Libertas')
+read the played mode's Disciplines. **Test** —
+`libertas_does_not_tax_a_card_played_with_another_discipline`.
+
+### 38.5 Ravnos Cache and a searched equipment _(answered 2026-09-26)_
+
+An equipment found by a library search (Magic of the Smith, Michael
+Harris) is chosen at resolution, after the reductions were announced: the
+engine offers no Ravnos Cache counters for it. Should the Cache be usable
+there (it says "equipment they equip", and the search is an equip action,
+TOM 19960130)?
+
+**Answer (owner):** "The Cache should be usable here, yes: reductions and
+replacement payment offered after it is chosen." Applied: a found equipment
+is offered if payable with the reductions it could take; once chosen, they
+are announced (`CostThen::EquipFound`), then it is paid and equipped.
+**Test** — `a_searched_equipment_takes_ravnos_cache_counters_once_chosen`.
+Follow-up (owner, 2026-09-27): Vast Wealth's found equipment "should offer
+reductions" too. Applied: found, it is equipped if payable with them (its
+pool cost may still oust), the reductions offered before it is paid.
+**Test** — `vast_wealth_takes_ravnos_cache_counters_for_its_find`.
+
+### 38.6 Mobile HQ _(answered 2026-09-26)_
+
+Its granted action enters combat with a ready vampire of another
+Methuselah. "An action card that targets an Operation Antigen card you
+control": the action card's announced target is an Operation Antigen ally
+or location of yours — employ, recruit and equip cards target nothing;
+a political action card whose terms choose Mobile HQ (Disputed Territory,
+not yet defined) — does choosing count as targeting there? **Tests** —
+`mobile_hq_sends_an_antigen_ally_into_combat_locking_as_declared`,
+`mobile_hq_cancels_an_action_card_at_an_antigen_ally_as_it_is_played`.
+
+**Answer (owner):** "Choosing something as part of the terms of a
+referendum is never targeting." Applied: a political action card is never
+"an action card that targets" for Mobile HQ.
+
+### 38.7 Flaming Candle and Contraband _(answered 2026-09-26)_
+
+"Only one Flaming Candle can be played or equipped in a game": Contraband
+equips from hand outside an action — that counts as equipping it (no second
+Candle, and one equipped so bars the others); a library search or Vast
+Wealth's find too. Taking it from another minion does not (ANK 20221103).
+Right? **Test** —
+`flaming_candle_is_equipped_once_a_game_and_burns_for_an_unblockable_action`.
+
+**Answer (owner):** right.
+
+### 38.8 Valerie Diaz: "once each round" _(answered 2026-09-27)_
+
+The card reads "you can burn 1 pool once each round to make her immune to
+all non-aggravated damage from a strike or damaging effect". Which is
+meant: (a) one use a round, its immunity lasting the round — every strike
+and damaging effect of that round; or (b) no limit on the uses, each one
+for one strike or damaging effect? The engine keeps one use a round, for
+one of them, until then.
+
+**Answer (owner):** "I was wrong: the card says once a round — it is once a
+round, for a single strike or damaging effect in that round." As
+implemented: the two immunities share the card's once-a-round use.
+**Test** — `valerie_diaz_is_immune_to_one_strike_or_effect_a_round`.
+
+## Batch 39 — political actions (slice 11ab)
+
+### 39.1 Revolutionary Council's X _(answered 2026-09-27)_
+
+X is at least 1 (not playable without another ready unlocked Anarch of
+yours): with X = 0 there are no points to allocate "among one or more".
+The acting baron is never among them — terms are chosen once the action
+succeeds (rules-qa 3.5), the baron locked by then. Right? **Test** —
+`revolutionary_council_locks_its_anarchs_to_burn_pool_and_cards`.
+
+**Answer (owner):** "X can be zero and the vote does nothing much. The
+acting baron can be chosen if unlocked (eg. using CrimethInc.)." Applied.
+**Test** — `revolutionary_council_takes_zero_anarchs_or_its_unlocked_baron`.
+
+### 39.2 Revolutionary Council's recipients _(answered 2026-09-27)_
+
+The points go to Methuselahs (the caller included), then to any location
+or equipment in play, any Methuselah's; a card may take more than 1 point
+(the extra wasted, as a way not to hurt a Methuselah). Right?
+
+**Answer (owner):** right.
+
+### 39.3 Archon's choice _(answered 2026-09-27)_
+
+"Choose a Camarilla vampire": any Methuselah's, in torpor included. Right?
+
+**Answer (owner):** right.
+
+### 39.4 Disputed Territory _(answered 2026-09-27)_
+
+The location may be any Methuselah's, the chosen Methuselah the caller
+included. A location on a minion given to a Methuselah with no minion to
+hold it stays where it is (the engine). A unique location given to a
+Methuselah who already has a copy: contested as it arrives? The engine
+does not contest a card changing control yet. **Tests** —
+`disputed_territory_moves_a_location_to_the_chosen_methuselah`,
+`disputed_territory_moves_a_location_on_a_minion_to_one_of_the_new_controllers`.
+
+**Answer (owner):** asked whether a location stolen onto a minion is
+burned when none can hold it. The record (31.4, Dominate Kine on Living
+Manse, accepted 2026-09-26) keeps it where it is; Disputed Territory does
+the same — asked back in the report. "A unique location with another copy
+in play IS contested, whoever controls which. So it can't be chosen for
+the referendum": a contested card is out of play, and `ChooseCard` takes
+only cards in play.
+
+Follow-up (owner, 2026-09-27): "It should be burned instead in both cases"
+— LSJ 19990928 ("Loquipments and Rack questions"): "Loquipment may be put
+on any ready minion if moved in an ambiguous fashion (by Disputed
+Territory, e.g.). If the new controller has no minions, the locquipment is
+burned." Applied to Disputed Territory and Dominate Kine [DOM] (31.4
+revised): a ready minion of the new controller able to hold it, else
+burned. **Test** — `a_locquipment_with_no_ready_minion_to_hold_it_is_burned`.
+
+### 39.5 Raising the Portcullis _(answered 2026-09-27)_
+
+"+1 bleed" to every vampire you control (not allies), whoever it bleeds,
+read live as the prey's vampires enter and leave torpor. Right? **Test** —
+`raising_the_portcullis_bleeds_more_while_the_prey_has_a_vampire_in_torpor`.
+
+**Answer (owner):** right.

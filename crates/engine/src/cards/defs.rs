@@ -24,6 +24,33 @@ use crate::library::{CardType, Label};
 
 const NO_TARGET: Option<TargetSpec> = None;
 
+/// "Move any amount of blood from a vampire you control to your pool." The
+/// amount is announced as it is played, from 0 to what the vampire has
+/// (rules-qa 38.1), what is left taken at resolution (LSJ 20100216); its
+/// cost (Villein, Secure Haven) paid as the pool is gained, no oust in
+/// between (LSJ 20020620).
+pub static MINION_TAP: CardDef = CardDef {
+    name: "Minion Tap",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        windows: &[Window::MasterPhase],
+        actor: Actor::Methuselah,
+        requires: &[],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[Requirement::TargetVampire, Requirement::Controlled],
+        }),
+        terms: Some(Terms::UpToTargetBlood),
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::MoveBloodTargetToPoolX],
+    }],
+    abilities: &[],
+    riders: &[],
+};
+
 /// "Trifle. Put this card on a vampire you control who has any amount of
 /// blood and move 2 to 5 blood from that vampire to your pool. Cards named
 /// Minion Tap cost you +1 pool to play. Villein costs +1 pool to play on this
@@ -811,6 +838,153 @@ pub static UNDERBRIDGE_STRAY: CardDef = CardDef {
             limit: None,
             effects: &[Effect::BurnSelf, Effect::UnlockTarget],
         },
+    ],
+    riders: &[],
+};
+
+/// "Mortal with 3 life. 1 strength, 0 bleed. Operation Antigen. ECTU
+/// Operative can strike: 1R damage. He gets 1 optional maneuver each combat.
+/// He can burn a vampire in torpor as a Ⓓ action." (2 pool.) Any vampire in
+/// torpor, directed at its controller, undirected at one's own (rules-qa
+/// 20.1, 38.2); out of torpor by resolution, the action fizzles.
+pub static ECTU_OPERATIVE: CardDef = CardDef {
+    name: "ECTU Operative",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::CombatStrikeDeclaration],
+            actor: Actor::Host,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Strike(StrikeKind::Damage {
+                n: 1,
+                ranged: true,
+                aggravated: false,
+            })],
+        },
+        MANEUVER_EACH_COMBAT,
+        printed_action(
+            Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[Requirement::TargetVampire, Requirement::TargetInTorpor],
+            }),
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::BurnTargetMinion,
+            ],
+        ),
+    ],
+    riders: &[],
+};
+
+/// "Unique mortal with 3 life. 1 strength, 1 bleed. Operation Antigen.
+/// Michael can search your library for an equipment card and equip with it
+/// as a +1 stealth action (requirements and cost apply as normal; shuffle
+/// afterward). If he is in combat with a vampire, you can burn 1 pool once
+/// each round before range is determined to set the range for the round."
+/// (3 pool.) The equipment is chosen at resolution, as Magic of the
+/// Smith's; an equip action (TOM 19960130), not the same action as
+/// equipping that card from hand (ANK 20180817). The range, once set, is
+/// not set again that round (RTR 19970630, ANK 20180720): another effect
+/// that set it first has priority (PIB 20120214) — which also makes it
+/// once a round.
+pub static MICHAEL_HARRIS: CardDef = CardDef {
+    name: "Michael Harris, the Incinerator",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
+    abilities: &[
+        printed_action(
+            NO_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::SearchEquip,
+            ],
+        ),
+        ModeDef {
+            windows: &[Window::CombatBeforeRange],
+            actor: Actor::Host,
+            requires: &[Requirement::OpponentVampire, Requirement::PoolAtLeast(1)],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::PayPool(1), Effect::SetRangeClose],
+        },
+        ModeDef {
+            windows: &[Window::CombatBeforeRange],
+            actor: Actor::Host,
+            requires: &[Requirement::OpponentVampire, Requirement::PoolAtLeast(1)],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::PayPool(1), Effect::SetRangeLong],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Unique mortal with 3 life. 1 strength, 1 bleed. Operation Antigen. If
+/// Valerie is in combat with a vampire, you can burn 1 pool once each round
+/// to make her immune to all non-aggravated damage from a strike or
+/// damaging effect. Once each turn after combat involving Valerie ends, she
+/// can unlock if the opposing vampire is not ready." (3 pool.) Used as the
+/// damage is to be prevented: the opposing strike's, or the other damage
+/// pending (rules-qa 38.3); the unlock ordered among the after-combat
+/// effects, as Monster's.
+pub static VALERIE_DIAZ: CardDef = CardDef {
+    name: "Valerie Diaz, Antigen Commander",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::CombatDamagePrevention],
+            actor: Actor::Host,
+            requires: &[
+                Requirement::OpponentVampire,
+                Requirement::PoolAtLeast(1),
+                Requirement::DamagePending,
+                Requirement::StrikeNormalDamagePending,
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: Some(Limit::PerRound),
+            effects: &[Effect::PayPool(1), Effect::ImmuneStrikeNonAggravated],
+        },
+        ModeDef {
+            windows: &[Window::CombatDamagePrevention],
+            actor: Actor::Host,
+            requires: &[
+                Requirement::OpponentVampire,
+                Requirement::PoolAtLeast(1),
+                Requirement::DamagePending,
+                Requirement::EffectNormalDamagePending,
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: Some(Limit::PerRound),
+            effects: &[Effect::PayPool(1), Effect::ImmuneEffectNonAggravated],
+        },
+        ability(
+            &[Window::ActionAfterCombat],
+            Actor::Host,
+            &[Requirement::HostCombatOpposingVampireNotReady],
+            Limit::PerTurn,
+            &[Effect::UnlockHost],
+        ),
     ],
     riders: &[],
 };
@@ -3067,7 +3241,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     riders: &[],
 };
 
-pub static DEFS: [&CardDef; 392] = [
+pub static DEFS: [&CardDef; 405] = [
     &MAGIC_OF_THE_SMITH,
     &VAST_WEALTH,
     &BLACK_MARKET_CACHE,
@@ -3460,6 +3634,19 @@ pub static DEFS: [&CardDef; 392] = [
     &RAVNOS_CACHE,
     &RAVNOS_CARNIVAL,
     &FLESHFORGE_CHAMBER,
+    &MINION_TAP,
+    &RITUAL_GOBLET,
+    &FLAMING_CANDLE,
+    &ENHANCED_COAGULANT,
+    &ECTU_OPERATIVE,
+    &MICHAEL_HARRIS,
+    &VALERIE_DIAZ,
+    &MOBILE_HQ,
+    &MALKAVIAN_JUSTICAR,
+    &ARCHON,
+    &RAISING_THE_PORTCULLIS,
+    &DISPUTED_TERRITORY,
+    &REVOLUTIONARY_COUNCIL,
 ];
 
 // ---- Cards in play with riders and granted actions (slice 5) ------------
@@ -4921,6 +5108,114 @@ pub static RIGHTEOUS_BLADE: CardDef = CardDef {
             }),
             Effect::ContinuePressEachCombat,
         ],
+    )],
+    riders: &[],
+};
+
+/// "Weapon. Strike: 3 unpreventable damage and put this card on the
+/// opposing vampire; it becomes a card with \"Cards requiring a Discipline
+/// cost this vampire +1 blood. After this vampire successfully hunts, burn
+/// this card\"." (1 pool.) Not against an ally (ANK 20220818, ANK
+/// 20221102); at close range (a strike not said ranged, rules-qa 21.1);
+/// dodged, the card stays where it is (ANK 20220923); once used, a typeless
+/// card, no weapon (ANK 20220818): its second mode, never played.
+pub static ENHANCED_COAGULANT: CardDef = CardDef {
+    name: "Enhanced Coagulant",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[
+        EQUIP,
+        ModeDef {
+            windows: &[],
+            actor: Actor::Host,
+            requires: &[],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::Layer(Modifier::HostDisciplineCardsCost(1))],
+        },
+    ],
+    abilities: &[weapon_strike(
+        &[Requirement::OpponentVampire],
+        &[
+            Effect::Strike(StrikeKind::Damage {
+                n: 3,
+                ranged: false,
+                aggravated: false,
+            }),
+            Effect::UnpreventableStrike,
+            Effect::BecomesOnOpponent,
+        ],
+    )],
+    riders: &[Rider {
+        hook: Hook::SuccessfulHunt,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::BurnSelf],
+    }],
+};
+
+/// "Only one Flaming Candle can be played or equipped in a game. This
+/// vampire can burn 1 blood and the Flaming Candle as they announce an
+/// action to make that action unblockable by vampires." Equipped from hand
+/// or from the library once a game; moved or equipped from another minion
+/// afterwards (ANK 20221103).
+pub static FLAMING_CANDLE: CardDef = CardDef {
+    name: "Flaming Candle",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        requires: &[Requirement::NotPlayedThisGame],
+        ..EQUIP
+    }],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionAsAnnounced],
+        actor: Actor::Host,
+        requires: &[Requirement::ActorActing, Requirement::HostBloodAtLeast(1)],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::HostBurnBlood(1),
+            Effect::BurnSelf,
+            Effect::VampiresCannotBlock,
+        ],
+    }],
+    riders: &[],
+};
+
+/// "Unique. This vampire gets +1 level of Blood Sorcery [tha]. Rescuing a
+/// vampire from torpor costs this vampire -1 blood. Once each turn, this
+/// vampire can unlock after rescuing a vampire from torpor." (1 pool.) The
+/// discount is the action's, whoever pays (PIB 20110918, LSJ
+/// 20020304-2); the level adds no capacity.
+pub static RITUAL_GOBLET: CardDef = CardDef {
+    name: "Ritual Goblet",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[ModeDef {
+        effects: &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::Layer(Modifier::BearerDisciplineLevel("tha")),
+            Effect::Layer(Modifier::RescueDiscount {
+                not_clan: None,
+                n: 1,
+                gain: 0,
+            }),
+        ],
+        ..EQUIP
+    }],
+    abilities: &[ability(
+        &[Window::ActionAfterResolution],
+        Actor::Host,
+        &[Requirement::ActorActing, Requirement::RescuedFromTorpor],
+        Limit::PerTurn,
+        &[Effect::UnlockActing],
     )],
     riders: &[],
 };
@@ -6752,6 +7047,260 @@ pub static TOREADOR_JUSTICAR: CardDef = CardDef {
     riders: &[],
 };
 
+/// A political action card's mode, by a minion meeting `requires`
+/// (`effects`: its `DeclareAction`, `CallReferendum` and layers).
+const fn political(requires: &'static [Requirement], effects: &'static [Effect]) -> ModeDef {
+    ModeDef {
+        windows: &[Window::ActionDeclarePolitical],
+        actor: Actor::ActingCandidate,
+        requires,
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects,
+    }
+}
+
+static MALKAVIAN_JUSTICAR_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseMinions {
+        filter: &[
+            Requirement::ActorReady,
+            Requirement::TargetClan("Malkavian"),
+            Requirement::ActorSectIn(&[Sect::Camarilla]),
+        ],
+        min: 1,
+        max: 1,
+    }],
+    effect: RefEffect::PutOnChosen,
+    grants: &[VoteGrant {
+        voters: Voters::Clan("Malkavian"),
+        n: 1,
+    }],
+    non_anarch_titles_minus: false,
+};
+
+/// "Title. Choose a ready Camarilla Malkavian. Successful referendum means
+/// this card is put on the chosen Malkavian to represent the unique
+/// Camarilla title of Malkavian Justicar. In this referendum, each Malkavian
+/// gets +1 vote." Not playable without a ready Camarilla Malkavian (LSJ
+/// 20100129).
+pub static MALKAVIAN_JUSTICAR: CardDef = CardDef {
+    name: "Malkavian Justicar",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[political(
+        &[],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&MALKAVIAN_JUSTICAR_REFERENDUM),
+            Effect::RepresentsTitle(crate::crypt::Title::Justicar("Malkavian")),
+        ],
+    )],
+    abilities: &[],
+    riders: &[],
+};
+
+static ARCHON_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseMinions {
+        filter: &[
+            Requirement::TargetVampire,
+            Requirement::ActorSectIn(&[Sect::Camarilla]),
+        ],
+        min: 1,
+        max: 1,
+    }],
+    effect: RefEffect::PutOnChosen,
+    grants: &[],
+    non_anarch_titles_minus: false,
+};
+
+/// "Requires a prince or justicar. Choose a Camarilla vampire. Successful
+/// referendum means this card is put on the chosen vampire. The attached
+/// vampire can enter combat with a vampire as a +1 stealth Ⓓ action.
+/// Vampires attempting to block the attached vampire burn 1 blood. Blood
+/// hunts cannot be called on the attached vampire. Camarilla vampires can
+/// call a referendum to burn this card as a +1 stealth political action."
+/// Each copy its own action (RTR 20030519), the two not cross-restrictive
+/// (LSJ 20100909); the blood burns add up (LSJ 19980225), a blocker short
+/// of blood burns what it has and still blocks (LSJ 19970707).
+pub static ARCHON: CardDef = CardDef {
+    name: "Archon",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[political(
+        &[PRINCE_OR_JUSTICAR],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&ARCHON_REFERENDUM),
+            Effect::Layer(Modifier::BlockersOfHostBurn(1)),
+            Effect::Layer(Modifier::NoBloodHuntOnHost),
+        ],
+    )],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::ActionDeclare],
+            actor: Actor::ActingCandidate,
+            requires: &[Requirement::ActorIsHost],
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[
+                    Requirement::NotControlled,
+                    Requirement::ActorReady,
+                    Requirement::TargetVampire,
+                ],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::EnterCombatWithTarget,
+            ],
+        },
+        ModeDef {
+            windows: &[Window::ActionDeclarePolitical],
+            actor: Actor::ActingCandidate,
+            requires: &[
+                Requirement::ActorVampire,
+                Requirement::ActorSectIn(&[Sect::Camarilla]),
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::Political),
+                Effect::AddStealth(1),
+                Effect::CallReferendum(&BURN_THIS_CARD),
+            ],
+        },
+    ],
+    riders: &[],
+};
+
+static RAISING_THE_PORTCULLIS_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[],
+    effect: RefEffect::PutInPlay,
+    grants: &[],
+    non_anarch_titles_minus: false,
+};
+
+/// "Successful referendum means this card is put in play. While your prey
+/// controls a vampire in torpor, vampires you control get +1 bleed.
+/// Vampires can call a referendum to burn this card as a +1 stealth
+/// political action. A Methuselah can have only one Raising the
+/// Portcullis." (Lasombra.) Not playable while its player has one (LSJ
+/// 20100129); the bleed read live.
+pub static RAISING_THE_PORTCULLIS: CardDef = CardDef {
+    name: "Raising the Portcullis",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[political(
+        &[Requirement::OnePerMethuselah],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&RAISING_THE_PORTCULLIS_REFERENDUM),
+            Effect::Layer(Modifier::OwnBleedWhilePreyTorpor(1)),
+        ],
+    )],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDeclarePolitical],
+        actor: Actor::ActingCandidate,
+        requires: &[Requirement::ActorVampire],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::AddStealth(1),
+            Effect::CallReferendum(&BURN_THIS_CARD),
+        ],
+    }],
+    riders: &[],
+};
+
+static DISPUTED_TERRITORY_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[
+        Term::ChooseCard(CardFilter::Location),
+        Term::ChooseSeat(SeatFilter::Any),
+    ],
+    effect: RefEffect::ChosenTakesChosenCard,
+    grants: &[],
+    non_anarch_titles_minus: false,
+};
+
+/// "Choose a location and a Methuselah. Successful referendum means the
+/// chosen Methuselah takes control of the chosen location." No requirement
+/// checked (TOM 19960226-1); one on a minion moves onto a minion of the
+/// new controller, their choice (RTR 19960112, RTR 19980623), not when it
+/// stays with its Methuselah (LSJ 19971002); not playable with no location
+/// in play (LSJ 20100129).
+pub static DISPUTED_TERRITORY: CardDef = CardDef {
+    name: "Disputed Territory",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[political(
+        &[],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&DISPUTED_TERRITORY_REFERENDUM),
+        ],
+    )],
+    abilities: &[],
+    riders: &[],
+};
+
+static REVOLUTIONARY_COUNCIL_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[
+        Term::ChooseMinions {
+            filter: &[
+                Requirement::Controlled,
+                Requirement::ActorReady,
+                Requirement::TargetUnlocked,
+                Requirement::ActorSectIn(&[Sect::Anarch]),
+            ],
+            min: 0,
+            max: u8::MAX,
+        },
+        Term::AllocatePerChosenWithCards { per: 2 },
+    ],
+    effect: RefEffect::LockChosenBurnAllocated,
+    grants: &[],
+    non_anarch_titles_minus: false,
+};
+
+/// "Requires a baron. Choose X ready unlocked Anarchs you control and
+/// allocate 2X points among one or more Methuselahs, locations, and
+/// equipment. Successful referendum means each chosen Anarch is locked,
+/// each Methuselah burns 1 pool for each point allocated, and each location
+/// or equipment allocated a point is burned." The Anarchs chosen with the
+/// terms count though locked during the vote (LSJ 20081203); points may
+/// exceed a Methuselah's pool (LSJ 20020819); X may be 0, the vote then
+/// doing little, and the acting baron may be chosen if unlocked again
+/// (CrimethInc.; rules-qa 39.1).
+pub static REVOLUTIONARY_COUNCIL: CardDef = CardDef {
+    name: "Revolutionary Council",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[political(
+        &[BARON],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&REVOLUTIONARY_COUNCIL_REFERENDUM),
+        ],
+    )],
+    abilities: &[],
+    riders: &[],
+};
+
 /// "Unique archetype. Title. Put this card on an Independent Salubri you
 /// control to represent a unique Independent title worth 2 votes. This
 /// Salubri can lock during any referendum to force a vampire to abstain.
@@ -7226,7 +7775,7 @@ pub static SAULOTS_HEALING_TOUCH: CardDef = CardDef {
         &[
             Effect::PutOnTarget,
             Effect::Layer(Modifier::RescueDiscount {
-                not_clan: "Tremere",
+                not_clan: Some("Tremere"),
                 n: 2,
                 gain: 1,
             }),
@@ -14015,6 +14564,96 @@ pub static CAVE_OF_APPLES: CardDef = CardDef {
     }],
     riders: &[],
 };
+
+/// "Unique location. Operation Antigen. An Operation Antigen ally you
+/// control can lock this location to attempt to enter combat with a
+/// vampire as a +1 stealth Ⓓ action. You can lock this location to add
+/// enough life to an Operation Antigen ally you control to reach their
+/// starting life. You can lock this location and burn 2 pool to cancel an
+/// action card that targets an Operation Antigen card you control as it is
+/// played; its cost is not paid." (2 pool.) Locked as the action is
+/// declared, even if it fails (ANK 20221102); the cancel follows the cancel
+/// rules (as-played window, LSJ 20061207; still played, ANK 20190104;
+/// replaced normally, LSJ 20080630), reaches employ, recruit and political
+/// action cards (ANK 20200813-2), not a card played by Piper (RTR
+/// 20001020).
+pub static MOBILE_HQ: CardDef = CardDef {
+    name: "Mobile HQ, Operation Antigen",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[LOCATION],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::ActionDeclare],
+            actor: Actor::ActingCandidate,
+            requires: &[
+                Requirement::YouControlThisCard,
+                Requirement::CardUnlocked,
+                Requirement::ActorAllyCard(OPERATION_ANTIGEN),
+            ],
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[
+                    Requirement::NotControlled,
+                    Requirement::ActorReady,
+                    Requirement::TargetVampire,
+                ],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::LockSelf,
+                Effect::EnterCombatWithTarget,
+            ],
+        },
+        ModeDef {
+            windows: &[Window::AnyImpulse],
+            actor: Actor::Controller,
+            requires: &[
+                Requirement::CardUnlocked,
+                Requirement::NotInDamageResolution,
+            ],
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[
+                    Requirement::Controlled,
+                    Requirement::TargetAllyCard(OPERATION_ANTIGEN),
+                    Requirement::TargetAllyHurt,
+                ],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::LockSelf, Effect::BloodToTargetToStart(u8::MAX)],
+        },
+        ModeDef {
+            windows: &[Window::CardAsPlayed],
+            actor: Actor::Controller,
+            requires: &[
+                Requirement::CardUnlocked,
+                Requirement::PoolAtLeast(2),
+                Requirement::PlayedActionCardAtYour(crate::library::Label::OperationAntigen),
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::LockSelf,
+                Effect::PayPool(2),
+                Effect::CancelPlayed { refund: true },
+            ],
+        },
+    ],
+    riders: &[],
+};
+
+/// An Operation Antigen card.
+const OPERATION_ANTIGEN: CardFilter = CardFilter::HasLabel(crate::library::Label::OperationAntigen);
 
 /// "Unique location. +1 hand size. Minions you control can unlock after
 /// resolution of a successful action to equip with a non-electronic,

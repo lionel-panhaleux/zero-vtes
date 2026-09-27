@@ -82,6 +82,12 @@ pub struct TermsState {
     pub chosen: Option<SeatId>,
     pub minions: Vec<MinionId>,
     pub clan: Option<&'static str>,
+    /// Chosen cards in play (`ChooseCard`).
+    pub cards: Vec<crate::state::CardId>,
+    /// Cards still to allocate points to, after the seats
+    /// (`AllocatePerChosenWithCards`), and the points they got.
+    pub card_pending: Vec<crate::state::CardId>,
+    pub card_alloc: Vec<(crate::state::CardId, u8)>,
     /// The shortfall re-allocation, in allocation order.
     pub realloc: Vec<(SeatId, u8)>,
 }
@@ -250,6 +256,31 @@ impl ReferendumCtx {
     }
 }
 
+/// A location or equipment in play (Revolutionary Council's recipients).
+fn allocatable_card(st: &crate::state::GameState, c: crate::state::CardId) -> bool {
+    let card = &st.cards[c.index()];
+    card.present()
+        && !card.effect_only
+        && !cards::became(card.card, card.mode)
+        && (cards::CardFilter::Location.matches(card.card)
+            || LIBRARY[card.card as usize]
+                .types
+                .contains(&CardType::Equipment))
+}
+
+/// A card in play a `ChooseCard` term may pick.
+pub(crate) fn chooseable_card(
+    st: &crate::state::GameState,
+    c: crate::state::CardId,
+    filter: cards::CardFilter,
+) -> bool {
+    let card = &st.cards[c.index()];
+    card.present()
+        && !card.effect_only
+        && !cards::became(card.card, card.mode)
+        && filter.matches(card.card)
+}
+
 /// Clans of the V5 crypt, in crypt order (Consanguineous Boon's choice).
 pub fn clans() -> Vec<&'static str> {
     let mut out: Vec<&'static str> = Vec::new();
@@ -350,12 +381,46 @@ impl Engine {
         self.flow = Flow::Referendum;
     }
 
+    /// Move on to the next term with something to choose, or the polling.
+    fn next_term(&self, ctx: &mut ReferendumCtx) {
+        loop {
+            ctx.terms.term += 1;
+            match ctx.current_term() {
+                None => {
+                    ctx.step = RefStep::Polling;
+                    return;
+                }
+                // No point to allocate: X = 0 (rules-qa 39.1).
+                Some(Term::AllocatePerChosenWithCards { .. }) if ctx.terms.minions.is_empty() => {}
+                Some(_) => {
+                    self.begin_term(ctx);
+                    return;
+                }
+            }
+        }
+    }
+
     /// Set up the current term's state (the seats an allocation runs over,
     /// clockwise from the caller).
     fn begin_term(&self, ctx: &mut ReferendumCtx) {
         ctx.terms.pending.clear();
-        if let Some(Term::Allocate { among, .. }) = ctx.current_term() {
-            ctx.terms.pending = cards::recipients(&self.state, ctx.caller, among, ctx.terms.chosen);
+        ctx.terms.card_pending.clear();
+        match ctx.current_term() {
+            Some(Term::Allocate { among, .. }) => {
+                ctx.terms.pending =
+                    cards::recipients(&self.state, ctx.caller, among, ctx.terms.chosen);
+            }
+            // Every Methuselah, clockwise from the caller, then every
+            // location and equipment in play, arena order.
+            Some(Term::AllocatePerChosenWithCards { .. }) => {
+                let st = &self.state;
+                ctx.terms.pending = st.clockwise_from(ctx.caller);
+                ctx.terms.card_pending = (0..st.cards.len())
+                    .map(|i| crate::state::CardId(i as u32))
+                    .filter(|&c| allocatable_card(st, c))
+                    .collect();
+            }
+            _ => {}
         }
     }
 
@@ -470,6 +535,33 @@ impl Engine {
                 options
             }
             Term::ChooseClan => clans().into_iter().map(Choice::ChooseClan).collect(),
+            Term::ChooseCard(filter) => (0..st.cards.len())
+                .filter(|&i| chooseable_card(st, crate::state::CardId(i as u32), filter))
+                .map(|i| Choice::ChooseCard(i as u32))
+                .collect(),
+            Term::AllocatePerChosenWithCards { per } => {
+                let total = per * ctx.terms.minions.len() as u8;
+                let given: u8 = ctx.terms.alloc.iter().map(|(_, n)| *n).sum::<u8>()
+                    + ctx.terms.card_alloc.iter().map(|(_, n)| *n).sum::<u8>();
+                let nonzero = (ctx.terms.alloc.iter().filter(|(_, n)| *n > 0).count()
+                    + ctx.terms.card_alloc.iter().filter(|(_, n)| *n > 0).count())
+                    as u8;
+                let left = ctx.terms.pending.len() + ctx.terms.card_pending.len();
+                let after = vec![None; left - 1];
+                let ns = feasible_points(total - given, None, nonzero, &after, 1);
+                match ctx.terms.pending.first() {
+                    Some(&seat) => ns
+                        .into_iter()
+                        .map(|n| Choice::AllocateTo { seat, n })
+                        .collect(),
+                    None => {
+                        let card = ctx.terms.card_pending[0].0;
+                        ns.into_iter()
+                            .map(|n| Choice::AllocateToCard { card, n })
+                            .collect()
+                    }
+                }
+            }
         };
         DecisionRequest {
             seat: ctx.caller,
@@ -653,15 +745,26 @@ impl Engine {
                 ctx.terms.clan = Some(c);
                 true
             }
+            (Term::ChooseCard(_), Choice::ChooseCard(c)) => {
+                ctx.terms.cards.push(crate::state::CardId(*c));
+                true
+            }
+            (Term::AllocatePerChosenWithCards { .. }, Choice::AllocateTo { seat, n }) => {
+                debug_assert_eq!(ctx.terms.pending.first(), Some(seat));
+                ctx.terms.pending.remove(0);
+                ctx.terms.alloc.push((*seat, *n));
+                ctx.terms.pending.is_empty() && ctx.terms.card_pending.is_empty()
+            }
+            (Term::AllocatePerChosenWithCards { .. }, Choice::AllocateToCard { card, n }) => {
+                let c = ctx.terms.card_pending.remove(0);
+                debug_assert_eq!(c.0, *card);
+                ctx.terms.card_alloc.push((c, *n));
+                ctx.terms.card_pending.is_empty()
+            }
             (t, c) => unreachable!("illegal terms choice {c:?} for {t:?}"),
         };
         if done {
-            ctx.terms.term += 1;
-            if ctx.current_term().is_some() {
-                self.begin_term(ctx);
-            } else {
-                ctx.step = RefStep::Polling;
-            }
+            self.next_term(ctx);
         }
     }
 
@@ -867,10 +970,17 @@ impl Engine {
                         }
                     }
                 }
+                RefEffect::LockChosenBurnAllocated => {
+                    for &(s, n) in &ctx.terms.alloc {
+                        loss[s.index()] += n as i32;
+                    }
+                }
                 RefEffect::Banish
                 | RefEffect::Expel
                 | RefEffect::BurnSource
-                | RefEffect::PutOnChosen => {}
+                | RefEffect::PutOnChosen
+                | RefEffect::PutInPlay
+                | RefEffect::ChosenTakesChosenCard => {}
             }
         }
         for (i, g) in gain.iter().enumerate() {
@@ -924,9 +1034,64 @@ impl Engine {
                         .as_mut()
                         .expect("political action")
                         .card_entered_play = true;
+                    self.push_mode_layers(id);
                     if let Some(t) = cards::card_title(play.card) {
                         self.gain_title(m, t, Some(id));
                     }
+                }
+            }
+            // Locked, burned and pool lost at once; the chosen Anarchs
+            // count though locked since (LSJ 20081203).
+            RefEffect::LockChosenBurnAllocated => {
+                for &m in &ctx.terms.minions {
+                    if self.state.minions[m.index()].present() {
+                        self.state.minions[m.index()].locked = true;
+                    }
+                }
+                for &(c, n) in &ctx.terms.card_alloc {
+                    if n > 0 && self.state.cards[c.index()].present() {
+                        self.burn_card_in_play(c);
+                    }
+                }
+            }
+            RefEffect::PutInPlay => {
+                let a = self.action.as_ref().expect("political action");
+                let (seat, play) = (a.seat, a.card.expect("a political action card"));
+                // "A Methuselah can have only one": not a second.
+                if !self.state.controls_card_copy(seat, play.card) {
+                    let id = self.enter_play(crate::state::CardInPlay {
+                        card: play.card,
+                        owner: seat,
+                        controller: seat,
+                        host: None,
+                        body: None,
+                        mode: play.mode,
+                        by: None,
+                        in_play: true,
+                        contested: false,
+                        locked: false,
+                        counters: 0,
+                        stored: Vec::new(),
+                        effect_only: false,
+                        against: Default::default(),
+                        entered: self.state.turn,
+                        chosen: Vec::new(),
+                    });
+                    self.push_mode_layers(id);
+                    self.action
+                        .as_mut()
+                        .expect("political action")
+                        .card_entered_play = true;
+                }
+            }
+            RefEffect::ChosenTakesChosenCard => {
+                let c = ctx.terms.cards[0];
+                let to = ctx.terms.chosen.expect("chosen Methuselah");
+                if self.state.cards[c.index()].present()
+                    && !self.state.seats[to.index()].ousted
+                    && self.state.card_controller(c) != to
+                {
+                    self.give_location(c, to);
                 }
             }
             RefEffect::BurnSource => {
@@ -941,6 +1106,22 @@ impl Engine {
             _ => {}
         }
         self.burn_pool_batch(&loss);
+    }
+
+    /// The layers of the mode a political action card entered play with
+    /// (Archon, Raising the Portcullis).
+    fn push_mode_layers(&mut self, id: crate::state::CardId) {
+        let c = &self.state.cards[id.index()];
+        let mode = &cards::lookup(c.card).expect("definition").modes[c.mode as usize];
+        for e in mode.effects {
+            if let cards::Effect::Layer(modifier) = e {
+                self.state.layers.push(cards::Layer {
+                    scope: cards::Scope::InPlay,
+                    modifier: *modifier,
+                    source: id,
+                });
+            }
+        }
     }
 
     /// Simultaneous pool losses: every Methuselah at 0 is ousted at once.

@@ -251,6 +251,8 @@ fn kind_of(c: &Choice) -> &'static str {
         Choice::ChooseSeat(_) => "choose_seat",
         Choice::ChooseMinion(_) => "choose_minion",
         Choice::ChooseClan(_) => "choose_clan",
+        Choice::ChooseCard(_) => "choose_card",
+        Choice::AllocateToCard { .. } => "allocate_to_card",
         Choice::Transfer { .. } => "transfer",
         Choice::Withdraw { .. } => "withdraw",
         Choice::DrawCrypt => "draw_crypt",
@@ -2083,6 +2085,112 @@ fn random_games_with_cost_reductions_hold_invariants_and_replay() {
         "rider:Shard, London, The",
         "rider:Ravnos Cache",
         "rider:Ravnos Carnival",
+    ] {
+        kinds.push(k.into());
+    }
+    let kinds: Vec<&str> = kinds.iter().map(String::as_str).collect();
+    covers(&seen, &kinds);
+}
+
+/// Slice 11aa: the pool's last allies and equipment, Mobile HQ and Minion
+/// Tap.
+const ALLIES_EQUIPMENT_SLICE: &[&str] = &[
+    "ECTU Operative",
+    "Michael Harris, the Incinerator",
+    "Valerie Diaz, Antigen Commander",
+    "Mobile HQ, Operation Antigen",
+    "Enhanced Coagulant",
+    "Flaming Candle",
+    "Ritual Goblet",
+    "Minion Tap",
+    "Villein",
+    "Line Brawl",
+    ".44 Magnum",
+    "Soak",
+    "Side Strike",
+    "Conditioning",
+];
+
+/// Slice 11aa: random tables with the allies and equipment.
+#[test]
+fn random_games_with_allies_and_equipment_hold_invariants_and_replay() {
+    let seen = fuzz(|seed| {
+        let mut e = table(seed, ALLIES_EQUIPMENT_SLICE, &["OBF"]);
+        let st = &mut e.state;
+        for i in 0..st.minions.len() {
+            let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
+            let twin = st
+                .minions
+                .iter()
+                .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
+            if twin && st.minions[i].in_torpor {
+                st.minions[i].in_play = false;
+            }
+        }
+        e
+    });
+    let mut kinds: Vec<String> = ALLIES_EQUIPMENT_SLICE[..8]
+        .iter()
+        .map(|n| format!("play:{n}"))
+        .collect();
+    for k in [
+        "ability:ECTU Operative",
+        "ability:Michael Harris, the Incinerator",
+        "ability:Valerie Diaz, Antigen Commander",
+        "ability:Mobile HQ, Operation Antigen",
+        "ability:Enhanced Coagulant",
+        "ability:Flaming Candle",
+        "ability:Ritual Goblet",
+    ] {
+        kinds.push(k.into());
+    }
+    let kinds: Vec<&str> = kinds.iter().map(String::as_str).collect();
+    covers(&seen, &kinds);
+}
+
+/// Slice 11ab: the pool's last political actions.
+const POLITICAL_SLICE: &[&str] = &[
+    "Archon",
+    "Disputed Territory",
+    "Malkavian Justicar",
+    "Raising the Portcullis",
+    "Revolutionary Council",
+    "Anarchist Uprising",
+    "Kine Resources Contested",
+    "Mobile HQ, Operation Antigen",
+    "Parthenon, The",
+    "Living Manse",
+    ".44 Magnum",
+    "Villein",
+];
+
+/// Slice 11ab: random tables with the political actions.
+#[test]
+fn random_games_with_political_actions_hold_invariants_and_replay() {
+    let seen = fuzz(|seed| {
+        let mut e = table(seed, POLITICAL_SLICE, &["OBF"]);
+        let st = &mut e.state;
+        for i in 0..st.minions.len() {
+            let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
+            let twin = st
+                .minions
+                .iter()
+                .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
+            if twin && st.minions[i].in_torpor {
+                st.minions[i].in_play = false;
+            }
+        }
+        e
+    });
+    let mut kinds: Vec<String> = POLITICAL_SLICE[..5]
+        .iter()
+        .map(|n| format!("play:{n}"))
+        .collect();
+    for k in [
+        "ability:Archon",
+        "ability:Raising the Portcullis",
+        "choose_card",
+        "allocate_to_card",
     ] {
         kinds.push(k.into());
     }

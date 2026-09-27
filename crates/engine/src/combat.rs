@@ -130,6 +130,14 @@ impl Damage {
     }
 }
 
+/// Does the weapon a strike came from carry rider `e` on its strike?
+fn source_rider(st: &crate::state::GameState, source: Option<CardId>, e: Effect) -> bool {
+    source.is_some_and(|w| {
+        cards::lookup(st.cards[w.index()].card)
+            .is_some_and(|d| d.abilities.iter().any(|m| m.effects.contains(&e)))
+    })
+}
+
 /// A combat card's delayed effect "put this card on …": on the opposing
 /// minion as its strike lands, or on its minion after combat. The card went
 /// to the ash heap as it resolved and stays there (only action cards wait in
@@ -242,6 +250,10 @@ pub struct Side {
     pub prevent_each_round: u8,
     /// Of `pending`, the damage from the opposing minion's strikes.
     pub strike_damage: Damage,
+    /// Unpreventable damage from the opposing strike (Enhanced Coagulant):
+    /// out of `pending`, so no prevention reaches it; added as the damage
+    /// resolves.
+    pub unpreventable: u8,
     /// This round, the opposing minion's strikes deal this side no damage
     /// (Rolling with the Punches [FOR]).
     pub strikes_prevented: bool,
@@ -323,6 +335,7 @@ impl Side {
             strength_round: 0,
             prevent_each_round: 0,
             strike_damage: Damage::default(),
+            unpreventable: 0,
             strikes_prevented: false,
             sent_to_torpor: false,
             committed_card: None,
@@ -598,7 +611,7 @@ impl CombatCtx {
             Effect::CommitStrike => {
                 self.sides[side].committed.is_none() && self.no_strikes_round != Some(self.round)
             }
-            Effect::SetRangeLong => !self.range_set,
+            Effect::SetRangeLong | Effect::SetRangeClose => !self.range_set,
             // A strike card played at the maneuver: a maneuver in turn, one
             // commitment a round, a strike that can be used (LSJ 20021028).
             Effect::CommittedStrike(k) if self.step == Step::DetermineRange => {
@@ -1556,6 +1569,22 @@ impl Engine {
                 }
             }
         }
+        // A weapon put on the opposing vampire as its strike lands, becoming
+        // another card (Enhanced Coagulant); dodged, it stays (ANK
+        // 20220923).
+        let mut becoming: Vec<(CardId, MinionId)> = Vec::new();
+        for (i, &landed) in lands.iter().enumerate() {
+            let opp = c.sides[1 - i].minion;
+            if let Some(w) = c.sides[i].strike_source {
+                // A weapon inflicting no damage (Blood Rage) still moves.
+                if landed
+                    && st.minions[opp.index()].is_vampire()
+                    && source_rider(st, Some(w), Effect::BecomesOnOpponent)
+                {
+                    becoming.push((w, opp));
+                }
+            }
+        }
         // Strike riders fire as the strike lands (LSJ 20040928) and reach
         // the weapon strikes resolving with it (ANK 20170519): Blood Rage,
         // Soul Burn.
@@ -1689,7 +1718,11 @@ impl Engine {
                                 .labels
                                 .contains(&Label::Gun)
                         });
-                        c.sides[j].strike_hit(n, aggravated, gun && !aggravated);
+                        if source_rider(st, c.sides[i].strike_source, Effect::UnpreventableStrike) {
+                            c.sides[j].unpreventable += n;
+                        } else {
+                            c.sides[j].strike_hit(n, aggravated, gun && !aggravated);
+                        }
                     }
                 }
                 StrikeKind::StealBlood { n, ranged } => {
@@ -1768,6 +1801,35 @@ impl Engine {
         }
         for (h, on) in placed {
             self.place_held(h, on);
+        }
+        for (w, on) in becoming {
+            self.become_on(w, on);
+        }
+    }
+
+    /// Card `w` moves onto vampire `on` and becomes its windowless mode:
+    /// that mode's layers replace its own (Enhanced Coagulant).
+    fn become_on(&mut self, w: CardId, on: MinionId) {
+        let c = &self.state.cards[w.index()];
+        if !c.present() || !self.state.minions[on.index()].in_play {
+            return;
+        }
+        let def = cards::lookup(c.card).expect("definition");
+        let Some(mi) = def.modes.iter().position(|m| m.windows.is_empty()) else {
+            return;
+        };
+        self.state.layers.retain(|l| l.source != w);
+        let c = &mut self.state.cards[w.index()];
+        c.host = Some(on);
+        c.mode = mi as u8;
+        for e in def.modes[mi].effects {
+            if let Effect::Layer(modifier) = e {
+                self.state.layers.push(cards::Layer {
+                    scope: cards::Scope::InPlay,
+                    modifier: *modifier,
+                    source: w,
+                });
+            }
         }
     }
 
@@ -1853,10 +1915,12 @@ impl Engine {
             .iter()
             .map(|s| {
                 let m = &self.state.minions[s.minion.index()];
+                let mut d = s.pending;
+                d.normal += s.unpreventable;
                 if m.is_ally() {
-                    resolve_life_damage(m.blood, s.pending)
+                    resolve_life_damage(m.blood, d)
                 } else {
-                    resolve_damage(m.blood, s.pending)
+                    resolve_damage(m.blood, d)
                 }
             })
             .collect();
@@ -1865,11 +1929,12 @@ impl Engine {
         // LSJ 20010812; prevention taking the other damage first).
         for i in 0..2 {
             let d = c.sides[i].pending.total();
-            let from_strikes = d.min(c.sides[i].strike_damage.total());
             debug_assert!(
                 c.sides[i].strike_damage.total() <= d,
                 "strike damage over pending"
             );
+            let from_strikes = d.min(c.sides[i].strike_damage.total()) + c.sides[i].unpreventable;
+            let d = d + std::mem::take(&mut c.sides[i].unpreventable);
             c.sides[i].damaged_round |= d > 0;
             c.sides[i].strike_damage = Damage::default();
             c.sides[1 - i].inflicted_round += from_strikes;
@@ -2373,11 +2438,29 @@ impl Engine {
             Effect::NullifyOpposingWeapons => c.sides[i].nullifies_weapons = true,
             Effect::EnvironmentalDamage(n) => c.sides[i].environmental += n,
             Effect::RoundStrike(k) => c.sides[i].round_strike = Some(k),
-            Effect::SetRangeLong => {
+            Effect::SetRangeLong | Effect::SetRangeClose => {
                 if !c.range_set {
-                    c.range = Range::Long;
+                    c.range = if effect == Effect::SetRangeLong {
+                        Range::Long
+                    } else {
+                        Range::Close
+                    };
                     c.range_set = true;
                 }
+            }
+            // Immunity: the damage is gone, not prevented.
+            Effect::ImmuneStrikeNonAggravated => {
+                let s = &mut c.sides[i];
+                let n = s.strike_damage.normal.min(s.pending.normal);
+                s.pending.normal -= n;
+                s.pending.gun = s.pending.gun.min(s.pending.normal);
+                s.strike_damage.normal = 0;
+                s.strike_damage.gun = 0;
+            }
+            Effect::ImmuneEffectNonAggravated => {
+                let s = &mut c.sides[i];
+                s.pending.normal = s.strike_damage.normal.min(s.pending.normal);
+                s.pending.gun = s.pending.gun.min(s.pending.normal);
             }
             Effect::Maneuver => {
                 if c.step == Step::DetermineRange {
@@ -2611,6 +2694,9 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::GainBloodLostByOpponent
             | Effect::ContinueAfterCombat { .. }
             | Effect::SetRangeLong
+            | Effect::SetRangeClose
+            | Effect::ImmuneStrikeNonAggravated
+            | Effect::ImmuneEffectNonAggravated
             | Effect::PreventNonGun(_)
             | Effect::StrengthThisCombat(_)
     )

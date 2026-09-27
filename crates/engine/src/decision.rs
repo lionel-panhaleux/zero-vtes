@@ -186,6 +186,16 @@ pub enum Choice {
     ChooseMinion(MinionId),
     /// Referendum terms: choose this clan.
     ChooseClan(&'static str),
+    /// Referendum terms: choose this card in play (arena index; Disputed
+    /// Territory's location).
+    ChooseCard(u32),
+    /// Referendum terms: allocate `n` points to this card in play (arena
+    /// index; Revolutionary Council's locations and equipment), stepwise
+    /// after the Methuselahs.
+    AllocateToCard {
+        card: u32,
+        n: u8,
+    },
     /// 1 transfer: move 1 pool onto an uncontrolled vampire.
     Transfer {
         slot: u8,

@@ -909,7 +909,11 @@ impl Engine {
     /// The ready vampires a `ChooseForCard` may pick: its seat's, of its
     /// clan, other than the first chosen for a second choice.
     /// The minions of `of` an `Interrupt::MinionOf` may choose.
-    fn minion_of_options(&self, of: SeatId, purpose: MinionPurpose) -> Vec<crate::ids::MinionId> {
+    pub(crate) fn minion_of_options(
+        &self,
+        of: SeatId,
+        purpose: MinionPurpose,
+    ) -> Vec<crate::ids::MinionId> {
         let st = &self.state;
         st.minions_of(of)
             .filter(|m| {
@@ -922,7 +926,10 @@ impl Engine {
                     MinionPurpose::BurnBloodOfClan(c) => {
                         v.ready() && v.clan() == Some(c) && v.blood > 0
                     }
-                    MinionPurpose::HostCard(c) => st.can_hold(*m, st.cards[c.index()].card, &[]),
+                    // "Any ready minion" (LSJ 19990928).
+                    MinionPurpose::HostCard(c) => {
+                        v.ready() && st.can_hold(*m, st.cards[c.index()].card, &[])
+                    }
                     MinionPurpose::LockOldest(c) => {
                         v.clan() == Some(c)
                             && st.capacity_of(*m)
@@ -1079,6 +1086,29 @@ impl Engine {
     /// `seat` takes control of the card in play `card` (stolen, given): a
     /// card that chooses on a change of control has its new controller
     /// choose (The Rack).
+    /// A location changing controller (Dominate Kine [DOM], Disputed
+    /// Territory): one on a minion goes on a ready minion of the new
+    /// controller, their choice — burned if none can hold it (LSJ
+    /// 19990928; rules-qa 39.4).
+    pub(crate) fn give_location(&mut self, card: CardId, seat: SeatId) {
+        self.give_card_control(card, seat);
+        if self.state.cards[card.index()].host.is_none() {
+            return;
+        }
+        if self
+            .minion_of_options(seat, MinionPurpose::HostCard(card))
+            .is_empty()
+        {
+            self.burn_card_in_play(card);
+        } else {
+            self.interrupts.push(Interrupt::MinionOf {
+                seat,
+                of: seat,
+                purpose: MinionPurpose::HostCard(card),
+            });
+        }
+    }
+
     pub(crate) fn give_card_control(&mut self, card: CardId, seat: SeatId) {
         self.state.cards[card.index()].controller = seat;
         let rechooses = cards::lookup(self.state.cards[card.index()].card).is_some_and(|d| {

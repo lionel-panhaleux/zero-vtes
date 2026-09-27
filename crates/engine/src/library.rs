@@ -53,6 +53,7 @@ pub enum Label {
     MultiDiscipline,
     RequiresAnarch,
     MakesAnarch,
+    OperationAntigen,
 }
 
 /// One playable mode of a card: its bracket tags as printed (`DOM`,
@@ -2444,7 +2445,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::Fixed(2),
         burn_option: false,
         combo: false,
-        labels: &[Label::Mortal],
+        labels: &[Label::Mortal, Label::OperationAntigen],
         body: Some(Body { life: 3, strength: 1, bleed: 0 }),
         modes: &[
             Mode {
@@ -4929,7 +4930,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::Fixed(3),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique, Label::Mortal],
+        labels: &[Label::Unique, Label::Mortal, Label::OperationAntigen],
         body: Some(Body { life: 3, strength: 1, bleed: 1 }),
         modes: &[
             Mode {
@@ -5099,7 +5100,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::Fixed(2),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique, Label::Location],
+        labels: &[Label::Unique, Label::Location, Label::OperationAntigen],
         body: None,
         modes: &[
             Mode {
@@ -8849,7 +8850,7 @@ pub static LIBRARY: [LibraryCard; 425] = [
         pool_cost: Cost::Fixed(3),
         burn_option: false,
         combo: false,
-        labels: &[Label::Unique, Label::Mortal],
+        labels: &[Label::Unique, Label::Mortal, Label::OperationAntigen],
         body: Some(Body { life: 3, strength: 1, bleed: 1 }),
         modes: &[
             Mode {

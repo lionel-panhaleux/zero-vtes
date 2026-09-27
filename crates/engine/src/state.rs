@@ -715,6 +715,22 @@ impl GameState {
             .discipline_grants(m)
             .filter(|g| g.eq_ignore_ascii_case(d))
             .count() as u8;
+        // An equipment's level ("this vampire gets +1 level", Ritual
+        // Goblet): no capacity with it, and nothing on an ally.
+        let equipped = self
+            .layers
+            .iter()
+            .filter(|l| match l.modifier {
+                crate::cards::Modifier::BearerDisciplineLevel(g) => {
+                    self.layer_active(l)
+                        && g.eq_ignore_ascii_case(d)
+                        && self.cards[l.source.index()].host == Some(m)
+                        && self.minions[m.index()].is_vampire()
+                }
+                _ => false,
+            })
+            .count() as u8;
+        let granted = granted + equipped;
         (printed + granted).min(2)
     }
 
@@ -1174,6 +1190,7 @@ impl GameState {
             .filter(|(_, c)| {
                 c.present()
                     && c.host == Some(m)
+                    && !crate::cards::became(c.card, c.mode)
                     && (crate::cards::CardFilter::EquipmentWithout(&[]).matches(c.card)
                         || crate::cards::becomes_weapon(c.card))
             })
@@ -1326,6 +1343,16 @@ impl GameState {
                     {
                         n as i32
                     }
+                    crate::cards::Modifier::OwnBleedWhilePreyTorpor(n)
+                        if self.minions[m.index()].owner == controller
+                            && self.minions[m.index()].is_vampire()
+                            && self.minions_of(self.prey(controller)).any(|t| {
+                                self.minions[t.index()].is_vampire()
+                                    && self.minions[t.index()].in_torpor
+                            }) =>
+                    {
+                        n as i32
+                    }
                     crate::cards::Modifier::YoungBleedAgainstController { max, n }
                         if !c.locked
                             && target == controller
@@ -1398,7 +1425,7 @@ impl GameState {
             })
             .fold((0, 0), |(d, g), l| match l.modifier {
                 crate::cards::Modifier::RescueDiscount { not_clan, n, gain }
-                    if clan != Some(not_clan) =>
+                    if not_clan.is_none() || clan != not_clan =>
                 {
                     (d + n, g + gain)
                 }
@@ -1719,6 +1746,44 @@ impl GameState {
             .filter(|(_, m)| m.present() && m.in_torpor)
             .map(|(i, _)| MinionId(i as u32))
             .collect()
+    }
+
+    /// Blood vampires attempting to block `m` burn (Archon, per copy).
+    pub fn blockers_of_burn(&self, m: MinionId) -> u8 {
+        self.layers
+            .iter()
+            .filter(|l| {
+                l.scope == crate::cards::Scope::InPlay
+                    && self.layer_active(l)
+                    && self.cards[l.source.index()].host == Some(m)
+            })
+            .map(|l| match l.modifier {
+                crate::cards::Modifier::BlockersOfHostBurn(n) => n,
+                _ => 0,
+            })
+            .sum()
+    }
+
+    /// Can no blood hunt be called on `m` (Archon)?
+    pub fn blood_hunt_barred(&self, m: MinionId) -> bool {
+        self.layers.iter().any(|l| {
+            l.scope == crate::cards::Scope::InPlay
+                && self.layer_active(l)
+                && self.cards[l.source.index()].host == Some(m)
+                && l.modifier == crate::cards::Modifier::NoBloodHuntOnHost
+        })
+    }
+
+    /// Does `s` control a copy of this library card in play ("a Methuselah
+    /// can have only one", Raising the Portcullis)?
+    pub fn controls_card_copy(&self, s: SeatId, card: u16) -> bool {
+        (0..self.cards.len()).any(|i| {
+            let c = &self.cards[i];
+            c.in_play
+                && !c.effect_only
+                && c.card == card
+                && self.card_controller(CardId(i as u32)) == s
+        })
     }
 
     /// Does `s` already have a copy of this vampire in play, in any state

@@ -86,6 +86,7 @@ fn implemented_definitions_cover_the_slice() {
             "Apportation",
             "Aranthebes, The Immortal",
             "Arcane Library",
+            "Archon",
             "Archon Investigation",
             "Arms of Ahriman",
             "Army of Rats",
@@ -155,6 +156,7 @@ fn implemented_definitions_cover_the_slice() {
             "Delaying Tactics",
             "Direct Intervention",
             "Disarm",
+            "Disputed Territory",
             "Diversion",
             "Dog Pack",
             "Dogged Pursuit",
@@ -165,6 +167,7 @@ fn implemented_definitions_cover_the_slice() {
             "Dreams of the Sphinx",
             "Dummy Corporation",
             "Dust Up",
+            "ECTU Operative",
             "Eagle's Sight",
             "Earth Control",
             "Earth Meld",
@@ -176,6 +179,7 @@ fn implemented_definitions_cover_the_slice() {
             "Elysium: The Palace of Versailles",
             "Enchant Kindred",
             "Enchanting Gaze",
+            "Enhanced Coagulant",
             "Enhanced Senses",
             "Entrancement",
             "Expulsion",
@@ -194,6 +198,7 @@ fn implemented_definitions_cover_the_slice() {
             "Ferraille",
             "Fifth Tradition: Hospitality",
             "Flamethrower",
+            "Flaming Candle",
             "Flash",
             "Fleetness",
             "Flesh of Marble",
@@ -262,16 +267,20 @@ fn implemented_definitions_cover_the_slice() {
             "Magic of the Smith",
             "Majesty",
             "Make the Misere",
+            "Malkavian Justicar",
             "Market Square",
             "Martyr's Resilience",
             "Meditative Grove",
             "Melange",
+            "Michael Harris, the Incinerator",
             "Mind Numb",
+            "Minion Tap",
             "Mirror Walk",
             "Misdirection",
             "Mithraeum, London, The",
             "Mithraic Cultist",
             "Mob Connections",
+            "Mobile HQ, Operation Antigen",
             "Monkey Wrench",
             "Monster",
             "Monstrous Form",
@@ -329,6 +338,7 @@ fn implemented_definitions_cover_the_slice() {
             "Pursuit",
             "Quickness",
             "Rack, The",
+            "Raising the Portcullis",
             "Rapid Change",
             "Raptor",
             "Rat's Warning",
@@ -344,8 +354,10 @@ fn implemented_definitions_cover_the_slice() {
             "Revelation of the Serpent",
             "Revelations",
             "Revenant",
+            "Revolutionary Council",
             "Rewilding",
             "Righteous Blade",
+            "Ritual Goblet",
             "Rolling with the Punches",
             "Rotting Behemoth",
             "Roundhouse",
@@ -424,6 +436,7 @@ fn implemented_definitions_cover_the_slice() {
             "Unlicensed Taxicab",
             "Uptown Hunting Ground",
             "Vagabond Mystic",
+            "Valerie Diaz, Antigen Commander",
             "Vast Wealth",
             "Veil the Legions",
             "Ventrue Headquarters",
@@ -559,6 +572,55 @@ fn villein_costs_one_more_on_a_vampire_that_already_has_one() {
     assert_eq!(e.state.seats[0].pool, 3);
     assert!(e.state.minions[0].blood == 1 && e.state.minions[0].locked);
     assert_eq!(e.state.seats[0].mpa, 0);
+}
+
+// Rulings: [LSJ 20020620]; [LSJ 20100216].
+#[test]
+fn minion_tap_moves_any_amount_paying_its_villein_surcharge_as_pool_is_gained() {
+    let mut e = table();
+    let (villein, tap) = (find_library("Villein"), find_library("Minion Tap"));
+    e.state.seats[0].hand.extend([villein, tap]);
+    pick(&mut e, play(0, MinionId(1)));
+    pick(&mut e, Choice::SetX(2));
+    // Villein took the 1 blood it found; with 1 pool left, Minion Tap costs
+    // 1 (Villein's surcharge) and is still offered: the cost is paid as the
+    // pool is gained.
+    expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    e.state.seats[0].pool = 1;
+    pick(&mut e, play(0, MinionId(0)));
+    // Any amount, 0 included, up to the 5 blood there.
+    let req = expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
+    assert_eq!(req.options, (0..=5).map(Choice::SetX).collect::<Vec<_>>());
+    pick(&mut e, Choice::SetX(4));
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[0].pool, 4);
+    assert_eq!(e.state.minions[0].blood, 1);
+    assert_eq!(e.state.seats[0].ash, vec![tap]);
+    // A vampire in torpor is one "you control" too.
+    let mut e = table();
+    let t = e.add_minion(SeatId(0), find_card("Alice Chen"), 2, true);
+    e.state.seats[0].hand.push(tap);
+    let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    assert!(req.options.contains(&play(0, t)));
+}
+
+// Rulings: [LSJ 20100216].
+#[test]
+fn minion_tap_takes_what_is_left_at_resolution() {
+    let mut e = table();
+    let tap = find_library("Minion Tap");
+    e.state.seats[0].hand.push(tap);
+    e.state.seats[1].hand.push(find_library("Sudden Reversal"));
+    pick(&mut e, play(0, MinionId(0)));
+    pick(&mut e, Choice::SetX(5));
+    // In the as-played window the vampire loses blood: 3 are left to take.
+    expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
+    e.state.minions[0].blood = 3;
+    pick(&mut e, Choice::Pass);
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[0].pool, 33);
+    // Drained to 0, its mandatory hunt ran at once.
+    assert!(e.state.minions[0].blood == 1 && e.state.minions[0].locked);
 }
 
 // Rulings: [LSJ 20090626]; [ANK 20190104] [LSJ 19980212].

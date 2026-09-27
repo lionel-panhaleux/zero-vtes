@@ -61,6 +61,9 @@ LABELS = [
     ("RequiresAnarch", r"\brequires? (?:an?|two) [^.]*(?<!non-)\b(?:anarch|baron)\b"),
     # A card "making a vampire Anarch" (Powerbase: Los Angeles).
     ("MakesAnarch", r"\bmake (?:that|a|this) [^.]*\bvampire (?:you control )?anarch\b"),
+    # The Operation Antigen cards (Mobile HQ keys on them): the sentence on
+    # the type line, not "An Operation Antigen ally" in the text.
+    ("OperationAntigen", r"\boperation antigen\."),
 ]
 # An ally's or retainer's type line: "Unique mortal with 2 life. 1 strength,
 # 0 bleed." (a retainer prints its life only).

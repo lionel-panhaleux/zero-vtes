@@ -364,6 +364,11 @@ impl Engine {
                     {
                         continue;
                     }
+                    if mode.requires.contains(&Requirement::OnePerMethuselah)
+                        && st.controls_card_copy(seat, card)
+                    {
+                        continue;
+                    }
                     // "Frenzy cards cannot be used on this vampire"
                     // (Tranquility Shield): checked on the minion it would
                     // be played on.
@@ -512,7 +517,7 @@ impl Engine {
                             from: None,
                         });
                         if (blood
-                            + self.discipline_surcharge(m, card)
+                            + self.discipline_surcharge(m, card, mi as u8)
                             + self.combat_card_surcharge(m, card))
                         .saturating_sub(potential)
                             > st.minions[m.index()].blood
@@ -928,7 +933,7 @@ impl Engine {
                 ctx,
                 resume: Box::new(resume),
                 pending: None,
-                after_terms: false,
+                then: CostThen::Terms,
             };
             return;
         }
@@ -1081,7 +1086,7 @@ impl Engine {
 
     /// What the reductions could still take off `ctx`'s card (its
     /// affordability as it is offered).
-    fn cost_potential(&self, ctx: &PlayCtx) -> u8 {
+    pub(crate) fn cost_potential(&self, ctx: &PlayCtx) -> u8 {
         self.cost_sources(ctx).iter().map(|&(_, n)| n).sum()
     }
 
@@ -1120,6 +1125,25 @@ impl Engine {
         }
     }
 
+    /// Could the card's cost be paid with every reduction it may take
+    /// (British Museum's, then those announced: a searched equipment,
+    /// rules-qa 38.5)? A pool cost paid down to 0 counts; with
+    /// `pool_may_oust`, any pool cost does (Vast Wealth, RTR 19941109).
+    pub(crate) fn payable_with_potential(&self, ctx: &PlayCtx, pool_may_oust: bool) -> bool {
+        let st = &self.state;
+        let m = ctx.actor.expect("minion");
+        let off = self.cost_potential(ctx) + st.equip_discount(m, ctx.card);
+        let blood = cards::blood_cost(st, ctx.card, ctx.x);
+        let pool = cards::pool_cost(st, ctx.seat, ctx.card, ctx.target);
+        let (have_blood, have_pool) =
+            (st.minions[m.index()].blood, st.seats[ctx.seat.index()].pool);
+        if pool > 0 {
+            (pool_may_oust || (pool - off as i32).max(0) <= have_pool) && blood <= have_blood
+        } else {
+            blood.saturating_sub(off) <= have_blood
+        }
+    }
+
     /// Can the card's cost be paid with the reductions picked so far (an
     /// unaffordable card must announce them: LSJ 20090705)?
     fn affordable_with_discounts(&self, ctx: &PlayCtx) -> bool {
@@ -1142,7 +1166,7 @@ impl Engine {
         mut ctx: PlayCtx,
         resume: Flow,
         pending: Option<CardId>,
-        after_terms: bool,
+        then: CostThen,
         choice: &Choice,
     ) {
         let counter_source = |e: &Engine, c: CardId| {
@@ -1164,7 +1188,7 @@ impl Engine {
                         ctx,
                         resume: Box::new(resume),
                         pending: Some(c),
-                        after_terms,
+                        then,
                     };
                     return;
                 }
@@ -1178,20 +1202,20 @@ impl Engine {
                 }
             }
             (None, Choice::Pass) => {
-                self.cost_terms_done(ctx, resume, after_terms);
+                self.cost_terms_done(ctx, resume, then);
                 return;
             }
             (p, c) => unreachable!("illegal cost terms choice {c:?} ({p:?})"),
         }
         // More to pick, or done when nothing else applies.
         if self.cost_sources(&ctx).is_empty() {
-            self.cost_terms_done(ctx, resume, after_terms);
+            self.cost_terms_done(ctx, resume, then);
         } else {
             self.flow = Flow::CostTerms {
                 ctx,
                 resume: Box::new(resume),
                 pending: None,
-                after_terms,
+                then,
             };
         }
     }
@@ -1200,7 +1224,7 @@ impl Engine {
     /// that played it, those taken now: The Line and The Shard locked, the
     /// counters spent for what they cover ("blood or pool" first, then
     /// blood-only, then counters: rules-qa 36.2).
-    fn pay_named_discounts(&mut self, ctx: &PlayCtx, pool: i32, blood: u8) -> (i32, u8) {
+    pub(crate) fn pay_named_discounts(&mut self, ctx: &PlayCtx, pool: i32, blood: u8) -> (i32, u8) {
         let (mut pool, mut blood) = (pool, blood);
         let mut counters = Vec::new();
         for (c, n) in ctx.discounts.into_iter().flatten() {
@@ -1254,18 +1278,19 @@ impl Engine {
 
     /// The reductions announced: the card's terms next, or (named by them
     /// already) its as-played window.
-    fn cost_terms_done(&mut self, ctx: PlayCtx, resume: Flow, after_terms: bool) {
-        match (after_terms, resume) {
-            (false, r @ Flow::AsPlayed { .. }) => {
+    fn cost_terms_done(&mut self, ctx: PlayCtx, resume: Flow, then: CostThen) {
+        match (then, resume) {
+            (CostThen::Terms, r @ Flow::AsPlayed { .. }) => {
                 self.flow = r;
                 self.announce_terms(ctx, Flow::GameOver);
             }
-            (false, r) => self.announce_terms(ctx, r),
-            (true, r @ Flow::AsPlayed { .. }) => {
+            (CostThen::Terms, r) => self.announce_terms(ctx, r),
+            (CostThen::AsPlayed, r @ Flow::AsPlayed { .. }) => {
                 self.flow = r;
                 self.open_as_played(ctx, Flow::GameOver);
             }
-            (true, r) => self.open_as_played(ctx, r),
+            (CostThen::AsPlayed, r) => self.open_as_played(ctx, r),
+            (CostThen::EquipFound, _) => self.equip_found(ctx),
         }
     }
 
@@ -1414,6 +1439,14 @@ impl Engine {
             // The amount is announced in the printed range; at resolution
             // you take what you can (Villein rulings, LSJ 20100216).
             Some(Terms::BloodRange { min, max }) => (min..=max).map(Choice::SetX).collect(),
+            Some(Terms::UpToTargetBlood) => {
+                let Target::Minion(t) = ctx.target else {
+                    unreachable!("blood terms without a minion target");
+                };
+                (0..=self.state.minions[t.index()].blood)
+                    .map(Choice::SetX)
+                    .collect()
+            }
             // X may exceed what is needed but never the actor's blood
             // (Hidden Strength rulings).
             // A fixed blood cost besides ("burn X blood", Lightning
@@ -1567,7 +1600,7 @@ impl Engine {
                 ctx,
                 resume: Box::new(resume),
                 pending: None,
-                after_terms: true,
+                then: CostThen::AsPlayed,
             };
             return;
         }
@@ -1678,6 +1711,9 @@ impl Engine {
                                 }
                                 Requirement::PlayedGrappleOrAimByOpponent => {
                                     self.played_grapple_by_opponent(source, &top.ctx)
+                                }
+                                Requirement::PlayedActionCardAtYour(label) => {
+                                    cards::played_action_card_at(&self.state, seat, label, &top.ctx)
                                 }
                                 _ => true,
                             })
@@ -1913,11 +1949,14 @@ impl Engine {
     }
 
     /// A canceled card was still played (spec §1.8.3): it goes to the ash
-    /// heap and is replaced normally (§1.9.3); with "its cost is not paid"
+    /// heap and is replaced normally (§1.9.3) — not one played from a
+    /// Fleshforge Chamber (rules-qa 37.1); with "its cost is not paid"
     /// nothing was paid, since costs are paid at resolution (§1.7.1).
     fn settle_canceled(&mut self, ctx: PlayCtx) {
         self.state.seats[ctx.seat.index()].ash.push(ctx.card);
-        self.replace(ctx.seat, 1, None);
+        if ctx.from.is_none() {
+            self.replace(ctx.seat, 1, None);
+        }
     }
 
     /// Resolution: pay the cost, apply the effects, move the card, replace.
@@ -2006,7 +2045,7 @@ impl Engine {
             }
             let blood = (cards::blood_cost(&self.state, ctx.card, ctx.x)
                 + surcharge
-                + self.discipline_surcharge(m, ctx.card)
+                + self.discipline_surcharge(m, ctx.card, ctx.mode)
                 + self.combat_card_surcharge(m, ctx.card))
             .saturating_sub(blood_off);
             let v = &mut self.state.minions[m.index()];
@@ -2585,19 +2624,13 @@ impl Engine {
                 v.locked = true;
                 v.skip_unlock = true;
             }
-            // Its control changes; one on a minion moves onto a minion of
-            // the player's, their choice (RTR 19960112).
+            // Its control changes; one on a minion moves onto a ready
+            // minion of the player's, their choice (RTR 19960112), or is
+            // burned if none can hold it (LSJ 19990928).
             Effect::StealLocation => {
                 if let Target::Card(c) = ctx.target {
                     if self.state.cards[c.index()].present() {
-                        self.give_card_control(c, s);
-                        if self.state.cards[c.index()].host.is_some() {
-                            self.interrupts.push(Interrupt::MinionOf {
-                                seat: s,
-                                of: s,
-                                purpose: crate::draws::MinionPurpose::HostCard(c),
-                            });
-                        }
+                        self.give_location(c, s);
                     }
                 }
             }
@@ -2742,6 +2775,8 @@ impl Engine {
             | Effect::HostBurnBlood(_)
             | Effect::CommitStrike
             | Effect::AdditionalStrikeWithSource
+            | Effect::UnpreventableStrike
+            | Effect::BecomesOnOpponent
             | Effect::PreventGunStrikeAllowance(_)
             | Effect::ContinuePressEachCombat
             | Effect::SearchEquip
@@ -2917,8 +2952,10 @@ impl Engine {
         let st = &self.state;
         let mut out = Vec::new();
         for (ci, c) in st.cards.iter().enumerate() {
-            // A contested card is out of play: nothing printed on it applies.
-            if !c.present() {
+            // A contested card is out of play: nothing printed on it
+            // applies; nor on a card that became another (Enhanced
+            // Coagulant).
+            if !c.present() || cards::became(c.card, c.mode) {
                 continue;
             }
             let Some(def) = cards::lookup(c.card) else {
@@ -3352,6 +3389,8 @@ impl Engine {
                             }
                             if !ability.requires.iter().all(|&r| {
                                 cards::holds(r, st, seat, Some(m), None, None, None, None, false)
+                                    && (r != Requirement::CardUnlocked
+                                        || cards::holds_for_card(r, st, CardId(ci as u32), None))
                             }) {
                                 continue;
                             }
@@ -3689,9 +3728,37 @@ impl Engine {
             .unwrap_or(0)
     }
 
-    pub(crate) fn discipline_surcharge(&self, actor: MinionId, card: u16) -> u8 {
+    /// "Cards requiring a Discipline cost this vampire +n blood" (Enhanced
+    /// Coagulant become): `actor`'s cards played using a Discipline (mode
+    /// `mode`; rules-qa 38.4), action cards paid at resolution included.
+    pub(crate) fn host_discipline_surcharge(&self, actor: MinionId, card: u16, mode: u8) -> u8 {
         let st = &self.state;
-        let discs = LIBRARY[card as usize].disciplines;
+        // A card-type marker ("[COMBAT]") is no Discipline.
+        if !played_disciplines(card, mode)
+            .iter()
+            .any(|t| cards::discipline_key(t) != "?")
+        {
+            return 0;
+        }
+        st.layers
+            .iter()
+            .filter(|l| {
+                l.scope == cards::Scope::InPlay
+                    && st.layer_active(l)
+                    && st.cards[l.source.index()].host == Some(actor)
+            })
+            .map(|l| match l.modifier {
+                cards::Modifier::HostDisciplineCardsCost(n) => n,
+                _ => 0,
+            })
+            .sum()
+    }
+
+    pub(crate) fn discipline_surcharge(&self, actor: MinionId, card: u16, mode: u8) -> u8 {
+        let st = &self.state;
+        // The Disciplines the card is played using (rules-qa 38.4).
+        let discs = played_disciplines(card, mode);
+        let own = self.host_discipline_surcharge(actor, card, mode);
         st.layers
             .iter()
             .filter(|l| l.scope == cards::Scope::InPlay && st.layer_active(l))
@@ -3708,14 +3775,17 @@ impl Engine {
                     .combat
                     .as_ref()
                     .is_some_and(|c| c.side_of_minion(b).is_some());
-                b != actor
-                    && busy
-                    && discs
-                        .iter()
-                        .any(|d| ds.contains(&d.to_ascii_lowercase().as_str()))
+                // "Requiring" = played using (rules-qa 38.4): the played
+                // mode's tags — every "[x][y]" card in the pool is a combo,
+                // using both.
+                let used = discs
+                    .iter()
+                    .any(|d| ds.contains(&d.to_ascii_lowercase().as_str()));
+                b != actor && busy && used
             })
             .map(|(_, _, n)| n)
-            .sum()
+            .sum::<u8>()
+            + own
     }
 
     /// "Burn this card after this acting vampire leaves the ready region"
@@ -3797,6 +3867,11 @@ impl Engine {
             .find(|e| matches!(e, Effect::DeclareAction(_)))
         {
             let m = actor.expect("acting minion");
+            // "Can lock this location to … as a … action" (Mobile HQ): a
+            // cost, locked even if the action fails (ANK 20221102).
+            if mode.effects.contains(&Effect::LockSelf) {
+                self.lock_card(source.card());
+            }
             self.declare_action(m, *kind, None, None, Some(source));
             // The stealth of a granted action is the card's own ("as a +1
             // stealth political action"), not the rulebook's for political
@@ -4322,6 +4397,18 @@ impl Engine {
                     };
                     self.state.gain_blood(t, n);
                 }
+                // "Add enough life to … reach their starting life" (Mobile
+                // HQ): up to it, no further.
+                Effect::BloodToTargetToStart(n) => {
+                    let Target::Minion(t) = target else {
+                        unreachable!("life to a target without a minion");
+                    };
+                    let v = &self.state.minions[t.index()];
+                    if v.present() {
+                        let b = self.state.cap_starting(t, v.blood.saturating_add(n));
+                        self.state.minions[t.index()].blood = b;
+                    }
+                }
                 Effect::HandSizeBonusUntilEndOfTurn(n) => {
                     self.state.seats[ctx.seat.index()].hand_bonus += n;
                     self.draw_up(ctx.seat);
@@ -4396,6 +4483,7 @@ impl Engine {
                 Effect::AddStealth(_)
                 | Effect::BleedMod { .. }
                 | Effect::ReduceBleed(_)
+                | Effect::VampiresCannotBlock
                 | Effect::ActionFails => self.apply_action_effect(*e, &ctx),
                 Effect::FailReferendum => self.apply_vote_effect(*e, &ctx),
                 // In an action or out of one (Daria's lock, Kalinda's unlock).
@@ -4536,7 +4624,10 @@ impl Engine {
                     cb.sides[i].committed = Some(source.card());
                 }
                 // Read when the strike resolves.
-                Effect::AdditionalStrikeWithSource | Effect::CountersPerDamage => {}
+                Effect::AdditionalStrikeWithSource
+                | Effect::CountersPerDamage
+                | Effect::UnpreventableStrike
+                | Effect::BecomesOnOpponent => {}
                 // One point a use; the first use opens the combat's
                 // allowance (rules-qa 10.3).
                 Effect::PreventGunStrikeAllowance(n) => {
@@ -5475,4 +5566,27 @@ impl Engine {
     pub fn card_name(card: u16) -> &'static str {
         LIBRARY[card as usize].name
     }
+}
+
+/// The tags a card is played with in definition mode `mode` (its library
+/// mode's: the Disciplines used, card-type markers of a combo card).
+fn played_disciplines(card: u16, mode: u8) -> &'static [&'static str] {
+    LIBRARY[card as usize]
+        .modes
+        .get(cards::library_mode(card, mode as usize))
+        .map_or(&[], |m| m.tags)
+}
+
+/// What follows the cost reductions announced for a card.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CostThen {
+    /// The card's terms, then its as-played window.
+    Terms,
+    /// Its as-played window: the reductions were asked after the card's
+    /// terms named the card they are for (Piper's ally, Contraband's
+    /// equipment).
+    AsPlayed,
+    /// The equipment a library search found is paid and equipped (Magic of
+    /// the Smith, Michael Harris: offered once it is chosen, rules-qa 38.5).
+    EquipFound,
 }

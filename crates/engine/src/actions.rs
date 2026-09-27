@@ -14,6 +14,11 @@ use crate::referendum::RefKind;
 use crate::state::{ActionId, CardId, CardInPlay};
 use crate::window::OrderedWindow;
 
+/// Does the card's first mode carry requirement `r`?
+fn lib_requires(card: u16, r: cards::Requirement) -> bool {
+    cards::lookup(card).is_some_and(|d| d.modes.first().is_some_and(|m| m.requires.contains(&r)))
+}
+
 /// An equipment card the engine can put in play (it has a definition).
 fn is_equipment(card: u16) -> bool {
     LIBRARY[card as usize]
@@ -1058,10 +1063,11 @@ impl Engine {
             .as_ref()
             .is_some_and(|c| c.side_of_minion(m).is_some())
         {
-            let pending = self
-                .combat
-                .as_ref()
-                .is_some_and(|c| c.sides.iter().any(|s| s.pending.total() > 0));
+            let pending = self.combat.as_ref().is_some_and(|c| {
+                c.sides
+                    .iter()
+                    .any(|s| s.pending.total() > 0 || s.unpreventable > 0)
+            });
             // Damage still pending resolves first; the combat may end with
             // it (a combatant burned, a Methuselah ousted).
             if !(pending && self.apply_damage()) && self.combat.is_some() {
@@ -1106,7 +1112,13 @@ impl Engine {
         if st.seats[v.owner.index()].library.len() < cards as usize {
             return None;
         }
-        Some((blood, cards))
+        // Archon: burned as far as it goes, the attempt allowed anyway.
+        let archon = if v.is_vampire() {
+            st.blockers_of_burn(a.acting)
+        } else {
+            0
+        };
+        Some((blood + archon, cards))
     }
 
     /// Pay `m`'s block toll: the blood now, the library cards now or (a
@@ -1115,7 +1127,8 @@ impl Engine {
         let a = self.action.as_ref().expect("action context");
         let (blood, cards) = self.block_toll(a, m).expect("an affordable toll");
         let owner = self.state.minions[m.index()].owner;
-        self.state.minions[m.index()].blood -= blood;
+        let v = &mut self.state.minions[m.index()];
+        v.blood = v.blood.saturating_sub(blood);
         if deferred {
             if cards > 0 {
                 self.action
@@ -2093,6 +2106,11 @@ impl Engine {
         // The blood hunt is part of the action (spec §3.7.8.1): the action
         // ends after it, through its after-resolution window (rules-qa 5.8).
         self.action.as_mut().expect("action context").diablerist = Some(diablerist);
+        // "Blood hunts cannot be called on the attached vampire" (Archon).
+        if self.state.blood_hunt_barred(diablerist) {
+            self.after_resolution();
+            return;
+        }
         let seat = self.state.minions[diablerist.index()].owner;
         self.start_referendum(RefKind::BloodHunt { diablerist }, seat, None);
     }
@@ -2829,7 +2847,8 @@ impl Engine {
                     let (_, blood, used) = self.reduced_cost_with(
                         &a,
                         0,
-                        cards::blood_cost(&self.state, play.card, play.x),
+                        cards::blood_cost(&self.state, play.card, play.x)
+                            + self.host_discipline_surcharge(a.acting, play.card, play.mode),
                     );
                     if self.state.minions[a.acting.index()].blood < blood {
                         a.outcome = Some(Outcome::Fizzled);
@@ -2977,7 +2996,8 @@ impl Engine {
                 let acting = a.acting;
                 let mut pool =
                     cards::pool_cost(&self.state, seat, play.card, Target::Minion(acting));
-                let mut blood = cards::blood_cost(&self.state, play.card, play.x);
+                let mut blood = cards::blood_cost(&self.state, play.card, play.x)
+                    + self.host_discipline_surcharge(acting, play.card, play.mode);
                 // "Recruit ally actions cost this vampire -1 blood or pool"
                 // (Charisma): the action's only, not a recruit outside an
                 // action (LSJ 20090115-1).
@@ -3047,7 +3067,8 @@ impl Engine {
                 let acting = a.acting;
                 let mut pool =
                     cards::pool_cost(&self.state, seat, play.card, Target::Minion(acting));
-                let mut blood = cards::blood_cost(&self.state, play.card, play.x);
+                let mut blood = cards::blood_cost(&self.state, play.card, play.x)
+                    + self.host_discipline_surcharge(acting, play.card, play.mode);
                 // "-1 blood or pool" (British Museum): off whichever the
                 // card costs; then the reductions announced for the action.
                 let discount = self.state.equip_discount(acting, play.card);
@@ -3091,31 +3112,32 @@ impl Engine {
                     self.after_resolution();
                     return;
                 }
-                let mut ousted = false;
+                // Payable counting the reductions it may take, offered
+                // once found (rules-qa 38.5).
                 let library = &self.state.seats[seat.index()].library;
-                if let Some(k) = library.iter().rposition(|&c| is_equipment(c)) {
-                    let card = self.state.seats[seat.index()].library.remove(k);
-                    let blood = cards::blood_cost(&self.state, card, 0);
-                    if self.equip_requirements_met(acting, card)
-                        && self.state.minions[acting.index()].blood >= blood
-                    {
-                        let pool =
-                            cards::pool_cost(&self.state, seat, card, Target::Minion(acting));
-                        let s = &mut self.state.seats[seat.index()];
-                        s.pool = (s.pool - pool).max(0);
-                        ousted = pool > 0 && s.pool == 0;
-                        self.state.minions[acting.index()].blood -= blood;
-                        self.put_equipment(seat, acting, found_play(seat, acting, card));
-                    } else {
-                        self.state.seats[seat.index()].ash.push(card);
-                    }
-                }
+                let found = library.iter().rposition(|&c| is_equipment(c));
+                let found = found.map(|k| self.state.seats[seat.index()].library.remove(k));
                 self.rng
                     .shuffle(&mut self.state.seats[seat.index()].library);
-                if ousted {
-                    self.action = Some(a);
-                    self.oust_and_pass(seat);
-                    return;
+                if let Some(card) = found {
+                    let ctx = found_play(seat, acting, card);
+                    if self.equip_requirements_met(acting, card)
+                        && self.payable_with_potential(&ctx, true)
+                    {
+                        self.action = Some(a);
+                        if self.cost_sources(&ctx).is_empty() {
+                            self.equip_found(ctx);
+                        } else {
+                            self.flow = Flow::CostTerms {
+                                ctx,
+                                resume: Box::new(Flow::GameOver),
+                                pending: None,
+                                then: crate::plays::CostThen::EquipFound,
+                            };
+                        }
+                        return;
+                    }
+                    self.state.seats[seat.index()].ash.push(card);
                 }
             }
             ActionKind::EquipFrom => {
@@ -3142,7 +3164,8 @@ impl Engine {
                 let (pool, cost, used) = self.reduced_cost_with(
                     &a,
                     cards::pool_cost(&self.state, seat, play.card, play.target),
-                    cards::blood_cost(&self.state, play.card, x),
+                    cards::blood_cost(&self.state, play.card, x)
+                        + self.host_discipline_surcharge(a.acting, play.card, play.mode),
                 );
                 if self.state.minions[a.acting.index()].blood < cost
                     || self.state.seats[seat.index()].pool < pool
@@ -3430,6 +3453,7 @@ impl Engine {
                         | Effect::PayLife(_)
                         | Effect::PayPool(_)
                         | Effect::SameActionAs(_)
+                        | Effect::LockSelf
                         | Effect::HuntAction => {}
                         // "Add 1 counter to this card" (The Gate of
                         // Acheron): the card granting the action, still in
@@ -3497,6 +3521,23 @@ impl Engine {
                                 unreachable!("a burn without a card target");
                             };
                             self.burn_card_in_play(c);
+                        }
+                        // Still in torpor (re-checked above): ECTU
+                        // Operative's burn.
+                        Effect::BurnTargetMinion => {
+                            let Target::Minion(t) = target else {
+                                unreachable!("a burn without a minion target");
+                            };
+                            self.burn_minion(t);
+                        }
+                        // Michael Harris: the equipment is chosen now that
+                        // the action succeeded (as Magic of the Smith).
+                        Effect::SearchEquip => {
+                            self.flow = Flow::LibrarySearch {
+                                minion: acting,
+                                to_hand: None,
+                            };
+                            return;
                         }
                         // Whose counter, if several Methuselahs' are on it:
                         // the acting Methuselah's choice.
@@ -3582,7 +3623,8 @@ impl Engine {
                 let (mode, cost) = match (a.card, a.source) {
                     (Some(play), _) => {
                         let def = cards::lookup(play.card).expect("definition");
-                        let cost = cards::blood_cost(&self.state, play.card, play.x);
+                        let cost = cards::blood_cost(&self.state, play.card, play.x)
+                            + self.host_discipline_surcharge(a.acting, play.card, play.mode);
                         (&def.modes[play.mode as usize], cost)
                     }
                     (None, Some(src)) => {
@@ -3626,8 +3668,28 @@ impl Engine {
         self.after_resolution();
     }
 
-    /// Riders of a vampire that successfully hunted (Adisa).
+    /// Riders of a vampire that successfully hunted (Adisa), and of the
+    /// cards that became another on it ("after this vampire successfully
+    /// hunts, burn this card", Enhanced Coagulant — not while it is still
+    /// equipment).
     pub(crate) fn successful_hunt_riders(&mut self, m: MinionId) {
+        let on: Vec<CardId> = (0..self.state.cards.len())
+            .map(|i| CardId(i as u32))
+            .filter(|&id| {
+                let c = &self.state.cards[id.index()];
+                c.present()
+                    && c.host == Some(m)
+                    && cards::became(c.card, c.mode)
+                    && cards::lookup(c.card).is_some_and(|d| {
+                        d.riders.iter().any(|r| {
+                            r.hook == Hook::SuccessfulHunt && r.effects == [Effect::BurnSelf]
+                        })
+                    })
+            })
+            .collect();
+        for id in on {
+            self.burn_card_in_play(id);
+        }
         let Some(def) = cards::vampire_of(&self.state.minions[m.index()]) else {
             return;
         };
@@ -3976,6 +4038,13 @@ impl Engine {
 
     pub(crate) fn put_equipment(&mut self, seat: SeatId, acting: MinionId, play: PlayCtx) {
         let def = cards::lookup(play.card).expect("definition");
+        // "Only one … can be played or equipped in a game" (Flaming
+        // Candle): found in the library and equipped counts too.
+        if lib_requires(play.card, cards::Requirement::NotPlayedThisGame)
+            && !self.state.once_played.contains(&play.card)
+        {
+            self.state.once_played.push(play.card);
+        }
         let ctx = PlayCtx {
             target: Target::Minion(acting),
             ..play
@@ -4028,6 +4097,10 @@ impl Engine {
                 .first()
                 .is_some_and(|mode| cards::has_disciplines(st, m, card, mode.tags))
             && st.can_hold(m, card, &[])
+            // "Only one … can be played or equipped in a game" (Flaming
+            // Candle).
+            && !(lib_requires(card, cards::Requirement::NotPlayedThisGame)
+                && st.once_played.contains(&card))
     }
 
     /// The search of a successful Magic of the Smith: every equipment in
@@ -4049,10 +4122,10 @@ impl Engine {
                 if let Some(filter) = to_hand {
                     return filter.matches(c);
                 }
+                // Payable with the reductions it could take once chosen
+                // (rules-qa 38.5).
                 self.equip_requirements_met(minion, c)
-                    && st.seats[seat.index()].pool
-                        >= cards::pool_cost(st, seat, c, Target::Minion(minion))
-                    && st.minions[minion.index()].blood >= cards::blood_cost(st, c, 0)
+                    && self.payable_with_potential(&found_play(seat, minion, c), false)
             })
             .collect();
         // By card, not by position: the order of the library is hidden.
@@ -4074,7 +4147,6 @@ impl Engine {
         choice: &Choice,
     ) {
         let seat = self.state.active;
-        let mut ousted = false;
         match *choice {
             Choice::FindCard(card) if to_hand.is_some() => {
                 let s = &mut self.state.seats[seat.index()];
@@ -4086,6 +4158,9 @@ impl Engine {
                 s.library.remove(k);
                 s.hand.push(card);
             }
+            // Out of the library (shuffled afterward), then its cost: the
+            // reductions announced for it first, if any apply (rules-qa
+            // 38.5).
             Choice::FindCard(card) => {
                 let library = &mut self.state.seats[seat.index()].library;
                 let k = library
@@ -4093,19 +4168,51 @@ impl Engine {
                     .rposition(|&c| c == card)
                     .expect("found card in the library");
                 library.remove(k);
-                let pool = cards::pool_cost(&self.state, seat, card, Target::Minion(minion));
-                let blood = cards::blood_cost(&self.state, card, 0);
-                self.state.seats[seat.index()].pool -= pool;
-                self.state.minions[minion.index()].blood -= blood;
-                self.put_equipment(seat, minion, found_play(seat, minion, card));
-                ousted = pool > 0 && self.state.seats[seat.index()].pool == 0;
+                self.rng
+                    .shuffle(&mut self.state.seats[seat.index()].library);
+                let ctx = found_play(seat, minion, card);
+                if self.cost_sources(&ctx).is_empty() {
+                    self.equip_found(ctx);
+                } else {
+                    self.flow = Flow::CostTerms {
+                        ctx,
+                        resume: Box::new(Flow::GameOver),
+                        pending: None,
+                        then: crate::plays::CostThen::EquipFound,
+                    };
+                }
+                return;
             }
             Choice::Pass => {}
             other => unreachable!("illegal search choice {other:?}"),
         }
         self.rng
             .shuffle(&mut self.state.seats[seat.index()].library);
-        if ousted {
+        self.after_resolution();
+    }
+
+    /// A searched or found equipment (Magic of the Smith, Michael Harris,
+    /// Vast Wealth) paid and equipped: British Museum's reduction, then the
+    /// announced ones (The Shard, The Line, Ravnos Cache); paid down to 0
+    /// pool, the Methuselah is ousted and the turn passes.
+    pub(crate) fn equip_found(&mut self, ctx: PlayCtx) {
+        let (seat, card) = (ctx.seat, ctx.card);
+        let minion = ctx.actor.expect("equipping minion");
+        let mut pool = cards::pool_cost(&self.state, seat, card, Target::Minion(minion));
+        let mut blood = cards::blood_cost(&self.state, card, 0);
+        let discount = self.state.equip_discount(minion, card);
+        if pool > 0 {
+            pool = (pool - discount as i32).max(0);
+        } else {
+            blood = blood.saturating_sub(discount);
+        }
+        let (pool, blood) = self.pay_named_discounts(&ctx, pool, blood);
+        let s = &mut self.state.seats[seat.index()];
+        s.pool = (s.pool - pool).max(0);
+        let v = &mut self.state.minions[minion.index()];
+        v.blood = v.blood.saturating_sub(blood);
+        self.put_equipment(seat, minion, ctx);
+        if pool > 0 && self.state.seats[seat.index()].pool == 0 {
             self.oust_and_pass(seat);
         } else {
             self.after_resolution();

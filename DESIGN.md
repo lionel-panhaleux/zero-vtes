@@ -2175,9 +2175,75 @@ Recorded so nobody mistakes them for oversights:
     usable as the action resolves (would-be-successful window).
   - Open: an ally's blood cost under The Shard (ANK 20230721).
   Definitions: 392, 764 tests; rules-qa Batches 36–37 answered. Every pool
-  master but Mobile HQ is defined (it waits for the three Operation
-  Antigen allies). 32 pool library cards left (1 master, 20 events, 5
+  master but Mobile HQ and Minion Tap is defined (the count above missed
+  Minion Tap). 33 pool library cards left (2 masters, 20 events, 5
   political actions, 3 allies, 3 equipment).
+  11aa — the last allies and equipment, Mobile HQ and Minion Tap (8): ECTU
+  Operative, Michael Harris, Valerie Diaz, Mobile HQ, Enhanced Coagulant,
+  Flaming Candle, Ritual Goblet, Minion Tap.
+  - `Label::OperationAntigen` (generator: the type line's sentence);
+    `Requirement::ActorAllyCard`, `TargetAllyCard` (an ally's card read
+    through `MinionKind::Ally`), `PlayedActionCardAtYour` (engine-checked
+    in the as-played window, `cards::played_action_card_at`).
+  - Granted actions: `LockSelf` paid as the action is declared (Mobile
+    HQ, locked even if it fails); `CardUnlocked` read on the card for an
+    acting candidate; `BurnTargetMinion` and `SearchEquip` resolve in the
+    granted-action branch (ECTU Operative's burn, Michael Harris's search).
+  - Combat: `SetRangeClose` beside `SetRangeLong` (the first setting has
+    priority, which also makes Michael's use once a round); immunities
+    (`ImmuneStrikeNonAggravated`, `ImmuneEffectNonAggravated`: gone, not
+    prevented); `Side::unpreventable` — out of `pending`, so no prevention
+    reaches it, added as the damage resolves (Enhanced Coagulant);
+    `HostCombatOpposingVampireNotReady`.
+  - A card that becomes another (`cards::became`: its windowless mode,
+    `Effect::BecomesOnOpponent`): no equipment (`equipment_on`), no card
+    type for target filters, no printed ability, only that mode's layers
+    (`HostDisciplineCardsCost`, read in `host_discipline_surcharge`, action
+    cards paid at resolution included) and its `SuccessfulHunt` burn.
+  - `Terms::UpToTargetBlood` (Minion Tap); `Modifier::BearerDisciplineLevel`
+    (no capacity), `RescueDiscount::not_clan` optional,
+    `Requirement::RescuedFromTorpor` (Ritual Goblet); "only one … played or
+    equipped in a game" recorded by `put_equipment` and checked by
+    `equip_requirements_met` (library searches, Vast Wealth, Contraband).
+  - Fix: a card played from a Fleshforge Chamber and canceled as played is
+    not replaced (rules-qa 37.1); a card played there can be canceled as
+    played (LSJ 20060106, Direct Intervention).
+  - Batch 38 answers: an equipment found by a library search takes its
+    reductions once chosen (`CostThen::EquipFound`, `Engine::equip_found`,
+    `payable_with_potential`; British Museum's too); Discipline surcharges
+    read the Disciplines the card is played using (`played_disciplines`);
+    a political action card's terms never target (Mobile HQ).
+  - Valerie Diaz: once a round for one strike or damaging effect (rules-qa
+    38.8: a card's per-round use is shared by its abilities); Vast
+    Wealth's find takes its reductions too (`payable_with_potential` with
+    `pool_may_oust`).
+  Definitions: 400, 785 tests; own fuzz table
+  (`random_games_with_allies_and_equipment_hold_invariants_and_replay`);
+rules-qa Batch 38 answered but 38.8. Every pool master, ally and equipment is
+  defined. 25 pool library cards left (20 events, 5 political actions).
+  11ab — the pool's last political actions (5): Archon, Disputed Territory,
+  Malkavian Justicar, Raising the Portcullis, Revolutionary Council.
+  - Terms: `Term::ChooseCard` (`Choice::ChooseCard`, a choice never a
+    target: rules-qa 38.6), `Term::AllocatePerChosenWithCards` (the seats,
+    then every location and equipment in play: `Choice::AllocateToCard`).
+  - Effects: `RefEffect::PutInPlay` (not a second copy:
+    `Requirement::OnePerMethuselah`, `GameState::controls_card_copy`),
+    `ChosenTakesChosenCard` (`give_card_control`, a location on a minion
+    moved by `MinionPurpose::HostCard`), `LockChosenBurnAllocated`; a
+    political card put in play or on a vampire takes its mode's layers
+    (`push_mode_layers`).
+  - Modifiers: `OwnBleedWhilePreyTorpor` (read in `bleed_against_mod`),
+    `BlockersOfHostBurn` (the block toll paid as far as it goes, the
+    attempt allowed), `NoBloodHuntOnHost` (the diablerie ends without its
+    referendum).
+  - A location on a minion changing controller (`Engine::give_location`):
+    onto a ready minion of the new controller able to hold it, burned if
+    none (LSJ 19990928; Dominate Kine, Disputed Territory).
+  Definitions: 405, 799 tests; own fuzz table
+  (`random_games_with_political_actions_hold_invariants_and_replay`);
+  rules-qa Batch 39 answered (X may be 0, an unlocked acting baron
+  chosen: `next_term` skips an allocation with no point). Every pool card
+  but the 20 events is defined.
   **P2 open items (2026-09-26, after 11t):**
   - Edges left from 11s: `Terms::XBlood` stops at the blood left after a
     fixed cost but not after a surcharge (Terror Frenzy [ANI] on
