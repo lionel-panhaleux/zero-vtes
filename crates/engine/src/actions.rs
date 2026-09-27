@@ -660,6 +660,9 @@ impl Engine {
         source: Option<cards::AbilitySource>,
     ) {
         self.state.minions[minion.index()].locked = true;
+        if kind == ActionKind::Hunt {
+            self.state.minions[minion.index()].hunted = true;
+        }
         self.state.phase_actions = self.state.phase_actions.saturating_add(1);
         let seat = self.state.active;
         let own_target = torpor_target.map(|t| self.state.minions[t.index()].owner == seat);
@@ -1422,7 +1425,7 @@ impl Engine {
                                 st.capacity_of(m).is_some_and(|c| c >= n)
                             }
                             cards::Requirement::AttemptingSectIn(s) => {
-                                v.sect().is_some_and(|x| s.contains(&x))
+                                st.sect_of(m).is_some_and(|x| s.contains(&x))
                             }
                             cards::Requirement::NotFirstActionOfPhase => st.phase_actions >= 2,
                             _ => true,
@@ -2082,7 +2085,7 @@ impl Engine {
             Choice::Pass => self.after_resolution(),
             Choice::Diablerise => {
                 self.diablerise(blocker, acting);
-                self.end_action_into_blood_hunt(blocker);
+                self.end_action_into_blood_hunt(blocker, acting);
             }
             other => unreachable!("illegal torpor-block choice {other:?}"),
         }
@@ -2097,17 +2100,31 @@ impl Engine {
         // Burned from torpor: the cards on it go, no "ready minion" rider.
         self.burn_minion(victim);
         self.state.gain_blood(diablerist, taken);
+        // Blood Weakens, The Slow Withering: ignored until a Gehenna event
+        // is played; their replacement is drawn.
+        self.state.minions[diablerist.index()].diablerie_shield = true;
+        self.release_held(|h| &mut h.diablerie);
     }
 
     /// The action ends and the blood hunt referendum follows immediately;
     /// rotation starts at the diablerist's controller, clockwise (DESIGN
     /// §4.2 — a modeling call, owner-approved 2026-09-02).
-    fn end_action_into_blood_hunt(&mut self, diablerist: MinionId) {
+    fn end_action_into_blood_hunt(&mut self, diablerist: MinionId, victim: MinionId) {
         // The blood hunt is part of the action (spec §3.7.8.1): the action
         // ends after it, through its after-resolution window (rules-qa 5.8).
         self.action.as_mut().expect("action context").diablerist = Some(diablerist);
         // "Blood hunts cannot be called on the attached vampire" (Archon).
-        if self.state.blood_hunt_barred(diablerist) {
+        // Fueled by Heart's Blood: not on a vampire with capacity above its
+        // counters who diablerized a younger one.
+        let fueled = self
+            .state
+            .global(cards::Modifier::NoBloodHuntAboveCounters)
+            .is_some_and(|c| {
+                self.state.capacity_of(diablerist).unwrap_or(0)
+                    > self.state.cards[c.index()].counters
+                    && self.state.younger_than(victim, diablerist)
+            });
+        if self.state.blood_hunt_barred(diablerist) || fueled {
             self.after_resolution();
             return;
         }
@@ -2848,7 +2865,7 @@ impl Engine {
                         &a,
                         0,
                         cards::blood_cost(&self.state, play.card, play.x)
-                            + self.host_discipline_surcharge(a.acting, play.card, play.mode),
+                            + self.card_surcharge(a.acting, play.card, play.mode),
                     );
                     if self.state.minions[a.acting.index()].blood < blood {
                         a.outcome = Some(Outcome::Fizzled);
@@ -2921,15 +2938,18 @@ impl Engine {
                 // nothing); blood spent during the action can leave it
                 // unpayable, in which case the action fizzles (rules-qa
                 // 3.6): successful, no effect.
-                let m = &mut self.state.minions[a.acting.index()];
+                let acting = a.acting;
+                // Torpid Blood: +1.
+                let cost = 2 + self.state.torpid_surcharge(None, acting);
+                let m = &mut self.state.minions[acting.index()];
                 if !m.in_torpor {
                     // Out of torpor already (Warsaw Station): it fizzles,
                     // its cost paid (ANK 20220218).
-                    m.blood -= m.blood.min(2);
+                    m.blood -= m.blood.min(cost);
                     a.outcome = Some(Outcome::Fizzled);
-                } else if m.blood >= 2 {
-                    m.blood -= 2;
-                    m.in_torpor = false;
+                } else if m.blood >= cost {
+                    m.blood -= cost;
+                    self.leave_torpor(acting);
                 } else {
                     a.outcome = Some(Outcome::Fizzled);
                 }
@@ -2956,7 +2976,8 @@ impl Engine {
                 }
                 let t = self.state.minions[target.index()].blood;
                 let (discount, gain) = self.state.rescue_discount(a.acting, target);
-                a.rescue_cost = 2u8.saturating_sub(discount);
+                a.rescue_cost = (2 + self.state.torpid_surcharge(Some(a.acting), target))
+                    .saturating_sub(discount);
                 a.rescue_gain = gain;
                 let payable = acting + t >= a.rescue_cost;
                 if !payable {
@@ -2985,7 +3006,7 @@ impl Engine {
                 }
                 self.action = Some(a);
                 self.diablerise(diablerist, victim);
-                self.end_action_into_blood_hunt(diablerist);
+                self.end_action_into_blood_hunt(diablerist, victim);
                 return;
             }
             ActionKind::Employ | ActionKind::Recruit => {
@@ -2997,7 +3018,7 @@ impl Engine {
                 let mut pool =
                     cards::pool_cost(&self.state, seat, play.card, Target::Minion(acting));
                 let mut blood = cards::blood_cost(&self.state, play.card, play.x)
-                    + self.host_discipline_surcharge(acting, play.card, play.mode);
+                    + self.card_surcharge(acting, play.card, play.mode);
                 // "Recruit ally actions cost this vampire -1 blood or pool"
                 // (Charisma): the action's only, not a recruit outside an
                 // action (LSJ 20090115-1).
@@ -3068,7 +3089,7 @@ impl Engine {
                 let mut pool =
                     cards::pool_cost(&self.state, seat, play.card, Target::Minion(acting));
                 let mut blood = cards::blood_cost(&self.state, play.card, play.x)
-                    + self.host_discipline_surcharge(acting, play.card, play.mode);
+                    + self.card_surcharge(acting, play.card, play.mode);
                 // "-1 blood or pool" (British Museum): off whichever the
                 // card costs; then the reductions announced for the action.
                 let discount = self.state.equip_discount(acting, play.card);
@@ -3165,7 +3186,7 @@ impl Engine {
                     &a,
                     cards::pool_cost(&self.state, seat, play.card, play.target),
                     cards::blood_cost(&self.state, play.card, x)
-                        + self.host_discipline_surcharge(a.acting, play.card, play.mode),
+                        + self.card_surcharge(a.acting, play.card, play.mode),
                 );
                 if self.state.minions[a.acting.index()].blood < cost
                     || self.state.seats[seat.index()].pool < pool
@@ -3522,6 +3543,33 @@ impl Engine {
                             };
                             self.burn_card_in_play(c);
                         }
+                        // Rise of the Nephtali: no contest with a younger
+                        // vampire — the younger one yields at once.
+                        Effect::GainLiaison => {
+                            let t = crate::crypt::Title::Independent {
+                                name: "Liaison",
+                                votes: 4,
+                            };
+                            let holder = (0..self.state.minions.len())
+                                .map(|i| MinionId(i as u32))
+                                .find(|&h| {
+                                    h != acting
+                                        && self.state.minions[h.index()].in_play
+                                        && self.state.claimed_title(h) == t
+                                });
+                            let gains = match holder {
+                                Some(h) if self.state.younger_than(h, acting) => {
+                                    self.state.minions[h.index()].granted_title = None;
+                                    true
+                                }
+                                Some(_) => false,
+                                None => true,
+                            };
+                            if gains && self.state.minions[acting.index()].in_play {
+                                self.gain_title(acting, t, None);
+                                self.release_held(|h| &mut h.liaison);
+                            }
+                        }
                         // Still in torpor (re-checked above): ECTU
                         // Operative's burn.
                         Effect::BurnTargetMinion => {
@@ -3624,7 +3672,7 @@ impl Engine {
                     (Some(play), _) => {
                         let def = cards::lookup(play.card).expect("definition");
                         let cost = cards::blood_cost(&self.state, play.card, play.x)
-                            + self.host_discipline_surcharge(a.acting, play.card, play.mode);
+                            + self.card_surcharge(a.acting, play.card, play.mode);
                         (&def.modes[play.mode as usize], cost)
                     }
                     (None, Some(src)) => {
@@ -3673,6 +3721,9 @@ impl Engine {
     /// hunts, burn this card", Enhanced Coagulant — not while it is still
     /// equipment).
     pub(crate) fn successful_hunt_riders(&mut self, m: MinionId) {
+        // "Do not replace until a vampire successfully hunts" (Restricted
+        // Vitae).
+        self.release_held(|h| &mut h.hunt);
         let on: Vec<CardId> = (0..self.state.cards.len())
             .map(|i| CardId(i as u32))
             .filter(|&id| {
@@ -3836,7 +3887,7 @@ impl Engine {
         self.state.minions[target.index()].blood -= cost - from_acting;
         if self.state.minions[target.index()].in_torpor {
             // Rescued: to the ready region, lock state untouched.
-            self.state.minions[target.index()].in_torpor = false;
+            self.leave_torpor(target);
             self.state.gain_blood(target, gain);
         } else {
             // Out of torpor already (Warsaw Station): paid, it fizzles
@@ -4357,7 +4408,9 @@ impl Engine {
                     actor: Some(m),
                     ..
                 } => {
-                    unusual.contains(&m)
+                    // Or any vampire that must hunt (Restricted Vitae's
+                    // special hunt).
+                    (unusual.contains(&m) || starving.contains(&m))
                         && source
                             .mode(st, ability)
                             .effects
@@ -4436,7 +4489,7 @@ impl Engine {
                 // Leave torpor: the 2-blood cost must be payable; a hostage
                 // cannot be moved to the ready region (Carver's Meat
                 // Packing and Storage).
-                if m.blood >= 2 && m.hostage == 0 {
+                if m.blood >= 2 + st.torpid_surcharge(None, id) && m.hostage == 0 {
                     options.push(Choice::TakeAction {
                         minion: id,
                         action: ActionKind::LeaveTorpor,
@@ -4483,7 +4536,8 @@ impl Engine {
             {
                 // Rescue: 2 blood (less discounts) payable by acting,
                 // rescued, or split.
-                let cost = 2u8.saturating_sub(st.rescue_discount(id, t).0);
+                let cost = (2 + st.torpid_surcharge(Some(id), t))
+                    .saturating_sub(st.rescue_discount(id, t).0);
                 if m.blood + st.minions[t.index()].blood >= cost
                     && self.may_direct(s, id, Target::Minion(t))
                 {

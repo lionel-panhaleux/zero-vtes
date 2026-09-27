@@ -5624,7 +5624,7 @@ fn childe_of_the_revolution_becomes_a_vampire_that_must_hunt() {
     let childe = MinionId(before as u32);
     let v = &e.state.minions[childe.index()];
     assert_eq!(v.clan(), e.state.minions[b.index()].clan());
-    assert_eq!(v.sect(), Some(zvtes::crypt::Sect::Anarch));
+    assert_eq!(e.state.sect_of(childe), Some(zvtes::crypt::Sect::Anarch));
     assert_eq!((v.blood, v.locked), (0, false));
     assert_eq!(e.state.capacity_of(childe), Some(2), "1 + Potence");
     assert_eq!(e.state.discipline_level(childe, "pot"), 1);
@@ -9708,7 +9708,7 @@ fn waters_of_duat_creates_a_follower_of_set_that_must_hunt() {
     let v = MinionId(e.state.minions.len() as u32 - 1);
     let new = &e.state.minions[v.index()];
     assert_eq!(
-        (new.clan(), new.sect(), e.state.capacity_of(v)),
+        (new.clan(), e.state.sect_of(v), e.state.capacity_of(v)),
         (
             Some("Ministry"),
             Some(
@@ -10801,10 +10801,7 @@ fn twilight_camp_makes_anarchs_and_feeds_them() {
     pick_when(&mut e, Choice::InfluenceOut { slot });
     pick(&mut e, Choice::ResolveRider { card: camp.0 });
     let v = MinionId(e.state.minions.len() as u32 - 1);
-    assert_eq!(
-        e.state.minions[v.index()].sect(),
-        Some(zvtes::crypt::Sect::Anarch)
-    );
+    assert_eq!(e.state.sect_of(v), Some(zvtes::crypt::Sect::Anarch));
     assert_eq!(e.state.cards[camp.index()].counters, 2);
 }
 
@@ -12091,6 +12088,8 @@ fn archon_bars_a_blood_hunt_on_its_vampire() {
     e.add_minion(SeatId(1), plain("Gangrel", "", 1), 5, false);
     let archon = location(&mut e, 0, "Archon");
     e.state.cards[archon.index()].host = Some(c);
+    // The Edge: a vote to cast, so a blood hunt would show its polling.
+    e.state.seats[1].has_edge = true;
     pick(
         &mut e,
         Choice::TakeAction {
@@ -12478,4 +12477,932 @@ fn a_locquipment_with_no_ready_minion_to_hold_it_is_burned() {
     pick(&mut e, play_at(0, 1, Some(a), Target::Card(stolen)));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.cards[stolen.index()].in_play, "burned");
+}
+
+// ---- Events (slice 11ac) -------------------------------------------------------
+
+/// Put the event `name` in play for `seat`, with `counters`.
+fn event_in_play(e: &mut Engine, seat: u8, name: &str, counters: u8) -> CardId {
+    in_play_with(e, seat, name, counters)
+}
+
+// Rulebook "Event Cards": "Once each discard phase, a Methuselah may use a
+// discard phase action to put an event card in play. Each event can only
+// be played once in a game. An event card is controlled by the Methuselah
+// who played it." An event is no minion card: Direct Intervention cannot
+// cancel it. Narrow Minds: "Do not replace until your next unlock
+// phase." [ANK 20200629-2] [LSJ 20091208] [RTR 19951017]: "Is replaced
+// before unlocking cards."
+#[test]
+fn an_event_takes_a_discard_phase_action_once_a_phase_and_once_a_game() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+    e.add_minion(SeatId(2), plain("Brujah", "", 0), 5, false);
+    hand(&mut e, 0, &["Narrow Minds", "Torpid Blood"]);
+    // Direct Intervention cancels minion cards: no event.
+    hand(&mut e, 1, &["Narrow Minds", "Direct Intervention"]);
+    for s in 0..3 {
+        e.state.seats[s].library = vec![find_library("Soak"); 5];
+    }
+    let req = until(&mut e, SeatId(0), WindowLabel::DiscardPhase);
+    assert!(req.options.contains(&master(0)) && req.options.contains(&master(1)));
+    // A second discard phase action: still one event this phase.
+    e.state.seats[0].dpa = 2;
+    pick(&mut e, master(0));
+    let req = expect(&mut e, SeatId(0), WindowLabel::DiscardPhase);
+    assert!(!req.options.contains(&master(0)), "one event a phase");
+    assert!(req.options.contains(&Choice::Discard(0)), "a discard left");
+    let minds = find_library("Narrow Minds");
+    let id = e
+        .state
+        .cards
+        .iter()
+        .position(|c| c.in_play && c.card == minds)
+        .map(|i| CardId(i as u32))
+        .expect("in play");
+    assert_eq!(e.state.card_controller(id), SeatId(0));
+    assert_eq!(e.state.seats[0].held.unlock, 1, "not replaced yet");
+    // Seat 1's copy: never offered.
+    let req = until(&mut e, SeatId(1), WindowLabel::DiscardPhase);
+    assert!(!req.options.contains(&master(0)), "once a game");
+    // Seat 0's next unlock phase: replaced first.
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[0].held.unlock, 0);
+}
+
+// Narrow Minds: "Minion cards that change the target of a bleed action cost
+// +1 blood or life."
+#[test]
+fn narrow_minds_taxes_bleed_redirection() {
+    for blood in [1, 2] {
+        let (mut e, a, t) = bleed_at(3, plain("", "AUS", 0), "Telepathic Misdirection");
+        e.state.minions[t.index()].blood = blood;
+        event_in_play(&mut e, 2, "Narrow Minds", 0);
+        pick(&mut e, action(a, ActionKind::Bleed));
+        let redirect = play_at(0, 1, Some(t), Target::Seat(SeatId(2)));
+        if blood == 1 {
+            never_offered(&mut e, &redirect);
+        } else {
+            pick_when(&mut e, redirect);
+            until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+            assert_eq!(e.state.minions[t.index()].blood, 0, "2 blood");
+        }
+    }
+}
+
+// Torpid Blood: "Do not replace until a vampire moves from torpor to the
+// ready region. Actions performed by vampires in torpor cost +1 blood.
+// Rescuing an older vampire from torpor costs +1 blood." [LSJ 20080805]
+// "Is not replaced until the condition is met, even if it is burned."
+#[test]
+fn torpid_blood_taxes_torpor_and_waits_for_a_vampire_to_leave_it() {
+    let mut e = Engine::bare(3);
+    let t = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 2, true);
+    let r = e.add_minion(SeatId(0), plain("Brujah", "", 0), 5, false);
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+    e.state.seats[0].library = vec![find_library("Soak"); 5];
+    let torpid = event_in_play(&mut e, 0, "Torpid Blood", 0);
+    e.state.seats[0].held.leaves_torpor = 1;
+    // Leave torpor costs 3: not with 2 blood.
+    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!req.options.contains(&action(t, ActionKind::LeaveTorpor)));
+    // Burned, its replacement still waits.
+    e.burn_card(torpid);
+    assert_eq!(e.state.seats[0].held.leaves_torpor, 1);
+    let torpid = event_in_play(&mut e, 0, "Torpid Blood", 0);
+    let _ = torpid;
+    // Rescuing it costs 2, or 3 if it is older than the rescuer.
+    let older = e.state.younger_than(r, t);
+    let rescue = Choice::TakeAction {
+        minion: r,
+        action: ActionKind::Rescue,
+        target: Some(t),
+    };
+    pick(&mut e, rescue);
+    // The rescuer pays it all.
+    let cost = 2 + u8::from(older);
+    pick(&mut e, Choice::PayRescue { from_acting: cost });
+    assert_eq!(blood(&e, r), 5 - cost);
+    assert!(!e.state.minions[t.index()].in_torpor);
+    assert_eq!(e.state.seats[0].held.leaves_torpor, 0, "replaced");
+}
+
+// The Slow Withering: "Cards requiring 1 or more Disciplines at the
+// superior level cost +1 blood. Vampires who commit diablerie ignore this
+// effect until a Gehenna event is played." [ANK 20190625] "The additional
+// cost is paid at the same time the normal cost is paid."
+#[test]
+fn the_slow_withering_taxes_superior_cards_but_not_a_diablerist() {
+    for shield in [false, true] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), with(&["DOM"], 0), 1, false);
+        e.add_minion(SeatId(0), plain("Brujah", "", 0), 5, false);
+        e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+        event_in_play(&mut e, 1, "Slow Withering, The", 0);
+        e.state.minions[a.index()].diablerie_shield = shield;
+        hand(&mut e, 0, &["Conditioning"]);
+        pick(&mut e, action(a, ActionKind::Bleed));
+        let req = request(&mut e);
+        assert!(req.options.contains(&play(0, 0, a)), "[dom]: 1 blood");
+        assert_eq!(req.options.contains(&play(0, 1, a)), shield, "[DOM]: 2");
+    }
+}
+
+// Blood Weakens: "During an action, cards minions play requiring 1 or more
+// Disciplines are not replaced until the end of that action or until a
+// Methuselah's hand is empty (whichever comes first)." [ANK 20201015] "You
+// do not replace cards that require a discipline during any action."
+#[test]
+fn blood_weakens_holds_discipline_card_replacements_until_the_action_ends() {
+    for spare in [true, false] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), with(&["dom"], 0), 4, false);
+        e.add_minion(SeatId(0), plain("Brujah", "", 0), 5, false);
+        e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+        event_in_play(&mut e, 1, "Blood Weakens", 0);
+        e.state.seats[0].library = vec![find_library("Soak"); 5];
+        hand(&mut e, 0, &["Conditioning"]);
+        if spare {
+            hand(&mut e, 0, &["Soak"]);
+        }
+        pick(&mut e, action(a, ActionKind::Bleed));
+        pick(&mut e, play(0, 0, a));
+        request(&mut e);
+        // Held, it counts against the hand size: no draw-up (hand 1); with
+        // the hand emptied, drawn at once (and up to the hand size).
+        let hand_now = e.state.seats[0].hand.len();
+        if spare {
+            assert_eq!(hand_now, 1);
+        } else {
+            assert!(hand_now > 1, "drawn up");
+        }
+        assert_eq!(e.state.seats[0].held.weakens, u8::from(spare));
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert_eq!(
+            e.state.seats[0].held.weakens, 0,
+            "replaced as the action ends"
+        );
+        assert!(e.state.seats[0].hand.len() > 1);
+    }
+}
+
+/// The `nth` untitled vampire of capacity `cap`, no printed text.
+fn of_capacity(cap: u8, nth: usize) -> u16 {
+    vampire(|c| c.capacity == cap && c.title == Title::None, nth)
+}
+
+// Thirst: "After each Methuselah's minion phase ends, each ready vampire
+// controlled by that Methuselah with capacity less than the number of
+// Gehenna events in play who did not hunt during that minion phase burns 1
+// blood." [LSJ 20050727] "The hunt need not be successful."
+#[test]
+fn thirst_burns_a_blood_from_small_vampires_that_did_not_hunt() {
+    let mut e = Engine::bare(3);
+    let idle = e.add_minion(SeatId(0), of_capacity(3, 0), 3, false);
+    let hunter = e.add_minion(SeatId(0), of_capacity(3, 1), 3, false);
+    let big = e.add_minion(SeatId(0), of_capacity(5, 0), 3, false);
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+    for name in ["Thirst", "Blood Weakens", "Torpid Blood", "Narrow Minds"] {
+        event_in_play(&mut e, 1, name, 0);
+    }
+    // Narrow Minds is no Gehenna event: 3 in play, capacity 3 unaffected.
+    pick(&mut e, action(hunter, ActionKind::Hunt));
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, idle), 3, "3 is not less than 3");
+    // A fourth Gehenna event: now it is.
+    let mut e2 = Engine::bare(3);
+    let idle = e2.add_minion(SeatId(0), of_capacity(3, 0), 3, false);
+    let hunter = e2.add_minion(SeatId(0), of_capacity(3, 1), 3, false);
+    let big = {
+        let _ = big;
+        e2.add_minion(SeatId(0), of_capacity(5, 0), 3, false)
+    };
+    e2.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+    for name in [
+        "Thirst",
+        "Blood Weakens",
+        "Torpid Blood",
+        "Slow Withering, The",
+    ] {
+        event_in_play(&mut e2, 1, name, 0);
+    }
+    // A hunt blocked or not, gaining blood or not: it hunted.
+    e2.state.minions[hunter.index()].blood = 3;
+    pick(&mut e2, action(hunter, ActionKind::Hunt));
+    until(&mut e2, SeatId(1), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e2, idle), 2, "did not hunt");
+    assert_eq!(blood(&e2, hunter), 3, "hunted, to capacity");
+    assert_eq!(blood(&e2, big), 3, "capacity 5");
+}
+
+// Wormwood: "This card comes into play with 10 counters. After another
+// Gehenna event is played, burn 1 counter from this card. Vampires with
+// capacity greater than X are considered vampires with capacity X
+// (minimum of 1)." [LSJ 20051205] It ceils the capacity as changed by
+// other effects. The Slow Withering needs another Gehenna event in play:
+// [PIB 20121031] "The \"other Gehenna cards in play\" requirement is only
+// checked when playing the card."
+#[test]
+fn wormwood_ceils_capacity_by_its_counters() {
+    let mut e = Engine::bare(3);
+    let v = e.add_minion(SeatId(0), of_capacity(5, 0), 5, false);
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+    e.state.seats[0].library = vec![find_library("Soak"); 5];
+    hand(&mut e, 0, &["Slow Withering, The"]);
+    let req = until(&mut e, SeatId(0), WindowLabel::DiscardPhase);
+    assert!(!req.options.contains(&master(0)), "no other Gehenna event");
+    let ww = event_in_play(&mut e, 1, "Wormwood", 2);
+    assert_eq!(e.state.capacity_of(v), Some(2));
+    let req = request(&mut e);
+    assert!(req.options.contains(&master(0)));
+    pick(&mut e, master(0));
+    request(&mut e);
+    assert_eq!(e.state.cards[ww.index()].counters, 1);
+    assert_eq!(e.state.capacity_of(v), Some(1));
+    assert_eq!(blood(&e, v), 1, "drained");
+    // Burned: its capacity back.
+    e.burn_card(ww);
+    assert_eq!(e.state.capacity_of(v), Some(5));
+}
+
+// Fueled by Heart's Blood: "Blood hunts cannot be called on vampires with
+// capacity greater than the number of counters on this card who diablerize
+// a younger vampire."
+#[test]
+fn fueled_by_hearts_blood_bars_a_blood_hunt_on_a_big_diablerist() {
+    for counters in [10, 3] {
+        let mut e = Engine::bare(3);
+        let d = e.add_minion(SeatId(0), of_capacity(8, 0), 5, false);
+        e.add_minion(SeatId(0), plain("Brujah", "", 0), 5, false);
+        let t = e.add_minion(SeatId(1), of_capacity(3, 0), 1, true);
+        e.add_minion(SeatId(1), plain("Gangrel", "", 1), 5, false);
+        event_in_play(&mut e, 1, "Fueled by Heart's Blood", counters);
+        // The Edge: a vote to cast, so a blood hunt shows its polling.
+        e.state.seats[1].has_edge = true;
+        assert!(e.state.younger_than(t, d));
+        pick(
+            &mut e,
+            Choice::TakeAction {
+                minion: d,
+                action: ActionKind::Diablerie,
+                target: Some(t),
+            },
+        );
+        let mut hunt = false;
+        loop {
+            let req = request(&mut e);
+            hunt |= req.window == WindowLabel::BloodHuntPolling;
+            if (req.seat, req.window) == (SeatId(0), WindowLabel::MinionPhase) {
+                break;
+            }
+            e.choose(fallback(&req));
+        }
+        assert_eq!(hunt, counters == 10, "{counters} counters");
+    }
+}
+
+// The Fourth Cycle: "Requires 2 or more Gehenna events in play. After this
+// card enters play, burn all Gehenna events and conviction cards, then send
+// all vampires with capacity 3 or less to torpor. Gehenna events cannot be
+// played."
+#[test]
+fn the_fourth_cycle_ends_the_gehenna_events_and_the_young() {
+    let mut e = Engine::bare(3);
+    let small = e.add_minion(SeatId(0), of_capacity(3, 0), 2, false);
+    let big = e.add_minion(SeatId(0), of_capacity(5, 0), 2, false);
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+    e.state.seats[0].library = vec![find_library("Soak"); 5];
+    let thirst = event_in_play(&mut e, 1, "Thirst", 0);
+    let torpid = event_in_play(&mut e, 1, "Torpid Blood", 0);
+    hand(&mut e, 0, &["Fourth Cycle, The", "Blood Weakens"]);
+    until(&mut e, SeatId(0), WindowLabel::DiscardPhase);
+    pick(&mut e, master(0));
+    request(&mut e);
+    assert!(!e.state.cards[thirst.index()].in_play && !e.state.cards[torpid.index()].in_play);
+    assert!(e.state.minions[small.index()].in_torpor);
+    assert!(!e.state.minions[big.index()].in_torpor);
+    assert!(e.state.gehenna_barred(), "Gehenna events cannot be played");
+}
+
+// The Uncoiling: "During your discard phase, burn another event at random.
+// Other Methuselahs can use a discard phase action and burn X pool to burn
+// this card, where X is the number of other events in play." [LSJ
+// 20080805] Torpid Blood burned: its replacement still waits. The burn is
+// mandatory, ordered by its player among the phase's effects (owner,
+// 2026-09-27: rules-qa 40.5).
+#[test]
+fn the_uncoiling_burns_an_event_each_discard_phase_and_can_be_bought_off() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+    e.add_minion(SeatId(2), plain("Brujah", "", 0), 5, false);
+    for s in 0..3 {
+        e.state.seats[s].library = vec![find_library("Soak"); 5];
+    }
+    // A card in hand: seat 0's discard phase is not elided.
+    hand(&mut e, 0, &["Soak"]);
+    let u = event_in_play(&mut e, 0, "Uncoiling, The", 0);
+    let torpid = event_in_play(&mut e, 1, "Torpid Blood", 0);
+    e.state.seats[1].held.leaves_torpor = 1;
+    let minds = event_in_play(&mut e, 2, "Narrow Minds", 0);
+    // Due in seat 0's discard phase: ordered among its other effects, no
+    // passing before it (rules-qa 40.5).
+    let req = until(&mut e, SeatId(0), WindowLabel::DiscardPhase);
+    assert!(req.options.contains(&Choice::ResolveRider { card: u.0 }));
+    assert!(!req.options.contains(&Choice::Pass));
+    assert!(req.options.contains(&Choice::Discard(0)), "orderable");
+    pick(&mut e, Choice::ResolveRider { card: u.0 });
+    let burned = [torpid, minds]
+        .iter()
+        .filter(|c| !e.state.cards[c.index()].in_play)
+        .count();
+    assert_eq!(burned, 1, "one of them, at random");
+    assert_eq!(e.state.seats[1].held.leaves_torpor, 1, "still waiting");
+    // Seat 1's discard phase: 1 pool (one other event) and its action.
+    let buy = Choice::UseAbility {
+        source: AbilitySource::Card(u),
+        ability: 0,
+        actor: None,
+        target: Target::None,
+    };
+    let req = until(&mut e, SeatId(1), WindowLabel::DiscardPhase);
+    assert!(req.options.contains(&buy));
+    let p1 = pool(&e, 1);
+    pick(&mut e, buy);
+    assert_eq!(pool(&e, 1), p1 - 1);
+    assert!(!e.state.cards[u.index()].in_play);
+}
+
+// [LSJ 20100902] Wormwood: "When a vampire is influenced, the excess blood
+// drains off before entering contest (if any) and before playing \"as
+// played/as he enters play\" effects." A capacity 5 vampire with 5 counters
+// comes out with 2 under a 2-counter Wormwood.
+#[test]
+fn wormwood_drains_an_influenced_vampire_to_its_ceiling() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+    event_in_play(&mut e, 1, "Wormwood", 2);
+    let card = of_capacity(5, 0);
+    e.state.seats[0].uncontrolled.push(UncontrolledSlot {
+        card,
+        counters: 5,
+        banished: None,
+    });
+    let slot = e.state.seats[0].uncontrolled.len() as u8 - 1;
+    until(&mut e, SeatId(0), WindowLabel::InfluenceTransfers);
+    pick(&mut e, Choice::InfluenceOut { slot });
+    request(&mut e);
+    let m = e
+        .state
+        .minions
+        .iter()
+        .position(|v| v.in_play && v.crypt_card() == Some(card))
+        .map(|i| MinionId(i as u32))
+        .expect("influenced");
+    assert_eq!(blood(&e, m), 2);
+}
+
+// ---- Events, wave 2 (slice 11ad) ------------------------------------------------
+
+// Blood Trade: "During each Methuselah's unlock phase, that Methuselah can
+// move 1 blood from a vampire they control to a vampire controlled by
+// another Methuselah." [LSJ 20040531-2] "Does not prevent Consanguineous
+// Boon to be played."
+#[test]
+fn blood_trade_moves_a_blood_to_another_methuselahs_vampire() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 4, false);
+    let y = e.add_minion(SeatId(1), plain("Gangrel", "", 0), 2, false);
+    let z = e.add_minion(SeatId(2), plain("Brujah", "", 0), 2, false);
+    hand(&mut e, 1, &["Consanguineous Boon"]);
+    let trade = event_in_play(&mut e, 2, "Blood Trade", 0);
+    let give = |m| Choice::UseAbility {
+        source: AbilitySource::Card(trade),
+        ability: 0,
+        actor: None,
+        target: Target::Minion(m),
+    };
+    let req = until(&mut e, SeatId(1), WindowLabel::UnlockAbilities);
+    assert!(req.options.contains(&give(y)), "the active Methuselah's");
+    assert!(!req.options.contains(&give(a)));
+    pick(&mut e, give(y));
+    let req = expect(&mut e, SeatId(1), WindowLabel::ResolutionChoice);
+    assert_eq!(
+        req.options,
+        vec![Choice::ChooseMinion(a), Choice::ChooseMinion(z)]
+    );
+    pick(&mut e, Choice::ChooseMinion(z));
+    assert_eq!((blood(&e, y), blood(&e, z)), (1, 3));
+    // Consanguineous Boon still playable.
+    let req = until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(req.options.contains(&play(0, 0, y)));
+}
+
+// Conquest of Humanity: "During each Methuselah's unlock phase, that
+// Methuselah can choose a location controlled by their prey. The chosen
+// location is burned unless its controller burns 2 pool."
+#[test]
+fn conquest_of_humanity_burns_a_prey_location_unless_paid_for() {
+    for pay in [false, true] {
+        let mut e = Engine::bare(3);
+        e.add_minion(SeatId(0), plain("Ventrue", "", 0), 4, false);
+        e.add_minion(SeatId(1), plain("Gangrel", "", 0), 4, false);
+        e.add_minion(SeatId(2), plain("Brujah", "", 0), 4, false);
+        let conquest = event_in_play(&mut e, 0, "Conquest of Humanity", 0);
+        let place = location(&mut e, 2, "Parthenon, The");
+        let own = location(&mut e, 0, "Academic Hunting Ground");
+        let choose = |c: CardId| Choice::UseAbility {
+            source: AbilitySource::Card(conquest),
+            ability: 0,
+            actor: None,
+            target: Target::Card(c),
+        };
+        // Seat 1's prey is seat 2.
+        let req = until(&mut e, SeatId(1), WindowLabel::UnlockAbilities);
+        assert!(req.options.contains(&choose(place)));
+        assert!(!req.options.contains(&choose(own)), "not their prey's");
+        pick(&mut e, choose(place));
+        let p2 = pool(&e, 2);
+        let req = expect(&mut e, SeatId(2), WindowLabel::ResolutionChoice);
+        e.choose(
+            req.options
+                .iter()
+                .position(|o| {
+                    *o == if pay {
+                        Choice::PayToCancel
+                    } else {
+                        Choice::Pass
+                    }
+                })
+                .unwrap(),
+        );
+        assert_eq!(e.state.cards[place.index()].in_play, pay);
+        assert_eq!(pool(&e, 2), if pay { p2 - 2 } else { p2 });
+    }
+}
+
+// The New Inquisition: "During each Methuselah's unlock phase, that
+// Methuselah can choose a ready vampire controlled by their prey. The
+// chosen vampire takes 1 unpreventable environmental damage. Titled
+// vampires can call a referendum to burn this card as a +1 stealth
+// political action." "Do not replace until a titled vampire goes to
+// torpor." [LSJ 20100527] "When a vampire goes to torpor, the card is
+// replaced before any other effect." [LSJ 20080604] The granted action
+// requires a titled vampire.
+#[test]
+fn the_new_inquisition_wounds_a_prey_vampire_and_is_burned_by_the_titled() {
+    let mut e = Engine::bare(3);
+    let p = e.add_minion(SeatId(0), prince(0), 4, false);
+    let u = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 4, false);
+    let y = e.add_minion(SeatId(1), plain("Gangrel", "", 0), 1, false);
+    e.add_minion(SeatId(2), plain("Brujah", "", 0), 4, false);
+    let inq = event_in_play(&mut e, 2, "New Inquisition, The", 0);
+    e.state.seats[2].held.titled_torpor = 1;
+    let burn = |m| Choice::UseAbility {
+        source: AbilitySource::Card(inq),
+        ability: 1,
+        actor: Some(m),
+        target: Target::None,
+    };
+    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(req.options.contains(&burn(p)));
+    assert!(!req.options.contains(&burn(u)), "untitled");
+    // Seat 0's next unlock phase: 1 damage to the prey's ready vampire.
+    let wound = Choice::UseAbility {
+        source: AbilitySource::Card(inq),
+        ability: 0,
+        actor: None,
+        target: Target::Minion(y),
+    };
+    pick_when(&mut e, wound);
+    assert_eq!(blood(&e, y), 0, "1 damage, 1 blood burned");
+    assert_eq!(e.state.seats[2].held.titled_torpor, 1);
+    // Seat 2's unlock phase: the prince (no blood) is sent to torpor, a
+    // titled vampire: the held replacement is drawn.
+    e.state.seats[2].library = vec![find_library("Soak"); 3];
+    until(&mut e, SeatId(2), WindowLabel::UnlockAbilities);
+    e.state.minions[p.index()].blood = 0;
+    let wound = Choice::UseAbility {
+        source: AbilitySource::Card(inq),
+        ability: 0,
+        actor: None,
+        target: Target::Minion(p),
+    };
+    pick(&mut e, wound);
+    assert!(e.state.minions[p.index()].in_torpor);
+    assert_eq!(e.state.seats[2].held.titled_torpor, 0, "replaced");
+}
+
+// Nightmares upon Nightmares: "During each Methuselah's unlock phase, for
+// each minion they control, they lock that minion unless they discard a
+// card; cards discarded this way are not replaced until the master phase.
+// Mortal allies and vampires with capacity greater than the number of
+// Gehenna events in play ignore this effect." [LSJ 20040415] Mortal allies
+// and bigger vampires are not affected. [ANK 20250121] Once each unlock
+// phase. [ANK 20210322-2] A locked minion may be "locked" (the Pass).
+#[test]
+fn nightmares_upon_nightmares_locks_small_minions_unless_their_player_discards() {
+    let mut e = Engine::bare(3);
+    let small = e.add_minion(SeatId(0), of_capacity(3, 0), 3, false);
+    let other = e.add_minion(SeatId(0), of_capacity(3, 1), 3, false);
+    let big = e.add_minion(SeatId(0), of_capacity(5, 0), 3, false);
+    let mortal = e.add_ally(SeatId(0), find_library("ECTU Operative"));
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 4, false);
+    let nightmares = event_in_play(&mut e, 1, "Nightmares upon Nightmares", 0);
+    for name in ["Thirst", "Torpid Blood"] {
+        event_in_play(&mut e, 1, name, 0);
+    }
+    hand(&mut e, 0, &["Soak", "Soak"]);
+    e.state.seats[0].library = vec![find_library("Conditioning"); 5];
+    // `other` stays locked through its unlock phase.
+    e.state.minions[other.index()].locked = true;
+    e.state.minions[other.index()].skip_unlock = true;
+    // Seat 0's next unlock phase: the rider (its only effect, elided), then
+    // two capacity-3 vampires (3 Gehenna events in play): one choice each.
+    let _ = nightmares;
+    let req = until(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    assert_eq!(req.options[..2], [Choice::Pass, Choice::Discard(0)]);
+    let before = e.state.seats[0].hand.len();
+    pick(&mut e, Choice::Discard(0));
+    // The second one, still locked: asked too, and "locked" again.
+    pick(&mut e, Choice::Pass);
+    let locked: Vec<bool> = [small, other, big, mortal]
+        .iter()
+        .map(|m| e.state.minions[m.index()].locked)
+        .collect();
+    assert_eq!(locked, vec![false, true, false, false]);
+    assert_eq!(e.state.seats[0].hand.len(), before - 1, "not replaced yet");
+    assert_eq!(e.state.seats[0].held.master, 1);
+    // The master phase: replaced.
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[0].held.master, 0);
+}
+
+// Recalled to the Founder: "During each Methuselah's unlock phase, if that
+// Methuselah controls 3 or more vampires of the same clan, they burn one of
+// those vampires. If that vampire's capacity is 6 or more, that Methuselah
+// ignores this effect until the end of the game."
+#[test]
+fn recalled_to_the_founder_burns_one_of_three_and_spares_after_an_elder() {
+    let brujah = |n| vampire(|c| c.clan == "Brujah" && c.title == Title::None, n);
+    let mut e = Engine::bare(3);
+    let bs: Vec<MinionId> = (0..3)
+        .map(|n| e.add_minion(SeatId(0), brujah(n), 3, false))
+        .collect();
+    let v = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 3, false);
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 4, false);
+    let recalled = event_in_play(&mut e, 1, "Recalled to the Founder", 0);
+    // Seat 0's next unlock phase: the rider (elided), then the choice.
+    let _ = recalled;
+    let req = until(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    let want: Vec<Choice> = bs.iter().map(|&m| Choice::ChooseMinion(m)).collect();
+    assert_eq!(
+        req.options, want,
+        "one of the three, no Pass, not the Ventrue"
+    );
+    let elder = *bs.iter().max_by_key(|&&m| e.state.capacity_of(m)).unwrap();
+    let big = e.state.capacity_of(elder).unwrap() >= 6;
+    pick(&mut e, Choice::ChooseMinion(elder));
+    assert!(!e.state.minions[elder.index()].in_play);
+    assert!(e.state.minions[v.index()].in_play);
+    assert_eq!(e.state.seats[0].recalled_ignored, big);
+}
+
+// Restricted Vitae: "Vampires cannot hunt unless they must hunt. Vampires
+// who must hunt can steal 1 blood from a younger vampire as a Ⓓ hunt
+// action." "Do not replace until a vampire successfully hunts." [RBK
+// action-card-or-card-in-play] "A minion can only perform this special
+// hunt once per turn."
+#[test]
+fn restricted_vitae_leaves_only_the_starving_hunting() {
+    let mut e = Engine::bare(3);
+    let fed = e.add_minion(SeatId(0), of_capacity(8, 0), 3, false);
+    let hungry = e.add_minion(SeatId(0), of_capacity(8, 1), 0, false);
+    let young = e.add_minion(SeatId(1), of_capacity(3, 0), 2, false);
+    let rv = event_in_play(&mut e, 1, "Restricted Vitae", 0);
+    e.state.seats[1].held.hunt = 1;
+    e.state.seats[1].library = vec![find_library("Soak"); 3];
+    let steal = Choice::UseAbility {
+        source: AbilitySource::Card(rv),
+        ability: 0,
+        actor: Some(hungry),
+        target: Target::Minion(young),
+    };
+    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(
+        !req.options.contains(&action(fed, ActionKind::Hunt)),
+        "not starving"
+    );
+    assert!(req.options.contains(&action(hungry, ActionKind::Hunt)));
+    assert!(
+        req.options.contains(&steal),
+        "the special hunt, a forced hunt too"
+    );
+    pick(&mut e, steal);
+    let a = e.action().expect("action");
+    assert!(a.is_hunt);
+    assert_eq!(a.directed_seat(&e.state), Some(SeatId(1)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((blood(&e, hungry), blood(&e, young)), (1, 1));
+    assert_eq!(e.state.seats[1].held.hunt, 0, "a successful hunt: replaced");
+    // Once a turn: unlocked, starving again, it cannot take it twice.
+    let m = &mut e.state.minions[hungry.index()];
+    m.locked = false;
+    m.blood = 0;
+    let req = request(&mut e);
+    assert!(!req.options.contains(&steal));
+}
+
+// FBI Special Affairs Division: "If an ally is burned in combat with an
+// acting vampire, add 1 counter to this card and inflict 2 unpreventable
+// environmental damage on the acting vampire after the combat ends. If
+// this card has 4 counters, burn it."
+#[test]
+fn fbi_special_affairs_division_wounds_the_vampire_that_burned_an_ally() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["pot"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 0), 5, false);
+    let ally = e.add_ally(SeatId(1), find_library("Underbridge Stray"));
+    let fbi = event_in_play(&mut e, 2, "FBI Special Affairs Division", 3);
+    bleed_blocked(&mut e, a, ally);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[ally.index()].in_play, "burned in combat");
+    assert_eq!(blood(&e, a), 5 - 2, "2 after the combat");
+    assert!(!e.state.cards[fbi.index()].in_play, "4 counters: burned");
+}
+
+// ---- Events, wave 3 (slice 11ae) -------------------------------------------------
+
+// Fall of the Camarilla: "There is no Camarilla. Instead, Camarilla
+// vampires are considered Independent." [LSJ 20080510] [LSJ 20100811] [ANK
+// 20190619] "Is a temporary effect that overrides the underlying sect …
+// If the Fall leaves play, the vampire retrieves his underlying sect."
+// [LSJ 20060904] "Vampires with a Camarilla title lose the benefit from it
+// until they become Camarilla again." [LSJ 20040519] A card making a
+// vampire Camarilla still does: Independent while the Fall is in play.
+#[test]
+fn fall_of_the_camarilla_makes_camarilla_vampires_independent() {
+    use zvtes::crypt::Sect;
+    let mut e = Engine::bare(3);
+    let p = e.add_minion(SeatId(0), prince(0), 4, false);
+    let n = e.add_minion(SeatId(0), plain("Brujah", "", 0), 4, false);
+    e.state.minions[n.index()].sect_override = Some(Sect::Camarilla);
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 4, false);
+    assert_eq!(e.state.sect_of(p), Some(Sect::Camarilla));
+    let votes = e.state.title_votes_of(p);
+    assert!(votes > 0);
+    let fall = event_in_play(&mut e, 1, "Fall of the Camarilla", 0);
+    assert_eq!(e.state.sect_of(p), Some(Sect::Independent));
+    assert_eq!(
+        e.state.sect_of(n),
+        Some(Sect::Independent),
+        "made Camarilla"
+    );
+    assert_eq!(e.state.title_votes_of(p), 0, "no benefit from the title");
+    e.burn_card(fall);
+    assert_eq!(e.state.sect_of(p), Some(Sect::Camarilla));
+    assert_eq!(e.state.title_votes_of(p), votes);
+}
+
+// Fall of the Sabbat: "Requires 3 or more other Gehenna events in play.
+// There is no Sabbat. Instead, Sabbat vampires are considered Independent."
+// [PIB 20121031] The requirement is read as it is played only.
+#[test]
+fn fall_of_the_sabbat_needs_three_gehenna_events_and_ends_the_sabbat() {
+    use zvtes::crypt::Sect;
+    let mut e = Engine::bare(3);
+    let s = e.add_minion(SeatId(0), plain("Brujah", "", 0), 4, false);
+    e.state.minions[s.index()].sect_override = Some(Sect::Sabbat);
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 4, false);
+    e.state.seats[0].library = vec![find_library("Soak"); 5];
+    hand(&mut e, 0, &["Fall of the Sabbat"]);
+    let t = event_in_play(&mut e, 1, "Thirst", 0);
+    event_in_play(&mut e, 1, "Torpid Blood", 0);
+    let req = until(&mut e, SeatId(0), WindowLabel::DiscardPhase);
+    assert!(!req.options.contains(&master(0)), "two Gehenna events");
+    event_in_play(&mut e, 1, "Blood Weakens", 0);
+    let req = request(&mut e);
+    assert!(req.options.contains(&master(0)));
+    pick(&mut e, master(0));
+    request(&mut e);
+    assert_eq!(e.state.sect_of(s), Some(Sect::Independent));
+    // One of the others burned: the Fall stays.
+    e.burn_card(t);
+    assert_eq!(e.state.sect_of(s), Some(Sect::Independent));
+}
+
+// Rise of the Nephtali: "Independent vampires can receive the unique
+// Independent title of Liaison (worth 4 votes) as an action. If this title
+// would be contested with a younger vampire, the younger vampire
+// immediately yields instead of contesting." "Do not replace until a
+// vampire becomes a liaison." [LSJ 20070125] "The title stays in play when
+// the event is removed (eg The Uncoiling) but can't be claimed any more
+// with the action."
+#[test]
+fn rise_of_the_nephtali_makes_an_independent_liaison_the_younger_yielding() {
+    use zvtes::crypt::Sect;
+    let mut e = Engine::bare(3);
+    let young = e.add_minion(SeatId(0), of_capacity(3, 0), 3, false);
+    let old = e.add_minion(SeatId(0), of_capacity(8, 0), 3, false);
+    let cam = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 3, false);
+    for m in [young, old] {
+        e.state.minions[m.index()].sect_override = Some(Sect::Independent);
+    }
+    e.state.minions[cam.index()].sect_override = Some(Sect::Camarilla);
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 4, false);
+    let rise = event_in_play(&mut e, 1, "Rise of the Nephtali", 0);
+    e.state.seats[1].held.liaison = 1;
+    e.state.seats[1].library = vec![find_library("Soak"); 3];
+    let claim = |m| Choice::UseAbility {
+        source: AbilitySource::Card(rise),
+        ability: 0,
+        actor: Some(m),
+        target: Target::None,
+    };
+    let liaison = Title::Independent {
+        name: "Liaison",
+        votes: 4,
+    };
+    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!req.options.contains(&claim(cam)), "not Independent");
+    pick(&mut e, claim(young));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.title_of(young), liaison);
+    assert_eq!(e.state.title_votes_of(young), 4);
+    assert_eq!(e.state.seats[1].held.liaison, 0, "replaced");
+    // The older one claims it: the younger yields at once.
+    pick(&mut e, claim(old));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.title_of(old), liaison);
+    assert_eq!(e.state.title_of(young), Title::None);
+    // The event gone: the title stays, no more claims.
+    e.burn_card(rise);
+    assert_eq!(e.state.title_of(old), liaison);
+    let m = &mut e.state.minions[young.index()];
+    m.locked = false;
+    let req = request(&mut e);
+    assert!(!req.options.contains(&claim(young)));
+}
+
+// Absimiliard's Army: "During each Methuselah's unlock phase, that
+// Methuselah can put the top card of their library in play (face up); it
+// becomes a nameless, textless ghoul ally with 2 life, 2 strength and 1
+// bleed. After that ally is burned or this event leaves play, remove that
+// ally from the game. After a Methuselah is ousted, burn this card." [LSJ
+// 20040531] Not playing the card. [LSJ 20040623] [LSJ 20071003] Its name is
+// ignored; they do not contest. [LSJ 20090920] A burned ghoul is removed,
+// but burned; the event removed, they are removed without burning. [ANK
+// 20200203-2] [LSJ 20060515] Ghouls are monsters, not mortal.
+#[test]
+fn absimiliards_army_raises_textless_ghouls_from_the_library() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 4, false);
+    e.add_minion(SeatId(2), plain("Brujah", "", 0), 4, false);
+    let army = event_in_play(&mut e, 1, "Absimiliard's Army", 0);
+    // Seat 0's library top: a unique ally with text, and a copy in play.
+    let stray = find_library("Michael Harris, the Incinerator");
+    e.add_ally(SeatId(1), stray);
+    let raise = Choice::UseAbility {
+        source: AbilitySource::Card(army),
+        ability: 0,
+        actor: None,
+        target: Target::None,
+    };
+    let req = until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
+    assert!(req.options.contains(&raise));
+    e.state.seats[0].library = vec![find_library("Soak"), stray, stray];
+    let before = e.state.minions.len();
+    pick(&mut e, raise);
+    let g = MinionId(before as u32);
+    let v = &e.state.minions[g.index()];
+    assert!(v.in_play && v.is_ally() && !v.contested, "no contest");
+    assert_eq!(v.name(), "", "nameless");
+    assert_eq!(
+        e.state.ally_body(g).map(|b| (b.life, b.strength, b.bleed)),
+        Some((2, 2, 1))
+    );
+    assert!(
+        v.ally_id().is_none() && v.kind.ally_card().is_none(),
+        "textless"
+    );
+    assert_eq!(
+        e.state.seats[0].library.len(),
+        2,
+        "not a play: no replacement"
+    );
+    // Burned: removed from the game.
+    e.burn(g);
+    assert!(e.state.seats[0].removed.contains(&stray));
+    // A second one, removed with the event.
+    let req = until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
+    assert!(req.options.contains(&raise));
+    e.state.seats[0].library = vec![stray];
+    let before = e.state.minions.len();
+    pick(&mut e, raise);
+    let g2 = MinionId(before as u32);
+    e.burn_card(army);
+    assert!(!e.state.minions[g2.index()].in_play);
+    assert_eq!(e.state.seats[0].removed.len(), 2);
+}
+
+// Absimiliard's Army: "Do not replace until a Methuselah is ousted. … After
+// a Methuselah is ousted, burn this card."
+#[test]
+fn absimiliards_army_burns_as_a_methuselah_is_ousted() {
+    let mut e = Engine::bare(4);
+    let a = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 4, false);
+    e.add_minion(SeatId(2), plain("Brujah", "", 0), 4, false);
+    e.add_minion(SeatId(3), plain("Brujah", "", 1), 4, false);
+    let army = event_in_play(&mut e, 2, "Absimiliard's Army", 0);
+    e.state.seats[2].held.ousted = 1;
+    e.state.seats[2].library = vec![find_library("Soak"); 3];
+    e.state.seats[1].pool = 1;
+    pick(&mut e, action(a, ActionKind::Bleed));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.seats[1].ousted);
+    assert!(!e.state.cards[army.index()].in_play, "burned");
+    assert_eq!(e.state.seats[2].held.ousted, 0, "replaced");
+}
+
+// Absimiliard's Army: "After … this event leaves play, remove that ally
+// from the game" — its controller ousted, the Army leaves with them, and
+// another Methuselah's ghoul goes too.
+#[test]
+fn absimiliards_army_takes_its_ghouls_with_its_ousted_controller() {
+    let mut e = Engine::bare(4);
+    let a = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 4, false);
+    e.add_minion(SeatId(2), plain("Brujah", "", 0), 4, false);
+    e.add_minion(SeatId(3), plain("Brujah", "", 1), 4, false);
+    let army = event_in_play(&mut e, 1, "Absimiliard's Army", 0);
+    let soak = find_library("Soak");
+    e.state.minions.push(zvtes::state::Minion::new(
+        SeatId(2),
+        zvtes::state::MinionKind::Token {
+            card: soak,
+            body: zvtes::library::Body {
+                life: 2,
+                strength: 2,
+                bleed: 1,
+            },
+            source: army,
+        },
+        2,
+    ));
+    let g = MinionId(e.state.minions.len() as u32 - 1);
+    e.state.seats[1].pool = 1;
+    pick(&mut e, action(a, ActionKind::Bleed));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.seats[1].ousted);
+    assert!(!e.state.minions[g.index()].in_play, "removed with the Army");
+    assert!(e.state.seats[2].removed.contains(&soak));
+}
+
+// Conquest of Humanity: "burned unless its controller burns 2 pool" — with
+// 1 pool, it cannot be paid: burned.
+#[test]
+fn conquest_of_humanity_burns_a_location_its_controller_cannot_pay_for() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 4, false);
+    e.add_minion(SeatId(2), plain("Brujah", "", 0), 4, false);
+    let conquest = event_in_play(&mut e, 0, "Conquest of Humanity", 0);
+    let place = location(&mut e, 2, "Parthenon, The");
+    let choose = Choice::UseAbility {
+        source: AbilitySource::Card(conquest),
+        ability: 0,
+        actor: None,
+        target: Target::Card(place),
+    };
+    until(&mut e, SeatId(1), WindowLabel::UnlockAbilities);
+    e.state.seats[2].pool = 1;
+    pick(&mut e, choose);
+    // Only "let it burn": elided.
+    request(&mut e);
+    assert!(!e.state.cards[place.index()].in_play);
+    assert_eq!(pool(&e, 2), 1);
+}
+
+// Rules-qa 40.4 (owner, 2026-09-27): under Blood Weakens, an action card
+// played using a Discipline is not replaced until its action ends either
+// ([LSJ 20080809], Gear Up).
+#[test]
+fn blood_weakens_holds_an_action_card_played_with_a_discipline() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "PRE", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", "", 0), 4, false);
+    event_in_play(&mut e, 1, "Blood Weakens", 0);
+    e.state.seats[0].library = vec![find_library("Soak"); 5];
+    hand(&mut e, 0, &["Intimidation", "Soak"]);
+    pick(&mut e, play(0, 1, a));
+    request(&mut e);
+    assert_eq!(e.state.seats[0].hand.len(), 1, "not replaced yet");
+    assert_eq!(e.state.seats[0].held.weakens, 1);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[0].held.weakens, 0, "replaced as it ends");
 }

@@ -3078,3 +3078,109 @@ read live as the prey's vampires enter and leave torpor. Right? **Test** —
 `raising_the_portcullis_bleeds_more_while_the_prey_has_a_vampire_in_torpor`.
 
 **Answer (owner):** right.
+
+## Batch 40 — events (slices 11ac–11ae)
+
+Defaults chosen while implementing; each is applied and tested.
+
+### 40.1 Playing events _(answered 2026-09-27)_
+
+An event takes a discard phase action (an ordinary one before Powerbase:
+Los Angeles's), one event a discard phase whatever the actions left, each
+event once a game across the table (a second copy anywhere is never
+offered). Right? **Test** —
+`an_event_takes_a_discard_phase_action_once_a_phase_and_once_a_game`.
+
+**Answer (owner):** "It can take any discard phase action, ordinary or
+not"; the rest right. As implemented: any one left is usable (an ordinary
+one spent first keeps Powerbase: Los Angeles's unlock open).
+
+### 40.2 Thirst's "did not hunt" _(answered 2026-09-27)_
+
+A vampire that took a hunt action this turn hunted, blocked or not
+(unsuccessful counts, LSJ 20050727). Right? **Test** —
+`thirst_burns_a_blood_from_small_vampires_that_did_not_hunt`.
+
+**Answer (owner):** right.
+
+### 40.3 Nightmares upon Nightmares _(answered 2026-09-27)_
+
+Every minion the Methuselah controls is concerned, in torpor or locked
+included (a locked one may be "locked", ANK 20210322-2); the discard is
+made per minion, one card each. Right? **Test** —
+`nightmares_upon_nightmares_locks_small_minions_unless_their_player_discards`.
+
+**Answer (owner):** right.
+
+### 40.4 Blood Weakens _(answered 2026-09-27)_
+
+The action card itself is replaced as it is played (before the action);
+the cards held are those played during it. "Until a Methuselah's hand is
+empty" is read as the next held card is played: an empty hand then draws
+it and the ones held before. Right? **Test** —
+`blood_weakens_holds_discipline_card_replacements_until_the_action_ends`.
+
+**Answer (owner):** "No, the action card is not replaced if it requires a
+Discipline" (LSJ 20080809, Gear Up). Applied: an action card played
+using a Discipline waits for its action's end too. **Test** —
+`blood_weakens_holds_an_action_card_played_with_a_discipline`.
+
+### 40.5 The Uncoiling's random burn _(answered 2026-09-27)_
+
+At the start of its controller's discard phase, before any discard phase
+action. Right? **Test** —
+`the_uncoiling_burns_an_event_each_discard_phase_and_can_be_bought_off`.
+
+**Answer (owner):** "Mandatory, so the impulse cannot be passed without
+resolving it, but orderable against other effects in the phase by the
+acting player." Applied: due in the discard phase (`Seat::uncoiling_due`),
+offered as a rider beside the phase's other effects, no Pass before it.
+
+### 40.6 Torpid Blood _(answered 2026-09-27)_
+
+"Actions performed by vampires in torpor": the leave torpor action and
+action cards played by a vampire in torpor, +1 blood once. Right?
+**Test** — `torpid_blood_taxes_torpor_and_waits_for_a_vampire_to_leave_it`.
+
+**Answer (owner):** right.
+
+### 40.7 Wormwood _(answered 2026-09-27)_
+
+Blood above the ceiling drains off as Wormwood enters play and as its
+counters go down (as an influenced vampire's does, LSJ 20100902). Right?
+**Tests** — `wormwood_ceils_capacity_by_its_counters`,
+`wormwood_drains_an_influenced_vampire_to_its_ceiling`.
+
+**Answer (owner):** right.
+
+### 40.8 Recalled to the Founder _(answered 2026-09-27)_
+
+Vampires in torpor count toward the 3 and may be the one burned. Right?
+**Test** — `recalled_to_the_founder_burns_one_of_three_and_spares_after_an_elder`.
+
+**Answer (owner):** right.
+
+### 40.9 FBI Special Affairs Division _(answered 2026-09-27)_
+
+The 2 damage are dealt as the combat ends, before the after-combat
+effects. Right? **Test** —
+`fbi_special_affairs_division_wounds_the_vampire_that_burned_an_ally`.
+
+**Answer (owner):** right.
+
+### 40.10 Absimiliard's Army's ghoul _(answered 2026-09-27)_
+
+Put in play (not recruited), it may act the turn it enters; its
+controller's card stays theirs (removed from the game from their
+library). Right? **Test** —
+`absimiliards_army_raises_textless_ghouls_from_the_library`.
+
+**Answer (owner):** right.
+
+### 40.11 Rise of the Nephtali _(answered 2026-09-27)_
+
+The Liaison action has no stealth of its own; "younger" is the rulebook's
+(lower capacity). Right? **Test** —
+`rise_of_the_nephtali_makes_an_independent_liaison_the_younger_yielding`.
+
+**Answer (owner):** right.

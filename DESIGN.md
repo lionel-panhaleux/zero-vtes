@@ -2244,6 +2244,65 @@ rules-qa Batch 38 answered but 38.8. Every pool master, ally and equipment is
   rules-qa Batch 39 answered (X may be 0, an unlocked acting baron
   chosen: `next_term` skips an allocation with no point). Every pool card
   but the 20 events is defined.
+  11ac — events, wave 1 (9): Narrow Minds, Torpid Blood, The Slow
+  Withering, Blood Weakens, Thirst, Wormwood, Fueled by Heart's Blood, The
+  Fourth Cycle, The Uncoiling.
+  - Event play (rulebook "Event Cards"): in the discard phase for a
+    discard phase action, one each phase (`Seat::event_played`), each
+    event once a game (`once_played`, for `CardType::Event`), controlled
+    by its player; `Requirement::GehennaInPlay` checked as played only
+    (PIB 20121031), `Modifier::NoGehennaEvents` barring Gehenna plays.
+  - Replacements held until a condition (`Until`, `Held` counters on the
+    seat, `release_held`): a Methuselah ousted, a diablerie, a titled
+    vampire to torpor (before its riders), a successful hunt, a vampire
+    leaving torpor (`Engine::leave_torpor`), a liaison, and "as long as
+    this card is in play" (`Seat::held_in_play`, drawn as it leaves) —
+    waiting on the condition, not the card (LSJ 20080805).
+  - `Hook::GehennaPlayed` counts Wormwood and Fueled down and ends the
+    diablerists' shield (`Minion::diablerie_shield`); `card_surcharge`
+    (was `host_discipline_surcharge`) adds Narrow Minds, The Slow
+    Withering and Torpid Blood; Torpid Blood's leave-torpor and rescue
+    costs (`GameState::torpid_surcharge`); Blood Weakens holds a
+    Discipline card's replacement to the action's end (`Held::weakens`)
+    or the hand emptying; Thirst as the minion phase ends
+    (`Minion::hunted`); Wormwood ceils `capacity_of`
+    (`capacity_ceiling`, drained as it changes); The Uncoiling's random
+    burn due in its controller's discard phase, ordered among its effects,
+    no Pass before it (`Seat::uncoiling_due`; rules-qa 40.5); Blood
+    Weakens holds an action card played using a Discipline too (LSJ
+    20080809; rules-qa 40.4).
+  11ad — events, wave 2 (7): Blood Trade, Conquest of Humanity, The New
+  Inquisition, Nightmares upon Nightmares, Recalled to the Founder,
+  Restricted Vitae, FBI Special Affairs Division.
+  - "During each Methuselah's unlock phase, that Methuselah can …":
+    `UnlockPhaseAny` abilities of `Actor::Methuselah` with `OwnTurn`;
+    Nightmares upon Nightmares and Recalled to the Founder are mandatory
+    riders (`Effect::LockUnlessDiscard`, `BurnOfCrowdedClan`,
+    `Seat::recalled_ignored`).
+  - Interrupts `GiveBlood`, `PayOrBurn`, `LockOrDiscard`; discards held to
+    the master phase (`Held::master`); `Requirement::CardControlledByPrey`,
+    `ActorMustHunt` (`GameState::must_hunt`); out-of-combat damage
+    (`Effect::DamageTarget`).
+  - Restricted Vitae: `Modifier::OnlyMustHunt` in `cannot_hunt`; a
+    starving vampire's forced hunt may be an ability's hunt action.
+  - FBI Special Affairs Division: an ally burned in combat with the acting
+    vampire (`burn_minion`) sets `CombatCtx::fbi_damage`, dealt as the
+    combat ends (`end_combat`).
+  - Blood Trade's boons: none enters play in V5.
+  11ae — events, wave 3 (4): Fall of the Camarilla, Fall of the Sabbat,
+  Rise of the Nephtali, Absimiliard's Army.
+  - `GameState::sect_of` (`Modifier::SectFallen`) replaces the minion's own
+    sect everywhere (`Minion::underlying_sect`); a fallen sect's titles
+    give nothing (`title_of`). No Black Hand vampire in V5.
+  - Liaison: `Title::Independent { "Liaison", 4 }`, granted by action
+    (`Effect::GainLiaison`), the younger of two claimants yielding.
+  - `MinionKind::Token`: Absimiliard's Army's nameless, textless ghoul
+    ally — no card in play, name or label; burned, its card removed from
+    the game; removed without burning as the Army leaves; the Army burned
+    as a Methuselah is ousted.
+  Definitions: 425, 826 tests; own fuzz table
+  (`random_games_with_events_hold_invariants_and_replay`); rules-qa Batch
+  40 answered. Every card of the V5 pool is defined.
   **P2 open items (2026-09-26, after 11t):**
   - Edges left from 11s: `Terms::XBlood` stops at the blood left after a
     fixed cost but not after a surcharge (Terror Frenzy [ANI] on

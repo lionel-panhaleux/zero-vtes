@@ -262,7 +262,7 @@ impl Bearer {
         match self {
             Bearer::Any => true,
             Bearer::Clan(c) => v.clan() == Some(c),
-            Bearer::Sect(s) => v.sect() == Some(s),
+            Bearer::Sect(s) => st.sect_of(m) == Some(s),
             Bearer::Discipline(d) => st.has_discipline(m, d),
         }
     }
@@ -543,6 +543,9 @@ pub enum Requirement {
     TargetHostage,
     /// This card was not played before in this game.
     NotPlayedThisGame,
+    /// "Requires n or more other Gehenna events in play": checked as the
+    /// card is played only (PIB 20121031).
+    GehennaInPlay(u8),
     /// "A Methuselah can have only one" (Raising the Portcullis): not
     /// playable while its player controls a copy (LSJ 20100129).
     OnePerMethuselah,
@@ -566,6 +569,9 @@ pub enum Requirement {
     ActorIsChosen,
     /// The target minion is controlled by the user's prey.
     ControlledByPrey,
+    /// The target card is controlled by the user's prey (Conquest of
+    /// Humanity: "a location controlled by their prey").
+    CardControlledByPrey,
     /// The user controls n ready vampires of the clan.
     ControlsReadyClan(&'static str, u8),
     /// The user controls a ready vampire of the clan with blood (Chantry).
@@ -710,6 +716,9 @@ pub enum Requirement {
     HostUnlocked,
     /// It is the player's turn ("during your turn", Kalinda).
     OwnTurn,
+    /// The actor must hunt: no blood, or made to (Restricted Vitae's
+    /// special hunt).
+    ActorMustHunt,
     /// The player has a discard phase action left.
     DiscardPhaseActionLeft,
     /// The player has played a master card in the current master phase
@@ -1244,7 +1253,9 @@ impl Voters {
         let v = &st.minions[m.index()];
         match self {
             Voters::Clan(c) => v.clan() == Some(c),
-            Voters::TitledSect(sect) => v.sect() == Some(sect) && st.title_of(m) != Title::None,
+            Voters::TitledSect(sect) => {
+                st.sect_of(m) == Some(sect) && st.title_of(m) != Title::None
+            }
         }
     }
 }
@@ -1762,6 +1773,48 @@ pub enum Modifier {
     /// Coagulant, once it became that card): the host's cards requiring
     /// a Discipline.
     HostDisciplineCardsCost(u8),
+    /// "Gehenna events cannot be played" (The Fourth Cycle).
+    NoGehennaEvents,
+    /// "Minion cards that change the target of a bleed action cost +n blood
+    /// or life" (Narrow Minds).
+    RedirectCardsCost(u8),
+    /// "Actions performed by vampires in torpor cost +1 blood. Rescuing an
+    /// older vampire from torpor costs +1 blood" (Torpid Blood).
+    TorpidBlood,
+    /// "Cards requiring 1 or more Disciplines at the superior level cost
+    /// +n blood" (The Slow Withering; diablerists aside).
+    SuperiorCardsCost(u8),
+    /// "During an action, cards minions play requiring 1 or more
+    /// Disciplines are not replaced until the end of that action or until a
+    /// Methuselah's hand is empty" (Blood Weakens; diablerists aside).
+    HoldDisciplineReplacements,
+    /// "After each Methuselah's minion phase ends, each ready vampire …
+    /// with capacity less than the number of Gehenna events in play who
+    /// did not hunt … burns 1 blood" (Thirst).
+    Thirst,
+    /// "Vampires with capacity greater than X are considered vampires with
+    /// capacity X (minimum of 1)", X the card's counters (Wormwood).
+    CapacityCapByCounters,
+    /// "Blood hunts cannot be called on vampires with capacity greater than
+    /// the number of counters on this card who diablerize a younger
+    /// vampire" (Fueled by Heart's Blood).
+    NoBloodHuntAboveCounters,
+    /// "During your discard phase, burn another event at random" (The
+    /// Uncoiling).
+    BurnsAnEventEachDiscard,
+    /// "Vampires cannot hunt unless they must hunt" (Restricted Vitae).
+    OnlyMustHunt,
+    /// "There is no <sect>. Instead, <sect> vampires are considered
+    /// Independent" (Fall of the Camarilla, Fall of the Sabbat).
+    SectFallen(Sect),
+    /// Absimiliard's Army: after a Methuselah is ousted, burn this card;
+    /// as it leaves play, its ghouls are removed from the game.
+    GhoulArmy,
+    /// "If an ally is burned in combat with an acting vampire, add 1
+    /// counter to this card and inflict 2 unpreventable environmental
+    /// damage on the acting vampire after the combat ends. If this card has
+    /// 4 counters, burn it" (FBI Special Affairs Division).
+    AllyBurnedInCombat,
     /// "While your prey controls a vampire in torpor, vampires you control
     /// get +n bleed" (Raising the Portcullis), read live.
     OwnBleedWhilePreyTorpor(i8),
@@ -1898,6 +1951,19 @@ impl Layer {
                 1 << 39 ^ 1 << 19 ^ (d.len() as u64) << 8 ^ n as u64
             }
             Modifier::HostDisciplineCardsCost(n) => 1 << 39 ^ 1 << 26 ^ n as u64,
+            Modifier::NoGehennaEvents => 1 << 39 ^ 1 << 30,
+            Modifier::RedirectCardsCost(n) => 1 << 40 ^ 1 << 1 ^ n as u64,
+            Modifier::TorpidBlood => 1 << 40 ^ 1 << 2,
+            Modifier::SuperiorCardsCost(n) => 1 << 40 ^ 1 << 3 ^ n as u64,
+            Modifier::HoldDisciplineReplacements => 1 << 40 ^ 1 << 4,
+            Modifier::Thirst => 1 << 40 ^ 1 << 5,
+            Modifier::CapacityCapByCounters => 1 << 40 ^ 1 << 6,
+            Modifier::NoBloodHuntAboveCounters => 1 << 40 ^ 1 << 7,
+            Modifier::BurnsAnEventEachDiscard => 1 << 40 ^ 1 << 8,
+            Modifier::OnlyMustHunt => 1 << 40 ^ 1 << 9,
+            Modifier::SectFallen(s) => 1 << 40 ^ 1 << 11 ^ s as u64,
+            Modifier::GhoulArmy => 1 << 40 ^ 1 << 12,
+            Modifier::AllyBurnedInCombat => 1 << 40 ^ 1 << 10,
             Modifier::OwnBleedWhilePreyTorpor(n) => 1 << 39 ^ 1 << 27 ^ (n as i64 as u64 & 0xff),
             Modifier::BlockersOfHostBurn(n) => 1 << 39 ^ 1 << 28 ^ n as u64,
             Modifier::NoBloodHuntOnHost => 1 << 39 ^ 1 << 29,
@@ -2675,6 +2741,39 @@ pub enum Effect {
     /// bearer gets 1 optional additional strike (limited) this round, only
     /// usable to strike with this weapon (AK-47).
     AdditionalStrikeWithSource,
+    /// Absimiliard's Army: the top card of the user's library in play as a
+    /// nameless, textless ghoul ally with this type line (not a play: LSJ
+    /// 20040531).
+    GhoulFromLibraryTop(crate::library::Body),
+    /// Rise of the Nephtali: the acting Independent vampire receives the
+    /// unique Independent title of Liaison (4 votes); a younger holder
+    /// yields at once, as does a younger claimant (no contest).
+    GainLiaison,
+    /// Blood Trade: 1 blood from the target, a vampire of the user's, to
+    /// a vampire of another Methuselah's, their choice.
+    GiveBloodToOthers,
+    /// "The chosen location is burned unless its controller burns n pool"
+    /// (Conquest of Humanity).
+    BurnUnlessControllerPays(u8),
+    /// "The chosen vampire takes n unpreventable environmental damage" (The
+    /// New Inquisition), out of combat.
+    DamageTarget(u8),
+    /// Nightmares upon Nightmares' unlock-phase rider: each minion of the
+    /// active Methuselah's is locked unless they discard a card — not a
+    /// mortal ally, nor a vampire of capacity above the Gehenna events in
+    /// play.
+    LockUnlessDiscard,
+    /// Recalled to the Founder's unlock-phase rider: with 3 or more
+    /// vampires of a clan, burn one of them; burning one of capacity 6 or
+    /// more, ignore it for the rest of the game.
+    BurnOfCrowdedClan,
+    /// "After this card enters play, burn all Gehenna events … then send
+    /// all vampires with capacity n or less to torpor" (The Fourth Cycle;
+    /// no conviction card in V5).
+    FourthCycle(u8),
+    /// Pay 1 pool per other event in play (The Uncoiling's burn): paid
+    /// down to 0, its user is ousted.
+    PayPoolPerOtherEvent,
     /// Rider of a weapon's strike, read as it resolves: its damage is
     /// unpreventable (Enhanced Coagulant) — kept apart from the pending
     /// damage, out of every prevention's reach, and added as the damage
@@ -3021,6 +3120,9 @@ pub enum Hook {
     /// This vampire successfully hunted: blood was gained (Adisa; a hunt
     /// action gaining none is not a successful hunt, spec §3.7.2.1).
     SuccessfulHunt,
+    /// Another Gehenna event was played (Wormwood, Fueled by Heart's
+    /// Blood: "burn 1 counter from this card").
+    GehennaPlayed,
     /// The host blocked an action (Rebel): fired as the block succeeds,
     /// before block resolution; conditions read on the acting minion and
     /// the action.
@@ -3119,6 +3221,21 @@ pub enum Until {
     /// "Until after this action" (Elder Intervention): with the action's
     /// other held cards, at its end.
     EndOfAction,
+    /// "Until a Methuselah is ousted" (Absimiliard's Army).
+    MethuselahOusted,
+    /// "Until a vampire commits diablerie".
+    Diablerie,
+    /// "As long as this card is in play": as it leaves play.
+    LeavesPlay,
+    /// "Until a titled vampire goes to torpor" (The New Inquisition).
+    TitledToTorpor,
+    /// "Until a vampire successfully hunts" (Restricted Vitae).
+    SuccessfulHunt,
+    /// "Until a vampire moves from torpor to the ready region" (Torpid
+    /// Blood).
+    LeavesTorpor,
+    /// "Until a vampire becomes a liaison" (Rise of the Nephtali).
+    Liaison,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -3469,13 +3586,18 @@ pub fn holds(
         | Requirement::DirectedAtRemembered
         | Requirement::TargetCorrupted
         | Requirement::TargetOnOpposingCombatant
-        | Requirement::TargetAllyCard(_) => true, // target or card predicates
+        | Requirement::TargetAllyCard(_)
+        | Requirement::CardControlledByPrey => true, // target or card predicates
         Requirement::PlayedCardIsMaster => {
             played.is_some_and(|p| LIBRARY[p.card as usize].types.contains(&CardType::Master))
         }
         Requirement::PlayedByOtherSeat => played.is_some_and(|p| p.seat != seat),
         Requirement::PlayedCardIsMinionCard => {
-            played.is_some_and(|p| !LIBRARY[p.card as usize].types.contains(&CardType::Master))
+            // Neither a master card nor an event.
+            played.is_some_and(|p| {
+                let t = LIBRARY[p.card as usize].types;
+                !t.contains(&CardType::Master) && !t.contains(&CardType::Event)
+            })
         }
         Requirement::PlayedByPredatorOrPrey => played.is_some_and(|p| {
             p.seat != seat && (p.seat == st.predator(seat) || p.seat == st.prey(seat))
@@ -3557,7 +3679,7 @@ pub fn holds(
             (a.kind == ActionKind::Hunt || a.is_hunt)
                 && a.hunt_gained
                 && a.seat == seat
-                && st.minions[a.acting.index()].sect() == Some(Sect::Anarch)
+                && st.sect_of(a.acting) == Some(Sect::Anarch)
         }),
         Requirement::PoolAtLeast(n) => st.seats[seat.index()].pool >= n as i32,
         Requirement::ActorVampire => actor.is_some_and(|m| !st.minions[m.index()].is_ally()),
@@ -3657,7 +3779,7 @@ pub fn holds(
         }),
         Requirement::ControlsReadySect(sects) => st.minions_of(seat).any(|m| {
             let v = &st.minions[m.index()];
-            v.ready() && v.sect().is_some_and(|s| sects.contains(&s))
+            v.ready() && st.sect_of(m).is_some_and(|s| sects.contains(&s))
         }),
         Requirement::RangeClose => combat.is_some_and(|c| c.range == Range::Close),
         Requirement::RangeLong => combat.is_some_and(|c| c.range == Range::Long),
@@ -3665,7 +3787,7 @@ pub fn holds(
         Requirement::NotFirstRound => combat.is_some_and(|c| c.round > 1),
         Requirement::BothCombatantsReady => combat.is_some_and(|c| c.both_ready(st)),
         Requirement::AnarchCombatWithYours => combat.is_some_and(|c| {
-            let anarch = |m: MinionId| st.minions[m.index()].sect() == Some(Sect::Anarch);
+            let anarch = |m: MinionId| st.sect_of(m) == Some(Sect::Anarch);
             let (a, b) = (c.sides[0].minion, c.sides[1].minion);
             anarch(a)
                 && anarch(b)
@@ -3724,12 +3846,10 @@ pub fn holds(
         // An ally playing a card "as a vampire" counts as independent (LSJ
         // 20020503), with its granted capacity (1 unless printed; rulebook
         // "Allies").
-        Requirement::ActorSectIn(sects) => {
-            actor.is_some_and(|m| match st.minions[m.index()].sect() {
-                Some(s) => sects.contains(&s),
-                None => st.plays_as_vampire(m).is_some() && sects.contains(&Sect::Independent),
-            })
-        }
+        Requirement::ActorSectIn(sects) => actor.is_some_and(|m| match st.sect_of(m) {
+            Some(s) => sects.contains(&s),
+            None => st.plays_as_vampire(m).is_some() && sects.contains(&Sect::Independent),
+        }),
         Requirement::ActorCapacityAtLeast(n) => actor.is_some_and(|m| {
             st.capacity_of(m)
                 .or(st.plays_as_vampire(m).map(|g| g.capacity))
@@ -3739,6 +3859,7 @@ pub fn holds(
         Requirement::PollingStep => political.is_some_and(|r| r.step == RefStep::Polling),
         Requirement::AnyPollingStep => referendum.is_some_and(|r| r.step == RefStep::Polling),
         Requirement::ActorActing => action.zip(actor).is_some_and(|(a, m)| a.acting == m),
+        Requirement::GehennaInPlay(n) => st.gehenna_in_play() >= n as usize,
         Requirement::RescuedFromTorpor => action.is_some_and(|a| {
             a.kind == ActionKind::Rescue && a.outcome == Some(crate::actions::Outcome::Successful)
         }),
@@ -3757,11 +3878,9 @@ pub fn holds(
         Requirement::OtherActingControlled => {
             action.is_some_and(|a| a.seat == seat && actor != Some(a.acting))
         }
-        Requirement::ActingSectIn(sects) => action.is_some_and(|a| {
-            st.minions[a.acting.index()]
-                .sect()
-                .is_some_and(|s| sects.contains(&s))
-        }),
+        Requirement::ActingSectIn(sects) => {
+            action.is_some_and(|a| st.sect_of(a.acting).is_some_and(|s| sects.contains(&s)))
+        }
         Requirement::DirectedHandNotEmpty => action
             .and_then(|a| a.directed_seat(st))
             .is_some_and(|t| !st.seats[t.index()].hand.is_empty()),
@@ -3785,9 +3904,7 @@ pub fn holds(
             .and_then(|a| a.bleed_target)
             .is_some_and(|t| st.seats[t.index()].pool <= n as i32),
         Requirement::AttemptingSectIn(sects) => action.is_some_and(|a| match a.state {
-            ActionState::Attempt(m) => st.minions[m.index()]
-                .sect()
-                .is_some_and(|s| sects.contains(&s)),
+            ActionState::Attempt(m) => st.sect_of(m).is_some_and(|s| sects.contains(&s)),
             _ => false,
         }),
         Requirement::AnyAttemptNeedsIntercept => action.is_some_and(|a| match a.state {
@@ -3892,6 +4009,7 @@ pub fn holds(
         // Host predicate (`holds_for_host`).
         Requirement::HostUnlocked => true,
         Requirement::OwnTurn => st.active == seat,
+        Requirement::ActorMustHunt => actor.is_some_and(|m| st.must_hunt(m)),
         Requirement::DiscardPhaseActionLeft => st.seats[seat.index()].dpa > 0,
         Requirement::MasterCardPlayed => st.seats[seat.index()].master_played,
         Requirement::AshNotEmpty => !st.seats[seat.index()].ash.is_empty(),
@@ -4041,7 +4159,7 @@ pub fn holds_for_minion(
         Requirement::ActorClan(c) => v.clan() == Some(c),
         Requirement::ActorReady => v.ready(),
         Requirement::ActorTitleIn(classes) => classes.iter().any(|c| c.matches(st.title_of(m))),
-        Requirement::ActorSectIn(sects) => v.sect().is_some_and(|s| sects.contains(&s)),
+        Requirement::ActorSectIn(sects) => st.sect_of(m).is_some_and(|s| sects.contains(&s)),
         Requirement::NotHuntingGroundFed => !v.hunting_ground_fed,
         Requirement::Younger => acting.is_some_and(|a| st.younger_than(m, a)),
         Requirement::TargetAllyHurt => st.ally_body(m).is_some_and(|b| v.blood < b.life),
@@ -4069,12 +4187,12 @@ pub fn holds_for_minion(
         Requirement::TargetHostage => v.hostage > 0,
         Requirement::ControlledByPrey => v.owner == st.prey(seat),
         Requirement::TargetClanNotIn(clans) => v.clan().is_some_and(|c| !clans.contains(&c)),
-        Requirement::TargetSectNot(sect) => v.is_vampire() && v.sect() != Some(sect),
+        Requirement::TargetSectNot(sect) => v.is_vampire() && st.sect_of(m) != Some(sect),
         Requirement::TargetCapacityAtLeast(n) => st.capacity_of(m).is_some_and(|c| c >= n),
         Requirement::TargetDiscipline(d) => st.has_discipline(m, d),
         Requirement::TargetMithraic => v.name() == "Mithras" || st.mithraic_member(m),
         Requirement::TargetNotNamed(name) => v.name() != name,
-        Requirement::TargetAnarch => v.sect() == Some(Sect::Anarch),
+        Requirement::TargetAnarch => st.sect_of(m) == Some(Sect::Anarch),
         Requirement::TargetTitleIn(classes) => {
             let t = st.title_of(m);
             classes.iter().any(|c| c.matches(t))
@@ -4166,6 +4284,7 @@ pub fn holds_for_card_target(
         Requirement::TargetOnPreyMinion => c
             .host
             .is_some_and(|h| st.minions[h.index()].owner == st.prey(seat)),
+        Requirement::CardControlledByPrey => st.card_controller(id) == st.prey(seat),
         Requirement::ActorMayHoldTarget => actor.is_some_and(|m| st.can_hold(m, c.card, &[])),
         _ => true,
     }

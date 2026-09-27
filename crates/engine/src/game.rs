@@ -236,6 +236,10 @@ impl Engine {
                     master_played: false,
                     turns_taken: 0,
                     held: Held::default(),
+                    held_in_play: Vec::new(),
+                    event_played: false,
+                    recalled_ignored: false,
+                    uncoiling_due: None,
                     forbidden_political: Vec::new(),
                 }
             })
@@ -317,6 +321,17 @@ impl Engine {
         let m = self.recruit_ally(owner, card, mode);
         self.state.minions[m.index()].recruited = false;
         m
+    }
+
+    /// Test fixture: burn a minion, with everything its burning sets off.
+    pub fn burn(&mut self, m: MinionId) {
+        self.burn_minion(m);
+    }
+
+    /// Test fixture: burn a card in play, with everything its leaving play
+    /// sets off (replacements held until it leaves, its layers ending).
+    pub fn burn_card(&mut self, id: CardId) {
+        self.burn_card_in_play(id);
     }
 
     /// Test fixture: position the game at the active seat's master phase
@@ -663,6 +678,25 @@ impl Engine {
     /// is burned" riders fire if it was ready (a minion burned from torpor
     /// or from a contest is not).
     pub(crate) fn burn_minion(&mut self, m: MinionId) {
+        // FBI Special Affairs Division: an ally burned in combat with the
+        // acting vampire (not an ally acting as one, ANK 20180913-2).
+        if self.state.minions[m.index()].is_ally() {
+            let acting = self.action.as_ref().map(|a| a.acting);
+            let fbi = self
+                .state
+                .global(crate::cards::Modifier::AllyBurnedInCombat);
+            if let (Some(c), Some(a), Some(f)) = (self.combat.as_mut(), acting, fbi) {
+                let pair = [c.sides[0].minion, c.sides[1].minion];
+                if pair.contains(&m)
+                    && pair.contains(&a)
+                    && a != m
+                    && self.state.minions[a.index()].is_vampire()
+                {
+                    c.fbi_damage += 2;
+                    self.state.cards[f.index()].counters += 1;
+                }
+            }
+        }
         let was_ready = self.state.minions[m.index()].ready();
         self.about_to_leave_ready(&[m]);
         {
@@ -675,6 +709,12 @@ impl Engine {
             if let Some(card) = v.crypt_card() {
                 let owner = v.origin.or(v.temp_from).unwrap_or(v.owner);
                 self.state.seats[owner.index()].ash_crypt.push(card);
+            }
+            // Absimiliard's Army's ghoul: burned, then removed from the game
+            // (LSJ 20090920).
+            if let crate::state::MinionKind::Token { card, .. } = v.kind {
+                let owner = v.origin.or(v.temp_from).unwrap_or(v.owner);
+                self.state.seats[owner.index()].removed.push(card);
             }
         }
         // The cards on it, and an ally's own card, to their owners' ash
@@ -696,6 +736,14 @@ impl Engine {
     /// An ally has no torpor: sent there, it is burned instead (advanced
     /// rules 5.3.3).
     pub(crate) fn minions_to_torpor(&mut self, ms: &[MinionId]) {
+        // "Until a titled vampire goes to torpor": replaced before any other
+        // effect (LSJ 20100527: before Fame's pool).
+        if ms.iter().any(|&m| {
+            let v = &self.state.minions[m.index()];
+            v.is_vampire() && !v.in_torpor && self.state.title_of(m) != crate::crypt::Title::None
+        }) {
+            self.release_held(|h| &mut h.titled_torpor);
+        }
         let (allies, ms): (Vec<MinionId>, Vec<MinionId>) = ms
             .iter()
             .partition(|m| self.state.minions[m.index()].is_ally());
@@ -746,6 +794,21 @@ impl Engine {
         c.in_play = false;
         let (owner, card) = (c.owner, c.card);
         let stored = std::mem::take(&mut c.stored);
+        self.remove_ghouls_of(id);
+        // "Do not replace as long as this card is in play".
+        for i in 0..self.state.seats.len() {
+            if let Some(k) = self.state.seats[i]
+                .held_in_play
+                .iter()
+                .position(|&h| h == id)
+            {
+                self.state.seats[i].held_in_play.remove(k);
+                if !self.state.seats[i].ousted {
+                    self.replace(SeatId(i as u8), 1, None);
+                }
+            }
+        }
+        let c = &self.state.cards[id.index()];
         // A lingering effect ends; its card is already in the ash heap.
         if c.effect_only {
             self.state
@@ -759,6 +822,32 @@ impl Engine {
         self.state
             .layers
             .retain(|l| l.scope == crate::cards::Scope::Action || l.source != id);
+    }
+
+    /// Absimiliard's Army `id` leaving play (burned, or removed with its
+    /// ousted controller): its ghouls are removed from the game, not burned
+    /// (LSJ 20090920); the cards on them are burned.
+    fn remove_ghouls_of(&mut self, id: CardId) {
+        for i in 0..self.state.minions.len() {
+            let v = &self.state.minions[i];
+            if let crate::state::MinionKind::Token {
+                card: t, source, ..
+            } = v.kind
+            {
+                if source == id && v.in_play {
+                    let owner = v.origin.or(v.temp_from).unwrap_or(v.owner);
+                    let v = &mut self.state.minions[i];
+                    v.in_play = false;
+                    v.blood = 0;
+                    self.state.seats[owner.index()].removed.push(t);
+                    for ci in 0..self.state.cards.len() {
+                        if self.state.cards[ci].host == Some(MinionId(i as u32)) {
+                            self.burn_card_in_play(CardId(ci as u32));
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// A card in play shuffled into its owner's library (Aranthebes, The
@@ -843,6 +932,7 @@ impl Engine {
                 self.flow = Flow::MinionPhase
             }
             Flow::MinionPhase => {
+                self.thirst();
                 // "During your influence phase" abilities: once per phase.
                 self.state.phase_uses.clear();
                 self.flow = Flow::Influence {
@@ -856,6 +946,54 @@ impl Engine {
         }
     }
 
+    /// Thirst: as the minion phase ends, each ready vampire of the active
+    /// Methuselah with capacity below the Gehenna events in play that did
+    /// not hunt this turn burns 1 blood (an unsuccessful hunt counts, LSJ
+    /// 20050727).
+    fn thirst(&mut self) {
+        if self.state.global(crate::cards::Modifier::Thirst).is_none() {
+            return;
+        }
+        let n = self.state.gehenna_in_play();
+        let s = self.state.active;
+        let ms: Vec<MinionId> = self.state.minions_of(s).collect();
+        for m in ms {
+            let v = &self.state.minions[m.index()];
+            if v.ready()
+                && v.is_vampire()
+                && !v.hunted
+                && (self.state.capacity_of(m).unwrap_or(0) as usize) < n
+            {
+                let v = &mut self.state.minions[m.index()];
+                v.blood = v.blood.saturating_sub(1);
+            }
+        }
+    }
+
+    /// The Uncoiling `u`, in its controller's discard phase: another event
+    /// in play burned at random.
+    pub(crate) fn uncoiling(&mut self, u: CardId) {
+        if !self.state.cards[u.index()].present() {
+            return;
+        }
+        let events: Vec<CardId> = (0..self.state.cards.len())
+            .map(|i| CardId(i as u32))
+            .filter(|&c| {
+                let k = &self.state.cards[c.index()];
+                c != u
+                    && k.present()
+                    && !k.effect_only
+                    && crate::library::LIBRARY[k.card as usize]
+                        .types
+                        .contains(&crate::library::CardType::Event)
+            })
+            .collect();
+        if !events.is_empty() {
+            let i = self.rng.below(events.len());
+            self.burn_card_in_play(events[i]);
+        }
+    }
+
     /// End of the influence phase: on to the discard phase (one discard
     /// phase action; events are a later slice).
     pub(crate) fn end_influence(&mut self) {
@@ -866,9 +1004,15 @@ impl Engine {
         if held > 0 {
             self.replace(s, held as usize, None);
         }
+        // The Uncoiling: due this phase.
+        self.state.seats[s.index()].uncoiling_due = self
+            .state
+            .global(crate::cards::Modifier::BurnsAnEventEachDiscard)
+            .filter(|&u| self.state.card_controller(u) == s);
         let printed = self.state.printed_discard_actions(s);
         self.state.seats[s.index()].dpa = (1 + printed).max(0) as u8;
         self.state.seats[s.index()].granted_dpa = 0;
+        self.state.seats[s.index()].event_played = false;
         // "Unlock this vampire during the next discard phase" (Feral Hound).
         for m in &mut self.state.minions {
             if std::mem::take(&mut m.unlock_at_discard) {
@@ -925,6 +1069,12 @@ impl Engine {
             seats.iter().map(|&s| (s, self.state.predator(s))).collect();
         for &s in seats {
             self.remove_seat(s);
+        }
+        // "Do not replace until a Methuselah is ousted" (Absimiliard's Army).
+        self.release_held(|h| &mut h.ousted);
+        // "After a Methuselah is ousted, burn this card."
+        if let Some(army) = self.state.global(crate::cards::Modifier::GhoulArmy) {
+            self.burn_card_in_play(army);
         }
         for (_, pred) in &preds {
             self.state.seats[pred.index()].half_vps += 2;
@@ -1030,6 +1180,8 @@ impl Engine {
                 if owner != s && !effect_only {
                     self.state.seats[owner.index()].removed.push(card);
                 }
+                // Absimiliard's Army: the other Methuselahs' ghouls too.
+                self.remove_ghouls_of(id);
             } else if c
                 .host
                 .is_some_and(|h| self.state.minions[h.index()].owner == s)
@@ -1093,6 +1245,7 @@ impl Engine {
             m.political_this_turn = false;
             m.expelled = false;
             m.hunting_ground_fed = false;
+            m.hunted = false;
             m.acted.clear();
             m.recruited = false;
             m.recruits_this_turn = 0;

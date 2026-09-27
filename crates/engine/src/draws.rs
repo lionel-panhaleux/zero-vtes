@@ -11,13 +11,27 @@
 use crate::cards::{self, Effect, Hook};
 use crate::decision::{Choice, DecisionRequest, WindowLabel, Zone};
 use crate::game::Engine;
-use crate::ids::SeatId;
+use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, Label, LIBRARY};
 use crate::state::CardId;
 
 /// A pending choice about cards drawn, moved or stored.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Interrupt {
+    /// Blood Trade: 1 blood from `from` to a vampire of another
+    /// Methuselah's, the player's choice.
+    GiveBlood { seat: SeatId, from: MinionId },
+    /// "Burned unless its controller burns n pool" (Conquest of Humanity):
+    /// `seat` pays or lets `card` burn.
+    PayOrBurn {
+        seat: SeatId,
+        card: CardId,
+        pool: u8,
+    },
+    /// Nightmares upon Nightmares: `minion` is locked unless its
+    /// Methuselah discards a card (not replaced until their master
+    /// phase).
+    LockOrDiscard { seat: SeatId, minion: MinionId },
     /// A replacement Visit from the Capuchin would take instead while a
     /// draw alternative applies too: one treatment or the other (ANK
     /// 20200905; rules-qa 9.4). `except`: the card being replaced.
@@ -209,12 +223,18 @@ pub(crate) enum MinionPurpose {
     /// One of the oldest vampires of the clan (Brujah Debate): mandatory,
     /// locked or not (LSJ 20010508).
     LockOldest(&'static str),
+    /// A vampire of a clan the user controls 3 or more of, burned
+    /// (Recalled to the Founder): mandatory.
+    BurnOfCrowdedClan,
 }
 
 impl Interrupt {
     fn seat(self) -> SeatId {
         match self {
-            Interrupt::Replacement { seat, .. }
+            Interrupt::GiveBlood { seat, .. }
+            | Interrupt::PayOrBurn { seat, .. }
+            | Interrupt::LockOrDiscard { seat, .. }
+            | Interrupt::Replacement { seat, .. }
             | Interrupt::DrawUp { seat }
             | Interrupt::Draws { seat, .. }
             | Interrupt::Bottom { seat, .. }
@@ -665,6 +685,25 @@ impl Engine {
                     }
                     self.interrupts.remove(0);
                 }
+                Interrupt::GiveBlood { seat, from } => {
+                    let v = &self.state.minions[from.index()];
+                    if v.present() && v.blood > 0 && !self.blood_recipients(seat).is_empty() {
+                        return;
+                    }
+                    self.interrupts.remove(0);
+                }
+                Interrupt::PayOrBurn { card, .. } => {
+                    if self.state.cards[card.index()].present() {
+                        return;
+                    }
+                    self.interrupts.remove(0);
+                }
+                Interrupt::LockOrDiscard { minion, .. } => {
+                    if self.state.minions[minion.index()].in_play {
+                        return;
+                    }
+                    self.interrupts.remove(0);
+                }
                 Interrupt::EntryBurn { ally, .. } => {
                     if !self.state.minions[ally.index()].in_play {
                         self.interrupts.remove(0);
@@ -725,6 +764,34 @@ impl Engine {
             }
             Interrupt::EntryBurn { ally, .. } => {
                 (WindowLabel::EntryEffect, self.entry_burn_options(s, ally))
+            }
+            Interrupt::GiveBlood { seat, .. } => (
+                WindowLabel::ResolutionChoice,
+                self.blood_recipients(seat)
+                    .into_iter()
+                    .map(Choice::ChooseMinion)
+                    .collect(),
+            ),
+            // Paying is offered if the pool covers it (down to 0 at most).
+            Interrupt::PayOrBurn { pool, .. } => (
+                WindowLabel::ResolutionChoice,
+                if st.seats[s.index()].pool >= pool as i32 {
+                    vec![Choice::Pass, Choice::PayToCancel]
+                } else {
+                    vec![Choice::Pass]
+                },
+            ),
+            // Lock it, or discard a card (one choice per card name).
+            Interrupt::LockOrDiscard { .. } => {
+                let mut options = vec![Choice::Pass];
+                let mut seen = Vec::new();
+                for (i, &c) in st.seats[s.index()].hand.iter().enumerate() {
+                    if !seen.contains(&c) {
+                        seen.push(c);
+                        options.push(Choice::Discard(i as u8));
+                    }
+                }
+                (WindowLabel::ResolutionChoice, options)
             }
             // The look: every card, one choice per card name.
             Interrupt::DiscardFromHandOf { of, .. } => {
@@ -852,6 +919,7 @@ impl Engine {
                         | MinionPurpose::BurnBloodOfClan(_)
                         | MinionPurpose::HostCard(_)
                         | MinionPurpose::LockOldest(_)
+                        | MinionPurpose::BurnOfCrowdedClan
                 ) {
                     options.insert(0, Choice::Pass);
                 }
@@ -921,7 +989,7 @@ impl Engine {
                 match purpose {
                     MinionPurpose::LockVampire => v.is_vampire(),
                     MinionPurpose::UnlockAnarch => {
-                        v.ready() && v.sect() == Some(crate::crypt::Sect::Anarch)
+                        v.ready() && st.sect_of(*m) == Some(crate::crypt::Sect::Anarch)
                     }
                     MinionPurpose::BurnBloodOfClan(c) => {
                         v.ready() && v.clan() == Some(c) && v.blood > 0
@@ -929,6 +997,18 @@ impl Engine {
                     // "Any ready minion" (LSJ 19990928).
                     MinionPurpose::HostCard(c) => {
                         v.ready() && st.can_hold(*m, st.cards[c.index()].card, &[])
+                    }
+                    MinionPurpose::BurnOfCrowdedClan => {
+                        v.is_vampire()
+                            && v.clan().is_some_and(|c| {
+                                st.minions_of(of)
+                                    .filter(|&o| {
+                                        let w = &st.minions[o.index()];
+                                        w.is_vampire() && w.clan() == Some(c)
+                                    })
+                                    .count()
+                                    >= 3
+                            })
                     }
                     MinionPurpose::LockOldest(c) => {
                         v.clan() == Some(c)
@@ -1086,6 +1166,18 @@ impl Engine {
     /// `seat` takes control of the card in play `card` (stolen, given): a
     /// card that chooses on a change of control has its new controller
     /// choose (The Rack).
+    /// Vampires of other Methuselahs a vampire of `seat`'s may give blood
+    /// to (Blood Trade).
+    fn blood_recipients(&self, seat: SeatId) -> Vec<MinionId> {
+        (0..self.state.minions.len())
+            .map(|i| MinionId(i as u32))
+            .filter(|&m| {
+                let v = &self.state.minions[m.index()];
+                v.present() && v.is_vampire() && v.owner != seat
+            })
+            .collect()
+    }
+
     /// A location changing controller (Dominate Kine [DOM], Disputed
     /// Territory): one on a minion goes on a ready minion of the new
     /// controller, their choice — burned if none can hold it (LSJ
@@ -1281,7 +1373,7 @@ impl Engine {
             (Interrupt::MoveForBlood { payer, n, .. }, Choice::ChooseMinion(m)) => {
                 self.interrupts.remove(0);
                 self.state.minions[payer.index()].blood -= n;
-                self.state.minions[m.index()].in_torpor = false;
+                self.leave_torpor(m);
             }
             (Interrupt::RemoveUncontrolled { .. }, Choice::Slot(i)) => {
                 self.interrupts.remove(0);
@@ -1504,7 +1596,40 @@ impl Engine {
                     MinionPurpose::UnlockAnarch => v.locked = false,
                     MinionPurpose::BurnBloodOfClan(_) => v.blood -= 1,
                     MinionPurpose::Corrupt => v.add_corruption(seat, 1),
+                    // Capacity 6 or more: that Methuselah ignores it for the
+                    // rest of the game.
+                    MinionPurpose::BurnOfCrowdedClan => {
+                        if self.state.capacity_of(m).is_some_and(|c| c >= 6) {
+                            self.state.seats[seat.index()].recalled_ignored = true;
+                        }
+                        self.burn_minion(m);
+                    }
                 }
+            }
+            (Interrupt::GiveBlood { from, .. }, Choice::ChooseMinion(to)) => {
+                self.interrupts.remove(0);
+                self.state.minions[from.index()].blood -= 1;
+                self.state.gain_blood(to, 1);
+            }
+            // Not paid: burned.
+            (Interrupt::PayOrBurn { card, .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+                self.burn_card_in_play(card);
+            }
+            (Interrupt::PayOrBurn { seat, pool, .. }, Choice::PayToCancel) => {
+                self.interrupts.remove(0);
+                self.pay_pool_for_ability(seat, pool as i32);
+            }
+            (Interrupt::LockOrDiscard { minion, .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+                self.state.minions[minion.index()].locked = true;
+            }
+            (Interrupt::LockOrDiscard { seat, .. }, Choice::Discard(i)) => {
+                self.interrupts.remove(0);
+                let s = &mut self.state.seats[seat.index()];
+                let c = s.hand.remove(i as usize);
+                s.ash.push(c);
+                s.held.master += 1;
             }
             (Interrupt::EntryBurn { .. }, Choice::BurnInPlay { card }) => {
                 self.interrupts.remove(0);

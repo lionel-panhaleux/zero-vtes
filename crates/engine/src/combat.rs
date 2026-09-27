@@ -439,6 +439,9 @@ pub struct CombatCtx {
     pub range: Range,
     /// The range was set by an effect: skip the determine range step.
     pub range_set: bool,
+    /// FBI Special Affairs Division: damage due to the acting vampire as
+    /// the combat ends (an ally burned in it).
+    pub fbi_damage: u8,
     pub next_round_close: bool,
     pub only_hand_strikes: bool,
     /// "Neither combatant can strike" this round (One With the Land
@@ -730,6 +733,7 @@ impl Engine {
             pair: 0,
             range: Range::Close,
             range_set: false,
+            fbi_damage: 0,
             next_round_close: false,
             only_hand_strikes: false,
             no_strikes_round: None,
@@ -2069,6 +2073,21 @@ impl Engine {
     /// after-resolution window (rules-qa 17.3).
     fn end_combat(&mut self) {
         let ended = self.combat.take();
+        // FBI Special Affairs Division: 2 unpreventable environmental
+        // damage to the acting vampire after the combat; 4 counters, burned.
+        let fbi = ended.as_ref().map_or(0, |c| c.fbi_damage);
+        if fbi > 0 {
+            if let Some(acting) = self.action.as_ref().map(|a| a.acting) {
+                if self.state.minions[acting.index()].present() {
+                    self.damage_out_of_combat(acting, fbi, false);
+                }
+            }
+            if let Some(f) = self.state.global(cards::Modifier::AllyBurnedInCombat) {
+                if self.state.cards[f.index()].counters >= 4 {
+                    self.burn_card_in_play(f);
+                }
+            }
+        }
         // Who fought, for "after a combat involving this vampire ends"
         // (Monster).
         if let (Some(c), Some(a)) = (ended.as_ref(), self.action.as_mut()) {

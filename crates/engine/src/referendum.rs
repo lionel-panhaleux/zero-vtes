@@ -186,7 +186,8 @@ impl ReferendumCtx {
         v.ready()
             && !v.expelled
             && !self.abstaining.contains(&m)
-            && v.sect()
+            && st
+                .sect_of(m)
                 .is_some_and(|s| !(self.camarilla_only && s != Sect::Camarilla))
     }
 
@@ -964,8 +965,8 @@ impl Engine {
                     }
                 }
                 RefEffect::AnarchSalon => {
-                    for m in &st.minions {
-                        if m.present() && m.sect() == Some(Sect::Anarch) {
+                    for (i, m) in st.minions.iter().enumerate() {
+                        if m.present() && st.sect_of(MinionId(i as u32)) == Some(Sect::Anarch) {
                             gain[m.owner.index()] = 1;
                         }
                     }
@@ -992,7 +993,9 @@ impl Engine {
             RefEffect::AnarchSalon => {
                 for i in 0..self.state.minions.len() {
                     let m = &self.state.minions[i];
-                    if m.ready() && m.sect() == Some(Sect::Anarch) {
+                    if m.ready()
+                        && self.state.sect_of(crate::ids::MinionId(i as u32)) == Some(Sect::Anarch)
+                    {
                         self.state.gain_blood(crate::ids::MinionId(i as u32), 1);
                     }
                 }
@@ -1260,9 +1263,9 @@ impl Engine {
                     cards::Effect::AddVotesPerReadySect(sect) => {
                         self.state
                             .minions_of(play.seat)
-                            .filter(|v| {
-                                let v = &self.state.minions[v.index()];
-                                v.ready() && v.sect() == Some(sect)
+                            .filter(|&m| {
+                                self.state.minions[m.index()].ready()
+                                    && self.state.sect_of(m) == Some(sect)
                             })
                             .count() as u8
                     }

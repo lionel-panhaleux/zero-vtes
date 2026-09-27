@@ -3241,7 +3241,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     riders: &[],
 };
 
-pub static DEFS: [&CardDef; 405] = [
+pub static DEFS: [&CardDef; 425] = [
     &MAGIC_OF_THE_SMITH,
     &VAST_WEALTH,
     &BLACK_MARKET_CACHE,
@@ -3647,6 +3647,26 @@ pub static DEFS: [&CardDef; 405] = [
     &RAISING_THE_PORTCULLIS,
     &DISPUTED_TERRITORY,
     &REVOLUTIONARY_COUNCIL,
+    &NARROW_MINDS,
+    &TORPID_BLOOD,
+    &SLOW_WITHERING,
+    &BLOOD_WEAKENS,
+    &THIRST,
+    &WORMWOOD,
+    &FUELED_BY_HEARTS_BLOOD,
+    &FOURTH_CYCLE,
+    &UNCOILING,
+    &BLOOD_TRADE,
+    &CONQUEST_OF_HUMANITY,
+    &NEW_INQUISITION,
+    &NIGHTMARES_UPON_NIGHTMARES,
+    &RECALLED_TO_THE_FOUNDER,
+    &RESTRICTED_VITAE,
+    &FBI_SPECIAL_AFFAIRS_DIVISION,
+    &FALL_OF_THE_CAMARILLA,
+    &FALL_OF_THE_SABBAT,
+    &RISE_OF_THE_NEPHTALI,
+    &ABSIMILIARDS_ARMY,
 ];
 
 // ---- Cards in play with riders and granted actions (slice 5) ------------
@@ -14885,6 +14905,566 @@ pub static FLESHFORGE_CHAMBER: CardDef = CardDef {
         waives_needed: false,
         limit: Some(Limit::PerPhaseEach),
         effects: &[Effect::StorePickedFromHand],
+    }],
+    riders: &[],
+};
+
+// ---- Events (slice 11ac) -----------------------------------------------------
+
+/// An event put in play with a discard phase action (rulebook "Event
+/// Cards"): once each discard phase, once each game (engine-checked).
+const fn event(requires: &'static [Requirement], effects: &'static [Effect]) -> ModeDef {
+    ModeDef {
+        windows: &[Window::DiscardPhase],
+        actor: Actor::Methuselah,
+        requires,
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects,
+    }
+}
+
+/// "After another Gehenna event is played, burn 1 counter from this card."
+const GEHENNA_COUNTDOWN: Rider = Rider {
+    hook: Hook::GehennaPlayed,
+    scope: RiderScope::Every,
+    requires: &[],
+    effects: &[Effect::RemoveCounter(1)],
+};
+
+/// "Inconnu. Do not replace until your next unlock phase. Minion cards that
+/// change the target of a bleed action cost +1 blood or life." Replaced
+/// before cards unlock (ANK 20200129, LSJ 20091208, RTR 19951017).
+pub static NARROW_MINDS: CardDef = CardDef {
+    name: "Narrow Minds",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: Some(Until::NextUnlockPhase),
+    modes: &[event(
+        &[],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::RedirectCardsCost(1)),
+        ],
+    )],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Gehenna. Do not replace until a vampire moves from torpor to the ready
+/// region. Actions performed by vampires in torpor cost +1 blood. Rescuing
+/// an older vampire from torpor costs +1 blood." Not replaced before the
+/// condition, burned or not (LSJ 20080805).
+pub static TORPID_BLOOD: CardDef = CardDef {
+    name: "Torpid Blood",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: Some(Until::LeavesTorpor),
+    modes: &[event(
+        &[],
+        &[Effect::PutInPlay, Effect::Layer(Modifier::TorpidBlood)],
+    )],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Gehenna. Requires 1 or more other Gehenna events in play. Do not
+/// replace until a vampire commits diablerie. Cards requiring 1 or more
+/// Disciplines at the superior level cost +1 blood. Vampires who commit
+/// diablerie ignore this effect until a Gehenna event is played." Paid
+/// with the normal cost (ANK 20190625); the requirement read as it is
+/// played only (PIB 20121031).
+pub static SLOW_WITHERING: CardDef = CardDef {
+    name: "Slow Withering, The",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: Some(Until::Diablerie),
+    modes: &[event(
+        &[Requirement::GehennaInPlay(1)],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::SuperiorCardsCost(1)),
+        ],
+    )],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Gehenna. Do not replace until a vampire commits diablerie. During an
+/// action, cards minions play requiring 1 or more Disciplines are not
+/// replaced until the end of that action or until a Methuselah's hand is
+/// empty (whichever comes first). Vampires who commit diablerie ignore
+/// this effect until a Gehenna event is played." During any action (ANK
+/// 20201015); several held cards are drawn one at a time (ANK 20180925-1).
+pub static BLOOD_WEAKENS: CardDef = CardDef {
+    name: "Blood Weakens",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: Some(Until::Diablerie),
+    modes: &[event(
+        &[],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::HoldDisciplineReplacements),
+        ],
+    )],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Gehenna. After each Methuselah's minion phase ends, each ready vampire
+/// controlled by that Methuselah with capacity less than the number of
+/// Gehenna events in play who did not hunt during that minion phase burns
+/// 1 blood." An unsuccessful hunt counts (LSJ 20050727).
+pub static THIRST: CardDef = CardDef {
+    name: "Thirst",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[event(
+        &[],
+        &[Effect::PutInPlay, Effect::Layer(Modifier::Thirst)],
+    )],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Gehenna. Requires 1 or more other Gehenna events in play. Do not
+/// replace until your next discard phase. This card comes into play with
+/// 10 counters. After another Gehenna event is played, burn 1 counter from
+/// this card. Vampires with capacity greater than X are considered
+/// vampires with capacity X (minimum of 1), where X is the number of
+/// counters on this card." The capacity as changed by other effects
+/// ceiled (LSJ 20051205); excess blood drains as it applies.
+pub static WORMWOOD: CardDef = CardDef {
+    name: "Wormwood",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: Some(Until::NextDiscardPhase),
+    modes: &[event(
+        &[Requirement::GehennaInPlay(1)],
+        &[
+            Effect::PutInPlay,
+            Effect::EnterWithCounters(10),
+            Effect::Layer(Modifier::CapacityCapByCounters),
+        ],
+    )],
+    abilities: &[],
+    riders: &[GEHENNA_COUNTDOWN],
+};
+
+/// "Gehenna. Do not replace until a vampire commits diablerie. This card
+/// comes into play with 10 counters. After another Gehenna event is
+/// played, burn 1 counter from this card. Blood hunts cannot be called on
+/// vampires with capacity greater than the number of counters on this card
+/// who diablerize a younger vampire."
+pub static FUELED_BY_HEARTS_BLOOD: CardDef = CardDef {
+    name: "Fueled by Heart's Blood",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: Some(Until::Diablerie),
+    modes: &[event(
+        &[],
+        &[
+            Effect::PutInPlay,
+            Effect::EnterWithCounters(10),
+            Effect::Layer(Modifier::NoBloodHuntAboveCounters),
+        ],
+    )],
+    abilities: &[],
+    riders: &[GEHENNA_COUNTDOWN],
+};
+
+/// "Requires 2 or more Gehenna events in play. After this card enters
+/// play, burn all Gehenna events and conviction cards, then send all
+/// vampires with capacity 3 or less to torpor. Gehenna events cannot be
+/// played." No conviction card in V5.
+pub static FOURTH_CYCLE: CardDef = CardDef {
+    name: "Fourth Cycle, The",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[event(
+        &[Requirement::GehennaInPlay(2)],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::NoGehennaEvents),
+            Effect::FourthCycle(3),
+        ],
+    )],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Do not replace as long as this card is in play. During your discard
+/// phase, burn another event at random. Other Methuselahs can use a
+/// discard phase action and burn X pool to burn this card, where X is the
+/// number of other events in play." The random burn as its controller's
+/// discard phase begins.
+pub static UNCOILING: CardDef = CardDef {
+    name: "Uncoiling, The",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: Some(Until::LeavesPlay),
+    modes: &[event(
+        &[],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::BurnsAnEventEachDiscard),
+        ],
+    )],
+    abilities: &[ModeDef {
+        windows: &[Window::DiscardPhaseAction],
+        actor: Actor::Methuselah,
+        requires: &[
+            Requirement::OthersControlThisCard,
+            Requirement::DiscardPhaseActionLeft,
+        ],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::SpendDiscardPhaseAction,
+            Effect::PayPoolPerOtherEvent,
+            Effect::BurnSelf,
+        ],
+    }],
+    riders: &[],
+};
+
+/// "Gehenna. Burn all boons. No more boons can be put in play. During each
+/// Methuselah's unlock phase, that Methuselah can move 1 blood from a
+/// vampire they control to a vampire controlled by another Methuselah."
+/// No boon enters play in V5 (Consanguineous Boon is a political action,
+/// still playable: LSJ 20040531-2).
+pub static BLOOD_TRADE: CardDef = CardDef {
+    name: "Blood Trade",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[event(&[], &[Effect::PutInPlay])],
+    abilities: &[ModeDef {
+        windows: &[Window::UnlockPhaseAny],
+        actor: Actor::Methuselah,
+        requires: &[Requirement::OwnTurn],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[
+                Requirement::Controlled,
+                Requirement::TargetVampire,
+                Requirement::BloodAtLeast(1),
+            ],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::GiveBloodToOthers],
+    }],
+    riders: &[],
+};
+
+/// "Gehenna. Requires 2 or more other Gehenna events in play. Do not
+/// replace until your next discard phase. During each Methuselah's unlock
+/// phase, that Methuselah can choose a location controlled by their prey.
+/// The chosen location is burned unless its controller burns 2 pool."
+pub static CONQUEST_OF_HUMANITY: CardDef = CardDef {
+    name: "Conquest of Humanity",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: Some(Until::NextDiscardPhase),
+    modes: &[event(
+        &[Requirement::GehennaInPlay(2)],
+        &[Effect::PutInPlay],
+    )],
+    abilities: &[ModeDef {
+        windows: &[Window::UnlockPhaseAny],
+        actor: Actor::Methuselah,
+        requires: &[Requirement::OwnTurn],
+        target: Some(TargetSpec {
+            kind: TargetKind::Card,
+            filter: &[
+                Requirement::TargetCard(CardFilter::Location),
+                Requirement::CardControlledByPrey,
+            ],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::BurnUnlessControllerPays(2)],
+    }],
+    riders: &[],
+};
+
+/// "Gehenna. Requires 1 or more other Gehenna events in play. Do not
+/// replace until a titled vampire goes to torpor. During each Methuselah's
+/// unlock phase, that Methuselah can choose a ready vampire controlled by
+/// their prey. The chosen vampire takes 1 unpreventable environmental
+/// damage. Titled vampires can call a referendum to burn this card as a +1
+/// stealth political action." Replaced before any torpor effect (LSJ
+/// 20100527).
+pub static NEW_INQUISITION: CardDef = CardDef {
+    name: "New Inquisition, The",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: Some(Until::TitledToTorpor),
+    modes: &[event(
+        &[Requirement::GehennaInPlay(1)],
+        &[Effect::PutInPlay],
+    )],
+    abilities: &[
+        ModeDef {
+            windows: &[Window::UnlockPhaseAny],
+            actor: Actor::Methuselah,
+            requires: &[Requirement::OwnTurn],
+            target: Some(TargetSpec {
+                kind: TargetKind::Minion,
+                filter: &[
+                    Requirement::ControlledByPrey,
+                    Requirement::TargetVampire,
+                    Requirement::ActorReady,
+                ],
+            }),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[Effect::DamageTarget(1)],
+        },
+        ModeDef {
+            windows: &[Window::ActionDeclarePolitical],
+            actor: Actor::ActingCandidate,
+            requires: &[
+                Requirement::ActorVampire,
+                Requirement::ActorTitleIn(&[TitleClass::Any]),
+            ],
+            target: NO_TARGET,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::Political),
+                Effect::AddStealth(1),
+                Effect::CallReferendum(&BURN_THIS_CARD),
+            ],
+        },
+    ],
+    riders: &[],
+};
+
+/// "Gehenna. Do not replace until your next discard phase. During each
+/// Methuselah's unlock phase, for each minion they control, they lock that
+/// minion unless they discard a card; cards discarded this way are not
+/// replaced until the master phase. Mortal allies and vampires with
+/// capacity greater than the number of Gehenna events in play ignore this
+/// effect." Once each unlock phase, the minions then in play (ANK
+/// 20250121); a locked minion may be "locked" (ANK 20210322-2).
+pub static NIGHTMARES_UPON_NIGHTMARES: CardDef = CardDef {
+    name: "Nightmares upon Nightmares",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: Some(Until::NextDiscardPhase),
+    modes: &[event(&[], &[Effect::PutInPlay])],
+    abilities: &[],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::LockUnlessDiscard],
+    }],
+};
+
+/// "Gehenna. Requires 2 or more other Gehenna events in play. Do not
+/// replace as long as this card is in play. During each Methuselah's unlock
+/// phase, if that Methuselah controls 3 or more vampires of the same clan,
+/// they burn one of those vampires. If that vampire's capacity is 6 or
+/// more, that Methuselah ignores this effect until the end of the game."
+pub static RECALLED_TO_THE_FOUNDER: CardDef = CardDef {
+    name: "Recalled to the Founder",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: Some(Until::LeavesPlay),
+    modes: &[event(
+        &[Requirement::GehennaInPlay(2)],
+        &[Effect::PutInPlay],
+    )],
+    abilities: &[],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::BurnOfCrowdedClan],
+    }],
+};
+
+/// "Gehenna. Do not replace until a vampire successfully hunts. Vampires
+/// cannot hunt unless they must hunt. Vampires who must hunt can steal 1
+/// blood from a younger vampire as a Ⓓ hunt action." The special hunt is
+/// Week of Nightmares' (once a turn per copy; no blood stolen, no
+/// successful hunt; at a vampire, none other, no action).
+pub static RESTRICTED_VITAE: CardDef = CardDef {
+    name: "Restricted Vitae",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: Some(Until::SuccessfulHunt),
+    modes: &[event(
+        &[],
+        &[Effect::PutInPlay, Effect::Layer(Modifier::OnlyMustHunt)],
+    )],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDeclare],
+        actor: Actor::ActingCandidate,
+        requires: &[Requirement::ActorVampire, Requirement::ActorMustHunt],
+        target: Some(TargetSpec {
+            kind: TargetKind::Minion,
+            filter: &[
+                Requirement::TargetVampire,
+                Requirement::Younger,
+                Requirement::OtherThanActor,
+            ],
+        }),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::AddStealth(1),
+            Effect::HuntAction,
+            Effect::StealBloodFromTarget(1),
+        ],
+    }],
+    riders: &[],
+};
+
+/// "Government. If an ally is burned in combat with an acting vampire, add
+/// 1 counter to this card and inflict 2 unpreventable environmental damage
+/// on the acting vampire after the combat ends. If this card has 4
+/// counters, burn it." Not when the acting minion is the ally (ANK
+/// 20180913-2).
+pub static FBI_SPECIAL_AFFAIRS_DIVISION: CardDef = CardDef {
+    name: "FBI Special Affairs Division",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: None,
+    modes: &[event(
+        &[],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::AllyBurnedInCombat),
+        ],
+    )],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Gehenna. Requires 3 or more other Gehenna events in play. Do not
+/// replace as long as this card is in play. There is no Camarilla.
+/// Instead, Camarilla vampires are considered Independent." Read live, the
+/// sect a card gives included (LSJ 20040519, LSJ 20080510); a Camarilla
+/// title gives nothing meanwhile (LSJ 20060904).
+pub static FALL_OF_THE_CAMARILLA: CardDef = CardDef {
+    name: "Fall of the Camarilla",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: Some(Until::LeavesPlay),
+    modes: &[event(
+        &[Requirement::GehennaInPlay(3)],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::SectFallen(Sect::Camarilla)),
+        ],
+    )],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Gehenna. Requires 3 or more other Gehenna events in play. Not usable if
+/// a ready vampire is Black Hand. Do not replace as long as this card is in
+/// play. There is no Sabbat. Instead, Sabbat vampires are considered
+/// Independent." No Black Hand vampire in V5.
+pub static FALL_OF_THE_SABBAT: CardDef = CardDef {
+    name: "Fall of the Sabbat",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: Some(Until::LeavesPlay),
+    modes: &[event(
+        &[Requirement::GehennaInPlay(3)],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::SectFallen(Sect::Sabbat)),
+        ],
+    )],
+    abilities: &[],
+    riders: &[],
+};
+
+/// "Gehenna. Requires 1 or more other Gehenna events in play. Do not
+/// replace until a vampire becomes a liaison. Independent vampires can
+/// receive the unique Independent title of Liaison (worth 4 votes) as an
+/// action. If this title would be contested with a younger vampire, the
+/// younger vampire immediately yields instead of contesting." The title
+/// stays as the card leaves play (LSJ 20070125).
+pub static RISE_OF_THE_NEPHTALI: CardDef = CardDef {
+    name: "Rise of the Nephtali",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: Some(Until::Liaison),
+    modes: &[event(
+        &[Requirement::GehennaInPlay(1)],
+        &[Effect::PutInPlay],
+    )],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDeclare],
+        actor: Actor::ActingCandidate,
+        requires: &[
+            Requirement::ActorVampire,
+            Requirement::ActorSectIn(&[Sect::Independent]),
+        ],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::GainLiaison,
+        ],
+    }],
+    riders: &[],
+};
+
+/// "Gehenna. Requires 1 or more other Gehenna events in play. Do not
+/// replace until a Methuselah is ousted. During each Methuselah's unlock
+/// phase, that Methuselah can put the top card of their library in play
+/// (face up); it becomes a nameless, textless ghoul ally with 2 life, 2
+/// strength and 1 bleed. After that ally is burned or this event leaves
+/// play, remove that ally from the game. After a Methuselah is ousted, burn
+/// this card." Not a play (LSJ 20040531); no contest, its name ignored
+/// (LSJ 20040623, LSJ 20071003); burned, then removed; removed without
+/// burning as the card leaves (LSJ 20090920); a monster, not a mortal (ANK
+/// 20200203-2).
+pub static ABSIMILIARDS_ARMY: CardDef = CardDef {
+    name: "Absimiliard's Army",
+    trifle: false,
+    out_of_turn: false,
+    delayed_replacement: Some(Until::MethuselahOusted),
+    modes: &[event(
+        &[Requirement::GehennaInPlay(1)],
+        &[Effect::PutInPlay, Effect::Layer(Modifier::GhoulArmy)],
+    )],
+    abilities: &[ModeDef {
+        windows: &[Window::UnlockPhaseAny],
+        actor: Actor::Methuselah,
+        requires: &[Requirement::OwnTurn],
+        target: NO_TARGET,
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[Effect::GhoulFromLibraryTop(crate::library::Body {
+            life: 2,
+            strength: 2,
+            bleed: 1,
+        })],
     }],
     riders: &[],
 };

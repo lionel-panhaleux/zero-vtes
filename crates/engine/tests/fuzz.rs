@@ -53,7 +53,18 @@ fn zone_totals(e: &Engine) -> Vec<usize> {
                 .map(|(_, c)| c)
                 .map(|c| 1 + c.stored.len())
                 .sum();
-            s.library.len() + s.hand.len() + s.ash.len() + s.removed.len() + in_play
+            // An Absimiliard's Army ghoul: its card, in play as the minion.
+            let tokens = e
+                .state
+                .minions
+                .iter()
+                .filter(|m| {
+                    m.in_play
+                        && matches!(m.kind, zvtes::state::MinionKind::Token { .. })
+                        && m.origin.or(m.temp_from).unwrap_or(m.owner).index() == i
+                })
+                .count();
+            s.library.len() + s.hand.len() + s.ash.len() + s.removed.len() + in_play + tokens
         })
         .collect()
 }
@@ -145,8 +156,12 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
                 "minion of an ousted seat in play (seed {seed})"
             );
             // Uniqueness: a seat never has two copies of a vampire, or of a
-            // unique ally, in play (a created vampire is non-unique).
-            let created = matches!(m.kind, zvtes::state::MinionKind::Created { .. });
+            // unique ally, in play (a created vampire or an Absimiliard's
+            // Army ghoul is non-unique).
+            let created = matches!(
+                m.kind,
+                zvtes::state::MinionKind::Created { .. } | zvtes::state::MinionKind::Token { .. }
+            );
             let unique = !created
                 && m.kind.ally_card().is_none_or(|c| {
                     zvtes::library::LIBRARY[c as usize]
@@ -2194,6 +2209,72 @@ fn random_games_with_political_actions_hold_invariants_and_replay() {
     ] {
         kinds.push(k.into());
     }
+    let kinds: Vec<&str> = kinds.iter().map(String::as_str).collect();
+    covers(&seen, &kinds);
+}
+
+/// Slice 11ac–11ae: the pool's events.
+const EVENTS_SLICE: &[&str] = &[
+    "Narrow Minds",
+    "Torpid Blood",
+    "Blood Weakens",
+    "Thirst",
+    "Fueled by Heart's Blood",
+    "Blood Trade",
+    "Nightmares upon Nightmares",
+    "Restricted Vitae",
+    "FBI Special Affairs Division",
+    "Uncoiling, The",
+    "Slow Withering, The",
+    "Wormwood",
+    "New Inquisition, The",
+    "Rise of the Nephtali",
+    "Absimiliard's Army",
+    "Conquest of Humanity",
+    "Recalled to the Founder",
+    "Fall of the Camarilla",
+    "Fall of the Sabbat",
+    "Fourth Cycle, The",
+    "Parthenon, The",
+    "Telepathic Misdirection",
+    "Conditioning",
+];
+
+/// Slices 11ac–11ae: random tables with the events.
+#[test]
+fn random_games_with_events_hold_invariants_and_replay() {
+    let seen = fuzz(|seed| {
+        let mut e = table(seed, EVENTS_SLICE, &["OBF"]);
+        let st = &mut e.state;
+        for i in 0..st.minions.len() {
+            let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
+            let twin = st
+                .minions
+                .iter()
+                .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
+            if twin && st.minions[i].in_torpor {
+                st.minions[i].in_play = false;
+            }
+        }
+        e
+    });
+    let kinds: Vec<String> = EVENTS_SLICE[..20]
+        .iter()
+        .map(|n| format!("play:{n}"))
+        .chain(
+            [
+                "ability:Blood Trade",
+                "ability:Absimiliard's Army",
+                "ability:New Inquisition, The",
+                "ability:Restricted Vitae",
+                "ability:Uncoiling, The",
+                "ability:Rise of the Nephtali",
+                "ability:Conquest of Humanity",
+            ]
+            .iter()
+            .map(|k| k.to_string()),
+        )
+        .collect();
     let kinds: Vec<&str> = kinds.iter().map(String::as_str).collect();
     covers(&seen, &kinds);
 }

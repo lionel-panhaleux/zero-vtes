@@ -88,6 +88,15 @@ pub enum MinionKind {
         clan: &'static str,
         sect: Sect,
     },
+    /// The top card of a library put in play as "a nameless, textless
+    /// ghoul ally" (Absimiliard's Army, `source`): an ally with the stats
+    /// given, no card in play, no name, label or text — no contest (LSJ
+    /// 20040623); its card removed from the game as it leaves.
+    Token {
+        card: u16,
+        body: crate::library::Body,
+        source: CardId,
+    },
 }
 
 impl MinionKind {
@@ -95,7 +104,8 @@ impl MinionKind {
     pub fn ally_card(self) -> Option<u16> {
         match self {
             MinionKind::Ally { card, .. } => Some(card),
-            MinionKind::Vampire(_) | MinionKind::Created { .. } => None,
+            // Textless: no card to read.
+            MinionKind::Vampire(_) | MinionKind::Created { .. } | MinionKind::Token { .. } => None,
         }
     }
 }
@@ -163,6 +173,12 @@ pub struct Minion {
     /// 2026-09-26: rules-qa 25.1), gone when it is burned or removed with
     /// its ousted Methuselah.
     pub corruption: Vec<(SeatId, u8)>,
+    /// Committed diablerie: ignores Blood Weakens and The Slow Withering
+    /// until a Gehenna event is played.
+    pub diablerie_shield: bool,
+    /// Took a hunt action this turn (Thirst: "who did not hunt during that
+    /// minion phase").
+    pub hunted: bool,
     /// Held on temporary control: the Methuselah it returns to at the end
     /// of its controller's turn (Puppet Master [DOM]).
     pub temp_from: Option<SeatId>,
@@ -267,6 +283,8 @@ impl Minion {
             played_since_unlock: Vec::new(),
             unlock_at_discard: false,
             corruption: Vec::new(),
+            diablerie_shield: false,
+            hunted: false,
             temp_from: None,
             origin: None,
             sect_override: None,
@@ -280,7 +298,7 @@ impl Minion {
     pub fn vampire(&self) -> Option<&'static CryptCard> {
         match self.kind {
             MinionKind::Vampire(c) => Some(&CRYPT[c as usize]),
-            MinionKind::Ally { .. } | MinionKind::Created { .. } => None,
+            MinionKind::Ally { .. } | MinionKind::Created { .. } | MinionKind::Token { .. } => None,
         }
     }
 
@@ -289,12 +307,15 @@ impl Minion {
     pub fn crypt_card(&self) -> Option<u16> {
         match self.kind {
             MinionKind::Vampire(c) => Some(c),
-            MinionKind::Ally { .. } | MinionKind::Created { .. } => None,
+            MinionKind::Ally { .. } | MinionKind::Created { .. } | MinionKind::Token { .. } => None,
         }
     }
 
     pub fn is_ally(&self) -> bool {
-        matches!(self.kind, MinionKind::Ally { .. })
+        matches!(
+            self.kind,
+            MinionKind::Ally { .. } | MinionKind::Token { .. }
+        )
     }
 
     /// A vampire: from the crypt or created from a library card.
@@ -306,7 +327,7 @@ impl Minion {
     pub fn ally_id(&self) -> Option<CardId> {
         match self.kind {
             MinionKind::Ally { id, .. } => Some(id),
-            MinionKind::Vampire(_) | MinionKind::Created { .. } => None,
+            MinionKind::Vampire(_) | MinionKind::Created { .. } | MinionKind::Token { .. } => None,
         }
     }
 
@@ -319,6 +340,8 @@ impl Minion {
             MinionKind::Ally { card, .. } | MinionKind::Created { card, .. } => {
                 LIBRARY[card as usize].name
             }
+            // "Nameless": the name on its card is ignored (LSJ 20040623).
+            MinionKind::Token { .. } => "",
         }
     }
 
@@ -327,19 +350,20 @@ impl Minion {
         match self.kind {
             MinionKind::Vampire(c) => Some(CRYPT[c as usize].clan),
             MinionKind::Created { clan, .. } => Some(clan),
-            MinionKind::Ally { .. } => None,
+            MinionKind::Ally { .. } | MinionKind::Token { .. } => None,
         }
     }
 
-    /// A vampire's sect; `None` for an ally.
-    pub fn sect(&self) -> Option<Sect> {
+    /// A vampire's own sect, before any global effect (`GameState::sect_of`
+    /// reads the Falls); `None` for an ally.
+    pub fn underlying_sect(&self) -> Option<Sect> {
         if self.sect_override.is_some() && !self.is_ally() {
             return self.sect_override;
         }
         match self.kind {
             MinionKind::Vampire(c) => Some(CRYPT[c as usize].sect),
             MinionKind::Created { sect, .. } => Some(sect),
-            MinionKind::Ally { .. } => None,
+            MinionKind::Ally { .. } | MinionKind::Token { .. } => None,
         }
     }
 
@@ -361,7 +385,7 @@ impl Minion {
         match self.kind {
             MinionKind::Vampire(c) => Some(CRYPT[c as usize].capacity),
             MinionKind::Created { .. } => Some(1),
-            MinionKind::Ally { .. } => None,
+            MinionKind::Ally { .. } | MinionKind::Token { .. } => None,
         }
     }
 
@@ -491,11 +515,45 @@ pub struct Held {
     /// Replaced at the end of the current action (Consign to Oblivion
     /// [OBL]).
     pub action: u8,
+    /// Replaced at the end of the action or as the hand empties (Blood
+    /// Weakens).
+    pub weakens: u8,
+    /// "Until a Methuselah is ousted" (Absimiliard's Army).
+    pub ousted: u8,
+    /// "Until a vampire commits diablerie" (Blood Weakens).
+    pub diablerie: u8,
+    /// "Until a titled vampire goes to torpor" (The New Inquisition).
+    pub titled_torpor: u8,
+    /// "Until a vampire successfully hunts" (Restricted Vitae).
+    pub hunt: u8,
+    /// "Until a vampire moves from torpor to the ready region" (Torpid
+    /// Blood).
+    pub leaves_torpor: u8,
+    /// "Until a vampire becomes a liaison" (Rise of the Nephtali).
+    pub liaison: u8,
+    /// Discarded to Nightmares upon Nightmares: replaced as the
+    /// Methuselah's master phase begins.
+    pub master: u8,
 }
 
 impl Held {
     pub fn total(self) -> usize {
-        self.unlock as usize + self.discard as usize + self.action as usize
+        [
+            self.unlock,
+            self.discard,
+            self.action,
+            self.weakens,
+            self.ousted,
+            self.diablerie,
+            self.titled_torpor,
+            self.hunt,
+            self.leaves_torpor,
+            self.liaison,
+            self.master,
+        ]
+        .iter()
+        .map(|&n| n as usize)
+        .sum()
     }
 }
 
@@ -552,6 +610,20 @@ pub struct Seat {
     /// Cards played but not replaced yet: they count against the hand
     /// size until then (rulebook "Drawing Cards"; spec §6.8.1).
     pub held: Held,
+    /// "Do not replace as long as this card is in play" (Fall of the
+    /// Camarilla, The Uncoiling): replaced as the card leaves play (even
+    /// burned, LSJ 20080805).
+    pub held_in_play: Vec<CardId>,
+    /// An event card was put in play this discard phase (rulebook: no more
+    /// than one per phase).
+    pub event_played: bool,
+    /// Burned a vampire of capacity 6 or more to Recalled to the Founder:
+    /// ignores it until the end of the game.
+    pub recalled_ignored: bool,
+    /// The Uncoiling's burn, due in this discard phase: mandatory, ordered
+    /// among the phase's other effects, resolved before the impulse passes
+    /// (rules-qa 40.5).
+    pub uncoiling_due: Option<CardId>,
     /// Political actions the seat's minions cannot perform again this
     /// turn (Delaying Tactics): a card by name, a granted action by copy
     /// (LSJ 20020201).
@@ -667,7 +739,7 @@ impl GameState {
     /// a vampire).
     pub fn ally_body(&self, m: MinionId) -> Option<crate::library::Body> {
         match self.minions[m.index()].kind {
-            MinionKind::Ally { body, .. } => Some(body),
+            MinionKind::Ally { body, .. } | MinionKind::Token { body, .. } => Some(body),
             MinionKind::Vampire(_) | MinionKind::Created { .. } => None,
         }
     }
@@ -691,7 +763,52 @@ impl GameState {
     /// for an ally.
     pub fn capacity_of(&self, m: MinionId) -> Option<u8> {
         let printed = self.minions[m.index()].printed_capacity()?;
-        Some((printed + self.discipline_grants(m).count() as u8).max(1))
+        let cap = (printed + self.discipline_grants(m).count() as u8).max(1);
+        // Wormwood: "considered vampires with capacity X (minimum of 1)",
+        // the capacity as changed by other effects ceiled (LSJ 20051205).
+        Some(match self.capacity_ceiling() {
+            Some(x) => cap.min(x),
+            None => cap,
+        })
+    }
+
+    /// The capacity every vampire is ceiled to (Wormwood's counters, at
+    /// least 1), if any.
+    pub fn capacity_ceiling(&self) -> Option<u8> {
+        self.layers
+            .iter()
+            .filter(|l| {
+                l.scope == crate::cards::Scope::InPlay
+                    && self.layer_active(l)
+                    && l.modifier == crate::cards::Modifier::CapacityCapByCounters
+            })
+            .map(|l| self.cards[l.source.index()].counters.max(1))
+            .min()
+    }
+
+    /// Torpid Blood's +1: on an action by a vampire in torpor (leave
+    /// torpor), and on rescuing an older vampire (`target` older than
+    /// `rescuer`).
+    pub fn torpid_surcharge(&self, rescuer: Option<MinionId>, target: MinionId) -> u8 {
+        if self.global(crate::cards::Modifier::TorpidBlood).is_none() {
+            return 0;
+        }
+        match rescuer {
+            None => 1,
+            Some(r) => u8::from(self.younger_than(r, target)),
+        }
+    }
+
+    /// Is a card in play giving this modifier (an event's global effect)?
+    pub fn global(&self, modifier: crate::cards::Modifier) -> Option<CardId> {
+        self.layers
+            .iter()
+            .find(|l| {
+                l.scope == crate::cards::Scope::InPlay
+                    && self.layer_active(l)
+                    && l.modifier == modifier
+            })
+            .map(|l| l.source)
     }
 
     /// `m`'s level in Discipline `d` (lower case): 0 none, 1 inferior, 2
@@ -848,8 +965,9 @@ impl GameState {
             let m = MinionId(i as u32);
             let v = &self.minions[i];
             // Only cards on it raise its capacity: at or below the printed
-            // one, nothing to read.
-            if !v.in_play || v.printed_capacity().is_none_or(|p| v.blood <= p) {
+            // one, nothing to read — unless Wormwood ceils it.
+            let ceiled = self.capacity_ceiling().is_some_and(|x| v.blood > x);
+            if !v.in_play || v.printed_capacity().is_none_or(|p| v.blood <= p) && !ceiled {
                 continue;
             }
             if let Some(c) = self.capacity_of(m) {
@@ -1139,12 +1257,9 @@ impl GameState {
             crate::cards::Requirement::SuperiorVersion => c.mode > 0,
             crate::cards::Requirement::BasicVersion => c.mode == 0,
             crate::cards::Requirement::OneCopyPerTurn => true,
-            crate::cards::Requirement::ActiveControlsNonSect(sect) => {
-                self.minions_of(self.active).any(|m| {
-                    let v = &self.minions[m.index()];
-                    v.is_vampire() && v.sect() != Some(sect)
-                })
-            }
+            crate::cards::Requirement::ActiveControlsNonSect(sect) => self
+                .minions_of(self.active)
+                .any(|m| self.minions[m.index()].is_vampire() && self.sect_of(m) != Some(sect)),
             _ => match c.bearer() {
                 Some(h) => crate::cards::holds_for_host(req, self, h),
                 None => true,
@@ -1653,8 +1768,20 @@ impl GameState {
         self.layers.iter().any(|l| {
             l.scope == crate::cards::Scope::InPlay
                 && self.layer_active(l)
-                && matches!(l.modifier, crate::cards::Modifier::ClanCannotHunt(c) if Some(c) == clan)
+                && match l.modifier {
+                    crate::cards::Modifier::ClanCannotHunt(c) => Some(c) == clan,
+                    // "Vampires cannot hunt unless they must hunt"
+                    // (Restricted Vitae).
+                    crate::cards::Modifier::OnlyMustHunt => !self.must_hunt(m),
+                    _ => false,
+                }
         })
+    }
+
+    /// Must `m` hunt: a vampire with no blood, or made to?
+    pub fn must_hunt(&self, m: MinionId) -> bool {
+        let v = &self.minions[m.index()];
+        v.is_vampire() && (v.blood == 0 || v.must_hunt)
     }
 
     /// `m` cannot block (Pentex™ Subversion): a card on it.
@@ -1746,6 +1873,54 @@ impl GameState {
             .filter(|(_, m)| m.present() && m.in_torpor)
             .map(|(i, _)| MinionId(i as u32))
             .collect()
+    }
+
+    /// Events in play other than `but` (The Uncoiling's X).
+    pub fn other_events(&self, but: CardId) -> usize {
+        (0..self.cards.len())
+            .filter(|&i| {
+                let c = &self.cards[i];
+                i != but.index()
+                    && c.present()
+                    && !c.effect_only
+                    && LIBRARY[c.card as usize]
+                        .types
+                        .contains(&crate::library::CardType::Event)
+            })
+            .count()
+    }
+
+    /// Gehenna events in play (uncontested, not a lingering effect).
+    pub fn gehenna_in_play(&self) -> usize {
+        self.cards
+            .iter()
+            .filter(|c| {
+                c.present()
+                    && !c.effect_only
+                    && LIBRARY[c.card as usize]
+                        .labels
+                        .contains(&crate::library::Label::Gehenna)
+            })
+            .count()
+    }
+
+    /// "Gehenna events cannot be played" (The Fourth Cycle in play).
+    pub fn gehenna_barred(&self) -> bool {
+        self.layers.iter().any(|l| {
+            l.scope == crate::cards::Scope::InPlay
+                && self.layer_active(l)
+                && l.modifier == crate::cards::Modifier::NoGehennaEvents
+        })
+    }
+
+    /// `m`'s sect: its own, unless its sect is no more (Fall of the
+    /// Camarilla, Fall of the Sabbat: considered Independent instead, the
+    /// most recent change included; LSJ 20080510).
+    pub fn sect_of(&self, m: MinionId) -> Option<Sect> {
+        let s = self.minions[m.index()].underlying_sect()?;
+        let fallen = matches!(s, Sect::Camarilla | Sect::Sabbat)
+            && self.global(crate::cards::Modifier::SectFallen(s)).is_some();
+        Some(if fallen { Sect::Independent } else { s })
     }
 
     /// Blood vampires attempting to block `m` burn (Archon, per copy).
@@ -1894,7 +2069,7 @@ impl GameState {
             return Title::None;
         }
         let t = self.claimed_title(m);
-        let Some(sect) = v.sect() else {
+        let Some(sect) = self.sect_of(m) else {
             return Title::None;
         };
         let fits = match t {
@@ -1968,6 +2143,9 @@ impl GameState {
             mix(s.held.unlock as u64);
             mix(s.held.discard as u64);
             mix(s.held.action as u64);
+            mix(s.held.total() as u64);
+            mix(s.held_in_play.len() as u64);
+            mix(s.event_played as u64);
             mix(s.forbidden_political.len() as u64);
             for a in &s.forbidden_political {
                 mix(match a {
@@ -2016,6 +2194,9 @@ impl GameState {
             mix(match m.kind {
                 MinionKind::Vampire(c) => c as u64,
                 MinionKind::Created { card, id, .. } => 2 << 40 | (id.0 as u64) << 16 | card as u64,
+                MinionKind::Token { card, source, body } => {
+                    3 << 40 | (body.life as u64) << 48 | (source.0 as u64) << 16 | card as u64
+                }
                 MinionKind::Ally { card, id, body } => {
                     1 << 40
                         | (body.life as u64) << 48

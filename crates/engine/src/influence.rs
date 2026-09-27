@@ -159,9 +159,8 @@ impl Engine {
                 self.flow = Flow::Influence { left };
                 // Twilight Camp: a non-titled non-Anarch vampire put in play
                 // from the uncontrolled region may be made Anarch.
-                let v = &self.state.minions[m.index()];
                 if self.state.title_of(m) == crate::crypt::Title::None
-                    && v.sect() != Some(crate::crypt::Sect::Anarch)
+                    && self.state.sect_of(m) != Some(crate::crypt::Sect::Anarch)
                 {
                     for ci in 0..self.state.cards.len() {
                         let id = crate::state::CardId(ci as u32);
