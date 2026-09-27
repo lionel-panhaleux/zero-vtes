@@ -3,6 +3,8 @@
 //! same name (a `table`, a seat-indexed `pool`) shadows the one here.
 #![allow(dead_code)]
 
+pub mod tables;
+
 use zvtes::cards::{AbilitySource, Target};
 use zvtes::crypt::CRYPT;
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};

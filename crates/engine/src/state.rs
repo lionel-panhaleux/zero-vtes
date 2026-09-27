@@ -151,7 +151,7 @@ impl MinionKind {
 /// gained with no card to represent it (Valerius's steal); a title card
 /// on the vampire represents its own (`GameState::claimed_title`). `bled_this_turn` is the
 /// NRA special cap (rules-qa 1.4).
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Minion {
     pub owner: SeatId,
     pub kind: MinionKind,
@@ -434,7 +434,7 @@ impl Minion {
 }
 
 /// A library card in play (a master on a vampire, a location, …).
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CardInPlay {
     pub card: u16,
     /// The Methuselah who played it: where it goes when it leaves play.
@@ -534,7 +534,11 @@ impl CardId {
 /// crypt card (its identity is its arena entry, `banished`).
 pub const CREATED: u16 = u16::MAX;
 
-#[derive(Clone, Debug, Hash)]
+/// A card whose identity the viewer does not know (`GameState::legal_view`):
+/// neither a LIBRARY nor a CRYPT index, nor `CREATED`.
+pub const HIDDEN: u16 = u16::MAX - 1;
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct UncontrolledSlot {
     pub card: u16,
     pub counters: u8,
@@ -612,7 +616,7 @@ impl Held {
     }
 }
 
-#[derive(Clone, Debug, Default, Hash)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Seat {
     pub pool: i32,
     pub ousted: bool,
@@ -685,7 +689,7 @@ pub struct Seat {
     pub forbidden_political: Vec<ActionId>,
 }
 
-#[derive(Clone, Debug, Default, Hash)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct GameState {
     pub seats: Vec<Seat>,
     /// Arena: minions are never removed, only marked out of play.
@@ -1702,10 +1706,75 @@ impl GameState {
         sum_n!(self.hosted(m), Modifier::RetainerDamage)
     }
 
+    /// What `viewer` legally knows of the state (DESIGN §5): a copy with
+    /// every card identity they may not see replaced by [`HIDDEN`], in
+    /// place, so every zone keeps its size and every counter, blood, pool
+    /// and flag stays. Hidden:
+    ///
+    /// - every seat's **library** and **crypt**, the viewer's own included:
+    ///   the order is unknown to all (a search shuffles afterward; the
+    ///   cards Heart of Nizchetus puts at the bottom, known to their
+    ///   player, are hidden too — remembering them is the policy's
+    ///   business, from the decisions it made);
+    /// - another seat's **hand**, unless `hand_visible_to(seat, viewer)`
+    ///   (Revelations [AUS], Owl Companion);
+    /// - another seat's face-down **uncontrolled** vampires (rulebook
+    ///   "Setup": a Methuselah looks at their own at any time); a banished
+    ///   vampire's slot stays (it left play in view of all, its arena entry
+    ///   and the cards on it are public), as do every slot's counters;
+    /// - the **cards stored face down** on a card in play (Shilmulo Tarot,
+    ///   `Effect::StoreTopCards`: "you can look at the cards at any time"),
+    ///   except to its controller; face-up ones stay (Black Market Cache,
+    ///   Fleshforge Chamber).
+    ///
+    /// Everything else is public and kept: ash heaps (`ash`, `ash_crypt`),
+    /// removed cards, minions and cards in play (a contested card turned
+    /// face down keeps its identity: it was in play face up), pool, blood,
+    /// counters, the cards played but not replaced yet (`held`: a count).
+    /// The engine's random source is not in the state. The contexts of the
+    /// action, combat and referendum under way (`Engine::action`,
+    /// `Engine::combat`, `Engine::referendum`) and the as-played stack hold
+    /// announced, public information, with one exception an observation
+    /// adding them must redact: a card named from hand as a play or action
+    /// is announced (`PlayCtx::named`, Pack Alpha; `ActionCtx::exchange`'s
+    /// hand card, Lenelle) need not be shown (advanced rules §1.14.2).
+    pub fn legal_view(&self, viewer: SeatId) -> GameState {
+        let mut v = self.clone();
+        let hide = |cards: &mut Vec<u16>| cards.iter_mut().for_each(|c| *c = HIDDEN);
+        for (i, seat) in v.seats.iter_mut().enumerate() {
+            let s = SeatId(i as u8);
+            hide(&mut seat.library);
+            hide(&mut seat.crypt);
+            if !self.hand_visible_to(s, viewer) {
+                hide(&mut seat.hand);
+            }
+            if s != viewer {
+                for slot in &mut seat.uncontrolled {
+                    if slot.banished.is_none() {
+                        slot.card = HIDDEN;
+                    }
+                }
+            }
+        }
+        for (i, c) in v.cards.iter_mut().enumerate() {
+            let face_down = cards::lookup(c.card).is_some_and(|d| {
+                d.modes.iter().chain(d.abilities).any(|m| {
+                    m.effects
+                        .iter()
+                        .any(|e| matches!(e, cards::Effect::StoreTopCards(_)))
+                })
+            });
+            if face_down && self.card_controller(CardId(i as u32)) != viewer {
+                hide(&mut c.stored);
+            }
+        }
+        v
+    }
+
     /// Whether `viewer` sees `seat`'s hand: their own, or an open hand — the
     /// prey of a Revelations [AUS]'s controller, or `seat`'s minion in
-    /// combat with the employer of an Owl Companion.
-    /// The legal view reads it.
+    /// combat with the employer of an Owl Companion. The legal view
+    /// (`legal_view`) reads it.
     pub fn hand_visible_to(&self, seat: SeatId, viewer: SeatId) -> bool {
         viewer == seat
             || self.in_play_layers().any(|l| {

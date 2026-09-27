@@ -885,36 +885,58 @@ impl Engine {
         self.block_candidates_locked(a, seat, false)
     }
 
-    /// Could a non-acting Methuselah reduce the action's stealth to 0 with
-    /// a card in hand one of their reacting minions could play?
-    fn stealth_strippable(&self, a: &ActionCtx) -> bool {
-        let st = &self.state;
-        (0..st.seats.len()).map(|i| SeatId(i as u8)).any(|s| {
-            s != a.seat
-                && !st.seats[s.index()].ousted
-                && st.seats[s.index()].hand.iter().any(|&card| {
-                    cards::lookup(card).is_some_and(|def| {
-                        def.modes.iter().enumerate().any(|(mi, mode)| {
-                            mode.effects.contains(&Effect::ReduceStealthToZero)
-                                && st.minions_of(s).any(|r| {
-                                    let v = &st.minions[r.index()];
-                                    let clans = LIBRARY[card as usize].clans;
-                                    v.ready()
-                                        && (!v.locked || a.woken.contains(&r))
-                                        && (clans.is_empty()
-                                            || v.clan().is_some_and(|c| clans.contains(&c)))
-                                        && cards::has_disciplines(
-                                            st,
-                                            r,
-                                            card,
-                                            LIBRARY[card as usize].modes
-                                                [cards::library_mode(card, mi)]
-                                            .tags,
-                                        )
-                                })
-                        })
+    /// Could a Methuselah other than the acting one reduce the action's
+    /// stealth to 0 with a card one of their reacting minions could play
+    /// (Night Terrors), as `seat` weighs an attempt? Their own hand is
+    /// read; another's is hidden from them, so for another only whether
+    /// they hold a card and one of their minions could play such a card of
+    /// the pool: the attempts offered must not depend on a hand the
+    /// decider cannot see (DESIGN §4.3; `tests/elision.rs` found this).
+    fn stealth_strippable(&self, a: &ActionCtx, seat: SeatId) -> bool {
+        static STRIPS: std::sync::OnceLock<Vec<u16>> = std::sync::OnceLock::new();
+        let strips = STRIPS.get_or_init(|| {
+            (0..LIBRARY.len() as u16)
+                .filter(|&c| {
+                    cards::lookup(c).is_some_and(|d| {
+                        d.modes
+                            .iter()
+                            .any(|m| m.effects.contains(&Effect::ReduceStealthToZero))
                     })
                 })
+                .collect()
+        });
+        let st = &self.state;
+        let playable = |s: SeatId, card: u16| {
+            cards::lookup(card).is_some_and(|def| {
+                def.modes.iter().enumerate().any(|(mi, mode)| {
+                    mode.effects.contains(&Effect::ReduceStealthToZero)
+                        && st.minions_of(s).any(|r| {
+                            let v = &st.minions[r.index()];
+                            let clans = LIBRARY[card as usize].clans;
+                            v.ready()
+                                && (!v.locked || a.woken.contains(&r))
+                                && (clans.is_empty()
+                                    || v.clan().is_some_and(|c| clans.contains(&c)))
+                                && cards::has_disciplines(
+                                    st,
+                                    r,
+                                    card,
+                                    LIBRARY[card as usize].modes[cards::library_mode(card, mi)]
+                                        .tags,
+                                )
+                        })
+                })
+            })
+        };
+        (0..st.seats.len()).map(|i| SeatId(i as u8)).any(|s| {
+            let hand = &st.seats[s.index()].hand;
+            s != a.seat
+                && !st.seats[s.index()].ousted
+                && if s == seat {
+                    hand.iter().any(|&card| playable(s, card))
+                } else {
+                    !hand.is_empty() && strips.iter().any(|&card| playable(s, card))
+                }
         })
     }
 
@@ -1265,7 +1287,7 @@ impl Engine {
         // A Methuselah other than the acting one who could strip the
         // stealth (Night Terrors), the blocker's own or a third party
         // (rules-qa 1.2): any attempt may still succeed.
-        if self.stealth_strippable(a) {
+        if self.stealth_strippable(a, seat) {
             return u8::MAX;
         }
         // Intercept gained earlier in the action counts (rules-qa 15.2).

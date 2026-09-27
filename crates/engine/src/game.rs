@@ -334,6 +334,11 @@ impl Engine {
         self.referendum.as_ref()
     }
 
+    /// The combat under way, if any (read-only).
+    pub fn combat(&self) -> Option<&CombatCtx> {
+        self.combat.as_ref()
+    }
+
     /// Advance until a real decision is needed or the game is over. Windows
     /// with a single legal option are elided (DESIGN §4.3): auto-applied and
     /// not logged.

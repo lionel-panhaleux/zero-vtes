@@ -128,8 +128,10 @@ cost of a positional artifact within a rotation (§10.1).
 
 Implemented in `Engine::run`: any single-option request is applied without
 logging. Soundness: an auto-pass must be **observationally identical** to a chosen
-pass from every other seat (no hidden-hand information leaks) — a tested
-invariant. Elision is what makes self-play viable (only live choices reach the
+pass from every other seat (no hidden-hand information leaks) — tested by
+`tests/elision.rs` (a hand-swap counterfactual, §7.2). A forced move (a lone
+option that is not a pass) has no counterfactual: its elision is the shared
+`apply` itself. Elision is what makes self-play viable (only live choices reach the
 network; credit assignment shortens accordingly). Block attempts that cannot
 succeed are pruned the same way (§11.2 "Block loop").
 
@@ -249,8 +251,29 @@ tables (`cards::lookup` is indexed by library index).
 
 ## 5. RL-facing surface
 
-Planned for P3; nothing here exists yet beyond `Engine::run`/`choose`.
+Built: `Engine::run`/`choose` and the legal view below; the rest is planned
+for P3.
 
+- **Legal view** (`GameState::legal_view(viewer)`, a redacted `GameState`:
+  `Hash + Eq`): what `viewer` may know — the state, every hidden card identity
+  replaced by `HIDDEN` in place (zone sizes, counters, blood, pool and flags
+  kept). Hidden: every seat's library and crypt, the viewer's own included
+  (order unknown; a search shuffles; the cards Heart of Nizchetus puts at the
+  bottom are hidden too — the policy remembers its own decisions); another
+  seat's hand unless `hand_visible_to` (Revelations [AUS], Owl Companion);
+  another seat's face-down uncontrolled vampires (rulebook: a Methuselah looks
+  at their own), a banished vampire's slot excepted (it left play in view of
+  all); cards stored face down (Shilmulo Tarot, `Effect::StoreTopCards`) except
+  to the card's controller. Public: ash heaps, removed cards, minions and cards
+  in play (contested cards keep their identity), counters, `held` counts. The
+  rng is on `Engine`, not in the state. The action, combat and referendum
+  contexts and the as-played stack are public (announced plays, targets,
+  windows) except a card named from hand as a play or action is announced
+  (`PlayCtx::named`, `ActionCtx::exchange`'s hand card), which need not be
+  shown (advanced rules §1.14.2): the observation must redact it when it adds
+  the contexts. Owner review points: the banished slot and contested cards kept
+  public; a vampire revealed on its way to the uncontrolled region
+  (`RevealCryptTop`) hidden like any other.
 - **Dual observations**: every request carries the decider's legal view; training
   can also request the omniscient view for the asymmetric critic. Nothing
   omniscient reaches the policy. (`GameState::hand_visible_to` already answers
@@ -318,8 +341,21 @@ and sinks (`Seat.removed`, cards stored or face down on banished vampires), no
 negative resources, capacity ceilings, every card in play has a living
 controller, a game ends only with ≤1 Methuselah or at the time limit, step budget
 (every window terminates), no empty request, decision-log resimulation reproduces
-identical state hashes. Observational equivalence of elision is still to be
-tested once observations exist (P3).
+identical state hashes.
+
+`tests/elision.rs`: elision's observational equivalence (§4.3), from the opening
+and three fuzz tables (`tests/common/tables.rs`), 100 seeds each. At every real
+request to X whose options are one hand-independent option (a pass, the hand
+strike) plus plays from hand, a clone gets X's hand swapped for as many copies
+of a card X cannot play (a clan none of X's minions has) and must elide X's
+window; the actual game takes that option, the clone follows its choices, and
+until X's next real request the requests to others and `legal_view(Y)` for
+every Y who cannot see X's hand (with the action, combat and referendum under
+way) must be equal. A card of X's made public (Revelations looking at one
+distinct card) ends the comparison. Coverage keys per window and role: blocks
+and reactions, modifiers, strike, maneuver, press, polling, Sudden Reversal and
+Direct Intervention out of turn, as-played cancels (~7 400 samples, ~26 000
+compared steps).
 
 ### 7.3 Golden replays
 
@@ -436,6 +472,7 @@ titles; `git log` has the detail.
 | P2 · 12a | 09-27 | The last 19 vampires' printed text: every vampire defined (5 partial) |
 | P2 · 12b | 09-27 | The 5 partial vampires finished (Daria, Djeneba, Marchesa Liliana, Mithras, Ragnar Nordstrom): every vampire has all its text |
 | P2 · 12c | 09-27 | Regression tooling: golden replays of every fuzz game (§7.3), perft counts (§7.5), `Engine: Clone` |
+| P2 · 12d | 09-27 | Elision's observational equivalence (`tests/elision.rs`, §7.2), `GameState::legal_view` (§5); block pruning no longer reads third parties' hands |
 
 ### 11.2 Engine reference (by mechanism)
 
@@ -579,9 +616,13 @@ slice-11 cards by section).
   the stealth is not offered. It counts the blocker's own and printed intercept,
   intercept abilities of cards on it, other cards in play
   (`location_intercept_reach`: Market Square, KRCG News Radio, The Rumor Mill),
-  and stops pruning while a non-acting Methuselah holds a playable stealth strip
-  (`stealth_strippable`). Any new third-party intercept/stealth-strip card must
-  be counted here, or pruning hides a live attempt.
+  and stops pruning while a non-acting Methuselah could strip the stealth
+  (`stealth_strippable`): the blocker's own Methuselah by a playable card in
+  hand, another by holding any card while one of their minions could play a
+  stealth strip of the pool (Night Terrors) — their hand is hidden from the
+  blocker (§4.3; reading it leaked, found by `tests/elision.rs`). Any new
+  third-party intercept/stealth-strip card must be counted here, or pruning
+  hides a live attempt.
 
 **Combat** (`combat.rs`: `CombatCtx`, `Side`, `Step`, `Damage`, `Held`)
 - Only combat cards are played during combat — no modifiers, reactions or wakes
@@ -857,7 +898,7 @@ Still true today; "(verify)" marks items inferred from older notes.
   - Directed actions name one Methuselah at most (`ActionCtx::directed_seats`);
     Shadow Cast's remembered-set test is written for several.
   - Rapid Change [PRO] and Wolf Claws [PRO] are covered by fuzz only.
-- **P2 deliverables not started**: observation-equivalence test of elision, protocol server (§8), scripted
+- **P2 deliverables not started**: protocol server (§8), scripted
   reference bots (aggro-bleed, wall, vote), the New Blood minis as decklist
   data.
 - Owner suggestions: hard legacy cards to stress the engine (Rötschreck, Outside
@@ -873,7 +914,7 @@ Still true today; "(verify)" marks items inferred from older notes.
   humans.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer.
 
-Definitions: 425, 889 tests
+Definitions: 425, 893 tests
 
 ## Outlook: deck building (post-v1)
 
