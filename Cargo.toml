@@ -1,5 +1,7 @@
 [workspace]
-members = ["crates/engine"]
+members = ["crates/engine", "crates/py"]
+# The Python module links against a Python: built by maturin only.
+default-members = ["crates/engine"]
 resolver = "2"
 
 # The one test profile: release speed with debug's checks (debug assertions,

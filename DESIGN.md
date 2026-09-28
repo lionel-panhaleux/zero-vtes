@@ -252,8 +252,10 @@ tables (`cards::lookup` is indexed by library index).
 
 ## 5. RL-facing surface
 
-Built: `Engine::run`/`choose` and the legal view below; the rest is planned
-for P3.
+Built: `Engine::run`/`choose`, the legal view, observations (`obs.rs`), the
+batched pool (`crates/py`), the first model and PPO loop (`train/`); §11.2
+"Observations" and "Training" describe them. Planned: the omniscient critic,
+decklist conditioning, the league.
 
 - **Legal view** (`GameState::legal_view(viewer)`, a redacted `GameState`:
   `Hash + Eq`): what `viewer` may know — the state, every hidden card identity
@@ -482,6 +484,7 @@ titles; `git log` has the detail.
 | P2 · 12c | 09-27 | Regression tooling: golden replays of every fuzz game (§7.3), perft counts (§7.5), `Engine: Clone` |
 | P2 · 12d | 09-27 | Elision's observational equivalence (`tests/elision.rs`, §7.2), `GameState::legal_view` (§5); block pruning no longer reads third parties' hands |
 | P2 · 13 | 09-27 | Decklists: the New Blood mini-starters as data, `Engine::with_decks` (`decks.rs`); scripted reference bots aggro-bleed and wall (`bots.rs`, `agent::Agent`) |
+| P3 · 14a–14c | 09-27 | Observations (`obs.rs`: entity tokens, option rows with pointers; honest by test); `crates/py` `GamePool` (batched parallel stepping, bots inside, replayable); `train/`: pointer-scoring transformer, PPO self-play, evaluation vs random and bots |
 
 ### 11.2 Engine reference (by mechanism)
 
@@ -917,6 +920,60 @@ slice-11 cards by section).
   one table (480 games): aggro-bleed 1.51 VPs a seat, wall 0.49; 45 turns a
   game, none at the time limit; 2–5 ms a game.
 
+**Observations** (`obs.rs`: `encode`, `Obs`, `schema_json`)
+- One request as its seat sees it: tokens — seats in relative order (pool,
+  VPs, Edge, zone sizes, prey/predator, phase budgets), minions in play
+  (contested ones too), the viewer's virtual hand (`Choice::Play` indexing),
+  cards in play (host as a pointer), uncontrolled slots (the viewer's face up,
+  others' `HIDDEN` but a banished one), a last context token (window; action
+  kind, acting minion, bleed target, stealth, bleed amount; combat minions,
+  range, round; referendum caller, calling minion or diablerist). Each token:
+  ids `[type, vocabulary, pointer, pointer]` and `TOK_F` floats. Options:
+  ids `[choice kind, vocabulary, pointer ×3]` (hand card, actor, target; the
+  source of an ability; the minion, seat, card or slot named) and `OPT_F`
+  floats (amount, favor, mode, zone, title contest, action kind). A card or
+  minion an option names carries its identity too (a rider's card may have
+  left play). Vocabulary: crypt, library, hidden, windows, clans.
+- `tests/obs.rs`: the encoding of the full state equals the encoding from
+  the seat's legal view (every 2nd decision of bot, random and fuzz-table
+  games; a planted leak of face-down vampires fails it), and every pointer
+  names a token. At most 63 tokens and 104 options met.
+- Review points: ash heaps, removed cards and cards stored on cards are sizes
+  or absent, not tokens; no decklist identity yet; `ActionCtx::card` (a card
+  named from hand) is never read, by construction only.
+
+**Training** (`crates/py`: `zvtes_py.GamePool`, `replay`, `schema`,
+`deck_names`; `train/`: `model.py`, `ppo.py`)
+- `GamePool(n, seats, seed, rotate, decks, budget, keep_logs)`: N games,
+  each waiting on one policy decision; seats are "policy", "random",
+  "aggro" or "wall" (answered inside); `rotate` shifts seating per game;
+  decks drawn per seat from `decks` (default the 14 precons). `observe()`
+  pads the batch; `act(actions)` advances every game in parallel (rayon) to
+  its next policy decision and returns the games finished (slot, seed,
+  decks, seats, half-VPs, turns, decisions, truncated, log). A game over
+  `budget` decisions is cut (§11.3). `train/tests`: batches well formed,
+  games replay from their log, one PPO iteration runs.
+- ~170k decisions/s (300 random games/s) through Python on 8 cores; the
+  model is the bottleneck: a d=96, 2-layer trunk takes ~0.3 s per 1,024
+  decisions for a training step on the M3's GPU (MPS; half precision
+  measured slower, CPU slower): an iteration of 16k decisions, 3 epochs, is
+  ~2 s of rollout and ~12–15 s of update.
+- Model: token embedding (vocabulary + type + features + its pointers'
+  bases), transformer trunk; each option scored from its kind, identity,
+  features and the tokens it points at, with the context token; value from
+  the context and mean tokens. PPO: one network plays every seat; a seat's
+  decisions form its chain, rewarded at the end by (VPs + game win) / 5;
+  truncated rollouts bootstrap from a chain's last decision, carried to the
+  next rollout. Evaluation samples the policy against three random seats and
+  against aggro/wall/aggro, every position.
+- First run (2026-09-27, defaults, 140 iterations ≈ 2.3M decisions, ~1 h on
+  the M3): against three random seats 0.71 VP a game at iteration 10 (random
+  level: 0.73), 1.86 at 40, 2.7 at 50, then ~2.9–3.1 VPs and 72–77% game wins
+  from 60 on; against aggro/wall/aggro 0.07–0.17 VP up to 50, then 0.4–0.7
+  (an even share: ~0.75) and 5–12% game wins — a plateau from about 90 on.
+  Self-play alone does not reach the bots: the league (bots and snapshots as
+  opponents, P4) is the next lever.
+
 ### 11.3 Open gaps
 
 Still true today; "(verify)" marks items inferred from older notes.
@@ -970,13 +1027,15 @@ Still true today; "(verify)" marks items inferred from older notes.
 ### 11.4 What remains
 
 - **P2 — full engine pool**: the deliverable above.
-- **P3 — training loop**: observations (§5), PyO3 batched stepping, encoder, PPO
-  self-play at 4p; evaluation ladder vs scripted bots and frozen snapshots.
+- **P3 — training loop**: built (slice 14); remaining: training long enough
+  to beat the bots, the omniscient critic, decklist conditioning, frozen
+  snapshots on the ladder, the early survival shaping of §5 (the reward is
+  tournament scoring only).
 - **P4 — league & 5p**: exploiters, PFSP, deck/seat sampling, evaluation vs
   humans.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer.
 
-Definitions: 425, 895 tests
+Definitions: 425, 897 Rust tests, 3 Python tests
 
 ## Outlook: deck building (post-v1)
 

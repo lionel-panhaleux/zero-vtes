@@ -30,6 +30,7 @@ pub mod game;
 pub mod ids;
 pub mod influence;
 pub mod library;
+pub mod obs;
 pub mod plays;
 pub mod referendum;
 pub mod rng;

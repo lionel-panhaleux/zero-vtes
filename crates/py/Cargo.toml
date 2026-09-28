@@ -1,0 +1,17 @@
+[package]
+name = "zvtes-py"
+version = "0.0.1"
+edition = "2021"
+
+# The Python module (DESIGN §5 "Batched stepping"): built by maturin only
+# (`uv run maturin develop --release -m crates/py/Cargo.toml`), outside the
+# workspace's default members so the engine checks never link Python.
+[lib]
+name = "zvtes_py"
+crate-type = ["cdylib"]
+
+[dependencies]
+zero-vtes-engine = { path = "../engine" }
+pyo3 = "0.29"
+numpy = "0.29"
+rayon = "1"
