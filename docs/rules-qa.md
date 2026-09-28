@@ -1,7 +1,7 @@
 # Rules Q&A — ruling reference
 
 Owner rulings (VEKN judge) on VTES rules questions raised while building the
-engine, Batches 1–42. Each item is the settled rule, stated as fact; the
+engine, Batches 1–43. Each item is the settled rule, stated as fact; the
 question framing, engine mechanics, test names and confirmations are dropped
 deliberately: the code and its tests are the reference for how a rule is
 implemented, and they point back here through `rules-qa N.M` comments.
@@ -52,7 +52,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
 - **Periodicity ("during X" = once per X, once each …)** — 6.6, 7.4, 9.6, 10.4, 11.2, 15.1, 15.2, 16.1, 36.3, 36.4, 37.1, 38.8, 42.3, 42.9
 - **No-repeat-action, "same action"** — 1.4, 6.2, 16.6, 23.2, 25.4, 32.1
-- **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6
+- **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1
 - **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
 - **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7
@@ -737,3 +737,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 **42.8** A forced block attempt ("… attempts to block": Eagle's Sight, Second Tradition, Organized Resistance, Eyes of the Wild, Dogged Pursuit, Sense the Savage Way, One With the Land) by a minion owing a block toll (Sergio Bueno, Mithras): offered only while the toll is payable; if the card's own blood, paid first, leaves it unpayable, no attempt is made (the card's other effects stand).
 
 **42.9** Bone Shambler: both its abilities are "during" abilities (42.3), each usable once per action per copy — the lock of another copy and the Hecata's blood, both in the same bleed, neither twice; another copy bleeding in a later action uses its own again.
+
+## Batch 43 — found by training (P4)
+
+**43.1** A political action whose referendum terms have no legal choice when they are chosen (after the action succeeds, 3.5) — Parity Shift's Methuselah with more pool than the caller, richer at play but no longer (Tension in the Ranks burning their pool as their ally burns during the action): the action fizzles (3.6) — successful, no referendum held, no effect; a rider keyed to the referendum failing or being canceled (Cedrick Calhoun) does not apply. The play itself is masked when the terms cannot be met (LSJ 20100129). (Owner confirmed, 2026-09-28.)

@@ -124,6 +124,10 @@ pub struct ReferendumCtx {
     pub scorn: u8,
     pub terms: TermsState,
     pub canceled: bool,
+    /// A term had no legal choice when its turn came (Parity Shift with no
+    /// Methuselah left with more pool): the action fizzles, no referendum
+    /// is held (rules-qa 43.1).
+    pub fizzled: bool,
     /// Abilities used this referendum (`Limit::PerReferendum`).
     pub abilities_used: Vec<(cards::AbilitySource, u8)>,
 }
@@ -348,6 +352,7 @@ impl Engine {
             scorn: 0,
             terms: TermsState::default(),
             canceled: false,
+            fizzled: false,
             abilities_used: Vec::new(),
         };
         // Printed votes in favor of a blood hunt called on the diablerist
@@ -396,8 +401,16 @@ impl Engine {
     }
 
     /// Set up the current term's state (the seats an allocation runs over,
-    /// clockwise from the caller).
+    /// clockwise from the caller); a term with no legal choice by then
+    /// fizzles the action (rules-qa 43.1).
     fn begin_term(&self, ctx: &mut ReferendumCtx) {
+        self.set_up_term(ctx);
+        if self.terms_step_request(ctx).options.is_empty() {
+            ctx.fizzled = true;
+        }
+    }
+
+    fn set_up_term(&self, ctx: &mut ReferendumCtx) {
         ctx.terms.pending.clear();
         ctx.terms.card_pending.clear();
         match ctx.current_term() {
@@ -428,6 +441,9 @@ impl Engine {
 
     pub(crate) fn referendum_request(&self) -> Option<DecisionRequest> {
         let ctx = self.referendum.as_ref().expect("referendum context");
+        if ctx.fizzled {
+            return None;
+        }
         if ctx.canceled {
             // The returned political action card may leave the acting
             // Methuselah over hand size: "discard down afterward" — the
@@ -838,11 +854,17 @@ impl Engine {
     /// and resolve.
     pub(crate) fn referendum_advance(&mut self) {
         let mut ctx = self.referendum.take().expect("referendum context");
+        if ctx.fizzled {
+            // Held neither to pass, fail nor be canceled: no rider keyed
+            // to its result (rules-qa 43.1).
+            self.after_referendum(false);
+            return;
+        }
         if ctx.canceled {
             // No tally: nothing keyed to the results happens (LSJ
             // 20010209).
             debug_assert!(ctx.kind == RefKind::Political);
-            self.after_referendum();
+            self.after_referendum(true);
             return;
         }
         debug_assert!(ctx.step == RefStep::Polling && ctx.window.is_closed());
@@ -855,7 +877,7 @@ impl Engine {
                 }
                 // Part of the action (spec §3.7.8.1): the after-resolution
                 // window follows it (rules-qa 5.8).
-                self.after_referendum();
+                self.after_referendum(true);
             }
             RefKind::Political => {
                 {
@@ -905,7 +927,7 @@ impl Engine {
             let def = ctx.def.expect("political definition");
             self.apply_referendum_effect(def.effect, &ctx);
         }
-        self.after_referendum();
+        self.after_referendum(true);
     }
 
     /// Effects of a passed referendum; pool losses are simultaneous, ousts
@@ -1163,10 +1185,11 @@ impl Engine {
         }
     }
 
-    /// The referendum concluded (passed, failed or canceled): the action
+    /// The referendum concluded (passed, failed or canceled; `riders`: the
+    /// failed-or-canceled riders apply — not to a fizzled one): the action
     /// resumes at its after-resolution window — unless the acting
     /// Methuselah was ousted (the turn passes) or the game ended.
-    fn after_referendum(&mut self) {
+    fn after_referendum(&mut self, riders: bool) {
         if self.state.living() <= 1 {
             self.action = None;
             self.flow = Flow::GameOver;
@@ -1182,7 +1205,7 @@ impl Engine {
         // A blocked leave-torpor whose blocker diablerised (its blood hunt)
         // opens the after-resolution window too, for what the diablerie
         // triggers (rules-qa 16.2).
-        if !(blocked && a.diablerist.is_none()) {
+        if riders && !(blocked && a.diablerist.is_none()) {
             self.own_referendum_failed_riders();
         }
         self.after_resolution();

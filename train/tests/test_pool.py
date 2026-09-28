@@ -5,6 +5,7 @@ seed, decks and decision log."""
 import json
 
 import numpy as np
+import pytest
 import zvtes_py
 
 
@@ -41,3 +42,34 @@ def test_games_replay_from_their_log():
     for ep in done:
         assert not ep["truncated"]
         assert zvtes_py.replay(ep["seed"], ep["decks"], ep["log"]) == ep["half_vps"]
+
+
+def test_queued_tables_route_rows_to_their_networks():
+    pool = zvtes_py.GamePool(6, ["policy"] * 4, seed=3)
+    specs = [
+        {"seats": ["net:0", "net:1", "aggro", "net:1", "random"]},
+        {"seats": ["net:2", "net:0", "wall", "random"], "decks": [14, 15, 16, 17]},
+    ] * 20
+    pool.queue(specs)
+    rng = np.random.default_rng(3)
+    done = []
+    while len(done) < 12:
+        obs = pool.observe()
+        assert set(obs["agent"]) <= {0, 1, 2}
+        done += pool.act(random_actions(obs, rng))
+    queued = [ep for ep in done if ep["seats"] != ["net:0"] * 4]
+    assert queued, "queued tables were played"
+    for ep in queued:
+        assert ep["seats"] in (specs[0]["seats"], specs[1]["seats"])
+        assert len(ep["half_vps"]) == len(ep["seats"])
+        if len(ep["seats"]) == 4:
+            assert ep["decks"] == [14, 15, 16, 17]
+
+
+def test_only_tournament_tables():
+    for n in (3, 6):
+        with pytest.raises(ValueError):
+            zvtes_py.GamePool(2, ["policy"] * n)
+    pool = zvtes_py.GamePool(2, ["policy"] * 5)
+    with pytest.raises(ValueError):
+        pool.queue([{"seats": ["net:0", "aggro", "wall"]}])

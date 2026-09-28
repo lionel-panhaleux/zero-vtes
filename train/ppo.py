@@ -1,14 +1,18 @@
-"""PPO self-play (DESIGN §5, P3): one network plays every seat of a
-`zvtes_py.GamePool`; each seat's decisions form its own chain, rewarded at
-the game's end by tournament scoring — (VPs + 1 for the game win) / 5.
-Rollouts are truncated: a chain's last decision in a rollout bootstraps
-the ones before it and is carried into the next rollout. Evaluation plays
-the policy (sampling) against random seats and the scripted bots.
+"""PPO (DESIGN §5, P3–P4) on 4- and 5-seat tables of a `zvtes_py.GamePool`:
+self-play (the learner, `net:0`, at every seat), or with `--league` the
+tables a `train.league.League` sets — one learner seat, an exploiter seat
+(a second trained network), the rest bots and frozen snapshots. Each
+trained seat's decisions form a chain, rewarded at the game's end by
+(VPs + `gw_weight` × the game win) / 5. Rollouts are truncated: a chain's
+last decision in a rollout bootstraps the ones before it and is carried
+into the next rollout. Evaluation plays the learner (sampling) against
+random seats and the scripted bots.
 
     uv run python -m train.ppo --iterations 200 --out runs/first
 """
 
 import argparse
+import copy
 import dataclasses
 import json
 import time
@@ -18,6 +22,7 @@ import numpy as np
 import torch
 import zvtes_py
 
+from train.league import EXPLOITER, TABLES, League, label
 from train.model import Policy
 
 
@@ -33,16 +38,28 @@ class Config:
     lam: float = 0.95
     clip: float = 0.2
     value_coef: float = 0.5
-    entropy_coef: float = 0.01
+    entropy_coef: float = 0.02
+    # The game win's weight in the reward, in VPs (tournament ranking puts
+    # game wins first).
+    gw_weight: float = 2.0
     d: int = 96
     layers: int = 2
     seed: int = 0
     eval_every: int = 10
-    eval_games: int = 96
+    eval_games: int = 256
     budget: int = 20_000
     device: str = "auto"
     out: str = "runs/ppo"
     resume: str = ""
+    # The league (train/league.py).
+    league: bool = False
+    snapshot_every: int = 10
+    opponents_kept: int = 4
+    pfsp_rate: float = 0.1
+    retire_random: float = 0.85
+    exploiter: bool = True
+    exploiter_beaten: float = 0.3
+    exploiter_reset: int = 50
 
 
 def device_of(name):
@@ -122,20 +139,47 @@ def scores(ep):
     return vps, (vps == best) & (best >= 2) & ((vps == best).sum() == 1)
 
 
-def rewards(ep):
-    """Tournament scoring per seat: (VPs + 1 for the game win) / 5."""
+def rewards(ep, gw_weight):
+    """Per seat: (VPs + `gw_weight` for the game win) / 5."""
     vps, win = scores(ep)
-    return (vps + win) / 5
+    return (vps + gw_weight * win) / 5
 
 
 @torch.no_grad()
-def act(model, obs, device, rng):
-    logits, values = forward(model, batch_of(obs, device))
-    probs = torch.softmax(logits.float(), -1).cpu().numpy().astype(np.float64)
-    probs /= probs.sum(1, keepdims=True)
-    actions = np.array([rng.choice(len(p), p=p) for p in probs])
-    logp = np.log(probs[np.arange(len(actions)), actions] + 1e-12)
-    return actions, logp, values.float().cpu().numpy()
+def act(nets, obs, device, rng):
+    """Sample every row's option from its network (`obs["agent"]` → `nets`):
+    actions, their log-probabilities and the values."""
+    b = len(obs["tok_n"])
+    actions, logp, values = np.zeros(b, np.int64), np.zeros(b), np.zeros(b, np.float32)
+    for agent in np.unique(obs["agent"]):
+        idx = np.nonzero(obs["agent"] == agent)[0]
+        part = {k: v[idx] for k, v in obs.items()}
+        logits, v = forward(nets[int(agent)], batch_of(part, device))
+        probs = torch.softmax(logits.float(), -1).cpu().numpy().astype(np.float64)
+        probs /= probs.sum(1, keepdims=True)
+        a = np.array([rng.choice(len(p), p=p) for p in probs])
+        actions[idx] = a
+        logp[idx] = np.log(probs[np.arange(len(a)), a] + 1e-12)
+        values[idx] = v.float().cpu().numpy()
+    return actions, logp, values
+
+
+class Learner:
+    """A trained network: its model, optimizer and open chains."""
+
+    def __init__(self, agent, model, lr):
+        self.agent = agent
+        self.model = model
+        self.opt = torch.optim.Adam(model.parameters(), lr=lr)
+        # (slot, seat) -> transitions [obs, action, logp, value, reward, done]
+        self.chains = {}
+
+    def restart(self, weights, lr):
+        """New weights and a fresh optimizer; the open chains (sampled by
+        the old policy) are dropped."""
+        self.model.load_state_dict(weights)
+        self.opt = torch.optim.Adam(self.model.parameters(), lr=lr)
+        self.chains = {}
 
 
 class Trainer:
@@ -145,56 +189,95 @@ class Trainer:
         self.schema = json.loads(zvtes_py.schema())
         torch.manual_seed(cfg.seed)
         self.rng = np.random.default_rng(cfg.seed)
-        self.model = Policy(self.schema, d=cfg.d, layers=cfg.layers).to(self.device)
-        self.opt = torch.optim.Adam(self.model.parameters(), lr=cfg.lr)
+        model = Policy(self.schema, d=cfg.d, layers=cfg.layers).to(self.device)
+        self.learner = Learner(0, model, cfg.lr)
+        self.model = model
         self.start = 1
+        saved = {}
         if cfg.resume:
             saved = torch.load(cfg.resume, map_location=self.device)
-            self.model.load_state_dict(saved["model"])
+            model.load_state_dict(saved["model"])
             if "optimizer" in saved:
-                self.opt.load_state_dict(saved["optimizer"])
+                self.learner.opt.load_state_dict(saved["optimizer"])
             self.start = saved.get("iteration", 0) + 1
-        self.pool = zvtes_py.GamePool(
-            cfg.games, ["policy"] * 4, seed=cfg.seed, budget=cfg.budget
-        )
-        # (slot, seat) -> transitions [obs, action, logp, value, reward, done]
-        self.chains = {}
         self.out = Path(cfg.out)
         self.out.mkdir(parents=True, exist_ok=True)
+        self.league = None
+        self.exploiter = None
+        if cfg.league:
+            self.league = League(cfg, self.rng, self.out)
+            self.league.load(model)
+            if not self.league.learner_snapshots() and self.start > 1:
+                self.league.add(self.start - 1, model)
+            if "pfsp" in saved:
+                self.league.restore(saved["pfsp"])
+            if cfg.exploiter:
+                self.exploiter = Learner(EXPLOITER, copy.deepcopy(model), cfg.lr)
+                if "exploiter" in saved:
+                    self.exploiter.model.load_state_dict(saved["exploiter"])
+                    self.exploiter.opt.load_state_dict(saved["exploiter_optimizer"])
+        self.pool = zvtes_py.GamePool(
+            cfg.games,
+            ["net:0"] * 4,
+            seed=cfg.seed,
+            budget=cfg.budget,
+            tables=[self.spec() for _ in range(cfg.games)],
+        )
+
+    def learners(self):
+        return [self.learner] + ([self.exploiter] if self.exploiter else [])
+
+    def nets(self):
+        if not self.league:
+            return {0: self.model}
+        return self.league.nets(self.model, self.exploiter.model if self.exploiter else None)
+
+    def spec(self):
+        if self.league:
+            return self.league.spec()
+        return {"seats": ["net:0"] * int(self.rng.choice(TABLES))}
 
     def rollout(self):
-        """Play `steps` pool steps; the trainable transitions with their
+        """Play `steps` pool steps; each learner's transitions with their
         advantages and returns, and episode statistics."""
-        closed, stats = [], {"episodes": 0, "truncated": 0, "turns": 0}
+        stats = {"episodes": 0, "truncated": 0, "turns": 0}
+        by_agent = {lr.agent: lr for lr in self.learners()}
+        closed = {a: [] for a in by_agent}
+        self.pool.queue([self.spec() for _ in range(self.cfg.games)])
         for _ in range(self.cfg.steps):
             obs = self.pool.observe()
-            actions, logp, values = act(self.model, obs, self.device, self.rng)
+            actions, logp, values = act(self.nets(), obs, self.device, self.rng)
             for i, row in enumerate(rows(obs)):
-                key = (i, int(obs["seat"][i]))
-                self.chains.setdefault(key, []).append(
+                learner = by_agent.get(int(obs["agent"][i]))
+                if learner is None:
+                    continue
+                learner.chains.setdefault((i, int(obs["seat"][i])), []).append(
                     [row, int(actions[i]), float(logp[i]), float(values[i]), 0.0, False]
                 )
             for ep in self.pool.act(actions.tolist()):
                 stats["episodes"] += 1
                 stats["truncated"] += ep["truncated"]
                 stats["turns"] += ep["turns"]
-                r = rewards(ep)
-                for s in range(len(r)):
-                    chain = self.chains.pop((ep["slot"], s), None)
+                if self.league:
+                    self.league.record(ep, scores(ep)[0])
+                r = rewards(ep, self.cfg.gw_weight)
+                for s, name in enumerate(ep["seats"]):
+                    learner = by_agent.get(int(name[4:])) if name.startswith("net:") else None
+                    chain = learner and learner.chains.pop((ep["slot"], s), None)
                     if chain:
                         chain[-1][4], chain[-1][5] = float(r[s]), True
-                        closed.append(chain)
-        # Open chains: the last decision bootstraps the others and waits.
-        train = []
-        for key, chain in list(self.chains.items()):
-            if len(chain) > 1:
-                train.append(chain)
-                self.chains[key] = [chain[-1]]
-        samples = []
-        for chain in closed:
-            samples += self.advantages(chain, bootstrap=None)
-        for chain in train:
-            samples += self.advantages(chain[:-1], bootstrap=chain[-1][3])
+                        closed[learner.agent].append(chain)
+        samples = {}
+        for learner in self.learners():
+            out = []
+            for chain in closed[learner.agent]:
+                out += self.advantages(chain, bootstrap=None)
+            # Open chains: the last decision bootstraps the others and waits.
+            for key, chain in list(learner.chains.items()):
+                if len(chain) > 1:
+                    out += self.advantages(chain[:-1], bootstrap=chain[-1][3])
+                    learner.chains[key] = [chain[-1]]
+            samples[learner.agent] = out
         return samples, stats
 
     def advantages(self, chain, bootstrap):
@@ -209,8 +292,10 @@ class Trainer:
             next_value = v
         return out
 
-    def update(self, samples):
+    def update(self, learner, samples):
         cfg = self.cfg
+        if not samples:
+            return {}
         adv = np.array([s[3] for s in samples], np.float32)
         adv = (adv - adv.mean()) / (adv.std() + 1e-8)
         losses = []
@@ -219,7 +304,7 @@ class Trainer:
             for k in range(0, len(order), cfg.minibatch):
                 idx = order[k : k + cfg.minibatch]
                 batch = collate([samples[i][0] for i in idx], self.device)
-                logits, values = forward(self.model, batch)
+                logits, values = forward(learner.model, batch)
                 logp_all = torch.log_softmax(logits, -1)
                 a = torch.tensor([samples[i][1] for i in idx], device=self.device)
                 logp = logp_all.gather(1, a[:, None]).squeeze(1)
@@ -231,16 +316,16 @@ class Trainer:
                 vf = ((values - ret) ** 2).mean()
                 ent = -(logp_all.exp() * logp_all).sum(-1).mean()
                 loss = pg + cfg.value_coef * vf - cfg.entropy_coef * ent
-                self.opt.zero_grad()
+                learner.opt.zero_grad()
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
-                self.opt.step()
+                torch.nn.utils.clip_grad_norm_(learner.model.parameters(), 1.0)
+                learner.opt.step()
                 losses.append((pg.item(), vf.item(), ent.item()))
         pg, vf, ent = np.mean(losses, 0)
         return {"pg": pg, "vf": vf, "entropy": ent}
 
     def evaluate(self, seats, games):
-        """The policy's mean VPs and game-win rate over `games` finished
+        """The learner's mean VPs and game-win rate over `games` finished
         games, every seat position in turn."""
         pool = zvtes_py.GamePool(
             min(games, 64), seats, seed=10_000 + self.cfg.seed, rotate=True, budget=self.cfg.budget
@@ -248,7 +333,7 @@ class Trainer:
         rng = np.random.default_rng(0)
         vps, wins, done, truncated = [], 0, 0, 0
         while done < games:
-            actions, _, _ = act(self.model, pool.observe(), self.device, rng)
+            actions, _, _ = act(self.nets(), pool.observe(), self.device, rng)
             for ep in pool.act(actions.tolist()):
                 if done >= games:
                     break
@@ -256,44 +341,68 @@ class Trainer:
                 truncated += ep["truncated"]
                 v, w = scores(ep)
                 for s, kind in enumerate(ep["seats"]):
-                    if kind == "policy":
+                    if kind == "net:0":
                         vps.append(float(v[s]))
                         wins += bool(w[s])
-        return {"vps": float(np.mean(vps)), "gw": wins / games, "truncated": truncated}
+        return {"vps": round(float(np.mean(vps)), 3), "gw": round(wins / games, 3), "truncated": truncated}
+
+    def checkpoint(self, it):
+        saved = {
+            "model": self.model.state_dict(),
+            "optimizer": self.learner.opt.state_dict(),
+            "iteration": it,
+            "config": dataclasses.asdict(self.cfg),
+            "pfsp": self.league.state() if self.league else {},
+        }
+        if self.exploiter:
+            saved["exploiter"] = self.exploiter.model.state_dict()
+            saved["exploiter_optimizer"] = self.exploiter.opt.state_dict()
+        torch.save(saved, self.out / "model.pt")
 
     def run(self):
         cfg = self.cfg
         log = open(self.out / "metrics.jsonl", "a")
         for it in range(self.start, cfg.iterations + 1):
             t0 = time.perf_counter()
-            self.model.eval()
+            for learner in self.learners():
+                learner.model.eval()
             samples, stats = self.rollout()
             t1 = time.perf_counter()
-            self.model.train()
-            metrics = self.update(samples)
+            metrics = {}
+            for learner in self.learners():
+                learner.model.train()
+                m = self.update(learner, samples[learner.agent])
+                prefix = "" if learner.agent == 0 else "exploiter_"
+                metrics.update({prefix + k: v for k, v in m.items()})
+                learner.model.eval()
             t2 = time.perf_counter()
             stats["turns"] = round(stats["turns"] / max(stats["episodes"], 1), 1)
             row = {
                 "iteration": it,
-                "samples": len(samples),
+                "samples": len(samples[0]),
                 "rollout_s": round(t1 - t0, 2),
                 "update_s": round(t2 - t1, 2),
                 **stats,
                 **{k: round(float(v), 4) for k, v in metrics.items()},
             }
+            if self.league:
+                if self.league.step():
+                    self.league.retire_exploiter(it, self.exploiter.model)
+                    self.exploiter.restart(self.model.state_dict(), cfg.lr)
+                    row["exploiter_retired"] = True
+                if it % cfg.snapshot_every == 0:
+                    self.league.add(it, self.model)
             if it % cfg.eval_every == 0 or it == cfg.iterations:
-                self.model.eval()
-                row["vs_random"] = self.evaluate(["policy", "random", "random", "random"], cfg.eval_games)
-                row["vs_bots"] = self.evaluate(["policy", "aggro", "wall", "aggro"], cfg.eval_games)
-                torch.save(
-                    {
-                        "model": self.model.state_dict(),
-                        "optimizer": self.opt.state_dict(),
-                        "iteration": it,
-                        "config": dataclasses.asdict(cfg),
-                    },
-                    self.out / "model.pt",
+                row["vs_random"] = self.evaluate(["net:0"] + ["random"] * 4, cfg.eval_games)
+                row["vs_bots4"] = self.evaluate(["net:0", "aggro", "wall", "aggro"], cfg.eval_games)
+                row["vs_bots5"] = self.evaluate(
+                    ["net:0", "aggro", "wall", "aggro", "wall"], cfg.eval_games
                 )
+                if self.league and self.league.latest() is not None:
+                    snap = f"net:{self.league.latest()}"
+                    row["vs_snapshot"] = self.evaluate(["net:0"] + [snap] * 4, cfg.eval_games)
+                    row["pfsp"] = {label(k): round(v, 2) for k, v in sorted(self.league.p.items())}
+                self.checkpoint(it)
             print(json.dumps(row), flush=True)
             log.write(json.dumps(row) + "\n")
             log.flush()
@@ -302,7 +411,10 @@ class Trainer:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for f in dataclasses.fields(Config):
-        parser.add_argument("--" + f.name.replace("_", "-"), type=type(f.default), default=f.default)
+        kind = type(f.default)
+        if kind is bool:
+            kind = lambda s: s.lower() in ("1", "true", "yes")  # noqa: E731
+        parser.add_argument("--" + f.name.replace("_", "-"), type=kind, default=f.default)
     args = parser.parse_args()
     Trainer(Config(**vars(args))).run()
 

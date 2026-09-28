@@ -78,7 +78,10 @@ open gaps, what remains); history in `git log` (commit messages are detailed).
   rebuilds when Rust sources change); `uv run pytest -q`; `PYO3_PYTHON=$PWD/.venv/bin/python
   cargo clippy -p zvtes-py --profile ci -- -D warnings` (the py crate is not a
   default workspace member: plain cargo commands stay engine-only). Train:
-  `uv run python -m train.ppo --out runs/<name>` (`runs/` is ignored).
+  `uv run python -m train.ppo --out runs/<name>` (`runs/` is ignored; add
+  `--league true` for the league: bots, snapshots and an exploiter as
+  opponents; `--resume
+  runs/<name>/model.pt` to continue).
 - Refactors: the fuzz golden replays and perft counts (`tests/golden/`,
   DESIGN §7.3/§7.5) must stay green; a failure names the seed and decision
   range (`FUZZ_TRACE=1 SEED_FROM=n` traces it). Re-bless an intended change

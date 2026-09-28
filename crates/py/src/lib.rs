@@ -1,11 +1,14 @@
 //! `zvtes_py`: the engine for training (DESIGN §5 "Batched stepping").
 //!
-//! A `GamePool` holds N games, each waiting on one policy decision. `observe`
-//! returns that batch as padded arrays (`zvtes::obs`); `act` answers it, then
-//! advances every game in parallel until its next policy decision — seats
-//! played by a scripted bot or `RandomLegal` are answered inside, and a
-//! finished game is reported and replaced by a new one (seed and decks drawn
-//! from the pool's own sequence, so a pool is replayable). A game past its
+//! A `GamePool` holds N games, each waiting on one network's decision
+//! (seats `net:k`: the learner, frozen snapshots — Python routes each row to
+//! its network by the `agent` column). `observe` returns that batch as padded
+//! arrays (`zvtes::obs`); `act` answers it, then advances every game in
+//! parallel until its next network decision — seats played by a scripted bot
+//! or `RandomLegal` are answered inside, and a finished game is reported and
+//! replaced by a new one: the next spec `queue`d by Python (matchmaking), or
+//! the pool's default table (seed and unspecified decks drawn from the pool's
+//! own sequence, so a pool is replayable). A game past its
 //! decision budget is cut (`truncated`): the rulebook allows unbounded
 //! repeats (DESIGN §11.3) and an untrained policy finds them.
 
@@ -25,28 +28,38 @@ use zvtes::rng::Rng;
 /// Who plays a seat.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Kind {
-    Policy,
+    /// A network answered from Python, by id (0: the learner).
+    Net(u16),
     Random,
     Bot(Style),
 }
 
 fn kind(name: &str) -> PyResult<Kind> {
     Ok(match name {
-        "policy" => Kind::Policy,
+        "policy" => Kind::Net(0),
         "random" => Kind::Random,
         "aggro" => Kind::Bot(Style::AggroBleed),
         "wall" => Kind::Bot(Style::Wall),
-        _ => return Err(PyValueError::new_err(format!("unknown seat kind {name:?}"))),
+        _ => match name.strip_prefix("net:").and_then(|k| k.parse().ok()) {
+            Some(k) => Kind::Net(k),
+            None => return Err(PyValueError::new_err(format!("unknown seat kind {name:?}"))),
+        },
     })
 }
 
-fn kind_name(k: Kind) -> &'static str {
+fn kind_name(k: Kind) -> String {
     match k {
-        Kind::Policy => "policy",
-        Kind::Random => "random",
-        Kind::Bot(Style::AggroBleed) => "aggro",
-        Kind::Bot(Style::Wall) => "wall",
+        Kind::Net(k) => format!("net:{k}"),
+        Kind::Random => "random".into(),
+        Kind::Bot(Style::AggroBleed) => "aggro".into(),
+        Kind::Bot(Style::Wall) => "wall".into(),
     }
+}
+
+/// A table Python asks for: seat kinds, and decks (drawn when absent).
+struct Spec {
+    kinds: Vec<Kind>,
+    decks: Option<Vec<usize>>,
 }
 
 /// One finished game.
@@ -81,7 +94,7 @@ impl Game {
             .map(|(s, &k)| -> Option<Box<dyn Agent + Send + Sync>> {
                 let seed = seed.wrapping_mul(31).wrapping_add(s as u64);
                 match k {
-                    Kind::Policy => None,
+                    Kind::Net(_) => None,
                     Kind::Random => Some(Box::new(RandomLegal::new(seed))),
                     Kind::Bot(style) => Some(Box::new(Scripted::new(style, seed))),
                 }
@@ -118,6 +131,12 @@ impl Game {
             }
             match self.engine.run() {
                 Step::Over(vps) => return Some(over(&self.engine, vps, false)),
+                // An engine bug: name the game so it replays (the engine's
+                // own check is a debug assertion, off in this build).
+                Step::Decision(req) if req.options.is_empty() => panic!(
+                    "empty {:?} request: seed {} decks {:?} kinds {:?} log {:?}",
+                    req.window, self.seed, self.decks, self.kinds, self.engine.log
+                ),
                 Step::Decision(req) => match &mut self.agents[req.seat.index()] {
                     Some(agent) => {
                         let i = agent.decide(&self.engine, &req);
@@ -143,7 +162,8 @@ fn all_decks() -> &'static [Deck] {
 /// "random", "aggro", "wall"); with `rotate`, game k seats them shifted by
 /// k (the policy meets every position). `decks`: indices into the decklist
 /// table (0–13 the precons, 14–27 the New Blood minis), drawn per seat
-/// and game.
+/// and game. `tables`: specs the first games take (as `queue`). Tables are
+/// 4 or 5 seats: tournament tables only.
 #[pyclass(module = "zvtes_py")]
 struct GamePool {
     games: Vec<Game>,
@@ -155,23 +175,47 @@ struct GamePool {
     keep_logs: bool,
     started: u64,
     finished: Vec<Episode>,
+    queued: std::collections::VecDeque<Spec>,
 }
 
 impl GamePool {
     fn fresh(&mut self) -> Game {
         let seed = self.rng.next_u64();
-        let n = self.kinds.len();
-        let decks = (0..n)
-            .map(|_| self.deck_pool[self.rng.below(self.deck_pool.len())])
-            .collect();
-        let shift = if self.rotate {
-            (self.started % n as u64) as usize
-        } else {
-            0
+        let (kinds, decks) = match self.queued.pop_front() {
+            Some(spec) => (spec.kinds, spec.decks),
+            None => {
+                let n = self.kinds.len();
+                let shift = if self.rotate {
+                    (self.started % n as u64) as usize
+                } else {
+                    0
+                };
+                ((0..n).map(|s| self.kinds[(s + shift) % n]).collect(), None)
+            }
         };
-        let kinds = (0..n).map(|s| self.kinds[(s + shift) % n]).collect();
+        let decks = decks.unwrap_or_else(|| {
+            (0..kinds.len())
+                .map(|_| self.deck_pool[self.rng.below(self.deck_pool.len())])
+                .collect()
+        });
         self.started += 1;
         Game::new(seed, decks, kinds)
+    }
+
+    fn spec(&self, seats: Vec<String>, decks: Option<Vec<usize>>) -> PyResult<Spec> {
+        if !(4..=5).contains(&seats.len()) {
+            return Err(PyValueError::new_err("4 or 5 seats (tournament tables)"));
+        }
+        let kinds = seats
+            .iter()
+            .map(|s| kind(s))
+            .collect::<PyResult<Vec<_>>>()?;
+        if let Some(d) = &decks {
+            if d.len() != kinds.len() || d.iter().any(|&d| d >= all_decks().len()) {
+                return Err(PyValueError::new_err("one deck index in 0..28 per seat"));
+            }
+        }
+        Ok(Spec { kinds, decks })
     }
 
     /// Every game to its next policy decision, in parallel; finished games
@@ -205,7 +249,7 @@ impl GamePool {
     // A Python constructor with keyword arguments.
     #[allow(clippy::too_many_arguments)]
     #[new]
-    #[pyo3(signature = (n_games, seats, seed=0, rotate=false, decks=None, budget=20_000, keep_logs=false))]
+    #[pyo3(signature = (n_games, seats, seed=0, rotate=false, decks=None, budget=20_000, keep_logs=false, tables=None))]
     fn new(
         py: Python<'_>,
         n_games: usize,
@@ -215,16 +259,17 @@ impl GamePool {
         decks: Option<Vec<usize>>,
         budget: u64,
         keep_logs: bool,
+        tables: Option<Vec<Bound<'_, PyDict>>>,
     ) -> PyResult<Self> {
-        if !(2..=6).contains(&seats.len()) {
-            return Err(PyValueError::new_err("2 to 6 seats"));
+        if !(4..=5).contains(&seats.len()) {
+            return Err(PyValueError::new_err("4 or 5 seats (tournament tables)"));
         }
         let kinds = seats
             .iter()
             .map(|s| kind(s))
             .collect::<PyResult<Vec<_>>>()?;
-        if !kinds.contains(&Kind::Policy) {
-            return Err(PyValueError::new_err("no policy seat"));
+        if !kinds.iter().any(|k| matches!(k, Kind::Net(_))) {
+            return Err(PyValueError::new_err("no network seat"));
         }
         let deck_pool = decks.unwrap_or_else(|| (0..14).collect());
         if deck_pool.is_empty() || deck_pool.iter().any(|&d| d >= all_decks().len()) {
@@ -240,7 +285,11 @@ impl GamePool {
             keep_logs,
             started: 0,
             finished: Vec::new(),
+            queued: Default::default(),
         };
+        if let Some(tables) = tables {
+            pool.queue(tables)?;
+        }
         for _ in 0..n_games {
             let g = pool.fresh();
             pool.games.push(g);
@@ -252,8 +301,8 @@ impl GamePool {
     /// The pending decisions, one per game, padded to the batch's largest
     /// token and option counts: a dict of arrays `tok_ids` [B, T, 4] i32,
     /// `tok_f` [B, T, F] f32, `tok_n` [B], `opt_ids` [B, O, 5] i32, `opt_f`
-    /// [B, O, G] f32, `opt_n` [B], `seat` [B] (the deciding seat), `window`
-    /// [B].
+    /// [B, O, G] f32, `opt_n` [B], `seat` [B] (the deciding seat), `agent`
+    /// [B] (its network id), `window` [B].
     fn observe<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         let obs: Vec<(&DecisionRequest, &Obs)> = self
             .games
@@ -271,6 +320,17 @@ impl GamePool {
         let mut opt_ids = vec![0i32; b * n * OPT_IDS];
         let mut opt_f = vec![0f32; b * n * OPT_F];
         let (mut tok_n, mut opt_n, mut seat, mut window) = (vec![], vec![], vec![], vec![]);
+        let agent: Vec<i32> = self
+            .games
+            .iter()
+            .map(|g| {
+                let (r, _) = g.pending.as_ref().expect("a pending decision");
+                match g.kinds[r.seat.index()] {
+                    Kind::Net(k) => k as i32,
+                    _ => unreachable!("only networks' decisions are pending"),
+                }
+            })
+            .collect();
         for (i, (r, o)) in obs.iter().enumerate() {
             for (k, row) in o.tok_ids.iter().enumerate() {
                 let at = (i * t + k) * TOK_IDS;
@@ -313,6 +373,7 @@ impl GamePool {
         )?;
         d.set_item("opt_n", PyArray1::from_vec(py, opt_n))?;
         d.set_item("seat", PyArray1::from_vec(py, seat))?;
+        d.set_item("agent", PyArray1::from_vec(py, agent))?;
         d.set_item("window", PyArray1::from_vec(py, window))?;
         Ok(d)
     }
@@ -362,6 +423,27 @@ impl GamePool {
                 Ok(d)
             })
             .collect()
+    }
+
+    /// Replace the queue of tables the next new games take, in order:
+    /// dicts with `seats` (kinds: "net:k", "random", "aggro", "wall"; 4 or
+    /// 5) and optionally `decks` (one index per seat). When it runs out, new
+    /// games take the pool's default table.
+    fn queue(&mut self, specs: Vec<Bound<'_, PyDict>>) -> PyResult<()> {
+        let mut queued = std::collections::VecDeque::new();
+        for d in specs {
+            let seats: Vec<String> = d
+                .get_item("seats")?
+                .ok_or_else(|| PyValueError::new_err("a spec needs seats"))?
+                .extract()?;
+            let decks: Option<Vec<usize>> = match d.get_item("decks")? {
+                Some(v) => Some(v.extract()?),
+                None => None,
+            };
+            queued.push_back(self.spec(seats, decks)?);
+        }
+        self.queued = queued;
+        Ok(())
     }
 
     #[getter]

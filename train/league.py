@@ -1,0 +1,152 @@
+"""The league (DESIGN §5, P4). Every table is 4 or 5 seats (tournament
+tables) with one seat for the learner (`net:0`) and, with `exploiter`, one
+for the exploiter (`net:EXPLOITER`), a second trained network that plays
+only the learner's tables; the other seats are drawn by prioritized
+fictitious self-play among the scripted bots, the learner's last
+`opponents_kept` snapshots (`net:<iteration>`) and the exploiter's last
+retired copies (`net:EXPLOITER + <iteration>`): weight (1 − p)² + 0.02, p
+the learner's beat rate against it (pairwise: more VPs than that seat, a
+tie ½). Beat rates move once per iteration, by `pfsp_rate` toward the
+iteration's mean. The random seat retires once the learner beats it over
+`retire_random` of the time. The exploiter is retired into the pool and
+restarted from the learner's weights once the learner's beat rate against
+it falls under `exploiter_beaten`, or after `exploiter_reset` iterations."""
+
+import copy
+from pathlib import Path
+
+import numpy as np
+import torch
+
+BOTS = ["aggro", "wall", "random"]
+TABLES = (4, 5)
+# Network ids: 0 the learner, iterations its snapshots, EXPLOITER the live
+# exploiter and EXPLOITER + iteration its retired copies.
+EXPLOITER = 30_000
+EXP = f"net:{EXPLOITER}"
+
+
+def label(name):
+    """A seat name for logs: `exploiter`, `exploiter:<it>`, `net:<it>`."""
+    if name.startswith("net:") and int(name[4:]) >= EXPLOITER:
+        k = int(name[4:]) - EXPLOITER
+        return f"exploiter:{k}" if k else "exploiter"
+    return name
+
+
+class League:
+    def __init__(self, cfg, rng, out):
+        self.cfg = cfg
+        self.rng = rng
+        self.dir = Path(out) / "snapshots"
+        self.dir.mkdir(parents=True, exist_ok=True)
+        self.snapshots = {}  # net id -> frozen model
+        self.p = {}  # opponent name -> the learner's beat rate
+        self.pending = {}  # opponent name -> this iteration's outcomes
+        self.exploiter_since = 0
+
+    def load(self, model):
+        """The snapshots saved by an earlier run, into copies of `model`."""
+        for path in sorted(self.dir.glob("*.pt"), key=lambda p: int(p.stem)):
+            net = copy.deepcopy(model)
+            net.load_state_dict(torch.load(path, map_location=next(model.parameters()).device))
+            self.snapshots[int(path.stem)] = net.eval()
+        self.trim()
+
+    def add(self, key, model):
+        net = copy.deepcopy(model).eval()
+        torch.save(net.state_dict(), self.dir / f"{key}.pt")
+        self.snapshots[key] = net
+        self.trim()
+
+    def learner_snapshots(self):
+        return sorted(k for k in self.snapshots if k < EXPLOITER)
+
+    def exploiter_snapshots(self):
+        return sorted(k for k in self.snapshots if k > EXPLOITER)
+
+    def trim(self):
+        # Kept in memory three times longer than they are drawn: a game
+        # started against a snapshot outlives its turn as a candidate.
+        keep = 3 * self.cfg.opponents_kept
+        for k in self.learner_snapshots()[:-keep] + self.exploiter_snapshots()[:-keep]:
+            del self.snapshots[k]
+
+    def candidates(self):
+        n = self.cfg.opponents_kept
+        bots = [b for b in BOTS if not (b == "random" and self.p.get(b, 0.5) > self.cfg.retire_random)]
+        return (
+            bots
+            + [f"net:{k}" for k in self.learner_snapshots()[-n:]]
+            + [f"net:{k}" for k in self.exploiter_snapshots()[-n:]]
+        )
+
+    def draw(self):
+        names = self.candidates()
+        w = [(1 - self.p.get(n, 0.5)) ** 2 + 0.02 for n in names]
+        return names[self.rng.choice(len(names), p=[x / sum(w) for x in w])]
+
+    def spec(self):
+        n = int(self.rng.choice(TABLES))
+        seats = [self.draw() for _ in range(n)]
+        order = self.rng.permutation(n)
+        seats[order[0]] = "net:0"
+        if self.cfg.exploiter:
+            seats[order[1]] = EXP
+        return {"seats": seats}
+
+    def record(self, ep, vps):
+        """Collect the learner's pairwise outcomes of a finished game
+        (truncated ones are skipped: a looping seat says nothing about
+        strength)."""
+        if ep["truncated"]:
+            return
+        seats = ep["seats"]
+        for s, me in enumerate(seats):
+            if me != "net:0":
+                continue
+            for o, them in enumerate(seats):
+                if them == "net:0":
+                    continue
+                outcome = 1.0 if vps[s] > vps[o] else 0.5 if vps[s] == vps[o] else 0.0
+                self.pending.setdefault(them, []).append(outcome)
+
+    def step(self):
+        """End of an iteration: move each beat rate toward the iteration's
+        mean; whether the exploiter is due for a restart."""
+        for name, outcomes in self.pending.items():
+            p = self.p.get(name, 0.5)
+            self.p[name] = p + self.cfg.pfsp_rate * (float(np.mean(outcomes)) - p)
+        self.pending = {}
+        self.exploiter_since += 1
+        return self.cfg.exploiter and (
+            self.p.get(EXP, 0.5) < self.cfg.exploiter_beaten
+            or self.exploiter_since >= self.cfg.exploiter_reset
+        )
+
+    def retire_exploiter(self, iteration, exploiter):
+        """The exploiter joins the pool as a frozen copy (its beat rate
+        carried over); the live one restarts at ½."""
+        name = f"net:{EXPLOITER + iteration}"
+        self.add(EXPLOITER + iteration, exploiter)
+        self.p[name] = self.p.pop(EXP, 0.5)
+        self.exploiter_since = 0
+
+    def nets(self, learner, exploiter=None):
+        nets = {0: learner, **self.snapshots}
+        if exploiter is not None:
+            nets[EXPLOITER] = exploiter
+        return nets
+
+    def latest(self):
+        snaps = self.learner_snapshots()
+        return snaps[-1] if snaps else None
+
+    def state(self):
+        return {"p": self.p, "exploiter_since": self.exploiter_since}
+
+    def restore(self, state):
+        if "p" in state:  # older checkpoints saved the beat rates alone
+            self.p, self.exploiter_since = state["p"], state["exploiter_since"]
+        else:
+            self.p = state

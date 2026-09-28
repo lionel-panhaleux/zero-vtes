@@ -485,6 +485,7 @@ titles; `git log` has the detail.
 | P2 · 12d | 09-27 | Elision's observational equivalence (`tests/elision.rs`, §7.2), `GameState::legal_view` (§5); block pruning no longer reads third parties' hands |
 | P2 · 13 | 09-27 | Decklists: the New Blood mini-starters as data, `Engine::with_decks` (`decks.rs`); scripted reference bots aggro-bleed and wall (`bots.rs`, `agent::Agent`) |
 | P3 · 14a–14c | 09-27 | Observations (`obs.rs`: entity tokens, option rows with pointers; honest by test); `crates/py` `GamePool` (batched parallel stepping, bots inside, replayable); `train/`: pointer-scoring transformer, PPO self-play, evaluation vs random and bots |
+| P4 · 15a–15c | 09-28 | Several networks at one table (`net:k` seats, `agent` column), matchmaking queued from Python, 4- and 5-seat tables only; the league: one learner seat, an exploiter, snapshots, bots, PFSP (`train/league.py`) |
 
 ### 11.2 Engine reference (by mechanism)
 
@@ -945,14 +946,17 @@ slice-11 cards by section).
 **Training** (`crates/py`: `zvtes_py.GamePool`, `replay`, `schema`,
 `deck_names`; `train/`: `model.py`, `ppo.py`)
 - `GamePool(n, seats, seed, rotate, decks, budget, keep_logs)`: N games,
-  each waiting on one policy decision; seats are "policy", "random",
+  each waiting on one network's decision; seats are "net:k" (a network
+  answered from Python, 0 the learner; "policy" = "net:0"), "random",
   "aggro" or "wall" (answered inside); `rotate` shifts seating per game;
-  decks drawn per seat from `decks` (default the 14 precons). `observe()`
-  pads the batch; `act(actions)` advances every game in parallel (rayon) to
+  decks drawn per seat from `decks` (default the 14 precons). `queue(specs)`
+  replaces the tables new games take (seats, optional decks; 4 or 5 seats: tournament tables only),
+  the default table once it runs out. `observe()` pads the batch (with an
+  `agent` column: the network to ask); `act(actions)` advances every game in parallel (rayon) to
   its next policy decision and returns the games finished (slot, seed,
   decks, seats, half-VPs, turns, decisions, truncated, log). A game over
   `budget` decisions is cut (§11.3). `train/tests`: batches well formed,
-  games replay from their log, one PPO iteration runs.
+  games replay from their log, only 4- and 5-seat tables, queued tables route rows to their networks, one PPO iteration and two league iterations run (the exploiter trains; resume keeps the beat rates), beat rates move once per iteration and retire the random seat and the exploiter.
 - ~170k decisions/s (300 random games/s) through Python on 8 cores; the
   model is the bottleneck: a d=96, 2-layer trunk takes ~0.3 s per 1,024
   decisions for a training step on the M3's GPU (MPS; half precision
@@ -961,11 +965,39 @@ slice-11 cards by section).
 - Model: token embedding (vocabulary + type + features + its pointers'
   bases), transformer trunk; each option scored from its kind, identity,
   features and the tokens it points at, with the context token; value from
-  the context and mean tokens. PPO: one network plays every seat; a seat's
-  decisions form its chain, rewarded at the end by (VPs + game win) / 5;
-  truncated rollouts bootstrap from a chain's last decision, carried to the
-  next rollout. Evaluation samples the policy against three random seats and
-  against aggro/wall/aggro, every position.
+  the context and mean tokens. PPO: without the league one network plays
+  every seat of 4- and 5-seat tables; a trained seat's decisions form its
+  chain, rewarded at the end by (VPs + `gw_weight` × game win) / 5
+  (`gw_weight` 2 since the second league run: tournament ranking puts game
+  wins first; 1 before); entropy bonus 0.02 (0.01 before; 0.03 made the entropy climb, 0.62 → 0.89 in 30 iterations, with every evaluation flat or down); truncated
+  rollouts bootstrap from a chain's last decision, carried to the next
+  rollout. Evaluation samples the learner, every position: `vs_random`
+  (four random seats; three before the second league run), `vs_bots4`
+  (aggro/wall/aggro, the earlier `vs_bots`), `vs_bots5`
+  (aggro/wall/aggro/wall), `vs_snapshot` (four copies of the latest
+  snapshot), 256 games each (96 before: one snapshot measured 0.44–0.76 VP
+  against aggro/wall/aggro over six evaluation seeds). A pool game that
+  reaches an empty request panics with its seed, decks and log (the
+  engine's own check is a debug assertion) — how training found rules-qa
+  43.1. Game-win benchmarks at a 5-seat table (owner): over 16% is
+  already very good, over 30% very strong, close to 50% top level.
+- The league (`--league true`, `train/league.py`; revised after the first
+  league run, owner 2026-09-28): each new table is 4 or 5 seats, one the
+  learner's (`net:0`), one the exploiter's (`net:30000`, `exploiter`), the
+  others drawn by PFSP among the bots and the last `opponents_kept` (4)
+  snapshots of the learner (saved every `snapshot_every` (10) iterations)
+  and of retired exploiters (`net:30000+<it>`), in
+  `runs/<name>/snapshots/`: weight (1 − p)² + 0.02, p the learner's
+  pairwise beat rate against it (more VPs than that seat, a tie ½; from ½,
+  moved once per iteration by `pfsp_rate` (0.1) toward that iteration's
+  mean; truncated games not counted). The random seat retires once p
+  passes `retire_random` (0.85). The exploiter is a second trained network
+  (own optimizer and chains) that plays only the learner's tables; it is
+  frozen into the pool and restarted from the learner's weights once the
+  learner's beat rate against it falls under `exploiter_beaten` (0.3), or
+  after `exploiter_reset` (50) iterations. One forward pass per network
+  present. The pool refuses tables other than 4 or 5 seats. Not built:
+  evaluation against humans (needs the protocol server, §8).
 - First run (2026-09-27, defaults, 140 iterations ≈ 2.3M decisions, ~1 h on
   the M3): against three random seats 0.71 VP a game at iteration 10 (random
   level: 0.73), 1.86 at 40, 2.7 at 50, then ~2.9–3.1 VPs and 72–77% game wins
@@ -973,6 +1005,34 @@ slice-11 cards by section).
   (an even share: ~0.75) and 5–12% game wins — a plateau from about 90 on.
   Self-play alone does not reach the bots: the league (bots and snapshots as
   opponents, P4) is the next lever.
+- First league run (2026-09-28, defaults, resumed from the first run's
+  iteration 90, to 200 ≈ 1.4M more decisions, ~1 h): against aggro/wall/aggro
+  0.66 VP at 100, then 0.8–1.03 from 110 to 180 (15–20% game wins, above an
+  even share), falling back to 0.77 at 190 and 0.58 at 200 as the entropy
+  dropped from ~0.4 to 0.27; against random seats a steady climb to 3.57 VP
+  and 90% game wins at 190; against the latest snapshot 0.9–1.04, 0.78–0.83
+  at the end. The league lifts the bot result off the self-play plateau, but
+  the late decline reads as the policy sharpening against random and
+  self-play tables. The PFSP beat rates are noisy: with dozens of games per
+  opponent per iteration, the 0.05 EMA spans ~20 games (aggro swung 0.67 →
+  0.27 → 0.58 in 20 iterations).
+- Second league run (2026-09-28, the revised league — one learner seat,
+  the exploiter, per-iteration beat rates, `gw_weight` 2, entropy 0.02 —
+  resumed from the same iteration 90, to 200, ~1.5 h; 256-game
+  evaluations). The start (iteration 90) measured the same way:
+  aggro/wall/aggro 0.60 VP, 12.5% game wins; aggro/wall/aggro/wall 1.90,
+  41%; four random seats 3.92, 79%. Against aggro/wall/aggro: 0.53–0.82 up
+  to 140, then 0.86, 0.89, 0.85, 0.85 (15–19% game wins) from 150 to 180,
+  back to 0.75 at 190 and 0.61 (10.5%) at 200 as the entropy fell from
+  ~0.68 to 0.59; aggro/wall/aggro/wall peaked at 2.07 (44.5%) at 150 and
+  ended at 1.57 (32%); random seats 3.8–4.1 (79–84%) throughout. Same
+  shape as the first league run: a mid-run gain lost over the last 20
+  iterations. The exploiter never led the learner (beat rates 0.49–0.53)
+  and was retired twice by the 50-iteration clock: with the learner's
+  reward and weights it has no reason to find anything the learner does
+  not. The learner's snapshots (`net:150`–`net:180`) are the best models
+  so far. Each learner seat now yields ~6k samples an iteration (half the
+  first league run's).
 
 ### 11.3 Open gaps
 
@@ -1031,11 +1091,12 @@ Still true today; "(verify)" marks items inferred from older notes.
   to beat the bots, the omniscient critic, decklist conditioning, frozen
   snapshots on the ladder, the early survival shaping of §5 (the reward is
   tournament scoring only).
-- **P4 — league & 5p**: exploiters, PFSP, deck/seat sampling, evaluation vs
-  humans.
+- **P4 — league & 5p**: the league, PFSP, 4- and 5-seat tables and seat
+  sampling, the exploiter built (slice 15); remaining: evaluation vs humans
+  (with the protocol server).
 - **P5 — community**: bot service, client adapter, human-ergonomics layer.
 
-Definitions: 425, 897 Rust tests, 3 Python tests
+Definitions: 425, 898 Rust tests, 7 Python tests
 
 ## Outlook: deck building (post-v1)
 

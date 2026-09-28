@@ -399,6 +399,27 @@ fn parity_shift_chooses_a_richer_methuselah_and_reallocates_a_shortfall() {
     assert_eq!(e.state.seats[0].half_vps, 2);
 }
 
+// Parity Shift whose richer Methuselah is no longer richer when its terms
+// are chosen (Tension in the Ranks burning their pool as an ally burns, in
+// play): no legal term, the action fizzles — successful, no referendum
+// (rules-qa 43.1). Found by training (a panic on an empty terms request).
+#[test]
+fn parity_shift_with_nobody_richer_at_resolution_fizzles() {
+    let Table { mut e, alexa, .. } = table();
+    e.state.seats[0].pool = 5;
+    e.state.seats[2].pool = 4;
+    hand(&mut e, 0, &["Parity Shift"]);
+    pick(&mut e, play(0, 0, alexa));
+    e.state.seats[1].pool = 5;
+    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!req.options.is_empty());
+    assert!(e.referendum().is_none());
+    assert_eq!(e.last_outcome, Some(Outcome::Successful));
+    assert!(e.state.minions[alexa.index()].locked);
+    assert_eq!(pool(&e), vec![5, 5, 4]);
+    assert_eq!(e.state.seats[0].ash, vec![find_library("Parity Shift")]);
+}
+
 // Camarilla's Iron Fist: the chosen Methuselah receives no points, so with
 // two opponents only the caller can be chosen (ANK 20241106).
 #[test]
