@@ -106,7 +106,7 @@ pub(super) const MANEUVER_EACH_COMBAT: ModeDef = ability(
 );
 
 /// "Once each combat, … can strike: dodge" (Flávio Gonçalves).
-const DODGE_EACH_COMBAT: ModeDef = ability(
+pub(super) const DODGE_EACH_COMBAT: ModeDef = ability(
     &[Window::CombatStrikeDeclaration],
     Actor::Host,
     &[],
@@ -1763,7 +1763,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 101] = [
+pub static VAMPIRES: [&VampireDef; 102] = [
     &PARIJAT,
     &ABADDON,
     &ABRAHAM_DUSABLE,
@@ -1865,4 +1865,26 @@ pub static VAMPIRES: [&VampireDef; 101] = [
     &VALERIYA_ZINOVIEVA,
     &WEIRICH_WALDBURG,
     &YEWON_ONG,
+    &GILBERT_DUANE,
 ];
+
+/// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
+/// blood to reveal and remove the top card of your crypt from the game. If
+/// it is a Malkavian, a non-titled vampire you control becomes Anarch."
+/// (Group 6, a legacy addition for tournament decks.) Once per influence
+/// phase (rules-qa 6.6); from torpor too (LSJ 20011022). The vampire made
+/// Anarch is picked as it resolves: any non-titled one, in torpor
+/// included, himself excluded by his title.
+pub static GILBERT_DUANE: VampireDef = VampireDef {
+    name: "Gilbert Duane",
+    abilities: &[mode_of(
+        &[Window::InfluencePhaseOwn],
+        Actor::Host,
+        &[R::HostBloodAtLeast(1)],
+        &[
+            Effect::HostBurnBlood(1),
+            Effect::RemoveCryptTopAnarch("Malkavian"),
+        ],
+    )],
+    ..VAMP
+};

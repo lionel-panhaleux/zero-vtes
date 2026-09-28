@@ -45,9 +45,15 @@ Pool = the V5-era products (KRCG set data): Fifth Edition, Fifth Edition (Anarch
 Fifth Edition (Companion), New Blood, New Blood II, New Blood III, Fall of London,
 Shadows of Berlin, Echoes of Gehenna — plus legacy cards the owner adds one by one
 (`EXTRA_CARDS` in `scripts/window_matrix.py`, read by every generator and the
-ledger): Camera Phone, Laptop Computer, Direct Intervention, Wash (2026-09-25).
+ledger): Camera Phone, Laptop Computer, Direct Intervention, Wash (2026-09-25);
+and legacy cards making tournament-winning decks (TWDA) playable, appended
+after the V5 tables so existing indices stay put (`ADDED_CARDS`, 2026-09-28):
+Ashur Tablets, Carlton Van Wyk, Donnybrook, Ennoia's Theater, Gilbert Duane
+(G6), Hell-for-Leather, Jake Washington, Life Boon, Murmur of the False Will,
+Powerbase: Savannah, Rötschreck, Saatet-ta.
 
-- **625 unique cards**: 200 crypt (all vampires), 425 library (421 V5 + 4 extra).
+- **637 unique cards**: 201 crypt (200 V5 + 1 added), 436 library (421 V5 + 4
+  extra + 11 added).
   V5 library by type: Master 124, Combat 63, Action 59, Action Modifier 53,
   Reaction 40, Equipment 23, Event 20, Ally 19, Political Action 19, Retainer 12
   (multi-type cards counted per type).
@@ -57,8 +63,17 @@ ledger): Camera Phone, Laptop Computer, Direct Intervention, Wash (2026-09-25).
   stress the effects framework, not the decision protocol.
 - **v1 training roster**: the 14 full-size precons (Fifth Edition 7 · Anarch 4 ·
   Companion 3), from KRCG `_set` bundle codes: 379 unique cards (138 crypt, 241
-  library), 17–41 uniques per deck. The New Blood mini-starters are decklist
-  data (`Deck::mini`) outside the roster; the singles-only cards (Fall of
+  library), 17–41 uniques per deck; since 2026-09-28 also the TWDA decks
+  fully in the pool (`--decks precons,twda`; `Deck::twda`): 81 with the
+  added legacy cards (28 without), 62 once near-copies are merged — 23
+  Gangrel, 9 Malkavian, 8 Ministry, the rest 1–5 a clan, none Nosferatu,
+  Toreador or Ventrue; a seat draws a clan uniformly, then a deck of it,
+  and a deck sharing more than 20% of its crypt with one already at the
+  table is redrawn (owner: crippling contests — as a dataset filter it
+  would keep 11 decks, 1 with the precons, the TWDA reusing the precons'
+  vampires). The New Blood mini-starters are decklist data
+  (`Deck::mini`) outside the roster — half decks, not legal (owner): never
+  trained on; the singles-only cards (Fall of
   London, Echoes of Gehenna, part of Shadows of Berlin — all the events) are
   implemented but in no decklist.
 - **Deferred — zero V5 tenants** (hooks designed, never opened): torpor
@@ -434,7 +449,8 @@ Recorded so nobody mistakes them for oversights:
 5. **Fixed decklists**: the official precons; deck building is out of v1.
 6. **Tournament scoring as reward**: VPs + GW. Time limit `TURN_LIMIT` = 100
    player turns (owner, 2026-09-02), checked at the turn boundary, 0.5 VP per
-   survivor; VPs stored in half-points (`Seat.half_vps`); `GameState::game_win`
+   survivor; training and evaluation tables draw 60–90 per game (owner,
+   2026-09-28; `Engine::time_limit`); VPs stored in half-points (`Seat.half_vps`); `GameState::game_win`
    = 2+ VP and a strict lead, ousted or not (a tie is a draw). Tournament
    withdrawal (0.5 VP, an unlock-phase decision) is not implemented yet (§11.3).
 7. **Unlock-phase ordering** (rules-qa 3.7, 7.8): cards unlock first, unordered;
@@ -485,6 +501,7 @@ titles; `git log` has the detail.
 | P2 · 12d | 09-27 | Elision's observational equivalence (`tests/elision.rs`, §7.2), `GameState::legal_view` (§5); block pruning no longer reads third parties' hands |
 | P2 · 13 | 09-27 | Decklists: the New Blood mini-starters as data, `Engine::with_decks` (`decks.rs`); scripted reference bots aggro-bleed and wall (`bots.rs`, `agent::Agent`) |
 | P3 · 14a–14c | 09-27 | Observations (`obs.rs`: entity tokens, option rows with pointers; honest by test); `crates/py` `GamePool` (batched parallel stepping, bots inside, replayable); `train/`: pointer-scoring transformer, PPO self-play, evaluation vs random and bots |
+| P4 · 16a | 09-28 | Pool extension for TWDA decks: 12 legacy cards appended (`ADDED_CARDS`), first strike, a master card becoming an ally, the before-resolution combat window, out-of-turn Rötschreck, shuffle-on-burn, Ashur Tablets' picks, Life Boon blocked |
 | P4 · 15a–15c | 09-28 | Several networks at one table (`net:k` seats, `agent` column), matchmaking queued from Python, 4- and 5-seat tables only; the league: one learner seat, an exploiter, snapshots, bots, PFSP (`train/league.py`) |
 
 ### 11.2 Engine reference (by mechanism)
@@ -871,10 +888,21 @@ slice-11 cards by section).
   `MultiDiscipline`; "Unique." after the first sentence; ally body (life,
   strength, bleed) and subtypes. `Title::Independent { name, votes }`. Printed
   justicars keep the clan's old name.
+- Pool order: the V5 cards (and `EXTRA_CARDS`) sorted by name, then the
+  `ADDED_CARDS` by KRCG id (`window_matrix.pool_order`): an addition never
+  moves an existing index. A legacy master's "Master: " type prefix is skipped
+  for labels; "Out-of-turn. Frenzy." labels `Frenzy`.
 - Decklists: `PRECONS`/`PRECON_LIBRARIES` (the 14 full-size precons) and
   `MINI_PRECONS`/`MINI_LIBRARIES` (the 14 New Blood mini-starters: 6 crypt
   cards, 48–49 library cards), each sorted by set then deck, joined by
-  `decks::Deck` (`precon`, `mini`, `all`). `Engine::with_decks(seed, decks)`
+  `decks::Deck` (`precon`, `mini`, `twda`, `all`). `TWDA` (`twda.rs`,
+  `scripts/gen_twda.py` from KRCG twda.json and the generated tables'
+  `id:` order): every tournament-winning deck whose cards are all in the
+  pool, tournament-legal sizes (crypt 12+, library 60–90), near-copies
+  (over 90% of the list shared) merged into the winner of the largest event,
+  TWDA order; `Deck::crypt_share`, `Deck::clan` (most crypt copies);
+  regenerated after a pool change, it picks up the decks the additions
+  complete. `Engine::with_decks(seed, decks)`
   seats them in order; `Engine::new` draws random precons with the same random
   sequence as before (goldens unchanged).
 
@@ -921,6 +949,35 @@ slice-11 cards by section).
   one table (480 games): aggro-bleed 1.51 VPs a seat, wall 0.49; 45 turns a
   game, none at the time limit; 2–5 ms a game.
 
+**Legacy additions** (slice 16a; `defs.rs` section "Legacy cards for
+tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
+- First strike (`Effect::FirstStrike`, `Side::first_strike`): resolved in
+  `resolve_strikes` after strikes: combat ends and before the others; the
+  pool's only one burns an equipment or retainer (Donnybrook [obf]), so a
+  weapon burned so loses its strike; a dodge still protects.
+- Before-resolution combat window (`Window::CombatBeforeResolution`): cards
+  triggered by the chosen opposing strike (Rötschreck, with
+  `CombatCtx::aggravated_strike_on`). Rötschreck ends combat at once
+  (`end_combat_now`), the lock and torpor landing as the combat ends
+  (`CombatCtx::rotschreck`), dropped if the combat continues.
+- `Effect::BecomesAlly(body)`: a master card in play as its ally (Jake
+  Washington), not recruited; `Effect::BloodToTargetX` with `Terms::Count`.
+- `Hook::SelfBurned` with `ShuffleSourceIntoLibrary`: a burned ally's card
+  shuffled into its owner's library instead of the ash heap (Saatet-ta).
+- `Effect::AshurTablets`: three copies controlled as one enters play remove
+  every copy (`remove_card_in_play`), 3 pool, then `Interrupt::AshurPicks`
+  (hand first, then up to 12 more to the library, shuffled);
+  `Requirement::NotPlayedThisTurn` (`GameState::turn_played`).
+- `Effect::GainTransfers` (Ennoia's Theater), `Effect::RemoveCryptTopAnarch`
+  with `Interrupt::BecomesAnarch` (Gilbert Duane), `Modifier::
+  HostInterceptVsVampires` and `Minion::diablerie_turn` against
+  `Seat::previous_turn` (Carlton Van Wyk), `Effect::OpposingControllerBurnsPool`
+  at the end of the round (Hell-for-Leather [obt]; ousts via
+  `combat_ousts`), `Requirement::ActingCombatantYourVampire` with
+  `Effect::LockTargetCard` (Powerbase: Savannah).
+- `Window::Ousting` (Life Boon) never opens: ousts apply where the pool runs
+  out (§11.3).
+
 **Observations** (`obs.rs`: `encode`, `Obs`, `schema_json`)
 - One request as its seat sees it: tokens — seats in relative order (pool,
   VPs, Edge, zone sizes, prey/predator, phase budgets), minions in play
@@ -944,8 +1001,10 @@ slice-11 cards by section).
   named from hand) is never read, by construction only.
 
 **Training** (`crates/py`: `zvtes_py.GamePool`, `replay`, `schema`,
-`deck_names`; `train/`: `model.py`, `ppo.py`)
-- `GamePool(n, seats, seed, rotate, decks, budget, keep_logs)`: N games,
+`deck_names`, `deck_families`, `vocab_keys`; `train/`: `model.py`,
+`ppo.py`, `league.py`)
+- `GamePool(n, seats, seed, rotate, decks, budget, keep_logs, tables,
+  time_limits)`: N games,
   each waiting on one network's decision; seats are "net:k" (a network
   answered from Python, 0 the learner; "policy" = "net:0"), "random",
   "aggro" or "wall" (answered inside); `rotate` shifts seating per game;
@@ -953,10 +1012,22 @@ slice-11 cards by section).
   replaces the tables new games take (seats, optional decks; 4 or 5 seats: tournament tables only),
   the default table once it runs out. `observe()` pads the batch (with an
   `agent` column: the network to ask); `act(actions)` advances every game in parallel (rayon) to
-  its next policy decision and returns the games finished (slot, seed,
-  decks, seats, half-VPs, turns, decisions, truncated, log). A game over
-  `budget` decisions is cut (§11.3). `train/tests`: batches well formed,
-  games replay from their log, only 4- and 5-seat tables, queued tables route rows to their networks, one PPO iteration and two league iterations run (the exploiter trains; resume keeps the beat rates), beat rates move once per iteration and retire the random seat and the exploiter.
+  its next policy decision and returns the games finished (slot, game
+  number in start order, seed, time limit, decks, seats, half-VPs, turns,
+  decisions, truncated, log). Each game draws its time limit in
+  `time_limits` (60–90 player turns inclusive, owner 2026-09-28: player
+  turns, so a table losing a Methuselah early plays more rounds;
+  `Engine::time_limit`, default `TURN_LIMIT` for the engine's own tests):
+  0.5 VP per survivor, counting toward the game win (2 VP + 0.5 wins with a
+  strict lead). `replay(seed, decks, log, time_limit)`. A game over
+  `budget` decisions is cut (§11.3).
+- Vocabulary keys (`obs::vocab_keys`: `crypt:<KRCG id>`,
+  `library:<KRCG id>`, `window:<k>`, `clan:<name>`): checkpoints and
+  snapshot directories (`vocab.json`) record them; loading under another
+  vocabulary moves each embedding row to its key's new id, new keys
+  initialized fresh (`model.remap_vocab`; the optimizer's moments are
+  dropped then) — a pool extension keeps trained networks. `train/tests`: batches well formed,
+  games replay from their log, only 4- and 5-seat tables, queued tables route rows to their networks, one PPO iteration and two league iterations run (the exploiter trains; resume keeps the beat rates), beat rates move once per iteration and retire the random seat and the exploiter; vocabulary keys match the schema and embeddings follow their keys; deck families (minis refused for training); TWDA tables train; evaluation seatings cover every opponent order; games replay with their drawn time limit.
 - ~170k decisions/s (300 random games/s) through Python on 8 cores; the
   model is the bottleneck: a d=96, 2-layer trunk takes ~0.3 s per 1,024
   decisions for a training step on the M3's GPU (MPS; half precision
@@ -971,9 +1042,15 @@ slice-11 cards by section).
   (`gw_weight` 2 since the second league run: tournament ranking puts game
   wins first; 1 before); entropy bonus 0.02 (0.01 before; 0.03 made the entropy climb, 0.62 → 0.89 in 30 iterations, with every evaluation flat or down); truncated
   rollouts bootstrap from a chain's last decision, carried to the next
-  rollout. Evaluation samples the learner, every position: `vs_random`
-  (four random seats; three before the second league run), `vs_bots4`
-  (aggro/wall/aggro, the earlier `vs_bots`), `vs_bots5`
+  rollout. Evaluation samples the learner at every seat and, for each,
+  every distinct order of the opponents around it (`eval_tables`; before
+  2026-09-28 the order was fixed and only rotated, so at 4 seats the wall
+  always sat across the table: the starting checkpoint measured 0.60 VP /
+  12.5% game wins against aggro/wall/aggro that way, 1.09 / 24% with the
+  orders mixed — the earlier "plateau" was largely the seating), and counts
+  exactly the queued games (not the first to finish, which favored short
+  games): `vs_random` (four random seats; three before the second league
+  run), `vs_bots4` (aggro/wall/aggro, the earlier `vs_bots`), `vs_bots5`
   (aggro/wall/aggro/wall), `vs_snapshot` (four copies of the latest
   snapshot), 256 games each (96 before: one snapshot measured 0.44–0.76 VP
   against aggro/wall/aggro over six evaluation seeds). A pool game that
@@ -983,8 +1060,9 @@ slice-11 cards by section).
   already very good, over 30% very strong, close to 50% top level.
 - The league (`--league true`, `train/league.py`; revised after the first
   league run, owner 2026-09-28): each new table is 4 or 5 seats, one the
-  learner's (`net:0`), one the exploiter's (`net:30000`, `exploiter`), the
-  others drawn by PFSP among the bots and the last `opponents_kept` (4)
+  learner's (`net:0`), with `--exploiter true` one the exploiter's
+  (`net:30000`; off by default since the second league run), the others
+  drawn by PFSP among the bots and the last `opponents_kept` (4)
   snapshots of the learner (saved every `snapshot_every` (10) iterations)
   and of retired exploiters (`net:30000+<it>`), in
   `runs/<name>/snapshots/`: weight (1 − p)² + 0.02, p the learner's
@@ -996,7 +1074,12 @@ slice-11 cards by section).
   frozen into the pool and restarted from the learner's weights once the
   learner's beat rate against it falls under `exploiter_beaten` (0.3), or
   after `exploiter_reset` (50) iterations. One forward pass per network
-  present. The pool refuses tables other than 4 or 5 seats. Not built:
+  present. The pool refuses tables other than 4 or 5 seats. 512 games in
+  parallel (256 before the third league run: one learner seat a table
+  halved the samples). The learning rate tapers linearly from the run's
+  first iteration to `lr_final` (0.1) × `lr` at the last; the evaluation
+  with the most VPs against aggro/wall/aggro is kept as `best.pt` (a
+  checkpoint like `model.pt`, resumable). Not built:
   evaluation against humans (needs the protocol server, §8).
 - First run (2026-09-27, defaults, 140 iterations ≈ 2.3M decisions, ~1 h on
   the M3): against three random seats 0.71 VP a game at iteration 10 (random
@@ -1033,6 +1116,18 @@ slice-11 cards by section).
   not. The learner's snapshots (`net:150`–`net:180`) are the best models
   so far. Each learner seat now yields ~6k samples an iteration (half the
   first league run's).
+- Third league run (2026-09-28: 512 games, the learning rate tapering to
+  0.1×, `best.pt`, no exploiter; from iteration 90 to 200). On its own
+  (fixed-seating) evaluation, aggro/wall/aggro rose from 0.57 to a best of
+  0.86 VP at 180 and ended at 0.81 — no late collapse this time. Re-measured
+  on the fair evaluation (every opponent order, 60–90-turn time limits,
+  precons, 256 games): the start (iteration 90) 1.05 VP / 25% game wins
+  against aggro/wall/aggro and 1.28 / 26% against aggro/wall/aggro/wall;
+  the second run's 160 1.06 / 23% and 1.47 / 27%; this run's best 1.11 /
+  23% and 1.33 / 25%, its last 1.07 / 23% and 1.21 / 20%. The league runs
+  did not improve on the self-play checkpoint against the bots: all sit near
+  an even share at 4 seats (~25% game wins) and a little above it at 5
+  (~20%) — their measured "gains" were the seating's noise.
 
 ### 11.3 Open gaps
 
@@ -1079,10 +1174,18 @@ Still true today; "(verify)" marks items inferred from older notes.
     that always declares a block never ends the action. A driver with a
     deterministic policy (the P3 greedy evaluation, a human client) needs a
     decision budget; the scripted bots remember their attempts.
+- **Life Boon** is defined but never offered: saving a Methuselah from an oust
+  needs a decision point before the oust, and ousts apply at once where the
+  pool runs out (ledger rows `blocked:`).
+- Legacy additions partly covered by tests only through code paths: a
+  Rötschreck range check (a strike ineffective at the range), Powerbase:
+  Savannah with Deep Song's acting target, Saatet-ta's stealth and intercept
+  locks, Carlton's strike and dodge.
 - **P2 deliverable not started**: the protocol server (§8).
 - Owner suggestions: hard legacy cards to stress the engine (Rötschreck, Outside
   the Hourglass, Rewind Time) and legacy cards closing test loops (a sterile
-  baron); more `EXTRA_CARDS` at the owner's call (§3).
+  baron); more `EXTRA_CARDS` / `ADDED_CARDS` at the owner's call (§3); the next
+  TWDA unlocks by deck count (after the 12 of slice 16a).
 
 ### 11.4 What remains
 
@@ -1096,7 +1199,7 @@ Still true today; "(verify)" marks items inferred from older notes.
   (with the protocol server).
 - **P5 — community**: bot service, client adapter, human-ergonomics layer.
 
-Definitions: 425, 898 Rust tests, 7 Python tests
+Definitions: 436 library, 102 vampires; 918 Rust tests, 12 Python tests
 
 ## Outlook: deck building (post-v1)
 

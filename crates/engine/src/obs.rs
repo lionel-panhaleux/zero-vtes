@@ -525,6 +525,28 @@ fn option(
 
 /// The encoding's shape, for the Python side (never hardcode a width):
 /// id and feature widths, vocabulary and kind counts, token types.
+/// A stable key per vocabulary id (the id is its index): `crypt:<KRCG
+/// id>`, `library:<KRCG id>`, `window:<label index>`, `clan:<name>`. A
+/// trained network's embedding rows follow their key when the pool grows
+/// and the ids shift (`train/model.py`, `remap_vocab`).
+pub fn vocab_keys() -> Vec<String> {
+    let mut keys = vec!["none".to_string()];
+    keys.extend(CRYPT.iter().map(|c| format!("crypt:{}", c.id)));
+    keys.extend(LIBRARY.iter().map(|c| format!("library:{}", c.id)));
+    keys.push("hidden".into());
+    keys.extend((0..N_WINDOWS).map(|w| format!("window:{w}")));
+    keys.extend(
+        crate::referendum::clans()
+            .into_iter()
+            .map(|c| format!("clan:{c}")),
+    );
+    debug_assert_eq!(
+        keys.len(),
+        V_CLAN as usize + crate::referendum::clans().len()
+    );
+    keys
+}
+
 pub fn schema_json() -> String {
     let vocab = V_CLAN as usize + crate::referendum::clans().len();
     format!(

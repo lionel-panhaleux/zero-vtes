@@ -1,7 +1,7 @@
 # Rules Q&A — ruling reference
 
 Owner rulings (VEKN judge) on VTES rules questions raised while building the
-engine, Batches 1–43. Each item is the settled rule, stated as fact; the
+engine, Batches 1–44. Each item is the settled rule, stated as fact; the
 question framing, engine mechanics, test names and confirmations are dropped
 deliberately: the code and its tests are the reference for how a rule is
 implemented, and they point back here through `rules-qa N.M` comments.
@@ -48,6 +48,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
+- **Legacy additions for TWDA decks** — 44.1–44.11
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
 - **Periodicity ("during X" = once per X, once each …)** — 6.6, 7.4, 9.6, 10.4, 11.2, 15.1, 15.2, 16.1, 36.3, 36.4, 37.1, 38.8, 42.3, 42.9
@@ -741,3 +742,30 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Batch 43 — found by training (P4)
 
 **43.1** A political action whose referendum terms have no legal choice when they are chosen (after the action succeeds, 3.5) — Parity Shift's Methuselah with more pool than the caller, richer at play but no longer (Tension in the Ranks burning their pool as their ally burns during the action): the action fizzles (3.6) — successful, no referendum held, no effect; a rider keyed to the referendum failing or being canceled (Cedrick Calhoun) does not apply. The play itself is masked when the terms cannot be met (LSJ 20100129). (Owner confirmed, 2026-09-28.)
+
+## Batch 44 — legacy cards for tournament decks (slice 16a)
+
+Owner confirmed 44.1–44.10 (2026-09-28).
+
+**44.1** Hell-for-Leather [obt] ("only usable if this Anarch is ready and the opposing minion is not"): played in the end-of-round window, the round's damage applied — the only point a combat leaves the opposing minion not ready (sent to torpor or burned) with combat cards still playable; once per combat, per Anarch.
+
+**44.2** Ennoia's Theater: the hand-size lock is untimed (any impulse, 7.7), on any Methuselah's turn, for "this turn"; one lock a turn for either use.
+
+**44.3** Saatet-ta: the stealth only to the acting Follower of Set (Ministry) of her controller, while stealth is needed (3.2); the intercept only to her controller's Follower attempting to block, while needed; the +1 bleed not limited.
+
+**44.4** Jake Washington: "a ready vampire with no blood" is any Methuselah's; the amount (1–4) is chosen as he is burned; the ally a master card becomes is not recruited (it may act the turn it enters play).
+
+**44.5** Gilbert Duane: the vampire made Anarch is chosen as the ability resolves, among the non-titled vampires his Methuselah controls, in torpor included; once per influence phase (6.6).
+
+**44.6** Carlton Van Wyk: "+1 intercept against vampires" reads the acting minion (a vampire); his burn may target any vampire that committed diablerie since his controller's last turn ended, his controller's own or one in torpor included.
+
+**44.7** Powerbase: Savannah: the location locked is another unique location its controller controls, unlocked; usable in the before-range step of any round of a combat whose acting side is its controller's vampire. "Elysium" has no effect in the pool.
+
+**44.8** Rötschreck is played once both strikes of a pair are chosen (before they resolve), additional strike pairs included; "an opposing minion attempts to inflict aggravated damage" reads the chosen strike (aggravated at its source, effective at the range, not aimed at a retainer).
+
+**44.9** Donnybrook [obf]: the equipment or retainer is the opposing minion's, named with the strike; resolved with first strike, it burns before the opposing strike resolves (a weapon so burned strikes for nothing), unless dodged.
+
+**44.10** Ashur Tablets: "only one … each turn" counts any Methuselah's play (a canceled one included); the third copy is checked as a copy enters play. The card is not unique: copies never contest, every copy in play counts (owner correction).
+
+**44.11** _open_ Life Boon: blocked — its save needs a decision point before an oust, and ousts are applied at once where the pool runs out; defined, never offered.
+

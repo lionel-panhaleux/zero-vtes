@@ -257,6 +257,8 @@ pub struct Side {
     /// minion as it lands (`held`).
     pub undodgeable_strike: bool,
     pub aggravated_strike: bool,
+    /// The chosen strike is done with first strike (Donnybrook [obf]).
+    pub first_strike: bool,
     pub held: Option<Held>,
     /// +n strength this round (Bear's Skin [ani][pro]).
     pub strength_round: u8,
@@ -350,6 +352,7 @@ impl Side {
         self.nullifies_weapons = false;
         self.undodgeable_strike = false;
         self.aggravated_strike = false;
+        self.first_strike = false;
         self.strike_weapon = None;
     }
 
@@ -429,6 +432,9 @@ pub struct CombatCtx {
     /// "All damage inflicted on vampires during the resulting combat is
     /// aggravated" (Dawn Operation).
     pub all_aggravated: bool,
+    /// Rötschreck played on this vampire: locked and sent to torpor as the
+    /// combat ends, not if it continues.
+    pub rotschreck: Option<MinionId>,
     /// Hunting the Beast [AUS]: the acting vampire, and the uncontrolled
     /// clan vampire and blood its Methuselah adds at the end of the combat
     /// if it is ready and the opposing vampire is not.
@@ -478,6 +484,37 @@ impl CombatCtx {
             .all(|s| st.minions[s.minion.index()].ready())
     }
 
+    /// Does side `1 - i`'s chosen strike attempt to inflict aggravated
+    /// damage on side `i`'s minion at the current range (Rötschreck)? A
+    /// strike aimed at a retainer does not.
+    pub fn aggravated_strike_on(
+        &self,
+        st: &GameState,
+        action: Option<&crate::actions::ActionCtx>,
+        i: usize,
+    ) -> bool {
+        let s = &self.sides[1 - i];
+        if s.strike_at.is_some() {
+            return false;
+        }
+        let close = self.range == Range::Close;
+        let all = self.all_aggravated && st.minions[self.sides[i].minion.index()].is_vampire();
+        match s.strike {
+            Some(StrikeKind::Hand { .. }) => {
+                close
+                    && (all
+                        || s.aggravated_hands
+                        || s.aggravated_strike
+                        || action.is_some_and(|a| a.aggravated_hands && a.acting == s.minion))
+            }
+            Some(StrikeKind::Melee { aggravated, .. }) => close && (aggravated || all),
+            Some(StrikeKind::Damage {
+                ranged, aggravated, ..
+            }) => (ranged || close) && (aggravated || all),
+            _ => false,
+        }
+    }
+
     /// The end-of-round window, combat about to end (spec §4.9.1).
     pub fn would_end(&self) -> bool {
         self.step == Step::EndOfRound && !self.press_continue && !self.continued
@@ -506,7 +543,11 @@ impl CombatCtx {
                 Window::CombatUntimed,
             ],
             Step::ChooseStrike(_) => vec![Window::CombatStrikeDeclaration],
-            Step::BeforeResolution => vec![Window::CombatUntimed, Window::CombatAdditionalStrike],
+            Step::BeforeResolution => vec![
+                Window::CombatUntimed,
+                Window::CombatAdditionalStrike,
+                Window::CombatBeforeResolution,
+            ],
             Step::Prevent(_)
             | Step::Allocate { .. }
             | Step::AllocateSource { .. }
@@ -1395,6 +1436,34 @@ impl Engine {
             self.discard_held(false);
             return;
         }
+        // First strike (rulebook "First Strike"): resolved before a normal
+        // strike, after a strike: combat ends; a dodge still protects from
+        // it; both with first strike resolve together, as normal. The
+        // pool's only first strike burns an equipment or retainer
+        // (Donnybrook [obf]): a weapon burned so loses its strike, below.
+        let mut strikes = strikes;
+        let first: Vec<usize> = (0..2)
+            .filter(|&i| c.sides[i].first_strike && strikes[i].is_some())
+            .collect();
+        if let [i] = first[..] {
+            debug_assert_eq!(strikes[i], Some(StrikeKind::BurnEquipment));
+            let j = 1 - i;
+            let dodged = strikes[j] == Some(StrikeKind::Dodge)
+                && !self.state.undodgeable(c.sides[i].minion)
+                && !c.sides[i].undodgeable_strike;
+            let burned = c.sides[i].strike_weapon.filter(|w| {
+                let wc = &self.state.cards[w.index()];
+                !dodged
+                    && c.range == Range::Close
+                    && wc.present()
+                    && wc.host == Some(c.sides[j].minion)
+            });
+            strikes[i] = None;
+            if let Some(w) = burned {
+                self.burn_card_in_play(w);
+            }
+        }
+        let c = self.combat.as_mut().expect("combat context");
         // A strike from a card no longer on the striker has no effect (spec
         // §4.10.4).
         let st = &self.state;
@@ -1860,32 +1929,41 @@ impl Engine {
             c.round_over = true;
         }
         if !wounded.is_empty() || !burned.is_empty() {
-            if self.state.living() <= 1 {
-                self.combat = None;
-                self.state.combatants = None;
-                self.action = None;
-                self.flow = Flow::GameOver;
-                return true;
-            }
-            if self.state.seats[self.state.active.index()].ousted {
-                self.next_turn();
-                return true;
-            }
-            let c = self.combat.as_ref().expect("combat context");
-            if c.sides
-                .iter()
-                .any(|s| self.state.seats[s.seat.index()].ousted)
-            {
-                // The opponent's Methuselah ousted: their minion left the
-                // game with them, so the combat ends at once (no
-                // end-of-round window) and the blocked action goes on
-                // without them.
-                let st = &self.state;
-                let a = self.action.as_mut().expect("action context");
-                a.order.retain(|s| !st.seats[s.index()].ousted);
-                self.end_combat();
-                return true;
-            }
+            return self.combat_ousts();
+        }
+        false
+    }
+
+    /// After an effect in combat that may have ousted a Methuselah: true
+    /// when the flow moved on — the game ended, the active Methuselah's
+    /// turn passed, or a combatant's Methuselah left the game and the
+    /// combat ended at once (DESIGN §10).
+    fn combat_ousts(&mut self) -> bool {
+        if self.state.living() <= 1 {
+            self.combat = None;
+            self.state.combatants = None;
+            self.action = None;
+            self.flow = Flow::GameOver;
+            return true;
+        }
+        if self.state.seats[self.state.active.index()].ousted {
+            self.next_turn();
+            return true;
+        }
+        let c = self.combat.as_ref().expect("combat context");
+        if c.sides
+            .iter()
+            .any(|s| self.state.seats[s.seat.index()].ousted)
+        {
+            // The opponent's Methuselah ousted: their minion left the
+            // game with them, so the combat ends at once (no
+            // end-of-round window) and the blocked action goes on
+            // without them.
+            let st = &self.state;
+            let a = self.action.as_mut().expect("action context");
+            a.order.retain(|s| !st.seats[s.index()].ousted);
+            self.end_combat();
+            return true;
         }
         false
     }
@@ -1897,6 +1975,9 @@ impl Engine {
         let c = self.combat.as_mut().expect("combat context");
         c.round += 1;
         c.pair = 0;
+        // Rötschreck's torpor is lost as the combat continues (RTR
+        // 20020501): the card stays, and so does its unlock ban.
+        c.rotschreck = None;
         for s in &mut c.sides {
             s.new_round();
         }
@@ -1965,6 +2046,13 @@ impl Engine {
                 if self.state.cards[f.index()].counters >= burn_at {
                     self.burn_card_in_play(f);
                 }
+            }
+        }
+        // Rötschreck: locked and sent to torpor now that combat ended.
+        if let Some(t) = ended.as_ref().and_then(|c| c.rotschreck) {
+            if self.state.minions[t.index()].ready() {
+                self.state.minions[t.index()].locked = true;
+                self.minions_to_torpor(&[t]);
             }
         }
         // Who fought, for "after a combat involving this vampire ends"
@@ -2285,6 +2373,17 @@ impl Engine {
             }
             Effect::UndodgeableStrike => c.sides[i].undodgeable_strike = true,
             Effect::AggravatedStrike => c.sides[i].aggravated_strike = true,
+            Effect::FirstStrike => c.sides[i].first_strike = true,
+            // At once: the flow may move on (an oust).
+            Effect::OpposingControllerBurnsPool(n) => {
+                let seat = self.state.minions[c.sides[1 - i].minion.index()].owner;
+                let mut loss = vec![0; self.state.seats.len()];
+                loss[seat.index()] = n as i32;
+                self.burn_pool_batch(&loss);
+                if self.combat_ousts() {
+                    self.ousted_during_play = true;
+                }
+            }
             Effect::PutOnOpponentOnHit { counters } => {
                 c.sides[i].held = Some(Held::from_play(play, actor, counters));
             }
@@ -2543,6 +2642,8 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::WeaponStrikePlus(_)
             | Effect::UndodgeableStrike
             | Effect::AggravatedStrike
+            | Effect::FirstStrike
+            | Effect::OpposingControllerBurnsPool(_)
             | Effect::PutOnOpponentOnHit { .. }
             | Effect::PutOnActorAfterCombat
             | Effect::StrengthThisRound(_)

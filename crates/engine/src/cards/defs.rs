@@ -10,7 +10,9 @@
 //! Telepathic Tracking, Cats' Guidance, Form of Mist, Form of the Cobra
 //! [pro].
 
-use super::vampires::{ability, enter_combat, printed_action, MANEUVER_EACH_COMBAT};
+use super::vampires::{
+    ability, enter_combat, printed_action, DODGE_EACH_COMBAT, MANEUVER_EACH_COMBAT,
+};
 use super::CostSource;
 use super::{
     bleed, mode_of, target, Actor, Among, AsVampire, Bearer, BlockRider, CardDef, CardFilter,
@@ -2580,7 +2582,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     ..CARD
 };
 
-pub static DEFS: [&CardDef; 425] = [
+pub static DEFS: [&CardDef; 436] = [
     &MAGIC_OF_THE_SMITH,
     &VAST_WEALTH,
     &BLACK_MARKET_CACHE,
@@ -3006,6 +3008,17 @@ pub static DEFS: [&CardDef; 425] = [
     &FALL_OF_THE_SABBAT,
     &RISE_OF_THE_NEPHTALI,
     &ABSIMILIARDS_ARMY,
+    &ENNOIAS_THEATER,
+    &DONNYBROOK,
+    &HELL_FOR_LEATHER,
+    &MURMUR_OF_THE_FALSE_WILL,
+    &SAATET_TA,
+    &CARLTON_VAN_WYK,
+    &JAKE_WASHINGTON,
+    &POWERBASE_SAVANNAH,
+    &ASHUR_TABLETS,
+    &ROTSCHRECK,
+    &LIFE_BOON,
 ];
 
 // ---- Cards in play with riders and granted actions (slice 5) ------------
@@ -12923,6 +12936,442 @@ pub static ABSIMILIARDS_ARMY: CardDef = CardDef {
             strength: 2,
             bleed: 1,
         })],
+    )],
+    ..CARD
+};
+
+// ---- Legacy cards for tournament decks (slice 16a) ------------------------
+//
+// Owner-added legacy cards (2026-09-28) that make TWDA decks playable,
+// appended to the tables (`ADDED_CARDS` in scripts/window_matrix.py).
+
+/// "Unique location. Lock to get +1 hand size this turn. Lock during your
+/// influence phase to get +1 transfer." (Gangrel or Gangrel antitribu:
+/// either clan, ANK 20190203.) The hand size lock is untimed (rules-qa
+/// 7.7); the transfer lock may come at any moment of the phase (RTR
+/// 20180303). One lock, so one of the two a turn.
+pub static ENNOIAS_THEATER: CardDef = CardDef {
+    name: "Ennoia's Theater",
+    modes: &[LOCATION],
+    abilities: &[
+        mode_of(
+            &[Window::AnyImpulse],
+            Actor::Controller,
+            &[Requirement::CardUnlocked],
+            &[Effect::LockSelf, Effect::HandSizeBonusUntilEndOfTurn(1)],
+        ),
+        mode_of(
+            &[Window::InfluencePhaseOwn],
+            Actor::Controller,
+            &[Requirement::CardUnlocked],
+            &[Effect::LockSelf, Effect::GainTransfers(1)],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Requires an Anarch. Only usable at close range. [obf] Strike: burn
+/// equipment or retainer with first strike. [pro] Strike: hand strike,
+/// aggravated. [ser] Strike: steal 2 blood or life (becoming blood)." The
+/// equipment or retainer is the opposing minion's, named with the strike;
+/// with first strike it burns before the opposing strike resolves, so a
+/// weapon burned so loses its strike (rulebook "First Strike"). [ser] may
+/// target a minion with less than 2 (RTR 20010711).
+pub static DONNYBROOK: CardDef = CardDef {
+    name: "Donnybrook",
+    modes: &[
+        ModeDef {
+            target: target(
+                TargetKind::Card,
+                &[
+                    Requirement::AnyOf(&[
+                        &[Requirement::TargetCard(CardFilter::Type(
+                            CardType::Equipment,
+                        ))],
+                        &[Requirement::TargetCard(CardFilter::Type(
+                            CardType::Retainer,
+                        ))],
+                    ]),
+                    Requirement::TargetOnOpposingCombatant,
+                ],
+            ),
+            ..combat(
+                &[Window::CombatStrikeDeclaration],
+                &[ANARCH, Requirement::RangeClose],
+                &[
+                    Effect::Strike(StrikeKind::BurnEquipment),
+                    Effect::FirstStrike,
+                ],
+            )
+        },
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[ANARCH, Requirement::RangeClose],
+            &[
+                Effect::Strike(StrikeKind::Hand { bonus: 0 }),
+                Effect::AggravatedStrike,
+            ],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[ANARCH, Requirement::RangeClose],
+            &[Effect::Strike(StrikeKind::StealBlood {
+                n: 2,
+                ranged: false,
+            })],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Requires an Anarch. Only one Hell-for-Leather can be played at a given
+/// Discipline each combat. [ani] Strike: dodge, with 1 additional strike
+/// (limited). [cel] Additional strike that does not count against the
+/// limit. [obt] Only usable if this Anarch is ready and the opposing
+/// minion is not. The opposing minion's controller burns 2 pool." Each
+/// mode is its Discipline: once per combat each, per Anarch. [cel] may
+/// come before or after a limited additional strike (LSJ 20001206). The
+/// opposing minion is not ready once the round's damage sent it to torpor:
+/// [obt] is played in the end-of-round window that still opens (rules-qa
+/// 44.1).
+pub static HELL_FOR_LEATHER: CardDef = CardDef {
+    name: "Hell-for-Leather",
+    modes: &[
+        ModeDef {
+            limit: Some(Limit::PerCombatThisMode),
+            ..combat(
+                &[Window::CombatStrikeDeclaration],
+                &[ANARCH],
+                &[
+                    Effect::Strike(StrikeKind::Dodge),
+                    Effect::AdditionalStrikes {
+                        n: 1,
+                        limited: true,
+                    },
+                ],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::PerCombatThisMode),
+            ..combat(
+                &[Window::CombatAdditionalStrike],
+                &[ANARCH],
+                &[Effect::AdditionalStrikes {
+                    n: 1,
+                    limited: false,
+                }],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::PerCombatThisMode),
+            ..combat(
+                &[Window::CombatEndOfRound],
+                &[
+                    ANARCH,
+                    Requirement::ActorReady,
+                    Requirement::OpponentNotReady,
+                ],
+                &[Effect::OpposingControllerBurnsPool(2)],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "[dom] [ACTION MODIFIER] Only usable during a bleed action. +1 bleed
+/// (limited). [DOM] [REACTION] Only usable if a younger vampire is bleeding
+/// you, after blocks are declined. Lock this reacting vampire. Change the
+/// target of the bleed to another Methuselah other than the acting
+/// vampire's controller (that Methuselah can attempt to block)." The
+/// reaction is Redirection [dom]'s: blocks failed on stealth were declined
+/// (ANK 20211003), before any "would be successful" card (LSJ 19980105),
+/// only to a Methuselah the bleed could target (PIB 20130711).
+pub static MURMUR_OF_THE_FALSE_WILL: CardDef = CardDef {
+    name: "Murmur of the False Will",
+    modes: &[
+        mode_of(
+            &[Window::ActionDuring],
+            Actor::ActingMinion,
+            &[Requirement::IsBleed],
+            &[bleed(1, true)],
+        ),
+        ModeDef {
+            target: REDIRECT_TARGET,
+            ..mode_of(
+                &[Window::ActionBlocksDeclined],
+                Actor::ReactingMinion,
+                &[
+                    Requirement::DirectedAtYou,
+                    Requirement::IsBleed,
+                    Requirement::BlocksDeclined,
+                    Requirement::ActingVampire,
+                    Requirement::ActingYounger,
+                ],
+                &[Effect::LockActor, Effect::RedirectBleed],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "Unique mummy with 2 life. 2 strength, 1 bleed. During an action,
+/// Saatet-ta can lock to give a Follower of Set you control +1 stealth, +1
+/// intercept, or +1 bleed. If she is burned, shuffle her into her owner's
+/// library." Follower of Set is the clan's V5 name, Ministry. The stealth to
+/// the acting Follower when needed, the intercept to one attempting to
+/// block when needed, the bleed during a bleed action before it resolves
+/// (ANK 20231124); usable the turn she is recruited (ANK 20180517).
+/// Shuffled when burned, still burned (ANK 20200813); not when discarded
+/// (RTR 20010711).
+pub static SAATET_TA: CardDef = CardDef {
+    name: "Saatet-ta",
+    modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
+    abilities: &[
+        mode_of(
+            &[Window::ActionDuring],
+            Actor::Controller,
+            &[
+                Requirement::CardUnlocked,
+                Requirement::OtherActingControlled,
+                Requirement::OtherActingClan("Ministry"),
+                Requirement::StealthNeeded,
+            ],
+            &[Effect::LockSelf, Effect::AddStealth(1)],
+        ),
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::Controller,
+            &[
+                Requirement::CardUnlocked,
+                Requirement::YourAttemptNeedsIntercept,
+                Requirement::AttemptingClan("Ministry"),
+            ],
+            &[Effect::LockSelf, Effect::AttemptingIntercept(1)],
+        ),
+        mode_of(
+            &[Window::ActionDuring],
+            Actor::Controller,
+            &[
+                Requirement::CardUnlocked,
+                Requirement::IsBleed,
+                Requirement::OtherActingControlled,
+                Requirement::OtherActingClan("Ministry"),
+            ],
+            &[Effect::LockSelf, bleed(1, false)],
+        ),
+    ],
+    riders: &[Rider {
+        hook: Hook::SelfBurned,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::ShuffleSourceIntoLibrary],
+    }],
+    ..CARD
+};
+
+/// "Unique mortal with 2 life. 0 strength, 0 bleed. Carlton can strike: 1R
+/// damage. Once each combat, he can strike: dodge. Carlton gets +1
+/// intercept against vampires. During your discard phase, you can burn
+/// Carlton to burn a vampire who has committed diablerie since your last
+/// turn." Since the end of your last turn, your current one included (LSJ
+/// 20020429), the turn he is recruited too (ANK 20180517); any vampire,
+/// yours or in torpor included.
+pub static CARLTON_VAN_WYK: CardDef = CardDef {
+    name: "Carlton Van Wyk",
+    modes: &[recruit(&[
+        Effect::DeclareAction(ActionKind::Recruit),
+        Effect::Layer(Modifier::HostInterceptVsVampires(1)),
+    ])],
+    abilities: &[
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Host,
+            &[],
+            &[Effect::Strike(StrikeKind::Damage {
+                n: 1,
+                ranged: true,
+                aggravated: false,
+            })],
+        ),
+        DODGE_EACH_COMBAT,
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[
+                    Requirement::TargetVampire,
+                    Requirement::TargetDiablerieSinceYourLastTurn,
+                ],
+            ),
+            ..mode_of(
+                &[Window::DiscardPhase],
+                Actor::Controller,
+                &[],
+                &[Effect::BurnSelf, Effect::BurnTargetMinion],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "Unique. Put this card in play; it becomes a unique mortal ally with 1
+/// life, 0 strength and 0 bleed. During your unlock phase, you can burn
+/// Jake to add up to 4 blood to a ready vampire with no blood." Not an ally
+/// in the ash heap (LSJ 20071014); his starting life is 1 (LSJ
+/// 20030520-2). Any Methuselah's vampire; the amount chosen as the burn is
+/// used (1 to 4, excess over capacity draining).
+pub static JAKE_WASHINGTON: CardDef = CardDef {
+    name: "Jake Washington",
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[],
+        &[Effect::BecomesAlly(crate::library::Body {
+            life: 1,
+            strength: 0,
+            bleed: 0,
+        })],
+    )],
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::TargetVampire,
+                Requirement::ActorReady,
+                Requirement::BloodAtMost(0),
+            ],
+        ),
+        terms: Some(Terms::Count { min: 1, max: 4 }),
+        ..mode_of(
+            &[Window::UnlockPhaseOwn],
+            Actor::Controller,
+            &[],
+            &[Effect::BurnSelf, Effect::BloodToTargetX],
+        )
+    }],
+    ..CARD
+};
+
+/// "Master: unique location. Elysium. You may lock any other unique
+/// location you control to end combat involving an acting vampire you
+/// control before range is chosen. Any vampire may steal this location for
+/// his or her controller as a Ⓓ action." The acting vampire is the one
+/// considered acting in the combat, Deep Song's target included (ANK
+/// 20230814). "Elysium" is inert: no pool card reads it.
+pub static POWERBASE_SAVANNAH: CardDef = CardDef {
+    name: "Powerbase: Savannah",
+    modes: &[LOCATION],
+    abilities: &[
+        ModeDef {
+            target: target(
+                TargetKind::Card,
+                &[
+                    Requirement::Controlled,
+                    Requirement::TargetCard(CardFilter::Location),
+                    Requirement::TargetCard(CardFilter::HasLabel(Label::Unique)),
+                    Requirement::TargetUnlocked,
+                    Requirement::TargetNotNamed("Powerbase: Savannah"),
+                ],
+            ),
+            ..mode_of(
+                &[Window::CombatBeforeRange],
+                Actor::Controller,
+                &[Requirement::ActingCombatantYourVampire],
+                &[Effect::LockTargetCard, Effect::EndCombat],
+            )
+        },
+        steal_this(&[
+            Requirement::ActorVampire,
+            Requirement::OthersControlThisCard,
+        ]),
+    ],
+    ..CARD
+};
+
+/// "Only one Ashur Tablets can be played each turn. Put this card in play.
+/// If you control three copies of this card, remove all copies in play
+/// (even controlled by other Methuselahs) from the game to gain 3 pool and
+/// choose up to thirteen library cards from your ash heap; move one of the
+/// chosen cards to your hand and shuffle the others into your library."
+/// Playable with an empty ash heap (PIB 20130119); the cards chosen only
+/// as the third copy enters play (LSJ 20091030); the one to hand is shown
+/// (LSJ 20081129) — public in the engine's observation of the move.
+pub static ASHUR_TABLETS: CardDef = CardDef {
+    name: "Ashur Tablets",
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[Requirement::NotPlayedThisTurn],
+        &[Effect::PutInPlay, Effect::AshurTablets],
+    )],
+    ..CARD
+};
+
+/// "Master: out-of-turn. Frenzy. Put this card on a vampire when an
+/// opposing minion attempts to inflict aggravated damage on him or her,
+/// whether the damage would be successfully inflicted or not. Combat ends.
+/// This vampire is locked and sent to torpor. This vampire does not unlock
+/// as normal. During this vampire's next unlock phase, burn this card."
+/// On the vampire facing the damage (RTR 19980623), once both strikes are
+/// declared, before they resolve (LSJ 19990217); a strike's damage only
+/// (ANK 20220114), effective at the range (RTR 19980928), dodged or not
+/// (LSJ 20011005), aggravated at its source (ANK 20200130-1). Combat ends
+/// at once: nothing resolves, no prevention, no second Rötschreck (LSJ
+/// 19990217); both minions still ready as it ends (LSJ 20070907); a
+/// combat that continues keeps the card on but no lock nor torpor (RTR
+/// 20020501). The unlock ban ends with the card (ANK 20191025).
+pub static ROTSCHRECK: CardDef = CardDef {
+    name: "Rötschreck",
+    out_of_turn: true,
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::Controlled,
+                Requirement::TargetVampire,
+                Requirement::TargetCombatant,
+            ],
+        ),
+        ..mode_of(
+            &[Window::CombatBeforeResolution],
+            Actor::Methuselah,
+            &[
+                Requirement::NotOwnTurn,
+                Requirement::OwnCombatantFacesAggravatedStrike,
+            ],
+            &[
+                Effect::PutOnTarget,
+                Effect::Layer(Modifier::HostDoesNotUnlock),
+                Effect::RotschreckEndsCombat,
+            ],
+        )
+    }],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::BurnSelf],
+    }],
+    ..CARD
+};
+
+/// "Out-of-turn. Boon. Give pool to a Methuselah with no pool to keep them
+/// in the game, and put this card in play. During each of their unlock
+/// phases, you can steal 1 pool from that Methuselah. You gain any victory
+/// point gained by that Methuselah instead of them, until you are being
+/// ousted or until you have gained 1 victory point from this card. Burn
+/// this card after you have gained 1 victory point from this card."
+/// Blocked: the save needs a decision point before an oust, and ousts are
+/// applied at once where the pool runs out (DESIGN §11.3) — the `Ousting`
+/// window never opens, so the card is never offered; its in-play text is
+/// not built.
+pub static LIFE_BOON: CardDef = CardDef {
+    name: "Life Boon",
+    out_of_turn: true,
+    modes: &[mode_of(
+        &[Window::Ousting],
+        Actor::Methuselah,
+        &[Requirement::NotOwnTurn],
+        &[Effect::PutInPlay],
     )],
     ..CARD
 };

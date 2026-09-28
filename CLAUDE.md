@@ -14,8 +14,9 @@ Key facts:
   window elision (auto-pass provably empty windows); replay = (seed, decision log).
 - Card legality and execution derive from one representation — masks are
   generated, never hand-written.
-- v1 scope: full 625-card V5 engine pool (200 crypt, 425 library — all
-  defined); training on the 14 full-size precon decklists (379 uniques). Stack: Rust engine + PyO3 + PyTorch training.
+- v1 scope: full V5 engine pool (200 crypt, 425 library — all
+  defined) plus owner-added legacy cards for TWDA decks (`ADDED_CARDS`,
+  appended after the V5 tables); training on the 14 full-size precon decklists (379 uniques). Stack: Rust engine + PyO3 + PyTorch training.
 - `docs/rules-qa.md`: the owner's rulings (a VEKN judge and author of the
   KRCG library/API), one line per item, with a topical index; code cites items
   as `rules-qa N.M` (never renumber). New questions go in a new batch at the
@@ -32,7 +33,8 @@ Key facts:
   is a *schema* version, not the V5 format). Generated from it, never edited by
   hand: `scripts/gen_crypt.py` → `crypt.rs`, `scripts/gen_library.py` →
   `library.rs` (`python3 scripts/gen_library.py <vtes.json> --check
-  crates/engine/src/library.rs`; same for crypt).
+  crates/engine/src/library.rs`; same for crypt); `scripts/gen_twda.py [twda.json] --check crates/engine/src/twda.rs`
+  after either: the TWDA decks fully in the pool).
 - Reference material: the `vtes` skill (rulebook, tournament rules, judges'
   guides); `../vtes-advanced-rules` (judge-level semantics + machine-readable
   rulings YAML — the spec for effect semantics and a scenario-test generator);
@@ -79,8 +81,8 @@ open gaps, what remains); history in `git log` (commit messages are detailed).
   cargo clippy -p zvtes-py --profile ci -- -D warnings` (the py crate is not a
   default workspace member: plain cargo commands stay engine-only). Train:
   `uv run python -m train.ppo --out runs/<name>` (`runs/` is ignored; add
-  `--league true` for the league: bots, snapshots and an exploiter as
-  opponents; `--resume
+  `--league true` for the league: bots and snapshots as opponents
+  (`best.pt` keeps the best evaluation against the bots); `--resume
   runs/<name>/model.pt` to continue).
 - Refactors: the fuzz golden replays and perft counts (`tests/golden/`,
   DESIGN §7.3/§7.5) must stay green; a failure names the seed and decision

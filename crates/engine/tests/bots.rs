@@ -81,18 +81,21 @@ fn bots_answer_from_their_legal_view() {
     }
 }
 
-/// Every decklist — the 14 precons and the 14 New Blood mini-starters —
-/// plays to a finish under debug assertions, at bot tables (each deck in
-/// each style) and at random ones (which also empty a mini's 6-card crypt
-/// and withdraw). A finished game always scores someone.
+/// Every decklist — the 14 precons, the 14 New Blood mini-starters and
+/// the TWDA decks — plays to a finish under debug assertions, at bot
+/// tables (each deck in each style) and at random ones (which also empty a
+/// mini's 6-card crypt and withdraw). A finished game always scores
+/// someone.
 #[test]
 fn every_decklist_plays_out() {
     let decks: Vec<Deck> = Deck::all().collect();
-    assert_eq!(decks.len(), 28);
-    for (t, table) in decks.chunks(4).enumerate() {
+    assert_eq!(decks.len(), 28 + zvtes::twda::TWDA.len());
+    for t in 0..decks.len().div_ceil(4) {
+        // Four seats a table; the last one wraps around to the first decks.
+        let table: Vec<Deck> = (0..4).map(|s| decks[(t * 4 + s) % decks.len()]).collect();
         for k in 0..=STYLES.len() {
             let seed = (t * 4 + k) as u64;
-            let mut e = Engine::with_decks(seed, table);
+            let mut e = Engine::with_decks(seed, &table);
             let mut agents: Vec<Box<dyn Agent>> = (0..4)
                 .map(|s| -> Box<dyn Agent> {
                     let seed = seed * 10 + s as u64;

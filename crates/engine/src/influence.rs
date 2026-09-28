@@ -15,6 +15,25 @@ pub fn transfers_for_turn(turn: u32) -> u8 {
 }
 
 impl Engine {
+    /// The transfers an ability use gains ("lock to get +1 transfer").
+    fn transfer_gain(&self, choice: &Choice) -> u8 {
+        let Choice::UseAbility {
+            source, ability, ..
+        } = choice
+        else {
+            return 0;
+        };
+        source
+            .mode(&self.state, *ability)
+            .effects
+            .iter()
+            .map(|e| match e {
+                crate::cards::Effect::GainTransfers(n) => *n,
+                _ => 0,
+            })
+            .sum()
+    }
+
     /// The transfers an ability use costs ("you can use 1 transfer to …").
     fn transfer_cost(&self, choice: &Choice) -> u8 {
         let Choice::UseAbility {
@@ -87,7 +106,7 @@ impl Engine {
                 actor,
                 target,
             } => {
-                let left = left - self.transfer_cost(choice);
+                let left = left - self.transfer_cost(choice) + self.transfer_gain(choice);
                 if !self.use_ability(*source, *ability, *actor, *target, Flow::Influence { left }) {
                     self.flow = Flow::Influence { left };
                 }

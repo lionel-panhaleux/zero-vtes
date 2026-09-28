@@ -208,6 +208,8 @@ pub struct Minion {
     /// Committed diablerie: ignores Blood Weakens and The Slow Withering
     /// until a Gehenna event is played.
     pub diablerie_shield: bool,
+    /// The game turn of its last diablerie (Carlton Van Wyk).
+    pub diablerie_turn: Option<u32>,
     /// Took a hunt action this turn (Thirst: "who did not hunt during that
     /// minion phase").
     pub hunted: bool,
@@ -314,6 +316,7 @@ impl Minion {
             unlock_at_discard: false,
             corruption: Vec::new(),
             diablerie_shield: false,
+            diablerie_turn: None,
             hunted: false,
             temp_from: None,
             origin: None,
@@ -666,6 +669,10 @@ pub struct Seat {
     /// A master card was played in the current master phase (Nonu Dis).
     pub master_played: bool,
     pub turns_taken: u32,
+    /// The game turn of this Methuselah's current (or last) turn, and of
+    /// the one before it: "since your last turn" (Carlton Van Wyk).
+    pub this_turn: u32,
+    pub previous_turn: u32,
     /// Cards played but not replaced yet: they count against the hand
     /// size until then (rulebook "Drawing Cards"; spec §6.8.1).
     pub held: Held,
@@ -714,6 +721,9 @@ pub struct GameState {
     /// Cards played this game that "can be played only once in a game"
     /// (Week of Nightmares), by LIBRARY index.
     pub once_played: Vec<u16>,
+    /// Cards played this turn that "can be played only once each turn"
+    /// (Ashur Tablets), by LIBRARY index; cleared as each turn begins.
+    pub turn_played: Vec<u16>,
     /// Continuous effects (DESIGN §4.5 scope layers).
     pub layers: Vec<Layer>,
     pub active: SeatId,

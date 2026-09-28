@@ -492,6 +492,11 @@ impl ActionCtx {
             .filter_map(|l| match l.modifier {
                 cards::Modifier::HostInterceptOnBleedAtYou(n) if bleed_at_owner => Some(n as i32),
                 cards::Modifier::HostInterceptVsMithraic(n) if at_mithraic => Some(n as i32),
+                cards::Modifier::HostInterceptVsVampires(n)
+                    if st.minions[self.acting.index()].is_vampire() =>
+                {
+                    Some(n as i32)
+                }
                 _ => None,
             })
             .sum();
@@ -2111,6 +2116,8 @@ impl Engine {
         // Blood Weakens, The Slow Withering: ignored until a Gehenna event
         // is played; their replacement is drawn.
         self.state.minions[diablerist.index()].diablerie_shield = true;
+        // "Has committed diablerie since your last turn" (Carlton Van Wyk).
+        self.state.minions[diablerist.index()].diablerie_turn = Some(self.state.turn);
         self.release_held(|h| &mut h.diablerie);
     }
 

@@ -41,7 +41,8 @@ def test_games_replay_from_their_log():
         done += pool.act(random_actions(pool.observe(), rng))
     for ep in done:
         assert not ep["truncated"]
-        assert zvtes_py.replay(ep["seed"], ep["decks"], ep["log"]) == ep["half_vps"]
+        assert 60 <= ep["time_limit"] <= 90
+        assert zvtes_py.replay(ep["seed"], ep["decks"], ep["log"], ep["time_limit"]) == ep["half_vps"]
 
 
 def test_queued_tables_route_rows_to_their_networks():
@@ -73,3 +74,27 @@ def test_only_tournament_tables():
     pool = zvtes_py.GamePool(2, ["policy"] * 5)
     with pytest.raises(ValueError):
         pool.queue([{"seats": ["net:0", "aggro", "wall"]}])
+
+
+def test_vocabulary_keys_and_deck_families():
+    keys = zvtes_py.vocab_keys()
+    assert len(keys) == json.loads(zvtes_py.schema())["vocab"]
+    assert len(set(keys)) == len(keys) and keys[0] == "none"
+    families = dict(zvtes_py.deck_families())
+    assert len(families["precons"]) == 14 and len(families["minis"]) == 14
+    assert len(families["twda"]) >= 28
+    names = zvtes_py.deck_names()
+    assert sum(len(v) for v in families.values()) == len(names)
+    pool = zvtes_py.GamePool(4, ["policy"] * 5, decks=families["twda"])
+    assert pool.n_games == 4
+
+
+def test_tables_avoid_decks_sharing_their_crypt():
+    families = dict(zvtes_py.deck_families())
+    pool = zvtes_py.GamePool(64, ["policy"] * 5, seed=2, decks=families["precons"])
+    rng = np.random.default_rng(2)
+    done = []
+    while len(done) < 32:
+        done += pool.act(random_actions(pool.observe(), rng))
+    for ep in done:
+        assert len(set(ep["decks"])) == len(ep["decks"]), "a precon twice at a table"

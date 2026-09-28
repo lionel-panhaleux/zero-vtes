@@ -13,10 +13,13 @@ restarted from the learner's weights once the learner's beat rate against
 it falls under `exploiter_beaten`, or after `exploiter_reset` iterations."""
 
 import copy
+import json
 from pathlib import Path
 
 import numpy as np
 import torch
+
+from train.model import remap_vocab
 
 BOTS = ["aggro", "wall", "random"]
 TABLES = (4, 5)
@@ -45,12 +48,19 @@ class League:
         self.pending = {}  # opponent name -> this iteration's outcomes
         self.exploiter_since = 0
 
-    def load(self, model):
-        """The snapshots saved by an earlier run, into copies of `model`."""
+    def load(self, model, vocab):
+        """The snapshots saved by an earlier run, into copies of `model`
+        (their embeddings remapped if the vocabulary changed since)."""
+        path = self.dir / "vocab.json"
+        old = json.loads(path.read_text()) if path.exists() else vocab
         for path in sorted(self.dir.glob("*.pt"), key=lambda p: int(p.stem)):
             net = copy.deepcopy(model)
-            net.load_state_dict(torch.load(path, map_location=next(model.parameters()).device))
+            state = torch.load(path, map_location=next(model.parameters()).device)
+            net.load_state_dict(remap_vocab(state, old, vocab, model.state_dict()))
             self.snapshots[int(path.stem)] = net.eval()
+            if old != vocab:
+                torch.save(net.state_dict(), path)
+        (self.dir / "vocab.json").write_text(json.dumps(vocab))
         self.trim()
 
     def add(self, key, model):

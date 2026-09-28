@@ -39,7 +39,7 @@ pub struct CryptCard {
 }
 
 #[rustfmt::skip]
-pub static CRYPT: [CryptCard; 200] = [
+pub static CRYPT: [CryptCard; 201] = [
     CryptCard {
         id: 201661,
         name: "\"Coach\" Tyrone Soros",
@@ -2039,6 +2039,16 @@ pub static CRYPT: [CryptCard; 200] = [
         disciplines: &["ANI", "DOM", "PRO"],
         sect: Sect::Anarch,
         title: Title::Baron("Ciudad Juárez"),
+    },
+    CryptCard {
+        id: 201617,
+        name: "Gilbert Duane",
+        capacity: 7,
+        group: 6,
+        clan: "Malkavian",
+        disciplines: &["AUS", "DOM", "OBF"],
+        sect: Sect::Anarch,
+        title: Title::Baron("Miami"),
     },
 ];
 

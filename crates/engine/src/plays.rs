@@ -453,6 +453,11 @@ impl Engine {
                     {
                         continue;
                     }
+                    if mode.requires.contains(&Requirement::NotPlayedThisTurn)
+                        && st.turn_played.contains(&card)
+                    {
+                        continue;
+                    }
                     // "Gehenna events cannot be played" (The Fourth Cycle).
                     if LIBRARY[card as usize].labels.contains(&Label::Gehenna)
                         && st.gehenna_barred()
@@ -964,6 +969,12 @@ impl Engine {
             || LIBRARY[card as usize].types.contains(&CardType::Event)
         {
             self.state.once_played.push(card);
+        }
+        if def.modes[mode as usize]
+            .requires
+            .contains(&Requirement::NotPlayedThisTurn)
+        {
+            self.state.turn_played.push(card);
         }
         if let (Some(limit), Some(m)) = (def.modes[mode as usize].limit, actor) {
             let name = LIBRARY[card as usize].name;
@@ -2504,6 +2515,61 @@ impl Engine {
                 self.state.cards[id.index()].body = Some(m);
                 self.interrupts
                     .push(crate::draws::Interrupt::DisciplineSearch { seat: s, minion: m });
+            }
+            Effect::RotschreckEndsCombat => {
+                let t = ctx.target.minion();
+                if let Some(c) = self.combat.as_mut() {
+                    c.rotschreck = Some(t);
+                    self.end_combat_now();
+                }
+            }
+            // Three copies controlled: every copy in play removed from the
+            // game (to their owners'), 3 pool, then the picks.
+            Effect::AshurTablets => {
+                let name = LIBRARY[ctx.card as usize].name;
+                let copies: Vec<CardId> = (0..self.state.cards.len())
+                    .map(|i| CardId(i as u32))
+                    .filter(|&c| {
+                        let x = &self.state.cards[c.index()];
+                        x.present() && LIBRARY[x.card as usize].name == name
+                    })
+                    .collect();
+                let mine = copies
+                    .iter()
+                    .filter(|&&c| self.state.card_controller(c) == s)
+                    .count();
+                if mine >= 3 {
+                    for c in copies {
+                        self.remove_card_in_play(c);
+                    }
+                    self.state.seats[s.index()].pool += 3;
+                    self.interrupts.push(crate::draws::Interrupt::AshurPicks {
+                        seat: s,
+                        left: 13,
+                        to_library: false,
+                    });
+                }
+            }
+            // The master card in play as its ally (Jake Washington): the
+            // card and the minion linked, as a recruited ally's; a unique
+            // one another Methuselah has is contested.
+            Effect::BecomesAlly(body) => {
+                let m = MinionId(self.state.minions.len() as u32);
+                let id = self.enter_play(CardInPlay {
+                    body: Some(m),
+                    ..CardInPlay::new(ctx.card, s, None, ctx.mode)
+                });
+                self.state.minions.push(crate::state::Minion::new(
+                    s,
+                    crate::state::MinionKind::Ally {
+                        card: ctx.card,
+                        id,
+                        body,
+                    },
+                    body.life,
+                ));
+                *in_play = Some(id);
+                self.enter_card_contest(m);
             }
             Effect::PutOnTarget
             | Effect::PutInPlay
@@ -4464,7 +4530,7 @@ impl Engine {
                 Effect::GainPool(n) => self.state.seats[ctx.seat.index()].pool += n as i32,
                 // Spent from the influence phase's as it is used
                 // (`influence_apply`).
-                Effect::SpendTransfers(_) => {}
+                Effect::SpendTransfers(_) | Effect::GainTransfers(_) => {}
                 Effect::CounterToTarget(clan) => {
                     if let Target::Minion(t) = target {
                         let c = &mut self.state.cards[source.card().index()];
@@ -4699,6 +4765,30 @@ impl Engine {
                     // An ally with no life left is burned.
                     if h.is_ally() && h.blood == 0 && h.in_play {
                         self.burn_minion(host);
+                    }
+                }
+                // Removed from the game, revealed (public); the Anarch picked
+                // next, before any other decision.
+                Effect::RemoveCryptTopAnarch(clan) => {
+                    let seat = &mut self.state.seats[ctx.seat.index()];
+                    if let Some(card) = seat.crypt.pop() {
+                        seat.removed_crypt.push(card);
+                        if crate::crypt::CRYPT[card as usize].clan == clan {
+                            self.interrupts
+                                .push(Interrupt::BecomesAnarch { seat: ctx.seat });
+                        }
+                    }
+                }
+                Effect::LockTargetCard => {
+                    if let Target::Card(c) = target {
+                        self.lock_card(c);
+                    }
+                }
+                Effect::BloodToTargetX => {
+                    if let Target::Minion(t) = target {
+                        if self.state.minions[t.index()].present() {
+                            self.state.gain_blood(t, x);
+                        }
                     }
                 }
                 // +n intercept for the host's block attempt, for the rest of

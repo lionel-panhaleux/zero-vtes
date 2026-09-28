@@ -27,6 +27,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 102275,Arms of Ahriman,Combat,obl,yes,COMBAT_ADDITIONAL_STRIKE;COMBAT_STRIKE_DECLARATION,,,ok
 100093,Army of Rats,Action,ani,yes,ACTION_DECLARE,in_play_action,,corrected
 100095,Art Museum,Master,,yes,MASTER_PHASE,,,ok
+100106,Ashur Tablets,Master,,no,MASTER_PHASE,,,ok
 100107,Assault Rifle,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
 100108,Asylum Hunting Ground,Master,,yes,MASTER_PHASE,,,ok
 100126,Backways,Master,,yes,MASTER_PHASE,,,ok
@@ -54,6 +55,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 100287,Camera Phone,Equipment,,no,ACTION_DECLARE_EQUIP,in_play_action,,ok
 102298,Cappadocian Crypt,Master,,yes,MASTER_PHASE,,,ok
 100297,Carfax Abbey,Master,,yes,MASTER_PHASE,,,ok
+100298,Carlton Van Wyk,Ally,,no,ACTION_DECLARE_RECRUIT,,,ok
 100301,Carrion Crows,Combat,ani,yes,COMBAT_BEFORE_RANGE,,,ok
 100303,Carver's Meat Packing and Storage,Master,,yes,MASTER_PHASE,,,ok
 100308,Cats' Guidance,Reaction,ani,yes,ACTION_AFTER_COMBAT;ACTION_STEALTH_INTERCEPT,,,corrected
@@ -97,6 +99,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 100570,Domain Challenge,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
 100572,Dominate,Master,,yes,MASTER_PHASE,,,ok
 100573,Dominate Kine,Action,dom,yes,ACTION_DECLARE,,,ok
+100576,Donnybrook,Combat,obf/pro/ser,no,COMBAT_STRIKE_DECLARATION,,,ok
 102220,Double Deuce,Ally,,yes,ACTION_DECLARE_RECRUIT,,,ok
 100588,Dreams of the Sphinx,Master,,yes,MASTER_PHASE,,,ok
 100594,Dummy Corporation,Master,,yes,MASTER_PHASE,,,ok
@@ -115,6 +118,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 102221,Enchanting Gaze,Action Modifier,pre/pro,yes,ACTION_STEALTH_INTERCEPT,,,ok
 102238,Enhanced Coagulant,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
 100644,Enhanced Senses,Reaction,aus,yes,ACTION_STEALTH_INTERCEPT,,,ok
+100646,Ennoia's Theater,Master,,no,MASTER_PHASE,,,ok
 100652,Entrancement,Action,pre,yes,ACTION_DECLARE,,,ok
 102276,Expulsion,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
 100680,Eyes of Argus,Reaction,aus,yes,ACTION_STEALTH_INTERCEPT;WAKE;CARD_AS_PLAYED,,yes,corrected
@@ -169,6 +173,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 100897,Haven Uncovered,Master,,yes,MASTER_PHASE,in_play_action,,corrected
 100903,Heart of Nizchetus,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
 100904,Heart of the City,Action,pre,yes,ACTION_DECLARE,,,ok
+100910,Hell-for-Leather,Combat,ani/cel/obt,no,COMBAT_STRIKE_DECLARATION;COMBAT_ADDITIONAL_STRIKE;COMBAT_END_OF_ROUND,,yes,corrected
 100913,Heroic Might,Action,pot,yes,ACTION_DECLARE,,,ok
 100918,Hidden Strength,Combat,for,yes,COMBAT_DAMAGE_PREVENTION,,,corrected
 100921,Hide the Mind,Action Modifier/Combat,obf,yes,CARD_AS_PLAYED,cancel_as_played,,corrected
@@ -183,6 +188,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 100999,Intimidation,Action,pre,yes,ACTION_DECLARE,,,ok
 102251,Invigorate,Action Modifier,ani/dom/pro,yes,ACTION_DURING,,,ok
 101014,Ivory Bow,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
+101019,Jake Washington,Master,,no,MASTER_PHASE,token_entity,,ok
 101028,Judgment: Camarilla Segregation,Action,,yes,ACTION_DECLARE,,,ok
 101067,KRCG News Radio,Master,,yes,MASTER_PHASE,,,ok
 101032,Kali's Fang,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
@@ -193,6 +199,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 101073,Laptop Computer,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
 101100,Libertas,Master,,yes,MASTER_PHASE,,,ok
 101102,Library Hunting Ground,Master,,yes,MASTER_PHASE,,,ok
+101103,Life Boon,Master,,no,OUSTING,out_of_turn,,corrected
 101104,Life in the City,Master,,yes,MASTER_PHASE,trifle,,corrected
 101107,Lightning Reflexes,Combat,cel,yes,COMBAT_ADDITIONAL_STRIKE,,,ok
 102229,Line Brawl,Action,cel/pot/pre,yes,ACTION_DECLARE,,,ok
@@ -219,6 +226,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 102253,Monstrous Form,Action/Combat,dom/pro,yes,COMBAT_BEFORE_RANGE;ACTION_DECLARE,,,corrected
 101249,Mr. Winthrop,Retainer,,yes,ACTION_DECLARE_EMPLOY,,,ok
 101254,Murder of Crows,Retainer,ani,yes,ACTION_DECLARE_EMPLOY,,,ok
+101256,Murmur of the False Will,Action Modifier/Reaction,dom,no,ACTION_DURING;ACTION_BLOCKS_DECLINED,bounce,,ok
 101259,My Enemy's Enemy,Reaction,aus,yes,ACTION_STEALTH_INTERCEPT;ACTION_BLOCKS_DECLINED,bounce,,corrected
 101265,Narrow Minds,Event,,no,DISCARD_PHASE,delayed_replacement,,ok
 101271,Neonate Breach,Political Action,,yes,ACTION_DECLARE_POLITICAL,,,ok
@@ -258,6 +266,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 101435,Powerbase: Los Angeles,Master,,yes,MASTER_PHASE,in_play_action,,corrected
 101439,Powerbase: Montreal,Master,,yes,MASTER_PHASE,in_play_action,,corrected
 102301,Powerbase: Munich,Master,,yes,MASTER_PHASE,in_play_action,,corrected
+101442,Powerbase: Savannah,Master,,no,MASTER_PHASE,in_play_action,,ok
 101475,Precognition,Reaction,aus,yes,ACTION_STEALTH_INTERCEPT,,,ok
 101483,Preternatural Strength,Action,pot,yes,ACTION_DECLARE,,,ok
 101487,Priority Contract,Master,,yes,MASTER_PHASE,trifle;in_play_action,,corrected
@@ -297,6 +306,8 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 102304,Rotting Behemoth,Ally,obl,yes,ACTION_DECLARE_RECRUIT,in_play_action,,corrected
 102215,Roundhouse,Combat,pot,yes,COMBAT_STRIKE_DECLARATION,,,ok
 101664,Rutor's Hand,Action,tha,yes,ACTION_DECLARE,,,ok
+101654,Rötschreck,Master,,no,COMBAT_BEFORE_RESOLUTION,out_of_turn,,corrected
+101665,Saatet-ta,Ally,,no,ACTION_DECLARE_RECRUIT,,,ok
 102257,Saulot's Avenging Fist,Master,,yes,MASTER_PHASE,in_play_action,,corrected
 102258,Saulot's Guiding Wisdom,Master,,yes,MASTER_PHASE,,,ok
 102259,Saulot's Healing Touch,Master,,yes,MASTER_PHASE,in_play_action,,corrected

@@ -56,9 +56,42 @@ EXTRA_CARDS = {
 }
 
 
+# Legacy cards the owner added to the pool (2026-09-28) so that tournament
+# winning decks (TWDA) become playable. Unlike EXTRA_CARDS they are appended
+# after the V5 tables, sorted by id among themselves, never sorted in: the
+# existing CRYPT and LIBRARY indices stay put (golden replays, decklist
+# tables, trained vocabularies).
+ADDED_CARDS = {
+    100106: "Ashur Tablets",
+    100298: "Carlton Van Wyk",
+    100576: "Donnybrook",
+    100646: "Ennoia's Theater",
+    100910: "Hell-for-Leather",
+    101019: "Jake Washington",
+    101103: "Life Boon",
+    101256: "Murmur of the False Will",
+    101442: "Powerbase: Savannah",
+    101654: "Rötschreck",
+    101665: "Saatet-ta",
+    201617: "Gilbert Duane (G6)",
+}
+
+
 def in_pool(card):
-    """A card of the engine pool: printed in a V5-era set, or an owner-added extra."""
-    return bool(V5_SETS.keys() & set(card.get("ordered_sets", []))) or card["id"] in EXTRA_CARDS
+    """A card of the engine pool: printed in a V5-era set, or an owner-added
+    extra or addition."""
+    return (
+        bool(V5_SETS.keys() & set(card.get("ordered_sets", [])))
+        or card["id"] in EXTRA_CARDS
+        or card["id"] in ADDED_CARDS
+    )
+
+
+def pool_order(cards, key):
+    """Table order: the V5 pool (and EXTRA_CARDS) sorted by `key`, then the
+    ADDED_CARDS by id."""
+    base = sorted((c for c in cards if c["id"] not in ADDED_CARDS), key=key)
+    return base + sorted((c for c in cards if c["id"] in ADDED_CARDS), key=lambda c: c["id"])
 
 # Phrases removed before window matching: riders and granted abilities that
 # fire after the card's own play step (review convention: "riders firing after
@@ -86,6 +119,9 @@ COMBAT_TIMING = [
     (r"\bprevent\b", "COMBAT_DAMAGE_PREVENTION"),
     (r"\bpress\b", "COMBAT_PRESS"),
     (r"end of (the |a |this )?round", "COMBAT_END_OF_ROUND"),
+    # "Only usable if … the opposing minion is not [ready]": after the
+    # round's damage, in the end-of-round window (Hell-for-Leather [obt]).
+    (r"the opposing minion is not\.", "COMBAT_END_OF_ROUND"),
     (r"combat would end", "COMBAT_WOULD_END"),
 ]
 COMBAT_DEFAULT = "COMBAT_UNTIMED"   # rules-qa 2.2: no printed step
@@ -116,6 +152,10 @@ REACTION_TIMING = [
      "ACTION_AS_ANNOUNCED"),
     (r"polling step|during (a|the|this) referendum", "REFERENDUM"),
     (r"reduce (a|the) bleed", "REACTION_DURING_ACTION"),   # legality: a bleed against you
+    # An out-of-turn master triggered by the opposing strike (Rötschreck).
+    (r"attempts to inflict aggravated damage", "COMBAT_BEFORE_RESOLUTION"),
+    # An out-of-turn master saving a Methuselah from an oust (Life Boon).
+    (r"methuselah with no pool to keep them in the game", "OUSTING"),
 ]
 REACTION_GENERIC = [
     (r"\+\d+ intercept", "ACTION_STEALTH_INTERCEPT"),

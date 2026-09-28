@@ -24,7 +24,9 @@ use crate::window::OrderedWindow;
 /// Time-limit stand-in (owner, 2026-09-02): a tournament game rarely exceeds
 /// 20 full rounds, so 100 player turns is ample. Checked at the turn
 /// boundary, which stands in for the tournament rule "the game ends after the
-/// current action / at the end of the current phase".
+/// current action / at the end of the current phase". The default of
+/// `Engine::time_limit`; training tables draw their own (60–90 player
+/// turns, owner 2026-09-28: `crates/py`).
 pub const TURN_LIMIT: u32 = 100;
 
 /// One contested object of the active seat, resolved during its unlock
@@ -164,6 +166,9 @@ pub struct Engine {
     /// Chosen option indices for real (non-elided) decisions only.
     pub log: Vec<usize>,
     pub decisions: u64,
+    /// The time limit, in player turns (`TURN_LIMIT` by default): the game
+    /// ends at the turn boundary once `state.turn` reaches it.
+    pub time_limit: u32,
     pub(crate) flow: Flow,
     /// The action under way, if any (`Flow::Action` and its sub-windows).
     pub(crate) action: Option<ActionCtx>,
@@ -242,6 +247,7 @@ impl Engine {
             },
             log: Vec::new(),
             decisions: 0,
+            time_limit: TURN_LIMIT,
             flow: Flow::GameOver, // replaced by start_turn
             action: None,
             combat: None,
@@ -721,7 +727,19 @@ impl Engine {
         // heaps.
         for ci in 0..self.state.cards.len() {
             let c = &self.state.cards[ci];
-            if c.host == Some(m) || c.body == Some(m) {
+            // "If she is burned, shuffle her into her owner's library"
+            // (Saatet-ta).
+            let shuffled = c.body == Some(m)
+                && crate::cards::lookup(c.card).is_some_and(|d| {
+                    d.riders.iter().any(|r| {
+                        r.hook == Hook::SelfBurned
+                            && r.effects
+                                .contains(&crate::cards::Effect::ShuffleSourceIntoLibrary)
+                    })
+                });
+            if shuffled {
+                self.shuffle_into_library(CardId(ci as u32));
+            } else if c.host == Some(m) || c.body == Some(m) {
                 self.burn_card_in_play(CardId(ci as u32));
             }
         }
@@ -793,6 +811,16 @@ impl Engine {
                 return;
             }
         }
+        self.card_leaves_play(id, false);
+    }
+
+    /// Remove a (non-minion) card in play from the game (Ashur Tablets):
+    /// as burned, but to its owner's removed cards.
+    pub(crate) fn remove_card_in_play(&mut self, id: CardId) {
+        self.card_leaves_play(id, true);
+    }
+
+    fn card_leaves_play(&mut self, id: CardId, removed: bool) {
         let c = &mut self.state.cards[id.index()];
         if !c.in_play {
             return;
@@ -816,9 +844,13 @@ impl Engine {
         }
         // A lingering effect ends; its card is already in the ash heap.
         if !self.state.cards[id.index()].effect_only {
-            let ash = &mut self.state.seats[owner.index()].ash;
-            ash.push(card);
-            ash.extend(stored);
+            let seat = &mut self.state.seats[owner.index()];
+            if removed {
+                seat.removed.push(card);
+            } else {
+                seat.ash.push(card);
+            }
+            seat.ash.extend(stored);
         }
         self.state
             .layers
@@ -1194,7 +1226,7 @@ impl Engine {
     }
 
     pub(crate) fn next_turn(&mut self) {
-        if self.state.turn >= TURN_LIMIT {
+        if self.state.turn >= self.time_limit {
             // Time limit (tournament rules 3.7): 0.5 VP per survivor.
             for seat in &mut self.state.seats {
                 if !seat.ousted {
@@ -1222,10 +1254,13 @@ impl Engine {
     fn start_turn(&mut self) {
         let s = self.state.active;
         self.state.turn += 1;
-        self.state.seats[s.index()].turns_taken += 1;
+        let seat = &mut self.state.seats[s.index()];
+        seat.turns_taken += 1;
+        seat.previous_turn = std::mem::replace(&mut seat.this_turn, self.state.turn);
         for seat in &mut self.state.seats {
             seat.forbidden_political.clear();
         }
+        self.state.turn_played.clear();
         // Delayed replacements ("do not replace until your next unlock
         // phase") are drawn before unlocking (ANK 20200129).
         let held = std::mem::take(&mut self.state.seats[s.index()].held.unlock);
@@ -1414,7 +1449,8 @@ mod tests {
 
     #[test]
     fn crypt_data_is_complete() {
-        assert_eq!(CRYPT.len(), 200);
+        // The 200 V5 vampires, then the owner's legacy additions.
+        assert_eq!(CRYPT.len(), 201);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();
@@ -1818,6 +1854,24 @@ mod tests {
             Step::Over(v) => assert_eq!(v, vec![3, 1, 0]),
             Step::Decision(_) => panic!("expected time-out"),
         }
+    }
+
+    // A time-out's 0.5 VP counts toward the game win: 2 VP + 0.5 = 2.5,
+    // a strict lead (owner, 2026-09-28); 1.5 would not be enough. The
+    // limit is the engine's (`time_limit`), drawn per game in training.
+    #[test]
+    fn time_limit_survival_counts_toward_the_game_win() {
+        let mut e = bare();
+        e.time_limit = 60;
+        e.state.turn = 60;
+        e.state.seats[0].half_vps = 4;
+        e.state.seats[1].half_vps = 2;
+        pick(&mut e, Choice::Pass);
+        match e.run() {
+            Step::Over(v) => assert_eq!(v, vec![5, 3, 1]),
+            Step::Decision(_) => panic!("expected time-out"),
+        }
+        assert_eq!(e.state.game_win(), Some(SeatId(0)));
     }
 
     // rules-qa 6.9: the game win needs 2 VP and a strict lead, ousted or

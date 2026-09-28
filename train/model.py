@@ -65,3 +65,19 @@ class Policy(nn.Module):
         logits = self.score(torch.cat([opt, ctx.unsqueeze(1).expand(-1, o, -1)], dim=-1))
         logits = logits.squeeze(-1).float().masked_fill(opt_pad, -1e9)
         return logits, self.value(glob).squeeze(-1).float()
+
+
+def remap_vocab(state, old_keys, new_keys, fresh):
+    """A state dict saved under vocabulary `old_keys`, for a network built
+    on `new_keys` (the pool grew, ids shifted): each embedding row follows
+    its key; rows of new keys come from `fresh` (a new network's state)."""
+    if list(old_keys) == list(new_keys):
+        return state
+    old = {k: i for i, k in enumerate(old_keys)}
+    out = dict(state)
+    rows = fresh["vocab.weight"].clone()
+    for i, k in enumerate(new_keys):
+        if k in old:
+            rows[i] = state["vocab.weight"][old[k]]
+    out["vocab.weight"] = rows
+    return out

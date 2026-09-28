@@ -14,6 +14,7 @@ random seats and the scripted bots.
 import argparse
 import copy
 import dataclasses
+import itertools
 import json
 import time
 from pathlib import Path
@@ -23,17 +24,20 @@ import torch
 import zvtes_py
 
 from train.league import EXPLOITER, TABLES, League, label
-from train.model import Policy
+from train.model import Policy, remap_vocab
 
 
 @dataclasses.dataclass
 class Config:
-    games: int = 256
+    games: int = 512
     steps: int = 64
     iterations: int = 100
     epochs: int = 3
     minibatch: int = 1024
     lr: float = 3e-4
+    # The learning rate tapers linearly over the run (from its start
+    # iteration, a resumed one too) to `lr_final` × `lr`.
+    lr_final: float = 0.1
     gamma: float = 1.0
     lam: float = 0.95
     clip: float = 0.2
@@ -52,12 +56,18 @@ class Config:
     out: str = "runs/ppo"
     resume: str = ""
     # The league (train/league.py).
+    # Deck families drawn per seat, comma-separated: "precons" (the 14 V5
+    # precons), "twda" (tournament winners fully in the pool). The New Blood
+    # minis are half decks, not legal: never trained on.
+    decks: str = "precons"
     league: bool = False
     snapshot_every: int = 10
     opponents_kept: int = 4
     pfsp_rate: float = 0.1
     retire_random: float = 0.85
-    exploiter: bool = True
+    # Off: with the learner's reward and weights it never led the learner
+    # (DESIGN §11.2, second league run).
+    exploiter: bool = False
     exploiter_beaten: float = 0.3
     exploiter_reset: int = 50
 
@@ -145,6 +155,19 @@ def rewards(ep, gw_weight):
     return (vps + gw_weight * win) / 5
 
 
+def eval_tables(opponents, games):
+    """`games` seatings: the learner (`net:0`) at every seat in turn, then
+    the next distinct order of `opponents` around it."""
+    orders = sorted(set(itertools.permutations(opponents)))
+    n = len(opponents) + 1
+    out = []
+    for g in range(games):
+        seats = list(orders[(g // n) % len(orders)])
+        seats.insert(g % n, "net:0")
+        out.append(seats)
+    return out
+
+
 @torch.no_grad()
 def act(nets, obs, device, rng):
     """Sample every row's option from its network (`obs["agent"]` → `nets`):
@@ -194,19 +217,27 @@ class Trainer:
         self.model = model
         self.start = 1
         saved = {}
+        self.vocab = zvtes_py.vocab_keys()
         if cfg.resume:
             saved = torch.load(cfg.resume, map_location=self.device)
-            model.load_state_dict(saved["model"])
-            if "optimizer" in saved:
+            old = saved.get("vocab", self.vocab)
+            model.load_state_dict(remap_vocab(saved["model"], old, self.vocab, model.state_dict()))
+            # The optimizer's moments are shaped by the vocabulary: kept
+            # only when it did not change.
+            if "optimizer" in saved and old == self.vocab:
                 self.learner.opt.load_state_dict(saved["optimizer"])
             self.start = saved.get("iteration", 0) + 1
+        # The best evaluation against aggro/wall/aggro so far (`best.pt`,
+        # kept across a resume into the same directory).
+        same = cfg.resume and Path(cfg.resume).parent.resolve() == Path(cfg.out).resolve()
+        self.best = saved.get("best", float("-inf")) if same else float("-inf")
         self.out = Path(cfg.out)
         self.out.mkdir(parents=True, exist_ok=True)
         self.league = None
         self.exploiter = None
         if cfg.league:
             self.league = League(cfg, self.rng, self.out)
-            self.league.load(model)
+            self.league.load(model, self.vocab)
             if not self.league.learner_snapshots() and self.start > 1:
                 self.league.add(self.start - 1, model)
             if "pfsp" in saved:
@@ -216,10 +247,16 @@ class Trainer:
                 if "exploiter" in saved:
                     self.exploiter.model.load_state_dict(saved["exploiter"])
                     self.exploiter.opt.load_state_dict(saved["exploiter_optimizer"])
+        families = dict(zvtes_py.deck_families())
+        names = [f.strip() for f in cfg.decks.split(",")]
+        if not set(names) <= {"precons", "twda"}:
+            raise ValueError(f"deck families: precons, twda (got {cfg.decks!r})")
+        self.decks = [i for f in names for i in families[f]]
         self.pool = zvtes_py.GamePool(
             cfg.games,
             ["net:0"] * 4,
             seed=cfg.seed,
+            decks=self.decks,
             budget=cfg.budget,
             tables=[self.spec() for _ in range(cfg.games)],
         )
@@ -324,19 +361,29 @@ class Trainer:
         pg, vf, ent = np.mean(losses, 0)
         return {"pg": pg, "vf": vf, "entropy": ent}
 
-    def evaluate(self, seats, games):
-        """The learner's mean VPs and game-win rate over `games` finished
-        games, every seat position in turn."""
+    def evaluate(self, opponents, games):
+        """The learner's mean VPs and game-win rate over `games` games
+        against `opponents`: every seat for the learner and every distinct
+        order of the opponents around it, in turn (a fixed order would, at
+        4 seats, always sit the same opponent across the table)."""
+        tables = [{"seats": seats} for seats in eval_tables(opponents, games)]
         pool = zvtes_py.GamePool(
-            min(games, 64), seats, seed=10_000 + self.cfg.seed, rotate=True, budget=self.cfg.budget
+            min(games, 64),
+            tables[0]["seats"],
+            seed=10_000 + self.cfg.seed,
+            decks=self.decks,
+            budget=self.cfg.budget,
+            tables=tables,
         )
         rng = np.random.default_rng(0)
         vps, wins, done, truncated = [], 0, 0, 0
+        # The queued tables are games 0..games-1; later ones (the default
+        # table, once the queue runs out) are not counted.
         while done < games:
             actions, _, _ = act(self.nets(), pool.observe(), self.device, rng)
             for ep in pool.act(actions.tolist()):
-                if done >= games:
-                    break
+                if ep["game"] >= games:
+                    continue
                 done += 1
                 truncated += ep["truncated"]
                 v, w = scores(ep)
@@ -353,17 +400,25 @@ class Trainer:
             "iteration": it,
             "config": dataclasses.asdict(self.cfg),
             "pfsp": self.league.state() if self.league else {},
+            "best": self.best,
+            "vocab": self.vocab,
         }
         if self.exploiter:
             saved["exploiter"] = self.exploiter.model.state_dict()
             saved["exploiter_optimizer"] = self.exploiter.opt.state_dict()
         torch.save(saved, self.out / "model.pt")
+        return saved
 
     def run(self):
         cfg = self.cfg
         log = open(self.out / "metrics.jsonl", "a")
         for it in range(self.start, cfg.iterations + 1):
             t0 = time.perf_counter()
+            done = (it - self.start) / max(1, cfg.iterations - self.start)
+            lr = cfg.lr * (1 - (1 - cfg.lr_final) * done)
+            for learner in self.learners():
+                for group in learner.opt.param_groups:
+                    group["lr"] = lr
             for learner in self.learners():
                 learner.model.eval()
             samples, stats = self.rollout()
@@ -382,6 +437,7 @@ class Trainer:
                 "samples": len(samples[0]),
                 "rollout_s": round(t1 - t0, 2),
                 "update_s": round(t2 - t1, 2),
+                "lr": float(f"{lr:.3g}"),
                 **stats,
                 **{k: round(float(v), 4) for k, v in metrics.items()},
             }
@@ -393,16 +449,20 @@ class Trainer:
                 if it % cfg.snapshot_every == 0:
                     self.league.add(it, self.model)
             if it % cfg.eval_every == 0 or it == cfg.iterations:
-                row["vs_random"] = self.evaluate(["net:0"] + ["random"] * 4, cfg.eval_games)
-                row["vs_bots4"] = self.evaluate(["net:0", "aggro", "wall", "aggro"], cfg.eval_games)
-                row["vs_bots5"] = self.evaluate(
-                    ["net:0", "aggro", "wall", "aggro", "wall"], cfg.eval_games
-                )
+                row["vs_random"] = self.evaluate(["random"] * 4, cfg.eval_games)
+                row["vs_bots4"] = self.evaluate(["aggro", "wall", "aggro"], cfg.eval_games)
+                row["vs_bots5"] = self.evaluate(["aggro", "wall", "aggro", "wall"], cfg.eval_games)
                 if self.league and self.league.latest() is not None:
                     snap = f"net:{self.league.latest()}"
-                    row["vs_snapshot"] = self.evaluate(["net:0"] + [snap] * 4, cfg.eval_games)
+                    row["vs_snapshot"] = self.evaluate([snap] * 4, cfg.eval_games)
                     row["pfsp"] = {label(k): round(v, 2) for k, v in sorted(self.league.p.items())}
-                self.checkpoint(it)
+                better = row["vs_bots4"]["vps"] > self.best
+                if better:
+                    self.best = row["vs_bots4"]["vps"]
+                    row["best"] = True
+                saved = self.checkpoint(it)
+                if better:
+                    torch.save(saved, self.out / "best.pt")
             print(json.dumps(row), flush=True)
             log.write(json.dumps(row) + "\n")
             log.flush()

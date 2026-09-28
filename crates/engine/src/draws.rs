@@ -180,6 +180,17 @@ pub(crate) enum Interrupt {
         card: CardId,
         minion: crate::ids::MinionId,
     },
+    /// Ashur Tablets' picks from `seat`'s ash heap: first the card to hand
+    /// (a pass chooses none), then up to `left` more shuffled into the
+    /// library (a pass stops), `to_library` once the hand card is chosen.
+    AshurPicks {
+        seat: SeatId,
+        left: u8,
+        to_library: bool,
+    },
+    /// "A non-titled vampire you control becomes Anarch" (Gilbert Duane):
+    /// the player's pick, none if they have none.
+    BecomesAnarch { seat: SeatId },
     /// "Add n blood to a `clan` vampire in your uncontrolled region"
     /// (Hunting the Beast [AUS]): the player's pick, none if they have none.
     UncontrolledBlood {
@@ -268,6 +279,8 @@ impl Interrupt {
             | Interrupt::MakeAnarch { seat, .. }
             | Interrupt::StealForCorruption { seat, .. }
             | Interrupt::UncontrolledBlood { seat, .. }
+            | Interrupt::BecomesAnarch { seat }
+            | Interrupt::AshurPicks { seat, .. }
             | Interrupt::AllyFromAsh { seat, .. }
             | Interrupt::MoveForBlood { seat, .. } => seat,
         }
@@ -623,6 +636,23 @@ impl Engine {
                 Interrupt::UncontrolledBlood { seat, clan, .. } => {
                     !self.uncontrolled_of_clan(seat, clan).is_empty()
                 }
+                Interrupt::BecomesAnarch { seat } => !self.untitled_vampires(seat).is_empty(),
+                // Nothing left to choose: the chosen cards are shuffled in.
+                Interrupt::AshurPicks {
+                    seat,
+                    left,
+                    to_library,
+                } => {
+                    if left > 0 && !self.state.seats[seat.index()].ash.is_empty() {
+                        return;
+                    }
+                    self.interrupts.remove(0);
+                    if to_library {
+                        let library = &mut self.state.seats[seat.index()].library;
+                        self.rng.shuffle(library);
+                    }
+                    continue;
+                }
                 Interrupt::MoveForBlood {
                     payer, minion, n, ..
                 } => {
@@ -796,6 +826,23 @@ impl Engine {
                     .map(|&(s, _)| Choice::ChooseSeat(s))
                     .collect(),
             ),
+            Interrupt::AshurPicks { seat, .. } => (
+                WindowLabel::ResolutionChoice,
+                std::iter::once(Choice::Pass)
+                    .chain(
+                        distinct(&st.seats[seat.index()].ash, |_| true)
+                            .into_iter()
+                            .map(Choice::FindCard),
+                    )
+                    .collect(),
+            ),
+            Interrupt::BecomesAnarch { seat } => (
+                WindowLabel::ResolutionChoice,
+                self.untitled_vampires(seat)
+                    .into_iter()
+                    .map(Choice::ChooseMinion)
+                    .collect(),
+            ),
             Interrupt::UncontrolledBlood { seat, clan, .. } => (
                 WindowLabel::ResolutionChoice,
                 self.uncontrolled_of_clan(seat, clan)
@@ -946,6 +993,17 @@ impl Engine {
     fn uncontrolled_of_clan(&self, seat: SeatId, clan: &'static str) -> Vec<usize> {
         (0..self.state.seats[seat.index()].uncontrolled.len())
             .filter(|&i| self.state.slot_vampire(seat, i).1 == clan)
+            .collect()
+    }
+
+    /// The non-titled vampires `seat` controls, in torpor too (Gilbert
+    /// Duane: an Anarch one a legal no-op pick).
+    fn untitled_vampires(&self, seat: SeatId) -> Vec<crate::ids::MinionId> {
+        let st = &self.state;
+        st.minions_of(seat)
+            .filter(|&m| {
+                st.minions[m.index()].is_vampire() && st.title_of(m) == crate::crypt::Title::None
+            })
             .collect()
     }
 
@@ -1238,6 +1296,42 @@ impl Engine {
             (Interrupt::ChooseForCard { .. }, Choice::ChooseMinion(m)) => {
                 self.interrupts.remove(0);
                 self.set_chosen(front, Some(m));
+            }
+            (Interrupt::AshurPicks { to_library, .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+                if to_library {
+                    self.rng.shuffle(&mut self.state.seats[s.index()].library);
+                }
+            }
+            (
+                Interrupt::AshurPicks {
+                    seat,
+                    left,
+                    to_library,
+                },
+                Choice::FindCard(card),
+            ) => {
+                let st = &mut self.state.seats[seat.index()];
+                let i = st
+                    .ash
+                    .iter()
+                    .position(|&c| c == card)
+                    .expect("in the ash heap");
+                st.ash.remove(i);
+                if to_library {
+                    st.library.push(card);
+                } else {
+                    st.hand.push(card);
+                }
+                self.interrupts[0] = Interrupt::AshurPicks {
+                    seat,
+                    left: left - 1,
+                    to_library: true,
+                };
+            }
+            (Interrupt::BecomesAnarch { .. }, Choice::ChooseMinion(m)) => {
+                self.interrupts.remove(0);
+                self.state.minions[m.index()].sect_override = Some(crate::crypt::Sect::Anarch);
             }
             (Interrupt::UncontrolledBlood { n, .. }, Choice::Slot(i)) => {
                 self.interrupts.remove(0);

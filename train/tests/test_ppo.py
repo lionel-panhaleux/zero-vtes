@@ -6,7 +6,8 @@ import numpy as np
 import torch
 
 from train.league import EXP, EXPLOITER, League
-from train.ppo import Config, Trainer
+from train.model import remap_vocab
+from train.ppo import Config, Trainer, eval_tables
 
 
 def test_one_iteration(tmp_path):
@@ -17,7 +18,8 @@ def test_one_iteration(tmp_path):
     trainer = Trainer(cfg)
     before = [p.detach().clone() for p in trainer.model.parameters()]
     trainer.run()
-    assert (tmp_path / "model.pt").exists()
+    assert (tmp_path / "model.pt").exists() and (tmp_path / "best.pt").exists()
+    assert trainer.learner.opt.param_groups[0]["lr"] == cfg.lr, "one iteration: no taper yet"
     assert any(not torch.equal(a, b) for a, b in zip(before, trainer.model.parameters()))
 
 
@@ -25,7 +27,7 @@ def test_league_iterations(tmp_path):
     cfg = Config(
         games=8, steps=24, iterations=2, epochs=1, minibatch=64, d=32, layers=1,
         eval_every=2, eval_games=4, device="cpu", out=str(tmp_path),
-        league=True, snapshot_every=1,
+        league=True, snapshot_every=1, exploiter=True,
     )
     trainer = Trainer(cfg)
     before = [p.detach().clone() for p in trainer.exploiter.model.parameters()]
@@ -46,7 +48,7 @@ def test_league_iterations(tmp_path):
 
 
 def test_beat_rates_move_once_per_iteration(tmp_path):
-    cfg = Config(pfsp_rate=0.1, exploiter_reset=100)
+    cfg = Config(pfsp_rate=0.1, exploiter=True, exploiter_reset=100)
     league = League(cfg, np.random.default_rng(0), tmp_path)
     ep = {"truncated": False, "seats": ["net:0", "random", EXP, "aggro"]}
     for _ in range(30):
@@ -60,3 +62,36 @@ def test_beat_rates_move_once_per_iteration(tmp_path):
     league.retire_exploiter(7, torch.nn.Linear(1, 1))
     assert f"net:{EXPLOITER + 7}" in league.candidates()
     assert league.p[f"net:{EXPLOITER + 7}"] == 0.2 and EXP not in league.p
+
+
+def test_tournament_decks_train(tmp_path):
+    cfg = Config(
+        games=8, steps=16, iterations=1, epochs=1, minibatch=64, d=32, layers=1,
+        eval_every=1, eval_games=4, device="cpu", out=str(tmp_path), decks="precons,twda",
+    )
+    trainer = Trainer(cfg)
+    assert len(trainer.decks) >= 14 + 28
+    trainer.run()
+    try:
+        Trainer(Config(**{**vars(cfg), "decks": "minis"}))
+        raise AssertionError("minis are not legal decks")
+    except ValueError:
+        pass
+
+
+def test_embeddings_follow_their_keys():
+    old = {"vocab.weight": torch.tensor([[0.0], [1.0], [2.0]]), "other": torch.ones(1)}
+    fresh = {"vocab.weight": torch.full((4, 1), -1.0), "other": torch.zeros(1)}
+    out = remap_vocab(old, ["none", "crypt:1", "library:9"], ["none", "crypt:1", "crypt:5", "library:9"], fresh)
+    assert out["vocab.weight"].squeeze(1).tolist() == [0.0, 1.0, -1.0, 2.0]
+    assert torch.equal(out["other"], old["other"])
+
+
+def test_evaluation_seats_every_opponent_order():
+    tables = eval_tables(["aggro", "wall", "aggro"], 12)
+    across = set()
+    for seats in tables:
+        me = seats.index("net:0")
+        across.add(seats[(me + 2) % 4])
+    assert across == {"aggro", "wall"}, "the wall is not always across the table"
+    assert sorted(t.index("net:0") for t in tables) == [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3]

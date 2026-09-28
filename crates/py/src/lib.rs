@@ -65,7 +65,11 @@ struct Spec {
 /// One finished game.
 struct Episode {
     slot: usize,
+    /// The game's number in start order (0 the first): the queued tables
+    /// are the first ones, before the default table takes over.
+    game: u64,
     seed: u64,
+    time_limit: u32,
     decks: Vec<usize>,
     kinds: Vec<Kind>,
     half_vps: Vec<u32>,
@@ -77,6 +81,7 @@ struct Episode {
 
 struct Game {
     engine: Engine,
+    number: u64,
     seed: u64,
     decks: Vec<usize>,
     kinds: Vec<Kind>,
@@ -86,7 +91,7 @@ struct Game {
 }
 
 impl Game {
-    fn new(seed: u64, decks: Vec<usize>, kinds: Vec<Kind>) -> Game {
+    fn new(number: u64, seed: u64, time_limit: u32, decks: Vec<usize>, kinds: Vec<Kind>) -> Game {
         let list: Vec<Deck> = decks.iter().map(|&d| all_decks()[d]).collect();
         let agents = kinds
             .iter()
@@ -100,8 +105,11 @@ impl Game {
                 }
             })
             .collect();
+        let mut engine = Engine::with_decks(seed, &list);
+        engine.time_limit = time_limit;
         Game {
-            engine: Engine::with_decks(seed, &list),
+            engine,
+            number,
             seed,
             decks,
             kinds,
@@ -116,6 +124,8 @@ impl Game {
         loop {
             let over = |e: &Engine, vps: Vec<u32>, truncated: bool| Episode {
                 slot,
+                game: self.number,
+                time_limit: e.time_limit,
                 seed: self.seed,
                 decks: self.decks.clone(),
                 kinds: self.kinds.clone(),
@@ -153,6 +163,19 @@ impl Game {
     }
 }
 
+/// Deck indices grouped by clan, in first-seen order.
+fn by_clan(pool: &[usize]) -> Vec<Vec<usize>> {
+    let mut groups: Vec<(&str, Vec<usize>)> = Vec::new();
+    for &d in pool {
+        let clan = all_decks()[d].clan();
+        match groups.iter_mut().find(|(k, _)| *k == clan) {
+            Some((_, g)) => g.push(d),
+            None => groups.push((clan, vec![d])),
+        }
+    }
+    groups.into_iter().map(|(_, g)| g).collect()
+}
+
 fn all_decks() -> &'static [Deck] {
     static DECKS: std::sync::OnceLock<Vec<Deck>> = std::sync::OnceLock::new();
     DECKS.get_or_init(|| Deck::all().collect())
@@ -163,17 +186,25 @@ fn all_decks() -> &'static [Deck] {
 /// k (the policy meets every position). `decks`: indices into the decklist
 /// table (0–13 the precons, 14–27 the New Blood minis), drawn per seat
 /// and game. `tables`: specs the first games take (as `queue`). Tables are
-/// 4 or 5 seats: tournament tables only.
+/// 4 or 5 seats: tournament tables only. `time_limits`: each game's time
+/// limit is drawn in this range of player turns (a time-out scores 0.5 VP
+/// per survivor, which counts toward the game win); episodes report it and
+/// `replay` takes it.
 #[pyclass(module = "zvtes_py")]
 struct GamePool {
     games: Vec<Game>,
     rng: Rng,
     kinds: Vec<Kind>,
     rotate: bool,
-    deck_pool: Vec<usize>,
+    /// The pool's decks (`decks`) grouped by clan (`Deck::clan`): a seat draws a clan,
+    /// then a deck of it (owner, 2026-09-28: the TWDA is mostly Gangrel).
+    by_clan: Vec<Vec<usize>>,
     budget: u64,
     keep_logs: bool,
     started: u64,
+    /// Each game's time limit is drawn in this range, player turns
+    /// inclusive (owner, 2026-09-28: 60–90).
+    time_limits: (u32, u32),
     finished: Vec<Episode>,
     queued: std::collections::VecDeque<Spec>,
 }
@@ -181,6 +212,8 @@ struct GamePool {
 impl GamePool {
     fn fresh(&mut self) -> Game {
         let seed = self.rng.next_u64();
+        let (lo, hi) = self.time_limits;
+        let time_limit = lo + self.rng.below((hi - lo + 1) as usize) as u32;
         let (kinds, decks) = match self.queued.pop_front() {
             Some(spec) => (spec.kinds, spec.decks),
             None => {
@@ -193,13 +226,37 @@ impl GamePool {
                 ((0..n).map(|s| self.kinds[(s + shift) % n]).collect(), None)
             }
         };
-        let decks = decks.unwrap_or_else(|| {
-            (0..kinds.len())
-                .map(|_| self.deck_pool[self.rng.below(self.deck_pool.len())])
-                .collect()
-        });
+        let decks = decks.unwrap_or_else(|| self.draw_decks(kinds.len()));
         self.started += 1;
-        Game::new(seed, decks, kinds)
+        Game::new(self.started - 1, seed, time_limit, decks, kinds)
+    }
+
+    /// A deck: a clan uniformly, then one of its decks.
+    fn draw_deck(&mut self) -> usize {
+        let clan = &self.by_clan[self.rng.below(self.by_clan.len())];
+        clan[self.rng.below(clan.len())]
+    }
+
+    /// A table's decks, drawn from the pool seat by seat (`draw_deck`): a deck sharing
+    /// more than 20% of its crypt with one already seated is redrawn
+    /// (owner, 2026-09-28: crippling contests; the same deck twice shares
+    /// all of it), up to a few tries — a small pool may have to accept one.
+    fn draw_decks(&mut self, n: usize) -> Vec<usize> {
+        let mut out: Vec<usize> = Vec::with_capacity(n);
+        for _ in 0..n {
+            let mut pick = self.draw_deck();
+            for _ in 0..32 {
+                let clash = out
+                    .iter()
+                    .any(|&d| all_decks()[d].crypt_share(&all_decks()[pick]) > 0.2);
+                if !clash {
+                    break;
+                }
+                pick = self.draw_deck();
+            }
+            out.push(pick);
+        }
+        out
     }
 
     fn spec(&self, seats: Vec<String>, decks: Option<Vec<usize>>) -> PyResult<Spec> {
@@ -249,7 +306,7 @@ impl GamePool {
     // A Python constructor with keyword arguments.
     #[allow(clippy::too_many_arguments)]
     #[new]
-    #[pyo3(signature = (n_games, seats, seed=0, rotate=false, decks=None, budget=20_000, keep_logs=false, tables=None))]
+    #[pyo3(signature = (n_games, seats, seed=0, rotate=false, decks=None, budget=20_000, keep_logs=false, tables=None, time_limits=(60, 90)))]
     fn new(
         py: Python<'_>,
         n_games: usize,
@@ -260,7 +317,13 @@ impl GamePool {
         budget: u64,
         keep_logs: bool,
         tables: Option<Vec<Bound<'_, PyDict>>>,
+        time_limits: (u32, u32),
     ) -> PyResult<Self> {
+        if time_limits.0 == 0 || time_limits.0 > time_limits.1 {
+            return Err(PyValueError::new_err(
+                "time_limits: (low, high), 0 < low <= high",
+            ));
+        }
         if !(4..=5).contains(&seats.len()) {
             return Err(PyValueError::new_err("4 or 5 seats (tournament tables)"));
         }
@@ -273,17 +336,21 @@ impl GamePool {
         }
         let deck_pool = decks.unwrap_or_else(|| (0..14).collect());
         if deck_pool.is_empty() || deck_pool.iter().any(|&d| d >= all_decks().len()) {
-            return Err(PyValueError::new_err("deck indices in 0..28"));
+            return Err(PyValueError::new_err(format!(
+                "deck indices in 0..{}",
+                all_decks().len()
+            )));
         }
         let mut pool = GamePool {
             games: Vec::with_capacity(n_games),
             rng: Rng::new(seed),
             kinds,
             rotate,
-            deck_pool,
+            by_clan: by_clan(&deck_pool),
             budget,
             keep_logs,
             started: 0,
+            time_limits,
             finished: Vec::new(),
             queued: Default::default(),
         };
@@ -407,7 +474,9 @@ impl GamePool {
             .map(|ep| {
                 let d = PyDict::new(py);
                 d.set_item("slot", ep.slot)?;
+                d.set_item("game", ep.game)?;
                 d.set_item("seed", ep.seed)?;
+                d.set_item("time_limit", ep.time_limit)?;
                 d.set_item("decks", ep.decks)?;
                 d.set_item(
                     "seats",
@@ -455,9 +524,11 @@ impl GamePool {
 /// Replay a game from its seed, decks and decision log: the final
 /// half-VPs per seat (the boundary's determinism check).
 #[pyfunction]
-fn replay(seed: u64, decks: Vec<usize>, log: Vec<usize>) -> PyResult<Vec<u32>> {
+#[pyo3(signature = (seed, decks, log, time_limit=zvtes::game::TURN_LIMIT))]
+fn replay(seed: u64, decks: Vec<usize>, log: Vec<usize>, time_limit: u32) -> PyResult<Vec<u32>> {
     let list: Vec<Deck> = decks.iter().map(|&d| all_decks()[d]).collect();
     let mut e = Engine::with_decks(seed, &list);
+    e.time_limit = time_limit;
     let mut moves = log.into_iter();
     loop {
         match e.run() {
@@ -482,11 +553,32 @@ fn deck_names() -> Vec<&'static str> {
     all_decks().iter().map(|d| d.name).collect()
 }
 
+/// The vocabulary's stable keys, by id (`zvtes::obs::vocab_keys`).
+#[pyfunction]
+fn vocab_keys() -> Vec<String> {
+    zvtes::obs::vocab_keys()
+}
+
+/// The decklist families: name -> deck indices ("precons", "minis",
+/// "twda").
+#[pyfunction]
+fn deck_families() -> Vec<(&'static str, Vec<usize>)> {
+    use zvtes::crypt::{MINI_PRECONS, PRECONS};
+    let (p, m) = (PRECONS.len(), MINI_PRECONS.len());
+    vec![
+        ("precons", (0..p).collect()),
+        ("minis", (p..p + m).collect()),
+        ("twda", (p + m..all_decks().len()).collect()),
+    ]
+}
+
 #[pymodule]
 fn zvtes_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<GamePool>()?;
     m.add_function(wrap_pyfunction!(replay, m)?)?;
     m.add_function(wrap_pyfunction!(schema, m)?)?;
     m.add_function(wrap_pyfunction!(deck_names, m)?)?;
+    m.add_function(wrap_pyfunction!(vocab_keys, m)?)?;
+    m.add_function(wrap_pyfunction!(deck_families, m)?)?;
     Ok(())
 }

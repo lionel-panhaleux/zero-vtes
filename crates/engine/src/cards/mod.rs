@@ -56,6 +56,15 @@ pub enum Window {
     CombatEndOfRound,
     CombatWouldEnd,
     CombatUntimed,
+    /// Both strikes chosen, before they resolve, for a card triggered by
+    /// the opposing strike (Rötschreck: "when an opposing minion attempts
+    /// to inflict aggravated damage"; LSJ 19990217).
+    CombatBeforeResolution,
+    /// A Methuselah is about to be ousted, with no pool (Life Boon: "give
+    /// pool to a Methuselah with no pool to keep them in the game"). No
+    /// request site opens it yet: ousts are applied at once where the pool
+    /// runs out (DESIGN §11.3), so a card played here is never offered.
+    Ousting,
     /// In-play ability hook: during any Methuselah's unlock phase.
     UnlockPhaseAny,
     /// In-play ability hook: during the host's controller's unlock phase
@@ -133,6 +142,8 @@ impl Window {
             "COMBAT_END_OF_ROUND" => CombatEndOfRound,
             "COMBAT_WOULD_END" => CombatWouldEnd,
             "COMBAT_UNTIMED" => CombatUntimed,
+            "COMBAT_BEFORE_RESOLUTION" => CombatBeforeResolution,
+            "OUSTING" => Ousting,
             _ => return None,
         })
     }
@@ -586,6 +597,9 @@ pub enum Requirement {
     TargetHostage,
     /// This card was not played before in this game.
     NotPlayedThisGame,
+    /// "Only one X can be played each turn" (Ashur Tablets): by anyone,
+    /// a canceled play counting as for `NotPlayedThisGame`.
+    NotPlayedThisTurn,
     /// "Requires n or more other Gehenna events in play": checked as the
     /// card is played only (PIB 20121031).
     GehennaInPlay(u8),
@@ -1028,6 +1042,28 @@ pub enum Requirement {
     /// opposing vampire has no object in an ally (Taste of Vitae; advanced
     /// rules 5.5.1).
     OpponentVampire,
+    /// The actor's opposing combatant is not ready (Hell-for-Leather
+    /// [obt]: "only usable if … the opposing minion is not").
+    OpponentNotReady,
+    /// The user's vampire in combat faces an opposing strike attempting to
+    /// inflict aggravated damage on it, effective at the current range
+    /// (Rötschreck: RTR 19980928; a strike only, ANK 20220114; dodged or
+    /// not, LSJ 20011005).
+    OwnCombatantFacesAggravatedStrike,
+    /// The target minion is in the combat under way.
+    TargetCombatant,
+    /// The current combat's acting side is a vampire the user controls
+    /// (Powerbase: Savannah: "combat involving an acting vampire you
+    /// control"): the minion considered acting, Deep Song's target
+    /// included (ANK 20230814).
+    ActingCombatantYourVampire,
+    /// The target minion has at most n blood (Jake Washington: "a ready
+    /// vampire with no blood").
+    BloodAtMost(u8),
+    /// The target vampire committed diablerie since the user's last turn
+    /// ended — the user's current turn counts (Carlton Van Wyk; LSJ
+    /// 20020429).
+    TargetDiablerieSinceYourLastTurn,
     /// Target minion, or vampire in the uncontrolled region, is of this
     /// clan ("a Gangrel in your uncontrolled region", Thing).
     TargetClan(&'static str),
@@ -1702,6 +1738,9 @@ pub enum Modifier {
     /// The host gets n intercept during actions directed at /Mithras/ or a
     /// Mithraic Mysteries card or member (Mithraic Cultist).
     HostInterceptVsMithraic(i8),
+    /// The host gets n intercept against vampires (Carlton Van Wyk: "+1
+    /// intercept against vampires"): an acting vampire's actions.
+    HostInterceptVsVampires(i8),
     /// The host is a Mithraic Mysteries member (Mithraic Cultist).
     MithraicMember,
     /// A card in play reducing the cost of its controller's cards.
@@ -2005,6 +2044,10 @@ pub enum Effect {
     /// An ability's cost in transfers ("you can use 1 transfer to …"),
     /// spent from the influence phase's (Wider View).
     SpendTransfers(u8),
+    /// "Lock during your influence phase to get +n transfer" (Ennoia's
+    /// Theater): added to the phase's transfers left, at any moment of the
+    /// phase (RTR 20180303).
+    GainTransfers(u8),
     /// "A Tremere you control can move 1 blood from themselves to this
     /// card" (Wasserschloss Anif): from the target minion.
     BloodToCard(u8),
@@ -2027,6 +2070,33 @@ pub enum Effect {
     /// add 1 blood to it; otherwise, move it to the bottom of your crypt"
     /// (Family Gathering).
     RevealCryptTop(&'static str),
+    /// "Reveal and remove the top card of your crypt from the game. If it
+    /// is a <clan>, a non-titled vampire you control becomes Anarch"
+    /// (Gilbert Duane): the vampire chosen as it resolves.
+    RemoveCryptTopAnarch(&'static str),
+    /// "Put this card in play; it becomes a unique mortal ally with …"
+    /// (Jake Washington): the master card in play as the ally, with this
+    /// type line; not recruited, so it may act this turn.
+    BecomesAlly(crate::library::Body),
+    /// "Add up to 4 blood to …" (Jake Washington): the ability's count X
+    /// (`Terms::Count`) to the target.
+    BloodToTargetX,
+    /// Lock the target card in play (Powerbase: Savannah's cost: "lock any
+    /// other unique location you control").
+    LockTargetCard,
+    /// "If you control three copies of this card, remove all copies in
+    /// play (even controlled by other Methuselahs) from the game to gain 3
+    /// pool and choose up to thirteen library cards from your ash heap;
+    /// move one of the chosen cards to your hand and shuffle the others
+    /// into your library" (Ashur Tablets), checked as a copy enters play;
+    /// the cards chosen then (LSJ 20091030).
+    AshurTablets,
+    /// "Combat ends. This vampire is locked and sent to torpor"
+    /// (Rötschreck, on its target): combat ends at once, no strike
+    /// resolving; the lock and torpor land once it has ended, both minions
+    /// ready until then (LSJ 20070907) — not if the combat continues (RTR
+    /// 20020501).
+    RotschreckEndsCombat,
     /// "Put this card in play. It becomes a 1-capacity (non-unique) Anarch
     /// vampire of the same clan as the acting vampire and must hunt this
     /// turn. You can search your library (shuffle afterward), hand and/or
@@ -2401,6 +2471,10 @@ pub enum Effect {
     UndodgeableStrike,
     /// Strike rider: "hand strike, aggravated" (Sculpt the Flesh [pro]).
     AggravatedStrike,
+    /// "… with first strike" (Donnybrook [obf]): the chosen strike
+    /// resolves before a normal one (rulebook "First Strike") — after a
+    /// strike: combat ends, a dodge still protecting from it.
+    FirstStrike,
     /// Strike rider: "put this card on the opposing minion (with n
     /// counters)" as the strike lands (Sculpt the Flesh [PRO], Touch of
     /// Oblivion [obl]); the card is held until then, else discarded.
@@ -2908,6 +2982,9 @@ pub enum Effect {
     /// The controller of the target card burns n pool (Rewilding: "burn a
     /// location and burn 2 pool from its controller").
     TargetControllerBurnsPool(u8),
+    /// The opposing combatant's controller burns n pool (Hell-for-Leather
+    /// [obt]).
+    OpposingControllerBurnsPool(u8),
     /// "The target Methuselah discards n cards of their choice" (Shroud of
     /// Decay [obl], if the bleed is successful).
     TargetMethuselahDiscards(u8),
@@ -3103,6 +3180,11 @@ pub enum Hook {
     /// The card's controller's prey is ousted (Khabar: Glory: "you gain 4
     /// additional pool").
     PreyOusted,
+    /// This ally is burned ("if she is burned, shuffle her into her
+    /// owner's library", Saatet-ta): a replacement of where its card goes —
+    /// still burned, so burn effects apply (ANK 20200813); not a discard
+    /// (RTR 20010711).
+    SelfBurned,
     /// A minion with a contract for which a vampire of the card's
     /// controller is chosen is about to leave the ready region (The Black
     /// Throne: "lock this card … to gain 1 pool"): optional, the card
@@ -3658,6 +3740,9 @@ pub fn holds(
         | Requirement::NotControlled
         | Requirement::TargetLocked
         | Requirement::TargetVampire
+        | Requirement::TargetDiablerieSinceYourLastTurn
+        | Requirement::BloodAtMost(_)
+        | Requirement::TargetCombatant
         | Requirement::TargetCard(_)
         | Requirement::TargetOnReadyMinion
         | Requirement::ActorMayHoldTarget
@@ -3719,6 +3804,7 @@ pub fn holds(
         | Requirement::ActorIsChosen
         | Requirement::PlayedFrenzyOnYour(_)
         | Requirement::NotPlayedThisGame
+        | Requirement::NotPlayedThisTurn
         | Requirement::OnePerMethuselah
         | Requirement::PlayedGrappleOrAimByOpponent
         | Requirement::WeaponBurnedOpponent
@@ -4157,6 +4243,19 @@ pub fn holds(
         Requirement::OpponentVampire => combat
             .zip(side)
             .is_some_and(|(c, i)| !st.minions[c.sides[1 - i].minion.index()].is_ally()),
+        Requirement::ActingCombatantYourVampire => combat.is_some_and(|c| {
+            let v = &st.minions[c.sides[0].minion.index()];
+            v.is_vampire() && v.owner == seat
+        }),
+        Requirement::OwnCombatantFacesAggravatedStrike => combat.is_some_and(|c| {
+            c.side_of(seat).is_some_and(|i| {
+                st.minions[c.sides[i].minion.index()].is_vampire()
+                    && c.aggravated_strike_on(st, action, i)
+            })
+        }),
+        Requirement::OpponentNotReady => combat
+            .zip(side)
+            .is_some_and(|(c, i)| !st.minions[c.sides[1 - i].minion.index()].ready()),
         Requirement::ActorNotVotingFor => {
             political.zip(actor).is_some_and(|(r, m)| !r.voting_for(m))
         }
@@ -4226,7 +4325,12 @@ pub fn holds_for_minion(
         Requirement::NotControlled => v.owner != seat,
         Requirement::TargetLocked => v.locked,
         Requirement::TargetVampire => !v.is_ally(),
+        Requirement::TargetCombatant => st.combatants.is_some_and(|p| p.contains(&m)),
+        Requirement::TargetDiablerieSinceYourLastTurn => v
+            .diablerie_turn
+            .is_some_and(|t| t > st.seats[seat.index()].previous_turn),
         Requirement::BloodAtLeast(n) => v.blood >= n,
+        Requirement::BloodAtMost(n) => v.blood <= n,
         Requirement::HasCastVotes => referendum.is_some_and(|r| r.has_cast(m)),
         Requirement::NotAbstaining => !referendum.is_some_and(|r| r.abstaining.contains(&m)),
         Requirement::ActorClan(c) => v.clan() == Some(c),
@@ -4363,6 +4467,15 @@ pub fn holds_for_card_target(
             .is_some_and(|h| st.minions[h.index()].owner == st.prey(seat)),
         Requirement::CardControlledByPrey => st.card_controller(id) == st.prey(seat),
         Requirement::ActorMayHoldTarget => actor.is_some_and(|m| st.can_hold(m, c.card, &[])),
+        // "Lock any other unique location you control" (Powerbase:
+        // Savannah): unlocked, and not a card of that name.
+        Requirement::TargetUnlocked => !c.locked,
+        Requirement::TargetNotNamed(n) => LIBRARY[c.card as usize].name != n,
+        // "Burn equipment or retainer" (Donnybrook [obf]).
+        Requirement::AnyOf(alternatives) => alternatives.iter().any(|reqs| {
+            reqs.iter()
+                .all(|&r| holds_for_card_target(r, st, seat, actor, id))
+        }),
         _ => true,
     }
 }
