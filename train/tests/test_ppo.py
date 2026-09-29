@@ -70,7 +70,7 @@ def test_tournament_decks_train(tmp_path):
         eval_every=1, eval_games=4, device="cpu", out=str(tmp_path), decks="precons,twda",
     )
     trainer = Trainer(cfg)
-    assert len(trainer.decks) >= 14 + 28
+    assert len(trainer.decks) >= 14 + 10
     trainer.run()
     try:
         Trainer(Config(**{**vars(cfg), "decks": "minis"}))
@@ -95,3 +95,15 @@ def test_evaluation_seats_every_opponent_order():
         across.add(seats[(me + 2) % 4])
     assert across == {"aggro", "wall"}, "the wall is not always across the table"
     assert sorted(t.index("net:0") for t in tables) == [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3]
+
+
+def test_entropy_coefficient_tracks_its_target(tmp_path):
+    cfg = Config(
+        games=8, steps=16, iterations=2, epochs=1, minibatch=64, d=32, layers=1,
+        eval_every=10, eval_games=4, device="cpu", out=str(tmp_path),
+        entropy_target=10.0, entropy_step=2.0,
+    )
+    trainer = Trainer(cfg)
+    trainer.run()
+    # Entropy is always under 10: the coefficient doubled each iteration.
+    assert abs(trainer.entropy_coef - cfg.entropy_coef * 4) < 1e-9

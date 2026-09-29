@@ -61,9 +61,8 @@ pub enum Window {
     /// to inflict aggravated damage"; LSJ 19990217).
     CombatBeforeResolution,
     /// A Methuselah is about to be ousted, with no pool (Life Boon: "give
-    /// pool to a Methuselah with no pool to keep them in the game"). No
-    /// request site opens it yet: ousts are applied at once where the pool
-    /// runs out (DESIGN §11.3), so a card played here is never offered.
+    /// pool to a Methuselah with no pool to keep them in the game"): the
+    /// decision point `ousting` opens before the oust applies.
     Ousting,
     /// In-play ability hook: during any Methuselah's unlock phase.
     UnlockPhaseAny,
@@ -1045,6 +1044,16 @@ pub enum Requirement {
     /// The actor's opposing combatant is not ready (Hell-for-Leather
     /// [obt]: "only usable if … the opposing minion is not").
     OpponentNotReady,
+    /// The target Methuselah is about to be ousted, waiting on a Life
+    /// Boon (`Seat::oust_pending`).
+    TargetSeatOusting,
+    /// The user can give the target Methuselah enough pool to keep them
+    /// in the game (at least 1 above what they owe) and keep 1 of their
+    /// own (Life Boon).
+    CanSaveTarget,
+    /// The target Methuselah this card remembers is the active one (Life
+    /// Boon: "during each of their unlock phases").
+    BoonTargetActive,
     /// The user's vampire in combat faces an opposing strike attempting to
     /// inflict aggravated damage on it, effective at the current range
     /// (Rötschreck: RTR 19980928; a strike only, ANK 20220114; dodged or
@@ -1721,6 +1730,10 @@ pub enum Terms {
     /// `other`, another than the play's target (Priority Contract, Toreador
     /// Grand Ball; owner, 2026-09-26: rules-qa 28.5).
     OwnOfClan { clan: &'static str, other: bool },
+    /// The pool Life Boon gives the target Methuselah: at least what keeps
+    /// them in the game (their debt, plus 1), at most what leaves its
+    /// player 1.
+    BoonPool,
 }
 
 /// Continuous-effect modifiers carried by layers.
@@ -2091,6 +2104,13 @@ pub enum Effect {
     /// into your library" (Ashur Tablets), checked as a copy enters play;
     /// the cards chosen then (LSJ 20091030).
     AshurTablets,
+    /// Life Boon's gift: X (`Terms::BoonPool`) pool from its player to the
+    /// target Methuselah, who is no longer about to be ousted; the card in
+    /// play remembers them.
+    GiveBoonPool,
+    /// "Steal 1 pool from that Methuselah" (Life Boon, in their unlock
+    /// phase): their last one ousts them.
+    StealPoolFromBoonTarget,
     /// "Combat ends. This vampire is locked and sent to torpor"
     /// (Rötschreck, on its target): combat ends at once, no strike
     /// resolving; the lock and torpor land once it has ended, both minions
@@ -3743,6 +3763,9 @@ pub fn holds(
         | Requirement::TargetDiablerieSinceYourLastTurn
         | Requirement::BloodAtMost(_)
         | Requirement::TargetCombatant
+        | Requirement::TargetSeatOusting
+        | Requirement::CanSaveTarget
+        | Requirement::BoonTargetActive
         | Requirement::TargetCard(_)
         | Requirement::TargetOnReadyMinion
         | Requirement::ActorMayHoldTarget
@@ -4428,6 +4451,8 @@ pub fn holds_for_seat(
         Requirement::NotSelf => t != seat,
         Requirement::PredatorsPredator => t == st.predator(st.predator(seat)),
         Requirement::TargetPrey => t == st.prey(seat),
+        Requirement::TargetSeatOusting => st.seats[t.index()].oust_pending,
+        Requirement::CanSaveTarget => st.seats[seat.index()].pool > 1 - st.seats[t.index()].pool,
         Requirement::TargetAshAtLeast(n) => {
             let s = &st.seats[t.index()];
             s.ash.len() + s.ash_crypt.len() >= n as usize
@@ -4561,6 +4586,7 @@ pub fn holds_for_card(
             None => !c.locked,
         },
         Requirement::CountersAtLeast(n) => c.counters >= n,
+        Requirement::BoonTargetActive => c.against.contains(st.active),
         Requirement::EnteredBeforeThisTurn => c.entered < st.turn,
         Requirement::SuperiorVersion => c.mode > 0,
         Requirement::BasicVersion => c.mode == 0,

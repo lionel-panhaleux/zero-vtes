@@ -1,7 +1,7 @@
 # Rules Q&A — ruling reference
 
 Owner rulings (VEKN judge) on VTES rules questions raised while building the
-engine, Batches 1–44. Each item is the settled rule, stated as fact; the
+engine, Batches 1–45. Each item is the settled rule, stated as fact; the
 question framing, engine mechanics, test names and confirmations are dropped
 deliberately: the code and its tests are the reference for how a rule is
 implemented, and they point back here through `rules-qa N.M` comments.
@@ -48,7 +48,8 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
-- **Legacy additions for TWDA decks** — 44.1–44.11
+- **Legacy additions for TWDA decks** — 44.1–44.10
+- **Ousts, Life Boon's decision point** — 45.1–45.8
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
 - **Periodicity ("during X" = once per X, once each …)** — 6.6, 7.4, 9.6, 10.4, 11.2, 15.1, 15.2, 16.1, 36.3, 36.4, 37.1, 38.8, 42.3, 42.9
@@ -767,5 +768,24 @@ Owner confirmed 44.1–44.10 (2026-09-28).
 
 **44.10** Ashur Tablets: "only one … each turn" counts any Methuselah's play (a canceled one included); the third copy is checked as a copy enters play. The card is not unique: copies never contest, every copy in play counts (owner correction).
 
-**44.11** _open_ Life Boon: blocked — its save needs a decision point before an oust, and ousts are applied at once where the pool runs out; defined, never offered.
+
+## Batch 45 — the decision point before an oust (slice 16b)
+
+Owner confirmed 45.1–45.8 (2026-09-29); it replaces 44.11 (Life Boon blocked), removed.
+
+**45.1** When a Methuselah's pool reaches 0 or below, the oust waits while a Methuselah holding Life Boon may save them: each holder in turn, clockwise from the active Methuselah, never the active one (out-of-turn), nor one ousted by the same effect; one pass over the holders; those saved leave the batch and the rest are ousted together, as one simultaneous oust. A Methuselah may save any Methuselah of the batch.
+
+**45.2** Life Boon's pool is chosen as it is played (its terms): at least what keeps the Methuselah in the game — what they owe below 0, plus 1 — and at most the Boon player's pool less 1: giving pool never ousts the Boon player.
+
+**45.3** The pool moves from the Boon player to the Methuselah saved as the Boon resolves (a gift, not a cost: no reduction applies); canceled as played, the out-of-turn master phase action is spent (3.3) and the next holder may still save them.
+
+**45.4** While the oust waits, the effect that ran the pool out goes on as if the Methuselah were still in the game (the rest of a referendum's effects, the action it is part of); if nobody saves them, the oust applies then — on their own turn, the turn passes then; a combatant's Methuselah ousted ends the combat at once.
+
+**45.5** The Boon player gains every victory point the Methuselah saved gains — a prey's oust, being the last one standing, the half point at the time limit — the oldest Boon first, each until it has given 1 VP (then burned); "until you are being ousted": the Boon player gains nothing from the oust that takes them out — neither the VP for ousting them nor the last-one-standing VP, both the saved Methuselah's (owner).
+
+**45.6** "During each of their unlock phases, you can steal 1 pool from that Methuselah": once per unlock phase of theirs, any time among their unlock-phase effects; their last pool so stolen ousts them (and opens the decision point again).
+
+**45.7** A Methuselah saved by a Boon still scores for a prey ousted by the same effect (the VP to the Boon player, LSJ 20021029) and gains the 6 pool.
+
+**45.8** The pool a Methuselah is below 0 by is kept until the oust applies (bleeds, simultaneous pool losses): what they owe is what a Boon must make good (RTR 19970630).
 

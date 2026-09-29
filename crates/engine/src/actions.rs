@@ -2930,8 +2930,9 @@ impl Engine {
                         self.bleed_successful_effects(&play, prey);
                     }
                 }
+                // Below 0 kept until the oust: a Life Boon must make it good
+                // (RTR 19970630).
                 if self.state.seats[prey.index()].pool <= 0 {
-                    self.state.seats[prey.index()].pool = 0;
                     self.oust(prey);
                 } else if a.card.is_some_and(|p| {
                     cards::lookup(p.card).is_some_and(|d| {
@@ -3094,8 +3095,10 @@ impl Engine {
                 a.card_entered_play = true;
                 if pool > 0 && self.state.seats[seat.index()].pool == 0 {
                     self.action = Some(a);
-                    self.oust_and_pass(seat);
-                    return;
+                    if self.oust_and_pass(seat) {
+                        return;
+                    }
+                    a = self.action.take().expect("action");
                 }
             }
             ActionKind::Equip => {
@@ -3136,8 +3139,10 @@ impl Engine {
                     a.card_entered_play = true;
                     if pool > 0 && self.state.seats[seat.index()].pool == 0 {
                         self.action = Some(a);
-                        self.oust_and_pass(seat);
-                        return;
+                        if self.oust_and_pass(seat) {
+                            return;
+                        }
+                        a = self.action.take().expect("action");
                     }
                 }
             }
@@ -3222,8 +3227,10 @@ impl Engine {
                 self.state.seats[seat.index()].pool -= pool;
                 if pool > 0 && self.state.seats[seat.index()].pool == 0 {
                     self.action = Some(a);
-                    self.oust_and_pass(seat);
-                    return;
+                    if self.oust_and_pass(seat) {
+                        return;
+                    }
+                    a = self.action.take().expect("action");
                 }
                 if mode.effects.contains(&Effect::SearchEquip) {
                     // Magic of the Smith: the equipment is chosen now that
@@ -3382,8 +3389,10 @@ impl Engine {
                     }
                     if self.state.seats[seat.index()].pool == 0 {
                         self.action = Some(a);
-                        self.oust_and_pass(seat);
-                        return;
+                        if self.oust_and_pass(seat) {
+                            return;
+                        }
+                        a = self.action.take().expect("action");
                     }
                 }
             }
@@ -3428,8 +3437,10 @@ impl Engine {
                 self.state.seats[seat.index()].pool -= pool as i32;
                 if pool > 0 && self.state.seats[seat.index()].pool == 0 {
                     self.action = Some(a);
-                    self.oust_and_pass(seat);
-                    return;
+                    if self.oust_and_pass(seat) {
+                        return;
+                    }
+                    a = self.action.take().expect("action");
                 }
                 let src = a.source.expect("source");
                 let spec = src.mode(&self.state, a.ability.expect("ability")).target;
@@ -4158,9 +4169,7 @@ impl Engine {
         s.pool = (s.pool - pool).max(0);
         self.state.burn_blood(minion, blood);
         self.put_equipment(seat, minion, ctx);
-        if pool > 0 && self.state.seats[seat.index()].pool == 0 {
-            self.oust_and_pass(seat);
-        } else {
+        if !(pool > 0 && self.state.seats[seat.index()].pool == 0 && self.oust_and_pass(seat)) {
             self.after_resolution();
         }
     }

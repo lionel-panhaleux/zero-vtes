@@ -1137,8 +1137,10 @@ impl Engine {
             if seat.ousted || n <= 0 {
                 continue;
             }
-            seat.pool = (seat.pool - n).max(0);
-            if seat.pool == 0 {
+            // Below 0 is kept until the oust: a Life Boon must make it good
+            // (RTR 19970630).
+            seat.pool -= n;
+            if seat.pool <= 0 {
                 ousted.push(SeatId(i as u8));
             }
         }

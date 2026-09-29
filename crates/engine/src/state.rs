@@ -669,6 +669,8 @@ pub struct Seat {
     /// A master card was played in the current master phase (Nonu Dis).
     pub master_played: bool,
     pub turns_taken: u32,
+    /// About to be ousted, waiting on a Life Boon (`Engine::ousting`).
+    pub oust_pending: bool,
     /// The game turn of this Methuselah's current (or last) turn, and of
     /// the one before it: "since your last turn" (Carlton Van Wyk).
     pub this_turn: u32,

@@ -43,6 +43,12 @@ class Config:
     clip: float = 0.2
     value_coef: float = 0.5
     entropy_coef: float = 0.02
+    # Adaptive entropy bonus: after each update the coefficient is scaled by
+    # `entropy_step` toward keeping the policy's entropy at `entropy_target`
+    # (0: fixed coefficient). Every run so far peaked against the bots near
+    # 0.64 and declined once the entropy fell under ~0.6 (DESIGN §11.2).
+    entropy_target: float = 0.65
+    entropy_step: float = 1.1
     # The game win's weight in the reward, in VPs (tournament ranking puts
     # game wins first).
     gw_weight: float = 2.0
@@ -231,6 +237,7 @@ class Trainer:
         # kept across a resume into the same directory).
         same = cfg.resume and Path(cfg.resume).parent.resolve() == Path(cfg.out).resolve()
         self.best = saved.get("best", float("-inf")) if same else float("-inf")
+        self.entropy_coef = saved.get("entropy_coef", cfg.entropy_coef) if same else cfg.entropy_coef
         self.out = Path(cfg.out)
         self.out.mkdir(parents=True, exist_ok=True)
         self.league = None
@@ -352,7 +359,7 @@ class Trainer:
                 pg = -torch.min(ratio * ad, ratio.clamp(1 - cfg.clip, 1 + cfg.clip) * ad).mean()
                 vf = ((values - ret) ** 2).mean()
                 ent = -(logp_all.exp() * logp_all).sum(-1).mean()
-                loss = pg + cfg.value_coef * vf - cfg.entropy_coef * ent
+                loss = pg + cfg.value_coef * vf - self.entropy_coef * ent
                 learner.opt.zero_grad()
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(learner.model.parameters(), 1.0)
@@ -401,6 +408,7 @@ class Trainer:
             "config": dataclasses.asdict(self.cfg),
             "pfsp": self.league.state() if self.league else {},
             "best": self.best,
+            "entropy_coef": self.entropy_coef,
             "vocab": self.vocab,
         }
         if self.exploiter:
@@ -431,6 +439,10 @@ class Trainer:
                 metrics.update({prefix + k: v for k, v in m.items()})
                 learner.model.eval()
             t2 = time.perf_counter()
+            if cfg.entropy_target > 0 and "entropy" in metrics:
+                up = metrics["entropy"] < cfg.entropy_target
+                self.entropy_coef *= cfg.entropy_step if up else 1 / cfg.entropy_step
+                self.entropy_coef = min(max(self.entropy_coef, 1e-3), 0.2)
             stats["turns"] = round(stats["turns"] / max(stats["episodes"], 1), 1)
             row = {
                 "iteration": it,
@@ -438,6 +450,7 @@ class Trainer:
                 "rollout_s": round(t1 - t0, 2),
                 "update_s": round(t2 - t1, 2),
                 "lr": float(f"{lr:.3g}"),
+                "entropy_coef": float(f"{self.entropy_coef:.3g}"),
                 **stats,
                 **{k: round(float(v), 4) for k, v in metrics.items()},
             }

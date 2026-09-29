@@ -847,3 +847,271 @@ fn rotschreck_in_a_continued_combat_sends_nobody_to_torpor() {
     assert_eq!(e.state.cards[card.index()].host, Some(z));
     assert!(e.state.does_not_unlock(z));
 }
+
+// ---- Life Boon ----------------------------------------------------------------------
+
+fn boon_on(e: &mut Engine, by: u8, target: u8) -> CardId {
+    let id = in_play(e, by, "Life Boon", None);
+    e.state.cards[id.index()].against = zvtes::ids::SeatSet::single(SeatId(target));
+    id
+}
+
+fn half(e: &Engine) -> Vec<u32> {
+    e.state.seats.iter().map(|s| s.half_vps).collect()
+}
+
+/// 3 seats; seat 0 bleeds seat 1 for 3, seat 1 at 1 pool; seat 2 holds a
+/// Life Boon.
+fn boon_bleed() -> (Engine, MinionId) {
+    let mut e = Engine::bare(3);
+    e.state.turn = 4;
+    let a = e.add_minion(
+        SeatId(0),
+        vampire(|c| c.capacity >= 5 && c.disciplines.contains(&"DOM"), 0),
+        4,
+        false,
+    );
+    e.add_minion(SeatId(0), plain("Brujah", &[], 1), 4, false);
+    e.state.seats[1].pool = 1;
+    e.state.seats[2].pool = 10;
+    hand(&mut e, 0, &["Conditioning"]);
+    hand(&mut e, 2, &["Life Boon"]);
+    (e, a)
+}
+
+// Life Boon: "Out-of-turn. Boon. Give pool to a Methuselah with no pool to
+// keep them in the game, and put this card in play." The pool given must
+// make good what they owe (RTR 19970630, ANK 20230817-2): bled 4 at 1
+// pool, at least 4 (to 1). Out of turn: counted against the next master
+// phase.
+// Rulings: [RTR 19970630] [ANK 20230817-2].
+#[test]
+fn life_boon_keeps_a_methuselah_in_the_game() {
+    let (mut e, a) = boon_bleed();
+    pick(&mut e, bleed(a));
+    // [DOM] Conditioning: +3 bleed, 4 in all against 1 pool.
+    pick_when(&mut e, play_at(0, 1, Some(a), Target::None));
+    let save = play_at(0, 0, None, Target::Seat(SeatId(1)));
+    let req = offering(&mut e, save);
+    assert_eq!(req.seat, SeatId(2));
+    assert_eq!(req.options, vec![Choice::Pass, save]);
+    assert_eq!(pool(&e, 1), 1 - 4);
+    pick(&mut e, save);
+    let req = expect(&mut e, SeatId(2), WindowLabel::PlayTerms);
+    assert_eq!(req.options, (4..=9).map(Choice::SetX).collect::<Vec<_>>());
+    pick(&mut e, Choice::SetX(5));
+    let req = request(&mut e);
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(0), WindowLabel::MinionPhase)
+    );
+    assert!(!e.state.seats[1].ousted);
+    assert_eq!((pool(&e, 1), pool(&e, 2)), (-3 + 5, 10 - 5));
+    assert_eq!(half(&e), vec![0, 0, 0], "nobody ousted");
+    let boon = card_named(&e, "Life Boon");
+    assert!(e.state.cards[boon.index()].against.contains(SeatId(1)));
+    assert!(e.state.seats[2].out_of_turn.is_some());
+}
+
+// Declined: the oust applies — the predator scores and gains 6 pool.
+#[test]
+fn a_declined_life_boon_lets_the_oust_apply() {
+    let (mut e, a) = boon_bleed();
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, play_at(0, 1, Some(a), Target::None));
+    let req = offering(&mut e, play_at(0, 0, None, Target::Seat(SeatId(1))));
+    assert_eq!(req.seat, SeatId(2));
+    pick(&mut e, Choice::Pass);
+    request(&mut e);
+    assert!(e.state.seats[1].ousted);
+    assert_eq!(half(&e), vec![2, 0, 0]);
+    assert!(e.state.seats[2].hand.contains(&find_library("Life Boon")));
+}
+
+// No Boon on one's own turn (out-of-turn), none without the pool to give
+// (1 kept): the oust applies at once, no decision.
+#[test]
+fn life_boon_needs_another_turn_and_the_pool_to_give() {
+    let (mut e, a) = boon_bleed();
+    e.state.seats[2].pool = 4; // at most 3 to give: not the 4 owed
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, play_at(0, 1, Some(a), Target::None));
+    let req = request(&mut e);
+    assert!(e.state.seats[1].ousted);
+    assert_eq!(req.window, WindowLabel::MinionPhase);
+}
+
+// The Boon player gains the victory points the target gains, a series of
+// Boons one after another (RTR 19951017), half points too (RTR 19991206),
+// burned after 1 VP; the target still gains the 6 pool.
+// Rulings: [RTR 19951017]; [RTR 19991206].
+#[test]
+fn life_boons_take_the_targets_victory_points_in_series() {
+    let mut e = Engine::bare(4);
+    e.state.turn = 4;
+    let a = e.add_minion(SeatId(0), plain("Brujah", &[], 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", &[], 1), 4, false);
+    e.state.seats[1].pool = 1;
+    let first = boon_on(&mut e, 2, 0);
+    let second = boon_on(&mut e, 3, 0);
+    pick(&mut e, bleed(a));
+    request(&mut e);
+    assert!(e.state.seats[1].ousted);
+    assert_eq!(half(&e), vec![0, 0, 2, 0], "the first Boon's player");
+    assert!(!e.state.cards[first.index()].in_play, "burned at 1 VP");
+    assert!(e.state.cards[second.index()].in_play);
+    assert_eq!(pool(&e, 0), 30 + 6);
+    // The time limit: seat 0's half point goes to the second Boon.
+    e.time_limit = e.state.turn;
+    until_over(&mut e);
+    // (Seats 2 and 3 survive too: their own half points.)
+    assert_eq!(half(&e), vec![0, 0, 2 + 1, 1 + 1]);
+    assert_eq!(e.state.cards[second.index()].counters, 1);
+}
+
+fn until_over(e: &mut Engine) {
+    for _ in 0..500 {
+        match e.run() {
+            zvtes::game::Step::Over(_) => return,
+            zvtes::game::Step::Decision(req) => {
+                let i = fallback(&req);
+                e.choose(i);
+            }
+        }
+    }
+    panic!("the game did not end");
+}
+
+// A Boon on one's predator: ousted by them, one gains nothing from it —
+// the VP is theirs (RTR 20000501, reversing RTR 19990712).
+// Rulings: [RTR 20000501] [LSJ 20020620-2].
+#[test]
+fn a_life_boon_on_your_predator_gives_nothing_as_you_are_ousted() {
+    let mut e = Engine::bare(3);
+    e.state.turn = 4;
+    let a = e.add_minion(SeatId(0), plain("Brujah", &[], 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", &[], 1), 4, false);
+    e.state.seats[1].pool = 1;
+    boon_on(&mut e, 1, 0);
+    pick(&mut e, bleed(a));
+    request(&mut e);
+    assert!(e.state.seats[1].ousted);
+    assert_eq!(half(&e), vec![2, 0, 0]);
+}
+
+// "Until you are being ousted" (rules-qa 45.5, owner): the Boon player's
+// own oust gives it nothing — neither the VP for ousting it nor the last
+// Methuselah standing's VP, both the saved Methuselah's.
+#[test]
+fn a_life_boon_player_ousted_last_gains_no_last_standing_vp() {
+    let mut e = Engine::bare(2);
+    e.state.turn = 4;
+    let a = e.add_minion(SeatId(0), plain("Brujah", &[], 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", &[], 1), 4, false);
+    e.state.seats[1].pool = 1;
+    boon_on(&mut e, 1, 0);
+    pick(&mut e, bleed(a));
+    until_over(&mut e);
+    assert!(e.state.seats[1].ousted);
+    assert_eq!(
+        half(&e),
+        vec![2 + 2, 0],
+        "the oust and the last-standing VP"
+    );
+}
+
+// Both the target and its prey ousted by one effect (Kine Resources
+// Contested): the Boon saves the target, whose VP for its prey goes to the
+// Boon player; the target keeps the 6 pool (LSJ 20021029).
+// Rulings: [LSJ 20021029].
+#[test]
+fn a_life_boon_saved_target_scores_its_simultaneous_prey_for_the_boon_player() {
+    let mut e = Engine::bare(4);
+    e.state.turn = 4;
+    let alexa = e.add_minion(SeatId(0), find_card("Alexa Draper"), 5, false);
+    e.add_minion(SeatId(0), find_card("Mateo García"), 2, false);
+    for s in &mut e.state.seats {
+        s.pool = 10;
+    }
+    e.state.seats[1].pool = 2;
+    e.state.seats[2].pool = 2;
+    hand(&mut e, 0, &["Kine Resources Contested"]);
+    hand(&mut e, 3, &["Life Boon"]);
+    pick(&mut e, play(0, 0, alexa));
+    pick(&mut e, alloc(0, 0));
+    pick(&mut e, alloc(1, 2));
+    pick(&mut e, alloc(2, 2));
+    pick_when(&mut e, votes(alexa, true));
+    close_polling(&mut e);
+    // Seats 1 and 2 at 0: seat 3 may save either; it saves seat 1.
+    let req = request(&mut e);
+    assert_eq!(req.seat, SeatId(3));
+    let save = |t| play_at(0, 0, None, Target::Seat(SeatId(t)));
+    assert_eq!(req.options, vec![Choice::Pass, save(1), save(2)]);
+    e.choose(index_of(&req, save(1)));
+    pick(&mut e, Choice::SetX(1));
+    request(&mut e);
+    assert!(!e.state.seats[1].ousted);
+    assert!(e.state.seats[2].ousted);
+    assert_eq!(half(&e), vec![0, 0, 0, 2], "seat 1's VP, the Boon player's");
+    assert_eq!(pool(&e, 1), 1 + 6);
+}
+
+// "During each of their unlock phases, you can steal 1 pool from that
+// Methuselah."
+#[test]
+fn life_boon_steals_a_pool_in_the_targets_unlock_phase() {
+    let mut e = Engine::bare(2);
+    e.state.turn = 4;
+    e.add_minion(SeatId(0), plain("Brujah", &[], 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", &[], 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", &[], 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", &[], 1), 4, false);
+    let boon = boon_on(&mut e, 1, 0);
+    let steal = use_at(boon, 0, None, Target::None);
+    // Seat 0's next unlock phase.
+    let req = offering(&mut e, steal);
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(1), WindowLabel::UnlockAbilities)
+    );
+    assert_eq!(e.state.active, SeatId(0));
+    let (p0, p1) = (pool(&e, 0), pool(&e, 1));
+    pick(&mut e, steal);
+    request(&mut e);
+    assert_eq!((pool(&e, 0), pool(&e, 1)), (p0 - 1, p1 + 1));
+}
+
+// Parity Shift's pool can pay for the Life Boon saving the Methuselah it
+// takes from (LSJ 20100527): the gain lands before the oust.
+// Rulings: [LSJ 20100527].
+#[test]
+fn parity_shift_pool_pays_for_a_life_boon() {
+    let mut e = Engine::bare(3);
+    e.state.turn = 4;
+    let alexa = e.add_minion(SeatId(0), find_card("Alexa Draper"), 5, false);
+    e.add_minion(SeatId(0), find_card("Mateo García"), 2, false);
+    e.state.seats[0].pool = 1;
+    e.state.seats[1].pool = 3;
+    e.state.seats[2].pool = 1;
+    hand(&mut e, 0, &["Parity Shift"]);
+    hand(&mut e, 2, &["Life Boon"]);
+    pick(&mut e, play(0, 0, alexa));
+    pick(&mut e, alloc(0, 1));
+    pick_when(&mut e, votes(alexa, true));
+    close_polling(&mut e);
+    // Seat 1 at 0; seat 2 now at 3 pool, 1 to give and 2 to keep.
+    let save = play_at(0, 0, None, Target::Seat(SeatId(1)));
+    let req = request(&mut e);
+    assert_eq!(
+        (req.seat, req.options.clone()),
+        (SeatId(2), vec![Choice::Pass, save])
+    );
+    e.choose(1);
+    let req = expect(&mut e, SeatId(2), WindowLabel::PlayTerms);
+    assert_eq!(req.options, vec![Choice::SetX(1), Choice::SetX(2)]);
+    pick(&mut e, Choice::SetX(1));
+    request(&mut e);
+    assert!(!e.state.seats[1].ousted);
+    assert_eq!((pool(&e, 0), pool(&e, 1), pool(&e, 2)), (2, 1, 2));
+}

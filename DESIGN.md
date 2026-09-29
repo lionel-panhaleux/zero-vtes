@@ -65,13 +65,13 @@ Powerbase: Savannah, Rötschreck, Saatet-ta.
   Companion 3), from KRCG `_set` bundle codes: 379 unique cards (138 crypt, 241
   library), 17–41 uniques per deck; since 2026-09-28 also the TWDA decks
   fully in the pool (`--decks precons,twda`; `Deck::twda`): 81 with the
-  added legacy cards (28 without), 62 once near-copies are merged — 23
-  Gangrel, 9 Malkavian, 8 Ministry, the rest 1–5 a clan, none Nosferatu,
-  Toreador or Ventrue; a seat draws a clan uniformly, then a deck of it,
+  added legacy cards (28 without; 23 of the 81 Gangrel), capped at 3
+  versions of a deck (owner: decks sharing more than 25% of their crypt
+  are the same deck; a precon is its deck's first version; a further
+  version only with a library sharing at most 50% with each kept one): 13
+  TWDA decks, 1–3 a clan. A seat draws a clan uniformly, then a deck of it,
   and a deck sharing more than 20% of its crypt with one already at the
-  table is redrawn (owner: crippling contests — as a dataset filter it
-  would keep 11 decks, 1 with the precons, the TWDA reusing the precons'
-  vampires). The New Blood mini-starters are decklist data
+  table is redrawn (contests). The New Blood mini-starters are decklist data
   (`Deck::mini`) outside the roster — half decks, not legal (owner): never
   trained on; the singles-only cards (Fall of
   London, Echoes of Gehenna, part of Shadows of Berlin — all the events) are
@@ -501,7 +501,8 @@ titles; `git log` has the detail.
 | P2 · 12d | 09-27 | Elision's observational equivalence (`tests/elision.rs`, §7.2), `GameState::legal_view` (§5); block pruning no longer reads third parties' hands |
 | P2 · 13 | 09-27 | Decklists: the New Blood mini-starters as data, `Engine::with_decks` (`decks.rs`); scripted reference bots aggro-bleed and wall (`bots.rs`, `agent::Agent`) |
 | P3 · 14a–14c | 09-27 | Observations (`obs.rs`: entity tokens, option rows with pointers; honest by test); `crates/py` `GamePool` (batched parallel stepping, bots inside, replayable); `train/`: pointer-scoring transformer, PPO self-play, evaluation vs random and bots |
-| P4 · 16a | 09-28 | Pool extension for TWDA decks: 12 legacy cards appended (`ADDED_CARDS`), first strike, a master card becoming an ally, the before-resolution combat window, out-of-turn Rötschreck, shuffle-on-burn, Ashur Tablets' picks, Life Boon blocked |
+| P4 · 16b | 09-28 | The decision point before an oust (`ousting.rs`): Life Boon playable, its VP redirection (`Engine::gain_half_vps`) and pool steal; `oust_and_pass` reports a waiting oust to its callers |
+| P4 · 16a | 09-28 | Pool extension for TWDA decks: 12 legacy cards appended (`ADDED_CARDS`), first strike, a master card becoming an ally, the before-resolution combat window, out-of-turn Rötschreck, shuffle-on-burn, Ashur Tablets' picks, Life Boon blocked (unblocked by 16b) |
 | P4 · 15a–15c | 09-28 | Several networks at one table (`net:k` seats, `agent` column), matchmaking queued from Python, 4- and 5-seat tables only; the league: one learner seat, an exploiter, snapshots, bots, PFSP (`train/league.py`) |
 
 ### 11.2 Engine reference (by mechanism)
@@ -898,9 +899,10 @@ slice-11 cards by section).
   `decks::Deck` (`precon`, `mini`, `twda`, `all`). `TWDA` (`twda.rs`,
   `scripts/gen_twda.py` from KRCG twda.json and the generated tables'
   `id:` order): every tournament-winning deck whose cards are all in the
-  pool, tournament-legal sizes (crypt 12+, library 60–90), near-copies
-  (over 90% of the list shared) merged into the winner of the largest event,
-  TWDA order; `Deck::crypt_share`, `Deck::clan` (most crypt copies);
+  pool, tournament-legal sizes (crypt 12+, library 60–90), versions capped
+  (`SAME_CRYPT` 25%, `VERSIONS` 3, `SAME_LIBRARY` 50%; the largest event's
+  winner first, then the newest; generic vampires such as Anarch Convert
+  not counted), TWDA order; `Deck::crypt_share`, `Deck::clan` (most crypt copies);
   regenerated after a pool change, it picks up the decks the additions
   complete. `Engine::with_decks(seed, decks)`
   seats them in order; `Engine::new` draws random precons with the same random
@@ -975,8 +977,26 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   at the end of the round (Hell-for-Leather [obt]; ousts via
   `combat_ousts`), `Requirement::ActingCombatantYourVampire` with
   `Effect::LockTargetCard` (Powerbase: Savannah).
-- `Window::Ousting` (Life Boon) never opens: ousts apply where the pool runs
-  out (§11.3).
+
+**Ousts and Life Boon** (`ousting.rs`: `Ousting`; slice 16b, rules-qa Batch 45)
+- `oust_batch` defers when a Methuselah other than the active one and outside
+  the batch holds a Life Boon (`defer_oust`): the batch is marked
+  `Seat::oust_pending`, the caller goes on as if the pool had not run out
+  (pools below 0 kept: what the Boon must make good), and `Engine::ousting`
+  is served after the interrupts, before the flow: each holder, clockwise from
+  the active one, passes or plays the Boon through `announce_play` (terms
+  `Terms::BoonPool`, as-played window, cancels), `playing` while the play is
+  in flight. `settle_ousting` then drops the saved and ousts the rest
+  (`oust_now`), settling what the oust interrupts (`after_deferred_oust`:
+  `combat_ousts`, the turn passing, the action's order). With no Boon in an
+  eligible hand the oust applies at once, as before.
+- `oust_and_pass` returns whether the oust applied: its callers return (the
+  turn passed) only then, else go on as if the pool had not run out.
+- Victory points go through `Engine::gain_half_vps` (prey ousts, last
+  standing, the time limit's half point): a Life Boon in play remembering the
+  Methuselah (`CardInPlay::against`) takes them, oldest first, its counters
+  the half points given, burned at 1 VP. `Effect::StealPoolFromBoonTarget`
+  (`Requirement::BoonTargetActive`, `Window::UnlockPhaseAny`).
 
 **Observations** (`obs.rs`: `encode`, `Obs`, `schema_json`)
 - One request as its seat sees it: tokens — seats in relative order (pool,
@@ -1040,7 +1060,7 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   every seat of 4- and 5-seat tables; a trained seat's decisions form its
   chain, rewarded at the end by (VPs + `gw_weight` × game win) / 5
   (`gw_weight` 2 since the second league run: tournament ranking puts game
-  wins first; 1 before); entropy bonus 0.02 (0.01 before; 0.03 made the entropy climb, 0.62 → 0.89 in 30 iterations, with every evaluation flat or down); truncated
+  wins first; 1 before); entropy bonus 0.02 (0.01 before; 0.03 made the entropy climb, 0.62 → 0.89 in 30 iterations, with every evaluation flat or down), adaptive since the TWDA run: scaled ×1.1 or ÷1.1 after each update toward `entropy_target` 0.65 (every run peaked against the bots near 0.64 and declined under ~0.6), within [0.001, 0.2], kept in the checkpoint; truncated
   rollouts bootstrap from a chain's last decision, carried to the next
   rollout. Evaluation samples the learner at every seat and, for each,
   every distinct order of the opponents around it (`eval_tables`; before
@@ -1128,6 +1148,30 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   did not improve on the self-play checkpoint against the bots: all sit near
   an even share at 4 seats (~25% game wins) and a little above it at 5
   (~20%) — their measured "gains" were the seating's noise.
+- TWDA run (2026-09-29: precons + the 13 TWDA decks, clan-balanced, from
+  iteration 90 to 300; evaluated on those decks, fair seating, 60–90-turn
+  limits — the start measured 1.13 VP / 26% game wins against
+  aggro/wall/aggro, 1.23 / 24% against aggro/wall/aggro/wall, 2.62 / 59%
+  against random seats). Five evaluations rising to 1.44 / 32% and 1.51 /
+  30% at 150 (entropy 0.64; random seats 2.90) — the first gain on the
+  fair evaluation — then back down as the entropy fell (0.57 at 200, 0.42
+  at 300): 1.12 / 25% and 1.14 / 20% at 300, 0.87 VP against the latest
+  snapshot. `best.pt` keeps iteration 150. Hence the adaptive entropy
+  bonus. Iteration 150 re-measured on three other evaluation seeds: 1.32–1.44 VP
+  (30–34%) and 1.42–1.58 (27–32%) — a real peak, the best model so far
+  (`runs/p4-twda/best.pt`).
+- Resumed from that `best.pt` with the adaptive entropy bonus: at the full
+  learning rate it fell to 1.19 / 1.20 in 10 iterations; at 1e-4 (tapering)
+  1.48 / 1.40 at 160, then 1.28, 1.12, 1.20, 1.18, 1.14, 1.13 against
+  aggro/wall/aggro (1.08 against aggro/wall/aggro/wall at 220), with the
+  entropy held at 0.63–0.70 — stopped at 220. The falling entropy is not
+  the cause: the policy drifts. The training tables' pairwise beat rates
+  stayed flat all along (aggro ~0.5, wall ~0.68, random ~0.77, snapshots
+  0.47–0.57) while the evaluation rose and fell: training does not steer
+  toward beating the bots; a good checkpoint is found, not converged to.
+  Next levers (owner to choose): larger batches (less noisy updates), more
+  bot seats in training tables, the omniscient critic, checkpoint selection
+  on several evaluation seeds.
 
 ### 11.3 Open gaps
 
@@ -1174,9 +1218,10 @@ Still true today; "(verify)" marks items inferred from older notes.
     that always declares a block never ends the action. A driver with a
     deterministic policy (the P3 greedy evaluation, a human client) needs a
     decision budget; the scripted bots remember their attempts.
-- **Life Boon** is defined but never offered: saving a Methuselah from an oust
-  needs a decision point before the oust, and ousts apply at once where the
-  pool runs out (ledger rows `blocked:`).
+- A deferred oust (Life Boon) lets the effect that ran the pool out finish
+  first: windows of an action or referendum under way may still list the
+  Methuselah about to be ousted until the Boon decision (fuzzed by
+  `random_games_with_legacy_additions…`, not proven for every flow).
 - Legacy additions partly covered by tests only through code paths: a
   Rötschreck range check (a strike ineffective at the range), Powerbase:
   Savannah with Deep Song's acting target, Saatet-ta's stealth and intercept
@@ -1199,7 +1244,7 @@ Still true today; "(verify)" marks items inferred from older notes.
   (with the protocol server).
 - **P5 — community**: bot service, client adapter, human-ergonomics layer.
 
-Definitions: 436 library, 102 vampires; 918 Rust tests, 12 Python tests
+Definitions: 436 library, 102 vampires; 928 Rust tests, 13 Python tests
 
 ## Outlook: deck building (post-v1)
 

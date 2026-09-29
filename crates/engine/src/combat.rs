@@ -1938,7 +1938,7 @@ impl Engine {
     /// when the flow moved on — the game ended, the active Methuselah's
     /// turn passed, or a combatant's Methuselah left the game and the
     /// combat ended at once (DESIGN §10).
-    fn combat_ousts(&mut self) -> bool {
+    pub(crate) fn combat_ousts(&mut self) -> bool {
         if self.state.living() <= 1 {
             self.combat = None;
             self.state.combatants = None;

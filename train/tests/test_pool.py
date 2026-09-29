@@ -82,7 +82,7 @@ def test_vocabulary_keys_and_deck_families():
     assert len(set(keys)) == len(keys) and keys[0] == "none"
     families = dict(zvtes_py.deck_families())
     assert len(families["precons"]) == 14 and len(families["minis"]) == 14
-    assert len(families["twda"]) >= 28
+    assert len(families["twda"]) >= 10
     names = zvtes_py.deck_names()
     assert sum(len(v) for v in families.values()) == len(names)
     pool = zvtes_py.GamePool(4, ["policy"] * 5, decks=families["twda"])

@@ -182,6 +182,9 @@ pub struct Engine {
     /// Choices about cards drawn, moved or stored, served in order before
     /// any other decision (`draws`).
     pub(crate) interrupts: Vec<Interrupt>,
+    /// Methuselahs about to be ousted while someone may save them with a
+    /// Life Boon (`ousting`): the oust waits on that decision.
+    pub(crate) ousting: Option<crate::ousting::Ousting>,
     /// How the most recent action ended (tests, and after-resolution
     /// riders to come).
     pub last_outcome: Option<crate::actions::Outcome>,
@@ -254,6 +257,7 @@ impl Engine {
             referendum: None,
             ousted_during_play: false,
             interrupts: Vec::new(),
+            ousting: None,
             rng,
             last_outcome: None,
         };
@@ -360,6 +364,9 @@ impl Engine {
     pub fn run(&mut self) -> Step {
         loop {
             self.settle_interrupts();
+            if self.interrupts.is_empty() {
+                self.settle_ousting();
+            }
             self.state.drain_all_excess();
             self.state.release_hostages();
             if matches!(self.flow, Flow::GameOver) {
@@ -412,6 +419,9 @@ impl Engine {
         // Draws first: a hand is discarded down once its draws are done
         // (Heart of Nizchetus: "without discarding").
         if let Some(req) = self.interrupt_request() {
+            return Some(req);
+        }
+        if let Some(req) = self.ousting_request() {
             return Some(req);
         }
         if let Some(s) = self.discard_down_seat() {
@@ -481,6 +491,10 @@ impl Engine {
     fn apply(&mut self, choice: &Choice) {
         if !self.interrupts.is_empty() {
             self.interrupt_apply(choice);
+            return;
+        }
+        if self.ousting.as_ref().is_some_and(|o| !o.playing) {
+            self.ousting_apply(choice);
             return;
         }
         if let Some(s) = self.discard_down_seat() {
@@ -949,8 +963,7 @@ impl Engine {
             .count() as i32;
         self.burn_card_in_play(id);
         self.state.seats[s.index()].pool -= loss;
-        if loss > 0 && self.state.seats[s.index()].pool <= 0 {
-            self.oust_and_pass(s);
+        if loss > 0 && self.state.seats[s.index()].pool <= 0 && self.oust_and_pass(s) {
             return true;
         }
         false
@@ -1080,12 +1093,18 @@ impl Engine {
     }
 
     /// Pool reached 0 on the seat's own turn (a transfer, a crypt draw, or
-    /// contest upkeep): ousted at once, and the turn passes.
-    pub(crate) fn oust_and_pass(&mut self, s: SeatId) {
+    /// contest upkeep): ousted at once, and the turn passes. False when the
+    /// oust waits on a Life Boon (`ousting`): the caller goes on as if the
+    /// pool had not run out, and the turn passes once the oust applies.
+    pub(crate) fn oust_and_pass(&mut self, s: SeatId) -> bool {
         self.oust(s);
+        if !self.state.seats[s.index()].ousted {
+            return false;
+        }
         if self.state.living() > 1 {
             self.next_turn();
         }
+        true
     }
 
     pub(crate) fn oust(&mut self, s: SeatId) {
@@ -1093,10 +1112,20 @@ impl Engine {
     }
 
     /// Oust these Methuselahs at once (a referendum's simultaneous pool
-    /// losses, spec §6.5.4): each predator scores the victory point even if
+    /// losses, spec §6.5.4) — unless someone may save one with a Life
+    /// Boon: then the oust waits on that decision (`ousting`), the caller
+    /// going on as if they were still in the game.
+    pub(crate) fn oust_batch(&mut self, seats: &[SeatId]) {
+        if self.defer_oust(seats) {
+            return;
+        }
+        self.oust_now(seats);
+    }
+
+    /// The oust itself: each predator scores the victory point even if
     /// ousted in the same batch; the 6 pool goes only to surviving
     /// predators, and only for their own prey.
-    pub(crate) fn oust_batch(&mut self, seats: &[SeatId]) {
+    pub(crate) fn oust_now(&mut self, seats: &[SeatId]) {
         let preds: Vec<(SeatId, SeatId)> =
             seats.iter().map(|&s| (s, self.state.predator(s))).collect();
         for &s in seats {
@@ -1109,7 +1138,7 @@ impl Engine {
             self.burn_card_in_play(army);
         }
         for (_, pred) in &preds {
-            self.state.seats[pred.index()].half_vps += 2;
+            self.gain_half_vps(*pred, 2);
             if !seats.contains(pred) {
                 self.state.seats[pred.index()].pool += 6;
                 // "If your prey is ousted, you gain 4 additional pool"
@@ -1137,7 +1166,7 @@ impl Engine {
                 let survivor = (0..self.state.seats.len())
                     .find(|&i| !self.state.seats[i].ousted)
                     .expect("one seat must survive");
-                self.state.seats[survivor].half_vps += 2;
+                self.gain_half_vps(SeatId(survivor as u8), 2);
                 self.flow = Flow::GameOver;
             }
             // Everyone ousted at once (rules-qa 6.9): the prey VPs stand,
@@ -1228,9 +1257,9 @@ impl Engine {
     pub(crate) fn next_turn(&mut self) {
         if self.state.turn >= self.time_limit {
             // Time limit (tournament rules 3.7): 0.5 VP per survivor.
-            for seat in &mut self.state.seats {
-                if !seat.ousted {
-                    seat.half_vps += 1;
+            for i in 0..self.state.seats.len() {
+                if !self.state.seats[i].ousted {
+                    self.gain_half_vps(SeatId(i as u8), 1);
                 }
             }
             self.flow = Flow::GameOver;

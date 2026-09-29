@@ -115,8 +115,7 @@ impl Engine {
             (Contest::Library(c), false) => self.burn_card_in_play(c),
         }
         if self.state.seats[s.index()].pool == 0 {
-            self.oust_and_pass(s);
-            return true;
+            return self.oust_and_pass(s);
         }
         false
     }

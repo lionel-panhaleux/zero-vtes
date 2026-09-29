@@ -1555,6 +1555,16 @@ impl Engine {
             // The amount is announced in the printed range; at resolution
             // you take what you can (Villein rulings, LSJ 20100216).
             Some(Terms::BloodRange { min, max }) => (min..=max).map(Choice::SetX).collect(),
+            Some(Terms::BoonPool) => {
+                let Target::Seat(t) = ctx.target else {
+                    unreachable!("a Boon without its Methuselah");
+                };
+                let need = (1 - self.state.seats[t.index()].pool).max(1);
+                let max = self.state.seats[ctx.seat.index()].pool - 1;
+                (need..=max)
+                    .map(|x| Choice::SetX(x.min(u8::MAX as i32) as u8))
+                    .collect()
+            }
             Some(Terms::UpToTargetBlood) => {
                 let t = ctx.target.minion();
                 (0..=self.state.minions[t.index()].blood)
@@ -2373,8 +2383,9 @@ impl Engine {
             self.ousted_during_play = true;
         } else if self.state.seats[s.index()].pool == 0 || ousted_by_effects {
             if own_turn {
-                self.oust_and_pass(s);
-                self.ousted_during_play = true;
+                if self.oust_and_pass(s) {
+                    self.ousted_during_play = true;
+                }
             } else {
                 // An out-of-turn play paid down to 0 (Archon Investigation
                 // at 3 pool): ousted, the turn goes on without them.
@@ -2525,6 +2536,12 @@ impl Engine {
             }
             // Three copies controlled: every copy in play removed from the
             // game (to their owners'), 3 pool, then the picks.
+            Effect::GiveBoonPool => {
+                let (Target::Seat(t), Some(id)) = (ctx.target, *in_play) else {
+                    unreachable!("a Boon without its Methuselah");
+                };
+                self.give_boon_pool(s, t, ctx.x, id);
+            }
             Effect::AshurTablets => {
                 let name = LIBRARY[ctx.card as usize].name;
                 let copies: Vec<CardId> = (0..self.state.cards.len())
@@ -4514,6 +4531,9 @@ impl Engine {
                 .phase_uses
                 .push(phase_key(source, ability, mode.limit));
         }
+        // The flow moved on for a Methuselah other than the user (an
+        // oust on their turn).
+        let mut moved = false;
         for e in mode.effects {
             match *e {
                 Effect::SpendMasterPhaseAction => {
@@ -4776,6 +4796,20 @@ impl Engine {
                         if crate::crypt::CRYPT[card as usize].clan == clan {
                             self.interrupts
                                 .push(Interrupt::BecomesAnarch { seat: ctx.seat });
+                        }
+                    }
+                }
+                // Their last pool ousts them, on their own turn: the turn
+                // passes (once the oust applies, with a Boon in some hand).
+                Effect::StealPoolFromBoonTarget => {
+                    let st = &self.state;
+                    let from = st.active;
+                    if st.cards[source.card().index()].against.contains(from) {
+                        self.state.seats[from.index()].pool -= 1;
+                        self.state.seats[ctx.seat.index()].pool += 1;
+                        if self.state.seats[from.index()].pool <= 0 {
+                            self.oust_and_pass(from);
+                            moved |= self.state.seats[from.index()].ousted;
                         }
                     }
                 }
@@ -5211,7 +5245,7 @@ impl Engine {
                 other => unreachable!("not an ability effect: {other:?}"),
             }
         }
-        self.state.seats[ctx.seat.index()].ousted
+        moved || self.state.seats[ctx.seat.index()].ousted
     }
 
     /// An ability's pool cost, paid down to 0: its user is ousted — on
@@ -5555,8 +5589,7 @@ impl Engine {
             // Counters move even as the last pool goes (the card leaves
             // with its ousted controller anyway).
             self.state.cards[id.index()].counters += to_counters.min(moved);
-            if self.state.seats[s.index()].pool == 0 {
-                self.oust_and_pass(s);
+            if self.state.seats[s.index()].pool == 0 && self.oust_and_pass(s) {
                 return;
             }
         }
@@ -5648,8 +5681,7 @@ impl Engine {
                 }
                 let seat = &mut self.state.seats[s.index()];
                 seat.pool = (seat.pool - (left - k) as i32).max(0);
-                if seat.pool == 0 {
-                    self.oust_and_pass(s);
+                if seat.pool == 0 && self.oust_and_pass(s) {
                     return;
                 }
                 self.flow = *resume;
@@ -5661,8 +5693,7 @@ impl Engine {
                 self.discard_at_random(s, *k as usize);
                 let seat = &mut self.state.seats[s.index()];
                 seat.pool = (seat.pool - (left - k) as i32).max(0);
-                if seat.pool == 0 {
-                    self.oust_and_pass(s);
+                if seat.pool == 0 && self.oust_and_pass(s) {
                     return;
                 }
                 self.replace(s, *k as usize, None);
@@ -5672,9 +5703,8 @@ impl Engine {
             Choice::BurnPool => {
                 let seat = &mut self.state.seats[s.index()];
                 seat.pool -= 1;
-                if seat.pool == 0 {
-                    // Ousted on their own unlock phase: the turn passes.
-                    self.oust_and_pass(s);
+                // Ousted on their own unlock phase: the turn passes.
+                if seat.pool == 0 && self.oust_and_pass(s) {
                     return;
                 }
             }

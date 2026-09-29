@@ -13360,18 +13360,38 @@ pub static ROTSCHRECK: CardDef = CardDef {
 /// point gained by that Methuselah instead of them, until you are being
 /// ousted or until you have gained 1 victory point from this card. Burn
 /// this card after you have gained 1 victory point from this card."
-/// Blocked: the save needs a decision point before an oust, and ousts are
-/// applied at once where the pool runs out (DESIGN §11.3) — the `Ousting`
-/// window never opens, so the card is never offered; its in-play text is
-/// not built.
+/// Played in the decision point before an oust (`ousting`), on another
+/// Methuselah's turn; the pool given covers what they owe (RTR 19970630);
+/// several Boons reserve a series of VPs (RTR 19951017), half points going
+/// to the Boon player (RTR 19991206); a prey ousted with the target by the
+/// same effect scores for the Boon player, the target keeping the 6 pool
+/// (LSJ 20021029); a Boon on one's predator gives nothing as one is ousted
+/// (RTR 20000501).
 pub static LIFE_BOON: CardDef = CardDef {
     name: "Life Boon",
     out_of_turn: true,
-    modes: &[mode_of(
-        &[Window::Ousting],
-        Actor::Methuselah,
-        &[Requirement::NotOwnTurn],
-        &[Effect::PutInPlay],
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Seat,
+            &[
+                Requirement::NotSelf,
+                Requirement::TargetSeatOusting,
+                Requirement::CanSaveTarget,
+            ],
+        ),
+        terms: Some(Terms::BoonPool),
+        ..mode_of(
+            &[Window::Ousting],
+            Actor::Methuselah,
+            &[Requirement::NotOwnTurn],
+            &[Effect::PutInPlay, Effect::GiveBoonPool],
+        )
+    }],
+    abilities: &[mode_of(
+        &[Window::UnlockPhaseAny],
+        Actor::Controller,
+        &[Requirement::BoonTargetActive],
+        &[Effect::StealPoolFromBoonTarget],
     )],
     ..CARD
 };

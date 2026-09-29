@@ -89,7 +89,12 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
     );
     let mut edges = 0;
     for (i, s) in st.seats.iter().enumerate() {
-        assert!(s.pool >= 0, "negative pool at seat {i} (seed {seed})");
+        // Below 0 only while about to be ousted, a Life Boon pending (what
+        // it owes, RTR 19970630).
+        assert!(
+            s.pool >= 0 || s.oust_pending,
+            "negative pool at seat {i} (seed {seed})"
+        );
         if s.ousted {
             assert_eq!(s.pool, 0, "ousted seat {i} kept pool (seed {seed})");
             assert!(!s.has_edge, "ousted seat {i} kept the Edge (seed {seed})");
@@ -1909,6 +1914,37 @@ fuzz_tests! {
             )
         },
         untwin: true,
+        ..BASE
+    };
+    /// Slices 16a and 16b: the legacy additions for tournament decks, Life
+    /// Boon's decision point before an oust reached from bleeds, costs,
+    /// referendums and combat (pool from 2 to 9 per seat).
+    random_games_with_legacy_additions_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Life Boon",
+            "Life Boon",
+            "Rötschreck",
+            "Donnybrook",
+            "Hell-for-Leather",
+            "Ashur Tablets",
+            "Jake Washington",
+            "Ennoia's Theater",
+            "Powerbase: Savannah",
+            "Murmur of the False Will",
+            "Saatet-ta",
+            "Carlton Van Wyk",
+            "Kine Resources Contested",
+            "Conditioning",
+            "Ivory Bow",
+        ],
+        covers: &[
+            "play:Life Boon",
+            "play:Rötschreck",
+            "play:Ashur Tablets",
+            "play:Jake Washington",
+        ],
+        ousts: true,
+        seeds: 200,
         ..BASE
     };
 }
