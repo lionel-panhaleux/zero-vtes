@@ -6,7 +6,8 @@ fictitious self-play among the scripted bots, the learner's last
 `opponents_kept` snapshots (`net:<iteration>`) and the exploiter's last
 retired copies (`net:EXPLOITER + <iteration>`): weight (1 − p)² + 0.02, p
 the learner's beat rate against it (pairwise: more VPs than that seat, a
-tie ½). Beat rates move once per iteration, by `pfsp_rate` toward the
+tie ½), within the bots (probability `bot_seats`) or the snapshots.
+Beat rates move once per iteration, by `pfsp_rate` toward the
 iteration's mean. The random seat retires once the learner beats it over
 `retire_random` of the time. The exploiter is retired into the pool and
 restarted from the learner's weights once the learner's beat rate against
@@ -92,7 +93,15 @@ class League:
         )
 
     def draw(self):
+        """An opponent: a bot with probability `bot_seats` (else a
+        snapshot, when there is one), then by PFSP within the group."""
         names = self.candidates()
+        bots = [n for n in names if n in BOTS]
+        nets = [n for n in names if n not in BOTS]
+        if nets and self.rng.random() >= self.cfg.bot_seats:
+            names = nets
+        elif bots:
+            names = bots
         w = [(1 - self.p.get(n, 0.5)) ** 2 + 0.02 for n in names]
         return names[self.rng.choice(len(names), p=[x / sum(w) for x in w])]
 

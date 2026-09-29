@@ -1094,12 +1094,38 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   frozen into the pool and restarted from the learner's weights once the
   learner's beat rate against it falls under `exploiter_beaten` (0.3), or
   after `exploiter_reset` (50) iterations. One forward pass per network
-  present. The pool refuses tables other than 4 or 5 seats. 512 games in
-  parallel (256 before the third league run: one learner seat a table
-  halved the samples). The learning rate tapers linearly from the run's
+  present. The pool refuses tables other than 4 or 5 seats. 1024 games in
+  parallel since 2026-09-29 (512 from the third league run, 256 before:
+  one learner seat a table halved the samples). An opponent seat is a bot
+  with probability `bot_seats` (0.6, since 2026-09-29; before, all bots
+  and snapshots were one PFSP pool, ~30% bots), else a snapshot, PFSP
+  within the group. The learning rate tapers linearly from the run's
   first iteration to `lr_final` (0.1) × `lr` at the last; the evaluation
-  with the most VPs against aggro/wall/aggro is kept as `best.pt` (a
-  checkpoint like `model.pt`, resumable). Not built:
+  with the most VPs against the bots is kept as `best.pt` (a checkpoint
+  like `model.pt`, resumable): the mean of aggro/wall/aggro and
+  aggro/wall/aggro/wall, a candidate within `best_margin` (0.1 VP) of the
+  best measured again on `best_seeds` − 1 (2) more evaluation seeds and
+  kept on the mean (since 2026-09-29; a single aggro/wall/aggro evaluation
+  before).
+- The omniscient critic (`critic`, on since 2026-09-29; `model.Critic`,
+  `obs::encode_critic`, the pool's `critic=True` adding `critic_tok_*`):
+  the learner's values come from a separate network reading `encode`'s
+  tokens plus every other hand and every face-down uncontrolled vampire,
+  trained on the same returns in the same minibatches (its own optimizer,
+  the same learning-rate taper), started as a copy of the policy's
+  encoder and value head; the policy still plays from the legal view (its
+  own value head untrained since). Saved in checkpoints (`critic`,
+  `critic_optimizer`). A new critic trains alone for its first `critic_warmup` (10)
+  iterations, the policy frozen: copied from the policy it values a new
+  input poorly, and the first critic run fell from 1.36 / 1.51 to 1.20 /
+  1.24 VP in 10 iterations without it.
+- Update speed (2026-09-29): the update is GPU-bound (Python collation
+  ~5%); options were padded to the batch's largest set (mean 5, max
+  100+), so only the offered options are scored now (ragged, identical
+  logits and parameters), and minibatches are bucketed by token count
+  (chunks of 8 minibatches sorted, then shuffled: every sample once an
+  epoch). Measured A/B under the same load: 1.4–1.5× faster; minibatch
+  1024 is the fastest (512 and 2048 slower, 4096 exhausts GPU memory). Not built:
   evaluation against humans (needs the protocol server, §8).
 - First run (2026-09-27, defaults, 140 iterations ≈ 2.3M decisions, ~1 h on
   the M3): against three random seats 0.71 VP a game at iteration 10 (random
@@ -1172,6 +1198,16 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   Next levers (owner to choose): larger batches (less noisy updates), more
   bot seats in training tables, the omniscient critic, checkpoint selection
   on several evaluation seeds.
+- Critic run (2026-09-29, all four levers: the omniscient critic with a
+  10-iteration warm-up, 1024 games, 60% bot seats, 3-seed selection; from
+  the TWDA run's `best.pt`, learning rate 1e-4 tapering, iterations 151 to
+  350, ~70 s an iteration). The warm-up held the start (1.44 / 1.51 VP;
+  3-seed mean of both bot tables 1.43); then a dip as the critic and the
+  policy adapted — 1.20 / 1.26 at 170, 0.49 / 0.43 at 190 — and a steady
+  climb: 1.33 / 1.35 at 250, 1.60 / 1.55 at 300, 1.70 / 1.71 at 340 (39%
+  / 34% game wins), 1.71 / 1.67 at 350, still rising; against the latest
+  snapshot ~1.0 (an even share). `best.pt`: iteration 340, 3-seed mean
+  1.68. The first run to improve steadily rather than wander.
 
 ### 11.3 Open gaps
 
@@ -1244,7 +1280,7 @@ Still true today; "(verify)" marks items inferred from older notes.
   (with the protocol server).
 - **P5 — community**: bot service, client adapter, human-ergonomics layer.
 
-Definitions: 436 library, 102 vampires; 928 Rust tests, 13 Python tests
+Definitions: 436 library, 102 vampires; 929 Rust tests, 15 Python tests
 
 ## Outlook: deck building (post-v1)
 

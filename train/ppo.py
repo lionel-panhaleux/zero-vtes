@@ -24,12 +24,12 @@ import torch
 import zvtes_py
 
 from train.league import EXPLOITER, TABLES, League, label
-from train.model import Policy, remap_vocab
+from train.model import Critic, Policy, remap_vocab
 
 
 @dataclasses.dataclass
 class Config:
-    games: int = 512
+    games: int = 1024
     steps: int = 64
     iterations: int = 100
     epochs: int = 3
@@ -49,6 +49,14 @@ class Config:
     # 0.64 and declined once the entropy fell under ~0.6 (DESIGN §11.2).
     entropy_target: float = 0.65
     entropy_step: float = 1.1
+    # The omniscient critic (DESIGN §5): the learner's values come from a
+    # separate network reading every hand (`encode_critic`), trained on the
+    # same returns; it starts as a copy of the policy's encoder and value
+    # head. Training only: the policy plays from the legal view.
+    critic: bool = True
+    # A new critic's values are poor (a new input): its first
+    # `critic_warmup` iterations train it alone, the policy frozen.
+    critic_warmup: int = 10
     # The game win's weight in the reward, in VPs (tournament ranking puts
     # game wins first).
     gw_weight: float = 2.0
@@ -69,6 +77,12 @@ class Config:
     league: bool = False
     snapshot_every: int = 10
     opponents_kept: int = 4
+    # The share of opponent seats drawn among the bots (the rest among the
+    # snapshots): the evaluation is against the bots (owner, 2026-09-29).
+    bot_seats: float = 0.6
+    # Checkpoint selection (`best.pt`): see `run`.
+    best_seeds: int = 3
+    best_margin: float = 0.1
     pfsp_rate: float = 0.1
     retire_random: float = 0.85
     # Off: with the learner's reward and weights it never led the learner
@@ -88,19 +102,42 @@ FIELDS = ("tok_ids", "tok_f", "opt_ids", "opt_f")
 
 
 def rows(obs):
-    """Per-game observations, trimmed to their token and option counts."""
+    """Per-game observations, trimmed to their token and option counts;
+    with the critic's tokens appended (ids, features) when the pool emits
+    them."""
     out = []
+    critic = "critic_tok_n" in obs
     for i in range(len(obs["tok_n"])):
         t, o = obs["tok_n"][i], obs["opt_n"][i]
-        out.append(
-            (
-                obs["tok_ids"][i, :t],
-                obs["tok_f"][i, :t].astype(np.float16),
-                obs["opt_ids"][i, :o],
-                obs["opt_f"][i, :o].astype(np.float16),
-            )
+        row = (
+            obs["tok_ids"][i, :t],
+            obs["tok_f"][i, :t].astype(np.float16),
+            obs["opt_ids"][i, :o],
+            obs["opt_f"][i, :o].astype(np.float16),
         )
+        if critic:
+            c = obs["critic_tok_n"][i]
+            row += (obs["critic_tok_ids"][i, :c], obs["critic_tok_f"][i, :c].astype(np.float16))
+        out.append(row)
     return out
+
+
+def collate_critic(samples, device):
+    """Pad the critic's trimmed tokens (row items 4 and 5) into a batch."""
+    b = len(samples)
+    t = max(s[4].shape[0] for s in samples)
+    ids = np.zeros((b, t, samples[0][4].shape[1]), np.int64)
+    f = np.zeros((b, t, samples[0][5].shape[1]), np.float32)
+    n = np.zeros(b, np.int64)
+    for i, s in enumerate(samples):
+        n[i] = s[4].shape[0]
+        ids[i, : n[i]] = s[4]
+        f[i, : n[i]] = s[5]
+    return (
+        torch.from_numpy(ids).to(device),
+        torch.from_numpy(f).to(device),
+        torch.from_numpy(n).to(device),
+    )
 
 
 def collate(samples, device):
@@ -233,6 +270,23 @@ class Trainer:
             if "optimizer" in saved and old == self.vocab:
                 self.learner.opt.load_state_dict(saved["optimizer"])
             self.start = saved.get("iteration", 0) + 1
+        self.critic = None
+        self.warmup = 0
+        if cfg.critic:
+            self.critic = Critic(self.schema, d=cfg.d, layers=cfg.layers).to(self.device)
+            if "critic" in saved:
+                old = saved.get("vocab", self.vocab)
+                self.critic.load_state_dict(
+                    remap_vocab(saved["critic"], old, self.vocab, self.critic.state_dict())
+                )
+            else:
+                # A copy of the policy's encoder and value head.
+                self.critic.load_state_dict(model.state_dict(), strict=False)
+                self.warmup = cfg.critic_warmup
+            self.critic_opt = torch.optim.Adam(self.critic.parameters(), lr=cfg.lr)
+            if "critic_optimizer" in saved and saved.get("vocab", self.vocab) == self.vocab:
+                self.critic_opt.load_state_dict(saved["critic_optimizer"])
+            self.warmup = saved.get("critic_warmup", self.warmup)
         # The best evaluation against aggro/wall/aggro so far (`best.pt`,
         # kept across a resume into the same directory).
         same = cfg.resume and Path(cfg.resume).parent.resolve() == Path(cfg.out).resolve()
@@ -266,6 +320,7 @@ class Trainer:
             decks=self.decks,
             budget=cfg.budget,
             tables=[self.spec() for _ in range(cfg.games)],
+            critic=cfg.critic,
         )
 
     def learners(self):
@@ -291,6 +346,8 @@ class Trainer:
         for _ in range(self.cfg.steps):
             obs = self.pool.observe()
             actions, logp, values = act(self.nets(), obs, self.device, self.rng)
+            if self.critic is not None:
+                values = self.critic_values(obs, values)
             for i, row in enumerate(rows(obs)):
                 learner = by_agent.get(int(obs["agent"][i]))
                 if learner is None:
@@ -324,6 +381,18 @@ class Trainer:
             samples[learner.agent] = out
         return samples, stats
 
+    @torch.no_grad()
+    def critic_values(self, obs, values):
+        """The learner's rows valued by the omniscient critic."""
+        idx = np.nonzero(obs["agent"] == 0)[0]
+        if len(idx):
+            ids = torch.from_numpy(obs["critic_tok_ids"][idx]).long().to(self.device)
+            f = torch.from_numpy(obs["critic_tok_f"][idx]).to(self.device)
+            n = torch.from_numpy(obs["critic_tok_n"][idx]).long().to(self.device)
+            values = values.copy()
+            values[idx] = self.critic(ids, f, n).cpu().numpy()
+        return values
+
     def advantages(self, chain, bootstrap):
         cfg, out, gae = self.cfg, [], 0.0
         next_value = bootstrap if bootstrap is not None else 0.0
@@ -336,6 +405,23 @@ class Trainer:
             next_value = v
         return out
 
+    def minibatches(self, samples):
+        """An epoch's minibatches, bucketed by length: a random order cut
+        into chunks of 8 minibatches, each sorted by token count (the
+        critic's when it reads them: the costlier encoder) and cut in
+        minibatches, which are then shuffled — every sample once, little
+        padding (tokens vary 20–80 a decision)."""
+        mb = self.cfg.minibatch
+        width = 4 if len(samples[0][0]) > 4 else 0
+        size = np.array([s[0][width].shape[0] for s in samples])
+        order = self.rng.permutation(len(samples))
+        batches = []
+        for k in range(0, len(order), 8 * mb):
+            chunk = order[k : k + 8 * mb]
+            chunk = chunk[np.argsort(size[chunk], kind="stable")]
+            batches += [chunk[j : j + mb] for j in range(0, len(chunk), mb)]
+        return [batches[i] for i in self.rng.permutation(len(batches))]
+
     def update(self, learner, samples):
         cfg = self.cfg
         if not samples:
@@ -344,11 +430,12 @@ class Trainer:
         adv = (adv - adv.mean()) / (adv.std() + 1e-8)
         losses = []
         for _ in range(cfg.epochs):
-            order = self.rng.permutation(len(samples))
-            for k in range(0, len(order), cfg.minibatch):
-                idx = order[k : k + cfg.minibatch]
+            for idx in self.minibatches(samples):
                 batch = collate([samples[i][0] for i in idx], self.device)
                 logits, values = forward(learner.model, batch)
+                critic = self.critic is not None and learner.agent == 0
+                if critic:
+                    values = self.critic(*collate_critic([samples[i][0] for i in idx], self.device))
                 logp_all = torch.log_softmax(logits, -1)
                 a = torch.tensor([samples[i][1] for i in idx], device=self.device)
                 logp = logp_all.gather(1, a[:, None]).squeeze(1)
@@ -361,14 +448,22 @@ class Trainer:
                 ent = -(logp_all.exp() * logp_all).sum(-1).mean()
                 loss = pg + cfg.value_coef * vf - self.entropy_coef * ent
                 learner.opt.zero_grad()
+                if critic:
+                    self.critic_opt.zero_grad()
+                if critic and self.warmup > 0:
+                    loss = cfg.value_coef * vf
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(learner.model.parameters(), 1.0)
-                learner.opt.step()
+                if not (critic and self.warmup > 0):
+                    learner.opt.step()
+                if critic:
+                    torch.nn.utils.clip_grad_norm_(self.critic.parameters(), 1.0)
+                    self.critic_opt.step()
                 losses.append((pg.item(), vf.item(), ent.item()))
         pg, vf, ent = np.mean(losses, 0)
         return {"pg": pg, "vf": vf, "entropy": ent}
 
-    def evaluate(self, opponents, games):
+    def evaluate(self, opponents, games, seed=0):
         """The learner's mean VPs and game-win rate over `games` games
         against `opponents`: every seat for the learner and every distinct
         order of the opponents around it, in turn (a fixed order would, at
@@ -377,12 +472,12 @@ class Trainer:
         pool = zvtes_py.GamePool(
             min(games, 64),
             tables[0]["seats"],
-            seed=10_000 + self.cfg.seed,
+            seed=10_000 + 1_000 * seed + self.cfg.seed,
             decks=self.decks,
             budget=self.cfg.budget,
             tables=tables,
         )
-        rng = np.random.default_rng(0)
+        rng = np.random.default_rng(seed)
         vps, wins, done, truncated = [], 0, 0, 0
         # The queued tables are games 0..games-1; later ones (the default
         # table, once the queue runs out) are not counted.
@@ -411,6 +506,10 @@ class Trainer:
             "entropy_coef": self.entropy_coef,
             "vocab": self.vocab,
         }
+        if self.critic is not None:
+            saved["critic"] = self.critic.state_dict()
+            saved["critic_optimizer"] = self.critic_opt.state_dict()
+            saved["critic_warmup"] = self.warmup
         if self.exploiter:
             saved["exploiter"] = self.exploiter.model.state_dict()
             saved["exploiter_optimizer"] = self.exploiter.opt.state_dict()
@@ -424,11 +523,16 @@ class Trainer:
             t0 = time.perf_counter()
             done = (it - self.start) / max(1, cfg.iterations - self.start)
             lr = cfg.lr * (1 - (1 - cfg.lr_final) * done)
-            for learner in self.learners():
-                for group in learner.opt.param_groups:
+            opts = [learner.opt for learner in self.learners()]
+            if self.critic is not None:
+                opts.append(self.critic_opt)
+            for opt in opts:
+                for group in opt.param_groups:
                     group["lr"] = lr
             for learner in self.learners():
                 learner.model.eval()
+            if self.critic is not None:
+                self.critic.eval()
             samples, stats = self.rollout()
             t1 = time.perf_counter()
             metrics = {}
@@ -439,7 +543,9 @@ class Trainer:
                 metrics.update({prefix + k: v for k, v in m.items()})
                 learner.model.eval()
             t2 = time.perf_counter()
-            if cfg.entropy_target > 0 and "entropy" in metrics:
+            warming = self.warmup > 0
+            self.warmup = max(0, self.warmup - 1)
+            if cfg.entropy_target > 0 and "entropy" in metrics and not warming:
                 up = metrics["entropy"] < cfg.entropy_target
                 self.entropy_coef *= cfg.entropy_step if up else 1 / cfg.entropy_step
                 self.entropy_coef = min(max(self.entropy_coef, 1e-3), 0.2)
@@ -450,6 +556,7 @@ class Trainer:
                 "rollout_s": round(t1 - t0, 2),
                 "update_s": round(t2 - t1, 2),
                 "lr": float(f"{lr:.3g}"),
+                **({"critic_warmup": True} if warming else {}),
                 "entropy_coef": float(f"{self.entropy_coef:.3g}"),
                 **stats,
                 **{k: round(float(v), 4) for k, v in metrics.items()},
@@ -469,10 +576,25 @@ class Trainer:
                     snap = f"net:{self.league.latest()}"
                     row["vs_snapshot"] = self.evaluate([snap] * 4, cfg.eval_games)
                     row["pfsp"] = {label(k): round(v, 2) for k, v in sorted(self.league.p.items())}
-                better = row["vs_bots4"]["vps"] > self.best
-                if better:
-                    self.best = row["vs_bots4"]["vps"]
-                    row["best"] = True
+                # `best.pt`: the bots' VPs at 4 and 5 seats, averaged —
+                # a candidate within `best_margin` of the best is measured
+                # again on `best_seeds` - 1 more evaluation seeds, and
+                # kept on the mean (one evaluation's noise, ±0.15 VP, would
+                # otherwise pick lucky checkpoints).
+                score = (row["vs_bots4"]["vps"] + row["vs_bots5"]["vps"]) / 2
+                better = False
+                if score > self.best - cfg.best_margin:
+                    scores = [score]
+                    for k in range(1, cfg.best_seeds):
+                        b4 = self.evaluate(["aggro", "wall", "aggro"], cfg.eval_games, seed=k)
+                        b5 = self.evaluate(["aggro", "wall", "aggro", "wall"], cfg.eval_games, seed=k)
+                        scores.append((b4["vps"] + b5["vps"]) / 2)
+                    mean = float(np.mean(scores))
+                    row["bots_mean"] = round(mean, 3)
+                    better = mean > self.best
+                    if better:
+                        self.best = mean
+                        row["best"] = True
                 saved = self.checkpoint(it)
                 if better:
                     torch.save(saved, self.out / "best.pt")

@@ -12,7 +12,7 @@ use zvtes::agent::{Agent, RandomLegal};
 use zvtes::bots::{Scripted, Style};
 use zvtes::decision::Choice;
 use zvtes::game::{Engine, Step};
-use zvtes::obs::{encode, Obs};
+use zvtes::obs::{encode, encode_critic, Obs, T_HAND, T_SLOT, V_HIDDEN};
 
 const DECISION_BUDGET: u64 = 100_000;
 
@@ -182,4 +182,34 @@ fn a_banished_created_vampire_is_its_card() {
     let o = encode(&e, &req);
     let slot = o.tok_ids.iter().find(|t| t[0] == T_SLOT).expect("the slot");
     assert_eq!(slot[1], V_LIBRARY + childe as i32);
+}
+
+/// The critic's encoding adds every other hand and turns the others'
+/// face-down uncontrolled vampires face up; the policy's is its prefix
+/// otherwise unchanged in count of visible tokens.
+#[test]
+fn the_critic_sees_every_hand_and_uncontrolled_vampire() {
+    let mut e = Engine::new(3, 4);
+    let Step::Decision(req) = e.run() else {
+        panic!("a decision")
+    };
+    let (seen, all) = (encode(&e, &req), encode_critic(&e, &req));
+    let hands = |o: &Obs| o.tok_ids.iter().filter(|t| t[0] == T_HAND).count();
+    let others: usize = e
+        .state
+        .seats
+        .iter()
+        .enumerate()
+        .filter(|&(i, _)| i != req.seat.index())
+        .map(|(_, s)| s.hand.len())
+        .sum();
+    assert_eq!(hands(&all), hands(&seen) + others);
+    let hidden_slots = |o: &Obs| {
+        o.tok_ids
+            .iter()
+            .filter(|t| t[0] == T_SLOT && t[1] == V_HIDDEN)
+            .count()
+    };
+    assert!(hidden_slots(&seen) > 0);
+    assert_eq!(hidden_slots(&all), 0);
 }

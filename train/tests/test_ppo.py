@@ -13,13 +13,15 @@ from train.ppo import Config, Trainer, eval_tables
 def test_one_iteration(tmp_path):
     cfg = Config(
         games=8, steps=24, iterations=1, epochs=1, minibatch=64, d=32, layers=1,
-        eval_every=1, eval_games=4, device="cpu", out=str(tmp_path),
+        eval_every=1, eval_games=4, device="cpu", out=str(tmp_path), critic_warmup=0,
     )
     trainer = Trainer(cfg)
     before = [p.detach().clone() for p in trainer.model.parameters()]
     trainer.run()
     assert (tmp_path / "model.pt").exists() and (tmp_path / "best.pt").exists()
     assert trainer.learner.opt.param_groups[0]["lr"] == cfg.lr, "one iteration: no taper yet"
+    saved = torch.load(tmp_path / "model.pt")
+    assert "critic" in saved and "bots_mean" in open(tmp_path / "metrics.jsonl").read()
     assert any(not torch.equal(a, b) for a, b in zip(before, trainer.model.parameters()))
 
 
@@ -101,9 +103,39 @@ def test_entropy_coefficient_tracks_its_target(tmp_path):
     cfg = Config(
         games=8, steps=16, iterations=2, epochs=1, minibatch=64, d=32, layers=1,
         eval_every=10, eval_games=4, device="cpu", out=str(tmp_path),
-        entropy_target=10.0, entropy_step=2.0,
+        entropy_target=10.0, entropy_step=2.0, critic_warmup=0,
     )
     trainer = Trainer(cfg)
     trainer.run()
     # Entropy is always under 10: the coefficient doubled each iteration.
     assert abs(trainer.entropy_coef - cfg.entropy_coef * 4) < 1e-9
+
+
+def test_the_critic_reads_every_hand_and_trains(tmp_path):
+    cfg = Config(
+        games=8, steps=24, iterations=1, epochs=1, minibatch=64, d=32, layers=1,
+        eval_every=10, eval_games=4, device="cpu", out=str(tmp_path),
+    )
+    trainer = Trainer(cfg)
+    obs = trainer.pool.observe()
+    assert (obs["critic_tok_n"] >= obs["tok_n"]).all()
+    assert (obs["critic_tok_n"] > obs["tok_n"]).any(), "other hands"
+    # It starts as the policy's encoder and value head.
+    policy = trainer.model.state_dict()
+    for k, v in trainer.critic.state_dict().items():
+        assert torch.equal(v, policy[k]), k
+    before = [p.detach().clone() for p in trainer.critic.parameters()]
+    policy_before = [p.detach().clone() for p in trainer.model.parameters()]
+    trainer.run()
+    assert any(not torch.equal(a, b) for a, b in zip(before, trainer.critic.parameters()))
+    # Warming up: the policy is not updated.
+    assert all(torch.equal(a, b) for a, b in zip(policy_before, trainer.model.parameters()))
+
+
+def test_opponent_seats_are_mostly_bots(tmp_path):
+    cfg = Config(bot_seats=0.6)
+    league = League(cfg, np.random.default_rng(0), tmp_path)
+    league.snapshots = {5: None, 6: None}
+    draws = [league.draw() for _ in range(2000)]
+    share = sum(d in ("aggro", "wall", "random") for d in draws) / len(draws)
+    assert 0.55 < share < 0.65

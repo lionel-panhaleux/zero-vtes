@@ -59,12 +59,54 @@ class Policy(nn.Module):
         mean = (x * keep).sum(1) / keep.sum(1).clamp(min=1.0)
         glob = torch.cat([ctx, mean], dim=-1)
 
-        opt = self.opt_kind(opt_ids[..., 0]) + self.vocab(opt_ids[..., 1]) + self.opt_f(opt_f)
+        # Only the offered options are scored (ragged: a batch's option
+        # counts vary from 1 to 100+), then scattered into [B, O].
+        bi, oi = (~opt_pad).nonzero(as_tuple=True)
+        ids, f = opt_ids[bi, oi], opt_f[bi, oi]
+        opt = self.opt_kind(ids[:, 0]) + self.vocab(ids[:, 1]) + self.opt_f(f)
+        # Pointers into the flattened tokens: row 0 is the zero row (none).
+        flat = torch.cat([x.new_zeros(1, x.shape[-1]), x.reshape(b * t, -1)])
         for k, lin in enumerate(self.opt_ptr):
-            opt = opt + lin(gather(x, opt_ids[..., 2 + k]))
-        logits = self.score(torch.cat([opt, ctx.unsqueeze(1).expand(-1, o, -1)], dim=-1))
-        logits = logits.squeeze(-1).float().masked_fill(opt_pad, -1e9)
+            ptr = ids[:, 2 + k].long()
+            opt = opt + lin(flat[torch.where(ptr > 0, bi * t + ptr.clamp(max=t), 0)])
+        score = self.score(torch.cat([opt, ctx[bi]], dim=-1)).squeeze(-1).float()
+        logits = torch.full((b, o), -1e9, device=x.device)
+        logits[bi, oi] = score
         return logits, self.value(glob).squeeze(-1).float()
+
+
+class Critic(nn.Module):
+    """The omniscient value network (DESIGN §5 "asymmetric critic"): the
+    policy's token encoder and value head, reading `encode_critic`'s
+    tokens (every hand, every uncontrolled vampire). Its parameter names
+    match the policy's, so it starts as a copy of a trained policy's
+    encoder and value head (`load_state_dict(policy, strict=False)`)."""
+
+    def __init__(self, schema, d=128, layers=3, heads=4):
+        super().__init__()
+        self.vocab = nn.Embedding(schema["vocab"], d, padding_idx=0)
+        self.token_type = nn.Embedding(schema["token_types"], d, padding_idx=0)
+        self.tok_f = nn.Linear(schema["tok_f"], d)
+        self.tok_ptr = nn.Linear(d, d, bias=False)
+        layer = nn.TransformerEncoderLayer(
+            d, heads, dim_feedforward=4 * d, dropout=0.0, batch_first=True, norm_first=True
+        )
+        self.trunk = nn.TransformerEncoder(layer, layers, enable_nested_tensor=False)
+        self.norm = nn.LayerNorm(d)
+        self.value = nn.Sequential(nn.Linear(2 * d, d), nn.GELU(), nn.Linear(d, 1))
+
+    def forward(self, tok_ids, tok_f, tok_n):
+        """Values [B]."""
+        b, t, _ = tok_ids.shape
+        tok_pad = torch.arange(t, device=tok_ids.device)[None, :] >= tok_n[:, None]
+        base = self.vocab(tok_ids[..., 1]) + self.token_type(tok_ids[..., 0]) + self.tok_f(tok_f)
+        base = base + self.tok_ptr(gather(base, tok_ids[..., 2]) + gather(base, tok_ids[..., 3]))
+        x = self.norm(self.trunk(base, src_key_padding_mask=tok_pad))
+        last = (tok_n - 1).clamp(min=0)
+        ctx = x[torch.arange(b, device=x.device), last]
+        keep = (~tok_pad).unsqueeze(-1).float()
+        mean = (x * keep).sum(1) / keep.sum(1).clamp(min=1.0)
+        return self.value(torch.cat([ctx, mean], dim=-1)).squeeze(-1).float()
 
 
 def remap_vocab(state, old_keys, new_keys, fresh):

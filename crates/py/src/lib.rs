@@ -22,7 +22,7 @@ use zvtes::bots::{Scripted, Style};
 use zvtes::decision::DecisionRequest;
 use zvtes::decks::Deck;
 use zvtes::game::{Engine, Step};
-use zvtes::obs::{encode, Obs, OPT_F, OPT_IDS, TOK_F, TOK_IDS};
+use zvtes::obs::{encode, encode_critic, Obs, OPT_F, OPT_IDS, TOK_F, TOK_IDS};
 use zvtes::rng::Rng;
 
 /// Who plays a seat.
@@ -88,6 +88,8 @@ struct Game {
     agents: Vec<Option<Box<dyn Agent + Send + Sync>>>,
     /// The policy decision the game waits on, and its encoding.
     pending: Option<(DecisionRequest, Obs)>,
+    /// The pending decision's omniscient encoding (`critic` pools).
+    critic: Option<Obs>,
 }
 
 impl Game {
@@ -115,12 +117,19 @@ impl Game {
             kinds,
             agents,
             pending: None,
+            critic: None,
         }
     }
 
     /// Advance to the next policy decision; the finished game, if it
     /// ended (then `pending` is `None`).
-    fn advance(&mut self, budget: u64, slot: usize, keep_log: bool) -> Option<Episode> {
+    fn advance(
+        &mut self,
+        budget: u64,
+        slot: usize,
+        keep_log: bool,
+        critic: bool,
+    ) -> Option<Episode> {
         loop {
             let over = |e: &Engine, vps: Vec<u32>, truncated: bool| Episode {
                 slot,
@@ -154,6 +163,7 @@ impl Game {
                     }
                     None => {
                         let obs = encode(&self.engine, &req);
+                        self.critic = critic.then(|| encode_critic(&self.engine, &req));
                         self.pending = Some((req, obs));
                         return None;
                     }
@@ -186,7 +196,8 @@ fn all_decks() -> &'static [Deck] {
 /// k (the policy meets every position). `decks`: indices into the decklist
 /// table (0–13 the precons, 14–27 the New Blood minis), drawn per seat
 /// and game. `tables`: specs the first games take (as `queue`). Tables are
-/// 4 or 5 seats: tournament tables only. `time_limits`: each game's time
+/// 4 or 5 seats: tournament tables only. `critic`: `observe` adds the
+/// omniscient critic's tokens (`critic_tok_*`). `time_limits`: each game's time
 /// limit is drawn in this range of player turns (a time-out scores 0.5 VP
 /// per survivor, which counts toward the game win); episodes report it and
 /// `replay` takes it.
@@ -201,6 +212,8 @@ struct GamePool {
     by_clan: Vec<Vec<usize>>,
     budget: u64,
     keep_logs: bool,
+    /// Also encode each pending decision for the omniscient critic.
+    critic: bool,
     started: u64,
     /// Each game's time limit is drawn in this range, player turns
     /// inclusive (owner, 2026-09-28: 60–90).
@@ -279,14 +292,14 @@ impl GamePool {
     /// replaced until each waits on one.
     fn settle(&mut self, py: Python<'_>) {
         loop {
-            let (budget, keep) = (self.budget, self.keep_logs);
+            let (budget, keep, critic) = (self.budget, self.keep_logs, self.critic);
             let games = &mut self.games;
             let done: Vec<Episode> = py.detach(|| {
                 games
                     .par_iter_mut()
                     .enumerate()
                     .filter(|(_, g)| g.pending.is_none())
-                    .filter_map(|(i, g)| g.advance(budget, i, keep))
+                    .filter_map(|(i, g)| g.advance(budget, i, keep, critic))
                     .collect()
             });
             if done.is_empty() {
@@ -306,7 +319,7 @@ impl GamePool {
     // A Python constructor with keyword arguments.
     #[allow(clippy::too_many_arguments)]
     #[new]
-    #[pyo3(signature = (n_games, seats, seed=0, rotate=false, decks=None, budget=20_000, keep_logs=false, tables=None, time_limits=(60, 90)))]
+    #[pyo3(signature = (n_games, seats, seed=0, rotate=false, decks=None, budget=20_000, keep_logs=false, tables=None, time_limits=(60, 90), critic=false))]
     fn new(
         py: Python<'_>,
         n_games: usize,
@@ -318,6 +331,7 @@ impl GamePool {
         keep_logs: bool,
         tables: Option<Vec<Bound<'_, PyDict>>>,
         time_limits: (u32, u32),
+        critic: bool,
     ) -> PyResult<Self> {
         if time_limits.0 == 0 || time_limits.0 > time_limits.1 {
             return Err(PyValueError::new_err(
@@ -349,6 +363,7 @@ impl GamePool {
             by_clan: by_clan(&deck_pool),
             budget,
             keep_logs,
+            critic,
             started: 0,
             time_limits,
             finished: Vec::new(),
@@ -442,6 +457,37 @@ impl GamePool {
         d.set_item("seat", PyArray1::from_vec(py, seat))?;
         d.set_item("agent", PyArray1::from_vec(py, agent))?;
         d.set_item("window", PyArray1::from_vec(py, window))?;
+        if self.critic {
+            let obs: Vec<&Obs> = self
+                .games
+                .iter()
+                .map(|g| g.critic.as_ref().expect("a critic encoding"))
+                .collect();
+            let t = obs.iter().map(|o| o.tok_ids.len()).max().unwrap_or(0);
+            let mut ids = vec![0i32; b * t * TOK_IDS];
+            let mut f = vec![0f32; b * t * TOK_F];
+            let mut n = Vec::with_capacity(b);
+            for (i, o) in obs.iter().enumerate() {
+                for (k, row) in o.tok_ids.iter().enumerate() {
+                    let at = (i * t + k) * TOK_IDS;
+                    ids[at..at + TOK_IDS].copy_from_slice(row);
+                }
+                for (k, row) in o.tok_f.iter().enumerate() {
+                    let at = (i * t + k) * TOK_F;
+                    f[at..at + TOK_F].copy_from_slice(row);
+                }
+                n.push(o.tok_ids.len() as i32);
+            }
+            d.set_item(
+                "critic_tok_ids",
+                PyArray1::from_vec(py, ids).reshape([b, t, TOK_IDS])?,
+            )?;
+            d.set_item(
+                "critic_tok_f",
+                PyArray1::from_vec(py, f).reshape([b, t, TOK_F])?,
+            )?;
+            d.set_item("critic_tok_n", PyArray1::from_vec(py, n))?;
+        }
         Ok(d)
     }
 

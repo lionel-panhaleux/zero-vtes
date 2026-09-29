@@ -190,6 +190,18 @@ fn flag(b: bool) -> f32 {
 
 /// Encode `req` as `req.seat` sees it.
 pub fn encode(e: &Engine, req: &DecisionRequest) -> Obs {
+    encode_as(e, req, false)
+}
+
+/// The omniscient critic's encoding (training only, DESIGN §5 "asymmetric
+/// critic"): `encode`'s tokens plus every other Methuselah's hand (hand
+/// tokens of their relative seat) and face-down uncontrolled vampires face
+/// up. The policy never sees it.
+pub fn encode_critic(e: &Engine, req: &DecisionRequest) -> Obs {
+    encode_as(e, req, true)
+}
+
+fn encode_as(e: &Engine, req: &DecisionRequest, omniscient: bool) -> Obs {
     let st = &e.state;
     let viewer = req.seat;
     let mut o = Obs::default();
@@ -263,6 +275,20 @@ pub fn encode(e: &Engine, req: &DecisionRequest) -> Obs {
         let t = push(&mut o, [T_HAND, library_id(card), 0, 0], f);
         ix.hand.push(t);
     }
+    if omniscient {
+        for s in 0..st.seats.len() {
+            let seat = SeatId(s as u8);
+            if seat == viewer {
+                continue;
+            }
+            for (k, &card) in st.seats[s].hand.iter().enumerate() {
+                let mut f = [0.0; TOK_F];
+                f[F_REL + rel(st, viewer, seat).min(SEATS - 1)] = 1.0;
+                f[F_POSITION] = k as f32 / 10.0;
+                push(&mut o, [T_HAND, library_id(card), 0, 0], f);
+            }
+        }
+    }
 
     // Cards in play, then their hosts as pointers (a host is a minion,
     // indexed above).
@@ -287,7 +313,7 @@ pub fn encode(e: &Engine, req: &DecisionRequest) -> Obs {
     for s in 0..st.seats.len() {
         let seat = SeatId(s as u8);
         for (k, slot) in st.seats[s].uncontrolled.iter().enumerate() {
-            let seen = seat == viewer || slot.banished.is_some();
+            let seen = omniscient || seat == viewer || slot.banished.is_some();
             let mut f = [0.0; TOK_F];
             f[F_REL + rel(st, viewer, seat).min(SEATS - 1)] = 1.0;
             f[F_BLOOD] = slot.counters as f32 / 10.0;
