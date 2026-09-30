@@ -1166,6 +1166,7 @@ fuzz_tests! {
             }
         },
         untwin: true,
+        seeds: 300,
         ..BASE
     };
     /// Slice 11f: the combat staples, with weapons, dodges, additional strikes
@@ -1914,6 +1915,7 @@ fuzz_tests! {
             )
         },
         untwin: true,
+        seeds: 300,
         ..BASE
     };
     /// Slices 16a and 16b: the legacy additions for tournament decks, Life

@@ -425,6 +425,12 @@ M3 (0.17 M on the later midgame/5).
   interrupt-and-rewind (log truncation + resimulation), preemptive impulse
   requests ("stops"), pace defaults — the play-procedures document is the spec.
 - Bot service: engine + ONNX-exported policy, CPU-friendly.
+- **Human play (P5)**: plan, board and findings in
+  [`docs/human-play.md`](docs/human-play.md). Settled (owner, 2026-09-29): the
+  contract is JSON messages (`crates/protocol`: `TableView` with stable card
+  copies, option descriptors, decks by KRCG id, `Session`), spoken in-process
+  by a wasm module (`crates/wasm`) inside a Succubus Club fork's engine game
+  type first, by a server later; JOL out of scope.
 
 ## 9. Performance targets
 
@@ -504,6 +510,10 @@ titles; `git log` has the detail.
 | P4 · 16b | 09-28 | The decision point before an oust (`ousting.rs`): Life Boon playable, its VP redirection (`Engine::gain_half_vps`) and pool steal; `oust_and_pass` reports a waiting oust to its callers |
 | P4 · 16a | 09-28 | Pool extension for TWDA decks: 12 legacy cards appended (`ADDED_CARDS`), first strike, a master card becoming an ally, the before-resolution combat window, out-of-turn Rötschreck, shuffle-on-burn, Ashur Tablets' picks, Life Boon blocked (unblocked by 16b) |
 | P4 · 15a–15c | 09-28 | Several networks at one table (`net:k` seats, `agent` column), matchmaking queued from Python, 4- and 5-seat tables only; the league: one learner seat, an exploiter, snapshots, bots, PFSP (`train/league.py`) |
+| P5 · 17a | 09-29 | Human-play protocol (`docs/human-play.md` slice 1): `crates/protocol` (decks by KRCG id, `TableView` + copy tracker, option descriptors and narration, `Session` stepping humans and bots, replays), `crates/wasm` (wasm-bindgen, Node smoke test); engine: `with_lists`, `phase()`, `in_flight()` |
+| P5 · 17b | 09-30 | Succubus Club fork (`../succubus-club`, branch `zero-vtes-engine`; `docs/human-play.md` slice 2): an engine game type — the wasm engine as authority, its views projected onto SC's state through SC's mutations, a decision panel, paced and narrated bot decisions, replay export; tracker: an opponent's play leaves from the hand; `TableView`: crypts and libraries face down |
+| P5 · 17c | 09-30 | The policy outside Python (`docs/human-play.md` slice 3): `crates/policy` (`Policy.forward` by hand, `NetAgent`), `train/export.py` (`.zvp` weights, vocabulary re-keyed on load), parity with PyTorch (`train/tests/test_export.py`), `Game.withPolicy` in the wasm module, network bots in the fork |
+| P5 · 17d | 09-30 | The owner's first game (rules-qa Batch 46): a minion plays the same action modifier or reaction once in an action (every card, not only those printing a limit); the calling Methuselah burns no other political card for a vote; vote locations are their controller's; Pass Through Shadow [OBL] goes on its vampire as itself (46.4, `Held::card_on`); fuzz goldens re-blessed. Protocol: undo within a multi-step choice, the level and target in option texts, lingering effects shown as their card, allocation and distribution texts. Fork: moves on the table read as decisions (`gestures.ts`), the console on the table |
 
 ### 11.2 Engine reference (by mechanism)
 
@@ -1278,9 +1288,10 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P4 — league & 5p**: the league, PFSP, 4- and 5-seat tables and seat
   sampling, the exploiter built (slice 15); remaining: evaluation vs humans
   (with the protocol server).
-- **P5 — community**: bot service, client adapter, human-ergonomics layer.
+- **P5 — community**: bot service, client adapter, human-ergonomics layer
+  (`docs/human-play.md` has the board).
 
-Definitions: 436 library, 102 vampires; 929 Rust tests, 15 Python tests
+Definitions: 436 library, 102 vampires; 941 Rust tests, 17 Python tests
 
 ## Outlook: deck building (post-v1)
 

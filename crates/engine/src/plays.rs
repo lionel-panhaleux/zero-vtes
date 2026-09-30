@@ -39,6 +39,15 @@ pub(crate) struct PendingPlay {
     pub cost_paid: bool,
 }
 
+/// An action modifier or a reaction: a minion plays the same one once in
+/// an action (rulebook "Action Modifier", "Reaction").
+fn once_per_action(card: u16) -> bool {
+    LIBRARY[card as usize]
+        .types
+        .iter()
+        .any(|t| matches!(t, CardType::ActionModifier | CardType::Reaction))
+}
+
 impl Engine {
     /// Draw up to hand size from the library (rulebook "Drawing Cards"):
     /// the cards not replaced yet count against it; an empty library draws
@@ -694,7 +703,16 @@ impl Engine {
                                 false
                             }
                         };
-                        if limited {
+                        // Rulebook "Action Modifier" / "Reaction": a minion
+                        // cannot play the same action modifier, or the same
+                        // reaction, more than once in an action — by name,
+                        // whatever the level (owner, 2026-09-30: rules-qa
+                        // 46.1); a canceled one counted (advanced rules
+                        // §1.8.3). Combat cards have their own limits.
+                        let once = combat.is_none()
+                            && once_per_action(card)
+                            && action.is_some_and(|a| hit(&a.played));
+                        if limited || once {
                             continue;
                         }
                         // Effect-derived combat legality (alternation, the
@@ -976,6 +994,12 @@ impl Engine {
         {
             self.state.turn_played.push(card);
         }
+        // An action modifier or a reaction, once per minion per action.
+        if let (Some(a), Some(m), None) = (self.action.as_mut(), actor, self.combat.as_ref()) {
+            if once_per_action(card) {
+                a.played.push((m, LIBRARY[card as usize].name));
+            }
+        }
         if let (Some(limit), Some(m)) = (def.modes[mode as usize].limit, actor) {
             let name = LIBRARY[card as usize].name;
             match limit {
@@ -1065,7 +1089,7 @@ impl Engine {
 
     /// The cards `seat` may play: its hand, then the cards on its
     /// Fleshforge Chambers (with the location they sit on).
-    pub(crate) fn virtual_hand(&self, seat: SeatId) -> Vec<(u16, Option<CardId>)> {
+    pub fn virtual_hand(&self, seat: SeatId) -> Vec<(u16, Option<CardId>)> {
         let st = &self.state;
         let mut out: Vec<(u16, Option<CardId>)> = st.seats[seat.index()]
             .hand

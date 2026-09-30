@@ -1,0 +1,16 @@
+[package]
+name = "zvtes-protocol"
+version = "0.0.1"
+edition = "2021"
+license = "MIT"
+
+# The client-facing contract (docs/human-play.md): JSON messages over the
+# engine, spoken in-process by the wasm module and, later, by a server.
+# Keeps the engine crate dependency-free.
+[lib]
+name = "zvtes_protocol"
+
+[dependencies]
+zero-vtes-engine = { path = "../engine" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

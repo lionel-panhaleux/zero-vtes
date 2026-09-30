@@ -306,19 +306,21 @@ fn continuation_keeps_declines() {
     let mut e = Engine::bare(3);
     let p = e.add_minion(SeatId(0), find_card("Crystal Lynn"), 4, false);
     let x = e.add_minion(SeatId(1), find_card("Ángel Guerrero"), 4, false);
-    let z = e.add_minion(SeatId(2), find_card("Roberto Rivamonte"), 4, false);
+    // A minion plays the same reaction once in an action (rules-qa 46.1):
+    // two cards for each. Z has Animalism and Auspex.
+    let z = e.add_minion(SeatId(2), find_card("Clara Hjortshøj"), 4, false);
     e.state.turn = 4;
     hand(&mut e, 0, &["Form of Mist"]);
-    hand(&mut e, 1, &["Cats' Guidance", "Cats' Guidance"]);
-    hand(&mut e, 2, &["Cats' Guidance", "Cats' Guidance"]);
+    hand(&mut e, 1, &["Cats' Guidance", "Instinctive Reaction"]);
+    hand(&mut e, 2, &["Enhanced Senses", "Cats' Guidance"]);
     pick(&mut e, action(p, ActionKind::Hunt));
     // Prey declines; predator attempts and reaches 1 intercept.
     let req = expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
     assert!(req.options.contains(&block(x)));
     pick(&mut e, Choice::Pass);
     pick(&mut e, block(z));
-    pick(&mut e, play(0, 1, z));
-    // Combat: P plays Form of Mist [PRO].
+    pick(&mut e, play(0, 0, z)); // Enhanced Senses [aus]
+                                 // Combat: P plays Form of Mist [PRO].
     pick(&mut e, play(0, 1, p));
     // After combat: P may continue; Z may unlock (Cats' Guidance [ani]).
     let req = expect(&mut e, SeatId(0), WindowLabel::ActionAfterCombat);

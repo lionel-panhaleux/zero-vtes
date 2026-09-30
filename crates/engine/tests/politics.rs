@@ -127,6 +127,33 @@ fn tied_referendum_fails() {
     assert_eq!(e.last_outcome, Some(Outcome::Successful));
 }
 
+// rules-qa 46.3 — "you can lock this card": a vote location is its
+// controller's to use. Power Structure (seat 0's) is offered to seat 0 in
+// the polling step, to no other Methuselah.
+#[test]
+fn a_vote_location_is_its_controllers_to_lock() {
+    let Table { mut e, alexa, .. } = table();
+    e.state.cards.push(CardInPlay::new(
+        find_library("Power Structure"),
+        SeatId(0),
+        None,
+        0,
+    ));
+    let ps = e.state.cards.len() as u32 - 1;
+    hand(&mut e, 0, &["Ancilla Empowerment"]);
+    pick(&mut e, play(0, 0, alexa));
+    let req = expect(&mut e, SeatId(0), WindowLabel::ReferendumPolling);
+    assert_eq!(uses(&req, ps).len(), 1);
+    pick(&mut e, Choice::Pass);
+    for _ in 0..2 {
+        let req = request(&mut e);
+        assert_ne!(req.seat, SeatId(0));
+        assert_eq!(req.window, WindowLabel::ReferendumPolling);
+        assert!(uses(&req, ps).is_empty(), "another Methuselah's card");
+        pick(&mut e, Choice::Pass);
+    }
+}
+
 // Rulebook "Gaining Votes": the calling card's 1 vote and a political action
 // card burned from hand are Methuselah ballots, at most one per Methuselah
 // per referendum; the burned card is replaced.
@@ -144,12 +171,13 @@ fn political_card_votes_once_per_methuselah() {
     e.state.seats[2].library.push(find_library("Villein"));
     pick(&mut e, play(0, 0, alexa));
     let req = expect(&mut e, SeatId(0), WindowLabel::ReferendumPolling);
-    // The caller may use the calling card's vote or burn the other one.
+    // The calling card is the caller's political card vote: they burn no
+    // other (rules-qa 5.4, 46.2).
     assert!(req.options.contains(&Choice::CastCardVote { favor: true }));
-    assert!(req.options.contains(&Choice::BurnForVote {
-        card: 0,
-        favor: true
-    }));
+    assert!(!req
+        .options
+        .iter()
+        .any(|o| matches!(o, Choice::BurnForVote { .. })));
     pick(&mut e, Choice::CastCardVote { favor: true });
     // Seat 1: no political card, its prince only.
     let req = expect(&mut e, SeatId(1), WindowLabel::ReferendumPolling);

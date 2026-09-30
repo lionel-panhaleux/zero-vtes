@@ -1,7 +1,7 @@
 # Rules Q&A — ruling reference
 
 Owner rulings (VEKN judge) on VTES rules questions raised while building the
-engine, Batches 1–45. Each item is the settled rule, stated as fact; the
+engine, Batches 1–46. Each item is the settled rule, stated as fact; the
 question framing, engine mechanics, test names and confirmations are dropped
 deliberately: the code and its tests are the reference for how a rule is
 implemented, and they point back here through `rules-qa N.M` comments.
@@ -372,7 +372,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 
 ## Batch 21 — combat cards
 
-**21.1** A strike works at close range only unless it says otherwise (Touch of Oblivion [obl], Sculpt the Flesh [PRO]: close range). Such a strike's "put this card on the opposing minion" happens only if it lands (dodge or early combat end: no effect). **Card destination rule:** only action cards wait in limbo (until successful or blocked); every other card goes to the ash heap as it resolves unless its effect puts it in play — even when part of its effect lingers or is delayed (cards left on the table are display only). The lingering effect applies regardless; burning it ends the effect and moves no card (Touch of Oblivion, Sculpt the Flesh, Pass Through Shadow [OBL]).
+**21.1** A strike works at close range only unless it says otherwise (Touch of Oblivion [obl], Sculpt the Flesh [PRO]: close range). Such a strike's "put this card on the opposing minion" happens only if it lands (dodge or early combat end: no effect). **Card destination rule:** only action cards wait in limbo (until successful or blocked); every other card goes to the ash heap as it resolves unless its effect puts it in play — even when part of its effect lingers or is delayed (cards left on the table are display only). The lingering effect applies regardless; burning it ends the effect and moves no card (Touch of Oblivion, Sculpt the Flesh). Revised by 46.4 for Pass Through Shadow [OBL].
 
 **21.2** Touch of Oblivion's "instead of unlocking as normal" (advanced rules §5.2.2 substitution): the minion burns a counter even if already unlocked; one kept from unlocking by another effect (Stolen Police Cruiser) burns none that phase; at 0 counters the card is burned and the minion unlocks normally from the next unlock phase.
 
@@ -789,3 +789,15 @@ Owner confirmed 45.1–45.8 (2026-09-29); it replaces 44.11 (Life Boon blocked),
 
 **45.8** The pool a Methuselah is below 0 by is kept until the oust applies (bleeds, simultaneous pool losses): what they owe is what a Boon must make good (RTR 19970630).
 
+
+## Batch 46 — found by the owner's first game (slice 17d)
+
+Owner ruled 46.1–46.4 from play (2026-09-30).
+
+**46.1** A minion cannot play the same action modifier, nor the same reaction, more than once during an action: by card name, whatever the Discipline level, a canceled play counted (rulebook "Action Modifier", "Reaction"; [ANK 20190104] [LSJ 19980212]; advanced rules §1.8.3). During the referendum of a political action too. Combat cards keep their own limits (per round, per combat).
+
+**46.2** The Methuselah whose political action card called the referendum has that card's vote as their one political-action-card vote (5.4): they cannot burn another political action card for a vote. The burn is the other Methuselahs', and anyone's in a referendum with no calling card (a blood hunt, 5.2; a referendum a card in play grants, 6.2).
+
+**46.3** "You can lock this card" on a location in play is its controller's to use (Power Structure, Elysium: The Palace of Versailles, Ventrue Headquarters): no other Methuselah locks it, in any referendum.
+
+**46.4** Pass Through Shadow [OBL] ("after combat ends, put this card on this vampire"): the card itself goes on the vampire after combat — out of the ash heap it went to as it resolved — and burning it for +1 stealth sends it back there (owner, 2026-09-30; revises 21.1 for this card). Touch of Oblivion and Sculpt the Flesh keep 21.1 until the owner says otherwise.

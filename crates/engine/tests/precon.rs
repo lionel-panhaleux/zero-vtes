@@ -407,8 +407,9 @@ fn my_enemys_enemy_redirects_to_the_predators_predator_only() {
     );
 }
 
-/// Seat 0's `acting` bleeds with +2 stealth (Lost in Crowds [OBF]) against
-/// seat 1's `blocker` holding `card`: was the bleed blocked?
+/// Seat 0's `acting` bleeds with +2 stealth (Lost in Crowds [OBF]; +1 more
+/// with Swallowed by the Night [obf]) against seat 1's `blocker` holding
+/// `card`: was the bleed blocked?
 fn blocked_with(acting: u16, blocker: u16, card: &str, extra_stealth: bool) -> bool {
     let mut e = Engine::bare(3);
     let a = e.add_minion(SeatId(0), acting, 4, false);
@@ -416,7 +417,7 @@ fn blocked_with(acting: u16, blocker: u16, card: &str, extra_stealth: bool) -> b
     let z = e.add_minion(SeatId(1), blocker, 4, false);
     hand(&mut e, 0, &["Lost in Crowds"]);
     if extra_stealth {
-        hand(&mut e, 0, &["Lost in Crowds"]);
+        hand(&mut e, 0, &["Swallowed by the Night"]);
     }
     hand(&mut e, 1, &[card]);
     let before = pool(&e, 1);
@@ -1778,22 +1779,23 @@ fn a_canceled_wash_is_replaced_at_once() {
 
 // [LSJ 20030224] "If a limited effect is canceled (bleed, additional
 // strike), then the limit is not triggered and another limited effect can
-// be used": Conditioning canceled by Direct Intervention, another
-// Conditioning is still playable.
+// be used": Conditioning canceled by Direct Intervention, Bonding [dom]
+// (+1 bleed, limited) is still playable — not another Conditioning: the
+// canceled one was played (rules-qa 46.1).
 #[test]
 fn a_canceled_limited_bleed_leaves_the_limit_unused() {
     let mut e = Engine::bare(3);
     let a = e.add_minion(SeatId(0), plain("", "dom", 0), 4, false);
     e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", "", 0), 4, false);
-    hand(&mut e, 0, &["Conditioning", "Conditioning"]);
+    hand(&mut e, 0, &["Conditioning", "Bonding"]);
     hand(&mut e, 1, &["Direct Intervention"]);
     pick(&mut e, action(a, ActionKind::Bleed));
     pick_when(&mut e, play(0, 0, a));
     pick_for(&mut e, SeatId(1), master(0)); // canceled
-    pick_when(&mut e, play(0, 0, a)); // the second: the limit is unused
+    pick_when(&mut e, play(0, 0, a)); // Bonding: the limit is unused
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert_eq!(pool(&e, 1), 30 - 1 - 1 - 2);
+    assert_eq!(pool(&e, 1), 30 - 1 - 1 - 1);
 }
 
 // ---- Titles and votes (slice 11e) -------------------------------------------
@@ -2906,9 +2908,9 @@ fn touch_of_oblivion_superior_sends_the_vampire_to_torpor() {
 
 // [RTR 20020501] [LSJ 19980109] Pass Through Shadow [OBL]: "Strike: combat
 // ends. After combat ends, put this card on this vampire. This vampire can
-// burn this card to get +1 stealth." A non-action card goes to the ash heap
-// as it resolves and stays there; its delayed effect applies all the same
-// (owner, 2026-09-26: rules-qa 21.1).
+// burn this card to get +1 stealth." The card itself goes on the vampire
+// after combat, from the ash heap it went to as it resolved, and burns back
+// there (owner, 2026-09-30: rules-qa 46.4, revising 21.1 for this card).
 #[test]
 fn pass_through_shadow_goes_on_the_vampire_after_combat() {
     let shadow = find_library("Pass Through Shadow");
@@ -2921,9 +2923,13 @@ fn pass_through_shadow_goes_on_the_vampire_after_combat() {
     pick_when(&mut e, play(0, 1, a));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(on(&e, a), vec![(shadow, 0)]);
-    // The card itself went to the ash heap as it resolved and stays there;
-    // the effect is in play.
-    assert_eq!(e.state.seats[0].ash, vec![shadow]);
+    // The card itself is on the vampire, no longer in the ash heap.
+    assert!(e.state.seats[0].ash.is_empty());
+    assert!(!e
+        .state
+        .cards
+        .iter()
+        .any(|c| c.card == shadow && c.effect_only));
     assert_eq!(blood(&e, b), 5, "combat ended");
     // Acting again, under a block attempt: the card burns for +1 stealth,
     // and the attempt fails.
@@ -2942,7 +2948,7 @@ fn pass_through_shadow_goes_on_the_vampire_after_combat() {
     pick_when(&mut e, card_ability(CardId(id as u32), 0));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(on(&e, a).is_empty(), "burned");
-    assert_eq!(e.state.seats[0].ash, vec![shadow], "still one card");
+    assert_eq!(e.state.seats[0].ash, vec![shadow], "burned to the ash heap");
     assert_eq!(pool(&e, 1), 29, "the bleed went through");
 }
 
@@ -8763,15 +8769,16 @@ fn public_trust_superior_feeds_the_uncontrolled_vampire_named_as_played() {
         let slot = uncontrolled(&mut e, 0, plain("", "", 2));
         hand(&mut e, 0, &["Public Trust"]);
         if reduced {
-            let r = e.add_minion(SeatId(1), with(&["AUS"], 0), 4, false);
-            let _ = r;
+            // One Telepathic Counter each: a minion plays the same
+            // reaction once in an action (rules-qa 46.1).
+            e.add_minion(SeatId(1), with(&["AUS"], 0), 4, false);
+            e.add_minion(SeatId(1), with(&["AUS"], 1), 4, false);
             hand(&mut e, 1, &["Telepathic Counter", "Telepathic Counter"]);
         }
         pick(&mut e, play_at(0, 1, Some(a), Target::Uncontrolled(slot)));
         if reduced {
-            let r = MinionId(2);
-            pick_when(&mut e, play(0, 1, r));
-            pick_when(&mut e, play(0, 1, r));
+            pick_when(&mut e, play(0, 1, MinionId(2)));
+            pick_when(&mut e, play(0, 1, MinionId(3)));
         }
         until(&mut e, SeatId(0), WindowLabel::MinionPhase);
         let fed = e.state.seats[0].uncontrolled[slot as usize].counters;

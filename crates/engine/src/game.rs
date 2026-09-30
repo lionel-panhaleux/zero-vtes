@@ -8,7 +8,7 @@ use crate::cards::{self, Hook, PlayCtx};
 use crate::combat::CombatCtx;
 use crate::crypt::PRECONS;
 use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
-use crate::decks::Deck;
+use crate::decks::{expand, CardList, Deck};
 use crate::draws::Interrupt;
 use crate::ids::{MinionId, SeatId};
 use crate::influence::transfers_for_turn;
@@ -153,6 +153,17 @@ pub(crate) enum Flow {
     GameOver,
 }
 
+/// The turn's phases (rulebook "Turn Sequence"), plus the game's end.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Phase {
+    Unlock,
+    Master,
+    Minion,
+    Influence,
+    Discard,
+    Over,
+}
+
 pub enum Step {
     Decision(DecisionRequest),
     /// Final VPs per seat, in half-point units.
@@ -213,14 +224,30 @@ impl Engine {
     /// uncontrolled region, each library shuffled and a hand of 7 drawn
     /// (rulebook "Setup").
     pub fn with_decks(seed: u64, decks: &[Deck]) -> Self {
-        assert!((2..=6).contains(&decks.len()));
+        let lists: Vec<_> = decks.iter().map(|d| (d.crypt, d.library)).collect();
+        Self::with_lists(seed, &lists)
+    }
+
+    /// As [`Engine::with_decks`], from decklists that need not be static
+    /// (a decklist a client submits): per seat, crypt and library as
+    /// (CRYPT / LIBRARY index, copies).
+    pub fn with_lists(seed: u64, lists: &[(CardList, CardList)]) -> Self {
+        assert!((2..=6).contains(&lists.len()));
         let mut rng = Rng::new(seed);
-        let seats = decks.iter().map(|d| Self::seat_from(&mut rng, d)).collect();
+        let seats = lists
+            .iter()
+            .map(|&(crypt, library)| {
+                Self::seat_from_lists(&mut rng, expand(crypt), expand(library))
+            })
+            .collect();
         Self::from_seats(rng, seats)
     }
 
     fn seat_from(rng: &mut Rng, deck: &Deck) -> Seat {
-        let mut crypt = deck.crypt_cards();
+        Self::seat_from_lists(rng, deck.crypt_cards(), deck.library_cards())
+    }
+
+    fn seat_from_lists(rng: &mut Rng, mut crypt: Vec<u16>, mut library: Vec<u16>) -> Seat {
         rng.shuffle(&mut crypt);
         let uncontrolled = (0..UNCONTROLLED_START)
             .map(|_| UncontrolledSlot {
@@ -229,7 +256,6 @@ impl Engine {
                 banished: None,
             })
             .collect();
-        let mut library = deck.library_cards();
         rng.shuffle(&mut library);
         let hand = library.split_off(library.len() - HAND_SIZE);
         Seat {
@@ -341,6 +367,64 @@ impl Engine {
     /// the seat's Fleshforge Chambers.
     pub fn playable_card(&self, seat: SeatId, index: u8) -> u16 {
         self.virtual_hand(seat)[index as usize].0
+    }
+
+    /// The active Methuselah's current phase (rulebook "Turn Sequence"),
+    /// for clients: the outermost flow under any play, terms or impulse
+    /// rotation. An action, its combat and its referendum are the minion
+    /// phase's; the unlock-phase effects window is the unlock phase.
+    pub fn phase(&self) -> Phase {
+        fn of(flow: &Flow) -> Phase {
+            match flow {
+                Flow::PlayTerms { resume, .. }
+                | Flow::CostTerms { resume, .. }
+                | Flow::AsPlayed { resume, .. }
+                | Flow::AbilityTerms { resume, .. }
+                | Flow::PhaseRotation { resume, .. }
+                | Flow::RiderTerms { resume, .. } => of(resume),
+                Flow::Abilities { .. } => Phase::Unlock,
+                Flow::MasterPhase => Phase::Master,
+                Flow::MinionPhase
+                | Flow::ActionTerms { .. }
+                | Flow::LibrarySearch { .. }
+                | Flow::Exchange { .. }
+                | Flow::Action
+                | Flow::Combat
+                | Flow::TorporBlock
+                | Flow::RescueCost
+                | Flow::Referendum => Phase::Minion,
+                Flow::Influence { .. } => Phase::Influence,
+                Flow::Discard => Phase::Discard,
+                Flow::GameOver => Phase::Over,
+            }
+        }
+        of(&self.flow)
+    }
+
+    /// The cards being played and not resolved yet, outermost first: those
+    /// announced (terms, cost reductions) and those in their as-played
+    /// windows. Public (the announced plays), except a card a play names
+    /// from hand (`PlayCtx::named`), which clients must not show.
+    pub fn in_flight(&self) -> Vec<&PlayCtx> {
+        fn walk<'a>(flow: &'a Flow, out: &mut Vec<&'a PlayCtx>) {
+            match flow {
+                Flow::PlayTerms { ctx, resume } | Flow::CostTerms { ctx, resume, .. } => {
+                    walk(resume, out);
+                    out.push(ctx);
+                }
+                Flow::AsPlayed { stack, resume } => {
+                    walk(resume, out);
+                    out.extend(stack.iter().map(|p| &p.ctx));
+                }
+                Flow::AbilityTerms { resume, .. }
+                | Flow::PhaseRotation { resume, .. }
+                | Flow::RiderTerms { resume, .. } => walk(resume, out),
+                _ => {}
+            }
+        }
+        let mut out = Vec::new();
+        walk(&self.flow, &mut out);
+        out
     }
 
     /// The action under way, if any (read-only).

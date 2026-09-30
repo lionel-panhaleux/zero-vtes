@@ -618,6 +618,27 @@ fn deck_families() -> Vec<(&'static str, Vec<usize>)> {
     ]
 }
 
+/// The exported policy's forward pass on one observation (`zvtes-policy`,
+/// what plays outside Python): the options' logits and the value. `weights`
+/// is a `.zvp` file (`train/export.py`); the test of their agreement with
+/// `train/model.py` reads this.
+#[pyfunction]
+fn policy_forward(
+    weights: &[u8],
+    tok_ids: Vec<[i32; TOK_IDS]>,
+    tok_f: Vec<[f32; TOK_F]>,
+    opt_ids: Vec<[i32; OPT_IDS]>,
+    opt_f: Vec<[f32; OPT_F]>,
+) -> PyResult<(Vec<f32>, f32)> {
+    let net = zvtes_policy::Net::load(weights).map_err(PyValueError::new_err)?;
+    Ok(net.forward(&Obs {
+        tok_ids,
+        tok_f,
+        opt_ids,
+        opt_f,
+    }))
+}
+
 #[pymodule]
 fn zvtes_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<GamePool>()?;
@@ -626,5 +647,6 @@ fn zvtes_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(deck_names, m)?)?;
     m.add_function(wrap_pyfunction!(vocab_keys, m)?)?;
     m.add_function(wrap_pyfunction!(deck_families, m)?)?;
+    m.add_function(wrap_pyfunction!(policy_forward, m)?)?;
     Ok(())
 }

@@ -652,6 +652,30 @@ fn mirror_walk_superior_ends_the_blocked_action_before_block_resolution() {
     assert_eq!(e.state.seats[0].library.len(), 2);
 }
 
+// [ANK 20190104] [LSJ 19980212] "The canceled card has still been played.
+// The same reaction or modifier cannot be played again by the same minion":
+// Conditioning canceled by Direct Intervention, the second copy is not
+// offered to that vampire for the rest of the action.
+#[test]
+fn a_canceled_modifier_cannot_be_played_again_by_the_same_minion() {
+    let mut e = game(3);
+    let a = e.add_minion(SeatId(0), vampire_with("dom", 0), 4, false);
+    e.add_minion(SeatId(0), find_card("Farah Sarroub"), 6, false);
+    e.add_minion(SeatId(1), find_card("Ángel Guerrero"), 4, false);
+    hand(&mut e, 0, &["Conditioning", "Conditioning"]);
+    hand(&mut e, 1, &["Direct Intervention"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, play(0, 0, a));
+    pick_when(&mut e, master(0, Target::None)); // canceled
+    never_offered_where(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        |o| matches!(o, Choice::Play { actor: Some(m), .. } if *m == a),
+    );
+    assert_eq!(e.state.seats[0].hand, vec![find_library("Conditioning")]);
+}
+
 // [PIB 20121216] Mirror Walk [THA]: "If the action is blocked and it was
 // leaving torpor, the blocker does not get an opportunity to diablerize."
 #[test]
@@ -661,12 +685,12 @@ fn mirror_walk_on_a_blocked_leave_torpor_gives_no_diablerie_opportunity() {
     e.add_minion(SeatId(0), find_card("Farah Sarroub"), 6, false);
     let z = e.add_minion(SeatId(1), find_card("Ángel Guerrero"), 4, false);
     hand(&mut e, 0, &["Mirror Walk"]);
-    hand(&mut e, 1, &["Cats' Guidance", "Cats' Guidance"]);
+    hand(&mut e, 1, &["Cats' Guidance", "Instinctive Reaction"]);
     pick(&mut e, action(tor, ActionKind::LeaveTorpor));
     pick(&mut e, block(z));
     pick(&mut e, play(0, 1, z)); // +1 intercept: 1 against 1 stealth
     pick(&mut e, play(0, 1, tor)); // Mirror Walk [THA]
-    pick(&mut e, play(0, 1, z)); // +1 intercept: 2 against 2
+    pick(&mut e, play(0, 0, z)); // Instinctive Reaction [ani]: 2 against 2
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.last_outcome, Some(Outcome::Blocked));
     assert!(in_torpor(&e, tor) && e.state.minions[tor.index()].in_play);

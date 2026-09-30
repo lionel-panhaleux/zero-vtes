@@ -7,6 +7,9 @@ use crate::crypt::{MINI_PRECONS, PRECONS};
 use crate::library::{MINI_LIBRARIES, PRECON_LIBRARIES};
 use crate::twda::TWDA;
 
+/// Cards and copies: (CRYPT or LIBRARY index, copies).
+pub type CardList<'a> = &'a [(u16, u8)];
+
 /// A decklist: crypt and library as (CRYPT / LIBRARY index, copies).
 #[derive(Clone, Copy, Debug)]
 pub struct Deck {
@@ -99,7 +102,7 @@ impl Deck {
     }
 }
 
-fn expand(list: &[(u16, u8)]) -> Vec<u16> {
+pub(crate) fn expand(list: &[(u16, u8)]) -> Vec<u16> {
     list.iter()
         .flat_map(|&(card, copies)| std::iter::repeat_n(card, copies as usize))
         .collect()

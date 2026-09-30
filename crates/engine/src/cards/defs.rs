@@ -6105,7 +6105,9 @@ pub static REBEL: CardDef = CardDef {
 };
 
 /// A location locked during the polling step for votes: its master phase
-/// play, and one ability per `effects` list.
+/// play, and one ability per `effects` list. "You can lock": its
+/// controller's only (`Requirement::YouControlThisCard`; owner,
+/// 2026-09-30: rules-qa 46.3).
 macro_rules! vote_location {
     ($name:ident, $printed:expr, $doc:expr, $requires:expr, [$($effects:expr),+]) => {
         #[doc = $doc]
@@ -6125,7 +6127,11 @@ vote_location!(
      of a political action to give each titled Camarilla vampire you control \
      +1 vote.\" Each such vampire, read live for the rest of the \
      referendum; one that has cast adds the vote to its cast.",
-    &[Requirement::PollingStep, Requirement::CardUnlocked],
+    &[
+        Requirement::PollingStep,
+        Requirement::CardUnlocked,
+        Requirement::YouControlThisCard,
+    ],
     [&[
         Effect::LockSelf,
         Effect::GrantVotes(VoteGrant {
@@ -6142,7 +6148,11 @@ vote_location!(
      action, you can lock this card to give each Lasombra you control +1 \
      vote.\" Not during a blood hunt: no political action (ANK \
      20190606-2).",
-    &[Requirement::PollingStep, Requirement::CardUnlocked],
+    &[
+        Requirement::PollingStep,
+        Requirement::CardUnlocked,
+        Requirement::YouControlThisCard,
+    ],
     [&[
         Effect::LockSelf,
         Effect::GrantVotes(VoteGrant {
@@ -11320,7 +11330,11 @@ pub static OXFORD_UNIVERSITY: CardDef = CardDef {
             ..mode_of(
                 &[Window::Referendum],
                 Actor::Controller,
-                &[Requirement::PollingStep, Requirement::CardUnlocked],
+                &[
+                    Requirement::PollingStep,
+                    Requirement::CardUnlocked,
+                    Requirement::YouControlThisCard,
+                ],
                 &[
                     Effect::LockSelf,
                     Effect::PayPoolX,
@@ -11336,7 +11350,11 @@ pub static OXFORD_UNIVERSITY: CardDef = CardDef {
             ..mode_of(
                 &[Window::Referendum],
                 Actor::Controller,
-                &[Requirement::PollingStep, Requirement::CardUnlocked],
+                &[
+                    Requirement::PollingStep,
+                    Requirement::CardUnlocked,
+                    Requirement::YouControlThisCard,
+                ],
                 &[
                     Effect::LockSelf,
                     Effect::PayPoolX,

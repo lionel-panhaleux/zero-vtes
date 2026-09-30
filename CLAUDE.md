@@ -75,7 +75,8 @@ open gaps, what remains); history in `git log` (commit messages are detailed).
   incremental; no separate debug run) — cargo stops at the first failing
   binary, so sum the "test result" lines and grep for panics; the ledger,
   window-matrix and generator `--check`s; the count line at the end of DESIGN
-  §11.
+  §11. Human play (`crates/protocol`, `crates/wasm`): `docs/human-play.md`
+  "Checks" (the wasm crate is not a default member).
 - Python side (`crates/py`, `train/`): `uv sync` builds the extension (it
   rebuilds when Rust sources change); `uv run pytest -q`; `PYO3_PYTHON=$PWD/.venv/bin/python
   cargo clippy -p zvtes-py --profile ci -- -D warnings` (the py crate is not a

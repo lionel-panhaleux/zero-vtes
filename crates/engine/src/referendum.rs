@@ -647,18 +647,22 @@ impl Engine {
         }
         // Rulebook "Gaining Votes": the calling card's 1 vote for the acting
         // Methuselah, or a political action card burned from hand; at most
-        // 1 vote from political action cards per Methuselah.
+        // 1 vote from political action cards per Methuselah — the calling
+        // card is the acting Methuselah's (rules-qa 5.4): they burn no
+        // other (owner, 2026-09-30: rules-qa 46.2).
         if !ctx.card_voted.contains(&seat) {
             // A referendum granted by a card in play has no calling card.
             let card_called = self.action.as_ref().is_some_and(|a| a.card.is_some());
-            if ctx.kind == RefKind::Political && seat == ctx.caller && card_called {
+            let calling = ctx.kind == RefKind::Political && seat == ctx.caller && card_called;
+            if calling {
                 options.push(Choice::CastCardVote { favor: true });
                 options.push(Choice::CastCardVote { favor: false });
             }
             for (hi, &card) in st.seats[seat.index()].hand.iter().enumerate() {
-                if LIBRARY[card as usize]
-                    .types
-                    .contains(&CardType::PoliticalAction)
+                if !calling
+                    && LIBRARY[card as usize]
+                        .types
+                        .contains(&CardType::PoliticalAction)
                 {
                     options.push(Choice::BurnForVote {
                         card: hi as u8,

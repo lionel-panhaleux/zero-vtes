@@ -182,11 +182,40 @@ fn block_attempt_persists_until_all_pass() {
 }
 
 // rules-qa 15.2 — intercept gained during a failed attempt stays for the
-// rest of the action: B's first Eyes of Argus falls short of P's two Earth
-// Controls, and B's new attempt reaches 4 with the second card only because
-// the first card's +2 is kept.
+// rest of the action: B's Enhanced Senses [aus] (+1) falls short of P's
+// Earth Control [PRO] (+2), and B's new attempt reaches 2 with Spirit's
+// Touch [aus] (+1) only because the first card's +1 is kept. Two cards: a
+// minion plays the same reaction once in an action (rules-qa 46.1).
 #[test]
 fn intercept_from_a_failed_attempt_carries_into_a_new_one() {
+    let mut t = table();
+    let e = &mut t.e;
+    e.state.seats[0].hand.push(find_library("Earth Control"));
+    e.state.seats[1].hand.extend([
+        find_library("Enhanced Senses"),
+        find_library("Spirit's Touch"),
+    ]);
+    pick(e, bleed(t.p));
+    pick(e, Choice::DeclareBlock { minion: t.b });
+    pick(e, play(0, 1, t.p)); // stealth 2
+    pick(e, play(0, 0, t.b)); // +1 intercept
+    pick(e, Choice::Pass); // seat 1 holds Spirit's Touch back
+                           // The attempt fails; B's kept +1 and the card in hand reach 2.
+    let req = expect(e, SeatId(1), WindowLabel::ActionBlock);
+    assert!(req.options.contains(&Choice::DeclareBlock { minion: t.b }));
+    pick(e, Choice::DeclareBlock { minion: t.b });
+    pick(e, play(0, 0, t.b));
+    expect(e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[1].pool, 30);
+    assert!(e.state.minions[t.b.index()].locked);
+}
+
+// rules-qa 46.1 — a minion plays the same action modifier, and the same
+// reaction, once in an action, whatever the level: P's second Earth Control
+// and B's second Eyes of Argus are never offered, and the block holds at 2
+// intercept against 2 stealth.
+#[test]
+fn a_minion_plays_the_same_modifier_or_reaction_once_in_an_action() {
     let mut t = table();
     let e = &mut t.e;
     e.state.seats[0]
@@ -199,16 +228,16 @@ fn intercept_from_a_failed_attempt_carries_into_a_new_one() {
     pick(e, Choice::DeclareBlock { minion: t.b });
     pick(e, play(0, 1, t.p)); // stealth 2
     pick(e, play(0, 0, t.b)); // +2 intercept
-    pick(e, play(0, 1, t.p)); // stealth 4
-    pick(e, Choice::Pass); // seat 1 holds the second Eyes of Argus back
-                           // The attempt fails; B's kept +2 and the card in hand reach 4.
-    let req = expect(e, SeatId(1), WindowLabel::ActionBlock);
-    assert!(req.options.contains(&Choice::DeclareBlock { minion: t.b }));
-    pick(e, Choice::DeclareBlock { minion: t.b });
-    pick(e, play(0, 0, t.b));
-    expect(e, SeatId(0), WindowLabel::MinionPhase);
-    assert_eq!(e.state.seats[1].pool, 30);
-    assert!(e.state.minions[t.b.index()].locked);
+    let (p, b) = (t.p, t.b);
+    never_offered_where(
+        e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        |o| matches!(o, Choice::Play { actor: Some(m), .. } if *m == p || *m == b),
+    );
+    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Blocked));
+    assert_eq!(e.state.seats[0].hand, vec![find_library("Earth Control")]);
+    assert_eq!(e.state.seats[1].hand, vec![find_library("Eyes of Argus")]);
 }
 
 // rules-qa 1.3 — only a change of target reopens block attempts: after seat
