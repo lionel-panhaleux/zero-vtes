@@ -269,15 +269,18 @@ tables (`cards::lookup` is indexed by library index).
 
 Built: `Engine::run`/`choose`, the legal view, observations (`obs.rs`), the
 batched pool (`crates/py`), the first model and PPO loop (`train/`); §11.2
-"Observations" and "Training" describe them. Planned: the omniscient critic,
-decklist conditioning, the league.
+"Observations" and "Training" describe them, the omniscient critic, the
+league and the remaining-deck tokens included.
 
 - **Legal view** (`GameState::legal_view(viewer)`, a redacted `GameState`:
   `Hash + Eq`): what `viewer` may know — the state, every hidden card identity
   replaced by `HIDDEN` in place (zone sizes, counters, blood, pool and flags
-  kept). Hidden: every seat's library and crypt, the viewer's own included
-  (order unknown; a search shuffles; the cards Heart of Nizchetus puts at the
-  bottom are hidden too — the policy remembers its own decisions); another
+  kept). Hidden: every seat's library and crypt (order unknown; a search
+  shuffles; the cards Heart of Nizchetus puts at the bottom are hidden too —
+  the policy remembers its own decisions), the viewer's own keeping their
+  contents, sorted (owner, 2026-09-30: a Methuselah knows their decklist and
+  sees every card leaving or entering their library and crypt — what remains
+  is theirs to know, its order is not; a client shows them face down); another
   seat's hand unless `hand_visible_to` (Revelations [AUS], Owl Companion);
   another seat's face-down uncontrolled vampires (rulebook: a Methuselah looks
   at their own), a banished vampire's slot excepted (it left play in view of
@@ -507,6 +510,7 @@ titles; `git log` has the detail.
 | P2 · 12d | 09-27 | Elision's observational equivalence (`tests/elision.rs`, §7.2), `GameState::legal_view` (§5); block pruning no longer reads third parties' hands |
 | P2 · 13 | 09-27 | Decklists: the New Blood mini-starters as data, `Engine::with_decks` (`decks.rs`); scripted reference bots aggro-bleed and wall (`bots.rs`, `agent::Agent`) |
 | P3 · 14a–14c | 09-27 | Observations (`obs.rs`: entity tokens, option rows with pointers; honest by test); `crates/py` `GamePool` (batched parallel stepping, bots inside, replayable); `train/`: pointer-scoring transformer, PPO self-play, evaluation vs random and bots |
+| P4 · 16c | 09-30 | Remaining-deck tokens (`obs::T_DECK`): the viewer's own library and crypt by contents; `legal_view` keeps them, sorted. Referendum tokens (`obs::T_REFERENDUM`): the calling card, the tally, the terms on the tokens they name |
 | P4 · 16b | 09-28 | The decision point before an oust (`ousting.rs`): Life Boon playable, its VP redirection (`Engine::gain_half_vps`) and pool steal; `oust_and_pass` reports a waiting oust to its callers |
 | P4 · 16a | 09-28 | Pool extension for TWDA decks: 12 legacy cards appended (`ADDED_CARDS`), first strike, a master card becoming an ally, the before-resolution combat window, out-of-turn Rötschreck, shuffle-on-burn, Ashur Tablets' picks, Life Boon blocked (unblocked by 16b) |
 | P4 · 15a–15c | 09-28 | Several networks at one table (`net:k` seats, `agent` column), matchmaking queued from Python, 4- and 5-seat tables only; the league: one learner seat, an exploiter, snapshots, bots, PFSP (`train/league.py`) |
@@ -1013,7 +1017,15 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   VPs, Edge, zone sizes, prey/predator, phase budgets), minions in play
   (contested ones too), the viewer's virtual hand (`Choice::Play` indexing),
   cards in play (host as a pointer), uncontrolled slots (the viewer's face up,
-  others' `HIDDEN` but a banished one), a last context token (window; action
+  others' `HIDDEN` but a banished one), what remains of the viewer's own
+  library and crypt (`T_DECK`, since 2026-09-30: a token per card with its
+  copies, never the order — the decklist at the start, the cards left
+  afterwards), the political referendum under way (`T_REFERENDUM`, since
+  2026-09-30: its card — the political action card or the card granting
+  the action — and the votes cast for and against so far; a chosen clan as
+  a second one; its terms on the tokens they name: points allocated on
+  seat and card tokens, chosen Methuselahs, minions and cards flagged), a
+  last context token (window; action
   kind, acting minion, bleed target, stealth, bleed amount; combat minions,
   range, round; referendum caller, calling minion or diablerist). Each token:
   ids `[type, vocabulary, pointer, pointer]` and `TOK_F` floats. Options:
@@ -1027,7 +1039,7 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   games; a planted leak of face-down vampires fails it), and every pointer
   names a token. At most 63 tokens and 104 options met.
 - Review points: ash heaps, removed cards and cards stored on cards are sizes
-  or absent, not tokens; no decklist identity yet; `ActionCtx::card` (a card
+  or absent, not tokens; `ActionCtx::card` (a card
   named from hand) is never read, by construction only.
 
 **Training** (`crates/py`: `zvtes_py.GamePool`, `replay`, `schema`,
@@ -1218,6 +1230,48 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   / 34% game wins), 1.71 / 1.67 at 350, still rising; against the latest
   snapshot ~1.0 (an even share). `best.pt`: iteration 340, 3-seed mean
   1.68. The first run to improve steadily rather than wander.
+- Continued (2026-09-29/30, the same run to iteration 600, learning rate
+  5e-5 tapering): no dip, a steady climb — 1.75 / 1.91 at 400, 1.90 / 2.14
+  at 450, 2.06 / 2.15 at 520, 2.11 / 2.12 at 580 (51% / 43% game wins),
+  2.12 / 2.22 at 600 (50% / 47%), flattening from 520 on; ~3.1 VP and 70%
+  game wins against random seats, ~1.0 against the latest snapshot.
+  `best.pt`: iteration 580, 3-seed mean 2.18.
+- What it does not do (2026-09-30, 200 five-seat games of iteration 580
+  against itself): it never rescues — a cross-table, prey's, predator's or
+  its own vampire in torpor alike (9 rescues in all, probability ~0 where
+  a uniform pick gives 0.11–0.12) — and never diablerises (12); a torpid
+  vampire leaves torpor by itself about half the times it can. Iteration
+  150 still rescued 32 times and diablerised 118 times: training removed
+  both. No table-balance play is learned from these opponents and rewards.
+- Remaining-deck tokens (2026-09-30, `T_DECK`): ~41 → ~71 tokens a
+  decision. A checkpoint from before loads with the new token type's
+  embedding at zero (`model.remap_vocab`) and fresh optimizers. Run
+  (`runs/p4-deck`, then `runs/p4-deck2` on the rules of Batch 46 from
+  iteration 621; from the critic run's `best.pt`, learning rate 5e-5
+  tapering, ~100–160 s an iteration): no dip — 1.98 / 2.18 at 590,
+  2.11 / 2.28 at 620, then a plateau above the one before: 3-seed means
+  2.14 (640), 2.25 (690), 2.29 (720), 2.29 (760, 800), 2.31 (820); 5-seat
+  game wins around 50% from 700 on (2.41–2.46 VP at 760–810). `best.pt`:
+  iteration 820, 3-seed mean 2.31 (2.19 / 2.38 VP, 53% / 51%).
+- Votes (2026-09-30, owner's first game: the bots did not vote against
+  referendums against their interest): the observation did not name the
+  referendum's card, terms or tally, and iteration 820 votes for and
+  against with the same probability (0.24 / 0.24 on its own referendums,
+  0.31 / 0.31 when the terms put points on its seat, 200 five-seat
+  self-play games) — a coin flip. `T_REFERENDUM` and the term features
+  added; retrained from there (`runs/p4-vote`, iterations 821–1070,
+  learning rate 5e-5 tapering, ~125 s an iteration): no dip, a higher
+  plateau — 3-seed means 2.33 (830), 2.36 (890), 2.39 (910), 2.44 (960),
+  2.43 (970, 1000, 1010), 2.44 (1020, 1060); single evaluations up to
+  2.63 VP / 59% game wins at 5 seats (960) and 62% at 4 seats (1050).
+  `best.pt`: iteration 1060, 3-seed mean 2.44 (2.34 / 2.48 VP, 59% /
+  53%). Its votes are still a coin flip (0.22 / 0.23 on its own
+  referendums, 0.26 / 0.27 when hit). Voting well does not pay at these
+  tables: iteration 880 with one seat voting by rule (for its own
+  referendums, against those putting points on it) scored 0.91 ± 0.05 VP
+  against 0.97 ± 0.05 unchanged (1000 five-seat games each; the rule
+  changed 725 votes in all). Learning votes needs politics in the
+  training pool (political TWDA decks), not a richer observation alone.
 
 ### 11.3 Open gaps
 
@@ -1282,7 +1336,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 
 - **P2 — full engine pool**: the deliverable above.
 - **P3 — training loop**: built (slice 14); remaining: training long enough
-  to beat the bots, the omniscient critic, decklist conditioning, frozen
+  to beat the bots, frozen
   snapshots on the ladder, the early survival shaping of §5 (the reward is
   tournament scoring only).
 - **P4 — league & 5p**: the league, PFSP, 4- and 5-seat tables and seat
@@ -1291,7 +1345,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (`docs/human-play.md` has the board).
 
-Definitions: 436 library, 102 vampires; 941 Rust tests, 17 Python tests
+Definitions: 436 library, 102 vampires; 943 Rust tests, 17 Python tests
 
 ## Outlook: deck building (post-v1)
 

@@ -12,7 +12,10 @@ use zvtes::agent::{Agent, RandomLegal};
 use zvtes::bots::{Scripted, Style};
 use zvtes::decision::Choice;
 use zvtes::game::{Engine, Step};
-use zvtes::obs::{encode, encode_critic, Obs, T_HAND, T_SLOT, V_HIDDEN};
+use zvtes::obs::{
+    encode, encode_critic, Obs, T_DECK, T_HAND, T_REFERENDUM, T_SEAT, T_SLOT, V_CRYPT, V_HIDDEN,
+    V_LIBRARY,
+};
 
 const DECISION_BUDGET: u64 = 100_000;
 
@@ -212,4 +215,96 @@ fn the_critic_sees_every_hand_and_uncontrolled_vampire() {
     };
     assert!(hidden_slots(&seen) > 0);
     assert_eq!(hidden_slots(&all), 0);
+}
+
+/// The viewer's own library and crypt are encoded by contents — a token
+/// per card with its copies — and never by order; no other seat's are.
+#[test]
+fn the_viewer_sees_what_remains_of_their_library_and_crypt() {
+    let mut e = Engine::new(3, 4);
+    let Step::Decision(req) = e.run() else {
+        panic!("a decision")
+    };
+    let seen = encode(&e, &req);
+    let seat = &e.state.seats[req.seat.index()];
+    let mut expected = std::collections::BTreeMap::new();
+    for &c in &seat.library {
+        *expected.entry(V_LIBRARY + c as i32).or_insert(0u32) += 1;
+    }
+    for &c in &seat.crypt {
+        *expected.entry(V_CRYPT + c as i32).or_insert(0u32) += 1;
+    }
+    let deck: std::collections::BTreeMap<i32, u32> = seen
+        .tok_ids
+        .iter()
+        .zip(&seen.tok_f)
+        .filter(|(t, _)| t[0] == T_DECK)
+        .map(|(t, f)| (t[1], (f[17] * 10.0).round() as u32))
+        .collect();
+    assert!(!expected.is_empty());
+    assert_eq!(deck, expected);
+    // Another order of the same cards: the same observation.
+    let seat = &mut e.state.seats[req.seat.index()];
+    seat.library.reverse();
+    seat.crypt.reverse();
+    assert!(encode(&e, &req) == seen);
+}
+
+/// A political referendum names its card, its terms (points on the seat
+/// tokens) and the votes cast so far: a voter can weigh what passes.
+#[test]
+fn a_referendum_shows_its_card_terms_and_votes() {
+    use common::{alloc, expect, hand, pick, play, votes};
+    use zvtes::decision::WindowLabel;
+    use zvtes::ids::SeatId;
+    use zvtes::state::{find_card, find_library};
+    let mut e = Engine::bare(3);
+    let alexa = e.add_minion(SeatId(0), find_card("Alexa Draper"), 5, false);
+    e.add_minion(SeatId(0), find_card("Mateo García"), 2, false);
+    let kevin = e.add_minion(SeatId(1), find_card("Kevin Jackson"), 5, false);
+    e.add_minion(SeatId(2), find_card("Lenny Burkhead"), 4, false);
+    for s in &mut e.state.seats {
+        s.pool = 10;
+    }
+    e.state.turn = 4;
+    hand(&mut e, 0, &["Kine Resources Contested"]);
+    pick(&mut e, play(0, 0, alexa));
+    expect(&mut e, SeatId(0), WindowLabel::ReferendumTerms);
+    pick(&mut e, alloc(0, 0));
+    expect(&mut e, SeatId(0), WindowLabel::ReferendumTerms);
+    pick(&mut e, alloc(1, 3));
+    expect(&mut e, SeatId(0), WindowLabel::ReferendumPolling);
+    pick(&mut e, votes(alexa, true));
+    // Seat 1 polls next: 3 points on it, 1 on seat 2, 2 votes for so far.
+    let req = loop {
+        let Step::Decision(r) = e.run() else {
+            panic!("a decision")
+        };
+        if r.seat == SeatId(1) && r.options.contains(&votes(kevin, false)) {
+            break r;
+        }
+        e.choose(0);
+    };
+    let o = encode(&e, &req);
+    let refs: Vec<_> = (0..o.tok_ids.len())
+        .filter(|&i| o.tok_ids[i][0] == T_REFERENDUM)
+        .collect();
+    assert_eq!(refs.len(), 1);
+    let kine = find_library("Kine Resources Contested") as i32;
+    assert_eq!(o.tok_ids[refs[0]][1], V_LIBRARY + kine);
+    let f = &o.tok_f[refs[0]];
+    assert!(
+        f.iter().any(|&x| (x - 2.0 / 5.0).abs() < 1e-6),
+        "2 votes for"
+    );
+    // Seat tokens in relative order from seat 1: itself 3 points, seat 2
+    // 1 point, seat 0 none.
+    let seats: Vec<_> = (0..o.tok_ids.len())
+        .filter(|&i| o.tok_ids[i][0] == T_SEAT)
+        .collect();
+    let (me, next, caller) = (&o.tok_f[seats[0]], &o.tok_f[seats[1]], &o.tok_f[seats[2]]);
+    let diff: Vec<usize> = (0..me.len())
+        .filter(|&j| me[j] == 3.0 / 5.0 && next[j] == 1.0 / 5.0 && caller[j] == 0.0)
+        .collect();
+    assert!(!diff.is_empty(), "the allocation is on the seat tokens");
 }

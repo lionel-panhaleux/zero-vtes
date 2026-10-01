@@ -82,11 +82,19 @@ def test_tournament_decks_train(tmp_path):
 
 
 def test_embeddings_follow_their_keys():
-    old = {"vocab.weight": torch.tensor([[0.0], [1.0], [2.0]]), "other": torch.ones(1)}
-    fresh = {"vocab.weight": torch.full((4, 1), -1.0), "other": torch.zeros(1)}
+    types = torch.tensor([[0.0], [5.0]])
+    old = {"vocab.weight": torch.tensor([[0.0], [1.0], [2.0]]), "token_type.weight": types, "other": torch.ones(1)}
+    fresh = {
+        "vocab.weight": torch.full((4, 1), -1.0),
+        "token_type.weight": torch.full((3, 1), -1.0),
+        "other": torch.zeros(1),
+    }
     out = remap_vocab(old, ["none", "crypt:1", "library:9"], ["none", "crypt:1", "crypt:5", "library:9"], fresh)
     assert out["vocab.weight"].squeeze(1).tolist() == [0.0, 1.0, -1.0, 2.0]
+    assert out["token_type.weight"].squeeze(1).tolist() == [0.0, 5.0, 0.0], "a new token type starts at zero"
     assert torch.equal(out["other"], old["other"])
+    same = remap_vocab(old, ["none"], ["none"], fresh)
+    assert len(same["token_type.weight"]) == 3 and torch.equal(same["vocab.weight"], old["vocab.weight"])
 
 
 def test_evaluation_seats_every_opponent_order():

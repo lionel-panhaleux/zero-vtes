@@ -259,15 +259,18 @@ class Trainer:
         self.learner = Learner(0, model, cfg.lr)
         self.model = model
         self.start = 1
-        saved = {}
+        saved, same_shapes = {}, False
         self.vocab = zvtes_py.vocab_keys()
         if cfg.resume:
             saved = torch.load(cfg.resume, map_location=self.device)
             old = saved.get("vocab", self.vocab)
             model.load_state_dict(remap_vocab(saved["model"], old, self.vocab, model.state_dict()))
-            # The optimizer's moments are shaped by the vocabulary: kept
-            # only when it did not change.
-            if "optimizer" in saved and old == self.vocab:
+            # The optimizer's moments are shaped by the vocabulary and the
+            # token types: kept only when neither changed.
+            same_shapes = old == self.vocab and all(
+                v.shape == saved["model"][k].shape for k, v in model.state_dict().items()
+            )
+            if "optimizer" in saved and same_shapes:
                 self.learner.opt.load_state_dict(saved["optimizer"])
             self.start = saved.get("iteration", 0) + 1
         self.critic = None
@@ -284,7 +287,7 @@ class Trainer:
                 self.critic.load_state_dict(model.state_dict(), strict=False)
                 self.warmup = cfg.critic_warmup
             self.critic_opt = torch.optim.Adam(self.critic.parameters(), lr=cfg.lr)
-            if "critic_optimizer" in saved and saved.get("vocab", self.vocab) == self.vocab:
+            if "critic_optimizer" in saved and same_shapes:
                 self.critic_opt.load_state_dict(saved["critic_optimizer"])
             self.warmup = saved.get("critic_warmup", self.warmup)
         # The best evaluation against aggro/wall/aggro so far (`best.pt`,

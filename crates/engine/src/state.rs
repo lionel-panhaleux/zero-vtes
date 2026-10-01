@@ -1723,11 +1723,13 @@ impl GameState {
     /// place, so every zone keeps its size and every counter, blood, pool
     /// and flag stays. Hidden:
     ///
-    /// - every seat's **library** and **crypt**, the viewer's own included:
-    ///   the order is unknown to all (a search shuffles afterward; the
-    ///   cards Heart of Nizchetus puts at the bottom, known to their
-    ///   player, are hidden too — remembering them is the policy's
-    ///   business, from the decisions it made);
+    /// - every seat's **library** and **crypt**: the order is unknown to
+    ///   all (a search shuffles afterward; the cards Heart of Nizchetus
+    ///   puts at the bottom, known to their player, are hidden too —
+    ///   remembering them is the policy's business, from the decisions it
+    ///   made). The viewer's own keep their contents, sorted: a Methuselah
+    ///   knows their decklist and sees every card leaving or entering
+    ///   their library and crypt, so what remains is theirs to know;
     /// - another seat's **hand**, unless `hand_visible_to(seat, viewer)`
     ///   (Revelations [AUS], Owl Companion);
     /// - another seat's face-down **uncontrolled** vampires (rulebook
@@ -1755,8 +1757,13 @@ impl GameState {
         let hide = |cards: &mut Vec<u16>| cards.iter_mut().for_each(|c| *c = HIDDEN);
         for (i, seat) in v.seats.iter_mut().enumerate() {
             let s = SeatId(i as u8);
-            hide(&mut seat.library);
-            hide(&mut seat.crypt);
+            if s == viewer {
+                seat.library.sort_unstable();
+                seat.crypt.sort_unstable();
+            } else {
+                hide(&mut seat.library);
+                hide(&mut seat.crypt);
+            }
             if !self.hand_visible_to(s, viewer) {
                 hide(&mut seat.hand);
             }

@@ -7,7 +7,8 @@
 //! style): a new card is a new vocabulary id, never a new output.
 //!
 //! The encoder reads only what the viewer may know: seats' public zones as
-//! sizes, the viewer's own hand, every minion and card in play, the
+//! sizes, the viewer's own hand, what remains of their own library and
+//! crypt (contents, never the order), every minion and card in play, the
 //! viewer's own face-down uncontrolled vampires (others' as `HIDDEN`, a
 //! banished one excepted), the action's public fields (never the card it
 //! names from hand), the combat and referendum under way. `tests/obs.rs`
@@ -35,6 +36,12 @@ pub const T_HAND: i32 = 3;
 pub const T_CARD: i32 = 4;
 pub const T_SLOT: i32 = 5;
 pub const T_CONTEXT: i32 = 6;
+/// A card remaining in the viewer's own library or crypt, with its copies.
+pub const T_DECK: i32 = 7;
+/// The political referendum under way: the card calling it (the political
+/// action card, or the card in play granting the action), the votes cast
+/// so far; a second one names a chosen clan.
+pub const T_REFERENDUM: i32 = 8;
 
 /// The vocabulary of `ids[1]`: 0 none, then the crypt, the library, a
 /// hidden card, the windows (context token), the clans (a referendum's
@@ -63,7 +70,7 @@ const F_ASH: usize = 13;
 const F_ACTIVE: usize = 14;
 const F_PREY: usize = 15;
 const F_PREDATOR: usize = 16;
-const F_BLOOD: usize = 17; // a minion's blood or life, a card's or slot's counters
+const F_BLOOD: usize = 17; // a minion's blood or life, a card's or slot's counters, a deck card's copies
 const F_CAPACITY: usize = 18;
 const F_LOCKED: usize = 19;
 const F_TORPOR: usize = 20;
@@ -90,7 +97,16 @@ const F_BLOOD_HUNT: usize = F_POLITICAL_REF + 1;
 const F_STEALTH: usize = F_BLOOD_HUNT + 1;
 const F_BLEED_AMOUNT: usize = F_STEALTH + 1;
 const F_CALLER: usize = F_BLEED_AMOUNT + 1; // referendum caller, relative one-hot
-const _: () = assert!(F_CALLER + SEATS <= TOK_F);
+                                            // Slots of the context token's action one-hot, reused by the other token
+                                            // types (they never carry it): the referendum's terms on the seat, minion
+                                            // or card tokens they name (points allocated to a seat or card, a
+                                            // Methuselah, minion or card chosen); the votes cast so far on the
+                                            // referendum token.
+const F_TERM_POINTS: usize = F_ACTION;
+const F_TERM_CHOSEN: usize = F_ACTION + 1;
+const F_VOTES_FOR: usize = F_ACTION + 2;
+const F_VOTES_AGAINST: usize = F_ACTION + 3;
+const _: () = assert!(F_VOTES_AGAINST < F_LONG);
 
 // Option feature offsets.
 const O_N: usize = 0;
@@ -204,6 +220,12 @@ pub fn encode_critic(e: &Engine, req: &DecisionRequest) -> Obs {
 fn encode_as(e: &Engine, req: &DecisionRequest, omniscient: bool) -> Obs {
     let st = &e.state;
     let viewer = req.seat;
+    let clans = crate::referendum::clans();
+    let political = e
+        .referendum()
+        .filter(|r| matches!(r.kind, crate::referendum::RefKind::Political));
+    let terms = political.map(|r| &r.terms);
+    let card_v = |c: CardId| library_id(st.cards[c.index()].card);
     let mut o = Obs::default();
     let mut ix = Index {
         seats: vec![0; st.seats.len()],
@@ -239,6 +261,14 @@ fn encode_as(e: &Engine, req: &DecisionRequest, omniscient: bool) -> Obs {
         f[F_MPA] = (seat.mpa + seat.dpa) as f32 / 3.0;
         f[F_HELD] = seat.held.total() as f32 / 5.0;
         f[F_UNCONTROLLED] = seat.uncontrolled.len() as f32 / 6.0;
+        if let Some(t) = terms {
+            let points: u32 = (t.alloc.iter().chain(&t.realloc))
+                .filter(|&&(to, _)| to == s)
+                .map(|&(_, n)| n as u32)
+                .sum();
+            f[F_TERM_POINTS] = points as f32 / 5.0;
+            f[F_TERM_CHOSEN] = flag(t.chosen == Some(s) || t.seats.contains(&s));
+        }
         ix.seats[s.index()] = push(&mut o, [T_SEAT, 0, 0, 0], f);
     }
 
@@ -257,6 +287,7 @@ fn encode_as(e: &Engine, req: &DecisionRequest, omniscient: bool) -> Obs {
         f[F_CONTESTED] = flag(m.contested || m.title_contested);
         f[F_TITLED] = flag(m.is_vampire() && st.title_of(id) != Title::None);
         f[F_ALLY] = flag(!m.is_vampire());
+        f[F_TERM_CHOSEN] = flag(terms.is_some_and(|t| t.minions.contains(&id)));
         f[F_BLED] = flag(m.bled_this_turn);
         f[F_POLITICAL] = flag(m.political_this_turn);
         f[F_RECRUITED] = flag(m.recruited);
@@ -304,6 +335,14 @@ fn encode_as(e: &Engine, req: &DecisionRequest, omniscient: bool) -> Obs {
         f[F_CONTESTED] = flag(c.contested);
         f[F_MODE] = c.mode as f32;
         f[F_MARKERS] = flag(c.effect_only);
+        if let Some(t) = terms {
+            f[F_TERM_CHOSEN] = flag(t.cards.contains(&id));
+            let points: u32 = (t.card_alloc.iter())
+                .filter(|&&(to, _)| to == id)
+                .map(|&(_, n)| n as u32)
+                .sum();
+            f[F_TERM_POINTS] = points as f32 / 5.0;
+        }
         let host = c.bearer().map_or(0, |m| ix.minion(m));
         ix.cards[i] = push(&mut o, [T_CARD, library_id(c.card), host, 0], f);
     }
@@ -331,6 +370,56 @@ fn encode_as(e: &Engine, req: &DecisionRequest, omniscient: bool) -> Obs {
             let t = push(&mut o, [T_SLOT, card, 0, 0], f);
             if seat == viewer {
                 ix.slots.push(t);
+            }
+        }
+    }
+
+    // What remains of the viewer's own library and crypt: a token per
+    // card, with its copies (the order is never read).
+    let seat = &st.seats[viewer.index()];
+    for (cards, crypt) in [(&seat.library, false), (&seat.crypt, true)] {
+        let mut left = std::collections::BTreeMap::new();
+        for &c in cards {
+            *left.entry(c).or_insert(0u32) += 1;
+        }
+        for (c, n) in left {
+            let mut f = [0.0; TOK_F];
+            f[F_REL] = 1.0;
+            f[F_BLOOD] = n as f32 / 10.0;
+            let id = if crypt {
+                f[F_CAPACITY] = CRYPT[c as usize].capacity as f32 / 11.0;
+                crypt_id(c)
+            } else {
+                library_id(c)
+            };
+            push(&mut o, [T_DECK, id, 0, 0], f);
+        }
+    }
+
+    // The political referendum: its card and the votes so far (the terms
+    // are on the tokens they name, above).
+    if let Some(r) = political {
+        {
+            let card = e.action().map_or(0, |a| match (a.card, a.source) {
+                (Some(play), _) => library_id(play.card),
+                (None, Some(crate::cards::AbilitySource::Card(c))) => card_v(c),
+                (None, Some(crate::cards::AbilitySource::Vampire(m))) => {
+                    minion_id(st.minions[m.index()].kind)
+                }
+                (None, None) => 0,
+            });
+            let (yes, no) = r.tally();
+            let mut f = [0.0; TOK_F];
+            f[F_VOTES_FOR] = yes as f32 / 5.0;
+            f[F_VOTES_AGAINST] = no as f32 / 5.0;
+            push(&mut o, [T_REFERENDUM, card, 0, 0], f);
+            if let Some(clan) = r.terms.clan {
+                let k = clans.iter().position(|&c| c == clan).expect("a clan");
+                push(
+                    &mut o,
+                    [T_REFERENDUM, V_CLAN + k as i32, 0, 0],
+                    [0.0; TOK_F],
+                );
             }
         }
     }
@@ -370,7 +459,6 @@ fn encode_as(e: &Engine, req: &DecisionRequest, omniscient: bool) -> Obs {
     let window = V_WINDOW + req.window as i32;
     push(&mut o, [T_CONTEXT, window, a_ptr, b_ptr], f);
 
-    let clans = crate::referendum::clans();
     for choice in &req.options {
         let (ids, f) = option(e, viewer, &ix, &clans, choice);
         o.opt_ids.push(ids);
@@ -579,6 +667,6 @@ pub fn schema_json() -> String {
         "{{\"tok_ids\": {TOK_IDS}, \"tok_f\": {TOK_F}, \"opt_ids\": {OPT_IDS}, \
          \"opt_f\": {OPT_F}, \"vocab\": {vocab}, \"choice_kinds\": {N_CHOICE_KINDS}, \
          \"token_types\": {}, \"windows\": {N_WINDOWS}, \"action_kinds\": {N_ACTION_KINDS}}}",
-        T_CONTEXT + 1
+        T_REFERENDUM + 1
     )
 }

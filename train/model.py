@@ -112,11 +112,15 @@ class Critic(nn.Module):
 def remap_vocab(state, old_keys, new_keys, fresh):
     """A state dict saved under vocabulary `old_keys`, for a network built
     on `new_keys` (the pool grew, ids shifted): each embedding row follows
-    its key; rows of new keys come from `fresh` (a new network's state)."""
-    if list(old_keys) == list(new_keys):
-        return state
-    old = {k: i for i, k in enumerate(old_keys)}
+    its key; rows of new keys come from `fresh` (a new network's state).
+    Token types added since (they are appended) start at zero."""
     out = dict(state)
+    types, n = state["token_type.weight"], len(fresh["token_type.weight"])
+    if len(types) < n:
+        out["token_type.weight"] = torch.cat([types, types.new_zeros(n - len(types), types.shape[1])])
+    if list(old_keys) == list(new_keys):
+        return out
+    old = {k: i for i, k in enumerate(old_keys)}
     rows = fresh["vocab.weight"].clone()
     for i, k in enumerate(new_keys):
         if k in old:
