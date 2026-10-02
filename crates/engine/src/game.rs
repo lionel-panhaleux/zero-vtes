@@ -201,6 +201,9 @@ pub struct Engine {
     /// How the most recent action ended (tests, and after-resolution
     /// riders to come).
     pub last_outcome: Option<crate::actions::Outcome>,
+    /// What combats did, for a narrator (`CombatNote`): `None`, the
+    /// default, keeps nothing; the taker drains it.
+    pub combat_notes: Option<Vec<crate::combat::CombatNote>>,
     /// The game's random source after setup (random discards): replay is
     /// the seed plus the decision log.
     pub(crate) rng: Rng,
@@ -288,6 +291,7 @@ impl Engine {
             ousting: None,
             rng,
             last_outcome: None,
+            combat_notes: None,
         };
         engine.start_turn();
         engine

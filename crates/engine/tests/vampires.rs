@@ -517,7 +517,8 @@ fn chun_hei_burns_blood_for_an_additional_strike() {
     let strike = vampire_ability(chun, 0);
     pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: chun });
-    until(&mut e, SeatId(1), WindowLabel::CombatBeforeStrikes);
+    // Once the first pair is over (rules-qa 47.2).
+    until(&mut e, SeatId(1), WindowLabel::CombatAdditionalStrikes);
     pick(&mut e, strike);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     // Two hand strikes of strength 2 on A; one of 1 on Chun Hei.

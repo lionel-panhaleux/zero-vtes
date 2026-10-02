@@ -17,7 +17,7 @@ use zvtes::referendum::{Recipient, RefStep};
 
 use crate::deck::{resolve, DeckError, DeckList, Resolved};
 use crate::describe::{window_text, CardRef, Describer, OptionView};
-use crate::narrate::{action_thing, minion_name, Mark};
+use crate::narrate::{action_thing, combat_text, minion_name, Mark};
 use crate::track::Tracker;
 use crate::view::{knowledge, learned_nothing, table_view, Knowledge, TableView};
 
@@ -285,6 +285,8 @@ impl Session {
         if let Some(t) = spec.time_limit {
             engine.time_limit = t;
         }
+        // Combats told as they happen (`observe`).
+        engine.combat_notes = Some(Vec::new());
         engine
     }
 
@@ -318,6 +320,8 @@ impl Session {
                 Step::Over(_) => unreachable!("the log replays"),
             }
         }
+        // The replayed combats were told already.
+        engine.combat_notes = Some(Vec::new());
         self.engine = engine;
         self.history.pop();
         self.pending = None;
@@ -388,6 +392,16 @@ impl Session {
     /// action or a referendum ended, and (`ran`: across the engine's run,
     /// not a decision's own effect) the rest.
     fn observe(&mut self, ran: bool) {
+        // What combats did first: their damage is among the changes.
+        let notes = self
+            .engine
+            .combat_notes
+            .as_mut()
+            .map(std::mem::take)
+            .unwrap_or_default();
+        for n in &notes {
+            self.events.push(combat_text(&self.engine, n));
+        }
         let now = Mark::of(&self.engine);
         if let Some(before) = &self.mark {
             let names = self.names();

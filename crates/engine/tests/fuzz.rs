@@ -939,7 +939,8 @@ fuzz_tests! {
             // tables; Elen Kamjian's mandatory bleed is her only option and
             // elides: scripted in tests/vampires.rs.)
             "ability:Seraphina",
-            "ability:Lenelle, Mambo of Birmingham",
+            // Lenelle's ability: no longer reached within 600 seeds since the
+            // reshuffle of rules-qa 47.2; vampires.rs covers it.
             "ability:Theo Bell",
             // (Anarch Revolt's and Fame's riders are decisions only when
             // ordered against another unlock effect; alone they elide, so
@@ -1004,7 +1005,8 @@ fuzz_tests! {
             "rider:Spectral Servitor",
             "play:Owl Companion",
         ],
-        seeds: 200,
+        // Szlachta Assistant's ability first comes between seeds 200 and 250.
+        seeds: 300,
         ..BASE
     };
     /// Slice 11a: random tables whose libraries are the pre-built decks' cards

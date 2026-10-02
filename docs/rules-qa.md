@@ -59,7 +59,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
 - **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7
 - **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8
-- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2
+- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9
 - **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6
@@ -138,7 +138,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 
 **4.3** Ineffective plays stay legal: hand strike at long range, dodge with no opposing strike; the mask removes only what rules or card forbid ("cannot be played with no damage to prevent", "only when needed", limits). Cycling an ineffective card is a common purpose — never mask it. "No strike" is rare (a strike must be chosen, default hand strike): a committed strike that can't be performed, or a card letting the minion not strike.
 
-**4.4** A limited additional strike card (Quickness, Blur, Side Strike [CEL], Pursuit [CEL]…) may be played before or after the normal pair — general rule.
+**4.4** ~~A limited additional strike card (Quickness, Blur, Side Strike [CEL], Pursuit [CEL]…) may be played before or after the normal pair — general rule.~~ **Overridden by 47.2:** only after the normal pair.
 
 **4.5** A combatant no longer ready (burned / going to torpor) may play end-of-round combat cards unless the card excludes it (Taste of Vitae, Disarm), and no other combat window.
 
@@ -805,3 +805,5 @@ Owner ruled 46.1–46.4 from play (2026-09-30).
 ## Batch 47 — found by the owner's second game (slice 17e)
 
 **47.1** "Put this card on …" puts the card itself in play, out of the ash heap it went to as it resolved (owner, 2026-10-01, from play: Touch of Oblivion [obl]; generalizes 46.4, revises 21.1). **General rule: it applies to every card, present and future, whose text puts the card itself on a minion or in play — never an effect-only stand-in.** Today: Touch of Oblivion [obl] and Sculpt the Flesh (on the opposing minion, if the strike lands), Disarm (on the opposing vampire), Pass Through Shadow [OBL] (after combat), Dogged Pursuit [ANI] (if the vampire does not block), Melange [AUS] (on the acting minion, if the vampire blocks). Burned — counters run out, a cost paid with it — it goes back to the ash heap. Its effects are unchanged.
+
+**47.2** An additional strike card (Quickness, Blur, Side Strike [CEL], Pursuit [CEL], Lightning Reflexes [CEL], Arms of Ahriman [obl]…) is played only after the first strike exchange of the round, both combatants still ready — never before strikes nor before the first pair resolves (owner, 2026-10-02, from play: Arms of Ahriman offered before strikes; **overrides 4.4**, rulebook "Additional Strikes": "announced and performed only after the first pair of strikes is completed"). The general rule for every card and effect granting additional strikes, future ones included; Chun Hei's ability likewise.

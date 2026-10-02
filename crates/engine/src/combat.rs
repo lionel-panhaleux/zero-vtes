@@ -30,6 +30,30 @@ pub enum Range {
     Long,
 }
 
+/// What a combat did, kept for a narrator when `Engine::combat_notes` is
+/// on: a combat whose windows all elide leaves no decision to tell it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CombatNote {
+    /// The acting side first.
+    Begins {
+        minions: [MinionId; 2],
+    },
+    /// A pair of strikes resolved (`pair` 0: the normal pair): each side's
+    /// strike (`None`: no strike) and the damage it inflicts, before
+    /// prevention.
+    Strikes {
+        minions: [MinionId; 2],
+        round: u8,
+        pair: u8,
+        range: Range,
+        strikes: [Option<StrikeKind>; 2],
+        damage: [u8; 2],
+    },
+    Ends {
+        minions: [MinionId; 2],
+    },
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Step {
     #[default]
@@ -531,23 +555,15 @@ impl CombatCtx {
 
     /// Play windows open at the current step. `COMBAT_UNTIMED` cards are
     /// playable at any impulse before the resolution they affect (rules-qa
-    /// 2.2); limited additional strikes before or after the normal pair
-    /// (spec §4.3.5).
+    /// 2.2); additional strike cards only once the first pair is over, both
+    /// combatants still ready (rules-qa 47.2, revising 4.4).
     fn windows(&self) -> Vec<Window> {
         match self.step {
             Step::BeforeRange => vec![Window::CombatBeforeRange, Window::CombatUntimed],
             Step::DetermineRange => vec![Window::CombatDetermineRange, Window::CombatUntimed],
-            Step::BeforeStrikes => vec![
-                Window::CombatBeforeStrikes,
-                Window::CombatAdditionalStrike,
-                Window::CombatUntimed,
-            ],
+            Step::BeforeStrikes => vec![Window::CombatBeforeStrikes, Window::CombatUntimed],
             Step::ChooseStrike(_) => vec![Window::CombatStrikeDeclaration],
-            Step::BeforeResolution => vec![
-                Window::CombatUntimed,
-                Window::CombatAdditionalStrike,
-                Window::CombatBeforeResolution,
-            ],
+            Step::BeforeResolution => vec![Window::CombatUntimed, Window::CombatBeforeResolution],
             Step::Prevent(_)
             | Step::Allocate { .. }
             | Step::AllocateSource { .. }
@@ -753,6 +769,15 @@ impl Engine {
             ..Default::default()
         });
         self.flow = Flow::Combat;
+        self.note(CombatNote::Begins {
+            minions: [acting, opposing],
+        });
+    }
+
+    fn note(&mut self, n: CombatNote) {
+        if let Some(notes) = self.combat_notes.as_mut() {
+            notes.push(n);
+        }
     }
 
     /// The strike choice among `options`, none without a strike to choose:
@@ -1184,7 +1209,27 @@ impl Engine {
             Step::ChooseStrike(0) => c.fresh_window(Step::ChooseStrike(1)),
             Step::ChooseStrike(_) => c.fresh_window(Step::BeforeResolution),
             Step::BeforeResolution => {
+                let before = self.combat_notes.as_ref().map(|_| {
+                    let c = self.combat.as_ref().expect("combat context");
+                    let pending = c.sides.each_ref().map(|s| s.pending.total());
+                    (c.sides.each_ref().map(|s| s.strike), pending)
+                });
                 self.resolve_strikes();
+                // Still in combat (an oust may have ended it).
+                if let (Some((strikes, pending)), Some(c)) = (before, self.combat.as_ref()) {
+                    // Side i inflicts what side 1 - i now has pending.
+                    let damage = [1, 0]
+                        .map(|j: usize| c.sides[j].pending.total().saturating_sub(pending[j]));
+                    let n = CombatNote::Strikes {
+                        minions: c.sides.each_ref().map(|s| s.minion),
+                        round: c.round,
+                        pair: c.pair,
+                        range: c.range,
+                        strikes,
+                        damage,
+                    };
+                    self.note(n);
+                }
                 self.after_prevention_or_next();
             }
             Step::Prevent(i) => {
@@ -2039,6 +2084,11 @@ impl Engine {
     /// after-resolution window (rules-qa 17.3).
     fn end_combat(&mut self) {
         let ended = self.combat.take();
+        if let Some(c) = &ended {
+            self.note(CombatNote::Ends {
+                minions: c.sides.each_ref().map(|s| s.minion),
+            });
+        }
         // FBI Special Affairs Division: its unpreventable environmental
         // damage to the acting vampire after the combat; enough counters,
         // burned.

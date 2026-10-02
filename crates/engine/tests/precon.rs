@@ -7422,8 +7422,9 @@ fn lightning_reflexes_burns_x_blood_for_x_additional_strikes() {
     );
     let start = capped(&e, a);
     pick_when(&mut e, play(0, 1, a));
+    // Played after the first pair (rules-qa 47.2): Z's hand strike landed.
     let req = expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
-    assert_eq!(req.options.last(), Some(&Choice::SetX(start - 1)));
+    assert_eq!(req.options.last(), Some(&Choice::SetX(start - 2)));
     pick(&mut e, Choice::SetX(2));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(blood(&e, a), start - 1 - 2 - 1, "cost, X, one hand strike");
@@ -7441,8 +7442,8 @@ fn wind_dance_dodges_twice() {
         plain("", "THA", 0),
         &["Wind Dance", "Quickness"],
     );
-    pick_when(&mut e, play(0, 0, a)); // Quickness: a second strike
-    pick_when(&mut e, play(0, 1, z));
+    pick_when(&mut e, play(0, 1, z)); // Wind Dance [THA]
+    pick_when(&mut e, play(0, 0, a)); // Quickness, after the pair: a second strike
     never_offered(&mut e, &play(0, 0, z));
     assert_eq!((blood(&e, a), blood(&e, z)), (5, 5), "both dodged");
 }
@@ -14395,4 +14396,24 @@ fn warsaw_station_brings_back_a_nosferatu_but_its_action_has_ended() {
     assert!(used, "Warsaw Station offered during the action");
     assert!(!e.state.minions[n.index()].in_torpor);
     assert!(!e.state.cards[w.index()].in_play);
+}
+
+// Second Tradition: Domain against a hunt (undirected: the prey may block):
+// the locked prince unlocks, blocks with +2 intercept against the hunt's
+// +1 stealth, and the block leads to combat.
+#[test]
+fn second_tradition_blocks_a_hunt_into_combat() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Brujah", "", 0), 2, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let p = e.add_minion(SeatId(1), prince(0), 3, false);
+    e.state.minions[p.index()].locked = true;
+    hand(&mut e, 1, &["Second Tradition: Domain"]);
+    pick(&mut e, action(a, ActionKind::Hunt));
+    pick_when(&mut e, play(0, 1, p));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Blocked));
+    // 1 blood burned, 1 damage from A's hand strike; no blood hunted.
+    assert_eq!(blood(&e, p), 3 - 1 - 1);
+    assert_eq!(blood(&e, a), 2 - 1, "P's hand strike");
 }

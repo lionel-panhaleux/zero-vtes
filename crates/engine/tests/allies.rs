@@ -281,8 +281,7 @@ fn murder_of_crows_inflicts_nothing_once_a_combat_ends_strike_ended_the_combat()
 #[test]
 fn murder_of_crows_does_not_repeat_on_additional_strikes() {
     let (mut e, a, z) = crows_bleed_blocked_by(with_discipline("CEL", 0), "Side Strike");
-    expect(&mut e, SeatId(1), WindowLabel::CombatBeforeStrikes);
-    pick(&mut e, play(0, 1, z)); // an additional strike
+    pick_when(&mut e, play(0, 1, z)); // an additional strike, after the pair
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     // Normal pair: hand strikes both ways and the crows; then Z's
     // additional hand strike alone.

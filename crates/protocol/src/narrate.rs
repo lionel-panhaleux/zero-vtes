@@ -11,7 +11,8 @@
 //! a decision's own effect being its text.
 
 use zvtes::actions::{ActionCtx, Outcome};
-use zvtes::cards::AbilitySource;
+use zvtes::cards::{AbilitySource, StrikeKind};
+use zvtes::combat::{CombatNote, Range};
 use zvtes::decision::ActionKind;
 use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
@@ -73,6 +74,58 @@ pub(crate) fn action_thing(e: &Engine, a: &ActionCtx) -> String {
             .to_string(),
         (None, Some(AbilitySource::Vampire(m))) if m != a.acting => minion_name(e, m),
         _ => action_kind(a.kind).to_string(),
+    }
+}
+
+/// A strike, as the table sees it.
+fn strike_text(s: Option<StrikeKind>) -> String {
+    match s {
+        None => "no strike".into(),
+        Some(StrikeKind::Hand { .. }) => "hand strike".into(),
+        Some(StrikeKind::Melee { .. }) => "weapon strike".into(),
+        Some(StrikeKind::Dodge) => "dodge".into(),
+        Some(StrikeKind::CombatEnds { .. }) => "combat ends".into(),
+        Some(StrikeKind::Damage { n, ranged, .. }) => {
+            format!("{n}{} damage", if ranged { "R" } else { "" })
+        }
+        Some(StrikeKind::StealBlood { n, .. }) => format!("steal {n} blood"),
+        Some(StrikeKind::TorporOrBurn) => "torpor or burn".into(),
+        Some(StrikeKind::CardEffect) => "strike".into(),
+        Some(StrikeKind::BurnWeapon) => "burn weapon".into(),
+        Some(StrikeKind::BurnEquipment) => "burn equipment".into(),
+    }
+}
+
+/// What a combat did (`Engine::combat_notes`), told: a combat whose
+/// windows all elide (hand strikes both ways) leaves no decision.
+pub(crate) fn combat_text(e: &Engine, note: &CombatNote) -> String {
+    match *note {
+        CombatNote::Begins { minions: [a, b] } => {
+            format!("Combat: {} vs {}", minion_name(e, a), minion_name(e, b))
+        }
+        CombatNote::Strikes {
+            minions,
+            round,
+            pair,
+            range,
+            strikes,
+            damage,
+        } => {
+            let side = |i: usize| {
+                let mut s = format!("{} {}", minion_name(e, minions[i]), strike_text(strikes[i]));
+                if damage[i] > 0 {
+                    s += &format!(" ({} damage)", damage[i]);
+                }
+                s
+            };
+            let range = match range {
+                Range::Close => "close range",
+                Range::Long => "long range",
+            };
+            let pair = if pair > 0 { ", additional strikes" } else { "" };
+            format!("Round {round}{pair}, {range}: {} — {}", side(0), side(1))
+        }
+        CombatNote::Ends { .. } => "The combat ends".into(),
     }
 }
 

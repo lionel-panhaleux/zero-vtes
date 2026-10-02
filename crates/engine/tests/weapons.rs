@@ -224,11 +224,11 @@ fn kevlar_vest_chooses_gun_or_other_once_each_combat() {
     let e = &mut t.e;
     pick(e, bleed(t.a));
     pick(e, Choice::DeclareBlock { minion: z });
-    pick(e, Choice::Pass);
-    pick(e, Choice::Pass);
+    // Hand strikes both ways (A's elides); Blur only after the pair
+    // (rules-qa 47.2).
+    let req = until(e, SeatId(1), WindowLabel::CombatStrike);
+    assert_eq!(req.options, vec![Choice::HandStrike, ability(ak, 0)]);
     pick(e, Choice::HandStrike);
-    // Z keeps Blur for after the pair.
-    pick(e, Choice::Pass);
     let req = expect(e, SeatId(0), WindowLabel::CombatPrevention);
     assert_eq!(req.options, vec![Choice::Pass, ability(vest, 1)]);
     pick(e, ability(vest, 1));
@@ -249,8 +249,6 @@ fn righteous_blade_press_survives_a_dodge_once_each_combat() {
     let e = &mut t.e;
     pick(e, bleed(t.b));
     pick(e, Choice::DeclareBlock { minion: t.x });
-    // Before strikes: Side Strike's additional-strike mode is not wanted.
-    pick(e, Choice::Pass);
     pick(e, play(0, 0, t.b));
     let b_blood = blood(e, t.b);
     pick(e, ability(blade, 0));

@@ -151,9 +151,8 @@ fn dodge_voids_the_opposing_strike() {
     hand(e, 0, &["Roundhouse"]);
     hand(e, 1, &["Side Strike"]);
     blocked_bleed(e, t.a, z);
-    // Before strikes: Z declines the limited additional strike.
-    expect(e, SeatId(1), WindowLabel::CombatBeforeStrikes);
-    pick(e, Choice::Pass);
+    // No additional strike before strikes (rules-qa 47.2): Side Strike is
+    // Z's dodge only.
     pick(e, play(0, 1, t.a));
     pick(e, play(0, 0, z));
     expect(e, SeatId(0), WindowLabel::MinionPhase);
@@ -207,21 +206,20 @@ fn soak_cannot_prevent_aggravated_damage() {
 
 // Rulebook "Additional Strikes": one limited source per round — after
 // Blur [CEL] (2 additional strikes) Side Strike [CEL] is no longer
-// offered; the extra pairs are the striker's alone.
+// offered; the extra pairs are the striker's alone. Additional strike
+// cards only once the first pair is over (rules-qa 47.2): nothing before
+// strikes, nor before the first pair resolves.
 #[test]
 fn additional_strikes_limited_once_per_round() {
     let mut t = table();
     let e = &mut t.e;
     hand(e, 0, &["Blur", "Side Strike"]);
     blocked_bleed(e, t.b, t.x);
-    let req = expect(e, SeatId(0), WindowLabel::CombatBeforeStrikes);
-    assert_eq!(plays(&req).len(), 3);
-    pick(e, Choice::Pass);
     // B's strike (Side Strike's dodge is the alternative), then the
     // additional-strike window: Blur [CEL].
+    let req = expect(e, SeatId(0), WindowLabel::CombatStrike);
+    assert_eq!(req.options, vec![Choice::HandStrike, play(1, 0, t.b)]);
     pick(e, Choice::HandStrike);
-    expect(e, SeatId(0), WindowLabel::CombatBeforeResolution);
-    pick(e, Choice::Pass);
     let req = expect(e, SeatId(0), WindowLabel::CombatAdditionalStrikes);
     assert_eq!(plays(&req).len(), 3);
     pick(e, play(0, 1, t.b));

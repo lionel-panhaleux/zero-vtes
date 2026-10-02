@@ -160,11 +160,23 @@ fn roundtrip(out: &Out) {
 
 /// The events narrate the ends: an action or a referendum seen at one
 /// decision and gone at the next is told with the next one's message (the
-/// first message about it).
-#[derive(Default)]
+/// first message about it). A combat is told begun, its strikes, then
+/// ended.
 struct Ends {
     /// The last decision seen: its number, an action and a referendum.
     last: Option<(u64, bool, bool)>,
+    /// A combat told begun, not yet told ended; unknown right after an
+    /// undo (the decision taken back may have begun one).
+    in_combat: Option<bool>,
+}
+
+impl Default for Ends {
+    fn default() -> Self {
+        Ends {
+            last: None,
+            in_combat: Some(false),
+        }
+    }
 }
 
 impl Ends {
@@ -185,6 +197,28 @@ impl Ends {
             Out::Over { events, view, .. } => (u64::MAX, events, view),
         };
         assert!(events.iter().all(|e| !e.is_empty()));
+        // A combat is told begun, its strikes, then ended (a game may end
+        // during one).
+        for e in events {
+            if e.starts_with("Combat: ") {
+                assert!(
+                    self.in_combat != Some(true),
+                    "seed {seed}: a combat begun twice: {events:?}"
+                );
+                self.in_combat = Some(true);
+            } else if e.starts_with("Round ") {
+                assert!(
+                    self.in_combat != Some(false),
+                    "seed {seed}: strikes out of combat: {events:?}"
+                );
+            } else if e == "The combat ends" {
+                assert!(
+                    self.in_combat != Some(false),
+                    "seed {seed}: an untold combat ended: {events:?}"
+                );
+                self.in_combat = Some(false);
+            }
+        }
         let (action, referendum) = (view.action.is_some(), view.referendum.is_some());
         if let Some((d, had_action, had_referendum)) = self.last {
             if decision == d {
@@ -459,7 +493,10 @@ fn sessions_over_the_shipped_decks() {
                         }
                         let before = s.engine().log.len();
                         s.undo().expect("undo");
-                        ends = Ends::default();
+                        ends = Ends {
+                            in_combat: None,
+                            ..Ends::default()
+                        };
                         assert_eq!(s.engine().log.len(), before - 1);
                         continue;
                     }
