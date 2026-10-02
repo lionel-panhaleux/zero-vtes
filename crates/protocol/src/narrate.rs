@@ -10,6 +10,8 @@
 //! decision itself may end them — the rest only across the engine's run,
 //! a decision's own effect being its text.
 
+use std::collections::HashSet;
+
 use zvtes::actions::{ActionCtx, Outcome};
 use zvtes::cards::{AbilitySource, StrikeKind};
 use zvtes::combat::{CombatNote, Range};
@@ -21,6 +23,7 @@ use zvtes::referendum::RefKind;
 use zvtes::state::MinionKind;
 
 use crate::describe::action_kind;
+use crate::view::TableView;
 
 /// The table at a decision, as far as events tell it.
 #[derive(Clone, Debug, Default)]
@@ -33,6 +36,12 @@ pub(crate) struct Mark {
     cards: Vec<Option<(u16, Option<MinionId>)>>,
     action: Option<ActionMark>,
     referendum: Option<RefMark>,
+    /// Game turn and active seat.
+    turn: (u32, u8),
+    /// Per seat, the copies in its library and in its crypt (every card
+    /// shown): one in the hand or the uncontrolled region next is a draw.
+    library: Vec<HashSet<u32>>,
+    crypt: Vec<HashSet<u32>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -130,9 +139,14 @@ pub(crate) fn combat_text(e: &Engine, note: &CombatNote) -> String {
 }
 
 impl Mark {
-    pub(crate) fn of(e: &Engine) -> Mark {
+    /// `all`: the table with every card shown (stable copies).
+    pub(crate) fn of(e: &Engine, all: &TableView) -> Mark {
         let st = &e.state;
+        let copies = |cards: &[crate::view::CardView]| cards.iter().map(|c| c.copy).collect();
         Mark {
+            turn: (st.turn, st.active.0),
+            library: all.seats.iter().map(|s| copies(&s.library)).collect(),
+            crypt: all.seats.iter().map(|s| copies(&s.crypt)).collect(),
             pools: st.seats.iter().map(|s| s.pool).collect(),
             ousted: st.seats.iter().map(|s| s.ousted).collect(),
             minions: st
@@ -225,6 +239,43 @@ impl Mark {
                 }
             };
             out.push(ended);
+        }
+    }
+
+    /// A new turn, and the cards drawn from `self` to `now` (told whatever
+    /// drew them: a decision's own draws too).
+    pub(crate) fn draws(
+        &self,
+        now: &Mark,
+        all: &TableView,
+        names: &[String],
+        out: &mut Vec<String>,
+    ) {
+        let seat = |s: usize| names.get(s).cloned().unwrap_or_default();
+        if now.turn.0 != self.turn.0 {
+            out.push(format!(
+                "Turn {}: {}",
+                now.turn.0,
+                seat(now.turn.1 as usize)
+            ));
+        }
+        for (s, v) in all.seats.iter().enumerate() {
+            let drawn = |before: Option<&HashSet<u32>>, cards: &mut dyn Iterator<Item = u32>| {
+                before.map_or(0, |b| cards.filter(|c| b.contains(c)).count())
+            };
+            let n = drawn(self.library.get(s), &mut v.hand.iter().map(|c| c.copy));
+            if n > 0 {
+                let cards = if n == 1 { "card" } else { "cards" };
+                out.push(format!("{} draws {n} {cards}", seat(s)));
+            }
+            let n = drawn(
+                self.crypt.get(s),
+                &mut v.uncontrolled.iter().map(|u| u.card.copy),
+            );
+            if n > 0 {
+                let cards = if n == 1 { "crypt card" } else { "crypt cards" };
+                out.push(format!("{} draws {n} {cards}", seat(s)));
+            }
         }
     }
 

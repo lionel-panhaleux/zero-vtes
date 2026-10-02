@@ -402,9 +402,11 @@ impl Session {
         for n in &notes {
             self.events.push(combat_text(&self.engine, n));
         }
-        let now = Mark::of(&self.engine);
+        let all = self.view(None);
+        let now = Mark::of(&self.engine, &all);
         if let Some(before) = &self.mark {
             let names = self.names();
+            before.draws(&now, &all, &names, &mut self.events);
             before.endings(&self.engine, &now, &names, &mut self.events);
             if ran {
                 before.changes(&self.engine, &now, &names, &mut self.events);
