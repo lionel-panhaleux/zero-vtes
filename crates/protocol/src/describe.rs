@@ -8,7 +8,7 @@
 //! library's bottom or searched out.
 
 use serde::{Deserialize, Serialize};
-use zvtes::cards::{AbilitySource, Target};
+use zvtes::cards::{AbilitySource, Effect, Target};
 use zvtes::crypt::CRYPT;
 use zvtes::decision::{ActionKind, Choice, WindowLabel, Zone};
 use zvtes::game::{Contest, Engine};
@@ -51,6 +51,21 @@ pub struct OptionView {
     pub amount: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub favor: Option<bool>,
+    /// The mode a card is played in (`play`), when the viewer knows the
+    /// card: its index and its printed tags (`dom` basic, `DOM` superior,
+    /// `COMBAT`…; empty for an untagged card).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<ModeView>,
+    /// The blood an ability moves onto (+) or off (−) the vampire it is
+    /// on (`minion`): Blood Doll's two abilities.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub blood: Option<i8>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModeView {
+    pub index: u8,
+    pub tags: Vec<String>,
 }
 
 pub fn action_kind(k: ActionKind) -> &'static str {
@@ -149,10 +164,13 @@ pub struct Describer<'a> {
     pub narrate: bool,
     /// The request's options: what a pass declines.
     pub offered: &'a [Choice],
+    /// The card whose terms a terms decision chooses: narrated as its
+    /// prefix ("Kine Resources Contested: 3 to Bot 2").
+    pub about: Option<String>,
 }
 
 impl Describer<'_> {
-    fn seat_name(&self, s: SeatId) -> String {
+    pub(crate) fn seat_name(&self, s: SeatId) -> String {
         self.names
             .get(s.index())
             .cloned()
@@ -167,7 +185,7 @@ impl Describer<'_> {
         }
     }
 
-    fn in_play(&self, c: u32) -> CardRef {
+    pub(crate) fn in_play(&self, c: u32) -> CardRef {
         let card = self.e.state.cards[c as usize].card;
         let copy = self
             .view
@@ -187,7 +205,7 @@ impl Describer<'_> {
         }
     }
 
-    fn in_play_name(&self, c: u32) -> &'static str {
+    pub(crate) fn in_play_name(&self, c: u32) -> &'static str {
         LIBRARY[self.e.state.cards[c as usize].card as usize].name
     }
 
@@ -280,6 +298,8 @@ impl Describer<'_> {
             action: None,
             amount: None,
             favor: None,
+            mode: None,
+            blood: None,
         };
         let card_named = |name: Option<&str>| name.unwrap_or("a card").to_string();
         o.text = match *c {
@@ -294,7 +314,7 @@ impl Describer<'_> {
                 }
             }
             Choice::Pass => pass_text(self.window).into(),
-            Choice::BurnEdge => "Burn the Edge for 1 pool".into(),
+            Choice::BurnEdge => "Gain 1 pool (the Edge)".into(),
             Choice::PayContest(x) => format!("Pay to keep contesting {}", self.contest(x)),
             Choice::YieldContest(x) => format!("Yield {}", self.contest(x)),
             Choice::Play {
@@ -311,12 +331,16 @@ impl Describer<'_> {
                 let mut s = format!("Play {}", card_named(name));
                 if name.is_some() {
                     s += &mode_text(played, mode);
+                    o.mode = Some(mode_view(played, mode));
                 }
                 if let Some(m) = actor {
                     s += &format!(" with {}", self.minion_name(m));
                 }
                 if let Some(t) = self.target_text(target) {
                     s += &format!(" on {t}");
+                } else if bleeds(played, mode) {
+                    // A bleed's target: the prey, unless a card says otherwise.
+                    s += &format!(" → {}", self.seat_name(self.e.state.prey(self.seat)));
                 }
                 s
             }
@@ -328,21 +352,49 @@ impl Describer<'_> {
             } => {
                 o.actor = actor.map(|m| m.0);
                 o.target = TargetView::of(target);
-                let name = match source {
+                let (name, abilities, host) = match source {
                     AbilitySource::Card(id) => {
                         o.card = Some(self.in_play(id.0));
-                        self.in_play_name(id.0).to_string()
+                        let c = &self.e.state.cards[id.index()];
+                        // The vampire it is on: which of two copies.
+                        let host = c.host;
+                        o.minion = host.map(|m| m.0);
+                        let name = match host {
+                            Some(m) => {
+                                format!("{}'s {}", self.minion_name(m), self.in_play_name(id.0))
+                            }
+                            None => self.in_play_name(id.0).to_string(),
+                        };
+                        let abilities =
+                            zvtes::cards::lookup(c.card).map_or(&[][..], |d| d.abilities);
+                        (name, abilities, host)
                     }
                     AbilitySource::Vampire(m) => {
                         o.minion = Some(m.0);
-                        self.minion_name(m)
+                        let v = &self.e.state.minions[m.index()];
+                        let abilities =
+                            zvtes::cards::vampire_of(v).map_or(&[][..], |d| d.abilities);
+                        (self.minion_name(m), abilities, None)
                     }
                 };
                 let mut s = format!("Use {name}");
-                if ability > 0 {
-                    s += &format!(" (ability {})", ability + 1);
+                let moved = abilities.get(ability as usize).and_then(|a| {
+                    a.effects.iter().find_map(|e| match *e {
+                        Effect::HostBloodToPool(n) => Some(-(n as i8)),
+                        Effect::PoolToHostBlood(n) => Some(n as i8),
+                        _ => None,
+                    })
+                });
+                match moved {
+                    Some(n) if n < 0 => s += &format!(": {} blood to pool", -n),
+                    Some(n) => s += &format!(": {n} pool to blood"),
+                    None if abilities.len() > 1 || ability > 0 => {
+                        s += &format!(" (ability {})", ability + 1)
+                    }
+                    None => {}
                 }
-                if let Some(m) = actor {
+                o.blood = moved;
+                if let Some(m) = actor.filter(|&m| Some(m) != host) {
                     s += &format!(" with {}", self.minion_name(m));
                 }
                 if let Some(t) = self.target_text(target) {
@@ -470,11 +522,20 @@ impl Describer<'_> {
             Choice::CastVotes { minion, favor } => {
                 o.minion = Some(minion.0);
                 o.favor = Some(favor);
-                format!(
+                // The votes it casts.
+                o.amount = self
+                    .e
+                    .referendum()
+                    .map(|r| r.votes_cast(&self.e.state, minion, favor));
+                let mut s = format!(
                     "{}'s votes {}",
                     self.minion_name(minion),
                     Self::votes(favor)
-                )
+                );
+                if let Some(n) = o.amount {
+                    s += &format!(" ({n})");
+                }
+                s
             }
             Choice::CastEdge { favor } => {
                 o.favor = Some(favor);
@@ -500,10 +561,12 @@ impl Describer<'_> {
                 if self.window == WindowLabel::Distribution {
                     format!("{n} to your pool")
                 } else {
-                    // Who is allocated to next: the last one gets the rest.
+                    // Who is allocated to next: the last one gets the rest
+                    // (for the one allocating, not in a narration).
                     let next: Vec<SeatId> = self
                         .e
                         .referendum()
+                        .filter(|_| !self.narrate)
                         .map(|r| r.terms.pending.iter().skip(1).copied().collect())
                         .unwrap_or_default();
                     let rest = match next.as_slice() {
@@ -621,6 +684,17 @@ impl Describer<'_> {
             }
             Choice::Diablerise => "Diablerize the acting vampire".into(),
         };
+        if let Some(about) = self.about.as_ref().filter(|_| {
+            self.narrate
+                && matches!(
+                    self.window,
+                    WindowLabel::PlayTerms
+                        | WindowLabel::ActionTerms
+                        | WindowLabel::ReferendumTerms
+                )
+        }) {
+            o.text = format!("{about}: {}", o.text);
+        }
         o
     }
 }
@@ -661,6 +735,32 @@ fn mode_text(card: u16, mode: u8) -> String {
     s
 }
 
+/// The mode declares a bleed (Govern the Unaligned [dom]).
+fn bleeds(card: u16, mode: u8) -> bool {
+    zvtes::cards::lookup(card)
+        .and_then(|def| def.modes.get(mode as usize))
+        .is_some_and(|m| {
+            m.effects
+                .contains(&zvtes::cards::Effect::DeclareAction(ActionKind::Bleed))
+        })
+}
+
+/// A play's mode: its index and the printed tags of its line.
+pub(crate) fn mode_view(card: u16, mode: u8) -> ModeView {
+    let lib = &LIBRARY[card as usize];
+    let printed = zvtes::cards::lookup(card)
+        .filter(|def| (mode as usize) < def.modes.len())
+        .map(|_| zvtes::cards::library_mode(card, mode as usize));
+    ModeView {
+        index: mode,
+        tags: printed
+            .and_then(|m| lib.modes.get(m))
+            .map_or(Vec::new(), |m| {
+                m.tags.iter().map(|t| t.to_string()).collect()
+            }),
+    }
+}
+
 fn capitalize(s: &str) -> String {
     let mut c = s.chars();
     match c.next() {
@@ -673,7 +773,7 @@ fn capitalize(s: &str) -> String {
 pub fn kind(c: &Choice) -> &'static str {
     match c {
         Choice::Pass => "pass",
-        Choice::BurnEdge => "burn_edge",
+        Choice::BurnEdge => "edge_pool",
         Choice::PayContest(_) => "pay_contest",
         Choice::YieldContest(_) => "yield_contest",
         Choice::Play { .. } => "play",

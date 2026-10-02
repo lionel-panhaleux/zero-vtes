@@ -128,12 +128,69 @@ Status: `todo` · `doing` · `done` · `blocked(<why>)`. Ordered by slice.
 | 2.4 | `engine/projection.ts`: view → SC mutations (moves, blood, counters, lock, pool, Edge, turn, phase); copy → card map; placement on arrival; gone cards kept as `staleCards` | done |
 | 2.5 | `EngineDecisionPanel.vue` in the right column: window, options, hover shows the cards an option names, status while bots decide, result | done |
 | 2.6 | `engine/gestures.ts`: the user's moves read as decisions (owner, 2026-09-30: every option should be reachable by a real action; the panel is the fallback) — influence / blood on an uncontrolled vampire → transfer / withdraw (amount n repeats), drag uncontrolled → ready → influence out, hand → ready → play (the minion it is dropped on: actor, else target; another player's region: that player), hand → ash heap → discard, phase / turn buttons → the pass, lock → the minion's action or block, SC's action / block / modifier / reaction declarations, crypt draw; one match is taken, several are put forward in the panel (as are the options about selected cards) | done, untested in a browser by me |
-| 2.11 | The console on the table (the free seat, bottom right, scaled with it; floating with 5 players or in focus mode); "Undo the last step" within a multi-step choice (`Session::undo`: terms, allocations, distributions) | done, position unseen by me |
-| 2.12 | A proper allocation menu for referendum terms (all recipients at once, commit at the end) — the owner's preferred fix over step-by-step + undo | todo |
-| 2.10 | Options with no gesture yet (the panel only): X values, referendum terms and votes, combat steps (strike, maneuver, press, prevent), contests, searches — find each a button or a gesture | todo |
+| 2.11 | The console on the table (the free seat, bottom right, scaled with it; floating with 5 players or in focus mode); "Undo the last step" within a multi-step choice (`Session::undo`: terms, allocations, distributions; extended in 2.15) | done, position unseen by me |
+| 2.12 | A proper allocation menu for referendum terms (all recipients at once, commit at the end) — the owner's preferred fix over step-by-step + undo. Engine: `Engine::allocation()` (read-only: points left, recipients in asking order, caps, minimum of recipients; terms, cards, shortfall). Protocol: `Out::Decision::allocation`, `Session::allocate(decision, amounts)` (checked whole, then one step per recipient the engine asks; refused amounts change nothing). Fork: steppers per recipient, "Allocate" once valid; the step options hidden meanwhile | done, unseen in a browser by me |
+| 2.13 | All votes one way (owner, 2026-09-30: "the most common way to work"): `Out::Decision::votes` (totals each way), `Session::vote_all(decision, favor)` — a standing order for the rest of the polling casting the seat's vampires' votes and its calling card's vote as each turn comes; the Edge, cards burned for a vote, plays and abilities stay single options. Fork: "All my votes for (n)" / "against (n)" | done, unseen in a browser by me |
+| 2.10 | Options with no gesture yet (the panel only): each kind given a gesture, an on-card button or its place in the panel — table below | done, unseen in a browser by me; superseded by 2.14–2.17 (the table as the interface): the on-card buttons stay for verbs a click can't say, picks become candidate glows |
 | 2.7 | `engine/driver.ts` (the Conductor's counterpart): paced bot decisions narrated in the log, replay export link; SC autosave off for engine games | done |
 | 2.8 | Dev soak: `VITE_ENGINE_AUTOPLAY` plays the user's seat at random and checks the game state against every view (`Projection.check`) | done |
 | 2.9 | Visual pass in a visible tab: layout of minions/attached cards, panel height vs log, 4-seat readability | todo (owner's first look) |
+
+#### The table as the interface (owner, 2026-10-01)
+
+The engine knows exactly what can be done: it replaces SC's guesses
+(`selfCanPlay`'s hand glow, the declaration's valid targets, the usage
+editor's chips) instead of a list of options. The user looks at the
+table, not at a console:
+
+- **Highlights carry the meaning**, one look per kind: *usable* (a card
+  in hand that can be played, a minion with something to do), *candidate*
+  (click to choose it: who plays the card, its target, a pick), *staged*
+  (the card being played, its choice under way).
+- **A click narrows the engine's options** (each one is a whole
+  combination: card, mode, actor, target). A card in hand clicked keeps
+  its plays; then whatever still differs is asked, in table order: the
+  minion playing it (candidates glow), the Disciplines and level (chips),
+  the target (candidates glow; a seat or "no target" as buttons). One
+  option left: it is played. Escape or a right click cancels. Drags
+  (2.6) stay: two ways to say the same.
+- **The central box** (SC's `CentralBox`) shows what is going on (the
+  action, the referendum, the combat: projected onto SC's own panels) and
+  the choice under way (the staging prompt, chips, allocation, votes, X).
+  SC's controls there that mean an engine option are that option; the
+  others are hidden or read-only in engine games.
+- **The console shrinks** to the fallback: options with no table object
+  (a clan, a seat, searches) in a collapsed list, Undo, the replay link.
+- **A mis-click is taken back**: `Session::undo` extended to the user's
+  last decision while nothing else was decided since (nothing revealed).
+
+| # | Item | Status |
+|---|---|---|
+| 2.14 | Plays from hand: engine-driven hand glow, click → staging (actor, mode chips, target) with candidate glows on the table, the prompt in the central box; protocol: `mode` and its printed `tags` on play options (checked against the text in `tests/session.rs`). Fork: `engine/interaction.ts` (the narrowing, the highlights), glows in `CardInHandGO`/`CardGO` (orange usable, blue candidate, yellow staged; SC's glow preferences don't apply in engine games), clicks in `useCardClick` (released without a drag; a glowing card is not selected), `central/EngineStaging.vue`; dev autoplay plays cards by narrowing now and then (throws if a step doesn't narrow) | done, unseen in a browser by me |
+| 2.15 | Minions: those with something to do glow; a click opens SC's minion menu (Bleed, Hunt, Card In Hand…) with what the engine doesn't offer greyed; picks (choose a minion or a card) as candidates; undo of the last decision. Protocol: `Session::undo` takes back the seat's last decision when nothing was decided since (no bot, no standing vote order) and nothing hidden was revealed to it (`view::knowledge`: how many of each card it sees; a draw or a reveal grows it); the sweep checks every undo independently (the last decision was the human's, it drew nothing, the same decision and options are asked again: 952 at 24 seeds). Fork: highlights `actor` (orange) and picks as candidates (blue, the 2.10 buttons for them dropped), a "card" step first in the narrowing (what a clicked minion plays: the cards glow), `primedMinion` = a minion with actions offered, SC's menu entries narrowed to the engine's options (greyed when none) plus "Other Actions", SC's Cancel (⟵ / Backspace) = the engine undo, a "Click a glowing card" prompt for picks | done, unseen in a browser by me |
+| 2.16 | Central box: the action / referendum / combat projected onto SC's panels (protocol: stealth, intercept, bleed amount, block attempts, each seat's votes); SC's controls mapped or hidden; the allocation, votes and X menus moved there. Protocol: `ActionView` + `source`, `step`, `stealth`, `bleed`, `blocker`, `intercept`, `declined`; `ReferendumView` + `step`, `votes` (each vote cast: seat, source, minion or card, side, n, canceled; the sweep checks they add up to the tally); a `cast_votes` option carries its votes (`amount`). Fork: the projection writes SC's `action` (kind → SC's action type; the action card from limbo; block decisions; impulse = the seat the engine asks) and `referendum` (each vampire's votes, the rest per Methuselah), display only; `ActionInfos` read-only with the engine's pass as its one button; `ReferendumInfos` read-only; SC's vote boxes under the vampires the engine lets vote (its sides, its count); "Attempt Block" under the minions it offers a block with; SC's usage editor hidden; `central/EngineChoices.vue` (allocation, all votes one way, X, combat: no longer in the console); the 2.15 card-granted actions: the card glows, a click asks who takes it | done, unseen in a browser by me |
+| 2.17 | The console as the fallback: collapsed option list, undo, replay | done, unseen in a browser by me: the console lists the options with no place on the table or in the central box (`interaction.ts` `answeredOnTable`: glowing cards, minion menus, on-card buttons, vote boxes, Attempt Block, the action's / referendum's pass, the central box's menus) and those the last gesture may mean; "All options (n)" unfolds the rest; undo and replay as before |
+| 2.18 | What the bots do, told (owner, after a first game: "hard to track what the bots are doing"). Protocol: every `Out` carries `events` — what happened since the previous message, the engine's elided run included: how an action ended (`Engine::last_outcome`: succeeds, is blocked by X, fails, fizzles), a referendum's result and tally, pool and blood moved, minions and cards in and out of play, torpor, ousts (`narrate.rs`: the table marked after each decision and at the next message; a decision's own effect is its text). Narration: a bleed card says its target ("Play Govern the Unaligned at inferior [dom] with Yael → Bot 2"); terms decisions (of a play, an action, a referendum) name their card ("Kine Resources Contested: Allocate 3 to Bot 2"; the "then …" tail only for the one allocating); a vampire's votes their count. The sweep checks every action's and referendum's end is told with the next message. `ActionView` + the action card's `mode` and `x`, its target when the card has one; `ReferendumView` + the terms chosen (`seats`, `minions`, `clan`, `cards`, `card_allocated`). Fork: events in the log as "Table"; SC's action panel shows the card's Disciplines (icons, level) and X; the referendum panel its card, caller and terms | done, unseen in a browser by me |
+| 2.19 | Second live game's feedback (owner). Engine: the Edge's unlock-phase pool keeps the Edge ("if you have the Edge, you may gain 1 pool"; once a phase, `Flow::Abilities::edge_taken`; the scripted bots take it; `Choice::BurnEdge` keeps its name, wire kind `edge_pool`, text "Gain 1 pool (the Edge)"); goldens re-blessed. Protocol: a card's ability names the vampire it is on and what it moves ("Use Yael's Blood Doll: 1 blood to pool"; `OptionView.minion` the host, `blood` ±n); the replay reader (`examples/replay.rs`, `Session::show_all`). Fork: blood added to or taken off a vampire is its Blood Doll's ability that way; pool gained is the Edge's pool; the central box scrolls (a referendum's terms, votes and pass overflowed), the pass in the votes panel; the card to play and a pick's cards also as buttons in the central box | done, unseen in a browser by me |
+| 2.20 | Third game's feedback (owner). Engine: "put this card on …" puts the card itself in play, out of the ash heap (rules-qa 47.1: Touch of Oblivion, Sculpt the Flesh, Disarm, Dogged Pursuit, Melange; Pass Through Shadow already, 46.4) — the table showed it in the ash heap with its effect invisible; goldens re-blessed. "Oblivion" (master, 102277) not loading in SC: its image and cardbase entry are there, cause unknown — needs what the owner saw | engine done; Oblivion open |
+
+#### 2.10 — where each option kind is answered
+
+The 58 option kinds (`describe.rs`), by how the user reaches them. Rule: a
+table move where SC has the UI for it; no imitation of a UI SC lacks
+(combat is a stub there): buttons instead.
+
+| Kinds | How | Status |
+|---|---|---|
+| play, take_action, declare_block, discard, bottom, burn_in_play, transfer, withdraw, influence_out, draw_crypt, draw_library, edge_pool, cast_edge, burn_for_vote, burn_pool, pay_contest, yield_contest, pay_block_toll, pay_to_cancel, pass | Table moves (2.6) | done |
+| choose_minion, choose_card, take_equipment, slot, resolve_rider, resolve_printed, burn_blood_from, burn_blood_for_intercept, unlock_for_blood, burn_corruption_to_fail, burn_corruption_to_unlock, draw_stored, round_strike (at a card), burn_weapon_strike, cast_votes | **On-card buttons**: SC's floating actions (as its Bleed/Hunt/Block) under the card the option is about, while that decision is pending; the panel keeps them too | done, unseen |
+| set_x | **Stepper** in the panel: the offered values, then "X = n" | done, unseen |
+| hand_strike, round_strike (no card), strike_combat_ends, committed_strike, use_maneuver, use_press, use_prevent, take_damage_after_resolution, gain_strength, burn_blood_to_avoid, continue_action, diablerise | **Combat strip** in the panel: who fights, round, range, then these buttons; strike cards and maneuvers from hand stay plays (drag them) | done, unseen |
+| choose_seat | Panel (a seat is not a card; a button on each player's pool widget would do: later if missed) | panel |
+| find_card, take_from, ash_vampire, employ_from_hand (searches: the cards are off the table) | Panel; a search viewer (the library or ash heap opened, a card dragged out) is real work: after M1 if searches feel bad | panel |
+| choose_clan, pay_rescue, use_ability | Panel for the first two (no table object); use_ability is reached by locking the card (a minion's, a location's, a master card's) and in the panel | panel / done |
+| allocate_to, allocate_to_card | Allocation menu (2.12) | done |
+| cast_votes, cast_card_vote | All votes one way (2.13); per vampire: on-card buttons. **Owner's call**: SC's own referendum widget (`ReferendumVoteBoxes`, `REFERENDUM_castVote` = cast_votes 1:1) needs the projection to drive SC's referendum state (call, tally, close) from `view.referendum` | open |
 
 ### Slice 3 — network policy in the browser (DESIGN slice 17c)
 
@@ -151,7 +208,7 @@ Status: `todo` · `doing` · `done` · `blocked(<why>)`. Ordered by slice.
 | # | Item | Status |
 |---|---|---|
 | 4.1 | Auto-pass preferences per window / per card; "stops" | todo |
-| 4.2 | Narration events ("Bot 2 bleeds you for 2") where diffs fall short | todo |
+| 4.2 | Narration events ("Bot 2 bleeds you for 2") where diffs fall short | first cut in 2.18 (events); combat damage, cards canceled, what a card did in words: todo |
 | 4.3 | Findings-driven items | todo |
 
 ### Slice 5 — upstream (M2)
@@ -170,7 +227,8 @@ Status: `todo` · `doing` · `done` · `blocked(<why>)`. Ordered by slice.
 
 - `Session::advance()` → `Out`: `decision` (a human seat must answer; repeated
   until answered), `decided` (one decision taken — a bot's now, or the human's
-  answer), `over`. Every message carries `view`: the viewer's table *as of that
+  answer), `over`. Every message carries `events` (2.18: what happened
+  since the previous message, before it) and `view`: the viewer's table *as of that
   decision* (elided steps applied), so a client diffs its last view against it,
   animates, then narrates or asks. `answer(decision, index)` refuses a stale
   number.
@@ -185,12 +243,21 @@ Status: `todo` · `doing` · `done` · `blocked(<why>)`. Ordered by slice.
   other style is installed by the host (`Session::set_agent`) — the network
   policy's entry point (slice 3).
 - Dev tools: `cargo run -p zvtes-protocol --example narrate -- [seed] [n]`
-  prints a game as the human reads it.
+  prints a game as the human reads it. A game exported from the fork
+  ("Export replay") reads back with `cargo run -p zvtes-protocol --profile ci
+  --example replay -- <replay.json> [--options] [--table N]...`: every
+  decision of every seat, its choice and the events, every card shown;
+  `--options` lists each decision's options, `--table N` prints the table
+  (pools, minions, blood, cards, hands) before decision N.
 
 ### Checks
 
 - `cargo test --profile ci -q` covers the protocol (default member);
   `PROTOCOL_SEEDS=n` deepens `tests/session.rs`.
+- `tests/session.rs` `allocations_and_vote_orders_at_once`: every seat
+  human on the decks holding allocation cards; engine-side shapes (cards,
+  shortfall caps) in `tests/politics.rs` / `tests/precon.rs`
+  (`…allocation…_read_whole`).
 - `cargo clippy -p zvtes-wasm --profile ci -- -D warnings`;
   `wasm-pack build crates/wasm --target nodejs --out-dir ../../target/wasm-node
   && node crates/wasm/tests/smoke.mjs`.
@@ -279,6 +346,10 @@ Before M1 (from the narration example):
   it paid to (policy quality — the checkpoint predates the deck tokens).
 - Log noise: every bot pass is narrated, and SC logs each mutation beside the
   narration (slice 4: fold passes, drop redundant lines).
+- All votes one way casts one source per rotation (polling commits one
+  source per decision): the order answers the seat's later turns itself.
+  A vote bonus reaches only a vampire that has not cast yet — play cards
+  before ordering the votes (the panel says so).
 - Not reached by the sweep yet: a banished vampire's face-down cards (out of
   play, shown nowhere) — if the bounds ever fail there, list them under the
   uncontrolled slot.

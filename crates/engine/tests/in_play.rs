@@ -1020,12 +1020,12 @@ fn dreams_of_the_sphinx_edge_lock_in_own_unlock_phase() {
     assert_eq!(pool(&e), vec![11, 10, 10]);
     assert_eq!(e.state.cards[dreams as usize].counters, 1);
     assert!(e.state.cards[dreams as usize].locked);
-    // The Edge, kept for the lock, is burned afterward in the same unlock
-    // phase: +2 pool in all.
+    // The Edge's own pool in the same unlock phase: +2 pool in all, the
+    // Edge kept ("if you have the Edge, you may gain 1 pool").
     expect(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
     pick(&mut e, Choice::BurnEdge);
     assert_eq!(pool(&e), vec![12, 10, 10]);
-    assert!(!e.state.seats[0].has_edge);
+    assert!(e.state.seats[0].has_edge);
 }
 
 // "You can lock this card to add 1 blood to a vampire in your uncontrolled

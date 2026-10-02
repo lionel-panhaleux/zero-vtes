@@ -69,6 +69,29 @@ impl Game {
             .map_err(|e| JsError::new(&json(&e)))
     }
 
+    /// Answer the allocation under way at once (a `decision` message's
+    /// `allocation`): `amounts` in its recipients' order. The `Decided`
+    /// messages (a JSON array), one per step the engine asked. Throws the
+    /// `AnswerError` (JSON).
+    pub fn allocate(&mut self, decision: u32, amounts: &[u8]) -> Result<String, JsError> {
+        self.session
+            .allocate(decision as u64, amounts)
+            .map(|o| json(&o))
+            .map_err(|e| JsError::new(&json(&e)))
+    }
+
+    /// Cast all the votes one way (a `decision` message's `votes`): this
+    /// one now, the others as their turn comes in this polling (`advance`
+    /// answers them). The `Decided` message (JSON). Throws the
+    /// `AnswerError` (JSON).
+    #[wasm_bindgen(js_name = voteAll)]
+    pub fn vote_all(&mut self, decision: u32, favor: bool) -> Result<String, JsError> {
+        self.session
+            .vote_all(decision as u64, favor)
+            .map(|o| json(&o))
+            .map_err(|e| JsError::new(&json(&e)))
+    }
+
     /// Take back the previous step of the multi-step choice under way (a
     /// `decision` message says when: `undo`); `advance` then asks it again.
     /// Throws the `AnswerError` (JSON).

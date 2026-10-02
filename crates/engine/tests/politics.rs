@@ -427,6 +427,65 @@ fn parity_shift_chooses_a_richer_methuselah_and_reallocates_a_shortfall() {
     assert_eq!(e.state.seats[0].half_vps, 2);
 }
 
+// `Engine::allocation`: the allocation under way whole, for a client's
+// menu (docs/human-play.md 2.12) — points left, recipients in the order
+// the decisions ask them, caps and the minimum of recipients; the terms'
+// allocation (Camarilla's Iron Fist: two or more Methuselahs), and a
+// shortfall's re-allocation (Parity Shift: capped by the terms).
+#[test]
+fn the_allocation_under_way_is_read_whole() {
+    use zvtes::referendum::{Allocation, Recipient};
+    let seats = |s: &[u8]| s.iter().map(|&s| Recipient::Seat(SeatId(s))).collect();
+    let Table { mut e, alexa, .. } = table();
+    hand(&mut e, 0, &["Camarilla's Iron Fist"]);
+    pick(&mut e, play(0, 0, alexa));
+    expect(&mut e, SeatId(0), WindowLabel::ReferendumTerms);
+    assert_eq!(
+        e.allocation(),
+        Some(Allocation {
+            points: 5,
+            recipients: seats(&[1, 2]),
+            caps: vec![None, None],
+            min_nonzero: 2,
+        })
+    );
+    pick(&mut e, alloc(1, 2));
+    // The last recipient's 3 are forced (elided): polling, no allocation.
+    expect(&mut e, SeatId(0), WindowLabel::ReferendumPolling);
+    assert_eq!(e.allocation(), None);
+
+    let Table { mut e, alexa, .. } = table();
+    e.state.seats[0].pool = 5;
+    e.state.seats[2].pool = 4;
+    hand(&mut e, 0, &["Parity Shift"]);
+    pick(&mut e, play(0, 0, alexa));
+    expect(&mut e, SeatId(0), WindowLabel::ReferendumTerms);
+    assert_eq!(
+        e.allocation(),
+        Some(Allocation {
+            points: 3,
+            recipients: seats(&[0, 2]),
+            caps: vec![None, None],
+            min_nonzero: 1,
+        })
+    );
+    pick(&mut e, alloc(0, 2));
+    expect(&mut e, SeatId(0), WindowLabel::ReferendumPolling);
+    pick(&mut e, votes(alexa, true));
+    e.state.seats[1].pool = 2;
+    close_polling(&mut e);
+    expect(&mut e, SeatId(0), WindowLabel::ReferendumTerms);
+    assert_eq!(
+        e.allocation(),
+        Some(Allocation {
+            points: 2,
+            recipients: seats(&[0, 2]),
+            caps: vec![Some(2), Some(1)],
+            min_nonzero: 0,
+        })
+    );
+}
+
 // Parity Shift whose richer Methuselah is no longer richer when its terms
 // are chosen (Tension in the Ranks burning their pool as an ally burns, in
 // play): no legal term, the action fizzles — successful, no referendum

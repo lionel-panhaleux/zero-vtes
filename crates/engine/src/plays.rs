@@ -5311,6 +5311,7 @@ impl Engine {
         &self,
         window: &OrderedWindow,
         pending: &[Pending],
+        edge_taken: bool,
     ) -> Option<DecisionRequest> {
         let seat = window.current()?;
         let mut options = Vec::new();
@@ -5334,9 +5335,10 @@ impl Engine {
         } else {
             options.push(Choice::Pass);
         }
-        // The Edge may still be burned here, ordered among the other unlock
-        // effects (Dreams of the Sphinx's Edge lock first, then the pool).
-        if seat == self.state.active && self.state.seats[seat.index()].has_edge {
+        // The Edge's pool ("if you have the Edge, you may gain 1 pool"), once,
+        // ordered among the other unlock effects (Dreams of the Sphinx's
+        // Edge lock first, then the pool).
+        if seat == self.state.active && self.state.seats[seat.index()].has_edge && !edge_taken {
             options.push(Choice::BurnEdge);
         }
         options.extend(self.ability_options(seat, Window::UnlockPhaseAny));
@@ -5388,6 +5390,7 @@ impl Engine {
         &mut self,
         mut window: OrderedWindow,
         mut pending: Vec<Pending>,
+        mut edge_taken: bool,
         choice: &Choice,
     ) {
         match choice {
@@ -5413,10 +5416,11 @@ impl Engine {
                 }
                 window.play();
             }
+            // The Edge's pool (the Edge is kept).
             Choice::BurnEdge => {
                 let s = self.state.active;
-                self.state.seats[s.index()].has_edge = false;
                 self.state.seats[s.index()].pool += 1;
+                edge_taken = true;
                 window.play();
             }
             // A burn-option discard, replaced.
@@ -5439,6 +5443,7 @@ impl Engine {
                 let resume = Flow::Abilities {
                     window: window.clone(),
                     pending: pending.clone(),
+                    edge_taken,
                 };
                 if self.use_ability(*source, *ability, *actor, *target, resume) {
                     return; // ousted (the turn has passed) or terms pending
@@ -5486,7 +5491,11 @@ impl Engine {
                     });
                 }
                 window.play();
-                let resume = Flow::Abilities { window, pending };
+                let resume = Flow::Abilities {
+                    window,
+                    pending,
+                    edge_taken,
+                };
                 // Sets the flow: the resume, a choice window the rider
                 // needs, or the next turn (the active Methuselah ousted).
                 self.resolve_unlock_rider(CardId(*card), resume);
@@ -5494,7 +5503,11 @@ impl Engine {
             }
             other => unreachable!("illegal ability choice {other:?}"),
         }
-        self.flow = Flow::Abilities { window, pending };
+        self.flow = Flow::Abilities {
+            window,
+            pending,
+            edge_taken,
+        };
     }
 
     /// Resolve a card in play's "during their unlock phase" rider on the

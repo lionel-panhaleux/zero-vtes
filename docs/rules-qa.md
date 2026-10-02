@@ -69,7 +69,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7
 - **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6
 - **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4
-- **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6
+- **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6, 46.4, 47.1
 - **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7
 - **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9
 - **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4
@@ -372,7 +372,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 
 ## Batch 21 — combat cards
 
-**21.1** A strike works at close range only unless it says otherwise (Touch of Oblivion [obl], Sculpt the Flesh [PRO]: close range). Such a strike's "put this card on the opposing minion" happens only if it lands (dodge or early combat end: no effect). **Card destination rule:** only action cards wait in limbo (until successful or blocked); every other card goes to the ash heap as it resolves unless its effect puts it in play — even when part of its effect lingers or is delayed (cards left on the table are display only). The lingering effect applies regardless; burning it ends the effect and moves no card (Touch of Oblivion, Sculpt the Flesh). Revised by 46.4 for Pass Through Shadow [OBL].
+**21.1** A strike works at close range only unless it says otherwise (Touch of Oblivion [obl], Sculpt the Flesh [PRO]: close range). Such a strike's "put this card on the opposing minion" happens only if it lands (dodge or early combat end: no effect). **Card destination rule:** only action cards wait in limbo (until successful or blocked); every other card goes to the ash heap as it resolves unless its effect puts it in play — even when part of its effect lingers or is delayed (cards left on the table are display only). The lingering effect applies regardless; burning it ends the effect and moves no card (Touch of Oblivion, Sculpt the Flesh). Revised by 47.1 (after 46.4): a card whose text puts it in play ("put this card on …") goes there itself, out of the ash heap — the general rule for all such cards, future ones included.
 
 **21.2** Touch of Oblivion's "instead of unlocking as normal" (advanced rules §5.2.2 substitution): the minion burns a counter even if already unlocked; one kept from unlocking by another effect (Stolen Police Cruiser) burns none that phase; at 0 counters the card is burned and the minion unlocks normally from the next unlock phase.
 
@@ -801,3 +801,7 @@ Owner ruled 46.1–46.4 from play (2026-09-30).
 **46.3** "You can lock this card" on a location in play is its controller's to use (Power Structure, Elysium: The Palace of Versailles, Ventrue Headquarters): no other Methuselah locks it, in any referendum.
 
 **46.4** Pass Through Shadow [OBL] ("after combat ends, put this card on this vampire"): the card itself goes on the vampire after combat — out of the ash heap it went to as it resolved — and burning it for +1 stealth sends it back there (owner, 2026-09-30; revises 21.1 for this card). Touch of Oblivion and Sculpt the Flesh keep 21.1 until the owner says otherwise.
+
+## Batch 47 — found by the owner's second game (slice 17e)
+
+**47.1** "Put this card on …" puts the card itself in play, out of the ash heap it went to as it resolved (owner, 2026-10-01, from play: Touch of Oblivion [obl]; generalizes 46.4, revises 21.1). **General rule: it applies to every card, present and future, whose text puts the card itself on a minion or in play — never an effect-only stand-in.** Today: Touch of Oblivion [obl] and Sculpt the Flesh (on the opposing minion, if the strike lands), Disarm (on the opposing vampire), Pass Through Shadow [OBL] (after combat), Dogged Pursuit [ANI] (if the vampire does not block), Melange [AUS] (on the acting minion, if the vampire blocks). Burned — counters run out, a cost paid with it — it goes back to the ash heap. Its effects are unchanged.

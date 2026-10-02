@@ -4,11 +4,14 @@
 //! layout serialized: clients depend on this shape only.
 
 use serde::{Deserialize, Serialize};
+use zvtes::actions::ActionState;
 use zvtes::cards::Target;
 use zvtes::crypt::{Title, CRYPT};
+use zvtes::decision::ActionKind;
 use zvtes::game::{Engine, Phase};
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::library::LIBRARY;
+use zvtes::referendum::{RefStep, Source};
 use zvtes::state::{CardId, GameState, MinionKind, HIDDEN};
 
 use crate::track::{Copies, Face, Key, Layout, SeatZone, Tracker, ZoneId};
@@ -138,6 +141,33 @@ pub struct ActionView {
     pub card: Option<u32>,
     pub target: Option<TargetView>,
     pub bleed_target: Option<u8>,
+    /// The card in play granting the action (engine card id): a location's
+    /// action, an equipment's.
+    #[serde(default)]
+    pub source: Option<u32>,
+    /// Where it stands: "announced", "open" (blocks may be attempted),
+    /// "attempt" (a block attempted), "declined" (no more blocks), "would
+    /// succeed", "blocked", "after combat", "resolved".
+    #[serde(default)]
+    pub step: String,
+    #[serde(default)]
+    pub stealth: u8,
+    /// The bleed amount, for a bleed.
+    #[serde(default)]
+    pub bleed: Option<u8>,
+    /// The minion attempting the block, or that blocked, and its intercept.
+    #[serde(default)]
+    pub blocker: Option<u32>,
+    #[serde(default)]
+    pub intercept: Option<u8>,
+    /// The Methuselahs who declined to block.
+    #[serde(default)]
+    pub declined: Vec<u8>,
+    /// The action card's mode (its Disciplines and level) and X, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<crate::describe::ModeView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub x: Option<u8>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -157,6 +187,42 @@ pub struct ReferendumView {
     /// allocated (seat, points).
     pub chosen: Option<u8>,
     pub allocated: Vec<(u8, u8)>,
+    /// The other terms chosen: Methuselahs, minions, a clan, cards in play
+    /// (engine card ids) and the points they got.
+    #[serde(default)]
+    pub seats: Vec<u8>,
+    #[serde(default)]
+    pub minions: Vec<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clan: Option<String>,
+    #[serde(default)]
+    pub cards: Vec<u32>,
+    #[serde(default)]
+    pub card_allocated: Vec<(u32, u8)>,
+    /// "terms", "polling", "shortfall".
+    #[serde(default)]
+    pub step: String,
+    /// Every vote cast so far, in order.
+    #[serde(default)]
+    pub votes: Vec<VoteView>,
+}
+
+/// Votes cast: by whom, from what, which way, how many.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct VoteView {
+    pub seat: u8,
+    /// "vampire" (`minion` casts them), "printed" (votes printed on
+    /// `minion` it does not cast), "edge", "card" (a political action
+    /// card's), "in_play" (a card in play's: `card_id`).
+    pub source: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub minion: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_id: Option<u32>,
+    pub favor: bool,
+    pub n: u8,
+    /// Canceled (an abstention): not tallied.
+    pub canceled: bool,
 }
 
 pub fn phase_name(p: Phase) -> &'static str {
@@ -363,8 +429,25 @@ pub fn table_view(e: &Engine, viewer: Option<SeatId>, tracker: &mut Tracker) -> 
             acting: a.acting.0,
             kind: crate::describe::action_kind(a.kind).into(),
             card: a.card.as_ref().map(|p| LIBRARY[p.card as usize].id),
-            target: TargetView::of(a.target),
+            // A granted action's target, or the action card's.
+            target: TargetView::of(a.target)
+                .or_else(|| a.card.as_ref().and_then(|p| TargetView::of(p.target))),
             bleed_target: a.bleed_target.map(|s| s.0),
+            source: match a.source {
+                Some(zvtes::cards::AbilitySource::Card(c)) => Some(c.0),
+                _ => None,
+            },
+            step: action_step(a.state).into(),
+            stealth: a.stealth(&e.state),
+            bleed: (a.kind == ActionKind::Bleed).then(|| a.bleed_amount(&e.state)),
+            blocker: blocker(a.state).map(|m| m.0),
+            intercept: blocker(a.state).map(|m| a.intercept_of(&e.state, m)),
+            declined: a.declined.iter().map(|s| s.0).collect(),
+            mode: a
+                .card
+                .as_ref()
+                .map(|p| crate::describe::mode_view(p.card, p.mode)),
+            x: a.card.as_ref().map(|p| p.x).filter(|&x| x > 0),
         }),
         combat: e.combat().map(|c| CombatView {
             minions: [c.sides[0].minion.0, c.sides[1].minion.0],
@@ -386,8 +469,62 @@ pub fn table_view(e: &Engine, viewer: Option<SeatId>, tracker: &mut Tracker) -> 
                 votes_against: tally(false),
                 chosen: r.terms.chosen.map(|s| s.0),
                 allocated: r.terms.alloc.iter().map(|&(s, n)| (s.0, n)).collect(),
+                seats: r.terms.seats.iter().map(|s| s.0).collect(),
+                minions: r.terms.minions.iter().map(|m| m.0).collect(),
+                clan: r.terms.clan.map(Into::into),
+                cards: r.terms.cards.iter().map(|c| c.0).collect(),
+                card_allocated: r.terms.card_alloc.iter().map(|&(c, n)| (c.0, n)).collect(),
+                step: match r.step {
+                    RefStep::Terms => "terms",
+                    RefStep::Polling => "polling",
+                    RefStep::Shortfall { .. } => "shortfall",
+                }
+                .into(),
+                votes: r
+                    .records
+                    .iter()
+                    .map(|v| {
+                        let (source, minion, card_id) = match v.source {
+                            Source::Vampire(m) => ("vampire", Some(m.0), None),
+                            Source::Printed(m) => ("printed", Some(m.0), None),
+                            Source::Edge(_) => ("edge", None, None),
+                            Source::Card(_) => ("card", None, None),
+                            Source::InPlay(c) => ("in_play", None, Some(c.0)),
+                        };
+                        VoteView {
+                            seat: v.seat.0,
+                            source: source.into(),
+                            minion,
+                            card_id,
+                            favor: v.favor,
+                            n: v.n,
+                            canceled: v.canceled,
+                        }
+                    })
+                    .collect(),
             }
         }),
+    }
+}
+
+fn action_step(s: ActionState) -> &'static str {
+    match s {
+        ActionState::AsAnnounced => "announced",
+        ActionState::Open => "open",
+        ActionState::Attempt(_) => "attempt",
+        ActionState::Declined => "declined",
+        ActionState::WouldSucceed => "would succeed",
+        ActionState::Blocked(_) => "blocked",
+        ActionState::AfterCombat => "after combat",
+        ActionState::AfterResolution => "resolved",
+    }
+}
+
+/// The minion attempting the block, or that blocked.
+pub(crate) fn blocker(s: ActionState) -> Option<MinionId> {
+    match s {
+        ActionState::Attempt(m) | ActionState::Blocked(m) => Some(m),
+        _ => None,
     }
 }
 
@@ -527,4 +664,42 @@ fn seat_view(st: &GameState, lay: &Layout, copies: &Copies, s: usize) -> SeatVie
         in_play,
         limbo: z(SeatZone::Limbo),
     }
+}
+
+/// What a seat knows of the cards: how many of each card it sees (crypt
+/// or library, KRCG id), wherever they are. It grows when something hidden
+/// is revealed to it (a draw, a card turned face up, a random discard);
+/// moving a known card leaves it as it was.
+pub type Knowledge = std::collections::HashMap<(bool, u32), u32>;
+
+pub fn knowledge(e: &Engine, seat: SeatId) -> Knowledge {
+    fn walk(v: &serde_json::Value, k: &mut Knowledge) {
+        match v {
+            serde_json::Value::Object(o) => {
+                if let (Some(_), Some(id), Some(crypt)) = (
+                    o.get("copy"),
+                    o.get("id").and_then(|i| i.as_u64()),
+                    o.get("crypt").and_then(|c| c.as_bool()),
+                ) {
+                    *k.entry((crypt, id as u32)).or_default() += 1;
+                }
+                o.values().for_each(|v| walk(v, k));
+            }
+            serde_json::Value::Array(a) => a.iter().for_each(|v| walk(v, k)),
+            _ => {}
+        }
+    }
+    let view = table_view(e, Some(seat), &mut Tracker::default());
+    let mut k = Knowledge::new();
+    walk(
+        &serde_json::to_value(&view).expect("views serialize"),
+        &mut k,
+    );
+    k
+}
+
+/// `now` knows nothing `before` did not.
+pub fn learned_nothing(before: &Knowledge, now: &Knowledge) -> bool {
+    now.iter()
+        .all(|(card, &n)| before.get(card).copied().unwrap_or(0) >= n)
 }

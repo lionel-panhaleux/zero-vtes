@@ -111,6 +111,8 @@ pub(crate) enum Flow {
         window: OrderedWindow,
         /// Mandatory unlock-phase effects the active seat has yet to settle.
         pending: Vec<Pending>,
+        /// The Edge's pool was gained this phase (once: the Edge stays).
+        edge_taken: bool,
     },
     /// Minion phase: offer actions for the active seat's ready minions.
     MinionPhase,
@@ -541,7 +543,11 @@ impl Engine {
                 picked,
             } => Some(self.action_terms_request(*minion, *giver, picked)),
             Flow::PhaseRotation { resume, window } => self.phase_rotation_request(resume, window),
-            Flow::Abilities { window, pending } => self.abilities_request(window, pending),
+            Flow::Abilities {
+                window,
+                pending,
+                edge_taken,
+            } => self.abilities_request(window, pending, *edge_taken),
             Flow::LibrarySearch { minion, to_hand } => Some(self.search_request(*minion, *to_hand)),
             Flow::Exchange { ash } => Some(self.exchange_request(*ash)),
             Flow::Action => self.action_request(),
@@ -707,7 +713,14 @@ impl Engine {
             (Flow::PhaseRotation { resume, window }, c) => {
                 self.phase_rotation_apply(resume, window, c)
             }
-            (Flow::Abilities { window, pending }, c) => self.abilities_apply(window, pending, c),
+            (
+                Flow::Abilities {
+                    window,
+                    pending,
+                    edge_taken,
+                },
+                c,
+            ) => self.abilities_apply(window, pending, edge_taken, c),
             (Flow::LibrarySearch { minion, to_hand }, c) => self.search_apply(minion, to_hand, c),
             (Flow::Exchange { ash }, c) => self.exchange_apply(ash, c),
             (Flow::Action, c) => self.action_apply(c),
@@ -776,6 +789,7 @@ impl Engine {
         self.flow = Flow::Abilities {
             window: OrderedWindow::new(order),
             pending,
+            edge_taken: false,
         };
     }
 
@@ -2011,7 +2025,7 @@ mod tests {
     }
 
     #[test]
-    fn edge_burn_is_offered_on_unlock() {
+    fn edge_pool_is_offered_on_unlock() {
         let mut e = bare();
         e.state.seats[0].has_edge = false;
         e.state.seats[1].has_edge = true;
@@ -2023,7 +2037,11 @@ mod tests {
         assert_eq!(req.options, vec![Choice::Pass, Choice::BurnEdge]);
         let pool = e.state.seats[1].pool;
         pick(&mut e, Choice::BurnEdge);
+        // "If you have the Edge, you may gain 1 pool": the Edge stays,
+        // the pool is gained once.
         assert_eq!(e.state.seats[1].pool, pool + 1);
-        assert!(!e.state.seats[1].has_edge);
+        assert!(e.state.seats[1].has_edge);
+        // Not offered again: the unlock phase's lone pass elides.
+        expect(&mut e, SeatId(1), WindowLabel::MinionPhase);
     }
 }

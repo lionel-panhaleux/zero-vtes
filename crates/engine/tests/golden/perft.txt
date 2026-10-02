@@ -11,11 +11,13 @@ midgame/3 depth 6: 17984 leaves
   MinionPhase 16 nodes 64 options
   ReferendumPolling 48 nodes 144 options
   ReferendumTerms 240 nodes 720 options
-midgame/5 depth 4: 2392 leaves
-  DiscardPhase 1 nodes 8 options
-  InfluenceTransfers 8 nodes 32 options
-  MasterPhase 208 nodes 888 options
-  MinionPhase 152 nodes 1832 options
+midgame/5 depth 4: 794 leaves
+  CombatPrevention 1 nodes 2 options
+  CombatStrike 1 nodes 4 options
+  DiscardPhase 23 nodes 184 options
+  InfluenceTransfers 107 nodes 686 options
+  PlayTerms 1 nodes 2 options
+  UnlockAbilities 48 nodes 96 options
 action depth 7: 3623 leaves
   ActionAfterCombat 14 nodes 28 options
   ActionAsAnnounced 2 nodes 6 options

@@ -151,6 +151,8 @@ impl Scripted {
             },
             W::UnlockAbilities => match o {
                 Choice::PayContest(_) => 10,
+                // The Edge's pool costs nothing.
+                Choice::BurnEdge => 10,
                 _ => 0,
             },
             W::DiscardPhase | W::DiscardDown => match o {

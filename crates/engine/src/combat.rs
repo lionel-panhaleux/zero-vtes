@@ -152,10 +152,6 @@ pub struct Held {
     pub mode: u8,
     pub counters: u8,
     pub minion: MinionId,
-    /// The card itself goes on the minion, taken from the ash heap it went
-    /// to as it resolved (Pass Through Shadow [OBL]; owner, 2026-09-30:
-    /// rules-qa 46.4); otherwise only its effect does (rules-qa 21.1).
-    pub card_on: bool,
 }
 
 impl Held {
@@ -167,7 +163,6 @@ impl Held {
             mode: play.mode,
             counters,
             minion,
-            card_on: false,
         }
     }
 }
@@ -1810,21 +1805,20 @@ impl Engine {
         self.push_mode_layers(w);
     }
 
-    /// The delayed effect applies on minion `on`, if still in play: an
-    /// effect-only card in play (its counters, its mode's layers), the card
-    /// itself left in the ash heap (rules-qa 21.1) — or the card itself,
-    /// out of the ash heap, when its text puts it there (rules-qa 46.4).
+    /// The card goes on minion `on`, if still in play: out of the ash heap
+    /// it went to as it resolved ("put this card on …", rules-qa 47.1, the
+    /// rule for every such card). Only if the card has left the ash heap
+    /// since, an effect-only stand-in carries its counters and layers.
     pub(crate) fn place_held(&mut self, h: Held, on: MinionId) {
         if !self.state.minions[on.index()].in_play {
             return;
         }
         let ash = &mut self.state.seats[h.seat.index()].ash;
-        let taken = h.card_on
-            && ash
-                .iter()
-                .rposition(|&c| c == h.card)
-                .map(|k| ash.remove(k))
-                .is_some();
+        let taken = ash
+            .iter()
+            .rposition(|&c| c == h.card)
+            .map(|k| ash.remove(k))
+            .is_some();
         let id = self.enter_play(crate::state::CardInPlay {
             by: Some(h.minion),
             counters: h.counters,
@@ -2400,10 +2394,7 @@ impl Engine {
             Effect::PutOnOpponentOnHit { counters } => {
                 c.sides[i].held = Some(Held::from_play(play, actor, counters));
             }
-            Effect::PutOnActorAfterCombat => c.after_combat.push(Held {
-                card_on: true,
-                ..Held::from_play(play, actor, 0)
-            }),
+            Effect::PutOnActorAfterCombat => c.after_combat.push(Held::from_play(play, actor, 0)),
             Effect::StrengthThisRound(n) => c.sides[i].strength_round += n,
             Effect::PreventThisRound(n) => c.sides[i].round_prevents += n,
             Effect::PreventEachRound(n) => {

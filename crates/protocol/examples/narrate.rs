@@ -39,7 +39,13 @@ fn main() {
     .expect("spec");
     let mut rng = Rng::new(seed);
     for _ in 0..limit {
-        match s.advance() {
+        let out = s.advance();
+        let (Out::Decision { events, .. } | Out::Decided { events, .. } | Out::Over { events, .. }) =
+            &out;
+        for e in events {
+            println!("      · {e}");
+        }
+        match out {
             Out::Decision {
                 decision,
                 seat,
@@ -56,7 +62,10 @@ fn main() {
                     println!("      {}. {}", o.index, o.text);
                 }
                 let i = rng.below(options.len());
-                if let Ok(Out::Decided { choice, .. }) = s.answer(decision, i) {
+                if let Ok(Out::Decided { choice, events, .. }) = s.answer(decision, i) {
+                    for e in events {
+                        println!("      · {e}");
+                    }
                     println!("   seat {seat} → {}", choice.text);
                 }
             }

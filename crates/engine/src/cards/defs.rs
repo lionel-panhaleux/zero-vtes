@@ -9753,8 +9753,8 @@ pub static WEATHER_CONTROL: CardDef = CardDef {
 /// vampire gets -2 strength." Played after the presses, even when the round
 /// ended early (RTR 20030519), before or after the other end-of-round
 /// cards (LSJ 20021113, ANK 20180910-1); environmental damage does not
-/// count (LSJ 20010812). The card goes to the ash heap; its effect stays on
-/// the vampire (rules-qa 21.1).
+/// count (LSJ 20010812). The card itself goes on the vampire (rules-qa
+/// 47.1).
 pub static DISARM: CardDef = CardDef {
     name: "Disarm",
     modes: &[
@@ -10168,8 +10168,9 @@ pub static FORCED_VIGILANCE: CardDef = CardDef {
 /// card on the acting minion; you still control this card. During a bleed
 /// action against the controller of the attached minion, this reacting
 /// vampire can burn this card to get +1 bleed." The card goes to the ash
-/// heap as played; its effect lands as the block does (ANK 20220805); the
-/// bleed burn only before resolution (ANK 20180531, 20231124).
+/// heap as played and on the acting minion as the block lands (ANK
+/// 20220805; rules-qa 47.1); the bleed burn only before resolution (ANK
+/// 20180531, 20231124).
 pub static MELANGE: CardDef = CardDef {
     name: "Melange",
     modes: &[

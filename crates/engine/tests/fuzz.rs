@@ -1760,6 +1760,8 @@ fuzz_tests! {
             "rider:Ravnos Carnival",
         ],
         untwin: true,
+        // Ravnos Cache's rider first comes near seed 120.
+        seeds: 240,
         ..BASE
     };
     /// Slice 11aa: the pool's last allies and equipment, Mobile HQ and Minion

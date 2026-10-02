@@ -8,14 +8,18 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use zvtes::agent::{Agent, RandomLegal};
 use zvtes::bots::{Scripted, Style};
-use zvtes::decision::{DecisionRequest, WindowLabel};
+use zvtes::cards::AbilitySource;
+use zvtes::decision::{Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::SeatId;
+use zvtes::library::LIBRARY;
+use zvtes::referendum::{Recipient, RefStep};
 
 use crate::deck::{resolve, DeckError, DeckList, Resolved};
-use crate::describe::{window_text, Describer, OptionView};
+use crate::describe::{window_text, CardRef, Describer, OptionView};
+use crate::narrate::{action_thing, minion_name, Mark};
 use crate::track::Tracker;
-use crate::view::{table_view, TableView};
+use crate::view::{knowledge, learned_nothing, table_view, Knowledge, TableView};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GameSpec {
@@ -64,8 +68,21 @@ pub enum Out {
         window: String,
         options: Vec<OptionView>,
         /// The seat's previous decision can be taken back (`Session::undo`):
-        /// a step of the choice under way (terms, an allocation).
+        /// nothing was decided since and nothing hidden revealed to it.
         undo: bool,
+        /// An allocation of points under way, whole: answered at once with
+        /// `Session::allocate` (or one recipient at a time by `options`).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        allocation: Option<AllocationView>,
+        /// The votes the seat's vampires and calling card can cast now, each
+        /// way: all of one way at once with `Session::vote_all`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        votes: Option<VoteTotals>,
+        /// What happened since the previous message, before this one
+        /// (`narrate`): an action's or a referendum's end, pool and blood
+        /// moved, minions and cards in and out of play.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        events: Vec<String>,
         view: TableView,
     },
     /// A decision was taken (by a bot, or a human's answer), as the
@@ -75,10 +92,23 @@ pub enum Out {
         seat: u8,
         window: String,
         choice: OptionView,
+        /// What happened since the previous message, before this one
+        /// (`narrate`): an action's or a referendum's end, pool and blood
+        /// moved, minions and cards in and out of play.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        events: Vec<String>,
         view: TableView,
     },
     /// The game ended: victory points per seat.
-    Over { vps: Vec<f32>, view: TableView },
+    Over {
+        vps: Vec<f32>,
+        /// What happened since the previous message, before this one
+        /// (`narrate`): an action's or a referendum's end, pool and blood
+        /// moved, minions and cards in and out of play.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        events: Vec<String>,
+        view: TableView,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -97,6 +127,48 @@ pub enum AnswerError {
     Over,
     /// Nothing to take back: only a step of the multi-step choice under way.
     NoUndo,
+    /// No allocation of points under way.
+    NoAllocation,
+    /// Amounts the allocation under way does not allow.
+    Allocation {
+        reason: String,
+    },
+    /// No vote to cast that way.
+    NoVotes,
+}
+
+/// An allocation of points under way (a referendum's terms, or a
+/// shortfall's re-allocation): every recipient still to allocate to, in
+/// the order the engine asks them. Valid amounts: all `points` given, at
+/// most `cap` to a recipient, at least `min_nonzero` recipients given
+/// some.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AllocationView {
+    pub points: u8,
+    pub recipients: Vec<RecipientView>,
+    pub min_nonzero: u8,
+}
+
+/// A Methuselah (`seat`) or a card in play (`card`: a location or an
+/// equipment).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct RecipientView {
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seat: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub card: Option<CardRef>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cap: Option<u8>,
+}
+
+/// Votes castable now in favor of and against the referendum: the seat's
+/// vampires' and its calling card's (not the Edge, a card burned for a
+/// vote, a play or an ability — those stay single options).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VoteTotals {
+    pub favor: u8,
+    pub against: u8,
 }
 
 /// A game as a replay: the spec, and every decision's option index.
@@ -109,8 +181,9 @@ pub struct Replay {
 pub struct Session {
     spec: GameSpec,
     decks: Vec<Resolved>,
-    /// Who took each logged decision, in which window.
-    history: Vec<(SeatId, WindowLabel)>,
+    /// Who took each logged decision, in which window; for a human seat,
+    /// what it knew of the cards when it was asked (`can_undo`).
+    history: Vec<(SeatId, WindowLabel, Option<Knowledge>)>,
     engine: Engine,
     agents: Vec<Option<Box<dyn Agent>>>,
     /// Who the session narrates to: the first human seat (`None`: all
@@ -119,6 +192,16 @@ pub struct Session {
     trackers: HashMap<Option<u8>, Tracker>,
     pending: Option<DecisionRequest>,
     over: Option<Vec<u32>>,
+    /// Seats casting all their votes one way (`vote_all`), for the rest of
+    /// the referendum's polling.
+    standing: Vec<(SeatId, bool)>,
+    /// The table at the last decision or message (`narrate`), and what
+    /// changed since, told with the next message.
+    mark: Option<Mark>,
+    events: Vec<String>,
+    /// The card the last decision played or used, and by whom: what the
+    /// seat's terms decisions that follow choose for.
+    about: Option<(SeatId, String)>,
 }
 
 /// The bot styles a session builds itself.
@@ -185,6 +268,10 @@ impl Session {
             trackers: HashMap::new(),
             pending: None,
             over: None,
+            standing: Vec::new(),
+            mark: None,
+            events: Vec::new(),
+            about: None,
         })
     }
 
@@ -201,35 +288,23 @@ impl Session {
         engine
     }
 
-    /// The pending decision continues a multi-step choice of the same seat
-    /// (the terms of a play or of a referendum, an allocation, a
-    /// distribution, the influence phase's transfers): its previous step
-    /// can be taken back. Nothing hidden is learned between such steps.
+    /// The pending decision is the seat's again, right after its previous
+    /// one: nothing was decided since (by a bot, or by the seat's standing
+    /// order to vote) and nothing hidden was revealed to it (a draw, a card
+    /// turned face up), so taking that decision back teaches it nothing.
     fn can_undo(&self) -> bool {
-        let multi_step = |w: WindowLabel| {
-            matches!(
-                w,
-                WindowLabel::PlayTerms
-                    | WindowLabel::ReferendumTerms
-                    | WindowLabel::Distribution
-                    | WindowLabel::ActionTerms
-                    | WindowLabel::RiderTerms
-            )
+        let (Some(req), Some((seat, _, Some(before)))) = (&self.pending, self.history.last())
+        else {
+            return false;
         };
-        match (&self.pending, self.history.last()) {
-            (Some(req), Some(&(seat, window))) => {
-                req.seat == seat
-                    && req.window == window
-                    && multi_step(window)
-                    && self.agents[seat.index()].is_none()
-            }
-            _ => false,
-        }
+        req.seat == *seat
+            && self.agents[seat.index()].is_none()
+            && !self.standing.iter().any(|&(s, _)| s == *seat)
+            && learned_nothing(before, &knowledge(&self.engine, *seat))
     }
 
-    /// Take back the previous step of the multi-step choice under way
-    /// (`Out::Decision::undo`): the game is dealt again and replayed to the
-    /// decision before — the bots decided nothing since.
+    /// Take back the seat's previous decision (`Out::Decision::undo`): the
+    /// game is dealt again and replayed to the decision before.
     pub fn undo(&mut self) -> Result<(), AnswerError> {
         self.step();
         if !self.can_undo() {
@@ -247,6 +322,9 @@ impl Session {
         self.history.pop();
         self.pending = None;
         self.over = None;
+        self.mark = None;
+        self.events.clear();
+        self.about = None;
         Ok(())
     }
 
@@ -260,13 +338,18 @@ impl Session {
             zvtes::cards::Target::Seat(s) => Some(s),
             _ => None,
         });
-        let named = choice.target.is_some();
+        let named = choice.target.is_some() || choice.text.contains('→');
         if let Some(seat) = at
             .and_then(|s| self.spec.seats.get(s.index()))
             .filter(|_| !named)
         {
             choice.text += &format!(" → {}", seat.name);
         }
+    }
+
+    /// Narrate to no seat: every card shown (a replay read to debug).
+    pub fn show_all(&mut self) {
+        self.viewer = None;
     }
 
     /// Install a bot for a seat (a style the session does not build).
@@ -297,7 +380,23 @@ impl Session {
                 Step::Decision(req) => self.pending = Some(req),
                 Step::Over(vps) => self.over = Some(vps),
             }
+            self.observe(true);
         }
+    }
+
+    /// Mark the table, telling what changed since the last mark: how an
+    /// action or a referendum ended, and (`ran`: across the engine's run,
+    /// not a decision's own effect) the rest.
+    fn observe(&mut self, ran: bool) {
+        let now = Mark::of(&self.engine);
+        if let Some(before) = &self.mark {
+            let names = self.names();
+            before.endings(&self.engine, &now, &names, &mut self.events);
+            if ran {
+                before.changes(&self.engine, &now, &names, &mut self.events);
+            }
+        }
+        self.mark = Some(now);
     }
 
     fn describer<'a>(
@@ -314,22 +413,139 @@ impl Session {
             names: &[],
             narrate,
             offered: &[],
+            about: match req.window {
+                // The political action's card, or what grants the action.
+                WindowLabel::ReferendumTerms | WindowLabel::ActionTerms => {
+                    self.engine.action().map(|a| action_thing(&self.engine, a))
+                }
+                WindowLabel::PlayTerms => self
+                    .about
+                    .as_ref()
+                    .filter(|(s, _)| *s == req.seat)
+                    .map(|(_, c)| c.clone()),
+                _ => None,
+            },
         }
+    }
+
+    /// After a decision: the card it played or used, kept through the
+    /// seat's terms decisions that follow.
+    fn remember(&mut self, req: &DecisionRequest, choice: &Choice) {
+        let e = &self.engine;
+        self.about = match *choice {
+            Choice::Play { card, .. } => {
+                let played = e.virtual_hand(req.seat)[card as usize].0;
+                Some((req.seat, LIBRARY[played as usize].name.to_string()))
+            }
+            Choice::UseAbility { source, .. } => Some((
+                req.seat,
+                match source {
+                    AbilitySource::Card(c) => LIBRARY[e.state.cards[c.index()].card as usize]
+                        .name
+                        .to_string(),
+                    AbilitySource::Vampire(m) => minion_name(e, m),
+                },
+            )),
+            _ if req.window == WindowLabel::PlayTerms => self.about.take(),
+            _ => None,
+        };
     }
 
     fn names(&self) -> Vec<String> {
         self.spec.seats.iter().map(|s| s.name.clone()).collect()
     }
 
+    /// The pending decision's options, each as `Choice`, casting votes
+    /// `favor`'s way with the votes each casts: the seat's vampires' and its
+    /// calling card's.
+    fn casts(&self, req: &DecisionRequest, favor: bool) -> Vec<(usize, u8)> {
+        let Some(ctx) = self.engine.referendum() else {
+            return Vec::new();
+        };
+        req.options
+            .iter()
+            .enumerate()
+            .filter_map(|(i, c)| match *c {
+                Choice::CastVotes { minion, favor: f } if f == favor => {
+                    Some((i, ctx.votes_cast(&self.engine.state, minion, favor)))
+                }
+                Choice::CastCardVote { favor: f } if f == favor => Some((i, 1)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn votes(&self, req: &DecisionRequest) -> Option<VoteTotals> {
+        let total = |favor| self.casts(req, favor).iter().map(|&(_, n)| n).sum::<u8>();
+        let t = VoteTotals {
+            favor: total(true),
+            against: total(false),
+        };
+        (t.favor > 0 || t.against > 0).then_some(t)
+    }
+
+    fn allocation(&self, req: &DecisionRequest, view: &TableView) -> Option<AllocationView> {
+        let a = self.engine.allocation()?;
+        // Only while the decision asks for the first recipient.
+        let asks = |r: Recipient| {
+            req.options.iter().any(|c| match (*c, r) {
+                (Choice::AllocateTo { seat, .. }, Recipient::Seat(s)) => seat == s,
+                (Choice::AllocateToCard { card, .. }, Recipient::Card(k)) => card == k.0,
+                _ => false,
+            })
+        };
+        if req.window != WindowLabel::ReferendumTerms || !asks(a.recipients[0]) {
+            return None;
+        }
+        let names = self.names();
+        let mut d = self.describer(req, view, false);
+        d.names = &names;
+        let recipients = a
+            .recipients
+            .iter()
+            .zip(&a.caps)
+            .map(|(&r, &cap)| match r {
+                Recipient::Seat(s) => RecipientView {
+                    name: d.seat_name(s),
+                    seat: Some(s.0),
+                    card: None,
+                    cap,
+                },
+                Recipient::Card(c) => RecipientView {
+                    name: d.in_play_name(c.0).into(),
+                    seat: None,
+                    card: Some(d.in_play(c.0)),
+                    cap,
+                },
+            })
+            .collect();
+        Some(AllocationView {
+            points: a.points,
+            recipients,
+            min_nonzero: a.min_nonzero,
+        })
+    }
+
+    /// A standing order to vote ends with the referendum's polling.
+    fn polling(&self) -> bool {
+        self.engine
+            .referendum()
+            .is_some_and(|r| r.step == RefStep::Polling)
+    }
+
     /// The next message: a human seat's pending decision (repeated until
     /// answered), a bot's decision (taken now), or the game's end.
     pub fn advance(&mut self) -> Out {
         self.step();
+        if !self.polling() {
+            self.standing.clear();
+        }
         let view = self.view(self.viewer);
         let Some(req) = self.pending.clone() else {
             let vps = self.over.clone().unwrap_or_default();
             return Out::Over {
                 vps: vps.iter().map(|&v| v as f32 / 2.0).collect(),
+                events: std::mem::take(&mut self.events),
                 view,
             };
         };
@@ -338,6 +554,12 @@ impl Session {
         let names = self.names();
         match self.agents[req.seat.index()].as_mut() {
             None => {
+                // The seat's standing order casts its next vote.
+                if let Some(&(_, favor)) = self.standing.iter().find(|&&(s, _)| s == req.seat) {
+                    if let Some(&(i, _)) = self.casts(&req, favor).first() {
+                        return self.answer(decision, i).expect("a vote offered");
+                    }
+                }
                 let mut d = self.describer(&req, &view, false);
                 d.names = &names;
                 d.offered = &req.options;
@@ -353,6 +575,9 @@ impl Session {
                     window,
                     options,
                     undo: self.can_undo(),
+                    allocation: self.allocation(&req, &view),
+                    votes: self.votes(&req),
+                    events: std::mem::take(&mut self.events),
                     view,
                 }
             }
@@ -363,23 +588,27 @@ impl Session {
                 d.offered = &req.options;
                 let mut choice = d.describe(idx, &req.options[idx]);
                 let had_action = self.engine.action().is_some();
+                let events = std::mem::take(&mut self.events);
+                self.remember(&req, &req.options[idx]);
                 self.engine.choose(idx);
-                self.history.push((req.seat, req.window));
+                self.history.push((req.seat, req.window, None));
                 self.aim(had_action, &mut choice);
+                self.observe(false);
                 self.pending = None;
                 Out::Decided {
                     decision,
                     seat: req.seat.0,
                     window,
                     choice,
+                    events,
                     view,
                 }
             }
         }
     }
 
-    /// Answer the pending human decision.
-    pub fn answer(&mut self, decision: u64, index: usize) -> Result<Out, AnswerError> {
+    /// The pending human decision, if `decision` is its number.
+    fn pending_human(&mut self, decision: u64) -> Result<DecisionRequest, AnswerError> {
         self.step();
         let Some(req) = self.pending.clone() else {
             return Err(AnswerError::Over);
@@ -391,6 +620,12 @@ impl Session {
         if self.agents[req.seat.index()].is_some() {
             return Err(AnswerError::NotYours { seat: req.seat.0 });
         }
+        Ok(req)
+    }
+
+    /// Answer the pending human decision.
+    pub fn answer(&mut self, decision: u64, index: usize) -> Result<Out, AnswerError> {
+        let req = self.pending_human(decision)?;
         if index >= req.options.len() {
             return Err(AnswerError::Option {
                 options: req.options.len(),
@@ -403,17 +638,109 @@ impl Session {
         d.offered = &req.options;
         let mut choice = d.describe(index, &req.options[index]);
         let had_action = self.engine.action().is_some();
+        let known = knowledge(&self.engine, req.seat);
+        let events = std::mem::take(&mut self.events);
+        self.remember(&req, &req.options[index]);
         self.engine.choose(index);
-        self.history.push((req.seat, req.window));
+        self.history.push((req.seat, req.window, Some(known)));
         self.aim(had_action, &mut choice);
+        self.observe(false);
         self.pending = None;
         Ok(Out::Decided {
             decision,
             seat: req.seat.0,
             window: window_text(req.window).to_string(),
             choice,
+            events,
             view,
         })
+    }
+
+    /// Answer the allocation under way at once (`Out::Decision::allocation`):
+    /// `amounts` in its recipients' order. The engine is asked one
+    /// recipient at a time — a recipient with a single possible amount is
+    /// not asked — so one `Decided` per step asked. Amounts the allocation
+    /// does not allow change nothing.
+    pub fn allocate(&mut self, decision: u64, amounts: &[u8]) -> Result<Vec<Out>, AnswerError> {
+        let req = self.pending_human(decision)?;
+        let view = self.view(self.viewer);
+        let a = self
+            .allocation(&req, &view)
+            .ok_or(AnswerError::NoAllocation)?;
+        let refuse = |reason: String| Err(AnswerError::Allocation { reason });
+        if amounts.len() != a.recipients.len() {
+            return refuse(format!("{} recipients", a.recipients.len()));
+        }
+        for (r, &n) in a.recipients.iter().zip(amounts) {
+            if r.cap.is_some_and(|cap| n > cap) {
+                return refuse(format!("at most {} to {}", r.cap.unwrap_or(0), r.name));
+            }
+        }
+        let total: u32 = amounts.iter().map(|&n| u32::from(n)).sum();
+        if total != u32::from(a.points) {
+            return refuse(format!("{} points to allocate, not {total}", a.points));
+        }
+        let given = amounts.iter().filter(|&&n| n > 0).count();
+        if given < usize::from(a.min_nonzero) {
+            return refuse(format!(
+                "points to at least {} of them, not {given}",
+                a.min_nonzero
+            ));
+        }
+        // The steps the engine asks, found on a copy: a valid allocation
+        // has one completion when a recipient is not asked.
+        let recipients = self.engine.allocation().expect("an allocation").recipients;
+        let mut probe = self.engine.clone();
+        let mut picks = Vec::new();
+        for (&r, &n) in recipients.iter().zip(amounts) {
+            let Step::Decision(req) = probe.run() else {
+                break;
+            };
+            let asked = req.options.iter().position(|c| match (*c, r) {
+                (Choice::AllocateTo { seat, n: m }, Recipient::Seat(s)) => seat == s && m == n,
+                (Choice::AllocateToCard { card, n: m }, Recipient::Card(k)) => {
+                    card == k.0 && m == n
+                }
+                _ => false,
+            });
+            let other = req.options.iter().any(|c| match (*c, r) {
+                (Choice::AllocateTo { seat, .. }, Recipient::Seat(s)) => seat == s,
+                (Choice::AllocateToCard { card, .. }, Recipient::Card(k)) => card == k.0,
+                _ => false,
+            });
+            match asked {
+                Some(i) => {
+                    probe.choose(i);
+                    picks.push(i);
+                }
+                None if other => {
+                    return refuse(format!("{n} is not possible for this recipient"));
+                }
+                // Not asked: its only amount.
+                None => {}
+            }
+        }
+        let mut outs = Vec::new();
+        for i in picks {
+            let decision = self.engine.log.len() as u64;
+            outs.push(self.answer(decision, i).expect("checked on a copy"));
+        }
+        Ok(outs)
+    }
+
+    /// Cast every vote the seat's vampires and calling card can cast now
+    /// `favor`'s way (`Out::Decision::votes`), and the ones they can cast
+    /// later in this polling: one commitment per decision, the others
+    /// answered as their turn comes (`advance`). The Edge, cards burned for
+    /// a vote, plays and abilities stay the seat's own decisions.
+    pub fn vote_all(&mut self, decision: u64, favor: bool) -> Result<Out, AnswerError> {
+        let req = self.pending_human(decision)?;
+        let Some(&(i, _)) = self.casts(&req, favor).first() else {
+            return Err(AnswerError::NoVotes);
+        };
+        self.standing.retain(|&(s, _)| s != req.seat);
+        self.standing.push((req.seat, favor));
+        self.answer(decision, i)
     }
 }
 

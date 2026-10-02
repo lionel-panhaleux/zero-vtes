@@ -66,6 +66,29 @@ pub struct VoteRecord {
     pub canceled: bool,
 }
 
+/// A recipient of referendum points: a Methuselah, or a card in play
+/// (Revolutionary Council's locations and equipment).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Recipient {
+    Seat(SeatId),
+    Card(crate::state::CardId),
+}
+
+/// An allocation of points under way (`Engine::allocation`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Allocation {
+    /// Points still to allocate: all of them, in the end.
+    pub points: u8,
+    /// Recipients still to allocate to, in the order the decisions ask.
+    pub recipients: Vec<Recipient>,
+    /// At most this many to each (a shortfall: what the terms gave), in
+    /// `recipients` order; `None`: no cap.
+    pub caps: Vec<Option<u8>>,
+    /// How many of `recipients` must get at least 1 point (the terms'
+    /// minimum of Methuselahs, less those given points already).
+    pub min_nonzero: u8,
+}
+
 /// Terms under construction (rulebook "The Referendum" step 1).
 #[derive(Clone, Debug, Default)]
 pub struct TermsState {
@@ -437,6 +460,74 @@ impl Engine {
             Points::Fixed(n) | Points::PoolOfChosen(n) => n,
             Points::Methuselahs => self.state.living() as u8,
         }
+    }
+
+    /// The allocation of points under way, whole (read-only: a client shows
+    /// every recipient at once; the decisions still ask one at a time):
+    /// the terms' `Allocate` or `AllocatePerChosenWithCards`, or a
+    /// shortfall's re-allocation. `None` outside those steps.
+    pub fn allocation(&self) -> Option<Allocation> {
+        let ctx = self.referendum.as_ref()?;
+        if ctx.fizzled || ctx.canceled {
+            return None;
+        }
+        let t = &ctx.terms;
+        let nonzero = |a: &[(SeatId, u8)]| a.iter().filter(|(_, n)| *n > 0).count() as u8;
+        let seats = t.pending.iter().map(|&s| Recipient::Seat(s));
+        let (points, recipients, caps, min_nonzero) = match ctx.step {
+            RefStep::Terms => match ctx.current_term()? {
+                Term::Allocate {
+                    points, min_seats, ..
+                } => {
+                    let given: u8 = t.alloc.iter().map(|(_, n)| *n).sum();
+                    (
+                        self.points_of(points) - given,
+                        seats.collect::<Vec<_>>(),
+                        vec![None; t.pending.len()],
+                        min_seats.saturating_sub(nonzero(&t.alloc)),
+                    )
+                }
+                Term::AllocatePerChosenWithCards { per } => {
+                    let given: u8 = t.alloc.iter().map(|(_, n)| *n).sum::<u8>()
+                        + t.card_alloc.iter().map(|(_, n)| *n).sum::<u8>();
+                    let any = nonzero(&t.alloc) > 0 || t.card_alloc.iter().any(|(_, n)| *n > 0);
+                    let recipients: Vec<Recipient> = seats
+                        .chain(t.card_pending.iter().map(|&c| Recipient::Card(c)))
+                        .collect();
+                    let caps = vec![None; recipients.len()];
+                    (
+                        per * t.minions.len() as u8 - given,
+                        recipients,
+                        caps,
+                        u8::from(!any),
+                    )
+                }
+                _ => return None,
+            },
+            RefStep::Shortfall { points } => {
+                let cap = |s: SeatId| t.alloc.iter().find(|(r, _)| *r == s).map(|(_, n)| *n);
+                let given: u8 = t.realloc.iter().map(|(_, n)| *n).sum();
+                (
+                    points - given,
+                    seats.collect(),
+                    t.pending
+                        .iter()
+                        .map(|&s| Some(cap(s).unwrap_or(0)))
+                        .collect(),
+                    0,
+                )
+            }
+            RefStep::Polling => return None,
+        };
+        if recipients.is_empty() {
+            return None;
+        }
+        Some(Allocation {
+            points,
+            recipients,
+            caps,
+            min_nonzero,
+        })
     }
 
     pub(crate) fn referendum_request(&self) -> Option<DecisionRequest> {

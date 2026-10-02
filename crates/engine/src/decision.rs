@@ -57,6 +57,8 @@ pub enum ActionKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Choice {
     Pass,
+    /// The Edge's unlock-phase pool: "if you have the Edge, you may gain 1
+    /// pool" (the Edge is kept; the name is historical).
     BurnEdge,
     /// Unlock-phase contest upkeep of this contested object: pay 1 pool
     /// (card) or 1 blood (title) — a mandatory decision, ordered among the

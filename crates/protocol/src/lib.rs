@@ -6,6 +6,7 @@
 
 pub mod deck;
 pub mod describe;
+mod narrate;
 pub mod session;
 pub mod track;
 pub mod view;

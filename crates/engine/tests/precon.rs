@@ -2860,6 +2860,8 @@ fn sculpt_the_flesh_superior_stays_on_the_opposing_minion() {
 // Touch of Oblivion [obl]: "Strike: put this card on the opposing minion
 // with 2 counters. The attached minion burns 1 counter from this card
 // instead of unlocking as normal. If this card has no counters, burn it."
+// The card itself goes on the minion, then burns to the ash heap (owner,
+// 2026-10-01: rules-qa 47.1).
 #[test]
 fn touch_of_oblivion_keeps_the_minion_locked_two_unlock_phases() {
     let touch = find_library("Touch of Oblivion");
@@ -2874,6 +2876,12 @@ fn touch_of_oblivion_keeps_the_minion_locked_two_unlock_phases() {
     pick_when(&mut e, play(0, 0, a));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(on(&e, b), vec![(touch, 2)]);
+    assert!(e.state.seats[0].ash.is_empty(), "on the minion");
+    assert!(!e
+        .state
+        .cards
+        .iter()
+        .any(|c| c.card == touch && c.effect_only));
     assert_eq!(blood(&e, a), start - 3, "2 blood, and the hand strike");
     for left in [1, 0] {
         until(&mut e, SeatId(1), WindowLabel::MinionPhase);
@@ -2886,6 +2894,7 @@ fn touch_of_oblivion_keeps_the_minion_locked_two_unlock_phases() {
         assert_eq!(on(&e, b), want);
         until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     }
+    assert_eq!(e.state.seats[0].ash, vec![touch], "burned to the ash heap");
     until(&mut e, SeatId(1), WindowLabel::MinionPhase);
     assert!(!e.state.minions[b.index()].locked);
 }
@@ -12113,6 +12122,43 @@ fn revolutionary_council_locks_its_anarchs_to_burn_pool_and_cards() {
     assert!(e.state.minions[w.index()].locked && e.state.minions[x.index()].locked);
     assert!(!e.state.cards[gun.index()].in_play, "burned");
     assert!(e.state.seats[1].ousted, "3 points on 2 pool");
+}
+
+// `Engine::allocation` over cards: Revolutionary Council's 2X points go to
+// the Methuselahs, then to the locations and equipment in play (one or
+// more recipients).
+#[test]
+fn revolutionary_council_allocation_is_read_whole() {
+    use zvtes::referendum::{Allocation, Recipient};
+    let mut e = Engine::bare(3);
+    let b = e.add_minion(SeatId(0), baron(0), 5, false);
+    let x = e.add_minion(SeatId(0), anarch_with(&[], &[], 0), 5, false);
+    let w = e.add_minion(SeatId(0), anarch_with(&[], &[], 1), 5, false);
+    let y = e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let gun = equip(&mut e, ".44 Magnum", y);
+    hand(&mut e, 0, &["Revolutionary Council"]);
+    pick(&mut e, play(0, 0, b));
+    until(&mut e, SeatId(0), WindowLabel::ReferendumTerms);
+    pick(&mut e, Choice::ChooseMinion(x));
+    pick(&mut e, Choice::ChooseMinion(w));
+    // No other Anarch to choose: the Pass is elided.
+    expect(&mut e, SeatId(0), WindowLabel::ReferendumTerms);
+    let seat = |s| Recipient::Seat(SeatId(s));
+    assert_eq!(
+        e.allocation(),
+        Some(Allocation {
+            points: 4,
+            recipients: vec![seat(0), seat(1), seat(2), Recipient::Card(gun)],
+            caps: vec![None; 4],
+            min_nonzero: 1,
+        })
+    );
+    pick(&mut e, alloc(0, 1));
+    assert_eq!(
+        e.allocation().map(|a| (a.points, a.min_nonzero)),
+        Some((3, 0))
+    );
 }
 
 // [LSJ 20080603] [LSJ 20050128] Revolutionary Council "counts as requiring
