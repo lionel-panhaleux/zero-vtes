@@ -14417,3 +14417,34 @@ fn second_tradition_blocks_a_hunt_into_combat() {
     assert_eq!(blood(&e, p), 3 - 1 - 1);
     assert_eq!(blood(&e, a), 2 - 1, "P's hand strike");
 }
+
+// Martina Srnankova: "+1 intercept during bleed actions" — not during
+// Govern the Unaligned [DOM]'s action (+1 stealth, blood to an
+// uncontrolled vampire: a card action, not a bleed): with no intercept
+// against its stealth she is not offered a block; during its [dom] bleed
+// she gets +1.
+#[test]
+fn martina_gets_no_intercept_against_a_superior_govern() {
+    for bleed in [false, true] {
+        let mut e = Engine::bare(3);
+        let g = e.add_minion(SeatId(0), crypt("Abraham Mellon"), 4, false);
+        e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+        let martina = e.add_minion(SeatId(1), crypt("Martina Srnankova"), 4, false);
+        let younger = uncontrolled(&mut e, 0, vampire(|c| c.capacity == 4, 0));
+        hand(&mut e, 0, &["Govern the Unaligned"]);
+        let block = Choice::DeclareBlock { minion: martina };
+        if bleed {
+            pick_when(&mut e, play(0, 0, g));
+            offering(&mut e, block);
+            let a = e.action().expect("the bleed");
+            assert_eq!(a.intercept_of(&e.state, martina), 1);
+        } else {
+            pick_when(
+                &mut e,
+                play_at(0, 1, Some(g), Target::Uncontrolled(younger)),
+            );
+            never_offered_until(&mut e, SeatId(1), WindowLabel::MinionPhase, block);
+            assert_eq!(e.state.seats[0].uncontrolled[younger as usize].counters, 3);
+        }
+    }
+}
