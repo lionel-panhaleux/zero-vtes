@@ -2,11 +2,12 @@
 tables) with one seat for the learner (`net:0`) and, with `exploiter`, one
 for the exploiter (`net:EXPLOITER`), a second trained network that plays
 only the learner's tables; the other seats are drawn by prioritized
-fictitious self-play among the scripted bots, the learner's last
+fictitious self-play among the scripted bots (`bots`), the learner's last
 `opponents_kept` snapshots (`net:<iteration>`) and the exploiter's last
 retired copies (`net:EXPLOITER + <iteration>`): weight (1 − p)² + 0.02, p
 the learner's beat rate against it (pairwise: more VPs than that seat, a
-tie ½), within the bots (probability `bot_seats`) or the snapshots.
+tie ½), within the bots (probability `bot_seats`, at most `table_bots` a
+table) or the snapshots.
 Beat rates move once per iteration, by `pfsp_rate` toward the
 iteration's mean. The random seat retires once the learner beats it over
 `retire_random` of the time. The exploiter is retired into the pool and
@@ -40,6 +41,8 @@ def label(name):
 
 class League:
     def __init__(self, cfg, rng, out):
+        if not set(cfg.bots.split(",")) <= set(BOTS):
+            raise ValueError(f"bots: {', '.join(BOTS)} (got {cfg.bots!r})")
         self.cfg = cfg
         self.rng = rng
         self.dir = Path(out) / "snapshots"
@@ -85,20 +88,25 @@ class League:
 
     def candidates(self):
         n = self.cfg.opponents_kept
-        bots = [b for b in BOTS if not (b == "random" and self.p.get(b, 0.5) > self.cfg.retire_random)]
+        bots = [
+            b
+            for b in self.cfg.bots.split(",")
+            if not (b == "random" and self.p.get(b, 0.5) > self.cfg.retire_random)
+        ]
         return (
             bots
             + [f"net:{k}" for k in self.learner_snapshots()[-n:]]
             + [f"net:{k}" for k in self.exploiter_snapshots()[-n:]]
         )
 
-    def draw(self):
+    def draw(self, bots_ok=True):
         """An opponent: a bot with probability `bot_seats` (else a
-        snapshot, when there is one), then by PFSP within the group."""
+        snapshot, when there is one; always one once `bots_ok` is off),
+        then by PFSP within the group."""
         names = self.candidates()
         bots = [n for n in names if n in BOTS]
         nets = [n for n in names if n not in BOTS]
-        if nets and self.rng.random() >= self.cfg.bot_seats:
+        if nets and (not bots_ok or self.rng.random() >= self.cfg.bot_seats):
             names = nets
         elif bots:
             names = bots
@@ -107,7 +115,10 @@ class League:
 
     def spec(self):
         n = int(self.rng.choice(TABLES))
-        seats = [self.draw() for _ in range(n)]
+        seats = []
+        for _ in range(n):
+            bots_ok = sum(x in BOTS for x in seats) < self.cfg.table_bots
+            seats.append(self.draw(bots_ok))
         order = self.rng.permutation(n)
         seats[order[0]] = "net:0"
         if self.cfg.exploiter:

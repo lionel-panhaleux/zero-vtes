@@ -518,6 +518,8 @@ titles; `git log` has the detail.
 | P5 · 17b | 09-30 | Succubus Club fork (`../succubus-club`, branch `zero-vtes-engine`; `docs/human-play.md` slice 2): an engine game type — the wasm engine as authority, its views projected onto SC's state through SC's mutations, a decision panel, paced and narrated bot decisions, replay export; tracker: an opponent's play leaves from the hand; `TableView`: crypts and libraries face down |
 | P5 · 17c | 09-30 | The policy outside Python (`docs/human-play.md` slice 3): `crates/policy` (`Policy.forward` by hand, `NetAgent`), `train/export.py` (`.zvp` weights, vocabulary re-keyed on load), parity with PyTorch (`train/tests/test_export.py`), `Game.withPolicy` in the wasm module, network bots in the fork |
 | P5 · 17d | 09-30 | The owner's first game (rules-qa Batch 46): a minion plays the same action modifier or reaction once in an action (every card, not only those printing a limit); the calling Methuselah burns no other political card for a vote; vote locations are their controller's; Pass Through Shadow [OBL] goes on its vampire as itself (46.4, `Held::card_on`); fuzz goldens re-blessed. Protocol: undo within a multi-step choice, the level and target in option texts, lingering effects shown as their card, allocation and distribution texts. Fork: moves on the table read as decisions (`gestures.ts`), the console on the table |
+| P5 · 17e | 10-02 | Human play from the owner's games (`docs/human-play.md` 2.10–2.20): every protocol message tells what happened since the last, the elided run included (`narrate.rs`, `Engine::last_outcome`: how an action ended, a referendum's tally, pool and blood moved, minions and cards in and out of play, ousts); option texts name targets, terms' cards and what an ability moves; allocations and vote orders answered at once; `examples/replay.rs`. Engine: the Edge's unlock-phase pool keeps the Edge; "put this card on …" moves the card itself out of the ash heap (rules-qa 47.1); goldens re-blessed |
+| P5 · 17f | 10-02 | Additional strike cards only after the first strike pair, both combatants still ready (rules-qa 47.2 overriding 4.4; Chun Hei likewise); combats told (`Engine::combat_notes`: start, each strike pair, end; 2.22); goldens re-blessed |
 
 ### 11.2 Engine reference (by mechanism)
 
@@ -1104,7 +1106,7 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   league run, owner 2026-09-28): each new table is 4 or 5 seats, one the
   learner's (`net:0`), with `--exploiter true` one the exploiter's
   (`net:30000`; off by default since the second league run), the others
-  drawn by PFSP among the bots and the last `opponents_kept` (4)
+  drawn by PFSP among the bots (`bots`, all three by default; at most `table_bots` a table) and the last `opponents_kept` (4)
   snapshots of the learner (saved every `snapshot_every` (10) iterations)
   and of retired exploiters (`net:30000+<it>`), in
   `runs/<name>/snapshots/`: weight (1 − p)² + 0.02, p the learner's
@@ -1345,7 +1347,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (`docs/human-play.md` has the board).
 
-Definitions: 436 library, 102 vampires; 943 Rust tests, 17 Python tests
+Definitions: 436 library, 102 vampires; 949 Rust tests, 17 Python tests
 
 ## Outlook: deck building (post-v1)
 

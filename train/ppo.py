@@ -80,6 +80,11 @@ class Config:
     # The share of opponent seats drawn among the bots (the rest among the
     # snapshots): the evaluation is against the bots (owner, 2026-09-29).
     bot_seats: float = 0.6
+    # The bots drawn for those seats, comma-separated among aggro, wall,
+    # random (the evaluation always plays aggro and wall).
+    bots: str = "aggro,wall,random"
+    # At most this many bot seats a table (once a snapshot exists).
+    table_bots: int = 5
     # Checkpoint selection (`best.pt`): see `run`.
     best_seeds: int = 3
     best_margin: float = 0.1
