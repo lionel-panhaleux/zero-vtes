@@ -1274,6 +1274,46 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   against 0.97 ± 0.05 unchanged (1000 five-seat games each; the rule
   changed 725 votes in all). Learning votes needs politics in the
   training pool (political TWDA decks), not a richer observation alone.
+- Self-play against snapshots (2026-10-02/03, `runs/p5-self`, iterations
+  1061–1310, from the vote run's `best.pt`): at the vote run's end the
+  bots had stopped teaching — beat rates aggro 0.72, wall 0.81, random
+  0.86, flat over 70 iterations, every snapshot ~0.5, yet 60% of
+  opponent seats were bots. So `--bots aggro --table-bots 1 --bot-seats
+  0.1 --opponents-kept 8 --lr 5e-5 --entropy-coef 0.04` (precons + TWDA):
+  at most one aggro a table (~⅓ of tables), the rest the learner's last
+  8 snapshots by PFSP. Flat to slightly up, within the noise: 4 seats
+  2.16–2.42 VP (55–61% game wins) throughout, 5 seats ~2.4 early and
+  ~2.6 late (55–60%), random seats ~2.9, ~1.0 against the latest
+  snapshot; aggro's beat rate held at 0.66–0.71, entropy at 0.62–0.68.
+  `best.pt`: iteration 1250, 3-seed mean 2.49 (2.42 / 2.62 VP, 61% /
+  56%), against 2.44 at the start.
+- Next run (owner, 2026-10-03): the opponents should be good enough to
+  learn from — the current best is decent, only barely, and weaker
+  opponents are probably worthless for now; skewing the training is not
+  a concern yet. Random and wall never as training opponents; aggro
+  sparingly if at all. Settled (owner, 2026-10-03): the opponent is "the
+  latest best" — the bot built from the previous training, the network
+  the human-play interface (Succubus Club) plays, exported by
+  `train.export` to `zvtes-policy.zvp` — as the only opponent at 4- and
+  5-seat tables (3 or 4 copies, each seat its own deck), not the rolling
+  periodic snapshots; and `best.pt` is selected on those games (against
+  that opponent), not against aggro/wall. Needs a league change: today
+  the opponents are the last `opponents_kept` snapshots by PFSP and the
+  selection plays the bots. The interface's `.zvp` (2026-10-01) is
+  `runs/p4-vote/best.pt` (iteration 1060; its export is byte-identical):
+  the frozen opponent. The learner can start from `runs/p5-self/best.pt`
+  (1250; 2.49 against the bots, 2.44 for 1060). The rescue/diablerie
+  probe (200 five-seat self-play games, 2026-09-30) is deferred until
+  play is stronger.
+- What the observation holds (owner's question, 2026-10-03): every seat's
+  public state (pool, VPs, Edge, prey/predator, ousted, hand, library,
+  crypt and ash heap sizes), every minion and card in play at the table
+  (blood, capacity, lock, torpor, titles, counters, hosts), the viewer's
+  own hand and remaining library/crypt contents, the action, combat and
+  referendum under way. Not in it: the ash heaps' contents — public, what
+  each opponent has played and discarded, hence their deck — only their
+  sizes; and any history: each decision is encoded alone, no memory of
+  earlier turns. Candidate next input (owner to decide).
 
 ### 11.3 Open gaps
 
