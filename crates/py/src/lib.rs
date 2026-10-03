@@ -25,6 +25,8 @@ use zvtes::game::{Engine, Step};
 use zvtes::obs::{encode, encode_critic, Obs, Version, OPT_F, OPT_IDS, TOK_F, TOK_IDS};
 use zvtes::rng::Rng;
 
+mod human;
+
 /// Who plays a seat.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Kind {
@@ -700,5 +702,7 @@ fn zvtes_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(vocab_keys, m)?)?;
     m.add_function(wrap_pyfunction!(deck_families, m)?)?;
     m.add_function(wrap_pyfunction!(policy_forward, m)?)?;
+    m.add_function(wrap_pyfunction!(human::replay_decisions, m)?)?;
+    m.add_function(wrap_pyfunction!(human::deck_cards, m)?)?;
     Ok(())
 }

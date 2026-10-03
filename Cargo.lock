@@ -442,8 +442,10 @@ dependencies = [
  "numpy",
  "pyo3",
  "rayon",
+ "serde_json",
  "zero-vtes-engine",
  "zvtes-policy",
+ "zvtes-protocol",
 ]
 
 [[package]]

@@ -365,6 +365,12 @@ impl Session {
         &self.engine
     }
 
+    /// The decision the last `advance` asked (`None` once over): what the
+    /// observation encoders read (`zvtes::obs`) when a game is replayed.
+    pub fn request(&self) -> Option<&DecisionRequest> {
+        self.pending.as_ref()
+    }
+
     pub fn replay(&self) -> Replay {
         Replay {
             spec: self.spec.clone(),

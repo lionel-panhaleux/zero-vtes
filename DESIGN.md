@@ -1364,6 +1364,39 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   runs/p4-vote/best.pt,runs/p5-self/best.pt --decks precons,twda --lr
   5e-5 --entropy-coef 0.04 --iterations 1650` (iterations 1251–1650,
   the first 10 critic warmup).
+- Human games as data (owner, 2026-10-03, after a 4-VP win over three
+  `p5-self@1250` bots: "use the game log as a teaching vector"). A game
+  from the Succubus Club fork ("Export replay": spec by KRCG ids + the
+  decision log) replays exactly, so each decision becomes (observation,
+  options, choice) for any seat. §2's "imitation bootstrap: rejected (no
+  corpus)" is revisited with the owner's games as the corpus, in three
+  steps, by value at the corpus's size: (1) **diagnostic** — one game is
+  a few hundred human decisions, too few to train on, but enough to show
+  where the network's play and a human's part: the human's choices the
+  policy finds least likely, and the bots' falls in the critic's value
+  with what happened in between (the policy samples, so a bot's
+  unlikely choice is noise: bots are read by value, the human by
+  probability); (2) **start positions** — self-play continued from a
+  human game's prefixes, reaching states self-play rarely makes (a
+  strong predator pressing); (3) **an imitation term** — cross-entropy on
+  the human's choices beside PPO's loss, small coefficient, once there
+  are dozens of games. Built: (1) — `zvtes_py.replay_decisions(json,
+  obs)` (`crates/py/src/human.rs`: the protocol `Session` replays the
+  log, every seat answered from it; per decision the policy and critic
+  encodings, options, choice, events before it; `Session::request` gives
+  the encoders the pending request), `zvtes_py.deck_cards(d)`, and
+  `uv run python -m train.assess <replay.json> [checkpoint]` (the
+  checkpoint's `obs` version; `*` marks a card outside its training
+  decks). First game (469 decisions, 221 the owner's): the policy's
+  favourite was the human's 36% of the time; wherever a vampire could
+  be influenced out, it would have (≈100%) where the owner kept
+  transferring to another vampire, and it gave a crypt draw no weight;
+  in referendums its favourite is to burn a card for votes first (an
+  ordering, not a disagreement); the bots' values fell
+  gradually (−0.04 to −0.10 a step) through the owner's political turns
+  (Parity Shift, Camarilla's Iron Fist ×3 at 4 pool on the Banu Haqim):
+  the critic rated the owner's seat lowest at the start (+0.18 against
+  +0.44/+0.46).
 
 ### 11.3 Open gaps
 
@@ -1437,7 +1470,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (`docs/human-play.md` has the board).
 
-Definitions: 436 library, 102 vampires; 949 Rust tests, 20 Python tests
+Definitions: 436 library, 102 vampires; 949 Rust tests, 22 Python tests
 
 ## Outlook: deck building (post-v1)
 

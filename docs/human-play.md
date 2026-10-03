@@ -227,6 +227,14 @@ table move where SC has the UI for it; no imitation of a UI SC lacks
 | 5.6 | Where the weights ship: in the npm package, or an asset the app serves; versioned with the engine (the `.zvp` re-keys its vocabulary, not its features) | todo |
 | 5.7 | Resume an engine game: `Session` from a replay (bots' decisions from the log) | todo |
 
+### Slice 6 — human games as data (DESIGN §11.2)
+
+| # | Item | Status |
+|---|---|---|
+| 6.1 | Diagnostic: `zvtes_py.replay_decisions` (a fork replay → per-decision encodings, options, choice, events) and `train/assess.py` (the human's choices the policy found least likely, agreement by window; the bots' sharpest falls in the critic's value with what happened between) | done; first game read |
+| 6.2 | Start positions: self-play continued from a human game's prefixes | todo |
+| 6.3 | Imitation term: cross-entropy on the human's choices beside PPO's loss, once there are dozens of games; where the replays are kept | todo |
+
 ## Protocol as built (slice 1)
 
 - `Session::advance()` → `Out`: `decision` (a human seat must answer; repeated
