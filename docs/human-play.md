@@ -277,7 +277,10 @@ npx vite --config vite/config.dev.mjs --port 5188 # then http://localhost:5188
 Network bots: `uv run python -m train.export runs/<name>/best.pt
 ../succubus-club/public/assets/zvtes-policy.zvp` (without the file the bots
 are the scripted ones). `node crates/wasm/tests/smoke.mjs` plays a game
-against them too when `target/policy.zvp` exists.
+against them too when `target/policy.zvp` exists. A network trained on
+observation V2 (DESIGN §11.2) exports with an `obs 2` header line, which
+a wasm built before 2026-10-03 refuses: rebuild the wasm first, then
+swap the file.
 
 Pick a deck (Preconstructed → Fifth Edition …: the engine refuses a deck with
 cards outside its pool, naming them), then "Play against Bots (rules engine)".

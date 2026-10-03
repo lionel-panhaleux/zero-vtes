@@ -98,3 +98,20 @@ def test_tables_avoid_decks_sharing_their_crypt():
         done += pool.act(random_actions(pool.observe(), rng))
     for ep in done:
         assert len(set(ep["decks"])) == len(ep["decks"]), "a precon twice at a table"
+
+
+def test_each_network_reads_its_encoding():
+    """`obs=2` adds the ash heap and event tokens (types 9 and up) to the
+    networks' observations, but the `legacy` ones'."""
+    pool = zvtes_py.GamePool(
+        16, ["net:0", "net:1", "net:0", "net:1"], seed=4, rotate=True, obs=2, legacy=[1]
+    )
+    rng = np.random.default_rng(4)
+    added = {0: 0, 1: 0}
+    for _ in range(80):
+        obs = pool.observe()
+        for i, agent in enumerate(obs["agent"]):
+            t = obs["tok_n"][i]
+            added[int(agent)] += int((obs["tok_ids"][i, :t, 0] >= 9).sum())
+        pool.act([int(rng.integers(k)) for k in obs["opt_n"]])
+    assert added[0] > 0 and added[1] == 0

@@ -306,7 +306,8 @@ league and the remaining-deck tokens included.
   N games and returning `(game, player, obs, mask)` batches for one GPU inference,
   exposed via PyO3 with zero-copy tensors; the serialized protocol is for clients.
 - **Encoding sketch**: entity tokens (players with relative-seat encoding,
-  minions, hand, in-play cards), transformer trunk, auto-regressive head over
+  minions, hand, in-play cards; since `obs::Version::V2` the ash heaps'
+  contents and the last public choices, §11.2), transformer trunk, auto-regressive head over
   options; reward = tournament scoring (VPs, GW), small survival shaping early;
   league = current agent + snapshots + exploiters + scripted bots, PFSP; decks ×
   seats sampled per episode; policy conditioned on own decklist identity.
@@ -1314,6 +1315,55 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   each opponent has played and discarded, hence their deck — only their
   sizes; and any history: each decision is encoded alone, no memory of
   earlier turns. Candidate next input (owner to decide).
+- Observation V2 (owner, 2026-10-03: "more input (past actions, ash
+  heap) … to ground the bot decisions with assessment of possible cards
+  in hand"): `obs::Version` — a network reads the encoding it was trained
+  on (`V1` byte-identical to before: a digest of 3,274 decisions' policy
+  and critic encodings matched the previous commit; `tests/obs.rs` checks
+  that `V2` minus its new tokens is `V1`). `V2` adds, after every token a
+  pointer names and before the context token: `T_ASH`, a token per seat
+  and card in its ash heap (library and crypt), with its copies; and
+  `T_EVENT + kind`, the last `HISTORY` = 32 public choices
+  (`Engine::history`, recorded where `choose` and the run loop's elision
+  both pass, the card a hand index named resolved then), each as the
+  option it was — a token type per choice kind, the chooser's relative
+  seat, its age in choices and game turns, the option's features, two
+  pointers (actor else the card or minion it names; target) to tokens
+  still present. The trust boundary is `game::public_choice`, a
+  whitelist: plays and what follows them face up (actions, blocks,
+  strikes, votes and allocations, contests, chosen seats, minions, cards
+  and clans, discards to the ash heap, transfers and influence, rescue
+  and toll payments, diablerie); never a Pass, a search, a draw, a card
+  put under the library or taken from a hidden zone, X choices or slot
+  picks (`tests/obs.rs`: a choice outside it leaves no event; the legal
+  view swap cannot see the history, which lives on `Engine`). Owner to
+  veto an entry. Cost: the learner's tokens go from ~66 to ~136 a
+  decision (p95 164, max 190; frozen opponents unchanged at ~67), from
+  the opening of 256 four/five-seat games. The critic reads `V2`.
+  `.zvp` files carry `obs 2` for a `V2` network (absent: `V1`, every file
+  so far): `crates/policy` encodes with the file's version, so the
+  Succubus Club bot keeps playing; a `V2` model needs the rebuilt wasm.
+- Frozen-opponent league (`--opponents a.pt,b.pt`, with `--league
+  true`): every non-learner seat is one of those checkpoints (net ids
+  20000 + k, PFSP among them, labeled `<run>@<iteration>`), reading their
+  own encoding (`GamePool(obs=, legacy=)`); no bots, no snapshots;
+  `best.pt` is selected on `vs_frozen4`/`vs_frozen5` (the opponents in
+  turn around the learner, 3 seeds), `vs_bots4/5` kept as a trend line.
+  A change of `obs` on resume re-warms the critic (`critic_warmup`).
+  Opponents (2026-10-03): `p4-vote@1060` (the interface's) and
+  `p5-self@1250` — the owner's message asked for "previous versions of
+  itself", plural, against the earlier note naming the first alone
+  (`--opponents runs/p4-vote/best.pt` reverts). Not built: promoting the
+  learner's own best into the opponents (gating) — owner's question.
+  Cooperation across the table: nothing added (the reward stays VPs and
+  game win). Start (512 games a size against the pair): `p5-self@1250`
+  reading `V1` 1.04 VP / 23% wins at 4 seats, 1.01 / 20% at 5 —
+  parity; reading `V2` untrained (new token types at zero, card rows
+  not) 1.03 / 22% and 0.94 / 17%: a small perturbation. Run
+  `runs/p6-frozen` from it: `--league true --opponents
+  runs/p4-vote/best.pt,runs/p5-self/best.pt --decks precons,twda --lr
+  5e-5 --entropy-coef 0.04 --iterations 1650` (iterations 1251–1650,
+  the first 10 critic warmup).
 
 ### 11.3 Open gaps
 
@@ -1387,7 +1437,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (`docs/human-play.md` has the board).
 
-Definitions: 436 library, 102 vampires; 949 Rust tests, 17 Python tests
+Definitions: 436 library, 102 vampires; 949 Rust tests, 20 Python tests
 
 ## Outlook: deck building (post-v1)
 

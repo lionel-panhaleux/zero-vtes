@@ -8,7 +8,9 @@
 //! two on real observations).
 //!
 //! Weights come as a `.zvp` file (`python -m train.export`): a text header
-//! — `zvp 1`, `d`, `layers`, `heads`, one `vocab <key>` line per vocabulary
+//! — `zvp 1`, `d`, `layers`, `heads`, optionally `obs <version>` (the
+//! observation it reads, `obs::Version`: 1 when absent, every file written
+//! before 2026-10-03), one `vocab <key>` line per vocabulary
 //! row, one `tensor <name> <dims…>` line per tensor — a blank line, then
 //! the tensors' f32 values, little-endian, in header order. The vocabulary
 //! is re-keyed on load (as `remap_vocab` does): a checkpoint trained on an
@@ -38,6 +40,8 @@ struct Head {
 }
 
 pub struct Net {
+    /// The encoding the network was trained on.
+    pub version: obs::Version,
     d: usize,
     heads: usize,
     zero: Vec<f32>,
@@ -133,7 +137,7 @@ impl Net {
                 .split_once(' ')
                 .ok_or_else(|| format!("bad line: {line}"))?;
             match kind {
-                "d" | "layers" | "heads" => {
+                "d" | "layers" | "heads" | "obs" => {
                     meta.insert(kind, rest.parse().map_err(|_| format!("bad line: {line}"))?);
                 }
                 "vocab" => keys.push(rest),
@@ -161,6 +165,11 @@ impl Net {
         }
         let get = |k: &str| meta.get(k).copied().ok_or_else(|| format!("no {k}"));
         let (d, n_layers, heads) = (get("d")?, get("layers")?, get("heads")?);
+        let version = match meta.get("obs").copied().unwrap_or(1) {
+            1 => obs::Version::V1,
+            2 => obs::Version::V2,
+            v => return Err(format!("unknown obs version {v}")),
+        };
         let mut take = |name: &str, shape: &[usize]| -> Result<Vec<f32>, String> {
             let (s, v) = tensors
                 .remove(name)
@@ -247,6 +256,7 @@ impl Net {
         let token_type = take("token_type.weight", &[])?;
 
         Ok(Net {
+            version,
             d,
             heads,
             zero: vec![0.0; d],
@@ -433,7 +443,9 @@ impl NetAgent {
 
 impl Agent for NetAgent {
     fn decide(&mut self, engine: &Engine, req: &DecisionRequest) -> usize {
-        let (logits, _) = self.net.forward(&obs::encode(engine, req));
+        let (logits, _) = self
+            .net
+            .forward(&obs::encode(engine, req, self.net.version));
         let max = logits.iter().copied().fold(f32::MIN, f32::max);
         let weights: Vec<f64> = logits.iter().map(|&l| ((l - max) as f64).exp()).collect();
         let total: f64 = weights.iter().sum();

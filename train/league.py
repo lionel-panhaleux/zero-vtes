@@ -12,7 +12,12 @@ Beat rates move once per iteration, by `pfsp_rate` toward the
 iteration's mean. The random seat retires once the learner beats it over
 `retire_random` of the time. The exploiter is retired into the pool and
 restarted from the learner's weights once the learner's beat rate against
-it falls under `exploiter_beaten`, or after `exploiter_reset` iterations."""
+it falls under `exploiter_beaten`, or after `exploiter_reset` iterations.
+
+With `opponents` (checkpoint paths, comma-separated), every other seat is
+one of those frozen networks (`net:FROZEN + k`, by PFSP among them): no
+bots, no snapshots (owner, 2026-10-03: only good opponents, the previous
+bests). They read the encoding they were trained on (`frozen_versions`)."""
 
 import copy
 import json
@@ -29,10 +34,16 @@ TABLES = (4, 5)
 # exploiter and EXPLOITER + iteration its retired copies.
 EXPLOITER = 30_000
 EXP = f"net:{EXPLOITER}"
+# The frozen opponents: FROZEN + their index in `opponents`.
+FROZEN = 20_000
 
 
-def label(name):
-    """A seat name for logs: `exploiter`, `exploiter:<it>`, `net:<it>`."""
+def label(name, frozen=()):
+    """A seat name for logs: `exploiter`, `exploiter:<it>`, `net:<it>`, a
+    frozen opponent by its run and iteration."""
+    if name.startswith("net:") and FROZEN <= int(name[4:]) < EXPLOITER:
+        k = int(name[4:]) - FROZEN
+        return frozen[k] if k < len(frozen) else f"frozen:{k}"
     if name.startswith("net:") and int(name[4:]) >= EXPLOITER:
         k = int(name[4:]) - EXPLOITER
         return f"exploiter:{k}" if k else "exploiter"
@@ -51,6 +62,22 @@ class League:
         self.p = {}  # opponent name -> the learner's beat rate
         self.pending = {}  # opponent name -> this iteration's outcomes
         self.exploiter_since = 0
+        self.frozen = {}  # net id -> frozen opponent (`opponents`)
+        self.frozen_labels = []
+        self.frozen_versions = {}  # net id -> the encoding it reads
+
+    def load_opponents(self, make, vocab, device):
+        """The `opponents` checkpoints, each into a network `make(config)`
+        builds (their sizes may differ), its embeddings remapped to `vocab`."""
+        paths = [p.strip() for p in self.cfg.opponents.split(",") if p.strip()]
+        for k, path in enumerate(paths):
+            saved = torch.load(path, map_location=device)
+            net = make(saved.get("config", {}))
+            old = saved.get("vocab", vocab)
+            net.load_state_dict(remap_vocab(saved["model"], old, vocab, net.state_dict()))
+            self.frozen[FROZEN + k] = net.eval()
+            self.frozen_versions[FROZEN + k] = saved.get("config", {}).get("obs", 1)
+            self.frozen_labels.append(f"{Path(path).parent.name}@{saved.get('iteration', '?')}")
 
     def load(self, model, vocab):
         """The snapshots saved by an earlier run, into copies of `model`
@@ -87,6 +114,8 @@ class League:
             del self.snapshots[k]
 
     def candidates(self):
+        if self.frozen:
+            return [f"net:{k}" for k in sorted(self.frozen)]
         n = self.cfg.opponents_kept
         bots = [
             b
@@ -163,7 +192,7 @@ class League:
         self.exploiter_since = 0
 
     def nets(self, learner, exploiter=None):
-        nets = {0: learner, **self.snapshots}
+        nets = {0: learner, **self.snapshots, **self.frozen}
         if exploiter is not None:
             nets[EXPLOITER] = exploiter
         return nets

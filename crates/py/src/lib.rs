@@ -22,7 +22,7 @@ use zvtes::bots::{Scripted, Style};
 use zvtes::decision::DecisionRequest;
 use zvtes::decks::Deck;
 use zvtes::game::{Engine, Step};
-use zvtes::obs::{encode, encode_critic, Obs, OPT_F, OPT_IDS, TOK_F, TOK_IDS};
+use zvtes::obs::{encode, encode_critic, Obs, Version, OPT_F, OPT_IDS, TOK_F, TOK_IDS};
 use zvtes::rng::Rng;
 
 /// Who plays a seat.
@@ -86,6 +86,8 @@ struct Game {
     decks: Vec<usize>,
     kinds: Vec<Kind>,
     agents: Vec<Option<Box<dyn Agent + Send + Sync>>>,
+    /// The encoding each seat's network reads (`Versions::of`).
+    versions: Vec<Version>,
     /// The policy decision the game waits on, and its encoding.
     pending: Option<(DecisionRequest, Obs)>,
     /// The pending decision's omniscient encoding (`critic` pools).
@@ -93,7 +95,14 @@ struct Game {
 }
 
 impl Game {
-    fn new(number: u64, seed: u64, time_limit: u32, decks: Vec<usize>, kinds: Vec<Kind>) -> Game {
+    fn new(
+        number: u64,
+        seed: u64,
+        time_limit: u32,
+        decks: Vec<usize>,
+        kinds: Vec<Kind>,
+        versions: &Versions,
+    ) -> Game {
         let list: Vec<Deck> = decks.iter().map(|&d| all_decks()[d]).collect();
         let agents = kinds
             .iter()
@@ -109,6 +118,7 @@ impl Game {
             .collect();
         let mut engine = Engine::with_decks(seed, &list);
         engine.time_limit = time_limit;
+        let versions = kinds.iter().map(|&k| versions.of(k)).collect();
         Game {
             engine,
             number,
@@ -116,6 +126,7 @@ impl Game {
             decks,
             kinds,
             agents,
+            versions,
             pending: None,
             critic: None,
         }
@@ -162,14 +173,39 @@ impl Game {
                         self.engine.choose(i);
                     }
                     None => {
-                        let obs = encode(&self.engine, &req);
-                        self.critic = critic.then(|| encode_critic(&self.engine, &req));
+                        let obs = encode(&self.engine, &req, self.versions[req.seat.index()]);
+                        self.critic =
+                            critic.then(|| encode_critic(&self.engine, &req, Version::V2));
                         self.pending = Some((req, obs));
                         return None;
                     }
                 },
             }
         }
+    }
+}
+
+/// Which encoding each network reads: `obs` for all, but the `legacy`
+/// ones (frozen networks trained on `V1`).
+struct Versions {
+    obs: Version,
+    legacy: Vec<u16>,
+}
+
+impl Versions {
+    fn of(&self, k: Kind) -> Version {
+        match k {
+            Kind::Net(n) if !self.legacy.contains(&n) => self.obs,
+            _ => Version::V1,
+        }
+    }
+}
+
+fn version(v: u8) -> PyResult<Version> {
+    match v {
+        1 => Ok(Version::V1),
+        2 => Ok(Version::V2),
+        _ => Err(PyValueError::new_err("obs: 1 or 2")),
     }
 }
 
@@ -200,7 +236,9 @@ fn all_decks() -> &'static [Deck] {
 /// omniscient critic's tokens (`critic_tok_*`). `time_limits`: each game's time
 /// limit is drawn in this range of player turns (a time-out scores 0.5 VP
 /// per survivor, which counts toward the game win); episodes report it and
-/// `replay` takes it.
+/// `replay` takes it. `obs`: the encoding the networks read
+/// (`zvtes::obs::Version`, 1 or 2), but the `legacy` network ids, which
+/// read `V1`; the critic reads `V2`.
 #[pyclass(module = "zvtes_py")]
 struct GamePool {
     games: Vec<Game>,
@@ -220,6 +258,7 @@ struct GamePool {
     time_limits: (u32, u32),
     finished: Vec<Episode>,
     queued: std::collections::VecDeque<Spec>,
+    versions: Versions,
 }
 
 impl GamePool {
@@ -241,7 +280,14 @@ impl GamePool {
         };
         let decks = decks.unwrap_or_else(|| self.draw_decks(kinds.len()));
         self.started += 1;
-        Game::new(self.started - 1, seed, time_limit, decks, kinds)
+        Game::new(
+            self.started - 1,
+            seed,
+            time_limit,
+            decks,
+            kinds,
+            &self.versions,
+        )
     }
 
     /// A deck: a clan uniformly, then one of its decks.
@@ -319,7 +365,7 @@ impl GamePool {
     // A Python constructor with keyword arguments.
     #[allow(clippy::too_many_arguments)]
     #[new]
-    #[pyo3(signature = (n_games, seats, seed=0, rotate=false, decks=None, budget=20_000, keep_logs=false, tables=None, time_limits=(60, 90), critic=false))]
+    #[pyo3(signature = (n_games, seats, seed=0, rotate=false, decks=None, budget=20_000, keep_logs=false, tables=None, time_limits=(60, 90), critic=false, obs=1, legacy=Vec::new()))]
     fn new(
         py: Python<'_>,
         n_games: usize,
@@ -332,6 +378,8 @@ impl GamePool {
         tables: Option<Vec<Bound<'_, PyDict>>>,
         time_limits: (u32, u32),
         critic: bool,
+        obs: u8,
+        legacy: Vec<u16>,
     ) -> PyResult<Self> {
         if time_limits.0 == 0 || time_limits.0 > time_limits.1 {
             return Err(PyValueError::new_err(
@@ -368,6 +416,10 @@ impl GamePool {
             time_limits,
             finished: Vec::new(),
             queued: Default::default(),
+            versions: Versions {
+                obs: version(obs)?,
+                legacy,
+            },
         };
         if let Some(tables) = tables {
             pool.queue(tables)?;

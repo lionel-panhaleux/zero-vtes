@@ -2,10 +2,12 @@
 self-play, and the league (one learner seat, the exploiter, snapshots and
 bots at 4- and 5-seat tables)."""
 
+import json
+
 import numpy as np
 import torch
 
-from train.league import EXP, EXPLOITER, League
+from train.league import EXP, EXPLOITER, FROZEN, League
 from train.model import remap_vocab
 from train.ppo import Config, Trainer, eval_tables
 
@@ -147,3 +149,30 @@ def test_opponent_seats_are_mostly_bots(tmp_path):
     draws = [league.draw() for _ in range(2000)]
     share = sum(d in ("aggro", "wall", "random") for d in draws) / len(draws)
     assert 0.55 < share < 0.65
+
+
+def test_frozen_opponents(tmp_path):
+    """`--opponents`: every other seat a frozen checkpoint, reading the
+    encoding it was trained on; `best.pt` is selected against them."""
+    small = dict(
+        games=8, steps=16, iterations=1, epochs=1, minibatch=64, d=32, layers=1,
+        eval_every=1, eval_games=4, device="cpu", best_seeds=1,
+    )
+    Trainer(Config(**small, obs=1, out=str(tmp_path / "old"))).run()
+    cfg = Config(
+        **{**small, "iterations": 2}, out=str(tmp_path / "new"), league=True,
+        opponents=str(tmp_path / "old" / "model.pt"), resume=str(tmp_path / "old" / "model.pt"),
+    )
+    trainer = Trainer(cfg)
+    assert trainer.legacy == [FROZEN] and trainer.warmup == cfg.critic_warmup, "a new input"
+    assert trainer.league.candidates() == [f"net:{FROZEN}"]
+    for _ in range(20):
+        seats = trainer.league.spec()["seats"]
+        assert len(seats) in (4, 5) and seats.count("net:0") == 1
+        assert set(seats) == {"net:0", f"net:{FROZEN}"}
+    trainer.run()
+    row = json.loads(open(tmp_path / "new" / "metrics.jsonl").read().splitlines()[-1])
+    assert "vs_frozen4" in row and "vs_frozen5" in row and "frozen_mean" in row
+    assert "vs_random" not in row and not trainer.league.learner_snapshots()
+    assert set(row["pfsp"]) <= {"old@1"}
+    assert trainer.league.frozen_labels == ["old@1"]

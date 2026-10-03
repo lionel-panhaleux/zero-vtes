@@ -1,12 +1,13 @@
 """PPO (DESIGN §5, P3–P4) on 4- and 5-seat tables of a `zvtes_py.GamePool`:
 self-play (the learner, `net:0`, at every seat), or with `--league` the
 tables a `train.league.League` sets — one learner seat, an exploiter seat
-(a second trained network), the rest bots and frozen snapshots. Each
+(a second trained network), the rest bots and frozen snapshots, or only
+frozen previous bests (`--opponents`). Each
 trained seat's decisions form a chain, rewarded at the game's end by
 (VPs + `gw_weight` × the game win) / 5. Rollouts are truncated: a chain's
 last decision in a rollout bootstraps the ones before it and is carried
 into the next rollout. Evaluation plays the learner (sampling) against
-random seats and the scripted bots.
+random seats and the scripted bots, or the `--opponents`.
 
     uv run python -m train.ppo --iterations 200 --out runs/first
 """
@@ -62,6 +63,10 @@ class Config:
     gw_weight: float = 2.0
     d: int = 96
     layers: int = 2
+    # The observation the learner reads (`zvtes::obs::Version`): 2 adds
+    # the ash heaps' contents and the last public choices. Frozen networks
+    # read the one they were trained on (`obs` in their config, else 1).
+    obs: int = 2
     seed: int = 0
     eval_every: int = 10
     eval_games: int = 256
@@ -95,6 +100,10 @@ class Config:
     exploiter: bool = False
     exploiter_beaten: float = 0.3
     exploiter_reset: int = 50
+    # Frozen opponents (checkpoint paths, comma-separated): with `league`,
+    # every other seat is one of them, and `best.pt` is selected on games
+    # against them (train/league.py).
+    opponents: str = ""
 
 
 def device_of(name):
@@ -295,8 +304,12 @@ class Trainer:
             if "critic_optimizer" in saved and same_shapes:
                 self.critic_opt.load_state_dict(saved["critic_optimizer"])
             self.warmup = saved.get("critic_warmup", self.warmup)
-        # The best evaluation against aggro/wall/aggro so far (`best.pt`,
-        # kept across a resume into the same directory).
+            # A new observation is a new input for the critic too.
+            if saved and saved.get("config", {}).get("obs", 1) != cfg.obs:
+                self.warmup = cfg.critic_warmup
+        # The best selection evaluation so far (`best.pt`: against the bots
+        # or the frozen opponents; kept across a resume into the same
+        # directory).
         same = cfg.resume and Path(cfg.resume).parent.resolve() == Path(cfg.out).resolve()
         self.best = saved.get("best", float("-inf")) if same else float("-inf")
         self.entropy_coef = saved.get("entropy_coef", cfg.entropy_coef) if same else cfg.entropy_coef
@@ -304,10 +317,22 @@ class Trainer:
         self.out.mkdir(parents=True, exist_ok=True)
         self.league = None
         self.exploiter = None
+        self.legacy = []
+        if cfg.opponents and not cfg.league:
+            raise ValueError("--opponents needs --league true")
         if cfg.league:
             self.league = League(cfg, self.rng, self.out)
+            if cfg.opponents:
+                self.league.load_opponents(
+                    lambda c: Policy(self.schema, d=c.get("d", 96), layers=c.get("layers", 2)).to(
+                        self.device
+                    ),
+                    self.vocab,
+                    self.device,
+                )
+                self.legacy = [k for k, v in self.league.frozen_versions.items() if v == 1]
             self.league.load(model, self.vocab)
-            if not self.league.learner_snapshots() and self.start > 1:
+            if not self.league.learner_snapshots() and self.start > 1 and not cfg.opponents:
                 self.league.add(self.start - 1, model)
             if "pfsp" in saved:
                 self.league.restore(saved["pfsp"])
@@ -329,6 +354,8 @@ class Trainer:
             budget=cfg.budget,
             tables=[self.spec() for _ in range(cfg.games)],
             critic=cfg.critic,
+            obs=cfg.obs,
+            legacy=self.legacy,
         )
 
     def learners(self):
@@ -484,6 +511,8 @@ class Trainer:
             decks=self.decks,
             budget=self.cfg.budget,
             tables=tables,
+            obs=self.cfg.obs,
+            legacy=self.legacy,
         )
         rng = np.random.default_rng(seed)
         vps, wins, done, truncated = [], 0, 0, 0
@@ -574,31 +603,47 @@ class Trainer:
                     self.league.retire_exploiter(it, self.exploiter.model)
                     self.exploiter.restart(self.model.state_dict(), cfg.lr)
                     row["exploiter_retired"] = True
-                if it % cfg.snapshot_every == 0:
+                if it % cfg.snapshot_every == 0 and not self.league.frozen:
                     self.league.add(it, self.model)
             if it % cfg.eval_every == 0 or it == cfg.iterations:
-                row["vs_random"] = self.evaluate(["random"] * 4, cfg.eval_games)
+                frozen = self.league.candidates() if self.league and self.league.frozen else []
+                if not frozen:
+                    row["vs_random"] = self.evaluate(["random"] * 4, cfg.eval_games)
                 row["vs_bots4"] = self.evaluate(["aggro", "wall", "aggro"], cfg.eval_games)
                 row["vs_bots5"] = self.evaluate(["aggro", "wall", "aggro", "wall"], cfg.eval_games)
-                if self.league and self.league.latest() is not None:
+                # The selection's tables: the frozen opponents in turn
+                # around the learner, else the bots.
+                if frozen:
+                    sel = [[frozen[k % len(frozen)] for k in range(n - 1)] for n in TABLES]
+                    row["vs_frozen4"] = self.evaluate(sel[0], cfg.eval_games)
+                    row["vs_frozen5"] = self.evaluate(sel[1], cfg.eval_games)
+                    row["pfsp"] = {
+                        label(k, self.league.frozen_labels): round(v, 2)
+                        for k, v in sorted(self.league.p.items())
+                    }
+                    first = (row["vs_frozen4"], row["vs_frozen5"])
+                else:
+                    sel = [["aggro", "wall", "aggro"], ["aggro", "wall", "aggro", "wall"]]
+                    first = (row["vs_bots4"], row["vs_bots5"])
+                if self.league and not frozen and self.league.latest() is not None:
                     snap = f"net:{self.league.latest()}"
                     row["vs_snapshot"] = self.evaluate([snap] * 4, cfg.eval_games)
                     row["pfsp"] = {label(k): round(v, 2) for k, v in sorted(self.league.p.items())}
-                # `best.pt`: the bots' VPs at 4 and 5 seats, averaged —
+                # `best.pt`: the VPs at 4 and 5 seats (`sel`), averaged —
                 # a candidate within `best_margin` of the best is measured
                 # again on `best_seeds` - 1 more evaluation seeds, and
                 # kept on the mean (one evaluation's noise, ±0.15 VP, would
                 # otherwise pick lucky checkpoints).
-                score = (row["vs_bots4"]["vps"] + row["vs_bots5"]["vps"]) / 2
+                score = (first[0]["vps"] + first[1]["vps"]) / 2
                 better = False
                 if score > self.best - cfg.best_margin:
                     scores = [score]
                     for k in range(1, cfg.best_seeds):
-                        b4 = self.evaluate(["aggro", "wall", "aggro"], cfg.eval_games, seed=k)
-                        b5 = self.evaluate(["aggro", "wall", "aggro", "wall"], cfg.eval_games, seed=k)
+                        b4 = self.evaluate(sel[0], cfg.eval_games, seed=k)
+                        b5 = self.evaluate(sel[1], cfg.eval_games, seed=k)
                         scores.append((b4["vps"] + b5["vps"]) / 2)
                     mean = float(np.mean(scores))
-                    row["bots_mean"] = round(mean, 3)
+                    row["frozen_mean" if frozen else "bots_mean"] = round(mean, 3)
                     better = mean > self.best
                     if better:
                         self.best = mean

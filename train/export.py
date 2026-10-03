@@ -3,7 +3,8 @@ outside Python (the browser bot, docs/human-play.md slice 3).
 
 `uv run python -m train.export runs/<name>/best.pt policy.zvp`
 
-The file: a text header — `zvp 1`, `d`, `layers`, `heads`, one `vocab <key>`
+The file: a text header — `zvp 1`, `d`, `layers`, `heads`, `obs <version>`
+when the network reads `zvtes::obs::Version::V2` (absent: V1), one `vocab <key>`
 line per vocabulary row, one `tensor <name> <dims…>` line per tensor — a
 blank line, then the tensors' float32 values, little-endian, in header
 order. The vocabulary keys let the loader re-key the embedding to its own
@@ -16,11 +17,13 @@ import numpy as np
 import torch
 
 
-def dump(state, vocab, d, layers, heads=4):
+def dump(state, vocab, d, layers, heads=4, obs=1):
     """The `.zvp` bytes of a policy's state dict saved under vocabulary
-    `vocab` (keys by id)."""
+    `vocab` (keys by id), reading observation version `obs`."""
     assert len(vocab) == state["vocab.weight"].shape[0], "vocabulary and embedding differ"
     header = ["zvp 1", f"d {d}", f"layers {layers}", f"heads {heads}"]
+    if obs != 1:
+        header.append(f"obs {obs}")
     header += [f"vocab {key}" for key in vocab]
     blobs = []
     for name, tensor in state.items():
@@ -38,7 +41,7 @@ def export(checkpoint, out):
     layers = cfg.get("layers") or 1 + max(
         int(k.split(".")[2]) for k in state if k.startswith("trunk.layers.")
     )
-    data = dump(state, saved["vocab"], d, layers)
+    data = dump(state, saved["vocab"], d, layers, obs=cfg.get("obs", 1))
     with open(out, "wb") as f:
         f.write(data)
     return len(data)

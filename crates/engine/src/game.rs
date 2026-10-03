@@ -207,6 +207,81 @@ pub struct Engine {
     /// The game's random source after setup (random discards): replay is
     /// the seed plus the decision log.
     pub(crate) rng: Rng,
+    /// The last [`HISTORY`] public choices, oldest first (observations'
+    /// memory, `obs::Version::V2`).
+    pub history: std::collections::VecDeque<Event>,
+}
+
+/// How many public choices [`Engine::history`] keeps.
+pub const HISTORY: usize = 32;
+
+/// A public choice: who made it, on which game turn, and the card a hand
+/// index named (`Play`, `Discard`, `BurnForVote`: the index is dead once
+/// the card has left the hand).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Event {
+    pub seat: SeatId,
+    pub turn: u32,
+    pub choice: Choice,
+    pub card: Option<u16>,
+}
+
+/// Whether every seat sees `c` made, and all it names: the plays and
+/// what follows them face up (actions, blocks, strikes, votes, contests,
+/// targets chosen, discards to the ash heap). Never a search, a draw, a
+/// card put under the library or taken from a hidden zone, nor a Pass
+/// (the most frequent choice, it says little).
+pub fn public_choice(c: &Choice) -> bool {
+    use Choice::*;
+    matches!(
+        c,
+        BurnEdge
+            | PayContest(_)
+            | YieldContest(_)
+            | Play { .. }
+            | UseAbility { .. }
+            | ResolveRider { .. }
+            | ResolvePrinted { .. }
+            | BurnInPlay { .. }
+            | BurnPool
+            | BurnBloodFrom { .. }
+            | Discard(_)
+            | TakeEquipment { .. }
+            | TakeAction { .. }
+            | DeclareBlock { .. }
+            | PayRescue { .. }
+            | CastVotes { .. }
+            | CastEdge { .. }
+            | CastCardVote { .. }
+            | BurnForVote { .. }
+            | AllocateTo { .. }
+            | ChooseSeat(_)
+            | ChooseMinion(_)
+            | ChooseClan(_)
+            | ChooseCard(_)
+            | AllocateToCard { .. }
+            | Transfer { .. }
+            | InfluenceOut { .. }
+            | HandStrike
+            | UseManeuver
+            | UsePress
+            | UsePrevent
+            | PayBlockToll
+            | PayToCancel
+            | StrikeCombatEnds
+            | RoundStrike { .. }
+            | TakeDamageAfterResolution
+            | CommittedStrike
+            | BurnWeaponStrike { .. }
+            | BurnBloodForIntercept { .. }
+            | UnlockForBlood { .. }
+            | ContinueAction
+            | GainStrength
+            | BurnBloodToAvoid
+            | BurnCorruptionToFail { .. }
+            | BurnCorruptionToUnlock { .. }
+            | Diablerise
+    )
 }
 
 impl Engine {
@@ -292,6 +367,7 @@ impl Engine {
             rng,
             last_outcome: None,
             combat_notes: None,
+            history: Default::default(),
         };
         engine.start_turn();
         engine
@@ -473,6 +549,7 @@ impl Engine {
                     );
                     if req.options.len() == 1 {
                         let choice = req.options[0];
+                        self.record(&req, &choice);
                         self.apply(&choice);
                     } else {
                         return Step::Decision(req);
@@ -489,7 +566,31 @@ impl Engine {
         self.log.push(idx);
         self.decisions += 1;
         let choice = req.options[idx];
+        self.record(&req, &choice);
         self.apply(&choice);
+    }
+
+    /// Keep `choice` in the history if it is public (before it applies:
+    /// a hand index still names its card).
+    fn record(&mut self, req: &DecisionRequest, choice: &Choice) {
+        if !public_choice(choice) {
+            return;
+        }
+        let card = match *choice {
+            Choice::Play { card, .. }
+            | Choice::Discard(card)
+            | Choice::BurnForVote { card, .. } => Some(self.playable_card(req.seat, card)),
+            _ => None,
+        };
+        if self.history.len() == HISTORY {
+            self.history.pop_front();
+        }
+        self.history.push_back(Event {
+            seat: req.seat,
+            turn: self.state.turn,
+            choice: *choice,
+            card,
+        });
     }
 
     /// The first Methuselah, clockwise from the active one, holding more

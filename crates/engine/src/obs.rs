@@ -13,6 +13,11 @@
 //! banished one excepted), the action's public fields (never the card it
 //! names from hand), the combat and referendum under way. `tests/obs.rs`
 //! pins it: the encoding of the full state equals that of its legal view.
+//!
+//! Two versions ([`Version`]): a trained network keeps the one it was
+//! trained on. `V2` adds what `V1` lacks: the ash heaps' contents (public:
+//! each seat's deck as it is revealed) and the table's memory, the last
+//! public choices (`Engine::history`).
 
 use crate::cards::{AbilitySource, Target};
 use crate::crypt::{Title, CRYPT};
@@ -42,6 +47,22 @@ pub const T_DECK: i32 = 7;
 /// action card, or the card in play granting the action), the votes cast
 /// so far; a second one names a chosen clan.
 pub const T_REFERENDUM: i32 = 8;
+
+/// A card in a seat's ash heap, with its copies (`V2`).
+pub const T_ASH: i32 = 9;
+/// A public choice (`Engine::history`, `V2`): `T_EVENT` + its choice kind
+/// (`opt_ids[0]`), a token type per kind.
+pub const T_EVENT: i32 = 10;
+
+/// The encoding's version: what a network was trained to read.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Version {
+    /// Every network trained before 2026-10-03.
+    #[default]
+    V1,
+    /// `V1` plus the ash heaps' contents and the last public choices.
+    V2,
+}
 
 /// The vocabulary of `ids[1]`: 0 none, then the crypt, the library, a
 /// hidden card, the windows (context token), the clans (a referendum's
@@ -107,6 +128,12 @@ const F_TERM_CHOSEN: usize = F_ACTION + 1;
 const F_VOTES_FOR: usize = F_ACTION + 2;
 const F_VOTES_AGAINST: usize = F_ACTION + 3;
 const _: () = assert!(F_VOTES_AGAINST < F_LONG);
+// An event token's features: the seat that chose (`F_REL`), how far back
+// (choices, game turns), then the option's features.
+const E_AGE: usize = SEATS;
+const E_TURNS: usize = E_AGE + 1;
+const E_OPT: usize = E_TURNS + 1;
+const _: () = assert!(E_OPT + OPT_F <= TOK_F);
 
 // Option feature offsets.
 const O_N: usize = 0;
@@ -127,6 +154,7 @@ pub struct Obs {
 }
 
 /// Token indices of the entities, for pointers (index + 1; 0 = none).
+#[derive(Clone)]
 struct Index {
     seats: Vec<i32>,
     minions: Vec<i32>,
@@ -134,6 +162,8 @@ struct Index {
     hand: Vec<i32>,
     /// The viewer's uncontrolled slots.
     slots: Vec<i32>,
+    /// Every seat's uncontrolled slots (events name another seat's).
+    seat_slots: Vec<Vec<i32>>,
 }
 
 fn at(v: &[i32], i: usize) -> i32 {
@@ -205,19 +235,19 @@ fn flag(b: bool) -> f32 {
 }
 
 /// Encode `req` as `req.seat` sees it.
-pub fn encode(e: &Engine, req: &DecisionRequest) -> Obs {
-    encode_as(e, req, false)
+pub fn encode(e: &Engine, req: &DecisionRequest, v: Version) -> Obs {
+    encode_as(e, req, v, false)
 }
 
 /// The omniscient critic's encoding (training only, DESIGN §5 "asymmetric
 /// critic"): `encode`'s tokens plus every other Methuselah's hand (hand
 /// tokens of their relative seat) and face-down uncontrolled vampires face
 /// up. The policy never sees it.
-pub fn encode_critic(e: &Engine, req: &DecisionRequest) -> Obs {
-    encode_as(e, req, true)
+pub fn encode_critic(e: &Engine, req: &DecisionRequest, v: Version) -> Obs {
+    encode_as(e, req, v, true)
 }
 
-fn encode_as(e: &Engine, req: &DecisionRequest, omniscient: bool) -> Obs {
+fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) -> Obs {
     let st = &e.state;
     let viewer = req.seat;
     let clans = crate::referendum::clans();
@@ -233,6 +263,7 @@ fn encode_as(e: &Engine, req: &DecisionRequest, omniscient: bool) -> Obs {
         cards: vec![0; st.cards.len()],
         hand: Vec::new(),
         slots: Vec::new(),
+        seat_slots: vec![Vec::new(); st.seats.len()],
     };
     let push = |o: &mut Obs, ids: [i32; TOK_IDS], f: [f32; TOK_F]| {
         o.tok_ids.push(ids);
@@ -371,6 +402,7 @@ fn encode_as(e: &Engine, req: &DecisionRequest, omniscient: bool) -> Obs {
             if seat == viewer {
                 ix.slots.push(t);
             }
+            ix.seat_slots[s].push(t);
         }
     }
 
@@ -424,6 +456,45 @@ fn encode_as(e: &Engine, req: &DecisionRequest, omniscient: bool) -> Obs {
         }
     }
 
+    if v == Version::V2 {
+        // The ash heaps: a token per seat and card, with its copies.
+        for s in 0..st.seats.len() {
+            let seat = &st.seats[s];
+            let rel = rel(st, viewer, SeatId(s as u8)).min(SEATS - 1);
+            for (cards, crypt) in [(&seat.ash, false), (&seat.ash_crypt, true)] {
+                let mut heap = std::collections::BTreeMap::new();
+                for &c in cards {
+                    *heap.entry(c).or_insert(0u32) += 1;
+                }
+                for (c, n) in heap {
+                    let mut f = [0.0; TOK_F];
+                    f[F_REL + rel] = 1.0;
+                    f[F_BLOOD] = n as f32 / 4.0;
+                    let id = if crypt { crypt_id(c) } else { library_id(c) };
+                    push(&mut o, [T_ASH, id, 0, 0], f);
+                }
+            }
+        }
+        // The last public choices, oldest first: each as the option it
+        // was, pointing at the tokens it named that are still here.
+        // Two pointers: the actor (else the card or minion the choice
+        // names) and the target.
+        let n = e.history.len();
+        let mut evix = ix.clone();
+        evix.hand.clear();
+        for (k, ev) in e.history.iter().enumerate() {
+            evix.slots.clone_from(&ix.seat_slots[ev.seat.index()]);
+            let (ids, of) = option(e, ev.seat, &evix, &clans, &ev.choice, ev.card);
+            let mut f = [0.0; TOK_F];
+            f[F_REL + rel(st, viewer, ev.seat).min(SEATS - 1)] = 1.0;
+            f[E_AGE] = (n - k) as f32 / crate::game::HISTORY as f32;
+            f[E_TURNS] = st.turn.saturating_sub(ev.turn) as f32 / 10.0;
+            f[E_OPT..E_OPT + OPT_F].copy_from_slice(&of);
+            let a = if ids[3] != 0 { ids[3] } else { ids[2] };
+            push(&mut o, [T_EVENT + ids[0], ids[1], a, ids[4]], f);
+        }
+    }
+
     // The context: window, action, combat, referendum.
     let mut f = [0.0; TOK_F];
     let (mut a_ptr, mut b_ptr) = (0, 0);
@@ -460,7 +531,7 @@ fn encode_as(e: &Engine, req: &DecisionRequest, omniscient: bool) -> Obs {
     push(&mut o, [T_CONTEXT, window, a_ptr, b_ptr], f);
 
     for choice in &req.options {
-        let (ids, f) = option(e, viewer, &ix, &clans, choice);
+        let (ids, f) = option(e, viewer, &ix, &clans, choice, None);
         o.opt_ids.push(ids);
         o.opt_f.push(f);
     }
@@ -471,17 +542,20 @@ fn encode_as(e: &Engine, req: &DecisionRequest, omniscient: bool) -> Obs {
 /// padding 0.
 pub const N_CHOICE_KINDS: usize = 59;
 
+/// `choice` as `viewer` would be offered it; `played`: the card its hand
+/// index named, for a past choice (`Event::card`).
 fn option(
     e: &Engine,
     viewer: SeatId,
     ix: &Index,
     clans: &[&str],
     choice: &Choice,
+    played: Option<u16>,
 ) -> ([i32; OPT_IDS], [f32; OPT_F]) {
     let mut f = [0.0; OPT_F];
     let hand = |i: u8| at(&ix.hand, i as usize);
     let slot = |i: u8| at(&ix.slots, i as usize);
-    let hand_card = |i: u8| library_id(e.playable_card(viewer, i));
+    let hand_card = |i: u8| library_id(played.unwrap_or_else(|| e.playable_card(viewer, i)));
     // A referenced card or minion also carries its identity: it may have
     // left play (a rider pending as its card leaves), naming no token.
     let card_v = |c: u32| library_id(e.state.cards[c as usize].card);
@@ -667,6 +741,6 @@ pub fn schema_json() -> String {
         "{{\"tok_ids\": {TOK_IDS}, \"tok_f\": {TOK_F}, \"opt_ids\": {OPT_IDS}, \
          \"opt_f\": {OPT_F}, \"vocab\": {vocab}, \"choice_kinds\": {N_CHOICE_KINDS}, \
          \"token_types\": {}, \"windows\": {N_WINDOWS}, \"action_kinds\": {N_ACTION_KINDS}}}",
-        T_REFERENDUM + 1
+        T_EVENT + N_CHOICE_KINDS as i32
     )
 }

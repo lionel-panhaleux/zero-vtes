@@ -65,3 +65,25 @@ def test_an_older_vocabulary_is_rekeyed():
     data = dump(state, [keys[i] for i in order], 32, 1)
     for obs in observations(10, seed=5):
         compare(model, data, obs)
+
+
+@torch.no_grad()
+def test_a_v2_policy_matches():
+    """A network reading `V2` (ash heaps, events: a token type per choice
+    kind) exports with its version and plays as trained."""
+    torch.manual_seed(2)
+    schema = json.loads(zvtes_py.schema())
+    model = Policy(schema, d=32, layers=1).eval()
+    for p in model.parameters():
+        p.add_(0.1 * torch.randn_like(p))
+    data = dump(model.state_dict(), zvtes_py.vocab_keys(), 32, 1, obs=2)
+    assert b"\nobs 2\n" in data
+    pool = zvtes_py.GamePool(4, ["policy", "aggro", "wall", "policy"], seed=7, rotate=True, obs=2)
+    rng = np.random.default_rng(7)
+    events = 0
+    for _ in range(60):
+        obs = pool.observe()
+        events += int((obs["tok_ids"][..., 0] >= 10).sum())
+        compare(model, data, obs)
+        pool.act([int(rng.integers(k)) for k in obs["opt_n"]])
+    assert events > 0

@@ -3,7 +3,8 @@
 //! same request from the seat's legal view — and every pointer names a
 //! token or carries an identity. Games from the opening (bots and random seats) and the fuzz
 //! tables (`common::tables`, random play). `OBS_STATS=1` prints the largest
-//! token and option counts met.
+//! token and option counts met. `V2` is `V1` plus its ash heap and event
+//! tokens, and the history it reads holds only public choices.
 
 mod common;
 
@@ -13,8 +14,8 @@ use zvtes::bots::{Scripted, Style};
 use zvtes::decision::Choice;
 use zvtes::game::{Engine, Step};
 use zvtes::obs::{
-    encode, encode_critic, Obs, T_DECK, T_HAND, T_REFERENDUM, T_SEAT, T_SLOT, V_CRYPT, V_HIDDEN,
-    V_LIBRARY,
+    encode, encode_critic, Obs, Version, T_ASH, T_DECK, T_EVENT, T_HAND, T_REFERENDUM, T_SEAT,
+    T_SLOT, V_CRYPT, V_HIDDEN, V_LIBRARY,
 };
 
 const DECISION_BUDGET: u64 = 100_000;
@@ -83,26 +84,87 @@ fn check(o: &Obs, req: &zvtes::decision::DecisionRequest, what: &str) {
 #[derive(Default)]
 struct Stats {
     tokens: usize,
+    tokens_v2: usize,
     options: usize,
     samples: usize,
+}
+
+/// `V2` without its ash heap and event tokens is `V1`: they come after
+/// every token a pointer names, before the context token.
+fn extends_v1(v1: &Obs, v2: &Obs, what: &str) {
+    let added = |t: &[i32; 4]| t[0] == T_ASH || t[0] >= T_EVENT;
+    let keep: Vec<usize> = (0..v2.tok_ids.len())
+        .filter(|&i| !added(&v2.tok_ids[i]))
+        .collect();
+    let first = v2
+        .tok_ids
+        .iter()
+        .position(added)
+        .unwrap_or(v2.tok_ids.len());
+    assert!(
+        keep.iter().all(|&i| i < first || i == v2.tok_ids.len() - 1),
+        "{what}: added tokens before the context"
+    );
+    let ids: Vec<_> = keep.iter().map(|&i| v2.tok_ids[i]).collect();
+    let f: Vec<_> = keep.iter().map(|&i| v2.tok_f[i]).collect();
+    let n = v1.tok_ids.len();
+    assert!(ids[..n - 1] == v1.tok_ids[..n - 1], "{what}: tokens");
+    assert!(ids[n - 1] == v1.tok_ids[n - 1], "{what}: context");
+    assert!(f == v1.tok_f, "{what}: features");
+    assert!(
+        v2.opt_ids == v1.opt_ids && v2.opt_f == v1.opt_f,
+        "{what}: options"
+    );
 }
 
 fn game(what: &str, mut e: Engine, agents: &mut [Box<dyn Agent>], stats: &mut Stats) {
     while let Step::Decision(req) = e.run() {
         assert!(e.decisions < DECISION_BUDGET, "{what}: decision budget");
-        let seeing = encode(&e, &req);
+        let seeing = encode(&e, &req, Version::V1);
+        let seeing_v2 = encode(&e, &req, Version::V2);
         let what = format!("{what}, decision {}", e.decisions);
         check(&seeing, &req, &what);
+        check(&seeing_v2, &req, &what);
+        extends_v1(&seeing, &seeing_v2, &what);
         if e.decisions.is_multiple_of(2) {
             let mut view = e.clone();
             view.state = e.state.legal_view(req.seat);
-            assert!(encode(&view, &req) == seeing, "{what}: {:?}", req.window);
+            assert!(
+                encode(&view, &req, Version::V1) == seeing,
+                "{what}: {:?}",
+                req.window
+            );
+            assert!(
+                encode(&view, &req, Version::V2) == seeing_v2,
+                "{what}: {:?}",
+                req.window
+            );
             stats.samples += 1;
         }
         stats.tokens = stats.tokens.max(seeing.tok_ids.len());
+        stats.tokens_v2 = stats.tokens_v2.max(seeing_v2.tok_ids.len());
         stats.options = stats.options.max(seeing.opt_ids.len());
         let i = agents[req.seat.index()].decide(&e, &req);
+        // The history keeps the public choices only, a played card by
+        // its identity.
+        let before = e.history.clone();
+        let choice = req.options[i];
+        let played = match choice {
+            Choice::Play { card, .. }
+            | Choice::Discard(card)
+            | Choice::BurnForVote { card, .. } => Some(e.playable_card(req.seat, card)),
+            _ => None,
+        };
         e.choose(i);
+        if zvtes::game::public_choice(&choice) {
+            let ev = e.history.back().expect("an event");
+            assert!(
+                ev.seat == req.seat && ev.choice == choice && ev.card == played,
+                "{what}: {ev:?}"
+            );
+        } else {
+            assert!(e.history == before, "{what}: {choice:?} recorded");
+        }
     }
 }
 
@@ -140,8 +202,8 @@ fn observations_read_only_the_legal_view() {
     }
     if std::env::var("OBS_STATS").is_ok() {
         eprintln!(
-            "{} samples; at most {} tokens, {} options",
-            stats.samples, stats.tokens, stats.options
+            "{} samples; at most {} tokens ({} in V2), {} options",
+            stats.samples, stats.tokens, stats.tokens_v2, stats.options
         );
     }
 }
@@ -182,7 +244,7 @@ fn a_banished_created_vampire_is_its_card() {
     let Step::Decision(req) = e.run() else {
         panic!("a decision")
     };
-    let o = encode(&e, &req);
+    let o = encode(&e, &req, Version::V1);
     let slot = o.tok_ids.iter().find(|t| t[0] == T_SLOT).expect("the slot");
     assert_eq!(slot[1], V_LIBRARY + childe as i32);
 }
@@ -196,7 +258,10 @@ fn the_critic_sees_every_hand_and_uncontrolled_vampire() {
     let Step::Decision(req) = e.run() else {
         panic!("a decision")
     };
-    let (seen, all) = (encode(&e, &req), encode_critic(&e, &req));
+    let (seen, all) = (
+        encode(&e, &req, Version::V1),
+        encode_critic(&e, &req, Version::V1),
+    );
     let hands = |o: &Obs| o.tok_ids.iter().filter(|t| t[0] == T_HAND).count();
     let others: usize = e
         .state
@@ -225,7 +290,7 @@ fn the_viewer_sees_what_remains_of_their_library_and_crypt() {
     let Step::Decision(req) = e.run() else {
         panic!("a decision")
     };
-    let seen = encode(&e, &req);
+    let seen = encode(&e, &req, Version::V1);
     let seat = &e.state.seats[req.seat.index()];
     let mut expected = std::collections::BTreeMap::new();
     for &c in &seat.library {
@@ -247,7 +312,7 @@ fn the_viewer_sees_what_remains_of_their_library_and_crypt() {
     let seat = &mut e.state.seats[req.seat.index()];
     seat.library.reverse();
     seat.crypt.reverse();
-    assert!(encode(&e, &req) == seen);
+    assert!(encode(&e, &req, Version::V1) == seen);
 }
 
 /// A political referendum names its card, its terms (points on the seat
@@ -285,7 +350,7 @@ fn a_referendum_shows_its_card_terms_and_votes() {
         }
         e.choose(0);
     };
-    let o = encode(&e, &req);
+    let o = encode(&e, &req, Version::V1);
     let refs: Vec<_> = (0..o.tok_ids.len())
         .filter(|&i| o.tok_ids[i][0] == T_REFERENDUM)
         .collect();
