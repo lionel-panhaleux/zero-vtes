@@ -1387,7 +1387,9 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   the encoders the pending request), `zvtes_py.deck_cards(d)`, and
   `uv run python -m train.assess <replay.json> [checkpoint]` (the
   checkpoint's `obs` version; `*` marks a card outside its training
-  decks). First game (469 decisions, 221 the owner's): the policy's
+  decks). The corpus: `data/replays/` (tracked, indexed in its README
+  with each game's engine commit: a rule change can stop an old log
+  replaying). First game (469 decisions, 221 the owner's): the policy's
   favourite was the human's 36% of the time; wherever a vampire could
   be influenced out, it would have (≈100%) where the owner kept
   transferring to another vampire, and it gave a crypt draw no weight;

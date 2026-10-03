@@ -2,7 +2,7 @@
 step 1, the diagnostic). The game is a replay exported from the Succubus
 Club fork; every decision is replayed and encoded as the network reads it.
 
-`uv run python -m train.assess <replay.json> [runs/<name>/best.pt] [--top N]`
+`uv run python -m train.assess data/replays/<game>.json [runs/<name>/best.pt] [--top N]`
 
 - The human's choices the policy found least likely (where its play and a
   human's part), with the option it preferred; agreement by window.

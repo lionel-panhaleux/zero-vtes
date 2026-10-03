@@ -233,7 +233,8 @@ table move where SC has the UI for it; no imitation of a UI SC lacks
 |---|---|---|
 | 6.1 | Diagnostic: `zvtes_py.replay_decisions` (a fork replay → per-decision encodings, options, choice, events) and `train/assess.py` (the human's choices the policy found least likely, agreement by window; the bots' sharpest falls in the critic's value with what happened between) | done; first game read |
 | 6.2 | Start positions: self-play continued from a human game's prefixes | todo |
-| 6.3 | Imitation term: cross-entropy on the human's choices beside PPO's loss, once there are dozens of games; where the replays are kept | todo |
+| 6.3 | Imitation term: cross-entropy on the human's choices beside PPO's loss, once there are dozens of games | todo |
+| 6.4 | The corpus: `data/replays/` (tracked; its README indexes each game: engine commit, seats' decks, bots, result) | done; 1 game |
 
 ## Protocol as built (slice 1)
 
