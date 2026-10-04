@@ -1810,7 +1810,10 @@ fuzz_tests! {
             "ability:Mobile HQ, Operation Antigen",
             "ability:Enhanced Coagulant",
             "ability:Flaming Candle",
-            "ability:Ritual Goblet",
+            // Ritual Goblet's unlock starves since a blocker left for
+            // another is not offered again (rules-qa 48.6);
+            // tests/precon.rs ritual_goblet_discounts_a_rescue_and_unlocks_once_a_turn
+            // scripts it.
         ],
         untwin: true,
         seeds: 300,

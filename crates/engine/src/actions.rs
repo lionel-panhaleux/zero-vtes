@@ -1815,11 +1815,14 @@ impl Engine {
             }
             Choice::DeclareBlock { minion } => {
                 // Another blocker instead (rules-qa 48.3): the attempt under
-                // way fails, as at its closure.
+                // way fails, as at its closure: not offered again alike
+                // (rules-qa 48.6).
                 if let ActionState::Attempt(x) = a.state {
                     if a.lock_failed {
                         a.failed_blockers.push(x);
                     }
+                    let print = a.attempt_print(&self.state, x);
+                    a.failed_attempts.push((x, print));
                 }
                 a.state = ActionState::Attempt(*minion);
                 a.window.play();
@@ -2412,8 +2415,12 @@ impl Engine {
                     _ => false,
                 };
                 if (a.state == ActionState::Open || switch) && self.block_toll(&a, t).is_some() {
-                    if let (true, ActionState::Attempt(x)) = (a.lock_failed, a.state) {
-                        a.failed_blockers.push(x);
+                    if let ActionState::Attempt(x) = a.state {
+                        if a.lock_failed {
+                            a.failed_blockers.push(x);
+                        }
+                        let print = a.attempt_print(&self.state, x);
+                        a.failed_attempts.push((x, print));
                     }
                     a.state = ActionState::Attempt(t);
                     self.action = Some(a);

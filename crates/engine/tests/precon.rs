@@ -1271,6 +1271,34 @@ fn a_failed_attempt_is_not_offered_again_in_the_same_situation() {
     );
 }
 
+// A change of blocker fails the attempt under way like its closure does
+// (rules-qa 48.3, 48.6): X left for Y, Y for X again is not offered — no
+// endless swapping (owner, 2026-10-04, from play: two bot minions short of
+// the stealth trading the attempt back and forth).
+#[test]
+fn a_blocker_left_for_another_is_not_offered_again_in_the_same_situation() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let x = e.add_minion(SeatId(1), plain("", "aus", 1), 4, false);
+    let y = e.add_minion(SeatId(1), plain("", "aus", 2), 4, false);
+    equip(&mut e, "Unlicensed Taxicab", a);
+    hand(&mut e, 1, &["Enhanced Senses"]);
+    e.state.seats[1].library = vec![find_library("Enhanced Senses")];
+    pick(&mut e, action(a, ActionKind::Hunt)); // 2 stealth
+    pick(&mut e, Choice::DeclareBlock { minion: x });
+    pick(&mut e, Choice::DeclareBlock { minion: y }); // X's attempt fails
+    let req = expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    assert!(
+        !req.options.contains(&Choice::DeclareBlock { minion: x }),
+        "{req:?}"
+    );
+    // Y's fails too: neither is offered again, the hunt goes through.
+    pick(&mut e, Choice::Pass);
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, a), 4 + 1);
+}
+
 // Truth in Darkness [OBL]: "if this vampire blocks, they can burn 1 blood
 // to unlock after block resolution."
 #[test]
