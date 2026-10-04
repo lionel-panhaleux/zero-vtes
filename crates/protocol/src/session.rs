@@ -519,6 +519,7 @@ impl Session {
         if let Some(before) = &self.mark {
             let names = self.names();
             before.draws(&now, &all, &names, &mut self.events);
+            before.strikes(&self.engine, &now, &mut self.events);
             before.endings(&self.engine, &now, &names, &mut self.events);
             if ran {
                 before.changes(&self.engine, &now, &names, &mut self.events);

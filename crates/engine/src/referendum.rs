@@ -749,8 +749,11 @@ impl Engine {
                 options.push(Choice::CastCardVote { favor: true });
                 options.push(Choice::CastCardVote { favor: false });
             }
-            for (hi, &card) in st.seats[seat.index()].hand.iter().enumerate() {
+            let hand = &st.seats[seat.index()].hand;
+            for (hi, &card) in hand.iter().enumerate() {
+                // Copies alike: one choice (owner, 2026-10-04).
                 if !calling
+                    && crate::state::first_copy(hand, hi)
                     && LIBRARY[card as usize]
                         .types
                         .contains(&CardType::PoliticalAction)

@@ -43,7 +43,7 @@ fn copies(v: &TableView) -> Vec<CardView> {
     out
 }
 
-fn check_view(v: &TableView, arena: &mut HashMap<u32, u32>, decks: &[usize]) {
+fn check_view(v: &TableView, arena: &mut HashMap<u32, u32>, decks: &[usize], seed: u64) {
     let all = copies(v);
     // The votes listed add up to the tally; a blocker comes with its
     // intercept, a bleed with its amount.
@@ -76,7 +76,7 @@ fn check_view(v: &TableView, arena: &mut HashMap<u32, u32>, decks: &[usize]) {
     let high: usize = decks.iter().sum();
     assert!(
         (low..=high).contains(&all.len()),
-        "decision {}: {} cards shown, decks hold {low}..={high}",
+        "seed {seed}, decision {}: {} cards shown, decks hold {low}..={high}",
         v.decision,
         all.len()
     );
@@ -435,7 +435,7 @@ fn sessions_over_the_shipped_decks() {
                     undo,
                     ..
                 } => {
-                    check_view(view, &mut arena, &cards);
+                    check_view(view, &mut arena, &cards, seed);
                     let texts: Vec<String> = options.iter().map(|o| o.text.clone()).collect();
                     if let Some(asked) = again.take() {
                         assert_eq!(
@@ -524,7 +524,7 @@ fn sessions_over_the_shipped_decks() {
                 Out::Decided {
                     seat, choice, view, ..
                 } => {
-                    check_view(view, &mut arena, &cards);
+                    check_view(view, &mut arena, &cards, seed);
                     deciders.push((*seat, None));
                     if *seat == 0 && standing.is_some() {
                         assert!(
@@ -538,7 +538,7 @@ fn sessions_over_the_shipped_decks() {
                     }
                 }
                 Out::Over { vps, view, .. } => {
-                    check_view(view, &mut arena, &cards);
+                    check_view(view, &mut arena, &cards, seed);
                     assert_eq!(vps.len(), 4);
                     break;
                 }

@@ -914,7 +914,8 @@ fuzz_tests! {
             // slice reshuffles hands; Ivory Bow takes the aggravated ranged
             // kind, and the melee strikes are scripted in tests/weapons.rs.)
             "play:Ivory Bow",
-            "ability:Ivory Bow",
+            // (ability:Ivory Bow: starved once political cards alike in hand
+            // became one vote choice; scripted in tests/vampires.rs.)
             "play:Femur of Toomler",
             "play:Kali's Fang",
             "play:Sniper Rifle",

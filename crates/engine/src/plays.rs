@@ -2865,6 +2865,14 @@ impl Engine {
                     let controller = v.owner;
                     let owner = v.origin.or(v.temp_from).unwrap_or(controller);
                     let card = v.crypt_card();
+                    // The cards on it are burned as it leaves play (advanced
+                    // rules §1.12.1), its owner's too.
+                    for ci in 0..self.state.cards.len() {
+                        let c = &self.state.cards[ci];
+                        if c.in_play && c.host == Some(t) {
+                            self.burn_card_in_play(CardId(ci as u32));
+                        }
+                    }
                     self.remove_minion(t);
                     if let Some(c) = card {
                         self.state.seats[owner.index()].removed_crypt.push(c);

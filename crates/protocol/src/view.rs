@@ -183,6 +183,20 @@ pub struct CombatView {
     pub minions: [u32; 2],
     pub round: u8,
     pub range: String,
+    /// Each side (the acting minion's first): its strike once declared —
+    /// the blocker chooses knowing the acting minion's — and the
+    /// maneuvers and presses it has for the round.
+    #[serde(default)]
+    pub sides: Vec<CombatSideView>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CombatSideView {
+    pub minion: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub strike: Option<String>,
+    pub maneuvers: u8,
+    pub presses: u8,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -461,6 +475,16 @@ pub fn table_view(e: &Engine, viewer: Option<SeatId>, tracker: &mut Tracker) -> 
             minions: [c.sides[0].minion.0, c.sides[1].minion.0],
             round: c.round,
             range: format!("{:?}", c.range).to_lowercase(),
+            sides: c
+                .sides
+                .iter()
+                .map(|s| CombatSideView {
+                    minion: s.minion.0,
+                    strike: crate::narrate::declared_strike(e, s),
+                    maneuvers: s.maneuvers,
+                    presses: s.presses,
+                })
+                .collect(),
         }),
         referendum: e.referendum().map(|r| {
             let tally = |favor: bool| {

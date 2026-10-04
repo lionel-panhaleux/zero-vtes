@@ -252,3 +252,52 @@ fn several_abilities_say_what_each_does() {
     );
     assert_eq!(read(&e, sphinx, 1), "Use Dreams of the Sphinx: gain 1 pool");
 }
+
+/// The blocker chooses its strike knowing the acting minion's: the table
+/// shows it (owner, 2026-10-04: "the acting strike is not displayed
+/// anywhere").
+#[test]
+fn the_acting_strike_is_shown_before_the_blocker_chooses() {
+    use zvtes::decision::ActionKind;
+    use zvtes::state::CardInPlay;
+    let mut e = Engine::bare(3);
+    let plain_of = |n| plain(|c| c.title == Title::None, n);
+    let a = e.add_minion(SeatId(0), plain_of(0), 4, false);
+    e.add_minion(SeatId(0), plain_of(1), 4, false);
+    let z = e.add_minion(SeatId(1), plain_of(2), 4, false);
+    e.state.cards.push(CardInPlay::new(
+        library(".44 Magnum"),
+        SeatId(1),
+        Some(z),
+        0,
+    ));
+    let req = next(&mut e);
+    pick(
+        &mut e,
+        &req,
+        &Choice::TakeAction {
+            minion: a,
+            action: ActionKind::Bleed,
+            target: None,
+        },
+    );
+    for _ in 0..50 {
+        let req = next(&mut e);
+        if req.window == WindowLabel::CombatStrike && req.seat == SeatId(1) {
+            let view = table_view(&e, Some(SeatId(1)), &mut Tracker::default());
+            let c = view.combat.expect("a combat");
+            assert_eq!(c.sides[0].minion, a.0);
+            assert_eq!(c.sides[0].strike.as_deref(), Some("hand strike"));
+            assert_eq!(c.sides[1].strike, None);
+            return;
+        }
+        let i = req
+            .options
+            .iter()
+            .position(|c| *c == Choice::DeclareBlock { minion: z })
+            .or_else(|| req.options.iter().position(|c| *c == Choice::Pass))
+            .unwrap_or(0);
+        e.choose(i);
+    }
+    panic!("no strike asked of the blocker");
+}

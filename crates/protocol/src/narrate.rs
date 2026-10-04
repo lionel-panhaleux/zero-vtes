@@ -42,6 +42,25 @@ pub(crate) struct Mark {
     /// shown): one in the hand or the uncontrolled region next is a draw.
     library: Vec<HashSet<u32>>,
     crypt: Vec<HashSet<u32>>,
+    /// The combat's strikes declared: per side, its minion and the round
+    /// and pair it declared in, and what (`None`: not declared yet).
+    strikes: Vec<(MinionId, u8, u8, Option<String>)>,
+}
+
+/// A side's declared strike, as the table sees it ("Ivory Bow: 1R
+/// damage"); `None` while it has not declared.
+pub(crate) fn declared_strike(e: &Engine, side: &zvtes::combat::Side) -> Option<String> {
+    if !side.chosen {
+        return None;
+    }
+    let what = strike_text(side.strike);
+    Some(match side.strike_source {
+        Some(w) => format!(
+            "{}: {what}",
+            zvtes::library::LIBRARY[e.state.cards[w.index()].card as usize].name
+        ),
+        None => what,
+    })
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -179,6 +198,15 @@ impl Mark {
                         .then_some(a.referendum_passed),
                 }
             }),
+            strikes: e
+                .combat()
+                .map(|c| {
+                    c.sides
+                        .iter()
+                        .map(|s| (s.minion, c.round, c.pair, declared_strike(e, s)))
+                        .collect()
+                })
+                .unwrap_or_default(),
             referendum: e.referendum().map(|r| RefMark {
                 label: match r.kind {
                     RefKind::BloodHunt { diablerist } => {
@@ -202,6 +230,21 @@ impl Mark {
     }
 
     /// How the action and referendum seen at `self` ended by `now`.
+    /// The strikes declared since (the acting minion's first: the
+    /// blocker chooses knowing it), each told once.
+    pub(crate) fn strikes(&self, e: &Engine, now: &Mark, out: &mut Vec<String>) {
+        for &(m, round, pair, ref strike) in &now.strikes {
+            let Some(strike) = strike else { continue };
+            let told = self
+                .strikes
+                .iter()
+                .any(|&(b, r, p, ref s)| b == m && r == round && p == pair && s.is_some());
+            if !told {
+                out.push(format!("{} strikes: {strike}", minion_name(e, m)));
+            }
+        }
+    }
+
     pub(crate) fn endings(&self, e: &Engine, now: &Mark, names: &[String], out: &mut Vec<String>) {
         if let Some(r) = &self.referendum {
             if now.referendum.is_none() {

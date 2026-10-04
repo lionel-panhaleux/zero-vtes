@@ -10276,6 +10276,9 @@ fn golconda_removes_an_elder_for_its_capacity_in_pool() {
         let big = crypt("\"Mother\" Anja Giovanni");
         let z = e.add_minion(SeatId(1), big, 4, false);
         let small = e.add_minion(SeatId(1), vampire(|c| c.capacity < 8, 0), 4, false);
+        // A card on it is burned as it leaves play (advanced rules
+        // §1.12.1), not lost.
+        let on = attach(&mut e, "Monster", z, 0);
         hand(&mut e, 0, &["Golconda: Inner Peace"]);
         e.at_master_phase();
         let req = request(&mut e);
@@ -10302,6 +10305,8 @@ fn golconda_removes_an_elder_for_its_capacity_in_pool() {
             assert!(!e.state.minions[z.index()].in_play);
             assert_eq!(e.state.seats[1].removed_crypt, vec![big]);
             assert_eq!(pool(&e, 1), 30 + cap);
+            assert!(!e.state.cards[on.index()].in_play);
+            assert_eq!(e.state.seats[1].ash, vec![find_library("Monster")]);
         }
     }
 }
