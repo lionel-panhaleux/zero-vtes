@@ -6172,7 +6172,11 @@ vote_location!(
     "\"Unique location. You can lock this card during the polling step of any \
      referendum to get +3 votes.\" The Methuselah's own votes, cast as the \
      card locks, all on one side.",
-    &[Requirement::AnyPollingStep, Requirement::CardUnlocked],
+    &[
+        Requirement::AnyPollingStep,
+        Requirement::CardUnlocked,
+        Requirement::YouControlThisCard,
+    ],
     [
         &[
             Effect::LockSelf,

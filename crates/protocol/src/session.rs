@@ -519,6 +519,7 @@ impl Session {
         if let Some(before) = &self.mark {
             let names = self.names();
             before.draws(&now, &all, &names, &mut self.events);
+            before.attempts(&self.engine, &now, &mut self.events);
             before.strikes(&self.engine, &now, &mut self.events);
             before.endings(&self.engine, &now, &names, &mut self.events);
             if ran {
@@ -722,10 +723,11 @@ impl Session {
                 let events = std::mem::take(&mut self.events);
                 self.remember(&req, &req.options[idx]);
                 self.choices.push(logged(&self.engine, &req, idx));
+                let effects = untold_effects(&req.options[idx]);
                 self.engine.choose(idx);
                 self.history.push((req.seat, req.window, None));
                 self.aim(had_action, &mut choice);
-                self.observe(false);
+                self.observe(effects);
                 self.pending = None;
                 Out::Decided {
                     decision,
@@ -774,10 +776,11 @@ impl Session {
         let events = std::mem::take(&mut self.events);
         self.remember(&req, &req.options[index]);
         self.choices.push(logged(&self.engine, &req, index));
+        let effects = untold_effects(&req.options[index]);
         self.engine.choose(index);
         self.history.push((req.seat, req.window, Some(known)));
         self.aim(had_action, &mut choice);
-        self.observe(false);
+        self.observe(effects);
         self.pending = None;
         Ok(Out::Decided {
             decision,
@@ -884,4 +887,14 @@ impl Agent for Unset {
     fn decide(&mut self, _: &Engine, _: &DecisionRequest) -> usize {
         panic!("bot style not installed: Session::set_agent")
     }
+}
+
+/// A decision whose text does not tell what it did: a rider resolved, an
+/// ability used (Fame's pool, Wider View's +2 pool) — its pool and blood
+/// changes are told as an engine run's are.
+fn untold_effects(c: &Choice) -> bool {
+    matches!(
+        c,
+        Choice::ResolveRider { .. } | Choice::ResolvePrinted { .. } | Choice::UseAbility { .. }
+    )
 }

@@ -129,7 +129,7 @@ fn a_decision_this_engine_does_not_ask_is_passed_over() {
 fn an_owner_game_reads_whole() {
     let path = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../data/replays/zero-vtes-replay-2026-10-04T06-45-40-714Z.json"
+        "/../../data/replays/zero-vtes-replay-2026-10-04T12-09-51-567Z.json"
     );
     let replay: Replay = serde_json::from_str(&std::fs::read_to_string(path).expect("the replay"))
         .expect("a replay");

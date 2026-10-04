@@ -2296,6 +2296,20 @@ fn ventrue_headquarters_locks_for_3_votes() {
         actor: None,
         target: Target::None,
     };
+    // Its controller's only: seat 0 is never offered it.
+    loop {
+        let req = request(&mut e);
+        if req.seat == SeatId(0) {
+            assert!(!req.options.iter().any(|o| matches!(
+                o,
+                Choice::UseAbility { source: AbilitySource::Card(c), .. } if *c == hq
+            )));
+        }
+        if req.seat == SeatId(1) && req.options.contains(&against) {
+            break;
+        }
+        e.choose(fallback(&req));
+    }
     pick_for(&mut e, SeatId(1), against);
     assert!(e.state.cards[hq.index()].locked);
     close_polling(&mut e);

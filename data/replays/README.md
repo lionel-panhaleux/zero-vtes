@@ -26,6 +26,13 @@ as it was played.
 | `zero-vtes-replay-2026-10-04T06-45-40-714Z.json` | uncommitted, after `ea6e93d` | **Ventrue (V5)**, Salubri (V5 Companion), Toreador (V5), Ravnos (V5 Companion) | `p5-self@1250` (network) | owner 4 VP, the bots 0 |
 | `zero-vtes-replay-2026-10-04T07-20-42-703Z.json` | uncommitted, after `ea6e93d` | **Toreador (V5)**, Gangrel (V5 Anarch), Banu Haqim (V5 Anarch), Ministry (V5 Anarch) | `p5-self@1250` (network) | owner 3 VP, Banu Haqim 1 |
 | `zero-vtes-replay-2026-10-04T08-31-11-014Z.json` | uncommitted, after `a963b55` | Hecata (V5), **The Unnamed**, Ministry (V5 Anarch), Lasombra (V5) | `p5-self@1250` (network) | — (log ends at 642) |
+| `zero-vtes-replay-2026-10-04T08-47-02-271Z.json` | uncommitted, after `ea6e93d` | Tzimisce (V5 Companion), **Ministry (V5 Anarch)**, Banu Haqim (V5 Anarch), Nosferatu (V5) | `p5-self@1250` (network) | owner 4 VP, the bots 0 |
+| `zero-vtes-replay-2026-10-04T09-22-57-297Z.json` | uncommitted, after `ea6e93d` | Tremere (V5), Gangrel (V5 Anarch), **Ravnos (V5 Companion)**, Toreador (V5) | `p5-self@1250` (network) | owner 2 VP, Toreador 2 |
+| `zero-vtes-replay-2026-10-04T12-09-51-567Z.json` | after `3cc7ae3`, before `601bf3c` | **Salubri (V5 Companion)**, Brujah (V5 Anarch), Ministry (V5 Anarch), Gangrel (V5 Anarch) | `p5-self@1250` (network) | owner 4 VP, the bots 0 |
+| `zero-vtes-replay-2026-10-04T13-51-13-838Z.json` | `601bf3c` | **Nosferatu (V5)**, Ministry (V5 Anarch), Toreador (V5), Salubri (V5 Companion) | `p5-self@1250` (network, default politics) | owner 2 VP, Ministry 2 |
+| `zero-vtes-replay-2026-10-04T14-37-29-282Z.json` | `601bf3c` | **Hecata (V5)**, Malkavian (V5), Toreador (V5), Ventrue (V5) | `p5-self@1250` (network, default politics) | owner 4 VP, the bots 0 |
+| `zero-vtes-replay-2026-10-04T15-07-24-918Z.json` | `601bf3c` or later | Malkavian (V5), Ministry (V5 Anarch), Gangrel (V5 Anarch), **Nosferatu (V5)** | `p5-self@1250` (network, default politics) | owner 3 VP, Malkavian 1 |
+| `zero-vtes-replay-2026-10-04T15-55-52-662Z.json` | `601bf3c` or later | Tzimisce (V5 Companion), **Hecata (V5)**, Ministry (V5 Anarch), Toreador (V5) | `p5-self@1250` (network, default politics) | owner 3 VP, Ministry 1 |
 
 Since rules-qa 48.1 (intercept not floored at 0), `2026-10-03T09-03-44`
 replays on later engines only up to decision 72: its Form of the Bat
@@ -54,3 +61,14 @@ others up to a rules fix since their game (rules-qa batch 48,
 `a963b55`): decisions 74, 203, 47, 486, 56 and 609 of
 `2026-10-03T09-03-44`, `…T14-08-09`, `…T14-41-09`, `…T05-06-55`,
 `…T05-34-07` and `…T08-31-11`.
+
+Since Ventrue Headquarters is usable by its controller only (a fix of
+2026-10-04, after `c968dcf`), `…T06-45-40` reads only up to decision 390,
+where a bot used the owner's Headquarters; read it whole at `c968dcf`.
+
+The later 2026-10-04 games: `…T08-47-02` and `…T09-22-57` were
+exported before choices were logged and converted at `a963b55` (both
+whole), `…T12-09-51` converted at `c968dcf` (whole); the others logged
+their choices as played. `…T15-07-24` reads up to decision 216 since
+the rescue's payer is chosen as it is announced (rules-qa 48.8,
+`fd2a9f0`): whole at `779ee91`.

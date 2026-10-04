@@ -73,6 +73,8 @@ struct ActionMark {
     label: String,
     /// The minion attempting the block or that blocked, last seen.
     blocker: Option<MinionId>,
+    /// The minion attempting to block now, if any.
+    attempting: Option<MinionId>,
     /// A political action's referendum passed (read once it is over).
     passed: Option<bool>,
 }
@@ -194,6 +196,10 @@ impl Mark {
                     card: a.card.as_ref().map(|p| p.card),
                     label: format!("{}'s {thing}", minion_name(e, a.acting)),
                     blocker: crate::view::blocker(a.state).or(a.blocker),
+                    attempting: match a.state {
+                        zvtes::actions::ActionState::Attempt(m) => Some(m),
+                        _ => None,
+                    },
                     passed: (a.kind == ActionKind::Political && e.referendum().is_none())
                         .then_some(a.referendum_passed),
                 }
@@ -232,6 +238,23 @@ impl Mark {
     /// How the action and referendum seen at `self` ended by `now`.
     /// The strikes declared since (the acting minion's first: the
     /// blocker chooses knowing it), each told once.
+    /// A block attempt that ended with no block (short of the stealth,
+    /// or given up): the action goes on.
+    pub(crate) fn attempts(&self, e: &Engine, now: &Mark, out: &mut Vec<String>) {
+        let (Some(a), Some(b)) = (&self.action, &now.action) else {
+            return;
+        };
+        if !Self::same_action(a, b) {
+            return;
+        }
+        if let Some(m) = a
+            .attempting
+            .filter(|&m| b.attempting != Some(m) && b.blocker != Some(m))
+        {
+            out.push(format!("{} fails to block", minion_name(e, m)));
+        }
+    }
+
     pub(crate) fn strikes(&self, e: &Engine, now: &Mark, out: &mut Vec<String>) {
         for &(m, round, pair, ref strike) in &now.strikes {
             let Some(strike) = strike else { continue };

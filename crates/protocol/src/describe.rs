@@ -571,6 +571,8 @@ impl Describer<'_> {
                     }
                 };
                 let mut s = format!("Use {name}");
+                // What it does, after who and on what.
+                let mut what = String::new();
                 let moved = abilities.get(ability as usize).and_then(|a| {
                     a.effects.iter().find_map(|e| match *e {
                         Effect::HostBloodToPool(n) => Some(-(n as i8)),
@@ -579,8 +581,8 @@ impl Describer<'_> {
                     })
                 });
                 match moved {
-                    Some(n) if n < 0 => s += &format!(": {} blood to pool", -n),
-                    Some(n) => s += &format!(": {n} pool to blood"),
+                    Some(n) if n < 0 => what = format!(": {} blood to pool", -n),
+                    Some(n) => what = format!(": {n} pool to blood"),
                     // Which of several: what it does (Wider View's draw
                     // or pool, Dreams of the Sphinx's hand size or pool).
                     None if abilities.len() > 1 || ability > 0 => {
@@ -591,12 +593,26 @@ impl Describer<'_> {
                                     .filter(|&i| i != ability as usize)
                                     .all(|i| label(i).as_deref() != Some(l.as_str())) =>
                             {
-                                s += &format!(": {l}")
+                                what = format!(": {l}")
                             }
-                            _ => s += &format!(" (ability {})", ability + 1),
+                            _ => what = format!(" (ability {})", ability + 1),
                         }
                     }
-                    None => {}
+                    // A lone ability that is an action: which (Toreador
+                    // Grand Ball's burn).
+                    None => {
+                        let a = abilities.get(ability as usize);
+                        if a.is_some_and(|a| {
+                            a.effects
+                                .iter()
+                                .any(|e| matches!(e, Effect::DeclareAction(_)))
+                        }) {
+                            let l = a.map(|a| ability_label(a.effects)).unwrap_or_default();
+                            if !l.is_empty() {
+                                what = format!(": {l}");
+                            }
+                        }
+                    }
                 }
                 o.blood = moved;
                 if let Some(m) = actor.filter(|&m| Some(m) != host) {
@@ -605,6 +621,7 @@ impl Describer<'_> {
                 if let Some(t) = self.target_text(target) {
                     s += &format!(" on {t}");
                 }
+                s += &what;
                 s
             }
             Choice::ResolveRider { card } => {
@@ -1021,6 +1038,12 @@ fn ability_label(effects: &[Effect]) -> String {
                 Effect::GainPool(n) => format!("gain {n} pool"),
                 Effect::GainTransfers(n) => format!("+{}", plural(n, "transfer", "transfers")),
                 Effect::AddVotes(n) => format!("+{}", plural(n, "vote", "votes")),
+                Effect::MethuselahVotes { n, favor } => format!(
+                    "+{} {}",
+                    plural(n, "vote", "votes"),
+                    if favor { "for" } else { "against" }
+                ),
+                Effect::GrantDiscardAction => "+1 discard phase action".into(),
                 Effect::CallReferendum(_) => "call a referendum".into(),
                 Effect::HandSizeBonusUntilEndOfTurn(n) => format!("+{n} hand size this turn"),
                 Effect::HuntAction => "hunt".into(),
