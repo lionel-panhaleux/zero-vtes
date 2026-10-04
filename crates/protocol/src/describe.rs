@@ -8,7 +8,7 @@
 //! library's bottom or searched out.
 
 use serde::{Deserialize, Serialize};
-use zvtes::cards::{AbilitySource, Effect, Target};
+use zvtes::cards::{AbilitySource, Effect, Modifier, RefEffect, Target, Term, Terms};
 use zvtes::crypt::CRYPT;
 use zvtes::decision::{ActionKind, Choice, WindowLabel, Zone};
 use zvtes::game::{Contest, Engine};
@@ -144,7 +144,8 @@ fn pass_text(w: WindowLabel) -> &'static str {
         MinionPhase => "End the minion phase",
         InfluenceTransfers => "End the influence phase",
         DiscardPhase => "End the discard phase",
-        ActionBlock => "Pass (no block, no play)",
+        ActionBlock => "Pass (no block)",
+        CombatPress => "Pass (no press)",
         ReferendumPolling | BloodHuntPolling => "Pass (no vote now)",
         UnlockAbilities => "Pass",
         _ => "Pass",
@@ -177,7 +178,7 @@ impl Describer<'_> {
             .unwrap_or_else(|| format!("Seat {}", s.0 + 1))
     }
 
-    fn minion_name(&self, m: MinionId) -> String {
+    pub(crate) fn minion_name(&self, m: MinionId) -> String {
         let mn = &self.e.state.minions[m.index()];
         match mn.kind {
             MinionKind::Token { .. } => "ghoul token".into(),
@@ -239,7 +240,7 @@ impl Describer<'_> {
         (known.then_some(LIBRARY[card as usize].name), r)
     }
 
-    fn slot(&self, i: u8) -> (String, CardRef) {
+    pub(crate) fn slot(&self, i: u8) -> (String, CardRef) {
         let seat = &self.view.seats[self.seat.index()];
         let shown = seat.uncontrolled.get(i as usize).map(|s| s.card);
         let known = self.e.state.seats[self.seat.index()]
@@ -265,7 +266,17 @@ impl Describer<'_> {
             Target::Minion(m) => Some(self.minion_name(m)),
             Target::Seat(s) => Some(self.seat_name(s)),
             Target::Uncontrolled(i) => Some(self.slot(i).0),
-            Target::Card(c) => Some(self.in_play_name(c.0).to_string()),
+            Target::Card(c) => Some(self.hosted_name(c.0)),
+        }
+    }
+
+    /// A card in play with the minion it is on, if any ("Luciano's Feral
+    /// Hound"): which of two copies.
+    pub(crate) fn hosted_name(&self, c: u32) -> String {
+        let name = self.in_play_name(c);
+        match self.e.state.cards.get(c as usize).and_then(|k| k.host) {
+            Some(m) => format!("{}'s {name}", self.minion_name(m)),
+            None => name.to_string(),
         }
     }
 
@@ -283,6 +294,155 @@ impl Describer<'_> {
         } else {
             "against"
         }
+    }
+
+    /// The referendum term being chosen, what the referendum does and the
+    /// Methuselah chosen so far (a shortfall re-allocated at resolution:
+    /// the last term).
+    fn ref_term(&self) -> Option<(Term, RefEffect, Option<SeatId>)> {
+        let r = self.e.referendum()?;
+        let def = r.def?;
+        let term = def.terms.get(r.terms.term).or(def.terms.last())?;
+        Some((*term, def.effect, r.terms.chosen))
+    }
+
+    /// What choosing `c` does, when the terms choose several things of a
+    /// kind: a referendum's ("gains 1 pool", "burns 2 pool"), a play's
+    /// second vampire (Toreador Grand Ball's unblockable one).
+    fn role(&self, c: &Choice) -> Option<String> {
+        if self.window == WindowLabel::PlayTerms {
+            let p = self.e.play_terms()?;
+            return match c {
+                Choice::ChooseMinion(_) => second_chosen(p.card, p.mode).map(|(_, r)| r),
+                _ => None,
+            };
+        }
+        if self.window != WindowLabel::ReferendumTerms {
+            return None;
+        }
+        let (term, effect, chosen) = self.ref_term()?;
+        let chosen = || chosen.map_or("the chosen Methuselah".into(), |s| self.seat_name(s));
+        use RefEffect::*;
+        Some(match (*c, term, effect) {
+            (Choice::ChooseSeat(_), Term::ChooseSeat(_), BurnAllocatedChosenGains(n)) => {
+                format!("gains {n} pool")
+            }
+            (Choice::ChooseSeat(_), Term::ChooseSeat(_), MoveAllocatedFromChosen) => {
+                "gives the pool".into()
+            }
+            (Choice::ChooseSeat(_), Term::ChooseSeat(_), ChosenTakesChosenCard) => {
+                "takes control of the card".into()
+            }
+            (Choice::ChooseCard(_), _, ChosenTakesChosenCard) => "changes control".into(),
+            (Choice::ChooseSeat(_), Term::ChooseSeats { .. }, BurnChosen { .. }) => {
+                "burns pool".into()
+            }
+            (
+                Choice::AllocateTo { n, .. },
+                _,
+                BurnAllocated | BurnAllocatedChosenGains(_) | LockChosenBurnAllocated,
+            ) => format!("burns {n} pool"),
+            (Choice::AllocateTo { n, .. }, _, MoveAllocatedFromChosen) => {
+                format!("gains {n} pool from {}", chosen())
+            }
+            (Choice::AllocateToCard { n, .. }, _, LockChosenBurnAllocated) if n > 0 => {
+                "burned".into()
+            }
+            (Choice::ChooseMinion(_), _, Banish) => "banished".into(),
+            (Choice::ChooseMinion(_), _, Expel) => "no reactions, blocks or votes this turn".into(),
+            (Choice::ChooseMinion(_), _, PutOnChosen) => "gets the card".into(),
+            (Choice::ChooseMinion(_), _, LockChosenBurnAllocated) => "locked".into(),
+            _ => return None,
+        })
+    }
+
+    /// What the decision is for, when its options alone do not say: a
+    /// referendum's term, a play's second vampire — after the card's name
+    /// ("Camarilla's Iron Fist: choose the Methuselah who gains 1 pool").
+    pub fn prompt(&self) -> Option<String> {
+        if self.e.interrupt().is_some() {
+            return self.purpose_prompt();
+        }
+        self.terms_prompt().or_else(|| self.purpose_prompt())
+    }
+
+    fn terms_prompt(&self) -> Option<String> {
+        let (card, what) = match self.window {
+            WindowLabel::PlayTerms => {
+                let p = self.e.play_terms()?;
+                let (who, _) = second_chosen(p.card, p.mode)?;
+                (
+                    Some(LIBRARY[p.card as usize].name.to_string()),
+                    format!("choose {who}"),
+                )
+            }
+            WindowLabel::ReferendumTerms => {
+                let (term, effect, chosen) = self.ref_term()?;
+                let chosen = chosen.map_or("the chosen Methuselah".into(), |s| self.seat_name(s));
+                use RefEffect::*;
+                let what = match (term, effect) {
+                    (Term::ChooseSeat(_), BurnAllocatedChosenGains(n)) => {
+                        format!("choose the Methuselah who gains {n} pool")
+                    }
+                    (Term::ChooseSeat(_), MoveAllocatedFromChosen) => {
+                        "choose the Methuselah whose pool is given away".into()
+                    }
+                    (Term::ChooseSeat(_), ChosenTakesChosenCard) => {
+                        "choose the Methuselah who takes control of the card".into()
+                    }
+                    (Term::ChooseCard(_), ChosenTakesChosenCard) => {
+                        "choose the card that changes control".into()
+                    }
+                    (
+                        Term::ChooseSeats { .. },
+                        BurnChosen {
+                            base,
+                            young_bonus,
+                            young_cap,
+                        },
+                    ) => format!(
+                        "choose the Methuselahs who burn {base} pool ({} if they control a \
+                         ready vampire of capacity {young_cap} or less)",
+                        base + young_bonus
+                    ),
+                    (Term::Allocate { .. }, BurnAllocated | BurnAllocatedChosenGains(_)) => {
+                        "allocate the points: each Methuselah burns 1 pool per point".into()
+                    }
+                    (Term::Allocate { .. }, MoveAllocatedFromChosen) => format!(
+                        "allocate {chosen}'s pool: each Methuselah gains 1 pool per point, \
+                         from {chosen}"
+                    ),
+                    (Term::AllocatePerChosenWithCards { .. }, LockChosenBurnAllocated) => {
+                        "allocate the points: each Methuselah burns 1 pool per point, each \
+                         card given a point is burned"
+                            .into()
+                    }
+                    (Term::ChooseMinions { .. }, Banish) => "choose the vampire to banish".into(),
+                    (Term::ChooseMinions { max, .. }, Expel) => format!(
+                        "choose up to {max} minions that cannot play reaction cards, block or \
+                         cast votes this turn"
+                    ),
+                    (Term::ChooseMinions { .. }, PutOnChosen) => {
+                        "choose the vampire who gets the card".into()
+                    }
+                    (Term::ChooseMinions { .. }, LockChosenBurnAllocated) => {
+                        "choose the minions to lock".into()
+                    }
+                    (Term::ChooseClan, GainPerClanVampire) => {
+                        "choose a clan: each Methuselah gains 1 pool per vampire of that clan \
+                         they control"
+                            .into()
+                    }
+                    _ => return None,
+                };
+                (self.about.clone(), what)
+            }
+            _ => return None,
+        };
+        Some(match card {
+            Some(c) => format!("{c}: {what}"),
+            None => capitalize(&what),
+        })
     }
 
     /// One option.
@@ -313,6 +473,29 @@ impl Describer<'_> {
                     None => "Pass".into(),
                 }
             }
+            // In the block window, short and explicit: the defender's pass
+            // blocks only while its minion's attempt meets the stealth;
+            // anyone else's is plain.
+            Choice::Pass if self.window == WindowLabel::ActionBlock => {
+                use zvtes::actions::ActionState;
+                match self.e.action() {
+                    Some(a) if a.seat != self.seat => match a.state {
+                        // An attempt short of the stealth fails on a pass.
+                        ActionState::Attempt(m)
+                            if self.e.state.minions[m.index()].owner == self.seat =>
+                        {
+                            if a.intercept_of(&self.e.state, m) >= a.stealth(&self.e.state) {
+                                "Pass (blocking)".into()
+                            } else {
+                                "Pass (no block)".into()
+                            }
+                        }
+                        ActionState::Attempt(_) => "Pass".into(),
+                        _ => "Pass (no block)".into(),
+                    },
+                    _ => "Pass".into(),
+                }
+            }
             Choice::Pass => pass_text(self.window).into(),
             Choice::BurnEdge => "Gain 1 pool (the Edge)".into(),
             Choice::PayContest(x) => format!("Pay to keep contesting {}", self.contest(x)),
@@ -336,11 +519,21 @@ impl Describer<'_> {
                 if let Some(m) = actor {
                     s += &format!(" with {}", self.minion_name(m));
                 }
+                let second = name.and(second_chosen(played, mode));
                 if let Some(t) = self.target_text(target) {
-                    s += &format!(" on {t}");
+                    // Two vampires chosen: what happens to which (Toreador
+                    // Grand Ball locks its target).
+                    if second.is_some() && mode_has(played, mode, Effect::LockTarget) {
+                        s += &format!(": lock {t}");
+                    } else {
+                        s += &format!(" on {t}");
+                    }
                 } else if bleeds(played, mode) {
                     // A bleed's target: the prey, unless a card says otherwise.
                     s += &format!(" → {}", self.seat_name(self.e.state.prey(self.seat)));
+                }
+                if let Some((who, _)) = second {
+                    s += &format!(" (then choose {who})");
                 }
                 s
             }
@@ -388,8 +581,20 @@ impl Describer<'_> {
                 match moved {
                     Some(n) if n < 0 => s += &format!(": {} blood to pool", -n),
                     Some(n) => s += &format!(": {n} pool to blood"),
+                    // Which of several: what it does (Wider View's draw
+                    // or pool, Dreams of the Sphinx's hand size or pool).
                     None if abilities.len() > 1 || ability > 0 => {
-                        s += &format!(" (ability {})", ability + 1)
+                        let label = |i: usize| abilities.get(i).map(|a| ability_label(a.effects));
+                        match label(ability as usize).filter(|l| !l.is_empty()) {
+                            Some(l)
+                                if (0..abilities.len())
+                                    .filter(|&i| i != ability as usize)
+                                    .all(|i| label(i).as_deref() != Some(l.as_str())) =>
+                            {
+                                s += &format!(": {l}")
+                            }
+                            _ => s += &format!(" (ability {})", ability + 1),
+                        }
                     }
                     None => {}
                 }
@@ -412,7 +617,7 @@ impl Describer<'_> {
             }
             Choice::BurnInPlay { card } => {
                 o.card = Some(self.in_play(card));
-                format!("Burn {}", self.in_play_name(card))
+                format!("Burn {}", self.hosted_name(card))
             }
             Choice::BurnPool => "Burn 1 pool".into(),
             Choice::BurnBloodFrom { minion } => {
@@ -580,7 +785,8 @@ impl Describer<'_> {
                                 .join(", ")
                         ),
                     };
-                    format!("Allocate {n} to {}{rest}", self.seat_name(seat))
+                    let role = self.role(c).map_or(String::new(), |r| format!(" ({r})"));
+                    format!("Allocate {n} to {}{role}{rest}", self.seat_name(seat))
                 }
             }
             Choice::ChooseSeat(s) => {
@@ -599,7 +805,7 @@ impl Describer<'_> {
             Choice::ChooseCard(card) => {
                 o.card = Some(self.in_play(card));
                 o.target = Some(TargetView::Card { card_id: card });
-                format!("Choose {}", self.in_play_name(card))
+                format!("Choose {}", self.hosted_name(card))
             }
             Choice::AllocateToCard { card, n } => {
                 o.card = Some(self.in_play(card));
@@ -634,7 +840,18 @@ impl Describer<'_> {
                     o.card = Some(self.in_play(id.0));
                     format!("Strike at {}", self.in_play_name(id.0))
                 }
-                None => "Strike (the round's strike)".into(),
+                // The strike a card granted for the round (Hunger of
+                // Marduk: "steal 2 blood, ranged").
+                None => match self.e.combat() {
+                    Some(c) => match c.step {
+                        zvtes::combat::Step::ChooseStrike(i) => match c.sides[i].round_strike {
+                            Some(k) => format!("Strike: {}", crate::narrate::strike_text(Some(k))),
+                            None => "Strike: the round's strike".into(),
+                        },
+                        _ => "Strike: the round's strike".into(),
+                    },
+                    None => "Strike: the round's strike".into(),
+                },
             },
             Choice::TakeDamageAfterResolution => "Take the damage".into(),
             Choice::CommittedStrike => "Strike: the committed strike".into(),
@@ -684,6 +901,20 @@ impl Describer<'_> {
             }
             Choice::Diablerise => "Diablerize the acting vampire".into(),
         };
+        if matches!(
+            c,
+            Choice::ChooseSeat(_)
+                | Choice::ChooseMinion(_)
+                | Choice::ChooseCard(_)
+                | Choice::AllocateToCard { .. }
+        ) {
+            if let Some(r) = self.role(c) {
+                o.text += &format!(" ({r})");
+            }
+        }
+        if let Some(t) = self.purpose_text(c, &o.text) {
+            o.text = t;
+        }
         if let Some(about) = self.about.as_ref().filter(|_| {
             self.narrate
                 && matches!(
@@ -733,6 +964,108 @@ fn mode_text(card: u16, mode: u8) -> String {
         s += &format!(" (option {})", rank + 1);
     }
     s
+}
+
+/// What an ability does, by its effects ("4 transfers, burn it, gain 2
+/// pool"); empty when none says.
+fn ability_label(effects: &[Effect]) -> String {
+    let plural = |n: u8, one: &str, many: &str| {
+        if n == 1 {
+            format!("1 {one}")
+        } else {
+            format!("{n} {many}")
+        }
+    };
+    effects
+        .iter()
+        .filter_map(|e| {
+            Some(match *e {
+                Effect::DeclareAction(ActionKind::Card | ActionKind::Ability) => "action".into(),
+                Effect::DeclareAction(k) => format!("{} action", action_kind(k)),
+                Effect::SpendTransfers(n) => plural(n, "transfer", "transfers"),
+                Effect::PayPool(n) => format!("pay {n} pool"),
+                Effect::PayBlood(n) => format!("pay {n} blood"),
+                Effect::HostBurnBlood(n) => format!("burn {n} blood"),
+                Effect::BurnOwnLife(n) => format!("burn {n} life"),
+                Effect::BurnPool(n) => format!("burn {n} pool"),
+                Effect::BurnSelf | Effect::BurnSource => "burn it".into(),
+                Effect::AddStealth(n) => format!("+{n} stealth"),
+                Effect::ReduceStealth(n) => format!("-{n} stealth"),
+                Effect::AddIntercept(n) => format!("+{n} intercept"),
+                Effect::AttemptingIntercept(n) => format!("+{n} intercept"),
+                Effect::Strike(k) => format!("strike: {}", crate::narrate::strike_text(Some(k))),
+                Effect::StrengthThisRound(n) => format!("+{n} strength this round"),
+                Effect::StrengthThisCombat(n) => format!("+{n} strength"),
+                Effect::Prevent(n) => format!("prevent {n} damage"),
+                Effect::Press => "a press".into(),
+                Effect::Maneuver => "a maneuver".into(),
+                Effect::EndCombat => "end combat".into(),
+                Effect::EnterCombatWithTarget => "enter combat".into(),
+                Effect::DamageTarget(n) => format!("{n} damage"),
+                Effect::UnlockActor | Effect::UnlockHost | Effect::UnlockSelf => "unlock".into(),
+                Effect::UnlockTarget => "unlock the target".into(),
+                Effect::LockHost => "lock the vampire".into(),
+                Effect::LockTarget => "lock the target".into(),
+                Effect::ActionFails => "the action fails".into(),
+                Effect::CancelPlayed { .. } => "cancel the card".into(),
+                Effect::BurnTargetCard => "burn the card".into(),
+                Effect::BurnTargetMinion => "burn the target".into(),
+                Effect::AddHostBlood(n) => format!("add {n} blood"),
+                Effect::BloodToTarget(n) => format!("{n} blood to the target"),
+                Effect::BloodToUncontrolledTarget(n) => {
+                    format!("{n} blood to an uncontrolled vampire")
+                }
+                Effect::StealBloodFromTarget(n) => format!("steal {n} blood"),
+                Effect::TargetBurnsBlood(n) => format!("the target burns {n} blood"),
+                Effect::TargetLeavesTorpor => "the target leaves torpor".into(),
+                Effect::GainPool(n) => format!("gain {n} pool"),
+                Effect::GainTransfers(n) => format!("+{}", plural(n, "transfer", "transfers")),
+                Effect::AddVotes(n) => format!("+{}", plural(n, "vote", "votes")),
+                Effect::CallReferendum(_) => "call a referendum".into(),
+                Effect::HandSizeBonusUntilEndOfTurn(n) => format!("+{n} hand size this turn"),
+                Effect::HuntAction => "hunt".into(),
+                Effect::SearchEquip => "search for equipment".into(),
+                Effect::DrawThenBottom => "draw, then a card to the library's bottom".into(),
+                Effect::DrawCryptThenRemove => {
+                    "draw a crypt card, then remove one from your uncontrolled region".into()
+                }
+                _ => return None,
+            })
+        })
+        .collect::<Vec<String>>()
+        .join(", ")
+}
+
+/// The mode's effects include `effect`.
+fn mode_has(card: u16, mode: u8, effect: Effect) -> bool {
+    zvtes::cards::lookup(card)
+        .and_then(|def| def.modes.get(mode as usize))
+        .is_some_and(|m| m.effects.contains(&effect))
+}
+
+/// A play's second vampire (`Terms::OwnOfClan`), chosen after its target:
+/// who it is, and its role as an option ("non-bleed actions cannot be
+/// blocked": Toreador Grand Ball).
+fn second_chosen(card: u16, mode: u8) -> Option<(String, String)> {
+    let m = zvtes::cards::lookup(card)?.modes.get(mode as usize)?;
+    let Some(Terms::OwnOfClan { clan, .. }) = m.terms else {
+        return None;
+    };
+    Some(
+        if m.effects
+            .contains(&Effect::Layer(Modifier::SecondChosenUnblockable))
+        {
+            (
+                format!("the {clan} whose non-bleed actions cannot be blocked"),
+                "non-bleed actions cannot be blocked".into(),
+            )
+        } else {
+            (
+                format!("the card's chosen {clan}"),
+                format!("the card's chosen {clan}"),
+            )
+        },
+    )
 }
 
 /// The mode declares a bleed (Govern the Unaligned [dom]).

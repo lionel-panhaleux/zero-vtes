@@ -1441,10 +1441,12 @@ Still true today; "(verify)" marks items inferred from older notes.
     Shadow Cast's remembered-set test is written for several.
   - Rapid Change [PRO] and Wolf Claws [PRO] are covered by fuzz only.
   - Decisions are unbounded within an action: `TURN_LIMIT` bounds turns, but
-    the rulebook allows block re-attempts as often as wished, so a policy
-    that always declares a block never ends the action. A driver with a
-    deterministic policy (the P3 greedy evaluation, a human client) needs a
-    decision budget; the scripted bots remember their attempts.
+    the rulebook allows block re-attempts as often as wished. Since rules-qa
+    48.6 a failed attempt is not offered again in the same situation
+    (`ActionCtx::attempt_print`), so a repeat needs a change — a card played,
+    blood moved; still, a driver with a deterministic policy (the P3 greedy
+    evaluation, a human client) keeps a decision budget; the scripted bots
+    remember their attempts.
 - A deferred oust (Life Boon) lets the effect that ran the pool out finish
   first: windows of an action or referendum under way may still list the
   Methuselah about to be ousted until the Boon decision (fuzzed by
@@ -1472,7 +1474,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (`docs/human-play.md` has the board).
 
-Definitions: 436 library, 102 vampires; 949 Rust tests, 22 Python tests
+Definitions: 436 library, 102 vampires; 961 Rust tests, 22 Python tests
 
 ## Outlook: deck building (post-v1)
 

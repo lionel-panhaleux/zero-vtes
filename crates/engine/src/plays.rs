@@ -3294,6 +3294,23 @@ impl Engine {
                 if window.is_phase() && !per_mpa && st.phase_uses.contains(&key) {
                     continue;
                 }
+                // The same effect twice a phase (Carfax Abbey's second pick,
+                // with a baron): the later waits for the earlier, the options
+                // being the same.
+                if ability.limit == Some(Limit::PerPhaseEach)
+                    && def.abilities[..ai].iter().enumerate().any(|(bi, b)| {
+                        b.limit == Some(Limit::PerPhaseEach)
+                            && b.effects == ability.effects
+                            && b.windows == ability.windows
+                            && !st.phase_uses.contains(&phase_key(
+                                AbilitySource::Card(id),
+                                bi as u8,
+                                b.limit,
+                            ))
+                    })
+                {
+                    continue;
+                }
                 match ability.actor {
                     // The controller picks the ability's target (a hunting
                     // ground: "a ready vampire you control can gain 1 blood").

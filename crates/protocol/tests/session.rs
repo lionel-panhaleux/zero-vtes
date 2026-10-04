@@ -7,7 +7,7 @@
 use std::collections::{BTreeSet, HashMap};
 
 use zvtes::crypt::CRYPT;
-use zvtes::decision::Choice;
+use zvtes::decision::{Choice, WindowLabel};
 use zvtes::decks::Deck;
 use zvtes::game::{Engine, Step};
 use zvtes::ids::SeatId;
@@ -309,6 +309,7 @@ fn describe_all(
     e: &Engine,
     trackers: &mut HashMap<u8, Tracker>,
     seen: &mut BTreeSet<&'static str>,
+    prompts: &mut u32,
 ) {
     let mut probe = e.clone();
     let Step::Decision(req) = probe.run() else {
@@ -326,6 +327,16 @@ fn describe_all(
         offered: &req.options,
         about: None,
     };
+    // A choice an effect asks as it resolves says what it is for.
+    if probe.interrupt().is_some()
+        && matches!(
+            req.window,
+            WindowLabel::ResolutionChoice | WindowLabel::EntryEffect
+        )
+    {
+        assert!(d.prompt().is_some(), "{:?}", probe.interrupt());
+        *prompts += 1;
+    }
     for (i, c) in req.options.iter().enumerate() {
         let o = d.describe(i, c);
         assert!(!o.text.is_empty());
@@ -368,6 +379,7 @@ fn sessions_over_the_shipped_decks() {
         .and_then(|s| s.parse().ok())
         .unwrap_or(24);
     let mut seen = BTreeSet::new();
+    let mut prompts = 0;
     let mut undone = 0;
     let (mut allocations, mut refused, mut ordered, mut cast_by_order) = (0, 0, 0, 0);
     for seed in 0..seeds {
@@ -399,7 +411,7 @@ fn sessions_over_the_shipped_decks() {
         loop {
             n += 1;
             assert!(n < 20_000, "seed {seed}: no end");
-            describe_all(s.engine(), &mut trackers, &mut seen);
+            describe_all(s.engine(), &mut trackers, &mut seen, &mut prompts);
             check_ids(s.engine(), &mut omniscient, &decks);
             assert_eq!(deciders.len(), s.engine().log.len(), "seed {seed}");
             let out = s.advance();
@@ -562,7 +574,7 @@ fn sessions_over_the_shipped_decks() {
     .filter(|k| !seen.contains(k))
     .collect();
     assert!(missing.is_empty(), "never offered: {missing:?}");
-    eprintln!("decisions taken back: {undone}");
+    eprintln!("decisions taken back: {undone}, resolution prompts: {prompts}");
     eprintln!(
         "allocations at once: {allocations} ({refused} refused first); \
          vote orders: {ordered}, later votes cast by them: {cast_by_order}"

@@ -787,7 +787,11 @@ pub static VALERIE_DIAZ: CardDef = CardDef {
         ability(
             &[Window::ActionAfterCombat],
             Actor::Host,
-            &[Requirement::HostCombatOpposingVampireNotReady],
+            // Not while she is unlocked (rules-qa 48.7).
+            &[
+                Requirement::HostCombatOpposingVampireNotReady,
+                Requirement::HostLocked,
+            ],
             Limit::PerTurn,
             &[Effect::UnlockHost],
         ),
@@ -6671,7 +6675,8 @@ pub static PASS_THROUGH_SHADOW: CardDef = CardDef {
 /// "[pot] Strike: hand strike at +2 damage. [POT] As above, with 1 optional
 /// maneuver, only usable to get to close range." (1 blood.) Played at the
 /// maneuver, it commits the round's initial strike (window review; LSJ
-/// 20021028: not while the strike cannot be used).
+/// 20021028: not while the strike cannot be used). [POT] only then: at the
+/// strike it would be [pot] for 1 blood (rules-qa 48.4).
 pub static SLAM: CardDef = CardDef {
     name: "Slam",
     modes: &[
@@ -6681,10 +6686,7 @@ pub static SLAM: CardDef = CardDef {
             &[Effect::Strike(StrikeKind::Hand { bonus: 2 })],
         ),
         combat(
-            &[
-                Window::CombatStrikeDeclaration,
-                Window::CombatDetermineRange,
-            ],
+            &[Window::CombatDetermineRange],
             &[Requirement::ManeuverToClose],
             &[Effect::CommittedStrike(StrikeKind::Hand { bonus: 2 })],
         ),
@@ -7802,7 +7804,12 @@ pub static RUTORS_HAND: CardDef = CardDef {
     abilities: &[mode_of(
         &[Window::AnyImpulse],
         Actor::Host,
-        &[Requirement::OwnMinionPhase, Requirement::CardUnlocked],
+        // Not while the vampire is unlocked (rules-qa 48.7).
+        &[
+            Requirement::OwnMinionPhase,
+            Requirement::CardUnlocked,
+            Requirement::HostLocked,
+        ],
         &[Effect::LockSelf, Effect::UnlockHost],
     )],
     ..CARD
@@ -9397,7 +9404,12 @@ pub static SWORD_OF_THE_ARCHANGEL: CardDef = CardDef {
             ..mode_of(
                 &[Window::CombatWouldEnd],
                 Actor::Host,
-                &[Requirement::HostReady, Requirement::WeaponBurnedOpponent],
+                // Not while the bearer is unlocked (rules-qa 48.7).
+                &[
+                    Requirement::HostReady,
+                    Requirement::WeaponBurnedOpponent,
+                    Requirement::HostLocked,
+                ],
                 &[Effect::UnlockHost],
             )
         },

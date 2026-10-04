@@ -87,7 +87,7 @@ pub(crate) fn action_thing(e: &Engine, a: &ActionCtx) -> String {
 }
 
 /// A strike, as the table sees it.
-fn strike_text(s: Option<StrikeKind>) -> String {
+pub(crate) fn strike_text(s: Option<StrikeKind>) -> String {
     match s {
         None => "no strike".into(),
         Some(StrikeKind::Hand { .. }) => "hand strike".into(),
@@ -97,7 +97,9 @@ fn strike_text(s: Option<StrikeKind>) -> String {
         Some(StrikeKind::Damage { n, ranged, .. }) => {
             format!("{n}{} damage", if ranged { "R" } else { "" })
         }
-        Some(StrikeKind::StealBlood { n, .. }) => format!("steal {n} blood"),
+        Some(StrikeKind::StealBlood { n, ranged }) => {
+            format!("steal {n} blood{}", if ranged { ", ranged" } else { "" })
+        }
         Some(StrikeKind::TorporOrBurn) => "torpor or burn".into(),
         Some(StrikeKind::CardEffect) => "strike".into(),
         Some(StrikeKind::BurnWeapon) => "burn weapon".into(),

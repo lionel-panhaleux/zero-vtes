@@ -14,3 +14,22 @@ as it was played.
 | File | Engine | Seats (in order; the human's in bold) | Bots | Result |
 |---|---|---|---|---|
 | `2026-10-03T09-03-44.json` | `8c53ed9` | Tzimisce (V5 Companion), **Lasombra (V5)**, Banu Haqim (V5 Anarch), Lasombra (V5) | `p5-self@1250` (network) | owner 4 VP, the bots 0 |
+| `zero-vtes-replay-2026-10-03T14-08-09-808Z.json` | uncommitted, after `ea6e93d` | **Gangrel (V5 Anarch)**, Ventrue (V5), Tremere (V5), Salubri (V5 Companion) | `p5-self@1250` (network) | — |
+| `zero-vtes-replay-2026-10-03T14-41-09-643Z.json` | uncommitted, after `ea6e93d` | Nosferatu (V5), Tremere (V5), Brujah (V5 Anarch), **Hecata (V5)** | `p5-self@1250` (network) | owner 3 VP, Tremere 1 |
+| `zero-vtes-replay-2026-10-04T05-06-55-138Z.json` | uncommitted, after `ea6e93d` | Tzimisce (V5 Companion), **Brujah (V5 Anarch)**, Ventrue (V5), Ministry (V5 Anarch) | `p5-self@1250` (network) | owner 4 VP, the bots 0 |
+| `zero-vtes-replay-2026-10-04T05-34-07-935Z.json` | uncommitted, after `ea6e93d` | **Tremere (V5)**, Toreador (V5), Gangrel (V5 Anarch), Ventrue (V5) | `p5-self@1250` (network) | owner 3 VP, Gangrel 1 |
+| `zero-vtes-replay-2026-10-04T06-45-40-714Z.json` | uncommitted, after `ea6e93d` | **Ventrue (V5)**, Salubri (V5 Companion), Toreador (V5), Ravnos (V5 Companion) | `p5-self@1250` (network) | owner 4 VP, the bots 0 |
+| `zero-vtes-replay-2026-10-04T07-20-42-703Z.json` | uncommitted, after `ea6e93d` | **Toreador (V5)**, Gangrel (V5 Anarch), Banu Haqim (V5 Anarch), Ministry (V5 Anarch) | `p5-self@1250` (network) | owner 3 VP, Banu Haqim 1 |
+
+Since rules-qa 48.1 (intercept not floored at 0), `2026-10-03T09-03-44`
+replays on later engines only up to decision 72: its Form of the Bat
+[pro] at #73 left a 0-intercept blocker at −1, so the fixed engine asks
+a decision the game never had. Read it whole at `8c53ed9`.
+
+The 2026-10-03 and 2026-10-04 games were played on wasm builds of the
+working tree between commits (the engine column names the last commit
+under them). On the tree of 2026-10-04 09:30 the four 2026-10-04 games
+replay whole; `…T14-08-09` stops at decision 228 and `…T14-41-09` at
+242 (both readable up to there). The bots in all of them sample every
+decision, terms and votes included: the default politics
+(`zvtes::politics`, DESIGN §11.2) came after.

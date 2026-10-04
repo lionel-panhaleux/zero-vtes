@@ -58,8 +58,8 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
 - **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7
-- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8
-- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2
+- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6
+- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9
 - **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6
@@ -77,7 +77,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2
 - **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2
 - **Master phase, master cards, out-of-turn** — 1.5, 3.3, 6.6, 7.5, 28.10, 32.3, 33.1, 33.8, 36.4
-- **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1
+- **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1, 48.7
 - **Discard phase, events** — 8.4, 15.2, 28.12, 33.8, 40.1–40.11
 - **Conditions read live; card-text defaults** — 4.3, 9.1, 13.2, 18.4, 19.3, 28.2, 28.6, 29.11, 32.4, 32.7, 39.5
 - **Corruption counters, multi-Discipline cards** — 25.1–25.6, 34.3, 35.2, 38.4
@@ -807,3 +807,19 @@ Owner ruled 46.1–46.4 from play (2026-09-30).
 **47.1** "Put this card on …" puts the card itself in play, out of the ash heap it went to as it resolved (owner, 2026-10-01, from play: Touch of Oblivion [obl]; generalizes 46.4, revises 21.1). **General rule: it applies to every card, present and future, whose text puts the card itself on a minion or in play — never an effect-only stand-in.** Today: Touch of Oblivion [obl] and Sculpt the Flesh (on the opposing minion, if the strike lands), Disarm (on the opposing vampire), Pass Through Shadow [OBL] (after combat), Dogged Pursuit [ANI] (if the vampire does not block), Melange [AUS] (on the acting minion, if the vampire blocks). Burned — counters run out, a cost paid with it — it goes back to the ash heap. Its effects are unchanged.
 
 **47.2** An additional strike card (Quickness, Blur, Side Strike [CEL], Pursuit [CEL], Lightning Reflexes [CEL], Arms of Ahriman [obl]…) is played only after the first strike exchange of the round, both combatants still ready — never before strikes nor before the first pair resolves (owner, 2026-10-02, from play: Arms of Ahriman offered before strikes; **overrides 4.4**, rulebook "Additional Strikes": "announced and performed only after the first pair of strikes is completed"). The general rule for every card and effect granting additional strikes, future ones included; Chun Hei's ability likewise.
+
+## Batch 48 — found by the owner's play (2026-10-03)
+
+**48.1** Stealth and intercept are not floored at 0 (owner, 2026-10-03, from play: Form of the Bat [pro] against a 0-intercept blocker of a 0-stealth action blocked). The -1 leaves the blocker at -1 intercept, below the action's 0 stealth: the attempt fails unless intercept is gained back (it is now needed, 3.2). Stealth likewise may be negative (LSJ 20021211: Draba, Night Terrors "can be played on a minion with zero or negative stealth"); "reduce stealth to 0" leaves a negative stealth unchanged. The table shows the signed values.
+
+**48.2** Additional strike cards are played one at a time: a combatant with an additional strike still to make gains no other until that pair resolves; after each additional pair, a new chance to play one (owner, 2026-10-03, from play: Quickness offered right after Pursuit [CEL]; "you first have to resolve the strikes pair from the Pursuit before you get the opportunity to get yet another additional strike by playing Quickness"). Refines 47.2; the opponent may still answer in the same window (rulebook "Additional Strikes": the acting minion decides first, then the opposing one). Question (implemented reading): a card granting several strikes (Blur) bars further cards until all of them are made.
+
+**48.3** A change of blocker: during its own minion's block attempt, while that attempt is short of the action's stealth, a Methuselah may attempt with another of its minions instead — by declaring that one's attempt, or with a card whose unlocked minion attempts to block (Organized Resistance's second mode: "that Anarch attempts to block", so it must be the one blocking). The attempt under way fails then, with a failed attempt's consequences (owner, 2026-10-03, from play: an attempt left short by the acting minion's stealth could not be changed). Refines the "no re-declare" note (the attempt persists until closure unless its Methuselah changes blocker); a forced attempt on the minion already attempting keeps it (ANK 20181122-2). Question (implemented reading): the switch takes effect at once, with no impulse left to others for the abandoned attempt.
+
+**48.4** Slam [POT] ("as above, with 1 optional maneuver") is played only at the maneuver, never as the strike: at strike declaration it would be [pot] for 1 blood, its maneuver unusable (owner, 2026-10-04, from play: "superior gives a maneuver so it's only playable during the maneuver step"). The only card of the shape — a mode identical to another but for an optional maneuver; Aid from Bats and Diversion carry their maneuver on their only strike mode and stay playable as the strike (2.5).
+
+**48.5** An attempt to block is offered whenever the would-be blocker's Methuselah holds an intercept card it could play and has a library to draw from: the card's replacement may be another (owner, 2026-10-04, from play: an action at 2 stealth, one intercept card in hand, "hope to draw the second"). Refines the reachability pruning (DESIGN §4.3): it counts the hand alone only when nothing can be drawn.
+
+**48.6** A minion whose block attempt failed is not offered the same attempt again while nothing has changed: its Methuselah's hand, the stealth, its intercept, blood and lock, the cards in play, every hand's size (owner, 2026-10-04, from play: a bot attempting again and again with not enough intercept — "legal … but it still probably should not retry if the situation has not changed"). An engine reading, not a rule: the repeat is legal and would fail alike. Another minion's attempt, or the same minion's once something changed, is offered as before.
+
+**48.7** An ability whose only effect is to unlock its own minion is not offered while that minion is unlocked (owner, 2026-10-04, from play: Rutor's Hand offered to unlock an unlocked vampire — "legal, but really useless, no card cycled or anything"). An exception to 17.4's legal no-op plays: locking the card or spending a once-each-turn use buys nothing. Rutor's Hand, Valerie Diaz, Sword of the Archangel; the vampires' unlock abilities required it already.

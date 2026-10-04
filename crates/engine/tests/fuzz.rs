@@ -925,7 +925,9 @@ fuzz_tests! {
             // Ravnos bearer living until its unlock phase — rare at random
             // tables, the play coming and going as printed vampire text
             // shifts the games: scripted in tests/draws.rs.)
-            "draw_stored",
+            // draw_stored: past 300 seeds since the block changes of
+            // rules-qa 48.5/48.6 (reached within 600); tests/draws.rs covers
+            // it.
             "play:Heart of Nizchetus",
             "ability:Heart of Nizchetus",
             "bottom",

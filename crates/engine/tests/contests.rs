@@ -253,7 +253,8 @@ fn unique_card_is_masked_while_a_copy_is_in_play_under_the_same_seat() {
 
 // Carfax Abbey's two picks: an Anarch first; the second only with a ready
 // baron and for another Anarch (the first is fed this turn); each pick is
-// its own once-per-phase use.
+// its own once-per-phase use, the second offered once the first is made
+// (the same options twice otherwise).
 #[test]
 fn carfax_abbey_second_pick_needs_a_baron_and_another_anarch() {
     let mut e = Engine::bare(2);
@@ -269,12 +270,7 @@ fn carfax_abbey_second_pick_needs_a_baron_and_another_anarch() {
     let req = to_window(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
     assert_eq!(
         abilities(&req),
-        vec![
-            feed(carfax, 0, saku),
-            feed(carfax, 0, anita),
-            feed(carfax, 1, saku),
-            feed(carfax, 1, anita)
-        ]
+        vec![feed(carfax, 0, saku), feed(carfax, 0, anita)]
     );
     pick(&mut e, feed(carfax, 0, anita));
     assert_eq!(blood(&e, anita), 2);

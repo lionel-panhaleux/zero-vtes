@@ -309,6 +309,12 @@ def modes_for(card):
                 re.search(r"with \d optional maneuver", raw_text, re.I):
             mwins.append("COMBAT_DETERMINE_RANGE")  # maneuver rider commits the strike
             flags.append("maneuver_rider")
+            # "As above, with 1 optional maneuver" after a mode without one
+            # (Slam [POT]): only at the maneuver — as the strike it is the
+            # mode above for more (rules-qa 48.4).
+            if as_above and "COMBAT_DETERMINE_RANGE" not in prev and \
+                    re.match(r"\s*as above, with \d optional maneuver", mtext, re.I):
+                mwins = [w for w in mwins if w != "COMBAT_STRIKE_DECLARATION"]
         mflags = list(flags)
         if "Reaction" in mts and re.search(r"(?<!only )usable by a locked", raw_text, re.I) \
                 and not ({"WAKE", "REACTION_UNLOCK", "REACTION_UNLOCK_ATTEMPT"} & set(mwins)):

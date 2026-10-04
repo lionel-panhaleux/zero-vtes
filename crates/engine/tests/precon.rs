@@ -1167,12 +1167,14 @@ fn form_of_the_bat_gives_a_maneuver_and_bars_equipment_if_blocked() {
     let mut e = Engine::bare(3);
     let a = e.add_minion(SeatId(0), plain("", "pro", 0), 5, false);
     e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
-    let z = e.add_minion(SeatId(1), plain("", "", 1), 5, false);
+    let z = e.add_minion(SeatId(1), plain("", "aus", 1), 5, false);
     let magnum = equip(&mut e, ".44 Magnum", a);
     hand(&mut e, 0, &["Form of the Bat"]);
+    hand(&mut e, 1, &["Enhanced Senses"]);
     pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: z });
     pick_when(&mut e, play(0, 0, a)); // the attempt gets -1 intercept
+    pick_when(&mut e, play(0, 0, z)); // +1: back to 0 against 0 stealth
     let mut maneuver = false;
     loop {
         let req = request(&mut e);
@@ -1192,6 +1194,81 @@ fn form_of_the_bat_gives_a_maneuver_and_bars_equipment_if_blocked() {
     }
     assert!(maneuver);
     assert_eq!(pool(&e, 1), 30, "blocked at 0 against 0");
+}
+
+// Form of the Bat [pro]'s -1 intercept is not floored at 0 (rules-qa
+// 48.1): a 0-intercept blocker of a 0-stealth action is at -1, so its
+// attempt fails and the bleed goes through.
+#[test]
+fn form_of_the_bat_fails_a_zero_intercept_block_of_a_zero_stealth_action() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "pro", 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 1), 5, false);
+    hand(&mut e, 0, &["Form of the Bat"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, play(0, 0, a));
+    // The attempt fails at -1 against 0; no re-attempt can reach 0: the
+    // rest of the action elides.
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e, 1), 29, "not blocked: the bleed for 1 succeeds");
+    assert_eq!(blood(&e, a), 5, "no combat");
+}
+
+// An attempt is offered whenever the blocker holds an intercept card and
+// its Methuselah has a library (rules-qa 48.5): Enhanced Senses' +1 is
+// short of a Taxicab hunt's 2 stealth, but its replacement may be another.
+// With no library to draw from, the attempt stays pruned.
+#[test]
+fn a_block_is_offered_on_the_chance_of_drawing_more_intercept() {
+    for library in [true, false] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+        e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+        let x = e.add_minion(SeatId(1), plain("", "aus", 1), 4, false);
+        equip(&mut e, "Unlicensed Taxicab", a);
+        hand(&mut e, 1, &["Enhanced Senses"]);
+        e.state.seats[1].library = if library {
+            vec![find_library("Enhanced Senses")]
+        } else {
+            vec![]
+        };
+        pick(&mut e, action(a, ActionKind::Hunt));
+        let stealth = e.action().map(|q| q.stealth(&e.state));
+        assert_eq!(stealth, Some(2), "hunt and Taxicab");
+        let offered = request(&mut e)
+            .options
+            .contains(&Choice::DeclareBlock { minion: x });
+        assert_eq!(offered, library, "library: {library}");
+    }
+}
+
+// No identical re-attempt (rules-qa 48.6): X's attempt fails with nothing
+// played; in the same situation it is not offered again — another minion
+// still is.
+#[test]
+fn a_failed_attempt_is_not_offered_again_in_the_same_situation() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let x = e.add_minion(SeatId(1), plain("", "aus", 1), 4, false);
+    let y = e.add_minion(SeatId(1), plain("", "aus", 2), 4, false);
+    equip(&mut e, "Unlicensed Taxicab", a);
+    hand(&mut e, 1, &["Enhanced Senses"]);
+    e.state.seats[1].library = vec![find_library("Enhanced Senses")];
+    pick(&mut e, action(a, ActionKind::Hunt)); // 2 stealth
+    pick(&mut e, Choice::DeclareBlock { minion: x });
+    pick(&mut e, Choice::Pass); // nothing played: the attempt fails
+    let req = expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    assert!(
+        !req.options.contains(&Choice::DeclareBlock { minion: x }),
+        "{req:?}"
+    );
+    assert!(
+        req.options.contains(&Choice::DeclareBlock { minion: y }),
+        "{req:?}"
+    );
 }
 
 // Truth in Darkness [OBL]: "if this vampire blocks, they can burn 1 blood
@@ -1240,6 +1317,82 @@ fn organized_resistance_gives_an_attempting_anarch_intercept_from_a_locked_baron
     pick_when(&mut e, play(0, 0, b));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(pool(&e, 1), 30, "blocked");
+}
+
+// Organized Resistance from an unlocked baron for its own attempt: a hunt
+// (+1 stealth) is blockable by a 0-intercept baron holding it — the
+// attempt is offered (its intercept reachable), then the card.
+#[test]
+fn organized_resistance_lets_an_unlocked_baron_block_a_hunt() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let b = e.add_minion(SeatId(1), baron(0), 4, false);
+    hand(&mut e, 1, &["Organized Resistance"]);
+    pick(&mut e, action(a, ActionKind::Hunt));
+    pick(&mut e, Choice::DeclareBlock { minion: b });
+    pick_when(&mut e, play(0, 0, b));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(Outcome::Blocked));
+}
+
+// A change of blocker (rules-qa 48.3): X attempts, the acting minion's
+// stealth leaves it short; its Methuselah attempts with Y instead (X's
+// attempt fails then), and Y blocks with Enhanced Senses.
+#[test]
+fn a_blocker_can_be_changed_during_its_attempt() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "obf", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let x = e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let y = e.add_minion(SeatId(1), plain("", "aus", 1), 4, false);
+    hand(&mut e, 0, &["Lost in Crowds"]);
+    hand(&mut e, 1, &["Enhanced Senses"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick(&mut e, Choice::DeclareBlock { minion: x });
+    pick_when(&mut e, play(0, 0, a)); // +1 stealth: X is short
+    let req = expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    assert!(
+        req.options.contains(&Choice::DeclareBlock { minion: y })
+            && !req.options.contains(&Choice::DeclareBlock { minion: x }),
+        "{req:?}"
+    );
+    pick(&mut e, Choice::DeclareBlock { minion: y });
+    pick_when(&mut e, play(0, 0, y)); // +1 intercept
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(Outcome::Blocked));
+    assert_eq!(pool(&e, 1), 30);
+}
+
+// Organized Resistance during another of its Methuselah's attempts: the
+// unlocked Anarch must be the one blocking — X's attempt fails, C attempts
+// with +1 intercept and blocks (rules-qa 48.3).
+#[test]
+fn organized_resistance_switches_the_blocker_to_the_unlocked_anarch() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "obf", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let x = e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let b = e.add_minion(SeatId(1), baron(0), 4, false);
+    let c = e.add_minion(SeatId(1), anarch(0), 4, false);
+    e.state.minions[c.index()].locked = true;
+    hand(&mut e, 0, &["Lost in Crowds"]);
+    hand(&mut e, 1, &["Organized Resistance"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    let c0 = blood(&e, c); // its capacity
+    pick(&mut e, Choice::DeclareBlock { minion: x });
+    pick_when(&mut e, play(0, 0, a)); // +1 stealth: X is short
+    let unlock = Choice::Play {
+        card: 0,
+        mode: 1,
+        actor: Some(b),
+        target: Target::Minion(c),
+    };
+    pick_when(&mut e, unlock);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(Outcome::Blocked));
+    assert_eq!((blood(&e, x), blood(&e, c)), (4, c0 - 1), "C fought, not X");
+    assert_eq!(pool(&e, 1), 30);
 }
 
 // Organized Resistance: "Also usable to unlock a locked Anarch you
@@ -3033,6 +3186,22 @@ fn slam_played_at_the_maneuver_closes_the_range_and_commits_the_strike() {
     assert_eq!(blood(&e, a), 2, "Slam's blood, and the gun's 2");
 }
 
+// Slam [POT] only at the maneuver (rules-qa 48.4): at the strike, [pot]
+// alone — the same strike without paying for an unusable maneuver.
+#[test]
+fn slam_at_the_strike_is_offered_at_inferior_only() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["POT"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let b = e.add_minion(SeatId(1), plain("Brujah", "", 0), 5, false);
+    hand(&mut e, 0, &["Slam"]);
+    bleed_blocked(&mut e, a, b);
+    let req = offering(&mut e, Choice::HandStrike);
+    assert_eq!(req.window, WindowLabel::CombatStrike);
+    assert!(req.options.contains(&play(0, 0, a)), "{req:?}");
+    assert!(!req.options.contains(&play(0, 1, a)), "{req:?}");
+}
+
 // [LSJ 20021028] Slam, Aid from Bats: "The optional maneuver cannot be used
 // if the strike cannot be used" — no strike in the first round (One With the
 // Land [PRO]): no Aid from Bats at the maneuver.
@@ -4655,9 +4824,10 @@ fn rutors_hand_wounds_or_costs_blood_then_unlocks_its_vampire() {
         assert_eq!(blood(&e, a), start - 1 - 3);
         // Locked itself: not usable this turn.
         assert!(!req.options.contains(&ability(hand_id)));
-        // Next turn: the card unlocks; the vampire acts, then unlocks.
+        // Next turn: the card unlocks; the vampire must hunt — its only
+        // option, the Hand not offered while it is unlocked (rules-qa 48.7)
+        // — then unlocks.
         next_own_turn(&mut e);
-        pick(&mut e, action(a, ActionKind::Hunt));
         until(&mut e, SeatId(0), WindowLabel::MinionPhase);
         assert!(e.state.minions[a.index()].locked);
         pick(&mut e, ability(hand_id));
@@ -4930,6 +5100,22 @@ fn rutors_hand_unlocks_during_another_vampires_action() {
     assert!(e.state.cards[rutor.index()].locked);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(pool(&e, 1), 29);
+}
+
+// Not offered while the vampire is unlocked: locking the card would buy
+// nothing (owner, 2026-10-04: rules-qa 48.7).
+#[test]
+fn rutors_hand_is_not_offered_to_an_unlocked_vampire() {
+    for locked in [false, true] {
+        let mut e = Engine::bare(3);
+        let r = e.add_minion(SeatId(0), with(&["OBF"], 0), 5, false);
+        e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+        e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+        e.state.minions[r.index()].locked = locked;
+        let rutor = attach(&mut e, "Rutor's Hand", r, 0);
+        let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert_eq!(req.options.contains(&ability(rutor)), locked);
+    }
 }
 
 // ---- Actions, wave 2 (slice 11p) ----------------------------------------------
@@ -7290,12 +7476,14 @@ fn living_manse_ends_a_combat_under_form_of_the_bat() {
     let mut e = Engine::bare(3);
     let a = e.add_minion(SeatId(0), plain("", "pro", 0), 5, false);
     e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
-    let z = e.add_minion(SeatId(1), plain("", "", 1), 5, false);
+    let z = e.add_minion(SeatId(1), plain("", "aus", 1), 5, false);
     let manse = equip(&mut e, "Living Manse", a);
     hand(&mut e, 0, &["Form of the Bat"]);
+    hand(&mut e, 1, &["Enhanced Senses"]);
     pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: z });
-    pick_when(&mut e, play(0, 0, a));
+    pick_when(&mut e, play(0, 0, a)); // -1 intercept
+    pick_when(&mut e, play(0, 0, z)); // +1: blocked at 0 against 0
     pick_when(&mut e, use_on(manse, 0, None, Target::None));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.cards[manse.index()].in_play);

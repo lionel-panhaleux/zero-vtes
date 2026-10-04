@@ -556,7 +556,8 @@ impl CombatCtx {
     /// Play windows open at the current step. `COMBAT_UNTIMED` cards are
     /// playable at any impulse before the resolution they affect (rules-qa
     /// 2.2); additional strike cards only once the first pair is over, both
-    /// combatants still ready (rules-qa 47.2, revising 4.4).
+    /// combatants still ready (rules-qa 47.2, revising 4.4), and again
+    /// after each additional pair (48.2).
     fn windows(&self) -> Vec<Window> {
         match self.step {
             Step::BeforeRange => vec![Window::CombatBeforeRange, Window::CombatUntimed],
@@ -653,9 +654,17 @@ impl CombatCtx {
             Effect::Press if self.step == Step::Press => {
                 self.last_press != Some(side) && self.may_press(side)
             }
+            // One additional-strike card at a time: a combatant with an
+            // additional strike still to make gains no other before that
+            // pair resolves (rules-qa 48.2: Quickness after Pursuit's pair).
             Effect::AdditionalStrikes { limited: true, .. }
             | Effect::AdditionalStrikesX { limited: true }
-            | Effect::AdditionalStrikeOnly { limited: true, .. } => !self.sides[side].limited_used,
+            | Effect::AdditionalStrikeOnly { limited: true, .. } => {
+                !self.sides[side].limited_used && self.sides[side].additional == 0
+            }
+            Effect::AdditionalStrikes { .. }
+            | Effect::AdditionalStrikesX { .. }
+            | Effect::AdditionalStrikeOnly { .. } => self.sides[side].additional == 0,
             Effect::Strike(k) if self.only_hand_strikes => matches!(k, StrikeKind::Hand { .. }),
             _ => true,
         })
@@ -1298,14 +1307,13 @@ impl Engine {
             return;
         }
         let c = self.combat.as_mut().expect("combat context");
+        // After every pair, the normal one and each additional one, a new
+        // chance to gain additional strikes (rules-qa 48.2); the window
+        // closes into the next additional pair, if any, else the press.
         if c.round_over {
             c.fresh_window(Step::EndOfRound);
-        } else if c.pair == 0 {
-            c.fresh_window(Step::AdditionalStrikes);
-        } else if c.sides.iter().any(|s| s.additional > 0) {
-            c.begin_pair();
         } else {
-            c.fresh_window(Step::Press);
+            c.fresh_window(Step::AdditionalStrikes);
         }
     }
 

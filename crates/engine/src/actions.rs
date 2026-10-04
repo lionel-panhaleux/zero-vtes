@@ -231,6 +231,9 @@ pub struct ActionCtx {
     /// before resolution.
     pub lock_failed: bool,
     pub failed_blockers: Vec<MinionId>,
+    /// Each failed attempt's situation (`attempt_print`): the same minion
+    /// attempts again only once it changed (rules-qa 48.6).
+    pub failed_attempts: Vec<(MinionId, u64)>,
     /// Library cards a forced attempt costs, paid once the card forcing it
     /// is replaced (Parijat, ANK 20260317).
     pub library_toll: Vec<(SeatId, u8)>,
@@ -310,10 +313,41 @@ pub struct ActionCtx {
 }
 
 impl ActionCtx {
+    /// What an attempt by `m` would face, in public terms: the stealth,
+    /// `m`'s intercept, blood and lock, the cards in play, every hand's size
+    /// and its Methuselah's library and ash heap sizes (a card played or
+    /// drawn changes them; the hand itself is hidden, and what the engine
+    /// keeps must not depend on it: `tests/elision.rs`). The same again
+    /// after a failed attempt, a new one would fail alike (rules-qa 48.6).
+    pub fn attempt_print(&self, st: &crate::state::GameState, m: MinionId) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let seat = &st.seats[st.minions[m.index()].owner.index()];
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        (
+            self.stealth(st),
+            self.intercept_of(st, m),
+            st.minions[m.index()].blood,
+            st.minions[m.index()].locked,
+            st.cards.iter().filter(|c| c.present()).count(),
+            st.seats.iter().map(|s| s.hand.len()).collect::<Vec<_>>(),
+            seat.library.len(),
+            seat.ash.len(),
+        )
+            .hash(&mut h);
+        h.finish()
+    }
+
+    /// Did `m` already fail an attempt in this very situation?
+    pub fn failed_alike(&self, st: &crate::state::GameState, m: MinionId) -> bool {
+        let print = self.attempt_print(st, m);
+        self.failed_attempts.contains(&(m, print))
+    }
+
     /// The action's stealth, the acting minion's cards in play included
-    /// (Unlicensed Taxicab, Codex of the Edenic Groundskeepers), never
-    /// below 0.
-    pub fn stealth(&self, st: &crate::state::GameState) -> u8 {
+    /// (Unlicensed Taxicab, Codex of the Edenic Groundskeepers). Not
+    /// floored: stealth may be negative (LSJ 20021211, "a minion with zero
+    /// or negative stealth"; rules-qa 48.1).
+    pub fn stealth(&self, st: &crate::state::GameState) -> i32 {
         // A granted action's stealth for a clan, read live on the acting
         // minion (Wasserschloss Anif: "Malkavians get +1 stealth during
         // that action").
@@ -333,13 +367,12 @@ impl ActionCtx {
                 .sum(),
             _ => 0,
         };
-        (self.base_stealth as i32
+        self.base_stealth as i32
             + for_clan
             + self.stealth_mods as i32
             + st.bearer_mod(self.acting, Stat::Stealth, self.kind)
             + st.printed_mod(self.acting, Stat::Stealth, self.printed_ctx(st, None))
-            - self.stealth_reduce as i32)
-            .max(0) as u8
+            - self.stealth_reduce as i32
     }
 
     /// The bleed amount, the acting minion's cards in play included
@@ -411,13 +444,14 @@ impl ActionCtx {
 
     /// Effective intercept of minion `m`'s attempt: the accumulated
     /// intercept folded through the action's intercept layers (Perfect
-    /// Paragon [PRE]: younger vampires and allies get -1).
-    pub fn intercept_of(&self, st: &crate::state::GameState, m: MinionId) -> u8 {
-        (Self::intercept_mods(st, m)
+    /// Paragon [PRE]: younger vampires and allies get -1). Not floored: a
+    /// 0-intercept blocker given -1 (Form of the Bat [pro]) cannot block
+    /// a 0-stealth action (rules-qa 48.1).
+    pub fn intercept_of(&self, st: &crate::state::GameState, m: MinionId) -> i32 {
+        Self::intercept_mods(st, m)
             + self.host_intercept(st, m)
             + self.given_intercept(m)
-            + self.conditional_bonus(st, cards::Stat::Intercept, Some(m)))
-        .max(0) as u8
+            + self.conditional_bonus(st, cards::Stat::Intercept, Some(m))
     }
 
     /// Is the one limited bleed increase used: by an unconditional one, or
@@ -592,7 +626,7 @@ impl ActionCtx {
     }
 
     /// The effective intercept of the current attempt, if any.
-    pub fn attempt_intercept(&self, st: &crate::state::GameState) -> u8 {
+    pub fn attempt_intercept(&self, st: &crate::state::GameState) -> i32 {
         match self.state {
             ActionState::Attempt(m) => self.intercept_of(st, m),
             _ => 0,
@@ -954,9 +988,19 @@ impl Engine {
         let Some(a) = self.action.as_ref() else {
             return false;
         };
+        // Another of the same Methuselah's minions during its attempt: a
+        // change of blocker (rules-qa 48.3).
+        let switching = match a.state {
+            ActionState::Attempt(x) => {
+                x != m
+                    && self.state.minions[x.index()].owner == seat
+                    && a.stealth(&self.state) > a.intercept_of(&self.state, x)
+            }
+            _ => false,
+        };
         match a.state {
-            ActionState::Attempt(x) => x == m,
-            ActionState::Open => {
+            ActionState::Attempt(x) if !switching => x == m,
+            ActionState::Open | ActionState::Attempt(_) => {
                 !a.failed
                     && self.eligible_blockers(a).contains(&seat)
                     && !a.declined.contains(&seat)
@@ -1285,15 +1329,17 @@ impl Engine {
     /// Intercept reachability (DESIGN §4.3 elision, owner-approved
     /// 2026-09-02, P1 form): an attempt whose intercept can never reach the
     /// action's stealth — nothing in the controller's hand this minion could
-    /// play adds enough — is pruned rather than offered. The closure-time
+    /// play adds enough, and no intercept card to play whose replacement
+    /// draw could bring more (rules-qa 48.5) — is pruned rather than
+    /// offered. The closure-time
     /// comparison in `action_advance` is the actual semantics.
-    fn intercept_reachable(&self, a: &ActionCtx, seat: SeatId, m: MinionId) -> u8 {
+    fn intercept_reachable(&self, a: &ActionCtx, seat: SeatId, m: MinionId) -> i32 {
         let st = &self.state;
         // A Methuselah other than the acting one who could strip the
         // stealth (Night Terrors), the blocker's own or a third party
         // (rules-qa 1.2): any attempt may still succeed.
         if self.stealth_strippable(a, seat) {
-            return u8::MAX;
+            return i32::MAX;
         }
         // Intercept gained earlier in the action counts (rules-qa 15.2).
         // Conditional intercept counts whether or not its condition holds
@@ -1305,8 +1351,10 @@ impl Engine {
             .filter(|c| c.stat == cards::Stat::Intercept && c.to == m)
             .map(|c| c.n as i32)
             .sum();
-        let mut total = (a.host_intercept(st, m) + a.given_intercept(m) + conditional).max(0) as u8;
-        total = total.saturating_add(self.printed_intercept_reach(seat, m));
+        // What the attempt has already (may be negative: Form of the Bat
+        // [pro]), then what it could still gain.
+        let base = a.host_intercept(st, m) + a.given_intercept(m) + conditional;
+        let mut total = self.printed_intercept_reach(seat, m);
         for &card in &st.seats[seat.index()].hand {
             let Some(def) = cards::lookup(card) else {
                 continue;
@@ -1333,12 +1381,22 @@ impl Engine {
                             then: Effect::AddIntercept(n),
                             ..
                         } => *n,
+                        // Given to the attempting minion (Organized
+                        // Resistance: a baron's +1 to an attempting Anarch,
+                        // itself included).
+                        Effect::AttemptingIntercept(n) if *n > 0 => *n as u8,
                         _ => 0,
                     })
                     .sum();
                 per_card = per_card.max(best);
             }
             total = total.saturating_add(per_card);
+            // Each intercept card played is replaced from the library, and
+            // the draw may be another (rules-qa 48.5): with one to play and
+            // a library to draw from, any stealth may yet be met.
+            if per_card > 0 && !st.seats[seat.index()].library.is_empty() {
+                return i32::MAX;
+            }
         }
         // Unused intercept abilities of the cards on `m` (Bowl of
         // Convergence [AUS]).
@@ -1378,7 +1436,7 @@ impl Engine {
             }
         }
         total = total.saturating_add(self.location_intercept_reach(seat, m));
-        (total as i32 + ActionCtx::intercept_mods(st, m)).max(0) as u8
+        base + total as i32 + ActionCtx::intercept_mods(st, m)
     }
 
     /// An upper bound on the intercept unlocked cards in play (not on `m`)
@@ -1598,8 +1656,30 @@ impl Engine {
             && !a.declined.contains(&seat)
         {
             for m in self.block_candidates(a, seat) {
-                if self.intercept_reachable(a, seat, m) >= a.stealth(&self.state) {
+                if self.intercept_reachable(a, seat, m) >= a.stealth(&self.state)
+                    && !a.failed_alike(&self.state, m)
+                {
                     options.push(Choice::DeclareBlock { minion: m });
+                }
+            }
+        }
+        // A change of blocker: during its own minion's attempt, left short
+        // of the stealth, its Methuselah may attempt with another instead —
+        // the attempt under way fails then (rules-qa 48.3).
+        if let ActionState::Attempt(x) = a.state {
+            if self.state.minions[x.index()].owner == seat
+                && a.stealth(&self.state) > a.intercept_of(&self.state, x)
+                && !a.failed
+                && !a.declined.contains(&seat)
+                && self.eligible_blockers(a).contains(&seat)
+            {
+                for m in self.block_candidates(a, seat) {
+                    if m != x
+                        && self.intercept_reachable(a, seat, m) >= a.stealth(&self.state)
+                        && !a.failed_alike(&self.state, m)
+                    {
+                        options.push(Choice::DeclareBlock { minion: m });
+                    }
                 }
             }
         }
@@ -1726,6 +1806,13 @@ impl Engine {
                 self.flow = Flow::Action;
             }
             Choice::DeclareBlock { minion } => {
+                // Another blocker instead (rules-qa 48.3): the attempt under
+                // way fails, as at its closure.
+                if let ActionState::Attempt(x) = a.state {
+                    if a.lock_failed {
+                        a.failed_blockers.push(x);
+                    }
+                }
                 a.state = ActionState::Attempt(*minion);
                 a.window.play();
                 self.flow = Flow::Action;
@@ -1878,6 +1965,8 @@ impl Engine {
                     if a.lock_failed {
                         a.failed_blockers.push(blocker);
                     }
+                    let print = a.attempt_print(&self.state, blocker);
+                    a.failed_attempts.push((blocker, print));
                     a.state = ActionState::Open;
                     a.fresh_window();
                     self.flow = Flow::Action;
@@ -2290,8 +2379,9 @@ impl Engine {
             }
             Effect::LockFailedBlockers => a.lock_failed = true,
             Effect::CancelableForPool(_) => {}
+            // Negative stealth is left unchanged (LSJ 20021211).
             Effect::ReduceStealthToZero => {
-                let s = a.stealth(&self.state);
+                let s = a.stealth(&self.state).max(0) as u8;
                 a.stealth_reduce = a.stealth_reduce.saturating_add(s);
             }
             Effect::BurnActorBlood(n) => {
@@ -2302,8 +2392,21 @@ impl Engine {
                 self.state.minions[t.index()].locked = false;
                 a.intercept_given.push((t, n as i8));
                 // Its toll unpayable by now (the card's own blood paid
-                // first): no attempt (rules-qa 42.8).
-                if a.state == ActionState::Open && self.block_toll(&a, t).is_some() {
+                // first): no attempt (rules-qa 42.8). During another of
+                // its Methuselah's minions' attempt, a change of blocker:
+                // that attempt fails (rules-qa 48.3).
+                let switch = match a.state {
+                    ActionState::Attempt(x) => {
+                        x != t
+                            && self.state.minions[x.index()].owner == play.seat
+                            && a.stealth(&self.state) > a.intercept_of(&self.state, x)
+                    }
+                    _ => false,
+                };
+                if (a.state == ActionState::Open || switch) && self.block_toll(&a, t).is_some() {
+                    if let (true, ActionState::Attempt(x)) = (a.lock_failed, a.state) {
+                        a.failed_blockers.push(x);
+                    }
                     a.state = ActionState::Attempt(t);
                     self.action = Some(a);
                     self.pay_block_toll(t, true);

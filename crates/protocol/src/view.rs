@@ -96,6 +96,14 @@ pub struct MinionView {
     pub cards: Vec<InPlayView>,
     /// Other public state, as short text (counters, marks).
     pub markers: Vec<String>,
+    /// The corruption counters on it, all Methuselahs' (the markers say
+    /// whose): what a client puts on the card.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub corruption: u8,
+}
+
+fn is_zero(n: &u8) -> bool {
+    *n == 0
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -151,7 +159,7 @@ pub struct ActionView {
     #[serde(default)]
     pub step: String,
     #[serde(default)]
-    pub stealth: u8,
+    pub stealth: i32,
     /// The bleed amount, for a bleed.
     #[serde(default)]
     pub bleed: Option<u8>,
@@ -159,7 +167,7 @@ pub struct ActionView {
     #[serde(default)]
     pub blocker: Option<u32>,
     #[serde(default)]
-    pub intercept: Option<u8>,
+    pub intercept: Option<i32>,
     /// The Methuselahs who declined to block.
     #[serde(default)]
     pub declined: Vec<u8>,
@@ -612,6 +620,7 @@ fn minion_view(st: &GameState, lay: &Layout, copies: &Copies, i: usize) -> Minio
         owner: m.origin.filter(|&o| o != m.owner).map(|o| o.0),
         cards,
         markers,
+        corruption: m.corruption.iter().map(|&(_, n)| n).sum(),
     }
 }
 

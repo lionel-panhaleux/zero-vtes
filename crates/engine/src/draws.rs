@@ -17,7 +17,7 @@ use crate::state::{distinct, CardId};
 
 /// A pending choice about cards drawn, moved or stored.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Interrupt {
+pub enum Interrupt {
     /// Blood Trade: 1 blood from `from` to a vampire of another
     /// Methuselah's, the player's choice.
     GiveBlood { seat: SeatId, from: MinionId },
@@ -219,7 +219,7 @@ pub(crate) enum Interrupt {
 
 /// What a minion chosen at resolution is for (`Interrupt::MinionOf`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum MinionPurpose {
+pub enum MinionPurpose {
     /// "You can lock a minion": optional; a locked one is a legal choice.
     Lock,
     /// "Put 1 corruption counter on a minion": mandatory.

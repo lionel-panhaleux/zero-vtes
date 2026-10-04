@@ -514,6 +514,54 @@ impl Engine {
         self.action.as_ref()
     }
 
+    /// The play whose terms are being chosen, if any (read-only): what a
+    /// client names the choice for (Toreador Grand Ball's second Toreador).
+    pub fn play_terms(&self) -> Option<&PlayCtx> {
+        match &self.flow {
+            Flow::PlayTerms { ctx, .. } => Some(ctx),
+            _ => None,
+        }
+    }
+
+    /// The cost reductions being announced with a play, if any.
+    pub fn cost_terms(&self) -> Option<&PlayCtx> {
+        match &self.flow {
+            Flow::CostTerms { ctx, .. } => Some(ctx),
+            _ => None,
+        }
+    }
+
+    /// The in-play ability whose terms are being chosen, if any: its
+    /// source, its definition and the target chosen with the use.
+    pub fn ability_terms(
+        &self,
+    ) -> Option<(cards::AbilitySource, &'static cards::ModeDef, cards::Target)> {
+        match &self.flow {
+            Flow::AbilityTerms {
+                source,
+                ability,
+                target,
+                ..
+            } => Some((*source, source.mode(&self.state, *ability), *target)),
+            _ => None,
+        }
+    }
+
+    /// The rider being paid (Smiling Jack), if any: the card, the units
+    /// left.
+    pub fn rider_terms(&self) -> Option<(CardId, u8)> {
+        match &self.flow {
+            Flow::RiderTerms { card, left, .. } => Some((*card, *left)),
+            _ => None,
+        }
+    }
+
+    /// The choice an effect asks as it resolves, if one is pending: it
+    /// comes before anything else the engine asks.
+    pub fn interrupt(&self) -> Option<Interrupt> {
+        self.interrupts.first().copied()
+    }
+
     /// The referendum under way, if any (read-only).
     pub fn referendum(&self) -> Option<&ReferendumCtx> {
         self.referendum.as_ref()

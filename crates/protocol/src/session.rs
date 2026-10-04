@@ -67,6 +67,11 @@ pub enum Out {
         seat: u8,
         window: String,
         options: Vec<OptionView>,
+        /// What the decision is for, when its options alone do not say: a
+        /// referendum's term, a play's second vampire ("Camarilla's Iron
+        /// Fist: choose the Methuselah who gains 1 pool").
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        prompt: Option<String>,
         /// The seat's previous decision can be taken back (`Session::undo`):
         /// nothing was decided since and nothing hidden revealed to it.
         undo: bool,
@@ -591,11 +596,13 @@ impl Session {
                     .enumerate()
                     .map(|(i, c)| d.describe(i, c))
                     .collect();
+                let prompt = d.prompt();
                 Out::Decision {
                     decision,
                     seat: req.seat.0,
                     window,
                     options,
+                    prompt,
                     undo: self.can_undo(),
                     allocation: self.allocation(&req, &view),
                     votes: self.votes(&req),

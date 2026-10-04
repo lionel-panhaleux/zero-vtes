@@ -158,8 +158,9 @@ fn stealth_waived_by_card_text() {
 }
 
 // rules-qa 1.3 — an attempt persists until all pass; a failed attempt
-// returns to A where the same Methuselah may attempt again; a pass in A
-// with no attempt is the final decline.
+// returns to A where the same Methuselah may attempt again (not with the
+// same minion while nothing changed, 48.6); a pass in A with no attempt is
+// the final decline.
 #[test]
 fn block_attempt_persists_until_all_pass() {
     let mut t = table();
@@ -171,11 +172,13 @@ fn block_attempt_persists_until_all_pass() {
     pick(e, bleed(t.p));
     pick(e, play(0, 1, t.p)); // stealth 1 as announced
     pick(e, Choice::DeclareBlock { minion: t.b });
-    pick(e, Choice::Pass); // seat 1 holds Eyes of Argus back
-                           // Closure at 0 < 1: the attempt fails, back to A, where seat 1 (which
-                           // declared rather than passed) is offered a new attempt.
+    // Seat 1 holds Eyes of Argus back. Closure at 0 < 1: the attempt fails,
+    // back to A, where seat 1 (which declared rather than passed) is offered
+    // a new attempt — with C, B's alike being futile.
+    pick(e, Choice::Pass);
     let req = expect(e, SeatId(1), WindowLabel::ActionBlock);
-    assert!(req.options.contains(&Choice::DeclareBlock { minion: t.b }));
+    assert!(req.options.contains(&Choice::DeclareBlock { minion: t.c }));
+    assert!(!req.options.contains(&Choice::DeclareBlock { minion: t.b }));
     pick(e, Choice::Pass); // final decline
     expect(e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.seats[1].pool, 29);
@@ -195,12 +198,19 @@ fn intercept_from_a_failed_attempt_carries_into_a_new_one() {
         find_library("Enhanced Senses"),
         find_library("Spirit's Touch"),
     ]);
+    e.state.seats[1].library = vec![find_library("Soak"); 10];
     pick(e, bleed(t.p));
     pick(e, Choice::DeclareBlock { minion: t.b });
     pick(e, play(0, 1, t.p)); // stealth 2
     pick(e, play(0, 0, t.b)); // +1 intercept
-    pick(e, Choice::Pass); // seat 1 holds Spirit's Touch back
-                           // The attempt fails; B's kept +1 and the card in hand reach 2.
+                              // Seat 1 holds Spirit's Touch back: the attempt fails, and B alike is
+                              // not offered again (rules-qa 48.6). Then something changes (a card
+                              // into seat 1's library): B may attempt again, its kept +1 and the card
+                              // in hand reaching 2.
+    pick(e, Choice::Pass);
+    let req = expect(e, SeatId(1), WindowLabel::ActionBlock);
+    assert!(!req.options.contains(&Choice::DeclareBlock { minion: t.b }));
+    e.state.seats[1].library.push(find_library("Soak"));
     let req = expect(e, SeatId(1), WindowLabel::ActionBlock);
     assert!(req.options.contains(&Choice::DeclareBlock { minion: t.b }));
     pick(e, Choice::DeclareBlock { minion: t.b });

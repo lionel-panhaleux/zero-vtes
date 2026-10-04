@@ -235,6 +235,35 @@ fn additional_strikes_limited_once_per_round() {
     assert_eq!((blood(e, t.b), blood(e, t.x)), (4 - 1 - 1, 4 - 3));
 }
 
+// One additional-strike card at a time (rules-qa 48.2): after Pursuit
+// [CEL], Quickness is not offered until Pursuit's pair has resolved; then
+// a new additional-strike window offers Quickness [CEL] (not against the
+// limit), its [cel] mode masked (one limited source a round).
+#[test]
+fn additional_strike_cards_wait_for_the_previous_pair() {
+    let mut t = table();
+    let e = &mut t.e;
+    hand(e, 0, &["Pursuit", "Quickness"]);
+    blocked_bleed(e, t.b, t.x);
+    pick(e, Choice::Pass); // no maneuver; hand strikes elide (the only strike)
+    let req = expect(e, SeatId(0), WindowLabel::CombatAdditionalStrikes);
+    assert_eq!(
+        plays(&req),
+        vec![play(0, 1, t.b), play(1, 0, t.b), play(1, 1, t.b)]
+    );
+    assert_eq!(blood(e, t.x), 4 - 1, "the first pair resolved");
+    // Pursuit [CEL]: 1 additional strike. Its pair resolves before
+    // anything else is offered: the next decision is a new window,
+    // Quickness [CEL] alone.
+    pick(e, play(0, 1, t.b));
+    let req = expect(e, SeatId(0), WindowLabel::CombatAdditionalStrikes);
+    assert_eq!(blood(e, t.x), 4 - 2, "Pursuit's pair resolved");
+    assert_eq!(plays(&req), vec![play(0, 1, t.b)]);
+    pick(e, play(0, 1, t.b)); // Quickness [CEL]
+    expect(e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((blood(e, t.b), blood(e, t.x)), (4 - 1, 4 - 3));
+}
+
 // Immortal Grapple [POT]: only hand strikes this round (Majesty masked
 // out); the optional press continues to a second round, which is at close
 // range with the determine range step skipped.

@@ -7615,7 +7615,7 @@ pub static LIBRARY: [LibraryCard; 436] = [
             },
             Mode {
                 tags: &["POT"],
-                windows: &["COMBAT_STRIKE_DECLARATION", "COMBAT_DETERMINE_RANGE"],
+                windows: &["COMBAT_DETERMINE_RANGE"],
                 flags: &["maneuver_rider"],
             },
         ],
