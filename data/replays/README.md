@@ -72,3 +72,12 @@ whole), `…T12-09-51` converted at `c968dcf` (whole); the others logged
 their choices as played. `…T15-07-24` reads up to decision 216 since
 the rescue's payer is chosen as it is announced (rules-qa 48.8,
 `fd2a9f0`): whole at `779ee91`.
+
+Since a minion whose block attempt was left for another's is not
+offered the attempt again while nothing changed (rules-qa 48.6,
+`37ad627`), five games stop where a Methuselah swapped back to the
+minion left or where the window that offered it is now elided:
+`…T07-20-42` at decision 389, `…T08-47-02` at 151 and `…T09-22-57`
+at 400 (whole at `65d1539`), `…T08-31-11` at 294 and `…T15-07-24` at
+82 (to 609 and 216 at `65d1539`). `…T12-09-51`, `…T13-51-13`,
+`…T14-37-29` and `…T15-55-52` still read whole.
