@@ -58,8 +58,10 @@ fn card_of(o: &OptionView) -> Option<u32> {
 /// the previous decision), the deciding seat's policy encoding (`tok_ids`,
 /// `tok_f`, `opt_ids`, `opt_f`) and critic encoding (`critic_tok_ids`,
 /// `critic_tok_f`), both in observation version `obs`. The dict `over`
-/// (`vps`, `before`) ends a finished game. Also `names` (seats') and
-/// `humans` (the seats a human played).
+/// (`vps`, `before`) ends a finished game; `stopped` (why) a game whose
+/// log stops replaying (a rule change since: the decisions up to it,
+/// the last unanswered). Also `names` (seats') and `humans` (the seats a
+/// human played).
 #[pyfunction]
 #[pyo3(signature = (replay, obs=1))]
 pub fn replay_decisions<'py>(
@@ -68,8 +70,9 @@ pub fn replay_decisions<'py>(
     obs: u8,
 ) -> PyResult<Bound<'py, PyDict>> {
     let v = version(obs)?;
-    let Replay { mut spec, log } =
+    let replay: Replay =
         serde_json::from_str(replay).map_err(|e| PyValueError::new_err(format!("replay: {e}")))?;
+    let mut spec = replay.spec.clone();
     let humans: Vec<usize> = (0..spec.seats.len())
         .filter(|&s| spec.seats[s].player == Player::Human)
         .collect();
@@ -79,6 +82,7 @@ pub fn replay_decisions<'py>(
         s.player = Player::Human;
     }
     let mut session = Session::new(spec).map_err(|e| PyValueError::new_err(format!("{e:?}")))?;
+    let mut reader = replay.reader();
     session.show_all();
     let mut samples: Vec<Bound<'py, PyDict>> = Vec::new();
     let out = PyDict::new(py);
@@ -113,10 +117,24 @@ pub fn replay_decisions<'py>(
                     encode_critic(session.engine(), &req, v),
                     false,
                 )?;
-                let Some(&index) = log.get(decision as usize) else {
-                    d.set_item("chosen", py.None())?;
-                    samples.push(d);
-                    break;
+                let index = match reader.next(session.engine(), &req) {
+                    None => {
+                        d.set_item("chosen", py.None())?;
+                        samples.push(d);
+                        break;
+                    }
+                    // The engine changed what the game asks: the game so
+                    // far, and why it stops.
+                    Some(Err(e)) => {
+                        d.set_item("chosen", py.None())?;
+                        samples.push(d);
+                        out.set_item(
+                            "stopped",
+                            format!("decision {decision}: the log's choice is refused: {e}"),
+                        )?;
+                        break;
+                    }
+                    Some(Ok(i)) => i,
                 };
                 d.set_item("chosen", index)?;
                 match session.answer(decision, index) {

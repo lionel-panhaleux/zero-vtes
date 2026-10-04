@@ -62,6 +62,8 @@ for (;;) {
     if (messages > 50000) throw new Error('no end')
 }
 const replay = JSON.parse(game.replay())
+// Every decision also by what was chosen (protocol `logged`).
+if (replay.choices.length != replay.log.length) throw new Error('a decision without its choice')
 console.log(`replay: ${replay.log.length} decisions`)
 
 // With an exported policy ( `python -m train.export <checkpoint> target/policy.zvp` ) :

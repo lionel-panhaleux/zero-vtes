@@ -6,8 +6,13 @@ ids and the decision log), kept as the corpus for human games as data
 `uv run python -m train.assess data/replays/<file>.json [checkpoint]`, or
 `cargo run -p zvtes-protocol --profile ci --example replay -- <file>`.
 
-A replay holds only option indices: a rule change since the game can make
-its log stop replaying (an option refused) or diverge. Each game names the
+A replay holds each decision twice: its option index (`log`) and what
+was chosen (`choices`: the card by KRCG id, the minion, seat, target,
+mode or amount — `zvtes_protocol::logged`). Read back, a decision takes
+the option that is that choice, whatever its index, so a game keeps
+reading when the engine changes the options it offers. A change in the
+rules the game met still stops it (the engine asks a decision the game
+never had, or no longer offers what was chosen). Each game names the
 engine commit its wasm was built from — check out that commit to read it
 as it was played.
 
@@ -20,6 +25,7 @@ as it was played.
 | `zero-vtes-replay-2026-10-04T05-34-07-935Z.json` | uncommitted, after `ea6e93d` | **Tremere (V5)**, Toreador (V5), Gangrel (V5 Anarch), Ventrue (V5) | `p5-self@1250` (network) | owner 3 VP, Gangrel 1 |
 | `zero-vtes-replay-2026-10-04T06-45-40-714Z.json` | uncommitted, after `ea6e93d` | **Ventrue (V5)**, Salubri (V5 Companion), Toreador (V5), Ravnos (V5 Companion) | `p5-self@1250` (network) | owner 4 VP, the bots 0 |
 | `zero-vtes-replay-2026-10-04T07-20-42-703Z.json` | uncommitted, after `ea6e93d` | **Toreador (V5)**, Gangrel (V5 Anarch), Banu Haqim (V5 Anarch), Ministry (V5 Anarch) | `p5-self@1250` (network) | owner 3 VP, Banu Haqim 1 |
+| `zero-vtes-replay-2026-10-04T08-31-11-014Z.json` | uncommitted, after `a963b55` | Hecata (V5), **The Unnamed**, Ministry (V5 Anarch), Lasombra (V5) | `p5-self@1250` (network) | — (log ends at 642) |
 
 Since rules-qa 48.1 (intercept not floored at 0), `2026-10-03T09-03-44`
 replays on later engines only up to decision 72: its Form of the Bat
@@ -34,8 +40,17 @@ replay whole; `…T14-08-09` stops at decision 228 and `…T14-41-09` at
 decision, terms and votes included: the default politics
 (`zvtes::politics`, DESIGN §11.2) came after.
 
-Since copies alike in hand are one choice (owner, 2026-10-04: a discard,
-a card to the library's bottom, a play — one option per card, not per
-copy), the option indices changed: every game above replays on later
-engines only up to its first such choice (within its first ~60
-decisions). Read them at `a963b55`, the last commit before.
+The games above were exported before choices were logged, and were
+converted (2026-10-04, `cargo run -p zvtes-protocol --profile ci
+--example replay -- <file> --upgrade <out>`) on the commit each read
+furthest on: the 2026-10-03 games and `…T05-34-07` at `ea6e93d` (the
+three 2026-10-03 whole), the others at `a963b55` (`…T06-45-40` and
+`…T07-20-42` whole; `…T05-06-55` to decision 486, `…T08-31-11` to 610).
+Past its converted choices a game reads by its indices. Since copies
+alike in hand are one choice (`3cc7ae3`: option indices changed), the
+games read by their choices: whole for `…T06-45-40` and `…T07-20-42`
+(the latter passing over one discard between two copies alike); the
+others up to a rules fix since their game (rules-qa batch 48,
+`a963b55`): decisions 74, 203, 47, 486, 56 and 609 of
+`2026-10-03T09-03-44`, `…T14-08-09`, `…T14-41-09`, `…T05-06-55`,
+`…T05-34-07` and `…T08-31-11`.

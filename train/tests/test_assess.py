@@ -48,9 +48,6 @@ def test_replay_decisions():
 
 def test_log_refused():
     bad = {"spec": spec(11), "log": [999]}
-    try:
-        zvtes_py.replay_decisions(json.dumps(bad), 1)
-    except ValueError as e:
-        assert "refused" in str(e)
-    else:
-        raise AssertionError("an impossible option index is refused")
+    game = zvtes_py.replay_decisions(json.dumps(bad), 1)
+    assert "refused" in game["stopped"], "an impossible option index stops the game"
+    assert [d["chosen"] for d in game["decisions"]] == [None] and "over" not in game

@@ -22,6 +22,7 @@ use zvtes::agent::Agent;
 use zvtes::decision::DecisionRequest;
 use zvtes::game::Engine;
 use zvtes::obs::{self, Obs};
+use zvtes::politics;
 use zvtes::rng::Rng;
 
 struct Layer {
@@ -443,11 +444,30 @@ impl NetAgent {
 
 impl Agent for NetAgent {
     fn decide(&mut self, engine: &Engine, req: &DecisionRequest) -> usize {
+        // Referendum terms and votes by rule (`zvtes::politics`).
+        if let Some(i) = politics::terms_choice(engine, req) {
+            return i;
+        }
         let (logits, _) = self
             .net
             .forward(&obs::encode(engine, req, self.net.version));
-        let max = logits.iter().copied().fold(f32::MIN, f32::max);
-        let weights: Vec<f64> = logits.iter().map(|&l| ((l - max) as f64).exp()).collect();
+        let mask = politics::mask(engine, req);
+        let allowed = |i: usize| mask.as_ref().is_none_or(|m| m[i]);
+        let max = (0..logits.len())
+            .filter(|&i| allowed(i))
+            .map(|i| logits[i])
+            .fold(f32::MIN, f32::max);
+        let weights: Vec<f64> = logits
+            .iter()
+            .enumerate()
+            .map(|(i, &l)| {
+                if allowed(i) {
+                    ((l - max) as f64).exp()
+                } else {
+                    0.0
+                }
+            })
+            .collect();
         let total: f64 = weights.iter().sum();
         // A uniform draw in [0, total), from 53 random bits.
         let mut u = ((self.rng.next_u64() >> 11) as f64 / (1u64 << 53) as f64) * total;
@@ -457,6 +477,9 @@ impl Agent for NetAgent {
             }
             u -= w;
         }
-        weights.len() - 1
+        (0..weights.len())
+            .rev()
+            .find(|&i| weights[i] > 0.0)
+            .unwrap_or(0)
     }
 }

@@ -35,6 +35,11 @@ class Config:
     iterations: int = 100
     epochs: int = 3
     minibatch: int = 1024
+    # A minibatch is run in chunks of at most this many rows × tokens²
+    # (gradients accumulated: the same step). The attention maps of 1024
+    # rows of ~200 tokens (observation V2) filled the MPS allocator's cache
+    # past the machine's memory (2026-10-03).
+    attention_budget: int = 16_000_000
     lr: float = 3e-4
     # The learning rate tapers linearly over the run (from its start
     # iteration, a resumed one too) to `lr_final` × `lr`.
@@ -67,6 +72,10 @@ class Config:
     # the ash heaps' contents and the last public choices. Frozen networks
     # read the one they were trained on (`obs` in their config, else 1).
     obs: int = 2
+    # Network seats play the default politics (zvtes::politics, DESIGN
+    # §11.2): referendum terms by rule, wrong-side votes masked. Temporary
+    # guidance, to be relaxed later in training (owner, 2026-10-04).
+    politics: bool = True
     seed: int = 0
     eval_every: int = 10
     eval_games: int = 256
@@ -114,6 +123,31 @@ def device_of(name):
 
 FIELDS = ("tok_ids", "tok_f", "opt_ids", "opt_f")
 
+# Batch shapes are rounded up to these multiples (rows, tokens, options):
+# the MPS backend compiles and keeps a graph per shape, never freed — the
+# shapes of observation V2's longer, more varied rows grew it by ~1 GB an
+# iteration (2026-10-03). Padding is masked: the values are the same.
+ROWS, TOKENS, OPTIONS = 64, 16, 8
+
+
+def bucket(n, k):
+    return -(-n // k) * k
+
+
+def shaped(obs, idx):
+    """Rows `idx` of a pool observation, their count padded to a multiple
+    of ROWS (repeating the first) and their tokens and options to TOKENS
+    and OPTIONS (zeros past the counts)."""
+    idx = np.concatenate([idx, np.full(bucket(len(idx), ROWS) - len(idx), idx[0])])
+    out = {}
+    for k, v in obs.items():
+        v = v[idx]
+        if v.ndim == 3:
+            m = OPTIONS if k.startswith("opt") else TOKENS
+            v = np.pad(v, ((0, 0), (0, bucket(v.shape[1], m) - v.shape[1]), (0, 0)))
+        out[k] = v
+    return out
+
 
 def rows(obs):
     """Per-game observations, trimmed to their token and option counts;
@@ -139,7 +173,7 @@ def rows(obs):
 def collate_critic(samples, device):
     """Pad the critic's trimmed tokens (row items 4 and 5) into a batch."""
     b = len(samples)
-    t = max(s[4].shape[0] for s in samples)
+    t = bucket(max(s[4].shape[0] for s in samples), TOKENS)
     ids = np.zeros((b, t, samples[0][4].shape[1]), np.int64)
     f = np.zeros((b, t, samples[0][5].shape[1]), np.float32)
     n = np.zeros(b, np.int64)
@@ -157,8 +191,8 @@ def collate_critic(samples, device):
 def collate(samples, device):
     """Pad trimmed observations into a batch."""
     b = len(samples)
-    t = max(s[0].shape[0] for s in samples)
-    o = max(s[2].shape[0] for s in samples)
+    t = bucket(max(s[0].shape[0] for s in samples), TOKENS)
+    o = bucket(max(s[2].shape[0] for s in samples), OPTIONS)
     out = {
         "tok_ids": np.zeros((b, t, samples[0][0].shape[1]), np.int64),
         "tok_f": np.zeros((b, t, samples[0][1].shape[1]), np.float32),
@@ -233,8 +267,9 @@ def act(nets, obs, device, rng):
     actions, logp, values = np.zeros(b, np.int64), np.zeros(b), np.zeros(b, np.float32)
     for agent in np.unique(obs["agent"]):
         idx = np.nonzero(obs["agent"] == agent)[0]
-        part = {k: v[idx] for k, v in obs.items()}
+        part = shaped({k: obs[k] for k in (*FIELDS, "tok_n", "opt_n")}, idx)
         logits, v = forward(nets[int(agent)], batch_of(part, device))
+        logits, v = logits[: len(idx), : obs["opt_ids"].shape[1]], v[: len(idx)]
         probs = torch.softmax(logits.float(), -1).cpu().numpy().astype(np.float64)
         probs /= probs.sum(1, keepdims=True)
         a = np.array([rng.choice(len(p), p=p) for p in probs])
@@ -336,6 +371,9 @@ class Trainer:
                 self.league.add(self.start - 1, model)
             if "pfsp" in saved:
                 self.league.restore(saved["pfsp"])
+            if cfg.opponents:  # beat rates of other runs' opponents: noise
+                names = set(self.league.candidates())
+                self.league.p = {k: v for k, v in self.league.p.items() if k in names}
             if cfg.exploiter:
                 self.exploiter = Learner(EXPLOITER, copy.deepcopy(model), cfg.lr)
                 if "exploiter" in saved:
@@ -356,6 +394,7 @@ class Trainer:
             critic=cfg.critic,
             obs=cfg.obs,
             legacy=self.legacy,
+            politics=cfg.politics,
         )
 
     def learners(self):
@@ -421,11 +460,13 @@ class Trainer:
         """The learner's rows valued by the omniscient critic."""
         idx = np.nonzero(obs["agent"] == 0)[0]
         if len(idx):
-            ids = torch.from_numpy(obs["critic_tok_ids"][idx]).long().to(self.device)
-            f = torch.from_numpy(obs["critic_tok_f"][idx]).to(self.device)
-            n = torch.from_numpy(obs["critic_tok_n"][idx]).long().to(self.device)
+            keys = ("critic_tok_ids", "critic_tok_f", "critic_tok_n")
+            part = shaped({k: obs[k] for k in keys}, idx)
+            ids = torch.from_numpy(part["critic_tok_ids"]).long().to(self.device)
+            f = torch.from_numpy(part["critic_tok_f"]).to(self.device)
+            n = torch.from_numpy(part["critic_tok_n"]).long().to(self.device)
             values = values.copy()
-            values[idx] = self.critic(ids, f, n).cpu().numpy()
+            values[idx] = self.critic(ids, f, n).cpu().numpy()[: len(idx)]
         return values
 
     def advantages(self, chain, bootstrap):
@@ -445,7 +486,9 @@ class Trainer:
         into chunks of 8 minibatches, each sorted by token count (the
         critic's when it reads them: the costlier encoder) and cut in
         minibatches, which are then shuffled — every sample once, little
-        padding (tokens vary 20–80 a decision)."""
+        padding (tokens vary 20–80 a decision). A last partial minibatch is
+        dropped (its shape would be new: `ROWS`), unless it is the only
+        one; the epochs' orders differ, so each drops other samples."""
         mb = self.cfg.minibatch
         width = 4 if len(samples[0][0]) > 4 else 0
         size = np.array([s[0][width].shape[0] for s in samples])
@@ -455,7 +498,21 @@ class Trainer:
             chunk = order[k : k + 8 * mb]
             chunk = chunk[np.argsort(size[chunk], kind="stable")]
             batches += [chunk[j : j + mb] for j in range(0, len(chunk), mb)]
+        if len(batches) > 1:
+            batches = [b for b in batches if len(b) == mb]
         return [batches[i] for i in self.rng.permutation(len(batches))]
+
+    def chunks(self, samples, idx):
+        """`idx` cut so that each chunk's attention maps (rows × tokens²,
+        the longest row's tokens: the critic's when it reads them) stay
+        within `attention_budget`, halving: power-of-two sizes of a
+        power-of-two minibatch (few shapes: `ROWS`)."""
+        width = 4 if len(samples[0][0]) > 4 else 0
+        t = bucket(max(samples[i][0][width].shape[0] for i in idx), TOKENS)
+        size = len(idx)
+        while size > 1 and size * t * t > self.cfg.attention_budget:
+            size = -(-size // 2)
+        return [idx[k : k + size] for k in range(0, len(idx), size)]
 
     def update(self, learner, samples):
         cfg = self.cfg
@@ -464,37 +521,44 @@ class Trainer:
         adv = np.array([s[3] for s in samples], np.float32)
         adv = (adv - adv.mean()) / (adv.std() + 1e-8)
         losses = []
+        critic = self.critic is not None and learner.agent == 0
+        warming = critic and self.warmup > 0
         for _ in range(cfg.epochs):
             for idx in self.minibatches(samples):
-                batch = collate([samples[i][0] for i in idx], self.device)
-                logits, values = forward(learner.model, batch)
-                critic = self.critic is not None and learner.agent == 0
-                if critic:
-                    values = self.critic(*collate_critic([samples[i][0] for i in idx], self.device))
-                logp_all = torch.log_softmax(logits, -1)
-                a = torch.tensor([samples[i][1] for i in idx], device=self.device)
-                logp = logp_all.gather(1, a[:, None]).squeeze(1)
-                old = torch.tensor([samples[i][2] for i in idx], device=self.device)
-                ad = torch.tensor(adv[idx], device=self.device)
-                ret = torch.tensor([samples[i][4] for i in idx], device=self.device)
-                ratio = torch.exp(logp - old)
-                pg = -torch.min(ratio * ad, ratio.clamp(1 - cfg.clip, 1 + cfg.clip) * ad).mean()
-                vf = ((values - ret) ** 2).mean()
-                ent = -(logp_all.exp() * logp_all).sum(-1).mean()
-                loss = pg + cfg.value_coef * vf - self.entropy_coef * ent
                 learner.opt.zero_grad()
                 if critic:
                     self.critic_opt.zero_grad()
-                if critic and self.warmup > 0:
-                    loss = cfg.value_coef * vf
-                loss.backward()
+                # Gradients accumulated over chunks of the minibatch, each
+                # within `attention_budget` (the same step, less memory).
+                totals = np.zeros(3)
+                for part in self.chunks(samples, idx):
+                    w = len(part) / len(idx)
+                    rows = [samples[i][0] for i in part]
+                    logits, values = forward(learner.model, collate(rows, self.device))
+                    if critic:
+                        values = self.critic(*collate_critic(rows, self.device))
+                    logp_all = torch.log_softmax(logits, -1)
+                    a = torch.tensor([samples[i][1] for i in part], device=self.device)
+                    logp = logp_all.gather(1, a[:, None]).squeeze(1)
+                    old = torch.tensor([samples[i][2] for i in part], device=self.device)
+                    ad = torch.tensor(adv[part], device=self.device)
+                    ret = torch.tensor([samples[i][4] for i in part], device=self.device)
+                    ratio = torch.exp(logp - old)
+                    pg = -torch.min(ratio * ad, ratio.clamp(1 - cfg.clip, 1 + cfg.clip) * ad).mean()
+                    vf = ((values - ret) ** 2).mean()
+                    ent = -(logp_all.exp() * logp_all).sum(-1).mean()
+                    loss = pg + cfg.value_coef * vf - self.entropy_coef * ent
+                    if warming:
+                        loss = cfg.value_coef * vf
+                    (w * loss).backward()
+                    totals += w * np.array([pg.item(), vf.item(), ent.item()])
                 torch.nn.utils.clip_grad_norm_(learner.model.parameters(), 1.0)
-                if not (critic and self.warmup > 0):
+                if not warming:
                     learner.opt.step()
                 if critic:
                     torch.nn.utils.clip_grad_norm_(self.critic.parameters(), 1.0)
                     self.critic_opt.step()
-                losses.append((pg.item(), vf.item(), ent.item()))
+                losses.append(totals)
         pg, vf, ent = np.mean(losses, 0)
         return {"pg": pg, "vf": vf, "entropy": ent}
 
@@ -513,6 +577,7 @@ class Trainer:
             tables=tables,
             obs=self.cfg.obs,
             legacy=self.legacy,
+            politics=self.cfg.politics,
         )
         rng = np.random.default_rng(seed)
         vps, wins, done, truncated = [], 0, 0, 0
@@ -553,6 +618,12 @@ class Trainer:
         torch.save(saved, self.out / "model.pt")
         return saved
 
+    def release(self):
+        """Return the MPS allocator's cached blocks: batches of every shape
+        leave some, and they are not reused across shapes."""
+        if self.device.type == "mps":
+            torch.mps.empty_cache()
+
     def run(self):
         cfg = self.cfg
         log = open(self.out / "metrics.jsonl", "a")
@@ -571,6 +642,7 @@ class Trainer:
             if self.critic is not None:
                 self.critic.eval()
             samples, stats = self.rollout()
+            self.release()
             t1 = time.perf_counter()
             metrics = {}
             for learner in self.learners():
@@ -579,6 +651,7 @@ class Trainer:
                 prefix = "" if learner.agent == 0 else "exploiter_"
                 metrics.update({prefix + k: v for k, v in m.items()})
                 learner.model.eval()
+            self.release()
             t2 = time.perf_counter()
             warming = self.warmup > 0
             self.warmup = max(0, self.warmup - 1)
@@ -651,6 +724,7 @@ class Trainer:
                 saved = self.checkpoint(it)
                 if better:
                     torch.save(saved, self.out / "best.pt")
+            self.release()
             print(json.dumps(row), flush=True)
             log.write(json.dumps(row) + "\n")
             log.flush()

@@ -77,7 +77,7 @@ impl Agent for Scripted {
 
 /// What a card's mode does, as far as the heuristics care.
 #[derive(Default)]
-struct Does {
+pub(crate) struct Does {
     bleed: bool,
     stealth: bool,
     intercept: bool,
@@ -86,11 +86,11 @@ struct Does {
     prevent: bool,
     /// Votes the card adds, for and against: either side for votes the
     /// player casts as they choose, one side for a card that says which.
-    votes_for: bool,
-    votes_against: bool,
+    pub(crate) votes_for: bool,
+    pub(crate) votes_against: bool,
 }
 
-fn does(card: u16, mode: u8) -> Does {
+pub(crate) fn does(card: u16, mode: u8) -> Does {
     let mut d = Does::default();
     let Some(m) = cards::lookup(card).and_then(|def| def.modes.get(mode as usize)) else {
         return d;

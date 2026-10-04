@@ -16,6 +16,7 @@ use zvtes::referendum::RefStep;
 use zvtes::rng::Rng;
 use zvtes_protocol::deck::list_of;
 use zvtes_protocol::describe::{kind, Describer};
+use zvtes_protocol::logged;
 use zvtes_protocol::session::AllocationView;
 use zvtes_protocol::track::Tracker;
 use zvtes_protocol::view::{table_view, CardView, TableView};
@@ -556,6 +557,24 @@ fn sessions_over_the_shipped_decks() {
         assert!(matches!(e.run(), Step::Over(_)));
         assert_eq!(e.state.hash(), s.engine().state.hash());
         let _ = again.view(Some(SeatId(0)));
+        // And by its choices: every decision logged, undone ones dropped,
+        // allocations and vote orders included.
+        assert_eq!(r.choices.len(), r.log.len(), "seed {seed}");
+        let mut e = again.engine().clone();
+        for (k, l) in r.choices.iter().enumerate() {
+            let Step::Decision(req) = e.run() else {
+                panic!("replay ended early")
+            };
+            let i = logged::resolve(&e, &req, l, None).expect("the choice is offered");
+            // The first option that is the choice: the logged one, or a
+            // copy alike offered apart (a card burned for a vote).
+            assert!(i <= r.log[k], "seed {seed} decision {k}: {l:?}");
+            let i = logged::resolve(&e, &req, l, Some(r.log[k])).expect("offered");
+            assert_eq!(i, r.log[k], "seed {seed} decision {k}: {l:?}");
+            e.choose(i);
+        }
+        assert!(matches!(e.run(), Step::Over(_)));
+        assert_eq!(e.state.hash(), s.engine().state.hash());
     }
     let missing: Vec<&str> = [
         "pass",

@@ -156,6 +156,8 @@ def main():
     probs, values = evaluate(policy, critic, decisions)
     over = game.get("over", {}).get("vps")
     print(f"{args.replay}: {len(decisions)} decisions, VPs {over or 'unfinished'}")
+    if "stopped" in game:
+        print(f"replays up to {game['stopped']}")
     print(
         f"{args.checkpoint} (iteration {cfg['iteration']}, "
         f"obs V{obs}, {'critic' if critic is not None else 'no critic: the policy value'})"

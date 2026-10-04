@@ -33,6 +33,7 @@ pub mod library;
 pub mod obs;
 pub mod ousting;
 pub mod plays;
+pub mod politics;
 pub mod referendum;
 pub mod rng;
 pub mod state;

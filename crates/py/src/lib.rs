@@ -23,6 +23,7 @@ use zvtes::decision::DecisionRequest;
 use zvtes::decks::Deck;
 use zvtes::game::{Engine, Step};
 use zvtes::obs::{encode, encode_critic, Obs, Version, OPT_F, OPT_IDS, TOK_F, TOK_IDS};
+use zvtes::politics;
 use zvtes::rng::Rng;
 
 mod human;
@@ -92,6 +93,13 @@ struct Game {
     versions: Vec<Version>,
     /// The policy decision the game waits on, and its encoding.
     pending: Option<(DecisionRequest, Obs)>,
+    /// The pending decision's offered options among the engine's, when
+    /// the default politics masked some (`politics`): Python answers
+    /// among the offered ones.
+    offered: Option<Vec<usize>>,
+    /// Network seats play the default politics (`zvtes::politics`):
+    /// terms by rule (not sampled), masked options never offered.
+    politics: bool,
     /// The pending decision's omniscient encoding (`critic` pools).
     critic: Option<Obs>,
 }
@@ -104,6 +112,7 @@ impl Game {
         decks: Vec<usize>,
         kinds: Vec<Kind>,
         versions: &Versions,
+        politics: bool,
     ) -> Game {
         let list: Vec<Deck> = decks.iter().map(|&d| all_decks()[d]).collect();
         let agents = kinds
@@ -130,6 +139,8 @@ impl Game {
             agents,
             versions,
             pending: None,
+            offered: None,
+            politics,
             critic: None,
         }
     }
@@ -175,6 +186,32 @@ impl Game {
                         self.engine.choose(i);
                     }
                     None => {
+                        let mask = if self.politics {
+                            if let Some(i) = politics::terms_choice(&self.engine, &req) {
+                                self.engine.choose(i);
+                                continue;
+                            }
+                            politics::mask(&self.engine, &req)
+                        } else {
+                            None
+                        };
+                        let (req, offered) = match mask {
+                            Some(mask) => {
+                                let offered: Vec<usize> =
+                                    (0..mask.len()).filter(|&i| mask[i]).collect();
+                                if offered.len() == 1 {
+                                    self.engine.choose(offered[0]);
+                                    continue;
+                                }
+                                let options = offered.iter().map(|&i| req.options[i]).collect();
+                                (
+                                    DecisionRequest::new(req.seat, req.window, options),
+                                    Some(offered),
+                                )
+                            }
+                            None => (req, None),
+                        };
+                        self.offered = offered;
                         let obs = encode(&self.engine, &req, self.versions[req.seat.index()]);
                         self.critic =
                             critic.then(|| encode_critic(&self.engine, &req, Version::V2));
@@ -240,7 +277,10 @@ fn all_decks() -> &'static [Deck] {
 /// per survivor, which counts toward the game win); episodes report it and
 /// `replay` takes it. `obs`: the encoding the networks read
 /// (`zvtes::obs::Version`, 1 or 2), but the `legacy` network ids, which
-/// read `V1`; the critic reads `V2`.
+/// read `V1`; the critic reads `V2`. `politics`: network seats play the
+/// default politics (`zvtes::politics`; DESIGN §11.2): referendum terms by
+/// rule, never offered to Python; options the rule masks left out of the
+/// request Python sees (its option indices are among those offered).
 #[pyclass(module = "zvtes_py")]
 struct GamePool {
     games: Vec<Game>,
@@ -254,6 +294,8 @@ struct GamePool {
     keep_logs: bool,
     /// Also encode each pending decision for the omniscient critic.
     critic: bool,
+    /// Network seats play the default politics (`Game::politics`).
+    politics: bool,
     started: u64,
     /// Each game's time limit is drawn in this range, player turns
     /// inclusive (owner, 2026-09-28: 60–90).
@@ -289,6 +331,7 @@ impl GamePool {
             decks,
             kinds,
             &self.versions,
+            self.politics,
         )
     }
 
@@ -367,7 +410,7 @@ impl GamePool {
     // A Python constructor with keyword arguments.
     #[allow(clippy::too_many_arguments)]
     #[new]
-    #[pyo3(signature = (n_games, seats, seed=0, rotate=false, decks=None, budget=20_000, keep_logs=false, tables=None, time_limits=(60, 90), critic=false, obs=1, legacy=Vec::new()))]
+    #[pyo3(signature = (n_games, seats, seed=0, rotate=false, decks=None, budget=20_000, keep_logs=false, tables=None, time_limits=(60, 90), critic=false, obs=1, legacy=Vec::new(), politics=false))]
     fn new(
         py: Python<'_>,
         n_games: usize,
@@ -382,6 +425,7 @@ impl GamePool {
         critic: bool,
         obs: u8,
         legacy: Vec<u16>,
+        politics: bool,
     ) -> PyResult<Self> {
         if time_limits.0 == 0 || time_limits.0 > time_limits.1 {
             return Err(PyValueError::new_err(
@@ -414,6 +458,7 @@ impl GamePool {
             budget,
             keep_logs,
             critic,
+            politics,
             started: 0,
             time_limits,
             finished: Vec::new(),
@@ -566,6 +611,7 @@ impl GamePool {
                     req.options.len()
                 )));
             }
+            let a = g.offered.take().map_or(a, |o| o[a]);
             g.engine.choose(a);
         }
         self.settle(py);

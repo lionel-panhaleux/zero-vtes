@@ -115,3 +115,26 @@ def test_each_network_reads_its_encoding():
             added[int(agent)] += int((obs["tok_ids"][i, :t, 0] >= 9).sum())
         pool.act([int(rng.integers(k)) for k in obs["opt_n"]])
     assert added[0] > 0 and added[1] == 0
+
+
+def test_default_politics_answer_the_terms():
+    """`politics=True`: referendum terms are answered by rule, never sent to
+    Python, and games still replay from their log (the engine's indices)."""
+    names = zvtes_py.deck_names()
+    political = [i for i, n in enumerate(names) if n.split(" (")[0] in ("Ventrue", "Toreador", "Lasombra")]
+    terms = 21  # WindowLabel::ReferendumTerms
+    seen = {}
+    for politics in (False, True):
+        pool = zvtes_py.GamePool(
+            8, ["net:0"] * 4, seed=3, decks=political, keep_logs=True, politics=politics
+        )
+        rng = np.random.default_rng(3)
+        rows, done = 0, []
+        while len(done) < 8:
+            obs = pool.observe()
+            rows += int((obs["window"] == terms).sum())
+            done += pool.act(random_actions(obs, rng))
+        seen[politics] = rows
+        for ep in done:
+            assert zvtes_py.replay(ep["seed"], ep["decks"], ep["log"], ep["time_limit"]) == ep["half_vps"]
+    assert seen[False] > 0 and seen[True] == 0

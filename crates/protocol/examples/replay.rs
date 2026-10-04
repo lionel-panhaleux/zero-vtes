@@ -4,6 +4,9 @@
 //! --example replay -- <replay.json> [--options] [--table N]...`:
 //! `--options` lists every decision's options, `--table N` prints the
 //! table before decision N (pools, minions, their blood and cards).
+//! `--upgrade OUT` writes the replay with its choices filled in from its
+//! indices (`Replay::with_choices`), for a replay made before they were
+//! logged: run on the engine it was played on.
 
 use zvtes::crypt::CRYPT;
 use zvtes::library::LIBRARY;
@@ -82,6 +85,7 @@ fn main() {
     let mut path = None;
     let mut options = false;
     let mut tables = Vec::new();
+    let mut upgrade = None;
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
         match a.as_str() {
@@ -91,12 +95,25 @@ fn main() {
                     .and_then(|n| n.parse::<u64>().ok())
                     .expect("--table N"),
             ),
+            "--upgrade" => upgrade = Some(args.next().expect("--upgrade OUT")),
             _ => path = Some(a),
         }
     }
     let path = path.expect("usage: replay <replay.json> [--options] [--table N]...");
     let text = std::fs::read_to_string(&path).expect("read the replay");
-    let Replay { mut spec, log } = serde_json::from_str(&text).expect("a replay");
+    let replay: Replay = serde_json::from_str(&text).expect("a replay");
+    if let Some(out) = upgrade {
+        let (replay, stop) = replay.with_choices().expect("the replay's spec");
+        let json = serde_json::to_string(&replay).expect("a replay serializes");
+        std::fs::write(&out, json).expect("write the replay");
+        let n = replay.choices.len();
+        println!("{out}: {n} choices of {}", replay.log.len());
+        if let Some(stop) = stop {
+            println!("  stopped at {stop}");
+        }
+        return;
+    }
+    let (mut spec, log) = (replay.spec.clone(), &replay.log);
     // Every seat answered from the log: the deal depends on the seed alone.
     let bots: Vec<_> = spec
         .seats
@@ -115,6 +132,7 @@ fn main() {
         println!("  seat {i}: {}{}", s.name, bots[i]);
     }
     let mut session = Session::new(spec).expect("the replay's spec");
+    let mut reader = replay.reader();
     session.show_all();
     let tell = |events: &[String]| {
         for e in events {
@@ -136,7 +154,9 @@ fn main() {
                 if tables.contains(&decision) {
                     table(&view, &names);
                 }
-                let Some(&index) = log.get(decision as usize) else {
+                let req = session.request().expect("a decision is pending").clone();
+                let chosen = reader.next(session.engine(), &req);
+                let Some(chosen) = chosen else {
                     println!(
                         "#{decision} {} ({window}): the log ends here",
                         names[seat as usize]
@@ -145,6 +165,16 @@ fn main() {
                         println!("      {}. {}", o.index, o.text);
                     }
                     break;
+                };
+                let index = match chosen {
+                    Ok(i) => i,
+                    Err(e) => {
+                        println!("#{decision}: {e}");
+                        for o in &offered {
+                            println!("      {}. {}", o.index, o.text);
+                        }
+                        break;
+                    }
                 };
                 if options {
                     for o in &offered {

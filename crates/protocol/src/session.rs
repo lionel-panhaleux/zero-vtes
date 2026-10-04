@@ -17,6 +17,7 @@ use zvtes::referendum::{Recipient, RefStep};
 
 use crate::deck::{resolve, DeckError, DeckList, Resolved};
 use crate::describe::{window_text, CardRef, Describer, OptionView};
+use crate::logged::{logged, moot, resolve as resolve_logged, Logged};
 use crate::narrate::{action_thing, combat_text, minion_name, Mark};
 use crate::track::Tracker;
 use crate::view::{knowledge, learned_nothing, table_view, Knowledge, TableView};
@@ -176,16 +177,113 @@ pub struct VoteTotals {
     pub against: u8,
 }
 
-/// A game as a replay: the spec, and every decision's option index.
+/// A game as a replay: the spec, and every decision's option index and
+/// choice (`logged`: what keeps it readable when the engine changes the
+/// options it offers; absent from replays made before).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Replay {
     pub spec: GameSpec,
     pub log: Vec<usize>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub choices: Vec<Logged>,
+}
+
+impl Replay {
+    /// The replay's decisions read in order, against a game replaying it.
+    pub fn reader(&self) -> ReplayReader<'_> {
+        ReplayReader {
+            replay: self,
+            next: 0,
+        }
+    }
+
+    /// A replay made before `choices`, its choices filled in from its
+    /// indices, as far as they read (why they stop, if they do): read on
+    /// the engine it was played on (its commit), it reads on later ones
+    /// too, up to a change in the rules its game met.
+    pub fn with_choices(mut self) -> Result<(Replay, Option<String>), String> {
+        let decks: Vec<Resolved> = self
+            .spec
+            .seats
+            .iter()
+            .map(|s| resolve(&s.deck).map_err(|e| format!("{e:?}")))
+            .collect::<Result<_, _>>()?;
+        let mut engine = Session::deal(&self.spec, &decks);
+        self.choices.clear();
+        for (decision, &index) in self.log.iter().enumerate() {
+            let Step::Decision(req) = engine.run() else {
+                return Ok((self, Some(format!("decision {decision}: the game is over"))));
+            };
+            if index >= req.options.len() {
+                return Ok((
+                    self,
+                    Some(format!("decision {decision}: no option {index}")),
+                ));
+            }
+            self.choices.push(logged(&engine, &req, index));
+            engine.choose(index);
+        }
+        Ok((self, None))
+    }
+}
+
+/// A replay's decisions, answered one at a time as a game replaying it
+/// asks them (`Replay::reader`).
+pub struct ReplayReader<'a> {
+    replay: &'a Replay,
+    /// The replay's next decision.
+    next: usize,
+}
+
+impl ReplayReader<'_> {
+    /// The replay's next decision.
+    pub fn position(&self) -> usize {
+        self.next
+    }
+
+    /// The option the replay takes at the decision `req` asks (on `e`, as
+    /// it stands then): by its choice, or by its index past the replay's
+    /// choices (a replay made before them). `None` when the replay ends;
+    /// an error when that option is not offered (the engine changed what
+    /// the game asks). A decision the replay's engine did not ask (every
+    /// option the same choice) is answered without reading one; one it
+    /// asked and this engine does not (`Logged::forced`) is passed over.
+    pub fn next(&mut self, e: &Engine, req: &DecisionRequest) -> Option<Result<usize, String>> {
+        let r = self.replay;
+        loop {
+            let Some(l) = r.choices.get(self.next) else {
+                let &i = r.log.get(self.next)?;
+                self.next += 1;
+                return Some(if i < req.options.len() {
+                    Ok(i)
+                } else {
+                    Err(format!("option {i} of {}", req.options.len()))
+                });
+            };
+            if let Some(i) = resolve_logged(e, req, l, r.log.get(self.next).copied()) {
+                self.next += 1;
+                return Some(Ok(i));
+            }
+            if l.forced {
+                self.next += 1;
+                continue;
+            }
+            if moot(e, req) {
+                return Some(Ok(0));
+            }
+            return Some(Err(format!(
+                "seat {}'s {} (cards {:?}) is not offered to seat {}",
+                l.seat, l.choice, l.cards, req.seat.0
+            )));
+        }
+    }
 }
 
 pub struct Session {
     spec: GameSpec,
     decks: Vec<Resolved>,
+    /// Every logged decision by what it chose (`Replay::choices`).
+    choices: Vec<Logged>,
     /// Who took each logged decision, in which window; for a human seat,
     /// what it knew of the cards when it was asked (`can_undo`).
     history: Vec<(SeatId, WindowLabel, Option<Knowledge>)>,
@@ -267,6 +365,7 @@ impl Session {
             spec,
             decks,
             history: Vec::new(),
+            choices: Vec::new(),
             engine,
             agents,
             viewer,
@@ -329,6 +428,7 @@ impl Session {
         engine.combat_notes = Some(Vec::new());
         self.engine = engine;
         self.history.pop();
+        self.choices.pop();
         self.pending = None;
         self.over = None;
         self.mark = None;
@@ -380,6 +480,7 @@ impl Session {
         Replay {
             spec: self.spec.clone(),
             log: self.engine.log.clone(),
+            choices: self.choices.clone(),
         }
     }
 
@@ -619,6 +720,7 @@ impl Session {
                 let had_action = self.engine.action().is_some();
                 let events = std::mem::take(&mut self.events);
                 self.remember(&req, &req.options[idx]);
+                self.choices.push(logged(&self.engine, &req, idx));
                 self.engine.choose(idx);
                 self.history.push((req.seat, req.window, None));
                 self.aim(had_action, &mut choice);
@@ -670,6 +772,7 @@ impl Session {
         let known = knowledge(&self.engine, req.seat);
         let events = std::mem::take(&mut self.events);
         self.remember(&req, &req.options[index]);
+        self.choices.push(logged(&self.engine, &req, index));
         self.engine.choose(index);
         self.history.push((req.seat, req.window, Some(known)));
         self.aim(had_action, &mut choice);

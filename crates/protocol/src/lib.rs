@@ -6,11 +6,14 @@
 
 pub mod deck;
 pub mod describe;
+pub mod logged;
 mod narrate;
 mod purpose;
 pub mod session;
 pub mod track;
 pub mod view;
 
-pub use session::{AnswerError, GameSpec, Out, Player, Replay, SeatSpec, Session, SpecError};
+pub use session::{
+    AnswerError, GameSpec, Out, Player, Replay, ReplayReader, SeatSpec, Session, SpecError,
+};
 pub use view::TableView;

@@ -1363,7 +1363,23 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   `runs/p6-frozen` from it: `--league true --opponents
   runs/p4-vote/best.pt,runs/p5-self/best.pt --decks precons,twda --lr
   5e-5 --entropy-coef 0.04 --iterations 1650` (iterations 1251–1650,
-  the first 10 critic warmup).
+  the first 10 critic warmup). Its first launch thrashed: the MPS
+  allocator's cache grew ~2 GB an iteration (attention maps of 1024-row
+  minibatches at ~200 tokens, every shape cached apart) to 31 GB on a
+  24 GB machine, 2.5 h an iteration by 1255 (`runs/p6-frozen-oom`).
+  Since: minibatches run in chunks within `attention_budget` (rows ×
+  tokens², gradients accumulated: the same step) and the cache is
+  emptied after rollout, update and evaluation. That left a second
+  leak, ~1 GB an iteration in small host allocations (67 M of them by
+  1259): the MPS backend keeps a compiled graph per tensor shape, and
+  V2's rows (and the chunks) brought ever new shapes. Batch shapes are
+  now rounded (rows to 64, tokens to 16, options to 8, padding masked;
+  chunks halve a 1024-row minibatch; a last partial minibatch is
+  dropped): resumed from 1260's checkpoint (`runs/p6-frozen-1.log`
+  before), the trainer levels at ~7.9 GB by 1267 (1.6 M allocations),
+  ~3.5–4 min an iteration (rollout 34–105 s, update 85–150 s): 1650 in
+  ~24 h. First evaluation (1260, end of warmup): 1.10 VP / 23% at 4
+  seats, 0.94 / 19% at 5 against the pair — the start's parity.
 - Human games as data (owner, 2026-10-03, after a 4-VP win over three
   `p5-self@1250` bots: "use the game log as a teaching vector"). A game
   from the Succubus Club fork ("Export replay": spec by KRCG ids + the
@@ -1389,7 +1405,16 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   checkpoint's `obs` version; `*` marks a card outside its training
   decks). The corpus: `data/replays/` (tracked, indexed in its README
   with each game's engine commit: a rule change can stop an old log
-  replaying). First game (469 decisions, 221 the owner's): the policy's
+  replaying). Replays by meaning (owner, 2026-10-04: "so the replays I do
+  are not useless"): beside its indices a replay logs each decision as
+  its choice (`zvtes_protocol::logged`: the engine's `Choice` with hand
+  and uncontrolled positions and card-table indices replaced by KRCG
+  ids), and a reader takes the option that is that choice, whatever its
+  index; a decision the replay's engine asked between copies alike
+  (`forced`) is passed over where a later engine asks nothing. An option
+  change no longer stops a game; a rule change the game met still does.
+  The corpus was converted on the engine each game read furthest on
+  (README). First game (469 decisions, 221 the owner's): the policy's
   favourite was the human's 36% of the time; wherever a vampire could
   be influenced out, it would have (≈100%) where the owner kept
   transferring to another vampire, and it gave a crypt draw no weight;
@@ -1399,6 +1424,102 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   (Parity Shift, Camarilla's Iron Fist ×3 at 4 pool on the Banu Haqim):
   the critic rated the owner's seat lowest at the start (+0.18 against
   +0.44/+0.46).
+  More games (2026-10-03/04, five, all won by the owner — 3 or 4 VP, a
+  bot 1 at most; `data/replays/README.md`): the policy's favourite was
+  the owner's 37–46% of the time, lowest in the minion (13–17%),
+  influence (22–38%) and discard (0–17%) phases; it still influences
+  out at ~100% and gives a crypt draw no weight; one action is its
+  favourite in every minion phase of a game (Line Brawl, Govern the
+  Unaligned, Shroud of Decay) where the owner hunted.
+- Default politics (owner, 2026-10-04, after a Ventrue and a Toreador
+  game to show it: "votes are very bad too … too bad at setting the
+  terms. Parity Shift should by default damage prey and give blood to
+  the player playing it. Kine Resources should damage prey and
+  predator"). Measured first (`p5-self@1250` / `p6-frozen@1360`, 120
+  five-seat self-play games, political decks in half the seats): of
+  the points it chose, Kine Resources Contested and Conservative
+  Agitation gave 46% / 43% to the caller itself (40% / 42% to the
+  prey); Parity Shift gave 58% / 58% to the caller, 27% across, 15% to
+  the prey; votes a coin flip — 48% / 54% for on its own referendums,
+  51% / 49% for when the terms burn its pool. In the owner's two games:
+  a Salubri hit for 3 by Kine Resources passed four times (87–88%), a
+  Ravnos and a Gangrel hit by it burned the Edge for it, a Toreador and
+  a Banu Haqim voted both ways on one referendum, and in the owner's
+  seat the policy's favourite Parity Shift term was "0 to me". Rewards
+  cannot teach this (a few decisions a game, scored at its end; voting
+  by rule did not score more at self-play tables, the vote run above).
+  So, as temporary guidance to help training (owner: the goal is to
+  relax these automated choices later in training), the network seats
+  play their politics by rule —
+  `zvtes::politics`, agent behaviour around the forward pass, not an
+  engine mask (rules-qa 17.4 untouched: every option stays legal):
+  (1) terms of the referendums moving pool are chosen by rule: damage
+  to the prey first, then the predator, then across, the caller only
+  when forced (two Methuselahs left); gains to the caller (Camarilla's
+  Iron Fist's chosen Methuselah, Parity Shift's allocation), Parity
+  Shift's pool taken from the prey (else the predator); points go
+  stepwise, so an allocation scores n × (its seat's weight − the best
+  later seat's); (2) votes: the caller votes for; a Methuselah the
+  terms burn or take from votes against, one they give to votes for —
+  the wrong-side votes, Edge, burned cards and one-sided vote cards
+  masked, and Pass masked while a free right-side vote (a vampire's, the
+  political card's) is left; Edge and burned cards stay the network's
+  call on the right side; a seat the terms leave alone is not steered
+  (no forced cross-table play, owner 2026-10-03). Extended the same
+  day (owner: "banish opponents vampires, not yours, choose your own
+  clan when you play consanguineous boon, oppose opponents gaining
+  titles, give titles to your own vampires"; then: "banishment
+  typically goes to predator first (lowest in blood compared to cap), or
+  the prey but only when there's an interesting play in it … leave the
+  target to the network as long as it's on a neighbour and not oneself.
+  Revolutionary council should go to destroy cumbersome locations and
+  damage to the prey. Disputed Territory to steal an interesting
+  location for oneself"). Bounds where the choice is a judgement
+  (`politics::mask` in the terms): Banishment and Expulsion on a
+  neighbour's minion, the network picking which (another opponent's
+  only when no neighbour's is offered, one's own never unless nothing
+  else is), its controller voting against; Revolutionary Council's
+  points on the prey's pool and on the others' locations, one point
+  each (none on oneself, one's cards, other Methuselahs or equipment
+  beyond what the engine forces; which locations is the network's); its
+  Anarchs to lock stay the network's; a Methuselah losing pool or a
+  card to it votes against. By rule: Disputed Territory names the
+  caller as the one taking control, the location the network's among
+  the others', its controller voting against and the caller for; a title (the Justicars, Archon: `PutOnChosen`) goes on one of
+  the caller's vampires (the biggest), its controller votes for and
+  every other Methuselah against (the one steer of an untouched seat,
+  at the owner's word); Consanguineous Boon names the clan with the
+  most of the caller's vampires (then the fewest of the others'), and a
+  Methuselah it pays votes for. Other referendums (Anarch Salon, the
+  burns per minion) stay the network's. `NetAgent` applies it
+  (the human-play bot); `tests/default_politics.rs` checks the terms
+  and masks over random games (120: ~200 Kine Resources, ~40 Parity
+  Shifts, Boons, titles, banishments and expulsions, Disputed
+  Territories, Revolutionary Councils, each bound checked option by
+  option). Re-measured with it (60 games): Kine
+  Resources all to the prey but the last point (to the predator) and
+  to the caller only at two Methuselahs; Parity Shift 3 to the caller,
+  from the prey unless it is not richer; no named seat votes for its
+  own burn, no caller against its referendum. Training still samples
+  these decisions (next: the same rule for the learner's seats, its
+  answers kept out of PPO's samples). Temporary by design: once the
+  rest of its play is solid, the rule is relaxed step by step — a
+  flag per window (terms by rule → terms masked → free; votes masked →
+  free), each step kept only if the network's own choices hold the
+  rule's results in self-play and in the owner's games.
+- Politics run (2026-10-04, `runs/p7-politics`; owner: "stop the
+  about-even training and relaunch with the new rules and new
+  engine"). `runs/p6-frozen` stopped at 1413: its frozen mean stayed
+  0.93–1.05 from 1270 on (best 1.05 at 1360) — even with the pair, no
+  trend. Relaunched from its `best.pt` (1360) on `3cc7ae3` (rules-qa
+  batch 48, copies alike in hand one choice) with `--politics` on (the
+  default: `GamePool(politics=True)` answers every network seat's
+  terms by rule and leaves the masked options out of the request
+  Python sees, so the sampled index, its log-probability and PPO's
+  ratio all read the offered options — the learner and the frozen
+  pair alike, in training and evaluation); the same pair, learning
+  rate 5e-5 tapering, entropy 0.04, to iteration 1800. Its first
+  evaluation is the new baseline (the pair now votes sensibly too).
 
 ### 11.3 Open gaps
 
@@ -1474,7 +1595,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (`docs/human-play.md` has the board).
 
-Definitions: 436 library, 102 vampires; 961 Rust tests, 22 Python tests
+Definitions: 436 library, 102 vampires; 965 Rust tests, 23 Python tests
 
 ## Outlook: deck building (post-v1)
 
