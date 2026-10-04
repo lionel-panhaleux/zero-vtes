@@ -708,6 +708,7 @@ impl Engine {
             Interrupt::Bottom { .. } => (
                 WindowLabel::BottomCards,
                 (0..st.seats[s.index()].hand.len())
+                    .filter(|&i| crate::state::first_copy(&st.seats[s.index()].hand, i))
                     .map(|i| Choice::Bottom(i as u8))
                     .collect(),
             ),
@@ -761,6 +762,7 @@ impl Engine {
             Interrupt::DiscardChosen { .. } => (
                 WindowLabel::ResolutionChoice,
                 (0..st.seats[s.index()].hand.len())
+                    .filter(|&i| crate::state::first_copy(&st.seats[s.index()].hand, i))
                     .map(|i| Choice::Discard(i as u8))
                     .collect(),
             ),

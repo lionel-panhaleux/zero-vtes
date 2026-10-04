@@ -489,12 +489,10 @@ fn homunculus_employ_then_unlock_ability_and_nra_by_card_name() {
     let homunculus = find_library("Homunculus");
     e.state.seats[0].hand.extend([homunculus, homunculus]);
     let req = expect(e, SeatId(0), WindowLabel::MinionPhase);
-    // P (PRO) may employ at either level; A and O (no Protean) may not.
+    // P (PRO) may employ at either level; A and O (no Protean) may not;
+    // the two copies alike, one play for them.
     let employ = |card, mode| play(card, mode, t.p);
-    assert_eq!(
-        plays(&req),
-        vec![employ(0, 0), employ(0, 1), employ(1, 0), employ(1, 1)]
-    );
+    assert_eq!(plays(&req), vec![employ(0, 0), employ(0, 1)]);
     pick(e, employ(0, 1));
     // +1 stealth, undirected, no intercept anywhere: every window elides;
     // the retainer enters play with 2 life.

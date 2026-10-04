@@ -403,7 +403,8 @@ fn heart_of_nizchetus_draws_the_number_picked_capped_by_the_library_then_as_many
     );
     pick(&mut e, Choice::SetX(3));
     let req = expect(&mut e, SeatId(0), WindowLabel::BottomCards);
-    assert_eq!(req.options.len(), 9);
+    // One choice per card: the Deflections, Sport Bike, Kevlar Vest.
+    assert_eq!(req.options.len(), 3);
     // Drawn: Sport Bike (the top) then Kevlar Vest, at hand indices 7, 8.
     let h = &e.state.seats[0].hand;
     assert_eq!(h[7..], cards(&["Sport Bike", "Kevlar Vest"])[..]);

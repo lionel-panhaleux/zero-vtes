@@ -1133,7 +1133,10 @@ fn raptor_superior_takes_1_hand_size_from_the_opponent_while_in_combat() {
     e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
     let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     retainer(&mut e, "Raptor", a, 1);
-    hand(&mut e, 1, &["Majesty"; 7]);
+    // Not all alike: discarding down stays a decision (one choice per
+    // card).
+    hand(&mut e, 1, &["Majesty"; 6]);
+    hand(&mut e, 1, &["Villein"]);
     e.state.seats[1].library = vec![find_library("Majesty"); 5];
     pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: z });

@@ -33,6 +33,12 @@ pub fn distinct(cards: &[u16], keep: impl Fn(u16) -> bool) -> Vec<u16> {
     out
 }
 
+/// Whether `i` is the first copy of its card among `cards` (copies in
+/// hand are alike: one choice for them all, owner 2026-10-04).
+pub fn first_copy(cards: &[u16], i: usize) -> bool {
+    !cards[..i].contains(&cards[i])
+}
+
 /// Contest identity of a title (rulebook "Contested Titles" / "Vampiric
 /// Sects"): prince, baron (and archbishop) of one city contest each other;
 /// each clan's justicar is unique; primogen is not unique.

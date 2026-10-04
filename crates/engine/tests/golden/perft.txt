@@ -1,23 +1,15 @@
 # position depth: leaves / window nodes options
-opening/1 depth 5: 8000 leaves
-  DiscardPhase 845 nodes 6760 options
-  InfluenceTransfers 521 nodes 2605 options
-midgame/3 depth 6: 17984 leaves
-  ActionBlock 16 nodes 32 options
-  ActionBlocksDeclined 16 nodes 32 options
-  DiscardPhase 441 nodes 3528 options
-  InfluenceTransfers 2032 nodes 16264 options
-  MasterPhase 8 nodes 16 options
-  MinionPhase 16 nodes 64 options
-  ReferendumPolling 48 nodes 144 options
-  ReferendumTerms 240 nodes 720 options
-midgame/5 depth 4: 642 leaves
-  ActionBlock 77 nodes 262 options
-  ActionBlocksDeclined 1 nodes 2 options
-  DiscardPhase 16 nodes 128 options
-  InfluenceTransfers 56 nodes 380 options
-  MinionPhase 1 nodes 4 options
-  UnlockAbilities 16 nodes 32 options
+opening/1 depth 5: 5250 leaves
+  DiscardPhase 635 nodes 4440 options
+  InfluenceTransfers 361 nodes 1805 options
+midgame/3 depth 6: 72912 leaves
+  DiscardPhase 1712 nodes 11704 options
+  InfluenceTransfers 7813 nodes 70116 options
+  MinionPhase 196 nodes 812 options
+midgame/5 depth 4: 3899 leaves
+  DiscardPhase 106 nodes 742 options
+  InfluenceTransfers 449 nodes 3515 options
+  MasterPhase 98 nodes 294 options
 action depth 7: 3716 leaves
   ActionAfterCombat 14 nodes 28 options
   ActionAsAnnounced 2 nodes 6 options

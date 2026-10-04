@@ -4629,7 +4629,7 @@ fn shroud_of_decay_makes_the_bled_methuselah_discard_two() {
     e.state.seats[1].library = vec![villein; 3];
     pick(&mut e, play(0, 0, a));
     let req = until(&mut e, SeatId(1), WindowLabel::ResolutionChoice);
-    assert_eq!(req.options.len(), 7);
+    assert_eq!(req.options.len(), 4, "one choice per card: the Blurs alike");
     pick(&mut e, Choice::Discard(2)); // Soak
     pick(&mut e, Choice::Discard(0)); // Deflection
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);

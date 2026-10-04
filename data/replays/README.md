@@ -33,3 +33,9 @@ replay whole; `…T14-08-09` stops at decision 228 and `…T14-41-09` at
 242 (both readable up to there). The bots in all of them sample every
 decision, terms and votes included: the default politics
 (`zvtes::politics`, DESIGN §11.2) came after.
+
+Since copies alike in hand are one choice (owner, 2026-10-04: a discard,
+a card to the library's bottom, a play — one option per card, not per
+copy), the option indices changed: every game above replays on later
+engines only up to its first such choice (within its first ~60
+decisions). Read them at `a963b55`, the last commit before.

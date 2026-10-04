@@ -404,6 +404,11 @@ impl Engine {
             })
         };
         for (hi, &(card, _)) in virtual_hand.iter().enumerate() {
+            // Copies alike (same card, same place): one play for them all
+            // (owner, 2026-10-04).
+            if virtual_hand[..hi].contains(&virtual_hand[hi]) {
+                continue;
+            }
             let Some(def) = cards::lookup(card) else {
                 continue;
             };
@@ -3136,7 +3141,11 @@ impl Engine {
             None => vec![Choice::Pass],
         };
         if seat.dpa > 0 {
-            options.extend((0..seat.hand.len()).map(|i| Choice::Discard(i as u8)));
+            options.extend(
+                (0..seat.hand.len())
+                    .filter(|&i| crate::state::first_copy(&seat.hand, i))
+                    .map(|i| Choice::Discard(i as u8)),
+            );
             // An event card put in play with a discard phase action, no
             // more than one each phase (rulebook "Discard Phase").
             if !seat.event_played {
@@ -4307,6 +4316,11 @@ impl Engine {
                 .hand_picks(seat, of)
                 .into_iter()
                 .filter(|i| !picked.contains(i))
+                // One per card: the first copy not picked yet.
+                .filter(|&i| {
+                    let hand = &self.state.seats[seat.index()].hand;
+                    !(0..i).any(|j| !picked.contains(&j) && hand[j as usize] == hand[i as usize])
+                })
                 .map(Choice::Discard)
                 .collect(),
             Some(Terms::Count { min, max }) => (min..=max).map(Choice::SetX).collect(),
@@ -5381,10 +5395,10 @@ impl Engine {
         if st.seats[seat.index()].burn_option_used {
             return Vec::new();
         }
-        st.seats[seat.index()]
-            .hand
-            .iter()
+        let hand = &st.seats[seat.index()].hand;
+        hand.iter()
             .enumerate()
+            .filter(|&(i, _)| crate::state::first_copy(hand, i))
             .filter(|&(_, &card)| {
                 let lib = &LIBRARY[card as usize];
                 lib.burn_option

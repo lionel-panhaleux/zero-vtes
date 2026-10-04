@@ -2527,8 +2527,9 @@ fn roger_de_camden_discards_an_oblivion_card_for_a_maneuver() {
     pick(&mut e, bleed(a));
     pick(&mut e, block(blocker));
     until(&mut e, SeatId(1), WindowLabel::CombatDetermineRange);
+    // The two Shadow Sentinels alike: one choice, the discard elided.
     pick(&mut e, vampire_ability(roger, 0));
-    pick(&mut e, Choice::Discard(0));
+    request(&mut e);
     assert_eq!(e.state.seats[1].hand.len(), 1);
     // At long range the hand strikes miss.
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);

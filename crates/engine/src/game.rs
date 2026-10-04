@@ -668,6 +668,7 @@ impl Engine {
                 seat: s,
                 window: WindowLabel::DiscardDown,
                 options: (0..st.seats[s.index()].hand.len())
+                    .filter(|&i| crate::state::first_copy(&st.seats[s.index()].hand, i))
                     .map(|i| Choice::Discard(i as u8))
                     .collect(),
             });

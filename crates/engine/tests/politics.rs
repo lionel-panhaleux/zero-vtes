@@ -677,14 +677,16 @@ fn delaying_tactics_cancels_returns_the_card_and_forbids_a_repeat() {
     pick(&mut e, alloc(1, 3));
     pick(&mut e, votes(alexa, true));
     pick(&mut e, play(0, 0, bret));
-    // Discard down: 8 cards in hand, the returned card last.
+    // Discard down: 8 cards in hand, the returned card last; one choice
+    // per card (the Villeins alike).
     let req = expect(&mut e, SeatId(0), WindowLabel::DiscardDown);
-    assert_eq!(req.options.len(), 8);
+    assert_eq!(e.state.seats[0].hand.len(), 8);
+    assert_eq!(req.options.len(), 3);
     assert_eq!(
         e.state.seats[0].hand[7],
         find_library("Kine Resources Contested")
     );
-    pick(&mut e, Choice::Discard(2));
+    pick(&mut e, Choice::Discard(1));
     let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(pool(&e), vec![10, 10, 10]);
     assert_eq!(e.state.minions[bret.index()].blood, 3);

@@ -980,7 +980,10 @@ fn dreams_of_the_sphinx_hand_size_lock_lasts_the_turn() {
     assert_eq!(req.seat, SeatId(0));
     assert_eq!(e.state.seats[0].hand_bonus, 0);
     assert_eq!(e.state.active, SeatId(1));
-    e.choose(0);
+    // A Villein first (one choice per card: Bonding, then the Villeins),
+    // so the second discard is still a choice.
+    assert_eq!(req.options, vec![Choice::Discard(0), Choice::Discard(1)]);
+    e.choose(1);
     expect(&mut e, SeatId(0), WindowLabel::DiscardDown);
     e.choose(0);
     to_minion_phase(&mut e, SeatId(1));

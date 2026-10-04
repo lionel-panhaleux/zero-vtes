@@ -274,7 +274,10 @@ fn dreams_of_the_sphinx_bonus_lasts_through_the_discard_phase() {
     e.add_minion(SeatId(1), find_card("Kevin Jackson"), 5, false);
     e.at_master_phase();
     let dreams = in_play(&mut e, "Dreams of the Sphinx", 0, None);
-    hand(&mut e, 0, &["Bonding"; 7]);
+    // Not all alike: discarding down stays a decision (one choice per
+    // card).
+    hand(&mut e, 0, &["Bonding"; 6]);
+    hand(&mut e, 0, &["Villein"]);
     library(&mut e, 0, "Bonding", 4);
     pick(&mut e, ability(dreams, 0, Target::None));
     assert_eq!(e.state.seats[0].hand.len(), 9);
@@ -572,10 +575,13 @@ fn elder_library_enters_contest_without_modifying_the_hand_size() {
     hand(&mut e, 0, &["Elder Library"]);
     hand(&mut e, 0, &["Bonding"; 6]);
     library(&mut e, 0, "Bonding", 3);
-    hand(&mut e, 1, &["Bonding"; 8]);
+    // Not all alike: discarding down stays a decision (one choice per
+    // card).
+    hand(&mut e, 1, &["Bonding"; 7]);
+    hand(&mut e, 1, &["Villein"]);
     pick(&mut e, master(0, Target::None));
     let req = expect(&mut e, SeatId(1), WindowLabel::DiscardDown);
-    assert_eq!(req.options.len(), 8);
+    assert_eq!(req.options.len(), 2);
     assert!(e.state.cards[theirs as usize].contested && e.state.cards[1].contested);
     // Seat 0 replaced up to 7, not 8.
     assert_eq!(e.state.seats[0].hand.len(), 7);
