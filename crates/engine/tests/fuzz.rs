@@ -949,7 +949,9 @@ fuzz_tests! {
             // each in the Salubri crypt, are seldom in play at random
             // tables; Elen Kamjian's mandatory bleed is her only option and
             // elides: scripted in tests/vampires.rs.)
-            "ability:Seraphina",
+            // (ability:Seraphina: starved once the rescue's split moved to
+            // its announcement; scripted in tests/allies.rs and
+            // tests/vampires.rs.)
             // Lenelle's ability: no longer reached within 600 seeds since the
             // reshuffle of rules-qa 47.2; vampires.rs covers it.
             "ability:Theo Bell",
@@ -1353,7 +1355,7 @@ fuzz_tests! {
                 ],
             )
         },
-        seeds: 200,
+        seeds: 300,
         ..BASE
     };
     /// Slice 11p and the hunting grounds: the second wave of action cards,
@@ -1391,7 +1393,10 @@ fuzz_tests! {
             "ability:Gate of Acheron, The",
             "ability:Pit of Contemplation",
             "ability:Academic Hunting Ground",
-            "ability:Asylum Hunting Ground",
+            // (ability:Asylum Hunting Ground: starved once the rescue's
+            // split moved to its announcement; the same hunting_ground!
+            // definition as Academic Hunting Ground's, scripted in
+            // tests/allies.rs.)
             "ability:Biotech Company Hunting Ground",
             "ability:Library Hunting Ground",
             // (Park Hunting Ground needs a Ravnos to put it in play and

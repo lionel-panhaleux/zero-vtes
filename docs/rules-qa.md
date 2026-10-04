@@ -74,7 +74,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9
 - **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4
 - **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7
-- **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2
+- **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8
 - **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2
 - **Master phase, master cards, out-of-turn** — 1.5, 3.3, 6.6, 7.5, 28.10, 32.3, 33.1, 33.8, 36.4
 - **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1, 48.7
@@ -823,3 +823,5 @@ Owner ruled 46.1–46.4 from play (2026-09-30).
 **48.6** A minion whose block attempt failed is not offered the same attempt again while nothing has changed: its Methuselah's hand, the stealth, its intercept, blood and lock, the cards in play, every hand's size (owner, 2026-10-04, from play: a bot attempting again and again with not enough intercept — "legal … but it still probably should not retry if the situation has not changed"). An engine reading, not a rule: the repeat is legal and would fail alike. Another minion's attempt, or the same minion's once something changed, is offered as before.
 
 **48.7** An ability whose only effect is to unlock its own minion is not offered while that minion is unlocked (owner, 2026-10-04, from play: Rutor's Hand offered to unlock an unlocked vampire — "legal, but really useless, no card cycled or anything"). An exception to 17.4's legal no-op plays: locking the card or spending a once-each-turn use buys nothing. Rutor's Hand, Valerie Diaz, Sword of the Archangel; the vampires' unlock abilities required it already.
+
+**48.8** Rescue's cost: who pays it (the acting vampire, the rescued one, or a split) is chosen as the action is announced; the blood is paid as it resolves (3.6) (owner, 2026-10-04, from play: "it should ask when the action is declared (who pays)"). The cost is read again at resolution (live conditions). Question (implemented reading): a share its payer can no longer meet at resolution falls to the other, the action fizzling only when both together cannot pay (3.6); a vampire gone from play pays nothing (28.7).

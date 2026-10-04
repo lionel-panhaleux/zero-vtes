@@ -6936,9 +6936,10 @@ fn a_rescue_fizzles_paid_once_warsaw_station_raised_its_vampire() {
             target: Some(n),
         },
     );
-    pick_when(&mut e, use_on(w, 1, None, Target::Minion(n)));
-    // The rescuer pays it all: the rescued keeps its blood (no hunt).
+    // The rescuer pays it all, chosen as it is announced (rules-qa 48.8):
+    // the rescued keeps its blood (no hunt).
     pick(&mut e, Choice::PayRescue { from_acting: 2 });
+    pick_when(&mut e, use_on(w, 1, None, Target::Minion(n)));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Fizzled));
     assert!(!e.state.minions[n.index()].in_torpor);
@@ -12606,12 +12607,47 @@ fn torpid_blood_taxes_torpor_and_waits_for_a_vampire_to_leave_it() {
         target: Some(t),
     };
     pick(&mut e, rescue);
-    // The rescuer pays it all.
+    // The rescuer pays it all: chosen as it is announced, paid as it
+    // resolves (rules-qa 48.8).
     let cost = 2 + u8::from(older);
     pick(&mut e, Choice::PayRescue { from_acting: cost });
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(blood(&e, r), 5 - cost);
     assert!(!e.state.minions[t.index()].in_torpor);
     assert_eq!(e.state.seats[0].held.leaves_torpor, 0, "replaced");
+}
+
+// Rescue: who pays the 2 blood is chosen as the action is announced, the
+// blood paid as it resolves (owner, 2026-10-04: rules-qa 48.8); a share its
+// payer can no longer meet falls to the other.
+#[test]
+fn rescue_cost_split_is_chosen_as_announced_and_paid_at_resolution() {
+    for (late_blood, paid) in [(4, (2, 3)), (1, (0, 2))] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+        e.add_minion(SeatId(0), plain("", "", 3), 4, false);
+        let n = e.add_minion(SeatId(0), plain("Nosferatu", "", 1), 3, true);
+        e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+        pick(
+            &mut e,
+            Choice::TakeAction {
+                minion: a,
+                action: ActionKind::Rescue,
+                target: Some(n),
+            },
+        );
+        // Asked now, not at resolution.
+        let req = expect(&mut e, SeatId(0), WindowLabel::RescueCost);
+        assert_eq!(req.options.len(), 3);
+        pick(&mut e, Choice::PayRescue { from_acting: 2 });
+        assert!(e.state.minions[n.index()].in_torpor, "not paid yet");
+        assert_eq!((blood(&e, a), blood(&e, n)), (4, 3));
+        // The rescuer's blood by resolution.
+        e.state.minions[a.index()].blood = late_blood;
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert!(!e.state.minions[n.index()].in_torpor);
+        assert_eq!((blood(&e, a), blood(&e, n)), paid);
+    }
 }
 
 // The Slow Withering: "Cards requiring 1 or more Disciplines at the

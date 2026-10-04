@@ -184,6 +184,9 @@ pub struct ActionCtx {
     pub blocker_was_unlocked: bool,
     /// The rescue's blood cost, set as it resolves (2, less discounts).
     pub rescue_cost: u8,
+    /// The part of the rescue's cost the acting vampire pays, chosen as the
+    /// action is announced (rules-qa 48.8); the rescued vampire the rest.
+    pub rescue_split: Option<u8>,
     /// Blood the rescued vampire gains if this rescue succeeds (Saulot's
     /// Healing Touch).
     pub rescue_gain: u8,
@@ -851,6 +854,11 @@ impl Engine {
         }
         self.flow = Flow::Action;
         self.host_announces_riders(minion);
+        // Who pays the rescue's blood: chosen as it is announced, paid as
+        // it resolves (rules-qa 48.8, 3.6).
+        if kind == ActionKind::Rescue {
+            self.flow = Flow::RescueCost;
+        }
     }
 
     /// "Each time the attached vampire announces an action, they move 1
@@ -3105,17 +3113,22 @@ impl Engine {
                     return self.fizzle(a);
                 }
                 let t = self.state.minions[target.index()].blood;
-                let (discount, gain) = self.state.rescue_discount(a.acting, target);
-                a.rescue_cost = (2 + self.state.torpid_surcharge(Some(a.acting), target))
-                    .saturating_sub(discount);
-                a.rescue_gain = gain;
+                a.rescue_cost = self.rescue_cost_now(a.acting, target);
+                a.rescue_gain = self.state.rescue_discount(a.acting, target).1;
                 let payable = acting + t >= a.rescue_cost;
                 if !payable {
                     a.outcome = Some(Outcome::Fizzled);
                 }
+                // The split chosen as it was announced; a share its payer
+                // can no longer meet falls to the other (rules-qa 48.8).
+                let declared = a.rescue_split.unwrap_or(a.rescue_cost);
+                let from_acting = declared
+                    .min(a.rescue_cost)
+                    .min(acting)
+                    .max(a.rescue_cost.saturating_sub(t));
                 self.action = Some(a);
                 if payable {
-                    self.flow = Flow::RescueCost;
+                    self.rescue_apply(from_acting);
                 } else {
                     self.end_action();
                 }
@@ -3961,17 +3974,40 @@ impl Engine {
         }
     }
 
+    /// The rescue's blood cost as things stand: 2, the torpid surcharge,
+    /// less discounts.
+    fn rescue_cost_now(&self, acting: MinionId, target: MinionId) -> u8 {
+        let (discount, _) = self.state.rescue_discount(acting, target);
+        (2 + self.state.torpid_surcharge(Some(acting), target)).saturating_sub(discount)
+    }
+
+    /// As the rescue is announced: the part of its cost the acting vampire
+    /// pays (rules-qa 48.8) — the splits the blood allows now, or every
+    /// split if none does (the action would fizzle unless blood comes).
     pub(crate) fn rescue_request(&self) -> DecisionRequest {
         let a = self.action.as_ref().expect("action context");
         let st = &self.state;
+        let target = a.torpor_target.expect("target");
         let acting = st.minions[a.acting.index()].blood;
-        let t = st.minions[a.torpor_target.expect("target").index()].blood;
-        let cost = a.rescue_cost;
-        let options = (0..=cost)
+        let t = st.minions[target.index()].blood;
+        let cost = self.rescue_cost_now(a.acting, target);
+        let mut splits: Vec<u8> = (0..=cost)
             .filter(|&k| acting >= k && t >= cost - k)
+            .collect();
+        if splits.is_empty() {
+            splits = (0..=cost).collect();
+        }
+        let options = splits
+            .into_iter()
             .map(|k| Choice::PayRescue { from_acting: k })
             .collect();
         DecisionRequest::new(st.active, WindowLabel::RescueCost, options)
+    }
+
+    /// The split chosen as the rescue is announced: the action goes on.
+    pub(crate) fn rescue_declare(&mut self, from_acting: u8) {
+        self.action.as_mut().expect("action context").rescue_split = Some(from_acting);
+        self.flow = Flow::Action;
     }
 
     pub(crate) fn rescue_apply(&mut self, from_acting: u8) {

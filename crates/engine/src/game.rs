@@ -881,7 +881,7 @@ impl Engine {
             (Flow::Combat, c) => self.combat_apply(c),
             (Flow::TorporBlock, c) => self.torpor_block_apply(c),
             (Flow::RescueCost, Choice::PayRescue { from_acting }) => {
-                self.rescue_apply(*from_acting)
+                self.rescue_declare(*from_acting)
             }
             (Flow::Referendum, c) => self.referendum_apply(c),
             (Flow::Influence { left }, c) => self.influence_apply(left, c),
@@ -1821,6 +1821,11 @@ mod tests {
                 target: Some(t),
             },
         );
+        // Who pays, chosen as it is announced (rules-qa 48.8): 2/1/0 from
+        // the acting vampire.
+        let req = expect(&mut e, SeatId(0), WindowLabel::RescueCost);
+        assert_eq!(req.options.len(), 3);
+        pick(&mut e, Choice::PayRescue { from_acting: 0 });
         // Directed at seat 2 (not the prey): seat 2 alone may block.
         let req = expect(&mut e, SeatId(2), WindowLabel::ActionBlock);
         assert!(req
@@ -1828,10 +1833,8 @@ mod tests {
             .contains(&Choice::DeclareBlock { minion: guard }));
         assert!(!req.options.contains(&Choice::DeclareBlock { minion: t })); // torpor cannot block
         pick(&mut e, Choice::Pass);
-        // Cost split at resolution: 2/1/0 from the acting vampire.
-        let req = expect(&mut e, SeatId(0), WindowLabel::RescueCost);
-        assert_eq!(req.options.len(), 3);
-        pick(&mut e, Choice::PayRescue { from_acting: 0 });
+        // Paid at resolution, as chosen.
+        request(&mut e);
         assert!(!e.state.minions[t.index()].in_torpor);
         assert_eq!(e.state.minions[t.index()].blood, 1);
         assert_eq!(e.state.minions[0].blood, 5);
