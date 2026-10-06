@@ -81,15 +81,18 @@ fn bots_answer_from_their_legal_view() {
     }
 }
 
-/// Every decklist — the 14 precons, the 14 New Blood mini-starters and
-/// the TWDA decks — plays to a finish under debug assertions, at bot
+/// Every decklist — the 14 precons, the 14 New Blood mini-starters, the
+/// anniversary decks and the TWDA decks — plays to a finish under debug assertions, at bot
 /// tables (each deck in each style) and at random ones (which also empty a
 /// mini's 6-card crypt and withdraw). A finished game always scores
 /// someone.
 #[test]
 fn every_decklist_plays_out() {
     let decks: Vec<Deck> = Deck::all().collect();
-    assert_eq!(decks.len(), 28 + zvtes::twda::TWDA.len());
+    assert_eq!(
+        decks.len(),
+        28 + zvtes::crypt::ANNIVERSARY_PRECONS.len() + zvtes::twda::TWDA.len()
+    );
     for t in 0..decks.len().div_ceil(4) {
         // Four seats a table; the last one wraps around to the first decks.
         let table: Vec<Deck> = (0..4).map(|s| decks[(t * 4 + s) % decks.len()]).collect();

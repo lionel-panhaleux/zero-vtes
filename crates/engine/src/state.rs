@@ -40,20 +40,23 @@ pub fn first_copy(cards: &[u16], i: usize) -> bool {
 }
 
 /// Contest identity of a title (rulebook "Contested Titles" / "Vampiric
-/// Sects"): prince, baron (and archbishop) of one city contest each other;
-/// each clan's justicar is unique; primogen is not unique.
+/// Sects"): prince, baron and archbishop of one city contest each other;
+/// each clan's justicar and Inner Circle member are unique (one of each:
+/// they do not contest each other); primogen is not unique.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TitleKey {
     City(&'static str),
     Justicar(&'static str),
+    InnerCircle(&'static str),
     /// A unique title a card names (Saulot's Guiding Wisdom).
     Named(&'static str),
 }
 
 pub fn title_key(t: Title) -> Option<TitleKey> {
     match t {
-        Title::Prince(c) | Title::Baron(c) => Some(TitleKey::City(c)),
+        Title::Prince(c) | Title::Baron(c) | Title::Archbishop(c) => Some(TitleKey::City(c)),
         Title::Justicar(k) => Some(TitleKey::Justicar(k)),
+        Title::InnerCircle(k) => Some(TitleKey::InnerCircle(k)),
         Title::Independent { name, .. } => Some(TitleKey::Named(name)),
         Title::None | Title::Primogen => None,
     }
@@ -63,8 +66,9 @@ pub fn title_votes(t: Title) -> u8 {
     match t {
         Title::None => 0,
         Title::Primogen => 1,
-        Title::Prince(_) | Title::Baron(_) => 2,
+        Title::Prince(_) | Title::Baron(_) | Title::Archbishop(_) => 2,
         Title::Justicar(_) => 3,
+        Title::InnerCircle(_) => 4,
         Title::Independent { votes, .. } => votes,
     }
 }
@@ -732,6 +736,10 @@ pub struct GameState {
     /// Cards played this turn that "can be played only once each turn"
     /// (Ashur Tablets), by LIBRARY index; cleared as each turn begins.
     pub turn_played: Vec<u16>,
+    /// Cards each minion played this turn under `Limit::PerTurn` ("a
+    /// vampire can play only one Forced March each turn"), by LIBRARY
+    /// index; cleared as each turn begins.
+    pub turn_plays: Vec<(MinionId, u16)>,
     /// Continuous effects (DESIGN §4.5 scope layers).
     pub layers: Vec<Layer>,
     pub active: SeatId,
@@ -1220,6 +1228,11 @@ impl GameState {
             R::IsBleed => ctx.kind == Some(ActionKind::Bleed),
             R::IsPolitical => ctx.kind == Some(ActionKind::Political),
             R::OpponentClan(c) => opp.and_then(|o| o.clan()) == Some(c),
+            // "In combat with a werewolf" (Mark Decker): an ally of the
+            // subtype.
+            R::OpponentSubtype(l) => opp
+                .and_then(|o| o.kind.ally_card())
+                .is_some_and(|card| LIBRARY[card as usize].labels.contains(&l)),
             // Younger and older compare vampires: an ally has no capacity.
             R::OpponentYounger => ctx.opponent.is_some_and(|o| self.younger_than(o, actor)),
             R::OpponentAllyOrYounger => {
@@ -1357,7 +1370,12 @@ impl GameState {
 
     /// Transfers seat `s` gets from cards in play (Information Highway).
     pub fn transfer_bonus(&self, s: SeatId) -> u8 {
-        sum_n!(self.controlled_layers(s), Modifier::Transfers)
+        let printed: i32 = self
+            .minions_of(s)
+            .map(|m| self.printed_mod(m, Stat::Transfers, PrintedCtx::default()))
+            .sum();
+        let layers: u8 = sum_n!(self.controlled_layers(s), Modifier::Transfers);
+        layers + printed.max(0) as u8
     }
 
     /// Cards over hand size, the cards not replaced yet counting against
@@ -1371,19 +1389,20 @@ impl GameState {
     /// host predicate to fail).
     pub fn rider_holds(&self, r: &cards::Rider, id: CardId) -> bool {
         let c = &self.cards[id.index()];
-        r.requires.iter().all(|&req| match req {
-            Requirement::CountersAtLeast(n) => c.counters >= n,
-            Requirement::SuperiorVersion => c.mode > 0,
-            Requirement::BasicVersion => c.mode == 0,
-            Requirement::OneCopyPerTurn => true,
-            Requirement::ActiveControlsNonSect(sect) => self
-                .minions_of(self.active)
-                .any(|m| self.minions[m.index()].is_vampire() && self.sect_of(m) != Some(sect)),
-            _ => match c.bearer() {
-                Some(h) => cards::holds_for_host(req, self, h),
-                None => true,
-            },
-        })
+        !self.text_suppressed(id)
+            && r.requires.iter().all(|&req| match req {
+                Requirement::CountersAtLeast(n) => c.counters >= n,
+                Requirement::SuperiorVersion => c.mode > 0,
+                Requirement::BasicVersion => c.mode == 0,
+                Requirement::OneCopyPerTurn => true,
+                Requirement::ActiveControlsNonSect(sect) => self
+                    .minions_of(self.active)
+                    .any(|m| self.minions[m.index()].is_vampire() && self.sect_of(m) != Some(sect)),
+                _ => match c.bearer() {
+                    Some(h) => cards::holds_for_host(req, self, h),
+                    None => true,
+                },
+            })
     }
 
     /// The riders on `hook` of every card in the arena, in arena order —
@@ -1843,9 +1862,32 @@ impl GameState {
         })
     }
 
-    /// Allies cannot block `m` (Libertas on it).
+    /// Allies cannot block `m` (Libertas on it; Stanislava's own text).
     pub fn allies_cannot_block(&self, m: MinionId) -> bool {
         self.hosts(m, Modifier::AlliesCannotBlockBearer)
+            || self.printed_mod(m, Stat::AlliesCannotBlock, PrintedCtx::default()) > 0
+    }
+
+    /// The card's text is lost: a retainer of a minion in combat with
+    /// Stanislava (rules-qa 49.3: its abilities, layers and riders, for
+    /// that combat; it stays a retainer whose life takes damage).
+    pub fn text_suppressed(&self, id: CardId) -> bool {
+        let Some(pair) = self.combatants else {
+            return false;
+        };
+        let c = &self.cards[id.index()];
+        let Some(host) = c.host else {
+            return false;
+        };
+        let Some(i) = pair.iter().position(|&m| m == host) else {
+            return false;
+        };
+        LIBRARY[c.card as usize].types.contains(&CardType::Retainer)
+            && self.printed_mod(
+                pair[1 - i],
+                Stat::OpposingRetainersLoseText,
+                PrintedCtx::default(),
+            ) > 0
     }
 
     /// The strikes of `m` cannot be dodged (Aggressive Corpse's own text).
@@ -2060,7 +2102,8 @@ impl GameState {
     /// A layer applies: action-scoped, or sourced by a card in play that
     /// is not contested (a contested card's effects are suspended).
     pub fn layer_active(&self, l: &Layer) -> bool {
-        l.scope == Scope::Action || self.cards[l.source.index()].present()
+        l.scope == Scope::Action
+            || (self.cards[l.source.index()].present() && !self.text_suppressed(l.source))
     }
 
     /// The layers of the uncontested cards in play (`Scope::InPlay`).
@@ -2148,8 +2191,11 @@ impl GameState {
         };
         let fits = match t {
             Title::None => true,
-            Title::Primogen | Title::Prince(_) | Title::Justicar(_) => sect == Sect::Camarilla,
+            Title::Primogen | Title::Prince(_) | Title::Justicar(_) | Title::InnerCircle(_) => {
+                sect == Sect::Camarilla
+            }
             Title::Baron(_) => sect == Sect::Anarch,
+            Title::Archbishop(_) => sect == Sect::Sabbat,
             Title::Independent { .. } => sect == Sect::Independent,
         };
         if fits {

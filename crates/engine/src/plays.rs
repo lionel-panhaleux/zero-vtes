@@ -254,7 +254,11 @@ impl Engine {
                 None => vec![],
             },
             Actor::ActingCandidate => {
-                if self.action.is_some() || st.active != seat {
+                if self.action.is_some() {
+                    vec![]
+                } else if let Some(m) = self.cog_minion(seat) {
+                    vec![Some(m)]
+                } else if st.active != seat {
                     vec![]
                 } else {
                     st.ready_unlocked(seat).into_iter().map(Some).collect()
@@ -704,9 +708,8 @@ impl Engine {
                             Some(Limit::BetweenUnlockPhases) => {
                                 st.minions[m.index()].played_since_unlock.contains(&card)
                             }
-                            Some(Limit::PerPhaseEach | Limit::PerReferendum | Limit::PerTurn) => {
-                                false
-                            }
+                            Some(Limit::PerTurn) => st.turn_plays.contains(&(m, card)),
+                            Some(Limit::PerPhaseEach | Limit::PerReferendum) => false,
                         };
                         // Rulebook "Action Modifier" / "Reaction": a minion
                         // cannot play the same action modifier, or the same
@@ -1031,7 +1034,8 @@ impl Engine {
                 Limit::BetweenUnlockPhases => {
                     self.state.minions[m.index()].played_since_unlock.push(card);
                 }
-                Limit::PerPhaseEach | Limit::PerReferendum | Limit::PerTurn => {}
+                Limit::PerTurn => self.state.turn_plays.push((m, card)),
+                Limit::PerPhaseEach | Limit::PerReferendum => {}
             }
         }
         if def.out_of_turn {
@@ -3285,7 +3289,7 @@ impl Engine {
             // A contested card is out of play: nothing printed on it
             // applies; nor on a card that became another (Enhanced
             // Coagulant).
-            if !c.present() || cards::became(c.card, c.mode) {
+            if !c.present() || cards::became(c.card, c.mode) || st.text_suppressed(id) {
                 continue;
             }
             let Some(def) = cards::lookup(c.card) else {
@@ -4153,6 +4157,22 @@ impl Engine {
                     if matches!(**resume, Flow::MinionPhase)))
     }
 
+    /// The vampire of `seat`'s taking Enkil Cog's action, its choice of
+    /// action under way (`Flow::CogAction`, under any play or terms).
+    pub(crate) fn cog_minion(&self, seat: SeatId) -> Option<MinionId> {
+        fn walk(flow: &Flow, seat: SeatId) -> Option<MinionId> {
+            match flow {
+                Flow::CogAction { seat: s, minion } if *s == seat => Some(*minion),
+                Flow::PlayTerms { resume, .. }
+                | Flow::CostTerms { resume, .. }
+                | Flow::AsPlayed { resume, .. }
+                | Flow::AbilityTerms { resume, .. } => walk(resume, seat),
+                _ => None,
+            }
+        }
+        walk(&self.flow, seat)
+    }
+
     /// May `host` take the action an ability grants it: in its
     /// Methuselah's minion phase, no action under way, ready and unlocked;
     /// one bleed a turn, and the same granted action once a turn (rules-qa
@@ -4167,7 +4187,7 @@ impl Engine {
         let st = &self.state;
         let v = &st.minions[host.index()];
         self.action.is_none()
-            && st.active == seat
+            && (st.active == seat || self.cog_minion(seat) == Some(host))
             && !v.locked
             && !v.recruited
             && v.ready()
@@ -4188,6 +4208,20 @@ impl Engine {
         resume: Flow,
     ) -> bool {
         let mode = self.ability_mode(source, ability);
+        // Enkil Cog: locked, its vampire takes an action of its
+        // Methuselah's choice (rules-qa 49.6).
+        if mode.effects.contains(&Effect::TakeAnyAction) {
+            let card = source.card();
+            self.lock_card(card);
+            let minion = self.state.cards[card.index()]
+                .host
+                .expect("the Cog's vampire");
+            self.flow = Flow::CogAction {
+                seat: self.state.minions[minion.index()].owner,
+                minion,
+            };
+            return true;
+        }
         // A granted action: declared like a card action, the card in play
         // as its source (its referendum and cost are read at resolution).
         if let Some(Effect::DeclareAction(kind)) = mode
@@ -5631,6 +5665,20 @@ impl Engine {
                             });
                         }
                     }
+                    // Fear of Mekhet: 5 blood or the vampire; then the
+                    // card moves on (rules-qa 49.4).
+                    Effect::HostBurnsBloodOrBurnedThenMoves(n) => {
+                        let host = self.state.cards[id.index()].bearer().expect("host");
+                        if self.state.minions[host.index()].blood >= n {
+                            self.state.burn_blood(host, n);
+                            self.interrupts.push(Interrupt::MoveCardToTitled {
+                                seat: self.state.minions[host.index()].owner,
+                                card: id,
+                            });
+                        } else {
+                            lifeless = Some(host);
+                        }
+                    }
                     // "He gains 1 life" (Double Deuce): the ally its card is.
                     Effect::AddHostBlood(n) => {
                         let h = self.state.cards[id.index()].bearer().expect("host");
@@ -5881,6 +5929,23 @@ impl Engine {
         if pending.is_empty() {
             options.push(Choice::Pass);
             options.extend(self.ability_options(seat, Window::AnyImpulse));
+            // Enkil Cog, as the minion phase is about to end (rules-qa
+            // 49.6): offered while its vampire has an action to take.
+            if matches!(resume, Flow::MinionPhase) {
+                options.extend(
+                    self.ability_options(seat, Window::OthersMinionPhaseEnd)
+                        .into_iter()
+                        .filter(|o| match *o {
+                            Choice::UseAbility { source, .. } => {
+                                let m = self.state.cards[source.card().index()]
+                                    .host
+                                    .expect("the Cog's vampire");
+                                self.action_options(seat, Some(m)).len() > 1
+                            }
+                            _ => true,
+                        }),
+                );
+            }
         } else {
             options.extend(pending.iter().map(|c| Choice::ResolveRider { card: c.0 }));
         }

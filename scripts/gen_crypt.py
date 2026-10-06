@@ -2,8 +2,8 @@
 """Generate the V5 crypt data module for the engine from KRCG card data.
 
 Static card data is generated, never hand-typed (DESIGN §4.5). Output:
-`crates/engine/src/crypt.rs` — the 200 V5 vampires (id, printed name,
-capacity, group, clan, sect, title), the 14 full-size precon crypts and the
+`crates/engine/src/crypt.rs` — the 200 V5 vampires and the owner-added
+ones (id, printed name, capacity, group, clan, sect, title, advanced), the 14 full-size precon crypts and the
 14 New Blood mini-starter crypts.
 
 Usage: python3 scripts/gen_crypt.py [path/to/vtes.json] > crates/engine/src/crypt.rs
@@ -17,7 +17,7 @@ import sys
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from window_matrix import ADDED_CARDS, pool_order  # noqa: E402
+from window_matrix import ADDED_CARDS, anniversary_decks, pool_order  # noqa: E402
 
 V5_SETS = [
     "Fifth Edition", "Fifth Edition (Anarch)", "Fifth Edition (Companion)",
@@ -28,11 +28,12 @@ FULL_PRECON_SETS = ["Fifth Edition", "Fifth Edition (Anarch)", "Fifth Edition (C
 MINI_PRECON_SETS = ["New Blood", "New Blood II", "New Blood III"]
 
 # Title is the card-text prefix (rulebook "Vampiric Sects"): sect, then an
-# optional title. Prince/Baron of a city contest by city; Justicar by clan;
-# primogen is not unique.
+# optional title. Prince/Baron/Archbishop of a city contest by city;
+# Justicar and Inner Circle by clan; primogen is not unique.
 TITLE = re.compile(
     r"^(Camarilla|Anarch|Independent|Sabbat)"
-    r"(?: (Prince|Baron) of ([^:.]+?)| (primogen)| (\w+) Justicar)?[:.]"
+    r"(?: (Prince|Baron|Archbishop) of ([^:.]+?)| (primogen)| (\w+) Justicar"
+    r"| (\w+) Inner Circle)?[:.]"
 )
 
 
@@ -47,6 +48,8 @@ def parse(card):
         title = "Title::Primogen"
     elif m.group(5):
         title = f'Title::Justicar("{m.group(5)}")'
+    elif m.group(6):
+        title = f'Title::InnerCircle("{m.group(6)}")'
     else:
         title = "Title::None"
     return sect, title
@@ -75,10 +78,11 @@ def generate(cards):
     out.append("    Sabbat,")
     out.append("}")
     out.append("")
-    out.append("/// A title, printed or granted by a card. Prince and Baron of the same city")
-    out.append("/// contest each other; each clan's Justicar is unique; primogen is not")
-    out.append("/// unique. `Independent`: a unique Independent title a card names, worth")
-    out.append("/// its votes (Saulot's Guiding Wisdom); no V5 vampire prints one.")
+    out.append("/// A title, printed or granted by a card. Prince, Baron and Archbishop of the")
+    out.append("/// same city contest each other; each clan's Justicar and Inner Circle")
+    out.append("/// member is unique; primogen is not unique. `Independent`: a unique")
+    out.append("/// Independent title a card names, worth its votes (Saulot's Guiding")
+    out.append("/// Wisdom); no V5 vampire prints one.")
     out.append("#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]")
     out.append("pub enum Title {")
     out.append("    None,")
@@ -86,6 +90,8 @@ def generate(cards):
     out.append("    Prince(&'static str),")
     out.append("    Baron(&'static str),")
     out.append("    Justicar(&'static str),")
+    out.append("    InnerCircle(&'static str),")
+    out.append("    Archbishop(&'static str),")
     out.append("    Independent { name: &'static str, votes: u8 },")
     out.append("}")
     out.append("")
@@ -101,6 +107,9 @@ def generate(cards):
     out.append("    pub disciplines: &'static [&'static str],")
     out.append("    pub sect: Sect,")
     out.append("    pub title: Title,")
+    out.append("    /// An advanced vampire (KRCG `adv`): the same vampire as its base")
+    out.append("    /// card for contests (rulebook \"Advanced Vampires\").")
+    out.append("    pub adv: bool,")
     out.append("}")
     out.append("")
     out.append("#[rustfmt::skip]")
@@ -117,6 +126,7 @@ def generate(cards):
         out.append(f"        disciplines: &[{disc}],")
         out.append(f"        sect: Sect::{sect},")
         out.append(f"        title: {title},")
+        out.append(f"        adv: {'true' if c.get('adv') else 'false'},")
         out.append("    },")
     out.append("];")
     out.append("")
@@ -129,7 +139,25 @@ def generate(cards):
         "/// The 14 New Blood mini-starter crypts (6 cards each) as",
         "/// (name, [(CRYPT index, copies)]).",
     ], 6)
+    out.append("")
+    ids = {c["id"]: i for i, c in enumerate(vamps)}
+    anniversary_table(out, cards, ids, "ANNIVERSARY_PRECONS", [
+        "/// The anniversary decks' crypts (12 cards each; reviewed decklists,",
+        "/// `window_matrix.ANNIVERSARY_DECKS`) as (name, [(CRYPT index, copies)]).",
+    ])
     return "\n".join(out) + "\n"
+
+
+def anniversary_table(out, cards, ids, name, doc):
+    """The anniversary decks' cards found in `ids` (this table's side)."""
+    decks = anniversary_decks(cards)
+    out.extend(doc)
+    out.append("#[rustfmt::skip]")
+    out.append(f"pub static {name}: [(&str, &[(u16, u8)]); {len(decks)}] = [")
+    for deck, s, entries in decks:
+        body = ", ".join(f"({i}, {k})" for i, k in sorted((ids[c], k) for c, k in entries.items() if c in ids))
+        out.append(f"    ({rust_str(deck + ' (' + s + ')')}, &[{body}]),")
+    out.append("];")
 
 
 def precon_table(out, cards, index_of, sets, name, doc, size=None):

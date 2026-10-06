@@ -1763,7 +1763,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 102] = [
+pub static VAMPIRES: [&VampireDef; 107] = [
     &PARIJAT,
     &ABADDON,
     &ABRAHAM_DUSABLE,
@@ -1866,6 +1866,11 @@ pub static VAMPIRES: [&VampireDef; 102] = [
     &WEIRICH_WALDBURG,
     &YEWON_ONG,
     &GILBERT_DUANE,
+    &HARTMUT_STOVER,
+    &INGRID_ROSSLER,
+    &MARK_DECKER,
+    &STANISLAVA,
+    &XAVIAR_ADV,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -1885,6 +1890,84 @@ pub static GILBERT_DUANE: VampireDef = VampireDef {
             Effect::HostBurnBlood(1),
             Effect::RemoveCryptTopAnarch("Malkavian"),
         ],
+    )],
+    ..VAMP
+};
+
+// ---- Reign of Stanislava (25th Anniversary) -------------------------------
+
+/// "Sabbat Archbishop of Berlin: Any vampire casting votes or ballots
+/// against a referendum called by Hartmut burns 1 blood once results are
+/// tallied. You can burn the Edge during your discard phase to gain 1
+/// pool." The burn is no cost: a vampire without blood votes against and
+/// burns nothing; Hartmut too if he votes against his own; Methuselah
+/// ballots cost nothing (rules-qa 49.2). The Edge burn is his controller's,
+/// once per discard phase (rules-qa 6.6), from torpor too (advanced rules:
+/// printed abilities stay usable in torpor).
+pub static HARTMUT_STOVER: VampireDef = VampireDef {
+    name: "Hartmut Stover",
+    printed: &[own(Stat::AgainstCastersBurnBlood, 1, &[])],
+    abilities: &[mode_of(
+        &[Window::DiscardPhase],
+        Actor::Host,
+        &[R::HasEdge],
+        &[Effect::BurnEdge, Effect::GainPool(1)],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla Prince of Geneva: If Ingrid is ready at the start of your
+/// influence phase, you get +2 transfers." Read as the phase begins:
+/// influenced out during it, she gives none that phase (RTR 20180303).
+pub static INGRID_ROSSLER: VampireDef = VampireDef {
+    name: "Ingrid Rossler",
+    printed: &[own(Stat::Transfers, 2, &[R::ThisVampireReady])],
+    ..VAMP
+};
+
+/// "Camarilla Prince of Milwaukee: Mark gets an additional +1 strength in
+/// combat with a werewolf. +1 strength." A werewolf: an ally of the subtype
+/// (Double Deuce).
+pub static MARK_DECKER: VampireDef = VampireDef {
+    name: "Mark Decker",
+    printed: &[
+        own(Stat::Strength, 1, &[]),
+        own(Stat::Strength, 1, &[R::OpponentSubtype(Label::Werewolf)]),
+    ],
+    ..VAMP
+};
+
+/// "Camarilla Gangrel Inner Circle: Retainers employed by minions opposing
+/// Stanislava in combat lose their abilities. Allies cannot block her. +2
+/// bleed." The retainers lose their card text for that combat; they stay
+/// retainers whose life takes damage (rules-qa 49.3).
+pub static STANISLAVA: VampireDef = VampireDef {
+    name: "Stanislava",
+    printed: &[
+        own(Stat::Bleed, 2, &[]),
+        own(Stat::AlliesCannotBlock, 1, &[]),
+        own(Stat::OpposingRetainersLoseText, 1, &[]),
+    ],
+    ..VAMP
+};
+
+/// "Camarilla Gangrel Justicar: You can unlock Xaviar after a referendum
+/// called by him passes." (Sybren van Oosten's text.) The advanced card: it contests the base Xaviar as the same vampire; the
+/// merge (ANK 20180524: Camarilla, an anarch token burned) waits for the
+/// base card in the pool.
+pub static XAVIAR_ADV: VampireDef = VampireDef {
+    name: "Xaviar",
+    adv: true,
+    abilities: &[mode_of(
+        &[Window::ActionAfterResolution],
+        Actor::Host,
+        &[
+            R::ActorActing,
+            R::IsPolitical,
+            R::ReferendumPassed,
+            R::HostLocked,
+        ],
+        &[Effect::UnlockActor],
     )],
     ..VAMP
 };

@@ -56,25 +56,47 @@ EXTRA_CARDS = {
 }
 
 
-# Legacy cards the owner added to the pool (2026-09-28) so that tournament
-# winning decks (TWDA) become playable. Unlike EXTRA_CARDS they are appended
-# after the V5 tables, sorted by id among themselves, never sorted in: the
-# existing CRYPT and LIBRARY indices stay put (golden replays, decklist
-# tables, trained vocabularies).
-ADDED_CARDS = {
-    100106: "Ashur Tablets",
-    100298: "Carlton Van Wyk",
-    100576: "Donnybrook",
-    100646: "Ennoia's Theater",
-    100910: "Hell-for-Leather",
-    101019: "Jake Washington",
-    101103: "Life Boon",
-    101256: "Murmur of the False Will",
-    101442: "Powerbase: Savannah",
-    101654: "Rötschreck",
-    101665: "Saatet-ta",
-    201617: "Gilbert Duane (G6)",
-}
+# Legacy cards the owner added to the pool so that tournament winning decks
+# (TWDA) and the anniversary decks become playable. Unlike EXTRA_CARDS they
+# are appended after the V5 tables, batch after batch in this order, sorted
+# by id within a batch, never sorted in: the existing CRYPT and LIBRARY
+# indices stay put (golden replays, decklist tables, trained vocabularies).
+ADDED_BATCHES = [
+    # 2026-09-28: TWDA decks.
+    {
+        100106: "Ashur Tablets",
+        100298: "Carlton Van Wyk",
+        100576: "Donnybrook",
+        100646: "Ennoia's Theater",
+        100910: "Hell-for-Leather",
+        101019: "Jake Washington",
+        101103: "Life Boon",
+        101256: "Murmur of the False Will",
+        101442: "Powerbase: Savannah",
+        101654: "Rötschreck",
+        101665: "Saatet-ta",
+        201617: "Gilbert Duane (G6)",
+    },
+    # 2026-10-06: Reign of Stanislava (25th Anniversary), its new cards.
+    {
+        100064: "Ancient Influence",
+        100645: "Enkil Cog",
+        100710: "Fear of Mekhet",
+        100761: "Forced March",
+        100994: "Instantaneous Transformation",
+        101238: "Monastery of Shadows",
+        101390: "Permanent Vacation",
+        101417: "Political Stranglehold",
+        101591: "Reins of Power",
+        102207: "Zillah's Valley",
+        200575: "Hartmut Stover (G3)",
+        200634: "Ingrid Rossler (G2)",
+        200937: "Mark Decker (G3)",
+        201312: "Stanislava (G2)",
+        201478: "Xaviar (G3 ADV)",
+    },
+]
+ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
 
 def in_pool(card):
@@ -87,11 +109,83 @@ def in_pool(card):
     )
 
 
+# Anniversary decks (owner, 2026-10-05: each decklist reviewed before it
+# trains; not every card of the bundle belongs to the deck). A deck is its
+# set's cards minus the extras Black Chantry lists apart (25th: the
+# 2019-06-04 announcement; 30th: the product page, as the VTES ONE blog), by
+# id with the copies left out. Emitted once every card of the deck is in the
+# pool. No Fall of London / Shadows of Berlin deck ever trains (owner): they
+# are not real decks.
+ANNIVERSARY_DECKS = {
+    "Twenty-Fifth Anniversary": ("Reign of Stanislava", {
+        100037: 1,  # Alamut
+        100071: 1,  # The Ankara Citadel, Turkey
+        100169: 1,  # Black Metamorphosis
+        100286: 1,  # Camarilla Vitae Slave
+        100651: 1,  # Entombment
+        100720: 1,  # Femur of Toomler
+        100770: 1,  # Form of Corruption
+        100882: 1,  # Hand of Conrad
+        100908: 1,  # Heidelberg Castle, Germany
+        100932: 1,  # Homunculus
+        101048: 1,  # Khobar Towers, Al-Khubar
+        101091: 1,  # Legendary Vampire
+        101103: 1,  # Life Boon
+        101664: 1,  # Rutor's Hand
+        101681: 1,  # The Sargon Fragment
+        101781: 1,  # The Signet of King Saul
+        101931: 1,  # Talbot's Chainsaw
+        201407: 1,  # Una (G3)
+        201522: 2,  # Grimgroth (G6)
+    }),
+    "Thirtieth Anniversary": ("The Endless Dance", {
+        100038: 1,  # Alastor
+        100060: 1,  # Anathema
+        101500: 1,  # Protected Resources
+        101515: 1,  # Pulled Fangs
+        101973: 1,  # Third Tradition: Progeny
+        102268: 1,  # Banu Haqim Justicar
+        102272: 1,  # Lasombra Justicar
+        201693: 2,  # Annabelle Triabell (G6)
+        201695: 1,  # Dónal O'Connor (G6)
+        201697: 2,  # Ian Carfax (G7)
+        201698: 2,  # Juliet Parr (G7)
+        201700: 2,  # Lucinde, Alastor (G7)
+        201704: 2,  # Molly MacDonald (G7)
+        201705: 2,  # Nikolaus Vermeulen (G6)
+    }),
+}
+
+
+def anniversary_decks(cards):
+    """The anniversary decks fully in the pool, in ANNIVERSARY_DECKS order,
+    as (deck name, set, {card id: copies}): the set's copies minus its
+    extras. Both lists are 20 cards and the decks 12 crypt / 88 library."""
+    out = []
+    for s, (name, extras) in ANNIVERSARY_DECKS.items():
+        assert sum(extras.values()) == 20, s
+        deck = {}
+        for c in cards:
+            n = sum(e.get("copies", 0) for e in c.get("sets", {}).get(s, []))
+            n -= extras.get(c["id"], 0)
+            assert n >= 0, (s, c["name"])
+            if n:
+                deck[c["id"]] = (c, n)
+        if not all(in_pool(c) for c, _ in deck.values()):
+            continue
+        crypt = sum(n for c, n in deck.values() if "Vampire" in c["types"])
+        assert (crypt, sum(n for _, n in deck.values()) - crypt) == (12, 88), (s, crypt)
+        out.append((name, s, {i: n for i, (_, n) in deck.items()}))
+    return out
+
+
 def pool_order(cards, key):
     """Table order: the V5 pool (and EXTRA_CARDS) sorted by `key`, then the
-    ADDED_CARDS by id."""
+    ADDED_CARDS batch by batch, by id within a batch."""
+    batch = {k: i for i, b in enumerate(ADDED_BATCHES) for k in b}
     base = sorted((c for c in cards if c["id"] not in ADDED_CARDS), key=key)
-    return base + sorted((c for c in cards if c["id"] in ADDED_CARDS), key=lambda c: c["id"])
+    return base + sorted((c for c in cards if c["id"] in ADDED_CARDS),
+                         key=lambda c: (batch[c["id"]], c["id"]))
 
 # Phrases removed before window matching: riders and granted abilities that
 # fire after the card's own play step (review convention: "riders firing after

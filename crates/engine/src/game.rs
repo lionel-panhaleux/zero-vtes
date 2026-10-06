@@ -116,6 +116,14 @@ pub(crate) enum Flow {
     },
     /// Minion phase: offer actions for the active seat's ready minions.
     MinionPhase,
+    /// Another Methuselah's vampire takes an action in the active one's
+    /// minion phase (Enkil Cog, locked as the phase was about to end:
+    /// rules-qa 49.6): `seat` picks `minion`'s action, or lets it go. The
+    /// action over, the impulse returns to the active Methuselah's phase.
+    CogAction {
+        seat: SeatId,
+        minion: MinionId,
+    },
     /// An equip action from another minion being announced: the
     /// equipment `minion` takes from `giver`, picked one at a time.
     ActionTerms {
@@ -467,6 +475,7 @@ impl Engine {
                 Flow::Abilities { .. } => Phase::Unlock,
                 Flow::MasterPhase => Phase::Master,
                 Flow::MinionPhase
+                | Flow::CogAction { .. }
                 | Flow::ActionTerms { .. }
                 | Flow::LibrarySearch { .. }
                 | Flow::Exchange { .. }
@@ -683,6 +692,11 @@ impl Engine {
                 WindowLabel::MinionPhase,
                 self.minion_phase_options(),
             )),
+            Flow::CogAction { seat, minion } => Some(DecisionRequest::new(
+                *seat,
+                WindowLabel::MinionPhase,
+                self.action_options(*seat, Some(*minion)),
+            )),
             Flow::AbilityTerms {
                 source,
                 ability,
@@ -766,6 +780,54 @@ impl Engine {
             (Flow::AsPlayed { stack, resume }, c) => self.as_played_apply(stack, resume, c),
             (Flow::Discard, c) => self.discard_apply(c),
             (Flow::MinionPhase, Choice::Pass) => self.open_phase_rotation(Flow::MinionPhase),
+            // The Cog's action let go: the Cog stays locked, the active
+            // Methuselah's phase goes on (LSJ 20081213-1).
+            (Flow::CogAction { .. }, Choice::Pass) => self.flow = Flow::MinionPhase,
+            (
+                Flow::CogAction { .. },
+                Choice::TakeAction {
+                    minion,
+                    action,
+                    target,
+                },
+            ) => match action {
+                ActionKind::EquipFrom => {
+                    self.flow = Flow::ActionTerms {
+                        minion: *minion,
+                        giver: target.expect("minion to equip from"),
+                        picked: Vec::new(),
+                    }
+                }
+                _ => self.declare_action(*minion, *action, *target, None, None),
+            },
+            // An action card or a granted action canceled as it is played
+            // leaves the Cog's action to take again (LSJ 20081213-1).
+            (
+                Flow::CogAction { seat, minion },
+                Choice::UseAbility {
+                    source,
+                    ability,
+                    actor,
+                    target,
+                },
+            ) => {
+                let back = Flow::CogAction { seat, minion };
+                if !self.use_ability(*source, *ability, *actor, *target, back.clone()) {
+                    self.flow = back;
+                }
+            }
+            (
+                Flow::CogAction { seat, minion },
+                Choice::Play {
+                    card,
+                    mode,
+                    actor,
+                    target,
+                },
+            ) => {
+                let back = Flow::CogAction { seat, minion };
+                self.announce_play(seat, *card, *mode, *actor, *target, back);
+            }
             (
                 Flow::MinionPhase,
                 Choice::TakeAction {
@@ -1084,6 +1146,26 @@ impl Engine {
     /// as burned, but to its owner's removed cards.
     pub(crate) fn remove_card_in_play(&mut self, id: CardId) {
         self.card_leaves_play(id, true);
+    }
+
+    /// Remove an ally from the game (Permanent Vacation): its card to its
+    /// owner's removed cards, the cards on it burned; not burned, so no
+    /// burn rider fires.
+    pub(crate) fn remove_ally_from_game(&mut self, m: MinionId) {
+        self.about_to_leave_ready(&[m]);
+        self.state.minions[m.index()].in_play = false;
+        self.state.minions[m.index()].corruption.clear();
+        for ci in 0..self.state.cards.len() {
+            let c = &self.state.cards[ci];
+            if !c.in_play {
+                continue;
+            }
+            if c.body == Some(m) {
+                self.card_leaves_play(CardId(ci as u32), true);
+            } else if c.host == Some(m) {
+                self.burn_card_in_play(CardId(ci as u32));
+            }
+        }
     }
 
     fn card_leaves_play(&mut self, id: CardId, removed: bool) {
@@ -1542,6 +1624,7 @@ impl Engine {
             seat.forbidden_political.clear();
         }
         self.state.turn_played.clear();
+        self.state.turn_plays.clear();
         // Delayed replacements ("do not replace until your next unlock
         // phase") are drawn before unlocking (ANK 20200129).
         let held = std::mem::take(&mut self.state.seats[s.index()].held.unlock);
@@ -1731,7 +1814,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 201);
+        assert_eq!(CRYPT.len(), 206);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();
@@ -1743,6 +1826,14 @@ mod tests {
         let aline = &CRYPT[find_card("Aline Gädeke") as usize];
         assert_eq!(aline.title, Title::Baron("Mannheim"));
         assert_eq!(aline.sect, Sect::Anarch);
+        let hartmut = &CRYPT[find_card("Hartmut Stover") as usize];
+        assert_eq!(hartmut.title, Title::Archbishop("Berlin"));
+        assert_eq!(hartmut.sect, Sect::Sabbat);
+        let stanislava = &CRYPT[find_card("Stanislava") as usize];
+        assert_eq!(stanislava.title, Title::InnerCircle("Gangrel"));
+        let xaviar = &CRYPT[find_card("Xaviar") as usize];
+        assert!(xaviar.adv);
+        assert_eq!(xaviar.title, Title::Justicar("Gangrel"));
     }
 
     #[test]

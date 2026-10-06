@@ -1,10 +1,10 @@
 //! Decklists: the 14 full-size V5 precons (the v1 training roster, DESIGN
-//! §3), the 14 New Blood mini-starters, joined from the generated crypt
-//! and library tables, and the tournament-winning decks fully in the pool
-//! (`twda.rs`).
+//! §3), the 14 New Blood mini-starters, the anniversary decks (reviewed
+//! decklists), joined from the generated crypt and library tables, and the
+//! tournament-winning decks fully in the pool (`twda.rs`).
 
-use crate::crypt::{MINI_PRECONS, PRECONS};
-use crate::library::{MINI_LIBRARIES, PRECON_LIBRARIES};
+use crate::crypt::{ANNIVERSARY_PRECONS, MINI_PRECONS, PRECONS};
+use crate::library::{ANNIVERSARY_LIBRARIES, MINI_LIBRARIES, PRECON_LIBRARIES};
 use crate::twda::TWDA;
 
 /// Cards and copies: (CRYPT or LIBRARY index, copies).
@@ -37,6 +37,15 @@ impl Deck {
         }
     }
 
+    /// The anniversary deck `i` (`ANNIVERSARY_PRECONS` order).
+    pub fn anniversary(i: usize) -> Deck {
+        Deck {
+            name: ANNIVERSARY_PRECONS[i].0,
+            crypt: ANNIVERSARY_PRECONS[i].1,
+            library: ANNIVERSARY_LIBRARIES[i].1,
+        }
+    }
+
     /// The TWDA deck `i` (`TWDA` order).
     pub fn twda(i: usize) -> Deck {
         Deck {
@@ -46,11 +55,13 @@ impl Deck {
         }
     }
 
-    /// Every decklist: the precons, the minis, then the TWDA decks.
+    /// Every decklist: the precons, the minis, the anniversary decks, then
+    /// the TWDA decks.
     pub fn all() -> impl Iterator<Item = Deck> {
         (0..PRECONS.len())
             .map(Deck::precon)
             .chain((0..MINI_PRECONS.len()).map(Deck::mini))
+            .chain((0..ANNIVERSARY_PRECONS.len()).map(Deck::anniversary))
             .chain((0..TWDA.len()).map(Deck::twda))
     }
 
@@ -147,6 +158,10 @@ mod tests {
         for (i, (name, _)) in MINI_LIBRARIES.iter().enumerate() {
             assert_eq!(*name, MINI_PRECONS[i].0);
         }
+        assert_eq!(ANNIVERSARY_PRECONS.len(), ANNIVERSARY_LIBRARIES.len());
+        for (i, (name, _)) in ANNIVERSARY_LIBRARIES.iter().enumerate() {
+            assert_eq!(*name, ANNIVERSARY_PRECONS[i].0);
+        }
         for deck in Deck::all() {
             let (crypt, library) = (deck.crypt_cards(), deck.library_cards());
             assert!(crypt.iter().all(|&c| (c as usize) < CRYPT.len()));
@@ -154,6 +169,7 @@ mod tests {
             let (crypt_sizes, sizes) = match deck.name {
                 n if n.contains("New Blood") => (6..=6, 48..=49),
                 n if PRECONS.iter().any(|p| p.0 == n) => (12..=12, 77..=77),
+                n if ANNIVERSARY_PRECONS.iter().any(|p| p.0 == n) => (12..=12, 88..=88),
                 // Tournament-legal (tournament rules: crypt 12+, library
                 // 60–90).
                 _ => (12..=40, 60..=90),

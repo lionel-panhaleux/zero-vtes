@@ -40,6 +40,10 @@ pub enum RefStep {
     Shortfall {
         points: u8,
     },
+    /// Passed: each Methuselah in `terms.pending`, clockwise from the
+    /// acting one, can choose a ready vampire they control, in the open
+    /// (Ancient Influence, Reins of Power; rules-qa 49.1).
+    Choose,
 }
 
 /// A vote source (rules-qa 1.1): atomic, commits once, all its votes one
@@ -113,6 +117,8 @@ pub struct TermsState {
     pub card_alloc: Vec<(crate::state::CardId, u8)>,
     /// The shortfall re-allocation, in allocation order.
     pub realloc: Vec<(SeatId, u8)>,
+    /// The vampires the Methuselahs chose as it passed (`RefStep::Choose`).
+    pub picks: Vec<(SeatId, MinionId)>,
 }
 
 #[derive(Clone, Debug)]
@@ -517,7 +523,7 @@ impl Engine {
                     0,
                 )
             }
-            RefStep::Polling => return None,
+            RefStep::Polling | RefStep::Choose => return None,
         };
         if recipients.is_empty() {
             return None;
@@ -545,6 +551,7 @@ impl Engine {
             RefStep::Terms => Some(self.terms_step_request(ctx)),
             RefStep::Polling => self.polling_request(ctx),
             RefStep::Shortfall { points } => Some(self.shortfall_request(ctx, points)),
+            RefStep::Choose => Some(self.choose_request(ctx)),
         }
     }
 
@@ -828,6 +835,18 @@ impl Engine {
                     return;
                 }
             }
+            RefStep::Choose => {
+                let seat = ctx.terms.pending.remove(0);
+                match *choice {
+                    Choice::ChooseMinion(m) => ctx.terms.picks.push((seat, m)),
+                    Choice::Pass => {}
+                    _ => unreachable!("illegal vampire choice {choice:?}"),
+                }
+                if ctx.terms.pending.is_empty() {
+                    self.resolve_political(ctx);
+                    return;
+                }
+            }
         }
         self.referendum = Some(ctx);
         self.flow = Flow::Referendum;
@@ -991,6 +1010,29 @@ impl Engine {
                     }
                     self.burn_pool_batch(&loss);
                 }
+                // Hartmut Stover: the vampires that cast votes against burn
+                // blood once results are tallied — not a cost: one without
+                // blood burns none; Methuselah ballots cost nothing
+                // (rules-qa 49.2).
+                if let Some(c) = ctx.calling {
+                    let n = self
+                        .state
+                        .printed_mod(
+                            c,
+                            cards::Stat::AgainstCastersBurnBlood,
+                            crate::state::PrintedCtx::default(),
+                        )
+                        .max(0) as u8;
+                    if n > 0 {
+                        for r in ctx.records.iter().filter(|r| !r.canceled && !r.favor) {
+                            if let Source::Vampire(m) = r.source {
+                                if self.state.minions[m.index()].present() {
+                                    self.state.burn_blood(m, n);
+                                }
+                            }
+                        }
+                    }
+                }
                 let def = ctx.def.expect("political definition");
                 if passed && def.effect == RefEffect::MoveAllocatedFromChosen {
                     let chosen = ctx.terms.chosen.expect("chosen Methuselah");
@@ -1010,9 +1052,47 @@ impl Engine {
                         return;
                     }
                 }
+                if passed && def.effect.chooses_vampires() {
+                    ctx.step = RefStep::Choose;
+                    ctx.terms.pending = self
+                        .state
+                        .clockwise_from(ctx.caller)
+                        .into_iter()
+                        .filter(|&s| !self.ready_vampires_of(s).is_empty())
+                        .collect();
+                    if !ctx.terms.pending.is_empty() {
+                        self.referendum = Some(ctx);
+                        self.flow = Flow::Referendum;
+                        return;
+                    }
+                }
                 self.resolve_political(ctx);
             }
         }
+    }
+
+    /// The ready vampires `s` controls, arena order (a choice of
+    /// `RefStep::Choose`).
+    fn ready_vampires_of(&self, s: SeatId) -> Vec<MinionId> {
+        self.state
+            .minions_of(s)
+            .filter(|&m| {
+                let v = &self.state.minions[m.index()];
+                v.is_vampire() && v.ready()
+            })
+            .collect()
+    }
+
+    fn choose_request(&self, ctx: &ReferendumCtx) -> DecisionRequest {
+        let seat = ctx.terms.pending[0];
+        let options = std::iter::once(Choice::Pass)
+            .chain(
+                self.ready_vampires_of(seat)
+                    .into_iter()
+                    .map(Choice::ChooseMinion),
+            )
+            .collect();
+        DecisionRequest::new(seat, WindowLabel::ReferendumTerms, options)
     }
 
     fn resolve_political(&mut self, ctx: ReferendumCtx) {
@@ -1102,12 +1182,45 @@ impl Engine {
                         loss[s.index()] += n as i32;
                     }
                 }
+                // A gain then a loss, the loss in all cases (ANK
+                // 20180813); no choice gains (or burns) nothing (rules-qa
+                // 49.1). The capacity is read as it resolves.
+                RefEffect::GainChosenCapacityBurn(n) => {
+                    for s in st.clockwise_from(ctx.caller) {
+                        loss[s.index()] += n as i32;
+                    }
+                    for &(s, m) in &ctx.terms.picks {
+                        gain[s.index()] += st.capacity_of(m).unwrap_or(0) as i32;
+                    }
+                }
+                RefEffect::GainBurnPredatorsChosenCapacity(n) => {
+                    for s in st.clockwise_from(ctx.caller) {
+                        gain[s.index()] += n as i32;
+                        let predator = st.predator(s);
+                        for &(p, m) in &ctx.terms.picks {
+                            if p == predator && p != s {
+                                loss[s.index()] += st.capacity_of(m).unwrap_or(0) as i32;
+                            }
+                        }
+                    }
+                }
+                RefEffect::GainPerVampireCapacityAtLeast { cap, n } => {
+                    for (i, m) in st.minions.iter().enumerate() {
+                        if m.present()
+                            && m.is_vampire()
+                            && st.capacity_of(MinionId(i as u32)).is_some_and(|c| c >= cap)
+                        {
+                            gain[m.owner.index()] += n as i32;
+                        }
+                    }
+                }
                 RefEffect::Banish
                 | RefEffect::Expel
                 | RefEffect::BurnSource
                 | RefEffect::PutOnChosen
                 | RefEffect::PutInPlay
-                | RefEffect::ChosenTakesChosenCard => {}
+                | RefEffect::ChosenTakesChosenCard
+                | RefEffect::RemoveChosen => {}
             }
         }
         for (i, g) in gain.iter().enumerate() {
@@ -1134,6 +1247,12 @@ impl Engine {
             RefEffect::Expel => {
                 for &m in &ctx.terms.minions {
                     self.state.minions[m.index()].expelled = true;
+                }
+            }
+            RefEffect::RemoveChosen => {
+                let m = ctx.terms.minions[0];
+                if self.state.minions[m.index()].present() {
+                    self.remove_ally_from_game(m);
                 }
             }
             RefEffect::PutOnChosen => {

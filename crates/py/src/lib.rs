@@ -706,15 +706,16 @@ fn vocab_keys() -> Vec<String> {
 }
 
 /// The decklist families: name -> deck indices ("precons", "minis",
-/// "twda").
+/// "anniversary", "twda": `Deck::all` order).
 #[pyfunction]
 fn deck_families() -> Vec<(&'static str, Vec<usize>)> {
-    use zvtes::crypt::{MINI_PRECONS, PRECONS};
-    let (p, m) = (PRECONS.len(), MINI_PRECONS.len());
+    use zvtes::crypt::{ANNIVERSARY_PRECONS, MINI_PRECONS, PRECONS};
+    let (p, m, a) = (PRECONS.len(), MINI_PRECONS.len(), ANNIVERSARY_PRECONS.len());
     vec![
         ("precons", (0..p).collect()),
         ("minis", (p..p + m).collect()),
-        ("twda", (p + m..all_decks().len()).collect()),
+        ("anniversary", (p + m..p + m + a).collect()),
+        ("twda", (p + m + a..all_decks().len()).collect()),
     ]
 }
 

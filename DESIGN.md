@@ -50,10 +50,15 @@ and legacy cards making tournament-winning decks (TWDA) playable, appended
 after the V5 tables so existing indices stay put (`ADDED_CARDS`, 2026-09-28):
 Ashur Tablets, Carlton Van Wyk, Donnybrook, Ennoia's Theater, Gilbert Duane
 (G6), Hell-for-Leather, Jake Washington, Life Boon, Murmur of the False Will,
-Powerbase: Savannah, Rötschreck, Saatet-ta.
+Powerbase: Savannah, Rötschreck, Saatet-ta; then the new cards of the Reign
+of Stanislava (25th Anniversary) deck (2026-10-06, a second batch): Hartmut
+Stover, Ingrid Rossler, Mark Decker, Stanislava, Xaviar (G3 ADV), Ancient
+Influence, Enkil Cog, Fear of Mekhet, Forced March, Instantaneous
+Transformation, Monastery of Shadows, Permanent Vacation, Political
+Stranglehold, Reins of Power, Zillah's Valley.
 
-- **637 unique cards**: 201 crypt (200 V5 + 1 added), 436 library (421 V5 + 4
-  extra + 11 added).
+- **652 unique cards**: 206 crypt (200 V5 + 6 added), 446 library (421 V5 + 4
+  extra + 21 added).
   V5 library by type: Master 124, Combat 63, Action 59, Action Modifier 53,
   Reaction 40, Equipment 23, Event 20, Ally 19, Political Action 19, Retainer 12
   (multi-type cards counted per type).
@@ -513,6 +518,7 @@ titles; `git log` has the detail.
 | P3 · 14a–14c | 09-27 | Observations (`obs.rs`: entity tokens, option rows with pointers; honest by test); `crates/py` `GamePool` (batched parallel stepping, bots inside, replayable); `train/`: pointer-scoring transformer, PPO self-play, evaluation vs random and bots |
 | P4 · 16c | 09-30 | Remaining-deck tokens (`obs::T_DECK`): the viewer's own library and crypt by contents; `legal_view` keeps them, sorted. Referendum tokens (`obs::T_REFERENDUM`): the calling card, the tally, the terms on the tokens they name |
 | P4 · 16b | 09-28 | The decision point before an oust (`ousting.rs`): Life Boon playable, its VP redirection (`Engine::gain_half_vps`) and pool steal; `oust_and_pass` reports a waiting oust to its callers |
+| P4 · 16d | 10-06 | Reign of Stanislava (25th Anniversary): 15 cards appended as a second batch (`ADDED_BATCHES`), the deck as a reviewed anniversary decklist (`Deck::anniversary`); archbishop and Inner Circle titles, the advanced flag; Enkil Cog's action in another Methuselah's minion phase (`Flow::CogAction`, offered in its end-of-phase rotation; an action is its minion's controller's, rules-qa 49.6), per-Methuselah vampire choices as a referendum passes, the against-voters' blood at the tally, retainer text lost against Stanislava, Fear of Mekhet's move, a card's per-vampire per-turn play limit; rules-qa Batches 49–50; fuzz fixture of its own (the others' tables keep to the earlier crypt: goldens re-blessed, identical games) |
 | P4 · 16a | 09-28 | Pool extension for TWDA decks: 12 legacy cards appended (`ADDED_CARDS`), first strike, a master card becoming an ally, the before-resolution combat window, out-of-turn Rötschreck, shuffle-on-burn, Ashur Tablets' picks, Life Boon blocked (unblocked by 16b) |
 | P4 · 15a–15c | 09-28 | Several networks at one table (`net:k` seats, `agent` column), matchmaking queued from Python, 4- and 5-seat tables only; the league: one learner seat, an exploiter, snapshots, bots, PFSP (`train/league.py`) |
 | P5 · 17a | 09-29 | Human-play protocol (`docs/human-play.md` slice 1): `crates/protocol` (decks by KRCG id, `TableView` + copy tracker, option descriptors and narration, `Session` stepping humans and bots, replays), `crates/wasm` (wasm-bindgen, Node smoke test); engine: `with_lists`, `phase()`, `in_flight()` |
@@ -907,13 +913,25 @@ slice-11 cards by section).
   strength, bleed) and subtypes. `Title::Independent { name, votes }`. Printed
   justicars keep the clan's old name.
 - Pool order: the V5 cards (and `EXTRA_CARDS`) sorted by name, then the
-  `ADDED_CARDS` by KRCG id (`window_matrix.pool_order`): an addition never
-  moves an existing index. A legacy master's "Master: " type prefix is skipped
+  `ADDED_CARDS` batch after batch (`ADDED_BATCHES`), by KRCG id within a
+  batch (`window_matrix.pool_order`): an addition never moves an existing
+  index. Titles: archbishop (a city's, 2 votes) and Inner Circle (one per
+  clan beside the justicar, 4 votes); `CryptCard::adv` marks an advanced
+  vampire (the same vampire as its base card for contests; its text keyed
+  apart, `VampireDef::adv`). A legacy master's "Master: " type prefix is skipped
   for labels; "Out-of-turn. Frenzy." labels `Frenzy`.
 - Decklists: `PRECONS`/`PRECON_LIBRARIES` (the 14 full-size precons) and
   `MINI_PRECONS`/`MINI_LIBRARIES` (the 14 New Blood mini-starters: 6 crypt
   cards, 48–49 library cards), each sorted by set then deck, joined by
-  `decks::Deck` (`precon`, `mini`, `twda`, `all`). `TWDA` (`twda.rs`,
+  `decks::Deck` (`precon`, `mini`, `anniversary`, `twda`, `all`). The
+  anniversary decks (`ANNIVERSARY_PRECONS`/`ANNIVERSARY_LIBRARIES`, 12 crypt
+  and 88 library cards): the set minus the extras Black Chantry lists apart,
+  the reviewed lists in `window_matrix.ANNIVERSARY_DECKS` (owner: every
+  anniversary decklist reviewed before it trains; no Fall of London or
+  Shadows of Berlin deck), emitted once every card is in the pool — Reign of
+  Stanislava so far; a `--decks` family of its own (`anniversary`, trained
+  by default with the precons: a seat draws a clan, then a deck of it), first
+  versions for the TWDA cap like the precons. `TWDA` (`twda.rs`,
   `scripts/gen_twda.py` from KRCG twda.json and the generated tables'
   `id:` order): every tournament-winning deck whose cards are all in the
   pool, tournament-legal sizes (crypt 12+, library 60–90), versions capped
@@ -1595,7 +1613,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (`docs/human-play.md` has the board).
 
-Definitions: 436 library, 102 vampires; 968 Rust tests, 23 Python tests
+Definitions: 446 library, 107 vampires; 997 Rust tests, 23 Python tests
 
 ## Outlook: deck building (post-v1)
 

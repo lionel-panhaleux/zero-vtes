@@ -339,6 +339,13 @@ fn victim(e: &Engine, me: SeatId, may: impl Fn(SeatId) -> bool) -> Option<SeatId
 fn referendum_terms(e: &Engine, req: &DecisionRequest, o: &Choice) -> i32 {
     let (st, me) = (&e.state, req.seat);
     let Some(r) = e.referendum() else { return 0 };
+    // Ancient Influence, Reins of Power: the biggest ready vampire.
+    if r.step == crate::referendum::RefStep::Choose {
+        return match *o {
+            Choice::ChooseMinion(m) => st.capacity_of(m).map_or(0, i32::from),
+            _ => -1,
+        };
+    }
     let (Some(def), Some(term)) = (r.def, r.current_term()) else {
         return 0;
     };

@@ -265,6 +265,8 @@ pub fn title_text(t: Title) -> Option<String> {
         Title::Prince(c) => Some(format!("Prince of {c}")),
         Title::Baron(c) => Some(format!("Baron of {c}")),
         Title::Justicar(c) => Some(format!("{c} Justicar")),
+        Title::InnerCircle(c) => Some(format!("{c} Inner Circle")),
+        Title::Archbishop(c) => Some(format!("Archbishop of {c}")),
         Title::Independent { name, .. } => Some(name.into()),
     }
 }
@@ -510,6 +512,7 @@ pub fn table_view(e: &Engine, viewer: Option<SeatId>, tracker: &mut Tracker) -> 
                     RefStep::Terms => "terms",
                     RefStep::Polling => "polling",
                     RefStep::Shortfall { .. } => "shortfall",
+                    RefStep::Choose => "choose",
                 }
                 .into(),
                 votes: r

@@ -79,7 +79,7 @@ pub fn list_of(deck: &Deck) -> DeckList {
 }
 
 /// Every deck the engine ships, by name: the precons, the New Blood
-/// minis, then the TWDA decks.
+/// minis, the anniversary decks, then the TWDA decks.
 pub fn catalog() -> Vec<(&'static str, DeckList)> {
     Deck::all().map(|d| (d.name, list_of(&d))).collect()
 }

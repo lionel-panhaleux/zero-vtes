@@ -10,10 +10,11 @@ pub enum Sect {
     Sabbat,
 }
 
-/// A title, printed or granted by a card. Prince and Baron of the same city
-/// contest each other; each clan's Justicar is unique; primogen is not
-/// unique. `Independent`: a unique Independent title a card names, worth
-/// its votes (Saulot's Guiding Wisdom); no V5 vampire prints one.
+/// A title, printed or granted by a card. Prince, Baron and Archbishop of the
+/// same city contest each other; each clan's Justicar and Inner Circle
+/// member is unique; primogen is not unique. `Independent`: a unique
+/// Independent title a card names, worth its votes (Saulot's Guiding
+/// Wisdom); no V5 vampire prints one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Title {
     None,
@@ -21,6 +22,8 @@ pub enum Title {
     Prince(&'static str),
     Baron(&'static str),
     Justicar(&'static str),
+    InnerCircle(&'static str),
+    Archbishop(&'static str),
     Independent { name: &'static str, votes: u8 },
 }
 
@@ -36,10 +39,13 @@ pub struct CryptCard {
     pub disciplines: &'static [&'static str],
     pub sect: Sect,
     pub title: Title,
+    /// An advanced vampire (KRCG `adv`): the same vampire as its base
+    /// card for contests (rulebook "Advanced Vampires").
+    pub adv: bool,
 }
 
 #[rustfmt::skip]
-pub static CRYPT: [CryptCard; 201] = [
+pub static CRYPT: [CryptCard; 206] = [
     CryptCard {
         id: 201661,
         name: "\"Coach\" Tyrone Soros",
@@ -49,6 +55,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obf", "pre"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201725,
@@ -59,6 +66,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["dom", "pot", "AUS", "FOR", "OBL"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201663,
@@ -69,6 +77,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "pot", "AUS", "DOM", "FOR"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201623,
@@ -79,6 +88,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["AUS", "DOM", "FOR", "THA"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201634,
@@ -89,6 +99,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["for", "tha", "AUS", "DOM", "OBF"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201635,
@@ -99,6 +110,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "pot", "pre", "tha"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201636,
@@ -109,6 +121,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "obf"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201664,
@@ -119,6 +132,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pot", "ANI", "DOM", "PRO"],
         sect: Sect::Anarch,
         title: Title::Baron("Manaus"),
+        adv: false,
     },
     CryptCard {
         id: 201708,
@@ -129,6 +143,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["DOM", "OBL", "POT"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 200030,
@@ -139,6 +154,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obf", "qui", "AUS", "CEL", "PRE"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 200039,
@@ -149,6 +165,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "cel", "for", "POT", "VIS"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201717,
@@ -159,6 +176,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["OBL"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201529,
@@ -169,6 +187,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["for", "pot", "DOM", "PRE"],
         sect: Sect::Camarilla,
         title: Title::Prince("Melbourne"),
+        adv: false,
     },
     CryptCard {
         id: 201530,
@@ -179,6 +198,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pre", "AUS", "DOM", "OBF"],
         sect: Sect::Camarilla,
         title: Title::Prince("Birmingham"),
+        adv: false,
     },
     CryptCard {
         id: 201531,
@@ -189,6 +209,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["dom", "obf", "FOR", "PRE"],
         sect: Sect::Camarilla,
         title: Title::Prince("Nairobi"),
+        adv: false,
     },
     CryptCard {
         id: 201575,
@@ -199,6 +220,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["CEL", "DOM", "OBT"],
         sect: Sect::Camarilla,
         title: Title::Prince("Tampa"),
+        adv: false,
     },
     CryptCard {
         id: 201576,
@@ -209,6 +231,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "POT", "PRE"],
         sect: Sect::Anarch,
         title: Title::Baron("Mannheim"),
+        adv: false,
     },
     CryptCard {
         id: 201577,
@@ -219,6 +242,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "obf", "pro", "PRE"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201624,
@@ -229,6 +253,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "dom", "FOR", "PRE"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201532,
@@ -239,6 +264,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "obf", "pre", "DOM"],
         sect: Sect::Camarilla,
         title: Title::Prince("Taipei"),
+        adv: false,
     },
     CryptCard {
         id: 200081,
@@ -249,6 +275,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["FOR", "PRO"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201666,
@@ -259,6 +286,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["for", "AUS", "DOM"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201657,
@@ -269,6 +297,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "pre"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 200105,
@@ -279,6 +308,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "pre", "AUS"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 200123,
@@ -289,6 +319,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pre", "AUS", "DEM", "OBF"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201709,
@@ -299,6 +330,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["dom", "obl"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 200132,
@@ -309,6 +341,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "pot", "pre"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201655,
@@ -319,6 +352,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obf", "THA"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201533,
@@ -329,6 +363,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["dom", "obf"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201578,
@@ -339,6 +374,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["dom", "obf", "tha", "CEL"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201579,
@@ -349,6 +385,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obf", "pot", "pre", "CEL"],
         sect: Sect::Anarch,
         title: Title::Baron("Mombasa"),
+        adv: false,
     },
     CryptCard {
         id: 201534,
@@ -359,6 +396,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obf", "POT"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201535,
@@ -369,6 +407,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["AUS", "DOM", "THA"],
         sect: Sect::Camarilla,
         title: Title::Prince("Addis Ababa"),
+        adv: false,
     },
     CryptCard {
         id: 201637,
@@ -379,6 +418,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "dom", "tha"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201710,
@@ -389,6 +429,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pot", "DOM", "OBL"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201536,
@@ -399,6 +440,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "obf"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201781,
@@ -409,6 +451,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "AUS", "DOM", "FOR"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201537,
@@ -419,6 +462,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "aus", "pot", "OBF"],
         sect: Sect::Camarilla,
         title: Title::Prince("Copenhagen"),
+        adv: false,
     },
     CryptCard {
         id: 201580,
@@ -429,6 +473,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "tha"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201711,
@@ -439,6 +484,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["dom", "obl", "pot"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201581,
@@ -449,6 +495,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pot", "pre", "tha", "CEL"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201667,
@@ -459,6 +506,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["dom", "pre", "pro", "ANI"],
         sect: Sect::Anarch,
         title: Title::Baron("Sofia"),
+        adv: false,
     },
     CryptCard {
         id: 201538,
@@ -469,6 +517,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["CEL", "PRE"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201539,
@@ -479,6 +528,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["FOR"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201625,
@@ -489,6 +539,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "pre", "AUS"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201521,
@@ -499,6 +550,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "cel", "for", "PRO"],
         sect: Sect::Anarch,
         title: Title::Baron("Columbus"),
+        adv: false,
     },
     CryptCard {
         id: 201668,
@@ -509,6 +561,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "dom", "AUS", "FOR"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201540,
@@ -519,6 +572,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["for", "AUS", "CEL", "PRE"],
         sect: Sect::Camarilla,
         title: Title::Prince("Buenos Aires"),
+        adv: false,
     },
     CryptCard {
         id: 201626,
@@ -529,6 +583,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pot", "ANI", "DOM", "OBF"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201541,
@@ -539,6 +594,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "for", "pre", "DOM"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201542,
@@ -549,6 +605,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["dom", "AUS", "THA"],
         sect: Sect::Camarilla,
         title: Title::Primogen,
+        adv: false,
     },
     CryptCard {
         id: 201638,
@@ -559,6 +616,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["CEL", "POT", "PRE"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201669,
@@ -569,6 +627,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "aus", "dom", "PRO"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201543,
@@ -579,6 +638,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["dom", "AUS", "OBF"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 200303,
@@ -589,6 +649,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["for", "pro", "tha", "ANI"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201582,
@@ -599,6 +660,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["OBF", "PRE", "PRO"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201729,
@@ -609,6 +671,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["for", "DOM", "OBL", "POT"],
         sect: Sect::Camarilla,
         title: Title::Prince("Constanza"),
+        adv: false,
     },
     CryptCard {
         id: 201639,
@@ -619,6 +682,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "AUS", "OBF"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201583,
@@ -629,6 +693,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "pro", "tha", "FOR"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201640,
@@ -639,6 +704,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obf", "AUS", "DOM"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201782,
@@ -649,6 +715,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obf", "ANI", "AUS", "DOM", "FOR"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201670,
@@ -659,6 +726,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["for", "pre", "ANI", "OBF"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201584,
@@ -669,6 +737,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "obf", "pre", "PRO"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201671,
@@ -679,6 +748,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "for"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201544,
@@ -689,6 +759,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "dom", "obf", "AUS"],
         sect: Sect::Camarilla,
         title: Title::Prince("Pittsburgh"),
+        adv: false,
     },
     CryptCard {
         id: 201545,
@@ -699,6 +770,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "pot", "ANI", "OBF"],
         sect: Sect::Camarilla,
         title: Title::Primogen,
+        adv: false,
     },
     CryptCard {
         id: 201546,
@@ -709,6 +781,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "OBF"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201730,
@@ -719,6 +792,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pro", "DOM", "OBL", "POT"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201585,
@@ -729,6 +803,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["CEL", "POT"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201586,
@@ -739,6 +814,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "obf", "pro", "PRE"],
         sect: Sect::Anarch,
         title: Title::Baron("Pittsburgh"),
+        adv: false,
     },
     CryptCard {
         id: 201627,
@@ -749,6 +825,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "dom", "pre", "OBF"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201587,
@@ -759,6 +836,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "obf", "CEL", "THA"],
         sect: Sect::Camarilla,
         title: Title::Prince("Detroit"),
+        adv: false,
     },
     CryptCard {
         id: 201588,
@@ -769,6 +847,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "obf", "POT", "PRE", "PRO"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201547,
@@ -779,6 +858,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "for", "CEL", "PRE"],
         sect: Sect::Camarilla,
         title: Title::Prince("São Paulo"),
+        adv: false,
     },
     CryptCard {
         id: 201672,
@@ -789,6 +869,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obf", "ANI", "PRE"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201718,
@@ -799,6 +880,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["for", "AUS", "OBL"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201548,
@@ -809,6 +891,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obf", "pre", "AUS", "DOM"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201712,
@@ -819,6 +902,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["tha", "DOM", "OBL", "POT", "PRO"],
         sect: Sect::Camarilla,
         title: Title::Prince("Lima"),
+        adv: false,
     },
     CryptCard {
         id: 201589,
@@ -829,6 +913,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "obf", "tha"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201641,
@@ -839,6 +924,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "cel", "pot"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201642,
@@ -849,6 +935,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "dom", "for", "CEL", "POT", "PRE"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201783,
@@ -859,6 +946,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pot", "ANI", "OBF", "PRE"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 200562,
@@ -869,6 +957,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["dom", "for", "pre"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201590,
@@ -879,6 +968,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "for", "pro"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201731,
@@ -889,6 +979,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obf", "AUS", "FOR", "OBL", "POT"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201591,
@@ -899,6 +990,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "aus", "obf", "PRE", "PRO"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201719,
@@ -909,6 +1001,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "for", "obl"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201720,
@@ -919,6 +1012,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "FOR", "OBL"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201549,
@@ -929,6 +1023,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obf", "ANI", "POT"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201550,
@@ -939,6 +1034,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "dom", "pre", "FOR"],
         sect: Sect::Camarilla,
         title: Title::Prince("Mannheim"),
+        adv: false,
     },
     CryptCard {
         id: 201673,
@@ -949,6 +1045,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["tha", "AUS", "DOM", "FOR"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201592,
@@ -959,6 +1056,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["PRO"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201551,
@@ -969,6 +1067,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "dom", "pre", "THA"],
         sect: Sect::Camarilla,
         title: Title::Prince("Rio de Janeiro"),
+        adv: false,
     },
     CryptCard {
         id: 201628,
@@ -979,6 +1078,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pre", "AUS", "DOM", "OBF"],
         sect: Sect::Camarilla,
         title: Title::Primogen,
+        adv: false,
     },
     CryptCard {
         id: 201674,
@@ -989,6 +1089,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "obf", "pre"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201593,
@@ -999,6 +1100,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obf", "PRE", "PRO"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201595,
@@ -1009,6 +1111,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["for", "pro"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 200723,
@@ -1019,6 +1122,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["PRO"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201596,
@@ -1029,6 +1133,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["tha", "CEL", "OBF"],
         sect: Sect::Camarilla,
         title: Title::Primogen,
+        adv: false,
     },
     CryptCard {
         id: 201713,
@@ -1039,6 +1144,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["for", "pot", "DOM", "OBL"],
         sect: Sect::Camarilla,
         title: Title::Primogen,
+        adv: false,
     },
     CryptCard {
         id: 201597,
@@ -1049,6 +1155,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "for", "PRO"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201598,
@@ -1059,6 +1166,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "pot", "CEL", "OBF", "THA"],
         sect: Sect::Camarilla,
         title: Title::Justicar("Assamite"),
+        adv: false,
     },
     CryptCard {
         id: 201604,
@@ -1069,6 +1177,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obf", "CEL", "THA"],
         sect: Sect::Camarilla,
         title: Title::Prince("Thessaloniki"),
+        adv: false,
     },
     CryptCard {
         id: 201552,
@@ -1079,6 +1188,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "cel", "tha", "PRE"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201659,
@@ -1089,6 +1199,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "cel", "ANI", "FOR", "PRO"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201629,
@@ -1099,6 +1210,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["DOM", "FOR", "PRE"],
         sect: Sect::Camarilla,
         title: Title::Prince("Chicago"),
+        adv: false,
     },
     CryptCard {
         id: 201599,
@@ -1109,6 +1221,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["CEL", "OBF", "THA"],
         sect: Sect::Camarilla,
         title: Title::Primogen,
+        adv: false,
     },
     CryptCard {
         id: 201574,
@@ -1119,6 +1232,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ANI", "PRO"],
         sect: Sect::Anarch,
         title: Title::Baron("Santiago"),
+        adv: false,
     },
     CryptCard {
         id: 201643,
@@ -1129,6 +1243,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["dom", "for", "PRE"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201553,
@@ -1139,6 +1254,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pot", "ANI", "OBF"],
         sect: Sect::Camarilla,
         title: Title::Primogen,
+        adv: false,
     },
     CryptCard {
         id: 200816,
@@ -1149,6 +1265,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "pre"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201554,
@@ -1159,6 +1276,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "dom", "tha"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201721,
@@ -1169,6 +1287,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "FOR", "OBL"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201555,
@@ -1179,6 +1298,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obf", "pot", "pre", "ANI"],
         sect: Sect::Camarilla,
         title: Title::Primogen,
+        adv: false,
     },
     CryptCard {
         id: 201526,
@@ -1189,6 +1309,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "for", "pot", "PRE"],
         sect: Sect::Anarch,
         title: Title::Baron("Canberra"),
+        adv: false,
     },
     CryptCard {
         id: 201556,
@@ -1199,6 +1320,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "pot", "DOM", "THA"],
         sect: Sect::Camarilla,
         title: Title::Primogen,
+        adv: false,
     },
     CryptCard {
         id: 201675,
@@ -1209,6 +1331,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pre", "ANI", "OBF"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201557,
@@ -1219,6 +1342,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["DOM", "FOR", "PRE"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201676,
@@ -1229,6 +1353,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["AUS", "DOM", "FOR"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201600,
@@ -1239,6 +1364,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obf", "pre", "pro"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201722,
@@ -1249,6 +1375,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["dom", "ANI", "AUS", "FOR", "OBL"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201677,
@@ -1259,6 +1386,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "DOM", "PRO"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201601,
@@ -1269,6 +1397,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "FOR", "PRO"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201714,
@@ -1279,6 +1408,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["DOM", "OBL", "POT"],
         sect: Sect::Camarilla,
         title: Title::Prince("Barcelona"),
+        adv: false,
     },
     CryptCard {
         id: 201630,
@@ -1289,6 +1419,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "cel", "dom", "THA"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201602,
@@ -1299,6 +1430,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pro", "ANI", "FOR"],
         sect: Sect::Anarch,
         title: Title::Baron("Belo Horizonte"),
+        adv: false,
     },
     CryptCard {
         id: 201558,
@@ -1309,6 +1441,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "cel", "pre"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201631,
@@ -1319,6 +1452,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pre"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201559,
@@ -1329,6 +1463,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "obf"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201603,
@@ -1339,6 +1474,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pro", "OBF"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201644,
@@ -1349,6 +1485,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "cel", "for", "pro"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201605,
@@ -1359,6 +1496,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pre", "pro"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201560,
@@ -1369,6 +1507,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "cel"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201645,
@@ -1379,6 +1518,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["DOM", "FOR", "POT", "PRE", "THA"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201561,
@@ -1389,6 +1529,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "cel", "for", "PRE"],
         sect: Sect::Camarilla,
         title: Title::Prince("Cape Town"),
+        adv: false,
     },
     CryptCard {
         id: 201723,
@@ -1399,6 +1540,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["AUS", "FOR", "OBL"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201724,
@@ -1409,6 +1551,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "AUS", "FOR", "OBL"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201784,
@@ -1419,6 +1562,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["for", "ANI", "DOM", "PRO"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201562,
@@ -1429,6 +1573,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["dom", "FOR", "PRE"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201563,
@@ -1439,6 +1584,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "THA"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201606,
@@ -1449,6 +1595,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "PRO"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201632,
@@ -1459,6 +1606,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "DOM", "OBF", "POT"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201607,
@@ -1469,6 +1617,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "THA"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201678,
@@ -1479,6 +1628,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "pro", "ANI", "DOM"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201564,
@@ -1489,6 +1639,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "pre"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201785,
@@ -1499,6 +1650,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "cel", "ANI", "OBF", "PRE"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201608,
@@ -1509,6 +1661,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["for", "OBF", "PRE", "PRO"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201609,
@@ -1519,6 +1672,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["CEL", "POT", "PRE"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201679,
@@ -1529,6 +1683,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obf", "pre"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201656,
@@ -1539,6 +1694,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["AUS", "CEL", "OBF", "THA"],
         sect: Sect::Camarilla,
         title: Title::Prince("Lagos"),
+        adv: false,
     },
     CryptCard {
         id: 201680,
@@ -1549,6 +1705,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "dom", "FOR"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201565,
@@ -1559,6 +1716,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["dom", "for", "pre"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201646,
@@ -1569,6 +1727,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "pot", "ANI", "OBF"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201726,
@@ -1579,6 +1738,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["AUS", "DOM", "FOR", "OBL"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201566,
@@ -1589,6 +1749,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["dom", "for", "tha", "AUS"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201727,
@@ -1599,6 +1760,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obl"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201681,
@@ -1609,6 +1771,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "OBF", "PRE"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201682,
@@ -1619,6 +1782,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "dom", "pro"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201647,
@@ -1629,6 +1793,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "obf", "DOM", "FOR", "PRE"],
         sect: Sect::Camarilla,
         title: Title::Prince("London"),
+        adv: false,
     },
     CryptCard {
         id: 201660,
@@ -1639,6 +1804,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "pot", "ANI", "FOR", "PRO"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201610,
@@ -1649,6 +1815,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pot"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201648,
@@ -1659,6 +1826,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["AUS", "PRE"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201649,
@@ -1669,6 +1837,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["tha", "ANI", "OBF", "POT"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201715,
@@ -1679,6 +1848,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pre", "DOM", "OBL", "POT"],
         sect: Sect::Camarilla,
         title: Title::Primogen,
+        adv: false,
     },
     CryptCard {
         id: 201683,
@@ -1689,6 +1859,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ANI", "OBF", "PRE"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201732,
@@ -1699,6 +1870,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["AUS", "FOR", "OBF", "OBL", "PRE"],
         sect: Sect::Camarilla,
         title: Title::Prince("Edinburgh"),
+        adv: false,
     },
     CryptCard {
         id: 201567,
@@ -1709,6 +1881,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["THA"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201650,
@@ -1719,6 +1892,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "obf", "pre"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201651,
@@ -1729,6 +1903,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "pot", "FOR", "PRO"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201684,
@@ -1739,6 +1914,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obf"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201611,
@@ -1749,6 +1925,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pro"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201568,
@@ -1759,6 +1936,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "obf", "pot"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201786,
@@ -1769,6 +1947,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "ANI", "DOM", "PRO"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201685,
@@ -1779,6 +1958,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["dom", "AUS", "FOR"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201658,
@@ -1789,6 +1969,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["for", "pro", "CEL", "POT", "PRE"],
         sect: Sect::Anarch,
         title: Title::Baron("Helsinki"),
+        adv: false,
     },
     CryptCard {
         id: 201686,
@@ -1799,6 +1980,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "tha", "AUS", "DOM", "FOR"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201662,
@@ -1809,6 +1991,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "pot", "OBF", "PRE", "PRO"],
         sect: Sect::Anarch,
         title: Title::Baron("Santo Domingo"),
+        adv: false,
     },
     CryptCard {
         id: 201612,
@@ -1819,6 +2002,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pot", "CEL", "PRE"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201687,
@@ -1829,6 +2013,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ANI", "FOR", "OBF", "PRE"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201652,
@@ -1839,6 +2024,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "tha", "DOM"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201321,
@@ -1849,6 +2035,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "CEL", "PRO"],
         sect: Sect::Sabbat,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201569,
@@ -1859,6 +2046,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "dom", "obf"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201688,
@@ -1869,6 +2057,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "dom"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201570,
@@ -1879,6 +2068,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["dom", "tha", "FOR", "PRE"],
         sect: Sect::Camarilla,
         title: Title::Prince("Rotterdam"),
+        adv: false,
     },
     CryptCard {
         id: 201571,
@@ -1889,6 +2079,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "CEL", "PRE"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201613,
@@ -1899,6 +2090,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "dom", "CEL", "POT", "PRE"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201728,
@@ -1909,6 +2101,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["dom", "for", "AUS", "OBL", "THA"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201572,
@@ -1919,6 +2112,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["AUS", "DOM", "THA"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201689,
@@ -1929,6 +2123,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ANI"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201653,
@@ -1939,6 +2134,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "cel", "pot", "DOM", "FOR", "PRE"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201614,
@@ -1949,6 +2145,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "pre", "pro", "POT"],
         sect: Sect::Anarch,
         title: Title::Baron("Moscow"),
+        adv: false,
     },
     CryptCard {
         id: 201615,
@@ -1959,6 +2156,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obf", "tha", "PRE", "PRO"],
         sect: Sect::Anarch,
         title: Title::Baron("Johannesburg"),
+        adv: false,
     },
     CryptCard {
         id: 201594,
@@ -1969,6 +2167,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "obf", "THA"],
         sect: Sect::Camarilla,
         title: Title::Prince("Algiers"),
+        adv: false,
     },
     CryptCard {
         id: 201573,
@@ -1979,6 +2178,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ani", "aus", "obf", "POT"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201465,
@@ -1989,6 +2189,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["cel", "DOM", "FOR", "PRE"],
         sect: Sect::Camarilla,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201690,
@@ -1999,6 +2200,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["pro", "ANI", "DOM"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201691,
@@ -2009,6 +2211,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["aus", "dom", "for"],
         sect: Sect::Independent,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201716,
@@ -2019,6 +2222,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["for", "DOM", "OBL", "POT"],
         sect: Sect::Camarilla,
         title: Title::Prince("Singapore"),
+        adv: false,
     },
     CryptCard {
         id: 201692,
@@ -2029,6 +2233,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["obf", "PRE"],
         sect: Sect::Anarch,
         title: Title::None,
+        adv: false,
     },
     CryptCard {
         id: 201665,
@@ -2039,6 +2244,7 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["ANI", "DOM", "PRO"],
         sect: Sect::Anarch,
         title: Title::Baron("Ciudad Juárez"),
+        adv: false,
     },
     CryptCard {
         id: 201617,
@@ -2049,6 +2255,62 @@ pub static CRYPT: [CryptCard; 201] = [
         disciplines: &["AUS", "DOM", "OBF"],
         sect: Sect::Anarch,
         title: Title::Baron("Miami"),
+        adv: false,
+    },
+    CryptCard {
+        id: 200575,
+        name: "Hartmut Stover",
+        capacity: 10,
+        group: 3,
+        clan: "Gangrel antitribu",
+        disciplines: &["dom", "for", "CEL", "OBF", "PRO"],
+        sect: Sect::Sabbat,
+        title: Title::Archbishop("Berlin"),
+        adv: false,
+    },
+    CryptCard {
+        id: 200634,
+        name: "Ingrid Rossler",
+        capacity: 9,
+        group: 2,
+        clan: "Gangrel",
+        disciplines: &["dom", "ANI", "FOR", "PRO"],
+        sect: Sect::Camarilla,
+        title: Title::Prince("Geneva"),
+        adv: false,
+    },
+    CryptCard {
+        id: 200937,
+        name: "Mark Decker",
+        capacity: 8,
+        group: 3,
+        clan: "Gangrel",
+        disciplines: &["ani", "for", "obf", "pot", "CEL", "PRO"],
+        sect: Sect::Camarilla,
+        title: Title::Prince("Milwaukee"),
+        adv: false,
+    },
+    CryptCard {
+        id: 201312,
+        name: "Stanislava",
+        capacity: 11,
+        group: 2,
+        clan: "Gangrel",
+        disciplines: &["ANI", "CEL", "DOM", "FOR", "PRO"],
+        sect: Sect::Camarilla,
+        title: Title::InnerCircle("Gangrel"),
+        adv: false,
+    },
+    CryptCard {
+        id: 201478,
+        name: "Xaviar",
+        capacity: 10,
+        group: 3,
+        clan: "Gangrel",
+        disciplines: &["aus", "cel", "pot", "ABO", "ANI", "FOR", "PRO"],
+        sect: Sect::Camarilla,
+        title: Title::Justicar("Gangrel"),
+        adv: true,
     },
 ];
 
@@ -2090,4 +2352,11 @@ pub static MINI_PRECONS: [(&str, &[(u16, u8)]); 14] = [
     ("Ravnos (New Blood III)", &[(61, 1), (81, 1), (116, 1), (145, 1), (164, 1), (188, 1)]),
     ("Salubri (New Blood III)", &[(2, 1), (36, 1), (60, 1), (118, 1), (150, 1), (173, 1)]),
     ("Tzimisce (New Blood III)", &[(52, 1), (137, 2), (143, 1), (172, 1), (195, 1)]),
+];
+
+/// The anniversary decks' crypts (12 cards each; reviewed decklists,
+/// `window_matrix.ANNIVERSARY_DECKS`) as (name, [(CRYPT index, copies)]).
+#[rustfmt::skip]
+pub static ANNIVERSARY_PRECONS: [(&str, &[(u16, u8)]); 1] = [
+    ("Reign of Stanislava (Twenty-Fifth Anniversary)", &[(201, 2), (202, 2), (203, 2), (204, 4), (205, 2)]),
 ];

@@ -19,7 +19,7 @@ import sys
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from window_matrix import in_pool, modes_for, pool_order  # noqa: E402
+from window_matrix import anniversary_decks, in_pool, modes_for, pool_order  # noqa: E402
 
 FULL_PRECON_SETS = ["Fifth Edition", "Fifth Edition (Anarch)", "Fifth Edition (Companion)"]
 MINI_PRECON_SETS = ["New Blood", "New Blood II", "New Blood III"]
@@ -236,6 +236,16 @@ def generate(cards):
         "/// The 14 New Blood mini-starter libraries as (name, [(LIBRARY index, copies)]).",
         "/// Names match crypt::MINI_PRECONS.",
     ])
+    out.append("")
+    out.append("/// The anniversary decks' libraries (88 cards each) as (name, [(LIBRARY")
+    out.append("/// index, copies)]). Names match crypt::ANNIVERSARY_PRECONS.")
+    out.append("#[rustfmt::skip]")
+    decks = anniversary_decks(cards)
+    out.append(f"pub static ANNIVERSARY_LIBRARIES: [(&str, &[(u16, u8)]); {len(decks)}] = [")
+    for deck, s, entries in decks:
+        body = ", ".join(f"({i}, {k})" for i, k in sorted((index[c], k) for c, k in entries.items() if c in index))
+        out.append(f"    ({rust_str(deck + ' (' + s + ')')}, &[{body}]),")
+    out.append("];")
     return "\n".join(out) + "\n"
 
 

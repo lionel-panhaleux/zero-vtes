@@ -283,6 +283,10 @@ impl Describer<'_> {
                 self.named(payer),
                 self.named(minion)
             ),
+            MoveCardToTitled { card, .. } => format!(
+                "Move {} to another justicar or Inner Circle member",
+                self.card_name(card)
+            ),
             Replacement { .. }
             | DrawUp { .. }
             | Draws { .. }
@@ -425,6 +429,9 @@ impl Describer<'_> {
                     self.named(minion)
                 )),
                 (MoveForBlood { .. }, Choice::Pass) => Some("Don't move it".into()),
+                (MoveCardToTitled { card, .. }, Choice::ChooseMinion(_)) => {
+                    role(format!("gets {}", self.card_name(card)))
+                }
                 _ => None,
             };
         }

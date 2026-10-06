@@ -87,6 +87,11 @@ pub enum Window {
     /// except the as-played window (cancels and wakes only, rules-qa
     /// 2.4). Matched only where a request site asks for it.
     AnyImpulse,
+    /// In-play ability hook: another Methuselah's minion phase, as they
+    /// declare its end (the phase rotation, rules-qa 7.9): "during any
+    /// Methuselah's minion phase, this vampire can lock this card to take
+    /// an action" (Enkil Cog; rules-qa 49.6).
+    OthersMinionPhaseEnd,
 }
 
 impl Window {
@@ -214,8 +219,7 @@ pub enum TitleClass {
     Prince,
     Baron,
     Justicar,
-    /// No V5 vampire holds it yet: `crypt::Title` gains the Sabbat titles
-    /// with the Sabbat precons (owner, 2026-09-13: keep the card's text).
+    InnerCircle,
     Archbishop,
 }
 
@@ -228,6 +232,8 @@ impl TitleClass {
             (TitleClass::Prince, Title::Prince(_)) => true,
             (TitleClass::Baron, Title::Baron(_)) => true,
             (TitleClass::Justicar, Title::Justicar(_)) => true,
+            (TitleClass::InnerCircle, Title::InnerCircle(_)) => true,
+            (TitleClass::Archbishop, Title::Archbishop(_)) => true,
             _ => false,
         }
     }
@@ -376,6 +382,19 @@ pub enum Stat {
     /// Cannot strike: combat ends (Faruq Abd al-Qadir's opponents with
     /// his Methuselah's corruption counters): any positive total bars it.
     NoCombatEnds,
+    /// Each vampire casting votes or ballots against a referendum it calls
+    /// burns this much blood once results are tallied (Hartmut Stover;
+    /// rules-qa 49.2: not a cost).
+    AgainstCastersBurnBlood,
+    /// Its controller's transfers, read as the influence phase begins
+    /// (Ingrid Rossler: "if Ingrid is ready at the start of your influence
+    /// phase").
+    Transfers,
+    /// Allies cannot block it (Stanislava): any positive total bars them.
+    AlliesCannotBlock,
+    /// The retainers of a minion opposing it in combat lose their text for
+    /// that combat (Stanislava; rules-qa 49.3): any positive total.
+    OpposingRetainersLoseText,
     /// Blood off its rescue of a vampire from torpor, the rescued one its
     /// opponent ("rescuing an older vampire from torpor costs Adelino -2
     /// blood"): the action's cost, whoever pays it (PIB 20110918).
@@ -529,6 +548,9 @@ pub enum Requirement {
     DirectedAtYou,
     /// The current action is a bleed.
     IsBleed,
+    /// The current action is a bleed against the acting Methuselah's prey
+    /// (Enkil Cog): read live, a redirected bleed is not.
+    BleedAgainstPrey,
     /// The current bleed was successful: it resolved for 1 pool or more
     /// ("after a successful bleed", Ilonka; rulebook "Bleed").
     BleedSuccessful,
@@ -569,6 +591,10 @@ pub enum Requirement {
     /// The host of the card in play is in torpor (Fame's unlock rider;
     /// a host that left play with its Methuselah does not qualify).
     HostInTorpor,
+    /// The host's controller is the active Methuselah: "during this
+    /// vampire's unlock phase" (Fear of Mekhet, a master card its player
+    /// keeps on another's vampire).
+    HostControllerActive,
     /// The player has a master phase action left ("use a master phase
     /// action", Tension in the Ranks).
     MasterPhaseActionLeft,
@@ -634,6 +660,9 @@ pub enum Requirement {
     OwnReadyClanWithBlood(&'static str),
     /// The acting minion is a vampire.
     ActingVampire,
+    /// The acting minion is a vampire with capacity n or more (Monastery
+    /// of Shadows).
+    ActingCapacityAtLeast(u8),
     /// A minion another Methuselah controls is attempting to block and needs
     /// intercept (KRCG News Radio's paid half).
     OthersAttemptNeedsIntercept,
@@ -1308,6 +1337,30 @@ pub enum RefEffect {
     /// allocated, each card allocated a point is burned (Revolutionary
     /// Council).
     LockChosenBurnAllocated,
+    /// Each Methuselah can choose a ready vampire they control (as it
+    /// passes, `RefStep::Choose`), gains pool equal to its capacity, then
+    /// burns n pool (Ancient Influence).
+    GainChosenCapacityBurn(u8),
+    /// Each Methuselah can choose a ready vampire they control, gains n
+    /// pool, then burns pool equal to the capacity of their predator's
+    /// chosen vampire (Reins of Power).
+    GainBurnPredatorsChosenCapacity(u8),
+    /// Each Methuselah gains n pool for each vampire they control with
+    /// capacity `cap` or more (Political Stranglehold).
+    GainPerVampireCapacityAtLeast { cap: u8, n: u8 },
+    /// The chosen minion is removed from the game (Permanent Vacation).
+    RemoveChosen,
+}
+
+impl RefEffect {
+    /// Each Methuselah chooses a ready vampire they control once the
+    /// referendum passes (rules-qa 49.1).
+    pub fn chooses_vampires(self) -> bool {
+        matches!(
+            self,
+            RefEffect::GainChosenCapacityBurn(_) | RefEffect::GainBurnPredatorsChosenCapacity(_)
+        )
+    }
 }
 
 /// A political action card's referendum: its terms, its effect, and the
@@ -1511,7 +1564,9 @@ pub enum Limit {
     /// rules §1.2.1): unlocking mid-vote does not restore it.
     PerReferendum,
     /// "Once each turn": once during each Methuselah's turn (advanced rules
-    /// §1.2.1), per copy of the card or per vampire ability.
+    /// §1.2.1), per copy of the card or per vampire ability; on a card
+    /// mode, "a vampire can play only one X each turn" (Forced March): per
+    /// minion and card, the modes so limited together.
     PerTurn,
     /// "Only one X can be played each action", by any minion (Veil the
     /// Legions).
@@ -2587,6 +2642,11 @@ pub enum Effect {
     /// "If the action is successful, this vampire can burn n blood to unlock
     /// after action resolution" (Paths in Two Worlds [OBL]).
     UnlockForBloodIfSuccessful(u8),
+    /// Unlock rider: the host burns n blood, all or nothing; unable to, it
+    /// is burned; otherwise its controller moves this card to another
+    /// justicar or Inner Circle member, or burns it if there is none
+    /// (Fear of Mekhet; rules-qa 49.4).
+    HostBurnsBloodOrBurnedThenMoves(u8),
     /// "Stun" the target minion: it locks and does not unlock during its
     /// controller's next unlock phase (Mind Numb).
     Stun,
@@ -2870,6 +2930,9 @@ pub enum Effect {
     /// and move it to hand, or find none; shuffle afterward (Sakhar's
     /// equipment, Dominica's master archetype).
     SearchToHand(CardFilter),
+    /// The host takes an action, any it may (Enkil Cog): its Methuselah
+    /// picks it (`Flow::CogAction`).
+    TakeAnyAction,
     /// The printed action is mandatory while its requirements hold: taken
     /// before any other action, and a vampire that cannot take it is stuck
     /// and takes none (spec §3.9, Elen Kamjian).
@@ -3573,6 +3636,7 @@ pub struct PlaysAs {
 /// A vampire's defaults, spread as `..VAMP` under its name.
 pub const VAMP: VampireDef = VampireDef {
     name: "",
+    adv: false,
     printed: &[],
     abilities: &[],
     riders: &[],
@@ -3586,6 +3650,9 @@ pub const VAMP: VampireDef = VampireDef {
 pub struct VampireDef {
     /// Printed name; matched against `crypt::CRYPT`.
     pub name: &'static str,
+    /// The advanced card of the name (`CryptCard::adv`): its text differs
+    /// from the base card's.
+    pub adv: bool,
     pub printed: &'static [Printed],
     /// Abilities printed on the vampire, in the card vocabulary: the actor
     /// `Host` is the vampire itself.
@@ -3618,7 +3685,7 @@ pub fn vampire(card: u16) -> Option<&'static VampireDef> {
             .map(|c| {
                 vampires::VAMPIRES
                     .iter()
-                    .find(|d| d.name == c.name)
+                    .find(|d| d.name == c.name && d.adv == c.adv)
                     .copied()
             })
             .collect()
@@ -3791,6 +3858,9 @@ pub fn holds(
         Requirement::NotOwnTurn => st.active != seat,
         Requirement::DirectedAtYou => action.is_some_and(|a| a.directed_seat(st) == Some(seat)),
         Requirement::IsBleed => action.is_some_and(|a| a.kind == ActionKind::Bleed),
+        Requirement::BleedAgainstPrey => action.is_some_and(|a| {
+            a.kind == ActionKind::Bleed && a.bleed_target == Some(st.prey(a.seat))
+        }),
         Requirement::BleedSuccessful => action.is_some_and(|a| a.bleed_successful),
         Requirement::BleedAmountAtLeast(n) => action.is_some_and(|a| a.bleed_amount(st) >= n),
         Requirement::BlocksDeclined => action.is_some_and(|a| a.state == ActionState::Declined),
@@ -3858,6 +3928,10 @@ pub fn holds(
         Requirement::ActingVampire => {
             action.is_some_and(|a| st.minions[a.acting.index()].is_vampire())
         }
+        Requirement::ActingCapacityAtLeast(n) => action.is_some_and(|a| {
+            st.minions[a.acting.index()].is_vampire()
+                && st.capacity_of(a.acting).is_some_and(|c| c >= n)
+        }),
         Requirement::ActionUndirected => action.is_some_and(|a| a.directed_seat(st).is_none()),
         Requirement::ActingClan(c) => {
             action.is_some_and(|a| st.minions[a.acting.index()].clan() == Some(c))
@@ -3879,6 +3953,7 @@ pub fn holds(
         | Requirement::HostBelowCapacity
         | Requirement::HostControllerPoolAtLeast(_)
         | Requirement::HostInTorpor
+        | Requirement::HostControllerActive
         | Requirement::CountersAtLeast(_)
         | Requirement::CardUnlocked
         | Requirement::NotHuntingGroundFed
@@ -4431,6 +4506,7 @@ pub fn holds_for_uncontrolled(
         Requirement::SameClanAsActor => {
             acting.is_some_and(|a| st.minions[a.index()].clan() == Some(clan))
         }
+        Requirement::TargetCapacityAtLeast(n) => capacity >= n,
         _ => true,
     }
 }
@@ -4618,6 +4694,7 @@ pub fn holds_for_host(req: Requirement, st: &GameState, host: MinionId) -> bool 
         Requirement::HostBelowStartingLife => st.ally_body(host).is_some_and(|b| v.blood < b.life),
         Requirement::HostControllerPoolAtLeast(n) => st.seats[v.owner.index()].pool >= n as i32,
         Requirement::HostInTorpor => v.in_play && v.in_torpor,
+        Requirement::HostControllerActive => v.in_play && v.owner == st.active,
         Requirement::HostClan(c) => v.clan() == Some(c),
         Requirement::HostDiscipline(d) => st.has_discipline(host, d),
         _ => true,

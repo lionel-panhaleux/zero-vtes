@@ -35,6 +35,7 @@ use crate::cards::{CardFilter, RefEffect, Term};
 use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::Engine;
 use crate::ids::{MinionId, SeatId};
+use crate::referendum::RefStep;
 use crate::state::CardId;
 
 /// How much the caller wants a Methuselah to lose pool: the caller never,
@@ -85,6 +86,11 @@ pub fn terms_choice(e: &Engine, req: &DecisionRequest) -> Option<usize> {
     let r = e.referendum()?;
     let def = r.def?;
     let me = req.seat;
+    // Ancient Influence, Reins of Power: one's biggest ready vampire (one's
+    // own gain, or the prey's burn).
+    if r.step == RefStep::Choose {
+        return biggest_vampire(e, req);
+    }
     let w = |s: SeatId| -> Option<i32> {
         Some(if points_burn(def.effect)? {
             harm(e, me, s)
@@ -144,6 +150,27 @@ pub fn terms_choice(e: &Engine, req: &DecisionRequest) -> Option<usize> {
     // The first best: among equals, the order the engine offers.
     let best = *scores.iter().max()?;
     scores.iter().position(|&s| s == best)
+}
+
+/// The option choosing the biggest vampire (capacity; the first of
+/// equals), if any.
+pub(crate) fn biggest_vampire(e: &Engine, req: &DecisionRequest) -> Option<usize> {
+    let cap = |o: &Choice| match *o {
+        Choice::ChooseMinion(m) => e.state.capacity_of(m).map(i32::from),
+        _ => None,
+    };
+    let best = req.options.iter().filter_map(cap).max()?;
+    req.options.iter().position(|o| cap(o) == Some(best))
+}
+
+/// The biggest capacity among the ready vampires `s` controls (0: none).
+fn biggest_ready(e: &Engine, s: SeatId) -> i32 {
+    let st = &e.state;
+    st.minions_of(s)
+        .filter(|&m| st.minions[m.index()].is_vampire() && st.minions[m.index()].ready())
+        .filter_map(|m| st.capacity_of(m))
+        .max()
+        .map_or(0, i32::from)
 }
 
 /// The terms a network caller may choose where the rule bounds them
@@ -244,7 +271,21 @@ fn stake(e: &Engine, me: SeatId) -> Option<i32> {
         RefEffect::BurnAllocated => Some(-alloc),
         RefEffect::BurnAllocatedChosenGains(n) => Some(-alloc + if chosen { n as i32 } else { 0 }),
         RefEffect::MoveAllocatedFromChosen => Some(alloc - if chosen { total } else { 0 }),
-        RefEffect::Banish | RefEffect::Expel => Some(-mine),
+        RefEffect::Banish | RefEffect::Expel | RefEffect::RemoveChosen => Some(-mine),
+        // Each one's biggest ready vampire chosen (the default politics).
+        RefEffect::GainChosenCapacityBurn(n) => Some(biggest_ready(e, me) - n as i32),
+        RefEffect::GainBurnPredatorsChosenCapacity(n) => {
+            Some(n as i32 - biggest_ready(e, st.predator(me)))
+        }
+        RefEffect::GainPerVampireCapacityAtLeast { cap, n } => Some(
+            n as i32
+                * st.minions_of(me)
+                    .filter(|&m| {
+                        st.minions[m.index()].is_vampire()
+                            && st.capacity_of(m).is_some_and(|c| c >= cap)
+                    })
+                    .count() as i32,
+        ),
         // Every Methuselah opposes an opponent's title (owner, 2026-10-04).
         RefEffect::PutOnChosen if !r.terms.minions.is_empty() => {
             Some(if mine > 0 { 1 } else { -1 })

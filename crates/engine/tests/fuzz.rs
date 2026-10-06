@@ -1972,4 +1972,51 @@ fuzz_tests! {
         seeds: 200,
         ..BASE
     };
+    /// Reign of Stanislava (25th Anniversary): the deck's new cards, its
+    /// five vampires dealt around the table (Inner Circle, archbishop,
+    /// justicar, princes), a werewolf and a retainer to meet them.
+    random_games_with_reign_of_stanislava_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Ancient Influence",
+            "Enkil Cog",
+            "Enkil Cog",
+            "Fear of Mekhet",
+            "Forced March",
+            "Instantaneous Transformation",
+            "Monastery of Shadows",
+            "Permanent Vacation",
+            "Political Stranglehold",
+            "Reins of Power",
+            "Zillah's Valley",
+            "Kine Resources Contested",
+            "Double Deuce",
+            "Raptor",
+        ],
+        covers: &[
+            "play:Enkil Cog",
+            "ability:Enkil Cog",
+            "play:Ancient Influence",
+            "play:Reins of Power",
+            "play:Fear of Mekhet",
+            "ability:Monastery of Shadows",
+            "play:Forced March",
+            "play:Instantaneous Transformation",
+            "play:Permanent Vacation",
+            "ability:Hartmut Stover",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Stanislava",
+                    "Hartmut Stover",
+                    "Ingrid Rossler",
+                    "Mark Decker",
+                    "Xaviar",
+                ],
+            )
+        },
+        seeds: 100,
+        ..BASE
+    };
 }

@@ -10,6 +10,12 @@ use zvtes::state::{find_card, find_library, CardInPlay, UncontrolledSlot, HAND_S
 
 /// A small set of unused V5 vampires whose superior disciplines cover
 /// `discs`: each pick is the vampire covering the most still-missing ones.
+/// The vampires the fixture tables pick from: the V5 crypt and the
+/// slice-16a additions. Later batches (Reign of Stanislava) stay out, so
+/// the tables — and the golden games — hold; they have fixtures of their
+/// own.
+pub const FIXTURE_CRYPT: usize = 201;
+
 pub fn cover(discs: &[&str], used: &[u16]) -> Vec<u16> {
     let mut missing: Vec<&str> = discs.to_vec();
     let mut picked = Vec::new();
@@ -17,7 +23,9 @@ pub fn cover(discs: &[&str], used: &[u16]) -> Vec<u16> {
         let best = CRYPT
             .iter()
             .enumerate()
-            .filter(|(i, _)| !used.contains(&(*i as u16)) && !picked.contains(&(*i as u16)))
+            .filter(|(i, _)| {
+                *i < FIXTURE_CRYPT && !used.contains(&(*i as u16)) && !picked.contains(&(*i as u16))
+            })
             .max_by_key(|(i, c)| {
                 let n = missing.iter().filter(|d| c.disciplines.contains(d)).count();
                 (n, usize::MAX - *i)

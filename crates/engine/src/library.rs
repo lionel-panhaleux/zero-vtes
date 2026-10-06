@@ -99,7 +99,7 @@ pub struct LibraryCard {
 }
 
 #[rustfmt::skip]
-pub static LIBRARY: [LibraryCard; 436] = [
+pub static LIBRARY: [LibraryCard; 446] = [
     LibraryCard {
         id: 100001,
         name: ".44 Magnum",
@@ -9835,6 +9835,216 @@ pub static LIBRARY: [LibraryCard; 436] = [
             },
         ],
     },
+    LibraryCard {
+        id: 100064,
+        name: "Ancient Influence",
+        types: &[CardType::PoliticalAction],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["ACTION_DECLARE_POLITICAL"],
+                flags: &[],
+            },
+        ],
+    },
+    LibraryCard {
+        id: 100645,
+        name: "Enkil Cog",
+        types: &[CardType::ActionModifier],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[Label::Unique],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["ACTION_AFTER_RESOLUTION"],
+                flags: &[],
+            },
+        ],
+    },
+    LibraryCard {
+        id: 100710,
+        name: "Fear of Mekhet",
+        types: &[CardType::Master],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::Fixed(2),
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["MASTER_PHASE"],
+                flags: &[],
+            },
+        ],
+    },
+    LibraryCard {
+        id: 100761,
+        name: "Forced March",
+        types: &[CardType::ActionModifier],
+        disciplines: &["cel", "for"],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: true,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["cel", "for"],
+                windows: &["ACTION_AFTER_RESOLUTION"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["CEL", "FOR"],
+                windows: &["ACTION_STEALTH_INTERCEPT"],
+                flags: &[],
+            },
+        ],
+    },
+    LibraryCard {
+        id: 100994,
+        name: "Instantaneous Transformation",
+        types: &[CardType::ActionModifier],
+        disciplines: &["cel", "pro"],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: true,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["cel", "pro"],
+                windows: &["ACTION_STEALTH_INTERCEPT"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["CEL", "PRO"],
+                windows: &["ACTION_AFTER_RESOLUTION"],
+                flags: &[],
+            },
+        ],
+    },
+    LibraryCard {
+        id: 101238,
+        name: "Monastery of Shadows",
+        types: &[CardType::Master],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::Fixed(3),
+        burn_option: false,
+        combo: false,
+        labels: &[Label::Unique, Label::Location],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["MASTER_PHASE"],
+                flags: &[],
+            },
+        ],
+    },
+    LibraryCard {
+        id: 101390,
+        name: "Permanent Vacation",
+        types: &[CardType::PoliticalAction],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["ACTION_DECLARE_POLITICAL"],
+                flags: &[],
+            },
+        ],
+    },
+    LibraryCard {
+        id: 101417,
+        name: "Political Stranglehold",
+        types: &[CardType::PoliticalAction],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["ACTION_DECLARE_POLITICAL"],
+                flags: &[],
+            },
+        ],
+    },
+    LibraryCard {
+        id: 101591,
+        name: "Reins of Power",
+        types: &[CardType::PoliticalAction],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["ACTION_DECLARE_POLITICAL"],
+                flags: &[],
+            },
+        ],
+    },
+    LibraryCard {
+        id: 102207,
+        name: "Zillah's Valley",
+        types: &[CardType::Master],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::Fixed(5),
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["MASTER_PHASE"],
+                flags: &[],
+            },
+        ],
+    },
 ];
 
 /// The 14 full-size preconstructed libraries as (name, [(LIBRARY index, copies)]).
@@ -9875,4 +10085,11 @@ pub static MINI_LIBRARIES: [(&str, &[(u16, u8)]); 14] = [
     ("Ravnos (New Blood III)", &[(2, 1), (6, 3), (20, 1), (27, 1), (38, 1), (57, 3), (72, 1), (80, 3), (90, 5), (98, 3), (128, 1), (139, 1), (165, 4), (178, 1), (197, 1), (235, 2), (243, 3), (261, 2), (278, 2), (284, 1), (290, 1), (291, 1), (358, 2), (365, 2), (394, 2)]),
     ("Salubri (New Blood III)", &[(17, 4), (18, 2), (87, 1), (122, 3), (131, 3), (147, 2), (158, 4), (166, 1), (171, 1), (182, 4), (230, 2), (295, 2), (305, 4), (334, 1), (358, 2), (361, 2), (364, 1), (376, 3), (377, 3), (391, 1), (394, 2)]),
     ("Tzimisce (New Blood III)", &[(34, 2), (40, 2), (65, 1), (71, 1), (84, 1), (91, 2), (108, 2), (128, 1), (130, 1), (135, 1), (144, 1), (150, 2), (151, 3), (167, 4), (238, 2), (244, 1), (260, 1), (262, 1), (286, 2), (295, 1), (320, 2), (324, 3), (356, 4), (357, 2), (387, 1), (389, 1), (401, 1), (402, 1), (404, 1)]),
+];
+
+/// The anniversary decks' libraries (88 cards each) as (name, [(LIBRARY
+/// index, copies)]). Names match crypt::ANNIVERSARY_PRECONS.
+#[rustfmt::skip]
+pub static ANNIVERSARY_LIBRARIES: [(&str, &[(u16, u8)]); 1] = [
+    ("Reign of Stanislava (Twenty-Fifth Anniversary)", &[(15, 1), (16, 1), (29, 1), (31, 2), (34, 1), (81, 1), (91, 6), (103, 1), (108, 4), (109, 6), (110, 1), (148, 1), (150, 6), (158, 3), (164, 1), (167, 7), (185, 1), (196, 4), (232, 1), (243, 3), (252, 5), (258, 1), (286, 2), (321, 3), (395, 5), (428, 1), (432, 2), (436, 1), (437, 1), (438, 1), (439, 3), (440, 3), (441, 1), (442, 1), (443, 1), (444, 1), (445, 4)]),
 ];

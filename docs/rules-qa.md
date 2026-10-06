@@ -1,7 +1,7 @@
 # Rules Q&A — ruling reference
 
 Owner rulings (VEKN judge) on VTES rules questions raised while building the
-engine, Batches 1–46. Each item is the settled rule, stated as fact; the
+engine, Batches 1–50. Each item is the settled rule, stated as fact; the
 question framing, engine mechanics, test names and confirmations are dropped
 deliberately: the code and its tests are the reference for how a rule is
 implemented, and they point back here through `rules-qa N.M` comments.
@@ -58,30 +58,30 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
 - **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7
-- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6
+- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4
 - **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9
 - **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6
-- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4
-- **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9
+- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6
+- **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4
 - **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1
 - **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7
 - **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6
 - **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4
 - **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6, 46.4, 47.1
 - **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7
-- **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9
-- **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4
+- **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6
+- **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4
 - **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7
 - **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8
 - **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2
-- **Master phase, master cards, out-of-turn** — 1.5, 3.3, 6.6, 7.5, 28.10, 32.3, 33.1, 33.8, 36.4
+- **Master phase, master cards, out-of-turn** — 1.5, 3.3, 6.6, 7.5, 28.10, 32.3, 33.1, 33.8, 36.4, 49.6, 49.7, 50.1–50.3
 - **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1, 48.7
 - **Discard phase, events** — 8.4, 15.2, 28.12, 33.8, 40.1–40.11
-- **Conditions read live; card-text defaults** — 4.3, 9.1, 13.2, 18.4, 19.3, 28.2, 28.6, 29.11, 32.4, 32.7, 39.5
+- **Conditions read live; card-text defaults** — 4.3, 9.1, 13.2, 18.4, 19.3, 28.2, 28.6, 29.11, 32.4, 32.7, 39.5, 49.5, 49.7
 - **Corruption counters, multi-Discipline cards** — 25.1–25.6, 34.3, 35.2, 38.4
-- **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14
+- **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14, 49.2, 49.3
 - **Game end, VP, ousting** — 6.9, 18.2, 24.1, 33.2
 ## Batch 1 — sequencing, impulse, windows
 
@@ -558,7 +558,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 
 **32.6** Embrace-like cards (Waters of Duat: "becomes a … Follower of Set", no sect printed): the new vampire takes the acting vampire's (sire's) sect — rulebook "Sect", new default.
 
-**32.7** Card text is addressed at the controller by default: Open War's 4 pool goes to the card's controller, not the Methuselah who moved the fourth counter.
+**32.7** Card text is addressed at the controller by default: Open War's 4 pool goes to the card's controller, not the Methuselah who moved the fourth counter. Clarified by 49.5.
 
 **32.8** Aranthebes, The Immortal: shuffled into its owner's library; its lock gives -1 stealth to the predator's acting minion; the -1 bleed applies to vampires only (not allies), while the card is unlocked.
 
@@ -825,3 +825,35 @@ Owner ruled 46.1–46.4 from play (2026-09-30).
 **48.7** An ability whose only effect is to unlock its own minion is not offered while that minion is unlocked (owner, 2026-10-04, from play: Rutor's Hand offered to unlock an unlocked vampire — "legal, but really useless, no card cycled or anything"). An exception to 17.4's legal no-op plays: locking the card or spending a once-each-turn use buys nothing. Rutor's Hand, Valerie Diaz, Sword of the Archangel; the vampires' unlock abilities required it already.
 
 **48.8** Rescue's cost: who pays it (the acting vampire, the rescued one, or a split) is chosen as the action is announced; the blood is paid as it resolves (3.6) (owner, 2026-10-04, from play: "it should ask when the action is declared (who pays)"). The cost is read again at resolution (live conditions). Question (implemented reading): a share its payer can no longer meet at resolution falls to the other, the action fizzling only when both together cannot pay (3.6); a vampire gone from play pays nothing (28.7).
+
+## Batch 49 — Reign of Stanislava (25th Anniversary) and Sabbat paths (scoping, 2026-10-05)
+
+**49.1** Reins of Power, Ancient Influence: the Methuselahs choose their ready vampire in turn, clockwise from the acting Methuselah, in the open — each sees the earlier choices. The choice is optional: with none, Ancient Influence gains 0 (the 5 pool is still burned); for Reins of Power, a predator choosing none makes their prey burn 0 (owner, 2026-10-06).
+
+**49.2** Hartmut Stover's burn ("once results are tallied") is not a cost to cast (unlike Alexander Silverson, 41.3): a vampire with no blood may vote against his referendum and burns nothing. As in 41.3, Hartmut burns if he votes against his own referendum, and a Methuselah's ballots (the Edge, a burned card) cost nothing (owner, 2026-10-06).
+
+**49.3** Stanislava: retainers employed by a minion opposing her in combat lose their card text for that combat (strength or damage bonuses, additional strikes, prevention, intercept); they are still retainers, whose life still takes damage (owner, 2026-10-06).
+
+**49.4** Fear of Mekhet: the 5 blood is all or nothing — a vampire with fewer than 5 is burned without paying any; a vampire in torpor still pays. Moving the card does not lock its new holder, which may be another justicar or Inner Circle member of the same Methuselah (torpid included, ANK 20210109) (owner, 2026-10-06).
+
+**49.5** Monastery of Shadows' +1 stealth goes to any vampire with capacity 8 or more, another Methuselah's included. Clarifies 32.7: "you" in card text is the card's controller; designating a specific player needs that addressing — an unaddressed "a vampire" is any vampire (owner, 2026-10-06).
+
+**49.6** Enkil Cog's action ("during any Methuselah's minion phase") is offered only when the active Methuselah declares the end of their minion phase. If every holder passes, the minion phase ends. If one locks the Cog, that vampire takes its action, then the impulse goes back to the active Methuselah, whose minion phase continues: they may take more actions before declaring its end again, which offers the Cog again (owner, 2026-10-06: "tricky to get right for both players"). Question (implemented reading): with several holders, the offer goes clockwise from the active Methuselah.
+
+**49.7** A library card with a Sabbat path icon requires a vampire following that path: for a minion card, the minion playing it; for a master card, a ready vampire of that path its Methuselah controls — as a clan icon does (owner, 2026-10-05). Path is read live (Black Chantry, 2025-06-12: one path at a time; benefits only while Sabbat; an influence-phase "burn 1 blood to follow a path" for a Sabbat vampire following none).
+
+## Batch 50 — Reign of Stanislava, implemented readings (2026-10-06)
+
+Readings no ruling settles, implemented with the slice; each a question.
+
+**50.1** Enkil Cog in its own Methuselah's minion phase: not offered — the vampire takes its actions as usual there, and locking the Cog would add nothing. The Cog is offered only in another Methuselah's phase rotation (49.6). The several-holders reading of 49.6 cannot arise: the Cog is unique, so at most one is in play uncontested. Question (implemented reading).
+
+**50.2** Enkil Cog is offered only while its vampire has an action to take (ready, unlocked, some action legal for it): locking it with none would only lose the effect. Question (implemented reading).
+
+**50.3** Enkil Cog's "a successful bleed against your prey" reads the bleed's target as the card is played, after resolution: a bleed redirected to another Methuselah (Deflection) is not against your prey. Question (implemented reading).
+
+**50.4** Monastery of Shadows' lock is used holding the impulse in the stealth and intercept exchange of a block attempt, as KRCG News Radio's: when stealth is needed (no "even if stealth is not yet needed"), by any Methuselah controlling it (49.5). Question (implemented reading).
+
+**50.5** Political Stranglehold counts every vampire with capacity 8 or more its Methuselah controls, in torpor too; Ancient Influence and Reins of Power choose a ready vampire, locked or not (ready is not unlocked). The chosen capacity is read as the effect applies. Question (implemented reading).
+
+**50.6** Permanent Vacation: the ally removed from the game leaves its card out of the game (not in the ash heap); the cards on it are burned, and nothing keyed to a burn fires. Question (implemented reading).

@@ -18,6 +18,10 @@ use crate::state::{distinct, CardId};
 /// A pending choice about cards drawn, moved or stored.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Interrupt {
+    /// `seat` moves `card` (Fear of Mekhet) to another justicar or Inner
+    /// Circle member, any Methuselah's, in torpor included (ANK 20210109;
+    /// rules-qa 49.4: not locked by the move); burned if there is none.
+    MoveCardToTitled { seat: SeatId, card: CardId },
     /// Blood Trade: 1 blood from `from` to a vampire of another
     /// Methuselah's, the player's choice.
     GiveBlood { seat: SeatId, from: MinionId },
@@ -282,7 +286,8 @@ impl Interrupt {
             | Interrupt::BecomesAnarch { seat }
             | Interrupt::AshurPicks { seat, .. }
             | Interrupt::AllyFromAsh { seat, .. }
-            | Interrupt::MoveForBlood { seat, .. } => seat,
+            | Interrupt::MoveForBlood { seat, .. }
+            | Interrupt::MoveCardToTitled { seat, .. } => seat,
         }
     }
 }
@@ -653,6 +658,17 @@ impl Engine {
                     }
                     continue;
                 }
+                Interrupt::MoveCardToTitled { card, .. } => {
+                    if !self.state.cards[card.index()].present() {
+                        false
+                    } else if self.titled_hosts(card).is_empty() {
+                        self.interrupts.remove(0);
+                        self.burn_card_in_play(card);
+                        continue;
+                    } else {
+                        true
+                    }
+                }
                 Interrupt::MoveForBlood {
                     payer, minion, n, ..
                 } => {
@@ -776,6 +792,13 @@ impl Engine {
                             .into_iter()
                             .map(Choice::AshVampire),
                     )
+                    .collect(),
+            ),
+            Interrupt::MoveCardToTitled { card, .. } => (
+                WindowLabel::ResolutionChoice,
+                self.titled_hosts(card)
+                    .into_iter()
+                    .map(Choice::ChooseMinion)
                     .collect(),
             ),
             Interrupt::StealForCorruption { minion, .. }
@@ -913,6 +936,25 @@ impl Engine {
 
     /// The ready vampires a `ChooseForCard` may pick: its seat's, of its
     /// clan, other than the first chosen for a second choice.
+    /// The vampires `card` may move to (`Interrupt::MoveCardToTitled`):
+    /// every other justicar or Inner Circle member in play, arena order.
+    pub(crate) fn titled_hosts(&self, card: CardId) -> Vec<crate::ids::MinionId> {
+        use crate::cards::TitleClass;
+        let st = &self.state;
+        let host = st.cards[card.index()].host;
+        (0..st.minions.len())
+            .map(|i| crate::ids::MinionId(i as u32))
+            .filter(|&m| {
+                Some(m) != host
+                    && st.minions[m.index()].present()
+                    && st.minions[m.index()].is_vampire()
+                    && [TitleClass::Justicar, TitleClass::InnerCircle]
+                        .iter()
+                        .any(|c| c.matches(st.title_of(m)))
+            })
+            .collect()
+    }
+
     /// The minions of `of` an `Interrupt::MinionOf` may choose.
     pub(crate) fn minion_of_options(
         &self,
@@ -1346,6 +1388,10 @@ impl Engine {
                 } else {
                     self.raise_ash_ally(s, card, false);
                 }
+            }
+            (Interrupt::MoveCardToTitled { card, .. }, Choice::ChooseMinion(m)) => {
+                self.interrupts.remove(0);
+                self.state.cards[card.index()].host = Some(m);
             }
             (Interrupt::MoveForBlood { payer, n, .. }, Choice::ChooseMinion(m)) => {
                 self.interrupts.remove(0);

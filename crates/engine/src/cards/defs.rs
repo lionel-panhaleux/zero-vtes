@@ -2586,7 +2586,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     ..CARD
 };
 
-pub static DEFS: [&CardDef; 436] = [
+pub static DEFS: [&CardDef; 446] = [
     &MAGIC_OF_THE_SMITH,
     &VAST_WEALTH,
     &BLACK_MARKET_CACHE,
@@ -3023,6 +3023,16 @@ pub static DEFS: [&CardDef; 436] = [
     &ASHUR_TABLETS,
     &ROTSCHRECK,
     &LIFE_BOON,
+    &ZILLAHS_VALLEY,
+    &POLITICAL_STRANGLEHOLD,
+    &ANCIENT_INFLUENCE,
+    &REINS_OF_POWER,
+    &PERMANENT_VACATION,
+    &MONASTERY_OF_SHADOWS,
+    &FORCED_MARCH,
+    &INSTANTANEOUS_TRANSFORMATION,
+    &FEAR_OF_MEKHET,
+    &ENKIL_COG,
 ];
 
 // ---- Cards in play with riders and granted actions (slice 5) ------------
@@ -3786,8 +3796,7 @@ pub static SPORT_BIKE: CardDef = CardDef {
 /// any action), burn this vehicle. A minion can have only one vehicle." The
 /// equip stealth counts when it is taken from another minion too (LSJ
 /// 20060222); the burn applies as the block resolves, before anything else
-/// (ANK 20220116). No V5 vampire is an archbishop yet
-/// (`TitleClass::Archbishop`).
+/// (ANK 20220116). Hartmut Stover is an archbishop (Reign of Stanislava).
 pub static UNLICENSED_TAXICAB: CardDef = CardDef {
     name: "Unlicensed Taxicab",
     modes: &[mode_of(
@@ -13427,6 +13436,287 @@ pub static LIFE_BOON: CardDef = CardDef {
         Actor::Controller,
         &[Requirement::BoonTargetActive],
         &[Effect::StealPoolFromBoonTarget],
+    )],
+    ..CARD
+};
+
+// ---- Reign of Stanislava (25th Anniversary) -------------------------------
+//
+// The deck's new cards (owner, 2026-10-06), appended to the tables
+// (`ADDED_BATCHES` in scripts/window_matrix.py); rulings in rules-qa Batch
+// 49.
+
+/// "Add 4 blood to a vampire in your uncontrolled region with capacity 8
+/// or more."
+pub static ZILLAHS_VALLEY: CardDef = CardDef {
+    name: "Zillah's Valley",
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Uncontrolled,
+            &[Requirement::TargetCapacityAtLeast(8)],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[Effect::BloodToUncontrolledTarget(4)],
+        )
+    }],
+    ..CARD
+};
+
+static POLITICAL_STRANGLEHOLD_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[],
+    effect: RefEffect::GainPerVampireCapacityAtLeast { cap: 8, n: 3 },
+    grants: &[],
+    non_anarch_titles_minus: false,
+};
+political!(
+    POLITICAL_STRANGLEHOLD,
+    "Political Stranglehold",
+    "\"Only one Political Stranglehold can be played or called in a game. \
+     Successful referendum means each Methuselah gains 3 pool for each \
+     vampire they control with capacity 8 or more.\" Burning it for a vote \
+     is not playing it (ANK 20210309-2). Vampires in torpor count: they are \
+     controlled (rules-qa 50.5).",
+    &[Requirement::NotPlayedThisGame],
+    POLITICAL_STRANGLEHOLD_REFERENDUM
+);
+
+static ANCIENT_INFLUENCE_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[],
+    effect: RefEffect::GainChosenCapacityBurn(5),
+    grants: &[],
+    non_anarch_titles_minus: false,
+};
+political!(
+    ANCIENT_INFLUENCE,
+    "Ancient Influence",
+    "\"Only one Ancient Influence can be played or called in a game. \
+     Successful referendum means each Methuselah can choose a ready vampire \
+     they control. Each Methuselah gains pool equal to their chosen \
+     vampire's capacity, then burns 5 pool.\" The choices are made as it \
+     passes, clockwise from the acting Methuselah, in the open; none gains \
+     nothing, the 5 still burned (rules-qa 49.1). A gain then a loss: the \
+     loss counts in all cases (ANK 20180813). Ousts at once: a Methuselah \
+     whose prey is ousted gets the victory point though ousted too, only \
+     the survivors the 6 pool (LSJ 20000309). Burning it for a vote is not \
+     playing it (ANK 20210309-2).",
+    &[Requirement::NotPlayedThisGame],
+    ANCIENT_INFLUENCE_REFERENDUM
+);
+
+static REINS_OF_POWER_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[],
+    effect: RefEffect::GainBurnPredatorsChosenCapacity(6),
+    grants: &[],
+    non_anarch_titles_minus: false,
+};
+political!(
+    REINS_OF_POWER,
+    "Reins of Power",
+    "\"Only one Reins of Power can be played or called in a game. \
+     Successful referendum means each Methuselah can choose a ready vampire \
+     they control. Each Methuselah gains 6 pool, then burns pool equal to \
+     the capacity of their predator's chosen vampire.\" The choices as \
+     Ancient Influence's (rules-qa 49.1): a predator's no choice burns 0. A \
+     gain then a loss (ANK 20180813); simultaneous ousts (LSJ 20000309); \
+     burning it for a vote is not playing it (ANK 20210309-2).",
+    &[Requirement::NotPlayedThisGame],
+    REINS_OF_POWER_REFERENDUM
+);
+
+static PERMANENT_VACATION_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseMinions {
+        filter: &[Requirement::ActorReady, Requirement::TargetAlly],
+        min: 1,
+        max: 1,
+    }],
+    effect: RefEffect::RemoveChosen,
+    grants: &[],
+    non_anarch_titles_minus: false,
+};
+political!(
+    PERMANENT_VACATION,
+    "Permanent Vacation",
+    "\"Choose a ready ally. Successful referendum means the chosen ally is \
+     removed from the game.\" Not playable without a ready ally to choose \
+     (LSJ 20100129; ANK 20191228). Removed, not burned: the cards on it are \
+     burned, no burn effect fires (rules-qa 50.6).",
+    &[],
+    PERMANENT_VACATION_REFERENDUM
+);
+
+/// "Unique location. +1 hand size. Lock to give a vampire with capacity 8
+/// or more +1 stealth." Any acting vampire, another Methuselah's included;
+/// "you" in card text is its controller, who locks it (rules-qa 49.5).
+/// Used when stealth is needed, holding the impulse in the stealth and
+/// intercept rotation (KRCG News Radio; rules-qa 50.4): not "even if
+/// stealth is not yet needed" (Creepshow Casino). The hand size is suspended while contested (ANK
+/// 20221028, Elder Library).
+pub static MONASTERY_OF_SHADOWS: CardDef = CardDef {
+    name: "Monastery of Shadows",
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[],
+        &[Effect::PutInPlay, Effect::Layer(Modifier::HandSize(1))],
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionStealthIntercept],
+        Actor::Controller,
+        &[
+            Requirement::CardUnlocked,
+            Requirement::ActingCapacityAtLeast(8),
+            Requirement::StealthNeeded,
+        ],
+        &[Effect::LockSelf, Effect::AddStealth(1)],
+    )],
+    ..CARD
+};
+
+/// "A vampire can play only one Forced March each turn. [cel][for] Only
+/// usable after resolution of a successful action. Unlock this vampire.
+/// [CEL][FOR] +1 stealth. After action resolution, if the action was
+/// successful, this vampire can burn 1 blood to unlock." Both modes count
+/// toward the limit (`Limit::PerTurn`). After resolution, still during the
+/// action (LSJ 19981028; ANK 20190425); successful though the action had no
+/// effect (LSJ 20070411) or fizzled (ANK 20220218). The blood burned is an
+/// effect, not a cost: no reduction applies (ANK 20210226).
+pub static FORCED_MARCH: CardDef = CardDef {
+    name: "Forced March",
+    modes: &[
+        ModeDef {
+            limit: Some(Limit::PerTurn),
+            ..mode_of(
+                &[Window::ActionAfterResolution],
+                Actor::ActingMinion,
+                &[Requirement::ActionSuccessful],
+                &[Effect::UnlockActor],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::PerTurn),
+            ..mode_of(
+                &[Window::ActionStealthIntercept],
+                Actor::ActingMinion,
+                &[Requirement::StealthNeeded],
+                &[Effect::AddStealth(1), Effect::UnlockForBloodIfSuccessful(1)],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "[cel][pro] +1 stealth. [CEL][PRO] Only usable after resolution of a
+/// successful action. Unlock this vampire. A vampire can play only one
+/// Instantaneous Transformation at superior each turn." The limit is the
+/// superior mode's alone. After resolution, after any combat, still during
+/// the action (PIB 20150915; LSJ 19981028; ANK 20190425); an unblocked
+/// action without effect (LSJ 20070411) or fizzled (ANK 20220218) is
+/// successful.
+pub static INSTANTANEOUS_TRANSFORMATION: CardDef = CardDef {
+    name: "Instantaneous Transformation",
+    modes: &[
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::ActingMinion,
+            &[Requirement::StealthNeeded],
+            &[Effect::AddStealth(1)],
+        ),
+        ModeDef {
+            limit: Some(Limit::PerTurn),
+            ..mode_of(
+                &[Window::ActionAfterResolution],
+                Actor::ActingMinion,
+                &[Requirement::ActionSuccessful],
+                &[Effect::UnlockActor],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "Put this card on a ready justicar or Inner Circle member and lock
+/// them. During this vampire's unlock phase, they burn 5 blood. If they
+/// cannot burn the blood, they are burned; otherwise, their controller
+/// moves this card to another justicar or Inner Circle member, or burns
+/// this card if there are no others." All or nothing on the 5 blood, in
+/// torpor too; the move does not lock, may go to the same Methuselah's
+/// other one (rules-qa 49.4) or to one in torpor (ANK 20210109). The card
+/// stays its player's: the rider fires in the host's controller's unlock
+/// phase.
+pub static FEAR_OF_MEKHET: CardDef = CardDef {
+    name: "Fear of Mekhet",
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::TargetVampire,
+                Requirement::ActorReady,
+                Requirement::TargetTitleIn(&[TitleClass::Justicar, TitleClass::InnerCircle]),
+            ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[Effect::PutOnTarget, Effect::LockTarget],
+        )
+    }],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Every,
+        requires: &[Requirement::HostControllerActive],
+        effects: &[Effect::HostBurnsBloodOrBurnedThenMoves(5)],
+    }],
+    ..CARD
+};
+
+/// "Unique. Requires a vampire with capacity 10 or more. Only usable after
+/// resolution of a successful bleed against your prey. Put this card on
+/// this vampire. This vampire gets +1 bleed. During any Methuselah's minion
+/// phase, this vampire can lock this card to take an action." After
+/// resolution, after any combat, still during the action (PIB 20150915; LSJ
+/// 19981028; ANK 20190425); a bleed redirected away from the prey is not
+/// against them. The action: offered only as another Methuselah declares
+/// the end of their minion phase; taken, the impulse returns to them and
+/// their phase goes on (rules-qa 49.6) — in its own Methuselah's phase the
+/// vampire acts as usual (50.1), and the Cog is offered only while the
+/// vampire has an action to take (50.2); a redirected bleed is not against
+/// the prey (50.3). A normal action: ready, unlocked, locking. An
+/// action card canceled as it is played leaves the Cog locked and the
+/// action to take again, or to let go (LSJ 20081213-1; ANK 20210124); an
+/// action canceled later was taken.
+pub static ENKIL_COG: CardDef = CardDef {
+    name: "Enkil Cog",
+    modes: &[mode_of(
+        &[Window::ActionAfterResolution],
+        Actor::ActingMinion,
+        &[
+            Requirement::ActorCapacityAtLeast(10),
+            Requirement::ActionSuccessful,
+            Requirement::BleedAgainstPrey,
+        ],
+        &[
+            Effect::PutOnActor,
+            Effect::Layer(Modifier::Bearer {
+                stat: Stat::Bleed,
+                n: 1,
+                during: &[],
+                who: Bearer::Any,
+            }),
+        ],
+    )],
+    abilities: &[mode_of(
+        &[Window::OthersMinionPhaseEnd],
+        Actor::Host,
+        &[
+            Requirement::CardUnlocked,
+            Requirement::HostReady,
+            Requirement::HostUnlocked,
+        ],
+        &[Effect::LockSelf, Effect::TakeAnyAction],
     )],
     ..CARD
 };

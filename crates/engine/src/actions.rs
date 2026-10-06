@@ -695,7 +695,9 @@ impl Engine {
             self.state.minions[minion.index()].hunted = true;
         }
         self.state.phase_actions = self.state.phase_actions.saturating_add(1);
-        let seat = self.state.active;
+        // The acting minion's controller: the active Methuselah, or another
+        // one's vampire taking an action in their phase (Enkil Cog).
+        let seat = self.state.minions[minion.index()].owner;
         let own_target = torpor_target.map(|t| self.state.minions[t.index()].owner == seat);
         let (base_stealth, bleed_target, directed_seat) = match kind {
             ActionKind::Bleed => (0, Some(self.state.prey(seat)), Some(self.state.prey(seat))),
@@ -4008,7 +4010,7 @@ impl Engine {
             .into_iter()
             .map(|k| Choice::PayRescue { from_acting: k })
             .collect();
-        DecisionRequest::new(st.active, WindowLabel::RescueCost, options)
+        DecisionRequest::new(self.acting_seat(), WindowLabel::RescueCost, options)
     }
 
     /// The split chosen as the rescue is announced: the action goes on.
@@ -4232,7 +4234,7 @@ impl Engine {
         to_hand: Option<cards::CardFilter>,
     ) -> DecisionRequest {
         let st = &self.state;
-        let seat = st.active;
+        let seat = self.acting_seat();
         // By card, not by position: the order of the library is hidden.
         let found = crate::state::distinct(&st.seats[seat.index()].library, |c| {
             if let Some(filter) = to_hand {
@@ -4254,7 +4256,7 @@ impl Engine {
         to_hand: Option<cards::CardFilter>,
         choice: &Choice,
     ) {
-        let seat = self.state.active;
+        let seat = self.acting_seat();
         match *choice {
             Choice::FindCard(card) if to_hand.is_some() => {
                 let s = &mut self.state.seats[seat.index()];
@@ -4323,7 +4325,7 @@ impl Engine {
     /// The cards Lenelle's exchange names: a library card in the ash heap,
     /// by card, then a card from hand, by card (copies are alike).
     pub(crate) fn exchange_request(&self, ash: Option<u16>) -> DecisionRequest {
-        let seat = self.state.active;
+        let seat = self.acting_seat();
         let s = &self.state.seats[seat.index()];
         let options = match ash {
             None => crate::state::distinct(&s.ash, |_| true)
@@ -4336,7 +4338,7 @@ impl Engine {
     }
 
     pub(crate) fn exchange_apply(&mut self, ash: Option<u16>, choice: &Choice) {
-        let seat = self.state.active;
+        let seat = self.acting_seat();
         match (ash, *choice) {
             (None, Choice::FindCard(card)) => self.flow = Flow::Exchange { ash: Some(card) },
             (Some(card), Choice::Discard(i)) => {
@@ -4368,7 +4370,11 @@ impl Engine {
                 options.push(Choice::TakeEquipment { card: id.0 });
             }
         }
-        DecisionRequest::new(st.active, WindowLabel::ActionTerms, options)
+        DecisionRequest::new(
+            st.minions[minion.index()].owner,
+            WindowLabel::ActionTerms,
+            options,
+        )
     }
 
     pub(crate) fn action_terms_apply(
@@ -4411,10 +4417,38 @@ impl Engine {
     /// pending — so the phase cannot even end. An ally performs no hunt,
     /// rescue or diablerie ("any ready vampire"), and one recruited this
     /// turn takes no action at all (rulebook "Recruit Ally").
+    /// The Methuselah of the action under way, else the active one (an
+    /// action is the acting minion's controller's: Enkil Cog's in another
+    /// Methuselah's phase).
+    pub(crate) fn acting_seat(&self) -> SeatId {
+        self.action.as_ref().map_or(self.state.active, |a| a.seat)
+    }
+
     pub(crate) fn minion_phase_options(&self) -> Vec<Choice> {
+        self.action_options(self.state.active, None)
+    }
+
+    /// The actions `s` may take now: in their minion phase, with any ready
+    /// unlocked minion; with `only`, that one alone — Enkil Cog's action in
+    /// another Methuselah's phase, which may also be let go (Pass).
+    pub(crate) fn action_options(&self, s: SeatId, only: Option<MinionId>) -> Vec<Choice> {
+        let options = self.seat_action_options(s, only);
+        let Some(m) = only else {
+            return options;
+        };
+        std::iter::once(Choice::Pass)
+            .chain(options.into_iter().filter(|o| {
+                matches!(*o, Choice::TakeAction { minion, .. } if minion == m)
+                    || matches!(*o, Choice::Play { actor: Some(a), .. }
+                        | Choice::UseAbility { actor: Some(a), .. } if a == m)
+            }))
+            .collect()
+    }
+
+    fn seat_action_options(&self, s: SeatId, only: Option<MinionId>) -> Vec<Choice> {
         let st = &self.state;
-        let s = st.active;
-        let ready = st.ready_unlocked(s);
+        let mut ready = st.ready_unlocked(s);
+        ready.retain(|&m| only.is_none_or(|o| o == m));
         let starving: Vec<MinionId> = ready
             .iter()
             .copied()
@@ -4519,7 +4553,7 @@ impl Engine {
         };
         for id in st.minions_of(s) {
             let m = &st.minions[id.index()];
-            if m.locked || m.recruited {
+            if m.locked || m.recruited || only.is_some_and(|o| o != id) {
                 continue;
             }
             if m.in_torpor {
