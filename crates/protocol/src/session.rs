@@ -592,6 +592,10 @@ impl Session {
         let Some(ctx) = self.engine.referendum() else {
             return Vec::new();
         };
+        // Business Pressure's round: one pool at a time, not a vote order.
+        if ctx.pressure.is_some() {
+            return Vec::new();
+        }
         req.options
             .iter()
             .enumerate()

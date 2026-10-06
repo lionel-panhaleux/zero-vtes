@@ -99,7 +99,7 @@ pub struct LibraryCard {
 }
 
 #[rustfmt::skip]
-pub static LIBRARY: [LibraryCard; 446] = [
+pub static LIBRARY: [LibraryCard; 454] = [
     LibraryCard {
         id: 100001,
         name: ".44 Magnum",
@@ -10045,6 +10045,181 @@ pub static LIBRARY: [LibraryCard; 446] = [
             },
         ],
     },
+    LibraryCard {
+        id: 100119,
+        name: "Awe",
+        types: &[CardType::ActionModifier],
+        disciplines: &["pre"],
+        clans: &[],
+        blood_cost: Cost::X,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["pre"],
+                windows: &["REFERENDUM"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["PRE"],
+                windows: &["REFERENDUM"],
+                flags: &[],
+            },
+        ],
+    },
+    LibraryCard {
+        id: 100274,
+        name: "Business Pressure",
+        types: &[CardType::ActionModifier],
+        disciplines: &["pre"],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["pre"],
+                windows: &["REFERENDUM"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["PRE"],
+                windows: &["REFERENDUM"],
+                flags: &[],
+            },
+        ],
+    },
+    LibraryCard {
+        id: 100333,
+        name: "Charismatic Aura",
+        types: &[CardType::Combat],
+        disciplines: &["aus", "pre"],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: true,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["aus", "pre"],
+                windows: &["CARD_AS_PLAYED"],
+                flags: &["cancel_as_played"],
+            },
+            Mode {
+                tags: &["AUS", "PRE"],
+                windows: &["COMBAT_STRIKE_DECLARATION"],
+                flags: &["cancel_as_played"],
+            },
+        ],
+    },
+    LibraryCard {
+        id: 101127,
+        name: "Louvre, Paris, The",
+        types: &[CardType::Master],
+        disciplines: &[],
+        clans: &["Toreador"],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[Label::Unique, Label::Location],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["MASTER_PHASE"],
+                flags: &["in_play_action"],
+            },
+        ],
+    },
+    LibraryCard {
+        id: 101590,
+        name: "Reinforcements",
+        types: &[CardType::PoliticalAction],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["ACTION_DECLARE_POLITICAL"],
+                flags: &[],
+            },
+        ],
+    },
+    LibraryCard {
+        id: 102269,
+        name: "Camarilla Conclave",
+        types: &[CardType::Master],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[Label::Unique],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["MASTER_PHASE"],
+                flags: &[],
+            },
+        ],
+    },
+    LibraryCard {
+        id: 102271,
+        name: "Confiscation",
+        types: &[CardType::PoliticalAction],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["ACTION_DECLARE_POLITICAL"],
+                flags: &[],
+            },
+        ],
+    },
+    LibraryCard {
+        id: 102273,
+        name: "Loup",
+        types: &[CardType::ActionModifier],
+        disciplines: &[],
+        clans: &["Toreador"],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["ACTION_STEALTH_INTERCEPT"],
+                flags: &[],
+            },
+        ],
+    },
 ];
 
 /// The 14 full-size preconstructed libraries as (name, [(LIBRARY index, copies)]).
@@ -10090,6 +10265,7 @@ pub static MINI_LIBRARIES: [(&str, &[(u16, u8)]); 14] = [
 /// The anniversary decks' libraries (88 cards each) as (name, [(LIBRARY
 /// index, copies)]). Names match crypt::ANNIVERSARY_PRECONS.
 #[rustfmt::skip]
-pub static ANNIVERSARY_LIBRARIES: [(&str, &[(u16, u8)]); 1] = [
+pub static ANNIVERSARY_LIBRARIES: [(&str, &[(u16, u8)]); 2] = [
     ("Reign of Stanislava (Twenty-Fifth Anniversary)", &[(15, 1), (16, 1), (29, 1), (31, 2), (34, 1), (81, 1), (91, 6), (103, 1), (108, 4), (109, 6), (110, 1), (148, 1), (150, 6), (158, 3), (164, 1), (167, 7), (185, 1), (196, 4), (232, 1), (243, 3), (252, 5), (258, 1), (286, 2), (321, 3), (395, 5), (428, 1), (432, 2), (436, 1), (437, 1), (438, 1), (439, 3), (440, 3), (441, 1), (442, 1), (443, 1), (444, 1), (445, 4)]),
+    ("The Endless Dance (Thirtieth Anniversary)", &[(16, 1), (26, 1), (31, 2), (53, 5), (103, 1), (115, 1), (122, 2), (164, 1), (185, 2), (190, 1), (196, 2), (209, 6), (230, 2), (243, 2), (252, 6), (259, 2), (321, 2), (360, 4), (371, 6), (395, 6), (400, 6), (419, 1), (436, 1), (443, 1), (444, 1), (445, 6), (446, 2), (447, 2), (448, 2), (449, 1), (450, 1), (451, 2), (452, 1), (453, 6)]),
 ];

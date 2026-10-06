@@ -525,6 +525,7 @@ pub fn table_view(e: &Engine, viewer: Option<SeatId>, tracker: &mut Tracker) -> 
                             Source::Edge(_) => ("edge", None, None),
                             Source::Card(_) => ("card", None, None),
                             Source::InPlay(c) => ("in_play", None, Some(c.0)),
+                            Source::Pool(_) => ("pool", None, None),
                         };
                         VoteView {
                             seat: v.seat.0,

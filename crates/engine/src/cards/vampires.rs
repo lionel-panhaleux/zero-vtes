@@ -1763,7 +1763,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 107] = [
+pub static VAMPIRES: [&VampireDef; 112] = [
     &PARIJAT,
     &ABADDON,
     &ABRAHAM_DUSABLE,
@@ -1871,6 +1871,11 @@ pub static VAMPIRES: [&VampireDef; 107] = [
     &MARK_DECKER,
     &STANISLAVA,
     &XAVIAR_ADV,
+    &DIANA_IADANZA,
+    &FRANCOIS_VILLON,
+    &MARCOS_BELEGRAD,
+    &MODIUS,
+    &SILVIAN_POPESCU,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -1969,5 +1974,110 @@ pub static XAVIAR_ADV: VampireDef = VampireDef {
         ],
         &[Effect::UnlockActor],
     )],
+    ..VAMP
+};
+
+// ---- The Endless Dance (30th Anniversary) ---------------------------------
+
+/// "Camarilla Toreador Justicar: During a referendum she calls, Diana can
+/// burn 1 blood to cancel a reaction card as it is played (cost is still
+/// paid). +1 bleed." The cancel follows the cancel rules: in the as-played
+/// window, nothing but wakes (LSJ 20061207); the card is still played (ANK
+/// 20190104), replaced normally (LSJ 20080630); a limited effect canceled
+/// leaves the limit untouched (LSJ 20030224). Any reaction, in the
+/// referendum of her political action (rules-qa 51.8).
+pub static DIANA_IADANZA: VampireDef = VampireDef {
+    name: "Diana Iadanza",
+    printed: &[own(Stat::Bleed, 1, &[])],
+    abilities: &[mode_of(
+        &[Window::CardAsPlayed],
+        Actor::Host,
+        &[
+            R::HostBloodAtLeast(1),
+            R::PlayedCardType(CardType::Reaction),
+            R::ActorCalledReferendum,
+        ],
+        &[
+            Effect::HostBurnBlood(1),
+            Effect::CancelPlayed { refund: false },
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla Prince of Paris: If François is ready during your unlock
+/// phase, he can burn 2 blood to lock a younger vampire. +1 bleed." Once
+/// each unlock phase (rules-qa 6.6).
+pub static FRANCOIS_VILLON: VampireDef = VampireDef {
+    name: "François Villon",
+    printed: &[own(Stat::Bleed, 1, &[])],
+    abilities: &[ModeDef {
+        target: target(TargetKind::Minion, &[R::TargetVampire, R::Younger]),
+        ..mode_of(
+            &[Window::UnlockPhaseOwn],
+            Actor::Host,
+            &[R::HostReady, R::HostBloodAtLeast(2)],
+            &[Effect::HostBurnBlood(2), Effect::LockTarget],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Camarilla Prince of Bogota: Methuselahs casting (including controlling
+/// a minion casting) votes or ballots against a referendum called by Marcos
+/// burn 1 pool once results are tallied." Once each Methuselah, however
+/// many of their sources voted against; at the tally, all at once (rules-qa
+/// 51.1).
+pub static MARCOS_BELEGRAD: VampireDef = VampireDef {
+    name: "Marcos Belegrad",
+    printed: &[own(Stat::AgainstMethuselahsBurnPool, 1, &[])],
+    ..VAMP
+};
+
+/// "Camarilla Prince of Gary: During the polling step of any referendum,
+/// Modius can discard a master card to get +1 vote." Once a referendum; in
+/// torpor too (LSJ 20011022), though a vampire in torpor casts no vote.
+pub static MODIUS: VampireDef = VampireDef {
+    name: "Modius",
+    abilities: &[ModeDef {
+        terms: Some(Terms::Discard {
+            n: 1,
+            of: CardFilter::Type(CardType::Master),
+        }),
+        limit: Some(Limit::PerReferendum),
+        ..mode_of(
+            &[Window::Referendum],
+            Actor::Host,
+            &[
+                R::AnyPollingStep,
+                R::HandHas(CardFilter::Type(CardType::Master), 1),
+            ],
+            &[Effect::AddVotes(1)],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Camarilla: During your unlock phase, you can move 1 blood from a prince
+/// you control to Silvian." Once each unlock phase; in torpor too (LSJ
+/// 20011022).
+pub static SILVIAN_POPESCU: VampireDef = VampireDef {
+    name: "Silvian Popescu",
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                R::Controlled,
+                R::TargetTitleIn(&[TitleClass::Prince]),
+                R::BloodAtLeast(1),
+            ],
+        ),
+        ..mode_of(
+            &[Window::UnlockPhaseOwn],
+            Actor::Host,
+            &[],
+            &[Effect::TargetBloodToHost(1)],
+        )
+    }],
     ..VAMP
 };

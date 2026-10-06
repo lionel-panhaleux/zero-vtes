@@ -509,6 +509,17 @@ impl Engine {
                     {
                         continue;
                     }
+                    // "A strike card … or a grapple card as it is played by
+                    // the opposing minion" (Charismatic Aura).
+                    if mode
+                        .requires
+                        .contains(&Requirement::PlayedStrikeOrGrappleByOpponent)
+                        && !played.zip(actor).is_some_and(|(p, m)| {
+                            self.strike_card_against(m, p) || self.grapple_card_against(m, p)
+                        })
+                    {
+                        continue;
+                    }
                     if mode.requires.contains(&Requirement::CanAttemptBlockAnyone)
                         && !actor.is_some_and(|m| self.can_attempt_block_anyone(seat, m))
                     {
@@ -2062,6 +2073,19 @@ impl Engine {
     /// The card played (`ctx`) is a strike card — played at strike
     /// declaration or at the maneuver (Slam) — of the minion in combat
     /// with `m` (Anticipation [AUS]).
+    /// The card played (`ctx`) is a grapple card of the minion opposing
+    /// `m` in its combat.
+    pub(crate) fn grapple_card_against(&self, m: MinionId, ctx: &PlayCtx) -> bool {
+        let Some(cb) = self.combat.as_ref() else {
+            return false;
+        };
+        let Some(i) = cb.side_of_minion(m) else {
+            return false;
+        };
+        LIBRARY[ctx.card as usize].labels.contains(&Label::Grapple)
+            && ctx.actor == Some(cb.sides[1 - i].minion)
+    }
+
     pub(crate) fn strike_card_against(&self, m: MinionId, ctx: &PlayCtx) -> bool {
         let Some(cb) = self.combat.as_ref() else {
             return false;
@@ -2139,7 +2163,13 @@ impl Engine {
             self.state.seats[ctx.seat.index()].pool -= pool.max(0);
             self.pay_play_blood(&ctx, blood_off);
         }
-        self.state.seats[ctx.seat.index()].ash.push(ctx.card);
+        // "Remove this card from the game, even if … canceled"
+        // (Reinforcements).
+        if cards::removed_once_played(ctx.card, ctx.mode) {
+            self.state.seats[ctx.seat.index()].removed.push(ctx.card);
+        } else {
+            self.state.seats[ctx.seat.index()].ash.push(ctx.card);
+        }
         if ctx.from.is_none() {
             self.replace(ctx.seat, 1, None);
         }
@@ -3733,15 +3763,25 @@ impl Engine {
         }
     }
 
+    /// The card in its as-played window, if one is (the top of the stack):
+    /// what an ability's "played card" predicates read (Diana Iadanza's
+    /// "cancel a reaction card as it is played").
+    pub(crate) fn as_played_top(&self) -> Option<&PlayCtx> {
+        match &self.flow {
+            Flow::AsPlayed { stack, .. } => stack.last().map(|p| &p.ctx),
+            _ => None,
+        }
+    }
+
     /// `cards::holds` for `seat` and `actor` in the live action, combat and
-    /// referendum, no card being played.
+    /// referendum, the card in its as-played window if any.
     fn holds_live(&self, r: Requirement, seat: SeatId, actor: Option<MinionId>) -> bool {
         cards::holds(
             r,
             &self.state,
             seat,
             actor,
-            None,
+            self.as_played_top(),
             self.action.as_ref(),
             self.combat.as_ref(),
             self.referendum.as_ref(),
@@ -3957,7 +3997,7 @@ impl Engine {
                             st,
                             seat,
                             combatant,
-                            None,
+                            self.as_played_top(),
                             self.action.as_ref(),
                             cb,
                             self.referendum.as_ref(),

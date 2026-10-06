@@ -1406,6 +1406,12 @@ impl Engine {
     /// turn passes.
     pub(crate) fn end_turn(&mut self) {
         let s = self.state.active;
+        // "Burn this card at the end of the turn" (Loup).
+        for (id, _) in self.state.card_riders(Hook::EndOfTurn) {
+            if self.state.cards[id.index()].present() {
+                self.burn_card_in_play(id);
+            }
+        }
         // Temporary control "until the end of your turn" (Puppet Master
         // [DOM]) ends: the minion returns as it is, in torpor included (LSJ
         // 20010119) — removed from the game if its Methuselah was ousted
@@ -1814,7 +1820,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 206);
+        assert_eq!(CRYPT.len(), 213);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

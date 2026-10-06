@@ -765,7 +765,14 @@ impl Describer<'_> {
             }
             Choice::CastCardVote { favor } => {
                 o.favor = Some(favor);
-                format!("The political action card's vote {}", Self::votes(favor))
+                match self.e.referendum().and_then(|r| r.pressure.as_ref()) {
+                    // Business Pressure's round.
+                    Some(p) => {
+                        let n = if p.player == self.seat { p.own } else { p.per };
+                        format!("Burn 1 pool: {n} votes {}", Self::votes(favor))
+                    }
+                    None => format!("The political action card's vote {}", Self::votes(favor)),
+                }
             }
             Choice::BurnForVote { card, favor } => {
                 let (name, r) = self.hand(card, true);

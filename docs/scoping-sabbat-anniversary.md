@@ -1,8 +1,8 @@
 # Scoping: Sabbat V5 precons, 25th and 30th Anniversary decks (2026-10-05)
 
-Plan, owner decisions recorded below. Status: slice 1, Reign of Stanislava, implemented
-2026-10-06 (DESIGN §11 P4 · 16d; rules-qa Batches 49–50); The Endless Dance and Sabbat V5
-remain. Per-card verdicts, with the precedent card or primitive for each:
+Plan, owner decisions recorded below. Status: slice 1, Reign of Stanislava, and slice 2,
+The Endless Dance, implemented 2026-10-06 (DESIGN §11 P4 · 16d, 16e; rules-qa Batches
+49–51); Sabbat V5 remains. Per-card verdicts, with the precedent card or primitive for each:
 `scoping-sabbat-anniversary-cards.md`.
 
 Sources: KRCG `vtes.json` / `twda.json` (2026-10-05); Reign of Stanislava

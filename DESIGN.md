@@ -55,10 +55,14 @@ of Stanislava (25th Anniversary) deck (2026-10-06, a second batch): Hartmut
 Stover, Ingrid Rossler, Mark Decker, Stanislava, Xaviar (G3 ADV), Ancient
 Influence, Enkil Cog, Fear of Mekhet, Forced March, Instantaneous
 Transformation, Monastery of Shadows, Permanent Vacation, Political
-Stranglehold, Reins of Power, Zillah's Valley.
+Stranglehold, Reins of Power, Zillah's Valley; then the new cards of The
+Endless Dance (30th Anniversary) deck (2026-10-06, a third batch): Diana
+Iadanza, François Villon, Kazuki Hanabira, Marcos Belegrad, Modius, Silvian
+Popescu, Valentina Osako, Awe, Business Pressure, Camarilla Conclave,
+Charismatic Aura, Confiscation, Loup, Reinforcements, The Louvre, Paris.
 
-- **652 unique cards**: 206 crypt (200 V5 + 6 added), 446 library (421 V5 + 4
-  extra + 21 added).
+- **667 unique cards**: 213 crypt (200 V5 + 13 added), 454 library (421 V5 + 4
+  extra + 29 added).
   V5 library by type: Master 124, Combat 63, Action 59, Action Modifier 53,
   Reaction 40, Equipment 23, Event 20, Ally 19, Political Action 19, Retainer 12
   (multi-type cards counted per type).
@@ -518,6 +522,7 @@ titles; `git log` has the detail.
 | P3 · 14a–14c | 09-27 | Observations (`obs.rs`: entity tokens, option rows with pointers; honest by test); `crates/py` `GamePool` (batched parallel stepping, bots inside, replayable); `train/`: pointer-scoring transformer, PPO self-play, evaluation vs random and bots |
 | P4 · 16c | 09-30 | Remaining-deck tokens (`obs::T_DECK`): the viewer's own library and crypt by contents; `legal_view` keeps them, sorted. Referendum tokens (`obs::T_REFERENDUM`): the calling card, the tally, the terms on the tokens they name |
 | P4 · 16b | 09-28 | The decision point before an oust (`ousting.rs`): Life Boon playable, its VP redirection (`Engine::gain_half_vps`) and pool steal; `oust_and_pass` reports a waiting oust to its callers |
+| P4 · 16e | 10-06 | The Endless Dance (30th Anniversary): 15 cards as a third batch, the deck as the second anniversary decklist; Business Pressure's pool-for-votes round (`Pressure`, a polling window of its own), Camarilla Conclave's vote penalty reaching cast votes, Marcos Belegrad's per-Methuselah pool at the tally, Loup's end-of-turn and successful-action hooks, a card removed whatever happens (Reinforcements), an equipment changing vampire by referendum, played-card predicates for abilities in the as-played window (Diana Iadanza); the acting Methuselah ousted mid-polling ends the action; rules-qa Batch 51 |
 | P4 · 16d | 10-06 | Reign of Stanislava (25th Anniversary): 15 cards appended as a second batch (`ADDED_BATCHES`), the deck as a reviewed anniversary decklist (`Deck::anniversary`); archbishop and Inner Circle titles, the advanced flag; Enkil Cog's action in another Methuselah's minion phase (`Flow::CogAction`, offered in its end-of-phase rotation; an action is its minion's controller's, rules-qa 49.6), per-Methuselah vampire choices as a referendum passes, the against-voters' blood at the tally, retainer text lost against Stanislava, Fear of Mekhet's move, a card's per-vampire per-turn play limit; rules-qa Batches 49–50; fuzz fixture of its own (the others' tables keep to the earlier crypt: goldens re-blessed, identical games) |
 | P4 · 16a | 09-28 | Pool extension for TWDA decks: 12 legacy cards appended (`ADDED_CARDS`), first strike, a master card becoming an ally, the before-resolution combat window, out-of-turn Rötschreck, shuffle-on-burn, Ashur Tablets' picks, Life Boon blocked (unblocked by 16b) |
 | P4 · 15a–15c | 09-28 | Several networks at one table (`net:k` seats, `agent` column), matchmaking queued from Python, 4- and 5-seat tables only; the league: one learner seat, an exploiter, snapshots, bots, PFSP (`train/league.py`) |
@@ -929,7 +934,7 @@ slice-11 cards by section).
   the reviewed lists in `window_matrix.ANNIVERSARY_DECKS` (owner: every
   anniversary decklist reviewed before it trains; no Fall of London or
   Shadows of Berlin deck), emitted once every card is in the pool — Reign of
-  Stanislava so far; a `--decks` family of its own (`anniversary`, trained
+  Stanislava and The Endless Dance; a `--decks` family of its own (`anniversary`, trained
   by default with the precons: a seat draws a clan, then a deck of it), first
   versions for the TWDA cap like the precons. `TWDA` (`twda.rs`,
   `scripts/gen_twda.py` from KRCG twda.json and the generated tables'
@@ -1613,7 +1618,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (`docs/human-play.md` has the board).
 
-Definitions: 446 library, 107 vampires; 997 Rust tests, 23 Python tests
+Definitions: 454 library, 112 vampires; 1012 Rust tests, 23 Python tests
 
 ## Outlook: deck building (post-v1)
 

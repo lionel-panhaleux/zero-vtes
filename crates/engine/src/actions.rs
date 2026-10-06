@@ -3915,7 +3915,9 @@ impl Engine {
         if let Some(play) = a.card {
             // Entered play as it resolved: its own flag, never a same-named
             // card already on the minion (a second Raven Spy employed).
-            if !a.card_entered_play && !a.card_returned {
+            if cards::removed_once_played(play.card, play.mode) {
+                self.state.seats[seat.index()].removed.push(play.card);
+            } else if !a.card_entered_play && !a.card_returned {
                 self.state.seats[seat.index()].ash.push(play.card);
             }
             self.state.minions[acting.index()]
@@ -3942,6 +3944,19 @@ impl Engine {
         let damage = a.damage_after;
         if damage > 0 && a.outcome.is_some() && self.state.minions[acting.index()].present() {
             self.damage_out_of_combat(acting, damage, true);
+        }
+        // "After a Toreador performs a successful action" (Loup): burned.
+        let a = self.action.as_ref().expect("action context");
+        let successful = matches!(a.outcome, Some(Outcome::Successful | Outcome::Fizzled));
+        if let Some(clan) = self.state.minions[acting.index()]
+            .clan()
+            .filter(|_| successful)
+        {
+            for (id, _) in self.state.card_riders(Hook::ClanActionSuccessful(clan)) {
+                if self.state.cards[id.index()].present() {
+                    self.burn_card_in_play(id);
+                }
+            }
         }
         self.state.layers.retain(|l| l.scope != Scope::Action);
         self.release_action_holds();

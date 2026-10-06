@@ -58,6 +58,22 @@ pub enum Source {
     Card(SeatId),
     /// Votes a card in play gives its Methuselah (Ventrue Headquarters).
     InPlay(crate::state::CardId),
+    /// Votes a Methuselah got for pool burned (Business Pressure): one
+    /// record per pool, each its own side.
+    Pool(SeatId),
+}
+
+/// Business Pressure resolving: Methuselahs burn pool for votes, one at a
+/// time, give and take, until all pass in succession (RTR 19960530).
+#[derive(Clone, Debug)]
+pub struct Pressure {
+    /// The card's player: `own` votes a pool; the others `per`.
+    pub player: SeatId,
+    pub per: u8,
+    pub own: u8,
+    /// Each burn passes the impulse on, every pass since voided: the round
+    /// ends when all pass in succession.
+    pub window: PollingWindow,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -146,6 +162,10 @@ pub struct ReferendumCtx {
     pub card_voted: Vec<SeatId>,
     /// Closed Session: non-Camarilla vampires cast nothing.
     pub camarilla_only: bool,
+    /// Votes each non-Camarilla vampire loses (Camarilla Conclave).
+    pub non_camarilla_minus: u8,
+    /// Business Pressure's round under way: the polling step waits on it.
+    pub pressure: Option<Pressure>,
     /// Made to fail (Yoruba Shrine): no tally.
     pub forced_fail: bool,
     /// Scorn of Adonis: pool burned at the tally by each Methuselah who
@@ -204,13 +224,19 @@ impl ReferendumCtx {
         } else {
             0
         };
+        let conclave = if st.sect_of(m) == Some(Sect::Camarilla) {
+            0
+        } else {
+            self.non_camarilla_minus as i32
+        };
         ((title_votes(title) as i32 - penalty).max(0)
             + st.clan_votes(m)
             + st.host_votes(m)
             + bonus as i32
             + granted as i32
             + printed
-            + calling)
+            + calling
+            - conclave)
             .max(0) as u8
     }
 
@@ -377,6 +403,8 @@ impl Engine {
             forced_against: Vec::new(),
             card_voted: Vec::new(),
             camarilla_only: false,
+            non_camarilla_minus: 0,
+            pressure: None,
             forced_fail: false,
             scorn: 0,
             terms: TermsState::default(),
@@ -549,6 +577,7 @@ impl Engine {
         }
         match ctx.step {
             RefStep::Terms => Some(self.terms_step_request(ctx)),
+            RefStep::Polling if ctx.pressure.is_some() => self.pressure_request(ctx),
             RefStep::Polling => self.polling_request(ctx),
             RefStep::Shortfall { points } => Some(self.shortfall_request(ctx, points)),
             RefStep::Choose => Some(self.choose_request(ctx)),
@@ -714,6 +743,58 @@ impl Engine {
             .max(0) as u8
     }
 
+    /// Business Pressure's round: the seat holding the impulse burns 1 pool
+    /// for votes, on either side, or passes.
+    fn pressure_request(&self, ctx: &ReferendumCtx) -> Option<DecisionRequest> {
+        let p = ctx.pressure.as_ref().expect("pressure round");
+        let seat = p.window.current()?;
+        let mut options = vec![Choice::Pass];
+        if self.state.seats[seat.index()].pool > 0 {
+            options.push(Choice::CastCardVote { favor: true });
+            options.push(Choice::CastCardVote { favor: false });
+        }
+        Some(DecisionRequest::new(
+            seat,
+            WindowLabel::ReferendumPolling,
+            options,
+        ))
+    }
+
+    fn pressure_apply(&mut self, ctx: &mut ReferendumCtx, choice: &Choice) {
+        let p = ctx.pressure.as_mut().expect("pressure round");
+        let seat = p.window.current().expect("a seat holding the impulse");
+        match *choice {
+            Choice::Pass => p.window.pass(),
+            Choice::CastCardVote { favor } => {
+                let n = if seat == p.player { p.own } else { p.per };
+                p.window.commit();
+                ctx.records.push(VoteRecord {
+                    source: Source::Pool(seat),
+                    seat,
+                    favor,
+                    n,
+                    canceled: false,
+                });
+                // The pool burned (the last one ousts: rules-qa 51.5).
+                let mut loss = vec![0i32; self.state.seats.len()];
+                loss[seat.index()] = 1;
+                self.burn_pool_batch(&loss);
+                if self.state.seats[seat.index()].ousted {
+                    ctx.pressure
+                        .as_mut()
+                        .expect("pressure round")
+                        .window
+                        .remove(seat);
+                    ctx.window.remove(seat);
+                }
+            }
+            _ => unreachable!("illegal pressure choice {choice:?}"),
+        }
+        if ctx.pressure.as_ref().is_none_or(|p| p.window.is_closed()) {
+            ctx.pressure = None;
+        }
+    }
+
     fn polling_request(&self, ctx: &ReferendumCtx) -> Option<DecisionRequest> {
         let st = &self.state;
         let seat = ctx.window.current()?;
@@ -799,6 +880,19 @@ impl Engine {
         let mut ctx = self.referendum.take().expect("referendum context");
         match ctx.step {
             RefStep::Terms => self.terms_step_apply(&mut ctx, choice),
+            RefStep::Polling if ctx.pressure.is_some() => {
+                self.pressure_apply(&mut ctx, choice);
+                // The acting Methuselah burned their last pool: the action
+                // is over (rules-qa 51.5).
+                if self
+                    .action
+                    .as_ref()
+                    .is_some_and(|a| self.state.seats[a.seat.index()].ousted)
+                {
+                    self.acting_seat_ousted();
+                    return;
+                }
+            }
             RefStep::Polling => {
                 if let Choice::UseAbility {
                     source,
@@ -1033,6 +1127,26 @@ impl Engine {
                         }
                     }
                 }
+                // Marcos Belegrad: each Methuselah casting against, by any
+                // source of theirs, burns pool once results are tallied —
+                // once each (rules-qa 51.1).
+                if let Some(c) = ctx.calling {
+                    let n = self
+                        .state
+                        .printed_mod(
+                            c,
+                            cards::Stat::AgainstMethuselahsBurnPool,
+                            crate::state::PrintedCtx::default(),
+                        )
+                        .max(0);
+                    if n > 0 {
+                        let mut loss = vec![0i32; self.state.seats.len()];
+                        for r in ctx.records.iter().filter(|r| !r.canceled && !r.favor) {
+                            loss[r.seat.index()] = n;
+                        }
+                        self.burn_pool_batch(&loss);
+                    }
+                }
                 let def = ctx.def.expect("political definition");
                 if passed && def.effect == RefEffect::MoveAllocatedFromChosen {
                     let chosen = ctx.terms.chosen.expect("chosen Methuselah");
@@ -1220,7 +1334,9 @@ impl Engine {
                 | RefEffect::PutOnChosen
                 | RefEffect::PutInPlay
                 | RefEffect::ChosenTakesChosenCard
-                | RefEffect::RemoveChosen => {}
+                | RefEffect::RemoveChosen
+                | RefEffect::ChosenVampireTakesChosenCard
+                | RefEffect::ChosenShuffleFromAsh(_) => {}
             }
         }
         for (i, g) in gain.iter().enumerate() {
@@ -1247,6 +1363,33 @@ impl Engine {
             RefEffect::Expel => {
                 for &m in &ctx.terms.minions {
                     self.state.minions[m.index()].expelled = true;
+                }
+            }
+            // The equipment moves onto the chosen vampire, if both are
+            // still there and it can hold it (rules-qa 51.3).
+            RefEffect::ChosenVampireTakesChosenCard => {
+                let (c, m) = (ctx.terms.cards[0], ctx.terms.minions[0]);
+                let card = self.state.cards[c.index()].card;
+                if self.state.cards[c.index()].present()
+                    && self.state.minions[m.index()].present()
+                    && self.state.cards[c.index()].host != Some(m)
+                    && self.state.can_hold(m, card, &[])
+                {
+                    let owner = self.state.minions[m.index()].owner;
+                    let moved = &mut self.state.cards[c.index()];
+                    moved.host = Some(m);
+                    moved.controller = owner;
+                }
+            }
+            RefEffect::ChosenShuffleFromAsh(n) => {
+                for &s in &ctx.terms.seats {
+                    if !self.state.seats[s.index()].ousted {
+                        self.interrupts.push(crate::draws::Interrupt::AshurPicks {
+                            seat: s,
+                            left: n,
+                            to_library: true,
+                        });
+                    }
                 }
             }
             RefEffect::RemoveChosen => {
@@ -1408,6 +1551,21 @@ impl Engine {
     /// failed-or-canceled riders apply — not to a fizzled one): the action
     /// resumes at its after-resolution window — unless the acting
     /// Methuselah was ousted (the turn passes) or the game ended.
+    /// The acting Methuselah was ousted during their action: the action
+    /// ends; on their turn the turn passes, else (Enkil Cog's action in
+    /// another's phase) the active Methuselah's phase goes on.
+    fn acting_seat_ousted(&mut self) {
+        let seat = self.action.take().expect("action").seat;
+        self.referendum = None;
+        if self.state.living() <= 1 {
+            self.flow = Flow::GameOver;
+        } else if seat == self.state.active {
+            self.next_turn();
+        } else {
+            self.flow = Flow::MinionPhase;
+        }
+    }
+
     fn after_referendum(&mut self, riders: bool) {
         if self.state.living() <= 1 {
             self.action = None;
@@ -1417,8 +1575,7 @@ impl Engine {
         let a = self.action.as_ref().expect("action");
         let (seat, blocked) = (a.seat, a.outcome == Some(Outcome::Blocked));
         if self.state.seats[seat.index()].ousted {
-            self.action = None;
-            self.next_turn();
+            self.acting_seat_ousted();
             return;
         }
         // A blocked leave-torpor whose blocker diablerised (its blood hunt)
@@ -1480,8 +1637,11 @@ impl Engine {
     pub(crate) fn apply_vote_effect(&mut self, effect: cards::Effect, play: &cards::PlayCtx) {
         let mut ctx = self.referendum.take().expect("referendum context");
         match effect {
-            cards::Effect::AddVotes(_) | cards::Effect::AddVotesPerReadySect(_) => {
+            cards::Effect::AddVotes(_)
+            | cards::Effect::AddVotesPerReadySect(_)
+            | cards::Effect::AddVotesXLinear { .. } => {
                 let n = match effect {
+                    cards::Effect::AddVotesXLinear { mul, plus } => mul * play.x + plus,
                     cards::Effect::AddVotesPerReadySect(sect) => {
                         self.state
                             .minions_of(play.seat)
@@ -1554,6 +1714,26 @@ impl Engine {
             }
             cards::Effect::TallyPenaltyAgainst(n) => ctx.scorn += n,
             cards::Effect::BarNonCamarillaVotes => ctx.camarilla_only = true,
+            cards::Effect::PoolForVotesRound { per, own } => {
+                let order = self.state.clockwise_from(play.seat);
+                ctx.pressure = Some(Pressure {
+                    player: play.seat,
+                    per,
+                    own,
+                    window: PollingWindow::new(order),
+                });
+            }
+            // Votes already cast lose it too, down to 0 (ANK 20251125).
+            cards::Effect::NonCamarillaVotesMinus(n) => {
+                ctx.non_camarilla_minus += n;
+                for r in ctx.records.iter_mut().filter(|r| !r.canceled) {
+                    if let Source::Vampire(m) = r.source {
+                        if self.state.sect_of(m) != Some(Sect::Camarilla) {
+                            r.n = r.n.saturating_sub(n);
+                        }
+                    }
+                }
+            }
             // "Have the referendum fail" (Yoruba Shrine): the polling is
             // over.
             cards::Effect::FailReferendum => {
@@ -1567,8 +1747,13 @@ impl Engine {
                 ctx.canceled = true;
                 let a = self.action.as_mut().expect("political action");
                 // The political action card returns to its owner's hand
-                // (before it is burned: LSJ 20050324).
-                if let Some(card) = a.card {
+                // (before it is burned: LSJ 20050324) — not one removed
+                // from the game whatever happens (Reinforcements: rules-qa
+                // 51.6).
+                if let Some(card) = a
+                    .card
+                    .filter(|c| !cards::removed_once_played(c.card, c.mode))
+                {
                     self.state.seats[a.seat.index()].hand.push(card.card);
                     a.card_returned = true;
                 }
@@ -1605,6 +1790,9 @@ pub(crate) fn is_vote_effect(e: &cards::Effect) -> bool {
             | cards::Effect::Abstain { .. }
             | cards::Effect::TallyPenaltyAgainst(_)
             | cards::Effect::BarNonCamarillaVotes
+            | cards::Effect::NonCamarillaVotesMinus(_)
+            | cards::Effect::PoolForVotesRound { .. }
+            | cards::Effect::AddVotesXLinear { .. }
             | cards::Effect::FailReferendum
             | cards::Effect::CancelReferendum { .. }
     )

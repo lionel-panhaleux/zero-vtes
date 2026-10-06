@@ -45,7 +45,7 @@ pub struct CryptCard {
 }
 
 #[rustfmt::skip]
-pub static CRYPT: [CryptCard; 206] = [
+pub static CRYPT: [CryptCard; 213] = [
     CryptCard {
         id: 201661,
         name: "\"Coach\" Tyrone Soros",
@@ -2312,6 +2312,83 @@ pub static CRYPT: [CryptCard; 206] = [
         title: Title::Justicar("Gangrel"),
         adv: true,
     },
+    CryptCard {
+        id: 201694,
+        name: "Diana Iadanza",
+        capacity: 9,
+        group: 7,
+        clan: "Toreador",
+        disciplines: &["AUS", "CEL", "FOR", "PRE"],
+        sect: Sect::Camarilla,
+        title: Title::Justicar("Toreador"),
+        adv: false,
+    },
+    CryptCard {
+        id: 201696,
+        name: "François Villon",
+        capacity: 10,
+        group: 6,
+        clan: "Toreador",
+        disciplines: &["ani", "obf", "pot", "AUS", "CEL", "PRE"],
+        sect: Sect::Camarilla,
+        title: Title::Prince("Paris"),
+        adv: false,
+    },
+    CryptCard {
+        id: 201699,
+        name: "Kazuki Hanabira",
+        capacity: 2,
+        group: 7,
+        clan: "Toreador",
+        disciplines: &["aus"],
+        sect: Sect::Camarilla,
+        title: Title::None,
+        adv: false,
+    },
+    CryptCard {
+        id: 201702,
+        name: "Marcos Belegrad",
+        capacity: 8,
+        group: 7,
+        clan: "Toreador",
+        disciplines: &["ani", "AUS", "CEL", "PRE"],
+        sect: Sect::Camarilla,
+        title: Title::Prince("Bogota"),
+        adv: false,
+    },
+    CryptCard {
+        id: 201703,
+        name: "Modius",
+        capacity: 8,
+        group: 7,
+        clan: "Toreador",
+        disciplines: &["obf", "AUS", "CEL", "PRE"],
+        sect: Sect::Camarilla,
+        title: Title::Prince("Gary"),
+        adv: false,
+    },
+    CryptCard {
+        id: 201706,
+        name: "Silvian Popescu",
+        capacity: 4,
+        group: 7,
+        clan: "Toreador",
+        disciplines: &["cel", "PRE"],
+        sect: Sect::Camarilla,
+        title: Title::None,
+        adv: false,
+    },
+    CryptCard {
+        id: 201707,
+        name: "Valentina Osako",
+        capacity: 3,
+        group: 7,
+        clan: "Toreador",
+        disciplines: &["PRE"],
+        sect: Sect::Camarilla,
+        title: Title::None,
+        adv: false,
+    },
 ];
 
 /// The 14 full-size preconstructed crypts (12 cards each) as
@@ -2357,6 +2434,7 @@ pub static MINI_PRECONS: [(&str, &[(u16, u8)]); 14] = [
 /// The anniversary decks' crypts (12 cards each; reviewed decklists,
 /// `window_matrix.ANNIVERSARY_DECKS`) as (name, [(CRYPT index, copies)]).
 #[rustfmt::skip]
-pub static ANNIVERSARY_PRECONS: [(&str, &[(u16, u8)]); 1] = [
+pub static ANNIVERSARY_PRECONS: [(&str, &[(u16, u8)]); 2] = [
     ("Reign of Stanislava (Twenty-Fifth Anniversary)", &[(201, 2), (202, 2), (203, 2), (204, 4), (205, 2)]),
+    ("The Endless Dance (Thirtieth Anniversary)", &[(206, 3), (207, 3), (208, 1), (209, 1), (210, 2), (211, 1), (212, 1)]),
 ];

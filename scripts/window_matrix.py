@@ -95,6 +95,26 @@ ADDED_BATCHES = [
         201312: "Stanislava (G2)",
         201478: "Xaviar (G3 ADV)",
     },
+    # 2026-10-06: The Endless Dance (30th Anniversary), its new cards (the
+    # deck's Ancient Influence, Political Stranglehold, Reins of Power and
+    # Zillah's Valley came with Reign of Stanislava).
+    {
+        100119: "Awe",
+        100274: "Business Pressure",
+        100333: "Charismatic Aura",
+        101127: "The Louvre, Paris",
+        101590: "Reinforcements",
+        102269: "Camarilla Conclave",
+        102271: "Confiscation",
+        102273: "Loup",
+        201694: "Diana Iadanza (G7)",
+        201696: "François Villon (G6)",
+        201699: "Kazuki Hanabira (G7)",
+        201702: "Marcos Belegrad (G7)",
+        201703: "Modius (G7)",
+        201706: "Silvian Popescu (G7)",
+        201707: "Valentina Osako (G7)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 

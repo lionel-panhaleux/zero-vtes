@@ -2586,7 +2586,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     ..CARD
 };
 
-pub static DEFS: [&CardDef; 446] = [
+pub static DEFS: [&CardDef; 454] = [
     &MAGIC_OF_THE_SMITH,
     &VAST_WEALTH,
     &BLACK_MARKET_CACHE,
@@ -3033,6 +3033,14 @@ pub static DEFS: [&CardDef; 446] = [
     &INSTANTANEOUS_TRANSFORMATION,
     &FEAR_OF_MEKHET,
     &ENKIL_COG,
+    &CONFISCATION,
+    &REINFORCEMENTS,
+    &AWE,
+    &CHARISMATIC_AURA,
+    &LOUP,
+    &THE_LOUVRE,
+    &CAMARILLA_CONCLAVE,
+    &BUSINESS_PRESSURE,
 ];
 
 // ---- Cards in play with riders and granted actions (slice 5) ------------
@@ -13718,5 +13726,295 @@ pub static ENKIL_COG: CardDef = CardDef {
         ],
         &[Effect::LockSelf, Effect::TakeAnyAction],
     )],
+    ..CARD
+};
+
+// ---- The Endless Dance (30th Anniversary) ---------------------------------
+//
+// The deck's new cards (owner, 2026-10-06), a third appended batch
+// (`ADDED_BATCHES`); readings in rules-qa Batch 51.
+
+/// "Requires a titled vampire. Choose an equipment and a vampire.
+/// Successful referendum means the chosen vampire takes control of the
+/// chosen equipment." Not playable with no equipment or vampire to choose
+/// (LSJ 20100129; ANK 20191228). The equipment moves onto the vampire if it
+/// can hold it (rules-qa 51.3).
+static CONFISCATION_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[
+        Term::ChooseCard(CardFilter::Type(CardType::Equipment)),
+        Term::ChooseMinions {
+            filter: &[Requirement::TargetVampire],
+            min: 1,
+            max: 1,
+        },
+    ],
+    effect: RefEffect::ChosenVampireTakesChosenCard,
+    grants: &[],
+    non_anarch_titles_minus: false,
+};
+political!(
+    CONFISCATION,
+    "Confiscation",
+    "\"Requires a titled vampire. Choose an equipment and a vampire. \
+     Successful referendum means the chosen vampire takes control of the \
+     chosen equipment.\" Not playable without an equipment and a vampire to \
+     choose (LSJ 20100129; ANK 20191228); the equipment moves onto the \
+     vampire if it can hold it (rules-qa 51.3).",
+    &[Requirement::ActorTitleIn(&[TitleClass::Any])],
+    CONFISCATION_REFERENDUM
+);
+
+static REINFORCEMENTS_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseSeats {
+        min: 1,
+        max: u8::MAX,
+    }],
+    effect: RefEffect::ChosenShuffleFromAsh(3),
+    grants: &[],
+    non_anarch_titles_minus: false,
+};
+/// "Requires a titled vampire. Choose one or more Methuselahs. Successful
+/// referendum means each chosen Methuselah chooses up to three library
+/// cards in their ash heap and shuffles them into their library. Remove
+/// this card from the game, even if the action or the referendum fails or
+/// is canceled." The picks one at a time, by card (Ashur Tablets'); not
+/// returned to hand by Delaying Tactics (rules-qa 51.6).
+pub static REINFORCEMENTS: CardDef = CardDef {
+    name: "Reinforcements",
+    modes: &[political(
+        &[Requirement::ActorTitleIn(&[TitleClass::Any])],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&REINFORCEMENTS_REFERENDUM),
+            Effect::RemovedOncePlayed,
+        ],
+    )],
+    ..CARD
+};
+
+/// "Only usable during the polling step of a political action. [pre] This
+/// vampire gets +X+1 votes. [PRE] This vampire gets +2X+1 votes." (X
+/// blood.) X may be 0, not less (LSJ 20030502).
+pub static AWE: CardDef = CardDef {
+    name: "Awe",
+    modes: &[
+        ModeDef {
+            terms: Some(Terms::XBlood),
+            ..mode_of(
+                &[Window::Referendum],
+                Actor::ActingMinion,
+                &[Requirement::PollingStep],
+                &[Effect::AddVotesXLinear { mul: 1, plus: 1 }],
+            )
+        },
+        ModeDef {
+            terms: Some(Terms::XBlood),
+            ..mode_of(
+                &[Window::Referendum],
+                Actor::ActingMinion,
+                &[Requirement::PollingStep],
+                &[Effect::AddVotesXLinear { mul: 2, plus: 1 }],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "[aus][pre] Burn 1 blood to cancel a strike card (the minion chooses a
+/// strike again) or a grapple card as it is played by the opposing minion,
+/// and its cost is not paid. A vampire can play only one Charismatic Aura
+/// at basic each round. [AUS][PRE] Strike: combat ends." The cancel follows
+/// the cancel rules (LSJ 20061207; LSJ 20080630; ANK 20190104; LSJ
+/// 20030224); the blood is an effect, not reduced, and must be there to
+/// play it (ANK 20210226).
+pub static CHARISMATIC_AURA: CardDef = CardDef {
+    name: "Charismatic Aura",
+    modes: &[
+        ModeDef {
+            limit: Some(Limit::PerRound),
+            ..combat(
+                &[Window::CardAsPlayed],
+                &[
+                    Requirement::PlayedStrikeOrGrappleByOpponent,
+                    Requirement::ActorBloodAtLeast(1),
+                ],
+                &[
+                    Effect::ActorBurnsBlood(1),
+                    Effect::CancelPlayed { refund: true },
+                ],
+            )
+        },
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[Effect::Strike(StrikeKind::CombatEnds { unlock: false })],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Only one Loup can be played each turn. Put this card in play. Toreador
+/// get +1 stealth. Burn this card at the end of the turn or after a
+/// Toreador performs a successful action." (Toreador.) Played by an acting
+/// Toreador, even if stealth is not yet needed (LSJ 20011214-2); every
+/// Toreador's stealth, any Methuselah's; burned after any Toreador's
+/// successful action (rules-qa 51.7).
+pub static LOUP: CardDef = CardDef {
+    name: "Loup",
+    modes: &[ModeDef {
+        waives_needed: true,
+        ..mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::ActingMinion,
+            &[Requirement::NotPlayedThisTurn],
+            &[
+                Effect::PutInPlay,
+                Effect::Layer(Modifier::ClanStat {
+                    clan: "Toreador",
+                    stat: Stat::Stealth,
+                    n: 1,
+                    own: false,
+                    titled: false,
+                    during: &[],
+                }),
+            ],
+        )
+    }],
+    riders: &[
+        Rider {
+            hook: Hook::EndOfTurn,
+            scope: RiderScope::Every,
+            requires: &[],
+            effects: &[Effect::BurnSelf],
+        },
+        Rider {
+            hook: Hook::ClanActionSuccessful("Toreador"),
+            scope: RiderScope::Every,
+            requires: &[],
+            effects: &[Effect::BurnSelf],
+        },
+    ],
+    ..CARD
+};
+
+/// "Unique location. You can lock this location to lock a Toreador. If you
+/// control the Prince of Paris, you can lock this location to lock a
+/// minion. Minions can steal this location as a Ⓓ action." (Toreador.) Its
+/// controller's, holding the impulse (ANK 20210608: any time — between two
+/// actions of another's turn is not an impulse the engine gives, rules-qa
+/// 51.4); a minion attempting to block locked by it fails its block (LSJ
+/// 20010702).
+pub static THE_LOUVRE: CardDef = CardDef {
+    name: "Louvre, Paris, The",
+    modes: &[LOCATION],
+    abilities: &[
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[Requirement::TargetClan("Toreador"), Requirement::ActorReady],
+            ),
+            ..mode_of(
+                &[Window::AnyImpulse],
+                Actor::Controller,
+                &[Requirement::CardUnlocked],
+                &[Effect::LockSelf, Effect::LockTarget],
+            )
+        },
+        ModeDef {
+            target: target(TargetKind::Minion, &[Requirement::ActorReady]),
+            ..mode_of(
+                &[Window::AnyImpulse],
+                Actor::Controller,
+                &[
+                    Requirement::CardUnlocked,
+                    Requirement::ControlsPrinceOf("Paris"),
+                ],
+                &[Effect::LockSelf, Effect::LockTarget],
+            )
+        },
+        steal_this(&[Requirement::OthersControlThisCard]),
+    ],
+    ..CARD
+};
+
+/// "Unique. Requires a justicar or Inner Circle member. Put this card in
+/// play with 4 counters. During a political action performed by a
+/// Camarilla vampire you control or its polling step, you can burn 1
+/// counter from this card to give the acting vampire +1 stealth or to give
+/// each non-Camarilla vampire -1 vote. If this card has no counters, burn
+/// it." The stealth when needed; the vote penalty reaches votes already
+/// cast, a vampire's votes stopping at 0 (ANK 20251125; rules-qa 51.2).
+pub static CAMARILLA_CONCLAVE: CardDef = CardDef {
+    name: "Camarilla Conclave",
+    modes: &[master_in_play(
+        &[Requirement::ControlsReadyTitled(&[
+            TitleClass::Justicar,
+            TitleClass::InnerCircle,
+        ])],
+        &[Effect::PutInPlay, Effect::EnterWithCounters(4)],
+    )],
+    abilities: &[
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::Controller,
+            &[
+                Requirement::CountersAtLeast(1),
+                Requirement::IsPolitical,
+                Requirement::OtherActingControlled,
+                Requirement::ActingVampire,
+                Requirement::ActingSectIn(&[Sect::Camarilla]),
+                Requirement::StealthNeeded,
+            ],
+            &[
+                Effect::RemoveCounter(1),
+                Effect::AddStealth(1),
+                Effect::BurnSelfWithoutCounters,
+            ],
+        ),
+        mode_of(
+            &[Window::Referendum],
+            Actor::Controller,
+            &[
+                Requirement::CountersAtLeast(1),
+                Requirement::PollingStep,
+                Requirement::OtherActingControlled,
+                Requirement::ActingVampire,
+                Requirement::ActingSectIn(&[Sect::Camarilla]),
+            ],
+            &[
+                Effect::RemoveCounter(1),
+                Effect::NonCamarillaVotesMinus(1),
+                Effect::BurnSelfWithoutCounters,
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Only usable during the polling step of a political action. [pre]
+/// Methuselahs can burn pool to get votes during the resolution of this
+/// card (resolve this card before moving on). A Methuselah gets +2 votes
+/// for each pool they burn. [PRE] As above, but you get +3 votes for each
+/// pool you burn." A round of its own as it resolves, from its player
+/// clockwise: one pool at a time, on either side, give and take until all
+/// pass in succession; nothing left for the rest of the action (RTR
+/// 19960530); after the terms are set (RTR 20040501). One pool a decision,
+/// either side; the last pool ousts (rules-qa 51.5).
+pub static BUSINESS_PRESSURE: CardDef = CardDef {
+    name: "Business Pressure",
+    modes: &[
+        mode_of(
+            &[Window::Referendum],
+            Actor::ActingMinion,
+            &[Requirement::PollingStep],
+            &[Effect::PoolForVotesRound { per: 2, own: 2 }],
+        ),
+        mode_of(
+            &[Window::Referendum],
+            Actor::ActingMinion,
+            &[Requirement::PollingStep],
+            &[Effect::PoolForVotesRound { per: 2, own: 3 }],
+        ),
+    ],
     ..CARD
 };

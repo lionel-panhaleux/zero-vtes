@@ -2019,4 +2019,53 @@ fuzz_tests! {
         seeds: 100,
         ..BASE
     };
+    /// The Endless Dance (30th Anniversary): the deck's new cards, its
+    /// Toreador dealt around the table (a justicar, princes of Paris, Bogota
+    /// and Gary), an equipment to confiscate, a reaction and a grapple to
+    /// cancel.
+    random_games_with_the_endless_dance_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Awe",
+            "Business Pressure",
+            "Camarilla Conclave",
+            "Charismatic Aura",
+            "Confiscation",
+            "Loup",
+            "Reinforcements",
+            "Louvre, Paris, The",
+            "Political Stranglehold",
+            "Kine Resources Contested",
+            "Delaying Tactics",
+            "Immortal Grapple",
+            ".44 Magnum",
+            "Majesty",
+        ],
+        covers: &[
+            "play:Awe",
+            "play:Business Pressure",
+            "play:Camarilla Conclave",
+            "play:Confiscation",
+            "play:Loup",
+            "play:Reinforcements",
+            "ability:Louvre, Paris, The",
+            "ability:Camarilla Conclave",
+            "ability:François Villon",
+            "ability:Modius",
+            "ability:Silvian Popescu",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Diana Iadanza",
+                    "François Villon",
+                    "Marcos Belegrad",
+                    "Modius",
+                    "Silvian Popescu",
+                ],
+            )
+        },
+        seeds: 100,
+        ..BASE
+    };
 }

@@ -1,7 +1,7 @@
 # Rules Q&A — ruling reference
 
 Owner rulings (VEKN judge) on VTES rules questions raised while building the
-engine, Batches 1–50. Each item is the settled rule, stated as fact; the
+engine, Batches 1–51. Each item is the settled rule, stated as fact; the
 question framing, engine mechanics, test names and confirmations are dropped
 deliberately: the code and its tests are the reference for how a rule is
 implemented, and they point back here through `rules-qa N.M` comments.
@@ -63,7 +63,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9
 - **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6
-- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6
+- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8
 - **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4
 - **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1
 - **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7
@@ -72,7 +72,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6, 46.4, 47.1
 - **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7
 - **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6
-- **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4
+- **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4
 - **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7
 - **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8
 - **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2
@@ -857,3 +857,23 @@ Readings no ruling settles, implemented with the slice; each a question.
 **50.5** Political Stranglehold counts every vampire with capacity 8 or more its Methuselah controls, in torpor too; Ancient Influence and Reins of Power choose a ready vampire, locked or not (ready is not unlocked). The chosen capacity is read as the effect applies. Question (implemented reading).
 
 **50.6** Permanent Vacation: the ally removed from the game leaves its card out of the game (not in the ash heap); the cards on it are burned, and nothing keyed to a burn fires. Question (implemented reading).
+
+## Batch 51 — The Endless Dance, implemented readings (2026-10-06)
+
+Readings no ruling settles, implemented with the slice; each a question.
+
+**51.1** Marcos Belegrad: each Methuselah casting votes or ballots against his referendum burns 1 pool once, however many of their sources (vampires, the Edge, a burned card, Business Pressure's pool) voted against; all at once at the tally, before the referendum's effects. Question (implemented reading).
+
+**51.2** Camarilla Conclave's "-1 vote" to each non-Camarilla vampire reaches votes already cast, each use taking one more (a vampire's votes stop at 0, ANK 20251125); its +1 stealth is given when stealth is needed. Question (implemented reading).
+
+**51.3** Confiscation: the chosen vampire takes the equipment only if it can hold it ("a minion can have only one …"); otherwise nothing happens. Question (implemented reading).
+
+**51.4** The Louvre, Paris (ANK 20210608: "any time, even between two actions, during another Methuselah's turn"): the engine gives another Methuselah no impulse between two actions of the active one's; the Louvre is used wherever its controller holds the impulse (during actions, phase rotations, their own turn). Question: open gap, the ruling's "between two actions" not reachable.
+
+**51.5** Business Pressure: each decision burns 1 pool for votes on the side chosen then (each pool its own vote record); a burn passes the impulse on and voids the passes so far, the round ending when all pass in succession (RTR 19960530); burning one's last pool ousts — the acting Methuselah so ousted ends the action. [PRE]'s +3 votes a pool are its player's only. Question (implemented reading).
+
+**51.6** Reinforcements canceled by Delaying Tactics: removed from the game, not returned to its owner's hand ("remove this card from the game, even if the action or the referendum fails or is canceled"). Question (implemented reading).
+
+**51.7** Loup: +1 stealth to every Toreador, any Methuselah's; burned after any Toreador's successful action (the one it was played in included), else at the end of the turn; playable when stealth is not yet needed (LSJ 20011214-2). Question (implemented reading).
+
+**51.8** Diana Iadanza cancels any reaction card as it is played during the referendum of a political action she performs (she calls it); its cost is paid. Question (implemented reading).

@@ -386,6 +386,10 @@ pub enum Stat {
     /// burns this much blood once results are tallied (Hartmut Stover;
     /// rules-qa 49.2: not a cost).
     AgainstCastersBurnBlood,
+    /// Each Methuselah casting votes or ballots against a referendum it
+    /// calls — by a minion of theirs too — burns this much pool once
+    /// results are tallied, once each (Marcos Belegrad).
+    AgainstMethuselahsBurnPool,
     /// Its controller's transfers, read as the influence phase begins
     /// (Ingrid Rossler: "if Ingrid is ready at the start of your influence
     /// phase").
@@ -1016,6 +1020,12 @@ pub enum Requirement {
     /// ability's host in combat (checked by the engine, which holds the
     /// play: `Engine::played_strike_by_opponent`).
     PlayedStrikeByOpponent,
+    /// The card being played is a strike card or a grapple card of the
+    /// minion opposing the actor (Charismatic Aura): engine-checked.
+    PlayedStrikeOrGrappleByOpponent,
+    /// The user controls the prince of this city ("if you control the
+    /// Prince of Paris", The Louvre, Paris): its effective title.
+    ControlsPrinceOf(&'static str),
     /// In the player's own minion phase, any time of it, actions included
     /// (checked by the engine: `Engine::in_own_minion_phase`; rules-qa
     /// 26.5).
@@ -1350,6 +1360,12 @@ pub enum RefEffect {
     GainPerVampireCapacityAtLeast { cap: u8, n: u8 },
     /// The chosen minion is removed from the game (Permanent Vacation).
     RemoveChosen,
+    /// The chosen vampire takes control of the chosen card: it moves onto
+    /// them (Confiscation).
+    ChosenVampireTakesChosenCard,
+    /// Each chosen Methuselah chooses up to n library cards in their ash
+    /// heap and shuffles them into their library (Reinforcements).
+    ChosenShuffleFromAsh(u8),
 }
 
 impl RefEffect {
@@ -2930,6 +2946,25 @@ pub enum Effect {
     /// and move it to hand, or find none; shuffle afterward (Sakhar's
     /// equipment, Dominica's master archetype).
     SearchToHand(CardFilter),
+    /// +(mul × X + plus) votes to the vampire playing it (Awe: "+X+1",
+    /// "+2X+1"), X its blood cost.
+    AddVotesXLinear {
+        mul: u8,
+        plus: u8,
+    },
+    /// Each non-Camarilla vampire gets -n votes in this referendum, votes
+    /// already cast included; a vampire's votes stop at 0 (Camarilla
+    /// Conclave; ANK 20251125).
+    NonCamarillaVotesMinus(u8),
+    /// Business Pressure: a round where Methuselahs burn pool for votes, one
+    /// at a time — `per` votes a pool, `own` for the card's player.
+    PoolForVotesRound {
+        per: u8,
+        own: u8,
+    },
+    /// The card is removed from the game once played, whatever happens to
+    /// its action or referendum, canceled too (Reinforcements).
+    RemovedOncePlayed,
     /// The host takes an action, any it may (Enkil Cog): its Methuselah
     /// picks it (`Flow::CogAction`).
     TakeAnyAction,
@@ -3212,6 +3247,11 @@ pub enum Hook {
     /// rules-qa 6.1). Its condition is read when it resolves (spec §5.2.2,
     /// Anarch Revolt).
     UnlockPhase,
+    /// The turn ends (Loup: "burn this card at the end of the turn").
+    EndOfTurn,
+    /// A minion of the clan performs a successful action (Loup: "after a
+    /// Toreador performs a successful action"), as the action ends.
+    ClanActionSuccessful(&'static str),
     /// The host of this card went to torpor (Guardian Angel; Fame), fired
     /// at once where the torpor happened (rules-qa 6.4).
     HostToTorpor,
@@ -3667,6 +3707,16 @@ pub struct VampireDef {
     pub incomplete: Option<&'static str>,
 }
 
+/// Whether the card in `mode` leaves the game once played, whatever
+/// happens to it (`Effect::RemovedOncePlayed`, Reinforcements).
+pub fn removed_once_played(card: u16, mode: u8) -> bool {
+    lookup(card).is_some_and(|d| {
+        d.modes
+            .get(mode as usize)
+            .is_some_and(|m| m.effects.contains(&Effect::RemovedOncePlayed))
+    })
+}
+
 /// Behavior of a minion's printed text: a vampire's `VampireDef` (an ally's
 /// text is its card's `CardDef`).
 pub fn vampire_of(m: &crate::state::Minion) -> Option<&'static VampireDef> {
@@ -3944,6 +3994,9 @@ pub fn holds(
                 && st.sect_of(a.acting) == Some(Sect::Anarch)
         }),
         Requirement::PoolAtLeast(n) => st.seats[seat.index()].pool >= n as i32,
+        Requirement::ControlsPrinceOf(city) => st
+            .minions_of(seat)
+            .any(|m| st.title_of(m) == crate::crypt::Title::Prince(city)),
         Requirement::ActorVampire => actor.is_some_and(|m| !st.minions[m.index()].is_ally()),
         Requirement::HandHas(f, n) => st.hand_picks(seat, f).len() >= n as usize,
         Requirement::HostLocked
@@ -4294,6 +4347,7 @@ pub fn holds(
         }
         Requirement::OthersMinionPhase
         | Requirement::PlayedStrikeByOpponent
+        | Requirement::PlayedStrikeOrGrappleByOpponent
         | Requirement::OwnMinionPhase
         | Requirement::ControlledByPredator
         | Requirement::CardLocked => true, // engine / card / target predicates
