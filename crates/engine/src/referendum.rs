@@ -63,17 +63,32 @@ pub enum Source {
     Pool(SeatId),
 }
 
-/// Business Pressure resolving: Methuselahs burn pool for votes, one at a
-/// time, give and take, until all pass in succession (RTR 19960530).
+/// Business Pressure resolving: each Methuselah in turn, clockwise from
+/// its player, chooses once how much pool to burn for votes and on which
+/// side; the card resolves once all have chosen (rules-qa 51.5).
 #[derive(Clone, Debug)]
 pub struct Pressure {
     /// The card's player: `own` votes a pool; the others `per`.
     pub player: SeatId,
     pub per: u8,
     pub own: u8,
-    /// Each burn passes the impulse on, every pass since voided: the round
-    /// ends when all pass in succession.
-    pub window: PollingWindow,
+    /// The Methuselahs still to choose, in order.
+    pub pending: Vec<SeatId>,
+    /// The pool the first of them chose, its side still to choose.
+    pub amount: Option<u8>,
+    /// The choices so far: (Methuselah, pool burned, in favor).
+    pub picks: Vec<(SeatId, u8, bool)>,
+}
+
+impl Pressure {
+    /// The votes `seat` gets for each pool it burns.
+    pub fn rate(&self, seat: SeatId) -> u8 {
+        if seat == self.player {
+            self.own
+        } else {
+            self.per
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -743,16 +758,24 @@ impl Engine {
             .max(0) as u8
     }
 
-    /// Business Pressure's round: the seat holding the impulse burns 1 pool
-    /// for votes, on either side, or passes.
+    /// Business Pressure's round: the first Methuselah still to choose
+    /// names the pool they burn (0: none), then the side of its votes.
     fn pressure_request(&self, ctx: &ReferendumCtx) -> Option<DecisionRequest> {
         let p = ctx.pressure.as_ref().expect("pressure round");
-        let seat = p.window.current()?;
-        let mut options = vec![Choice::Pass];
-        if self.state.seats[seat.index()].pool > 0 {
-            options.push(Choice::CastCardVote { favor: true });
-            options.push(Choice::CastCardVote { favor: false });
-        }
+        let seat = *p.pending.first()?;
+        let options = match p.amount {
+            None => {
+                let pool = self.state.seats[seat.index()]
+                    .pool
+                    .max(0)
+                    .min(u8::MAX as i32) as u8;
+                (0..=pool).map(Choice::SetX).collect()
+            }
+            Some(_) => vec![
+                Choice::CastCardVote { favor: true },
+                Choice::CastCardVote { favor: false },
+            ],
+        };
         Some(DecisionRequest::new(
             seat,
             WindowLabel::ReferendumPolling,
@@ -762,36 +785,41 @@ impl Engine {
 
     fn pressure_apply(&mut self, ctx: &mut ReferendumCtx, choice: &Choice) {
         let p = ctx.pressure.as_mut().expect("pressure round");
-        let seat = p.window.current().expect("a seat holding the impulse");
-        match *choice {
-            Choice::Pass => p.window.pass(),
-            Choice::CastCardVote { favor } => {
-                let n = if seat == p.player { p.own } else { p.per };
-                p.window.commit();
-                ctx.records.push(VoteRecord {
-                    source: Source::Pool(seat),
-                    seat,
-                    favor,
-                    n,
-                    canceled: false,
-                });
-                // The pool burned (the last one ousts: rules-qa 51.5).
-                let mut loss = vec![0i32; self.state.seats.len()];
-                loss[seat.index()] = 1;
-                self.burn_pool_batch(&loss);
-                if self.state.seats[seat.index()].ousted {
-                    ctx.pressure
-                        .as_mut()
-                        .expect("pressure round")
-                        .window
-                        .remove(seat);
-                    ctx.window.remove(seat);
-                }
+        let seat = p.pending[0];
+        match (*choice, p.amount) {
+            (Choice::SetX(0), None) => {
+                p.pending.remove(0);
+            }
+            (Choice::SetX(n), None) => p.amount = Some(n),
+            (Choice::CastCardVote { favor }, Some(n)) => {
+                p.picks.push((seat, n, favor));
+                p.amount = None;
+                p.pending.remove(0);
             }
             _ => unreachable!("illegal pressure choice {choice:?}"),
         }
-        if ctx.pressure.as_ref().is_none_or(|p| p.window.is_closed()) {
-            ctx.pressure = None;
+        if !p.pending.is_empty() {
+            return;
+        }
+        // All have chosen: the votes and the pool burned at once (the
+        // last pool ousts, simultaneous ousts as a batch).
+        let p = ctx.pressure.take().expect("pressure round");
+        let mut loss = vec![0i32; self.state.seats.len()];
+        for &(s, n, favor) in &p.picks {
+            ctx.records.push(VoteRecord {
+                source: Source::Pool(s),
+                seat: s,
+                favor,
+                n: n.saturating_mul(p.rate(s)),
+                canceled: false,
+            });
+            loss[s.index()] += n as i32;
+        }
+        self.burn_pool_batch(&loss);
+        for (i, seat) in self.state.seats.iter().enumerate() {
+            if seat.ousted {
+                ctx.window.remove(SeatId(i as u8));
+            }
         }
     }
 
@@ -1720,7 +1748,9 @@ impl Engine {
                     player: play.seat,
                     per,
                     own,
-                    window: PollingWindow::new(order),
+                    pending: order,
+                    amount: None,
+                    picks: Vec::new(),
                 });
             }
             // Votes already cast lose it too, down to 0 (ANK 20251125).

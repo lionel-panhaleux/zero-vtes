@@ -864,13 +864,13 @@ Readings no ruling settles, implemented with the slice; each a question.
 
 **51.1** Marcos Belegrad: each Methuselah casting votes or ballots against his referendum burns 1 pool once, however many of their sources (vampires, the Edge, a burned card, Business Pressure's pool) voted against; all at once at the tally, before the referendum's effects. Question (implemented reading).
 
-**51.2** Camarilla Conclave's "-1 vote" to each non-Camarilla vampire reaches votes already cast, each use taking one more (a vampire's votes stop at 0, ANK 20251125); its +1 stealth is given when stealth is needed. Question (implemented reading).
+**51.2** Camarilla Conclave is unique and worded as a "during" ability: it is usable once each political action — the +1 stealth (when needed) or the -1 vote to each non-Camarilla vampire, which reaches votes already cast (a vampire's votes stop at 0, ANK 20251125). A political action is enough, no political action card needed (Anarch Revolt's "call a referendum to burn this card"); a referendum of no political action (a diablerie's blood hunt) is not one (owner, 2026-10-07).
 
 **51.3** Confiscation: the chosen vampire takes the equipment only if it can hold it ("a minion can have only one …"); otherwise nothing happens. Question (implemented reading).
 
-**51.4** The Louvre, Paris (ANK 20210608: "any time, even between two actions, during another Methuselah's turn"): the engine gives another Methuselah no impulse between two actions of the active one's; the Louvre is used wherever its controller holds the impulse (during actions, phase rotations, their own turn). Question: open gap, the ruling's "between two actions" not reachable.
+**51.4** There is an impulse between two actions: the active Methuselah holds it first, with priority to start the next action; passing it declares the end of their minion phase, and the impulse goes round the other Methuselahs, who may use effects (The Louvre, Paris: ANK 20210608) but not start an action — except Enkil Cog's (49.6). An effect used there returns the impulse to the active Methuselah, whose phase goes on (owner, 2026-10-07). The engine's minion-phase rotation (rules-qa 7.9) is that impulse.
 
-**51.5** Business Pressure: each decision burns 1 pool for votes on the side chosen then (each pool its own vote record); a burn passes the impulse on and voids the passes so far, the round ending when all pass in succession (RTR 19960530); burning one's last pool ousts — the acting Methuselah so ousted ends the action. [PRE]'s +3 votes a pool are its player's only. Question (implemented reading).
+**51.5** Business Pressure resolves as each Methuselah, in impulse order from its player, chooses once how much pool to burn — so how many votes they get — and on which side, then passes to the next; once everyone has chosen, the card resolves: the votes counted and the pool burned at once, the last pool ousting. It is not paid vote by vote (owner, 2026-10-07). [PRE]'s +3 votes a pool are its player's only.
 
 **51.6** Reinforcements canceled by Delaying Tactics: removed from the game, not returned to its owner's hand ("remove this card from the game, even if the action or the referendum fails or is canceled"). Question (implemented reading).
 

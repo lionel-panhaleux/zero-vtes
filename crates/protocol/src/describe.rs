@@ -643,7 +643,12 @@ impl Describer<'_> {
             }
             Choice::SetX(x) => {
                 o.amount = Some(x);
-                format!("X = {x}")
+                match self.e.referendum().and_then(|r| r.pressure.as_ref()) {
+                    // Business Pressure: how much pool to burn.
+                    Some(_) if x == 0 => "Burn no pool".to_string(),
+                    Some(p) => format!("Burn {x} pool for {} votes", x * p.rate(self.seat)),
+                    None => format!("X = {x}"),
+                }
             }
             Choice::Discard(i) => {
                 let (name, r) = self.hand(i, true);
@@ -768,8 +773,8 @@ impl Describer<'_> {
                 match self.e.referendum().and_then(|r| r.pressure.as_ref()) {
                     // Business Pressure's round.
                     Some(p) => {
-                        let n = if p.player == self.seat { p.own } else { p.per };
-                        format!("Burn 1 pool: {n} votes {}", Self::votes(favor))
+                        let n = p.amount.unwrap_or(0) * p.rate(self.seat);
+                        format!("The {n} votes {}", Self::votes(favor))
                     }
                     None => format!("The political action card's vote {}", Self::votes(favor)),
                 }

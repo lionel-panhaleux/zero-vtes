@@ -13900,10 +13900,10 @@ pub static LOUP: CardDef = CardDef {
 /// "Unique location. You can lock this location to lock a Toreador. If you
 /// control the Prince of Paris, you can lock this location to lock a
 /// minion. Minions can steal this location as a Ⓓ action." (Toreador.) Its
-/// controller's, holding the impulse (ANK 20210608: any time — between two
-/// actions of another's turn is not an impulse the engine gives, rules-qa
-/// 51.4); a minion attempting to block locked by it fails its block (LSJ
-/// 20010702).
+/// controller's, holding the impulse: any time, between two actions of
+/// another's turn too, as the active Methuselah passes it (ANK 20210608;
+/// rules-qa 51.4); a minion attempting to block locked by it fails its
+/// block (LSJ 20010702).
 pub static THE_LOUVRE: CardDef = CardDef {
     name: "Louvre, Paris, The",
     modes: &[LOCATION],
@@ -13942,7 +13942,9 @@ pub static THE_LOUVRE: CardDef = CardDef {
 /// Camarilla vampire you control or its polling step, you can burn 1
 /// counter from this card to give the acting vampire +1 stealth or to give
 /// each non-Camarilla vampire -1 vote. If this card has no counters, burn
-/// it." The stealth when needed; the vote penalty reaches votes already
+/// it." Unique, a "during" ability: one use each political action — any,
+/// a card's or a granted one (Anarch Revolt), not a blood hunt — the
+/// stealth (when needed) or the vote penalty, which reaches votes already
 /// cast, a vampire's votes stopping at 0 (ANK 20251125; rules-qa 51.2).
 pub static CAMARILLA_CONCLAVE: CardDef = CardDef {
     name: "Camarilla Conclave",
@@ -13954,39 +13956,45 @@ pub static CAMARILLA_CONCLAVE: CardDef = CardDef {
         &[Effect::PutInPlay, Effect::EnterWithCounters(4)],
     )],
     abilities: &[
-        mode_of(
-            &[Window::ActionStealthIntercept],
-            Actor::Controller,
-            &[
-                Requirement::CountersAtLeast(1),
-                Requirement::IsPolitical,
-                Requirement::OtherActingControlled,
-                Requirement::ActingVampire,
-                Requirement::ActingSectIn(&[Sect::Camarilla]),
-                Requirement::StealthNeeded,
-            ],
-            &[
-                Effect::RemoveCounter(1),
-                Effect::AddStealth(1),
-                Effect::BurnSelfWithoutCounters,
-            ],
-        ),
-        mode_of(
-            &[Window::Referendum],
-            Actor::Controller,
-            &[
-                Requirement::CountersAtLeast(1),
-                Requirement::PollingStep,
-                Requirement::OtherActingControlled,
-                Requirement::ActingVampire,
-                Requirement::ActingSectIn(&[Sect::Camarilla]),
-            ],
-            &[
-                Effect::RemoveCounter(1),
-                Effect::NonCamarillaVotesMinus(1),
-                Effect::BurnSelfWithoutCounters,
-            ],
-        ),
+        ModeDef {
+            limit: Some(Limit::PerActionCard),
+            ..mode_of(
+                &[Window::ActionStealthIntercept],
+                Actor::Controller,
+                &[
+                    Requirement::CountersAtLeast(1),
+                    Requirement::IsPolitical,
+                    Requirement::OtherActingControlled,
+                    Requirement::ActingVampire,
+                    Requirement::ActingSectIn(&[Sect::Camarilla]),
+                    Requirement::StealthNeeded,
+                ],
+                &[
+                    Effect::RemoveCounter(1),
+                    Effect::AddStealth(1),
+                    Effect::BurnSelfWithoutCounters,
+                ],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::PerActionCard),
+            ..mode_of(
+                &[Window::Referendum],
+                Actor::Controller,
+                &[
+                    Requirement::CountersAtLeast(1),
+                    Requirement::PollingStep,
+                    Requirement::OtherActingControlled,
+                    Requirement::ActingVampire,
+                    Requirement::ActingSectIn(&[Sect::Camarilla]),
+                ],
+                &[
+                    Effect::RemoveCounter(1),
+                    Effect::NonCamarillaVotesMinus(1),
+                    Effect::BurnSelfWithoutCounters,
+                ],
+            )
+        },
     ],
     ..CARD
 };
@@ -13996,10 +14004,10 @@ pub static CAMARILLA_CONCLAVE: CardDef = CardDef {
 /// card (resolve this card before moving on). A Methuselah gets +2 votes
 /// for each pool they burn. [PRE] As above, but you get +3 votes for each
 /// pool you burn." A round of its own as it resolves, from its player
-/// clockwise: one pool at a time, on either side, give and take until all
-/// pass in succession; nothing left for the rest of the action (RTR
-/// 19960530); after the terms are set (RTR 20040501). One pool a decision,
-/// either side; the last pool ousts (rules-qa 51.5).
+/// clockwise: each chooses once how much pool to burn and the side of
+/// the votes, then the card resolves, the pool burned at once (RTR
+/// 19960530; rules-qa 51.5); nothing left for the rest of the action;
+/// after the terms are set (RTR 20040501).
 pub static BUSINESS_PRESSURE: CardDef = CardDef {
     name: "Business Pressure",
     modes: &[

@@ -720,7 +720,9 @@ impl Engine {
                                 st.minions[m.index()].played_since_unlock.contains(&card)
                             }
                             Some(Limit::PerTurn) => st.turn_plays.contains(&(m, card)),
-                            Some(Limit::PerPhaseEach | Limit::PerReferendum) => false,
+                            Some(
+                                Limit::PerPhaseEach | Limit::PerReferendum | Limit::PerActionCard,
+                            ) => false,
                         };
                         // Rulebook "Action Modifier" / "Reaction": a minion
                         // cannot play the same action modifier, or the same
@@ -1046,7 +1048,7 @@ impl Engine {
                     self.state.minions[m.index()].played_since_unlock.push(card);
                 }
                 Limit::PerTurn => self.state.turn_plays.push((m, card)),
-                Limit::PerPhaseEach | Limit::PerReferendum => {}
+                Limit::PerPhaseEach | Limit::PerReferendum | Limit::PerActionCard => {}
             }
         }
         if def.out_of_turn {
@@ -3329,6 +3331,13 @@ impl Engine {
                 if !ability.windows.contains(&window) {
                     continue;
                 }
+                // One use each action for the card, whoever the actor
+                // (Camarilla Conclave).
+                if ability.limit == Some(Limit::PerActionCard)
+                    && self.limit_spent(ability.limit, AbilitySource::Card(id), ai as u8)
+                {
+                    continue;
+                }
                 if ability.requires.contains(&Requirement::OthersMinionPhase)
                     && !self.in_others_minion_phase(seat)
                     || ability.requires.contains(&Requirement::OwnMinionPhase)
@@ -3751,6 +3760,10 @@ impl Engine {
                 .action
                 .as_ref()
                 .is_some_and(|a| a.abilities_used.contains(&source.action_key(ability))),
+            Some(Limit::PerActionCard) => self
+                .action
+                .as_ref()
+                .is_some_and(|a| a.abilities_used.contains(&source.action_key(0))),
             Some(Limit::PerReferendum) => self
                 .referendum
                 .as_ref()
@@ -4647,6 +4660,9 @@ impl Engine {
         let ctx = PlayCtx::new(seat, card, ability, actor, target, x);
         if let (Some(Limit::PerAction), Some(a)) = (mode.limit, self.action.as_mut()) {
             a.abilities_used.push(source.action_key(ability));
+        }
+        if let (Some(Limit::PerActionCard), Some(a)) = (mode.limit, self.action.as_mut()) {
+            a.abilities_used.push(source.action_key(0));
         }
         if let (Some(Limit::PerReferendum), Some(r)) = (mode.limit, self.referendum.as_mut()) {
             r.abilities_used.push(source.use_key(ability));

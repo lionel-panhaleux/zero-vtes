@@ -232,13 +232,13 @@ fn awe_adds_x_plus_1_votes_and_x_may_be_0() {
 }
 
 // [RTR 19960530] Business Pressure: "Each Methuselah must decide how much
-// pool to burn for it during the resolution of the effect … there can be
-// some give and take": one pool at a time, from its player clockwise, until
-// all pass in succession; [PRE] its player gets 3 votes a pool, the others
-// 2. [RTR 20040501] "Cannot be used before the terms are set": first
-// offered in the polling step.
+// pool to burn for it during the resolution of the effect": once each, in
+// order from its player, the amount then the side; the card resolves once
+// all have chosen (rules-qa 51.5). [PRE]: its player gets 3 votes a pool,
+// the others 2. [RTR 20040501] "Cannot be used before the terms are set":
+// first offered in the polling step.
 #[test]
-fn business_pressure_burns_pool_one_at_a_time_for_votes() {
+fn business_pressure_has_each_methuselah_choose_the_pool_they_burn() {
     let (mut e, diana) = table("Diana Iadanza");
     e.add_minion(SeatId(1), plain("Brujah", 1), 4, false);
     e.add_minion(SeatId(2), plain("Brujah", 2), 4, false);
@@ -256,35 +256,35 @@ fn business_pressure_burns_pool_one_at_a_time_for_votes() {
         "after the terms"
     );
     pick(&mut e, pressure);
-    let burn = |favor| Choice::CastCardVote { favor };
-    // Seat 0 burns for, seat 1 against, seat 2 passes, seat 0 passes, seat
-    // 1 burns again; then everyone passes.
+    let side = |favor| Choice::CastCardVote { favor };
     for (seat, choice) in [
-        (0, burn(true)),
-        (1, burn(false)),
-        (2, Choice::Pass),
-        (0, Choice::Pass),
-        (1, burn(false)),
-        (2, Choice::Pass),
-        (0, Choice::Pass),
-        (1, Choice::Pass),
+        (0, set_x(2)),
+        (0, side(true)),
+        (1, set_x(3)),
+        (1, side(false)),
+        (2, set_x(0)),
     ] {
         let req = expect(&mut e, SeatId(seat), WindowLabel::ReferendumPolling);
         assert!(req.options.contains(&choice), "{seat}: {:?}", req.options);
+        if choice == set_x(0) {
+            assert_eq!(req.options.len(), 11, "0 to all of its 10 pool");
+        }
         pick(&mut e, choice);
     }
+    request(&mut e);
     let r = e.referendum().expect("referendum");
-    assert!(r.pressure.is_none(), "the round is over");
-    assert_eq!(r.tally(), (3, 4));
-    assert_eq!(pool(&e)[..2], [9, 8]);
+    assert!(r.pressure.is_none(), "resolved");
+    assert_eq!(r.tally(), (6, 6));
+    assert_eq!(pool(&e), vec![8, 7, 10]);
 }
 
 // [ANK 20251125] [LSJ 20050221-2] "A vampire can have net negative votes,
 // but net negative votes do not subtract from the total when votes are
-// tallied": Camarilla Conclave's -1 vote to each non-Camarilla vampire,
-// twice on Hartmut's 2 votes already cast, then once more on nothing.
+// tallied": Camarilla Conclave's -1 vote to each non-Camarilla vampire
+// reaches Hartmut's 2 votes already cast. Unique, a "during" ability: once
+// each political action, the votes or the stealth (rules-qa 51.2).
 #[test]
-fn camarilla_conclave_takes_votes_from_non_camarilla_vampires() {
+fn camarilla_conclave_takes_votes_from_non_camarilla_vampires_once_an_action() {
     let (mut e, diana) = table("Diana Iadanza");
     let hartmut = e.add_minion(SeatId(1), find_card("Hartmut Stover"), 4, false);
     let conclave = in_play(&mut e, 0, "Camarilla Conclave", None);
@@ -293,19 +293,82 @@ fn camarilla_conclave_takes_votes_from_non_camarilla_vampires() {
     pick(&mut e, play(0, 0, diana));
     to_referendum(&mut e);
     pick_when(&mut e, votes(hartmut, false));
-    let minus = use_at(conclave, 1, None, Target::None);
-    for _ in 0..3 {
-        pick_when(&mut e, minus);
-    }
-    let r = e.referendum().expect("referendum");
-    assert_eq!(r.tally(), (0, 0), "Hartmut's 2 votes gone, no less than 0");
-    assert_eq!(e.state.cards[conclave.index()].counters, 1);
-    pick_when(&mut e, minus);
+    pick_when(&mut e, use_at(conclave, 1, None, Target::None));
+    request(&mut e);
+    assert_eq!(e.referendum().expect("referendum").tally(), (0, 1));
+    assert_eq!(e.state.cards[conclave.index()].counters, 3);
+    never_offered_where(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        |o| matches!(o, Choice::UseAbility { source: AbilitySource::Card(c), .. } if *c == conclave),
+    );
+
+    // Its last counter used: burned.
+    let (mut e, diana) = table("Diana Iadanza");
+    let conclave = in_play(&mut e, 0, "Camarilla Conclave", None);
+    e.state.cards[conclave.index()].counters = 1;
+    hand(&mut e, 0, &["Political Stranglehold"]);
+    pick(&mut e, play(0, 0, diana));
+    to_referendum(&mut e);
+    pick_when(&mut e, use_at(conclave, 1, None, Target::None));
     request(&mut e);
     assert!(
         !e.state.cards[conclave.index()].in_play,
         "no counters: burned"
     );
+}
+
+// Camarilla Conclave's "during a political action … or its polling step":
+// a political action called with no card (Anarch Revolt's "call a
+// referendum to burn this card"), yes; a referendum of no political action
+// (a diablerie's blood hunt), no (owner, 2026-10-07; rules-qa 51.2).
+#[test]
+fn camarilla_conclave_needs_a_political_action_not_a_card() {
+    let (mut e, diana) = table("Diana Iadanza");
+    let hartmut = e.add_minion(SeatId(1), find_card("Hartmut Stover"), 4, false);
+    let revolt = in_play(&mut e, 1, "Anarch Revolt", None);
+    let conclave = in_play(&mut e, 0, "Camarilla Conclave", None);
+    e.state.cards[conclave.index()].counters = 4;
+    let minus = use_at(conclave, 1, None, Target::None);
+    pick(&mut e, use_at(revolt, 0, Some(diana), Target::None));
+    to_referendum(&mut e);
+    pick_when(&mut e, votes(hartmut, false));
+    pick_when(&mut e, minus);
+    request(&mut e);
+    assert_eq!(e.referendum().expect("referendum").tally(), (0, 1));
+
+    // A blood hunt: never offered.
+    let (mut e, diana) = table("Diana Iadanza");
+    let victim = e.add_minion(SeatId(1), plain("Brujah", 1), 2, true);
+    e.add_minion(SeatId(1), plain("Brujah", 2), 4, false);
+    let conclave = in_play(&mut e, 0, "Camarilla Conclave", None);
+    e.state.cards[conclave.index()].counters = 4;
+    pick(
+        &mut e,
+        Choice::TakeAction {
+            minion: diana,
+            action: ActionKind::Diablerie,
+            target: Some(victim),
+        },
+    );
+    let mut hunted = false;
+    for _ in 0..40 {
+        let req = request(&mut e);
+        if req.window == WindowLabel::BloodHuntPolling {
+            hunted = true;
+            assert!(
+                !req.options.iter().any(|o| matches!(o,
+                    Choice::UseAbility { source: AbilitySource::Card(c), .. } if *c == conclave)),
+                "no political action"
+            );
+        }
+        if req.window == WindowLabel::MinionPhase && req.seat == SeatId(0) {
+            break;
+        }
+        e.choose(fallback(&req));
+    }
+    assert!(hunted, "a blood hunt was called");
 }
 
 // [ANK 20200525-2] Immortal Grapple "Is still considered played if it is
@@ -433,6 +496,29 @@ fn the_louvre_locks_a_toreador_blocker_and_with_paris_any_minion() {
     assert!(req
         .options
         .contains(&use_at(louvre, 1, None, Target::Minion(other))));
+}
+
+// [ANK 20210608] The Louvre "Can be used at any time, even between two
+// actions, during another Methuselah's turn": seat 1, active, passes the
+// impulse (declaring the end of its minion phase); seat 0 locks its
+// Toreador; the impulse returns to seat 1, whose phase goes on (rules-qa
+// 51.4).
+#[test]
+fn the_louvre_is_used_between_two_actions_of_another_methuselah() {
+    let mut e = game(3);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let toreador = e.add_minion(SeatId(1), find_card("Diana Iadanza"), 4, false);
+    e.add_minion(SeatId(1), plain("Brujah", 1), 4, false);
+    e.add_minion(SeatId(2), plain("Brujah", 2), 4, false);
+    let louvre = in_play(&mut e, 0, "Louvre, Paris, The", None);
+    e.state.active = SeatId(1);
+    let lock = use_at(louvre, 0, None, Target::Minion(toreador));
+    pick(&mut e, Choice::Pass);
+    pick_when(&mut e, lock);
+    let req = expect(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(e.state.minions[toreador.index()].locked);
+    assert!(!req.options.contains(&bleed(toreador)));
+    assert!(req.options.len() > 1, "the phase goes on: another action");
 }
 
 // "Choose one or more Methuselahs. Successful referendum means each chosen

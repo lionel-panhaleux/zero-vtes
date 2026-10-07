@@ -1571,6 +1571,10 @@ pub enum Limit {
     PerRound,
     PerCombat,
     PerAction,
+    /// "During an action … you can …": once each action per copy, every
+    /// ability of the card so limited sharing the one use (Camarilla
+    /// Conclave's stealth or votes; rules-qa 51.2).
+    PerActionCard,
     /// An in-play ability in a phase window is once per phase per copy by
     /// default (the "during X" clause, rules-qa 6.6); with this limit each
     /// mode of the clause is its own once-per-phase use (Carfax Abbey's
