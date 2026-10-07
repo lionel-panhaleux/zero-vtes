@@ -639,6 +639,17 @@ pub enum Requirement {
     /// The user controls at least n ready vampires following the path
     /// (Privileged Position).
     ControlsReadyOnPath(&'static str, u8),
+    /// Printed condition: the action's target Methuselah controls a
+    /// minion of one of these clans (Osvaldo Kühnemann: "+1 bleed against
+    /// a Methuselah controlling a Toreador or Ventrue").
+    TargetSeatControlsClan(&'static [&'static str]),
+    /// The minion target follows the path (Terrifying Visage).
+    TargetFollowsPath(&'static str),
+    /// The acting minion follows the path (Forward Momentum).
+    ActingFollowsPath(&'static str),
+    /// No combat is queued in this action (advanced rules 4.9.3: one at a
+    /// time).
+    NoQueuedCombat,
     /// This card in play is unlocked ("you can lock this card to …").
     CardUnlocked,
     /// The player has the Edge ("if you have the Edge").
@@ -1932,6 +1943,9 @@ pub enum Modifier {
     },
     /// Minions of the clan do not hunt as normal (Week of Nightmares).
     ClanCannotHunt(&'static str),
+    /// "Sabbat vampires you control get +1 hunt" (The Hungry Coyote): the
+    /// layer source's controller's vampires of the sect.
+    OwnSectHunt(Sect, u8),
     /// "This minion cannot block" (Pentex™ Subversion), on the host.
     HostCannotBlock,
     /// "The other Toreador's non-bleed actions cannot be blocked" (Toreador
@@ -2723,6 +2737,30 @@ pub enum Effect {
     /// resolution" (Forced Awakening): blocks made before it do not count
     /// (ANK 20230319).
     BurnIfNoBlock(u8),
+    /// "If this vampire is blocked, the blocking minion's controller burns
+    /// n pool before block resolution" (Aelswith, Terrifying Visage).
+    BlockerControllerBurnsPool(u8),
+    /// "Minions must burn n blood to attempt to block this action" (Seeds
+    /// of Terror): blood only — an ally has none to pay.
+    BlockTollBlood(u8),
+    /// Lock the minion attempting to block (Hedonism).
+    LockAttempting,
+    /// Queue a combat between this vampire and the minion attempting to
+    /// block (Hedonism [for]/[pre]): it begins when the block step is over
+    /// (rules-qa 53.3).
+    QueueCombatWithAttempting,
+    /// "If the bleed is successful, put this card on this vampire after
+    /// action resolution" (Fever Pitch [FOR]/[PRE]); one per vampire.
+    PutOnActorIfBleedSuccessful,
+    /// "If the bleed is successful, this vampire can burn n blood to draw 1
+    /// card from your crypt" (Enthrall [OBF]/[PRE]): `Choice::DrawCrypt`
+    /// after resolution.
+    CryptForBloodIfBleedSuccessful(u8),
+    /// Forward Momentum's counters: +1 after a successful bleed of one's
+    /// path vampire, -1 after an unsuccessful one (`Hook::OwnBleedEnds`).
+    BleedOutcomeCounters,
+    /// "+n hand size until your next discard phase" (Fotini Katsikaris).
+    HandSizeUntilDiscard(u8),
     /// "Continue the action as if unblocked" after the resolution of a
     /// blocked action (Go-getter [OBF]).
     ContinueAfterResolution,
@@ -2934,6 +2972,10 @@ pub enum Effect {
     /// close, n unpreventable damage on the opposing minion, unless the
     /// strike was dodged or the combat continues (Catatonic Fear [PRE]).
     DamageAfterCombatIfClose(u8),
+    /// "After combat ends, if the range is close, stun the opposing minion"
+    /// (Kiss of Cathari [OBF]/[PRE]): not if the strike is dodged (LSJ
+    /// 20070124) or the combat continues (RTR 20020501).
+    StunAfterCombatIfClose,
     /// Set this round's range, skipping the determine range step; usable
     /// only while no other effect has set it (Sniper Rifle; Michael Harris:
     /// "set the range for the round"; the first effect setting it has
@@ -3426,6 +3468,10 @@ pub enum Hook {
     OwnVampireInfluenced,
     /// The controller's vampire successfully bled (Alamut).
     OwnBleedSuccessful,
+    /// A bleed action of the controller's minion is over (resolved,
+    /// blocked or failed), before its after-resolution window (Forward
+    /// Momentum); with the riders' requirements read on the acting minion.
+    OwnBleedEnds,
     /// The minion that played this card (`CardInPlay::by`) leaves the
     /// ready region: to torpor, burned (Slaughtering the Herd [DOM]).
     ByLeavesReady,
@@ -3655,6 +3701,8 @@ pub fn plain_equipment(card: u16) -> bool {
 pub fn library_mode(card: u16, mi: usize) -> usize {
     match LIBRARY[card as usize].name {
         "Revelation of the Serpent" => [0, 0, 1, 1][mi],
+        // [CEL] or [PRE]: the bleed alone, or with the stealth.
+        "Subversion" => [0, 1, 1][mi],
         // [DOM]: a younger vampire you control, or one in your uncontrolled
         // region — one target, of either kind.
         "Feast of the Soul's Secrets" => [0, 1, 1][mi],
@@ -4012,6 +4060,8 @@ pub fn holds(
         Requirement::DirectedAtYou => action.is_some_and(|a| a.directed_seat(st) == Some(seat)),
         Requirement::IsBleed => action.is_some_and(|a| a.kind == ActionKind::Bleed),
         Requirement::PreyBurnedPool => action.is_some_and(|a| a.prey_burned),
+        Requirement::ActingFollowsPath(path) => action.is_some_and(|a| st.follows(a.acting, path)),
+        Requirement::NoQueuedCombat => !action.is_some_and(|a| a.queued_combat.is_some()),
         Requirement::BleedAgainstPrey => action.is_some_and(|a| {
             a.kind == ActionKind::Bleed && a.bleed_target == Some(st.prey(a.seat))
         }),
@@ -4120,6 +4170,8 @@ pub fn holds(
         | Requirement::ControlsReadyTitledOther(_)
         | Requirement::PredatorMoreReadyMinions
         | Requirement::PreyPoolAtMost(_)
+        | Requirement::TargetSeatControlsClan(_)
+        | Requirement::TargetFollowsPath(_)
         | Requirement::CountersAtLeast(_)
         | Requirement::CountersAtMost(_)
         | Requirement::CardUnlocked
@@ -4591,6 +4643,7 @@ pub fn holds_for_minion(
         Requirement::NotControlled => v.owner != seat,
         Requirement::TargetLocked => v.locked,
         Requirement::TargetVampire => !v.is_ally(),
+        Requirement::TargetFollowsPath(path) => st.follows(m, path),
         Requirement::TargetCombatant => st.combatants.is_some_and(|p| p.contains(&m)),
         Requirement::TargetDiablerieSinceYourLastTurn => v
             .diablerie_turn

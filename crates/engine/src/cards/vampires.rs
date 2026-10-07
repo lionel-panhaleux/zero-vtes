@@ -1763,7 +1763,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 118] = [
+pub static VAMPIRES: [&VampireDef; 126] = [
     &PARIJAT,
     &ABADDON,
     &ABRAHAM_DUSABLE,
@@ -1882,6 +1882,14 @@ pub static VAMPIRES: [&VampireDef; 118] = [
     &REXTON,
     &URESSEG,
     &VENCESLAVA,
+    &AELSWITH,
+    &AGNIESZKA,
+    &DEVORAH,
+    &FOTINI_KATSIKARIS,
+    &GOSTOSO,
+    &JURGEN,
+    &OSVALDO_KUHNEMANN,
+    &VERRIX,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -2168,5 +2176,108 @@ pub static VENCESLAVA: VampireDef = VampireDef {
             &[Effect::GainPool(1)],
         )
     }],
+    ..VAMP
+};
+
+// ---- Sabbat V5: Path of Cathari (slice 16g) ------------------------------
+//
+// Coco Thorn, Cyan Sin, Glissando and Ximena print no text ("Sabbat.").
+
+/// "Sabbat cardinal: If Aelswith is blocked, the blocking minion's
+/// controller burns 1 pool before block resolution." Applied first of the
+/// "if blocked" effects (ANK 20220116); in torpor too (LSJ 20011022).
+pub static AELSWITH: VampireDef = VampireDef {
+    name: "Aelswith, The Irresistible",
+    riders: &[Rider {
+        hook: Hook::HostBlocked,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::BlockerControllerBurnsPool(1)],
+    }],
+    ..VAMP
+};
+
+/// "Sabbat Archbishop of Gdansk: Agnieszka can burn 1 blood to strike:
+/// combat ends. +1 bleed."
+pub static AGNIESZKA: VampireDef = VampireDef {
+    name: "Agnieszka, Tempter of Legions",
+    printed: &[own(Stat::Bleed, 1, &[])],
+    abilities: &[mode_of(
+        &[Window::CombatStrikeDeclaration],
+        Actor::Host,
+        &[R::HostBloodAtLeast(1)],
+        &[
+            Effect::HostBurnBlood(1),
+            Effect::Strike(StrikeKind::CombatEnds { unlock: false }),
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat: While you have 5 or fewer pool, Devorah gets +1 stealth." In
+/// torpor too (LSJ 20011022): her leave-torpor action.
+pub static DEVORAH: VampireDef = VampireDef {
+    name: "Devorah",
+    printed: &[own(Stat::Stealth, 1, &[R::PoolAtMost(5)])],
+    ..VAMP
+};
+
+/// "Sabbat: After Fotini successfully bleeds (for 1 or more), you get +1
+/// hand size until your next discard phase." Until it begins (rules-qa
+/// 53.4).
+pub static FOTINI_KATSIKARIS: VampireDef = VampireDef {
+    name: "Fotini Katsikaris",
+    riders: &[Rider {
+        hook: Hook::OwnBleedSuccessful,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::HandSizeUntilDiscard(1)],
+    }],
+    ..VAMP
+};
+
+/// "Sabbat: After Gostoso successfully bleeds your prey (for 1 or more),
+/// he can gain 1 blood."
+pub static GOSTOSO: VampireDef = VampireDef {
+    name: "Gostoso",
+    abilities: &[mode_of(
+        &[Window::ActionAfterResolution],
+        Actor::Host,
+        &[R::ActorActing, R::BleedAgainstPrey, R::BleedSuccessful],
+        &[Effect::AddHostBlood(1)],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat Archbishop of Mannheim: Minions must burn 1 blood or life to
+/// attempt to block Jürgen." In torpor too (LSJ 20011022).
+pub static JURGEN: VampireDef = VampireDef {
+    name: "Jürgen, The Libertine",
+    printed: &[Printed {
+        stat: Stat::BlockToll,
+        n: 1,
+        to: PrintedTo::Opponent,
+        per: Per::One,
+        requires: &[],
+    }],
+    ..VAMP
+};
+
+/// "Sabbat: Osvaldo gets +1 bleed against a Methuselah controlling a
+/// Toreador or Ventrue." In torpor too: controlled (rules-qa 53.8).
+pub static OSVALDO_KUHNEMANN: VampireDef = VampireDef {
+    name: "Osvaldo Kühnemann",
+    printed: &[own(
+        Stat::Bleed,
+        1,
+        &[R::TargetSeatControlsClan(&["Toreador", "Ventrue"])],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat bishop: Verrix gets +1 stealth during bleed actions."
+pub static VERRIX: VampireDef = VampireDef {
+    name: "Verrix, Naughty Boy",
+    printed: &[own(Stat::Stealth, 1, &[R::IsBleed])],
     ..VAMP
 };

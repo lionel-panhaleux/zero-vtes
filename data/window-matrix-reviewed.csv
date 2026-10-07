@@ -16,10 +16,15 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 100541,Día de los Muertos,Master,,no,MASTER_PHASE,,,ok
 102318,Empires Fall,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
 100645,Enkil Cog,Action Modifier,,no,ACTION_AFTER_RESOLUTION,,,ok
+102320,Enthrall,Action,obf/pre,no,ACTION_DECLARE,,,ok
 100710,Fear of Mekhet,Master,,no,MASTER_PHASE,,,ok
+102321,Fever Pitch,Action Modifier,for/pre,no,ACTION_DURING,,,ok
 100761,Forced March,Action Modifier,cel/for,no,ACTION_AFTER_RESOLUTION;ACTION_STEALTH_INTERCEPT,,,ok
+102323,Forward Momentum,Master,,no,MASTER_PHASE,,,ok
+102328,Hedonism,Action Modifier,for/pre,no,ACTION_BLOCK_ATTEMPT,,,ok
 100994,Instantaneous Transformation,Action Modifier,cel/pro,no,ACTION_STEALTH_INTERCEPT;ACTION_AFTER_RESOLUTION,,,ok
 101008,Iron Glare,Action Modifier,pot/pre,no,REFERENDUM;ACTION_DURING,,,ok
+102330,Kiss of Cathari,Combat,obf/pre,no,COMBAT_STRIKE_DECLARATION,,,ok
 102273,Loup,Action Modifier,,no,ACTION_STEALTH_INTERCEPT,,,ok
 102331,Magnetic Authority,Action Modifier,dom/pot,no,ACTION_AFTER_RESOLUTION,,,ok
 101238,Monastery of Shadows,Master,,no,MASTER_PHASE,,,ok
@@ -32,6 +37,11 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 101590,Reinforcements,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
 101591,Reins of Power,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
 102337,Relentlessness,Action Modifier,cel/for,no,ACTION_STEALTH_INTERCEPT;ACTION_BLOCK_ATTEMPT,,,ok
+102338,Seeds of Terror,Action Modifier,obf/pre,no,ACTION_AS_ANNOUNCED,,,ok
+102341,Subversion,Action Modifier,cel/pre,no,ACTION_STEALTH_INTERCEPT;ACTION_DURING,,,ok
+102342,Swift Cover,Action Modifier/Combat,cel/obf,no,COMBAT_STRIKE_DECLARATION;ACTION_STEALTH_INTERCEPT,,,ok
+102343,Terrifying Visage,Master,,no,MASTER_PHASE,,,ok
+100945,The Hungry Coyote,Master,,no,MASTER_PHASE,,,ok
 101127,"The Louvre, Paris",Master,,no,MASTER_PHASE,in_play_action,,ok
 102063,Under Siege,Action,,no,ACTION_DECLARE,,,ok
 102345,Unholy Sacrament,Master,,no,MASTER_PHASE,,,ok

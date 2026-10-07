@@ -2142,4 +2142,60 @@ fuzz_tests! {
         seeds: 100,
         ..BASE
     };
+    /// Sabbat V5, the Path of Cathari: the deck's new cards, its vampires
+    /// dealt around the table (a cardinal, archbishops, a bishop), with an
+    /// action-ending card and a strike that unlocks against Kiss of
+    /// Cathari's stun.
+    random_games_with_the_path_of_cathari_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Enthrall",
+            "Fever Pitch",
+            "Forward Momentum",
+            "Hedonism",
+            "Hungry Coyote, The",
+            "Kiss of Cathari",
+            "Seeds of Terror",
+            "Subversion",
+            "Swift Cover",
+            "Terrifying Visage",
+            "Change of Target",
+            "Majesty",
+        ],
+        covers: &[
+            "play:Enthrall",
+            "play:Fever Pitch",
+            "play:Forward Momentum",
+            "play:Hedonism",
+            "play:Hungry Coyote, The",
+            "play:Kiss of Cathari",
+            "play:Seeds of Terror",
+            "play:Subversion",
+            "play:Swift Cover",
+            "play:Terrifying Visage",
+            "ability:Fever Pitch",
+            "ability:Forward Momentum",
+            "ability:Agnieszka, Tempter of Legions",
+            "ability:Gostoso",
+            "draw_crypt",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Aelswith, The Irresistible",
+                    "Agnieszka, Tempter of Legions",
+                    "Devorah",
+                    "Fotini Katsikaris",
+                    "Gostoso",
+                    "Jürgen, The Libertine",
+                    "Osvaldo Kühnemann",
+                    "Verrix, Naughty Boy",
+                    "Glissando",
+                    "Ximena",
+                ],
+            )
+        },
+        seeds: 100,
+        ..BASE
+    };
 }

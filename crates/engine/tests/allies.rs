@@ -2140,3 +2140,44 @@ fn a_ranged_strike_card_may_be_aimed_at_a_retainer_and_steals_its_life() {
     // 2 blood, +1 stolen (the taxi's hand strike misses at long range).
     assert_eq!(e.state.minions[v.index()].blood, 3);
 }
+
+// An ally burned during its own block attempt (47th Street Royals, burned
+// to reduce the bleed) fails it: no combat with a minion out of play, the
+// bleed goes on, 3 less.
+#[test]
+fn an_attempting_ally_that_burns_itself_fails_its_attempt() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 3), 4, false);
+    e.state.minions[a.index()].blood = 4;
+    let royals = e.add_ally(SeatId(1), find_library("47th Street Royals"));
+    let card = e
+        .state
+        .cards
+        .iter()
+        .position(|c| c.body == Some(royals))
+        .expect("the ally's card") as u32;
+    pick(
+        &mut e,
+        Choice::TakeAction {
+            minion: a,
+            action: ActionKind::Bleed,
+            target: None,
+        },
+    );
+    pick(&mut e, Choice::DeclareBlock { minion: royals });
+    pick_when(
+        &mut e,
+        Choice::UseAbility {
+            source: AbilitySource::Card(CardId(card)),
+            ability: 0,
+            actor: None,
+            target: Target::None,
+        },
+    );
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[royals.index()].in_play);
+    assert_eq!(e.state.minions[a.index()].blood, 4, "no combat");
+    let bleed = e.state.base_bleed(a) as i32;
+    assert_eq!(e.state.seats[1].pool, 30 - (bleed - 3).max(0));
+}

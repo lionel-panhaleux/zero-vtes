@@ -150,6 +150,11 @@ def check(path):
     bad, used = 0, set()
     for r in rows:
         st = r["status"]
+        # A status with a comma must be quoted: unquoted, its tail is a
+        # seventh field and regeneration drops it.
+        if None in r:
+            print(f"{r['card']!r} {r['references']}: unquoted comma in status {st!r}")
+            bad += 1
         if r["card"] not in cards:
             if st:
                 print(f"{r['card']!r}: status {st!r} on a card not in DEFS")

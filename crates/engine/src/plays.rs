@@ -5052,8 +5052,9 @@ impl Engine {
                 // bleed, Daria's stealth).
                 // A card in play's effect on the action (47th Street
                 // Royals' bleed reduction, Szlachta Bodyguard's failure,
-                // Under Siege's block attempt).
+                // Under Siege's block attempt, Fever Pitch's failed one).
                 Effect::AttemptBlock
+                | Effect::AttemptFails
                 | Effect::AddStealth(_)
                 | Effect::BleedMod { .. }
                 | Effect::ReduceBleed(_)
@@ -6254,6 +6255,24 @@ impl Engine {
     /// counting it (Alamut: "put the pool lost by that Methuselah on this
     /// card").
     pub(crate) fn own_bleed_riders(&mut self, seat: SeatId, acting: MinionId, amount: u8) {
+        // Printed on the acting vampire (Fotini Katsikaris: "+1 hand size
+        // until your next discard phase").
+        if let Some(def) = cards::vampire_of(&self.state.minions[acting.index()]) {
+            for r in def
+                .riders
+                .iter()
+                .filter(|r| r.hook == Hook::OwnBleedSuccessful)
+            {
+                for e in r.effects {
+                    match *e {
+                        Effect::HandSizeUntilDiscard(n) => {
+                            self.state.seats[seat.index()].hand_bonus_discard += n;
+                        }
+                        other => unreachable!("not an own-bleed rider effect: {other:?}"),
+                    }
+                }
+            }
+        }
         let clan = self.state.minions[acting.index()].clan();
         for (id, r) in self.state.card_riders(Hook::OwnBleedSuccessful) {
             let c = &self.state.cards[id.index()];

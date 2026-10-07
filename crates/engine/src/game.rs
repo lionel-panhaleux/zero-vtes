@@ -1392,6 +1392,8 @@ impl Engine {
         self.state.seats[s.index()].dpa = (1 + printed).max(0) as u8;
         self.state.seats[s.index()].granted_dpa = 0;
         self.state.seats[s.index()].event_played = false;
+        // Fotini Katsikaris's bonus ends as the discard phase begins.
+        self.state.seats[s.index()].hand_bonus_discard = 0;
         // "Unlock this vampire during the next discard phase" (Feral Hound).
         for m in &mut self.state.minions {
             if std::mem::take(&mut m.unlock_at_discard) {
@@ -1840,7 +1842,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 225);
+        assert_eq!(CRYPT.len(), 237);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

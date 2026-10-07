@@ -93,6 +93,9 @@ pub struct PrintedCtx {
     /// The card the modified minion plays or puts in play, and the mode
     /// it is played with (a printed cost reduction).
     pub card: Option<(u16, u8)>,
+    /// The Methuselah the action is directed at ("+1 bleed against a
+    /// Methuselah controlling …", Osvaldo Kühnemann).
+    pub target: Option<SeatId>,
 }
 
 /// What a minion's printed text takes off a card's cost
@@ -678,6 +681,9 @@ pub struct Seat {
     /// Hand size above the rulebook's 7 until the end of the turn (Dreams
     /// of the Sphinx).
     pub hand_bonus: u8,
+    /// Hand size above 7 until their next discard phase begins (Fotini
+    /// Katsikaris; rules-qa 53.4).
+    pub hand_bonus_discard: u8,
     /// One additional master phase action from trifles per master phase.
     pub trifle_used: bool,
     /// Día de los Muertos this turn: the first referendum a Sabbat vampire
@@ -1272,6 +1278,13 @@ impl GameState {
             R::ActionDirected => ctx.directed == Some(true),
             R::ActionUndirected => ctx.directed == Some(false),
             R::IsBleed => ctx.kind == Some(ActionKind::Bleed),
+            R::TargetSeatControlsClan(clans) => ctx.target.is_some_and(|s| {
+                self.minions_of(s).any(|m| {
+                    self.minions[m.index()]
+                        .clan()
+                        .is_some_and(|c| clans.contains(&c))
+                })
+            }),
             R::IsPolitical => ctx.kind == Some(ActionKind::Political),
             R::OpponentClan(c) => opp.and_then(|o| o.clan()) == Some(c),
             // "In combat with a werewolf" (Mark Decker): an ally of the
@@ -1410,7 +1423,9 @@ impl GameState {
             })
             .map(|(_, p)| p.n as i32)
             .sum();
-        let mut size = HAND_SIZE as i32 + self.seats[s.index()].hand_bonus as i32 + printed;
+        let seat = &self.seats[s.index()];
+        let mut size =
+            HAND_SIZE as i32 + seat.hand_bonus as i32 + seat.hand_bonus_discard as i32 + printed;
         // "While the employer is in combat, the opposing minion's
         // controller gets -1 hand size" (Raptor [ANI]).
         if let Some(pair) = self.combatants {
@@ -1440,6 +1455,22 @@ impl GameState {
             .sum();
         let layers: u8 = sum_n!(self.controlled_layers(s), Modifier::Transfers);
         layers + printed.max(0) as u8
+    }
+
+    /// Blood a hunt gains above the rulebook's 1 ("Sabbat vampires you
+    /// control get +1 hunt", The Hungry Coyote).
+    pub fn hunt_bonus(&self, m: MinionId) -> u8 {
+        let owner = self.minions[m.index()].owner;
+        self.in_play_layers()
+            .map(|l| match l.modifier {
+                Modifier::OwnSectHunt(sect, n)
+                    if self.card_controller(l.source) == owner && self.sect_of(m) == Some(sect) =>
+                {
+                    n
+                }
+                _ => 0,
+            })
+            .sum()
     }
 
     /// Cards over hand size, the cards not replaced yet counting against

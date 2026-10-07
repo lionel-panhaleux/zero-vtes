@@ -67,10 +67,15 @@ Suwira, Üresség, Věnceslava, Absolute Tyranny, Black Forest Base, Cardinal
 Benediction, Catatonic Fear, Cold War, Día de los Muertos, Dominant
 Personality, Empires Fall, Iron Glare, Magnetic Authority, Powerbase:
 Madrid, Private Audience, Privileged Position, Regent, Relentlessness,
-Under Siege, Unholy Sacrament, Unthinkable Humiliation, War of Ages.
+Under Siege, Unholy Sacrament, Unthinkable Humiliation, War of Ages; then
+the new cards of the Sabbat V5 Path of Cathari deck (2026-10-07, a fifth
+batch): Aelswith, Agnieszka, Coco Thorn, Cyan Sin, Devorah, Fotini
+Katsikaris, Glissando, Gostoso, Jürgen, Osvaldo Kühnemann, Verrix, Ximena,
+Enthrall, Fever Pitch, Forward Momentum, Hedonism, The Hungry Coyote, Kiss
+of Cathari, Seeds of Terror, Subversion, Swift Cover, Terrifying Visage.
 
-- **698 unique cards**: 225 crypt (200 V5 + 25 added), 473 library (421 V5 + 4
-  extra + 48 added).
+- **720 unique cards**: 237 crypt (200 V5 + 37 added), 483 library (421 V5 + 4
+  extra + 58 added).
   V5 library by type: Master 124, Combat 63, Action 59, Action Modifier 53,
   Reaction 40, Equipment 23, Event 20, Ally 19, Political Action 19, Retainer 12
   (multi-type cards counted per type).
@@ -530,6 +535,7 @@ titles; `git log` has the detail.
 | P3 · 14a–14c | 09-27 | Observations (`obs.rs`: entity tokens, option rows with pointers; honest by test); `crates/py` `GamePool` (batched parallel stepping, bots inside, replayable); `train/`: pointer-scoring transformer, PPO self-play, evaluation vs random and bots |
 | P4 · 16c | 09-30 | Remaining-deck tokens (`obs::T_DECK`): the viewer's own library and crypt by contents; `legal_view` keeps them, sorted. Referendum tokens (`obs::T_REFERENDUM`): the calling card, the tally, the terms on the tokens they name |
 | P4 · 16b | 09-28 | The decision point before an oust (`ousting.rs`): Life Boon playable, its VP redirection (`Engine::gain_half_vps`) and pool steal; `oust_and_pass` reports a waiting oust to its callers |
+| P4 · 16g | 10-07 | Sabbat V5, the Path of Cathari: 22 cards as a fifth batch, the second Sabbat decklist (decks in the order completed); a combat queued in an action (Hedonism: begun once the block step is over, lost if the action ends first), the blocker's controller burning pool as the block is declared (Aelswith, Terrifying Visage), a blood-only block toll, after-combat stun, a card put on its vampire after a successful bleed (Fever Pitch), a crypt draw for blood after a bleed (`Choice::DrawCrypt` in the action), bleed-outcome counters, a hand size until the next discard phase, a hunt bonus, a bleed bonus against a Methuselah's clans; an attempting minion gone from play fails its attempt (no combat with it — HEAD fought one: five fuzz games changed); per-mode types for an untagged action-modifier-and-combat card; the ledger's comma statuses quoted, `--check` rejecting unquoted ones; rules-qa Batch 53 |
 | P4 · 16f | 10-07 | Sabbat V5, the Path of Power and the Inner Voice: 31 cards as a fourth batch, the deck as the first Sabbat decklist (`Deck::sabbat`, a `sabbat` family); Sabbat titles and the prisci block, paths (a path icon a play requirement), the "[x] or [y]" mode layout (the generator kept only the first Discipline); Día's automatic pass (no polling step), vote penalties generalized (`Penalized`), Under Siege's unlock-and-attempt from a card in play, a printed small-vampire block bar, after-combat damage (Catatonic Fear), the regent moving to a Sabbat diablerist, a card's granted action once each turn by any vampire; the banished vampire's cards shown in the protocol view; rules-qa Batch 52; fuzz fixture of its own (goldens re-blessed: hashes only, identical games) |
 | P4 · 16e | 10-06 | The Endless Dance (30th Anniversary): 15 cards as a third batch, the deck as the second anniversary decklist; Business Pressure's pool-for-votes round (`Pressure`, a polling window of its own), Camarilla Conclave's vote penalty reaching cast votes, Marcos Belegrad's per-Methuselah pool at the tally, Loup's end-of-turn and successful-action hooks, a card removed whatever happens (Reinforcements), an equipment changing vampire by referendum, played-card predicates for abilities in the as-played window (Diana Iadanza); the acting Methuselah ousted mid-polling ends the action; rules-qa Batch 51 |
 | P4 · 16d | 10-06 | Reign of Stanislava (25th Anniversary): 15 cards appended as a second batch (`ADDED_BATCHES`), the deck as a reviewed anniversary decklist (`Deck::anniversary`); archbishop and Inner Circle titles, the advanced flag; Enkil Cog's action in another Methuselah's minion phase (`Flow::CogAction`, offered in its end-of-phase rotation; an action is its minion's controller's, rules-qa 49.6), per-Methuselah vampire choices as a referendum passes, the against-voters' blood at the tally, retainer text lost against Stanislava, Fear of Mekhet's move, a card's per-vampire per-turn play limit; rules-qa Batches 49–50; fuzz fixture of its own (the others' tables keep to the earlier crypt: goldens re-blessed, identical games) |
@@ -953,8 +959,9 @@ slice-11 cards by section).
   by default with the precons: a seat draws a clan, then a deck of it), first
   versions for the TWDA cap like the precons. The Sabbat V5 decks
   (`SABBAT_PRECONS`/`SABBAT_LIBRARIES`, `Deck::sabbat`, the KRCG "Sabbat V5"
-  set, 12 crypt and 77 library cards each) likewise, once complete — the Path
-  of Power and the Inner Voice so far; a `sabbat` family, not trained by
+  set, 12 crypt and 77 library cards each) likewise, once complete, in the
+  order they were completed — the Path of Power and the Inner Voice, the
+  Path of Cathari so far; a `sabbat` family, not trained by
   default yet; `Deck::category` (a Sabbat deck's path, else its clan) is
   what a seat draws first. `TWDA` (`twda.rs`,
   `scripts/gen_twda.py` from KRCG twda.json and the generated tables'
@@ -1642,7 +1649,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (`docs/human-play.md` has the board).
 
-Definitions: 473 library, 118 vampires; 1044 Rust tests, 23 Python tests
+Definitions: 483 library, 126 vampires; 1067 Rust tests, 23 Python tests
 
 ## Outlook: deck building (post-v1)
 

@@ -151,6 +151,32 @@ ADDED_BATCHES = [
         201775: "Üresség (G6)",
         201776: "Věnceslava, The Implacable (G6)",
     },
+    # 2026-10-07: Sabbat V5, the Path of Cathari deck's new cards (The
+    # Hungry Coyote a legacy reprint).
+    {
+        100945: "Hungry Coyote, The",
+        102320: "Enthrall",
+        102321: "Fever Pitch",
+        102323: "Forward Momentum",
+        102328: "Hedonism",
+        102330: "Kiss of Cathari",
+        102338: "Seeds of Terror",
+        102341: "Subversion",
+        102342: "Swift Cover",
+        102343: "Terrifying Visage",
+        201735: "Aelswith, The Irresistible (G6)",
+        201736: "Agnieszka, Tempter of Legions (G6)",
+        201743: "Coco Thorn (G6)",
+        201746: "Cyan Sin (G6)",
+        201748: "Devorah (G6)",
+        201751: "Fotini Katsikaris (G6)",
+        201753: "Glissando (G6)",
+        201754: "Gostoso (G6)",
+        201758: "Jürgen, The Libertine (G6)",
+        201767: "Osvaldo Kühnemann (G6)",
+        201777: "Verrix, Naughty Boy (G6)",
+        201778: "Ximena (G6)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -248,8 +274,12 @@ def sabbat_decks(cards):
         for e in c.get("sets", {}).get(SABBAT_SET, []):
             if "precon" in e:
                 decks.setdefault(e["precon"], {})[c["id"]] = (c, e["copies"])
+    # In the order they were completed (the batch of their last card), so
+    # a deck added never moves one already emitted.
+    batch = {k: i for i, b in enumerate(ADDED_BATCHES) for k in b}
+    order = sorted(decks, key=lambda n: (max(batch.get(i, -1) for i in decks[n]), n))
     out = []
-    for name in sorted(decks):
+    for name in order:
         deck = decks[name]
         if not all(in_pool(c) for c, _ in deck.values()):
             continue
@@ -472,6 +502,11 @@ def modes_for(card):
         elif "Action" in types and ACTION_MODE.match(mtext.strip()):
             mts = []                     # the action mode of an Action/Combat card
             action_mode = True
+        elif {"Combat", "Action Modifier"} <= set(mode_types):
+            # An untagged mode of an action modifier and combat card (Swift
+            # Cover): a strike or combat effect is the combat card's.
+            combat = re.search(r"\b(strike|combat|range|maneuver|press|damage)\b", mtext, re.I)
+            mts = ["Combat" if combat else "Action Modifier"]
         else:
             mts = mode_types
         if re.search(CANCEL_AS_PLAYED, raw_text, re.I) and not re.search(r"lock this", raw_text, re.I):

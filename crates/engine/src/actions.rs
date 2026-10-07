@@ -236,6 +236,20 @@ pub struct ActionCtx {
     /// The acting Methuselah's prey burned pool during this action
     /// (Věnceslava): any pool they lost, costs paid included (rules-qa 52.4).
     pub prey_burned: bool,
+    /// Blood only every minion burns to attempt to block this action
+    /// (Seeds of Terror): an ally cannot pay it.
+    pub block_toll_blood: u8,
+    /// A combat queued by a play (Hedonism [for]/[pre]): (its vampire, the
+    /// minion that attempted to block) — begun when the block step is
+    /// over, before resolution; dropped if the action ends first (advanced
+    /// rules 4.9.3; rules-qa 53.3).
+    pub queued_combat: Option<(MinionId, MinionId)>,
+    /// Cards put on their vampire after resolution if the bleed was
+    /// successful (Fever Pitch [FOR]/[PRE]).
+    pub put_if_bleed_successful: Vec<crate::combat::Held>,
+    /// Enthrall [OBF]/[PRE]: after a successful bleed, its vampire may burn
+    /// this blood to draw a crypt card (`Choice::DrawCrypt`).
+    pub crypt_for_blood: Option<(MinionId, u8)>,
     /// Faceless Night [OBF]: failed attempts from now on lock their minion
     /// before resolution.
     pub lock_failed: bool,
@@ -615,6 +629,7 @@ impl ActionCtx {
             directed: Some(self.directed_seat(st).is_some()),
             opponent,
             card: None,
+            target: self.directed_seat(st),
         }
     }
 
@@ -1109,8 +1124,8 @@ impl Engine {
                 },
             )
             .max(0) as u8;
-        let blood = veil + printed + a.block_toll_extra;
-        if veil > 0 && v.is_ally() || v.blood < blood {
+        let blood = veil + printed + a.block_toll_extra + a.block_toll_blood;
+        if (veil > 0 || a.block_toll_blood > 0) && v.is_ally() || v.blood < blood {
             return None;
         }
         let wraith_or_zombie = st.minions[a.acting.index()]
@@ -1779,6 +1794,17 @@ impl Engine {
                 }
             }
         }
+        // Enthrall [OBF]/[PRE]: "this vampire can burn 1 blood to draw 1
+        // card from your crypt" — from an empty one too, drawing nothing
+        // (LSJ 20060620).
+        if a.state == ActionState::AfterResolution && a.bleed_successful && seat == a.seat {
+            if let Some((m, n)) = a.crypt_for_blood {
+                let v = &self.state.minions[m.index()];
+                if v.present() && v.blood >= n {
+                    options.push(Choice::DrawCrypt);
+                }
+            }
+        }
         if a.state == ActionState::AfterCombat {
             for &(m, n) in &a.after_block_unlocks {
                 let v = &self.state.minions[m.index()];
@@ -1862,6 +1888,20 @@ impl Engine {
                 a.window.play();
                 if self.state.minions[m.index()].present() {
                     self.damage_out_of_combat(m, n, true);
+                }
+                self.flow = Flow::Action;
+            }
+            Choice::DrawCrypt => {
+                let (m, n) = a.crypt_for_blood.take().expect("a crypt draw for blood");
+                a.window.play();
+                self.state.burn_blood(m, n);
+                let seat = &mut self.state.seats[seat.index()];
+                if let Some(card) = seat.crypt.pop() {
+                    seat.uncontrolled.push(crate::state::UncontrolledSlot {
+                        card,
+                        counters: 0,
+                        banished: None,
+                    });
                 }
                 self.flow = Flow::Action;
             }
@@ -1967,6 +2007,13 @@ impl Engine {
         {
             return;
         }
+        // A combat queued in it (Hedonism) begins once the block's own
+        // combat is over, before resolution (rules-qa 53.3).
+        if self.action.as_ref().expect("action context").state == ActionState::AfterCombat
+            && self.begin_queued_combat()
+        {
+            return;
+        }
         let a = self.action.as_mut().expect("action context");
         debug_assert!(a.window.is_closed());
         match a.state {
@@ -1977,15 +2024,20 @@ impl Engine {
             }
             ActionState::Open => {
                 a.state = ActionState::Declined;
-                a.fresh_window();
-                self.flow = Flow::Action;
+                if !self.begin_queued_combat() {
+                    let a = self.action.as_mut().expect("action context");
+                    a.fresh_window();
+                    self.flow = Flow::Action;
+                }
             }
             ActionState::Attempt(blocker) => {
                 // Locked during its attempt (Visions of Zapathasura
                 // [OBF][PRE]), a minion that did not wake fails it (LSJ
                 // 20010702, RTR 19941006).
-                let locked_out =
-                    self.state.minions[blocker.index()].locked && !a.woken.contains(&blocker);
+                // One that left play during it (47th Street Royals burned
+                // for its bleed reduction) fails it too.
+                let locked_out = !self.state.minions[blocker.index()].present()
+                    || self.state.minions[blocker.index()].locked && !a.woken.contains(&blocker);
                 if !locked_out && a.intercept_of(&self.state, blocker) >= a.stealth(&self.state) {
                     self.blocked(blocker);
                 } else {
@@ -2133,6 +2185,7 @@ impl Engine {
     /// Dawn's damage, ANK 20220331); an ended action takes no more cards
     /// in it (RTR 20180719), a failed one does (ANK 20221205).
     pub(crate) fn after_resolution(&mut self) {
+        self.bleed_ends_riders();
         // WMRH Talk Radio: the minion given intercept did not block since.
         if let Some(a) = self.action.as_mut() {
             let due = std::mem::take(&mut a.pool_if_no_block);
@@ -2185,6 +2238,78 @@ impl Engine {
 
     /// The combat ended: open the after-combat window over the action's
     /// order (rules-qa 2.1: once, after all combats of the block).
+    /// The combat queued in the action (Hedonism) begins, if both its
+    /// minions are still ready — a vampire in torpor enters no combat
+    /// (advanced rules 4.9.3): true if it did. The action's step resumes
+    /// as it ends (`resume_after_queued_combat`).
+    pub(crate) fn begin_queued_combat(&mut self) -> bool {
+        let Some((x, y)) = self.action.as_mut().and_then(|a| a.queued_combat.take()) else {
+            return false;
+        };
+        let ready = |m: MinionId| self.state.minions[m.index()].ready();
+        if !ready(x) || !ready(y) {
+            return false;
+        }
+        self.start_combat(x, y);
+        self.combat.as_mut().expect("combat").queued = true;
+        true
+    }
+
+    /// A bleed of the controller's minion is over, before its
+    /// after-resolution window (Forward Momentum: +1 counter if it was
+    /// successful, else -1 — a blocked bleed included, rules-qa 53.6).
+    fn bleed_ends_riders(&mut self) {
+        let Some(a) = self.action.as_ref() else {
+            return;
+        };
+        if a.kind != ActionKind::Bleed || a.state == ActionState::AfterResolution {
+            return;
+        }
+        let (seat, acting, successful) = (a.seat, a.acting, a.bleed_successful);
+        for (id, r) in self.state.card_riders(Hook::OwnBleedEnds) {
+            let c = &self.state.cards[id.index()];
+            if !c.present() || self.state.card_controller(id) != seat {
+                continue;
+            }
+            let holds = r.requires.iter().all(|&req| {
+                cards::holds(
+                    req,
+                    &self.state,
+                    seat,
+                    Some(acting),
+                    None,
+                    self.action.as_ref(),
+                    None,
+                    None,
+                    false,
+                )
+            });
+            if !holds {
+                continue;
+            }
+            for e in r.effects {
+                match *e {
+                    Effect::BleedOutcomeCounters => {
+                        let c = &mut self.state.cards[id.index()];
+                        if successful {
+                            c.counters += 1;
+                        } else {
+                            c.counters = c.counters.saturating_sub(1);
+                        }
+                    }
+                    other => unreachable!("not a bleed-ends rider effect: {other:?}"),
+                }
+            }
+        }
+    }
+
+    /// A queued combat over: the action's step goes on where it was.
+    pub(crate) fn resume_after_queued_combat(&mut self) {
+        let a = self.action.as_mut().expect("action context");
+        a.fresh_window();
+        self.flow = Flow::Action;
+    }
+
     pub(crate) fn after_combat(&mut self) {
         let a = self.action.as_mut().expect("action context");
         a.state = ActionState::AfterCombat;
@@ -2367,6 +2492,23 @@ impl Engine {
                 source: crate::state::CardId(u32::MAX),
             }),
             Effect::BlockToll(n) => a.block_toll_extra += n,
+            Effect::BlockTollBlood(n) => a.block_toll_blood += n,
+            // Hedonism: the attempting minion locked, a combat queued with
+            // it — before its attempt fails.
+            Effect::LockAttempting => {
+                if let ActionState::Attempt(m) = a.state {
+                    self.state.minions[m.index()].locked = true;
+                }
+            }
+            Effect::QueueCombatWithAttempting => {
+                if let ActionState::Attempt(m) = a.state {
+                    a.queued_combat = Some((play.actor.expect("actor"), m));
+                }
+            }
+            Effect::PutOnActorIfBleedSuccessful => {
+                let h = crate::combat::Held::from_play(play, play.actor.expect("actor"), 0);
+                a.put_if_bleed_successful.push(h);
+            }
             // "Minions get -1 intercept" (Unthinkable Humiliation [POT]):
             // every minion, this action.
             Effect::MinionsIntercept(n) => {
@@ -2684,7 +2826,18 @@ impl Engine {
         self.mark_resolved(acting, kind);
         // "If blocked" riders of the acting minion's cards (Unlicensed
         // Taxicab) apply before any other card or effect (ANK 20220116).
-        self.host_blocked_riders(acting);
+        self.host_blocked_riders(acting, blocker);
+        // Its controller ousted by such a rider (Terrifying Visage): the
+        // blocker left play, the action is blocked with no combat (rules-qa
+        // 53.1).
+        if self.action.is_none() {
+            return;
+        }
+        if !self.state.minions[blocker.index()].present() {
+            self.action.as_mut().expect("action context").outcome = Some(Outcome::Blocked);
+            self.after_resolution();
+            return;
+        }
         self.host_blocks_riders(acting, blocker);
         // Mirror Walk [THA]: the action ends before block resolution — no
         // combat, no diablerie opportunity on a blocked leave-torpor (PIB
@@ -2718,10 +2871,13 @@ impl Engine {
 
     /// Riders of the cards on the acting minion fired as its action is
     /// blocked, their conditions read on the blocker.
-    fn host_blocked_riders(&mut self, acting: MinionId) {
+    fn host_blocked_riders(&mut self, acting: MinionId, blocker: MinionId) {
         let seat = self.state.minions[acting.index()].owner;
         let mut burns = Vec::new();
         let mut bleeds: Vec<u8> = Vec::new();
+        // "The blocking minion's controller burns n pool" (Terrifying
+        // Visage, Aelswith).
+        let mut toll = 0;
         for (id, r) in self.state.card_riders(Hook::HostBlocked) {
             let c = &self.state.cards[id.index()];
             if !c.present() || c.host != Some(acting) {
@@ -2757,6 +2913,7 @@ impl Engine {
                     // "They burn 1 blood or life before block
                     // resolution" (Phantasmagoria [PRE]).
                     Effect::HostBurnBlood(n) => bleeds.push(n),
+                    Effect::BlockerControllerBurnsPool(n) => toll += n,
                     other => unreachable!("not a host-blocked rider effect: {other:?}"),
                 }
             }
@@ -2786,11 +2943,25 @@ impl Engine {
                         Effect::HostBurnBlood(n) => {
                             self.state.burn_blood(acting, n);
                         }
+                        Effect::BlockerControllerBurnsPool(n) => toll += n,
                         other => unreachable!("not a host-blocked rider effect: {other:?}"),
                     }
                 }
             }
         }
+        self.blocker_controller_burns(blocker, toll);
+    }
+
+    /// The pool burned by the blocker's controller as the action is blocked
+    /// (`host_blocked_riders`), the last ousting them: their minion leaves
+    /// play with them and no combat follows (rules-qa 53.1).
+    fn blocker_controller_burns(&mut self, blocker: MinionId, n: u8) {
+        if n == 0 {
+            return;
+        }
+        let mut loss = vec![0; self.state.seats.len()];
+        loss[self.state.minions[blocker.index()].owner.index()] = n as i32;
+        self.burn_pool_batch(&loss);
     }
 
     /// A bleed action card's "if the bleed is successful" effects (Break
@@ -3105,6 +3276,20 @@ impl Engine {
                     // their minions chosen now — none left of an ousted prey.
                     if let Some(play) = a.card {
                         self.bleed_successful_effects(&play, prey);
+                        // Enthrall [OBF]/[PRE]: its crypt draw for blood,
+                        // offered after resolution.
+                        let draw = cards::lookup(play.card).and_then(|d| {
+                            d.modes[play.mode as usize]
+                                .effects
+                                .iter()
+                                .find_map(|e| match e {
+                                    Effect::CryptForBloodIfBleedSuccessful(n) => Some(*n),
+                                    _ => None,
+                                })
+                        });
+                        if let Some(n) = draw {
+                            a.crypt_for_blood = Some((a.acting, n));
+                        }
                     }
                 }
                 // Below 0 kept until the oust: a Life Boon must make it good
@@ -3133,7 +3318,8 @@ impl Engine {
             ActionKind::Hunt => {
                 self.state.minions[a.acting.index()].must_hunt = false;
                 let before = self.state.minions[a.acting.index()].blood;
-                self.state.gain_blood(a.acting, 1);
+                let hunt = 1 + self.state.hunt_bonus(a.acting);
+                self.state.gain_blood(a.acting, hunt);
                 // Successful only if blood was gained (LSJ 20050720-2).
                 a.hunt_gained = self.state.minions[a.acting.index()].blood > before;
                 if a.hunt_gained {
@@ -3803,13 +3989,20 @@ impl Engine {
                         }
                         Effect::StealBloodFromTarget(n) => {
                             let t = target.minion();
+                            // A hunt bonus is more blood from the target
+                            // (The Hungry Coyote; RTR 20030519).
+                            let hunt = self.action.as_ref().is_some_and(|a| a.is_hunt);
+                            let n = n + if hunt {
+                                self.state.hunt_bonus(acting)
+                            } else {
+                                0
+                            };
                             let taken = n.min(self.state.minions[t.index()].blood);
                             self.state.minions[t.index()].blood -= taken;
                             self.state.gain_blood(acting, taken);
                             // A hunt stealing no blood is not successful (LSJ
                             // 20050720-2); blood it cannot hold goes to the
                             // bank (LSJ 20010809-1).
-                            let hunt = self.action.as_ref().is_some_and(|a| a.is_hunt);
                             if hunt && taken > 0 {
                                 self.action.as_mut().expect("action").hunt_gained = true;
                                 self.successful_hunt_riders(acting);
@@ -3964,6 +4157,22 @@ impl Engine {
             .copied()
             .filter(|h| !a.blocked_by.contains(&h.minion))
             .collect();
+        for h in put {
+            let name = LIBRARY[h.card as usize].name;
+            if self.state.minions[h.minion.index()].present()
+                && !self.state.holds_a(h.minion, cards::Holding::Named(name))
+            {
+                self.place_held(h, h.minion);
+            }
+        }
+        // Fever Pitch [FOR]/[PRE]: put on its vampire after a successful
+        // bleed, one per vampire (rules-qa 53.5).
+        let a = self.action.as_ref().expect("action context");
+        let put: Vec<crate::combat::Held> = if a.bleed_successful {
+            a.put_if_bleed_successful.clone()
+        } else {
+            Vec::new()
+        };
         for h in put {
             let name = LIBRARY[h.card as usize].name;
             if self.state.minions[h.minion.index()].present()

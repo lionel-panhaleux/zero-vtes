@@ -102,7 +102,7 @@ pub struct LibraryCard {
 }
 
 #[rustfmt::skip]
-pub static LIBRARY: [LibraryCard; 473] = [
+pub static LIBRARY: [LibraryCard; 483] = [
     LibraryCard {
         id: 100001,
         name: ".44 Magnum",
@@ -11111,6 +11111,251 @@ pub static LIBRARY: [LibraryCard; 473] = [
         ],
         path: None,
     },
+    LibraryCard {
+        id: 100945,
+        name: "Hungry Coyote, The",
+        types: &[CardType::Master],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::Fixed(2),
+        burn_option: false,
+        combo: false,
+        labels: &[Label::Unique, Label::Location],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["MASTER_PHASE"],
+                flags: &[],
+            },
+        ],
+        path: None,
+    },
+    LibraryCard {
+        id: 102320,
+        name: "Enthrall",
+        types: &[CardType::Action],
+        disciplines: &["obf", "pre"],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["obf", "pre"],
+                windows: &["ACTION_DECLARE"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["OBF", "PRE"],
+                windows: &["ACTION_DECLARE"],
+                flags: &[],
+            },
+        ],
+        path: Some("Cathari"),
+    },
+    LibraryCard {
+        id: 102321,
+        name: "Fever Pitch",
+        types: &[CardType::ActionModifier],
+        disciplines: &["for", "pre"],
+        clans: &[],
+        blood_cost: Cost::Fixed(1),
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["for", "pre"],
+                windows: &["ACTION_DURING"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["FOR", "PRE"],
+                windows: &["ACTION_DURING"],
+                flags: &[],
+            },
+        ],
+        path: Some("Cathari"),
+    },
+    LibraryCard {
+        id: 102323,
+        name: "Forward Momentum",
+        types: &[CardType::Master],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[Label::Unique],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["MASTER_PHASE"],
+                flags: &[],
+            },
+        ],
+        path: Some("Cathari"),
+    },
+    LibraryCard {
+        id: 102328,
+        name: "Hedonism",
+        types: &[CardType::ActionModifier],
+        disciplines: &["for", "pre"],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["for", "pre"],
+                windows: &["ACTION_BLOCK_ATTEMPT"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["FOR", "PRE"],
+                windows: &["ACTION_BLOCK_ATTEMPT"],
+                flags: &[],
+            },
+        ],
+        path: Some("Cathari"),
+    },
+    LibraryCard {
+        id: 102330,
+        name: "Kiss of Cathari",
+        types: &[CardType::Combat],
+        disciplines: &["obf", "pre"],
+        clans: &[],
+        blood_cost: Cost::Fixed(1),
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["obf", "pre"],
+                windows: &["COMBAT_STRIKE_DECLARATION"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["OBF", "PRE"],
+                windows: &["COMBAT_STRIKE_DECLARATION"],
+                flags: &[],
+            },
+        ],
+        path: Some("Cathari"),
+    },
+    LibraryCard {
+        id: 102338,
+        name: "Seeds of Terror",
+        types: &[CardType::ActionModifier],
+        disciplines: &["obf", "pre"],
+        clans: &[],
+        blood_cost: Cost::Fixed(1),
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["obf", "pre"],
+                windows: &["ACTION_AS_ANNOUNCED"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["OBF", "PRE"],
+                windows: &["ACTION_AS_ANNOUNCED"],
+                flags: &[],
+            },
+        ],
+        path: Some("Cathari"),
+    },
+    LibraryCard {
+        id: 102341,
+        name: "Subversion",
+        types: &[CardType::ActionModifier],
+        disciplines: &["cel", "pre"],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["cel", "pre"],
+                windows: &["ACTION_STEALTH_INTERCEPT"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["CEL", "PRE"],
+                windows: &["ACTION_STEALTH_INTERCEPT", "ACTION_DURING"],
+                flags: &[],
+            },
+        ],
+        path: Some("Cathari"),
+    },
+    LibraryCard {
+        id: 102342,
+        name: "Swift Cover",
+        types: &[CardType::ActionModifier, CardType::Combat],
+        disciplines: &["cel", "obf"],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["cel", "obf"],
+                windows: &["COMBAT_STRIKE_DECLARATION"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["CEL", "OBF"],
+                windows: &["ACTION_STEALTH_INTERCEPT"],
+                flags: &[],
+            },
+        ],
+        path: Some("Cathari"),
+    },
+    LibraryCard {
+        id: 102343,
+        name: "Terrifying Visage",
+        types: &[CardType::Master],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::Fixed(1),
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["MASTER_PHASE"],
+                flags: &[],
+            },
+        ],
+        path: Some("Cathari"),
+    },
 ];
 
 /// The 14 full-size preconstructed libraries as (name, [(LIBRARY index, copies)]).
@@ -11164,6 +11409,7 @@ pub static ANNIVERSARY_LIBRARIES: [(&str, &[(u16, u8)]); 2] = [
 /// The Sabbat V5 decks' libraries (77 cards each) as (name,
 /// [(LIBRARY index, copies)]). Names match crypt::SABBAT_PRECONS.
 #[rustfmt::skip]
-pub static SABBAT_LIBRARIES: [(&str, &[(u16, u8)]); 1] = [
+pub static SABBAT_LIBRARIES: [(&str, &[(u16, u8)]); 2] = [
     ("Path of Power and the Inner Voice (Sabbat V5)", &[(31, 2), (83, 1), (86, 1), (91, 5), (116, 6), (158, 4), (196, 5), (209, 3), (243, 5), (395, 3), (400, 2), (454, 1), (455, 1), (456, 3), (457, 1), (458, 2), (459, 1), (460, 2), (461, 1), (462, 2), (463, 3), (464, 2), (465, 4), (466, 3), (467, 2), (468, 1), (469, 4), (470, 3), (471, 2), (472, 2)]),
+    ("Path of Cathari (Sabbat V5)", &[(14, 1), (40, 3), (103, 1), (120, 2), (122, 3), (158, 4), (217, 4), (220, 2), (230, 2), (243, 3), (258, 1), (360, 6), (462, 2), (473, 1), (474, 8), (475, 4), (476, 1), (477, 5), (478, 6), (479, 6), (480, 5), (481, 5), (482, 2)]),
 ];

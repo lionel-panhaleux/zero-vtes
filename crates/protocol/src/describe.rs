@@ -851,6 +851,11 @@ impl Describer<'_> {
                 o.card = Some(r);
                 format!("Move 1 blood from {name} back to pool")
             }
+            // In an action: Enthrall's "burn 1 blood to draw 1 card from
+            // your crypt".
+            Choice::DrawCrypt if self.e.action().is_some() => {
+                "Burn 1 blood to draw a crypt card".into()
+            }
             Choice::DrawCrypt => "Draw a crypt card (4 transfers)".into(),
             Choice::InfluenceOut { slot } => {
                 let (name, r) = self.slot(slot);

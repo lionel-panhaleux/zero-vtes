@@ -2598,7 +2598,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     ..CARD
 };
 
-pub static DEFS: [&CardDef; 473] = [
+pub static DEFS: [&CardDef; 483] = [
     &MAGIC_OF_THE_SMITH,
     &VAST_WEALTH,
     &BLACK_MARKET_CACHE,
@@ -3072,6 +3072,16 @@ pub static DEFS: [&CardDef; 473] = [
     &UNDER_SIEGE,
     &COLD_WAR,
     &DIA_DE_LOS_MUERTOS,
+    &ENTHRALL,
+    &FEVER_PITCH,
+    &FORWARD_MOMENTUM,
+    &HEDONISM,
+    &HUNGRY_COYOTE,
+    &KISS_OF_CATHARI,
+    &SEEDS_OF_TERROR,
+    &SUBVERSION,
+    &SWIFT_COVER,
+    &TERRIFYING_VISAGE,
 ];
 
 // ---- Cards in play with riders and granted actions (slice 5) ------------
@@ -14667,5 +14677,266 @@ pub static DIA_DE_LOS_MUERTOS: CardDef = CardDef {
         &[Requirement::NotPlayedThisGame],
         &[Effect::AutoPassFirstSabbatReferendum],
     )],
+    ..CARD
+};
+
+// ---- Sabbat V5: Path of Cathari ---------------------------------------------
+//
+// The deck's new cards (owner, 2026-10-07), a fifth appended batch; every
+// library card a Path of Cathari one (its icon a play requirement, rules-qa
+// 49.7), "[x] or [y]" either Discipline (rules-qa 52.1); readings in
+// rules-qa Batch 53.
+
+/// "[obf] or [pre] Ⓓ Bleed with +1 bleed. [OBF] or [PRE] As above, and if
+/// the bleed is successful (for 1 or more), this vampire can burn 1 blood
+/// to draw 1 card from your crypt." (Path of Cathari.) The draw offered
+/// after resolution (`Choice::DrawCrypt`), from an empty crypt none.
+pub static ENTHRALL: CardDef = CardDef {
+    name: "Enthrall",
+    modes: &[
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[],
+            &[Effect::DeclareAction(ActionKind::Bleed), PLUS_ONE_BLEED],
+        ),
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[],
+            &[
+                Effect::DeclareAction(ActionKind::Bleed),
+                PLUS_ONE_BLEED,
+                Effect::CryptForBloodIfBleedSuccessful(1),
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "[for] or [pre] +1 bleed (limited). [FOR] or [PRE] As above, and if the
+/// bleed is successful (for 1 or more), you can put this card on this
+/// vampire after action resolution. This vampire can burn this card during
+/// a bleed action they perform to have a block attempt fail; the blocking
+/// minion cannot attempt to block this action again. A vampire can have
+/// only one Fever Pitch." (1 blood; Path of Cathari.) Put on it whenever it
+/// can be (rules-qa 53.5).
+pub static FEVER_PITCH: CardDef = CardDef {
+    name: "Fever Pitch",
+    modes: &[
+        modifier(&[Requirement::IsBleed], &[LIMITED_BLEED]),
+        modifier(
+            &[Requirement::IsBleed],
+            &[LIMITED_BLEED, Effect::PutOnActorIfBleedSuccessful],
+        ),
+    ],
+    abilities: &[mode_of(
+        &[Window::ActionBlockAttempt],
+        Actor::Host,
+        &[Requirement::ActorActing, Requirement::IsBleed],
+        &[Effect::BurnSelf, Effect::AttemptFails],
+    )],
+    ..CARD
+};
+
+/// "Unique. Put this card in play. After a vampire who follows the Path of
+/// Cathari you control bleeds, if the bleed is successful (for 1 or more),
+/// add 1 counter to this card; otherwise, burn 1 counter from this card.
+/// After a vampire who follows the Path of Cathari you control performs an
+/// action, you can burn 2 counters from this card to unlock them." (Path
+/// of Cathari.) A blocked bleed is unsuccessful (rules-qa 53.6).
+pub static FORWARD_MOMENTUM: CardDef = CardDef {
+    name: "Forward Momentum",
+    modes: &[master_in_play(&[], &[Effect::PutInPlay])],
+    abilities: &[mode_of(
+        &[Window::ActionAfterResolution],
+        Actor::Controller,
+        &[
+            Requirement::OtherActingControlled,
+            Requirement::ActingFollowsPath("Cathari"),
+            Requirement::CountersAtLeast(2),
+        ],
+        &[Effect::RemoveCounter(2), Effect::UnlockActing],
+    )],
+    riders: &[Rider {
+        hook: Hook::OwnBleedEnds,
+        scope: RiderScope::Controller,
+        requires: &[Requirement::ActingFollowsPath("Cathari")],
+        effects: &[Effect::BleedOutcomeCounters],
+    }],
+    ..CARD
+};
+
+/// "Only usable by a ready unlocked vampire other than the acting minion
+/// if a minion attempts to block. [for] or [pre] That attempt fails and the
+/// blocking minion cannot attempt to block this action again. Lock this
+/// vampire and the blocking minion, and queue a combat between them. [FOR]
+/// or [PRE] As above, but queue no combat." (Path of Cathari.) One queued
+/// combat at a time, none if the action ends first (LSJ 20021121, LSJ
+/// 20090826); part of the action (ANK 20170918-2); it begins once the
+/// block step is over (rules-qa 53.3).
+pub static HEDONISM: CardDef = CardDef {
+    name: "Hedonism",
+    modes: &[
+        mode_of(
+            &[Window::ActionBlockAttempt],
+            Actor::OtherOwnMinion,
+            &[
+                Requirement::ActorVampire,
+                Requirement::ActorUnlocked,
+                Requirement::NoQueuedCombat,
+            ],
+            &[
+                Effect::LockAttempting,
+                Effect::QueueCombatWithAttempting,
+                Effect::LockActor,
+                Effect::AttemptFails,
+            ],
+        ),
+        mode_of(
+            &[Window::ActionBlockAttempt],
+            Actor::OtherOwnMinion,
+            &[Requirement::ActorVampire, Requirement::ActorUnlocked],
+            &[
+                Effect::LockAttempting,
+                Effect::LockActor,
+                Effect::AttemptFails,
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Unique location. Sabbat vampires you control get +1 hunt." (2 pool.)
+/// Hunts of other kinds too, the blood from their target (RTR 20030519;
+/// rules-qa 53.8).
+pub static HUNGRY_COYOTE: CardDef = CardDef {
+    name: "Hungry Coyote, The",
+    modes: &[master_in_play(
+        &[],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::OwnSectHunt(Sect::Sabbat, 1)),
+        ],
+    )],
+    ..CARD
+};
+
+/// "[obf] or [pre] Strike: combat ends. [OBF] or [PRE] As above, and after
+/// combat ends, if the range is close, stun the opposing minion." (1
+/// blood; Path of Cathari.) Not if dodged (LSJ 20070124) or if the combat
+/// continues (RTR 20020501); locked again if unlocked meanwhile (LSJ
+/// 20040601).
+pub static KISS_OF_CATHARI: CardDef = CardDef {
+    name: "Kiss of Cathari",
+    modes: &[
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[Effect::Strike(StrikeKind::CombatEnds { unlock: false })],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[
+                Effect::Strike(StrikeKind::CombatEnds { unlock: false }),
+                Effect::StunAfterCombatIfClose,
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Only usable as the action is announced. [obf] or [pre] Minions must
+/// burn 1 blood to attempt to block this action. [OBF] or [PRE] As above,
+/// and choose a vampire. The chosen vampire cannot block this action." (1
+/// blood; Path of Cathari.) Blood only: an ally cannot attempt (rules-qa
+/// 53.2); a minion already attempting pays nothing (LSJ 20031121-2).
+pub static SEEDS_OF_TERROR: CardDef = CardDef {
+    name: "Seeds of Terror",
+    modes: &[
+        mode_of(
+            &[Window::ActionAsAnnounced],
+            Actor::ActingMinion,
+            &[],
+            &[Effect::BlockTollBlood(1)],
+        ),
+        ModeDef {
+            target: target(TargetKind::Minion, &[Requirement::TargetVampire]),
+            ..mode_of(
+                &[Window::ActionAsAnnounced],
+                Actor::ActingMinion,
+                &[],
+                &[Effect::BlockTollBlood(1), Effect::TargetCannotBlock],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "[cel] or [pre] +1 stealth. [CEL] or [PRE] +1 bleed (limited), or +1
+/// stealth and +1 bleed (limited)." (Path of Cathari.) The superior mode
+/// splits in two (`cards::library_mode`), with the stealth only when
+/// needed; the bleed only on a bleed.
+pub static SUBVERSION: CardDef = CardDef {
+    name: "Subversion",
+    modes: &[
+        stealth(&[Effect::AddStealth(1)]),
+        modifier(&[Requirement::IsBleed], &[LIMITED_BLEED]),
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::ActingMinion,
+            &[Requirement::IsBleed, Requirement::StealthNeeded],
+            &[Effect::AddStealth(1), LIMITED_BLEED],
+        ),
+    ],
+    ..CARD
+};
+
+/// "[cel] or [obf] Strike: dodge. [CEL] or [OBF] +1 stealth." (Path of
+/// Cathari.) A combat card at basic, an action modifier at superior.
+pub static SWIFT_COVER: CardDef = CardDef {
+    name: "Swift Cover",
+    modes: &[
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[Effect::Strike(StrikeKind::Dodge)],
+        ),
+        stealth(&[Effect::AddStealth(1)]),
+    ],
+    ..CARD
+};
+
+/// "Put this card on a ready vampire who follows the Path of Cathari. If
+/// this vampire is blocked, the blocking minion's controller burns 1 pool
+/// before block resolution. A vampire can have only one Terrifying Visage."
+/// (1 pool; Path of Cathari.) Any Methuselah's vampire (rules-qa 53.7);
+/// applied first of the "if blocked" effects (ANK 20220116).
+pub static TERRIFYING_VISAGE: CardDef = CardDef {
+    name: "Terrifying Visage",
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::TargetVampire,
+                Requirement::ActorReady,
+                Requirement::TargetFollowsPath("Cathari"),
+                Requirement::TargetWithout(Holding::Named("Terrifying Visage")),
+            ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[Effect::PutOnTarget],
+        )
+    }],
+    riders: &[Rider {
+        hook: Hook::HostBlocked,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::BlockerControllerBurnsPool(1)],
+    }],
     ..CARD
 };

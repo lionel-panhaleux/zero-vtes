@@ -1,7 +1,7 @@
 # Rules Q&A — ruling reference
 
 Owner rulings (VEKN judge) on VTES rules questions raised while building the
-engine, Batches 1–52. Each item is the settled rule, stated as fact; the
+engine, Batches 1–53. Each item is the settled rule, stated as fact; the
 question framing, engine mechanics, test names and confirmations are dropped
 deliberately: the code and its tests are the reference for how a rule is
 implemented, and they point back here through `rules-qa N.M` comments.
@@ -57,9 +57,9 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1
 - **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
-- **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7
-- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8
-- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4
+- **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7, 53.6, 53.8
+- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3
+- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9
 - **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6
@@ -68,21 +68,21 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1
 - **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7
 - **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6
-- **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4
+- **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5
 - **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6, 46.4, 47.1
 - **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7
 - **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6
 - **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7
 - **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7
 - **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8
-- **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2
-- **Master phase, master cards, out-of-turn** — 1.5, 3.3, 6.6, 7.5, 28.10, 32.3, 33.1, 33.8, 36.4, 49.6, 49.7, 50.1–50.3
+- **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2, 53.8
+- **Master phase, master cards, out-of-turn** — 1.5, 3.3, 6.6, 7.5, 28.10, 32.3, 33.1, 33.8, 36.4, 49.6, 49.7, 50.1–50.3, 53.7
 - **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1, 48.7
 - **Discard phase, events** — 8.4, 15.2, 28.12, 33.8, 40.1–40.11
 - **Conditions read live; card-text defaults** — 4.3, 9.1, 13.2, 18.4, 19.3, 28.2, 28.6, 29.11, 32.4, 32.7, 39.5, 49.5, 49.7
 - **Corruption counters, multi-Discipline cards** — 25.1–25.6, 34.3, 35.2, 38.4, 52.1
 - **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14, 49.2, 49.3, 52.4
-- **Game end, VP, ousting** — 6.9, 18.2, 24.1, 33.2
+- **Game end, VP, ousting** — 6.9, 18.2, 24.1, 33.2, 53.1
 ## Batch 1 — sequencing, impulse, windows
 
 **1.1** Vote casting. A *source* is a vampire or a Methuselah. A vampire source is atomic: all its votes cast at once, in one commitment, all the same way; then spent for that referendum. Sources are independent commitments: a Methuselah may cast one source on one rotation and hold others for later rotations. Methuselah-sourced ballots (the Edge, each discarded/burned card, each card granting Methuselah votes) are each independent and may go either way. Card effects that modify a vampire's votes fold into that vampire's source.
@@ -901,3 +901,23 @@ Readings no ruling settles, implemented with the slice; each a question.
 **52.9** The prisci block: each ready priscus casts one ballot, even with no vote of its own; the side with more ballots gets the block's 3 votes, a tie gives none. Question (implemented reading).
 
 **52.10** War of Ages' "call a referendum to burn this card as a +1 stealth political action that costs 1 pool": the pool is paid as the action resolves, as an action card's cost. Question (implemented reading).
+
+## Batch 53 — Sabbat V5, the Path of Cathari, implemented readings (2026-10-07)
+
+Readings no ruling settles, implemented with the slice; each a question.
+
+**53.1** Aelswith and Terrifying Visage: the pool the blocker's controller burns as the block is declared may oust them; their minion leaves play with them, and the action is blocked with no combat. Question (implemented reading).
+
+**53.2** Seeds of Terror's "minions must burn 1 blood to attempt to block" is blood only: an ally, which has life, cannot attempt to block that action (Unthinkable Humiliation prints "blood or life"). Question (implemented reading).
+
+**53.3** Hedonism [for]/[pre]: the queued combat begins once the block step is over — when no more attempts are made, or after the combat of a successful block — before the action resolves; it is lost if the action ends first (LSJ 20090826) or if either vampire is not ready then. Hedonism's vampire is its acting side (strikes first). Question (implemented reading).
+
+**53.4** Fotini Katsikaris: "+1 hand size until your next discard phase" ends as that discard phase begins; the cards then over hand size are discarded at once. Question (implemented reading).
+
+**53.5** Fever Pitch [FOR]/[PRE]: "you can put this card on this vampire" is applied whenever the bleed is successful and the vampire has no Fever Pitch yet — never worse than the ash heap. Question (implemented reading).
+
+**53.6** Forward Momentum: a blocked bleed is a bleed that is not successful — a counter is burned; the counters change before the after-resolution window, so the unlock can use the one just added. Question (implemented reading).
+
+**53.7** Terrifying Visage goes on any ready vampire following the Path of Cathari, another Methuselah's too ("a ready vampire", not "you control"); its path icon needs a ready Cathari vampire of its player's (49.7). Question (implemented reading).
+
+**53.8** The Hungry Coyote's +1 hunt: a hunt taking blood from a target takes 1 more from it (RTR 20030519); Psychophagia, which eats an ally from the ash heap, gets none. Osvaldo Kühnemann's "a Methuselah controlling a Toreador or Ventrue" counts one in torpor. Question (implemented reading).

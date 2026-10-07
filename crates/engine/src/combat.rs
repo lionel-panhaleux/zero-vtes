@@ -233,6 +233,9 @@ pub struct Side {
     /// Catatonic Fear [PRE] rider, armed by the play, fired by the strike:
     /// n unpreventable damage on the opposing minion after combat.
     pub after_damage_rider: Option<u8>,
+    /// Kiss of Cathari [OBF]/[PRE]: its strike stuns the opposing minion
+    /// after combat, at close range and not dodged.
+    pub after_stun_rider: bool,
     /// The card in play the chosen strike comes from (a weapon).
     pub strike_source: Option<CardId>,
     /// The weapon whose strike resolved, kept until its damage is applied
@@ -405,6 +408,7 @@ impl Side {
             round_prevents: self.prevent_each_round,
             continue_rider: None,
             after_damage_rider: None,
+            after_stun_rider: false,
             maneuvers,
             ..Self::new(self.minion, self.seat)
         };
@@ -493,6 +497,11 @@ pub struct CombatCtx {
     /// Damage inflicted after combat ends, by a combatant on the other
     /// (Catatonic Fear [PRE]): unpreventable; not if the combat continues.
     pub after_combat_damage: Vec<(MinionId, u8)>,
+    /// Kiss of Cathari [OBF]/[PRE]: the minions stunned after combat ends.
+    pub after_combat_stun: Vec<MinionId>,
+    /// A combat the action queued (Hedonism): the action's step resumes
+    /// after it.
+    pub queued: bool,
 }
 
 impl CombatCtx {
@@ -1481,6 +1490,13 @@ impl Engine {
                         c.after_combat_damage.push((c.sides[1 - i].minion, n));
                     }
                 }
+                // Kiss of Cathari [OBF]/[PRE] likewise (LSJ 20070124).
+                if std::mem::take(&mut c.sides[i].after_stun_rider)
+                    && c.range == Range::Close
+                    && !matches!(strikes[1 - i], Some(StrikeKind::Dodge))
+                {
+                    c.after_combat_stun.push(c.sides[1 - i].minion);
+                }
                 if let Some((blood, stealth)) = c.sides[i].continue_rider.take() {
                     // Form of Mist [PRO]: only the acting minion "was
                     // blocked".
@@ -1907,6 +1923,7 @@ impl Engine {
         if after_combat {
             c.after_combat.clear();
             c.after_combat_damage.clear();
+            c.after_combat_stun.clear();
         }
     }
 
@@ -2153,6 +2170,15 @@ impl Engine {
                 self.damage_out_of_combat(m, n, false);
             }
         }
+        // Kiss of Cathari [OBF]/[PRE]: locked again if it unlocked during
+        // the combat (LSJ 20040601), and it does not unlock next time.
+        for m in ended.iter().flat_map(|c| c.after_combat_stun.clone()) {
+            let v = &mut self.state.minions[m.index()];
+            if v.present() {
+                v.locked = true;
+                v.skip_unlock = true;
+            }
+        }
         if ended.as_ref().is_some_and(|c| c.at_resolution) {
             self.action.as_mut().expect("action context").resolved = true;
         }
@@ -2188,6 +2214,8 @@ impl Engine {
         }
         if ended.as_ref().is_some_and(|c| c.after_resolution) {
             self.back_to_after_resolution();
+        } else if ended.as_ref().is_some_and(|c| c.queued) {
+            self.resume_after_queued_combat();
         } else {
             self.after_combat();
         }
@@ -2583,6 +2611,7 @@ impl Engine {
                 c.sides[i].continue_rider = Some((blood, stealth));
             }
             Effect::DamageAfterCombatIfClose(n) => c.sides[i].after_damage_rider = Some(n),
+            Effect::StunAfterCombatIfClose => c.sides[i].after_stun_rider = true,
             other => unreachable!("not a combat effect: {other:?}"),
         }
     }
@@ -2754,6 +2783,7 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::GainBloodLostByOpponent
             | Effect::ContinueAfterCombat { .. }
             | Effect::DamageAfterCombatIfClose(_)
+            | Effect::StunAfterCombatIfClose
             | Effect::SetRange(_)
             | Effect::ImmuneStrikeNonAggravated
             | Effect::ImmuneEffectNonAggravated
