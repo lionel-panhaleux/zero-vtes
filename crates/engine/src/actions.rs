@@ -264,6 +264,9 @@ pub struct ActionCtx {
     /// "the action cost, if any, is paid before Yawp Court gets locked",
     /// LSJ 20080201).
     pub cost_paid_early: bool,
+    /// Gifts From Hereafter [DOM]/[OBL]: (its vampire, n) — after
+    /// resolution, that vampire may burn n blood to unlock the acting ally.
+    pub unlock_paid_by: Vec<(MinionId, u8)>,
     /// Faceless Night [OBF]: failed attempts from now on lock their minion
     /// before resolution.
     pub lock_failed: bool,
@@ -1709,13 +1712,12 @@ impl Engine {
             ActionState::WouldSucceed => vec![],
             ActionState::AfterCombat => vec![Window::ActionAfterCombat],
             ActionState::AfterResolution => vec![Window::ActionAfterResolution],
-            ActionState::Blocked(_) => {
-                if acting {
-                    vec![Window::ActionBlocked]
-                } else {
-                    vec![]
-                }
-            }
+            // The acting Methuselah's "if blocked" cards (Change of Target)
+            // and the blocker's "about to enter combat" ones (Obedience).
+            // Continued as if unblocked (Crypt's Sons): no combat to react
+            // to (ANK 20210131).
+            ActionState::Blocked(_) if a.continued => vec![],
+            ActionState::Blocked(_) => vec![Window::ActionBlocked],
         }
     }
 
@@ -1830,6 +1832,22 @@ impl Engine {
                 }
             }
         }
+        // Gifts From Hereafter [DOM]/[OBL]: its vampire's blood for the
+        // acting ally's unlock (rules-qa 55.5).
+        if a.state == ActionState::AfterResolution
+            && matches!(a.outcome, Some(Outcome::Successful | Outcome::Fizzled))
+        {
+            let acting = &self.state.minions[a.acting.index()];
+            if acting.present() && acting.locked {
+                for &(payer, n) in &a.unlock_paid_by {
+                    let p = &self.state.minions[payer.index()];
+                    if p.owner == seat && p.present() && p.blood >= n {
+                        options.push(Choice::UnlockForBlood { minion: a.acting });
+                        break;
+                    }
+                }
+            }
+        }
         // Enthrall [OBF]/[PRE]: "this vampire can burn 1 blood to draw 1
         // card from your crypt" — from an empty one too, drawing nothing
         // (LSJ 20060620).
@@ -1938,6 +1956,25 @@ impl Engine {
                         counters: 0,
                         banished: None,
                     });
+                }
+                self.flow = Flow::Action;
+            }
+            Choice::UnlockForBlood { minion }
+                if *minion == a.acting
+                    && a.state == ActionState::AfterResolution
+                    && !a.unlock_paid_by.is_empty()
+                    && !a
+                        .after_resolution_unlocks
+                        .iter()
+                        .any(|&(m, _)| m == *minion) =>
+            {
+                let (payer, n) = a.unlock_paid_by.remove(0);
+                a.unlock_paid_by.clear();
+                a.window.play();
+                let barred = a.no_unlock;
+                self.state.minions[payer.index()].blood -= n;
+                if !barred {
+                    self.state.minions[minion.index()].locked = false;
                 }
                 self.flow = Flow::Action;
             }
@@ -2573,6 +2610,7 @@ impl Engine {
                     self.state.minions[a.acting.index()].locked = false;
                 }
             }
+            Effect::EndBlockedActionLocked => a.ended_early = true,
             Effect::StealthForNextActions => {
                 let m = play.actor.expect("actor");
                 let x = play.x.min(self.state.minions[m.index()].blood);
@@ -2590,6 +2628,9 @@ impl Engine {
             }),
             Effect::BlockToll(n) => a.block_toll_extra += n,
             Effect::BlockTollBlood(n) => a.block_toll_blood += n,
+            Effect::UnlockActingForActorBlood(n) => {
+                a.unlock_paid_by.push((play.actor.expect("actor"), n));
+            }
             Effect::SectInterceptThisAction(sect, n) => a.sect_intercept.push((sect, n)),
             Effect::StrikeTollIfBlocks(n) => {
                 a.strike_toll_if_blocks
@@ -3102,6 +3143,7 @@ impl Engine {
                                 seat: prey,
                                 left: n,
                                 done: 0,
+                                combat_only: false,
                             });
                         continue;
                     }
@@ -4097,8 +4139,33 @@ impl Engine {
                             let t = target.minion();
                             self.burn_minion(t);
                         }
+                        // Heartrender: the target burned, the ally out of
+                        // the game (rules-qa 55.4).
+                        Effect::RemoveActorToBurnTarget => {
+                            match target {
+                                Target::Minion(t) => self.burn_minion(t),
+                                Target::Card(c) => self.burn_card_in_play(c),
+                                _ => {}
+                            }
+                            if self.state.minions[acting.index()].in_play {
+                                self.remove_ally_from_game(acting);
+                            }
+                        }
                         // Michael Harris: the equipment is chosen now that
                         // the action succeeded (as Magic of the Smith).
+                        // Eulogio: the top cards reordered, then unlocked.
+                        Effect::ReorderTopThenUnlock(n) => {
+                            self.effect_unlock(acting);
+                            let total =
+                                (n as usize).min(self.state.seats[seat.index()].library.len());
+                            if total > 1 {
+                                self.interrupts.push(crate::draws::Interrupt::Reorder {
+                                    seat,
+                                    total: total as u8,
+                                    placed: 0,
+                                });
+                            }
+                        }
                         Effect::SearchEquip => {
                             self.flow = Flow::LibrarySearch {
                                 minion: acting,
@@ -4484,6 +4551,14 @@ impl Engine {
             })
             .or(LIBRARY[card as usize].body)
             .expect("an ally's type line");
+        // "Zombies you recruit get +1 starting life" (Ashur-uballit).
+        let mut body = body;
+        if LIBRARY[card as usize]
+            .labels
+            .contains(&crate::library::Label::Zombie)
+        {
+            body.life += self.state.zombie_life_bonus(seat);
+        }
         let life = body.life;
         let m = MinionId(self.state.minions.len() as u32);
         let id = self.enter_play(CardInPlay {
@@ -4539,6 +4614,15 @@ impl Engine {
                 _ => None,
             })
             .expect("a retainer's life");
+        // "Zombies … you employ get +1 starting life" (Ashur-uballit).
+        let life = if LIBRARY[play.card as usize]
+            .labels
+            .contains(&crate::library::Label::Zombie)
+        {
+            life + self.state.zombie_life_bonus(seat)
+        } else {
+            life
+        };
         let id = self.enter_play(CardInPlay {
             counters: life,
             ..CardInPlay::new(play.card, seat, Some(acting), play.mode)

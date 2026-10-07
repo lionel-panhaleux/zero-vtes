@@ -1014,6 +1014,28 @@ impl Engine {
     /// is burned" riders fire if it was ready (a minion burned from torpor
     /// or from a contest is not).
     pub(crate) fn burn_minion(&mut self, m: MinionId) {
+        // "After a zombie (ally or retainer) you control is burned, you can
+        // add 1 counter to this location" (Cursed Abattoir; rules-qa 55.6).
+        let zombie = self.state.minions[m.index()]
+            .kind
+            .ally_card()
+            .is_some_and(|c| {
+                crate::library::LIBRARY[c as usize]
+                    .labels
+                    .contains(&crate::library::Label::Zombie)
+            });
+        if zombie && self.state.minions[m.index()].in_play {
+            let owner = self.state.minions[m.index()].owner;
+            for (id, r) in self.state.card_riders(Hook::OwnZombieBurned) {
+                if self.state.cards[id.index()].present()
+                    && self.state.card_controller(id) == owner
+                    && r.effects
+                        .contains(&crate::cards::Effect::CounterOnZombieBurned)
+                {
+                    self.state.cards[id.index()].counters += 1;
+                }
+            }
+        }
         // FBI Special Affairs Division: an ally burned in combat with the
         // acting vampire (not an ally acting as one, ANK 20180913-2).
         if self.state.minions[m.index()].is_ally() {
@@ -1853,7 +1875,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 249);
+        assert_eq!(CRYPT.len(), 261);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

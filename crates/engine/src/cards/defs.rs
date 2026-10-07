@@ -2598,7 +2598,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     ..CARD
 };
 
-pub static DEFS: [&CardDef; 499] = [
+pub static DEFS: [&CardDef; 513] = [
     &MAGIC_OF_THE_SMITH,
     &VAST_WEALTH,
     &BLACK_MARKET_CACHE,
@@ -3098,6 +3098,20 @@ pub static DEFS: [&CardDef; 499] = [
     &TWISTED_BLOODHOUND,
     &WALL_OF_FILTH,
     &YAWP_COURT,
+    &BURIAL_SITE_HUNTING_GROUND,
+    &CURSED_ABATTOIR,
+    &DANCE_OF_THE_DEAD,
+    &FIORELLA,
+    &FREAKISH_CONGLOMERATION,
+    &GIFTS_FROM_HEREAFTER,
+    &GLANCING_BLOW,
+    &GRAVEBOUND_DRONE,
+    &HEARTRENDER,
+    &MORBIDITY,
+    &OBEDIENCE,
+    &PUTRESCENT_SUSTENANCE,
+    &TARGET_VITALS,
+    &WALL_STREET_NIGHT,
 ];
 
 // ---- Cards in play with riders and granted actions (slice 5) ------------
@@ -15405,6 +15419,529 @@ pub static YAWP_COURT: CardDef = CardDef {
             Requirement::ActorNotActing,
         ],
         &[Effect::YawpCourtCombat],
+    )],
+    ..CARD
+};
+
+// ---- Sabbat V5: Path of Death and the Soul -------------------------------------
+//
+// The deck's new cards (owner, 2026-10-07), a seventh appended batch
+// (Glancing Blow, Obedience, Target Vitals and Wall Street Night legacy
+// reprints); the path icons a play requirement (rules-qa 49.7); readings in
+// rules-qa Batch 55.
+
+const WRAITH_OR_ZOMBIE_LABELS: &[crate::library::Label] =
+    &[crate::library::Label::Wraith, crate::library::Label::Zombie];
+const ZOMBIE: &[crate::library::Label] = &[crate::library::Label::Zombie];
+
+/// "Unique location. Hunting ground. During your unlock phase, a ready
+/// vampire you control who follows the Path of Death and the Soul can gain
+/// 1 blood, or a wraith or zombie ally you control can gain 1 life, not to
+/// exceed its starting life. A vampire can gain blood from only one hunting
+/// ground each turn." (2 pool; Path of Death and the Soul.) One of the two
+/// each phase.
+pub static BURIAL_SITE_HUNTING_GROUND: CardDef = CardDef {
+    name: "Burial Site Hunting Ground",
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[],
+        &[Effect::PutInPlay],
+    )],
+    abilities: &[
+        hunting_ground_pick!(
+            1,
+            &[
+                Requirement::TargetVampire,
+                Requirement::Controlled,
+                Requirement::ActorReady,
+                Requirement::NotHuntingGroundFed,
+                Requirement::TargetFollowsPath("Death and the Soul"),
+            ]
+        ),
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[
+                    Requirement::Controlled,
+                    Requirement::TargetAllyOf(WRAITH_OR_ZOMBIE_LABELS),
+                ],
+            ),
+            ..mode_of(
+                &[Window::UnlockPhaseOwn],
+                Actor::Controller,
+                &[],
+                &[Effect::HuntingGroundLife(1)],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "Unique location. After a zombie (ally or retainer) you control is
+/// burned, you can add 1 counter to this location. During a bleed action,
+/// you can burn 1 counter from this location to give a zombie ally you
+/// control +1 bleed." (Path of Death and the Soul.) The counter added
+/// whenever it can be (rules-qa 55.6).
+pub static CURSED_ABATTOIR: CardDef = CardDef {
+    name: "Cursed Abattoir",
+    modes: &[LOCATION],
+    abilities: &[mode_of(
+        &[Window::ActionDuring],
+        Actor::Controller,
+        &[
+            Requirement::CountersAtLeast(1),
+            Requirement::IsBleed,
+            Requirement::OtherActingControlled,
+            Requirement::ActingAllyOf(ZOMBIE),
+        ],
+        &[Effect::RemoveCounter(1), PLUS_ONE_BLEED],
+    )],
+    riders: &[Rider {
+        hook: Hook::OwnZombieBurned,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::CounterOnZombieBurned],
+    }],
+    ..CARD
+};
+
+/// "+1 stealth action. Unique. Put this card in play with 4 counters. Once
+/// each combat, you can burn 1 counter from this card to give a wraith or
+/// zombie ally you control 1 maneuver or press. If this card has no
+/// counters, burn it." (Path of Death and the Soul.)
+pub static DANCE_OF_THE_DEAD: CardDef = CardDef {
+    name: "Dance of the Dead",
+    modes: &[action_at(
+        &[],
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutInPlay,
+            Effect::EnterWithCounters(4),
+        ],
+    )],
+    abilities: &[
+        ModeDef {
+            limit: Some(Limit::PerCombatCard),
+            ..mode_of(
+                &[Window::CombatBeforeRange, Window::CombatDetermineRange],
+                Actor::ForOwnCombatant,
+                &[
+                    Requirement::CountersAtLeast(1),
+                    Requirement::ActorAllyOf(WRAITH_OR_ZOMBIE_LABELS),
+                ],
+                &[
+                    Effect::RemoveCounter(1),
+                    Effect::OptionalManeuver,
+                    Effect::BurnSelfWithoutCounters,
+                ],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::PerCombatCard),
+            ..mode_of(
+                &[Window::CombatPress],
+                Actor::ForOwnCombatant,
+                &[
+                    Requirement::CountersAtLeast(1),
+                    Requirement::ActorAllyOf(WRAITH_OR_ZOMBIE_LABELS),
+                ],
+                &[
+                    Effect::RemoveCounter(1),
+                    Effect::OptionalPress,
+                    Effect::BurnSelfWithoutCounters,
+                ],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "Unique wraith with 1 life. 1 strength, 1 bleed. Fiorella can lock to
+/// give another wraith or zombie ally you control +1 stealth or +1
+/// intercept." (1 pool; Path of Death and the Soul.) The turn she is
+/// recruited too (ANK 20180517).
+pub static FIORELLA: CardDef = CardDef {
+    name: "Fiorella, Empty One",
+    modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
+    abilities: &[
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::Host,
+            &[
+                Requirement::HostReady,
+                Requirement::HostUnlocked,
+                Requirement::OtherActingControlled,
+                Requirement::ActingAllyOf(WRAITH_OR_ZOMBIE_LABELS),
+                Requirement::StealthNeeded,
+            ],
+            &[Effect::LockHost, Effect::AddStealth(1)],
+        ),
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::Host,
+            &[
+                Requirement::HostReady,
+                Requirement::HostUnlocked,
+                Requirement::AttemptingAllyOf(WRAITH_OR_ZOMBIE_LABELS),
+                Requirement::YourAttemptNeedsIntercept,
+            ],
+            &[Effect::LockHost, Effect::AttemptingIntercept(1)],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Zombie with 3 life. 3 strength, 1 bleed. [obl] or [tha] During your
+/// unlock phase, this ally burns 1 life. This ally can enter combat with a
+/// minion as a Ⓓ action. [OBL] or [THA] As above, but this ally has 4
+/// life." (2 blood; Path of Death and the Soul.)
+pub static FREAKISH_CONGLOMERATION: CardDef = CardDef {
+    name: "Freakish Conglomeration",
+    modes: &[
+        recruit(&[Effect::DeclareAction(ActionKind::Recruit)]),
+        recruit(&[
+            Effect::DeclareAction(ActionKind::Recruit),
+            Effect::Version(crate::library::Body {
+                life: 4,
+                strength: 3,
+                bleed: 1,
+            }),
+        ]),
+    ],
+    abilities: &[enter_combat(&[
+        Requirement::NotControlled,
+        Requirement::ActorReady,
+    ])],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::HostBurnBlood(1)],
+    }],
+    ..CARD
+};
+
+/// "Only usable by a ready unlocked vampire other than the acting wraith
+/// or zombie ally. [dom] or [obl] The acting ally gets +1 bleed (limited).
+/// [DOM] or [OBL] As above, and after action resolution, this vampire can
+/// burn 1 blood to unlock the acting ally." (Path of Death and the Soul.)
+/// The unlock after a resolution, the bleed successful or not (rules-qa
+/// 55.5).
+pub static GIFTS_FROM_HEREAFTER: CardDef = CardDef {
+    name: "Gifts From Hereafter",
+    modes: &[
+        mode_of(
+            &[Window::ActionDuring],
+            Actor::OtherOwnMinion,
+            &[
+                Requirement::ActorVampire,
+                Requirement::ActorUnlocked,
+                Requirement::IsBleed,
+                Requirement::ActingAllyOf(WRAITH_OR_ZOMBIE_LABELS),
+            ],
+            &[LIMITED_BLEED],
+        ),
+        mode_of(
+            &[Window::ActionDuring],
+            Actor::OtherOwnMinion,
+            &[
+                Requirement::ActorVampire,
+                Requirement::ActorUnlocked,
+                Requirement::IsBleed,
+                Requirement::ActingAllyOf(WRAITH_OR_ZOMBIE_LABELS),
+            ],
+            &[LIMITED_BLEED, Effect::UnlockActingForActorBlood(1)],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Do not replace until your next unlock phase. Prevent 1 damage from the
+/// opposing minion's strike." Replaced before cards unlock (ANK 20200129,
+/// LSJ 20091208, RTR 19951017); not with no damage to prevent (LSJ
+/// 20001114).
+pub static GLANCING_BLOW: CardDef = CardDef {
+    name: "Glancing Blow",
+    delayed_replacement: Some(Until::NextUnlockPhase),
+    modes: &[combat(
+        &[Window::CombatDamagePrevention],
+        &[Requirement::DamagePending],
+        &[Effect::Prevent(1)],
+    )],
+    ..CARD
+};
+
+/// "Zombie with 2 life. 1 strength, 1 bleed. [obl] This ally can burn 1
+/// life to prevent 1 damage to another copy of this ally you control in
+/// combat. This ally cannot have or use equipment. [OBL] As above, and
+/// during a bleed action, this ally can burn 1 life from another copy of
+/// this ally you control to get +1 bleed." (2 blood; Path of Death and the
+/// Soul.)
+pub static GRAVEBOUND_DRONE: CardDef = CardDef {
+    name: "Gravebound Drone",
+    modes: &[
+        recruit(&[
+            Effect::DeclareAction(ActionKind::Recruit),
+            Effect::Layer(Modifier::NoEquipmentHeld),
+        ]),
+        recruit(&[
+            Effect::DeclareAction(ActionKind::Recruit),
+            Effect::Layer(Modifier::NoEquipmentHeld),
+        ]),
+    ],
+    abilities: &[
+        mode_of(
+            &[Window::CombatDamagePrevention],
+            Actor::ForOwnCombatant,
+            &[
+                Requirement::OwnCombatantOtherCopy,
+                Requirement::HostBloodAtLeast(1),
+                Requirement::DamagePending,
+            ],
+            &[Effect::HostBurnLife(1), Effect::Prevent(1)],
+        ),
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[Requirement::TargetOtherCopyControlled],
+            ),
+            ..mode_of(
+                &[Window::ActionDuring],
+                Actor::Host,
+                &[
+                    Requirement::SuperiorVersion,
+                    Requirement::ActorActing,
+                    Requirement::IsBleed,
+                ],
+                &[Effect::TargetBurnLife(1), PLUS_ONE_BLEED],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "Unique wraith with 1 life. 1 strength, 1 bleed. The Heartrender can
+/// remove itself from the game to burn a non-wraith non-zombie ally or
+/// retainer as a +1 stealth Ⓓ action." (1 pool; Path of Death and the
+/// Soul.) Removed as the action succeeds (rules-qa 55.4).
+pub static HEARTRENDER: CardDef = CardDef {
+    name: "Heartrender",
+    modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
+    abilities: &[
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[
+                    Requirement::NotControlled,
+                    Requirement::TargetAlly,
+                    Requirement::TargetAllyNotOf(WRAITH_OR_ZOMBIE_LABELS),
+                ],
+            ),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::Host,
+                &[],
+                &[
+                    Effect::DeclareAction(ActionKind::Ability),
+                    Effect::AddStealth(1),
+                    Effect::RemoveActorToBurnTarget,
+                ],
+            )
+        },
+        ModeDef {
+            target: target(
+                TargetKind::Card,
+                &[
+                    Requirement::NotControlled,
+                    Requirement::TargetCard(CardFilter::Type(CardType::Retainer)),
+                ],
+            ),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::Host,
+                &[],
+                &[
+                    Effect::DeclareAction(ActionKind::Ability),
+                    Effect::AddStealth(1),
+                    Effect::RemoveActorToBurnTarget,
+                ],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "Only usable before range is determined in combat with a vampire. A
+/// vampire can play only one Morbidity each round. [obl] or [tha] Put this
+/// card in play and move up to 2 blood from the opposing vampire to this
+/// card. After combat ends, move all the blood from this card to the
+/// opposing vampire and burn this card. [OBL] or [THA] As above, and combat
+/// cards cost the opposing vampire +1 blood." (Path of Death and the
+/// Soul.) As much as it has, up to 2; back after all of the combat
+/// (rules-qa 55.2).
+pub static MORBIDITY: CardDef = CardDef {
+    name: "Morbidity",
+    modes: &[
+        ModeDef {
+            limit: Some(Limit::PerRound),
+            ..combat(
+                &[Window::CombatBeforeRange],
+                &[Requirement::OpponentVampire],
+                &[Effect::MorbidityTake(2)],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::PerRound),
+            ..combat(
+                &[Window::CombatBeforeRange],
+                &[Requirement::OpponentVampire],
+                &[Effect::MorbidityTake(2), Effect::OpposingCombatCardsCost(1)],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "Only usable if this vampire is about to enter combat with an acting
+/// younger vampire. [dom] Unlock the acting vampire and end the action. (Do
+/// not lock this vampire if they are blocking.) The acting vampire cannot
+/// perform the same action this turn. [DOM] As above, but do not unlock the
+/// acting vampire." The action reached resolution: NRA (LSJ 20070709), ended
+/// unsuccessfully at once, no combat, nothing more played (RTR 20180719);
+/// not against a minion taking the acting vampire's place (ANK 20171212).
+/// Played on a block only, not on a combat the action itself starts (a
+/// rush, Deep Song; rules-qa 55.7).
+pub static OBEDIENCE: CardDef = CardDef {
+    name: "Obedience",
+    modes: &[
+        mode_of(
+            &[Window::ActionBlocked],
+            Actor::ReactingMinion,
+            &[Requirement::MayBeLocked, Requirement::BlockingYoungerActing],
+            &[Effect::EndBlockedAction],
+        ),
+        mode_of(
+            &[Window::ActionBlocked],
+            Actor::ReactingMinion,
+            &[Requirement::MayBeLocked, Requirement::BlockingYoungerActing],
+            &[Effect::EndBlockedActionLocked],
+        ),
+    ],
+    ..CARD
+};
+
+/// "+1 stealth action. [obl] or [tha] Remove an ally in an ash heap from the
+/// game to gain 2 blood or to add 2 life to a zombie ally you control. [OBL]
+/// or [THA] As above, but for 3 blood or life." (Path of Death and the
+/// Soul.) Each version splits in two (`cards::library_mode`); the ally named
+/// as it is played (rules-qa 32.12).
+pub static PUTRESCENT_SUSTENANCE: CardDef = CardDef {
+    name: "Putrescent Sustenance",
+    modes: &[
+        ModeDef {
+            terms: Some(Terms::AnyAshAlly),
+            ..action_at(
+                &[Requirement::AllyInAnyAsh],
+                None,
+                &[
+                    Effect::DeclareAction(ActionKind::Card),
+                    Effect::AddStealth(1),
+                    Effect::EatAshAlly {
+                        blood: 2,
+                        unlock: false,
+                    },
+                ],
+            )
+        },
+        ModeDef {
+            terms: Some(Terms::AnyAshAlly),
+            ..action_at(
+                &[Requirement::AllyInAnyAsh],
+                target(
+                    TargetKind::Minion,
+                    &[Requirement::Controlled, Requirement::TargetAllyOf(ZOMBIE)],
+                ),
+                &[
+                    Effect::DeclareAction(ActionKind::Card),
+                    Effect::AddStealth(1),
+                    Effect::EatAshAllyToTarget(2),
+                ],
+            )
+        },
+        ModeDef {
+            terms: Some(Terms::AnyAshAlly),
+            ..action_at(
+                &[Requirement::AllyInAnyAsh],
+                None,
+                &[
+                    Effect::DeclareAction(ActionKind::Card),
+                    Effect::AddStealth(1),
+                    Effect::EatAshAlly {
+                        blood: 3,
+                        unlock: false,
+                    },
+                ],
+            )
+        },
+        ModeDef {
+            terms: Some(Terms::AnyAshAlly),
+            ..action_at(
+                &[Requirement::AllyInAnyAsh],
+                target(
+                    TargetKind::Minion,
+                    &[Requirement::Controlled, Requirement::TargetAllyOf(ZOMBIE)],
+                ),
+                &[
+                    Effect::DeclareAction(ActionKind::Card),
+                    Effect::AddStealth(1),
+                    Effect::EatAshAllyToTarget(3),
+                ],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "Aim. Only usable as this minion chooses a strike. A minion can play only
+/// one aim each strike. If any damage from this strike is successfully
+/// inflicted on the opposing minion, they take +2 damage from this strike,
+/// and they cannot press this round. They can discard two combat cards to
+/// cancel this card as it is played." The strike chosen after it (LSJ
+/// 20080409); of the strike's kind (RTR 19970630); no effect on a strike
+/// dealing none (RTR 19960221); canceled, its cost paid (PIB 20121031).
+pub static TARGET_VITALS: CardDef = CardDef {
+    name: "Target Vitals",
+    modes: &[combat(
+        &[Window::CombatStrikeDeclaration],
+        &[Requirement::NoAimYet],
+        &[
+            Effect::AimExtraDamage(2),
+            Effect::CancelableByDiscardingCombat(2),
+        ],
+    )],
+    ..CARD
+};
+
+/// "Unique location. During an undirected action, you can lock this
+/// location to give a minion you control +1 intercept. A minion you control
+/// can lock this location to attempt to move 1 counter from an investment
+/// card to your pool as a +1 stealth Ⓓ action." (1 pool.) No investment
+/// card is in the pool: the second clause is inert.
+pub static WALL_STREET_NIGHT: CardDef = CardDef {
+    name: "Wall Street Night, Financial Newspaper",
+    modes: &[LOCATION],
+    abilities: &[mode_of(
+        &[Window::ActionStealthIntercept],
+        Actor::Controller,
+        &[
+            Requirement::CardUnlocked,
+            Requirement::ActionUndirected,
+            Requirement::YourAttemptNeedsIntercept,
+        ],
+        &[Effect::LockSelf, Effect::AttemptingIntercept(1)],
     )],
     ..CARD
 };

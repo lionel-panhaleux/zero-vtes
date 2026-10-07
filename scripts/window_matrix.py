@@ -209,6 +209,37 @@ ADDED_BATCHES = [
         201772: "Serhat Gunde, Combat Junkie (G6)",
         201773: "Surapong (G6)",
     },
+    # 2026-10-07: Sabbat V5, the Path of Death and the Soul deck's new cards
+    # (Glancing Blow, Obedience, Target Vitals and Wall Street Night legacy
+    # reprints).
+    {
+        100834: "Glancing Blow",
+        101309: "Obedience",
+        101942: "Target Vitals",
+        102142: "Wall Street Night, Financial Newspaper",
+        102311: "Burial Site Hunting Ground",
+        102313: "Cursed Abattoir",
+        102314: "Dance of the Dead",
+        102322: "Fiorella, Empty One",
+        102324: "Freakish Conglomeration",
+        102325: "Gifts From Hereafter",
+        102326: "Gravebound Drone",
+        102327: "Heartrender",
+        102332: "Morbidity",
+        102335: "Putrescent Sustenance",
+        201734: "Abderrahim, Death's Hand (G6)",
+        201737: "Aitana, The Unholy (G6)",
+        201740: "Anxo Vilela (G6)",
+        201741: "Ashur-uballit, Son of the Abyss (G6)",
+        201749: "El Monseñor (G6)",
+        201750: "Eulogio Sánchez de los Reyes (G6)",
+        201752: "Frau Schädel (G6)",
+        201757: "Huldu, The Desecrator (G6)",
+        201765: "Nadezhda (G6)",
+        201771: "Sakura, The Merciless (G6)",
+        201779: "Yurena, The Boor (G6)",
+        201780: "Zbigniew, Hunter of Mekhet (G6)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -350,6 +381,8 @@ RIDERS = [
 # derived from the effect (stealth/intercept, bleed modifier, bleed reduction).
 COMBAT_TIMING = [
     (r"before range is determined", "COMBAT_BEFORE_RANGE"),
+    # An aim, "only usable as this minion chooses a strike" (Target Vitals).
+    (r"as this minion chooses a strike", "COMBAT_STRIKE_DECLARATION"),
     (r"\bmaneuver\b", "COMBAT_DETERMINE_RANGE"),
     (r"\bgrapple\b|before strikes are chosen", "COMBAT_BEFORE_STRIKES"),
     (r"additional strike", "COMBAT_ADDITIONAL_STRIKE"),
@@ -393,6 +426,9 @@ REACTION_TIMING = [
      "ACTION_AS_ANNOUNCED"),
     (r"polling step|during (a|the|this) referendum", "REFERENDUM"),
     (r"reduce (a|the) bleed", "REACTION_DURING_ACTION"),   # legality: a bleed against you
+    # "Only usable if this vampire is about to enter combat with an acting
+    # … vampire" (Obedience): the block made, before its resolution.
+    (r"about to enter combat with", "ACTION_BLOCKED"),
     # An out-of-turn master triggered by the opposing strike (Rötschreck).
     (r"attempts to inflict aggravated damage", "COMBAT_BEFORE_RESOLUTION"),
     # An out-of-turn master saving a Methuselah from an oust (Life Boon).

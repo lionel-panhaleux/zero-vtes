@@ -54,19 +54,19 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
 - **Periodicity ("during X" = once per X, once each …)** — 6.6, 7.4, 9.6, 10.4, 11.2, 15.1, 15.2, 16.1, 36.3, 36.4, 37.1, 38.8, 42.3, 42.9
 - **No-repeat-action, "same action"** — 1.4, 6.2, 16.6, 23.2, 25.4, 32.1
-- **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1
+- **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1, 55.3, 55.4, 55.5
 - **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
 - **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7, 53.6, 53.8
-- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3
-- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8
+- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3, 55.7
+- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8, 55.1, 55.2, 55.8
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9
 - **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6, 54.3, 54.4, 54.7
 - **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8, 52.2, 52.3, 52.5, 52.7, 52.9, 52.10, 54.1
 - **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4, 52.5, 52.6, 52.9
 - **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1
-- **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7
+- **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7, 55.4, 55.6
 - **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6, 54.1
 - **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5
 - **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6, 46.4, 47.1
@@ -941,3 +941,23 @@ Readings no ruling settles, implemented with the slice; each a question.
 **54.7** Abuse of Power: "if only one combatant is ready" — whichever: the opposing minion's controller burns the pool even if the acting minion is the one not ready (the text names no winner). Question (implemented reading).
 
 **54.8** Rage of Apedemak's +1 hand size lasts the combat: the cards then over hand size are discarded at once. Depravity bars recruit and employ action cards played by its vampire, nothing else. Question (implemented reading).
+
+## Batch 55 — Sabbat V5, the Path of Death and the Soul, implemented readings (2026-10-07)
+
+Readings no ruling settles, implemented with the slice; each a question.
+
+**55.1** Target Vitals: the aim's +2 damage is added once the strike's damage is successfully inflicted (after the prevention step, so it cannot be prevented), of the strike's kind (RTR 19970630); "the opposing minion cannot press this round" applies only when the aim lands. Question (implemented reading).
+
+**55.2** Morbidity: the card takes as much of the opposing vampire's blood as it has, up to 2; the blood goes back as the combat ends (after every round, a press included), then the card burns. Question (implemented reading).
+
+**55.3** Eulogio Sánchez de los Reyes: the look-and-reorder and the unlock both happen at the action's resolution, in that order; the 1 blood is the action's cost, paid at declaration. Question (implemented reading).
+
+**55.4** Heartrender: "remove itself from the game" is paid as the action succeeds, with the target burned; blocked, it stays in play. Question (implemented reading).
+
+**55.5** Gifts From Hereafter [DOM]/[OBL]: "after action resolution" opens whether the bleed succeeded or not (a fizzle included), not after a block; the vampire's 1 blood is paid then, as the ally unlocks. Question (implemented reading).
+
+**55.6** Cursed Abattoir: "after a zombie you control is burned" adds the counter whenever one of its controller's zombie allies burns (in or out of combat, from damage or a card), automatically — never worse to add it. The pool has no zombie retainer: a burned retainer is not counted yet. Question (implemented reading).
+
+**55.7** Obedience: "about to enter combat with an acting younger vampire" is read as the block — played as the block succeeds, before combat — not against a combat the action itself starts (a rush, Deep Song: ANK 20200702 names Obedience among the effects that end the action before Deep Song's combat). Question (implemented reading).
+
+**55.8** Target Vitals under Immortal Grapple: LSJ 20080409 says it "cannot be played if the strike cannot be chosen anymore during the strike phase (eg. Immortal Grapple)"; the engine still offers it to a combatant choosing its hand strike under a grapple, the strike being chosen there. Question (implemented reading).

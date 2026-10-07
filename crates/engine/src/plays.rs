@@ -687,6 +687,15 @@ impl Engine {
                         {
                             continue;
                         }
+                        // "This ally cannot have or use equipment"
+                        // (Gravebound Drone).
+                        if st.no_equipment(m)
+                            && LIBRARY[card as usize]
+                                .types
+                                .contains(&crate::library::CardType::Equipment)
+                        {
+                            continue;
+                        }
                         // An ally has life, not blood: it never pays a
                         // blood cost (advanced rules 5.5.1), and only
                         // vampires play political action cards (rulebook
@@ -748,7 +757,10 @@ impl Engine {
                             }
                             Some(Limit::PerTurn) => st.turn_plays.contains(&(m, card)),
                             Some(
-                                Limit::PerPhaseEach | Limit::PerReferendum | Limit::PerActionCard,
+                                Limit::PerPhaseEach
+                                | Limit::PerReferendum
+                                | Limit::PerActionCard
+                                | Limit::PerCombatCard,
                             ) => false,
                         };
                         // Rulebook "Action Modifier" / "Reaction": a minion
@@ -1075,7 +1087,10 @@ impl Engine {
                     self.state.minions[m.index()].played_since_unlock.push(card);
                 }
                 Limit::PerTurn => self.state.turn_plays.push((m, card)),
-                Limit::PerPhaseEach | Limit::PerReferendum | Limit::PerActionCard => {}
+                Limit::PerPhaseEach
+                | Limit::PerReferendum
+                | Limit::PerActionCard
+                | Limit::PerCombatCard => {}
             }
         }
         if def.out_of_turn {
@@ -1893,6 +1908,30 @@ impl Engine {
                 options.push(Choice::PayToCancel);
             }
         }
+        // "They can discard two combat cards to cancel this card as it is
+        // played" (Target Vitals): the opposing minion's controller.
+        if let Some(n) = cards::lookup(top.ctx.card).and_then(|d| {
+            d.modes[top.ctx.mode as usize]
+                .effects
+                .iter()
+                .find_map(|e| match e {
+                    Effect::CancelableByDiscardingCombat(n) => Some(*n),
+                    _ => None,
+                })
+        }) {
+            let opposing_seat = self.combat.as_ref().and_then(|c| {
+                let i = c.side_of_minion(top.ctx.actor?)?;
+                Some(c.sides[1 - i].seat)
+            });
+            let combat_cards = self.state.seats[seat.index()]
+                .hand
+                .iter()
+                .filter(|&&c| LIBRARY[c as usize].types.contains(&CardType::Combat))
+                .count();
+            if opposing_seat == Some(seat) && combat_cards >= n as usize {
+                options.push(Choice::PayToCancel);
+            }
+        }
         // Abilities cancelling a card as it is played (The Vozhd of
         // Gravesend: a strike card of the minion opposing it).
         options.extend(
@@ -2048,6 +2087,41 @@ impl Engine {
                 if !self.use_ability(*source, *ability, *actor, *target, flow.clone()) {
                     self.flow = flow;
                 }
+            }
+            Choice::PayToCancel
+                if cards::lookup(stack.last().expect("as-played stack").ctx.card).is_some_and(
+                    |d| {
+                        let ctx = &stack.last().expect("as-played stack").ctx;
+                        d.modes[ctx.mode as usize]
+                            .effects
+                            .iter()
+                            .any(|e| matches!(e, Effect::CancelableByDiscardingCombat(_)))
+                    },
+                ) =>
+            {
+                // Target Vitals: two combat cards of their choice discarded.
+                let top = stack.last_mut().expect("as-played stack");
+                let n = cards::lookup(top.ctx.card)
+                    .and_then(|d| {
+                        d.modes[top.ctx.mode as usize]
+                            .effects
+                            .iter()
+                            .find_map(|e| match e {
+                                Effect::CancelableByDiscardingCombat(n) => Some(*n),
+                                _ => None,
+                            })
+                    })
+                    .expect("a cancel by discarding");
+                let seat = top.window.current().expect("as-played impulse holder");
+                top.window.play();
+                top.canceled = true;
+                self.interrupts.push(Interrupt::DiscardChosen {
+                    seat,
+                    left: n,
+                    done: 0,
+                    combat_only: true,
+                });
+                self.flow = Flow::AsPlayed { stack, resume };
             }
             Choice::PayToCancel => {
                 let top = stack.last_mut().expect("as-played stack");
@@ -2936,6 +3010,23 @@ impl Engine {
                     }
                 }
             }
+            // Putrescent Sustenance: the named ash heap ally out of the game,
+            // life to the zombie ally chosen.
+            Effect::EatAshAllyToTarget(n) => {
+                let Some((from, card)) = ctx.ash else {
+                    unreachable!("an ash ally named at play");
+                };
+                let seat = &mut self.state.seats[from.index()];
+                if let Some(k) = seat.ash.iter().rposition(|&c| c == card) {
+                    seat.ash.remove(k);
+                    seat.removed.push(card);
+                    if let Target::Minion(t) = ctx.target {
+                        if self.state.minions[t.index()].present() {
+                            self.state.minions[t.index()].blood += n;
+                        }
+                    }
+                }
+            }
             // "Gains enough blood to reach full capacity" (Giant's Blood).
             Effect::BloodToTargetFull => {
                 let t = ctx.target.minion();
@@ -3156,6 +3247,7 @@ impl Engine {
             | Effect::BleedIfTargetHasNoReadyUnlocked(_)
             | Effect::LockHostSkipNextUnlock(_)
             | Effect::HostBurnBlood(_)
+            | Effect::HostBurnLife(_)
             | Effect::CommitStrike
             | Effect::AdditionalStrikeWithSource
             | Effect::UnpreventableStrike
@@ -3611,7 +3703,19 @@ impl Engine {
                     // combatant (Underbridge Stray's press).
                     Actor::Host | Actor::ForOwnCombatant => {
                         let for_own = ability.actor == Actor::ForOwnCombatant;
-                        let Some(host) = c.bearer().filter(|h| st.minions[h.index()].owner == seat)
+                        // An unhosted card works for its controller's
+                        // combatant (Dance of the Dead).
+                        let unhosted = self
+                            .combat
+                            .as_ref()
+                            .filter(|_| {
+                                for_own && c.bearer().is_none() && st.card_controller(id) == seat
+                            })
+                            .and_then(|cb| cb.side_of(seat).map(|i| cb.sides[i].minion));
+                        let Some(host) = c
+                            .bearer()
+                            .filter(|h| st.minions[h.index()].owner == seat)
+                            .or(unhosted)
                         else {
                             continue;
                         };
@@ -3847,6 +3951,9 @@ impl Engine {
         let cb = self.combat.as_ref();
         match limit {
             Some(Limit::PerCombat) => cb.is_some_and(|cb| cb.abilities_used.contains(&used)),
+            Some(Limit::PerCombatCard) => {
+                cb.is_some_and(|cb| cb.abilities_used.contains(&source.use_key(0)))
+            }
             Some(Limit::PerRound) => cb.is_some_and(|cb| cb.abilities_used_round.contains(&used)),
             Some(Limit::PerAction) => self
                 .action
@@ -4751,6 +4858,10 @@ impl Engine {
                         )
                     }
                     Actor::Methuselah => (self.state.active, None, c.card),
+                    // Unhosted (Dance of the Dead): its controller's.
+                    Actor::ForOwnCombatant if c.bearer().is_none() => {
+                        (self.state.card_controller(id), None, c.card)
+                    }
                     _ => {
                         let host = c.bearer().expect("host");
                         (self.state.minions[host.index()].owner, Some(host), c.card)
@@ -4780,6 +4891,7 @@ impl Engine {
         if let Some(cb) = self.combat.as_mut() {
             match mode.limit {
                 Some(Limit::PerCombat) => cb.abilities_used.push(source.use_key(ability)),
+                Some(Limit::PerCombatCard) => cb.abilities_used.push(source.use_key(0)),
                 Some(Limit::PerRound) => cb.abilities_used_round.push(source.use_key(ability)),
                 _ => {}
             }
@@ -5028,10 +5140,27 @@ impl Engine {
                     };
                     self.state.add_uncontrolled_blood(ctx.seat, i as usize, n);
                 }
+                Effect::TargetBurnLife(n) => {
+                    let t = target.minion();
+                    let v = &mut self.state.minions[t.index()];
+                    v.blood -= n.min(v.blood);
+                    if v.is_ally() && v.blood == 0 {
+                        self.burn_minion(t);
+                    }
+                }
                 Effect::HuntingGroundBlood(n) => {
                     let t = target.minion();
                     self.state.gain_blood(t, n);
                     self.state.minions[t.index()].hunting_ground_fed = true;
+                }
+                // Burial Site Hunting Ground: life to a wraith or zombie
+                // ally, "not to exceed its starting life".
+                Effect::HuntingGroundLife(n) => {
+                    let t = target.minion();
+                    if let Some(body) = self.state.ally_body(t) {
+                        let v = &mut self.state.minions[t.index()];
+                        v.blood = (v.blood + n).min(body.life.max(v.blood));
+                    }
                 }
                 Effect::HostBurnBloodToUnlock => {
                     let h = host.expect("host");
@@ -5057,7 +5186,7 @@ impl Engine {
                         self.oust_and_pass(ctx.seat);
                     }
                 }
-                Effect::HostBurnBlood(n) => {
+                Effect::HostBurnBlood(n) | Effect::HostBurnLife(n) => {
                     let host = host.expect("host");
                     let h = &mut self.state.minions[host.index()];
                     h.blood -= n.min(h.blood);

@@ -2265,4 +2265,77 @@ fuzz_tests! {
         seeds: 100,
         ..BASE
     };
+    /// Sabbat V5, the Path of Death and the Soul: the deck's new cards, its
+    /// zombie-raising vampires dealt around the table, and allies for
+    /// Heartrender to burn.
+    random_games_with_the_path_of_death_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Burial Site Hunting Ground",
+            "Cursed Abattoir",
+            "Dance of the Dead",
+            "Fiorella, Empty One",
+            "Freakish Conglomeration",
+            "Gifts From Hereafter",
+            "Glancing Blow",
+            "Gravebound Drone",
+            "Heartrender",
+            "Morbidity",
+            "Obedience",
+            "Putrescent Sustenance",
+            "Target Vitals",
+            "Wall Street Night, Financial Newspaper",
+        ],
+        covers: &[
+            "play:Burial Site Hunting Ground",
+            "play:Cursed Abattoir",
+            "play:Dance of the Dead",
+            "play:Fiorella, Empty One",
+            "play:Freakish Conglomeration",
+            "play:Gifts From Hereafter",
+            "play:Glancing Blow",
+            "play:Gravebound Drone",
+            "play:Heartrender",
+            "play:Morbidity",
+            "play:Obedience",
+            "play:Putrescent Sustenance",
+            "play:Target Vitals",
+            "play:Wall Street Night, Financial Newspaper",
+            "ability:Burial Site Hunting Ground",
+            "ability:Cursed Abattoir",
+            "ability:Dance of the Dead",
+            "ability:Fiorella, Empty One",
+            "ability:Freakish Conglomeration",
+            "ability:Gravebound Drone",
+            "ability:Heartrender",
+            "ability:Wall Street Night, Financial Newspaper",
+            "ability:Abderrahim, Death's Hand",
+            "ability:Eulogio Sánchez de los Reyes",
+            "ability:Huldu, The Desecrator",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Abderrahim, Death's Hand",
+                    "Aitana, The Unholy",
+                    "Anxo Vilela",
+                    "Ashur-uballit, Son of the Abyss",
+                    "El Monseñor",
+                    "Eulogio Sánchez de los Reyes",
+                    "Frau Schädel",
+                    "Huldu, The Desecrator",
+                    "Nadezhda",
+                    "Sakura, The Merciless",
+                    "Yurena, The Boor",
+                    "Zbigniew, Hunter of Mekhet",
+                ],
+            );
+            // Allies for Heartrender to burn.
+            for s in 1..4 {
+                e.add_ally(SeatId(s), zvtes::state::find_library("Double Deuce"));
+            }
+        },
+        seeds: 150,
+        ..BASE
+    };
 }

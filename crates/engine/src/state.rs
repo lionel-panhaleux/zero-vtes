@@ -1286,6 +1286,11 @@ impl GameState {
             R::ActionUndirected => ctx.directed == Some(false),
             R::IsBleed => ctx.kind == Some(ActionKind::Bleed),
             R::IsHunt => ctx.kind == Some(ActionKind::Hunt),
+            R::IsRecruitOrEmploy => {
+                matches!(ctx.kind, Some(ActionKind::Recruit | ActionKind::Employ))
+            }
+            // "While you have the Edge" (Anxo Vilela).
+            R::HasEdge => self.seats[src.owner.index()].has_edge,
             R::TargetSeatControlsClan(clans) => ctx.target.is_some_and(|s| {
                 self.minions_of(s).any(|m| {
                     self.minions[m.index()]
@@ -1541,7 +1546,7 @@ impl GameState {
     /// "a minion can have only one X" limits reached by what it has or by
     /// the cards `with` it takes in the same action?
     pub fn can_hold(&self, m: MinionId, card: u16, with: &[u16]) -> bool {
-        if self.no_equipment_or_retainers(m) {
+        if self.no_equipment(m) {
             return false;
         }
         let Some(def) = cards::lookup(card) else {
@@ -1851,6 +1856,15 @@ impl GameState {
         sum_n!(self.hosted(m), Modifier::RetainerDamage)
     }
 
+    /// "While Ashur-uballit is ready, zombies (allies and retainers) you
+    /// recruit or employ get +1 starting life": the seat's vampires' bonus.
+    pub fn zombie_life_bonus(&self, seat: SeatId) -> u8 {
+        self.minions_of(seat)
+            .map(|m| self.printed_mod(m, Stat::ZombieStartingLife, PrintedCtx::default()))
+            .sum::<i32>()
+            .max(0) as u8
+    }
+
     /// "This vampire cannot recruit allies or employ retainers" on `m`
     /// (Depravity).
     pub fn cannot_recruit_or_employ(&self, m: MinionId) -> bool {
@@ -1973,6 +1987,11 @@ impl GameState {
     /// text): it takes none, by any means.
     pub fn no_equipment_or_retainers(&self, m: MinionId) -> bool {
         self.bears(m, Modifier::NoEquipmentOrRetainers)
+    }
+
+    /// `m` cannot have or use equipment: Bone Shambler, Gravebound Drone.
+    pub fn no_equipment(&self, m: MinionId) -> bool {
+        self.no_equipment_or_retainers(m) || self.bears(m, Modifier::NoEquipmentHeld)
     }
 
     /// `m` cannot be the target of a directed action requiring one of the

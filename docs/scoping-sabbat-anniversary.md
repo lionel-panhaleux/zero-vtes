@@ -122,6 +122,7 @@ small widenings (new `printed_holds` conditions, `RefEffect`s, requirements).
    referendum widenings, Business Pressure, Loup hooks.
 3. **Sabbat V5** (105 cards), after the title and path layers; per deck: Power and the Inner Voice (political, titles),
    Cathari, Caine, Death and the Soul (zombie allies, Morbidity, Target Vitals).
+   Done 2026-10-07: all four Sabbat decks are in the pool (slices 16f–16i).
 
 Per card throughout: window-matrix rows, ledger rows for every KRCG ruling,
 full vampire text (rules-qa 13.1).

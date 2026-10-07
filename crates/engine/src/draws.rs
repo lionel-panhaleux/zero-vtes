@@ -131,7 +131,18 @@ pub enum Interrupt {
     /// `seat` discards `left` more cards of their choice from hand (Shroud
     /// of Decay [obl]); all `done` are replaced once every discard is made
     /// (advanced rules §6.8.3).
-    DiscardChosen { seat: SeatId, left: u8, done: u8 },
+    /// `seat` reorders the top `total` cards of their library (Eulogio
+    /// Sánchez de los Reyes): `placed` of them chosen so far, from the top
+    /// down; the rest still in their old order below them.
+    Reorder { seat: SeatId, total: u8, placed: u8 },
+    DiscardChosen {
+        seat: SeatId,
+        left: u8,
+        done: u8,
+        /// Combat cards only (Target Vitals' cancel: "discard two combat
+        /// cards").
+        combat_only: bool,
+    },
     /// `seat` removes `left` more cards of their choice from `of`'s ash
     /// heap from the game; then `of` burns `pool` pool (Shroud of Decay
     /// [OBL]; LSJ 20090710: there is no order to the ash heap) — from their
@@ -271,6 +282,7 @@ impl Interrupt {
             | Interrupt::MinionOf { seat, .. }
             | Interrupt::CorruptionOwner { seat, .. }
             | Interrupt::DiscardChosen { seat, .. }
+            | Interrupt::Reorder { seat, .. }
             | Interrupt::AvoidDamage { seat, .. }
             | Interrupt::DiscardFromHandOf { seat, .. }
             | Interrupt::RemoveFromAsh { seat, .. }
@@ -545,16 +557,50 @@ impl Engine {
                         && !self.state.seats[of.index()].hand.is_empty()
                 }
                 Interrupt::AvoidDamage { minion, .. } => present(minion),
-                Interrupt::DiscardChosen { seat, left, done } => {
-                    if left > 0 && self.state.seats[seat.index()].hand.len() > left as usize {
+                // One card or one kind left to place: no choice.
+                Interrupt::Reorder {
+                    seat,
+                    total,
+                    placed,
+                } => {
+                    let lib = &self.state.seats[seat.index()].library;
+                    let n = lib.len();
+                    let unplaced = &lib[n - total as usize..n - placed as usize];
+                    let kinds = distinct(unplaced, |_| true).len();
+                    if kinds > 1 {
+                        return;
+                    }
+                    self.interrupts.remove(0);
+                    continue;
+                }
+                Interrupt::DiscardChosen {
+                    seat,
+                    left,
+                    done,
+                    combat_only,
+                } => {
+                    let fits = |c: u16| {
+                        !combat_only
+                            || crate::library::LIBRARY[c as usize]
+                                .types
+                                .contains(&crate::library::CardType::Combat)
+                    };
+                    let held = self.state.seats[seat.index()]
+                        .hand
+                        .iter()
+                        .filter(|&&c| fits(c))
+                        .count();
+                    if left > 0 && held > left as usize {
                         return;
                     }
                     // As many as it holds, or fewer: all of them — then
                     // the replacements.
                     self.interrupts.remove(0);
                     let st = &mut self.state.seats[seat.index()];
-                    let k = if left > 0 { st.hand.len() } else { 0 };
-                    let cards: Vec<u16> = st.hand.drain(..k).collect();
+                    let k = if left > 0 { held } else { 0 };
+                    let (cards, keep): (Vec<u16>, Vec<u16>) =
+                        st.hand.iter().partition(|&&c| fits(c) && k > 0);
+                    st.hand = keep;
                     st.ash.extend(cards);
                     self.replace(seat, done as usize + k, None);
                     continue;
@@ -775,10 +821,27 @@ impl Engine {
                 WindowLabel::ResolutionChoice,
                 vec![Choice::Pass, Choice::BurnBloodToAvoid],
             ),
-            Interrupt::DiscardChosen { .. } => (
+            Interrupt::Reorder { total, placed, .. } => {
+                let lib = &st.seats[s.index()].library;
+                let n = lib.len();
+                (
+                    WindowLabel::ResolutionChoice,
+                    distinct(&lib[n - total as usize..n - placed as usize], |_| true)
+                        .into_iter()
+                        .map(Choice::FindCard)
+                        .collect(),
+                )
+            }
+            Interrupt::DiscardChosen { combat_only, .. } => (
                 WindowLabel::ResolutionChoice,
                 (0..st.seats[s.index()].hand.len())
                     .filter(|&i| crate::state::first_copy(&st.seats[s.index()].hand, i))
+                    .filter(|&i| {
+                        !combat_only
+                            || crate::library::LIBRARY[st.seats[s.index()].hand[i] as usize]
+                                .types
+                                .contains(&crate::library::CardType::Combat)
+                    })
                     .map(|i| Choice::Discard(i as u8))
                     .collect(),
             ),
@@ -1564,7 +1627,39 @@ impl Engine {
                 self.interrupts.remove(0);
                 self.state.minions[minion.index()].blood -= blood;
             }
-            (Interrupt::DiscardChosen { seat, left, done }, Choice::Discard(i)) => {
+            // The chosen card to the next place down from the top.
+            (
+                Interrupt::Reorder {
+                    seat,
+                    total,
+                    placed,
+                },
+                Choice::FindCard(card),
+            ) => {
+                let lib = &mut self.state.seats[seat.index()].library;
+                let n = lib.len();
+                let to = n - 1 - placed as usize;
+                let from = (n - total as usize..=to)
+                    .rev()
+                    .find(|&k| lib[k] == card)
+                    .expect("the chosen card among the top ones");
+                let c = lib.remove(from);
+                lib.insert(to, c);
+                self.interrupts[0] = Interrupt::Reorder {
+                    seat,
+                    total,
+                    placed: placed + 1,
+                };
+            }
+            (
+                Interrupt::DiscardChosen {
+                    seat,
+                    left,
+                    done,
+                    combat_only,
+                },
+                Choice::Discard(i),
+            ) => {
                 let st = &mut self.state.seats[seat.index()];
                 let card = st.hand.remove(i as usize);
                 st.ash.push(card);
@@ -1572,6 +1667,7 @@ impl Engine {
                     seat,
                     left: left - 1,
                     done: done + 1,
+                    combat_only,
                 };
             }
             (

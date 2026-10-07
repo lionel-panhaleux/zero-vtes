@@ -380,6 +380,9 @@ pub enum Stat {
     /// Optional presses each combat (Serhat Gunde: "1 optional press each
     /// combat").
     CombatPress,
+    /// "Zombies (allies and retainers) you recruit or employ get +n
+    /// starting life" (Ashur-uballit, while ready).
+    ZombieStartingLife,
     /// Of its votes cast against a blood hunt referendum (Jason "Son"
     /// Newberry).
     VotesAgainstBloodHunt,
@@ -657,6 +660,42 @@ pub enum Requirement {
     IsHunt,
     /// The actor is not the acting minion (Yawp Court's Sabbat vampire).
     ActorNotActing,
+    /// The acting minion is the user's ally or a vampire younger than the
+    /// host (Abderrahim: "an ally or younger vampire you control").
+    OwnActingAllyOrYounger,
+    /// The current action is a recruit or an employ (Frau Schädel).
+    IsRecruitOrEmploy,
+    /// The current action requires this path: its card (or the card
+    /// granting it) has the path icon (Sakura: "an action requiring the
+    /// Path of Death and the Soul").
+    ActionRequiresPath(&'static str),
+    /// The acting minion is an ally of one of these subtypes (Gifts From
+    /// Hereafter: "the acting wraith or zombie ally").
+    ActingAllyOf(&'static [crate::library::Label]),
+    /// The minion target is an ally of one of these subtypes (Fiorella,
+    /// Burial Site Hunting Ground).
+    TargetAllyOf(&'static [crate::library::Label]),
+    /// The minion target is not an ally of these subtypes nor a vampire
+    /// (Heartrender: "a non-wraith non-zombie ally"); a retainer target is
+    /// read by the card filter.
+    TargetAllyNotOf(&'static [crate::library::Label]),
+    /// The minion target is another copy of the actor (Gravebound Drone:
+    /// "another copy of this ally you control").
+    TargetOtherCopyControlled,
+    /// The acting minion is a vampire younger than the actor, which is
+    /// about to enter combat with it as its blocker (Obedience).
+    BlockingYoungerActing,
+    /// The own minion in combat is another copy of the host (Gravebound
+    /// Drone's prevention).
+    OwnCombatantOtherCopy,
+    /// The actor is an ally of one of these subtypes (Dance of the Dead).
+    ActorAllyOf(&'static [crate::library::Label]),
+    /// The minion attempting to block is another ally of the user's of one
+    /// of these subtypes (Fiorella).
+    AttemptingAllyOf(&'static [crate::library::Label]),
+    /// The actor has no aim on this strike yet and is still choosing it
+    /// ("a minion can play only one aim each strike", Target Vitals).
+    NoAimYet,
     /// This card in play is unlocked ("you can lock this card to …").
     CardUnlocked,
     /// The player has the Edge ("if you have the Edge").
@@ -1679,6 +1718,9 @@ pub enum Limit {
     /// "A vampire can play only one X at superior each combat" (Terror
     /// Frenzy): per minion and card mode.
     PerCombatThisMode,
+    /// Once each combat per copy, every ability of the card so limited
+    /// sharing the one use (Dance of the Dead: "1 maneuver or press").
+    PerCombatCard,
     /// "A minion can play only one X between their unlock phases" (On the
     /// Qui Vive): per minion and card name, until its controller's next
     /// unlock phase.
@@ -2050,6 +2092,9 @@ pub enum Modifier {
     /// The minion this card is cannot have or use equipment or retainers
     /// (Bone Shambler).
     NoEquipmentOrRetainers,
+    /// The minion this card is cannot have or use equipment (Gravebound
+    /// Drone).
+    NoEquipmentHeld,
     /// "While the employer is in combat, the opposing minion's controller
     /// gets -n hand size" (Raptor [ANI]).
     OpponentHandSizeInCombat(u8),
@@ -2824,6 +2869,44 @@ pub enum Effect {
     /// A combat card put on its vampire as it resolves, usable for the
     /// rest of the combat (Wall of Filth).
     PutOnActorNow,
+    /// An aim (Target Vitals): if any damage from the strike is
+    /// successfully inflicted, +n damage of its kind, and the opposing
+    /// minion cannot press this round (rules-qa 55.1).
+    AimExtraDamage(u8),
+    /// "They can discard two combat cards to cancel this card as it is
+    /// played" (Target Vitals): the opposing minion's controller.
+    CancelableByDiscardingCombat(u8),
+    /// Morbidity: up to n blood moved from the opposing vampire to this
+    /// card in play, back to it after combat as the card burns.
+    MorbidityTake(u8),
+    /// The ash heap ally named at play removed from the game for n life to
+    /// the target zombie ally (Putrescent Sustenance).
+    EatAshAllyToTarget(u8),
+    /// The acting ally removed from the game at resolution, to burn the
+    /// target ally or retainer (Heartrender; rules-qa 55.4).
+    RemoveActorToBurnTarget,
+    /// Look at and reorder the top n cards of the library, then unlock
+    /// (Eulogio Sánchez de los Reyes).
+    ReorderTopThenUnlock(u8),
+    /// "After action resolution, this vampire can burn n blood to unlock
+    /// the acting ally" (Gifts From Hereafter [DOM]/[OBL]).
+    UnlockActingForActorBlood(u8),
+    /// +1 life to the target ally, not above its starting life (Burial
+    /// Site Hunting Ground), marking the hunting ground used.
+    HuntingGroundLife(u8),
+    /// Cursed Abattoir: a counter after a zombie of its controller's is
+    /// burned (`Hook::OwnZombieBurned`).
+    CounterOnZombieBurned,
+    /// The host ally burns n life, a cost of its own text (Gravebound
+    /// Drone: "this ally can burn 1 life to …") — not a blood cost, which
+    /// an ally never pays (advanced rules 5.5.1).
+    HostBurnLife(u8),
+    /// The target minion burns n blood or life, an ally its last too
+    /// (Gravebound Drone [OBL]: "burn 1 life from another copy").
+    TargetBurnLife(u8),
+    /// As `EndBlockedAction`, the acting minion left locked (Obedience
+    /// [DOM]: "do not unlock the acting vampire").
+    EndBlockedActionLocked,
     /// "Continue the action as if unblocked" after the resolution of a
     /// blocked action (Go-getter [OBF]).
     ContinueAfterResolution,
@@ -3535,6 +3618,9 @@ pub enum Hook {
     /// blocked or failed), before its after-resolution window (Forward
     /// Momentum); with the riders' requirements read on the acting minion.
     OwnBleedEnds,
+    /// A zombie ally (or retainer) of the controller's is burned (Cursed
+    /// Abattoir).
+    OwnZombieBurned,
     /// The minion that played this card (`CardInPlay::by`) leaves the
     /// ready region: to torpor, burned (Slaughtering the Herd [DOM]).
     ByLeavesReady,
@@ -3766,6 +3852,8 @@ pub fn library_mode(card: u16, mi: usize) -> usize {
         "Revelation of the Serpent" => [0, 0, 1, 1][mi],
         // [CEL] or [PRE]: the bleed alone, or with the stealth.
         "Subversion" => [0, 1, 1][mi],
+        // Each version for blood, or for a zombie ally's life.
+        "Putrescent Sustenance" => [0, 0, 1, 1][mi],
         // [DOM]: a younger vampire you control, or one in your uncontrolled
         // region — one target, of either kind.
         "Feast of the Soul's Secrets" => [0, 1, 1][mi],
@@ -4124,6 +4212,62 @@ pub fn holds(
         Requirement::IsBleed => action.is_some_and(|a| a.kind == ActionKind::Bleed),
         Requirement::IsHunt => action.is_some_and(|a| a.kind == ActionKind::Hunt || a.is_hunt),
         Requirement::ActorNotActing => !action.is_some_and(|a| actor == Some(a.acting)),
+        Requirement::OwnActingAllyOrYounger => action.is_some_and(|a| {
+            a.seat == seat
+                && (st.minions[a.acting.index()].is_ally()
+                    || actor.is_some_and(|h| st.younger_than(a.acting, h)))
+        }),
+        Requirement::IsRecruitOrEmploy => {
+            action.is_some_and(|a| matches!(a.kind, ActionKind::Recruit | ActionKind::Employ))
+        }
+        Requirement::ActionRequiresPath(path) => action.is_some_and(|a| {
+            let card = a.card.map(|p| p.card).or(match a.source {
+                Some(AbilitySource::Card(c)) => Some(st.cards[c.index()].card),
+                _ => None,
+            });
+            card.is_some_and(|c| LIBRARY[c as usize].path == Some(path))
+        }),
+        Requirement::ActingAllyOf(labels) => action.is_some_and(|a| {
+            st.minions[a.acting.index()]
+                .kind
+                .ally_card()
+                .is_some_and(|c| {
+                    labels
+                        .iter()
+                        .any(|l| LIBRARY[c as usize].labels.contains(l))
+                })
+        }),
+        Requirement::BlockingYoungerActing => action.is_some_and(|a| {
+            a.blocker.is_some()
+                && a.blocker == actor
+                && st.minions[a.acting.index()].is_vampire()
+                && actor.is_some_and(|m| st.younger_than(a.acting, m))
+        }),
+        Requirement::ActorAllyOf(labels) => actor.is_some_and(|m| {
+            st.minions[m.index()].kind.ally_card().is_some_and(|c| {
+                labels
+                    .iter()
+                    .any(|l| LIBRARY[c as usize].labels.contains(l))
+            })
+        }),
+        Requirement::AttemptingAllyOf(labels) => action.is_some_and(|a| match a.state {
+            ActionState::Attempt(m) => {
+                Some(m) != actor
+                    && st.minions[m.index()].owner == seat
+                    && st.minions[m.index()].kind.ally_card().is_some_and(|c| {
+                        labels
+                            .iter()
+                            .any(|l| LIBRARY[c as usize].labels.contains(l))
+                    })
+            }
+            _ => false,
+        }),
+        Requirement::NoAimYet => combat.is_some_and(|c| {
+            actor
+                .and_then(|m| c.side_of_minion(m))
+                .is_some_and(|i| c.sides[i].aim == 0 && !c.sides[i].chosen)
+        }),
+        Requirement::OwnCombatantOtherCopy => true, // a host predicate
         Requirement::PreyBurnedPool => action.is_some_and(|a| a.prey_burned),
         Requirement::ActingFollowsPath(path) => action.is_some_and(|a| st.follows(a.acting, path)),
         Requirement::NoQueuedCombat => !action.is_some_and(|a| a.queued_combat.is_some()),
@@ -4237,6 +4381,9 @@ pub fn holds(
         | Requirement::PreyPoolAtMost(_)
         | Requirement::TargetSeatControlsClan(_)
         | Requirement::TargetFollowsPath(_)
+        | Requirement::TargetAllyOf(_)
+        | Requirement::TargetAllyNotOf(_)
+        | Requirement::TargetOtherCopyControlled
         | Requirement::CountersAtLeast(_)
         | Requirement::CountersAtMost(_)
         | Requirement::CardUnlocked
@@ -4251,7 +4398,7 @@ pub fn holds(
         | Requirement::TargetOnActor => true, // host / card / target predicates
         Requirement::ActorUnlocked => actor.is_some_and(|m| !st.minions[m.index()].locked),
         Requirement::ActorMayUseEquipment => actor.is_some_and(|m| {
-            !st.no_equipment_or_retainers(m)
+            !st.no_equipment(m)
                 && combat
                     .and_then(|c| c.side_of_minion(m).map(|i| !c.sides[i].equipment_barred()))
                     .unwrap_or(true)
@@ -4709,6 +4856,20 @@ pub fn holds_for_minion(
         Requirement::TargetLocked => v.locked,
         Requirement::TargetVampire => !v.is_ally(),
         Requirement::TargetFollowsPath(path) => st.follows(m, path),
+        Requirement::TargetAllyOf(labels) => v.kind.ally_card().is_some_and(|c| {
+            labels
+                .iter()
+                .any(|l| LIBRARY[c as usize].labels.contains(l))
+        }),
+        Requirement::TargetAllyNotOf(labels) => v.kind.ally_card().is_some_and(|c| {
+            !labels
+                .iter()
+                .any(|l| LIBRARY[c as usize].labels.contains(l))
+        }),
+        Requirement::TargetOtherCopyControlled => {
+            v.owner == seat
+                && acting.is_some_and(|a| a != m && st.minions[a.index()].name() == v.name())
+        }
         Requirement::TargetCombatant => st.combatants.is_some_and(|p| p.contains(&m)),
         Requirement::TargetDiablerieSinceYourLastTurn => v
             .diablerie_turn
@@ -4989,6 +5150,14 @@ pub fn holds_for_host(req: Requirement, st: &GameState, host: MinionId) -> bool 
         Requirement::HostControllerPoolAtLeast(n) => st.seats[v.owner.index()].pool >= n as i32,
         Requirement::HostInTorpor => v.in_play && v.in_torpor,
         Requirement::HostControllerActive => v.in_play && v.owner == st.active,
+        // Gravebound Drone: another copy of it is the user's combatant.
+        Requirement::OwnCombatantOtherCopy => st.combatants.is_some_and(|pair| {
+            pair.iter().any(|&m| {
+                m != host
+                    && st.minions[m.index()].owner == v.owner
+                    && st.minions[m.index()].name() == v.name()
+            })
+        }),
         Requirement::HostClan(c) => v.clan() == Some(c),
         Requirement::HostDiscipline(d) => st.has_discipline(host, d),
         _ => true,

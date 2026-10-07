@@ -167,6 +167,10 @@ impl Describer<'_> {
             CancelAttempt { minion, .. } => {
                 format!("{} can cancel its block attempt", self.named(minion))
             }
+            Reorder { total, placed, .. } => format!(
+                "Reorder the top {total} cards of your library: choose card {} from the top",
+                placed + 1
+            ),
             MinionOf { of, purpose, .. } => {
                 let of = if of == self.seat {
                     "of yours".to_string()
@@ -214,6 +218,11 @@ impl Describer<'_> {
                 "Discard a card from {}'s hand (they replace it)",
                 self.seat_name(of)
             ),
+            DiscardChosen {
+                left,
+                combat_only: true,
+                ..
+            } => format!("Discard {left} combat card(s) of your choice"),
             DiscardChosen { left, .. } => format!("Discard {left} card(s) of your choice"),
             RemoveFromAsh { of, left, .. } => format!(
                 "Remove {left} card(s) in {}'s ash heap from the game",

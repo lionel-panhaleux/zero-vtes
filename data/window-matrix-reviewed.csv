@@ -7,6 +7,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 102310,Augury of Doom,Action,,no,ACTION_DECLARE,,,ok
 100119,Awe,Action Modifier,pre,no,REFERENDUM,,,ok
 100165,Black Forest Base,Master,,no,MASTER_PHASE,in_play_action,,ok
+102311,Burial Site Hunting Ground,Master,,no,MASTER_PHASE,,,ok
 100274,Business Pressure,Action Modifier,pre,no,REFERENDUM,,,ok
 102269,Camarilla Conclave,Master,,no,MASTER_PHASE,,,ok
 100294,Cardinal Benediction,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
@@ -14,6 +15,8 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 100333,Charismatic Aura,Combat,aus/pre,no,CARD_AS_PLAYED;COMBAT_STRIKE_DECLARATION,cancel_as_played,,ok
 102312,Cold War,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
 102271,Confiscation,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
+102313,Cursed Abattoir,Master,,no,MASTER_PHASE,,,ok
+102314,Dance of the Dead,Action,,no,ACTION_DECLARE,,,ok
 102315,Dance with the Devil,Combat,obf/tha,no,COMBAT_DETERMINE_RANGE,,,ok
 100526,Depravity,Master,,no,MASTER_PHASE,,,ok
 100545,Direct Intervention,Master,,no,CARD_AS_PLAYED,out_of_turn;cancel_as_played,,ok
@@ -27,8 +30,14 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 100710,Fear of Mekhet,Master,,no,MASTER_PHASE,,,ok
 102321,Fever Pitch,Action Modifier,for/pre,no,ACTION_DURING,,,ok
 100726,Fiendish Tongue,Action,,no,ACTION_DECLARE,,,ok
+102322,"Fiorella, Empty One",Ally,,no,ACTION_DECLARE_RECRUIT,,,ok
 100761,Forced March,Action Modifier,cel/for,no,ACTION_AFTER_RESOLUTION;ACTION_STEALTH_INTERCEPT,,,ok
 102323,Forward Momentum,Master,,no,MASTER_PHASE,,,ok
+102324,Freakish Conglomeration,Ally,obl/tha,no,ACTION_DECLARE_RECRUIT,in_play_action,,ok
+102325,Gifts From Hereafter,Action Modifier,dom/obl,no,ACTION_DURING,,,ok
+100834,Glancing Blow,Combat,,no,COMBAT_DAMAGE_PREVENTION,delayed_replacement,,ok
+102326,Gravebound Drone,Ally,obl,no,ACTION_DECLARE_RECRUIT,,,ok
+102327,Heartrender,Ally,,no,ACTION_DECLARE_RECRUIT,in_play_action,,ok
 102328,Hedonism,Action Modifier,for/pre,no,ACTION_BLOCK_ATTEMPT,,,ok
 102329,Hunting the Quarry,Combat,cel/tha,no,COMBAT_WOULD_END,in_play_action,,ok
 100994,Instantaneous Transformation,Action Modifier,cel/pro,no,ACTION_STEALTH_INTERCEPT;ACTION_AFTER_RESOLUTION,,,ok
@@ -37,12 +46,15 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 102273,Loup,Action Modifier,,no,ACTION_STEALTH_INTERCEPT,,,ok
 102331,Magnetic Authority,Action Modifier,dom/pot,no,ACTION_AFTER_RESOLUTION,,,ok
 101238,Monastery of Shadows,Master,,no,MASTER_PHASE,,,ok
+102332,Morbidity,Combat,obl/tha,no,COMBAT_BEFORE_RANGE,,,ok
+101309,Obedience,Reaction,dom,no,ACTION_BLOCKED,,,ok
 101390,Permanent Vacation,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
 102333,Pillars Fall,Action,,no,ACTION_DECLARE,,,ok
 101417,Political Stranglehold,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
 101437,Powerbase: Madrid,Master,,no,MASTER_PHASE,in_play_action,,ok
 101490,Private Audience,Action Modifier,,no,REFERENDUM,,,ok
 102334,Privileged Position,Master,,no,MASTER_PHASE,,,ok
+102335,Putrescent Sustenance,Action,obl/tha,no,ACTION_DECLARE,,,ok
 102336,Rage of Apedemak,Combat,ani/pot,no,COMBAT_BEFORE_RANGE,,,ok
 101587,Regent,Master,,no,MASTER_PHASE,in_play_action,,ok
 101590,Reinforcements,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
@@ -53,6 +65,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 102340,Soulgrinder,Combat,pot/tha,no,COMBAT_STRIKE_DECLARATION,,,ok
 102341,Subversion,Action Modifier,cel/pre,no,ACTION_STEALTH_INTERCEPT;ACTION_DURING,,,ok
 102342,Swift Cover,Action Modifier/Combat,cel/obf,no,COMBAT_STRIKE_DECLARATION;ACTION_STEALTH_INTERCEPT,,,ok
+101942,Target Vitals,Combat,,no,COMBAT_STRIKE_DECLARATION,cancel_as_played,,ok
 102343,Terrifying Visage,Master,,no,MASTER_PHASE,,,ok
 100945,The Hungry Coyote,Master,,no,MASTER_PHASE,,,ok
 101127,"The Louvre, Paris",Master,,no,MASTER_PHASE,in_play_action,,ok
@@ -61,6 +74,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 102345,Unholy Sacrament,Master,,no,MASTER_PHASE,,,ok
 102346,Unthinkable Humiliation,Action Modifier,pot/pre,no,ACTION_DURING,,,ok
 102347,Wall of Filth,Combat,pro/tha,no,COMBAT_BEFORE_RANGE,,,ok
+102142,"Wall Street Night, Financial Newspaper",Master,,no,MASTER_PHASE,in_play_action,,ok
 102348,War of Ages,Political Action,,no,ACTION_DECLARE_POLITICAL,in_play_action,,ok
 102151,Wash,Master,,no,CARD_AS_PLAYED,delayed_replacement;out_of_turn;trifle;cancel_as_played,,ok
 102217,47th Street Royals,Ally,,yes,ACTION_DECLARE_RECRUIT,,,ok

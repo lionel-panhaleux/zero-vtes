@@ -340,6 +340,11 @@ pub struct Side {
     /// Ensnare a Beast [ANI]/[CEL]: this minion's strike cards cost +n
     /// blood or life this combat.
     pub strike_card_toll: u8,
+    /// An aim on this minion's coming strike (Target Vitals): +n damage if
+    /// it lands (0: none).
+    pub aim: u8,
+    /// Hit by an aimed strike: no press this round (Target Vitals).
+    pub no_press_round: bool,
     /// Damage from this minion's strikes successfully inflicted on the
     /// opposing one this round (Disarm).
     pub inflicted_round: u8,
@@ -528,6 +533,9 @@ pub struct CombatCtx {
     pub end_fixed: bool,
     /// The minions sent to torpor during this combat.
     pub torpored: Vec<MinionId>,
+    /// Morbidity: (the card in play holding the blood, the vampire it came
+    /// from) — moved back as the combat ends and the card burns.
+    pub morbidity: Vec<(CardId, MinionId)>,
 }
 
 impl CombatCtx {
@@ -658,6 +666,7 @@ impl CombatCtx {
     /// A press now: none to continue under a frenzy (Terror Frenzy [ani]).
     pub(crate) fn may_press(&self, side: usize) -> bool {
         !(self.sides[side].no_continue_press && !self.press_continue)
+            && !self.sides[side].no_press_round
     }
 
     /// Effect-derived legality at the current step: no two maneuvers or
@@ -2000,6 +2009,22 @@ impl Engine {
             self.burn_card_in_play(r);
         }
         let c = self.combat.as_mut().expect("combat context");
+        // An aimed strike that landed (Target Vitals): +n of its kind — not
+        // to be prevented, the prevention step past — and no press this
+        // round (rules-qa 55.1).
+        for i in 0..2 {
+            let aim = std::mem::take(&mut c.sides[1 - i].aim);
+            let landed = c.sides[i]
+                .pending
+                .total()
+                .min(c.sides[i].strike_damage.total());
+            if aim > 0 && landed > 0 {
+                let aggravated = c.sides[i].strike_damage.aggravated > 0;
+                c.sides[i].pending.add(aim, aggravated);
+                c.sides[i].strike_damage.add(aim, aggravated);
+                c.sides[i].no_press_round = true;
+            }
+        }
         let results: Vec<Resolved> = c
             .sides
             .iter()
@@ -2233,6 +2258,17 @@ impl Engine {
         }
         if ended.as_ref().is_some_and(|c| c.at_resolution) {
             self.action.as_mut().expect("action context").resolved = true;
+        }
+        // Morbidity: the blood back to the vampire it came from, the card
+        // burned.
+        for (id, from) in ended.iter().flat_map(|c| c.morbidity.clone()) {
+            let n = std::mem::take(&mut self.state.cards[id.index()].counters);
+            if self.state.minions[from.index()].present() {
+                self.state.gain_blood(from, n);
+            }
+            if self.state.cards[id.index()].present() {
+                self.burn_card_in_play(id);
+            }
         }
         // Rage of Apedemak's hand size ends with the combat: the excess
         // discarded at once.
@@ -2602,6 +2638,35 @@ impl Engine {
             Effect::PutOnActorAfterCombat => c.after_combat.push(Held::from_play(play, actor, 0)),
             // Wall of Filth: on the vampire now, "a vampire can have only
             // one".
+            Effect::AimExtraDamage(n) => c.sides[i].aim = n,
+            // Read as the card is played (`CardAsPlayed`).
+            Effect::CancelableByDiscardingCombat(_) => {}
+            // Morbidity: up to n of the opposing vampire's blood on this
+            // card, in play until the combat ends.
+            Effect::MorbidityTake(n) => {
+                let opposing = c.sides[1 - i].minion;
+                let moved = n.min(self.state.minions[opposing.index()].blood);
+                self.state.minions[opposing.index()].blood -= moved;
+                // Out of the ash heap if it is there already, else an
+                // effect-only stand-in (as `place_held`, rules-qa 47.1).
+                let ash = &mut self.state.seats[play.seat.index()].ash;
+                let taken = ash
+                    .iter()
+                    .rposition(|&x| x == play.card)
+                    .map(|k| ash.remove(k))
+                    .is_some();
+                let id = self.enter_play(crate::state::CardInPlay {
+                    by: Some(actor),
+                    counters: moved,
+                    effect_only: !taken,
+                    ..crate::state::CardInPlay::new(play.card, play.seat, None, play.mode)
+                });
+                self.combat
+                    .as_mut()
+                    .expect("combat")
+                    .morbidity
+                    .push((id, opposing));
+            }
             Effect::PutOnActorNow => {
                 let name = LIBRARY[play.card as usize].name;
                 if !self.state.holds_a(actor, cards::Holding::Named(name)) {
@@ -2885,6 +2950,9 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::PutOnOpponentOnHit { .. }
             | Effect::PutOnActorAfterCombat
             | Effect::PutOnActorNow
+            | Effect::AimExtraDamage(_)
+            | Effect::CancelableByDiscardingCombat(_)
+            | Effect::MorbidityTake(_)
             | Effect::StrengthThisRound(_)
             | Effect::PreventThisRound(_)
             | Effect::PreventEachRound(_)

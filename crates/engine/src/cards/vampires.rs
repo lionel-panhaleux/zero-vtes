@@ -1763,7 +1763,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 131] = [
+pub static VAMPIRES: [&VampireDef; 138] = [
     &PARIJAT,
     &ABADDON,
     &ABRAHAM_DUSABLE,
@@ -1895,6 +1895,13 @@ pub static VAMPIRES: [&VampireDef; 131] = [
     &CROSSBREAKER,
     &KALYANI,
     &SERHAT_GUNDE,
+    &ABDERRAHIM,
+    &ANXO_VILELA,
+    &ASHUR_UBALLIT,
+    &EULOGIO,
+    &FRAU_SCHADEL,
+    &HULDU,
+    &SAKURA,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -2342,5 +2349,115 @@ pub static KALYANI: VampireDef = VampireDef {
 pub static SERHAT_GUNDE: VampireDef = VampireDef {
     name: "Serhat Gunde, Combat Junkie",
     printed: &[own(Stat::CombatPress, 1, &[])],
+    ..VAMP
+};
+
+// ---- Sabbat V5: Path of Death and the Soul (slice 16i) ---------------------
+//
+// Aitana, El Monseñor, Nadezhda, Yurena and Zbigniew print no text
+// ("Sabbat.").
+
+/// "Sabbat: During an action, Abderrahim can burn 1 blood to give an ally or
+/// younger vampire you control +1 stealth. +1 strength." In torpor too (LSJ
+/// 20011022); when stealth is needed.
+pub static ABDERRAHIM: VampireDef = VampireDef {
+    name: "Abderrahim, Death's Hand",
+    abilities: &[mode_of(
+        &[Window::ActionDuring],
+        Actor::Host,
+        &[
+            R::HostBloodAtLeast(1),
+            R::OwnActingAllyOrYounger,
+            R::StealthNeeded,
+        ],
+        &[Effect::HostBurnBlood(1), Effect::AddStealth(1)],
+    )],
+    printed: &[own(Stat::Strength, 1, &[])],
+    ..VAMP
+};
+
+/// "Sabbat: While you have the Edge, Anxo gets +1 strength."
+pub static ANXO_VILELA: VampireDef = VampireDef {
+    name: "Anxo Vilela",
+    printed: &[own(Stat::Strength, 1, &[R::HasEdge])],
+    ..VAMP
+};
+
+/// "Sabbat cardinal: While Ashur-uballit is ready, zombies (allies and
+/// retainers) you recruit or employ get +1 starting life. +1 bleed." Read
+/// as the zombie enters play.
+pub static ASHUR_UBALLIT: VampireDef = VampireDef {
+    name: "Ashur-uballit, Son of the Abyss",
+    printed: &[
+        own(Stat::ZombieStartingLife, 1, &[R::ThisVampireReady]),
+        own(Stat::Bleed, 1, &[]),
+    ],
+    ..VAMP
+};
+
+/// "Sabbat: Eulogio can look at and reorder the top 5 cards of your
+/// library, and unlock as a +1 stealth action that costs 1 blood." Both at
+/// resolution (rules-qa 55.3).
+pub static EULOGIO: VampireDef = VampireDef {
+    name: "Eulogio Sánchez de los Reyes",
+    abilities: &[printed_action(
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::AddStealth(1),
+            Effect::PayBlood(1),
+            Effect::ReorderTopThenUnlock(5),
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat: Frau Schädel gets +1 stealth during recruit and employ
+/// actions."
+pub static FRAU_SCHADEL: VampireDef = VampireDef {
+    name: "Frau Schädel",
+    printed: &[own(Stat::Stealth, 1, &[R::IsRecruitOrEmploy])],
+    ..VAMP
+};
+
+/// "Sabbat: Once each combat involving another minion you control, if Huldu
+/// is ready, she can burn 1 blood to prevent 1 damage to that minion. +1
+/// bleed."
+pub static HULDU: VampireDef = VampireDef {
+    name: "Huldu, The Desecrator",
+    abilities: &[ability(
+        &[Window::CombatDamagePrevention],
+        Actor::ForOwnCombatant,
+        &[
+            R::HostReady,
+            R::HostOutOfCombat,
+            R::HostBloodAtLeast(1),
+            R::DamagePending,
+        ],
+        Limit::PerCombat,
+        &[Effect::HostBurnBlood(1), Effect::Prevent(1)],
+    )],
+    printed: &[own(Stat::Bleed, 1, &[])],
+    ..VAMP
+};
+
+/// "Sabbat: During your turn, Sakura can burn 1 blood to unlock after
+/// performing a successful action requiring the Path of Death and the
+/// Soul." An action card (or a card's granted action) with the path icon.
+pub static SAKURA: VampireDef = VampireDef {
+    name: "Sakura, The Merciless",
+    abilities: &[mode_of(
+        &[Window::ActionAfterResolution],
+        Actor::Host,
+        &[
+            R::OwnTurn,
+            R::ActorActing,
+            R::ActionSuccessful,
+            R::ActionRequiresPath("Death and the Soul"),
+            R::HostBloodAtLeast(1),
+            R::HostLocked,
+        ],
+        &[Effect::HostBurnBlood(1), Effect::UnlockHost],
+    )],
     ..VAMP
 };
