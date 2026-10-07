@@ -91,7 +91,9 @@ fn every_decklist_plays_out() {
     let decks: Vec<Deck> = Deck::all().collect();
     assert_eq!(
         decks.len(),
-        28 + zvtes::crypt::ANNIVERSARY_PRECONS.len() + zvtes::twda::TWDA.len()
+        28 + zvtes::crypt::ANNIVERSARY_PRECONS.len()
+            + zvtes::crypt::SABBAT_PRECONS.len()
+            + zvtes::twda::TWDA.len()
     );
     for t in 0..decks.len().div_ceil(4) {
         // Four seats a table; the last one wraps around to the first decks.

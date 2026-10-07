@@ -3,8 +3,8 @@
 //! decklists), joined from the generated crypt and library tables, and the
 //! tournament-winning decks fully in the pool (`twda.rs`).
 
-use crate::crypt::{ANNIVERSARY_PRECONS, MINI_PRECONS, PRECONS};
-use crate::library::{ANNIVERSARY_LIBRARIES, MINI_LIBRARIES, PRECON_LIBRARIES};
+use crate::crypt::{ANNIVERSARY_PRECONS, MINI_PRECONS, PRECONS, SABBAT_PRECONS};
+use crate::library::{ANNIVERSARY_LIBRARIES, MINI_LIBRARIES, PRECON_LIBRARIES, SABBAT_LIBRARIES};
 use crate::twda::TWDA;
 
 /// Cards and copies: (CRYPT or LIBRARY index, copies).
@@ -46,6 +46,15 @@ impl Deck {
         }
     }
 
+    /// The Sabbat V5 precon `i` (`SABBAT_PRECONS` order).
+    pub fn sabbat(i: usize) -> Deck {
+        Deck {
+            name: SABBAT_PRECONS[i].0,
+            crypt: SABBAT_PRECONS[i].1,
+            library: SABBAT_LIBRARIES[i].1,
+        }
+    }
+
     /// The TWDA deck `i` (`TWDA` order).
     pub fn twda(i: usize) -> Deck {
         Deck {
@@ -55,13 +64,14 @@ impl Deck {
         }
     }
 
-    /// Every decklist: the precons, the minis, the anniversary decks, then
-    /// the TWDA decks.
+    /// Every decklist: the precons, the minis, the anniversary decks, the
+    /// Sabbat V5 precons, then the TWDA decks.
     pub fn all() -> impl Iterator<Item = Deck> {
         (0..PRECONS.len())
             .map(Deck::precon)
             .chain((0..MINI_PRECONS.len()).map(Deck::mini))
             .chain((0..ANNIVERSARY_PRECONS.len()).map(Deck::anniversary))
+            .chain((0..SABBAT_PRECONS.len()).map(Deck::sabbat))
             .chain((0..TWDA.len()).map(Deck::twda))
     }
 
@@ -100,6 +110,34 @@ impl Deck {
             .into_iter()
             .find(|&(_, n)| n == best)
             .map_or("", |(k, _)| k)
+    }
+
+    /// The deck's path: the path with the most crypt copies, if any (ties:
+    /// the first in crypt order).
+    pub fn path(&self) -> Option<&'static str> {
+        let mut counts: Vec<(&'static str, u32)> = Vec::new();
+        for &(c, n) in self.crypt {
+            let Some(p) = crate::crypt::CRYPT[c as usize].path else {
+                continue;
+            };
+            match counts.iter_mut().find(|(k, _)| *k == p) {
+                Some((_, m)) => *m += n as u32,
+                None => counts.push((p, n as u32)),
+            }
+        }
+        let best = counts.iter().map(|&(_, n)| n).max()?;
+        counts.into_iter().find(|&(_, n)| n == best).map(|(k, _)| k)
+    }
+
+    /// What training draws a seat's deck by (owner, 2026-10-05): a Sabbat
+    /// V5 precon's path — a category apart from clans —, any other deck's
+    /// clan.
+    pub fn category(&self) -> &'static str {
+        if SABBAT_PRECONS.iter().any(|p| p.0 == self.name) {
+            self.path().unwrap_or("")
+        } else {
+            self.clan()
+        }
     }
 
     /// The crypt as a list of cards, one entry per copy.
@@ -159,6 +197,10 @@ mod tests {
             assert_eq!(*name, MINI_PRECONS[i].0);
         }
         assert_eq!(ANNIVERSARY_PRECONS.len(), ANNIVERSARY_LIBRARIES.len());
+        assert_eq!(SABBAT_PRECONS.len(), SABBAT_LIBRARIES.len());
+        for (i, (name, _)) in SABBAT_LIBRARIES.iter().enumerate() {
+            assert_eq!(*name, SABBAT_PRECONS[i].0);
+        }
         for (i, (name, _)) in ANNIVERSARY_LIBRARIES.iter().enumerate() {
             assert_eq!(*name, ANNIVERSARY_PRECONS[i].0);
         }
@@ -170,6 +212,7 @@ mod tests {
                 n if n.contains("New Blood") => (6..=6, 48..=49),
                 n if PRECONS.iter().any(|p| p.0 == n) => (12..=12, 77..=77),
                 n if ANNIVERSARY_PRECONS.iter().any(|p| p.0 == n) => (12..=12, 88..=88),
+                n if SABBAT_PRECONS.iter().any(|p| p.0 == n) => (12..=12, 77..=77),
                 // Tournament-legal (tournament rules: crypt 12+, library
                 // 60–90).
                 _ => (12..=40, 60..=90),

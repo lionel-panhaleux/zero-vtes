@@ -86,7 +86,8 @@ class Config:
     # The league (train/league.py).
     # Deck families drawn per seat, comma-separated: "precons" (the 14 V5
     # precons), "anniversary" (the reviewed anniversary decks: Reign of
-    # Stanislava), "twda" (tournament winners fully in the pool). The New Blood
+    # Stanislava, The Endless Dance), "sabbat" (the Sabbat V5 precons, drawn by
+    # path), "twda" (tournament winners fully in the pool). The New Blood
     # minis are half decks, not legal: never trained on. A seat draws a clan,
     # then a deck of it (Reign of Stanislava is a Gangrel deck).
     decks: str = "precons,anniversary"
@@ -383,8 +384,10 @@ class Trainer:
                     self.exploiter.opt.load_state_dict(saved["exploiter_optimizer"])
         families = dict(zvtes_py.deck_families())
         names = [f.strip() for f in cfg.decks.split(",")]
-        if not set(names) <= {"precons", "anniversary", "twda"}:
-            raise ValueError(f"deck families: precons, anniversary, twda (got {cfg.decks!r})")
+        if not set(names) <= {"precons", "anniversary", "sabbat", "twda"}:
+            raise ValueError(
+                f"deck families: precons, anniversary, sabbat, twda (got {cfg.decks!r})"
+            )
         self.decks = [i for f in names for i in families[f]]
         self.pool = zvtes_py.GamePool(
             cfg.games,

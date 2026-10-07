@@ -75,6 +75,8 @@ pub struct SlotView {
     pub counters: u8,
     /// A banished vampire, waiting to be influenced out again.
     pub banished: bool,
+    /// The cards it carries there, out of play until it returns.
+    pub cards: Vec<CardView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -267,6 +269,10 @@ pub fn title_text(t: Title) -> Option<String> {
         Title::Justicar(c) => Some(format!("{c} Justicar")),
         Title::InnerCircle(c) => Some(format!("{c} Inner Circle")),
         Title::Archbishop(c) => Some(format!("Archbishop of {c}")),
+        Title::Bishop => Some("Bishop".into()),
+        Title::Cardinal => Some("Cardinal".into()),
+        Title::Priscus => Some("Priscus".into()),
+        Title::Regent => Some("Regent".into()),
         Title::Independent { name, .. } => Some(name.into()),
     }
 }
@@ -410,6 +416,24 @@ fn layout(e: &Engine, st: &GameState, face_down: bool) -> Layout {
             if !c.stored.is_empty() {
                 let faces = c.stored.iter().map(|&x| library_face(x)).collect();
                 l.zones.insert(ZoneId::Stored(i as u32), (faces, seat));
+            }
+        }
+    }
+    // A banished vampire's cards, with what they store.
+    for seat in &st.seats {
+        for b in seat.uncontrolled.iter().filter_map(|u| u.banished.as_ref()) {
+            let faces: Vec<Face> = b
+                .cards
+                .iter()
+                .flat_map(|&c| {
+                    let c = &st.cards[c.index()];
+                    std::iter::once(Face::Library(c.card))
+                        .chain(c.stored.iter().map(|&x| library_face(x)))
+                })
+                .collect();
+            if !faces.is_empty() {
+                let owner = st.minions[b.minion.index()].owner.0;
+                l.zones.insert(ZoneId::Banished(b.minion.0), (faces, owner));
             }
         }
     }
@@ -663,6 +687,9 @@ fn seat_view(st: &GameState, lay: &Layout, copies: &Copies, s: usize) -> SeatVie
             card,
             counters: u.counters,
             banished: u.banished.is_some(),
+            cards: u.banished.as_ref().map_or_else(Vec::new, |b| {
+                zone_cards(lay, copies, ZoneId::Banished(b.minion.0))
+            }),
         })
         .collect();
     let mine: Vec<usize> = (0..st.minions.len())

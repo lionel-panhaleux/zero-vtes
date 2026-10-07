@@ -585,6 +585,20 @@ impl Engine {
                             continue;
                         }
                     }
+                    // Path icon: the playing minion follows the path, or
+                    // (a Methuselah's card) a ready vampire of theirs does
+                    // (rules-qa 49.7).
+                    if let Some(path) = LIBRARY[card as usize].path {
+                        let ok = match actor {
+                            Some(m) => st.follows(m, path),
+                            None => st
+                                .minions_of(seat)
+                                .any(|m| st.minions[m.index()].ready() && st.follows(m, path)),
+                        };
+                        if !ok {
+                            continue;
+                        }
+                    }
                     if let Some(m) = actor {
                         if !cards::has_disciplines(st, m, card, tags) {
                             continue;
@@ -2321,6 +2335,9 @@ impl Engine {
             }
         }
         self.state.seats[s.index()].pool -= pool;
+        if pool > 0 {
+            self.note_pool_burned(s);
+        }
         // An ally playing "as a vampire" pays in life: its last life
         // burns it, and the card has no effect — an action modifier so
         // played fails the action, a strike ends the combat (ANK
@@ -2513,6 +2530,16 @@ impl Engine {
                 };
                 self.state.add_uncontrolled_blood(s, i as usize, n);
             }
+            Effect::AutoPassFirstSabbatReferendum => {
+                self.state.seats[s.index()].auto_pass_pending = true;
+            }
+            Effect::BloodToEachUncontrolledOfSect(sect, n) => {
+                for i in 0..self.state.seats[s.index()].uncontrolled.len() {
+                    if self.state.slot_sect(s, i) == sect {
+                        self.state.add_uncontrolled_blood(s, i, n);
+                    }
+                }
+            }
             Effect::LockTarget => {
                 let t = ctx.target.minion();
                 self.state.minions[t.index()].locked = true;
@@ -2526,7 +2553,9 @@ impl Engine {
             // as the influence phase begins (`start_influence`).
             Effect::RechoosesOnControlChange
             | Effect::PoolWhenHostLeaves(_)
-            | Effect::BurnAtInfluencePerPreyReady => {}
+            | Effect::BurnAtInfluencePerPreyReady
+            // Read by the diablerie (Regent).
+            | Effect::MovesToSabbatDiablerist => {}
             // A marker read by the frenzy-cancel cards (`frenzy_on`).
             Effect::Frenzy => {}
             // Chosen as the card was played (rules-qa 28.5).
@@ -2761,6 +2790,9 @@ impl Engine {
                         cards::blood_cost(&self.state, card, 0),
                     );
                     self.state.seats[s.index()].pool -= pool;
+                    if pool > 0 {
+                        self.note_pool_burned(s);
+                    }
                     self.state.minions[m.index()].blood -=
                         blood.min(self.state.minions[m.index()].blood);
                     let play = PlayCtx::new(s, card, mode, Some(m), Target::Minion(m), 0);
@@ -3455,11 +3487,27 @@ impl Engine {
                         {
                             continue;
                         }
+                        if ability.limit == Some(Limit::PerAction)
+                            && self.limit_spent(ability.limit, AbilitySource::Card(id), ai as u8)
+                        {
+                            continue;
+                        }
+                        // "Unlock and attempt to block" (Under Siege): a
+                        // vampire that could — or the one attempting (ANK
+                        // 20181122-2).
+                        let attempting = self.action.as_ref().and_then(|a| match a.state {
+                            crate::actions::ActionState::Attempt(b) => Some(b),
+                            _ => None,
+                        });
+                        let blocks = ability.requires.contains(&Requirement::CanAttemptBlock);
                         let users: Vec<MinionId> = st
                             .minions_of(seat)
                             .filter(|&m| {
                                 st.minions[m.index()].ready()
                                     && st.minions[m.index()].is_vampire()
+                                    && (!blocks
+                                        || attempting == Some(m)
+                                        || self.can_attempt_block(seat, m))
                                     && ability.requires.iter().all(|&r| {
                                         cards::holds_for_card(r, st, id, self.action.as_ref())
                                             && self.holds_live(r, seat, Some(m))
@@ -3656,6 +3704,11 @@ impl Engine {
                         }
                     }
                     Actor::ActingCandidate => {
+                        // "Once each turn" (Black Forest Base): by any
+                        // vampire, attempted (LSJ 20091224).
+                        if self.limit_spent(ability.limit, AbilitySource::Card(id), ai as u8) {
+                            continue;
+                        }
                         let political = ability
                             .effects
                             .contains(&Effect::DeclareAction(ActionKind::Political));
@@ -4283,6 +4336,9 @@ impl Engine {
             .find(|e| matches!(e, Effect::DeclareAction(_)))
         {
             let m = actor.expect("acting minion");
+            if mode.limit == Some(Limit::PerTurn) {
+                self.state.turn_uses.push(source.use_key(ability));
+            }
             // "Can lock this location to … as a … action" (Mobile HQ): a
             // cost, locked even if the action fails (ANK 20221102).
             if mode.effects.contains(&Effect::LockSelf) {
@@ -4995,8 +5051,10 @@ impl Engine {
                 // An action modifier printed on a vampire (Larissa Moreira's
                 // bleed, Daria's stealth).
                 // A card in play's effect on the action (47th Street
-                // Royals' bleed reduction, Szlachta Bodyguard's failure).
-                Effect::AddStealth(_)
+                // Royals' bleed reduction, Szlachta Bodyguard's failure,
+                // Under Siege's block attempt).
+                Effect::AttemptBlock
+                | Effect::AddStealth(_)
                 | Effect::BleedMod { .. }
                 | Effect::ReduceBleed(_)
                 | Effect::VampiresCannotBlock
@@ -5189,6 +5247,24 @@ impl Engine {
                 Effect::RemoveCounter(n) => {
                     let c = &mut self.state.cards[source.card().index()];
                     c.counters -= n.min(c.counters);
+                }
+                // "Burn 1 pool from your prey" (Privileged Position).
+                Effect::PreyBurnsPool(n) => {
+                    let mut loss = vec![0i32; self.state.seats.len()];
+                    loss[self.state.prey(ctx.seat).index()] = n as i32;
+                    self.burn_pool_batch(&loss);
+                }
+                // "+1 vote for each counter on this card" (Powerbase:
+                // Madrid), to its target.
+                Effect::TargetVotesPerCounter => {
+                    if let Target::Minion(t) = target {
+                        let n = self.state.cards[source.card().index()].counters;
+                        let play = PlayCtx {
+                            actor: Some(t),
+                            ..ctx
+                        };
+                        self.apply_vote_effect(Effect::AddVotes(n), &play);
+                    }
                 }
                 Effect::RaiseAllyWhenEmpty(of) => {
                     let id = source.card();
@@ -5405,6 +5481,9 @@ impl Engine {
     /// their turn the turn passes, else it goes on without them.
     pub(crate) fn pay_pool_for_ability(&mut self, seat: SeatId, n: i32) {
         self.state.seats[seat.index()].pool -= n;
+        if n > 0 {
+            self.note_pool_burned(seat);
+        }
         if self.state.seats[seat.index()].pool <= 0 {
             if seat == self.state.active {
                 self.oust_and_pass(seat);

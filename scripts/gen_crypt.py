@@ -17,7 +17,7 @@ import sys
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from window_matrix import ADDED_CARDS, anniversary_decks, pool_order  # noqa: E402
+from window_matrix import ADDED_CARDS, anniversary_decks, pool_order, sabbat_decks  # noqa: E402
 
 V5_SETS = [
     "Fifth Edition", "Fifth Edition (Anarch)", "Fifth Edition (Companion)",
@@ -33,7 +33,7 @@ MINI_PRECON_SETS = ["New Blood", "New Blood II", "New Blood III"]
 TITLE = re.compile(
     r"^(Camarilla|Anarch|Independent|Sabbat)"
     r"(?: (Prince|Baron|Archbishop) of ([^:.]+?)| (primogen)| (\w+) Justicar"
-    r"| (\w+) Inner Circle)?[:.]"
+    r"| (\w+) Inner Circle| (bishop|cardinal|priscus|regent))?[:.]"
 )
 
 
@@ -50,6 +50,8 @@ def parse(card):
         title = f'Title::Justicar("{m.group(5)}")'
     elif m.group(6):
         title = f'Title::InnerCircle("{m.group(6)}")'
+    elif m.group(7):
+        title = f"Title::{m.group(7).capitalize()}"
     else:
         title = "Title::None"
     return sect, title
@@ -92,7 +94,16 @@ def generate(cards):
     out.append("    Justicar(&'static str),")
     out.append("    InnerCircle(&'static str),")
     out.append("    Archbishop(&'static str),")
-    out.append("    Independent { name: &'static str, votes: u8 },")
+    out.append("    /// Sabbat titles that are not unique (bishop 1 vote, cardinal 3; a")
+    out.append("    /// priscus votes in the prisci block) and the unique regent (4).")
+    out.append("    Bishop,")
+    out.append("    Cardinal,")
+    out.append("    Priscus,")
+    out.append("    Regent,")
+    out.append("    Independent {")
+    out.append("        name: &'static str,")
+    out.append("        votes: u8,")
+    out.append("    },")
     out.append("}")
     out.append("")
     out.append("#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]")
@@ -110,6 +121,9 @@ def generate(cards):
     out.append("    /// An advanced vampire (KRCG `adv`): the same vampire as its base")
     out.append("    /// card for contests (rulebook \"Advanced Vampires\").")
     out.append("    pub adv: bool,")
+    out.append("    /// The Sabbat path printed on the vampire (KRCG `path`), the one it")
+    out.append("    /// follows as it enters play.")
+    out.append("    pub path: Option<&'static str>,")
     out.append("}")
     out.append("")
     out.append("#[rustfmt::skip]")
@@ -127,6 +141,8 @@ def generate(cards):
         out.append(f"        sect: Sect::{sect},")
         out.append(f"        title: {title},")
         out.append(f"        adv: {'true' if c.get('adv') else 'false'},")
+        path = f"Some({rust_str(c['path'])})" if c.get("path") else "None"
+        out.append(f"        path: {path},")
         out.append("    },")
     out.append("];")
     out.append("")
@@ -145,12 +161,17 @@ def generate(cards):
         "/// The anniversary decks' crypts (12 cards each; reviewed decklists,",
         "/// `window_matrix.ANNIVERSARY_DECKS`) as (name, [(CRYPT index, copies)]).",
     ])
+    out.append("")
+    anniversary_table(out, cards, ids, "SABBAT_PRECONS", [
+        "/// The Sabbat V5 precons' crypts (12 cards each) fully in the pool, by deck",
+        "/// name, as (name, [(CRYPT index, copies)]).",
+    ], sabbat_decks)
     return "\n".join(out) + "\n"
 
 
-def anniversary_table(out, cards, ids, name, doc):
-    """The anniversary decks' cards found in `ids` (this table's side)."""
-    decks = anniversary_decks(cards)
+def anniversary_table(out, cards, ids, name, doc, source=anniversary_decks):
+    """The `source` decks' cards found in `ids` (this table's side)."""
+    decks = source(cards)
     out.extend(doc)
     out.append("#[rustfmt::skip]")
     out.append(f"pub static {name}: [(&str, &[(u16, u8)]); {len(decks)}] = [")

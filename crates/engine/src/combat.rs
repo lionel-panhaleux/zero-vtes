@@ -230,6 +230,9 @@ pub struct Side {
     pub no_equipment: bool,
     /// Form of Mist [PRO] rider, armed by the play, fired by the strike.
     pub continue_rider: Option<(u8, u8)>,
+    /// Catatonic Fear [PRE] rider, armed by the play, fired by the strike:
+    /// n unpreventable damage on the opposing minion after combat.
+    pub after_damage_rider: Option<u8>,
     /// The card in play the chosen strike comes from (a weapon).
     pub strike_source: Option<CardId>,
     /// The weapon whose strike resolved, kept until its damage is applied
@@ -401,6 +404,7 @@ impl Side {
             combat_prevents: self.combat_prevents,
             round_prevents: self.prevent_each_round,
             continue_rider: None,
+            after_damage_rider: None,
             maneuvers,
             ..Self::new(self.minion, self.seat)
         };
@@ -486,6 +490,9 @@ pub struct CombatCtx {
     /// Cards to put on their minion after combat ends (Pass Through Shadow
     /// [OBL]), from the ash heap; not if the combat continues.
     pub after_combat: Vec<Held>,
+    /// Damage inflicted after combat ends, by a combatant on the other
+    /// (Catatonic Fear [PRE]): unpreventable; not if the combat continues.
+    pub after_combat_damage: Vec<(MinionId, u8)>,
 }
 
 impl CombatCtx {
@@ -1466,6 +1473,14 @@ impl Engine {
                     // §4.9.2).
                     self.state.minions[m.index()].locked = false;
                 }
+                // Catatonic Fear [PRE]: at close range, not dodged (LSJ
+                // 19980526).
+                if let Some(n) = c.sides[i].after_damage_rider.take() {
+                    if c.range == Range::Close && !matches!(strikes[1 - i], Some(StrikeKind::Dodge))
+                    {
+                        c.after_combat_damage.push((c.sides[1 - i].minion, n));
+                    }
+                }
                 if let Some((blood, stealth)) = c.sides[i].continue_rider.take() {
                     // Form of Mist [PRO]: only the acting minion "was
                     // blocked".
@@ -1891,6 +1906,7 @@ impl Engine {
         }
         if after_combat {
             c.after_combat.clear();
+            c.after_combat_damage.clear();
         }
     }
 
@@ -2129,6 +2145,13 @@ impl Engine {
         // Shadow [OBL]).
         for h in ended.iter().flat_map(|c| c.after_combat.clone()) {
             self.place_held(h, h.minion);
+        }
+        // Catatonic Fear [PRE]: the vampire's damage, after combat, so no
+        // combat card prevents it (LSJ 20010205; RTR 19970630).
+        for (m, n) in ended.iter().flat_map(|c| c.after_combat_damage.clone()) {
+            if self.state.minions[m.index()].present() {
+                self.damage_out_of_combat(m, n, false);
+            }
         }
         if ended.as_ref().is_some_and(|c| c.at_resolution) {
             self.action.as_mut().expect("action context").resolved = true;
@@ -2559,6 +2582,7 @@ impl Engine {
             Effect::ContinueAfterCombat { blood, stealth } => {
                 c.sides[i].continue_rider = Some((blood, stealth));
             }
+            Effect::DamageAfterCombatIfClose(n) => c.sides[i].after_damage_rider = Some(n),
             other => unreachable!("not a combat effect: {other:?}"),
         }
     }
@@ -2729,6 +2753,7 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::NewRound
             | Effect::GainBloodLostByOpponent
             | Effect::ContinueAfterCombat { .. }
+            | Effect::DamageAfterCombatIfClose(_)
             | Effect::SetRange(_)
             | Effect::ImmuneStrikeNonAggravated
             | Effect::ImmuneEffectNonAggravated

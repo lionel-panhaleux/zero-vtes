@@ -2068,4 +2068,78 @@ fuzz_tests! {
         seeds: 100,
         ..BASE
     };
+    /// Sabbat V5, the Path of Power and the Inner Voice: the deck's new
+    /// cards, its titled vampires dealt around the table (cardinal, priscus,
+    /// archbishops, bishops) and Lika on the path, with a political action to
+    /// call. Unholy Sacrament wants a titled Sabbat vampire uncontrolled: not
+    /// dealt here, its own test covers it.
+    random_games_with_the_path_of_power_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Absolute Tyranny",
+            "Black Forest Base",
+            "Cardinal Benediction",
+            "Catatonic Fear",
+            "Cold War",
+            "Día de los Muertos",
+            "Dominant Personality",
+            "Empires Fall",
+            "Iron Glare",
+            "Magnetic Authority",
+            "Powerbase: Madrid",
+            "Private Audience",
+            "Privileged Position",
+            "Regent",
+            "Relentlessness",
+            "Under Siege",
+            "Unholy Sacrament",
+            "Unthinkable Humiliation",
+            "War of Ages",
+            "Political Stranglehold",
+        ],
+        covers: &[
+            "play:Absolute Tyranny",
+            "play:Black Forest Base",
+            "play:Cardinal Benediction",
+            "play:Catatonic Fear",
+            "play:Cold War",
+            "play:Día de los Muertos",
+            "play:Dominant Personality",
+            "play:Empires Fall",
+            "play:Iron Glare",
+            "play:Magnetic Authority",
+            "play:Powerbase: Madrid",
+            "play:Private Audience",
+            "play:Privileged Position",
+            "play:Regent",
+            "play:Relentlessness",
+            "play:Under Siege",
+            "play:Unthinkable Humiliation",
+            "play:War of Ages",
+            "ability:Black Forest Base",
+            "ability:Powerbase: Madrid",
+            "ability:Privileged Position",
+            "ability:Regent",
+            "ability:Under Siege",
+            "ability:War of Ages",
+            "ability:Aaradhya, The Callous Tyrant",
+            "ability:Věnceslava, The Implacable",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Aaradhya, The Callous Tyrant",
+                    "Damian",
+                    "Khin Aye",
+                    "Rexton \"Savage\" Abernathy",
+                    "Üresség",
+                    "Věnceslava, The Implacable",
+                    "Concordia",
+                    "Lika, The Purger",
+                ],
+            )
+        },
+        seeds: 100,
+        ..BASE
+    };
 }

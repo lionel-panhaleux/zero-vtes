@@ -2020,6 +2020,7 @@ static KRC_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::BurnAllocated,
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 political!(
     KINE_RESOURCES_CONTESTED,
@@ -2041,6 +2042,7 @@ static CONSERVATIVE_AGITATION_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::BurnAllocated,
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 political!(
     CONSERVATIVE_AGITATION,
@@ -2057,6 +2059,7 @@ static PER_MINION_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::BurnPerMinion { locked_only: false },
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 political!(
     ANCILLA_EMPOWERMENT,
@@ -2080,6 +2083,7 @@ static PER_LOCKED_MINION_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::BurnPerMinion { locked_only: true },
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 political!(
     DOMAIN_CHALLENGE,
@@ -2103,6 +2107,7 @@ static NEONATE_BREACH_REFERENDUM: ReferendumDef = ReferendumDef {
     },
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 political!(
     NEONATE_BREACH,
@@ -2182,6 +2187,7 @@ static RECKLESS_AGITATION_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::BurnAllocated,
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 political!(
     RECKLESS_AGITATION,
@@ -2209,6 +2215,7 @@ static IRON_FIST_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::BurnAllocatedChosenGains(1),
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 political!(
     CAMARILLAS_IRON_FIST,
@@ -2237,6 +2244,7 @@ static PARITY_SHIFT_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::MoveAllocatedFromChosen,
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 political!(
     PARITY_SHIFT,
@@ -2258,6 +2266,7 @@ static CONSANGUINEOUS_BOON_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::GainPerClanVampire,
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 political!(
     CONSANGUINEOUS_BOON,
@@ -2273,6 +2282,7 @@ static ANARCH_SALON_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::AnarchSalon,
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 political!(
     ANARCH_SALON,
@@ -2293,6 +2303,7 @@ static BANISHMENT_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::Banish,
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 political!(
     BANISHMENT,
@@ -2315,6 +2326,7 @@ static EXPULSION_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::Expel,
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 political!(
     EXPULSION,
@@ -2586,7 +2598,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     ..CARD
 };
 
-pub static DEFS: [&CardDef; 454] = [
+pub static DEFS: [&CardDef; 473] = [
     &MAGIC_OF_THE_SMITH,
     &VAST_WEALTH,
     &BLACK_MARKET_CACHE,
@@ -3041,6 +3053,25 @@ pub static DEFS: [&CardDef; 454] = [
     &THE_LOUVRE,
     &CAMARILLA_CONCLAVE,
     &BUSINESS_PRESSURE,
+    &DOMINANT_PERSONALITY,
+    &IRON_GLARE,
+    &RELENTLESSNESS,
+    &BLACK_FOREST_BASE,
+    &WAR_OF_AGES,
+    &EMPIRES_FALL,
+    &UNHOLY_SACRAMENT,
+    &MAGNETIC_AUTHORITY,
+    &CATATONIC_FEAR,
+    &CARDINAL_BENEDICTION,
+    &PRIVATE_AUDIENCE,
+    &ABSOLUTE_TYRANNY,
+    &REGENT,
+    &PRIVILEGED_POSITION,
+    &POWERBASE_MADRID,
+    &UNTHINKABLE_HUMILIATION,
+    &UNDER_SIEGE,
+    &COLD_WAR,
+    &DIA_DE_LOS_MUERTOS,
 ];
 
 // ---- Cards in play with riders and granted actions (slice 5) ------------
@@ -3050,6 +3081,7 @@ static BURN_THIS_CARD: ReferendumDef = ReferendumDef {
     effect: RefEffect::BurnSource,
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 
 /// "Put this card in play. A Methuselah not controlling a ready Anarch burns
@@ -5761,6 +5793,7 @@ static TOREADOR_JUSTICAR_REFERENDUM: ReferendumDef = ReferendumDef {
         n: 1,
     }],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 
 /// "Title. Choose a ready Toreador. Successful referendum means this card is
@@ -5814,6 +5847,7 @@ static MALKAVIAN_JUSTICAR_REFERENDUM: ReferendumDef = ReferendumDef {
         n: 1,
     }],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 
 /// "Title. Choose a ready Camarilla Malkavian. Successful referendum means
@@ -5846,6 +5880,7 @@ static ARCHON_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::PutOnChosen,
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 
 /// "Requires a prince or justicar. Choose a Camarilla vampire. Successful
@@ -5911,6 +5946,7 @@ static RAISING_THE_PORTCULLIS_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::PutInPlay,
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 
 /// "Successful referendum means this card is put in play. While your prey
@@ -5950,6 +5986,7 @@ static DISPUTED_TERRITORY_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::ChosenTakesChosenCard,
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 
 /// "Choose a location and a Methuselah. Successful referendum means the
@@ -5987,6 +6024,7 @@ static REVOLUTIONARY_COUNCIL_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::LockChosenBurnAllocated,
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 
 /// "Requires a baron. Choose X ready unlocked Anarchs you control and
@@ -10993,6 +11031,7 @@ static FEE_STAKE_BURN: ReferendumDef = ReferendumDef {
     effect: RefEffect::BurnSource,
     grants: &[],
     non_anarch_titles_minus: true,
+    only_sect: None,
 };
 
 /// "+1 stealth action. Requires an Anarch with capacity 5 or more. Title.
@@ -13478,6 +13517,7 @@ static POLITICAL_STRANGLEHOLD_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::GainPerVampireCapacityAtLeast { cap: 8, n: 3 },
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 political!(
     POLITICAL_STRANGLEHOLD,
@@ -13496,6 +13536,7 @@ static ANCIENT_INFLUENCE_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::GainChosenCapacityBurn(5),
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 political!(
     ANCIENT_INFLUENCE,
@@ -13519,6 +13560,7 @@ static REINS_OF_POWER_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::GainBurnPredatorsChosenCapacity(6),
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 political!(
     REINS_OF_POWER,
@@ -13543,6 +13585,7 @@ static PERMANENT_VACATION_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::RemoveChosen,
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 political!(
     PERMANENT_VACATION,
@@ -13751,6 +13794,7 @@ static CONFISCATION_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::ChosenVampireTakesChosenCard,
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 political!(
     CONFISCATION,
@@ -13772,6 +13816,7 @@ static REINFORCEMENTS_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::ChosenShuffleFromAsh(3),
     grants: &[],
     non_anarch_titles_minus: false,
+    only_sect: None,
 };
 /// "Requires a titled vampire. Choose one or more Methuselahs. Successful
 /// referendum means each chosen Methuselah chooses up to three library
@@ -14024,5 +14069,603 @@ pub static BUSINESS_PRESSURE: CardDef = CardDef {
             &[Effect::PoolForVotesRound { per: 2, own: 3 }],
         ),
     ],
+    ..CARD
+};
+
+// ---- Sabbat V5: Path of Power and the Inner Voice ---------------------------
+//
+// The deck's new cards (owner, 2026-10-07), a fourth appended batch
+// (`ADDED_BATCHES`); a path icon is the card's `LibraryCard::path`, a play
+// requirement read live (rules-qa 49.7); readings in rules-qa Batch 52.
+
+/// "[pot] or [pre] Only usable if a minion attempts to block. The blocking
+/// minion gets -1 intercept. [POT] or [PRE] Only usable as the action is
+/// announced. Choose a vampire. The chosen vampire cannot block this
+/// action." (Path of Power and the Inner Voice.) Played, it requires the
+/// Discipline used (LSJ 20011204-3); as announced, before the other
+/// modifiers (ANK 20190425), its action card replaced first (ANK 20181208).
+/// "Or": either Discipline (rules-qa 52.1).
+pub static DOMINANT_PERSONALITY: CardDef = CardDef {
+    name: "Dominant Personality",
+    modes: &[
+        on_attempt!(&[], &[Effect::AttemptingIntercept(-1)]),
+        ModeDef {
+            target: target(TargetKind::Minion, &[Requirement::TargetVampire]),
+            ..mode_of(
+                &[Window::ActionAsAnnounced],
+                Actor::ActingMinion,
+                &[],
+                &[Effect::TargetCannotBlock],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "[pot][pre] Only usable during the polling step of a political action.
+/// This vampire gets +2 votes. [POT][PRE] Only usable during a bleed
+/// action. +2 bleed (limited)." Not in a referendum passing automatically
+/// (PIB 20150105): it has no polling step.
+pub static IRON_GLARE: CardDef = CardDef {
+    name: "Iron Glare",
+    modes: &[
+        mode_of(
+            &[Window::Referendum],
+            Actor::ActingMinion,
+            &[Requirement::PollingStep],
+            &[Effect::AddVotes(2)],
+        ),
+        modifier(&[Requirement::IsBleed], &[bleed(2, true)]),
+    ],
+    ..CARD
+};
+
+/// "[cel] or [for] +1 stealth. [CEL] or [FOR] Only usable if a minion
+/// attempts to block. That attempt fails and the blocking minion cannot
+/// attempt to block this action again." (1 blood; Path of Power and the
+/// Inner Voice.) Played, it requires the Discipline used (LSJ 20011204-3).
+pub static RELENTLESSNESS: CardDef = CardDef {
+    name: "Relentlessness",
+    modes: &[
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::ActingMinion,
+            &[Requirement::StealthNeeded],
+            &[Effect::AddStealth(1)],
+        ),
+        on_attempt!(&[], &[Effect::AttemptFails]),
+    ],
+    ..CARD
+};
+
+static BLACK_FOREST_BASE_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[],
+    effect: RefEffect::CallerGainsPool(2),
+    grants: &[],
+    non_anarch_titles_minus: false,
+    only_sect: None,
+};
+
+/// "Unique location. Requires a ready Sabbat vampire. Once each turn, a
+/// Sabbat vampire can call a referendum to have their controller gain 2
+/// pool as a +1 stealth political action. Changeling allies can burn this
+/// location as a +1 stealth Ⓓ action." Any Methuselah's Sabbat vampire;
+/// once each turn by any (ANK 20180719-4: each player's turn), counted as
+/// attempted, blocked or not (LSJ 20091224); an action requiring a Sabbat
+/// vampire (LSJ 20080604). No changeling ally is in the pool: the burn is
+/// inert.
+pub static BLACK_FOREST_BASE: CardDef = CardDef {
+    name: "Black Forest Base",
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[Requirement::ControlsReadySect(&[Sect::Sabbat])],
+        &[Effect::PutInPlay],
+    )],
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerTurn),
+        ..mode_of(
+            &[Window::ActionDeclarePolitical],
+            Actor::ActingCandidate,
+            &[
+                Requirement::ActorVampire,
+                Requirement::ActorSectIn(&[Sect::Sabbat]),
+            ],
+            &[
+                Effect::DeclareAction(ActionKind::Political),
+                Effect::AddStealth(1),
+                Effect::CallReferendum(&BLACK_FOREST_BASE_REFERENDUM),
+            ],
+        )
+    }],
+    ..CARD
+};
+
+static WAR_OF_AGES_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[],
+    effect: RefEffect::PutInPlay,
+    grants: &[],
+    non_anarch_titles_minus: false,
+    only_sect: None,
+};
+
+/// "Unique. Requires a titled Sabbat vampire. Successful referendum means
+/// this card is put in play. During your prey's unlock phase, they burn 1
+/// pool. After your prey is ousted, burn this card and gain 3 additional
+/// pool. Vampires can call a referendum to burn this card as a +1 stealth
+/// political action that costs 1 pool." Not playable while in play
+/// already, uniqueness (LSJ 20100129; ANK 20191228). The burn's pool cost
+/// paid as the action resolves, as an action card's (rules-qa 52.10).
+pub static WAR_OF_AGES: CardDef = CardDef {
+    name: "War of Ages",
+    modes: &[political(
+        &[
+            Requirement::ActorSectIn(&[Sect::Sabbat]),
+            Requirement::ActorTitleIn(&[TitleClass::Any]),
+            Requirement::OnePerMethuselah,
+        ],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&WAR_OF_AGES_REFERENDUM),
+        ],
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionDeclarePolitical],
+        Actor::ActingCandidate,
+        &[Requirement::ActorVampire, Requirement::PoolAtLeast(1)],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::AddStealth(1),
+            Effect::PayPool(1),
+            Effect::CallReferendum(&BURN_THIS_CARD),
+        ],
+    )],
+    riders: &[
+        Rider {
+            hook: Hook::UnlockPhase,
+            scope: RiderScope::Prey,
+            requires: &[],
+            effects: &[Effect::BurnPool(1)],
+        },
+        Rider {
+            hook: Hook::PreyOusted,
+            scope: RiderScope::Controller,
+            requires: &[],
+            effects: &[Effect::GainPool(3), Effect::BurnSelf],
+        },
+    ],
+    ..CARD
+};
+
+static EMPIRES_FALL_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseSeats {
+        min: 1,
+        max: u8::MAX,
+    }],
+    effect: RefEffect::BurnChosenPlusIfBig {
+        base: 1,
+        bonus: 3,
+        cap: 8,
+    },
+    grants: &[],
+    non_anarch_titles_minus: false,
+    only_sect: None,
+};
+political!(
+    EMPIRES_FALL,
+    "Empires Fall",
+    "\"Requires a Sabbat vampire. Choose one or more Methuselahs. Successful \
+     referendum means each chosen Methuselah burns 1 pool, plus 3 additional \
+     pool if they control a ready vampire with capacity 8 or more.\" The \
+     vampires counted as it resolves.",
+    &[Requirement::ActorSectIn(&[Sect::Sabbat])],
+    EMPIRES_FALL_REFERENDUM
+);
+
+/// "Add 3 blood to a titled Sabbat vampire in your uncontrolled region."
+/// (3 pool.) The title and sect printed on it.
+pub static UNHOLY_SACRAMENT: CardDef = CardDef {
+    name: "Unholy Sacrament",
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Uncontrolled,
+            &[
+                Requirement::ActorSectIn(&[Sect::Sabbat]),
+                Requirement::TargetTitleIn(&[TitleClass::Any]),
+            ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[Effect::BloodToUncontrolledTarget(3)],
+        )
+    }],
+    ..CARD
+};
+
+/// "Only usable after resolution of a political action whose referendum
+/// passed. [dom] or [pot] Add 2 blood to a Sabbat vampire in your
+/// uncontrolled region. [DOM] or [POT] Add 1 blood to each Sabbat vampire in
+/// your uncontrolled region." (Path of Power and the Inner Voice.) Played,
+/// it requires the Discipline used (LSJ 20011204-3). The sect printed.
+pub static MAGNETIC_AUTHORITY: CardDef = CardDef {
+    name: "Magnetic Authority",
+    modes: &[
+        ModeDef {
+            target: target(
+                TargetKind::Uncontrolled,
+                &[Requirement::ActorSectIn(&[Sect::Sabbat])],
+            ),
+            ..mode_of(
+                &[Window::ActionAfterResolution],
+                Actor::ActingMinion,
+                &[Requirement::IsPolitical, Requirement::ReferendumPassed],
+                &[Effect::BloodToUncontrolledTarget(2)],
+            )
+        },
+        mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::ActingMinion,
+            &[Requirement::IsPolitical, Requirement::ReferendumPassed],
+            &[Effect::BloodToEachUncontrolledOfSect(Sect::Sabbat, 1)],
+        ),
+    ],
+    ..CARD
+};
+
+/// "[pre] Strike: combat ends. [PRE] As above, and after combat ends, if the
+/// range is close, this vampire inflicts 1 unpreventable damage on the
+/// opposing minion." (1 blood.) The vampire's damage, not environmental
+/// (RTR 19970630); none if the strike is dodged (LSJ 19980526) or the combat
+/// continues (RTR 20020501); after combat, so no combat card prevents it
+/// (LSJ 20010205) and no blood it costs counts as combat blood (LSJ
+/// 20031123).
+pub static CATATONIC_FEAR: CardDef = CardDef {
+    name: "Catatonic Fear",
+    modes: &[
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[Effect::Strike(StrikeKind::CombatEnds { unlock: false })],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[
+                Effect::Strike(StrikeKind::CombatEnds { unlock: false }),
+                Effect::DamageAfterCombatIfClose(1),
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+static CARDINAL_BENEDICTION_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseMinions {
+        filter: &[
+            Requirement::TargetVampire,
+            Requirement::ActorSectIn(&[Sect::Sabbat]),
+            Requirement::TargetCapacityAtLeast(7),
+        ],
+        min: 1,
+        max: 1,
+    }],
+    effect: RefEffect::PutOnChosen,
+    grants: &[],
+    non_anarch_titles_minus: false,
+    only_sect: Some(Sect::Sabbat),
+};
+
+/// "Title. Requires a Sabbat vampire. Choose a Sabbat vampire with capacity
+/// 7 or more. Successful referendum means this card is put on the chosen
+/// vampire to represent the Sabbat title of cardinal. During this
+/// referendum, non-Sabbat vampires cannot cast votes or ballots." Not
+/// playable without a Sabbat vampire to choose (LSJ 20100129; ANK
+/// 20191228). Cardinal is no unique title: any number of them.
+pub static CARDINAL_BENEDICTION: CardDef = CardDef {
+    name: "Cardinal Benediction",
+    modes: &[mode_of(
+        &[Window::ActionDeclarePolitical],
+        Actor::ActingCandidate,
+        &[Requirement::ActorSectIn(&[Sect::Sabbat])],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&CARDINAL_BENEDICTION_REFERENDUM),
+            Effect::RepresentsTitle(crate::crypt::Title::Cardinal),
+        ],
+    )],
+    ..CARD
+};
+
+/// "Requires an archbishop, priscus, cardinal or regent. Only usable during
+/// the polling step of a political action before votes and ballots are
+/// cast. Non-Sabbat vampires cannot cast votes or ballots during this
+/// referendum." Not in a referendum passing automatically (PIB 20150105):
+/// it has no polling step.
+pub static PRIVATE_AUDIENCE: CardDef = CardDef {
+    name: "Private Audience",
+    modes: &[mode_of(
+        &[Window::Referendum],
+        Actor::ActingMinion,
+        &[
+            Requirement::ActorTitleIn(&[
+                TitleClass::Archbishop,
+                TitleClass::Priscus,
+                TitleClass::Cardinal,
+                TitleClass::Regent,
+            ]),
+            Requirement::PollingStep,
+            Requirement::NoVotesCast,
+        ],
+        &[Effect::BarNonSectVotes(Sect::Sabbat)],
+    )],
+    ..CARD
+};
+
+/// "Only usable during the polling step of a political action. [pot][pre]
+/// This vampire gets +3 votes. [POT][PRE] Vampires who do not follow the
+/// Path of Power and the Inner Voice get -1 vote." (1 blood; Path of Power
+/// and the Inner Voice.) An action modifier for the acting vampire, a
+/// reaction for another; the -1 reaches votes already cast, a vampire's
+/// votes stopping at 0 (ANK 20251125; rules-qa 52.2).
+pub static ABSOLUTE_TYRANNY: CardDef = CardDef {
+    name: "Absolute Tyranny",
+    modes: &[
+        mode_of(
+            &[Window::Referendum],
+            Actor::ActingOrReactingMinion,
+            &[Requirement::PollingStep],
+            &[Effect::AddVotes(3)],
+        ),
+        mode_of(
+            &[Window::Referendum],
+            Actor::ActingOrReactingMinion,
+            &[Requirement::PollingStep],
+            &[Effect::NotPathVotesMinus("Power and the Inner Voice", 1)],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Title. Put this card on a Sabbat vampire you control with capacity 8 or
+/// more to represent the unique Sabbat title of regent. Sabbat vampires can
+/// enter combat with this vampire as a Ⓓ action. If a Sabbat vampire
+/// diablerizes this vampire, move this card to the diablerist (before the
+/// blood hunt is called)." (1 pool.) Contested, the card is out of play and
+/// its action not usable (LSJ 20070808-2); the action requires a Sabbat
+/// vampire (LSJ 20080604), not one's own (rules-qa 17.3, 52.6).
+pub static REGENT: CardDef = CardDef {
+    name: "Regent",
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::Controlled,
+                Requirement::TargetVampire,
+                Requirement::ActorSectIn(&[Sect::Sabbat]),
+                Requirement::TargetCapacityAtLeast(8),
+            ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutOnTarget,
+                Effect::RepresentsTitle(crate::crypt::Title::Regent),
+                Effect::MovesToSabbatDiablerist,
+            ],
+        )
+    }],
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::TargetIsHost,
+                Requirement::NotControlled,
+                Requirement::ActorReady,
+            ],
+        ),
+        ..mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[
+                Requirement::ActorVampire,
+                Requirement::ActorSectIn(&[Sect::Sabbat]),
+            ],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::EnterCombatWithTarget,
+            ],
+        )
+    }],
+    ..CARD
+};
+
+/// "Unique. Requires 2 or more ready vampires who follow the Path of Power
+/// and the Inner Voice. Put this card in play. After a referendum called by
+/// a vampire you control passes, you can lock this card to burn 1 pool from
+/// your prey." (Path of Power and the Inner Voice.)
+pub static PRIVILEGED_POSITION: CardDef = CardDef {
+    name: "Privileged Position",
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[Requirement::ControlsReadyOnPath(
+            "Power and the Inner Voice",
+            2,
+        )],
+        &[Effect::PutInPlay],
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionAfterResolution],
+        Actor::Controller,
+        &[
+            Requirement::CardUnlocked,
+            Requirement::IsPolitical,
+            Requirement::ReferendumPassed,
+            Requirement::OtherActingControlled,
+        ],
+        &[Effect::LockSelf, Effect::PreyBurnsPool(1)],
+    )],
+    ..CARD
+};
+
+/// "Unique location. If this card has 3 or fewer counters during your
+/// unlock phase, you can add 1 counter to it. You can lock this card during
+/// the polling step of any referendum to give a titled Sabbat vampire +1
+/// vote for each counter on this card. Vampires controlled by other
+/// Methuselahs can burn all the counters from this card as a Ⓓ action." (1
+/// pool.) Any titled Sabbat vampire, its controller's to cast (rules-qa
+/// 52.7).
+pub static POWERBASE_MADRID: CardDef = CardDef {
+    name: "Powerbase: Madrid",
+    modes: &[LOCATION],
+    abilities: &[
+        mode_of(
+            &[Window::UnlockPhaseOwn],
+            Actor::Controller,
+            &[Requirement::CountersAtMost(3)],
+            &[Effect::AddCounter(1)],
+        ),
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[
+                    Requirement::TargetVampire,
+                    Requirement::ActorSectIn(&[Sect::Sabbat]),
+                    Requirement::TargetTitleIn(&[TitleClass::Any]),
+                ],
+            ),
+            ..mode_of(
+                &[Window::Referendum],
+                Actor::Controller,
+                &[
+                    Requirement::CardUnlocked,
+                    Requirement::AnyPollingStep,
+                    Requirement::CountersAtLeast(1),
+                ],
+                &[Effect::LockSelf, Effect::TargetVotesPerCounter],
+            )
+        },
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[
+                Requirement::ActorVampire,
+                Requirement::OthersControlThisCard,
+                Requirement::CountersAtLeast(1),
+            ],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::RemoveAllSourceCounters,
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "[pot] or [pre] Minions must burn 1 blood or life to attempt to block
+/// this action. [POT] or [PRE] As above, and minions get -1 intercept."
+/// (Path of Power and the Inner Voice.) Any time during the action before
+/// resolution, no block attempt needed (LSJ 20020612); a minion already
+/// attempting pays nothing (LSJ 20031121-2); played, it requires the
+/// Discipline used (LSJ 20011204-3).
+pub static UNTHINKABLE_HUMILIATION: CardDef = CardDef {
+    name: "Unthinkable Humiliation",
+    modes: &[
+        modifier(&[], &[Effect::BlockToll(1)]),
+        modifier(&[], &[Effect::BlockToll(1), Effect::MinionsIntercept(-1)]),
+    ],
+    ..CARD
+};
+
+/// "+1 stealth action. Unique. Requires a titled Sabbat vampire. Put this
+/// card in play with 3 counters. Once each action, a Sabbat vampire you
+/// control can burn 1 counter from this card to unlock and attempt to block
+/// with +1 intercept, even if intercept is not yet needed. If this card has
+/// no counters, burn it." (1 pool.) For intercept, an unlocked vampire too
+/// (PIB 20150216), one already attempting (ANK 20181122-2); not one that
+/// cannot attempt to block the action (LSJ 20010714-2), the prey, predator
+/// and target restrictions kept (ANK 20180623); the attempt stands if the
+/// unlock leaves the action without a target (LSJ 20090514). Rules-qa 52.8.
+pub static UNDER_SIEGE: CardDef = CardDef {
+    name: "Under Siege",
+    modes: &[action_at(
+        &[
+            Requirement::ActorSectIn(&[Sect::Sabbat]),
+            Requirement::ActorTitleIn(&[TitleClass::Any]),
+        ],
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutInPlay,
+            Effect::EnterWithCounters(3),
+        ],
+    )],
+    abilities: &[ModeDef {
+        waives_needed: true,
+        limit: Some(Limit::PerAction),
+        ..mode_of(
+            &[Window::ReactionUnlockAttempt],
+            Actor::AnyReadyVampire,
+            &[
+                Requirement::CountersAtLeast(1),
+                Requirement::ActorSectIn(&[Sect::Sabbat]),
+                Requirement::CanAttemptBlock,
+            ],
+            &[
+                Effect::RemoveCounter(1),
+                Effect::UnlockActor,
+                Effect::AttemptBlock,
+                Effect::AddIntercept(1),
+                Effect::BurnSelfWithoutCounters,
+            ],
+        )
+    }],
+    ..CARD
+};
+
+static COLD_WAR_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::SeatOrCard {
+        card: CardFilter::Location,
+        both: &[TitleClass::Cardinal, TitleClass::Regent],
+    }],
+    effect: RefEffect::ChosenBurnsPoolCardBurned(3),
+    grants: &[],
+    non_anarch_titles_minus: false,
+    only_sect: None,
+};
+political!(
+    COLD_WAR,
+    "Cold War",
+    "\"Requires a titled Sabbat vampire. Choose a Methuselah or a location. \
+     If this acting vampire is a cardinal or regent, you can choose both \
+     instead. Successful referendum means the chosen Methuselah burns 3 pool \
+     and the chosen location is burned.\" The title read as the terms are \
+     set (rules-qa 52.5).",
+    &[
+        Requirement::ActorSectIn(&[Sect::Sabbat]),
+        Requirement::ActorTitleIn(&[TitleClass::Any]),
+    ],
+    COLD_WAR_REFERENDUM
+);
+
+/// "Only one Día de los Muertos can be played in a game. The first
+/// referendum a Sabbat vampire you control calls on this turn passes
+/// automatically (skip the polling step)." (1 pool.) The first called this
+/// turn, Día played before it (rules-qa 52.3); no "during a political
+/// action" or "during a referendum" effect is played in it, and a margin
+/// it passes by is none (LSJ 19980107).
+pub static DIA_DE_LOS_MUERTOS: CardDef = CardDef {
+    name: "Día de los Muertos",
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[Requirement::NotPlayedThisGame],
+        &[Effect::AutoPassFirstSabbatReferendum],
+    )],
     ..CARD
 };

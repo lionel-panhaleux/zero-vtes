@@ -374,6 +374,6 @@ Before M1 (from the narration example):
   source per decision): the order answers the seat's later turns itself.
   A vote bonus reaches only a vampire that has not cast yet — play cards
   before ordering the votes (the panel says so).
-- Not reached by the sweep yet: a banished vampire's face-down cards (out of
-  play, shown nowhere) — if the bounds ever fail there, list them under the
-  uncontrolled slot.
+- A banished vampire's face-down cards (out of play until it returns) are
+  listed under its uncontrolled slot (`SlotView::cards`); the sweep reached
+  them with the Sabbat deck's reshuffled tables (2026-10-07).

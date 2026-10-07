@@ -76,6 +76,11 @@ fn check(seats: usize, games: u64) -> Seen {
                 Step::Over(_) => break,
                 Step::Decision(r) => r,
             };
+            // A referendum passing automatically has no polling step (Día
+            // de los Muertos): its terms are over with it.
+            if e.referendum().is_none() {
+                terms = None;
+            }
             if req.window == WindowLabel::ReferendumTerms {
                 if let Some(i) = terms_choice(&e, &req) {
                     let me = req.seat;

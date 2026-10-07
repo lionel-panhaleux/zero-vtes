@@ -221,6 +221,10 @@ pub enum TitleClass {
     Justicar,
     InnerCircle,
     Archbishop,
+    Bishop,
+    Priscus,
+    Cardinal,
+    Regent,
 }
 
 impl TitleClass {
@@ -234,6 +238,10 @@ impl TitleClass {
             (TitleClass::Justicar, Title::Justicar(_)) => true,
             (TitleClass::InnerCircle, Title::InnerCircle(_)) => true,
             (TitleClass::Archbishop, Title::Archbishop(_)) => true,
+            (TitleClass::Bishop, Title::Bishop) => true,
+            (TitleClass::Priscus, Title::Priscus) => true,
+            (TitleClass::Cardinal, Title::Cardinal) => true,
+            (TitleClass::Regent, Title::Regent) => true,
             _ => false,
         }
     }
@@ -396,6 +404,8 @@ pub enum Stat {
     Transfers,
     /// Allies cannot block it (Stanislava): any positive total bars them.
     AlliesCannotBlock,
+    /// Vampires with capacity n or less cannot block it (Rexton: 3).
+    SmallVampiresCannotBlock,
     /// The retainers of a minion opposing it in combat lose their text for
     /// that combat (Stanislava; rules-qa 49.3): any positive total.
     OpposingRetainersLoseText,
@@ -611,6 +621,24 @@ pub enum Requirement {
     /// This card in play carries at least n counters (a rider with
     /// nothing to pay is not pending: Smiling Jack at 0 counters).
     CountersAtLeast(u8),
+    /// This card has at most n counters (Powerbase: Madrid: "if this card
+    /// has 3 or fewer counters").
+    CountersAtMost(u8),
+    /// Printed condition: its controller controls a ready vampire of these
+    /// titles (Damian: "while you control a ready cardinal").
+    ControlsReadyTitledOther(&'static [TitleClass]),
+    /// Printed condition: its controller's predator controls more ready
+    /// minions than they do (Khin Aye).
+    PredatorMoreReadyMinions,
+    /// Printed condition: its controller's prey has n pool or fewer
+    /// (Üresség).
+    PreyPoolAtMost(u8),
+    /// The acting Methuselah's prey burned pool during this action
+    /// (Věnceslava).
+    PreyBurnedPool,
+    /// The user controls at least n ready vampires following the path
+    /// (Privileged Position).
+    ControlsReadyOnPath(&'static str, u8),
     /// This card in play is unlocked ("you can lock this card to …").
     CardUnlocked,
     /// The player has the Edge ("if you have the Edge").
@@ -1292,6 +1320,13 @@ pub enum Term {
     /// Choose a card in play matching the filter ("choose a location",
     /// Disputed Territory): a choice, never a target (rules-qa 38.6).
     ChooseCard(CardFilter),
+    /// "Choose a Methuselah or a <card>. If this acting vampire is a
+    /// <title>, you can choose both instead" (Cold War): one of the two,
+    /// then the other too with one of the `both` titles.
+    SeatOrCard {
+        card: CardFilter,
+        both: &'static [TitleClass],
+    },
     /// Allocate `per` points for each minion chosen by the previous term
     /// among one or more Methuselahs, locations and equipment
     /// (Revolutionary Council: "2X points").
@@ -1366,6 +1401,14 @@ pub enum RefEffect {
     /// Each chosen Methuselah chooses up to n library cards in their ash
     /// heap and shuffles them into their library (Reinforcements).
     ChosenShuffleFromAsh(u8),
+    /// The chosen Methuselah burns n pool and the chosen card is burned
+    /// (Cold War).
+    ChosenBurnsPoolCardBurned(u8),
+    /// The calling vampire's controller gains n pool (Black Forest Base).
+    CallerGainsPool(u8),
+    /// Each chosen Methuselah burns `base` pool, plus `bonus` if they
+    /// control a ready vampire with capacity `cap` or more (Empires Fall).
+    BurnChosenPlusIfBig { base: u8, bonus: u8, cap: u8 },
 }
 
 impl RefEffect {
@@ -1390,6 +1433,28 @@ pub struct ReferendumDef {
     /// "During that referendum, non-Anarch titles are worth -1 vote" (Fee
     /// Stake: Boston).
     pub non_anarch_titles_minus: bool,
+    /// "During this referendum, non-Sabbat vampires cannot cast votes or
+    /// ballots" (Cardinal Benediction): only this sect's vampires vote.
+    pub only_sect: Option<Sect>,
+}
+
+/// Whom a referendum's vote penalty reaches (`ReferendumCtx::penalties`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Penalized {
+    /// Vampires not of the sect (Camarilla Conclave: "each non-Camarilla
+    /// vampire").
+    NotSect(Sect),
+    /// Vampires not following the path (Absolute Tyranny [POT][PRE]).
+    NotPath(&'static str),
+}
+
+impl Penalized {
+    pub fn reaches(self, st: &GameState, m: MinionId) -> bool {
+        match self {
+            Penalized::NotSect(sect) => st.sect_of(m) != Some(sect),
+            Penalized::NotPath(path) => !st.follows(m, path),
+        }
+    }
 }
 
 /// The vampires a vote grant reaches, read live while the referendum lasts
@@ -1483,6 +1548,8 @@ impl ReferendumDef {
                     }
                 }
                 Term::ChooseClan | Term::AllocatePerChosenWithCards { .. } => {}
+                // A Methuselah is always there to choose.
+                Term::SeatOrCard { .. } => {}
                 Term::ChooseCard(filter) => {
                     if !(0..st.cards.len())
                         .any(|i| crate::referendum::chooseable_card(st, CardId(i as u32), filter))
@@ -2863,6 +2930,10 @@ pub enum Effect {
         blood: u8,
         stealth: u8,
     },
+    /// Rider of a strike: combat ends — after combat ends, if the range is
+    /// close, n unpreventable damage on the opposing minion, unless the
+    /// strike was dodged or the combat continues (Catatonic Fear [PRE]).
+    DamageAfterCombatIfClose(u8),
     /// Set this round's range, skipping the determine range step; usable
     /// only while no other effect has set it (Sniper Rifle; Michael Harris:
     /// "set the range for the round"; the first effect setting it has
@@ -2950,6 +3021,28 @@ pub enum Effect {
     /// and move it to hand, or find none; shuffle afterward (Sakhar's
     /// equipment, Dominica's master archetype).
     SearchToHand(CardFilter),
+    /// The target vampire gets +1 vote for each counter on this card
+    /// (Powerbase: Madrid).
+    TargetVotesPerCounter,
+    /// A granted action's effect: burn all the counters from the card
+    /// granting it (Powerbase: Madrid).
+    RemoveAllSourceCounters,
+    /// Día de los Muertos: the first referendum a Sabbat vampire of the
+    /// player's calls this turn passes automatically.
+    AutoPassFirstSabbatReferendum,
+    /// Minions burn n blood or life to attempt to block this action
+    /// (Unthinkable Humiliation).
+    BlockToll(u8),
+    /// Every minion gets n intercept this action (Unthinkable Humiliation
+    /// [POT][PRE]: -1).
+    MinionsIntercept(i8),
+    /// "If a Sabbat vampire diablerizes this vampire, move this card to the
+    /// diablerist (before the blood hunt is called)" (Regent): a marker the
+    /// diablerie reads.
+    MovesToSabbatDiablerist,
+    /// Add n blood to each vampire of the sect in the player's uncontrolled
+    /// region, its printed sect (Magnetic Authority [DOM]/[POT]).
+    BloodToEachUncontrolledOfSect(Sect, u8),
     /// +(mul × X + plus) votes to the vampire playing it (Awe: "+X+1",
     /// "+2X+1"), X its blood cost.
     AddVotesXLinear {
@@ -2960,6 +3053,12 @@ pub enum Effect {
     /// already cast included; a vampire's votes stop at 0 (Camarilla
     /// Conclave; ANK 20251125).
     NonCamarillaVotesMinus(u8),
+    /// Each vampire not following the path gets -n votes in this
+    /// referendum, as `NonCamarillaVotesMinus` (Absolute Tyranny).
+    NotPathVotesMinus(&'static str, u8),
+    /// Only vampires of the sect cast votes or ballots in this referendum
+    /// (Private Audience: "non-Sabbat vampires cannot").
+    BarNonSectVotes(Sect),
     /// Business Pressure: a round where Methuselahs burn pool for votes, one
     /// at a time — `per` votes a pool, `own` for the card's player.
     PoolForVotesRound {
@@ -3912,6 +4011,7 @@ pub fn holds(
         Requirement::NotOwnTurn => st.active != seat,
         Requirement::DirectedAtYou => action.is_some_and(|a| a.directed_seat(st) == Some(seat)),
         Requirement::IsBleed => action.is_some_and(|a| a.kind == ActionKind::Bleed),
+        Requirement::PreyBurnedPool => action.is_some_and(|a| a.prey_burned),
         Requirement::BleedAgainstPrey => action.is_some_and(|a| {
             a.kind == ActionKind::Bleed && a.bleed_target == Some(st.prey(a.seat))
         }),
@@ -3998,6 +4098,12 @@ pub fn holds(
                 && st.sect_of(a.acting) == Some(Sect::Anarch)
         }),
         Requirement::PoolAtLeast(n) => st.seats[seat.index()].pool >= n as i32,
+        Requirement::ControlsReadyOnPath(path, n) => {
+            st.minions_of(seat)
+                .filter(|&m| st.minions[m.index()].ready() && st.follows(m, path))
+                .count()
+                >= n as usize
+        }
         Requirement::ControlsPrinceOf(city) => st
             .minions_of(seat)
             .any(|m| st.title_of(m) == crate::crypt::Title::Prince(city)),
@@ -4011,7 +4117,11 @@ pub fn holds(
         | Requirement::HostControllerPoolAtLeast(_)
         | Requirement::HostInTorpor
         | Requirement::HostControllerActive
+        | Requirement::ControlsReadyTitledOther(_)
+        | Requirement::PredatorMoreReadyMinions
+        | Requirement::PreyPoolAtMost(_)
         | Requirement::CountersAtLeast(_)
+        | Requirement::CountersAtMost(_)
         | Requirement::CardUnlocked
         | Requirement::NotHuntingGroundFed
         | Requirement::TargetWithout(_)
@@ -4565,6 +4675,13 @@ pub fn holds_for_uncontrolled(
             acting.is_some_and(|a| st.minions[a.index()].clan() == Some(clan))
         }
         Requirement::TargetCapacityAtLeast(n) => capacity >= n,
+        // Printed on the card in the uncontrolled region (Unholy
+        // Sacrament's "titled Sabbat vampire").
+        Requirement::ActorSectIn(sects) => sects.contains(&st.slot_sect(seat, i)),
+        Requirement::TargetTitleIn(classes) => {
+            let title = st.slot_title(seat, i);
+            classes.iter().any(|c| c.matches(title))
+        }
         _ => true,
     }
 }
@@ -4720,6 +4837,7 @@ pub fn holds_for_card(
             None => !c.locked,
         },
         Requirement::CountersAtLeast(n) => c.counters >= n,
+        Requirement::CountersAtMost(n) => c.counters <= n,
         Requirement::BoonTargetActive => c.against.contains(st.active),
         Requirement::EnteredBeforeThisTurn => c.entered < st.turn,
         Requirement::SuperiorVersion => c.mode > 0,

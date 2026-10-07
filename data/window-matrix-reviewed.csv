@@ -1,23 +1,42 @@
 id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 100001,.44 Magnum,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok
+102308,Absolute Tyranny,Action Modifier/Reaction,pot/pre,no,REFERENDUM,,,ok
 100064,Ancient Influence,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
 100119,Awe,Action Modifier,pre,no,REFERENDUM,,,ok
+100165,Black Forest Base,Master,,no,MASTER_PHASE,in_play_action,,ok
 100274,Business Pressure,Action Modifier,pre,no,REFERENDUM,,,ok
 102269,Camarilla Conclave,Master,,no,MASTER_PHASE,,,ok
+100294,Cardinal Benediction,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
+100307,Catatonic Fear,Combat,pre,no,COMBAT_STRIKE_DECLARATION,,,ok
 100333,Charismatic Aura,Combat,aus/pre,no,CARD_AS_PLAYED;COMBAT_STRIKE_DECLARATION,cancel_as_played,,ok
+102312,Cold War,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
 102271,Confiscation,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
 100545,Direct Intervention,Master,,no,CARD_AS_PLAYED,out_of_turn;cancel_as_played,,ok
+102316,Dominant Personality,Action Modifier,pot/pre,no,ACTION_BLOCK_ATTEMPT;ACTION_AS_ANNOUNCED,,,ok
+100541,Día de los Muertos,Master,,no,MASTER_PHASE,,,ok
+102318,Empires Fall,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
 100645,Enkil Cog,Action Modifier,,no,ACTION_AFTER_RESOLUTION,,,ok
 100710,Fear of Mekhet,Master,,no,MASTER_PHASE,,,ok
 100761,Forced March,Action Modifier,cel/for,no,ACTION_AFTER_RESOLUTION;ACTION_STEALTH_INTERCEPT,,,ok
 100994,Instantaneous Transformation,Action Modifier,cel/pro,no,ACTION_STEALTH_INTERCEPT;ACTION_AFTER_RESOLUTION,,,ok
+101008,Iron Glare,Action Modifier,pot/pre,no,REFERENDUM;ACTION_DURING,,,ok
 102273,Loup,Action Modifier,,no,ACTION_STEALTH_INTERCEPT,,,ok
+102331,Magnetic Authority,Action Modifier,dom/pot,no,ACTION_AFTER_RESOLUTION,,,ok
 101238,Monastery of Shadows,Master,,no,MASTER_PHASE,,,ok
 101390,Permanent Vacation,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
 101417,Political Stranglehold,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
+101437,Powerbase: Madrid,Master,,no,MASTER_PHASE,in_play_action,,ok
+101490,Private Audience,Action Modifier,,no,REFERENDUM,,,ok
+102334,Privileged Position,Master,,no,MASTER_PHASE,,,ok
+101587,Regent,Master,,no,MASTER_PHASE,in_play_action,,ok
 101590,Reinforcements,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
 101591,Reins of Power,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
+102337,Relentlessness,Action Modifier,cel/for,no,ACTION_STEALTH_INTERCEPT;ACTION_BLOCK_ATTEMPT,,,ok
 101127,"The Louvre, Paris",Master,,no,MASTER_PHASE,in_play_action,,ok
+102063,Under Siege,Action,,no,ACTION_DECLARE,,,ok
+102345,Unholy Sacrament,Master,,no,MASTER_PHASE,,,ok
+102346,Unthinkable Humiliation,Action Modifier,pot/pre,no,ACTION_DURING,,,ok
+102348,War of Ages,Political Action,,no,ACTION_DECLARE_POLITICAL,in_play_action,,ok
 102151,Wash,Master,,no,CARD_AS_PLAYED,delayed_replacement;out_of_turn;trifle;cancel_as_played,,ok
 102217,47th Street Royals,Ally,,yes,ACTION_DECLARE_RECRUIT,,,ok
 100032,AK-47,Equipment,,yes,ACTION_DECLARE_EQUIP,,,ok

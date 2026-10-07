@@ -49,6 +49,9 @@ pub enum ZoneId {
     Seat(u8, SeatZone),
     /// Cards stored on a card in play (arena index).
     Stored(u32),
+    /// The cards a banished vampire (arena index) carries in the
+    /// uncontrolled region, out of play until it returns (rules-qa 25.1).
+    Banished(u32),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]

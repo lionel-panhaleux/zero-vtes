@@ -248,11 +248,12 @@ fn version(v: u8) -> PyResult<Version> {
     }
 }
 
-/// Deck indices grouped by clan, in first-seen order.
+/// Deck indices grouped by clan — by path for the Sabbat V5 precons
+/// (`Deck::category`) —, in first-seen order.
 fn by_clan(pool: &[usize]) -> Vec<Vec<usize>> {
     let mut groups: Vec<(&str, Vec<usize>)> = Vec::new();
     for &d in pool {
-        let clan = all_decks()[d].clan();
+        let clan = all_decks()[d].category();
         match groups.iter_mut().find(|(k, _)| *k == clan) {
             Some((_, g)) => g.push(d),
             None => groups.push((clan, vec![d])),
@@ -706,16 +707,18 @@ fn vocab_keys() -> Vec<String> {
 }
 
 /// The decklist families: name -> deck indices ("precons", "minis",
-/// "anniversary", "twda": `Deck::all` order).
+/// "anniversary", "sabbat", "twda": `Deck::all` order).
 #[pyfunction]
 fn deck_families() -> Vec<(&'static str, Vec<usize>)> {
-    use zvtes::crypt::{ANNIVERSARY_PRECONS, MINI_PRECONS, PRECONS};
+    use zvtes::crypt::{ANNIVERSARY_PRECONS, MINI_PRECONS, PRECONS, SABBAT_PRECONS};
     let (p, m, a) = (PRECONS.len(), MINI_PRECONS.len(), ANNIVERSARY_PRECONS.len());
+    let b = SABBAT_PRECONS.len();
     vec![
         ("precons", (0..p).collect()),
         ("minis", (p..p + m).collect()),
         ("anniversary", (p + m..p + m + a).collect()),
-        ("twda", (p + m + a..all_decks().len()).collect()),
+        ("sabbat", (p + m + a..p + m + a + b).collect()),
+        ("twda", (p + m + a + b..all_decks().len()).collect()),
     ]
 }
 

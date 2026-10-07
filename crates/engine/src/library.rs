@@ -96,10 +96,13 @@ pub struct LibraryCard {
     /// Allies and retainers: the printed type line.
     pub body: Option<Body>,
     pub modes: &'static [Mode],
+    /// The Sabbat path icon (KRCG `path`): a vampire following it plays
+    /// the card (rules-qa 49.7).
+    pub path: Option<&'static str>,
 }
 
 #[rustfmt::skip]
-pub static LIBRARY: [LibraryCard; 454] = [
+pub static LIBRARY: [LibraryCard; 473] = [
     LibraryCard {
         id: 100001,
         name: ".44 Magnum",
@@ -119,6 +122,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102217,
@@ -139,6 +143,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100032,
@@ -159,6 +164,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100011,
@@ -179,6 +185,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement", "token_entity"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100015,
@@ -199,6 +206,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102286,
@@ -219,6 +227,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100029,
@@ -244,6 +253,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["maneuver_rider"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100031,
@@ -269,6 +279,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100037,
@@ -289,6 +300,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102274,
@@ -309,6 +321,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100052,
@@ -329,6 +342,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100054,
@@ -349,6 +363,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100055,
@@ -369,6 +384,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100056,
@@ -389,6 +405,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100058,
@@ -409,6 +426,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100059,
@@ -429,6 +447,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100065,
@@ -449,6 +468,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102349,
@@ -474,6 +494,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102350,
@@ -499,6 +520,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["cancel_as_played"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100077,
@@ -524,6 +546,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100079,
@@ -544,6 +567,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100081,
@@ -564,6 +588,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100084,
@@ -584,6 +609,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100085,
@@ -604,6 +630,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["out_of_turn"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102275,
@@ -629,6 +656,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100093,
@@ -649,6 +677,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100095,
@@ -669,6 +698,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100107,
@@ -689,6 +719,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100108,
@@ -709,6 +740,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100126,
@@ -729,6 +761,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102218,
@@ -749,6 +782,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["bounce"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100131,
@@ -769,6 +803,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100135,
@@ -789,6 +824,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100145,
@@ -814,6 +850,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100146,
@@ -839,6 +876,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100157,
@@ -864,6 +902,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102287,
@@ -884,6 +923,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100162,
@@ -909,6 +949,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102351,
@@ -929,6 +970,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["draw_replacement"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100172,
@@ -949,6 +991,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100199,
@@ -969,6 +1012,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100201,
@@ -994,6 +1038,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100208,
@@ -1019,6 +1064,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100215,
@@ -1039,6 +1085,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100217,
@@ -1059,6 +1106,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100227,
@@ -1084,6 +1132,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100230,
@@ -1109,6 +1158,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100236,
@@ -1134,6 +1184,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102293,
@@ -1159,6 +1210,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100243,
@@ -1179,6 +1231,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102247,
@@ -1229,6 +1282,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102236,
@@ -1249,6 +1303,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100260,
@@ -1269,6 +1324,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102270,
@@ -1289,6 +1345,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100287,
@@ -1309,6 +1366,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102298,
@@ -1329,6 +1387,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100297,
@@ -1349,6 +1408,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100301,
@@ -1374,6 +1434,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100303,
@@ -1394,6 +1455,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100308,
@@ -1419,6 +1481,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100311,
@@ -1439,6 +1502,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100312,
@@ -1459,6 +1523,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100323,
@@ -1479,6 +1544,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100327,
@@ -1499,6 +1565,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100329,
@@ -1519,6 +1586,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100332,
@@ -1539,6 +1607,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102246,
@@ -1559,6 +1628,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["token_entity"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102234,
@@ -1579,6 +1649,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100356,
@@ -1604,6 +1675,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100362,
@@ -1629,6 +1701,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100364,
@@ -1649,6 +1722,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100366,
@@ -1669,6 +1743,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100374,
@@ -1689,6 +1764,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100391,
@@ -1714,6 +1790,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100401,
@@ -1739,6 +1816,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100409,
@@ -1759,6 +1837,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100410,
@@ -1779,6 +1858,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100414,
@@ -1799,6 +1879,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102288,
@@ -1824,6 +1905,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100416,
@@ -1844,6 +1926,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["randomness", "in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102352,
@@ -1869,6 +1952,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100435,
@@ -1889,6 +1973,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["trifle"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102213,
@@ -1909,6 +1994,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100444,
@@ -1929,6 +2015,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100476,
@@ -1949,6 +2036,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["continues_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100485,
@@ -1969,6 +2057,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["trifle"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100492,
@@ -1994,6 +2083,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100501,
@@ -2019,6 +2109,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102299,
@@ -2039,6 +2130,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102219,
@@ -2069,6 +2161,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100515,
@@ -2094,6 +2187,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100518,
@@ -2119,6 +2213,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["bounce"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100519,
@@ -2139,6 +2234,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100545,
@@ -2159,6 +2255,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["out_of_turn", "cancel_as_played"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100549,
@@ -2184,6 +2281,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100557,
@@ -2204,6 +2302,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100563,
@@ -2234,6 +2333,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["maneuver_rider"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100568,
@@ -2254,6 +2354,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102353,
@@ -2279,6 +2380,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100570,
@@ -2299,6 +2401,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100572,
@@ -2319,6 +2422,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100573,
@@ -2344,6 +2448,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102220,
@@ -2364,6 +2469,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100588,
@@ -2384,6 +2490,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100594,
@@ -2404,6 +2511,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100597,
@@ -2434,6 +2542,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102237,
@@ -2454,6 +2563,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100598,
@@ -2479,6 +2589,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100600,
@@ -2504,6 +2615,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100601,
@@ -2529,6 +2641,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100609,
@@ -2549,6 +2662,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100617,
@@ -2574,6 +2688,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100618,
@@ -2594,6 +2709,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100620,
@@ -2614,6 +2730,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100629,
@@ -2634,6 +2751,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100632,
@@ -2654,6 +2772,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100640,
@@ -2679,6 +2798,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102221,
@@ -2704,6 +2824,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102238,
@@ -2724,6 +2845,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100644,
@@ -2749,6 +2871,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100652,
@@ -2774,6 +2897,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102276,
@@ -2794,6 +2918,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100680,
@@ -2819,6 +2944,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102222,
@@ -2839,6 +2965,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100709,
@@ -2859,6 +2986,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100687,
@@ -2884,6 +3012,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100695,
@@ -2904,6 +3033,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100696,
@@ -2924,6 +3054,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100698,
@@ -2944,6 +3075,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102289,
@@ -2964,6 +3096,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["trifle"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100703,
@@ -2989,6 +3122,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102248,
@@ -3014,6 +3148,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100712,
@@ -3034,6 +3169,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100715,
@@ -3054,6 +3190,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100717,
@@ -3074,6 +3211,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100720,
@@ -3094,6 +3232,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102249,
@@ -3119,6 +3258,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100722,
@@ -3139,6 +3279,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100727,
@@ -3159,6 +3300,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100742,
@@ -3179,6 +3321,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100743,
@@ -3199,6 +3342,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100744,
@@ -3224,6 +3368,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100747,
@@ -3249,6 +3394,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100749,
@@ -3274,6 +3420,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102354,
@@ -3294,6 +3441,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["alt_hand_source"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100760,
@@ -3314,6 +3462,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102250,
@@ -3339,6 +3488,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100762,
@@ -3364,6 +3514,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100765,
@@ -3389,6 +3540,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100769,
@@ -3414,6 +3566,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100771,
@@ -3439,6 +3592,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["continues_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102223,
@@ -3464,6 +3618,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102224,
@@ -3489,6 +3644,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102225,
@@ -3514,6 +3670,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100777,
@@ -3534,6 +3691,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100781,
@@ -3554,6 +3712,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100782,
@@ -3574,6 +3733,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100785,
@@ -3594,6 +3754,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100788,
@@ -3619,6 +3780,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100794,
@@ -3639,6 +3801,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100796,
@@ -3659,6 +3822,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100807,
@@ -3679,6 +3843,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100809,
@@ -3699,6 +3864,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102290,
@@ -3719,6 +3885,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["randomness", "in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100824,
@@ -3739,6 +3906,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102355,
@@ -3764,6 +3932,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["continues_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100842,
@@ -3784,6 +3953,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["cancel_as_played"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100845,
@@ -3809,6 +3979,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100852,
@@ -3834,6 +4005,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100860,
@@ -3854,6 +4026,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100863,
@@ -3879,6 +4052,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100866,
@@ -3899,6 +4073,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102226,
@@ -3919,6 +4094,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100897,
@@ -3939,6 +4115,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100903,
@@ -3959,6 +4136,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100904,
@@ -3984,6 +4162,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100913,
@@ -4009,6 +4188,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100918,
@@ -4034,6 +4214,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100921,
@@ -4059,6 +4240,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["cancel_as_played"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100932,
@@ -4084,6 +4266,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102227,
@@ -4109,6 +4292,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102228,
@@ -4134,6 +4318,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102356,
@@ -4159,6 +4344,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100959,
@@ -4184,6 +4370,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100973,
@@ -4209,6 +4396,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100984,
@@ -4229,6 +4417,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100995,
@@ -4254,6 +4443,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100999,
@@ -4279,6 +4469,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102251,
@@ -4309,6 +4500,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101014,
@@ -4329,6 +4521,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101028,
@@ -4349,6 +4542,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101067,
@@ -4369,6 +4563,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101032,
@@ -4389,6 +4584,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101040,
@@ -4409,6 +4605,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101042,
@@ -4429,6 +4626,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101043,
@@ -4449,6 +4647,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101056,
@@ -4469,6 +4668,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101068,
@@ -4489,6 +4689,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101070,
@@ -4509,6 +4710,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101073,
@@ -4529,6 +4731,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101100,
@@ -4549,6 +4752,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101102,
@@ -4569,6 +4773,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101104,
@@ -4589,6 +4794,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["trifle"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101107,
@@ -4614,6 +4820,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102229,
@@ -4644,6 +4851,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101110,
@@ -4664,6 +4872,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101114,
@@ -4684,6 +4893,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101125,
@@ -4709,6 +4919,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101143,
@@ -4734,6 +4945,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101144,
@@ -4759,6 +4971,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101147,
@@ -4809,6 +5022,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101154,
@@ -4829,6 +5043,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101171,
@@ -4849,6 +5064,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101175,
@@ -4874,6 +5090,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102252,
@@ -4894,6 +5111,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["cancel_as_played"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101195,
@@ -4919,6 +5137,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102239,
@@ -4939,6 +5158,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101211,
@@ -4964,6 +5184,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101217,
@@ -4984,6 +5205,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101223,
@@ -5009,6 +5231,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101225,
@@ -5029,6 +5252,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102240,
@@ -5049,6 +5273,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102241,
@@ -5069,6 +5294,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["trifle"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101229,
@@ -5089,6 +5315,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102242,
@@ -5109,6 +5336,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["cancel_as_played", "in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101239,
@@ -5129,6 +5357,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101242,
@@ -5149,6 +5378,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102253,
@@ -5174,6 +5404,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101249,
@@ -5194,6 +5425,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101254,
@@ -5219,6 +5451,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101259,
@@ -5244,6 +5477,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["bounce"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101265,
@@ -5264,6 +5498,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101271,
@@ -5284,6 +5519,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101277,
@@ -5304,6 +5540,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101279,
@@ -5324,6 +5561,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement", "in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102254,
@@ -5349,6 +5587,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101285,
@@ -5369,6 +5608,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101292,
@@ -5394,6 +5634,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102255,
@@ -5419,6 +5660,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101310,
@@ -5439,6 +5681,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102277,
@@ -5459,6 +5702,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101318,
@@ -5484,6 +5728,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102278,
@@ -5504,6 +5749,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101321,
@@ -5524,6 +5770,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102256,
@@ -5549,6 +5796,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101324,
@@ -5569,6 +5817,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101326,
@@ -5589,6 +5838,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102230,
@@ -5614,6 +5864,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101340,
@@ -5639,6 +5890,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101341,
@@ -5659,6 +5911,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101342,
@@ -5684,6 +5937,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101350,
@@ -5704,6 +5958,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101353,
@@ -5724,6 +5979,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101354,
@@ -5744,6 +6000,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101355,
@@ -5764,6 +6021,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102231,
@@ -5794,6 +6052,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102279,
@@ -5819,6 +6078,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102300,
@@ -5844,6 +6104,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101384,
@@ -5864,6 +6125,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101387,
@@ -5889,6 +6151,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101388,
@@ -5909,6 +6172,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102358,
@@ -5934,6 +6198,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101401,
@@ -5954,6 +6219,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102291,
@@ -5974,6 +6240,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102232,
@@ -6024,6 +6291,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101411,
@@ -6044,6 +6312,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101415,
@@ -6064,6 +6333,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101424,
@@ -6084,6 +6354,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101430,
@@ -6104,6 +6375,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101435,
@@ -6124,6 +6396,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101439,
@@ -6144,6 +6417,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102301,
@@ -6164,6 +6438,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101475,
@@ -6189,6 +6464,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101483,
@@ -6214,6 +6490,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101487,
@@ -6234,6 +6511,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["trifle", "in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101495,
@@ -6259,6 +6537,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101498,
@@ -6279,6 +6558,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102214,
@@ -6299,6 +6579,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101501,
@@ -6319,6 +6600,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102302,
@@ -6339,6 +6621,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101513,
@@ -6364,6 +6647,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101215,
@@ -6389,6 +6673,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101523,
@@ -6414,6 +6699,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101532,
@@ -6439,6 +6725,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101536,
@@ -6459,6 +6746,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102303,
@@ -6479,6 +6767,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101542,
@@ -6504,6 +6793,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101545,
@@ -6529,6 +6819,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101547,
@@ -6554,6 +6845,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101550,
@@ -6579,6 +6871,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101552,
@@ -6599,6 +6892,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101553,
@@ -6619,6 +6913,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101564,
@@ -6639,6 +6934,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["trifle"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101566,
@@ -6659,6 +6955,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101567,
@@ -6679,6 +6976,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101578,
@@ -6704,6 +7002,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["bounce"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101588,
@@ -6729,6 +7028,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101610,
@@ -6754,6 +7054,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101613,
@@ -6779,6 +7080,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101614,
@@ -6799,6 +7101,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement", "in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102233,
@@ -6824,6 +7127,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101627,
@@ -6849,6 +7153,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101628,
@@ -6869,6 +7174,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101631,
@@ -6889,6 +7195,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101632,
@@ -6909,6 +7216,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102359,
@@ -6929,6 +7237,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101639,
@@ -6949,6 +7258,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement", "in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102243,
@@ -6969,6 +7279,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101649,
@@ -6994,6 +7305,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102304,
@@ -7019,6 +7331,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102215,
@@ -7044,6 +7357,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101662,
@@ -7064,6 +7378,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101664,
@@ -7089,6 +7404,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102257,
@@ -7109,6 +7425,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102258,
@@ -7129,6 +7446,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102259,
@@ -7149,6 +7467,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101686,
@@ -7174,6 +7493,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["refers_votes_cast"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101692,
@@ -7194,6 +7514,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101698,
@@ -7219,6 +7540,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102292,
@@ -7239,6 +7561,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102260,
@@ -7264,6 +7587,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101706,
@@ -7289,6 +7613,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101711,
@@ -7309,6 +7634,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101712,
@@ -7334,6 +7660,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101717,
@@ -7359,6 +7686,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102280,
@@ -7384,6 +7712,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102281,
@@ -7409,6 +7738,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102294,
@@ -7434,6 +7764,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102305,
@@ -7459,6 +7790,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102244,
@@ -7479,6 +7811,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101767,
@@ -7499,6 +7832,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["draw_replacement"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101772,
@@ -7524,6 +7858,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102295,
@@ -7549,6 +7884,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101778,
@@ -7574,6 +7910,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101780,
@@ -7594,6 +7931,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101798,
@@ -7619,6 +7957,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["maneuver_rider"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101801,
@@ -7644,6 +7983,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101805,
@@ -7669,6 +8009,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101807,
@@ -7689,6 +8030,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101808,
@@ -7709,6 +8051,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101811,
@@ -7729,6 +8072,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101816,
@@ -7749,6 +8093,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101817,
@@ -7774,6 +8119,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101819,
@@ -7799,6 +8145,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101821,
@@ -7819,6 +8166,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101829,
@@ -7844,6 +8192,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102296,
@@ -7869,6 +8218,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101850,
@@ -7894,6 +8244,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102297,
@@ -7914,6 +8265,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["token_entity"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101856,
@@ -7934,6 +8286,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101857,
@@ -7959,6 +8312,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101872,
@@ -7979,6 +8333,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102282,
@@ -8004,6 +8359,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101896,
@@ -8024,6 +8380,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["out_of_turn", "cancel_as_played"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101913,
@@ -8049,6 +8406,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102261,
@@ -8069,6 +8427,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["cancel_as_played"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102360,
@@ -8089,6 +8448,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102361,
@@ -8109,6 +8469,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101945,
@@ -8129,6 +8490,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101948,
@@ -8154,6 +8516,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101949,
@@ -8179,6 +8542,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["bounce"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101950,
@@ -8204,6 +8568,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101951,
@@ -8229,6 +8594,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101953,
@@ -8249,6 +8615,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101958,
@@ -8269,6 +8636,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101960,
@@ -8294,6 +8662,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101966,
@@ -8319,6 +8688,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101972,
@@ -8339,6 +8709,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101974,
@@ -8359,6 +8730,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101978,
@@ -8384,6 +8756,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101984,
@@ -8409,6 +8782,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101989,
@@ -8429,6 +8803,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101990,
@@ -8449,6 +8824,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101993,
@@ -8474,6 +8850,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101994,
@@ -8494,6 +8871,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102283,
@@ -8519,6 +8897,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102262,
@@ -8549,6 +8928,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102362,
@@ -8574,6 +8954,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102015,
@@ -8594,6 +8975,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102041,
@@ -8619,6 +9001,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["cancel_as_played"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102284,
@@ -8644,6 +9027,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102049,
@@ -8664,6 +9048,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102306,
@@ -8689,6 +9074,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102057,
@@ -8709,6 +9095,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement", "randomness"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102065,
@@ -8734,6 +9121,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102066,
@@ -8754,6 +9142,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102263,
@@ -8779,6 +9168,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102078,
@@ -8799,6 +9189,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102084,
@@ -8819,6 +9210,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102087,
@@ -8839,6 +9231,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102245,
@@ -8859,6 +9252,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102092,
@@ -8879,6 +9273,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102097,
@@ -8904,6 +9299,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102109,
@@ -8924,6 +9320,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102113,
@@ -8944,6 +9341,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["trifle"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102121,
@@ -8964,6 +9362,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["trifle"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102264,
@@ -8989,6 +9388,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102265,
@@ -9014,6 +9414,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102126,
@@ -9034,6 +9435,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["draw_replacement"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102266,
@@ -9059,6 +9461,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102131,
@@ -9084,6 +9487,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102363,
@@ -9104,6 +9508,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["cancel_as_played", "in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102364,
@@ -9124,6 +9529,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102267,
@@ -9144,6 +9550,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102365,
@@ -9164,6 +9571,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102189,
@@ -9184,6 +9592,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102137,
@@ -9204,6 +9613,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102139,
@@ -9229,6 +9639,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102144,
@@ -9249,6 +9660,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102216,
@@ -9269,6 +9681,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102149,
@@ -9289,6 +9702,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102150,
@@ -9309,6 +9723,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102151,
@@ -9329,6 +9744,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement", "out_of_turn", "trifle", "cancel_as_played"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102152,
@@ -9349,6 +9765,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102159,
@@ -9369,6 +9786,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["token_entity"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102164,
@@ -9394,6 +9812,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102166,
@@ -9414,6 +9833,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102169,
@@ -9434,6 +9854,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102285,
@@ -9459,6 +9880,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102180,
@@ -9479,6 +9901,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["trifle"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102185,
@@ -9504,6 +9927,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102190,
@@ -9529,6 +9953,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102194,
@@ -9549,6 +9974,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["delayed_replacement"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102201,
@@ -9569,6 +9995,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102212,
@@ -9589,6 +10016,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100106,
@@ -9609,6 +10037,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100298,
@@ -9629,6 +10058,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100576,
@@ -9659,6 +10089,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100646,
@@ -9679,6 +10110,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100910,
@@ -9709,6 +10141,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101019,
@@ -9729,6 +10162,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["token_entity"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101103,
@@ -9749,6 +10183,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["out_of_turn"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101256,
@@ -9774,6 +10209,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["bounce"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101442,
@@ -9794,6 +10230,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101654,
@@ -9814,6 +10251,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["out_of_turn"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101665,
@@ -9834,6 +10272,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100064,
@@ -9854,6 +10293,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100645,
@@ -9874,6 +10314,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100710,
@@ -9894,6 +10335,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100761,
@@ -9919,6 +10361,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100994,
@@ -9944,6 +10387,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101238,
@@ -9964,6 +10408,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101390,
@@ -9984,6 +10429,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101417,
@@ -10004,6 +10450,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101591,
@@ -10024,6 +10471,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102207,
@@ -10044,6 +10492,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100119,
@@ -10069,6 +10518,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100274,
@@ -10094,6 +10544,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 100333,
@@ -10119,6 +10570,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["cancel_as_played"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101127,
@@ -10139,6 +10591,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &["in_play_action"],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 101590,
@@ -10159,6 +10612,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102269,
@@ -10179,6 +10633,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102271,
@@ -10199,6 +10654,7 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
     },
     LibraryCard {
         id: 102273,
@@ -10219,6 +10675,441 @@ pub static LIBRARY: [LibraryCard; 454] = [
                 flags: &[],
             },
         ],
+        path: None,
+    },
+    LibraryCard {
+        id: 100165,
+        name: "Black Forest Base",
+        types: &[CardType::Master],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[Label::Unique, Label::Location],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["MASTER_PHASE"],
+                flags: &["in_play_action"],
+            },
+        ],
+        path: None,
+    },
+    LibraryCard {
+        id: 100294,
+        name: "Cardinal Benediction",
+        types: &[CardType::PoliticalAction],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[Label::Title],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["ACTION_DECLARE_POLITICAL"],
+                flags: &[],
+            },
+        ],
+        path: None,
+    },
+    LibraryCard {
+        id: 100307,
+        name: "Catatonic Fear",
+        types: &[CardType::Combat],
+        disciplines: &["pre"],
+        clans: &[],
+        blood_cost: Cost::Fixed(1),
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["pre"],
+                windows: &["COMBAT_STRIKE_DECLARATION"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["PRE"],
+                windows: &["COMBAT_STRIKE_DECLARATION"],
+                flags: &[],
+            },
+        ],
+        path: None,
+    },
+    LibraryCard {
+        id: 100541,
+        name: "Día de los Muertos",
+        types: &[CardType::Master],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::Fixed(1),
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["MASTER_PHASE"],
+                flags: &[],
+            },
+        ],
+        path: None,
+    },
+    LibraryCard {
+        id: 101008,
+        name: "Iron Glare",
+        types: &[CardType::ActionModifier],
+        disciplines: &["pot", "pre"],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: true,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["pot", "pre"],
+                windows: &["REFERENDUM"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["POT", "PRE"],
+                windows: &["ACTION_DURING"],
+                flags: &[],
+            },
+        ],
+        path: None,
+    },
+    LibraryCard {
+        id: 101437,
+        name: "Powerbase: Madrid",
+        types: &[CardType::Master],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::Fixed(1),
+        burn_option: false,
+        combo: false,
+        labels: &[Label::Unique, Label::Location],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["MASTER_PHASE"],
+                flags: &["in_play_action"],
+            },
+        ],
+        path: None,
+    },
+    LibraryCard {
+        id: 101490,
+        name: "Private Audience",
+        types: &[CardType::ActionModifier],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["REFERENDUM"],
+                flags: &[],
+            },
+        ],
+        path: None,
+    },
+    LibraryCard {
+        id: 101587,
+        name: "Regent",
+        types: &[CardType::Master],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::Fixed(1),
+        burn_option: false,
+        combo: false,
+        labels: &[Label::Title],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["MASTER_PHASE"],
+                flags: &["in_play_action"],
+            },
+        ],
+        path: None,
+    },
+    LibraryCard {
+        id: 102063,
+        name: "Under Siege",
+        types: &[CardType::Action],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::Fixed(1),
+        burn_option: false,
+        combo: false,
+        labels: &[Label::Unique],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["ACTION_DECLARE"],
+                flags: &[],
+            },
+        ],
+        path: None,
+    },
+    LibraryCard {
+        id: 102308,
+        name: "Absolute Tyranny",
+        types: &[CardType::ActionModifier, CardType::Reaction],
+        disciplines: &["pot", "pre"],
+        clans: &[],
+        blood_cost: Cost::Fixed(1),
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: true,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["pot", "pre"],
+                windows: &["REFERENDUM"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["POT", "PRE"],
+                windows: &["REFERENDUM"],
+                flags: &[],
+            },
+        ],
+        path: Some("Power and the Inner Voice"),
+    },
+    LibraryCard {
+        id: 102312,
+        name: "Cold War",
+        types: &[CardType::PoliticalAction],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["ACTION_DECLARE_POLITICAL"],
+                flags: &[],
+            },
+        ],
+        path: None,
+    },
+    LibraryCard {
+        id: 102316,
+        name: "Dominant Personality",
+        types: &[CardType::ActionModifier],
+        disciplines: &["pot", "pre"],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["pot", "pre"],
+                windows: &["ACTION_BLOCK_ATTEMPT"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["POT", "PRE"],
+                windows: &["ACTION_AS_ANNOUNCED"],
+                flags: &[],
+            },
+        ],
+        path: Some("Power and the Inner Voice"),
+    },
+    LibraryCard {
+        id: 102318,
+        name: "Empires Fall",
+        types: &[CardType::PoliticalAction],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["ACTION_DECLARE_POLITICAL"],
+                flags: &[],
+            },
+        ],
+        path: None,
+    },
+    LibraryCard {
+        id: 102331,
+        name: "Magnetic Authority",
+        types: &[CardType::ActionModifier],
+        disciplines: &["dom", "pot"],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["dom", "pot"],
+                windows: &["ACTION_AFTER_RESOLUTION"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["DOM", "POT"],
+                windows: &["ACTION_AFTER_RESOLUTION"],
+                flags: &[],
+            },
+        ],
+        path: Some("Power and the Inner Voice"),
+    },
+    LibraryCard {
+        id: 102334,
+        name: "Privileged Position",
+        types: &[CardType::Master],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[Label::Unique],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["MASTER_PHASE"],
+                flags: &[],
+            },
+        ],
+        path: Some("Power and the Inner Voice"),
+    },
+    LibraryCard {
+        id: 102337,
+        name: "Relentlessness",
+        types: &[CardType::ActionModifier],
+        disciplines: &["cel", "for"],
+        clans: &[],
+        blood_cost: Cost::Fixed(1),
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["cel", "for"],
+                windows: &["ACTION_STEALTH_INTERCEPT"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["CEL", "FOR"],
+                windows: &["ACTION_BLOCK_ATTEMPT"],
+                flags: &[],
+            },
+        ],
+        path: Some("Power and the Inner Voice"),
+    },
+    LibraryCard {
+        id: 102345,
+        name: "Unholy Sacrament",
+        types: &[CardType::Master],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::Fixed(3),
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["MASTER_PHASE"],
+                flags: &[],
+            },
+        ],
+        path: None,
+    },
+    LibraryCard {
+        id: 102346,
+        name: "Unthinkable Humiliation",
+        types: &[CardType::ActionModifier],
+        disciplines: &["pot", "pre"],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["pot", "pre"],
+                windows: &["ACTION_DURING"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["POT", "PRE"],
+                windows: &["ACTION_DURING"],
+                flags: &[],
+            },
+        ],
+        path: Some("Power and the Inner Voice"),
+    },
+    LibraryCard {
+        id: 102348,
+        name: "War of Ages",
+        types: &[CardType::PoliticalAction],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[Label::Unique],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["ACTION_DECLARE_POLITICAL"],
+                flags: &["in_play_action"],
+            },
+        ],
+        path: None,
     },
 ];
 
@@ -10262,10 +11153,17 @@ pub static MINI_LIBRARIES: [(&str, &[(u16, u8)]); 14] = [
     ("Tzimisce (New Blood III)", &[(34, 2), (40, 2), (65, 1), (71, 1), (84, 1), (91, 2), (108, 2), (128, 1), (130, 1), (135, 1), (144, 1), (150, 2), (151, 3), (167, 4), (238, 2), (244, 1), (260, 1), (262, 1), (286, 2), (295, 1), (320, 2), (324, 3), (356, 4), (357, 2), (387, 1), (389, 1), (401, 1), (402, 1), (404, 1)]),
 ];
 
-/// The anniversary decks' libraries (88 cards each) as (name, [(LIBRARY
-/// index, copies)]). Names match crypt::ANNIVERSARY_PRECONS.
+/// The anniversary decks' libraries (88 cards each) as (name,
+/// [(LIBRARY index, copies)]). Names match crypt::ANNIVERSARY_PRECONS.
 #[rustfmt::skip]
 pub static ANNIVERSARY_LIBRARIES: [(&str, &[(u16, u8)]); 2] = [
     ("Reign of Stanislava (Twenty-Fifth Anniversary)", &[(15, 1), (16, 1), (29, 1), (31, 2), (34, 1), (81, 1), (91, 6), (103, 1), (108, 4), (109, 6), (110, 1), (148, 1), (150, 6), (158, 3), (164, 1), (167, 7), (185, 1), (196, 4), (232, 1), (243, 3), (252, 5), (258, 1), (286, 2), (321, 3), (395, 5), (428, 1), (432, 2), (436, 1), (437, 1), (438, 1), (439, 3), (440, 3), (441, 1), (442, 1), (443, 1), (444, 1), (445, 4)]),
     ("The Endless Dance (Thirtieth Anniversary)", &[(16, 1), (26, 1), (31, 2), (53, 5), (103, 1), (115, 1), (122, 2), (164, 1), (185, 2), (190, 1), (196, 2), (209, 6), (230, 2), (243, 2), (252, 6), (259, 2), (321, 2), (360, 4), (371, 6), (395, 6), (400, 6), (419, 1), (436, 1), (443, 1), (444, 1), (445, 6), (446, 2), (447, 2), (448, 2), (449, 1), (450, 1), (451, 2), (452, 1), (453, 6)]),
+];
+
+/// The Sabbat V5 decks' libraries (77 cards each) as (name,
+/// [(LIBRARY index, copies)]). Names match crypt::SABBAT_PRECONS.
+#[rustfmt::skip]
+pub static SABBAT_LIBRARIES: [(&str, &[(u16, u8)]); 1] = [
+    ("Path of Power and the Inner Voice (Sabbat V5)", &[(31, 2), (83, 1), (86, 1), (91, 5), (116, 6), (158, 4), (196, 5), (209, 3), (243, 5), (395, 3), (400, 2), (454, 1), (455, 1), (456, 3), (457, 1), (458, 2), (459, 1), (460, 2), (461, 1), (462, 2), (463, 3), (464, 2), (465, 4), (466, 3), (467, 2), (468, 1), (469, 4), (470, 3), (471, 2), (472, 2)]),
 ];

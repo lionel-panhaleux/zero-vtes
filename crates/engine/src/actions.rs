@@ -230,6 +230,12 @@ pub struct ActionCtx {
     /// Where the Veil Thins [OBL]: an attempt costs 1 blood without
     /// Oblivion.
     pub veil_thins: bool,
+    /// Blood (or an ally's life) every minion burns to attempt to block
+    /// this action (Unthinkable Humiliation).
+    pub block_toll_extra: u8,
+    /// The acting Methuselah's prey burned pool during this action
+    /// (Věnceslava): any pool they lost, costs paid included (rules-qa 52.4).
+    pub prey_burned: bool,
     /// Faceless Night [OBF]: failed attempts from now on lock their minion
     /// before resolution.
     pub lock_failed: bool,
@@ -1103,7 +1109,7 @@ impl Engine {
                 },
             )
             .max(0) as u8;
-        let blood = veil + printed;
+        let blood = veil + printed + a.block_toll_extra;
         if veil > 0 && v.is_ally() || v.blood < blood {
             return None;
         }
@@ -1316,6 +1322,14 @@ impl Engine {
         // "Allies cannot block this action / this Anarch" (Visions of
         // Gehenna, Invigorate [dom], Libertas).
         let no_allies = a.allies_cannot_block || st.allies_cannot_block(a.acting);
+        // "Vampires with capacity 3 or less cannot block Rexton".
+        let small = st
+            .printed_mod(
+                a.acting,
+                cards::Stat::SmallVampiresCannotBlock,
+                crate::state::PrintedCtx::default(),
+            )
+            .max(0);
         st.minions_of(seat)
             .filter(|m| {
                 let v = &st.minions[m.index()];
@@ -1328,6 +1342,9 @@ impl Engine {
                     && !st.cannot_block(*m)
                     && !st.unblockable(a.acting, a.kind)
                     && !(no_allies && v.is_ally())
+                    && !(small > 0
+                        && v.is_vampire()
+                        && st.capacity_of(*m).is_some_and(|c| (c as i32) <= small))
                     && !(a.vampires_cannot_block && !v.is_ally())
                     && !(a.titled_cannot_block
                         && !v.is_ally()
@@ -2212,6 +2229,27 @@ impl Engine {
     /// later.
     fn diablerise(&mut self, diablerist: MinionId, victim: MinionId) {
         let taken = self.state.minions[victim.index()].blood;
+        // Regent: to a Sabbat diablerist, before the victim burns (and the
+        // blood hunt is called).
+        if self.state.sect_of(diablerist) == Some(crate::crypt::Sect::Sabbat) {
+            for ci in 0..self.state.cards.len() {
+                let c = &self.state.cards[ci];
+                let moves = c.in_play
+                    && c.host == Some(victim)
+                    && cards::lookup(c.card).is_some_and(|d| {
+                        d.modes[c.mode as usize]
+                            .effects
+                            .contains(&Effect::MovesToSabbatDiablerist)
+                    });
+                if moves {
+                    let id = CardId(ci as u32);
+                    self.state.cards[ci].host = Some(diablerist);
+                    if let Some(t) = cards::card_title(self.state.cards[ci].card) {
+                        self.gain_title(diablerist, t, Some(id));
+                    }
+                }
+            }
+        }
         // Burned from torpor: the cards on it go, no "ready minion" rider.
         self.burn_minion(victim);
         self.state.gain_blood(diablerist, taken);
@@ -2328,6 +2366,19 @@ impl Engine {
                 modifier: cards::Modifier::InterceptMod { younger_than: 0, n },
                 source: crate::state::CardId(u32::MAX),
             }),
+            Effect::BlockToll(n) => a.block_toll_extra += n,
+            // "Minions get -1 intercept" (Unthinkable Humiliation [POT]):
+            // every minion, this action.
+            Effect::MinionsIntercept(n) => {
+                self.state.layers.push(cards::Layer {
+                    scope: Scope::Action,
+                    modifier: cards::Modifier::InterceptMod {
+                        younger_than: u8::MAX,
+                        n,
+                    },
+                    source: crate::state::CardId(u32::MAX),
+                });
+            }
             Effect::YoungerIntercept(n) => {
                 // An ally actor has no capacity: allies only.
                 let younger_than = self
@@ -3033,6 +3084,12 @@ impl Engine {
                 let amount = a.bleed_amount(&self.state);
                 let lost = amount.min(self.state.seats[prey.index()].pool.max(0) as u8);
                 self.state.seats[prey.index()].pool -= amount as i32;
+                // The context is out of `self.action` here: Věnceslava's
+                // memory is set on it directly — the bleed's target the
+                // acting Methuselah's prey, not a deflected one.
+                if amount > 0 && prey == self.state.prey(seat) && prey != seat {
+                    a.prey_burned = true;
+                }
                 if lost > 0 {
                     self.own_bleed_riders(seat, a.acting, lost);
                 }
@@ -3615,6 +3672,12 @@ impl Engine {
                             let c = src.card();
                             if self.state.cards[c.index()].present() {
                                 self.state.cards[c.index()].counters += n;
+                            }
+                        }
+                        Effect::RemoveAllSourceCounters => {
+                            let c = src.card();
+                            if self.state.cards[c.index()].present() {
+                                self.state.cards[c.index()].counters = 0;
                             }
                         }
                         Effect::SearchToHand(filter) => {
@@ -4228,6 +4291,7 @@ impl Engine {
                 || st.minions[m.index()]
                     .clan()
                     .is_some_and(|c| lib.clans.contains(&c)))
+            && lib.path.is_none_or(|p| st.follows(m, p))
             && lib
                 .modes
                 .first()
@@ -4432,6 +4496,17 @@ impl Engine {
     /// pending — so the phase cannot even end. An ally performs no hunt,
     /// rescue or diablerie ("any ready vampire"), and one recruited this
     /// turn takes no action at all (rulebook "Recruit Ally").
+    /// `seat` burned pool: during an action, the acting Methuselah's prey
+    /// burning some is remembered (Věnceslava).
+    pub(crate) fn note_pool_burned(&mut self, seat: SeatId) {
+        let prey = self.action.as_ref().map(|a| self.state.prey(a.seat));
+        if let (Some(a), Some(p)) = (self.action.as_mut(), prey) {
+            if p == seat && a.seat != seat {
+                a.prey_burned = true;
+            }
+        }
+    }
+
     /// The Methuselah of the action under way, else the active one (an
     /// action is the acting minion's controller's: Enkil Cog's in another
     /// Methuselah's phase).

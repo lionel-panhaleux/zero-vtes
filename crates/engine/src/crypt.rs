@@ -24,7 +24,16 @@ pub enum Title {
     Justicar(&'static str),
     InnerCircle(&'static str),
     Archbishop(&'static str),
-    Independent { name: &'static str, votes: u8 },
+    /// Sabbat titles that are not unique (bishop 1 vote, cardinal 3; a
+    /// priscus votes in the prisci block) and the unique regent (4).
+    Bishop,
+    Cardinal,
+    Priscus,
+    Regent,
+    Independent {
+        name: &'static str,
+        votes: u8,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -42,10 +51,13 @@ pub struct CryptCard {
     /// An advanced vampire (KRCG `adv`): the same vampire as its base
     /// card for contests (rulebook "Advanced Vampires").
     pub adv: bool,
+    /// The Sabbat path printed on the vampire (KRCG `path`), the one it
+    /// follows as it enters play.
+    pub path: Option<&'static str>,
 }
 
 #[rustfmt::skip]
-pub static CRYPT: [CryptCard; 213] = [
+pub static CRYPT: [CryptCard; 225] = [
     CryptCard {
         id: 201661,
         name: "\"Coach\" Tyrone Soros",
@@ -56,6 +68,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201725,
@@ -67,6 +80,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201663,
@@ -78,6 +92,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201623,
@@ -89,6 +104,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201634,
@@ -100,6 +116,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201635,
@@ -111,6 +128,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201636,
@@ -122,6 +140,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201664,
@@ -133,6 +152,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::Baron("Manaus"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201708,
@@ -144,6 +164,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 200030,
@@ -155,6 +176,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 200039,
@@ -166,6 +188,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201717,
@@ -177,6 +200,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201529,
@@ -188,6 +212,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Melbourne"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201530,
@@ -199,6 +224,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Birmingham"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201531,
@@ -210,6 +236,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Nairobi"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201575,
@@ -221,6 +248,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Tampa"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201576,
@@ -232,6 +260,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::Baron("Mannheim"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201577,
@@ -243,6 +272,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201624,
@@ -254,6 +284,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201532,
@@ -265,6 +296,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Taipei"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 200081,
@@ -276,6 +308,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201666,
@@ -287,6 +320,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201657,
@@ -298,6 +332,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 200105,
@@ -309,6 +344,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 200123,
@@ -320,6 +356,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201709,
@@ -331,6 +368,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 200132,
@@ -342,6 +380,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201655,
@@ -353,6 +392,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201533,
@@ -364,6 +404,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201578,
@@ -375,6 +416,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201579,
@@ -386,6 +428,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::Baron("Mombasa"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201534,
@@ -397,6 +440,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201535,
@@ -408,6 +452,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Addis Ababa"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201637,
@@ -419,6 +464,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201710,
@@ -430,6 +476,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201536,
@@ -441,6 +488,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201781,
@@ -452,6 +500,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201537,
@@ -463,6 +512,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Copenhagen"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201580,
@@ -474,6 +524,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201711,
@@ -485,6 +536,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201581,
@@ -496,6 +548,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201667,
@@ -507,6 +560,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::Baron("Sofia"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201538,
@@ -518,6 +572,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201539,
@@ -529,6 +584,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201625,
@@ -540,6 +596,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201521,
@@ -551,6 +608,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::Baron("Columbus"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201668,
@@ -562,6 +620,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201540,
@@ -573,6 +632,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Buenos Aires"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201626,
@@ -584,6 +644,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201541,
@@ -595,6 +656,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201542,
@@ -606,6 +668,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Primogen,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201638,
@@ -617,6 +680,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201669,
@@ -628,6 +692,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201543,
@@ -639,6 +704,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 200303,
@@ -650,6 +716,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201582,
@@ -661,6 +728,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201729,
@@ -672,6 +740,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Constanza"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201639,
@@ -683,6 +752,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201583,
@@ -694,6 +764,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201640,
@@ -705,6 +776,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201782,
@@ -716,6 +788,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201670,
@@ -727,6 +800,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201584,
@@ -738,6 +812,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201671,
@@ -749,6 +824,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201544,
@@ -760,6 +836,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Pittsburgh"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201545,
@@ -771,6 +848,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Primogen,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201546,
@@ -782,6 +860,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201730,
@@ -793,6 +872,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201585,
@@ -804,6 +884,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201586,
@@ -815,6 +896,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::Baron("Pittsburgh"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201627,
@@ -826,6 +908,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201587,
@@ -837,6 +920,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Detroit"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201588,
@@ -848,6 +932,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201547,
@@ -859,6 +944,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("São Paulo"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201672,
@@ -870,6 +956,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201718,
@@ -881,6 +968,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201548,
@@ -892,6 +980,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201712,
@@ -903,6 +992,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Lima"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201589,
@@ -914,6 +1004,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201641,
@@ -925,6 +1016,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201642,
@@ -936,6 +1028,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201783,
@@ -947,6 +1040,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 200562,
@@ -958,6 +1052,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201590,
@@ -969,6 +1064,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201731,
@@ -980,6 +1076,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201591,
@@ -991,6 +1088,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201719,
@@ -1002,6 +1100,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201720,
@@ -1013,6 +1112,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201549,
@@ -1024,6 +1124,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201550,
@@ -1035,6 +1136,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Mannheim"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201673,
@@ -1046,6 +1148,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201592,
@@ -1057,6 +1160,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201551,
@@ -1068,6 +1172,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Rio de Janeiro"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201628,
@@ -1079,6 +1184,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Primogen,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201674,
@@ -1090,6 +1196,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201593,
@@ -1101,6 +1208,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201595,
@@ -1112,6 +1220,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 200723,
@@ -1123,6 +1232,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201596,
@@ -1134,6 +1244,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Primogen,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201713,
@@ -1145,6 +1256,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Primogen,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201597,
@@ -1156,6 +1268,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201598,
@@ -1167,6 +1280,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Justicar("Assamite"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201604,
@@ -1178,6 +1292,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Thessaloniki"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201552,
@@ -1189,6 +1304,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201659,
@@ -1200,6 +1316,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201629,
@@ -1211,6 +1328,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Chicago"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201599,
@@ -1222,6 +1340,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Primogen,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201574,
@@ -1233,6 +1352,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::Baron("Santiago"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201643,
@@ -1244,6 +1364,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201553,
@@ -1255,6 +1376,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Primogen,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 200816,
@@ -1266,6 +1388,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201554,
@@ -1277,6 +1400,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201721,
@@ -1288,6 +1412,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201555,
@@ -1299,6 +1424,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Primogen,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201526,
@@ -1310,6 +1436,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::Baron("Canberra"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201556,
@@ -1321,6 +1448,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Primogen,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201675,
@@ -1332,6 +1460,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201557,
@@ -1343,6 +1472,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201676,
@@ -1354,6 +1484,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201600,
@@ -1365,6 +1496,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201722,
@@ -1376,6 +1508,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201677,
@@ -1387,6 +1520,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201601,
@@ -1398,6 +1532,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201714,
@@ -1409,6 +1544,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Barcelona"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201630,
@@ -1420,6 +1556,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201602,
@@ -1431,6 +1568,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::Baron("Belo Horizonte"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201558,
@@ -1442,6 +1580,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201631,
@@ -1453,6 +1592,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201559,
@@ -1464,6 +1604,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201603,
@@ -1475,6 +1616,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201644,
@@ -1486,6 +1628,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201605,
@@ -1497,6 +1640,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201560,
@@ -1508,6 +1652,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201645,
@@ -1519,6 +1664,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201561,
@@ -1530,6 +1676,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Cape Town"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201723,
@@ -1541,6 +1688,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201724,
@@ -1552,6 +1700,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201784,
@@ -1563,6 +1712,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201562,
@@ -1574,6 +1724,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201563,
@@ -1585,6 +1736,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201606,
@@ -1596,6 +1748,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201632,
@@ -1607,6 +1760,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201607,
@@ -1618,6 +1772,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201678,
@@ -1629,6 +1784,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201564,
@@ -1640,6 +1796,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201785,
@@ -1651,6 +1808,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201608,
@@ -1662,6 +1820,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201609,
@@ -1673,6 +1832,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201679,
@@ -1684,6 +1844,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201656,
@@ -1695,6 +1856,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Lagos"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201680,
@@ -1706,6 +1868,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201565,
@@ -1717,6 +1880,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201646,
@@ -1728,6 +1892,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201726,
@@ -1739,6 +1904,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201566,
@@ -1750,6 +1916,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201727,
@@ -1761,6 +1928,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201681,
@@ -1772,6 +1940,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201682,
@@ -1783,6 +1952,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201647,
@@ -1794,6 +1964,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("London"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201660,
@@ -1805,6 +1976,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201610,
@@ -1816,6 +1988,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201648,
@@ -1827,6 +2000,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201649,
@@ -1838,6 +2012,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201715,
@@ -1849,6 +2024,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Primogen,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201683,
@@ -1860,6 +2036,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201732,
@@ -1871,6 +2048,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Edinburgh"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201567,
@@ -1882,6 +2060,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201650,
@@ -1893,6 +2072,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201651,
@@ -1904,6 +2084,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201684,
@@ -1915,6 +2096,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201611,
@@ -1926,6 +2108,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201568,
@@ -1937,6 +2120,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201786,
@@ -1948,6 +2132,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201685,
@@ -1959,6 +2144,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201658,
@@ -1970,6 +2156,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::Baron("Helsinki"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201686,
@@ -1981,6 +2168,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201662,
@@ -1992,6 +2180,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::Baron("Santo Domingo"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201612,
@@ -2003,6 +2192,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201687,
@@ -2014,6 +2204,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201652,
@@ -2025,6 +2216,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201321,
@@ -2036,6 +2228,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Sabbat,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201569,
@@ -2047,6 +2240,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201688,
@@ -2058,6 +2252,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201570,
@@ -2069,6 +2264,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Rotterdam"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201571,
@@ -2080,6 +2276,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201613,
@@ -2091,6 +2288,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201728,
@@ -2102,6 +2300,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201572,
@@ -2113,6 +2312,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201689,
@@ -2124,6 +2324,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201653,
@@ -2135,6 +2336,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201614,
@@ -2146,6 +2348,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::Baron("Moscow"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201615,
@@ -2157,6 +2360,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::Baron("Johannesburg"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201594,
@@ -2168,6 +2372,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Algiers"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201573,
@@ -2179,6 +2384,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201465,
@@ -2190,6 +2396,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201690,
@@ -2201,6 +2408,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201691,
@@ -2212,6 +2420,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Independent,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201716,
@@ -2223,6 +2432,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Singapore"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201692,
@@ -2234,6 +2444,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201665,
@@ -2245,6 +2456,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::Baron("Ciudad Juárez"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201617,
@@ -2256,6 +2468,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Anarch,
         title: Title::Baron("Miami"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 200575,
@@ -2267,6 +2480,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Sabbat,
         title: Title::Archbishop("Berlin"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 200634,
@@ -2278,6 +2492,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Geneva"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 200937,
@@ -2289,6 +2504,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Milwaukee"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201312,
@@ -2300,6 +2516,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::InnerCircle("Gangrel"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201478,
@@ -2311,6 +2528,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Justicar("Gangrel"),
         adv: true,
+        path: None,
     },
     CryptCard {
         id: 201694,
@@ -2322,6 +2540,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Justicar("Toreador"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201696,
@@ -2333,6 +2552,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Paris"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201699,
@@ -2344,6 +2564,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201702,
@@ -2355,6 +2576,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Bogota"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201703,
@@ -2366,6 +2588,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::Prince("Gary"),
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201706,
@@ -2377,6 +2600,7 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
     },
     CryptCard {
         id: 201707,
@@ -2388,6 +2612,151 @@ pub static CRYPT: [CryptCard; 213] = [
         sect: Sect::Camarilla,
         title: Title::None,
         adv: false,
+        path: None,
+    },
+    CryptCard {
+        id: 201733,
+        name: "Aaradhya, The Callous Tyrant",
+        capacity: 10,
+        group: 6,
+        clan: "Ventrue",
+        disciplines: &["ANI", "DOM", "FOR", "POT", "PRE"],
+        sect: Sect::Sabbat,
+        title: Title::Cardinal,
+        adv: false,
+        path: Some("Power and the Inner Voice"),
+    },
+    CryptCard {
+        id: 201744,
+        name: "Concordia",
+        capacity: 6,
+        group: 6,
+        clan: "Ventrue",
+        disciplines: &["for", "pot", "DOM", "PRE"],
+        sect: Sect::Sabbat,
+        title: Title::Bishop,
+        adv: false,
+        path: Some("Power and the Inner Voice"),
+    },
+    CryptCard {
+        id: 201747,
+        name: "Damian",
+        capacity: 8,
+        group: 6,
+        clan: "Lasombra",
+        disciplines: &["for", "pre", "DOM", "OBL", "POT"],
+        sect: Sect::Sabbat,
+        title: Title::Archbishop("Pittsburgh"),
+        adv: false,
+        path: Some("Power and the Inner Voice"),
+    },
+    CryptCard {
+        id: 201760,
+        name: "Khin Aye",
+        capacity: 7,
+        group: 6,
+        clan: "Ventrue",
+        disciplines: &["dom", "for", "POT", "PRE"],
+        sect: Sect::Sabbat,
+        title: Title::Priscus,
+        adv: false,
+        path: Some("Power and the Inner Voice"),
+    },
+    CryptCard {
+        id: 201762,
+        name: "Lika, The Purger",
+        capacity: 3,
+        group: 6,
+        clan: "Lasombra",
+        disciplines: &["dom", "pot"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        adv: false,
+        path: Some("Power and the Inner Voice"),
+    },
+    CryptCard {
+        id: 201764,
+        name: "Lyyli Yösydän",
+        capacity: 5,
+        group: 6,
+        clan: "Lasombra",
+        disciplines: &["dom", "for", "obl", "POT"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        adv: false,
+        path: Some("Power and the Inner Voice"),
+    },
+    CryptCard {
+        id: 201766,
+        name: "Onkabetse, Arriviste",
+        capacity: 4,
+        group: 6,
+        clan: "Brujah",
+        disciplines: &["for", "pot", "pre"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        adv: false,
+        path: Some("Power and the Inner Voice"),
+    },
+    CryptCard {
+        id: 201769,
+        name: "Rasha Tarabzouni",
+        capacity: 6,
+        group: 6,
+        clan: "Lasombra",
+        disciplines: &["obl", "pre", "DOM", "POT"],
+        sect: Sect::Sabbat,
+        title: Title::Bishop,
+        adv: false,
+        path: Some("Power and the Inner Voice"),
+    },
+    CryptCard {
+        id: 201770,
+        name: "Rexton \"Savage\" Abernathy",
+        capacity: 8,
+        group: 6,
+        clan: "Brujah",
+        disciplines: &["cel", "DOM", "POT", "PRE"],
+        sect: Sect::Sabbat,
+        title: Title::Archbishop("Geneva"),
+        adv: false,
+        path: Some("Power and the Inner Voice"),
+    },
+    CryptCard {
+        id: 201774,
+        name: "Suwira",
+        capacity: 2,
+        group: 6,
+        clan: "Ventrue",
+        disciplines: &["pre"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        adv: false,
+        path: Some("Power and the Inner Voice"),
+    },
+    CryptCard {
+        id: 201775,
+        name: "Üresség",
+        capacity: 8,
+        group: 6,
+        clan: "Brujah",
+        disciplines: &["dom", "for", "CEL", "POT", "PRE"],
+        sect: Sect::Sabbat,
+        title: Title::Archbishop("Budapest"),
+        adv: false,
+        path: Some("Power and the Inner Voice"),
+    },
+    CryptCard {
+        id: 201776,
+        name: "Věnceslava, The Implacable",
+        capacity: 9,
+        group: 6,
+        clan: "Brujah",
+        disciplines: &["cel", "DOM", "FOR", "POT", "PRE"],
+        sect: Sect::Sabbat,
+        title: Title::Archbishop("Ostrava"),
+        adv: false,
+        path: Some("Power and the Inner Voice"),
     },
 ];
 
@@ -2437,4 +2806,11 @@ pub static MINI_PRECONS: [(&str, &[(u16, u8)]); 14] = [
 pub static ANNIVERSARY_PRECONS: [(&str, &[(u16, u8)]); 2] = [
     ("Reign of Stanislava (Twenty-Fifth Anniversary)", &[(201, 2), (202, 2), (203, 2), (204, 4), (205, 2)]),
     ("The Endless Dance (Thirtieth Anniversary)", &[(206, 3), (207, 3), (208, 1), (209, 1), (210, 2), (211, 1), (212, 1)]),
+];
+
+/// The Sabbat V5 precons' crypts (12 cards each) fully in the pool, by deck
+/// name, as (name, [(CRYPT index, copies)]).
+#[rustfmt::skip]
+pub static SABBAT_PRECONS: [(&str, &[(u16, u8)]); 1] = [
+    ("Path of Power and the Inner Voice (Sabbat V5)", &[(213, 1), (214, 1), (215, 1), (216, 1), (217, 1), (218, 1), (219, 1), (220, 1), (221, 1), (222, 1), (223, 1), (224, 1)]),
 ];

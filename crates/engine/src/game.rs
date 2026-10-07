@@ -1494,10 +1494,26 @@ impl Engine {
                     .flat_map(|(_, r)| r.effects.iter())
                     .map(|e| match *e {
                         cards::Effect::GainPool(n) => n as i32,
+                        cards::Effect::BurnSelf => 0,
                         other => unreachable!("not a prey-ousted rider effect: {other:?}"),
                     })
                     .sum();
                 self.state.seats[pred.index()].pool += extra;
+                // "After your prey is ousted, burn this card" (War of Ages).
+                let burned: Vec<CardId> = self
+                    .state
+                    .card_riders(Hook::PreyOusted)
+                    .into_iter()
+                    .filter(|&(id, r)| {
+                        self.state.cards[id.index()].present()
+                            && self.state.card_controller(id) == *pred
+                            && r.effects.contains(&cards::Effect::BurnSelf)
+                    })
+                    .map(|(id, _)| id)
+                    .collect();
+                for id in burned {
+                    self.burn_card_in_play(id);
+                }
             }
         }
         match self.state.living() {
@@ -1631,6 +1647,10 @@ impl Engine {
         }
         self.state.turn_played.clear();
         self.state.turn_plays.clear();
+        for seat in &mut self.state.seats {
+            seat.auto_pass_pending = false;
+            seat.sabbat_referendum_called = false;
+        }
         // Delayed replacements ("do not replace until your next unlock
         // phase") are drawn before unlocking (ANK 20200129).
         let held = std::mem::take(&mut self.state.seats[s.index()].held.unlock);
@@ -1820,7 +1840,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 213);
+        assert_eq!(CRYPT.len(), 225);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

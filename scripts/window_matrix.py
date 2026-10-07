@@ -115,6 +115,42 @@ ADDED_BATCHES = [
         201706: "Silvian Popescu (G7)",
         201707: "Valentina Osako (G7)",
     },
+    # 2026-10-07: Sabbat V5, the Path of Power and the Inner Voice deck's
+    # new cards (with Under Siege and Unholy Sacrament, shared with later
+    # decks).
+    {
+        100165: "Black Forest Base",
+        100294: "Cardinal Benediction",
+        100307: "Catatonic Fear",
+        100541: "Día de los Muertos",
+        101008: "Iron Glare",
+        101437: "Powerbase: Madrid",
+        101490: "Private Audience",
+        101587: "Regent",
+        102063: "Under Siege",
+        102308: "Absolute Tyranny",
+        102312: "Cold War",
+        102316: "Dominant Personality",
+        102318: "Empires Fall",
+        102331: "Magnetic Authority",
+        102334: "Privileged Position",
+        102337: "Relentlessness",
+        102345: "Unholy Sacrament",
+        102346: "Unthinkable Humiliation",
+        102348: "War of Ages",
+        201733: "Aaradhya, The Callous Tyrant (G6)",
+        201744: "Concordia (G6)",
+        201747: "Damian (G6)",
+        201760: "Khin Aye (G6)",
+        201762: "Lika, The Purger (G6)",
+        201764: "Lyyli Yösydän (G6)",
+        201766: "Onkabetse, Arriviste (G6)",
+        201769: "Rasha Tarabzouni (G6)",
+        201770: "Rexton \"Savage\" Abernathy (G6)",
+        201774: "Suwira (G6)",
+        201775: "Üresség (G6)",
+        201776: "Věnceslava, The Implacable (G6)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -196,6 +232,30 @@ def anniversary_decks(cards):
         crypt = sum(n for c, n in deck.values() if "Vampire" in c["types"])
         assert (crypt, sum(n for _, n in deck.values()) - crypt) == (12, 88), (s, crypt)
         out.append((name, s, {i: n for i, (_, n) in deck.items()}))
+    return out
+
+
+# The Sabbat V5 precons (KRCG `precon` tags), each emitted once every card
+# of it is in the pool; drawn by path for training (owner, 2026-10-05).
+SABBAT_SET = "Sabbat V5"
+
+
+def sabbat_decks(cards):
+    """The Sabbat V5 precons fully in the pool, by deck name, as (deck name,
+    set, {card id: copies}); 12 crypt / 77 library each."""
+    decks = {}
+    for c in cards:
+        for e in c.get("sets", {}).get(SABBAT_SET, []):
+            if "precon" in e:
+                decks.setdefault(e["precon"], {})[c["id"]] = (c, e["copies"])
+    out = []
+    for name in sorted(decks):
+        deck = decks[name]
+        if not all(in_pool(c) for c, _ in deck.values()):
+            continue
+        crypt = sum(n for c, n in deck.values() if "Vampire" in c["types"])
+        assert (crypt, sum(n for _, n in deck.values()) - crypt) == (12, 77), (name, crypt)
+        out.append((name, SABBAT_SET, {i: n for i, (_, n) in deck.items()}))
     return out
 
 
@@ -299,7 +359,9 @@ FLAGS = [
 # is announced" timing clauses are not grants.
 IN_PLAY_ACTION = r"\bas an? [^.;]{0,40}?\baction\b(?! to )(?![^.]* is announced)"
 
-MODE_LINE = re.compile(r"^(\[[^\]]+\]\s*)+")
+# "[cel] or [for]" (the Sabbat V5 layout): either Discipline, one mode
+# (rules-qa 52.1); side by side, a combo (rules-qa 25.2).
+MODE_LINE = re.compile(r"^(\[[^\]]+\]\s*(or\s+(?=\[))?)+")
 TYPE_TAGS = {"COMBAT": "Combat", "ACTION MODIFIER": "Action Modifier",
              "REACTION": "Reaction", "ACTION": "Action",
              "POLITICAL ACTION": "Political Action"}

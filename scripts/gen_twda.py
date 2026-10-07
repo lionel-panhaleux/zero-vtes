@@ -11,7 +11,7 @@ Versions of one deck are capped (owner, 2026-09-28), so training does not
 face some archetypes far more than others: two decks sharing more than
 `SAME_CRYPT` of their crypt (copies, over the smaller crypt; generic
 vampires such as Anarch Convert ignored) are versions of the same deck. The
-precons and the anniversary decks come first, each the first version of its own; then TWDA decks by
+precons, the anniversary and the Sabbat V5 decks come first, each the first version of its own; then TWDA decks by
 event size (players), then the newest, each kept if its deck has fewer than
 `VERSIONS` versions so far and its library shares at most `SAME_LIBRARY`
 (copies, over the larger library) with every version kept. Decks are
@@ -70,8 +70,8 @@ def size(x):
 
 
 def precons():
-    """The precons' and anniversary decks' (crypt, library) from the
-    generated tables."""
+    """The precons', anniversary and Sabbat V5 decks' (crypt, library) from
+    the generated tables."""
     def table(path, name):
         text = open(path).read()
         start = text.index(f"pub static {name}:")
@@ -79,7 +79,8 @@ def precons():
         return [[(int(i), int(n)) for i, n in re.findall(r"\((\d+), (\d+)\)", line)]
                 for line in body.splitlines() if line.startswith("    (")]
     return [deck for crypt, library in [("PRECONS", "PRECON_LIBRARIES"),
-                                        ("ANNIVERSARY_PRECONS", "ANNIVERSARY_LIBRARIES")]
+                                        ("ANNIVERSARY_PRECONS", "ANNIVERSARY_LIBRARIES"),
+                                        ("SABBAT_PRECONS", "SABBAT_LIBRARIES")]
             for deck in zip(table(os.path.join(SRC, "crypt.rs"), crypt),
                             table(os.path.join(SRC, "library.rs"), library))]
 

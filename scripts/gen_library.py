@@ -19,7 +19,7 @@ import sys
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from window_matrix import anniversary_decks, in_pool, modes_for, pool_order  # noqa: E402
+from window_matrix import anniversary_decks, in_pool, modes_for, pool_order, sabbat_decks  # noqa: E402
 
 FULL_PRECON_SETS = ["Fifth Edition", "Fifth Edition (Anarch)", "Fifth Edition (Companion)"]
 MINI_PRECON_SETS = ["New Blood", "New Blood II", "New Blood III"]
@@ -189,6 +189,9 @@ def generate(cards):
     out.append("    /// Allies and retainers: the printed type line.")
     out.append("    pub body: Option<Body>,")
     out.append("    pub modes: &'static [Mode],")
+    out.append("    /// The Sabbat path icon (KRCG `path`): a vampire following it plays")
+    out.append("    /// the card (rules-qa 49.7).")
+    out.append("    pub path: Option<&'static str>,")
     out.append("}")
     out.append("")
     out.append("#[rustfmt::skip]")
@@ -224,6 +227,8 @@ def generate(cards):
             out.append(f"                flags: &[{f}],")
             out.append("            },")
         out.append("        ],")
+        path = f"Some({rust_str(c['path'])})" if c.get("path") else "None"
+        out.append(f"        path: {path},")
         out.append("    },")
     out.append("];")
     out.append("")
@@ -237,15 +242,21 @@ def generate(cards):
         "/// Names match crypt::MINI_PRECONS.",
     ])
     out.append("")
-    out.append("/// The anniversary decks' libraries (88 cards each) as (name, [(LIBRARY")
-    out.append("/// index, copies)]). Names match crypt::ANNIVERSARY_PRECONS.")
-    out.append("#[rustfmt::skip]")
-    decks = anniversary_decks(cards)
-    out.append(f"pub static ANNIVERSARY_LIBRARIES: [(&str, &[(u16, u8)]); {len(decks)}] = [")
-    for deck, s, entries in decks:
-        body = ", ".join(f"({i}, {k})" for i, k in sorted((index[c], k) for c, k in entries.items() if c in index))
-        out.append(f"    ({rust_str(deck + ' (' + s + ')')}, &[{body}]),")
-    out.append("];")
+    for source, table, size, other in [
+        (anniversary_decks, "ANNIVERSARY_LIBRARIES", 88, "ANNIVERSARY_PRECONS"),
+        (sabbat_decks, "SABBAT_LIBRARIES", 77, "SABBAT_PRECONS"),
+    ]:
+        out.append(f"/// The {'anniversary' if size == 88 else 'Sabbat V5'} decks' libraries ({size} cards each) as (name,")
+        out.append(f"/// [(LIBRARY index, copies)]). Names match crypt::{other}.")
+        out.append("#[rustfmt::skip]")
+        decks = source(cards)
+        out.append(f"pub static {table}: [(&str, &[(u16, u8)]); {len(decks)}] = [")
+        for deck, s, entries in decks:
+            body = ", ".join(f"({i}, {k})" for i, k in sorted((index[c], k) for c, k in entries.items() if c in index))
+            out.append(f"    ({rust_str(deck + ' (' + s + ')')}, &[{body}]),")
+        out.append("];")
+        out.append("")
+    out.pop()
     return "\n".join(out) + "\n"
 
 

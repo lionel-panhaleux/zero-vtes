@@ -2,7 +2,8 @@
 
 Plan, owner decisions recorded below. Status: slice 1, Reign of Stanislava, and slice 2,
 The Endless Dance, implemented 2026-10-06 (DESIGN §11 P4 · 16d, 16e; rules-qa Batches
-49–51); Sabbat V5 remains. Per-card verdicts, with the precedent card or primitive for each:
+49–51); Sabbat V5's Path of Power and the Inner Voice 2026-10-07 (P4 · 16f, rules-qa
+Batch 52); Cathari, Caine, Death and the Soul remain. Per-card verdicts, with the precedent card or primitive for each:
 `scoping-sabbat-anniversary-cards.md`.
 
 Sources: KRCG `vtes.json` / `twda.json` (2026-10-05); Reign of Stanislava

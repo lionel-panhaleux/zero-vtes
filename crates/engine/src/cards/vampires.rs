@@ -1763,7 +1763,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 112] = [
+pub static VAMPIRES: [&VampireDef; 118] = [
     &PARIJAT,
     &ABADDON,
     &ABRAHAM_DUSABLE,
@@ -1876,6 +1876,12 @@ pub static VAMPIRES: [&VampireDef; 112] = [
     &MARCOS_BELEGRAD,
     &MODIUS,
     &SILVIAN_POPESCU,
+    &AARADHYA,
+    &DAMIAN,
+    &KHIN_AYE,
+    &REXTON,
+    &URESSEG,
+    &VENCESLAVA,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -2077,6 +2083,89 @@ pub static SILVIAN_POPESCU: VampireDef = VampireDef {
             Actor::Host,
             &[],
             &[Effect::TargetBloodToHost(1)],
+        )
+    }],
+    ..VAMP
+};
+
+// ---- Sabbat V5: Path of Power and the Inner Voice ---------------------------
+
+/// "Sabbat cardinal: Aaradhya can unlock after performing a successful
+/// political action (even if the referendum failed). +1 bleed." (LSJ
+/// 20011022: usable in torpor, though she acts ready.)
+pub static AARADHYA: VampireDef = VampireDef {
+    name: "Aaradhya, The Callous Tyrant",
+    printed: &[own(Stat::Bleed, 1, &[])],
+    abilities: &[mode_of(
+        &[Window::ActionAfterResolution],
+        Actor::Host,
+        &[
+            R::ActorActing,
+            R::IsPolitical,
+            R::ActionSuccessful,
+            R::HostLocked,
+        ],
+        &[Effect::UnlockActor],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat Archbishop of Pittsburgh: While you control a ready cardinal,
+/// Damian gets +1 bleed."
+pub static DAMIAN: VampireDef = VampireDef {
+    name: "Damian",
+    printed: &[own(
+        Stat::Bleed,
+        1,
+        &[R::ControlsReadyTitledOther(&[TitleClass::Cardinal])],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat priscus: While your predator controls more ready minions than
+/// you, you get +1 hand size." In torpor too (LSJ 20011022).
+pub static KHIN_AYE: VampireDef = VampireDef {
+    name: "Khin Aye",
+    printed: &[own(Stat::HandSize, 1, &[R::PredatorMoreReadyMinions])],
+    ..VAMP
+};
+
+/// "Sabbat Archbishop of Geneva: Allies and vampires with capacity 3 or
+/// less cannot block Rexton." In torpor too (LSJ 20011022).
+pub static REXTON: VampireDef = VampireDef {
+    name: "Rexton \"Savage\" Abernathy",
+    printed: &[
+        own(Stat::AlliesCannotBlock, 1, &[]),
+        own(Stat::SmallVampiresCannotBlock, 3, &[]),
+    ],
+    ..VAMP
+};
+
+/// "Sabbat Archbishop of Budapest: While your prey has 10 or fewer pool,
+/// Üresség gets +1 vote and +1 bleed."
+pub static URESSEG: VampireDef = VampireDef {
+    name: "Üresség",
+    printed: &[
+        own(Stat::Votes, 1, &[R::PreyPoolAtMost(10)]),
+        own(Stat::Bleed, 1, &[R::PreyPoolAtMost(10)]),
+    ],
+    ..VAMP
+};
+
+/// "Sabbat Archbishop of Ostrava: Once each turn, after resolution of an
+/// action performed by Věnceslava during which your prey burned 1 or more
+/// pool, you can gain 1 pool." Not if the referendum's effects ousted her
+/// controller (ANK 20220808): the action is over. "Burned": any pool the
+/// prey lost, costs paid included (rules-qa 52.4).
+pub static VENCESLAVA: VampireDef = VampireDef {
+    name: "Věnceslava, The Implacable",
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerTurn),
+        ..mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::Host,
+            &[R::ActorActing, R::PreyBurnedPool],
+            &[Effect::GainPool(1)],
         )
     }],
     ..VAMP

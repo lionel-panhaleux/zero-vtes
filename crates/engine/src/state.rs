@@ -57,6 +57,9 @@ pub fn title_key(t: Title) -> Option<TitleKey> {
         Title::Prince(c) | Title::Baron(c) | Title::Archbishop(c) => Some(TitleKey::City(c)),
         Title::Justicar(k) => Some(TitleKey::Justicar(k)),
         Title::InnerCircle(k) => Some(TitleKey::InnerCircle(k)),
+        // The regent is unique; bishops, cardinals, prisci are not.
+        Title::Regent => Some(TitleKey::Named("Regent")),
+        Title::Bishop | Title::Cardinal | Title::Priscus => None,
         Title::Independent { name, .. } => Some(TitleKey::Named(name)),
         Title::None | Title::Primogen => None,
     }
@@ -69,6 +72,11 @@ pub fn title_votes(t: Title) -> u8 {
         Title::Prince(_) | Title::Baron(_) | Title::Archbishop(_) => 2,
         Title::Justicar(_) => 3,
         Title::InnerCircle(_) => 4,
+        Title::Bishop => 1,
+        Title::Cardinal => 3,
+        Title::Regent => 4,
+        // A priscus votes in the prisci block (its ballot), not with votes.
+        Title::Priscus => 0,
         Title::Independent { votes, .. } => votes,
     }
 }
@@ -231,6 +239,9 @@ pub struct Minion {
     pub origin: Option<SeatId>,
     /// A sect a card made it (Twilight Camp: "make that vampire Anarch").
     pub sect_override: Option<Sect>,
+    /// The Sabbat path it follows when not the one printed on it (Black
+    /// Chantry, 2025-06-12: one path at a time); none in the pool sets it.
+    pub path_override: Option<&'static str>,
     /// "Must hunt this turn" (Childe of the Revolution): as a vampire with
     /// no blood, until it hunts or the turn ends.
     pub must_hunt: bool,
@@ -331,6 +342,7 @@ impl Minion {
             temp_from: None,
             origin: None,
             sect_override: None,
+            path_override: None,
             no_life_gain: false,
             must_hunt: false,
             hostage: 0,
@@ -396,6 +408,15 @@ impl Minion {
             MinionKind::Vampire(c) => Some(CRYPT[c as usize].clan),
             MinionKind::Created { clan, .. } => Some(clan),
             MinionKind::Ally { .. } | MinionKind::Token { .. } => None,
+        }
+    }
+
+    /// The path the vampire follows, its benefits aside (`GameState::follows`
+    /// adds the sect): the one printed on it unless another replaced it.
+    pub fn path(&self) -> Option<&'static str> {
+        match self.kind {
+            MinionKind::Vampire(c) => self.path_override.or(CRYPT[c as usize].path),
+            _ => None,
         }
     }
 
@@ -659,6 +680,11 @@ pub struct Seat {
     pub hand_bonus: u8,
     /// One additional master phase action from trifles per master phase.
     pub trifle_used: bool,
+    /// Día de los Muertos this turn: the first referendum a Sabbat vampire
+    /// of theirs calls passes automatically.
+    pub auto_pass_pending: bool,
+    /// A Sabbat vampire of theirs called a referendum this turn.
+    pub sabbat_referendum_called: bool,
     /// A burn-option card discarded this unlock phase (rulebook, advanced:
     /// one each unlock phase).
     pub burn_option_used: bool,
@@ -960,6 +986,26 @@ impl GameState {
                 let c = &CRYPT[slot.card as usize];
                 (c.capacity, c.clan)
             }
+        }
+    }
+
+    /// The printed sect of `seat`'s uncontrolled vampire `i`.
+    pub fn slot_sect(&self, seat: SeatId, i: usize) -> Sect {
+        let slot = &self.seats[seat.index()].uncontrolled[i];
+        match slot.banished {
+            Some(ref b) => self.minions[b.minion.index()]
+                .underlying_sect()
+                .unwrap_or(Sect::Independent),
+            None => CRYPT[slot.card as usize].sect,
+        }
+    }
+
+    /// The printed title of `seat`'s uncontrolled vampire `i`.
+    pub fn slot_title(&self, seat: SeatId, i: usize) -> Title {
+        let slot = &self.seats[seat.index()].uncontrolled[i];
+        match slot.banished {
+            Some(ref b) => self.minions[b.minion.index()].printed_title(),
+            None => CRYPT[slot.card as usize].title,
         }
     }
 
@@ -1278,6 +1324,24 @@ impl GameState {
                     && w.clan() == Some(clan)
                     && self.younger_than(source, o)
             }),
+            R::ControlsReadyTitledOther(classes) => self.minions_of(src.owner).any(|o| {
+                o != source
+                    && self.minions[o.index()].ready()
+                    && classes.iter().any(|c| c.matches(self.title_of(o)))
+            }),
+            R::PredatorMoreReadyMinions => {
+                let ready = |s: SeatId| {
+                    self.minions_of(s)
+                        .filter(|&o| self.minions[o.index()].ready())
+                        .count()
+                };
+                let predator = self.predator(src.owner);
+                predator != src.owner && ready(predator) > ready(src.owner)
+            }
+            R::PreyPoolAtMost(n) => {
+                let prey = self.prey(src.owner);
+                prey != src.owner && self.seats[prey.index()].pool <= n as i32
+            }
             R::ControlsVampireNamed(name) => self
                 .minions
                 .iter()
@@ -1392,6 +1456,7 @@ impl GameState {
         !self.text_suppressed(id)
             && r.requires.iter().all(|&req| match req {
                 Requirement::CountersAtLeast(n) => c.counters >= n,
+                Requirement::CountersAtMost(n) => c.counters <= n,
                 Requirement::SuperiorVersion => c.mode > 0,
                 Requirement::BasicVersion => c.mode == 0,
                 Requirement::OneCopyPerTurn => true,
@@ -2195,7 +2260,11 @@ impl GameState {
                 sect == Sect::Camarilla
             }
             Title::Baron(_) => sect == Sect::Anarch,
-            Title::Archbishop(_) => sect == Sect::Sabbat,
+            Title::Archbishop(_)
+            | Title::Bishop
+            | Title::Cardinal
+            | Title::Priscus
+            | Title::Regent => sect == Sect::Sabbat,
             Title::Independent { .. } => sect == Sect::Independent,
         };
         if fits {
@@ -2203,6 +2272,13 @@ impl GameState {
         } else {
             Title::None
         }
+    }
+
+    /// Does `m` follow `path` — a Sabbat vampire following it (the path's
+    /// benefits only while Sabbat: Black Chantry, 2025-06-12; read live)?
+    pub fn follows(&self, m: MinionId, path: &str) -> bool {
+        let v = &self.minions[m.index()];
+        v.present() && self.sect_of(m) == Some(Sect::Sabbat) && v.path() == Some(path)
     }
 
     /// Votes vampire `m` can cast right now from its title (a ready,

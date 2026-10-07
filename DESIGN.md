@@ -59,10 +59,18 @@ Stranglehold, Reins of Power, Zillah's Valley; then the new cards of The
 Endless Dance (30th Anniversary) deck (2026-10-06, a third batch): Diana
 Iadanza, François Villon, Kazuki Hanabira, Marcos Belegrad, Modius, Silvian
 Popescu, Valentina Osako, Awe, Business Pressure, Camarilla Conclave,
-Charismatic Aura, Confiscation, Loup, Reinforcements, The Louvre, Paris.
+Charismatic Aura, Confiscation, Loup, Reinforcements, The Louvre, Paris;
+then the new cards of the Sabbat V5 Path of Power and the Inner Voice deck
+(2026-10-07, a fourth batch): Aaradhya, Concordia, Damian, Khin Aye, Lika,
+Lyyli Yösydän, Onkabetse, Rasha Tarabzouni, Rexton "Savage" Abernathy,
+Suwira, Üresség, Věnceslava, Absolute Tyranny, Black Forest Base, Cardinal
+Benediction, Catatonic Fear, Cold War, Día de los Muertos, Dominant
+Personality, Empires Fall, Iron Glare, Magnetic Authority, Powerbase:
+Madrid, Private Audience, Privileged Position, Regent, Relentlessness,
+Under Siege, Unholy Sacrament, Unthinkable Humiliation, War of Ages.
 
-- **667 unique cards**: 213 crypt (200 V5 + 13 added), 454 library (421 V5 + 4
-  extra + 29 added).
+- **698 unique cards**: 225 crypt (200 V5 + 25 added), 473 library (421 V5 + 4
+  extra + 48 added).
   V5 library by type: Master 124, Combat 63, Action 59, Action Modifier 53,
   Reaction 40, Equipment 23, Event 20, Ally 19, Political Action 19, Retainer 12
   (multi-type cards counted per type).
@@ -522,6 +530,7 @@ titles; `git log` has the detail.
 | P3 · 14a–14c | 09-27 | Observations (`obs.rs`: entity tokens, option rows with pointers; honest by test); `crates/py` `GamePool` (batched parallel stepping, bots inside, replayable); `train/`: pointer-scoring transformer, PPO self-play, evaluation vs random and bots |
 | P4 · 16c | 09-30 | Remaining-deck tokens (`obs::T_DECK`): the viewer's own library and crypt by contents; `legal_view` keeps them, sorted. Referendum tokens (`obs::T_REFERENDUM`): the calling card, the tally, the terms on the tokens they name |
 | P4 · 16b | 09-28 | The decision point before an oust (`ousting.rs`): Life Boon playable, its VP redirection (`Engine::gain_half_vps`) and pool steal; `oust_and_pass` reports a waiting oust to its callers |
+| P4 · 16f | 10-07 | Sabbat V5, the Path of Power and the Inner Voice: 31 cards as a fourth batch, the deck as the first Sabbat decklist (`Deck::sabbat`, a `sabbat` family); Sabbat titles and the prisci block, paths (a path icon a play requirement), the "[x] or [y]" mode layout (the generator kept only the first Discipline); Día's automatic pass (no polling step), vote penalties generalized (`Penalized`), Under Siege's unlock-and-attempt from a card in play, a printed small-vampire block bar, after-combat damage (Catatonic Fear), the regent moving to a Sabbat diablerist, a card's granted action once each turn by any vampire; the banished vampire's cards shown in the protocol view; rules-qa Batch 52; fuzz fixture of its own (goldens re-blessed: hashes only, identical games) |
 | P4 · 16e | 10-06 | The Endless Dance (30th Anniversary): 15 cards as a third batch, the deck as the second anniversary decklist; Business Pressure's pool-for-votes round (`Pressure`, a polling window of its own), Camarilla Conclave's vote penalty reaching cast votes, Marcos Belegrad's per-Methuselah pool at the tally, Loup's end-of-turn and successful-action hooks, a card removed whatever happens (Reinforcements), an equipment changing vampire by referendum, played-card predicates for abilities in the as-played window (Diana Iadanza); the acting Methuselah ousted mid-polling ends the action; rules-qa Batch 51 |
 | P4 · 16d | 10-06 | Reign of Stanislava (25th Anniversary): 15 cards appended as a second batch (`ADDED_BATCHES`), the deck as a reviewed anniversary decklist (`Deck::anniversary`); archbishop and Inner Circle titles, the advanced flag; Enkil Cog's action in another Methuselah's minion phase (`Flow::CogAction`, offered in its end-of-phase rotation; an action is its minion's controller's, rules-qa 49.6), per-Methuselah vampire choices as a referendum passes, the against-voters' blood at the tally, retainer text lost against Stanislava, Fear of Mekhet's move, a card's per-vampire per-turn play limit; rules-qa Batches 49–50; fuzz fixture of its own (the others' tables keep to the earlier crypt: goldens re-blessed, identical games) |
 | P4 · 16a | 09-28 | Pool extension for TWDA decks: 12 legacy cards appended (`ADDED_CARDS`), first strike, a master card becoming an ally, the before-resolution combat window, out-of-turn Rötschreck, shuffle-on-burn, Ashur Tablets' picks, Life Boon blocked (unblocked by 16b) |
@@ -921,7 +930,13 @@ slice-11 cards by section).
   `ADDED_CARDS` batch after batch (`ADDED_BATCHES`), by KRCG id within a
   batch (`window_matrix.pool_order`): an addition never moves an existing
   index. Titles: archbishop (a city's, 2 votes) and Inner Circle (one per
-  clan beside the justicar, 4 votes); `CryptCard::adv` marks an advanced
+  clan beside the justicar, 4 votes); the Sabbat's bishop (1 vote),
+  cardinal (3), priscus (none of its own, a ballot in the prisci block's 3
+  votes: `VoteRecord::prisci`) and regent (4, the only unique one), each
+  only while Sabbat. Paths: `CryptCard::path`, `LibraryCard::path` (a path
+  icon, a play requirement: rules-qa 49.7), `Minion::path()` read live,
+  `GameState::follows` (present, Sabbat, on the path). A mode line "[pot]
+  or [pre]" is either Discipline (rules-qa 52.1). `CryptCard::adv` marks an advanced
   vampire (the same vampire as its base card for contests; its text keyed
   apart, `VampireDef::adv`). A legacy master's "Master: " type prefix is skipped
   for labels; "Out-of-turn. Frenzy." labels `Frenzy`.
@@ -936,7 +951,12 @@ slice-11 cards by section).
   Shadows of Berlin deck), emitted once every card is in the pool — Reign of
   Stanislava and The Endless Dance; a `--decks` family of its own (`anniversary`, trained
   by default with the precons: a seat draws a clan, then a deck of it), first
-  versions for the TWDA cap like the precons. `TWDA` (`twda.rs`,
+  versions for the TWDA cap like the precons. The Sabbat V5 decks
+  (`SABBAT_PRECONS`/`SABBAT_LIBRARIES`, `Deck::sabbat`, the KRCG "Sabbat V5"
+  set, 12 crypt and 77 library cards each) likewise, once complete — the Path
+  of Power and the Inner Voice so far; a `sabbat` family, not trained by
+  default yet; `Deck::category` (a Sabbat deck's path, else its clan) is
+  what a seat draws first. `TWDA` (`twda.rs`,
   `scripts/gen_twda.py` from KRCG twda.json and the generated tables'
   `id:` order): every tournament-winning deck whose cards are all in the
   pool, tournament-legal sizes (crypt 12+, library 60–90), versions capped
@@ -1549,9 +1569,13 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
 Still true today; "(verify)" marks items inferred from older notes.
 
 - **Inert clauses, no V5 tenant**: Blood Trade's boons; Fall of the Sabbat's
-  Black Hand; The Fourth Cycle's conviction cards; "referendum passes
-  automatically" (Amici Noctis, Voter Captivation rows blocked); first strike and
-  self-damaging weapons (rows n/a).
+  Black Hand; The Fourth Cycle's conviction cards; first strike and
+  self-damaging weapons (rows n/a); Black Forest Base's changeling burn (no
+  changeling ally).
+- **Paths, deferred**: the influence-phase "burn 1 blood to follow a path"
+  for a Sabbat vampire following none (a new choice; in the pool only
+  Hartmut Stover and Styles Margs follow none), and paths in the
+  observations (the policy sees a vampire's sect, not its path).
 - **Mechanisms missing** (ledger `blocked:` rows name the rest): a mage
   subtype (Sri Sansa's "mortal or mage ally": no mage in the pool, none
   generated); immunity to damage from a
@@ -1618,7 +1642,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (`docs/human-play.md` has the board).
 
-Definitions: 454 library, 112 vampires; 1014 Rust tests, 23 Python tests
+Definitions: 473 library, 118 vampires; 1044 Rust tests, 23 Python tests
 
 ## Outlook: deck building (post-v1)
 

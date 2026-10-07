@@ -1,7 +1,7 @@
 # Rules Q&A — ruling reference
 
 Owner rulings (VEKN judge) on VTES rules questions raised while building the
-engine, Batches 1–51. Each item is the settled rule, stated as fact; the
+engine, Batches 1–52. Each item is the settled rule, stated as fact; the
 question framing, engine mechanics, test names and confirmations are dropped
 deliberately: the code and its tests are the reference for how a rule is
 implemented, and they point back here through `rules-qa N.M` comments.
@@ -58,13 +58,13 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
 - **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7
-- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4
+- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8
 - **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9
-- **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6
-- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8
-- **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4
+- **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6
+- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8, 52.2, 52.3, 52.5, 52.7, 52.9, 52.10
+- **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4, 52.5, 52.6, 52.9
 - **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1
 - **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7
 - **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6
@@ -72,7 +72,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6, 46.4, 47.1
 - **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7
 - **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6
-- **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4
+- **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7
 - **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7
 - **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8
 - **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2
@@ -80,8 +80,8 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1, 48.7
 - **Discard phase, events** — 8.4, 15.2, 28.12, 33.8, 40.1–40.11
 - **Conditions read live; card-text defaults** — 4.3, 9.1, 13.2, 18.4, 19.3, 28.2, 28.6, 29.11, 32.4, 32.7, 39.5, 49.5, 49.7
-- **Corruption counters, multi-Discipline cards** — 25.1–25.6, 34.3, 35.2, 38.4
-- **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14, 49.2, 49.3
+- **Corruption counters, multi-Discipline cards** — 25.1–25.6, 34.3, 35.2, 38.4, 52.1
+- **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14, 49.2, 49.3, 52.4
 - **Game end, VP, ousting** — 6.9, 18.2, 24.1, 33.2
 ## Batch 1 — sequencing, impulse, windows
 
@@ -877,3 +877,27 @@ Readings no ruling settles, implemented with the slice; each a question.
 **51.7** Loup: +1 stealth to every Toreador, any Methuselah's; burned after any Toreador's successful action (the one it was played in included), else at the end of the turn; playable when stealth is not yet needed (LSJ 20011214-2). Question (implemented reading).
 
 **51.8** Diana Iadanza cancels any reaction card as it is played during the referendum of a political action she performs (she calls it); its cost is paid. Question (implemented reading).
+
+## Batch 52 — Sabbat V5, the Path of Power and the Inner Voice, implemented readings (2026-10-07)
+
+Readings no ruling settles, implemented with the slice; each a question.
+
+**52.1** "[pot] or [pre]" on one line (the Sabbat V5 layout) is either Discipline at that level, one mode — the counterpart of 25.2's side-by-side combo, which needs both (Iron Glare, Absolute Tyranny): Dominant Personality, Magnetic Authority, Relentlessness and Unthinkable Humiliation are played with either. Question (implemented reading).
+
+**52.2** Absolute Tyranny [POT][PRE]: the -1 vote to each vampire not following the Path of Power and the Inner Voice reaches votes already cast, each vampire's votes stopping at 0 (ANK 20251125), as Camarilla Conclave's (51.2); played by the acting vampire as an action modifier, by another as a reaction. Question (implemented reading).
+
+**52.3** Día de los Muertos: "the first referendum a Sabbat vampire you control calls on this turn" is the first one called after it is played this turn; it passes with no polling step, by a margin of 0 (LSJ 19980107); "only one … in a game" counts every Methuselah's. Question (implemented reading).
+
+**52.4** Věnceslava: her prey "burned 1 or more pool" counts any pool her controller's prey loses during her action, costs paid included (a bleed, a referendum's burn); a bleed deflected to another Methuselah is not the prey's. Question (implemented reading).
+
+**52.5** Cold War: "if this acting vampire is a cardinal or regent, you can choose both" reads the title as the terms are set. Question (implemented reading).
+
+**52.6** Regent's "Sabbat vampires can enter combat with this vampire as a Ⓓ action": another Methuselah's Sabbat vampire, not its own controller's (17.3). Question (implemented reading).
+
+**52.7** Powerbase: Madrid locked in a polling step gives its votes to any titled Sabbat vampire, any Methuselah's — that vampire's controller casts them. Question (implemented reading).
+
+**52.8** Under Siege: offered in the block window to each ready Sabbat vampire of its controller that could attempt to block the action, locked or not, the one already attempting included (ANK 20181122-2); once each action; the +1 intercept lasts the action. Question (implemented reading).
+
+**52.9** The prisci block: each ready priscus casts one ballot, even with no vote of its own; the side with more ballots gets the block's 3 votes, a tie gives none. Question (implemented reading).
+
+**52.10** War of Ages' "call a referendum to burn this card as a +1 stealth political action that costs 1 pool": the pool is paid as the action resolves, as an action card's cost. Question (implemented reading).

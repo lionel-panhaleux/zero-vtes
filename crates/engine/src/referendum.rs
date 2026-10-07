@@ -99,6 +99,9 @@ pub struct VoteRecord {
     pub n: u8,
     /// Canceled by an abstention (Scalpel Tongue): not tallied.
     pub canceled: bool,
+    /// The source is a priscus casting: its ballot in the prisci
+    /// sub-referendum, on the same side (rulebook "The Prisci Block").
+    pub prisci: bool,
 }
 
 /// A recipient of referendum points: a Methuselah, or a card in play
@@ -176,11 +179,17 @@ pub struct ReferendumCtx {
     /// Methuselahs who used their one political-action-card vote.
     pub card_voted: Vec<SeatId>,
     /// Closed Session: non-Camarilla vampires cast nothing.
-    pub camarilla_only: bool,
+    /// Only vampires of this sect vote (Fall of the Camarilla's ban,
+    /// Private Audience, Cardinal Benediction).
+    pub only_sect: Option<Sect>,
     /// Votes each non-Camarilla vampire loses (Camarilla Conclave).
-    pub non_camarilla_minus: u8,
+    pub penalties: Vec<(cards::Penalized, u8)>,
     /// Business Pressure's round under way: the polling step waits on it.
     pub pressure: Option<Pressure>,
+    /// Passes automatically, the polling step skipped (Día de los Muertos):
+    /// nothing "during the polling step" or "during a referendum" is
+    /// played, a margin it passed by is none (LSJ 19980107).
+    pub auto_pass: bool,
     /// Made to fail (Yoruba Shrine): no tally.
     pub forced_fail: bool,
     /// Scorn of Adonis: pool burned at the tally by each Methuselah who
@@ -239,11 +248,12 @@ impl ReferendumCtx {
         } else {
             0
         };
-        let conclave = if st.sect_of(m) == Some(Sect::Camarilla) {
-            0
-        } else {
-            self.non_camarilla_minus as i32
-        };
+        let conclave: i32 = self
+            .penalties
+            .iter()
+            .filter(|(p, _)| p.reaches(st, m))
+            .map(|&(_, n)| n as i32)
+            .sum();
         ((title_votes(title) as i32 - penalty).max(0)
             + st.clan_votes(m)
             + st.host_votes(m)
@@ -255,14 +265,14 @@ impl ReferendumCtx {
             .max(0) as u8
     }
 
-    fn may_vote(&self, st: &crate::state::GameState, m: MinionId) -> bool {
+    pub(crate) fn may_vote(&self, st: &crate::state::GameState, m: MinionId) -> bool {
         let v = &st.minions[m.index()];
         v.ready()
             && !v.expelled
             && !self.abstaining.contains(&m)
             && st
                 .sect_of(m)
-                .is_some_and(|s| !(self.camarilla_only && s != Sect::Camarilla))
+                .is_some_and(|s| self.only_sect.is_none_or(|o| s == o))
     }
 
     /// The votes `m` casts on `favor`'s side: its votes, plus printed votes
@@ -308,17 +318,31 @@ impl ReferendumCtx {
     }
 
     /// (for, against) over the standing records.
+    /// Votes for and against, the prisci block's 3 votes to the side with
+    /// more prisci ballots, none on a tie (rulebook "The Prisci Block";
+    /// rules-qa 52.9).
     pub fn tally(&self) -> (u32, u32) {
-        self.records
-            .iter()
-            .filter(|r| !r.canceled)
-            .fold((0, 0), |(f, a), r| {
-                if r.favor {
-                    (f + r.n as u32, a)
-                } else {
-                    (f, a + r.n as u32)
-                }
-            })
+        let live = self.records.iter().filter(|r| !r.canceled);
+        let (mut f, mut a) = live.clone().fold((0, 0), |(f, a), r| {
+            if r.favor {
+                (f + r.n as u32, a)
+            } else {
+                (f, a + r.n as u32)
+            }
+        });
+        let ballots = live.filter(|r| r.prisci).fold((0u32, 0u32), |(f, a), r| {
+            if r.favor {
+                (f + 1, a)
+            } else {
+                (f, a + 1)
+            }
+        });
+        match ballots.0.cmp(&ballots.1) {
+            std::cmp::Ordering::Greater => f += 3,
+            std::cmp::Ordering::Less => a += 3,
+            std::cmp::Ordering::Equal => {}
+        }
+        (f, a)
     }
 
     pub fn current_term(&self) -> Option<Term> {
@@ -417,9 +441,10 @@ impl Engine {
             abstaining: Vec::new(),
             forced_against: Vec::new(),
             card_voted: Vec::new(),
-            camarilla_only: false,
-            non_camarilla_minus: 0,
+            only_sect: def.and_then(|d| d.only_sect),
+            penalties: Vec::new(),
             pressure: None,
+            auto_pass: false,
             forced_fail: false,
             scorn: 0,
             terms: TermsState::default(),
@@ -442,7 +467,20 @@ impl Engine {
                     favor: true,
                     n: n as u8,
                     canceled: false,
+                    prisci: false,
                 });
+            }
+        }
+        // Día de los Muertos: the first referendum a Sabbat vampire of
+        // theirs calls this turn, if the card was played before it.
+        if let Some(m) = ctx.calling {
+            if self.state.sect_of(m) == Some(Sect::Sabbat) {
+                let seat = &mut self.state.seats[caller.index()];
+                if seat.auto_pass_pending && !seat.sabbat_referendum_called {
+                    ctx.auto_pass = true;
+                    ctx.window = PollingWindow::new(Vec::new());
+                }
+                seat.sabbat_referendum_called = true;
             }
         }
         if def.is_some_and(|d| !d.terms.is_empty()) {
@@ -692,6 +730,29 @@ impl Engine {
                 .filter(|&i| chooseable_card(st, crate::state::CardId(i as u32), filter))
                 .map(|i| Choice::ChooseCard(i as u32))
                 .collect(),
+            Term::SeatOrCard { card, .. } => {
+                let (seat, cards) = (ctx.terms.chosen.is_none(), ctx.terms.cards.is_empty());
+                let mut options = Vec::new();
+                // The second of the two is optional.
+                if !(seat && cards) {
+                    options.push(Choice::Pass);
+                }
+                if seat {
+                    options.extend(
+                        st.clockwise_from(ctx.caller)
+                            .into_iter()
+                            .map(Choice::ChooseSeat),
+                    );
+                }
+                if cards {
+                    options.extend(
+                        (0..st.cards.len())
+                            .filter(|&i| chooseable_card(st, crate::state::CardId(i as u32), card))
+                            .map(|i| Choice::ChooseCard(i as u32)),
+                    );
+                }
+                options
+            }
             Term::AllocatePerChosenWithCards { per } => {
                 let total = per * ctx.terms.minions.len() as u8;
                 let given: u8 = ctx.terms.alloc.iter().map(|(_, n)| *n).sum::<u8>()
@@ -812,6 +873,7 @@ impl Engine {
                 favor,
                 n: n.saturating_mul(p.rate(s)),
                 canceled: false,
+                prisci: false,
             });
             loss[s.index()] += n as i32;
         }
@@ -833,13 +895,15 @@ impl Engine {
             if ctx.spent(Source::Vampire(id)) {
                 continue;
             }
-            if ctx.votes_cast(st, id, true) > 0 && !ctx.forced_against.contains(&id) {
+            // A priscus casts its prisci ballot even with no vote.
+            let ballot = ctx.may_vote(st, id) && st.title_of(id) == crate::crypt::Title::Priscus;
+            if (ctx.votes_cast(st, id, true) > 0 || ballot) && !ctx.forced_against.contains(&id) {
                 options.push(Choice::CastVotes {
                     minion: id,
                     favor: true,
                 });
             }
-            if ctx.votes_cast(st, id, false) > 0
+            if (ctx.votes_cast(st, id, false) > 0 || ballot)
                 && st.minions[id.index()].blood >= self.vote_against_toll(ctx, id)
             {
                 options.push(Choice::CastVotes {
@@ -1005,6 +1069,21 @@ impl Engine {
                 ctx.terms.cards.push(crate::state::CardId(*c));
                 true
             }
+            (Term::SeatOrCard { both, .. }, c) => {
+                match *c {
+                    Choice::ChooseSeat(s) => ctx.terms.chosen = Some(s),
+                    Choice::ChooseCard(card) => ctx.terms.cards.push(crate::state::CardId(card)),
+                    Choice::Pass => {}
+                    _ => unreachable!("illegal seat-or-card choice {c:?}"),
+                }
+                // Both only for the titles named, read as the term is set.
+                let titled = ctx
+                    .calling
+                    .is_some_and(|m| both.iter().any(|t| t.matches(self.state.title_of(m))));
+                *c == Choice::Pass
+                    || !titled
+                    || (ctx.terms.chosen.is_some() && !ctx.terms.cards.is_empty())
+            }
             (Term::AllocatePerChosenWithCards { .. }, Choice::AllocateTo { seat, n }) => {
                 debug_assert_eq!(ctx.terms.pending.first(), Some(seat));
                 ctx.terms.pending.remove(0);
@@ -1078,12 +1157,15 @@ impl Engine {
             }
             other => unreachable!("illegal polling choice {other:?}"),
         };
+        // A priscus casting casts its prisci ballot too, on the same side.
+        let prisci = matches!(source, Source::Vampire(m) if self.state.title_of(m) == crate::crypt::Title::Priscus);
         ctx.records.push(VoteRecord {
             source,
             seat,
             favor,
             n,
             canceled: false,
+            prisci,
         });
         ctx.window.commit();
         None
@@ -1108,7 +1190,7 @@ impl Engine {
         }
         debug_assert!(ctx.step == RefStep::Polling && ctx.window.is_closed());
         let (favor, against) = ctx.tally();
-        let passed = favor > against && !ctx.forced_fail;
+        let passed = (favor > against || ctx.auto_pass) && !ctx.forced_fail;
         match ctx.kind {
             RefKind::BloodHunt { diablerist } => {
                 if passed {
@@ -1122,7 +1204,11 @@ impl Engine {
                 {
                     let a = self.action.as_mut().expect("political action");
                     a.referendum_passed = passed;
-                    a.margin = if passed { favor - against } else { 0 };
+                    a.margin = if passed && !ctx.auto_pass {
+                        favor - against
+                    } else {
+                        0
+                    };
                 }
                 // Scorn of Adonis: paid at the tally, before the effects.
                 if ctx.scorn > 0 {
@@ -1365,6 +1451,24 @@ impl Engine {
                 | RefEffect::RemoveChosen
                 | RefEffect::ChosenVampireTakesChosenCard
                 | RefEffect::ChosenShuffleFromAsh(_) => {}
+                RefEffect::CallerGainsPool(n) => gain[ctx.caller.index()] += n as i32,
+                RefEffect::ChosenBurnsPoolCardBurned(n) => {
+                    if let Some(s) = ctx.terms.chosen {
+                        loss[s.index()] += n as i32;
+                    }
+                }
+                RefEffect::BurnChosenPlusIfBig { base, bonus, cap } => {
+                    for &s in &ctx.terms.seats {
+                        loss[s.index()] += base as i32;
+                        if st.minions_of(s).any(|m| {
+                            st.minions[m.index()].is_vampire()
+                                && st.minions[m.index()].ready()
+                                && st.capacity_of(m).is_some_and(|c| c >= cap)
+                        }) {
+                            loss[s.index()] += bonus as i32;
+                        }
+                    }
+                }
             }
         }
         for (i, g) in gain.iter().enumerate() {
@@ -1407,6 +1511,13 @@ impl Engine {
                     let moved = &mut self.state.cards[c.index()];
                     moved.host = Some(m);
                     moved.controller = owner;
+                }
+            }
+            RefEffect::ChosenBurnsPoolCardBurned(_) => {
+                if let Some(&c) = ctx.terms.cards.first() {
+                    if self.state.cards[c.index()].present() {
+                        self.burn_card_in_play(c);
+                    }
                 }
             }
             RefEffect::ChosenShuffleFromAsh(n) => {
@@ -1520,6 +1631,7 @@ impl Engine {
     /// Simultaneous pool losses: every Methuselah at 0 is ousted at once.
     pub(crate) fn burn_pool_batch(&mut self, loss: &[i32]) {
         let mut ousted = Vec::new();
+        let mut burned = Vec::new();
         for (i, &n) in loss.iter().enumerate() {
             let seat = &mut self.state.seats[i];
             if seat.ousted || n <= 0 {
@@ -1528,9 +1640,13 @@ impl Engine {
             // Below 0 is kept until the oust: a Life Boon must make it good
             // (RTR 19970630).
             seat.pool -= n;
+            burned.push(SeatId(i as u8));
             if seat.pool <= 0 {
                 ousted.push(SeatId(i as u8));
             }
+        }
+        for s in burned {
+            self.note_pool_burned(s);
         }
         if !ousted.is_empty() {
             self.oust_batch(&ousted);
@@ -1658,6 +1774,7 @@ impl Engine {
             favor,
             n,
             canceled: false,
+            prisci: false,
         });
     }
 
@@ -1741,7 +1858,8 @@ impl Engine {
                 v.blood = v.blood.saturating_sub(burn);
             }
             cards::Effect::TallyPenaltyAgainst(n) => ctx.scorn += n,
-            cards::Effect::BarNonCamarillaVotes => ctx.camarilla_only = true,
+            cards::Effect::BarNonCamarillaVotes => ctx.only_sect = Some(Sect::Camarilla),
+            cards::Effect::BarNonSectVotes(sect) => ctx.only_sect = Some(sect),
             cards::Effect::PoolForVotesRound { per, own } => {
                 let order = self.state.clockwise_from(play.seat);
                 ctx.pressure = Some(Pressure {
@@ -1754,11 +1872,21 @@ impl Engine {
                 });
             }
             // Votes already cast lose it too, down to 0 (ANK 20251125).
-            cards::Effect::NonCamarillaVotesMinus(n) => {
-                ctx.non_camarilla_minus += n;
+            cards::Effect::NonCamarillaVotesMinus(_) | cards::Effect::NotPathVotesMinus(..) => {
+                let (who, n) = match effect {
+                    cards::Effect::NonCamarillaVotesMinus(n) => {
+                        (cards::Penalized::NotSect(Sect::Camarilla), n)
+                    }
+                    cards::Effect::NotPathVotesMinus(path, n) => {
+                        (cards::Penalized::NotPath(path), n)
+                    }
+                    _ => unreachable!(),
+                };
+                ctx.penalties.push((who, n));
+                // Votes, not ballots (advanced rules §3.7.6.1).
                 for r in ctx.records.iter_mut().filter(|r| !r.canceled) {
                     if let Source::Vampire(m) = r.source {
-                        if self.state.sect_of(m) != Some(Sect::Camarilla) {
+                        if who.reaches(&self.state, m) {
                             r.n = r.n.saturating_sub(n);
                         }
                     }
@@ -1821,6 +1949,8 @@ pub(crate) fn is_vote_effect(e: &cards::Effect) -> bool {
             | cards::Effect::TallyPenaltyAgainst(_)
             | cards::Effect::BarNonCamarillaVotes
             | cards::Effect::NonCamarillaVotesMinus(_)
+            | cards::Effect::NotPathVotesMinus(..)
+            | cards::Effect::BarNonSectVotes(_)
             | cards::Effect::PoolForVotesRound { .. }
             | cards::Effect::AddVotesXLinear { .. }
             | cards::Effect::FailReferendum

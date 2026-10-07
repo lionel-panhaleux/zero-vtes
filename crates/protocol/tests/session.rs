@@ -27,7 +27,10 @@ fn copies(v: &TableView) -> Vec<CardView> {
     for s in &v.seats {
         out.extend(s.crypt.iter().chain(&s.library).chain(&s.hand));
         out.extend(s.ash_heap.iter().chain(&s.removed).chain(&s.limbo));
-        out.extend(s.uncontrolled.iter().map(|u| u.card));
+        for u in &s.uncontrolled {
+            out.push(u.card);
+            out.extend(&u.cards);
+        }
         for m in s.ready.iter().chain(&s.torpor) {
             out.push(m.card);
             for c in &m.cards {
