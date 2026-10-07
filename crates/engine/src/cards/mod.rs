@@ -377,6 +377,9 @@ pub enum Stat {
     /// A press (mandatory) each combat, only usable to continue combat
     /// (Adrino Manauara).
     MandatoryContinuePress,
+    /// Optional presses each combat (Serhat Gunde: "1 optional press each
+    /// combat").
+    CombatPress,
     /// Of its votes cast against a blood hunt referendum (Jason "Son"
     /// Newberry).
     VotesAgainstBloodHunt,
@@ -650,6 +653,10 @@ pub enum Requirement {
     /// No combat is queued in this action (advanced rules 4.9.3: one at a
     /// time).
     NoQueuedCombat,
+    /// The current action is a hunt (Kalyani: "-1 stealth when hunting").
+    IsHunt,
+    /// The actor is not the acting minion (Yawp Court's Sabbat vampire).
+    ActorNotActing,
     /// This card in play is unlocked ("you can lock this card to …").
     CardUnlocked,
     /// The player has the Edge ("if you have the Edge").
@@ -1946,6 +1953,12 @@ pub enum Modifier {
     /// "Sabbat vampires you control get +1 hunt" (The Hungry Coyote): the
     /// layer source's controller's vampires of the sect.
     OwnSectHunt(Sect, u8),
+    /// "This vampire cannot recruit allies or employ retainers"
+    /// (Depravity), on the host.
+    HostCannotRecruitOrEmploy,
+    /// "The employer gets 1 optional press each combat" (Dread Mastiff
+    /// [ANI]), on the host.
+    HostCombatPress(u8),
     /// "This minion cannot block" (Pentex™ Subversion), on the host.
     HostCannotBlock,
     /// "The other Toreador's non-bleed actions cannot be blocked" (Toreador
@@ -1978,6 +1991,9 @@ pub enum Modifier {
     /// The layer source's host gets this intercept during bleed actions
     /// directed at its controller (Guardian Angel).
     HostInterceptOnBleedAtYou(i8),
+    /// "+n intercept during actions directed at their controller" (Abbot):
+    /// at them or at a card they control (LSJ 20061222).
+    HostInterceptDirectedAtYou(i8),
     /// The layer source's controller gets this hand size (Elder Library).
     HandSize(i8),
     /// The layer source's controller gets +n transfers in their influence
@@ -2023,6 +2039,9 @@ pub enum Modifier {
     /// 5.6.3) — a dodge does not stop it (rulebook "Environmental
     /// damage"), a combat ends strike does.
     RetainerDamage(u8),
+    /// As `RetainerDamage`, at close range only (Dread Mastiff: "each
+    /// round of combat during normal strike resolution at close range").
+    RetainerDamageClose(u8),
     /// "Minions in combat with the employer cannot strike: combat ends"
     /// (Dog Pack).
     NoCombatEndsAgainstHost,
@@ -2761,6 +2780,50 @@ pub enum Effect {
     BleedOutcomeCounters,
     /// "+n hand size until your next discard phase" (Fotini Katsikaris).
     HandSizeUntilDiscard(u8),
+    /// "Strike cards cost the acting minion +n blood or life during the
+    /// resulting combat if this vampire blocks" (Ensnare a Beast [ANI]).
+    StrikeTollIfBlocks(u8),
+    /// "Anarchs get -n intercept during this action" (Fiendish Tongue).
+    SectInterceptThisAction(Sect, i8),
+    /// "If this vampire is Tzimisce and the bleed is successful, this
+    /// Tzimisce can burn n blood during your next discard phase to unlock"
+    /// (Fiendish Tongue): `Choice::UnlockForBlood` there.
+    TzimisceDiscardUnlockIfBleedSuccessful(u8),
+    /// "At the end of that combat, if only one combatant is ready, the
+    /// controller of the opposing minion burns n pool" (Abuse of Power).
+    OpposingBurnsPoolIfOneReadyAfterCombat(u8),
+    /// "At the end of that combat, if the opposing vampire is not ready,
+    /// you can put this card on this acting vampire" (Pillars Fall): put
+    /// whenever it can be, one per vampire.
+    PutOnActorIfOpposingNotReadyAfterCombat,
+    /// "During your prey's unlock phase, for each vampire in torpor they
+    /// control, they burn 1 pool. If your prey controls no vampires in
+    /// torpor …, burn this card" (Augury of Doom).
+    PreyBurnsPoolPerTorpor,
+    /// Put this card on the opposing minion, its player keeping control
+    /// (Hunting the Quarry [cel]/[tha]).
+    PutOnOpposingKeepControl,
+    /// Burn the card in play granting this action as the action is
+    /// declared, a cost ("burn this card to attempt to …", Hunting the
+    /// Quarry).
+    BurnSourceAsCost,
+    /// "Once this round, this vampire can burn n blood to get 1 additional
+    /// maneuver, only usable to get to close range" (Dance with the Devil
+    /// [OBF]/[THA]).
+    CloseManeuverForBlood(u8),
+    /// "This combat, this vampire's hand strikes inflict +n damage" (Rage
+    /// of Apedemak).
+    HandStrikeDamageThisCombat(u8),
+    /// "This combat, you get +n hand size" (Rage of Apedemak).
+    HandSizeThisCombat(u8),
+    /// Yawp Court: the chosen Sabbat vampire enters combat with the acting
+    /// vampire before the referendum; the acting vampire still ready at its
+    /// end, the Sabbat vampire takes 2 environmental damage and the
+    /// referendum goes on, else the action ends (rules-qa 54.1).
+    YawpCourtCombat,
+    /// A combat card put on its vampire as it resolves, usable for the
+    /// rest of the combat (Wall of Filth).
+    PutOnActorNow,
     /// "Continue the action as if unblocked" after the resolution of a
     /// blocked action (Go-getter [OBF]).
     ContinueAfterResolution,
@@ -4059,6 +4122,8 @@ pub fn holds(
         Requirement::NotOwnTurn => st.active != seat,
         Requirement::DirectedAtYou => action.is_some_and(|a| a.directed_seat(st) == Some(seat)),
         Requirement::IsBleed => action.is_some_and(|a| a.kind == ActionKind::Bleed),
+        Requirement::IsHunt => action.is_some_and(|a| a.kind == ActionKind::Hunt || a.is_hunt),
+        Requirement::ActorNotActing => !action.is_some_and(|a| actor == Some(a.acting)),
         Requirement::PreyBurnedPool => action.is_some_and(|a| a.prey_burned),
         Requirement::ActingFollowsPath(path) => action.is_some_and(|a| st.follows(a.acting, path)),
         Requirement::NoQueuedCombat => !action.is_some_and(|a| a.queued_combat.is_some()),
@@ -4281,7 +4346,7 @@ pub fn holds(
                         .contains(&crate::library::Label::RequiresAnarch)
                 })
         }
-        Requirement::CombatWouldEnd => combat.is_some_and(|c| c.would_end()),
+        Requirement::CombatWouldEnd => combat.is_some_and(|c| c.would_end() && !c.end_fixed),
         Requirement::ActorReady => actor.is_some_and(|m| st.minions[m.index()].ready()),
         // The prevention half of a card needs damage to prevent; a mode
         // with another window (Indomitability [FOR]'s press) is unaffected

@@ -1763,7 +1763,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 126] = [
+pub static VAMPIRES: [&VampireDef; 131] = [
     &PARIJAT,
     &ABADDON,
     &ABRAHAM_DUSABLE,
@@ -1890,6 +1890,11 @@ pub static VAMPIRES: [&VampireDef; 126] = [
     &JURGEN,
     &OSVALDO_KUHNEMANN,
     &VERRIX,
+    &ALGIRDAS,
+    &ANOUSHA,
+    &CROSSBREAKER,
+    &KALYANI,
+    &SERHAT_GUNDE,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -2279,5 +2284,63 @@ pub static OSVALDO_KUHNEMANN: VampireDef = VampireDef {
 pub static VERRIX: VampireDef = VampireDef {
     name: "Verrix, Naughty Boy",
     printed: &[own(Stat::Stealth, 1, &[R::IsBleed])],
+    ..VAMP
+};
+
+// ---- Sabbat V5: Path of Caine (slice 16h) --------------------------------
+//
+// Berenguela, Grażyna, Hekla, Lawbringer, Loyiso, Przemysław and Surapong
+// print no text ("Sabbat.", "Sabbat bishop.").
+
+/// "Sabbat bishop: Strike cards cost opposing younger vampires +1 blood." A
+/// strike granted later is paid too (LSJ 20090529); paid as declared (LSJ
+/// 20090703).
+pub static ALGIRDAS: VampireDef = VampireDef {
+    name: "Algirdas, The Solar Prophet",
+    printed: &[Printed {
+        stat: Stat::StrikeCardToll,
+        n: 1,
+        to: PrintedTo::Opponent,
+        per: Per::One,
+        requires: &[R::ActorVampire, R::OpponentOlder],
+    }],
+    ..VAMP
+};
+
+/// "Sabbat bishop: +1 strength."
+pub static ANOUSHA: VampireDef = VampireDef {
+    name: "Anousha, The Maniac",
+    printed: &[own(Stat::Strength, 1, &[])],
+    ..VAMP
+};
+
+/// "Sabbat bishop: Once each round of combat, Crossbreaker can burn 1 blood
+/// to make the damage from his hand strikes aggravated that round."
+pub static CROSSBREAKER: VampireDef = VampireDef {
+    name: "Crossbreaker",
+    abilities: &[ability(
+        &[Window::CombatUntimed],
+        Actor::Host,
+        &[R::HostBloodAtLeast(1)],
+        Limit::PerRound,
+        &[Effect::HostBurnBlood(1), Effect::AggravatedHands],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat bishop: Kalyani gets -1 stealth when hunting. +1 strength."
+pub static KALYANI: VampireDef = VampireDef {
+    name: "Kalyani, Agent of Doom",
+    printed: &[
+        own(Stat::Stealth, -1, &[R::IsHunt]),
+        own(Stat::Strength, 1, &[]),
+    ],
+    ..VAMP
+};
+
+/// "Sabbat: Serhat gets 1 optional press each combat."
+pub static SERHAT_GUNDE: VampireDef = VampireDef {
+    name: "Serhat Gunde, Combat Junkie",
+    printed: &[own(Stat::CombatPress, 1, &[])],
     ..VAMP
 };

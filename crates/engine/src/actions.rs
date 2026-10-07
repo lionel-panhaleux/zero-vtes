@@ -250,6 +250,20 @@ pub struct ActionCtx {
     /// Enthrall [OBF]/[PRE]: after a successful bleed, its vampire may burn
     /// this blood to draw a crypt card (`Choice::DrawCrypt`).
     pub crypt_for_blood: Option<(MinionId, u8)>,
+    /// Intercept given minions of a sect for this action ("Anarchs get -1
+    /// intercept during this action", Fiendish Tongue).
+    pub sect_intercept: Vec<(crate::crypt::Sect, i8)>,
+    /// Ensnare a Beast [ANI]/[CEL]: (its vampire, n) — if it blocks, the
+    /// acting minion's strike cards cost +n in the resulting combat.
+    pub strike_toll_if_blocks: Vec<(MinionId, u8)>,
+    /// The minion the granting card was on as it was burned to declare
+    /// the action (Hunting the Quarry: "burn this card to attempt to enter
+    /// combat with the attached minion").
+    pub burned_source_host: Option<MinionId>,
+    /// The political action's cost paid before its resolution (Yawp Court:
+    /// "the action cost, if any, is paid before Yawp Court gets locked",
+    /// LSJ 20080201).
+    pub cost_paid_early: bool,
     /// Faceless Night [OBF]: failed attempts from now on lock their minion
     /// before resolution.
     pub lock_failed: bool,
@@ -474,6 +488,12 @@ impl ActionCtx {
         Self::intercept_mods(st, m)
             + self.host_intercept(st, m)
             + self.given_intercept(m)
+            + self
+                .sect_intercept
+                .iter()
+                .filter(|&&(sect, _)| st.sect_of(m) == Some(sect))
+                .map(|&(_, n)| n as i32)
+                .sum::<i32>()
             + self.conditional_bonus(st, cards::Stat::Intercept, Some(m))
     }
 
@@ -548,6 +568,11 @@ impl ActionCtx {
             .borne(m)
             .filter_map(|l| match l.modifier {
                 cards::Modifier::HostInterceptOnBleedAtYou(n) if bleed_at_owner => Some(n as i32),
+                cards::Modifier::HostInterceptDirectedAtYou(n)
+                    if self.directed_seat(st) == Some(owner) =>
+                {
+                    Some(n as i32)
+                }
                 cards::Modifier::HostInterceptVsMithraic(n) if at_mithraic => Some(n as i32),
                 cards::Modifier::HostInterceptVsVampires(n)
                     if st.minions[self.acting.index()].is_vampire() =>
@@ -859,6 +884,17 @@ impl Engine {
                                 .contains(&Effect::HuntAction)
                         })
                     })),
+            // "Anarchs get -1 intercept during this action" (Fiendish
+            // Tongue).
+            sect_intercept: card
+                .and_then(|p| cards::lookup(p.card).map(|d| d.modes[p.mode as usize].effects))
+                .unwrap_or(&[])
+                .iter()
+                .filter_map(|e| match *e {
+                    Effect::SectInterceptThisAction(sect, n) => Some((sect, n)),
+                    _ => None,
+                })
+                .collect(),
             ..Default::default()
         });
         // The reductions announced with the card: a lock is made now —
@@ -2055,12 +2091,16 @@ impl Engine {
                 }
             }
             ActionState::Declined | ActionState::WouldSucceed => {
+                // A bleed for 1 or more, or a political action before its
+                // referendum (Yawp Court: "if a political action is
+                // successful, before the referendum").
                 let would_succeed = a.state == ActionState::Declined
                     && !a.failed
-                    && a.kind == ActionKind::Bleed
-                    && a.bleed_amount(&self.state) > 0
-                    && a.bleed_target
-                        .is_some_and(|t| !self.state.seats[t.index()].ousted);
+                    && (a.kind == ActionKind::Bleed
+                        && a.bleed_amount(&self.state) > 0
+                        && a.bleed_target
+                            .is_some_and(|t| !self.state.seats[t.index()].ousted)
+                        || a.kind == ActionKind::Political);
                 if would_succeed {
                     a.state = ActionState::WouldSucceed;
                     a.fresh_window();
@@ -2128,8 +2168,17 @@ impl Engine {
                     let acting = a.acting;
                     let riders = a.block_riders.clone();
                     let dawn = a.dawn_operation;
+                    // Ensnare a Beast [ANI]/[CEL]: its vampire blocked.
+                    let toll: u8 = a
+                        .strike_toll_if_blocks
+                        .iter()
+                        .filter(|&&(m, _)| m == blocker)
+                        .map(|&(_, n)| n)
+                        .sum();
                     self.start_combat(acting, blocker);
-                    self.combat.as_mut().expect("combat").all_aggravated = dawn;
+                    let c = self.combat.as_mut().expect("combat");
+                    c.all_aggravated = dawn;
+                    c.sides[0].strike_card_toll += toll;
                     let unlocks = self.combat_riders(&riders);
                     let a = self.action.as_mut().expect("action context");
                     a.after_block_unlocks = unlocks;
@@ -2301,6 +2350,54 @@ impl Engine {
                 }
             }
         }
+    }
+
+    /// A political action card's cost paid now, before its resolution
+    /// (Yawp Court, LSJ 20080201): false if unpayable — left to fizzle at
+    /// resolution.
+    pub(crate) fn pay_political_cost_now(&mut self) -> bool {
+        let a = self.action.as_ref().expect("action context");
+        if a.cost_paid_early {
+            return true;
+        }
+        let Some(play) = a.card else {
+            return true;
+        };
+        let cost = self.card_blood(a.acting, play, play.x);
+        let (_, cost, used) = self.reduced_cost_with(a, 0, cost);
+        let acting = a.acting;
+        if self.state.minions[acting.index()].blood < cost {
+            return false;
+        }
+        self.state.minions[acting.index()].blood -= cost;
+        self.spend_counters(&used);
+        self.action
+            .as_mut()
+            .expect("action context")
+            .cost_paid_early = true;
+        true
+    }
+
+    /// Yawp Court's combat over: the acting vampire still ready at its end
+    /// (`ready_at_end`, not out of a torpor it went to, LSJ 20090325-1), the
+    /// Sabbat vampire takes 2 environmental damage (RTR 19970630); the
+    /// acting vampire not ready now — a Rötschreck's torpor after the combat
+    /// included (LSJ 20080821) — the action ends with no referendum (LSJ
+    /// 20060902), else it goes on to its referendum (rules-qa 54.1).
+    pub(crate) fn after_yawp_combat(&mut self, sabbat: MinionId, ready_at_end: bool) {
+        let acting = self.action.as_ref().expect("action context").acting;
+        if ready_at_end && self.state.minions[sabbat.index()].present() {
+            self.damage_out_of_combat(sabbat, 2, false);
+        }
+        let Some(a) = self.action.as_mut() else {
+            return;
+        };
+        if !ready_at_end || !self.state.minions[acting.index()].ready() {
+            a.outcome = Some(Outcome::Failed);
+            self.end_action();
+            return;
+        }
+        self.resume_after_queued_combat();
     }
 
     /// A queued combat over: the action's step goes on where it was.
@@ -2493,6 +2590,11 @@ impl Engine {
             }),
             Effect::BlockToll(n) => a.block_toll_extra += n,
             Effect::BlockTollBlood(n) => a.block_toll_blood += n,
+            Effect::SectInterceptThisAction(sect, n) => a.sect_intercept.push((sect, n)),
+            Effect::StrikeTollIfBlocks(n) => {
+                a.strike_toll_if_blocks
+                    .push((play.actor.expect("actor"), n));
+            }
             // Hedonism: the attempting minion locked, a combat queued with
             // it — before its attempt fails.
             Effect::LockAttempting => {
@@ -3290,6 +3392,21 @@ impl Engine {
                         if let Some(n) = draw {
                             a.crypt_for_blood = Some((a.acting, n));
                         }
+                        // Fiendish Tongue: a Tzimisce's unlock in the
+                        // coming discard phase.
+                        let unlock = cards::lookup(play.card).and_then(|d| {
+                            d.modes[play.mode as usize]
+                                .effects
+                                .iter()
+                                .find_map(|e| match e {
+                                    Effect::TzimisceDiscardUnlockIfBleedSuccessful(n) => Some(*n),
+                                    _ => None,
+                                })
+                        });
+                        let m = &mut self.state.minions[a.acting.index()];
+                        if let Some(n) = unlock.filter(|_| m.clan() == Some("Tzimisce")) {
+                            m.discard_unlock_for_blood = n;
+                        }
                     }
                 }
                 // Below 0 kept until the oust: a Life Boon must make it good
@@ -3647,22 +3764,27 @@ impl Engine {
                     a.outcome = Some(Outcome::Fizzled);
                 }
                 // Declaration-time effects (the kind, the printed stealth)
-                // were read at announcement.
+                // were read at announcement; the layers of a card put on its
+                // vampire after the combat wait for it (Pillars Fall).
+                let later = mode
+                    .effects
+                    .contains(&Effect::PutOnActorIfOpposingNotReadyAfterCombat);
                 for e in mode.effects.iter().filter(|_| target_ok).filter(|e| {
-                    !matches!(
-                        e,
-                        Effect::DeclareAction(_)
-                            | Effect::AddStealth(_)
-                            | Effect::IfBlocks(_)
-                            | Effect::EnterCombatWithTarget
-                            | Effect::InResultingCombat(_)
-                            | Effect::TargetActsInCombat
-                            | Effect::Frenzy
-                            | Effect::StillYours
-                            | Effect::TitledCannotBlock
-                            | Effect::UnlockActor
-                            | Effect::HuntAction
-                    )
+                    !(later && matches!(e, Effect::Layer(_)))
+                        && !matches!(
+                            e,
+                            Effect::DeclareAction(_)
+                                | Effect::AddStealth(_)
+                                | Effect::IfBlocks(_)
+                                | Effect::EnterCombatWithTarget
+                                | Effect::InResultingCombat(_)
+                                | Effect::TargetActsInCombat
+                                | Effect::Frenzy
+                                | Effect::StillYours
+                                | Effect::TitledCannotBlock
+                                | Effect::UnlockActor
+                                | Effect::HuntAction
+                        )
                 }) {
                     self.apply_card_effect(*e, &ctx, &mut in_play);
                 }
@@ -3699,6 +3821,21 @@ impl Engine {
                             self.start_combat_at_resolution(t, acting);
                         } else {
                             self.start_combat_at_resolution(acting, t);
+                        }
+                        // At the end of that combat: Abuse of Power's pool
+                        // burn, Pillars Fall put on the acting vampire.
+                        let c = self.combat.as_mut().expect("combat");
+                        for e in mode.effects {
+                            match *e {
+                                Effect::OpposingBurnsPoolIfOneReadyAfterCombat(n) => {
+                                    c.one_ready_burn = Some((acting, n));
+                                }
+                                Effect::PutOnActorIfOpposingNotReadyAfterCombat => {
+                                    c.put_if_opposing_down =
+                                        Some(crate::combat::Held::from_play(&ctx, acting, 0));
+                                }
+                                _ => {}
+                            }
                         }
                         self.combat_riders(&riders);
                         return;
@@ -3822,7 +3959,8 @@ impl Engine {
                             cards::AbilitySource::Card(c) => self.state.cards[c.index()]
                                 .present()
                                 .then_some(self.state.cards[c.index()].host)
-                                .flatten(),
+                                .flatten()
+                                .or(a.burned_source_host),
                             cards::AbilitySource::Vampire(_) => None,
                         };
                         self.minion_target_qualifies(seat, spec, host, t)
@@ -3844,6 +3982,7 @@ impl Engine {
                     match *e {
                         Effect::DeclareAction(_)
                         | Effect::AddStealth(_)
+                        | Effect::BurnSourceAsCost
                         | Effect::MandatoryAction
                         | Effect::PayBlood(_)
                         | Effect::PayLife(_)
@@ -4064,13 +4203,15 @@ impl Engine {
                 let (_, cost, used) = self.reduced_cost_with(&a, 0, cost);
                 let m = &mut self.state.minions[a.acting.index()];
                 m.political_this_turn = true;
-                if m.blood < cost {
-                    // Unpayable by resolution: fizzles (rules-qa 3.6), no
-                    // referendum.
-                    return self.fizzle(a);
+                if !a.cost_paid_early {
+                    if m.blood < cost {
+                        // Unpayable by resolution: fizzles (rules-qa 3.6),
+                        // no referendum.
+                        return self.fizzle(a);
+                    }
+                    m.blood -= cost;
+                    self.spend_counters(&used);
                 }
-                m.blood -= cost;
-                self.spend_counters(&used);
                 let referendum = mode
                     .effects
                     .iter()

@@ -1082,6 +1082,11 @@ impl Engine {
     /// An ally has no torpor: sent there, it is burned instead (advanced
     /// rules 5.3.3).
     pub(crate) fn minions_to_torpor(&mut self, ms: &[MinionId]) {
+        // Who went to torpor during the combat under way (Yawp Court: out of
+        // it again at once, still not ready at its end, LSJ 20090325-1).
+        if let Some(c) = self.combat.as_mut() {
+            c.torpored.extend(ms.iter().copied());
+        }
         // "Until a titled vampire goes to torpor": replaced before any other
         // effect (LSJ 20100527: before Fame's pool).
         if ms.iter().any(|&m| {
@@ -1431,6 +1436,12 @@ impl Engine {
             }
         }
         self.state.seats[s.index()].hand_bonus = 0;
+        // Fiendish Tongue's unlock: that discard phase only.
+        for m in &mut self.state.minions {
+            if m.owner == s {
+                m.discard_unlock_for_blood = 0;
+            }
+        }
         self.next_turn();
     }
 
@@ -1842,7 +1853,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 237);
+        assert_eq!(CRYPT.len(), 249);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

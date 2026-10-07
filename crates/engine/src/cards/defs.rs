@@ -2598,7 +2598,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     ..CARD
 };
 
-pub static DEFS: [&CardDef; 483] = [
+pub static DEFS: [&CardDef; 499] = [
     &MAGIC_OF_THE_SMITH,
     &VAST_WEALTH,
     &BLACK_MARKET_CACHE,
@@ -3082,6 +3082,22 @@ pub static DEFS: [&CardDef; 483] = [
     &SUBVERSION,
     &SWIFT_COVER,
     &TERRIFYING_VISAGE,
+    &ABBOT,
+    &ABUSE_OF_POWER,
+    &AUGURY_OF_DOOM,
+    &DANCE_WITH_THE_DEVIL,
+    &DEPRAVITY,
+    &DREAD_MASTIFF,
+    &ENSNARE_A_BEAST,
+    &FIENDISH_TONGUE,
+    &HUNTING_THE_QUARRY,
+    &PILLARS_FALL,
+    &RAGE_OF_APEDEMAK,
+    &SENTRY_SIGNAL,
+    &SOULGRINDER,
+    &TWISTED_BLOODHOUND,
+    &WALL_OF_FILTH,
+    &YAWP_COURT,
 ];
 
 // ---- Cards in play with riders and granted actions (slice 5) ------------
@@ -14938,5 +14954,457 @@ pub static TERRIFYING_VISAGE: CardDef = CardDef {
         requires: &[],
         effects: &[Effect::BlockerControllerBurnsPool(1)],
     }],
+    ..CARD
+};
+
+// ---- Sabbat V5: Path of Caine -------------------------------------------------
+//
+// The deck's new cards (owner, 2026-10-07), a sixth appended batch (Abbot,
+// Depravity, Fiendish Tongue and Yawp Court legacy reprints); the Path of
+// Caine cards' icon a play requirement (rules-qa 49.7), "[x] or [y]"
+// either Discipline (rules-qa 52.1); readings in rules-qa Batch 54.
+
+/// "+1 stealth action. Requires a Sabbat vampire. Put this card on this
+/// Sabbat vampire and unlock them. This Sabbat vampire gets +1 intercept
+/// during actions directed at their controller. A vampire can have only one
+/// Abbot." Directed at a card they control too, not at another Methuselah
+/// (LSJ 20061222).
+pub static ABBOT: CardDef = CardDef {
+    name: "Abbot",
+    modes: &[action_at(
+        &[
+            Requirement::ActorSectIn(&[Sect::Sabbat]),
+            Requirement::ActorWithout(Holding::Named("Abbot")),
+        ],
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutOnActor,
+            Effect::UnlockActor,
+            Effect::Layer(Modifier::HostInterceptDirectedAtYou(1)),
+        ],
+    )],
+    ..CARD
+};
+
+/// "+1 stealth action. Ⓓ Enter combat with a minion. At the end of that
+/// combat, if only one combatant is ready, the controller of the opposing
+/// minion burns 1 pool." (Path of Caine.) Whichever of the two is ready
+/// (rules-qa 54.7).
+pub static ABUSE_OF_POWER: CardDef = CardDef {
+    name: "Abuse of Power",
+    modes: &[action_at(
+        &[],
+        COMBAT_TARGET,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::EnterCombatWithTarget,
+            Effect::OpposingBurnsPoolIfOneReadyAfterCombat(1),
+        ],
+    )],
+    ..CARD
+};
+
+/// "+1 stealth action. Put this card in play. During your prey's unlock
+/// phase, for each vampire in torpor they control, they burn 1 pool. If
+/// your prey controls no vampires in torpor or after they are ousted, burn
+/// this card. A Methuselah can have only one Augury of Doom." (Path of
+/// Caine.) The "no vampires in torpor" read in that unlock phase (rules-qa
+/// 54.2).
+pub static AUGURY_OF_DOOM: CardDef = CardDef {
+    name: "Augury of Doom",
+    modes: &[action_at(
+        &[Requirement::OnePerMethuselah],
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutInPlay,
+        ],
+    )],
+    riders: &[
+        Rider {
+            hook: Hook::UnlockPhase,
+            scope: RiderScope::Prey,
+            requires: &[],
+            effects: &[Effect::PreyBurnsPoolPerTorpor],
+        },
+        Rider {
+            hook: Hook::PreyOusted,
+            scope: RiderScope::Controller,
+            requires: &[],
+            effects: &[Effect::BurnSelf],
+        },
+    ],
+    ..CARD
+};
+
+/// "[obf] or [tha] Maneuver, only usable to get to close range. [OBF] or
+/// [THA] As above, and once this round, this vampire can burn 1 blood to
+/// get 1 additional maneuver, only usable to get to close range." (Path of
+/// Caine.) The blood paid as it is used (rules-qa 54.6).
+pub static DANCE_WITH_THE_DEVIL: CardDef = CardDef {
+    name: "Dance with the Devil",
+    modes: &[
+        combat(
+            &[Window::CombatDetermineRange],
+            &[Requirement::ManeuverToClose],
+            &[Effect::Maneuver],
+        ),
+        combat(
+            &[Window::CombatDetermineRange],
+            &[Requirement::ManeuverToClose],
+            &[Effect::Maneuver, Effect::CloseManeuverForBlood(1)],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Unique. Put this card on a ready vampire you control. This vampire gets
+/// +1 strength. This vampire gets +1 stealth during diablerie actions. This
+/// vampire cannot recruit allies or employ retainers." (1 pool.) Its
+/// recruit and employ action cards (rules-qa 54.8).
+pub static DEPRAVITY: CardDef = CardDef {
+    name: "Depravity",
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::Controlled,
+                Requirement::TargetVampire,
+                Requirement::ActorReady,
+            ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutOnTarget,
+                strength_on_bearer(1),
+                Effect::Layer(Modifier::Bearer {
+                    stat: Stat::Stealth,
+                    n: 1,
+                    during: &[ActionKind::Diablerie],
+                    who: Bearer::Any,
+                }),
+                Effect::Layer(Modifier::HostCannotRecruitOrEmploy),
+            ],
+        )
+    }],
+    ..CARD
+};
+
+/// "Animal with 2 life. [ani] This retainer inflicts 1 damage on the
+/// opposing minion each round of combat during normal strike resolution at
+/// close range. [ANI] As above, and the employer gets 1 optional press each
+/// combat." (1 blood; Path of Caine.) Environmental, the retainer its
+/// source (ANK 20180612); inflicted against a dodge, not after a combat
+/// ends strike (RTR 19941109).
+pub static DREAD_MASTIFF: CardDef = CardDef {
+    name: "Dread Mastiff",
+    modes: &[
+        employ(&[
+            Effect::DeclareAction(ActionKind::Employ),
+            Effect::EmployRetainer { life: 2 },
+            Effect::Layer(Modifier::RetainerDamageClose(1)),
+        ]),
+        employ(&[
+            Effect::DeclareAction(ActionKind::Employ),
+            Effect::EmployRetainer { life: 2 },
+            Effect::Layer(Modifier::RetainerDamageClose(1)),
+            Effect::Layer(Modifier::HostCombatPress(1)),
+        ]),
+    ],
+    ..CARD
+};
+
+/// "[ani] or [cel] +1 intercept. [ANI] or [CEL] As above, and strike cards
+/// cost the acting minion +1 blood or life during the resulting combat if
+/// this vampire blocks." (Path of Caine.) Paid as declared, a granted
+/// strike too (LSJ 20090529, LSJ 20090703).
+pub static ENSNARE_A_BEAST: CardDef = CardDef {
+    name: "Ensnare a Beast",
+    modes: &[
+        intercept(&[Requirement::InterceptNeeded], &[Effect::AddIntercept(1)]),
+        intercept(
+            &[Requirement::InterceptNeeded],
+            &[Effect::AddIntercept(1), Effect::StrikeTollIfBlocks(1)],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Requires a Sabbat vampire. Ⓓ Bleed with +1 bleed. Anarchs get -1
+/// intercept during this action. If this vampire is Tzimisce and the bleed
+/// is successful, this Tzimisce can burn 1 blood during your next discard
+/// phase to unlock." This turn's discard phase (rules-qa 54.5).
+pub static FIENDISH_TONGUE: CardDef = CardDef {
+    name: "Fiendish Tongue",
+    modes: &[action_at(
+        &[Requirement::ActorSectIn(&[Sect::Sabbat])],
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Bleed),
+            PLUS_ONE_BLEED,
+            Effect::SectInterceptThisAction(Sect::Anarch, -1),
+            Effect::TzimisceDiscardUnlockIfBleedSuccessful(1),
+        ],
+    )],
+    ..CARD
+};
+
+/// "Only usable if both combatants are still ready. A vampire can play only
+/// one Hunting the Quarry each combat. [cel] or [tha] Only usable if combat
+/// is about to end. Put this card on the opposing minion. You still control
+/// this card. Vampires you control can burn this card to attempt to enter
+/// combat with the attached minion as a +1 stealth Ⓓ action. [CEL] or
+/// [THA] Only usable if combat would end. Instead, this vampire burns 1
+/// blood to start a new round." (Path of Caine.) After it, no "would end"
+/// effect (ANK 20191219); after the presses (RTR 20030519); the card
+/// burned as its action is declared (rules-qa 54.4).
+pub static HUNTING_THE_QUARRY: CardDef = CardDef {
+    name: "Hunting the Quarry",
+    modes: &[
+        ModeDef {
+            limit: Some(Limit::PerCombat),
+            ..combat(
+                &[Window::CombatWouldEnd],
+                &[
+                    Requirement::BothCombatantsReady,
+                    Requirement::CombatWouldEnd,
+                ],
+                &[Effect::PutOnOpposingKeepControl, Effect::StillYours],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::PerCombat),
+            ..combat(
+                &[Window::CombatWouldEnd],
+                &[
+                    Requirement::BothCombatantsReady,
+                    Requirement::CombatWouldEnd,
+                    Requirement::ActorBloodAtLeast(1),
+                ],
+                &[Effect::BurnActorBlood(1), Effect::NewRound],
+            )
+        },
+    ],
+    abilities: &[ModeDef {
+        target: target(TargetKind::Minion, &[Requirement::TargetIsHost]),
+        ..mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[Requirement::ActorVampire, Requirement::YouControlThisCard],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::BurnSourceAsCost,
+                Effect::EnterCombatWithTarget,
+            ],
+        )
+    }],
+    ..CARD
+};
+
+/// "Ⓓ Enter combat with a vampire; at the end of that combat, if the
+/// opposing vampire is not ready, you can put this card on this acting
+/// vampire. This vampire gets +1 bleed. A vampire can have only one Pillars
+/// Fall." (Path of Caine.) Put whenever it can be (rules-qa 54.3).
+pub static PILLARS_FALL: CardDef = CardDef {
+    name: "Pillars Fall",
+    modes: &[action_at(
+        &[],
+        target(
+            TargetKind::Minion,
+            &[
+                Requirement::NotControlled,
+                Requirement::ActorReady,
+                Requirement::TargetVampire,
+            ],
+        ),
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::EnterCombatWithTarget,
+            Effect::PutOnActorIfOpposingNotReadyAfterCombat,
+            Effect::Layer(Modifier::Bearer {
+                stat: Stat::Bleed,
+                n: 1,
+                during: &[],
+                who: Bearer::Any,
+            }),
+        ],
+    )],
+    ..CARD
+};
+
+/// "Frenzy. Only usable before range is determined. A vampire can play only
+/// one Rage of Apedemak each combat. [ani] or [pot] This combat, you get +1
+/// hand size and this vampire's hand strikes inflict +1 damage. [ANI] or
+/// [POT] As above, but this vampire's hand strikes inflict +2 damage."
+/// (Path of Caine.) The excess discarded as the combat ends (rules-qa 54.8).
+pub static RAGE_OF_APEDEMAK: CardDef = CardDef {
+    name: "Rage of Apedemak",
+    modes: &[
+        ModeDef {
+            limit: Some(Limit::PerCombat),
+            ..combat(
+                &[Window::CombatBeforeRange],
+                &[],
+                &[
+                    Effect::HandSizeThisCombat(1),
+                    Effect::HandStrikeDamageThisCombat(1),
+                ],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::PerCombat),
+            ..combat(
+                &[Window::CombatBeforeRange],
+                &[],
+                &[
+                    Effect::HandSizeThisCombat(1),
+                    Effect::HandStrikeDamageThisCombat(2),
+                ],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "[ani] or [tha] Only usable by a locked vampire. This vampire unlocks and
+/// attempts to block. [ANI] or [THA] Reduce a bleed against you by 3." (1
+/// blood; Path of Caine.) Already attempting too (ANK 20181122-2); not if
+/// it cannot attempt (LSJ 20010714-2), the prey, predator and target
+/// restrictions kept (ANK 20180623).
+pub static SENTRY_SIGNAL: CardDef = CardDef {
+    name: "Sentry Signal",
+    modes: &[
+        unlock_attempt!(
+            &[Requirement::LockedActor, Requirement::CanAttemptBlock],
+            &[Effect::UnlockActor, Effect::AttemptBlock]
+        ),
+        mode_of(
+            &[Window::ReactionDuringAction],
+            Actor::ReactingMinion,
+            &[Requirement::DirectedAtYou, Requirement::IsBleed],
+            &[Effect::ReduceBleed(3)],
+        ),
+    ],
+    ..CARD
+};
+
+/// "[pot] or [tha] Strike: hand strike at +2 damage. [POT] or [THA] As
+/// above, and damage from this strike cannot be prevented by cards
+/// requiring Fortitude [for]." (Path of Caine.) Not even for cycling (LSJ
+/// 20050628).
+pub static SOULGRINDER: CardDef = CardDef {
+    name: "Soulgrinder",
+    modes: &[
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[Effect::Strike(StrikeKind::Hand { bonus: 2 })],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[
+                Effect::Strike(StrikeKind::Hand { bonus: 2 }),
+                Effect::FortitudeProofStrike,
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Ghoul with 3 life. The employer can enter combat with a minion as a Ⓓ
+/// action." (1 pool; Path of Caine.)
+pub static TWISTED_BLOODHOUND: CardDef = CardDef {
+    name: "Twisted Bloodhound",
+    modes: &[employ(&[
+        Effect::DeclareAction(ActionKind::Employ),
+        Effect::EmployRetainer { life: 3 },
+    ])],
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[Requirement::NotControlled, Requirement::ActorReady],
+        ),
+        ..mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[Requirement::ActorIsHost],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::EnterCombatWithTarget,
+            ],
+        )
+    }],
+    ..CARD
+};
+
+/// "Only usable before range is determined. [pro] or [tha] Put this card on
+/// this vampire. This vampire can burn this card to prevent 2
+/// non-aggravated damage in combat. A vampire can have only one Wall of
+/// Filth. [PRO] or [THA] As above, but to prevent 2 damage in combat."
+/// (Path of Caine.) All of fewer points (RTR 20041202); the unused points
+/// lost (ANK 20200318).
+pub static WALL_OF_FILTH: CardDef = CardDef {
+    name: "Wall of Filth",
+    modes: &[
+        combat(&[Window::CombatBeforeRange], &[], &[Effect::PutOnActorNow]),
+        combat(&[Window::CombatBeforeRange], &[], &[Effect::PutOnActorNow]),
+    ],
+    abilities: &[
+        mode_of(
+            &[Window::CombatDamagePrevention],
+            Actor::Host,
+            &[
+                Requirement::BasicVersion,
+                Requirement::NonAggravatedDamagePending,
+            ],
+            &[Effect::BurnSelf, Effect::PreventNonAggravated(2)],
+        ),
+        mode_of(
+            &[Window::CombatDamagePrevention],
+            Actor::Host,
+            &[Requirement::SuperiorVersion, Requirement::DamagePending],
+            &[Effect::BurnSelf, Effect::Prevent(2)],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Unique location. Requires a ready Sabbat vampire. If a political action
+/// is successful, before the referendum, you can lock this location and a
+/// ready unlocked Sabbat vampire you control to have that vampire enter
+/// combat with the acting vampire. If the acting vampire is still ready at
+/// the end of combat, the Sabbat vampire takes 2 environmental damage and
+/// the referendum is conducted as normal." The action's cost paid first
+/// (LSJ 20080201); not ready at the end of combat — torpor, even left at
+/// once — no referendum (LSJ 20060902, LSJ 20090325-1, LSJ 20080821); the
+/// damage environmental (RTR 19970630); in its would-succeed window
+/// (rules-qa 54.1).
+pub static YAWP_COURT: CardDef = CardDef {
+    name: "Yawp Court",
+    modes: &[master_in_play(
+        &[Requirement::ControlsReadySect(&[Sect::Sabbat])],
+        &[Effect::PutInPlay],
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionWouldBeSuccessful],
+        Actor::AnyReadyVampire,
+        &[
+            Requirement::CardUnlocked,
+            Requirement::IsPolitical,
+            Requirement::ActorSectIn(&[Sect::Sabbat]),
+            Requirement::ActorUnlocked,
+            Requirement::ActorNotActing,
+        ],
+        &[Effect::YawpCourtCombat],
+    )],
     ..CARD
 };

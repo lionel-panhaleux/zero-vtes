@@ -331,6 +331,15 @@ pub struct Side {
     /// Optional maneuvers this round, only usable to get to close range
     /// (Angel's Gift).
     pub close_maneuvers: u8,
+    /// Dance with the Devil [OBF]/[THA]: a maneuver to close range for
+    /// this blood, once this round (0: none).
+    pub close_maneuver_blood: u8,
+    /// Rage of Apedemak: +n damage on this minion's hand strikes this
+    /// combat.
+    pub hand_damage_bonus: u8,
+    /// Ensnare a Beast [ANI]/[CEL]: this minion's strike cards cost +n
+    /// blood or life this combat.
+    pub strike_card_toll: u8,
     /// Damage from this minion's strikes successfully inflicted on the
     /// opposing one this round (Disarm).
     pub inflicted_round: u8,
@@ -399,6 +408,8 @@ impl Side {
             no_continue_press: self.no_continue_press,
             frenzy_no_equipment: self.frenzy_no_equipment,
             combat_card_surcharge: self.combat_card_surcharge,
+            hand_damage_bonus: self.hand_damage_bonus,
+            strike_card_toll: self.strike_card_toll,
             frenzy_immune: self.frenzy_immune,
             marble: self.marble,
             combat_ends_round: self.combat_ends_round,
@@ -502,6 +513,21 @@ pub struct CombatCtx {
     /// A combat the action queued (Hedonism): the action's step resumes
     /// after it.
     pub queued: bool,
+    /// Abuse of Power: (the acting minion, n) — at the end of the combat,
+    /// if only one combatant is ready, the opposing minion's controller
+    /// burns n pool.
+    pub one_ready_burn: Option<(MinionId, u8)>,
+    /// Pillars Fall: the card put on the acting vampire at the end of the
+    /// combat if the opposing vampire is not ready.
+    pub put_if_opposing_down: Option<Held>,
+    /// Yawp Court: the Sabbat vampire in combat with the acting vampire
+    /// before the referendum.
+    pub yawp: Option<MinionId>,
+    /// Hunting the Quarry [cel]/[tha] played as the combat is about to
+    /// end: no "would end" effect after it (ANK 20191219).
+    pub end_fixed: bool,
+    /// The minions sent to torpor during this combat.
+    pub torpored: Vec<MinionId>,
 }
 
 impl CombatCtx {
@@ -775,6 +801,9 @@ impl Engine {
                 .max(0) as u8;
             // "Brujah get 1 optional maneuver each combat" (Brujah Debate).
             s.combat_maneuvers += st.clan_combat_maneuvers(s.minion);
+            // "1 optional press each combat" (Serhat Gunde; Dread Mastiff
+            // [ANI] on its employer).
+            s.combat_presses += st.combat_presses_of(s.minion);
         }
         let order = vec![sides[0].seat, sides[1].seat];
         self.state.combatants = Some([acting, opposing]);
@@ -986,7 +1015,11 @@ impl Engine {
                     Step::DetermineRange
                         if (c.sides[i].maneuvers > 0
                             || c.sides[i].combat_maneuvers > 0
-                            || (c.sides[i].close_maneuvers > 0 && c.range == Range::Long))
+                            || (c.sides[i].close_maneuvers > 0 && c.range == Range::Long)
+                            || (c.sides[i].close_maneuver_blood > 0
+                                && c.range == Range::Long
+                                && self.state.minions[c.sides[i].minion.index()].blood
+                                    >= c.sides[i].close_maneuver_blood))
                             && c.last_maneuver != Some(i)
                             && c.may_maneuver(i) =>
                     {
@@ -1142,6 +1175,15 @@ impl Engine {
                 // maneuver, then the combat-long one.
                 if c.range == Range::Long && c.sides[i].close_maneuvers > 0 {
                     c.sides[i].close_maneuvers -= 1;
+                } else if c.sides[i].maneuvers == 0
+                    && c.sides[i].combat_maneuvers == 0
+                    && c.range == Range::Long
+                    && c.sides[i].close_maneuver_blood > 0
+                {
+                    // Dance with the Devil: the blood paid as it is used.
+                    let n = std::mem::take(&mut c.sides[i].close_maneuver_blood);
+                    let m = c.sides[i].minion;
+                    self.state.minions[m.index()].blood -= n;
                 } else if c.sides[i].maneuvers > 0 {
                     c.sides[i].maneuvers -= 1;
                 } else {
@@ -1598,7 +1640,11 @@ impl Engine {
         // "Environmental damage").
         if c.pair == 0 {
             for i in 0..2 {
-                let n = st.retainer_damage(c.sides[i].minion);
+                let mut n = st.retainer_damage(c.sides[i].minion);
+                // At close range only (Dread Mastiff).
+                if c.range == Range::Close {
+                    n += st.retainer_damage_close(c.sides[i].minion);
+                }
                 c.sides[1 - i].pending.add(n, false);
                 // Environmental damage (Carrion Crows): dodge or not.
                 let n = c.sides[i].environmental;
@@ -1734,7 +1780,7 @@ impl Engine {
             match k {
                 StrikeKind::Hand { bonus } => {
                     if close && !dodged {
-                        let n = strength[i] + bonus;
+                        let n = strength[i] + bonus + c.sides[i].hand_damage_bonus;
                         let aggravated = c.sides[i].aggravated_hands
                             || c.sides[i].aggravated_strike
                             || self.action.as_ref().is_some_and(|a| {
@@ -2125,6 +2171,12 @@ impl Engine {
     /// after-resolution window (rules-qa 17.3).
     fn end_combat(&mut self) {
         let ended = self.combat.take();
+        // Yawp Court reads the acting vampire as the combat ends, before a
+        // Rötschreck's torpor (LSJ 20080821).
+        let acting_ready = self
+            .action
+            .as_ref()
+            .is_some_and(|a| self.state.minions[a.acting.index()].ready());
         if let Some(c) = &ended {
             self.note(CombatNote::Ends {
                 minions: c.sides.each_ref().map(|s| s.minion),
@@ -2182,6 +2234,45 @@ impl Engine {
         if ended.as_ref().is_some_and(|c| c.at_resolution) {
             self.action.as_mut().expect("action context").resolved = true;
         }
+        // Rage of Apedemak's hand size ends with the combat: the excess
+        // discarded at once.
+        for s in ended.iter().flat_map(|c| c.sides.iter().map(|s| s.seat)) {
+            self.state.seats[s.index()].combat_hand_bonus = 0;
+        }
+        // Abuse of Power: one combatant ready, the other not — the
+        // opposing minion's controller burns pool.
+        if let Some(c) = &ended {
+            if let Some((acting, n)) = c.one_ready_burn {
+                let ready = |m: MinionId| self.state.minions[m.index()].ready();
+                let [a, b] = [c.sides[0].minion, c.sides[1].minion];
+                if ready(a) != ready(b) {
+                    let opposing = if a == acting { b } else { a };
+                    let mut loss = vec![0; self.state.seats.len()];
+                    loss[self.state.minions[opposing.index()].owner.index()] = n as i32;
+                    self.burn_pool_batch(&loss);
+                }
+            }
+            // Pillars Fall: "if the opposing vampire is not ready, you can
+            // put this card on this acting vampire" — one per vampire; the
+            // action card enters play rather than the ash heap.
+            if let Some(h) = c.put_if_opposing_down {
+                let opposing = c.sides.iter().map(|s| s.minion).find(|&m| m != h.minion);
+                let name = LIBRARY[h.card as usize].name;
+                if opposing.is_some_and(|o| !self.state.minions[o.index()].ready())
+                    && self.state.minions[h.minion.index()].ready()
+                    && !self.state.holds_a(h.minion, cards::Holding::Named(name))
+                {
+                    let id = self.enter_play(crate::state::CardInPlay {
+                        by: Some(h.minion),
+                        ..crate::state::CardInPlay::new(h.card, h.seat, Some(h.minion), h.mode)
+                    });
+                    self.push_mode_layers(id);
+                    if let Some(a) = self.action.as_mut() {
+                        a.card_entered_play = true;
+                    }
+                }
+            }
+        }
         // A hand size the combat lowered comes back: that Methuselah draws
         // up (Raptor [ANI]; LSJ 20030530).
         let lowered: Vec<SeatId> = ended
@@ -2216,6 +2307,11 @@ impl Engine {
             self.back_to_after_resolution();
         } else if ended.as_ref().is_some_and(|c| c.queued) {
             self.resume_after_queued_combat();
+        } else if let Some(c) = ended.as_ref().filter(|c| c.yawp.is_some()) {
+            let sabbat = c.yawp.expect("Yawp Court's vampire");
+            let acting = self.action.as_ref().map(|a| a.acting);
+            let torpored = acting.is_some_and(|m| c.torpored.contains(&m));
+            self.after_yawp_combat(sabbat, acting_ready && !torpored);
         } else {
             self.after_combat();
         }
@@ -2504,6 +2600,14 @@ impl Engine {
                 c.sides[i].held = Some(Held::from_play(play, actor, counters));
             }
             Effect::PutOnActorAfterCombat => c.after_combat.push(Held::from_play(play, actor, 0)),
+            // Wall of Filth: on the vampire now, "a vampire can have only
+            // one".
+            Effect::PutOnActorNow => {
+                let name = LIBRARY[play.card as usize].name;
+                if !self.state.holds_a(actor, cards::Holding::Named(name)) {
+                    self.place_held(Held::from_play(play, actor, 0), actor);
+                }
+            }
             Effect::StrengthThisRound(n) => c.sides[i].strength_round += n,
             Effect::PreventThisRound(n) => c.sides[i].round_prevents += n,
             Effect::PreventEachRound(n) => {
@@ -2567,6 +2671,12 @@ impl Engine {
             Effect::NextRoundManeuver => c.sides[i].next_round_maneuvers += 1,
             Effect::OptionalManeuver => c.sides[i].maneuvers += 1,
             Effect::OptionalCloseManeuver => c.sides[i].close_maneuvers += 1,
+            Effect::CloseManeuverForBlood(n) => c.sides[i].close_maneuver_blood = n,
+            Effect::HandStrikeDamageThisCombat(n) => c.sides[i].hand_damage_bonus += n,
+            Effect::HandSizeThisCombat(n) => {
+                let seat = c.sides[i].seat;
+                self.state.seats[seat.index()].combat_hand_bonus += n;
+            }
             Effect::AdditionalStrikes { n, limited } => {
                 c.sides[i].additional += n;
                 if limited {
@@ -2612,6 +2722,13 @@ impl Engine {
             }
             Effect::DamageAfterCombatIfClose(n) => c.sides[i].after_damage_rider = Some(n),
             Effect::StunAfterCombatIfClose => c.sides[i].after_stun_rider = true,
+            // Hunting the Quarry [cel]/[tha]: on the opposing minion as the
+            // combat ends, its player keeping control.
+            Effect::PutOnOpposingKeepControl => {
+                let opposing = c.sides[1 - i].minion;
+                c.after_combat.push(Held::from_play(play, opposing, 0));
+                c.end_fixed = true;
+            }
             other => unreachable!("not a combat effect: {other:?}"),
         }
     }
@@ -2746,6 +2863,9 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::CommittedStrike(_)
             | Effect::AdditionalStrikeOnly { .. }
             | Effect::OptionalCloseManeuver
+            | Effect::CloseManeuverForBlood(_)
+            | Effect::HandStrikeDamageThisCombat(_)
+            | Effect::HandSizeThisCombat(_)
             | Effect::PreventOnTarget(_)
             | Effect::PreventOnTargetXPlus(_)
             | Effect::OpposingRestraint
@@ -2764,6 +2884,7 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::OpposingControllerBurnsPool(_)
             | Effect::PutOnOpponentOnHit { .. }
             | Effect::PutOnActorAfterCombat
+            | Effect::PutOnActorNow
             | Effect::StrengthThisRound(_)
             | Effect::PreventThisRound(_)
             | Effect::PreventEachRound(_)
@@ -2784,6 +2905,7 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::ContinueAfterCombat { .. }
             | Effect::DamageAfterCombatIfClose(_)
             | Effect::StunAfterCombatIfClose
+            | Effect::PutOnOpposingKeepControl
             | Effect::SetRange(_)
             | Effect::ImmuneStrikeNonAggravated
             | Effect::ImmuneEffectNonAggravated

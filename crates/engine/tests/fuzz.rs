@@ -2198,4 +2198,71 @@ fuzz_tests! {
         seeds: 100,
         ..BASE
     };
+    /// Sabbat V5, the Path of Caine: the deck's new cards, its bishops and
+    /// warriors dealt around the table, with political actions for Yawp
+    /// Court to fight and a would-end card to race Hunting the Quarry.
+    random_games_with_the_path_of_caine_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Abbot",
+            "Abuse of Power",
+            "Augury of Doom",
+            "Dance with the Devil",
+            "Depravity",
+            "Dread Mastiff",
+            "Ensnare a Beast",
+            "Fiendish Tongue",
+            "Hunting the Quarry",
+            "Pillars Fall",
+            "Rage of Apedemak",
+            "Sentry Signal",
+            "Soulgrinder",
+            "Twisted Bloodhound",
+            "Wall of Filth",
+            "Yawp Court",
+            "Political Stranglehold",
+            "Kine Resources Contested",
+        ],
+        covers: &[
+            "play:Abbot",
+            "play:Abuse of Power",
+            "play:Augury of Doom",
+            "play:Dance with the Devil",
+            "play:Depravity",
+            "play:Dread Mastiff",
+            "play:Ensnare a Beast",
+            "play:Fiendish Tongue",
+            "play:Hunting the Quarry",
+            "play:Pillars Fall",
+            "play:Rage of Apedemak",
+            "play:Sentry Signal",
+            "play:Soulgrinder",
+            "play:Twisted Bloodhound",
+            "play:Wall of Filth",
+            "play:Yawp Court",
+            "ability:Yawp Court",
+            "ability:Hunting the Quarry",
+            "ability:Twisted Bloodhound",
+            "ability:Wall of Filth",
+            "ability:Crossbreaker",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Algirdas, The Solar Prophet",
+                    "Anousha, The Maniac",
+                    "Crossbreaker",
+                    "Kalyani, Agent of Doom",
+                    "Serhat Gunde, Combat Junkie",
+                    "Przemysław, War Beast",
+                    "Hekla \"Bonecrusher\" Jónasdóttir",
+                    "Lawbringer",
+                    "Berenguela, The Vicious",
+                    "Loyiso, The Ruthless",
+                ],
+            )
+        },
+        seeds: 100,
+        ..BASE
+    };
 }

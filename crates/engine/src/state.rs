@@ -220,6 +220,10 @@ pub struct Minion {
     /// "Unlock this vampire during the next discard phase" (Feral Hound
     /// [ani]): cleared by that phase.
     pub unlock_at_discard: bool,
+    /// Fiendish Tongue: the blood this Tzimisce can burn during its
+    /// controller's next discard phase to unlock (0: none); cleared at the
+    /// end of that turn.
+    pub discard_unlock_for_blood: u8,
     /// Corruption counters on this minion, by the Methuselah whose they are
     /// ("your corruption counters"): kept through torpor, control changes
     /// and banishment (a banished vampire keeps everything; owner,
@@ -338,6 +342,7 @@ impl Minion {
             recruits_this_turn: 0,
             played_since_unlock: Vec::new(),
             unlock_at_discard: false,
+            discard_unlock_for_blood: 0,
             corruption: Vec::new(),
             diablerie_shield: false,
             diablerie_turn: None,
@@ -684,6 +689,8 @@ pub struct Seat {
     /// Hand size above 7 until their next discard phase begins (Fotini
     /// Katsikaris; rules-qa 53.4).
     pub hand_bonus_discard: u8,
+    /// Hand size above 7 for the combat under way (Rage of Apedemak).
+    pub combat_hand_bonus: u8,
     /// One additional master phase action from trifles per master phase.
     pub trifle_used: bool,
     /// Día de los Muertos this turn: the first referendum a Sabbat vampire
@@ -1278,6 +1285,7 @@ impl GameState {
             R::ActionDirected => ctx.directed == Some(true),
             R::ActionUndirected => ctx.directed == Some(false),
             R::IsBleed => ctx.kind == Some(ActionKind::Bleed),
+            R::IsHunt => ctx.kind == Some(ActionKind::Hunt),
             R::TargetSeatControlsClan(clans) => ctx.target.is_some_and(|s| {
                 self.minions_of(s).any(|m| {
                     self.minions[m.index()]
@@ -1306,6 +1314,7 @@ impl GameState {
                 .opponent
                 .is_some_and(|o| self.title_of(o) != Title::None),
             R::ActorClan(c) => me.clan() == Some(c),
+            R::ActorVampire => me.is_vampire(),
             R::ActorTitleIn(classes) => classes.iter().any(|c| c.matches(self.title_of(actor))),
             R::PoolAtMost(n) => self.seats[src.owner.index()].pool <= n as i32,
             R::ControlsLocation | R::ControlsNoLocation => {
@@ -1424,8 +1433,11 @@ impl GameState {
             .map(|(_, p)| p.n as i32)
             .sum();
         let seat = &self.seats[s.index()];
-        let mut size =
-            HAND_SIZE as i32 + seat.hand_bonus as i32 + seat.hand_bonus_discard as i32 + printed;
+        let mut size = HAND_SIZE as i32
+            + seat.hand_bonus as i32
+            + seat.hand_bonus_discard as i32
+            + seat.combat_hand_bonus as i32
+            + printed;
         // "While the employer is in combat, the opposing minion's
         // controller gets -1 hand size" (Raptor [ANI]).
         if let Some(pair) = self.combatants {
@@ -1837,6 +1849,28 @@ impl GameState {
     /// round during normal strike resolution (`Modifier::RetainerDamage`).
     pub fn retainer_damage(&self, m: MinionId) -> u8 {
         sum_n!(self.hosted(m), Modifier::RetainerDamage)
+    }
+
+    /// "This vampire cannot recruit allies or employ retainers" on `m`
+    /// (Depravity).
+    pub fn cannot_recruit_or_employ(&self, m: MinionId) -> bool {
+        self.borne(m)
+            .any(|l| matches!(l.modifier, Modifier::HostCannotRecruitOrEmploy))
+    }
+
+    /// As `retainer_damage`, at close range only (Dread Mastiff).
+    pub fn retainer_damage_close(&self, m: MinionId) -> u8 {
+        sum_n!(self.hosted(m), Modifier::RetainerDamageClose)
+    }
+
+    /// Optional presses `m` gets each combat: printed (Serhat Gunde) and
+    /// from the cards on it (Dread Mastiff [ANI]).
+    pub fn combat_presses_of(&self, m: MinionId) -> u8 {
+        let printed = self
+            .printed_mod(m, Stat::CombatPress, PrintedCtx::default())
+            .max(0) as u8;
+        let hosted: u8 = sum_n!(self.hosted(m), Modifier::HostCombatPress);
+        printed + hosted
     }
 
     /// What `viewer` legally knows of the state (DESIGN §5): a copy with

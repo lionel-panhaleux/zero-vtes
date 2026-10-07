@@ -1,7 +1,7 @@
 # Rules Q&A — ruling reference
 
 Owner rulings (VEKN judge) on VTES rules questions raised while building the
-engine, Batches 1–53. Each item is the settled rule, stated as fact; the
+engine, Batches 1–54. Each item is the settled rule, stated as fact; the
 question framing, engine mechanics, test names and confirmations are dropped
 deliberately: the code and its tests are the reference for how a rule is
 implemented, and they point back here through `rules-qa N.M` comments.
@@ -59,26 +59,26 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
 - **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7, 53.6, 53.8
 - **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3
-- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3
+- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9
-- **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6
-- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8, 52.2, 52.3, 52.5, 52.7, 52.9, 52.10
+- **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6, 54.3, 54.4, 54.7
+- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8, 52.2, 52.3, 52.5, 52.7, 52.9, 52.10, 54.1
 - **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4, 52.5, 52.6, 52.9
 - **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1
 - **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7
-- **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6
+- **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6, 54.1
 - **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5
 - **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6, 46.4, 47.1
 - **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7
 - **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6
-- **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7
+- **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7, 54.1
 - **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7
 - **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8
 - **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2, 53.8
 - **Master phase, master cards, out-of-turn** — 1.5, 3.3, 6.6, 7.5, 28.10, 32.3, 33.1, 33.8, 36.4, 49.6, 49.7, 50.1–50.3, 53.7
-- **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1, 48.7
-- **Discard phase, events** — 8.4, 15.2, 28.12, 33.8, 40.1–40.11
+- **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1, 48.7, 54.2, 54.5
+- **Discard phase, events** — 8.4, 15.2, 28.12, 33.8, 40.1–40.11, 54.5
 - **Conditions read live; card-text defaults** — 4.3, 9.1, 13.2, 18.4, 19.3, 28.2, 28.6, 29.11, 32.4, 32.7, 39.5, 49.5, 49.7
 - **Corruption counters, multi-Discipline cards** — 25.1–25.6, 34.3, 35.2, 38.4, 52.1
 - **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14, 49.2, 49.3, 52.4
@@ -921,3 +921,23 @@ Readings no ruling settles, implemented with the slice; each a question.
 **53.7** Terrifying Visage goes on any ready vampire following the Path of Cathari, another Methuselah's too ("a ready vampire", not "you control"); its path icon needs a ready Cathari vampire of its player's (49.7). Question (implemented reading).
 
 **53.8** The Hungry Coyote's +1 hunt: a hunt taking blood from a target takes 1 more from it (RTR 20030519); Psychophagia, which eats an ally from the ash heap, gets none. Osvaldo Kühnemann's "a Methuselah controlling a Toreador or Ventrue" counts one in torpor. Question (implemented reading).
+
+## Batch 54 — Sabbat V5, the Path of Caine, implemented readings (2026-10-07)
+
+Readings no ruling settles, implemented with the slice; each a question.
+
+**54.1** Yawp Court is used in the political action's would-be-successful window (its blocks declined, before it resolves); the action card's cost is paid first (LSJ 20080201), then the location and the Sabbat vampire lock and the combat begins, the acting vampire acting first. "Still ready at the end of combat" is read as the combat ends — before a Rötschreck's torpor (LSJ 20080821), not after a torpor left at once (LSJ 20090325-1); the action ending there is a failed action, with no after-resolution window. The would-be-successful window now exists for every political action (The Line and Ravnos Cache can be used there). Question (implemented reading).
+
+**54.2** Augury of Doom's "if your prey controls no vampires in torpor … burn this card" is read in its controller's prey's unlock phase, instead of the burn; played while the prey has none, it waits for that phase. Question (implemented reading).
+
+**54.3** Pillars Fall's "you can put this card on this acting vampire" is applied whenever the opposing vampire is not ready at the end of that combat and the acting vampire has none; the card enters play from the action. Question (implemented reading).
+
+**54.4** Hunting the Quarry: the card is burned as the granted action is declared (a cost), its target the minion it was on — gone from play, the action fizzles. Question (implemented reading).
+
+**54.5** Fiendish Tongue: "during your next discard phase" is this turn's, an unlock offered there (the vampire still locked, with the blood); the vampire's clan is read as the bleed succeeds. Question (implemented reading).
+
+**54.6** Dance with the Devil [OBF]/[THA]: the extra maneuver is only usable at long range, after the card's own, its blood paid as it is used. Question (implemented reading).
+
+**54.7** Abuse of Power: "if only one combatant is ready" — whichever: the opposing minion's controller burns the pool even if the acting minion is the one not ready (the text names no winner). Question (implemented reading).
+
+**54.8** Rage of Apedemak's +1 hand size lasts the combat: the cards then over hand size are discarded at once. Depravity bars recruit and employ action cards played by its vampire, nothing else. Question (implemented reading).

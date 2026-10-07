@@ -177,6 +177,38 @@ ADDED_BATCHES = [
         201777: "Verrix, Naughty Boy (G6)",
         201778: "Ximena (G6)",
     },
+    # 2026-10-07: Sabbat V5, the Path of Caine deck's new cards (Abbot,
+    # Depravity, Fiendish Tongue and Yawp Court legacy reprints).
+    {
+        100006: "Abbot",
+        100526: "Depravity",
+        100726: "Fiendish Tongue",
+        102199: "Yawp Court",
+        102309: "Abuse of Power",
+        102310: "Augury of Doom",
+        102315: "Dance with the Devil",
+        102317: "Dread Mastiff",
+        102319: "Ensnare a Beast",
+        102329: "Hunting the Quarry",
+        102333: "Pillars Fall",
+        102336: "Rage of Apedemak",
+        102339: "Sentry Signal",
+        102340: "Soulgrinder",
+        102344: "Twisted Bloodhound",
+        102347: "Wall of Filth",
+        201738: "Algirdas, The Solar Prophet (G6)",
+        201739: "Anousha, The Maniac (G6)",
+        201742: "Berenguela, The Vicious (G6)",
+        201745: "Crossbreaker (G6)",
+        201755: "Grażyna \"Butcher\" Olesińska (G6)",
+        201756: "Hekla \"Bonecrusher\" Jónasdóttir (G6)",
+        201759: "Kalyani, Agent of Doom (G6)",
+        201761: "Lawbringer (G6)",
+        201763: "Loyiso, The Ruthless (G6)",
+        201768: "Przemysław, War Beast (G6)",
+        201772: "Serhat Gunde, Combat Junkie (G6)",
+        201773: "Surapong (G6)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -308,6 +340,8 @@ RIDERS = [
     r"(cannot|can't) [^.]*",                              # "cannot maneuver…, press…"
     r"can (also )?strike(, ranged)?:[^.]*",                          # granted strike ability
     r"(can|could) prevent \d[^.]*",                       # granted prevention
+    r"can burn this card to prevent[^.]*",                # granted prevention (Wall of Filth)
+    r"but to prevent \d[^.]*",                            # its [PRO] "as above, but to prevent 2"
     r"to get \+\d intercept",                             # granted intercept ability
     r"skip the determine range step",
 ]
@@ -327,6 +361,9 @@ COMBAT_TIMING = [
     # round's damage, in the end-of-round window (Hell-for-Leather [obt]).
     (r"the opposing minion is not\.", "COMBAT_END_OF_ROUND"),
     (r"combat would end", "COMBAT_WOULD_END"),
+    # "Only usable if combat is about to end" (Hunting the Quarry [cel]):
+    # the same moment, before it ends.
+    (r"combat is about to end", "COMBAT_WOULD_END"),
 ]
 COMBAT_DEFAULT = "COMBAT_UNTIMED"   # rules-qa 2.2: no printed step
 

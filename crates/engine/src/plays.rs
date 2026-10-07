@@ -599,6 +599,19 @@ impl Engine {
                             continue;
                         }
                     }
+                    // "This vampire cannot recruit allies or employ
+                    // retainers" (Depravity).
+                    if let Some(m) = actor {
+                        let hires = mode.effects.iter().any(|e| {
+                            matches!(
+                                e,
+                                Effect::DeclareAction(ActionKind::Recruit | ActionKind::Employ)
+                            )
+                        });
+                        if hires && st.cannot_recruit_or_employ(m) {
+                            continue;
+                        }
+                    }
                     if let Some(m) = actor {
                         if !cards::has_disciplines(st, m, card, tags) {
                             continue;
@@ -2555,7 +2568,15 @@ impl Engine {
             | Effect::PoolWhenHostLeaves(_)
             | Effect::BurnAtInfluencePerPreyReady
             // Read by the diablerie (Regent).
-            | Effect::MovesToSabbatDiablerist => {}
+            | Effect::MovesToSabbatDiablerist
+            // Read as the combat begins (Abuse of Power, Pillars Fall), as
+            // the action is declared (Fiendish Tongue's intercept) and as
+            // the bleed lands (its unlock, Enthrall's draw).
+            | Effect::OpposingBurnsPoolIfOneReadyAfterCombat(_)
+            | Effect::PutOnActorIfOpposingNotReadyAfterCombat
+            | Effect::SectInterceptThisAction(..)
+            | Effect::TzimisceDiscardUnlockIfBleedSuccessful(_)
+            | Effect::CryptForBloodIfBleedSuccessful(_) => {}
             // A marker read by the frenzy-cancel cards (`frenzy_on`).
             Effect::Frenzy => {}
             // Chosen as the card was played (rules-qa 28.5).
@@ -3230,6 +3251,18 @@ impl Engine {
         }
         // "During your discard phase" abilities (Mora, the Death Seer), and
         // those spending a discard phase action (Ayse Dhanial).
+        // Fiendish Tongue: "burn 1 blood during your next discard phase to
+        // unlock".
+        for m in self.state.minions_of(s) {
+            let v = &self.state.minions[m.index()];
+            if v.discard_unlock_for_blood > 0
+                && v.ready()
+                && v.locked
+                && v.blood >= v.discard_unlock_for_blood
+            {
+                options.push(Choice::UnlockForBlood { minion: m });
+            }
+        }
         options.extend(self.ability_options(s, Window::DiscardPhase));
         options.extend(self.ability_options(s, Window::DiscardPhaseAction));
         options.extend(self.ability_options(s, Window::AnyImpulse));
@@ -3278,6 +3311,12 @@ impl Engine {
             Choice::Pass => {
                 self.discard_phase_vampire_riders();
                 self.open_phase_rotation(Flow::Discard)
+            }
+            Choice::UnlockForBlood { minion } => {
+                let v = &mut self.state.minions[minion.index()];
+                v.blood -= std::mem::take(&mut v.discard_unlock_for_blood);
+                v.locked = false;
+                self.flow = Flow::Discard;
             }
             Choice::Discard(i) => {
                 let seat = &mut self.state.seats[s.index()];
@@ -4136,6 +4175,7 @@ impl Engine {
         self.state
             .printed_mod(actor, cards::Stat::StrikeCardToll, ctx)
             .max(0) as u8
+            + c.sides[i].strike_card_toll
     }
 
     /// The blood a card with no pool cost to pay (a bleed or political
@@ -4339,6 +4379,16 @@ impl Engine {
             if mode.limit == Some(Limit::PerTurn) {
                 self.state.turn_uses.push(source.use_key(ability));
             }
+            // "Burn this card to attempt to …" (Hunting the Quarry): the
+            // cost, as the action is declared; its host remembered.
+            let burned_host = if mode.effects.contains(&Effect::BurnSourceAsCost) {
+                let card = source.card();
+                let host = self.state.cards[card.index()].host;
+                self.burn_card_in_play(card);
+                host
+            } else {
+                None
+            };
             // "Can lock this location to … as a … action" (Mobile HQ): a
             // cost, locked even if the action fails (ANK 20221102).
             if mode.effects.contains(&Effect::LockSelf) {
@@ -4352,6 +4402,7 @@ impl Engine {
             let a = self.action.as_mut().expect("action");
             a.ability = Some(ability);
             a.target = target;
+            a.burned_source_host = burned_host;
             a.is_hunt = mode.effects.contains(&Effect::HuntAction);
             if a.is_hunt {
                 self.state.minions[m.index()].hunted = true;
@@ -4916,6 +4967,25 @@ impl Engine {
                 // "Lock after resolution of a successful bleed against you to
                 // enter combat with the acting minion" (The Guardian): both
                 // still ready, the acting minion acting first.
+                // Yawp Court: the chosen Sabbat vampire into combat with the
+                // acting vampire, which acts first, before the referendum.
+                Effect::YawpCourtCombat => {
+                    let m = actor.expect("the Sabbat vampire");
+                    // The action's cost first (LSJ 20080201), then the
+                    // location and the vampire lock.
+                    let paid = self.pay_political_cost_now();
+                    self.lock_card(source.card());
+                    self.state.minions[m.index()].locked = true;
+                    if let Some(acting) = self.action.as_ref().map(|a| a.acting).filter(|_| paid) {
+                        if self.state.minions[acting.index()].ready()
+                            && self.state.minions[m.index()].ready()
+                        {
+                            self.start_combat(acting, m);
+                            self.combat.as_mut().expect("combat").yawp = Some(m);
+                            return true;
+                        }
+                    }
+                }
                 Effect::EnterCombatWithActing => {
                     let h = host.expect("host");
                     if let Some(acting) = self.action.as_ref().map(|a| a.acting) {
@@ -5752,6 +5822,21 @@ impl Engine {
             for e in r.effects {
                 match *e {
                     Effect::BurnPool(n) => own_loss += n as i32,
+                    // Augury of Doom, in its controller's prey's phase: 1
+                    // pool for each of their vampires in torpor; none, the
+                    // card burns (rules-qa 54.2).
+                    Effect::PreyBurnsPoolPerTorpor => {
+                        let n = self
+                            .state
+                            .minions_of(s)
+                            .filter(|&m| self.state.minions[m.index()].in_torpor)
+                            .count();
+                        if n == 0 {
+                            burn_self = true;
+                        } else {
+                            own_loss += n as i32;
+                        }
+                    }
                     Effect::PoolToCounter(n) => {
                         own_loss += n as i32;
                         to_counters += n;
