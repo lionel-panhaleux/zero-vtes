@@ -89,6 +89,54 @@ fn a_committed_strike_barred_by_immortal_grapple_leaves_no_strike() {
     assert_eq!((blood(e, t.a), blood(e, t.x)), (a_blood, 4));
 }
 
+// Target Vitals and a committed strike [LSJ 20080409]: "Is played during
+// the Strike phase even if you commit to a strike in the Determine Range
+// phase. Cannot be played if the strike cannot be chosen anymore during the
+// Strike phase (eg. Immortal Grapple)." X's .44 Magnum strike, committed
+// by its maneuver, takes the aim (2R + 2); barred by a grapple, no strike
+// and no aim — a hand strike's aim stays (owner, 2026-10-08: rules-qa
+// 55.8).
+#[test]
+fn target_vitals_aims_a_committed_strike_unless_a_grapple_bars_it() {
+    let mut t = table();
+    let x_gun = equip(&mut t.e, ".44 Magnum", t.x);
+    hand(&mut t.e, 1, &["Target Vitals"]);
+    blocked_bleed(&mut t);
+    let e = &mut t.e;
+    pick(e, ability(x_gun, 1));
+    let req = expect(e, SeatId(1), WindowLabel::CombatStrike);
+    assert!(req.options.contains(&play(0, 0, t.x)));
+    pick(e, play(0, 0, t.x));
+    expect(e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(e, t.a), 0, "2R and the aim's 2");
+
+    let mut t = table();
+    let a_gun = equip(&mut t.e, ".44 Magnum", t.a);
+    let x_gun = equip(&mut t.e, ".44 Magnum", t.x);
+    hand(&mut t.e, 0, &["Immortal Grapple"]);
+    hand(&mut t.e, 1, &["Target Vitals"]);
+    blocked_bleed(&mut t);
+    let e = &mut t.e;
+    pick(e, ability(a_gun, 1));
+    pick(e, ability(x_gun, 1));
+    pick(e, play(0, 0, t.a));
+    never_offered_until(e, SeatId(0), WindowLabel::MinionPhase, play(0, 0, t.x));
+    assert_eq!(e.state.seats[1].hand.len(), 1, "no aim played");
+
+    // Under the grapple, a hand strike takes the aim: 1 and the aim's 2.
+    let mut t = table();
+    hand(&mut t.e, 0, &["Immortal Grapple"]);
+    hand(&mut t.e, 1, &["Target Vitals"]);
+    blocked_bleed(&mut t);
+    let e = &mut t.e;
+    pick_when(e, play(0, 0, t.a));
+    let req = until(e, SeatId(1), WindowLabel::CombatStrike);
+    assert!(req.options.contains(&play(0, 0, t.x)));
+    pick(e, play(0, 0, t.x));
+    until(e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(e, t.a), 4 - 3);
+}
+
 // A melee weapon's strike is not a hand strike: under Immortal Grapple [pot]
 // Kali's Fang is masked out and X hand strikes (1 damage, not strength+1
 // aggravated).

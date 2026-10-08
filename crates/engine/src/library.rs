@@ -11768,12 +11768,12 @@ pub static LIBRARY: [LibraryCard; 513] = [
         modes: &[
             Mode {
                 tags: &["dom"],
-                windows: &["ACTION_BLOCKED"],
+                windows: &["ACTION_BLOCKED", "ACTION_BLOCKS_DECLINED"],
                 flags: &[],
             },
             Mode {
                 tags: &["DOM"],
-                windows: &["ACTION_BLOCKED"],
+                windows: &["ACTION_BLOCKED", "ACTION_BLOCKS_DECLINED"],
                 flags: &[],
             },
         ],

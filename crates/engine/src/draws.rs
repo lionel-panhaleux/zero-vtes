@@ -222,6 +222,17 @@ pub enum Interrupt {
         of: &'static [crate::cards::CardFilter],
         named: bool,
     },
+    /// "You can put this card on this vampire" (Fever Pitch [FOR]/[PRE]):
+    /// `ChooseMinion` it, or pass — optional, though never worse than the
+    /// ash heap: an agent may take it unasked (owner, 2026-10-08: rules-qa
+    /// 53.5).
+    MayPutOn {
+        seat: SeatId,
+        held: crate::combat::Held,
+    },
+    /// "You can add 1 counter to this location" (Cursed Abattoir):
+    /// `ResolveRider` it, or pass — never worse to add (rules-qa 55.6).
+    MayAddCounter { seat: SeatId, card: CardId },
     /// "This acting vampire can burn n blood to move the stolen vampire to
     /// your ready region" (Graverobbing [DOM]): `ChooseMinion` it, or pass.
     MoveForBlood {
@@ -298,6 +309,8 @@ impl Interrupt {
             | Interrupt::BecomesAnarch { seat }
             | Interrupt::AshurPicks { seat, .. }
             | Interrupt::AllyFromAsh { seat, .. }
+            | Interrupt::MayPutOn { seat, .. }
+            | Interrupt::MayAddCounter { seat, .. }
             | Interrupt::MoveForBlood { seat, .. }
             | Interrupt::MoveCardToTitled { seat, .. } => seat,
         }
@@ -684,6 +697,8 @@ impl Engine {
                     !self.minion_of_options(of, purpose).is_empty()
                 }
                 Interrupt::AllyFromAsh { seat, of, .. } => !self.ash_allies(seat, of).is_empty(),
+                Interrupt::MayPutOn { held, .. } => self.may_put_held(held),
+                Interrupt::MayAddCounter { card, .. } => self.state.cards[card.index()].present(),
                 Interrupt::UncontrolledBlood { seat, clan, .. } => {
                     !self.uncontrolled_of_clan(seat, clan).is_empty()
                 }
@@ -937,6 +952,14 @@ impl Engine {
                     .into_iter()
                     .map(|i| Choice::Slot(i as u8))
                     .collect(),
+            ),
+            Interrupt::MayPutOn { held, .. } => (
+                WindowLabel::ResolutionChoice,
+                vec![Choice::Pass, Choice::ChooseMinion(held.minion)],
+            ),
+            Interrupt::MayAddCounter { card, .. } => (
+                WindowLabel::ResolutionChoice,
+                vec![Choice::Pass, Choice::ResolveRider { card: card.0 }],
             ),
             Interrupt::AllyFromAsh { seat, of, .. } => (
                 WindowLabel::ResolutionChoice,
@@ -1738,6 +1761,17 @@ impl Engine {
                 self.interrupts.remove(0);
                 self.state.minions[from.index()].blood -= 1;
                 self.state.gain_blood(to, 1);
+            }
+            (Interrupt::MayPutOn { .. } | Interrupt::MayAddCounter { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+            }
+            (Interrupt::MayPutOn { held, .. }, Choice::ChooseMinion(_)) => {
+                self.interrupts.remove(0);
+                self.place_held(held, held.minion);
+            }
+            (Interrupt::MayAddCounter { card, .. }, Choice::ResolveRider { .. }) => {
+                self.interrupts.remove(0);
+                self.state.cards[card.index()].counters += 1;
             }
             // Not paid: burned.
             (Interrupt::PayOrBurn { card, .. }, Choice::Pass) => {

@@ -518,10 +518,9 @@ pub struct CombatCtx {
     /// A combat the action queued (Hedonism): the action's step resumes
     /// after it.
     pub queued: bool,
-    /// Abuse of Power: (the acting minion, n) — at the end of the combat,
-    /// if only one combatant is ready, the opposing minion's controller
-    /// burns n pool.
-    pub one_ready_burn: Option<(MinionId, u8)>,
+    /// Abuse of Power: at the end of the combat, if only one combatant is
+    /// ready, the controller of the other burns n pool.
+    pub one_ready_burn: Option<u8>,
     /// Pillars Fall: the card put on the acting vampire at the end of the
     /// combat if the opposing vampire is not ready.
     pub put_if_opposing_down: Option<Held>,
@@ -846,6 +845,22 @@ impl Engine {
     /// The strike choice among `options`, none without a strike to choose:
     /// with the abilities usable at any impulse, and the retainer targets
     /// of side `retainers`'s ranged strikes.
+    /// The aims `seat` may play as a committed strike is chosen (Target
+    /// Vitals): played in the strike phase even if the strike was committed
+    /// at the maneuver (LSJ 20080409).
+    fn aim_options(&self, seat: SeatId, windows: &[Window]) -> Vec<Choice> {
+        let hand = self.virtual_hand(seat);
+        self.play_options(seat, windows, None)
+            .into_iter()
+            .filter(|o| match *o {
+                Choice::Play { card, .. } => hand
+                    .get(card as usize)
+                    .is_some_and(|&(lib, _)| LIBRARY[lib as usize].labels.contains(&Label::Aim)),
+                _ => false,
+            })
+            .collect()
+    }
+
     fn strike_request(
         &self,
         seat: SeatId,
@@ -890,6 +905,12 @@ impl Engine {
                             matches!(o, Choice::UseAbility { source: cards::AbilitySource::Card(c), .. } if *c == w)
                         })
                         .collect();
+                    // An aim as the committed strike is chosen, while it can
+                    // still be (LSJ 20080409; owner, 2026-10-08: rules-qa
+                    // 55.8).
+                    if !options.is_empty() {
+                        options.extend(self.aim_options(side.seat, &c.windows()));
+                    }
                     if c.pair > 0 {
                         options.insert(0, Choice::Pass);
                     }
@@ -921,10 +942,13 @@ impl Engine {
                 };
                 if let Some(k) = only {
                     let usable = !c.only_hand_strikes || matches!(k, StrikeKind::Hand { .. });
-                    let options = usable
+                    let mut options: Vec<Choice> = usable
                         .then_some(Choice::CommittedStrike)
                         .into_iter()
                         .collect();
+                    if usable {
+                        options.extend(self.aim_options(side.seat, &c.windows()));
+                    }
                     return self.strike_request(side.seat, options, None);
                 }
                 let mut options = vec![Choice::HandStrike];
@@ -1948,6 +1972,13 @@ impl Engine {
     /// it went to as it resolved ("put this card on …", rules-qa 47.1, the
     /// rule for every such card). Only if the card has left the ash heap
     /// since, an effect-only stand-in carries its counters and layers.
+    /// `h` may go on its minion: still there, with no card of its name.
+    pub(crate) fn may_put_held(&self, h: Held) -> bool {
+        let name = LIBRARY[h.card as usize].name;
+        self.state.minions[h.minion.index()].present()
+            && !self.state.holds_a(h.minion, cards::Holding::Named(name))
+    }
+
     pub(crate) fn place_held(&mut self, h: Held, on: MinionId) {
         if !self.state.minions[on.index()].in_play {
             return;
@@ -2276,15 +2307,17 @@ impl Engine {
             self.state.seats[s.index()].combat_hand_bonus = 0;
         }
         // Abuse of Power: one combatant ready, the other not — the
-        // opposing minion's controller burns pool.
+        // controller of the ready one's opponent burns pool, the acting
+        // minion's own if it is the one down (owner, 2026-10-08: rules-qa
+        // 54.7).
         if let Some(c) = &ended {
-            if let Some((acting, n)) = c.one_ready_burn {
+            if let Some(n) = c.one_ready_burn {
                 let ready = |m: MinionId| self.state.minions[m.index()].ready();
                 let [a, b] = [c.sides[0].minion, c.sides[1].minion];
                 if ready(a) != ready(b) {
-                    let opposing = if a == acting { b } else { a };
+                    let down = if ready(a) { b } else { a };
                     let mut loss = vec![0; self.state.seats.len()];
-                    loss[self.state.minions[opposing.index()].owner.index()] = n as i32;
+                    loss[self.state.minions[down.index()].owner.index()] = n as i32;
                     self.burn_pool_batch(&loss);
                 }
             }

@@ -54,7 +54,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
 - **Periodicity ("during X" = once per X, once each …)** — 6.6, 7.4, 9.6, 10.4, 11.2, 15.1, 15.2, 16.1, 36.3, 36.4, 37.1, 38.8, 42.3, 42.9
 - **No-repeat-action, "same action"** — 1.4, 6.2, 16.6, 23.2, 25.4, 32.1
-- **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1, 55.3, 55.4, 55.5
+- **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1, 55.3, 55.4, 55.5, 56.1
 - **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
 - **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7, 53.6, 53.8
@@ -62,7 +62,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8, 55.1, 55.2, 55.8
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9
-- **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6, 54.3, 54.4, 54.7
+- **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6, 54.3, 54.4, 54.7, 55.7, 56.2
 - **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8, 52.2, 52.3, 52.5, 52.7, 52.9, 52.10, 54.1
 - **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4, 52.5, 52.6, 52.9
 - **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1
@@ -844,120 +844,128 @@ Owner ruled 46.1–46.4 from play (2026-09-30).
 
 ## Batch 50 — Reign of Stanislava, implemented readings (2026-10-06)
 
-Readings no ruling settles, implemented with the slice; each a question.
+Readings no ruling settles, implemented with the slice; answered by the owner on 2026-10-08.
 
-**50.1** Enkil Cog in its own Methuselah's minion phase: not offered — the vampire takes its actions as usual there, and locking the Cog would add nothing. The Cog is offered only in another Methuselah's phase rotation (49.6). The several-holders reading of 49.6 cannot arise: the Cog is unique, so at most one is in play uncontested. Question (implemented reading).
+**50.1** Enkil Cog in its own Methuselah's minion phase: not offered — the vampire takes its actions as usual there, and locking the Cog would add nothing. The Cog is offered only in another Methuselah's phase rotation (49.6). The several-holders reading of 49.6 cannot arise: the Cog is unique, so at most one is in play uncontested. Confirmed (owner, 2026-10-08).
 
-**50.2** Enkil Cog is offered only while its vampire has an action to take (ready, unlocked, some action legal for it): locking it with none would only lose the effect. Question (implemented reading).
+**50.2** Enkil Cog is offered only while its vampire has an action to take (ready, unlocked, some action legal for it): locking it with none would only lose the effect. Confirmed (owner, 2026-10-08).
 
-**50.3** Enkil Cog's "a successful bleed against your prey" reads the bleed's target as the card is played, after resolution: a bleed redirected to another Methuselah (Deflection) is not against your prey. Question (implemented reading).
+**50.3** Enkil Cog's "a successful bleed against your prey" reads the bleed's target as the card is played, after resolution: a bleed redirected to another Methuselah (Deflection) is not against your prey. Confirmed (owner, 2026-10-08).
 
-**50.4** Monastery of Shadows' lock is used holding the impulse in the stealth and intercept exchange of a block attempt, as KRCG News Radio's: when stealth is needed (no "even if stealth is not yet needed"), by any Methuselah controlling it (49.5). Question (implemented reading).
+**50.4** Monastery of Shadows' lock is used holding the impulse in the stealth and intercept exchange of a block attempt, as KRCG News Radio's: when stealth is needed (no "even if stealth is not yet needed"), by any Methuselah controlling it (49.5). Confirmed (owner, 2026-10-08).
 
-**50.5** Political Stranglehold counts every vampire with capacity 8 or more its Methuselah controls, in torpor too; Ancient Influence and Reins of Power choose a ready vampire, locked or not (ready is not unlocked). The chosen capacity is read as the effect applies. Question (implemented reading).
+**50.5** Political Stranglehold counts every vampire with capacity 8 or more its Methuselah controls, in torpor too; Ancient Influence and Reins of Power choose a ready vampire, locked or not (ready is not unlocked). The chosen capacity is read as the effect applies. Confirmed (owner, 2026-10-08).
 
-**50.6** Permanent Vacation: the ally removed from the game leaves its card out of the game (not in the ash heap); the cards on it are burned, and nothing keyed to a burn fires. Question (implemented reading).
+**50.6** Permanent Vacation: the ally removed from the game leaves its card out of the game (not in the ash heap); the cards on it are burned, and nothing keyed to a burn fires. Confirmed (owner, 2026-10-08).
 
 ## Batch 51 — The Endless Dance, implemented readings (2026-10-06)
 
-Readings no ruling settles, implemented with the slice; each a question.
+Readings no ruling settles, implemented with the slice; answered by the owner on 2026-10-07 and 2026-10-08.
 
-**51.1** Marcos Belegrad: each Methuselah casting votes or ballots against his referendum burns 1 pool once, however many of their sources (vampires, the Edge, a burned card, Business Pressure's pool) voted against; all at once at the tally, before the referendum's effects. Question (implemented reading).
+**51.1** Marcos Belegrad: each Methuselah casting votes or ballots against his referendum burns 1 pool once, however many of their sources (vampires, the Edge, a burned card, Business Pressure's pool) voted against; all at once at the tally, before the referendum's effects. Confirmed (owner, 2026-10-08).
 
 **51.2** Camarilla Conclave is unique and worded as a "during" ability: it is usable once each political action — the +1 stealth (when needed) or the -1 vote to each non-Camarilla vampire, which reaches votes already cast (a vampire's votes stop at 0, ANK 20251125). A political action is enough, no political action card needed (Anarch Revolt's "call a referendum to burn this card"); a referendum of no political action (a diablerie's blood hunt) is not one (owner, 2026-10-07).
 
-**51.3** Confiscation: the chosen vampire takes the equipment only if it can hold it ("a minion can have only one …"); otherwise nothing happens. Question (implemented reading).
+**51.3** Confiscation: the chosen vampire takes the equipment only if it can hold it ("a minion can have only one …"); otherwise nothing happens. Confirmed (owner, 2026-10-08).
 
 **51.4** There is an impulse between two actions: the active Methuselah holds it first, with priority to start the next action; passing it declares the end of their minion phase, and the impulse goes round the other Methuselahs, who may use effects (The Louvre, Paris: ANK 20210608) but not start an action — except Enkil Cog's (49.6). An effect used there returns the impulse to the active Methuselah, whose phase goes on (owner, 2026-10-07). The engine's minion-phase rotation (rules-qa 7.9) is that impulse.
 
 **51.5** Business Pressure resolves as each Methuselah, in impulse order from its player, chooses once how much pool to burn — so how many votes they get — and on which side, then passes to the next; once everyone has chosen, the card resolves: the votes counted and the pool burned at once, the last pool ousting. It is not paid vote by vote (owner, 2026-10-07). [PRE]'s +3 votes a pool are its player's only.
 
-**51.6** Reinforcements canceled by Delaying Tactics: removed from the game, not returned to its owner's hand ("remove this card from the game, even if the action or the referendum fails or is canceled"). Question (implemented reading).
+**51.6** Reinforcements canceled by Delaying Tactics: removed from the game, not returned to its owner's hand ("remove this card from the game, even if the action or the referendum fails or is canceled"). Confirmed (owner, 2026-10-08).
 
-**51.7** Loup: +1 stealth to every Toreador, any Methuselah's; burned after any Toreador's successful action (the one it was played in included), else at the end of the turn; playable when stealth is not yet needed (LSJ 20011214-2). Question (implemented reading).
+**51.7** Loup: +1 stealth to every Toreador, any Methuselah's; burned after any Toreador's successful action (the one it was played in included), else at the end of the turn; playable when stealth is not yet needed (LSJ 20011214-2). Confirmed (owner, 2026-10-08).
 
-**51.8** Diana Iadanza cancels any reaction card as it is played during the referendum of a political action she performs (she calls it); its cost is paid. Question (implemented reading).
+**51.8** Diana Iadanza cancels any reaction card as it is played during the referendum of a political action she performs (she calls it); its cost is paid. Confirmed (owner, 2026-10-08).
 
 ## Batch 52 — Sabbat V5, the Path of Power and the Inner Voice, implemented readings (2026-10-07)
 
-Readings no ruling settles, implemented with the slice; each a question.
+Readings no ruling settles, implemented with the slice; answered by the owner on 2026-10-08.
 
-**52.1** "[pot] or [pre]" on one line (the Sabbat V5 layout) is either Discipline at that level, one mode — the counterpart of 25.2's side-by-side combo, which needs both (Iron Glare, Absolute Tyranny): Dominant Personality, Magnetic Authority, Relentlessness and Unthinkable Humiliation are played with either. Question (implemented reading).
+**52.1** "[pot] or [pre]" on one line (the Sabbat V5 layout) is either Discipline at that level, one mode — the counterpart of 25.2's side-by-side combo, which needs both (Iron Glare, Absolute Tyranny): Dominant Personality, Magnetic Authority, Relentlessness and Unthinkable Humiliation are played with either. Confirmed (owner, 2026-10-08).
 
-**52.2** Absolute Tyranny [POT][PRE]: the -1 vote to each vampire not following the Path of Power and the Inner Voice reaches votes already cast, each vampire's votes stopping at 0 (ANK 20251125), as Camarilla Conclave's (51.2); played by the acting vampire as an action modifier, by another as a reaction. Question (implemented reading).
+**52.2** Absolute Tyranny [POT][PRE]: the -1 vote to each vampire not following the Path of Power and the Inner Voice reaches votes already cast, each vampire's votes stopping at 0 (ANK 20251125), as Camarilla Conclave's (51.2); played by the acting vampire as an action modifier, by another as a reaction. Confirmed (owner, 2026-10-08).
 
-**52.3** Día de los Muertos: "the first referendum a Sabbat vampire you control calls on this turn" is the first one called after it is played this turn; it passes with no polling step, by a margin of 0 (LSJ 19980107); "only one … in a game" counts every Methuselah's. Question (implemented reading).
+**52.3** Día de los Muertos: "the first referendum a Sabbat vampire you control calls on this turn" is the first one called after it is played this turn; it passes with no polling step, by a margin of 0 (LSJ 19980107); "only one … in a game" counts every Methuselah's. Confirmed (owner, 2026-10-08).
 
-**52.4** Věnceslava: her prey "burned 1 or more pool" counts any pool her controller's prey loses during her action, costs paid included (a bleed, a referendum's burn); a bleed deflected to another Methuselah is not the prey's. Question (implemented reading).
+**52.4** Věnceslava: her prey "burned 1 or more pool" counts any pool her controller's prey loses during her action, costs paid included (a bleed, a referendum's burn); a bleed deflected to another Methuselah is not the prey's. Confirmed (owner, 2026-10-08).
 
-**52.5** Cold War: "if this acting vampire is a cardinal or regent, you can choose both" reads the title as the terms are set. Question (implemented reading).
+**52.5** Cold War: "if this acting vampire is a cardinal or regent, you can choose both" reads the title as the terms are set. Confirmed (owner, 2026-10-08).
 
-**52.6** Regent's "Sabbat vampires can enter combat with this vampire as a Ⓓ action": another Methuselah's Sabbat vampire, not its own controller's (17.3). Question (implemented reading).
+**52.6** Regent's "Sabbat vampires can enter combat with this vampire as a Ⓓ action": another Methuselah's Sabbat vampire, not its own controller's (17.3). Confirmed (owner, 2026-10-08).
 
-**52.7** Powerbase: Madrid locked in a polling step gives its votes to any titled Sabbat vampire, any Methuselah's — that vampire's controller casts them. Question (implemented reading).
+**52.7** Powerbase: Madrid locked in a polling step gives its votes to any titled Sabbat vampire, any Methuselah's — that vampire's controller casts them. Confirmed (owner, 2026-10-08).
 
-**52.8** Under Siege: offered in the block window to each ready Sabbat vampire of its controller that could attempt to block the action, locked or not, the one already attempting included (ANK 20181122-2); once each action; the +1 intercept lasts the action. Question (implemented reading).
+**52.8** Under Siege: offered in the block window to each ready Sabbat vampire of its controller that could attempt to block the action, locked or not, the one already attempting included (ANK 20181122-2); once each action; the +1 intercept lasts the action. Confirmed (owner, 2026-10-08).
 
-**52.9** The prisci block: each ready priscus casts one ballot, even with no vote of its own; the side with more ballots gets the block's 3 votes, a tie gives none. Question (implemented reading).
+**52.9** The prisci block: each ready priscus casts one ballot, even with no vote of its own; the side with more ballots gets the block's 3 votes, a tie gives none. Confirmed (owner, 2026-10-08).
 
-**52.10** War of Ages' "call a referendum to burn this card as a +1 stealth political action that costs 1 pool": the pool is paid as the action resolves, as an action card's cost. Question (implemented reading).
+**52.10** War of Ages' "call a referendum to burn this card as a +1 stealth political action that costs 1 pool": the pool is paid as the action resolves, as an action card's cost. Confirmed (owner, 2026-10-08).
 
 ## Batch 53 — Sabbat V5, the Path of Cathari, implemented readings (2026-10-07)
 
-Readings no ruling settles, implemented with the slice; each a question.
+Readings no ruling settles, implemented with the slice; answered by the owner on 2026-10-08.
 
-**53.1** Aelswith and Terrifying Visage: the pool the blocker's controller burns as the block is declared may oust them; their minion leaves play with them, and the action is blocked with no combat. Question (implemented reading).
+**53.1** Aelswith and Terrifying Visage: the pool the blocker's controller burns as the block is declared may oust them; their minion leaves play with them, and the action is blocked with no combat. Confirmed (owner, 2026-10-08).
 
-**53.2** Seeds of Terror's "minions must burn 1 blood to attempt to block" is blood only: an ally, which has life, cannot attempt to block that action (Unthinkable Humiliation prints "blood or life"). Question (implemented reading).
+**53.2** Seeds of Terror's "minions must burn 1 blood to attempt to block" is blood only: an ally, which has life, cannot attempt to block that action (Unthinkable Humiliation prints "blood or life"). Confirmed (owner, 2026-10-08).
 
-**53.3** Hedonism [for]/[pre]: the queued combat begins once the block step is over — when no more attempts are made, or after the combat of a successful block — before the action resolves; it is lost if the action ends first (LSJ 20090826) or if either vampire is not ready then. Hedonism's vampire is its acting side (strikes first). Question (implemented reading).
+**53.3** Hedonism [for]/[pre]: a combat is queued (Sabbat V5 rules, "Queue a combat") — it starts after resolving the action, still as part of its resolution: the action blocked, after block resolution (the combat of the block, if any); the action successful, after its effects have taken place. Combats always occur during the action's resolution, and only one can be queued. It is lost if the action ends first (LSJ 20090826) or if either vampire is not ready then. Hedonism's vampire is its acting side (strikes first) (owner, 2026-10-08). A failed or fizzled action: 56.1.
 
-**53.4** Fotini Katsikaris: "+1 hand size until your next discard phase" ends as that discard phase begins; the cards then over hand size are discarded at once. Question (implemented reading).
+**53.4** Fotini Katsikaris: "+1 hand size until your next discard phase" ends as that discard phase begins; the cards then over hand size are discarded at once. Confirmed (owner, 2026-10-08).
 
-**53.5** Fever Pitch [FOR]/[PRE]: "you can put this card on this vampire" is applied whenever the bleed is successful and the vampire has no Fever Pitch yet — never worse than the ash heap. Question (implemented reading).
+**53.5** Fever Pitch [FOR]/[PRE]: "you can put this card on this vampire" is an option, left open whenever the bleed is successful and the vampire has no Fever Pitch yet — its player's choice (`Interrupt::MayPutOn`), though never worse than the ash heap: an agent may take it unasked (the scripted bots do) (owner, 2026-10-08).
 
-**53.6** Forward Momentum: a blocked bleed is a bleed that is not successful — a counter is burned; the counters change before the after-resolution window, so the unlock can use the one just added. Question (implemented reading).
+**53.6** Forward Momentum: a blocked bleed is a bleed that is not successful — a counter is burned. "After you perform an action" and "after the bleed is unsuccessful" are the same window, the controller choosing the order: they can burn two counters to unlock before the blocked bleed's counter is burned, or take a successful bleed's counter first. The engine holds the bleed's counter pending in the after-resolution window: the unlock takes a pending gain first, a pending loss comes after it, the rest applies as the action ends (owner, 2026-10-08).
 
-**53.7** Terrifying Visage goes on any ready vampire following the Path of Cathari, another Methuselah's too ("a ready vampire", not "you control"); its path icon needs a ready Cathari vampire of its player's (49.7). Question (implemented reading).
+**53.7** Terrifying Visage goes on any ready vampire following the Path of Cathari, another Methuselah's too ("a ready vampire", not "you control"); its path icon needs a ready Cathari vampire of its player's (49.7). Confirmed (owner, 2026-10-08).
 
-**53.8** The Hungry Coyote's +1 hunt: a hunt taking blood from a target takes 1 more from it (RTR 20030519); Psychophagia, which eats an ally from the ash heap, gets none. Osvaldo Kühnemann's "a Methuselah controlling a Toreador or Ventrue" counts one in torpor. Question (implemented reading).
+**53.8** The Hungry Coyote's +1 hunt: a hunt taking blood from a target takes 1 more from it (RTR 20030519); Psychophagia, which eats an ally from the ash heap, gets 1 more from the bank. Osvaldo Kühnemann's "a Methuselah controlling a Toreador or Ventrue" counts one in torpor (owner, 2026-10-08).
 
 ## Batch 54 — Sabbat V5, the Path of Caine, implemented readings (2026-10-07)
 
-Readings no ruling settles, implemented with the slice; each a question.
+Readings no ruling settles, implemented with the slice; answered by the owner on 2026-10-08.
 
-**54.1** Yawp Court is used in the political action's would-be-successful window (its blocks declined, before it resolves); the action card's cost is paid first (LSJ 20080201), then the location and the Sabbat vampire lock and the combat begins, the acting vampire acting first. "Still ready at the end of combat" is read as the combat ends — before a Rötschreck's torpor (LSJ 20080821), not after a torpor left at once (LSJ 20090325-1); the action ending there is a failed action, with no after-resolution window. The would-be-successful window now exists for every political action (The Line and Ravnos Cache can be used there). Question (implemented reading).
+**54.1** Yawp Court is used in the political action's would-be-successful window (its blocks declined, before it resolves); the action card's cost is paid first (LSJ 20080201), then the location and the Sabbat vampire lock and the combat begins, the acting vampire acting first. "Still ready at the end of combat" is read as the combat ends — before a Rötschreck's torpor (LSJ 20080821), not after a torpor left at once (LSJ 20090325-1); the action ending there is a failed action, with no after-resolution window. The would-be-successful window now exists for every political action (The Line and Ravnos Cache can be used there). Confirmed (owner, 2026-10-08).
 
-**54.2** Augury of Doom's "if your prey controls no vampires in torpor … burn this card" is read in its controller's prey's unlock phase, instead of the burn; played while the prey has none, it waits for that phase. Question (implemented reading).
+**54.2** Augury of Doom's "if your prey controls no vampires in torpor … burn this card" is read in its controller's prey's unlock phase, instead of the burn; played while the prey has none, it waits for that phase. Confirmed (owner, 2026-10-08).
 
-**54.3** Pillars Fall's "you can put this card on this acting vampire" is applied whenever the opposing vampire is not ready at the end of that combat and the acting vampire has none; the card enters play from the action. Question (implemented reading).
+**54.3** Pillars Fall's "you can put this card on this acting vampire" is applied whenever the opposing vampire is not ready at the end of that combat and the acting vampire has none; the card enters play from the action. Confirmed (owner, 2026-10-08).
 
-**54.4** Hunting the Quarry: the card is burned as the granted action is declared (a cost), its target the minion it was on — gone from play, the action fizzles. Question (implemented reading).
+**54.4** Hunting the Quarry: the card is burned as the granted action is declared — not a cost, an action's costs being paid at resolution; its target the minion it was on — gone from play, the action fizzles (owner, 2026-10-08).
 
-**54.5** Fiendish Tongue: "during your next discard phase" is this turn's, an unlock offered there (the vampire still locked, with the blood); the vampire's clan is read as the bleed succeeds. Question (implemented reading).
+**54.5** Fiendish Tongue: "during your next discard phase" is this turn's, an unlock offered there (the vampire still locked, with the blood); the vampire's clan is read twice: as the bleed succeeds, and again in the discard phase — only a Tzimisce can use the unlock then (owner, 2026-10-08).
 
-**54.6** Dance with the Devil [OBF]/[THA]: the extra maneuver is only usable at long range, after the card's own, its blood paid as it is used. Question (implemented reading).
+**54.6** Dance with the Devil [OBF]/[THA]: the extra maneuver is only usable at long range, after the card's own, its blood paid as it is used. Confirmed (owner, 2026-10-08).
 
-**54.7** Abuse of Power: "if only one combatant is ready" — whichever: the opposing minion's controller burns the pool even if the acting minion is the one not ready (the text names no winner). Question (implemented reading).
+**54.7** Abuse of Power: "if only one combatant is ready, the controller of the opposing minion burns 1 pool" — the opponent of the ready one: the acting minion not ready, its own controller pays (owner, 2026-10-08).
 
-**54.8** Rage of Apedemak's +1 hand size lasts the combat: the cards then over hand size are discarded at once. Depravity bars recruit and employ action cards played by its vampire, nothing else. Question (implemented reading).
+**54.8** Rage of Apedemak's +1 hand size lasts the combat: the cards then over hand size are discarded at once. Depravity bars recruit and employ action cards played by its vampire, nothing else. Confirmed (owner, 2026-10-08).
 
 ## Batch 55 — Sabbat V5, the Path of Death and the Soul, implemented readings (2026-10-07)
 
-Readings no ruling settles, implemented with the slice; each a question.
+Readings no ruling settles, implemented with the slice; answered by the owner on 2026-10-08, except 55.1 and 55.5 (still questions).
 
 **55.1** Target Vitals: the aim's +2 damage is added once the strike's damage is successfully inflicted (after the prevention step, so it cannot be prevented), of the strike's kind (RTR 19970630); "the opposing minion cannot press this round" applies only when the aim lands. Question (implemented reading).
 
-**55.2** Morbidity: the card takes as much of the opposing vampire's blood as it has, up to 2; the blood goes back as the combat ends (after every round, a press included), then the card burns. Question (implemented reading).
+**55.2** Morbidity: the card takes as much of the opposing vampire's blood as it has, up to 2; the blood goes back as the combat ends (after every round, a press included), then the card burns. Confirmed (owner, 2026-10-08).
 
-**55.3** Eulogio Sánchez de los Reyes: the look-and-reorder and the unlock both happen at the action's resolution, in that order; the 1 blood is the action's cost, paid at declaration. Question (implemented reading).
+**55.3** Eulogio Sánchez de los Reyes: the look-and-reorder and the unlock both happen at the action's resolution, in that order; the 1 blood is the action's cost, paid at resolution as for every action, not at declaration — not paid if the action is blocked (owner, 2026-10-08).
 
-**55.4** Heartrender: "remove itself from the game" is paid as the action succeeds, with the target burned; blocked, it stays in play. Question (implemented reading).
+**55.4** Heartrender: "remove itself from the game" is paid as the action succeeds, with the target burned; blocked, it stays in play. Confirmed (owner, 2026-10-08).
 
 **55.5** Gifts From Hereafter [DOM]/[OBL]: "after action resolution" opens whether the bleed succeeded or not (a fizzle included), not after a block; the vampire's 1 blood is paid then, as the ally unlocks. Question (implemented reading).
 
-**55.6** Cursed Abattoir: "after a zombie you control is burned" adds the counter whenever one of its controller's zombie allies burns (in or out of combat, from damage or a card), automatically — never worse to add it. The pool has no zombie retainer: a burned retainer is not counted yet. Question (implemented reading).
+**55.6** Cursed Abattoir: "after a zombie you control is burned, you can add 1 counter" whenever one of its controller's zombie allies burns (in or out of combat, from damage or a card) — optional, its controller's choice (`Interrupt::MayAddCounter`), never worse to add: an agent may take it unasked (the scripted bots do). The pool has no zombie retainer: a burned retainer is not counted yet (owner, 2026-10-08).
 
-**55.7** Obedience: "about to enter combat with an acting younger vampire" is read as the block — played as the block succeeds, before combat — not against a combat the action itself starts (a rush, Deep Song: ANK 20200702 names Obedience among the effects that end the action before Deep Song's combat). Question (implemented reading).
+**55.7** Obedience: "about to enter combat with an acting younger vampire" is the block — played as the block succeeds, before combat — and also a combat the action itself starts (a rush, Deep Song: ANK 20200702); there the vampire must be unlocked or woken, Obedience being a reaction. The action ends unsuccessfully, no combat (owner, 2026-10-08). When it is played against such a combat: 56.2.
 
-**55.8** Target Vitals under Immortal Grapple: LSJ 20080409 says it "cannot be played if the strike cannot be chosen anymore during the strike phase (eg. Immortal Grapple)"; the engine still offers it to a combatant choosing its hand strike under a grapple, the strike being chosen there. Question (implemented reading).
+**55.8** Target Vitals under Immortal Grapple: it can be played on a hand strike. LSJ 20080409 is about a committed strike (a .44 Magnum strike committed by using its maneuver): Target Vitals is played in the strike phase even then, while that strike can still be used; a grapple forbidding it (another maneuver having been used to get close), the strike is committed but not usable, and Target Vitals cannot be used on it (owner, 2026-10-08).
+
+## Batch 56 — Owner answers to Batches 50–55, implemented readings (2026-10-08)
+
+Readings no ruling settles, implemented with the answers; answered by the owner on 2026-10-08.
+
+**56.1** Hedonism's queued combat when the action, unblocked, does not succeed: a fizzled action (successful, with no effect: its target gone, its cost unpayable) still has it, after resolution; a failed action (Archon Investigation, Spying Mission [OBF] failing it at resolution; Obedience ending it) loses it, as an action ending early (LSJ 20090826). Confirmed (owner, 2026-10-08).
+
+**56.2** Obedience against a combat the action itself begins (55.7): played in the reaction window once blocks are declined, before the action resolves, by the vampire the action is to enter combat with; there the action ends, failed, at resolution (NRA holds, LSJ 20070709). Not earlier in the action, nor against a combat Hedonism queues, a reacting minion's (The Guardian) or the after-resolution window's. Confirmed (owner, 2026-10-08).

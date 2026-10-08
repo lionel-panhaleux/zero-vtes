@@ -2989,11 +2989,16 @@ impl Engine {
             }
             // The ally named as the card was played, if still in that ash
             // heap (else no effect); the acting vampire gains the blood (a
-            // hunt: successful if any, LSJ 20050720-2).
+            // hunt: successful if any, LSJ 20050720-2), a hunt bonus more
+            // from the bank (The Hungry Coyote; owner, 2026-10-08:
+            // rules-qa 53.8).
             Effect::EatAshAlly { blood, unlock } => {
                 let (Some((from, card)), Some(acting)) = (ctx.ash, ctx.actor) else {
                     unreachable!("an ash ally named at play");
                 };
+                let hunt = cards::lookup(ctx.card)
+                    .is_some_and(|d| d.modes[ctx.mode as usize].effects.contains(&Effect::HuntAction));
+                let blood = blood + if hunt { self.state.hunt_bonus(acting) } else { 0 };
                 let seat = &mut self.state.seats[from.index()];
                 if let Some(k) = seat.ash.iter().rposition(|&c| c == card) {
                     seat.ash.remove(k);
@@ -3344,10 +3349,12 @@ impl Engine {
         // "During your discard phase" abilities (Mora, the Death Seer), and
         // those spending a discard phase action (Ayse Dhanial).
         // Fiendish Tongue: "burn 1 blood during your next discard phase to
-        // unlock".
+        // unlock" — "this Tzimisce": the clan read again there, as it was
+        // when the bleed succeeded (owner, 2026-10-08: rules-qa 54.5).
         for m in self.state.minions_of(s) {
             let v = &self.state.minions[m.index()];
             if v.discard_unlock_for_blood > 0
+                && v.clan() == Some("Tzimisce")
                 && v.ready()
                 && v.locked
                 && v.blood >= v.discard_unlock_for_blood
@@ -4486,9 +4493,10 @@ impl Engine {
             if mode.limit == Some(Limit::PerTurn) {
                 self.state.turn_uses.push(source.use_key(ability));
             }
-            // "Burn this card to attempt to …" (Hunting the Quarry): the
-            // cost, as the action is declared; its host remembered.
-            let burned_host = if mode.effects.contains(&Effect::BurnSourceAsCost) {
+            // "Burn this card to attempt to …" (Hunting the Quarry): burned
+            // as the action is declared, not a cost (rules-qa 54.4); its
+            // host remembered.
+            let burned_host = if mode.effects.contains(&Effect::BurnSourceOnDeclare) {
                 let card = source.card();
                 let host = self.state.cards[card.index()].host;
                 self.burn_card_in_play(card);
@@ -5442,6 +5450,15 @@ impl Engine {
                 Effect::MethuselahVotes { n, favor } => {
                     if !self.state.seats[ctx.seat.index()].ousted && self.referendum.is_some() {
                         self.methuselah_votes(source.card(), ctx.seat, n, favor)
+                    }
+                }
+                Effect::TakeBleedGain => {
+                    let id = source.card();
+                    if let Some(a) = self.action.as_mut() {
+                        if let Some(k) = a.momentum.iter().position(|&p| p == (id, true)) {
+                            a.momentum.remove(k);
+                            self.state.cards[id.index()].counters += 1;
+                        }
                     }
                 }
                 Effect::RemoveCounter(n) => {

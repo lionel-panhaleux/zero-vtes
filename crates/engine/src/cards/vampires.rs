@@ -2397,7 +2397,7 @@ pub static ASHUR_UBALLIT: VampireDef = VampireDef {
 
 /// "Sabbat: Eulogio can look at and reorder the top 5 cards of your
 /// library, and unlock as a +1 stealth action that costs 1 blood." Both at
-/// resolution (rules-qa 55.3).
+/// resolution, the blood too: not paid if blocked (rules-qa 55.3).
 pub static EULOGIO: VampireDef = VampireDef {
     name: "Eulogio Sánchez de los Reyes",
     abilities: &[printed_action(

@@ -627,6 +627,9 @@ pub enum Requirement {
     /// This card in play carries at least n counters (a rider with
     /// nothing to pay is not pending: Smiling Jack at 0 counters).
     CountersAtLeast(u8),
+    /// This card has n counters, the one its pending bleed gain adds
+    /// included (Forward Momentum, `ActionCtx::momentum`).
+    CountersWithBleedGainAtLeast(u8),
     /// This card has at most n counters (Powerbase: Madrid: "if this card
     /// has 3 or fewer counters").
     CountersAtMost(u8),
@@ -685,6 +688,10 @@ pub enum Requirement {
     /// The acting minion is a vampire younger than the actor, which is
     /// about to enter combat with it as its blocker (Obedience).
     BlockingYoungerActing,
+    /// The actor is a vampire the action's resolution is about to begin a
+    /// combat with ("enter combat with" it), the acting minion a vampire
+    /// younger than it, blocks declined (Obedience; rules-qa 55.7, 56.2).
+    FoughtByYoungerActing,
     /// The own minion in combat is another copy of the host (Gravebound
     /// Drone's prevention).
     OwnCombatantOtherCopy,
@@ -2498,7 +2505,9 @@ pub enum Effect {
     /// reduction by the bleed amount as it resolves.
     ReduceBleedToZero,
     /// "Unlock this minion. The action ends (unsuccessfully). This minion
-    /// cannot perform the same action again this turn" (Change of Target).
+    /// cannot perform the same action again this turn" (Change of Target);
+    /// also before the combat an unblocked action would begin (Obedience,
+    /// rules-qa 55.7).
     EndBlockedAction,
     /// "Give the next X actions minions you control perform this turn +1
     /// stealth" (Veil the Legions [OBF]), X blood burned from the actor.
@@ -2810,8 +2819,8 @@ pub enum Effect {
     /// Lock the minion attempting to block (Hedonism).
     LockAttempting,
     /// Queue a combat between this vampire and the minion attempting to
-    /// block (Hedonism [for]/[pre]): it begins when the block step is over
-    /// (rules-qa 53.3).
+    /// block (Hedonism [for]/[pre]): it begins after block resolution, or
+    /// after a successful action's effects (rules-qa 53.3).
     QueueCombatWithAttempting,
     /// "If the bleed is successful, put this card on this vampire after
     /// action resolution" (Fever Pitch [FOR]/[PRE]); one per vampire.
@@ -2823,6 +2832,9 @@ pub enum Effect {
     /// Forward Momentum's counters: +1 after a successful bleed of one's
     /// path vampire, -1 after an unsuccessful one (`Hook::OwnBleedEnds`).
     BleedOutcomeCounters,
+    /// This card's pending bleed gain added now (Forward Momentum's unlock,
+    /// before its counters are burned).
+    TakeBleedGain,
     /// "+n hand size until your next discard phase" (Fotini Katsikaris).
     HandSizeUntilDiscard(u8),
     /// "Strike cards cost the acting minion +n blood or life during the
@@ -2849,9 +2861,10 @@ pub enum Effect {
     /// (Hunting the Quarry [cel]/[tha]).
     PutOnOpposingKeepControl,
     /// Burn the card in play granting this action as the action is
-    /// declared, a cost ("burn this card to attempt to …", Hunting the
-    /// Quarry).
-    BurnSourceAsCost,
+    /// declared ("burn this card to attempt to …", Hunting the Quarry): not
+    /// a cost, an action's costs being paid at resolution (owner,
+    /// 2026-10-08: rules-qa 54.4).
+    BurnSourceOnDeclare,
     /// "Once this round, this vampire can burn n blood to get 1 additional
     /// maneuver, only usable to get to close range" (Dance with the Devil
     /// [OBF]/[THA]).
@@ -3857,6 +3870,9 @@ pub fn library_mode(card: u16, mi: usize) -> usize {
         // [DOM]: a younger vampire you control, or one in your uncontrolled
         // region — one target, of either kind.
         "Feast of the Soul's Secrets" => [0, 1, 1][mi],
+        // Each version against a block, or against the combat the action
+        // itself begins (rules-qa 55.7).
+        "Obedience" => [0, 1, 0, 1][mi],
         // [aus]: a hand strike, or a melee weapon's strike.
         "Anticipation" => [0, 0, 1][mi],
         // Each version on a minion or on a retainer.
@@ -4237,6 +4253,16 @@ pub fn holds(
                         .any(|l| LIBRARY[c as usize].labels.contains(l))
                 })
         }),
+        Requirement::FoughtByYoungerActing => action.is_some_and(|a| {
+            a.state == ActionState::Declined
+                && !a.failed
+                && actor.is_some_and(|m| {
+                    a.combat_target(st) == Some(m)
+                        && st.minions[m.index()].is_vampire()
+                        && st.minions[a.acting.index()].is_vampire()
+                        && st.younger_than(a.acting, m)
+                })
+        }),
         Requirement::BlockingYoungerActing => action.is_some_and(|a| {
             a.blocker.is_some()
                 && a.blocker == actor
@@ -4385,6 +4411,7 @@ pub fn holds(
         | Requirement::TargetAllyNotOf(_)
         | Requirement::TargetOtherCopyControlled
         | Requirement::CountersAtLeast(_)
+        | Requirement::CountersWithBleedGainAtLeast(_)
         | Requirement::CountersAtMost(_)
         | Requirement::CardUnlocked
         | Requirement::NotHuntingGroundFed
@@ -5116,6 +5143,10 @@ pub fn holds_for_card(
             None => !c.locked,
         },
         Requirement::CountersAtLeast(n) => c.counters >= n,
+        Requirement::CountersWithBleedGainAtLeast(n) => {
+            let gain = action.is_some_and(|a| a.momentum.contains(&(id, true)));
+            c.counters + u8::from(gain) >= n
+        }
         Requirement::CountersAtMost(n) => c.counters <= n,
         Requirement::BoonTargetActive => c.against.contains(st.active),
         Requirement::EnteredBeforeThisTurn => c.entered < st.turn,

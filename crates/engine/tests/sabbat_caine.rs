@@ -268,6 +268,32 @@ fn abuse_of_power_costs_the_fallen_a_pool() {
     assert_eq!(e.state.seats[1].pool, 9);
 }
 
+// Abuse of Power: the acting vampire the one not ready, its own
+// controller burns the pool — the controller of the ready minion's
+// opponent (owner, 2026-10-08: rules-qa 54.7).
+#[test]
+fn abuse_of_power_costs_the_acting_vampire_s_controller_when_it_falls() {
+    let (mut e, lawbringer, z) = table(LAWBRINGER);
+    e.state.minions[lawbringer.index()].blood = 1;
+    // Depravity: +1 strength, a 2-damage hand strike.
+    in_play(&mut e, 1, "Depravity", Some(z));
+    hand(&mut e, 0, &["Abuse of Power"]);
+    pick(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: Some(lawbringer),
+            target: Target::Minion(z),
+        },
+    );
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(e.state.minions[lawbringer.index()].in_torpor);
+    assert!(e.state.minions[z.index()].ready());
+    assert_eq!(e.state.seats[0].pool, 9);
+    assert_eq!(e.state.seats[1].pool, 10);
+}
+
 // Augury of Doom: in its controller's prey's unlock phase, 1 pool for each
 // vampire of theirs in torpor; none, the card burns (rules-qa 54.2).
 #[test]
@@ -393,6 +419,21 @@ fn fiendish_tongue_bleeds_and_unlocks_a_tzimisce_later() {
     pick_when(&mut e, block(z));
     let a = e.action().expect("action");
     assert_eq!(a.intercept_of(&e.state, z), -1);
+
+    // "This Tzimisce": the clan read again in the discard phase, only a
+    // Tzimisce unlocking there (owner, 2026-10-08: rules-qa 54.5). No pool
+    // card changes a clan: a Brujah armed by hand.
+    let (mut e, _, _) = table(LAWBRINGER);
+    let brujah = MinionId(1);
+    e.state.minions[brujah.index()].locked = true;
+    e.state.minions[brujah.index()].discard_unlock_for_blood = 1;
+    hand(&mut e, 0, &["Abbot"]);
+    never_offered_until(
+        &mut e,
+        SeatId(1),
+        WindowLabel::MinionPhase,
+        Choice::UnlockForBlood { minion: brujah },
+    );
 }
 
 // Hunting the Quarry [cel] or [tha], combat about to end: on the opposing

@@ -1666,7 +1666,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (`docs/human-play.md` has the board).
 
-Definitions: 513 library, 138 vampires; 1115 Rust tests, 23 Python tests
+Definitions: 513 library, 138 vampires; 1119 Rust tests, 23 Python tests
 
 ## Outlook: deck building (post-v1)
 

@@ -226,6 +226,29 @@ fn eulogio_reorders_the_top_of_his_library() {
     assert_eq!(order, want);
     assert!(!e.state.minions[eulogio.index()].locked);
     assert_eq!(blood(&e, eulogio), 3);
+
+    // The cost is paid at resolution, as for every action: blocked, not
+    // paid (owner, 2026-10-08: rules-qa 55.3).
+    let (mut e, eulogio, _) = table(EULOGIO);
+    // An [aus] blocker, Eagle's Sight's +1 intercept against the stealth.
+    let z = e.add_minion(SeatId(2), with("aus", 4..=6), 4, false);
+    hand(&mut e, 2, &["Eagle's Sight"]);
+    e.state.seats[0].library = names.iter().map(|n| find_library(n)).collect();
+    pick(
+        &mut e,
+        Choice::UseAbility {
+            source: AbilitySource::Vampire(eulogio),
+            ability: 0,
+            actor: Some(eulogio),
+            target: Target::None,
+        },
+    );
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, play(0, 0, z));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Blocked));
+    let fought = 4 - blood(&e, z);
+    assert_eq!(blood(&e, eulogio), 4 - fought, "only the combat's damage");
 }
 
 // Frau Schädel: +1 stealth during recruit and employ actions.
@@ -305,8 +328,9 @@ fn burial_site_feeds_the_path_or_mends_the_dead() {
     assert_eq!(e.state.minions[drone.index()].blood, 2, "its starting life");
 }
 
-// Cursed Abattoir: a counter after a zombie of its controller's burns;
-// one burned during a zombie ally's bleed for +1 bleed (rules-qa 55.6).
+// Cursed Abattoir: a counter after a zombie of its controller's burns —
+// "you can", their choice (owner, 2026-10-08: rules-qa 55.6); one burned
+// during a zombie ally's bleed for +1 bleed.
 #[test]
 fn cursed_abattoir_counts_the_fallen_zombies() {
     let mut e = game(3);
@@ -317,10 +341,21 @@ fn cursed_abattoir_counts_the_fallen_zombies() {
     let z = e.add_minion(SeatId(1), plain("Brujah", 1), 4, false);
     // The other drone, at 1 life, burned in combat.
     e.state.minions[other.index()].blood = 1;
+    let mut passed = e.clone();
     bleed_blocked(&mut e, other, z);
+    pick_when(&mut e, Choice::ResolveRider { card: abattoir.0 });
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.minions[other.index()].in_play);
     assert_eq!(e.state.cards[abattoir.index()].counters, 1);
+    // Declined: none.
+    bleed_blocked(&mut passed, other, z);
+    let req = until(&mut passed, SeatId(0), WindowLabel::ResolutionChoice);
+    assert_eq!(
+        req.options,
+        vec![Choice::Pass, Choice::ResolveRider { card: abattoir.0 }]
+    );
+    until(&mut passed, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(passed.state.cards[abattoir.index()].counters, 0);
     pick(&mut e, bleed(drone));
     pick_when(&mut e, use_at(abattoir, 0, None, Target::None));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
@@ -569,6 +604,96 @@ fn obedience_ends_a_younger_vampires_action() {
             "not locked by blocking"
         );
     }
+}
+
+// Obedience against the combat the action itself begins (Abuse of Power's
+// "enter combat with a minion", by Lawbringer of the Path of Caine): played by the target once blocks are
+// declined, by an unlocked (or woken) vampire — a reaction (owner,
+// 2026-10-08: rules-qa 55.7). The action ends unsuccessfully, no combat;
+// [DOM] leaves the acting vampire locked.
+#[test]
+fn obedience_ends_an_action_entering_combat_with_an_older_vampire() {
+    for (mode, unlocked) in [(2u8, true), (3, false)] {
+        let mut e = game(3);
+        let young = e.add_minion(SeatId(0), card("Lawbringer"), 3, false);
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        let old = e.add_minion(SeatId(1), with("DOM", 8..=11), 4, false);
+        hand(&mut e, 0, &["Abuse of Power"]);
+        hand(&mut e, 1, &["Obedience"]);
+        pick(
+            &mut e,
+            Choice::Play {
+                card: 0,
+                mode: 0,
+                actor: Some(young),
+                target: Target::Minion(old),
+            },
+        );
+        pick_when(&mut e, play(0, mode, old));
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Failed));
+        assert_eq!((blood(&e, young), blood(&e, old)), (3, 4), "no combat");
+        assert_eq!(e.state.seats[1].pool, 10, "no pool burned");
+        assert_eq!(!e.state.minions[young.index()].locked, unlocked);
+        assert!(!e.state.minions[old.index()].locked);
+    }
+
+    // A locked target cannot play it, a reaction; neither can a vampire
+    // younger than the acting one.
+    for (cap, locked) in [(8..=11, true), (2..=3, false)] {
+        let mut e = game(3);
+        let young = e.add_minion(SeatId(0), card("Lawbringer"), 3, false);
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        let other = e.add_minion(SeatId(1), with("dom", cap), 2, false);
+        e.state.minions[other.index()].locked = locked;
+        hand(&mut e, 0, &["Abuse of Power"]);
+        hand(&mut e, 1, &["Obedience"]);
+        pick(
+            &mut e,
+            Choice::Play {
+                card: 0,
+                mode: 0,
+                actor: Some(young),
+                target: Target::Minion(other),
+            },
+        );
+        for mode in [2, 3] {
+            assert!(!request(&mut e).options.contains(&play(0, mode, other)));
+        }
+        never_offered_until(
+            &mut e,
+            SeatId(0),
+            WindowLabel::MinionPhase,
+            play(0, 2, other),
+        );
+    }
+}
+
+// Deep Song [ANI]: [ANK 20200702] "The lock and enter combat effects are
+// simultaneous. Both are lost if the action ends before that (eg.
+// Obedience)": the target ends the action, neither locked nor in combat.
+#[test]
+fn obedience_ends_deep_song_before_its_lock_and_combat() {
+    let mut e = game(3);
+    let young = e.add_minion(SeatId(0), with("ANI", 1..=5), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let old = e.add_minion(SeatId(1), with("DOM", 8..=11), 4, false);
+    hand(&mut e, 0, &["Deep Song"]);
+    hand(&mut e, 1, &["Obedience"]);
+    pick(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 1,
+            actor: Some(young),
+            target: Target::Minion(old),
+        },
+    );
+    pick_when(&mut e, play(0, 2, old));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Failed));
+    assert!(!e.state.minions[old.index()].locked, "the lock lost");
+    assert_eq!((blood(&e, young), blood(&e, old)), (4, 4), "no combat");
 }
 
 // [ANK 20210131] Crypt's Sons: "If used to cancel combat, reactions cards

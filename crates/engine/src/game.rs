@@ -1032,7 +1032,12 @@ impl Engine {
                     && r.effects
                         .contains(&crate::cards::Effect::CounterOnZombieBurned)
                 {
-                    self.state.cards[id.index()].counters += 1;
+                    // "You can": its controller's choice (rules-qa 55.6).
+                    self.interrupts
+                        .push(crate::draws::Interrupt::MayAddCounter {
+                            seat: owner,
+                            card: id,
+                        });
                 }
             }
         }

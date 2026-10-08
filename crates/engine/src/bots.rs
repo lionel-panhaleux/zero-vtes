@@ -14,6 +14,7 @@
 use crate::agent::Agent;
 use crate::cards::{self, Effect, RefEffect, Term};
 use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel as W};
+use crate::draws::Interrupt;
 use crate::game::Engine;
 use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, LIBRARY};
@@ -149,6 +150,16 @@ impl Scripted {
                 Choice::UseAbility { .. } => 10,
                 _ => 0,
             },
+            // An optional effect never worse to use (Fever Pitch put on its
+            // vampire, Cursed Abattoir's counter; rules-qa 53.5, 55.6).
+            W::ResolutionChoice
+                if matches!(
+                    e.interrupt(),
+                    Some(Interrupt::MayPutOn { .. } | Interrupt::MayAddCounter { .. })
+                ) =>
+            {
+                i32::from(*o != Choice::Pass) * 10
+            }
             W::UnlockAbilities => match o {
                 Choice::PayContest(_) => 10,
                 // The Edge's pool costs nothing.

@@ -240,10 +240,20 @@ pub struct ActionCtx {
     /// (Seeds of Terror): an ally cannot pay it.
     pub block_toll_blood: u8,
     /// A combat queued by a play (Hedonism [for]/[pre]): (its vampire, the
-    /// minion that attempted to block) — begun when the block step is
-    /// over, before resolution; dropped if the action ends first (advanced
-    /// rules 4.9.3; rules-qa 53.3).
+    /// minion that attempted to block) — begun after block resolution (the
+    /// block's combat) or after a successful action's effects, still part
+    /// of its resolution; dropped if the action ends first (advanced rules
+    /// 4.9.3; rules-qa 53.3).
     pub queued_combat: Option<(MinionId, MinionId)>,
+    /// Forward Momentum's counter after the bleed (+1 successful, -1
+    /// otherwise), pending in the after-resolution window — the same window
+    /// as its unlock, in the controller's order (owner, 2026-10-08:
+    /// rules-qa 53.6): a gain taken by the unlock first, a loss after it;
+    /// whatever is left applies as the action ends.
+    pub momentum: Vec<(CardId, bool)>,
+    /// The queued combat began after the action's effects: its end goes on
+    /// to the after-resolution window (rules-qa 53.3).
+    pub queued_at_resolution: bool,
     /// Cards put on their vampire after resolution if the bleed was
     /// successful (Fever Pitch [FOR]/[PRE]).
     pub put_if_bleed_successful: Vec<crate::combat::Held>,
@@ -606,6 +616,23 @@ impl ActionCtx {
         match (self.kind, self.target) {
             (ActionKind::Rescue | ActionKind::Diablerie, _) => self.torpor_target,
             (_, Target::Minion(m)) => Some(m),
+            _ => None,
+        }
+    }
+
+    /// The minion the action's resolution begins a combat with ("enter
+    /// combat with a minion", a card's or a granted action's), if any.
+    pub fn combat_target(&self, st: &crate::state::GameState) -> Option<MinionId> {
+        let (effects, target) = match (&self.card, self.source, self.ability) {
+            (Some(p), _, _) => (
+                cards::lookup(p.card).map_or(&[][..], |d| d.modes[p.mode as usize].effects),
+                p.target,
+            ),
+            (None, Some(src), Some(ab)) => (src.mode(st, ab).effects, self.target),
+            _ => return None,
+        };
+        match target {
+            Target::Minion(m) if effects.contains(&Effect::EnterCombatWithTarget) => Some(m),
             _ => None,
         }
     }
@@ -2081,7 +2108,8 @@ impl Engine {
             return;
         }
         // A combat queued in it (Hedonism) begins once the block's own
-        // combat is over, before resolution (rules-qa 53.3).
+        // combat is over — block resolution — or the combat the
+        // resolution began (owner, 2026-10-08: rules-qa 53.3).
         if self.action.as_ref().expect("action context").state == ActionState::AfterCombat
             && self.begin_queued_combat()
         {
@@ -2097,11 +2125,8 @@ impl Engine {
             }
             ActionState::Open => {
                 a.state = ActionState::Declined;
-                if !self.begin_queued_combat() {
-                    let a = self.action.as_mut().expect("action context");
-                    a.fresh_window();
-                    self.flow = Flow::Action;
-                }
+                a.fresh_window();
+                self.flow = Flow::Action;
             }
             ActionState::Attempt(blocker) => {
                 // Locked during its attempt (Visions of Zapathasura
@@ -2126,6 +2151,16 @@ impl Engine {
                     a.fresh_window();
                     self.flow = Flow::Action;
                 }
+            }
+            // Obedience against the combat the resolution would begin: the
+            // action ends unsuccessfully before it resolves, no combat
+            // (owner, 2026-10-08: rules-qa 55.7, the window 56.2); it
+            // reached resolution, so NRA holds (LSJ 20070709).
+            ActionState::Declined if a.ended_early => {
+                a.outcome = Some(Outcome::Failed);
+                let (acting, kind) = (a.acting, a.kind);
+                self.mark_resolved(acting, kind);
+                self.after_resolution();
             }
             ActionState::Declined | ActionState::WouldSucceed => {
                 // A bleed for 1 or more, or a political action before its
@@ -2271,6 +2306,26 @@ impl Engine {
     /// Dawn's damage, ANK 20220331); an ended action takes no more cards
     /// in it (RTR 20180719), a failed one does (ANK 20221205).
     pub(crate) fn after_resolution(&mut self) {
+        // A combat queued before resolution (Hedonism), the action
+        // successful: it begins after the action's effects, still part of
+        // its resolution ("Queue a combat", Sabbat V5 rules; owner,
+        // 2026-10-08: rules-qa 53.3); the action resumes here after it.
+        // An action failing or ending early loses it (LSJ 20090826); a
+        // fizzled one is successful (rules-qa 56.1).
+        let successful = self
+            .action
+            .as_ref()
+            .is_some_and(|a| matches!(a.outcome, Some(Outcome::Successful | Outcome::Fizzled)));
+        if successful && self.begin_queued_combat() {
+            self.action
+                .as_mut()
+                .expect("action context")
+                .queued_at_resolution = true;
+            return;
+        }
+        if let Some(a) = self.action.as_mut() {
+            a.queued_combat = None;
+        }
         self.bleed_ends_riders();
         // WMRH Talk Radio: the minion given intercept did not block since.
         if let Some(a) = self.action.as_mut() {
@@ -2343,7 +2398,8 @@ impl Engine {
 
     /// A bleed of the controller's minion is over, before its
     /// after-resolution window (Forward Momentum: +1 counter if it was
-    /// successful, else -1 — a blocked bleed included, rules-qa 53.6).
+    /// successful, else -1 — a blocked bleed included, rules-qa 53.6),
+    /// pending in that window (`ActionCtx::momentum`).
     fn bleed_ends_riders(&mut self) {
         let Some(a) = self.action.as_ref() else {
             return;
@@ -2376,12 +2432,8 @@ impl Engine {
             for e in r.effects {
                 match *e {
                     Effect::BleedOutcomeCounters => {
-                        let c = &mut self.state.cards[id.index()];
-                        if successful {
-                            c.counters += 1;
-                        } else {
-                            c.counters = c.counters.saturating_sub(1);
-                        }
+                        let a = self.action.as_mut().expect("action context");
+                        a.momentum.push((id, successful));
                     }
                     other => unreachable!("not a bleed-ends rider effect: {other:?}"),
                 }
@@ -2437,9 +2489,14 @@ impl Engine {
         self.resume_after_queued_combat();
     }
 
-    /// A queued combat over: the action's step goes on where it was.
+    /// A queued combat over: the action's step goes on where it was, or
+    /// its resolution, the combat begun after its effects.
     pub(crate) fn resume_after_queued_combat(&mut self) {
         let a = self.action.as_mut().expect("action context");
+        if std::mem::take(&mut a.queued_at_resolution) {
+            self.after_resolution();
+            return;
+        }
         a.fresh_window();
         self.flow = Flow::Action;
     }
@@ -3870,7 +3927,7 @@ impl Engine {
                         for e in mode.effects {
                             match *e {
                                 Effect::OpposingBurnsPoolIfOneReadyAfterCombat(n) => {
-                                    c.one_ready_burn = Some((acting, n));
+                                    c.one_ready_burn = Some(n);
                                 }
                                 Effect::PutOnActorIfOpposingNotReadyAfterCombat => {
                                     c.put_if_opposing_down =
@@ -4024,7 +4081,7 @@ impl Engine {
                     match *e {
                         Effect::DeclareAction(_)
                         | Effect::AddStealth(_)
-                        | Effect::BurnSourceAsCost
+                        | Effect::BurnSourceOnDeclare
                         | Effect::MandatoryAction
                         | Effect::PayBlood(_)
                         | Effect::PayLife(_)
@@ -4343,6 +4400,16 @@ impl Engine {
     /// layers pop, deferred replacements are drawn, the action card is
     /// discarded if it did not enter play, NRA identity is recorded.
     fn finish_action(&mut self) {
+        // Forward Momentum's pending counters.
+        let momentum = std::mem::take(&mut self.action.as_mut().expect("action context").momentum);
+        for (id, gain) in momentum {
+            let c = &mut self.state.cards[id.index()];
+            if gain {
+                c.counters += 1;
+            } else {
+                c.counters = c.counters.saturating_sub(1);
+            }
+        }
         // Eyes of the Wild: locked after the action unless it blocked it.
         let a = self.action.as_ref().expect("action context");
         let lock: Vec<MinionId> = a
@@ -4373,8 +4440,9 @@ impl Engine {
                 self.place_held(h, h.minion);
             }
         }
-        // Fever Pitch [FOR]/[PRE]: put on its vampire after a successful
-        // bleed, one per vampire (rules-qa 53.5).
+        // Fever Pitch [FOR]/[PRE]: "you can put this card on this vampire"
+        // after a successful bleed, one per vampire — its player's choice
+        // (owner, 2026-10-08: rules-qa 53.5).
         let a = self.action.as_ref().expect("action context");
         let put: Vec<crate::combat::Held> = if a.bleed_successful {
             a.put_if_bleed_successful.clone()
@@ -4382,11 +4450,11 @@ impl Engine {
             Vec::new()
         };
         for h in put {
-            let name = LIBRARY[h.card as usize].name;
-            if self.state.minions[h.minion.index()].present()
-                && !self.state.holds_a(h.minion, cards::Holding::Named(name))
-            {
-                self.place_held(h, h.minion);
+            if self.may_put_held(h) {
+                self.interrupts.push(crate::draws::Interrupt::MayPutOn {
+                    seat: h.seat,
+                    held: h,
+                });
             }
         }
         let a = self.action.as_ref().expect("action context");

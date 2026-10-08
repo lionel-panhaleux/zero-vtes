@@ -14749,8 +14749,8 @@ pub static ENTHRALL: CardDef = CardDef {
 /// vampire after action resolution. This vampire can burn this card during
 /// a bleed action they perform to have a block attempt fail; the blocking
 /// minion cannot attempt to block this action again. A vampire can have
-/// only one Fever Pitch." (1 blood; Path of Cathari.) Put on it whenever it
-/// can be (rules-qa 53.5).
+/// only one Fever Pitch." (1 blood; Path of Cathari.) Put on it at its
+/// player's choice, never worse than the ash heap (rules-qa 53.5).
 pub static FEVER_PITCH: CardDef = CardDef {
     name: "Fever Pitch",
     modes: &[
@@ -14774,7 +14774,9 @@ pub static FEVER_PITCH: CardDef = CardDef {
 /// add 1 counter to this card; otherwise, burn 1 counter from this card.
 /// After a vampire who follows the Path of Cathari you control performs an
 /// action, you can burn 2 counters from this card to unlock them." (Path
-/// of Cathari.) A blocked bleed is unsuccessful (rules-qa 53.6).
+/// of Cathari.) A blocked bleed is unsuccessful; both in one window, the
+/// controller's order: the unlock may take the bleed's counter first, or
+/// come before the one burned (owner, 2026-10-08: rules-qa 53.6).
 pub static FORWARD_MOMENTUM: CardDef = CardDef {
     name: "Forward Momentum",
     modes: &[master_in_play(&[], &[Effect::PutInPlay])],
@@ -14784,9 +14786,13 @@ pub static FORWARD_MOMENTUM: CardDef = CardDef {
         &[
             Requirement::OtherActingControlled,
             Requirement::ActingFollowsPath("Cathari"),
-            Requirement::CountersAtLeast(2),
+            Requirement::CountersWithBleedGainAtLeast(2),
         ],
-        &[Effect::RemoveCounter(2), Effect::UnlockActing],
+        &[
+            Effect::TakeBleedGain,
+            Effect::RemoveCounter(2),
+            Effect::UnlockActing,
+        ],
     )],
     riders: &[Rider {
         hook: Hook::OwnBleedEnds,
@@ -14803,8 +14809,8 @@ pub static FORWARD_MOMENTUM: CardDef = CardDef {
 /// vampire and the blocking minion, and queue a combat between them. [FOR]
 /// or [PRE] As above, but queue no combat." (Path of Cathari.) One queued
 /// combat at a time, none if the action ends first (LSJ 20021121, LSJ
-/// 20090826); part of the action (ANK 20170918-2); it begins once the
-/// block step is over (rules-qa 53.3).
+/// 20090826); part of the action (ANK 20170918-2): it begins after block
+/// resolution, or after a successful action's effects (rules-qa 53.3).
 pub static HEDONISM: CardDef = CardDef {
     name: "Hedonism",
     modes: &[
@@ -14838,8 +14844,8 @@ pub static HEDONISM: CardDef = CardDef {
 };
 
 /// "Unique location. Sabbat vampires you control get +1 hunt." (2 pool.)
-/// Hunts of other kinds too, the blood from their target (RTR 20030519;
-/// rules-qa 53.8).
+/// Hunts of other kinds too, the blood from their target (RTR 20030519),
+/// from the bank for one with none (Psychophagia; rules-qa 53.8).
 pub static HUNGRY_COYOTE: CardDef = CardDef {
     name: "Hungry Coyote, The",
     modes: &[master_in_play(
@@ -15004,8 +15010,8 @@ pub static ABBOT: CardDef = CardDef {
 
 /// "+1 stealth action. Ⓓ Enter combat with a minion. At the end of that
 /// combat, if only one combatant is ready, the controller of the opposing
-/// minion burns 1 pool." (Path of Caine.) Whichever of the two is ready
-/// (rules-qa 54.7).
+/// minion burns 1 pool." (Path of Caine.) The opponent of the ready one:
+/// the acting minion down, its own controller pays (rules-qa 54.7).
 pub static ABUSE_OF_POWER: CardDef = CardDef {
     name: "Abuse of Power",
     modes: &[action_at(
@@ -15154,7 +15160,8 @@ pub static ENSNARE_A_BEAST: CardDef = CardDef {
 /// "Requires a Sabbat vampire. Ⓓ Bleed with +1 bleed. Anarchs get -1
 /// intercept during this action. If this vampire is Tzimisce and the bleed
 /// is successful, this Tzimisce can burn 1 blood during your next discard
-/// phase to unlock." This turn's discard phase (rules-qa 54.5).
+/// phase to unlock." This turn's discard phase; the clan read as the bleed
+/// succeeds and again there (rules-qa 54.5).
 pub static FIENDISH_TONGUE: CardDef = CardDef {
     name: "Fiendish Tongue",
     modes: &[action_at(
@@ -15215,7 +15222,7 @@ pub static HUNTING_THE_QUARRY: CardDef = CardDef {
             &[
                 Effect::DeclareAction(ActionKind::Ability),
                 Effect::AddStealth(1),
-                Effect::BurnSourceAsCost,
+                Effect::BurnSourceOnDeclare,
                 Effect::EnterCombatWithTarget,
             ],
         )
@@ -15481,8 +15488,8 @@ pub static BURIAL_SITE_HUNTING_GROUND: CardDef = CardDef {
 /// "Unique location. After a zombie (ally or retainer) you control is
 /// burned, you can add 1 counter to this location. During a bleed action,
 /// you can burn 1 counter from this location to give a zombie ally you
-/// control +1 bleed." (Path of Death and the Soul.) The counter added
-/// whenever it can be (rules-qa 55.6).
+/// control +1 bleed." (Path of Death and the Soul.) The counter its
+/// controller's choice, never worse to add (rules-qa 55.6).
 pub static CURSED_ABATTOIR: CardDef = CardDef {
     name: "Cursed Abattoir",
     modes: &[LOCATION],
@@ -15812,8 +15819,10 @@ pub static MORBIDITY: CardDef = CardDef {
 /// acting vampire." The action reached resolution: NRA (LSJ 20070709), ended
 /// unsuccessfully at once, no combat, nothing more played (RTR 20180719);
 /// not against a minion taking the acting vampire's place (ANK 20171212).
-/// Played on a block only, not on a combat the action itself starts (a
-/// rush, Deep Song; rules-qa 55.7).
+/// As a block succeeds, or against the combat the action itself begins (a
+/// rush, Deep Song: ANK 20200702), blocks declined, by an unlocked or woken
+/// vampire, a reaction (owner, 2026-10-08: rules-qa 55.7). Each version
+/// splits in two (`cards::library_mode`).
 pub static OBEDIENCE: CardDef = CardDef {
     name: "Obedience",
     modes: &[
@@ -15827,6 +15836,18 @@ pub static OBEDIENCE: CardDef = CardDef {
             &[Window::ActionBlocked],
             Actor::ReactingMinion,
             &[Requirement::MayBeLocked, Requirement::BlockingYoungerActing],
+            &[Effect::EndBlockedActionLocked],
+        ),
+        mode_of(
+            &[Window::ActionBlocksDeclined],
+            Actor::ReactingMinion,
+            &[Requirement::FoughtByYoungerActing],
+            &[Effect::EndBlockedAction],
+        ),
+        mode_of(
+            &[Window::ActionBlocksDeclined],
+            Actor::ReactingMinion,
+            &[Requirement::FoughtByYoungerActing],
             &[Effect::EndBlockedActionLocked],
         ),
     ],
@@ -15909,8 +15930,9 @@ pub static PUTRESCENT_SUSTENANCE: CardDef = CardDef {
 /// one aim each strike. If any damage from this strike is successfully
 /// inflicted on the opposing minion, they take +2 damage from this strike,
 /// and they cannot press this round. They can discard two combat cards to
-/// cancel this card as it is played." The strike chosen after it (LSJ
-/// 20080409); of the strike's kind (RTR 19970630); no effect on a strike
+/// cancel this card as it is played." The strike chosen after it, a
+/// committed one included while it can still be used (LSJ 20080409;
+/// rules-qa 55.8); of the strike's kind (RTR 19970630); no effect on a strike
 /// dealing none (RTR 19960221); canceled, its cost paid (PIB 20121031).
 pub static TARGET_VITALS: CardDef = CardDef {
     name: "Target Vitals",

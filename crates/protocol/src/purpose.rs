@@ -156,6 +156,14 @@ impl Describer<'_> {
                 "{} entered play: burn an ally or retainer you control",
                 self.named(ally)
             ),
+            MayPutOn { held, .. } => format!(
+                "You can put {} on {}",
+                zvtes::library::LIBRARY[held.card as usize].name,
+                self.named(held.minion)
+            ),
+            MayAddCounter { card, .. } => {
+                format!("You can add 1 counter to {}", self.card_name(card))
+            }
             EntryRemoveOrBurn { ally, .. } => format!(
                 "{} burns unless you remove an ally or vampire in your ash heap from the game",
                 self.named(ally)
@@ -326,6 +334,14 @@ impl Describer<'_> {
                     Some("Stop searching".into())
                 }
                 (EntryBurn { .. }, Choice::ChooseMinion(_)) => role("burned".into()),
+                (MayPutOn { held, .. }, Choice::Pass) => Some(format!(
+                    "Leave {} in the ash heap",
+                    zvtes::library::LIBRARY[held.card as usize].name
+                )),
+                (MayAddCounter { .. }, Choice::Pass) => Some("Add no counter".into()),
+                (MayAddCounter { card, .. }, Choice::ResolveRider { .. }) => {
+                    Some(format!("Add 1 counter to {}", self.card_name(card)))
+                }
                 (EntryRemoveOrBurn { ally, .. }, Choice::Pass) => {
                     Some(format!("Burn {}", self.named(ally)))
                 }

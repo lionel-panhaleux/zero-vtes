@@ -315,9 +315,10 @@ fn enthrall_bleeds_and_buys_a_crypt_card() {
     }
 }
 
-// Fever Pitch [FOR] or [PRE]: +1 bleed (limited); successful, the card on
-// the vampire (rules-qa 53.5); on a later bleed of theirs, burned to have
-// a block attempt fail — the blocker not offered again.
+// Fever Pitch [FOR] or [PRE]: +1 bleed (limited); successful, "you can
+// put this card on this vampire" — its player's choice (owner, 2026-10-08:
+// rules-qa 53.5); on a later bleed of theirs, burned to have a block
+// attempt fail — the blocker not offered again.
 #[test]
 fn fever_pitch_stays_to_foil_a_later_block() {
     let (mut e, devorah, z) = table("Devorah");
@@ -326,6 +327,12 @@ fn fever_pitch_stays_to_foil_a_later_block() {
     let fever = find_library("Fever Pitch");
     pick(&mut e, bleed(devorah));
     pick_when(&mut e, play(0, 1, devorah));
+    // Declined: to the ash heap.
+    let mut passed = e.clone();
+    until(&mut passed, SeatId(0), WindowLabel::ResolutionChoice);
+    until(&mut passed, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(passed.state.seats[0].ash, vec![fever]);
+    pick_when(&mut e, Choice::ChooseMinion(devorah));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.seats[1].pool, 8);
     let on: Vec<CardId> = (0..e.state.cards.len() as u32)
@@ -371,6 +378,18 @@ fn forward_momentum_counts_bleeds_and_unlocks() {
     bleed_blocked(&mut e, devorah, z);
     never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, unlock);
     assert_eq!(e.state.cards[fm.index()].counters, 0);
+
+    // One window, the controller's order: blocked with 2 counters, both
+    // burned to unlock before the bleed's counter is (owner, 2026-10-08:
+    // rules-qa 53.6).
+    let (mut e, devorah, z) = table("Devorah");
+    let fm = in_play(&mut e, 0, "Forward Momentum", None);
+    e.state.cards[fm.index()].counters = 2;
+    bleed_blocked(&mut e, devorah, z);
+    pick_when(&mut e, unlock);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[devorah.index()].locked);
+    assert_eq!(e.state.cards[fm.index()].counters, 0);
 }
 
 // Hedonism [for] or [pre]: played by another ready unlocked vampire of the
@@ -404,21 +423,24 @@ fn hedonism_fails_an_attempt_and_queues_a_combat_in_the_action() {
         "one queued at a time"
     );
 
-    // Unblocked after the failed attempt: the queued combat, then the
-    // bleed.
+    // Unblocked after the failed attempt: the bleed resolves, then the
+    // queued combat, still part of the action's resolution ("Queue a
+    // combat", Sabbat V5 rules; owner, 2026-10-08: rules-qa 53.3).
     let (mut e, bleeder, z) = table("Ximena");
     let devorah = e.add_minion(SeatId(0), card("Devorah"), 4, false);
-    hand(&mut e, 0, &["Hedonism"]);
+    hand(&mut e, 0, &["Hedonism", "Target Vitals"]);
     bleed_blocked(&mut e, bleeder, z);
     pick_when(&mut e, play(0, 0, devorah));
-    // Its hand strikes only: the combat elides.
+    // Target Vitals held: the combat stops at Devorah's strike.
+    until(&mut e, SeatId(0), WindowLabel::CombatStrike);
+    assert_eq!(e.state.seats[1].pool, 9, "the bleed resolved first");
+    assert!(e.action().is_some(), "still the action");
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(
         (blood(&e, devorah), blood(&e, z)),
         (3, 3),
         "the queued combat"
     );
-    assert_eq!(e.state.seats[1].pool, 9, "the bleed resolved after it");
 }
 
 // [LSJ 20090826] Hedonism: "Combat does not occur if the action ends
@@ -487,6 +509,17 @@ fn the_hungry_coyote_feeds_sabbat_hunts() {
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(blood(&e, young), 0);
     assert_eq!(blood(&e, devorah), 3);
+
+    // Psychophagia, a hunt eating an ash heap ally: 1 more blood, from the
+    // bank (owner, 2026-10-08: rules-qa 53.8).
+    let (mut e, _, _) = table("Devorah");
+    let aitana = e.add_minion(SeatId(0), card("Aitana, The Unholy"), 1, false);
+    in_play(&mut e, 0, "Hungry Coyote, The", None);
+    e.state.seats[2].ash.push(find_library("Screamer"));
+    hand(&mut e, 0, &["Psychophagia"]);
+    pick(&mut e, play(0, 0, aitana));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, aitana), 1 + 3 + 1);
 }
 
 // Kiss of Cathari [OBF] or [PRE]: combat ends; after it, at close range,

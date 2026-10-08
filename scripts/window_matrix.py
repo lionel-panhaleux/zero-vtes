@@ -427,8 +427,11 @@ REACTION_TIMING = [
     (r"polling step|during (a|the|this) referendum", "REFERENDUM"),
     (r"reduce (a|the) bleed", "REACTION_DURING_ACTION"),   # legality: a bleed against you
     # "Only usable if this vampire is about to enter combat with an acting
-    # … vampire" (Obedience): the block made, before its resolution.
+    # … vampire" (Obedience): the block made, before its resolution; or the
+    # blocks declined, before the combat the action begins (owner,
+    # 2026-10-08: rules-qa 55.7).
     (r"about to enter combat with", "ACTION_BLOCKED"),
+    (r"about to enter combat with", "ACTION_BLOCKS_DECLINED"),
     # An out-of-turn master triggered by the opposing strike (Rötschreck).
     (r"attempts to inflict aggravated damage", "COMBAT_BEFORE_RESOLUTION"),
     # An out-of-turn master saving a Methuselah from an oust (Life Boon).
