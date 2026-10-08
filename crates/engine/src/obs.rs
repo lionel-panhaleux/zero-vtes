@@ -17,7 +17,12 @@
 //! Two versions ([`Version`]): a trained network keeps the one it was
 //! trained on. `V2` adds what `V1` lacks: the ash heaps' contents (public:
 //! each seat's deck as it is revealed) and the table's memory, the last
-//! public choices (`Engine::history`).
+//! public choices (`Engine::history`). `V3` (owner, 2026-10-05: lighter
+//! training) reads the same, in fewer tokens: the viewer's library and
+//! crypt as a separate list (`Obs::deck_ids`, pooled by the network, out of
+//! attention), the other Methuselahs' face-down uncontrolled vampires as
+//! their seat's count and counters, and the transfers left in the
+//! influence phase.
 
 use crate::cards::{AbilitySource, Target};
 use crate::crypt::{Title, CRYPT};
@@ -62,6 +67,9 @@ pub enum Version {
     V1,
     /// `V1` plus the ash heaps' contents and the last public choices.
     V2,
+    /// `V2` lighter: the deck out of the tokens (`Obs::deck_ids`), the
+    /// face-down uncontrolled vampires as counts, the transfers left.
+    V3,
 }
 
 /// The vocabulary of `ids[1]`: 0 none, then the crypt, the library, a
@@ -144,13 +152,17 @@ const O_TITLE: usize = 4;
 const O_ACTION: usize = 5; // action kind one-hot
 const _: () = assert!(O_ACTION + N_ACTION_KINDS <= OPT_F);
 
-/// One observation: tokens and options, row by row.
+/// One observation: tokens and options, row by row; with `V3`, the
+/// viewer's library and crypt apart (`T_DECK` rows the network pools into
+/// the context token, nothing points at them), empty before.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Obs {
     pub tok_ids: Vec<[i32; TOK_IDS]>,
     pub tok_f: Vec<[f32; TOK_F]>,
     pub opt_ids: Vec<[i32; OPT_IDS]>,
     pub opt_f: Vec<[f32; OPT_F]>,
+    pub deck_ids: Vec<[i32; TOK_IDS]>,
+    pub deck_f: Vec<[f32; TOK_F]>,
 }
 
 /// Token indices of the entities, for pointers (index + 1; 0 = none).
@@ -292,6 +304,15 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
         f[F_MPA] = (seat.mpa + seat.dpa) as f32 / 3.0;
         f[F_HELD] = seat.held.total() as f32 / 5.0;
         f[F_UNCONTROLLED] = seat.uncontrolled.len() as f32 / 6.0;
+        if v == Version::V3 {
+            // The face-down vampires' counters (public), their slots no
+            // tokens.
+            let hidden: u32 = (seat.uncontrolled.iter())
+                .filter(|slot| !(omniscient || s == viewer || slot.banished.is_some()))
+                .map(|slot| slot.counters as u32)
+                .sum();
+            f[F_BLOOD] = hidden as f32 / 20.0;
+        }
         if let Some(t) = terms {
             let points: u32 = (t.alloc.iter().chain(&t.realloc))
                 .filter(|&&(to, _)| to == s)
@@ -384,6 +405,10 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
         let seat = SeatId(s as u8);
         for (k, slot) in st.seats[s].uncontrolled.iter().enumerate() {
             let seen = omniscient || seat == viewer || slot.banished.is_some();
+            if v == Version::V3 && !seen {
+                ix.seat_slots[s].push(0);
+                continue;
+            }
             let mut f = [0.0; TOK_F];
             f[F_REL + rel(st, viewer, seat).min(SEATS - 1)] = 1.0;
             f[F_BLOOD] = slot.counters as f32 / 10.0;
@@ -424,7 +449,12 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
             } else {
                 library_id(c)
             };
-            push(&mut o, [T_DECK, id, 0, 0], f);
+            if v == Version::V3 {
+                o.deck_ids.push([T_DECK, id, 0, 0]);
+                o.deck_f.push(f);
+            } else {
+                push(&mut o, [T_DECK, id, 0, 0], f);
+            }
         }
     }
 
@@ -456,7 +486,7 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
         }
     }
 
-    if v == Version::V2 {
+    if v != Version::V1 {
         // The ash heaps: a token per seat and card, with its copies.
         for s in 0..st.seats.len() {
             let seat = &st.seats[s];
@@ -499,6 +529,9 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
     let mut f = [0.0; TOK_F];
     let (mut a_ptr, mut b_ptr) = (0, 0);
     f[F_TURN] = st.turn as f32 / 100.0;
+    if let (Version::V3, crate::game::Flow::Influence { left }) = (v, &e.flow) {
+        f[F_MPA] = *left as f32 / 4.0;
+    }
     if let Some(a) = e.action() {
         f[F_ACTION + a.kind as usize] = 1.0;
         if let Some(t) = a.bleed_target {

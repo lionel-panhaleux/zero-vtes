@@ -5,11 +5,25 @@
 use std::rc::Rc;
 
 use wasm_bindgen::prelude::*;
-use zvtes_policy::{Net, NetAgent};
+use zvtes_policy::{Net, NetAgent, Nudges};
 use zvtes_protocol::{deck, GameSpec, Player, Session};
 
 /// The bot style the trained policy plays (`Game.withPolicy`).
 const NETWORK: &str = "network";
+
+/// The network bots' temperature (`NetAgent::temperature`): measured on
+/// `p7-politics@1400` (`crates/policy/examples/strength.rs`, 512 games),
+/// 1.16 VP a seat at 0.5 against 0.82 sampling as training does (0.3:
+/// 1.18 / 0.80; 0.7: 1.06 / 0.92) — the network's favourites more often,
+/// a card it rates low played less "for the sake of it".
+const TEMPERATURE: f32 = 0.5;
+
+/// The network bots' rescue bonus (`Nudges::rescue`; owner,
+/// 2026-10-05: rescuing one's own vampire encouraged, not forced): +6
+/// takes 7% of the rescues offered at temperature 1 (0% without), at no
+/// measured cost (512 games: 0.94 / 1.05 VP a seat, within the control's
+/// spread; with the temperature, 1.17 / 0.81 as without).
+const RESCUE_BONUS: f32 = 6.0;
 
 fn json<T: serde::Serialize>(v: &T) -> String {
     serde_json::to_string(v).expect("protocol types serialize")
@@ -49,7 +63,13 @@ impl Game {
             Session::with_styles(spec, &[NETWORK]).map_err(|e| JsError::new(&json(&e)))?;
         for seat in seats {
             let seed = seed.wrapping_mul(0x9e37_79b9).wrapping_add(seat as u64);
-            session.set_agent(seat, Box::new(NetAgent::new(net.clone(), seed)));
+            let agent = NetAgent::new(net.clone(), seed)
+                .temperature(TEMPERATURE)
+                .nudges(Nudges {
+                    rescue: RESCUE_BONUS,
+                    ..Nudges::default()
+                });
+            session.set_agent(seat, Box::new(agent));
         }
         Ok(Game { session })
     }

@@ -33,6 +33,14 @@ as it was played.
 | `zero-vtes-replay-2026-10-04T14-37-29-282Z.json` | `601bf3c` | **Hecata (V5)**, Malkavian (V5), Toreador (V5), Ventrue (V5) | `p5-self@1250` (network, default politics) | owner 4 VP, the bots 0 |
 | `zero-vtes-replay-2026-10-04T15-07-24-918Z.json` | `601bf3c` or later | Malkavian (V5), Ministry (V5 Anarch), Gangrel (V5 Anarch), **Nosferatu (V5)** | `p5-self@1250` (network, default politics) | owner 3 VP, Malkavian 1 |
 | `zero-vtes-replay-2026-10-04T15-55-52-662Z.json` | `601bf3c` or later | Tzimisce (V5 Companion), **Hecata (V5)**, Ministry (V5 Anarch), Toreador (V5) | `p5-self@1250` (network, default politics) | owner 3 VP, Ministry 1 |
+| `zero-vtes-replay-2026-10-04T19-47-18-904Z.json` | `65d1539` or later | Salubri, Nosferatu, **The Unnamed**, Lasombra | `p7-politics@1400` (network, default politics) | owner 3 VP, Salubri 1 |
+| `zero-vtes-replay-2026-10-04T22-26-33-065Z.json` | `cf4a56c` or later | Brujah, **The Unnamed**, Hecata, Ministry | `p7-politics@1400` (network, default politics) | owner 4 VP, the bots 0 |
+| `zero-vtes-replay-2026-10-05T06-24-53-391Z.json` | `cf4a56c` or later | Malkavian, Hecata, Gangrel, **The Unnamed** | `p7-politics@1400` (network, default politics) | owner 3 VP, Malkavian 1 |
+| `zero-vtes-replay-2026-10-05T21-14-26-429Z.json` | `cf4a56c` or later | Salubri, **The Unnamed**, Nosferatu, Toreador | `p7-politics@1400` (network, default politics) | owner 4 VP, the bots 0 |
+| `zero-vtes-replay-2026-10-05T21-45-18-313Z.json` | `cf4a56c` or later | **The Unnamed**, Gangrel, Lasombra, Hecata | `p7-politics@1400` (network, default politics) | owner 4 VP, the bots 0 |
+| `zero-vtes-replay-2026-10-06T05-40-36-622Z.json` | uncommitted, after `cf4a56c` | Nosferatu, Brujah, Malkavian, **The Unnamed** | `p7-politics@1400` (network, default politics) | — (log ends at 390) |
+| `zero-vtes-replay-2026-10-06T06-18-50-630Z.json` | uncommitted, after `cf4a56c` | Brujah, **The Unnamed**, Salubri, Toreador | `p7-politics@1400` (network, default politics) | owner 4 VP, the bots 0 |
+| `zero-vtes-replay-2026-10-07T05-33-18-077Z.json` | uncommitted, after `cf4a56c` | Ravnos, **The Unnamed**, Lasombra, Malkavian | `p7-politics@1800` (network, default politics, temperature 0.5, rescue bonus) | owner 3 VP, Malkavian 1 |
 
 Since rules-qa 48.1 (intercept not floored at 0), `2026-10-03T09-03-44`
 replays on later engines only up to decision 72: its Form of the Bat
@@ -81,3 +89,7 @@ minion left or where the window that offered it is now elided:
 at 400 (whole at `65d1539`), `…T08-31-11` at 294 and `…T15-07-24` at
 82 (to 609 and 216 at `65d1539`). `…T12-09-51`, `…T13-51-13`,
 `…T14-37-29` and `…T15-55-52` still read whole.
+
+The games of 2026-10-04 evening to 2026-10-07 (`…T19-47-18` to
+`…T05-33-18`: the bots' decks as the fork names them, the owner's own
+deck "The Unnamed") read whole at `cf4a56c` and after.

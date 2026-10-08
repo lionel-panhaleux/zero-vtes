@@ -18,9 +18,14 @@
 
 use std::collections::HashMap;
 
+pub mod chores;
+
 use zvtes::agent::Agent;
-use zvtes::decision::DecisionRequest;
+use zvtes::cards::Stat;
+use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::Engine;
+use zvtes::habits::{self, Habit};
+use zvtes::library::{CardType, LIBRARY};
 use zvtes::obs::{self, Obs};
 use zvtes::politics;
 use zvtes::rng::Rng;
@@ -169,6 +174,7 @@ impl Net {
         let version = match meta.get("obs").copied().unwrap_or(1) {
             1 => obs::Version::V1,
             2 => obs::Version::V2,
+            3 => obs::Version::V3,
             v => return Err(format!("unknown obs version {v}")),
         };
         let mut take = |name: &str, shape: &[usize]| -> Result<Vec<f32>, String> {
@@ -306,6 +312,25 @@ impl Net {
                 x[k] += a[k] + b[k];
             }
         }
+        // `V3`'s deck rows: embedded alike, their mean added to the
+        // context token (the last), out of attention.
+        if !o.deck_ids.is_empty() && t > 0 {
+            let mut pooled = vec![0f32; d];
+            for (ids, f) in o.deck_ids.iter().zip(&o.deck_f) {
+                linear(&self.tok_f.0, Some(&self.tok_f.1), f, &mut tmp);
+                let (a, b) = (
+                    self.row(&self.token_type, ids[0]),
+                    self.row(&self.vocab, ids[1]),
+                );
+                for k in 0..d {
+                    pooled[k] += tmp[k] + a[k] + b[k];
+                }
+            }
+            let n = o.deck_ids.len() as f32;
+            for k in 0..d {
+                base[(t - 1) * d + k] += pooled[k] / n;
+            }
+        }
         let mut x = base.clone();
         for i in 0..t {
             tmp.fill(0.0);
@@ -426,11 +451,118 @@ impl Net {
     }
 }
 
+/// Nudges on the network's logits (owner, 2026-10-05: "a guiding harness
+/// like we do for the votes", "until it learns by itself"): added before
+/// sampling, inside the distribution training learns from (`opt_bias` in
+/// `crates/py`), faded out over a run. Every option stays offered and
+/// legal (rules-qa 17.4): a nudge only makes one likelier.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Nudges {
+    /// Added to a rescue of one's own vampire (`habits::Habit::Rescue`).
+    pub rescue: f32,
+    /// Added to passing one's discard phase when a card could be cycled:
+    /// the hand kept (the network cycles in 95% of its discard phases, the
+    /// owner in 53%).
+    pub pass: f32,
+    /// Taken off cycling a reaction card in one's discard phase (the
+    /// owner keeps them: 31% of the hand, 23% of the cards cycled; the
+    /// network cycles them as often as it holds them).
+    pub reaction: f32,
+    /// Taken off a bleed for nothing (`empty_bleed`; owner, 2026-10-05:
+    /// "it bleeds with Aggressive Corpse and that minion has zero bleed …
+    /// doing an action with no effect should not be favored").
+    pub bleed: f32,
+    /// Taken off ending one's influence phase while a crypt draw is still
+    /// offered (4 transfers unspent) with 5 pool or more (owner,
+    /// 2026-10-05: "it has a tendency to stay idle with all in torpor when
+    /// it could draw a crypt card or try to influence one more vampire";
+    /// the network ends 69% of its influence phases with none made, pool
+    /// 11.7 on average, the owner 25%).
+    pub idle: f32,
+}
+
+impl Nudges {
+    pub fn is_zero(&self) -> bool {
+        *self == Nudges::default()
+    }
+
+    /// The nudge on option `o` of `req`. Reads only the deciding seat's
+    /// legal view.
+    pub fn bias(&self, e: &Engine, req: &DecisionRequest, o: &Choice) -> f32 {
+        let mut b = 0.0;
+        if self.rescue != 0.0 && habits::habit(e, req.seat, o) == Some(Habit::Rescue) {
+            b += self.rescue;
+        }
+        if self.bleed != 0.0 && empty_bleed(e, o) {
+            b -= self.bleed;
+        }
+        if self.idle != 0.0 && *o == Choice::Pass && idle_influence(e, req) {
+            b -= self.idle;
+        }
+        if (self.pass != 0.0 || self.reaction != 0.0) && cycling(e, req) {
+            let hand = &e.state.seats[req.seat.index()].hand;
+            match *o {
+                Choice::Pass => b += self.pass,
+                Choice::Discard(i)
+                    if LIBRARY[hand[i as usize] as usize]
+                        .types
+                        .contains(&CardType::Reaction) =>
+                {
+                    b -= self.reaction
+                }
+                _ => {}
+            }
+        }
+        b
+    }
+}
+
+/// `o` is a rulebook bleed by a minion that bleeds for 0 before any
+/// action modifier: its base bleed (an ally's printed one: Aggressive
+/// Corpse) and the cards it bears. An action card's bleed is not one.
+pub fn empty_bleed(e: &Engine, o: &Choice) -> bool {
+    let st = &e.state;
+    matches!(*o, Choice::TakeAction { minion, action: ActionKind::Bleed, .. }
+        if st.base_bleed(minion) as i32 + st.bearer_mod(minion, Stat::Bleed, ActionKind::Bleed) <= 0)
+}
+
+/// `req` is a seat's influence phase with a crypt draw still offered (4
+/// transfers left) and 5 pool or more: passing it leaves them unused.
+pub fn idle_influence(e: &Engine, req: &DecisionRequest) -> bool {
+    req.window == WindowLabel::InfluenceTransfers
+        && e.state.seats[req.seat.index()].pool >= 5
+        && req.options.contains(&Choice::DrawCrypt)
+}
+
+/// Two masks (`None`: no opinion) as one: the options both leave, or the
+/// first's alone when they would leave none.
+pub fn combine(a: Option<Vec<bool>>, b: Option<Vec<bool>>) -> Option<Vec<bool>> {
+    match (a, b) {
+        (Some(a), Some(b)) if a.iter().zip(&b).any(|(x, y)| *x && *y) => {
+            Some(a.iter().zip(&b).map(|(x, y)| *x && *y).collect())
+        }
+        (Some(a), _) => Some(a),
+        (None, b) => b,
+    }
+}
+
+/// `req` is a seat's own discard phase with a card to cycle.
+pub fn cycling(e: &Engine, req: &DecisionRequest) -> bool {
+    req.window == WindowLabel::DiscardPhase
+        && e.state.active == req.seat
+        && req.options.iter().any(|o| matches!(o, Choice::Discard(_)))
+}
+
 /// The policy as a player: samples an option from the network's
-/// distribution, as training does (`train/ppo.py` `act`).
+/// distribution, as training does (`train/ppo.py` `act`), with the nudges
+/// training plays with (`nudges`), sharpened by a temperature under 1
+/// (`temperature`: the human-play bot).
 pub struct NetAgent {
     net: std::rc::Rc<Net>,
     rng: Rng,
+    temperature: f32,
+    nudges: Nudges,
+    chores: bool,
 }
 
 impl NetAgent {
@@ -438,7 +570,34 @@ impl NetAgent {
         NetAgent {
             net,
             rng: Rng::new(seed),
+            temperature: 1.0,
+            nudges: Nudges::default(),
+            chores: true,
         }
+    }
+
+    /// The logits divided by `t` before sampling: 1 samples as training
+    /// does, under 1 picks the network's favourites more often (owner,
+    /// 2026-10-05: "it has a tendency to play cards for the sake of it" —
+    /// a card it rates 30% is played 30% of the time).
+    pub fn temperature(mut self, t: f32) -> NetAgent {
+        assert!(t > 0.0, "a positive temperature");
+        self.temperature = t;
+        self
+    }
+
+    /// Whether the chores are never declined (`chores`; on by default, as
+    /// in training).
+    pub fn chores(mut self, on: bool) -> NetAgent {
+        self.chores = on;
+        self
+    }
+
+    /// The nudges added to the logits (before the temperature), as the
+    /// training pool's do.
+    pub fn nudges(mut self, n: Nudges) -> NetAgent {
+        self.nudges = n;
+        self
     }
 }
 
@@ -448,10 +607,24 @@ impl Agent for NetAgent {
         if let Some(i) = politics::terms_choice(engine, req) {
             return i;
         }
-        let (logits, _) = self
+        // Options score independently (each against the context): the
+        // masked ones change nothing of the others' logits.
+        let mask = combine(
+            politics::mask(engine, req),
+            self.chores.then(|| chores::mask(engine, req)).flatten(),
+        );
+        if let Some(m) = &mask {
+            if let [only] = (0..m.len()).filter(|&i| m[i]).collect::<Vec<_>>()[..] {
+                return only;
+            }
+        }
+        let (mut logits, _) = self
             .net
             .forward(&obs::encode(engine, req, self.net.version));
-        let mask = politics::mask(engine, req);
+        for (l, o) in logits.iter_mut().zip(&req.options) {
+            *l += self.nudges.bias(engine, req, o);
+            *l /= self.temperature;
+        }
         let allowed = |i: usize| mask.as_ref().is_none_or(|m| m[i]);
         let max = (0..logits.len())
             .filter(|&i| allowed(i))

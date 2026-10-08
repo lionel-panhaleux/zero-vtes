@@ -5,7 +5,10 @@ the network's shape. A value head reads the context token.
 
 Inputs are `zvtes_py.GamePool.observe()` batches (see `zvtes::obs`): ids
 `[kind/type, vocabulary, pointer, pointer(, pointer)]` with pointers as
-token index + 1 (0 = none), plus float features.
+token index + 1 (0 = none), plus float features. Observation `V3`'s deck
+rows (the viewer's library and crypt, `deck_*`) are embedded as tokens are
+and their mean added to the context token (the last), out of attention:
+no weights of their own.
 """
 
 import torch
@@ -18,6 +21,19 @@ def gather(x, ptr):
     b, t, d = x.shape
     padded = torch.cat([x.new_zeros(b, 1, d), x], dim=1)
     return padded.gather(1, ptr.long().clamp(0, t).unsqueeze(-1).expand(-1, -1, d))
+
+
+def with_deck(net, base, tok_n, deck_ids, deck_f, deck_n):
+    """`base` with the deck rows' mean embedding added to each row's
+    context token (none for a row without deck rows, every row before
+    `V3`)."""
+    if deck_ids is None or deck_ids.shape[1] == 0:
+        return base
+    emb = net.vocab(deck_ids[..., 1]) + net.token_type(deck_ids[..., 0]) + net.tok_f(deck_f)
+    keep = (torch.arange(deck_ids.shape[1], device=base.device)[None, :] < deck_n[:, None])
+    pooled = (emb * keep.unsqueeze(-1)).sum(1) / deck_n.clamp(min=1).unsqueeze(-1)
+    at = torch.arange(base.shape[1], device=base.device)[None, :] == (tok_n - 1).clamp(min=0)[:, None]
+    return base + at.unsqueeze(-1) * pooled.unsqueeze(1)
 
 
 class Policy(nn.Module):
@@ -38,7 +54,7 @@ class Policy(nn.Module):
         self.score = nn.Sequential(nn.Linear(2 * d, d), nn.GELU(), nn.Linear(d, 1))
         self.value = nn.Sequential(nn.Linear(2 * d, d), nn.GELU(), nn.Linear(d, 1))
 
-    def forward(self, tok_ids, tok_f, tok_n, opt_ids, opt_f, opt_n):
+    def forward(self, tok_ids, tok_f, tok_n, opt_ids, opt_f, opt_n, deck_ids=None, deck_f=None, deck_n=None):
         """Option logits [B, O] (padding at -1e9) and values [B]."""
         b, t, _ = tok_ids.shape
         o = opt_ids.shape[1]
@@ -48,6 +64,7 @@ class Policy(nn.Module):
         opt_pad = ar_o[None, :] >= opt_n[:, None]
 
         base = self.vocab(tok_ids[..., 1]) + self.token_type(tok_ids[..., 0]) + self.tok_f(tok_f)
+        base = with_deck(self, base, tok_n, deck_ids, deck_f, deck_n)
         # A card's host, the context's minions: the pointed token's base.
         base = base + self.tok_ptr(gather(base, tok_ids[..., 2]) + gather(base, tok_ids[..., 3]))
         x = self.norm(self.trunk(base, src_key_padding_mask=tok_pad))
@@ -95,11 +112,12 @@ class Critic(nn.Module):
         self.norm = nn.LayerNorm(d)
         self.value = nn.Sequential(nn.Linear(2 * d, d), nn.GELU(), nn.Linear(d, 1))
 
-    def forward(self, tok_ids, tok_f, tok_n):
+    def forward(self, tok_ids, tok_f, tok_n, deck_ids=None, deck_f=None, deck_n=None):
         """Values [B]."""
         b, t, _ = tok_ids.shape
         tok_pad = torch.arange(t, device=tok_ids.device)[None, :] >= tok_n[:, None]
         base = self.vocab(tok_ids[..., 1]) + self.token_type(tok_ids[..., 0]) + self.tok_f(tok_f)
+        base = with_deck(self, base, tok_n, deck_ids, deck_f, deck_n)
         base = base + self.tok_ptr(gather(base, tok_ids[..., 2]) + gather(base, tok_ids[..., 3]))
         x = self.norm(self.trunk(base, src_key_padding_mask=tok_pad))
         last = (tok_n - 1).clamp(min=0)

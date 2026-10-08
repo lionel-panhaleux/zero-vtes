@@ -13,3 +13,8 @@ name = "zvtes_policy"
 
 [dependencies]
 zero-vtes-engine = { path = "../engine" }
+
+[dev-dependencies]
+# Examples reading the owner's replays (`examples/waste.rs`).
+zvtes-protocol = { path = "../protocol" }
+serde_json = "1"

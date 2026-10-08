@@ -27,6 +27,7 @@ pub mod decision;
 pub mod decks;
 pub mod draws;
 pub mod game;
+pub mod habits;
 pub mod ids;
 pub mod influence;
 pub mod library;

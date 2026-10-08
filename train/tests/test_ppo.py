@@ -5,6 +5,7 @@ bots at 4- and 5-seat tables)."""
 import json
 
 import numpy as np
+import pytest
 import torch
 
 from train.league import EXP, EXPLOITER, FROZEN, League
@@ -153,14 +154,15 @@ def test_opponent_seats_are_mostly_bots(tmp_path):
 
 def test_frozen_opponents(tmp_path):
     """`--opponents`: every other seat a frozen checkpoint, reading the
-    encoding it was trained on; `best.pt` is selected against them."""
+    encoding it was trained on; `best.pt` is selected against them; the
+    bots evaluated only from each multiple of `bots_every`, and last."""
     small = dict(
         games=8, steps=16, iterations=1, epochs=1, minibatch=64, d=32, layers=1,
         eval_every=1, eval_games=4, device="cpu", best_seeds=1,
     )
     Trainer(Config(**small, obs=1, out=str(tmp_path / "old"))).run()
     cfg = Config(
-        **{**small, "iterations": 2}, out=str(tmp_path / "new"), league=True,
+        **{**small, "iterations": 3}, out=str(tmp_path / "new"), league=True, bots_every=2,
         opponents=str(tmp_path / "old" / "model.pt"), resume=str(tmp_path / "old" / "model.pt"),
     )
     trainer = Trainer(cfg)
@@ -171,8 +173,81 @@ def test_frozen_opponents(tmp_path):
         assert len(seats) in (4, 5) and seats.count("net:0") == 1
         assert set(seats) == {"net:0", f"net:{FROZEN}"}
     trainer.run()
-    row = json.loads(open(tmp_path / "new" / "metrics.jsonl").read().splitlines()[-1])
+    rows = [json.loads(line) for line in open(tmp_path / "new" / "metrics.jsonl").read().splitlines()]
+    assert [r["iteration"] for r in rows if "vs_bots4" in r] == [2, 3]
+    row = rows[-1]
     assert "vs_frozen4" in row and "vs_frozen5" in row and "frozen_mean" in row
     assert "vs_random" not in row and not trainer.league.learner_snapshots()
     assert set(row["pfsp"]) <= {"old@1"}
     assert trainer.league.frozen_labels == ["old@1"]
+
+
+def test_a_v3_learner_from_a_v2_checkpoint(tmp_path):
+    """`--obs 3` resumed from a `V2` run, that run frozen: the same weights
+    (the deck pooled needs none), the critic warmed up again (a new input),
+    the frozen network still reading `V2`; two learner seats a table."""
+    small = dict(
+        games=8, steps=16, iterations=1, epochs=1, minibatch=64, d=32, layers=1,
+        eval_every=1, eval_games=4, device="cpu", best_seeds=1, critic_warmup=1,
+    )
+    Trainer(Config(**small, obs=2, out=str(tmp_path / "old"))).run()
+    old = str(tmp_path / "old" / "model.pt")
+    cfg = Config(
+        **{**small, "iterations": 3}, obs=3, out=str(tmp_path / "new"), league=True,
+        opponents=old, resume=old, learner_seats=2,
+    )
+    trainer = Trainer(cfg)
+    assert trainer.net_obs == [(FROZEN, 2)] and trainer.warmup == 1
+    assert all(trainer.league.spec()["seats"].count("net:0") == 2 for _ in range(20))
+    trainer.run()
+    rows = [json.loads(line) for line in open(tmp_path / "new" / "metrics.jsonl").read().splitlines()]
+    assert rows[-1]["iteration"] == 3 and "vs_frozen4" in rows[-1]
+
+
+def test_habit_seats_and_starts(tmp_path):
+    """`--habit-seats`: frozen opponents with the punishing habits, beat
+    rates apart, evaluated as `vs_habits4/5`; `--starts`/`--start-tables`:
+    tables begun from the owner's games; the learner's habits logged."""
+    small = dict(
+        games=8, steps=16, iterations=1, epochs=1, minibatch=64, d=32, layers=1,
+        eval_every=1, eval_games=4, device="cpu", best_seeds=1,
+    )
+    Trainer(Config(**small, out=str(tmp_path / "old"))).run()
+    cfg = Config(
+        **small, out=str(tmp_path / "new"), league=True,
+        opponents=str(tmp_path / "old" / "model.pt"), habit_seats=0.5,
+        starts="data/replays/zero-vtes-replay-2026-10-04T12-09-51-567Z.json", start_tables=0.5,
+    )
+    trainer = Trainer(cfg)
+    specs = [trainer.spec() for _ in range(60)]
+    seats = {s for spec in specs for s in spec["seats"]}
+    assert seats == {"net:0", f"net:{FROZEN}", f"net:{FROZEN}+habits"}
+    assert any("start" in spec for spec in specs) and any("start" not in spec for spec in specs)
+    assert all(len(spec["seats"]) == 4 for spec in specs if "start" in spec)
+    trainer.run()
+    row = json.loads(open(tmp_path / "new" / "metrics.jsonl").read().splitlines()[-1])
+    assert "vs_habits4" in row and "vs_habits5" in row
+    assert set(row["habits"]) == {"rescue", "burn", "diablerie", "keep", "reaction"}
+    assert "starts" in row
+    assert set(row["pfsp"]) <= {"old@1", "old@1+habits"}
+
+
+def test_habit_seats_need_frozen_opponents(tmp_path):
+    with pytest.raises(ValueError):
+        Trainer(Config(games=8, d=32, layers=1, device="cpu", out=str(tmp_path), habit_seats=0.5))
+
+
+def test_nudges_fade(tmp_path):
+    from train.ppo import nudges
+
+    cfg = Config(rescue_bonus=2.0, pass_bonus=4.0, nudge_from=100, nudge_until=200)
+    assert [nudges(cfg, it)["rescue"] for it in (50, 100, 150, 200, 300)] == [2.0, 2.0, 1.0, 0.0, 0.0]
+    assert nudges(cfg, 150) == {"rescue": 1.0, "pass": 2.0, "reaction": 0.0, "bleed": 0.0, "idle": 0.0}
+    assert nudges(Config(reaction_bonus=1.5), 10_000)["reaction"] == 1.5
+    small = dict(
+        games=8, steps=16, iterations=1, epochs=1, minibatch=64, d=32, layers=1,
+        eval_every=1, eval_games=4, device="cpu", best_seeds=1, critic_warmup=0,
+    )
+    Trainer(Config(**small, out=str(tmp_path), rescue_bonus=1.5, pass_bonus=3.0)).run()
+    row = json.loads(open(tmp_path / "metrics.jsonl").read().splitlines()[-1])
+    assert row["nudges"] == {"rescue": 1.5, "pass": 3.0, "reaction": 0.0, "bleed": 0.0, "idle": 0.0} and "habits" in row

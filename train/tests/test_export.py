@@ -14,8 +14,8 @@ from train.model import Policy
 from train.ppo import batch_of, forward
 
 
-def observations(n, seed):
-    pool = zvtes_py.GamePool(4, ["policy", "aggro", "wall", "policy"], seed=seed, rotate=True)
+def observations(n, seed, obs=1):
+    pool = zvtes_py.GamePool(4, ["policy", "aggro", "wall", "policy"], seed=seed, rotate=True, obs=obs)
     rng = np.random.default_rng(seed)
     for _ in range(n):
         obs = pool.observe()
@@ -26,13 +26,15 @@ def observations(n, seed):
 def compare(model, data, obs):
     logits, values = forward(model, batch_of(obs, "cpu"))
     for i in range(len(obs["tok_n"])):
-        t, o = int(obs["tok_n"][i]), int(obs["opt_n"][i])
+        t, o, k = int(obs["tok_n"][i]), int(obs["opt_n"][i]), int(obs["deck_n"][i])
         got, value = zvtes_py.policy_forward(
             data,
             obs["tok_ids"][i, :t].tolist(),
             obs["tok_f"][i, :t].tolist(),
             obs["opt_ids"][i, :o].tolist(),
             obs["opt_f"][i, :o].tolist(),
+            obs["deck_ids"][i, :k].tolist(),
+            obs["deck_f"][i, :k].tolist(),
         )
         np.testing.assert_allclose(got, logits[i, :o].numpy(), atol=2e-4)
         assert abs(value - float(values[i])) < 2e-4
@@ -49,6 +51,13 @@ def test_exported_policy_matches():
     data = dump(model.state_dict(), zvtes_py.vocab_keys(), 32, 2)
     for obs in observations(40, seed=3):
         compare(model, data, obs)
+    # `V3`: the deck rows pooled into the context token, alike.
+    seen = 0
+    for obs in observations(40, seed=4, obs=3):
+        assert not (obs["tok_ids"][..., 0] == 7).any()
+        seen += int(obs["deck_n"].sum())
+        compare(model, data, obs)
+    assert seen
 
 
 @torch.no_grad()

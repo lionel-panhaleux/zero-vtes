@@ -139,3 +139,114 @@ def test_default_politics_answer_the_terms():
         for ep in done:
             assert zvtes_py.replay(ep["seed"], ep["decks"], ep["log"], ep["time_limit"]) == ep["half_vps"]
     assert seen[False] > 0 and seen[True] == 0
+
+
+OWNER_GAME = "data/replays/zero-vtes-replay-2026-10-04T12-09-51-567Z.json"
+
+
+def test_habit_seats_and_the_learners_habits():
+    """`net:k+habits`: a network seat playing with the punishing habits
+    (`zvtes::habits`), named apart in episodes; `habits()` counts the
+    learner's offered and taken habits, then resets."""
+    table = ["net:0", "net:1+habits", "net:1", "net:1+habits"]
+    pool = zvtes_py.GamePool(8, table, seed=5)
+    rng = np.random.default_rng(5)
+    done = []
+    while len(done) < 8:
+        obs = pool.observe()
+        assert set(obs["agent"]) <= {0, 1}
+        done += pool.act(random_actions(obs, rng))
+    assert all(ep["seats"] == table for ep in done)
+    counts = pool.habits()
+    assert set(counts) == {"rescue", "burn", "diablerie", "keep", "reaction"}
+    assert all(0 <= taken <= offered for offered, taken in counts.values())
+    assert sum(offered for offered, _ in counts.values()) > 0
+    assert all(v == (0, 0) for v in pool.habits().values())
+    with pytest.raises(ValueError):
+        pool.queue([{"seats": ["net:0", "net:x+habits", "net:1", "net:1"]}])
+
+
+def test_a_pool_without_refill_ends_with_its_queue():
+    """`refill=False`: every queued table played once, no game after; the
+    pool's slots leave as their games end."""
+    tables = [{"seats": ["net:0", "aggro", "wall", "aggro"]}] * 6
+    pool = zvtes_py.GamePool(6, tables[0]["seats"], seed=3, tables=tables, refill=False)
+    rng = np.random.default_rng(3)
+    done = []
+    while pool.n_games:
+        obs = pool.observe()
+        assert len(obs["opt_n"]) == pool.n_games
+        done += pool.act(random_actions(obs, rng))
+    assert sorted(ep["game"] for ep in done) == list(range(6))
+
+
+def test_each_network_reads_its_own_observation():
+    """`obs=3` with `net_obs`: the learner reads `V3` (its deck rows apart),
+    a frozen network the version it was trained on (`V2`: deck tokens)."""
+    pool = zvtes_py.GamePool(8, ["net:0", "net:1", "net:0", "net:1"], seed=4, obs=3, net_obs=[(1, 2)])
+    rng = np.random.default_rng(4)
+    seen = {0: 0, 1: 0}
+    for _ in range(200):
+        obs = pool.observe()
+        deck_tokens = (obs["tok_ids"][..., 0] == 7).sum(1)
+        for i, agent in enumerate(obs["agent"]):
+            if agent == 0:
+                assert deck_tokens[i] == 0 and obs["deck_n"][i] > 0
+            else:
+                assert deck_tokens[i] > 0 and obs["deck_n"][i] == 0
+            seen[int(agent)] += 1
+        pool.act(random_actions(obs, rng))
+    assert all(seen.values())
+    with pytest.raises(ValueError):
+        zvtes_py.GamePool(1, ["net:0"] * 4, obs=4)
+
+
+def test_tables_start_from_an_owner_game():
+    """A queued `start`: the game replayed to one of its decisions (past the
+    opening), every seat played from there; episodes say which."""
+    text = open(OWNER_GAME).read()
+    pool = zvtes_py.GamePool(4, ["policy"] * 4, seed=9, replays=[text])
+    assert pool.starts == [369]
+    pool.queue([{"seats": ["aggro", "net:0", "wall", "aggro"], "start": 0}] * 8)
+    rng = np.random.default_rng(9)
+    done = []
+    while len(done) < 8:
+        done += pool.act(random_actions(pool.observe(), rng))
+    started = [ep for ep in done if "start" in ep]
+    assert started and all(ep["start"][0] == 0 and 369 // 5 <= ep["start"][1] < 369 for ep in started)
+    assert all(ep["decks"] == [] for ep in started)
+    with pytest.raises(ValueError):
+        pool.queue([{"seats": ["net:0"] * 5, "start": 0}])
+    with pytest.raises(ValueError):
+        pool.queue([{"seats": ["net:0"] * 4, "start": 1}])
+
+
+def test_nudges_bias_their_options_only():
+    """`nudges`: `opt_bias` holds the rescue nudge on every network seat's
+    rescue of its own vampire, the pass nudge on passing its discard phase,
+    minus the reaction nudge on cycling a reaction, minus the bleed nudge
+    on a bleed for nothing, minus the idle nudge on ending the influence
+    phase with a crypt draw offered; 0 elsewhere (and everywhere at 0)."""
+    pool = zvtes_py.GamePool(16, ["policy"] * 4, seed=11)
+    assert pool.nudges == {"rescue": 0.0, "pass": 0.0, "reaction": 0.0, "bleed": 0.0, "idle": 0.0}
+    rng = np.random.default_rng(11)
+    obs = pool.observe()
+    assert (obs["opt_bias"] == 0).all() and obs["opt_bias"].shape == obs["opt_f"].shape[:2]
+    pool.nudges = {"rescue": 2.0, "pass": 0.5}
+    pool.nudges = {"reaction": 0.25, "bleed": 0.125, "idle": 1.0}
+    assert pool.nudges == {"rescue": 2.0, "pass": 0.5, "reaction": 0.25, "bleed": 0.125, "idle": 1.0}
+    with pytest.raises(ValueError):
+        pool.nudges = {"rush": 1.0}
+    seen = {2.0: 0, 0.5: 0, -0.25: 0, -0.125: 0, -1.0: 0}
+    for _ in range(8000):
+        obs = pool.observe()
+        assert set(np.unique(obs["opt_bias"])) <= {0.0, *seen}
+        for v in seen:
+            seen[v] += int((obs["opt_bias"] == v).sum())
+        if all(seen.values()):
+            break
+        pool.act(random_actions(obs, rng))
+    assert all(seen.values()), seen
+    counts = pool.habits()
+    (phases, passed), (held, cycled) = counts["keep"], counts["reaction"]
+    assert 0 < phases and passed <= phases and cycled <= held <= phases

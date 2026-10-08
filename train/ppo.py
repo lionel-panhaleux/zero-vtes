@@ -24,7 +24,7 @@ import numpy as np
 import torch
 import zvtes_py
 
-from train.league import EXPLOITER, TABLES, League, label
+from train.league import EXPLOITER, HABITS, TABLES, League, label, net_id
 from train.model import Critic, Policy, remap_vocab
 
 
@@ -69,15 +69,28 @@ class Config:
     d: int = 96
     layers: int = 2
     # The observation the learner reads (`zvtes::obs::Version`): 2 adds
-    # the ash heaps' contents and the last public choices. Frozen networks
-    # read the one they were trained on (`obs` in their config, else 1).
-    obs: int = 2
+    # the ash heaps' contents and the last public choices; 3 reads the
+    # same in ~40% fewer tokens (the deck pooled out of attention, others'
+    # face-down vampires as counts) and the transfers left (owner,
+    # 2026-10-06: lighter training). Frozen networks read the one they
+    # were trained on (`obs` in their config, else 1).
+    obs: int = 3
     # Network seats play the default politics (zvtes::politics, DESIGN
     # §11.2): referendum terms by rule, wrong-side votes masked. Temporary
     # guidance, to be relaxed later in training (owner, 2026-10-04).
     politics: bool = True
+    # Network seats never decline a chore (`zvtes_policy::chores`; owner,
+    # 2026-10-08: options "a human is allowed to forget … but it's never
+    # good to do so"): the Edge's pool, a hunting ground's blood.
+    chores: bool = True
     seed: int = 0
-    eval_every: int = 10
+    # Evaluations, every `eval_every` iterations (owner, 2026-10-05:
+    # iterations faster; evaluation took ~40% of p7's time). Against the
+    # bots, once frozen opponents select `best.pt`, only at the first
+    # evaluation from each multiple of `bots_every` (their scores sat at
+    # 2.4–2.8 VP for hundreds of iterations).
+    eval_every: int = 20
+    bots_every: int = 50
     eval_games: int = 256
     budget: int = 20_000
     device: str = "auto"
@@ -94,6 +107,10 @@ class Config:
     league: bool = False
     snapshot_every: int = 10
     opponents_kept: int = 4
+    # The learner's seats a league table (owner, 2026-10-07: lighter
+    # training): 2 trains on twice the decisions for the same inference
+    # (~80% of the rollout's is the opponents' with 1).
+    learner_seats: int = 1
     # The share of opponent seats drawn among the bots (the rest among the
     # snapshots): the evaluation is against the bots (owner, 2026-09-29).
     bot_seats: float = 0.6
@@ -104,7 +121,9 @@ class Config:
     table_bots: int = 5
     # Checkpoint selection (`best.pt`): see `run`.
     best_seeds: int = 3
-    best_margin: float = 0.1
+    # 0.05 (was 0.1): on p7's last 44 evaluations, 24 re-measures instead
+    # of 39, none of its 15 new bests missed (0 would have missed 2).
+    best_margin: float = 0.05
     pfsp_rate: float = 0.1
     retire_random: float = 0.85
     # Off: with the learner's reward and weights it never led the learner
@@ -116,6 +135,42 @@ class Config:
     # every other seat is one of them, and `best.pt` is selected on games
     # against them (train/league.py).
     opponents: str = ""
+    # The share of frozen opponent seats playing with the punishing habits
+    # (`net:k+habits`, `zvtes::habits`; owner, 2026-10-04: opponents that
+    # punish what the replays show the network never does); evaluated as
+    # `vs_habits4/5`, not used for `best.pt`.
+    habit_seats: float = 0.0
+    # Which habits those seats play (`zvtes::habits::Set`): a forced rescue
+    # made the network stronger, a forced burn, diablerie or minion kept
+    # home weaker (DESIGN §11.2).
+    habits: str = "rescue,burn,diablerie,home"
+    # The nudges (`zvtes_policy::Nudges`; owner, 2026-10-05: "encouraged
+    # more as a guiding harness … until it learns by itself"): added to
+    # every network seat's logits, in the distribution sampled and trained
+    # alike. `rescue_bonus` on a rescue of one's own vampire; `pass_bonus`
+    # on passing one's discard phase with a card to cycle (the hand kept);
+    # `reaction_bonus` taken off cycling a reaction card; `bleed_bonus`
+    # taken off a bleed for nothing (a minion bleeding for 0 before any
+    # action modifier: Aggressive Corpse, `zvtes_policy::empty_bleed`;
+    # owner, 2026-10-05: "an action with no effect should not be
+    # favored"); `idle_bonus` taken off ending the influence phase while a
+    # crypt draw is still offered with 5 pool or more
+    # (`zvtes_policy::idle_influence`). All full until
+    # iteration `nudge_from`, then fading linearly to 0 at `nudge_until`
+    # (0: never fades). Evaluation plays with the iteration's nudges.
+    rescue_bonus: float = 0.0
+    pass_bonus: float = 0.0
+    reaction_bonus: float = 0.0
+    bleed_bonus: float = 0.0
+    idle_bonus: float = 0.0
+    nudge_from: int = 0
+    nudge_until: int = 0
+    # Starts (owner, 2026-10-04): the share of training tables begun from a
+    # decision of one of the games in `starts` (a directory of replays or
+    # comma-separated files; `zvtes_protocol::start`), the learner at a
+    # random seat, the libraries and crypts shuffled again.
+    starts: str = ""
+    start_tables: float = 0.0
 
 
 def device_of(name):
@@ -124,7 +179,11 @@ def device_of(name):
     return torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
 
-FIELDS = ("tok_ids", "tok_f", "opt_ids", "opt_f")
+FIELDS = ("tok_ids", "tok_f", "opt_ids", "opt_f", "deck_ids", "deck_f")
+# A row's items (`rows`): the observation, `V3`'s deck rows (empty
+# before), the critic's tokens and deck rows (None without the critic),
+# the options' logit bias (the nudges).
+TOK, TOK_F, OPT, OPT_F, DECK, DECK_F, C_TOK, C_TOK_F, C_DECK, C_DECK_F, BIAS = range(11)
 
 # Batch shapes are rounded up to these multiples (rows, tokens, options):
 # the MPS backend compiles and keeps a graph per shape, never freed — the
@@ -153,64 +212,86 @@ def shaped(obs, idx):
 
 
 def rows(obs):
-    """Per-game observations, trimmed to their token and option counts;
-    with the critic's tokens appended (ids, features) when the pool emits
-    them."""
+    """Per-game observations, trimmed to their token and option counts:
+    tuples of the items `TOK` … `BIAS`."""
     out = []
     critic = "critic_tok_n" in obs
     for i in range(len(obs["tok_n"])):
-        t, o = obs["tok_n"][i], obs["opt_n"][i]
+        t, o, k = obs["tok_n"][i], obs["opt_n"][i], obs["deck_n"][i]
         row = (
             obs["tok_ids"][i, :t],
             obs["tok_f"][i, :t].astype(np.float16),
             obs["opt_ids"][i, :o],
             obs["opt_f"][i, :o].astype(np.float16),
+            obs["deck_ids"][i, :k],
+            obs["deck_f"][i, :k].astype(np.float16),
         )
         if critic:
-            c = obs["critic_tok_n"][i]
-            row += (obs["critic_tok_ids"][i, :c], obs["critic_tok_f"][i, :c].astype(np.float16))
+            c, ck = obs["critic_tok_n"][i], obs["critic_deck_n"][i]
+            row += (
+                obs["critic_tok_ids"][i, :c],
+                obs["critic_tok_f"][i, :c].astype(np.float16),
+                obs["critic_deck_ids"][i, :ck],
+                obs["critic_deck_f"][i, :ck].astype(np.float16),
+            )
+        else:
+            row += (None, None, None, None)
+        row += (obs["opt_bias"][i, :o],)
         out.append(row)
     return out
 
 
-def collate_critic(samples, device):
-    """Pad the critic's trimmed tokens (row items 4 and 5) into a batch."""
+def pad_rows(samples, ids, f, device, prefix):
+    """Items `ids` and `f` of the rows padded into `{prefix}_ids`,
+    `{prefix}_f`, `{prefix}_n` tensors. The features cross to the device
+    as the rows keep them (float16: half the bytes of the copy, which
+    costs more than the padding) and are widened there."""
     b = len(samples)
-    t = bucket(max(s[4].shape[0] for s in samples), TOKENS)
-    ids = np.zeros((b, t, samples[0][4].shape[1]), np.int64)
-    f = np.zeros((b, t, samples[0][5].shape[1]), np.float32)
+    t = bucket(max(s[ids].shape[0] for s in samples), TOKENS)
+    out_ids = np.zeros((b, t, samples[0][ids].shape[1]), np.int64)
+    out_f = np.zeros((b, t, samples[0][f].shape[1]), samples[0][f].dtype)
     n = np.zeros(b, np.int64)
     for i, s in enumerate(samples):
-        n[i] = s[4].shape[0]
-        ids[i, : n[i]] = s[4]
-        f[i, : n[i]] = s[5]
-    return (
-        torch.from_numpy(ids).to(device),
-        torch.from_numpy(f).to(device),
-        torch.from_numpy(n).to(device),
-    )
+        n[i] = s[ids].shape[0]
+        out_ids[i, : n[i]] = s[ids]
+        out_f[i, : n[i]] = s[f]
+    return {
+        f"{prefix}_ids": torch.from_numpy(out_ids).to(device),
+        f"{prefix}_f": torch.from_numpy(out_f).to(device).float(),
+        f"{prefix}_n": torch.from_numpy(n).to(device),
+    }
+
+
+def collate_bias(samples, width, device):
+    """The rows' option biases, padded to `width`."""
+    out = np.zeros((len(samples), width), np.float32)
+    for i, s in enumerate(samples):
+        out[i, : len(s[BIAS])] = s[BIAS]
+    return torch.from_numpy(out).to(device)
+
+
+def collate_critic(samples, device):
+    """The critic's inputs (tokens, then deck rows) padded into a batch."""
+    tok = pad_rows(samples, C_TOK, C_TOK_F, device, "tok")
+    deck = pad_rows(samples, C_DECK, C_DECK_F, device, "deck")
+    return (tok["tok_ids"], tok["tok_f"], tok["tok_n"], deck["deck_ids"], deck["deck_f"], deck["deck_n"])
 
 
 def collate(samples, device):
     """Pad trimmed observations into a batch."""
     b = len(samples)
-    t = bucket(max(s[0].shape[0] for s in samples), TOKENS)
-    o = bucket(max(s[2].shape[0] for s in samples), OPTIONS)
-    out = {
-        "tok_ids": np.zeros((b, t, samples[0][0].shape[1]), np.int64),
-        "tok_f": np.zeros((b, t, samples[0][1].shape[1]), np.float32),
-        "opt_ids": np.zeros((b, o, samples[0][2].shape[1]), np.int64),
-        "opt_f": np.zeros((b, o, samples[0][3].shape[1]), np.float32),
-    }
-    tok_n, opt_n = np.zeros(b, np.int64), np.zeros(b, np.int64)
+    o = bucket(max(s[OPT].shape[0] for s in samples), OPTIONS)
+    opt_ids = np.zeros((b, o, samples[0][OPT].shape[1]), np.int64)
+    opt_f = np.zeros((b, o, samples[0][OPT_F].shape[1]), np.float32)
+    opt_n = np.zeros(b, np.int64)
     for i, s in enumerate(samples):
-        tok_n[i], opt_n[i] = s[0].shape[0], s[2].shape[0]
-        out["tok_ids"][i, : tok_n[i]] = s[0]
-        out["tok_f"][i, : tok_n[i]] = s[1]
-        out["opt_ids"][i, : opt_n[i]] = s[2]
-        out["opt_f"][i, : opt_n[i]] = s[3]
-    batch = {k: torch.from_numpy(v).to(device) for k, v in out.items()}
-    batch["tok_n"] = torch.from_numpy(tok_n).to(device)
+        opt_n[i] = s[OPT].shape[0]
+        opt_ids[i, : opt_n[i]] = s[OPT]
+        opt_f[i, : opt_n[i]] = s[OPT_F]
+    batch = pad_rows(samples, TOK, TOK_F, device, "tok")
+    batch |= pad_rows(samples, DECK, DECK_F, device, "deck")
+    batch["opt_ids"] = torch.from_numpy(opt_ids).to(device)
+    batch["opt_f"] = torch.from_numpy(opt_f).to(device)
     batch["opt_n"] = torch.from_numpy(opt_n).to(device)
     return batch
 
@@ -219,8 +300,10 @@ def batch_of(obs, device):
     batch = {k: torch.from_numpy(obs[k]).to(device) for k in FIELDS}
     batch["tok_ids"] = batch["tok_ids"].long()
     batch["opt_ids"] = batch["opt_ids"].long()
+    batch["deck_ids"] = batch["deck_ids"].long()
     batch["tok_n"] = torch.from_numpy(obs["tok_n"]).long().to(device)
     batch["opt_n"] = torch.from_numpy(obs["opt_n"]).long().to(device)
+    batch["deck_n"] = torch.from_numpy(obs["deck_n"]).long().to(device)
     return batch
 
 
@@ -232,6 +315,9 @@ def forward(model, batch):
         batch["opt_ids"],
         batch["opt_f"],
         batch["opt_n"],
+        batch["deck_ids"],
+        batch["deck_f"],
+        batch["deck_n"],
     )
 
 
@@ -270,9 +356,11 @@ def act(nets, obs, device, rng):
     actions, logp, values = np.zeros(b, np.int64), np.zeros(b), np.zeros(b, np.float32)
     for agent in np.unique(obs["agent"]):
         idx = np.nonzero(obs["agent"] == agent)[0]
-        part = shaped({k: obs[k] for k in (*FIELDS, "tok_n", "opt_n")}, idx)
+        part = shaped({k: obs[k] for k in (*FIELDS, "tok_n", "opt_n", "deck_n")}, idx)
         logits, v = forward(nets[int(agent)], batch_of(part, device))
         logits, v = logits[: len(idx), : obs["opt_ids"].shape[1]], v[: len(idx)]
+        # The nudges: part of the distribution sampled and trained.
+        logits = logits.float() + torch.from_numpy(obs["opt_bias"][idx]).to(logits.device)
         probs = torch.softmax(logits.float(), -1).cpu().numpy().astype(np.float64)
         probs /= probs.sum(1, keepdims=True)
         a = np.array([rng.choice(len(p), p=p) for p in probs])
@@ -280,6 +368,35 @@ def act(nets, obs, device, rng):
         logp[idx] = np.log(probs[np.arange(len(a)), a] + 1e-12)
         values[idx] = v.float().cpu().numpy()
     return actions, logp, values
+
+
+def nudges(cfg, it):
+    """The nudges at iteration `it` (`Config.rescue_bonus`, `pass_bonus`,
+    `reaction_bonus`, `bleed_bonus`, `idle_bonus`), as `GamePool.nudges` takes them."""
+    full = {
+        "rescue": cfg.rescue_bonus,
+        "pass": cfg.pass_bonus,
+        "reaction": cfg.reaction_bonus,
+        "bleed": cfg.bleed_bonus,
+        "idle": cfg.idle_bonus,
+    }
+    if cfg.nudge_until <= 0 or it <= cfg.nudge_from:
+        return full
+    span = max(1, cfg.nudge_until - cfg.nudge_from)
+    fade = max(0.0, 1 - (it - cfg.nudge_from) / span)
+    return {k: v * fade for k, v in full.items()}
+
+
+def load_starts(spec):
+    """The replays to start from (`--starts`: a directory of `.json` files
+    or comma-separated paths): (path, text, seats) each."""
+    if not spec:
+        return []
+    paths = []
+    for part in spec.split(","):
+        p = Path(part.strip())
+        paths += sorted(p.glob("*.json")) if p.is_dir() else [p]
+    return [(p, p.read_text(), len(json.loads(p.read_text())["spec"]["seats"])) for p in paths]
 
 
 class Learner:
@@ -356,8 +473,11 @@ class Trainer:
         self.league = None
         self.exploiter = None
         self.legacy = []
+        self.net_obs = []
         if cfg.opponents and not cfg.league:
             raise ValueError("--opponents needs --league true")
+        if cfg.habit_seats > 0 and not cfg.opponents:
+            raise ValueError("--habit-seats needs --opponents (frozen seats)")
         if cfg.league:
             self.league = League(cfg, self.rng, self.out)
             if cfg.opponents:
@@ -369,6 +489,8 @@ class Trainer:
                     self.device,
                 )
                 self.legacy = [k for k, v in self.league.frozen_versions.items() if v == 1]
+                # Each frozen network reads the observation it was trained on.
+                self.net_obs = list(self.league.frozen_versions.items())
             self.league.load(model, self.vocab)
             if not self.league.learner_snapshots() and self.start > 1 and not cfg.opponents:
                 self.league.add(self.start - 1, model)
@@ -389,6 +511,9 @@ class Trainer:
                 f"deck families: precons, anniversary, sabbat, twda (got {cfg.decks!r})"
             )
         self.decks = [i for f in names for i in families[f]]
+        self.starts = load_starts(cfg.starts)
+        if cfg.start_tables > 0 and not self.starts:
+            raise ValueError("--start-tables needs --starts")
         self.pool = zvtes_py.GamePool(
             cfg.games,
             ["net:0"] * 4,
@@ -399,8 +524,15 @@ class Trainer:
             critic=cfg.critic,
             obs=cfg.obs,
             legacy=self.legacy,
+            net_obs=self.net_obs,
             politics=cfg.politics,
+            chores=cfg.chores,
+            replays=[text for _, text, _ in self.starts],
+            habits=cfg.habits,
         )
+        if self.starts:
+            readable = dict(zip((p.name for p, _, _ in self.starts), self.pool.starts))
+            print(json.dumps({"starts": readable}), flush=True)
 
     def learners(self):
         return [self.learner] + ([self.exploiter] if self.exploiter else [])
@@ -411,14 +543,22 @@ class Trainer:
         return self.league.nets(self.model, self.exploiter.model if self.exploiter else None)
 
     def spec(self):
+        start, n = None, None
+        if self.starts and self.rng.random() < self.cfg.start_tables:
+            start = int(self.rng.integers(len(self.starts)))
+            n = self.starts[start][2]
         if self.league:
-            return self.league.spec()
-        return {"seats": ["net:0"] * int(self.rng.choice(TABLES))}
+            spec = self.league.spec(n)
+        else:
+            spec = {"seats": ["net:0"] * (n or int(self.rng.choice(TABLES)))}
+        if start is not None:
+            spec["start"] = start
+        return spec
 
     def rollout(self):
         """Play `steps` pool steps; each learner's transitions with their
         advantages and returns, and episode statistics."""
-        stats = {"episodes": 0, "truncated": 0, "turns": 0}
+        stats = {"episodes": 0, "truncated": 0, "turns": 0, "starts": 0}
         by_agent = {lr.agent: lr for lr in self.learners()}
         closed = {a: [] for a in by_agent}
         self.pool.queue([self.spec() for _ in range(self.cfg.games)])
@@ -438,11 +578,12 @@ class Trainer:
                 stats["episodes"] += 1
                 stats["truncated"] += ep["truncated"]
                 stats["turns"] += ep["turns"]
+                stats["starts"] += "start" in ep
                 if self.league:
                     self.league.record(ep, scores(ep)[0])
                 r = rewards(ep, self.cfg.gw_weight)
                 for s, name in enumerate(ep["seats"]):
-                    learner = by_agent.get(int(name[4:])) if name.startswith("net:") else None
+                    learner = by_agent.get(net_id(name))
                     chain = learner and learner.chains.pop((ep["slot"], s), None)
                     if chain:
                         chain[-1][4], chain[-1][5] = float(r[s]), True
@@ -465,13 +606,12 @@ class Trainer:
         """The learner's rows valued by the omniscient critic."""
         idx = np.nonzero(obs["agent"] == 0)[0]
         if len(idx):
-            keys = ("critic_tok_ids", "critic_tok_f", "critic_tok_n")
+            keys = [f"critic_{a}_{b}" for a in ("tok", "deck") for b in ("ids", "f", "n")]
             part = shaped({k: obs[k] for k in keys}, idx)
-            ids = torch.from_numpy(part["critic_tok_ids"]).long().to(self.device)
-            f = torch.from_numpy(part["critic_tok_f"]).to(self.device)
-            n = torch.from_numpy(part["critic_tok_n"]).long().to(self.device)
+            t = {k: torch.from_numpy(part[k]).to(self.device) for k in keys}
+            args = [t[k].long() if not k.endswith("_f") else t[k] for k in keys]
             values = values.copy()
-            values[idx] = self.critic(ids, f, n).cpu().numpy()[: len(idx)]
+            values[idx] = self.critic(*args).cpu().numpy()[: len(idx)]
         return values
 
     def advantages(self, chain, bootstrap):
@@ -495,7 +635,7 @@ class Trainer:
         dropped (its shape would be new: `ROWS`), unless it is the only
         one; the epochs' orders differ, so each drops other samples."""
         mb = self.cfg.minibatch
-        width = 4 if len(samples[0][0]) > 4 else 0
+        width = C_TOK if samples[0][0][C_TOK] is not None else TOK
         size = np.array([s[0][width].shape[0] for s in samples])
         order = self.rng.permutation(len(samples))
         batches = []
@@ -512,7 +652,7 @@ class Trainer:
         the longest row's tokens: the critic's when it reads them) stay
         within `attention_budget`, halving: power-of-two sizes of a
         power-of-two minibatch (few shapes: `ROWS`)."""
-        width = 4 if len(samples[0][0]) > 4 else 0
+        width = C_TOK if samples[0][0][C_TOK] is not None else TOK
         t = bucket(max(samples[i][0][width].shape[0] for i in idx), TOKENS)
         size = len(idx)
         while size > 1 and size * t * t > self.cfg.attention_budget:
@@ -535,11 +675,12 @@ class Trainer:
                     self.critic_opt.zero_grad()
                 # Gradients accumulated over chunks of the minibatch, each
                 # within `attention_budget` (the same step, less memory).
-                totals = np.zeros(3)
+                totals = np.zeros(5)
                 for part in self.chunks(samples, idx):
                     w = len(part) / len(idx)
                     rows = [samples[i][0] for i in part]
                     logits, values = forward(learner.model, collate(rows, self.device))
+                    logits = logits.float() + collate_bias(rows, logits.shape[1], self.device)
                     if critic:
                         values = self.critic(*collate_critic(rows, self.device))
                     logp_all = torch.log_softmax(logits, -1)
@@ -556,7 +697,13 @@ class Trainer:
                     if warming:
                         loss = cfg.value_coef * vf
                     (w * loss).backward()
-                    totals += w * np.array([pg.item(), vf.item(), ent.item()])
+                    with torch.no_grad():
+                        # How far the update has moved the policy from the
+                        # one that played (k3 estimator), and the share of
+                        # samples the clip holds.
+                        kl = ((ratio - 1) - (logp - old)).mean()
+                        clipped = ((ratio - 1).abs() > cfg.clip).float().mean()
+                    totals += w * np.array([pg.item(), vf.item(), ent.item(), kl.item(), clipped.item()])
                 torch.nn.utils.clip_grad_norm_(learner.model.parameters(), 1.0)
                 if not warming:
                     learner.opt.step()
@@ -564,8 +711,10 @@ class Trainer:
                     torch.nn.utils.clip_grad_norm_(self.critic.parameters(), 1.0)
                     self.critic_opt.step()
                 losses.append(totals)
-        pg, vf, ent = np.mean(losses, 0)
-        return {"pg": pg, "vf": vf, "entropy": ent}
+        pg, vf, ent, kl, clipfrac = np.mean(losses, 0)
+        # Of the last epoch: what the epochs add up to.
+        last = np.mean(losses[-max(1, len(losses) // cfg.epochs) :], 0)
+        return {"pg": pg, "vf": vf, "entropy": ent, "kl": last[3], "clipfrac": last[4]}
 
     def evaluate(self, opponents, games, seed=0):
         """The learner's mean VPs and game-win rate over `games` games
@@ -573,8 +722,10 @@ class Trainer:
         order of the opponents around it, in turn (a fixed order would, at
         4 seats, always sit the same opponent across the table)."""
         tables = [{"seats": seats} for seats in eval_tables(opponents, games)]
+        # Every game at once, none after (`refill`): the network's batches
+        # as wide as they can be, no throwaway game in them.
         pool = zvtes_py.GamePool(
-            min(games, 64),
+            games,
             tables[0]["seats"],
             seed=10_000 + 1_000 * seed + self.cfg.seed,
             decks=self.decks,
@@ -582,8 +733,13 @@ class Trainer:
             tables=tables,
             obs=self.cfg.obs,
             legacy=self.legacy,
+            net_obs=self.net_obs,
             politics=self.cfg.politics,
+            chores=self.cfg.chores,
+            habits=self.cfg.habits,
+            refill=False,
         )
+        pool.nudges = self.pool.nudges
         rng = np.random.default_rng(seed)
         vps, wins, done, truncated = [], 0, 0, 0
         # The queued tables are games 0..games-1; later ones (the default
@@ -634,6 +790,7 @@ class Trainer:
         log = open(self.out / "metrics.jsonl", "a")
         for it in range(self.start, cfg.iterations + 1):
             t0 = time.perf_counter()
+            self.pool.nudges = nudges(cfg, it)
             done = (it - self.start) / max(1, cfg.iterations - self.start)
             lr = cfg.lr * (1 - (1 - cfg.lr_final) * done)
             opts = [learner.opt for learner in self.learners()]
@@ -675,6 +832,15 @@ class Trainer:
                 "entropy_coef": float(f"{self.entropy_coef:.3g}"),
                 **stats,
                 **{k: round(float(v), 4) for k, v in metrics.items()},
+                # The learner's (offered, taken) per habit this rollout;
+                # "keep": (discard phases with a card to cycle, passed),
+                # "reaction": (those holding a reaction, cycling one).
+                "habits": {k: list(v) for k, v in self.pool.habits().items()},
+                **(
+                    {"nudges": {k: round(v, 3) for k, v in self.pool.nudges.items()}}
+                    if any(self.pool.nudges.values()) or any(nudges(cfg, 0).values())
+                    else {}
+                ),
             }
             if self.league:
                 if self.league.step():
@@ -687,14 +853,20 @@ class Trainer:
                 frozen = self.league.candidates() if self.league and self.league.frozen else []
                 if not frozen:
                     row["vs_random"] = self.evaluate(["random"] * 4, cfg.eval_games)
-                row["vs_bots4"] = self.evaluate(["aggro", "wall", "aggro"], cfg.eval_games)
-                row["vs_bots5"] = self.evaluate(["aggro", "wall", "aggro", "wall"], cfg.eval_games)
+                bots = not frozen or it % cfg.bots_every < cfg.eval_every or it == cfg.iterations
+                if bots:
+                    row["vs_bots4"] = self.evaluate(["aggro", "wall", "aggro"], cfg.eval_games)
+                    row["vs_bots5"] = self.evaluate(["aggro", "wall", "aggro", "wall"], cfg.eval_games)
                 # The selection's tables: the frozen opponents in turn
                 # around the learner, else the bots.
                 if frozen:
                     sel = [[frozen[k % len(frozen)] for k in range(n - 1)] for n in TABLES]
                     row["vs_frozen4"] = self.evaluate(sel[0], cfg.eval_games)
                     row["vs_frozen5"] = self.evaluate(sel[1], cfg.eval_games)
+                    if cfg.habit_seats > 0:
+                        punish = [[k + HABITS for k in t] for t in sel]
+                        row["vs_habits4"] = self.evaluate(punish[0], cfg.eval_games)
+                        row["vs_habits5"] = self.evaluate(punish[1], cfg.eval_games)
                     row["pfsp"] = {
                         label(k, self.league.frozen_labels): round(v, 2)
                         for k, v in sorted(self.league.p.items())

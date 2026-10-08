@@ -4,7 +4,7 @@ outside Python (the browser bot, docs/human-play.md slice 3).
 `uv run python -m train.export runs/<name>/best.pt policy.zvp`
 
 The file: a text header — `zvp 1`, `d`, `layers`, `heads`, `obs <version>`
-when the network reads `zvtes::obs::Version::V2` (absent: V1), one `vocab <key>`
+when the network reads `zvtes::obs::Version::V2` or `V3` (absent: V1), one `vocab <key>`
 line per vocabulary row, one `tensor <name> <dims…>` line per tensor — a
 blank line, then the tensors' float32 values, little-endian, in header
 order. The vocabulary keys let the loader re-key the embedding to its own

@@ -17,8 +17,20 @@ use zvtes_protocol::{Out, Player, Replay, Session};
 use crate::{all_decks, version};
 
 /// An observation's arrays into `d` under `prefix`: `tok_ids` [T, TOK_IDS],
-/// `tok_f` [T, TOK_F] and, for a policy's, `opt_ids`, `opt_f`.
+/// `tok_f` [T, TOK_F], `deck_ids` [D, TOK_IDS], `deck_f` [D, TOK_F] (`V3`'s
+/// deck rows, none before) and, for a policy's, `opt_ids`, `opt_f`.
 fn put(py: Python<'_>, d: &Bound<'_, PyDict>, prefix: &str, o: Obs, options: bool) -> PyResult<()> {
+    let k = o.deck_ids.len();
+    let ids: Vec<i32> = o.deck_ids.into_iter().flatten().collect();
+    let f: Vec<f32> = o.deck_f.into_iter().flatten().collect();
+    d.set_item(
+        format!("{prefix}deck_ids"),
+        PyArray1::from_vec(py, ids).reshape([k, TOK_IDS])?,
+    )?;
+    d.set_item(
+        format!("{prefix}deck_f"),
+        PyArray1::from_vec(py, f).reshape([k, TOK_F])?,
+    )?;
     let t = o.tok_ids.len();
     let ids: Vec<i32> = o.tok_ids.into_iter().flatten().collect();
     let f: Vec<f32> = o.tok_f.into_iter().flatten().collect();

@@ -1587,6 +1587,237 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   pair alike, in training and evaluation); the same pair, learning
   rate 5e-5 tapering, entropy 0.04, to iteration 1800. Its first
   evaluation is the new baseline (the pair now votes sensibly too).
+- Opponents that punish, games from the owner's positions (owner,
+  2026-10-04, after the review of 15 games: "the engine is missing
+  sometimes interesting plays … when will it learn to get out of torpor
+  and hunt to offset combat decks?"). The review (three readers, every
+  decision of 9 games; counts over the 15): the bots tap out every turn
+  and keep no blocker, never remove a drain in play (Creeping Sabotage
+  offered ~60 times in one game, The Gate of Acheron, Toreador Grand
+  Ball), never rescue (0 of 107 offers) or diablerize (0 of 136), hunt
+  only when forced, bleed into known blockers. Self-play shows it is
+  learned, not these games' luck: 40 games of `p7-politics@1400`, rescue
+  0 of 998 offers, diablerie 2 of 1174, leave torpor 14 of 41, hunt 128
+  of 2717 (the earlier served network alike). Against the training
+  opponents these habits cost nothing — nobody diablerizes, every table
+  races to bleed, the combat decks are piloted by the same bleeders —
+  so rewards cannot teach them. Two levers, kept within the settled
+  rule that training opponents be good ones (2026-10-03: no random or
+  wall, aggro sparingly), hence no new scripted style:
+  (1) Punishing habits on frozen opponents (`zvtes::habits`, agent
+  behaviour like `politics`, not an engine mask): a `net:k+habits` seat
+  plays its network and, by rule in the minion phase, rescues its own
+  vampire (by a minion with 2 blood), burns another Methuselah's card
+  as the Ⓓ action it grants, diablerizes another's vampire in torpor,
+  in that order; once some of its minions acted, its last ready
+  unlocked one takes no action but a hunt or a rescue (a blocker for
+  the predator's turn). `--habit-seats` is the share of frozen seats
+  given them (their beat rates apart in `pfsp`), evaluated as
+  `vs_habits4/5`; `best.pt` is still selected on the plain frozen
+  opponents. `tests/habits.rs` checks every rule choice and mask over
+  40 random games, from the legal view too. Each habit can be switched
+  off (`--habits`, `habits::Set`), because forced, most of them cost
+  the network strength — measured on `p7-politics@1400` with
+  `crates/policy/examples/strength.rs` (native self-play, half
+  the seats with the habits, each deal played twice with the halves
+  swapped; VPs a seat, plain half against habit half; the control,
+  the same network on both halves, spreads 1.02 / 0.98 at 256 games
+  and 1.07 / 0.92 at 512, so ±0.1 is noise): all four, 1.22 / 0.65
+  (256 games); rescue alone 0.99 / 0.99 (512; 0.91 / 1.08 at 256: no
+  measurable cost); burn alone 1.13 / 0.83, diablerie alone 1.15 /
+  0.85, kept home alone 1.17 / 0.78 (256 each); rescue and diablerie
+  1.15 / 0.83 (512). In the smoke run (128 games, the learner the
+  frozen network itself) the learner scored 1.42 / 1.21 against habit
+  seats, 0.84 / 1.08 against plain ones.
+  (2) Starts (`zvtes_protocol::start`, `GamePool(replays=)`, a queued
+  table's `start`): a training table begun from a decision in the last
+  four fifths of one of the owner's games (`--starts data/replays
+  --start-tables`), the learner at a random seat, every library and
+  crypt shuffled again from the pool's seed at the branch (from one
+  position the replay's order would fix every draw: a future to
+  memorize); hands, the uncontrolled region and the table kept; the
+  time limit at least the position's turn + 20. A start reads its game
+  by choices to the log's end or a rules change since (the pool prints
+  how far, per game). `tests/starts.rs` (every decision of two whole
+  games is a position that plays on; all 15 swept once).
+  The measure of both: the pool counts the learner's minion-phase
+  decisions offering each habit (its own rescue, a burn of another's
+  card, a diablerie) and those taking it, logged per iteration as
+  `habits` (offered, taken).
+- Rescue encouraged, a decisive bot, waste measured (owner,
+  2026-10-05: diablerie is risky — the blood hunt — and not for now;
+  "rescuing one's own vampire often pays down the road … not forced
+  like 100% but encouraged more as a guiding harness like we do for the
+  votes … until it learns by itself"; and "it has a tendency to play
+  cards for the sake of it … throws away wakes, unlocks … cannot
+  construct its hand"). Declining is always on the map: over 300
+  random games on every deck, of 7171 decisions offering a card play
+  none offered only plays (a Pass, end of phase or hand strike each
+  time); the discard phase always offers Pass and a discard.
+  (1) The rescue bonus: added to the logit of every network seat's
+  rescue of its own vampire, inside the distribution — the pool's
+  `opt_bias` (`GamePool.nudges`, `zvtes_policy::Nudges`), added in `act`
+  and in the PPO update alike (each row keeps the bias it was sampled
+  with), so the ratio is the policy's own; `--rescue-bonus B --nudge-from
+  F --nudge-until U`: full to iteration F, fading linearly to 0 at U (the
+  harness relaxed as the network learns; the `habits` counter shows
+  whether its own rescues hold). The network's rescue logits are so low
+  that the bonus must be large to matter: taken 0% of the rescues
+  offered without it, 1.4% at +3, 7.1% at +6 (24 self-play games
+  each); +6 costs nothing measurable (`examples/strength.rs`, 512
+  games: 0.94 / 1.05 VP a seat, within the control's 0.92 / 1.07).
+  The owner, by the same count, took 5 of 5; the bots in the owner's
+  games 0 of 36.
+  (2) A decisive network bot: `NetAgent::temperature` divides the
+  logits before sampling; the human-play bots play at 0.5 with the
+  rescue bonus (`crates/wasm`). Measured (512 games each, against the
+  network sampling as trained): 0.7 1.06 / 0.92, 0.5 1.16 / 0.82, 0.3
+  1.18 / 0.80, 0.5 with +6 1.17 / 0.81. Training still samples at 1.
+  (3) Waste (`crates/policy/examples/waste.rs`: the owner's games,
+  the owner's seats apart, and self-play): wakes followed by no block
+  from the woken vampire during the action — owner 22% of 18, bots in
+  the owner's games 86% of 49, self-play 85% of 562 (74% at
+  temperature 0.5); cycling (a discard at the own discard phase) —
+  owner 53% of 122 phases, bots 97% of 306, self-play 95% (95% at 0.5),
+  the bots' discards spread as their hands are (each type's share of
+  the cycled cards ≈ its share of the hand) where the owner keeps
+  reactions (31% of the hand, 23% of the cycled) and political actions
+  (8% / 3%) and cycles action modifiers (20% / 34%). Not told apart by
+  these counts: unlocks after an action followed by no action or block
+  before the next own turn (owner 44%, bots 46–53%), a playable card
+  cycled while an unplayable one stays (owner 52%, bots 38–55%: a clan
+  card kept for a vampire to come). The two clear gaps — wakes and
+  cycling — are the candidates for the next harness (a fading penalty,
+  as the rescue bonus).
+- **Nudges: keep the hand, keep reactions, no empty bleed, spend the
+  transfers** (owner, 2026-10-05: "a fading bonus on passing in the
+  discard and against cycling reactions"; "it has a tendency to stay
+  idle with all in torpor when it could draw a crypt card or try to
+  influence one more vampire"; "it bleeds with Aggressive Corpse and
+  that minion has zero bleed … doing an action with no effect should not
+  be favored"). The rescue bonus generalized: `zvtes_policy::Nudges`,
+  shared by the pool (`GamePool.nudges`, `opt_bias`), `NetAgent` and the
+  examples, every option still offered and legal (17.4). On every network
+  seat's logits:
+  `rescue` (+, its own vampire's rescue); `pass` (+, passing its own
+  discard phase with a card to cycle); `reaction` (−, cycling a
+  reaction); `bleed` (−, `empty_bleed`: a rulebook bleed by a minion
+  bleeding for 0 before any action modifier, base plus borne cards — an
+  ally's printed 0); `idle` (−, `idle_influence`: ending the influence
+  phase while a crypt draw is still offered, i.e. 4 transfers unspent,
+  with 5 pool or more). `--rescue-bonus --pass-bonus --reaction-bonus
+  --bleed-bonus --idle-bonus`, all fading together (`--nudge-from F
+  --nudge-until U`); the `habits` row adds the learner's `keep` (discard
+  phases with a card to cycle, passed) and `reaction` (holding one,
+  cycling one). Rates (`examples/waste.rs`, 24 self-play games each;
+  owner and the bots in the owner's games for reference): cycling 96%
+  plain, 91% at pass +1.5, 76% at +3, 46% at +4.5 (owner 53%), 65% at
+  pass +3 with reaction 2 — selection does not follow (cycling while
+  holding an unplayable card 50% at +4.5, overall 46%: the nudge moves
+  how often, not which); reactions' share of the cycled cards 24% plain
+  (26% of the hand), 15% at 1.5, 7% at 3, 9% at pass +3 with 2 (owner
+  23% of 31%); bleeds for nothing taken 18% (bots in the owner's games
+  16%, owner 0 of 43), 13% at 2, 4% at 4; the influence phase ended with
+  a crypt draw offered and 5+ pool 38% (bots 22%, owner 6%), 28% at
+  1.5, 17% at 3, and influence phases with no transfer made at all 69%
+  (pool 11.7; owner 25%, pool 8) → 56%, 41%. Wakes followed by no block
+  do not move (79–85%: no nudge reads blocks). Strength (512 games, as
+  before; the control's spread 1.07 / 0.92): pass +3 0.90 / 1.07,
+  reaction 2 0.98 / 1.00, both 0.94 / 1.03, pass +4.5 0.94 / 1.03, bleed
+  4 0.93 / 1.05, idle 3 0.97 / 1.01, all five (rescue 6, pass 3,
+  reaction 2, bleed 4, idle 3) 0.98 / 1.00: none measurable, so the
+  frozen opponents carry them too. Not read: the transfers left in the
+  phase are not in the observation (the network infers them from the
+  options offered: a crypt draw at 4, a withdraw at 2) — an observation
+  version's change.
+- **Faster iterations** (owner, 2026-10-05: "aim for a 2 to 5 times
+  speed improvement total … to make this project viable"). p7's
+  iterations took ~5.5 min: training ~190 s (rollout 45–70 s, update
+  80–120 s), evaluations the rest (~30 min every 10 iterations). (1)
+  An evaluation plays all its games at once (the pool was capped at 64)
+  and none after (`GamePool(refill=False)`: a finished slot leaves once
+  the queue is empty, no throwaway game in the batches): 256 games 219 s
+  against 576 s (p7's frozen table, the GPU shared with p7). (2)
+  `eval_every` 20 (was 10). (3) `bots_every` 50: once frozen opponents
+  select `best.pt`, the bots are evaluated only from each multiple of
+  50 and last (their scores sat at 2.4–2.8 VP for hundreds of
+  iterations). The update, profiled on a p7 rollout (13 371 samples, 3
+  epochs, 1024 a minibatch): backward 46%, critic forward 18%, policy
+  forward 16%, collation 11%. Compute-bound on the M3's 10-core GPU:
+  the model's small matmuls reach 300–400 GFLOPS (1 TFLOPS on large
+  ones); a layer's forward and backward on 512 rows of 96 tokens ~170
+  ms (a third attention, a third feed-forward); half precision (fp16,
+  bf16 autocast) no faster. The levers are less work: tokens (the
+  policy reads ~92 a decision: 32 for its own library and crypt, 16
+  uncontrolled slots — others' face down, all alike — ~22 history, 7
+  hand, 6 ash; the critic ~122 with every hand) and passes (epochs).
+  Observation `V3` (`zvtes::obs`; owner, 2026-10-06: "make our
+  training as lightweight as possible"): `V2`'s content in fewer tokens
+  — the viewer's library and crypt apart (`Obs::deck_ids`/`deck_f`: the
+  network embeds them as tokens and adds their mean to the context
+  token, out of attention, no weights of its own: a `V2` checkpoint
+  resumes as is), other Methuselahs' face-down uncontrolled vampires as
+  their seat's count and counters (events pointing at them point at
+  none), and the transfers left in the influence phase on the context
+  token (the network had to infer them). 256 self-play games of random
+  moves: the policy's tokens 120 → 76 a decision (p90 145 → 101), the
+  critic's 141 → 110. `tests/obs.rs` checks `V3` is `V2` less those
+  tokens, pointers following, and reads only the legal view. The pool
+  reads each network's version (`net_obs`: a frozen `V2` network beside
+  a `V3` learner); `--obs 3` is the default. The update's collation
+  costs the copy to the device, not the padding (4 ms for 1024 rows):
+  features cross as float16 (as kept). Each iteration logs the last
+  epoch's `kl` (k3, from the playing policy) and `clipfrac`: what the
+  epochs add.
+  Measured once p7 had finished (the GPU free; 20 iterations of p8's
+  configuration from `p7-politics@1800`'s best, one evaluation each):
+  `V2`, 3 epochs, 176 s an iteration (rollout 49 s, update 87 s, kl
+  0.0023, clipfrac 2.4%); `V3`, 3 epochs, 161 s (50, 69; 0.0023, 2.3%);
+  `V3`, 2 epochs, 146 s (51, 47; 0.0019, 1.9%) — against ~330 s for
+  p7's iterations. The rollout is inference: the policy's forward passes
+  70% of it, the critic's 16%, the engine ~4%; a forward on 1024 rows of
+  80 tokens 129 ms, linear in the rows, fp16 autocast 119 ms (fp16
+  weights abort in MPS's matmul). ~65 000 decisions are played an
+  iteration for ~14 000 learner samples: ~80% of the inference is the
+  opponents'. The update moves the policy little (kl ~0.002, a tenth of
+  PPO's usual target): the third epoch adds ~20% of the movement for
+  ~45% of the update — per second of wall time, 3 epochs move the
+  policy slightly more than 2.
+  Three more levers tried (owner, 2026-10-07; a side-by-side training
+  run could not tell learning apart: p7 gained ~0.05 VP a 100
+  iterations, under one evaluation's noise, so each got the check that
+  answers it). (1) `learner_seats` 2 (the learner on two seats a table,
+  1024 games): rollout 65 s, update 168 s for 28 900 samples — 8.1 ms a
+  sample against 8.3 (the rollout's saving goes to an update slower a
+  sample): not worth the learner facing itself; kept at 1. (2)
+  `best_margin` 0.05 (was 0.1), from p7's last 44 evaluations: 24
+  re-measures instead of 39, none of its 15 bests missed (0 would miss
+  2). (3) `lr` 1e-4: the same time, kl 0.0046 and clipfrac 4.6% (from
+  0.0023, 2.3%; PPO's usual bounds ~0.01–0.02 and ~10%): twice the
+  movement an update, still inside the clip. p8 runs at 1e-4; its
+  frozen evaluations decide (p7's pace, ~+0.05 a 100 iterations: flat
+  or falling after ~200, back to 5e-5 from p8's best).
+- **Chores: options never declined** (owner, 2026-10-08: "some things
+  are only 'options' in the sense a human is allowed to forget them, but
+  it's never good to do so"). The engine elides only empty and
+  single-option windows; the network decided every other option.
+  `zvtes_policy::chores` (agent behaviour like the default politics,
+  17.4 untouched): when a chore is offered, network seats' `Pass` is
+  masked (one option left: taken, no forward) — the Edge's pool
+  (declining it for a later Parity Shift: the accepted rare exception),
+  a hunting ground's blood to a ready vampire with room (free: no lock,
+  no cost). `--chores` (on), the pool's `chores`, `NetAgent::chores`
+  (on). Found by `examples/census.rs` (self-play, decisions by window and
+  option kinds, what the network picks; `p7-politics@1800`, 32 games):
+  the Edge's pool taken 97%, the hunting grounds declined 26–33%;
+  Homunculus, Vessel, Garibaldi-Meucci Museum and Anarch Troublemaker,
+  often declined, have a cost or a trade-off: left to the network. With
+  the chores: every offered chore taken; strength 0.994 / 0.997 (512
+  games: none lost). With the Sabbat slices, the optional effects the
+  rulings call never worse to use, as the scripted bots take them:
+  Fever Pitch put on its vampire (rules-qa 53.5), Cursed Abattoir's
+  counter (55.6); Forward Momentum's counter is no option (the engine
+  adds it; only its order with the unlock is chosen, 53.6).
 
 ### 11.3 Open gaps
 
@@ -1666,7 +1897,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (`docs/human-play.md` has the board).
 
-Definitions: 513 library, 138 vampires; 1119 Rust tests, 23 Python tests
+Definitions: 513 library, 138 vampires; 1126 Rust tests, 32 Python tests
 
 ## Outlook: deck building (post-v1)
 

@@ -10,6 +10,7 @@ pub mod logged;
 mod narrate;
 mod purpose;
 pub mod session;
+pub mod start;
 pub mod track;
 pub mod view;
 

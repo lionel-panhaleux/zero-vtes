@@ -22,7 +22,15 @@ import torch
 import zvtes_py
 
 from train.model import Critic, Policy, remap_vocab
-from train.ppo import collate, collate_critic
+from train.ppo import collate, collate_critic, forward
+
+# A decision's arrays, in `train.ppo.rows`' order (the bias aside).
+ROW_KEYS = [
+    f"{c}{k}"
+    for c, ks in (("", ("tok_ids", "tok_f", "opt_ids", "opt_f", "deck_ids", "deck_f")),
+                  ("critic_", ("tok_ids", "tok_f", "deck_ids", "deck_f")))
+    for k in ks
+]
 
 
 def load(path):
@@ -50,16 +58,14 @@ def load(path):
 def evaluate(policy, critic, decisions, batch=64):
     """Each decision's option probabilities and the critic's value."""
     rows = [
-        (d["tok_ids"], d["tok_f"], d["opt_ids"], d["opt_f"], d["critic_tok_ids"], d["critic_tok_f"])
+        tuple(d[k] for k in ROW_KEYS) + (None,)
         for d in decisions
     ]
     probs, values = [], []
     for i in range(0, len(rows), batch):
         part = rows[i : i + batch]
         b = collate(part, "cpu")
-        logits, v = policy(
-            b["tok_ids"], b["tok_f"], b["tok_n"], b["opt_ids"], b["opt_f"], b["opt_n"]
-        )
+        logits, v = forward(policy, b)
         p = torch.softmax(logits, -1)
         probs += [p[k, : int(b["opt_n"][k])].numpy() for k in range(len(part))]
         if critic is not None:

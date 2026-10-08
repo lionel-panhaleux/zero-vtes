@@ -4,7 +4,9 @@
 //! token or carries an identity. Games from the opening (bots and random seats) and the fuzz
 //! tables (`common::tables`, random play). `OBS_STATS=1` prints the largest
 //! token and option counts met. `V2` is `V1` plus its ash heap and event
-//! tokens, and the history it reads holds only public choices.
+//! tokens, and the history it reads holds only public choices. `V3` is
+//! `V2` with its deck tokens apart and the others' face-down uncontrolled
+//! vampires gone, pointers following.
 
 mod common;
 
@@ -14,8 +16,8 @@ use zvtes::bots::{Scripted, Style};
 use zvtes::decision::Choice;
 use zvtes::game::{Engine, Step};
 use zvtes::obs::{
-    encode, encode_critic, Obs, Version, T_ASH, T_DECK, T_EVENT, T_HAND, T_REFERENDUM, T_SEAT,
-    T_SLOT, V_CRYPT, V_HIDDEN, V_LIBRARY,
+    encode, encode_critic, Obs, Version, T_ASH, T_CONTEXT, T_DECK, T_EVENT, T_HAND, T_REFERENDUM,
+    T_SEAT, T_SLOT, V_CRYPT, V_HIDDEN, V_LIBRARY,
 };
 
 const DECISION_BUDGET: u64 = 100_000;
@@ -85,6 +87,7 @@ fn check(o: &Obs, req: &zvtes::decision::DecisionRequest, what: &str) {
 struct Stats {
     tokens: usize,
     tokens_v2: usize,
+    tokens_v3: usize,
     options: usize,
     samples: usize,
 }
@@ -117,6 +120,62 @@ fn extends_v1(v1: &Obs, v2: &Obs, what: &str) {
     );
 }
 
+/// `V3` is `V2` with its deck tokens in `deck_ids` and its face-down
+/// slots gone (none with `omniscient`), pointers to them 0 and the others
+/// following; the same features but the seat and context tokens' (the
+/// face-down counters, the transfers left).
+fn lightens_v2(v2: &Obs, v3: &Obs, omniscient: bool, what: &str) {
+    let deck: Vec<usize> = (0..v2.tok_ids.len())
+        .filter(|&i| v2.tok_ids[i][0] == T_DECK)
+        .collect();
+    assert!(
+        deck.iter()
+            .map(|&i| v2.tok_ids[i])
+            .eq(v3.deck_ids.iter().copied())
+            && deck
+                .iter()
+                .map(|&i| v2.tok_f[i])
+                .eq(v3.deck_f.iter().copied()),
+        "{what}: deck"
+    );
+    let gone = |t: &[i32; 4]| t[0] == T_DECK || (t[0] == T_SLOT && t[1] == V_HIDDEN);
+    assert!(
+        !omniscient
+            || v2
+                .tok_ids
+                .iter()
+                .all(|t| !(t[0] == T_SLOT && t[1] == V_HIDDEN))
+    );
+    let mut map = vec![0i32; v2.tok_ids.len() + 1];
+    let mut k = 0;
+    for (i, t) in v2.tok_ids.iter().enumerate() {
+        if !gone(t) {
+            k += 1;
+            map[i + 1] = k;
+        }
+    }
+    assert_eq!(k as usize, v3.tok_ids.len(), "{what}: token count");
+    let moved = |ids: &[i32]| -> Vec<i32> {
+        ids.iter()
+            .enumerate()
+            .map(|(j, &p)| if j >= 2 { map[p as usize] } else { p })
+            .collect()
+    };
+    let kept = (0..v2.tok_ids.len()).filter(|&i| !gone(&v2.tok_ids[i]));
+    for (i, j) in kept.zip(0..) {
+        let (a, b) = (v2.tok_ids[i], v3.tok_ids[j]);
+        // An event's pointer may have named a face-down slot: now 0.
+        assert!(moved(&a) == b, "{what}: token {a:?} → {b:?}");
+        if a[0] != T_SEAT && a[0] != T_CONTEXT {
+            assert!(v2.tok_f[i] == v3.tok_f[j], "{what}: features of {a:?}");
+        }
+    }
+    for (a, b) in v2.opt_ids.iter().zip(&v3.opt_ids) {
+        assert!(moved(a) == b.to_vec(), "{what}: option {a:?} → {b:?}");
+    }
+    assert!(v2.opt_f == v3.opt_f, "{what}: option features");
+}
+
 fn game(what: &str, mut e: Engine, agents: &mut [Box<dyn Agent>], stats: &mut Stats) {
     while let Step::Decision(req) = e.run() {
         assert!(e.decisions < DECISION_BUDGET, "{what}: decision budget");
@@ -126,6 +185,16 @@ fn game(what: &str, mut e: Engine, agents: &mut [Box<dyn Agent>], stats: &mut St
         check(&seeing, &req, &what);
         check(&seeing_v2, &req, &what);
         extends_v1(&seeing, &seeing_v2, &what);
+        let seeing_v3 = encode(&e, &req, Version::V3);
+        check(&seeing_v3, &req, &what);
+        lightens_v2(&seeing_v2, &seeing_v3, false, &what);
+        lightens_v2(
+            &encode_critic(&e, &req, Version::V2),
+            &encode_critic(&e, &req, Version::V3),
+            true,
+            &what,
+        );
+        stats.tokens_v3 = stats.tokens_v3.max(seeing_v3.tok_ids.len());
         if e.decisions.is_multiple_of(2) {
             let mut view = e.clone();
             view.state = e.state.legal_view(req.seat);
@@ -134,6 +203,7 @@ fn game(what: &str, mut e: Engine, agents: &mut [Box<dyn Agent>], stats: &mut St
                 "{what}: {:?}",
                 req.window
             );
+            assert!(encode(&view, &req, Version::V3) == seeing_v3, "{what}: V3");
             assert!(
                 encode(&view, &req, Version::V2) == seeing_v2,
                 "{what}: {:?}",
@@ -202,8 +272,8 @@ fn observations_read_only_the_legal_view() {
     }
     if std::env::var("OBS_STATS").is_ok() {
         eprintln!(
-            "{} samples; at most {} tokens ({} in V2), {} options",
-            stats.samples, stats.tokens, stats.tokens_v2, stats.options
+            "{} samples; at most {} tokens ({} in V2, {} in V3), {} options",
+            stats.samples, stats.tokens, stats.tokens_v2, stats.tokens_v3, stats.options
         );
     }
 }

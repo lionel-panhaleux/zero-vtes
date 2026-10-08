@@ -1,10 +1,11 @@
 """The league (DESIGN §5, P4). Every table is 4 or 5 seats (tournament
-tables) with one seat for the learner (`net:0`) and, with `exploiter`, one
-for the exploiter (`net:EXPLOITER`), a second trained network that plays
-only the learner's tables; the other seats are drawn by prioritized
-fictitious self-play among the scripted bots (`bots`), the learner's last
-`opponents_kept` snapshots (`net:<iteration>`) and the exploiter's last
-retired copies (`net:EXPLOITER + <iteration>`): weight (1 − p)² + 0.02, p
+tables) with `learner_seats` seats for the learner (`net:0`, 1 by
+default) and, with `exploiter`, one for the exploiter (`net:EXPLOITER`),
+a second trained network that plays only the learner's tables; the other
+seats are drawn by prioritized fictitious self-play among the scripted
+bots (`bots`), the learner's last `opponents_kept` snapshots
+(`net:<iteration>`) and the exploiter's last retired copies
+(`net:EXPLOITER + <iteration>`): weight (1 − p)² + 0.02, p
 the learner's beat rate against it (pairwise: more VPs than that seat, a
 tie ½), within the bots (probability `bot_seats`, at most `table_bots` a
 table) or the snapshots.
@@ -17,7 +18,11 @@ it falls under `exploiter_beaten`, or after `exploiter_reset` iterations.
 With `opponents` (checkpoint paths, comma-separated), every other seat is
 one of those frozen networks (`net:FROZEN + k`, by PFSP among them): no
 bots, no snapshots (owner, 2026-10-03: only good opponents, the previous
-bests). They read the encoding they were trained on (`frozen_versions`)."""
+bests). They read the encoding they were trained on (`frozen_versions`).
+With `habit_seats`, that share of those seats plays with the punishing
+habits (`net:k+habits`, `zvtes::habits`: rescues, burns others' Ⓓ-burnable
+cards, diablerizes, keeps its last minion home); their beat rates are kept
+apart."""
 
 import copy
 import json
@@ -38,14 +43,26 @@ EXP = f"net:{EXPLOITER}"
 FROZEN = 20_000
 
 
+HABITS = "+habits"
+
+
+def net_id(name):
+    """A network seat's id (`net:k`, `net:k+habits`), else None."""
+    if not name.startswith("net:"):
+        return None
+    return int(name[4:].removesuffix(HABITS))
+
+
 def label(name, frozen=()):
     """A seat name for logs: `exploiter`, `exploiter:<it>`, `net:<it>`, a
-    frozen opponent by its run and iteration."""
-    if name.startswith("net:") and FROZEN <= int(name[4:]) < EXPLOITER:
-        k = int(name[4:]) - FROZEN
-        return frozen[k] if k < len(frozen) else f"frozen:{k}"
-    if name.startswith("net:") and int(name[4:]) >= EXPLOITER:
-        k = int(name[4:]) - EXPLOITER
+    frozen opponent by its run and iteration (`+habits` kept)."""
+    k = net_id(name)
+    habits = HABITS if name.endswith(HABITS) else ""
+    if k is not None and FROZEN <= k < EXPLOITER:
+        k -= FROZEN
+        return (frozen[k] if k < len(frozen) else f"frozen:{k}") + habits
+    if k is not None and k >= EXPLOITER:
+        k -= EXPLOITER
         return f"exploiter:{k}" if k else "exploiter"
     return name
 
@@ -140,18 +157,24 @@ class League:
         elif bots:
             names = bots
         w = [(1 - self.p.get(n, 0.5)) ** 2 + 0.02 for n in names]
-        return names[self.rng.choice(len(names), p=[x / sum(w) for x in w])]
+        name = names[self.rng.choice(len(names), p=[x / sum(w) for x in w])]
+        if self.frozen and self.rng.random() < self.cfg.habit_seats:
+            name += HABITS
+        return name
 
-    def spec(self):
-        n = int(self.rng.choice(TABLES))
+    def spec(self, n=None):
+        """A table: `n` seats (4 or 5 drawn when None)."""
+        n = int(self.rng.choice(TABLES)) if n is None else n
         seats = []
         for _ in range(n):
             bots_ok = sum(x in BOTS for x in seats) < self.cfg.table_bots
             seats.append(self.draw(bots_ok))
         order = self.rng.permutation(n)
-        seats[order[0]] = "net:0"
+        k = self.cfg.learner_seats
+        for i in order[:k]:
+            seats[i] = "net:0"
         if self.cfg.exploiter:
-            seats[order[1]] = EXP
+            seats[order[k]] = EXP
         return {"seats": seats}
 
     def record(self, ep, vps):

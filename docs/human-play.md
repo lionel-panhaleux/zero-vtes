@@ -298,6 +298,10 @@ against them too when `target/policy.zvp` exists. A network trained on
 observation V2 (DESIGN §11.2) exports with an `obs 2` header line, which
 a wasm built before 2026-10-03 refuses: rebuild the wasm first, then
 swap the file.
+They play at temperature 0.5 with a rescue bonus of +6
+(`crates/wasm/src/lib.rs`, `NetAgent::temperature` / `nudges`;
+DESIGN §11.2): their favourite options more often than training samples
+them, and their own vampires rescued from torpor more often.
 
 Pick a deck (Preconstructed → Fifth Edition …: the engine refuses a deck with
 cards outside its pool, naming them), then "Play against Bots (rules engine)".
