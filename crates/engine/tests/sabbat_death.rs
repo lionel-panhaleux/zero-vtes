@@ -568,6 +568,13 @@ fn morbidity_holds_blood_for_the_combat() {
         .map(|c| c.counters)
         .collect();
     assert_eq!(held, vec![2]);
+    // The card itself in play, not the ash heap (rules-qa 21.1).
+    assert!(e
+        .state
+        .cards
+        .iter()
+        .any(|c| c.in_play && c.card == morbidity && !c.effect_only));
+    assert!(!e.state.seats[0].ash.contains(&morbidity));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(blood(&e, z), 4 - 1, "its 2 back, a hand strike");
     assert!(!e

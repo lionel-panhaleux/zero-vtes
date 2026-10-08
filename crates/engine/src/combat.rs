@@ -2674,38 +2674,8 @@ impl Engine {
             Effect::AimExtraDamage(n) => c.sides[i].aim = n,
             // Read as the card is played (`CardAsPlayed`).
             Effect::CancelableByDiscardingCombat(_) => {}
-            // Morbidity: up to n of the opposing vampire's blood on this
-            // card, in play until the combat ends.
-            Effect::MorbidityTake(n) => {
-                let opposing = c.sides[1 - i].minion;
-                let moved = n.min(self.state.minions[opposing.index()].blood);
-                self.state.minions[opposing.index()].blood -= moved;
-                // Out of the ash heap if it is there already, else an
-                // effect-only stand-in (as `place_held`, rules-qa 47.1).
-                let ash = &mut self.state.seats[play.seat.index()].ash;
-                let taken = ash
-                    .iter()
-                    .rposition(|&x| x == play.card)
-                    .map(|k| ash.remove(k))
-                    .is_some();
-                let id = self.enter_play(crate::state::CardInPlay {
-                    by: Some(actor),
-                    counters: moved,
-                    effect_only: !taken,
-                    ..crate::state::CardInPlay::new(play.card, play.seat, None, play.mode)
-                });
-                self.combat
-                    .as_mut()
-                    .expect("combat")
-                    .morbidity
-                    .push((id, opposing));
-            }
-            Effect::PutOnActorNow => {
-                let name = LIBRARY[play.card as usize].name;
-                if !self.state.holds_a(actor, cards::Holding::Named(name)) {
-                    self.place_held(Held::from_play(play, actor, 0), actor);
-                }
-            }
+            // The card enters play as it resolves (`apply_card_effect`).
+            Effect::MorbidityTake(_) | Effect::PutOnActorNow => {}
             Effect::StrengthThisRound(n) => c.sides[i].strength_round += n,
             Effect::PreventThisRound(n) => c.sides[i].round_prevents += n,
             Effect::PreventEachRound(n) => {

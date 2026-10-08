@@ -2777,6 +2777,48 @@ impl Engine {
                 *in_play = Some(id);
                 self.enter_card_contest(m);
             }
+            // "Put this card on this vampire" as the combat card resolves
+            // (Wall of Filth): the card itself enters play, not the ash heap
+            // — one of its name a vampire, a second one to the ash heap.
+            Effect::PutOnActorNow => {
+                let actor = ctx.actor.expect("a combatant");
+                let name = LIBRARY[ctx.card as usize].name;
+                if self.state.minions[actor.index()].in_play
+                    && !self.state.holds_a(actor, cards::Holding::Named(name))
+                {
+                    let id = self.enter_play(CardInPlay {
+                        by: Some(actor),
+                        ..CardInPlay::new(ctx.card, s, Some(actor), ctx.mode)
+                    });
+                    self.push_mode_layers(id);
+                    *in_play = Some(id);
+                }
+            }
+            // Morbidity: "put this card in play" with up to n of the
+            // opposing vampire's blood, until the combat ends.
+            Effect::MorbidityTake(n) => {
+                let actor = ctx.actor.expect("a combatant");
+                let c = self.combat.as_ref().expect("combat");
+                let opposing = c
+                    .sides
+                    .iter()
+                    .map(|side| side.minion)
+                    .find(|&m| m != actor)
+                    .expect("an opposing minion");
+                let moved = n.min(self.state.minions[opposing.index()].blood);
+                self.state.minions[opposing.index()].blood -= moved;
+                let id = self.enter_play(CardInPlay {
+                    by: Some(actor),
+                    counters: moved,
+                    ..CardInPlay::new(ctx.card, s, None, ctx.mode)
+                });
+                self.combat
+                    .as_mut()
+                    .expect("combat")
+                    .morbidity
+                    .push((id, opposing));
+                *in_play = Some(id);
+            }
             Effect::PutOnTarget
             | Effect::PutInPlay
             | Effect::PutOnActor

@@ -633,6 +633,8 @@ fn wall_of_filth_prevents_two_damage_once() {
             .position(|c| c.in_play && c.card == wall && c.host == Some(lawbringer))
             .expect("on Lawbringer") as u32,
     );
+    assert!(!e.state.cards[id.index()].effect_only, "the card itself");
+    assert!(!e.state.seats[0].ash.contains(&wall), "not in the ash heap");
     pick_when(&mut e, use_at(id, 0, None, Target::None));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(blood(&e, lawbringer), 3, "the hand strike prevented");

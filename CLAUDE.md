@@ -106,6 +106,13 @@ open gaps, what remains); history in `git log` (commit messages are detailed).
 - Test fixtures: blood above capacity drains at the first `run()`; library
   cards carry clan requirements (check `LIBRARY` clans before picking test
   vampires).
+- "Put this card on … / in play" (a recurring miss, owner): the card itself
+  enters play, never the ash heap. As the card resolves, `apply_card_effect`
+  sets `in_play` (Wall of Filth, Morbidity); the `Held` / `place_held`
+  stand-in is only for a placement after the card reached the ash heap
+  (after combat, on a hit). Its test asserts the card in play is not
+  `effect_only` and the ash heap lacks it — "something is on the vampire"
+  passes for a stand-in too.
 - The engine has legal unbounded repeats (block re-attempts, DESIGN §11.3):
   cap decisions in any exploratory driver or scratch run.
 - zsh: never write `"$VAR:x"` in shell arguments (history modifiers eat
