@@ -763,6 +763,11 @@ impl Describer<'_> {
                 if let Some(n) = o.amount {
                     s += &format!(" ({n})");
                 }
+                // A priscus casts its prisci ballot too, even with no vote
+                // (rules-qa 52.9).
+                if self.e.state.title_of(minion) == zvtes::crypt::Title::Priscus {
+                    s += " and a prisci ballot";
+                }
                 s
             }
             Choice::CastEdge { favor } => {
