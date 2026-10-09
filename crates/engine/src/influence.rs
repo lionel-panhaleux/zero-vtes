@@ -69,9 +69,13 @@ impl Engine {
                 options.push(Choice::Withdraw { slot: i });
             }
             // No voluntary self-contest: a second copy of a vampire you
-            // already have in play cannot be moved out.
+            // already have in play cannot be moved out — but Anarch
+            // Convert, removed as he enters play before any contest (the
+            // copy in play is a vampire he can make Anarch).
             if slot.counters >= capacity
-                && (slot.card == crate::state::CREATED || !st.controls_copy(s, slot.card))
+                && (slot.card == crate::state::CREATED
+                    || !st.controls_copy(s, slot.card)
+                    || is_anarch_convert(slot.card))
             {
                 options.push(Choice::InfluenceOut { slot: i });
             }
@@ -144,6 +148,8 @@ impl Engine {
                 let out = self.state.seats[s.index()]
                     .uncontrolled
                     .remove(*slot as usize);
+                let forced =
+                    out.card != crate::state::CREATED && self.state.controls_copy(s, out.card);
                 // Counters become blood; excess over capacity drains off —
                 // a returning vampire's capacity counting the cards on it
                 // again (advanced rules 5.1.1).
@@ -170,7 +176,23 @@ impl Engine {
                         self.add_minion(s, out.card, capacity, false)
                     }
                 };
-                self.stage_contests(m);
+                // An Anarch entering play: counted first, the Convert's
+                // ability next (Hackerspace, ANK 20210410).
+                if self.state.sect_of(m) == Some(crate::crypt::Sect::Anarch) {
+                    self.anarch_arrives(s);
+                }
+                // Anarch Convert: his entry ability before any contest.
+                if is_anarch_convert(out.card) {
+                    self.interrupts
+                        .push(crate::draws::Interrupt::AnarchConvert {
+                            seat: s,
+                            convert: m,
+                            forced,
+                            chosen: None,
+                        });
+                } else {
+                    self.stage_contests(m);
+                }
                 self.flow = Flow::Influence { left };
                 // Twilight Camp: a non-titled non-Anarch vampire put in play
                 // from the uncontrolled region may be made Anarch.
@@ -206,4 +228,10 @@ impl Engine {
             other => unreachable!("illegal influence choice {other:?}"),
         }
     }
+}
+
+/// Anarch Convert's crypt card ("as the convert enters play, you can remove
+/// him from the game …").
+fn is_anarch_convert(card: u16) -> bool {
+    card != crate::state::CREATED && CRYPT[card as usize].name == "Anarch Convert"
 }

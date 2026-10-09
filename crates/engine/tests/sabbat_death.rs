@@ -183,6 +183,33 @@ fn ashur_uballit_raises_tougher_zombies() {
     );
 }
 
+// Gravebound Drone [OBL]: "during a bleed action, this ally can burn 1
+// life from another copy of this ally you control to get +1 bleed" — the
+// acting Drone, once in the bleed (the "during" template, rules-qa 6.6),
+// however many other copies there are (owner, 2026-10-09, from play: the
+// acting Drone burned two others for a bleed of 3).
+#[test]
+fn gravebound_drone_burns_another_copy_once_per_bleed() {
+    let mut e = game(3);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let drone = find_library("Gravebound Drone");
+    let a = e.add_ally_version(SeatId(0), drone, 1);
+    let b = e.add_ally_version(SeatId(0), drone, 1);
+    let c = e.add_ally_version(SeatId(0), drone, 1);
+    let id = e.state.minions[a.index()].ally_id().unwrap();
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, use_at(id, 1, None, Target::Minion(b)));
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        use_at(id, 1, None, Target::Minion(c)),
+    );
+    assert_eq!(e.state.seats[1].pool, 10 - 2, "1 bleed +1, once");
+    assert_eq!(blood(&e, b), 1);
+    assert_eq!(blood(&e, c), 2);
+}
+
 // Eulogio: "look at and reorder the top 5 cards of your library, and
 // unlock" as a +1 stealth action costing 1 blood (rules-qa 55.3).
 #[test]

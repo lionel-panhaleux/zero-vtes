@@ -274,6 +274,10 @@ pub fn title_text(t: Title) -> Option<String> {
         Title::Priscus => Some("Priscus".into()),
         Title::Regent => Some("Regent".into()),
         Title::Independent { name, .. } => Some(name.into()),
+        Title::Votes(n) => Some(format!(
+            "{n} vote{} (titled)",
+            if n == 1 { "" } else { "s" }
+        )),
     }
 }
 
@@ -307,9 +311,10 @@ fn card_view(copy: u32, f: Face) -> CardView {
 fn minion_key(m: MinionId, kind: MinionKind) -> (Key, Face) {
     match kind {
         MinionKind::Vampire(c) => (Key::Minion(m.0), Face::Crypt(c)),
-        MinionKind::Ally { card, id, .. } | MinionKind::Created { card, id, .. } => {
-            (Key::Card(id.0), Face::Library(card))
-        }
+        MinionKind::Ally { card, id, .. }
+        | MinionKind::Created { card, id, .. }
+        | MinionKind::GreatBeast { card, id }
+        | MinionKind::Fury { card, id } => (Key::Card(id.0), Face::Library(card)),
         MinionKind::Token { card, .. } => (Key::Minion(m.0), Face::Library(card)),
     }
 }
@@ -328,9 +333,12 @@ fn shown_card(st: &GameState, i: usize) -> bool {
 }
 
 fn is_created_body(st: &GameState, i: usize) -> bool {
-    st.minions
-        .iter()
-        .any(|m| m.in_play && matches!(m.kind, MinionKind::Created { id, .. } if id.index() == i))
+    st.minions.iter().any(|m| {
+        m.in_play
+            && matches!(m.kind, MinionKind::Created { id, .. }
+                    | MinionKind::GreatBeast { id, .. }
+                    | MinionKind::Fury { id, .. } if id.index() == i)
+    })
 }
 
 /// The seat's zones in the engine's lists (ash heap: library cards, then
@@ -619,7 +627,9 @@ fn minion_view(st: &GameState, lay: &Layout, copies: &Copies, i: usize) -> Minio
     let kind = match m.kind {
         MinionKind::Vampire(_) => "vampire",
         MinionKind::Ally { .. } => "ally",
-        MinionKind::Created { .. } => "created",
+        MinionKind::Created { .. } | MinionKind::GreatBeast { .. } | MinionKind::Fury { .. } => {
+            "created"
+        }
         MinionKind::Token { .. } => "token",
     };
     let cards = (0..st.cards.len())
@@ -635,6 +645,9 @@ fn minion_view(st: &GameState, lay: &Layout, copies: &Copies, i: usize) -> Minio
     }
     if m.nightmare > 0 {
         markers.push(format!("{} nightmare", m.nightmare));
+    }
+    if m.disease {
+        markers.push("disease".into());
     }
     // Lingering effects whose card is in the ash heap (rules-qa 21.1).
     for c in st

@@ -369,6 +369,9 @@ pub fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
             effect_only: false,
             against: Default::default(),
             entered: 0,
+            entered_action: 0,
+            removed_when_burned: false,
+            stored_owner: None,
             chosen: Vec::new(),
         });
     }

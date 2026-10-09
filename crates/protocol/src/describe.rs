@@ -85,6 +85,7 @@ pub fn action_kind(k: ActionKind) -> &'static str {
         ActionKind::EquipFrom => "equip from a minion",
         ActionKind::EquipFound => "equip from the library",
         ActionKind::Ability => "action",
+        ActionKind::BecomeAnarch => "become Anarch",
     }
 }
 
@@ -916,6 +917,10 @@ impl Describer<'_> {
                 o.minion = Some(minion.0);
                 format!("{} burns blood to unlock", self.minion_name(minion))
             }
+            Choice::UnlockInfernal { minion } => {
+                o.minion = Some(minion.0);
+                format!("Burn 1 pool to unlock {}", self.minion_name(minion))
+            }
             Choice::ContinueAction => "Continue the action as if unblocked".into(),
             Choice::GainStrength => "Gain the strength".into(),
             Choice::BurnBloodToAvoid => "Burn blood to avoid the damage".into(),
@@ -1197,6 +1202,7 @@ pub fn kind(c: &Choice) -> &'static str {
         Choice::EmployFromHand { .. } => "employ_from_hand",
         Choice::BurnBloodForIntercept { .. } => "burn_blood_for_intercept",
         Choice::UnlockForBlood { .. } => "unlock_for_blood",
+        Choice::UnlockInfernal { .. } => "unlock_infernal",
         Choice::ContinueAction => "continue_action",
         Choice::GainStrength => "gain_strength",
         Choice::BurnBloodToAvoid => "burn_blood_to_avoid",

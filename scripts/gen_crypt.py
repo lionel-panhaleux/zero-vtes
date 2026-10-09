@@ -32,7 +32,7 @@ MINI_PRECON_SETS = ["New Blood", "New Blood II", "New Blood III"]
 # Justicar and Inner Circle by clan; primogen is not unique.
 TITLE = re.compile(
     r"^(Camarilla|Anarch|Independent|Sabbat)"
-    r"(?: (Prince|Baron|Archbishop) of ([^:.]+?)| (primogen)| (\w+) Justicar"
+    r"(?: (Prince|Baron|Archbishop) of ((?:[^:.]|\.(?=\w))+)| (primogen)| (\w+) Justicar"
     r"| (\w+) Inner Circle| (bishop|cardinal|priscus|regent))?[:.]"
 )
 
@@ -43,7 +43,9 @@ def parse(card):
         raise SystemExit(f"cannot parse sect/title of {card['name']}: {card['card_text'][:80]}")
     sect = m.group(1)
     if m.group(2):
-        title = f'Title::{m.group(2)}("{m.group(3)}")'
+        # "Washington, D.C.": an abbreviation keeps its last dot.
+        city = m.group(3) + ("." if re.search(r"\b[A-Z]\.[A-Z]$", m.group(3)) else "")
+        title = f'Title::{m.group(2)}("{city}")'
     elif m.group(4):
         title = "Title::Primogen"
     elif m.group(5):
@@ -53,7 +55,11 @@ def parse(card):
     elif m.group(7):
         title = f"Title::{m.group(7).capitalize()}"
     else:
-        title = "Title::None"
+        # "Independent. 2 votes (titled):" (Scout Youngwood; Karl Schrekt
+        # Camarilla).
+        votes = re.match(r"^(?:Camarilla|Anarch|Independent|Sabbat)\. (\d) votes? \(titled\)",
+                         card["card_text"])
+        title = f"Title::Votes({votes.group(1)})" if votes else "Title::None"
     return sect, title
 
 
@@ -100,6 +106,9 @@ def generate(cards):
     out.append("    Cardinal,")
     out.append("    Priscus,")
     out.append("    Regent,")
+    out.append("    /// \"n votes (titled)\" printed on an Independent vampire (Arishat,")
+    out.append("    /// Scout Youngwood): a title worth n votes, not unique.")
+    out.append("    Votes(u8),")
     out.append("    Independent {")
     out.append("        name: &'static str,")
     out.append("        votes: u8,")
@@ -112,6 +121,7 @@ def generate(cards):
     out.append("    /// Printed name: the contest identity (the `(Gn)` suffix is KRCG's).")
     out.append("    pub name: &'static str,")
     out.append("    pub capacity: u8,")
+    out.append("    /// Its crypt group; 0 for a vampire of any group (Anarch Convert).")
     out.append("    pub group: u8,")
     out.append("    pub clan: &'static str,")
     out.append("    /// Disciplines as printed: lower case = basic, upper case = superior.")
@@ -124,6 +134,14 @@ def generate(cards):
     out.append("    /// The Sabbat path printed on the vampire (KRCG `path`), the one it")
     out.append("    /// follows as it enters play.")
     out.append("    pub path: Option<&'static str>,")
+    out.append("    /// \"Infernal.\": it does not unlock as normal; its controller may burn")
+    out.append("    /// 1 pool in their unlock phase to unlock it (rulebook \"Infernal\").")
+    out.append("    pub infernal: bool,")
+    out.append("    /// \"Black Hand.\" (Elimelech): a trait cards read.")
+    out.append("    pub black_hand: bool,")
+    out.append("    /// Unique, unless printed \"Non-unique.\" (Valkyrie): copies of a")
+    out.append("    /// non-unique vampire do not contest.")
+    out.append("    pub unique: bool,")
     out.append("}")
     out.append("")
     out.append("#[rustfmt::skip]")
@@ -134,7 +152,7 @@ def generate(cards):
         out.append(f"        id: {c['id']},")
         out.append(f"        name: {rust_str(c['_name'])},")
         out.append(f"        capacity: {c['capacity']},")
-        out.append(f"        group: {int(c['group'])},")
+        out.append(f"        group: {0 if c['group'] == 'ANY' else int(c['group'])},")
         out.append(f"        clan: {rust_str(c['clans'][0])},")
         disc = ", ".join(rust_str(d) for d in c.get("disciplines", []))
         out.append(f"        disciplines: &[{disc}],")
@@ -143,6 +161,11 @@ def generate(cards):
         out.append(f"        adv: {'true' if c.get('adv') else 'false'},")
         path = f"Some({rust_str(c['path'])})" if c.get("path") else "None"
         out.append(f"        path: {path},")
+        text = c["card_text"]
+        flag = lambda b: "true" if b else "false"
+        out.append(f"        infernal: {flag(re.search(r'(^|[.:] )Infernal\.', text))},")
+        out.append(f"        black_hand: {flag(re.search(r'(^|[.:] )Black Hand\.', text))},")
+        out.append(f"        unique: {flag(not re.search(r'(^|[.:] )Non-unique\.', text))},")
         out.append("    },")
     out.append("];")
     out.append("")

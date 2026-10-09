@@ -310,6 +310,9 @@ pub struct Side {
     /// The round's initial strike, committed by a card played at the
     /// maneuver (Slam [POT]).
     pub committed_card: Option<StrikeKind>,
+    /// The weapon and bonus of a weapon strike committed at the maneuver
+    /// (Lam Into [for]): its strike, from that card, once chosen.
+    pub committed_weapon: Option<(CardId, u8)>,
     /// The next additional strike is only usable as this strike (Voracious
     /// Vermin [ANI]).
     pub additional_only: Option<StrikeKind>,
@@ -334,6 +337,9 @@ pub struct Side {
     /// Dance with the Devil [OBF]/[THA]: a maneuver to close range for
     /// this blood, once this round (0: none).
     pub close_maneuver_blood: u8,
+    /// Quick Meld [PRO]: a maneuver, either way, for this blood, once this
+    /// round (0: none).
+    pub maneuver_blood: u8,
     /// Rage of Apedemak: +n damage on this minion's hand strikes this
     /// combat.
     pub hand_damage_bonus: u8,
@@ -492,6 +498,13 @@ pub struct CombatCtx {
     pub retainer_pending: Vec<(CardId, u8)>,
     /// The others' prevention window of this pair has run.
     pub others_prevented: bool,
+    /// The strike waiting on a first strike (a vampire striking "with first
+    /// strike", Elimelech): its side as chosen, resolved once the first
+    /// strike's damage is applied, if that minion is still ready.
+    pub held_strike: Option<(usize, Side)>,
+    /// The held strike is resolving: the pair's retainer and environmental
+    /// damage are already in.
+    pub held_pass: bool,
     /// In-play abilities used this combat, by copy ("each combat").
     pub abilities_used: Vec<(cards::AbilitySource, u8)>,
     /// Abilities used this round ("each round", Rowena).
@@ -535,6 +548,9 @@ pub struct CombatCtx {
     /// Morbidity: (the card in play holding the blood, the vampire it came
     /// from) — moved back as the combat ends and the card burns.
     pub morbidity: Vec<(CardId, MinionId)>,
+    /// Trap and Conquer the Beast in play: the card, and for Conquer its
+    /// vampire's side and whether its press is optional.
+    pub traps: Vec<(CardId, Option<(usize, bool)>)>,
 }
 
 impl CombatCtx {
@@ -701,6 +717,16 @@ impl CombatCtx {
                     && self.no_strikes_round != Some(self.round)
                     && (!self.only_hand_strikes || matches!(k, StrikeKind::Hand { .. }))
             }
+            // The weapon's strike is not a hand strike (rules-qa 55.8).
+            Effect::CommittedWeaponStrikePlus(_) if self.step == Step::DetermineRange => {
+                self.last_maneuver != Some(side)
+                    && self.may_maneuver(side)
+                    && self.sides[side].committed.is_none()
+                    && self.sides[side].committed_card.is_none()
+                    && self.no_strikes_round != Some(self.round)
+                    && !self.only_hand_strikes
+            }
+            Effect::CommittedWeaponStrikePlus(_) => !self.only_hand_strikes,
             Effect::Press if self.step == Step::Press => {
                 self.last_press != Some(side) && self.may_press(side)
             }
@@ -1012,7 +1038,13 @@ impl Engine {
                 {
                     options.push(Choice::UsePrevent);
                 }
-                options.extend(self.impulse_options(side.seat, &c.windows()));
+                // A minion out of the combat prevents in the others' step
+                // (Randall).
+                options.extend(
+                    self.impulse_options(side.seat, &c.windows())
+                        .into_iter()
+                        .filter(|o| !self.out_of_combat_ability(o)),
+                );
                 Some(DecisionRequest::new(
                     side.seat,
                     WindowLabel::CombatPrevention,
@@ -1033,6 +1065,13 @@ impl Engine {
                             _ => true,
                         }),
                 );
+                for &w in &c.windows() {
+                    options.extend(
+                        self.ability_options(seat, w)
+                            .into_iter()
+                            .filter(|o| self.out_of_combat_ability(o)),
+                    );
+                }
                 Some(DecisionRequest::new(
                     seat,
                     WindowLabel::CombatPrevention,
@@ -1052,7 +1091,10 @@ impl Engine {
                             || (c.sides[i].close_maneuver_blood > 0
                                 && c.range == Range::Long
                                 && self.state.minions[c.sides[i].minion.index()].blood
-                                    >= c.sides[i].close_maneuver_blood))
+                                    >= c.sides[i].close_maneuver_blood)
+                            || (c.sides[i].maneuver_blood > 0
+                                && self.state.minions[c.sides[i].minion.index()].blood
+                                    >= c.sides[i].maneuver_blood))
                             && c.last_maneuver != Some(i)
                             && c.may_maneuver(i) =>
                     {
@@ -1117,8 +1159,24 @@ impl Engine {
                 } else {
                     c.sides[i].additional_only.take()
                 };
-                c.sides[i].set_strike(k);
-                c.sides[i].chosen = true;
+                // A committed weapon strike (Lam Into [for]): from that
+                // weapon, still on this minion — gone, no strike.
+                match c.sides[i].committed_weapon.take().filter(|_| c.pair == 0) {
+                    Some((w, n)) => {
+                        let m = c.sides[i].minion;
+                        let card = &self.state.cards[w.index()];
+                        if card.present() && card.host == Some(m) {
+                            weapon_strike(&self.state, c, i, w, n);
+                        } else {
+                            c.sides[i].set_strike(None);
+                            c.sides[i].chosen = true;
+                        }
+                    }
+                    None => {
+                        c.sides[i].set_strike(k);
+                        c.sides[i].chosen = true;
+                    }
+                }
                 None
             }
             (Step::ChooseStrike(i), Choice::BurnWeaponStrike { weapon }) => {
@@ -1219,8 +1277,13 @@ impl Engine {
                     self.state.minions[m.index()].blood -= n;
                 } else if c.sides[i].maneuvers > 0 {
                     c.sides[i].maneuvers -= 1;
-                } else {
+                } else if c.sides[i].combat_maneuvers > 0 {
                     c.sides[i].combat_maneuvers -= 1;
+                } else {
+                    // Quick Meld [PRO]: its blood as it is used.
+                    let n = std::mem::take(&mut c.sides[i].maneuver_blood);
+                    let m = c.sides[i].minion;
+                    self.state.minions[m.index()].blood -= n;
                 }
                 c.window.play();
                 c.maneuver(i);
@@ -1284,6 +1347,60 @@ impl Engine {
         }
     }
 
+    /// The press step opens: each Trap and Conquer the Beast with a counter
+    /// burns one. A Trap's press to continue applies first, no combatant's
+    /// (ANK 20200525-1; a second one adds nothing, a press to continue
+    /// standing); Conquer's is its vampire's, mandatory at [ani] or
+    /// optional at [ANI], gone with the round.
+    fn trap_presses(&mut self) {
+        let both = self
+            .combat
+            .as_ref()
+            .expect("combat")
+            .both_ready(&self.state);
+        let traps = self.combat.as_ref().expect("combat").traps.clone();
+        for (id, owner) in traps {
+            let card = &mut self.state.cards[id.index()];
+            if !card.present() || card.counters == 0 {
+                continue;
+            }
+            card.counters -= 1;
+            let c = self.combat.as_mut().expect("combat");
+            match owner {
+                None if both && !c.press_continue => c.press_continue = true,
+                None => {}
+                Some((i, false)) => c.sides[i].mandatory_press += 1,
+                Some((i, true)) => c.sides[i].continue_presses += 1,
+            }
+        }
+    }
+
+    /// A vampire's ability used from out of the combat on a minion in it
+    /// (Randall: `Actor::HostOutOfCombat`).
+    fn out_of_combat_ability(&self, o: &Choice) -> bool {
+        matches!(*o, Choice::UseAbility { source: s @ crate::cards::AbilitySource::Vampire(_), ability, .. }
+            if s.mode(&self.state, ability).actor == crate::cards::Actor::HostOutOfCombat)
+    }
+
+    /// Vampiric Disease: at close range, a vampire combatant with a disease
+    /// counter gives one to the other vampire as strikes are about to be
+    /// chosen — whatever strike follows (ANK 20210422; LSJ 20040830).
+    fn disease_spreads(&mut self) {
+        let c = self.combat.as_ref().expect("combat context");
+        if c.range != Range::Close {
+            return;
+        }
+        let pair = [c.sides[0].minion, c.sides[1].minion];
+        let st = &mut self.state;
+        if pair.iter().all(|&m| st.minions[m.index()].is_vampire())
+            && pair.iter().any(|&m| st.minions[m.index()].disease)
+        {
+            for m in pair {
+                st.minions[m.index()].disease = true;
+            }
+        }
+    }
+
     /// The current step is done (window closed, strike chosen, prevention
     /// passed): move to the next one.
     pub(crate) fn combat_advance(&mut self) {
@@ -1299,12 +1416,18 @@ impl Engine {
                 if c.round_over {
                     c.fresh_window(Step::EndOfRound);
                 } else if c.range_set {
+                    self.disease_spreads();
+                    let c = self.combat.as_mut().expect("combat context");
                     c.fresh_window(Step::BeforeStrikes);
                 } else {
                     c.fresh_window(Step::DetermineRange);
                 }
             }
-            Step::DetermineRange => c.fresh_window(Step::BeforeStrikes),
+            Step::DetermineRange => {
+                self.disease_spreads();
+                let c = self.combat.as_mut().expect("combat context");
+                c.fresh_window(Step::BeforeStrikes);
+            }
             Step::BeforeStrikes => c.begin_pair(),
             Step::ChooseStrike(0) => c.fresh_window(Step::ChooseStrike(1)),
             Step::ChooseStrike(_) => c.fresh_window(Step::BeforeResolution),
@@ -1345,6 +1468,7 @@ impl Engine {
                     c.begin_pair();
                 } else {
                     c.fresh_window(Step::Press);
+                    self.trap_presses();
                 }
             }
             Step::Press => {
@@ -1396,6 +1520,28 @@ impl Engine {
         }
         if self.apply_damage() {
             return;
+        }
+        let c = self.combat.as_mut().expect("combat context");
+        // The strike a first strike held back: resolved now, if its minion
+        // is still ready and the round goes on.
+        if let Some((j, held)) = c.held_strike.take() {
+            if !c.round_over && self.state.minions[c.sides[j].minion.index()].ready() {
+                let s = &mut c.sides[j];
+                s.strike = held.strike;
+                s.strike_source = held.strike_source;
+                s.strike_at = held.strike_at;
+                s.strike_weapon = held.strike_weapon;
+                s.fortitude_proof = held.fortitude_proof;
+                s.nullifies_weapons = held.nullifies_weapons;
+                s.undodgeable_strike = held.undodgeable_strike;
+                s.aggravated_strike = held.aggravated_strike;
+                c.others_prevented = false;
+                c.held_pass = true;
+                self.resolve_strikes();
+                self.combat.as_mut().expect("combat context").held_pass = false;
+                self.after_prevention_or_next();
+                return;
+            }
         }
         let c = self.combat.as_mut().expect("combat context");
         // After every pair, the normal one and each additional one, a new
@@ -1555,7 +1701,7 @@ impl Engine {
                     // "Unlock this vampire before combat ends": resolves with
                     // the strike, so it survives a continued combat (spec
                     // §4.9.2).
-                    self.state.minions[m.index()].locked = false;
+                    self.state.unlock(m);
                 }
                 // Catatonic Fear [PRE]: at close range, not dodged (LSJ
                 // 19980526).
@@ -1626,7 +1772,7 @@ impl Engine {
         // A strike from a card no longer on the striker has no effect (spec
         // §4.10.4).
         let st = &self.state;
-        let strikes: [Option<StrikeKind>; 2] = std::array::from_fn(|i| {
+        let mut strikes: [Option<StrikeKind>; 2] = std::array::from_fn(|i| {
             let s = &c.sides[i];
             match s.strike_source {
                 Some(w)
@@ -1638,6 +1784,29 @@ impl Engine {
                 _ => strikes[i],
             }
         });
+        // A vampire striking "with first strike" (Elimelech): its strike
+        // resolves first and alone; the opposing one (not a dodge, which
+        // still protects at once) waits for that damage to land
+        // (`held_strike`, rulebook "First Strike").
+        let printed_first: [bool; 2] = std::array::from_fn(|i| {
+            st.printed_mod(
+                c.sides[i].minion,
+                cards::Stat::FirstStrike,
+                crate::state::PrintedCtx::default(),
+            ) > 0
+        });
+        for i in 0..2 {
+            let j = 1 - i;
+            if printed_first[i]
+                && !printed_first[j]
+                && !c.sides[j].first_strike
+                && strikes[i].is_some_and(|k| k != StrikeKind::Dodge)
+                && strikes[j].is_some_and(|k| k != StrikeKind::Dodge)
+            {
+                c.held_strike = Some((j, c.sides[j].clone()));
+                strikes[j] = None;
+            }
+        }
         // Printed strength (Massimiliano; Kevin Jackson's, on him and on a
         // Brujah opposing him): added to the strength of 1 or to a set
         // strength (spec §4.4.1).
@@ -1671,7 +1840,7 @@ impl Engine {
         // Retainer damage, in the normal strike pair only (not repeated by
         // additional strikes, RTR 19941109), dodge or not (rulebook
         // "Environmental damage").
-        if c.pair == 0 {
+        if c.pair == 0 && !c.held_pass {
             for i in 0..2 {
                 let mut n = st.retainer_damage(c.sides[i].minion);
                 // At close range only (Dread Mastiff).
@@ -2238,6 +2407,8 @@ impl Engine {
                 minions: c.sides.each_ref().map(|s| s.minion),
             });
         }
+        // "Do not replace until after combat" (Lam Into).
+        self.release_held(|h| &mut h.combat);
         // FBI Special Affairs Division: its unpreventable environmental
         // damage to the acting vampire after the combat; enough counters,
         // burned.
@@ -2297,6 +2468,12 @@ impl Engine {
             if self.state.minions[from.index()].present() {
                 self.state.gain_blood(from, n);
             }
+            if self.state.cards[id.index()].present() {
+                self.burn_card_in_play(id);
+            }
+        }
+        // Trap, Conquer the Beast: burned as the combat ends.
+        for (id, _) in ended.iter().flat_map(|c| c.traps.clone()) {
             if self.state.cards[id.index()].present() {
                 self.burn_card_in_play(id);
             }
@@ -2488,6 +2665,20 @@ impl Engine {
         // Effects of a minion out of the combat, on the target in it
         // (Martyr's Resilience).
         match effect {
+            Effect::PreventNonAggravatedOnTarget(n) => {
+                let back = match c.step {
+                    Step::Prevent(k) => Some(k),
+                    _ => None,
+                };
+                if let cards::Target::Minion(m) = play.target {
+                    if let Some(t) = c.side_of_minion(m) {
+                        let before = c.sides[t].pending;
+                        c.sides[t].pending.prevent(n, false);
+                        c.settle_source(t, before, false, play.seat, back);
+                    }
+                }
+                return;
+            }
             Effect::PreventOnTarget(_) | Effect::PreventOnTargetXPlus(_) => {
                 let n = match effect {
                     Effect::PreventOnTarget(n) => n,
@@ -2572,41 +2763,21 @@ impl Engine {
                 c.sides[i].additional += play.x;
                 c.sides[i].limited_used |= limited && play.x > 0;
             }
+            // At the maneuver, a maneuver committing the weapon's strike
+            // (Lam Into [for]); at strike declaration, the strike.
+            Effect::CommittedWeaponStrikePlus(n) if c.step == Step::DetermineRange => {
+                let w = play.target.card();
+                let k = cards::melee_strike(self.state.cards[w.index()].card)
+                    .expect("a melee weapon")
+                    .1;
+                c.maneuver(i);
+                c.sides[i].committed_card = Some(k);
+                c.sides[i].committed_weapon = Some((w, n));
+            }
             // The weapon's own strike and its riders, +n damage, from that
             // card (gone by resolution, no effect: spec §4.10.4).
-            Effect::WeaponStrikePlus(n) => {
-                let w = play.target.card();
-                let (ability, k) =
-                    cards::melee_strike(self.state.cards[w.index()].card).expect("a melee weapon");
-                let StrikeKind::Melee { bonus, aggravated } = k else {
-                    unreachable!()
-                };
-                let initial = c.pair == 0;
-                let s = &mut c.sides[i];
-                s.set_strike(Some(StrikeKind::Melee {
-                    bonus: bonus + n,
-                    aggravated,
-                }));
-                s.strike_source = Some(w);
-                s.strike_at = None;
-                s.chosen = true;
-                if initial {
-                    s.committed = None;
-                } else {
-                    s.additional_with = None;
-                }
-                // "1 optional press only usable to continue, once each
-                // combat" (Righteous Blade): had as the strike is chosen.
-                let source = cards::AbilitySource::Card(w);
-                let rides = source
-                    .mode(&self.state, ability as u8)
-                    .effects
-                    .contains(&Effect::ContinuePressEachCombat);
-                let key = source.use_key(ability as u8);
-                if rides && !c.abilities_used.contains(&key) {
-                    c.abilities_used.push(key);
-                    c.sides[i].continue_presses += 1;
-                }
+            Effect::WeaponStrikePlus(n) | Effect::CommittedWeaponStrikePlus(n) => {
+                weapon_strike(&self.state, c, i, play.target.card(), n);
             }
             // A frenzy card on the opposing minion, unless immune (Tranquility
             // Shield).
@@ -2675,7 +2846,10 @@ impl Engine {
             // Read as the card is played (`CardAsPlayed`).
             Effect::CancelableByDiscardingCombat(_) => {}
             // The card enters play as it resolves (`apply_card_effect`).
-            Effect::MorbidityTake(_) | Effect::PutOnActorNow => {}
+            Effect::MorbidityTake(_)
+            | Effect::PutOnActorNow
+            | Effect::TrapPresses
+            | Effect::BeastPresses { .. } => {}
             Effect::StrengthThisRound(n) => c.sides[i].strength_round += n,
             Effect::PreventThisRound(n) => c.sides[i].round_prevents += n,
             Effect::PreventEachRound(n) => {
@@ -2695,6 +2869,20 @@ impl Engine {
                 // Rolling with the Punches: the rest of the round's strikes
                 // too; Touch of Valeren: that strike only.
                 s.strikes_prevented |= effect == Effect::PreventOpposingStrikesThisRound;
+            }
+            Effect::PreventStrike(n) => {
+                let s = &mut c.sides[i];
+                let before = s.strike_damage;
+                s.strike_damage.prevent(n, true);
+                let d = s.strike_damage;
+                s.pending.aggravated -=
+                    (before.aggravated - d.aggravated).min(s.pending.aggravated);
+                s.pending.normal -= (before.normal - d.normal).min(s.pending.normal);
+                s.pending.gun = s
+                    .pending
+                    .gun
+                    .saturating_sub(before.gun - d.gun)
+                    .min(s.pending.normal);
             }
             Effect::NullifyOpposingWeapons => c.sides[i].nullifies_weapons = true,
             Effect::EnvironmentalDamage(n) => c.sides[i].environmental += n,
@@ -2740,6 +2928,7 @@ impl Engine {
             Effect::OptionalManeuver => c.sides[i].maneuvers += 1,
             Effect::OptionalCloseManeuver => c.sides[i].close_maneuvers += 1,
             Effect::CloseManeuverForBlood(n) => c.sides[i].close_maneuver_blood = n,
+            Effect::ManeuverForBlood(n) => c.sides[i].maneuver_blood = n,
             Effect::HandStrikeDamageThisCombat(n) => c.sides[i].hand_damage_bonus += n,
             Effect::HandSizeThisCombat(n) => {
                 let seat = c.sides[i].seat;
@@ -2932,10 +3121,12 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::AdditionalStrikeOnly { .. }
             | Effect::OptionalCloseManeuver
             | Effect::CloseManeuverForBlood(_)
+            | Effect::ManeuverForBlood(_)
             | Effect::HandStrikeDamageThisCombat(_)
             | Effect::HandSizeThisCombat(_)
             | Effect::PreventOnTarget(_)
             | Effect::PreventOnTargetXPlus(_)
+            | Effect::PreventNonAggravatedOnTarget(_)
             | Effect::OpposingRestraint
             | Effect::OpposingCombatCardsCost(_)
             | Effect::FrenzyShield
@@ -2946,6 +3137,7 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::AdditionalStrikesX { .. }
             | Effect::ActorBurnsBloodX
             | Effect::WeaponStrikePlus(_)
+            | Effect::CommittedWeaponStrikePlus(_)
             | Effect::UndodgeableStrike
             | Effect::AggravatedStrike
             | Effect::FirstStrike
@@ -2956,6 +3148,8 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::AimExtraDamage(_)
             | Effect::CancelableByDiscardingCombat(_)
             | Effect::MorbidityTake(_)
+            | Effect::TrapPresses
+            | Effect::BeastPresses { .. }
             | Effect::StrengthThisRound(_)
             | Effect::PreventThisRound(_)
             | Effect::PreventEachRound(_)
@@ -2963,6 +3157,7 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::ActorBurnsBlood(_)
             | Effect::PreventOpposingStrikesThisRound
             | Effect::PreventStrikeDamage
+            | Effect::PreventStrike(_)
             | Effect::NullifyOpposingWeapons
             | Effect::EnvironmentalDamage(_)
             | Effect::RoundStrike(_)
@@ -2983,6 +3178,41 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::PreventNonGun(_)
             | Effect::StrengthThisCombat(_)
     )
+}
+
+/// A melee weapon's strike for side `i`: its own strike and riders at +n
+/// damage, from that card (Anticipation [aus], Lam Into).
+fn weapon_strike(st: &GameState, c: &mut CombatCtx, i: usize, w: CardId, n: u8) {
+    let (ability, k) = cards::melee_strike(st.cards[w.index()].card).expect("a melee weapon");
+    let StrikeKind::Melee { bonus, aggravated } = k else {
+        unreachable!()
+    };
+    let initial = c.pair == 0;
+    let s = &mut c.sides[i];
+    s.set_strike(Some(StrikeKind::Melee {
+        bonus: bonus + n,
+        aggravated,
+    }));
+    s.strike_source = Some(w);
+    s.strike_at = None;
+    s.chosen = true;
+    if initial {
+        s.committed = None;
+    } else {
+        s.additional_with = None;
+    }
+    // "1 optional press only usable to continue, once each combat"
+    // (Righteous Blade): had as the strike is chosen.
+    let source = cards::AbilitySource::Card(w);
+    let rides = source
+        .mode(st, ability as u8)
+        .effects
+        .contains(&Effect::ContinuePressEachCombat);
+    let key = source.use_key(ability as u8);
+    if rides && !c.abilities_used.contains(&key) {
+        c.abilities_used.push(key);
+        c.sides[i].continue_presses += 1;
+    }
 }
 
 #[cfg(test)]

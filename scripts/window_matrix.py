@@ -240,6 +240,100 @@ ADDED_BATCHES = [
         201779: "Yurena, The Boor (G6)",
         201780: "Zbigniew, Hunter of Mekhet (G6)",
     },
+    # 2026-10-08: TWDA unlocks, step 0 (staples gating many archetypes) and
+    # steps 1-3 (owner: the legacy cards opening the most new TWDA
+    # archetypes).
+    {
+        100266: "Bum's Rush",
+        100581: "Dragonbound",
+        100908: "Heidelberg Castle, Germany",
+        101015: "J. S. Simmons, Esq.",
+        101071: "Lam Into",
+        101261: "Mylan Horseed",
+        101697: "Scourge of the Enochians",
+        101943: "Tasha Morgan",
+        200060: "Alonso Petrodon (G5)",
+        200076: "Anarch Convert (ANY)",
+        201527: "Gabriel Tremblay (G6)",
+        201633: "Maila (G6)",
+    },
+    # 2026-10-08: TWDA unlocks, steps 4-9.
+    {
+        100555: "Disguised Weapon",
+        100876: "Hackerspace",
+        101179: "Mask of a Thousand Faces",
+        101377: "Patsy",
+        101690: "SchreckNET",
+        102071: "Unflinching Persistence",
+        200136: "Arishat (G6)",
+        200190: "Benjamin Rose (G5)",
+        200224: "Brunhilde (G3 ADV)",
+        200317: "Danielle Diron (G3 ADV)",
+        200349: "Dmitra Ilyanova (G5)",
+        200410: "Elimelech the Twice-Damned (G5)",
+        200753: "Karen Suadela (G5)",
+        200968: "The Medic (G5)",
+        201176: "Reginald Moore (G4)",
+        201253: "Scout Youngwood (G6)",
+        201341: "Tara (G5)",
+        201423: "Valkyrie (G3)",
+        201523: "Jacques Rouge (G6)",
+        201524: "Benedito, a Lanterna (G6)",
+    },
+    # 2026-10-09: TWDA unlocks, steps 10-15 (Dragonbound in the eighth
+    # batch).
+    {
+        100114: "Auspex",
+        100408: "Conquer the Beast",
+        100654: "Ephor",
+        101031: "Justicar Retribution",
+        101530: "Quick Meld",
+        101781: "Signet of King Saul, The",
+        101822: "Society of Leopold",
+        102012: "Trap",
+        102088: "Vampiric Disease",
+        200034: "Aksinya Daclau (G4)",
+        200373: "Dr. Allan Woodstock (G3)",
+        200455: "Fakir al Sidi (G4)",
+        200508: "Gerald Windham (G5)",
+        200521: "Giovanni del Georgio (G5)",
+        200533: "Graham Gottesman (G5)",
+        200638: "Inyanga (G4)",
+        200848: "Lodin (Olaf Holte) (G5)",
+        200946: "Mary Anne Blaire (G5)",
+        200956: "Matasuntha (G5)",
+        201029: "Nadima (G3)",
+        201160: "Randall (G4)",
+        201334: "T.J. (G4)",
+        201438: "Victor Donaldson (G5)",
+        201621: "Karl Schrekt (G6)",
+    },
+    # 2026-10-09: TWDA unlocks, steps 16-20.
+    {
+        100280: "Call the Great Beast",
+        100324: "Changeling",
+        100400: "Condemnation: Mute",
+        100450: "Crocodile's Tongue",
+        100656: "Erciyes Fragments, The",
+        100657: "Erebus Mask",
+        100947: "I am Legion",
+        101260: "My Kin Against the World",
+        101402: "Plasmic Form",
+        101681: "Sargon Fragment, The",
+        101832: "Soul Gem of Etrius",
+        101882: "Street Cred",
+        102062: "Under My Skin",
+        102076: "Unleash Hell's Fury",
+        200179: "Beast, The Leatherface of Detroit (G2)",
+        200242: "The Capuchin (G5)",
+        200705: "Jimmy Dunn (G2)",
+        200856: "Lord Tremere (G5)",
+        200905: "Malgorzata (G4)",
+        200999: "Mistress Fanchon (G4)",
+        201048: "Nergal (G5)",
+        201362: "Theo Bell (G2)",
+        201698: "Juliet Parr (G7)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -375,14 +469,20 @@ RIDERS = [
     r"but to prevent \d[^.]*",                            # its [PRO] "as above, but to prevent 2"
     r"to get \+\d intercept",                             # granted intercept ability
     r"skip the determine range step",
+    # A card in play pressing for its vampire each round (Trap, Conquer the
+    # Beast): a rider, no play window.
+    r"during the press step of each round this combat, this \w+ automatically burns 1 "
+    r"(of those )?counters?[^.]*",
 ]
 
 # Timing windows: an explicit printed play point. Generic windows: legality
 # derived from the effect (stealth/intercept, bleed modifier, bleed reduction).
 COMBAT_TIMING = [
-    (r"before range is determined", "COMBAT_BEFORE_RANGE"),
-    # An aim, "only usable as this minion chooses a strike" (Target Vitals).
-    (r"as this minion chooses a strike", "COMBAT_STRIKE_DECLARATION"),
+    # "Before range is chosen" (Disguised Weapon) is the same moment.
+    (r"before range is (determined|chosen)", "COMBAT_BEFORE_RANGE"),
+    # An aim, "only usable as this minion chooses a strike" (Target Vitals);
+    # "usable when choosing a strike" (Disguised Weapon [OBF]).
+    (r"as this minion chooses a strike|when choosing a strike", "COMBAT_STRIKE_DECLARATION"),
     (r"\bmaneuver\b", "COMBAT_DETERMINE_RANGE"),
     (r"\bgrapple\b|before strikes are chosen", "COMBAT_BEFORE_STRIKES"),
     (r"additional strike", "COMBAT_ADDITIONAL_STRIKE"),
@@ -403,10 +503,17 @@ COMBAT_DEFAULT = "COMBAT_UNTIMED"   # rules-qa 2.2: no printed step
 MODIFIER_TIMING = [
     (r"as (an?|the|this)\b[^.]{0,60}?\bis announced", "ACTION_AS_ANNOUNCED"),
     (r"if a minion attempts to block", "ACTION_BLOCK_ATTEMPT"),
+    # "Only usable if an ally or younger vampire attempts to block"
+    # (Crocodile's Tongue).
+    (r"if an? [^.]{0,40}? attempts to block", "ACTION_BLOCK_ATTEMPT"),
     (r"if (this|the acting) minion is blocked", "ACTION_BLOCKED"),
     (r"would be successful", "ACTION_WOULD_BE_SUCCESSFUL"),
     (r"only usable after (the )?(action )?resol", "ACTION_AFTER_RESOLUTION"),
     (r"polling step|during (a|the|this) referendum", "REFERENDUM"),
+    # Taking over the action: also after it is blocked, before the block
+    # resolves (Mask of a Thousand Faces; LSJ 20010803).
+    (r"the action continues with this vampire as the acting minion", "ACTION_BLOCKED"),
+    (r"the action continues with this vampire as the acting minion", "ACTION_DURING"),
 ]
 MODIFIER_GENERIC = [
     (r"\+\d+ stealth", "ACTION_STEALTH_INTERCEPT"),
@@ -569,7 +676,8 @@ def modes_for(card):
     for tags, raw, mtext in modes:
         raw_text = preamble + " " + mtext
         stripped = strip_riders(raw_text)
-        as_above = bool(re.match(r"\s*as above", mtext, re.I))
+        # "As above", or "As [dai][obf] above" (I am Legion).
+        as_above = bool(re.match(r"\s*as (?:\[\w+\])*\s*above", mtext, re.I))
         mwins = list(prev) if as_above else []
         action_mode = False
         if tags:
@@ -588,8 +696,11 @@ def modes_for(card):
         if re.search(CANCEL_AS_PLAYED, raw_text, re.I) and not re.search(r"lock this", raw_text, re.I):
             mwins.append("CARD_AS_PLAYED")
         else:
+            # "As above, and/or …" (I am Legion [DAI][OBF]): the added
+            # effect alone is a play of its own, timed by its text.
+            either = as_above and re.search(r"\band/or\b", mtext, re.I)
             for mt in mts:
-                mwins += classify_mode(mt, stripped, as_above)
+                mwins += classify_mode(mt, stripped, as_above and not either)
         if "WAKE" in mwins:
             mwins.append("CARD_AS_PLAYED")          # rules-qa 2.4
         if "COMBAT_STRIKE_DECLARATION" in mwins and \

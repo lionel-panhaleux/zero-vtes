@@ -157,8 +157,10 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
     let living: Vec<usize> = (0..now.len()).filter(|&i| !st.seats[i].ousted).collect();
     let a: usize = living.iter().map(|&i| now[i]).sum();
     let b: usize = living.iter().map(|&i| totals[i]).sum();
+    // Cards taken from another's ash heap (The Erciyes Fragments) may
+    // leave an ousted seat counted in a living one's zones.
     assert!(
-        a <= b && a + 2 * living.len() >= b,
+        a <= b + st.taken_across as usize && a + 2 * living.len() >= b,
         "library cards not conserved: {a} vs {b} (seed {seed}): {now:?} vs {totals:?}"
     );
     assert!(edges <= 1, "multiple Edges (seed {seed})");
@@ -283,6 +285,7 @@ fn kind_of(c: &Choice) -> &'static str {
             ActionKind::EquipFrom => "equip_from",
             ActionKind::EquipFound => "equip_found",
             ActionKind::Ability => "ability_action",
+            ActionKind::BecomeAnarch => "become_anarch",
         },
         Choice::FindCard(_) => "find_card",
         Choice::TakeFrom { .. } => "take_from",
@@ -328,6 +331,7 @@ fn kind_of(c: &Choice) -> &'static str {
         Choice::BurnBloodToAvoid => "burn_blood_to_avoid",
         Choice::BurnCorruptionToUnlock { .. } => "burn_corruption_to_unlock",
         Choice::Diablerise => "diablerise_blocked",
+        Choice::UnlockInfernal { .. } => "unlock_infernal",
     }
 }
 
@@ -1018,8 +1022,9 @@ fuzz_tests! {
             "rider:Spectral Servitor",
             "play:Owl Companion",
         ],
-        // Szlachta Assistant's ability first comes between seeds 200 and 250.
-        seeds: 300,
+        // City Star Taxi's play first comes between seeds 400 and 500 since
+        // the Become Anarch action (slice 16k).
+        seeds: 500,
         ..BASE
     };
     /// Slice 11a: random tables whose libraries are the pre-built decks' cards
@@ -1355,7 +1360,7 @@ fuzz_tests! {
                 ],
             )
         },
-        seeds: 300,
+        seeds: 400,
         ..BASE
     };
     /// Slice 11p and the hunting grounds: the second wave of action cards,
@@ -1635,7 +1640,7 @@ fuzz_tests! {
             "rider:Khabar: Glory",
         ],
         untwin: true,
-        seeds: 200,
+        seeds: 250,
         ..BASE
     };
     /// Slice 11w: the pool's masters, wave 1.
@@ -2335,7 +2340,236 @@ fuzz_tests! {
                 e.add_ally(SeatId(s), zvtes::state::find_library("Double Deuce"));
             }
         },
-        seeds: 150,
+        seeds: 200,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, staples and steps 1-3 (slice 16j): the
+    /// cards, their vampires dealt around the table, and an Anarch Convert
+    /// ready to move out in every uncontrolled region.
+    random_games_with_twda_staples_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Bum's Rush",
+            "Dragonbound",
+            "Heidelberg Castle, Germany",
+            "J. S. Simmons, Esq.",
+            "Lam Into",
+            "Mylan Horseed",
+            "Scourge of the Enochians",
+            "Tasha Morgan",
+            // A political action card for Maila to discard.
+            "Kine Resources Contested",
+        ],
+        covers: &[
+            "play:Bum's Rush",
+            "play:Dragonbound",
+            "play:Heidelberg Castle, Germany",
+            "play:J. S. Simmons, Esq.",
+            "play:Lam Into",
+            "play:Mylan Horseed",
+            "play:Scourge of the Enochians",
+            "play:Tasha Morgan",
+            "ability:Heidelberg Castle, Germany",
+            "ability:Mylan Horseed",
+            "ability:Scourge of the Enochians",
+            "ability:Maila",
+            "ability:Gabriel Tremblay",
+        ],
+        setup: |e, _| {
+            named(e, &["Alonso Petrodon", "Maila", "Gabriel Tremblay"]);
+            let convert = find_card("Anarch Convert");
+            for s in 0..4 {
+                e.state.seats[s].uncontrolled.push(zvtes::state::UncontrolledSlot {
+                    card: convert,
+                    counters: 1,
+                    banished: None,
+                });
+            }
+        },
+        seeds: 20,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, steps 4-9 (slice 16k): the cards and
+    /// their vampires dealt around the table — the Become Anarch action,
+    /// an infernal unlock, first strike, Mask of a Thousand Faces.
+    random_games_with_twda_steps_4_to_9_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Disguised Weapon",
+            "Hackerspace",
+            "Mask of a Thousand Faces",
+            "Patsy",
+            "SchreckNET",
+            "Unflinching Persistence",
+            // A weapon to disguise, a referendum for the votes.
+            ".44 Magnum",
+            "Kine Resources Contested",
+        ],
+        covers: &[
+            "play:Disguised Weapon",
+            "play:Hackerspace",
+            "play:Mask of a Thousand Faces",
+            "play:Patsy",
+            "play:SchreckNET",
+            "play:Unflinching Persistence",
+            "ability:Arishat",
+            "ability:Danielle Diron",
+            "ability:Scout Youngwood",
+            "ability:Medic, The",
+            "ability:Benjamin Rose",
+            "ability:Dmitra Ilyanova",
+            "become_anarch",
+            "unlock_infernal",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Elimelech the Twice-Damned",
+                    "Benjamin Rose",
+                    "Arishat",
+                    "Scout Youngwood",
+                    "Dmitra Ilyanova",
+                    "Karen Suadela",
+                    "Reginald Moore",
+                    "Brunhilde",
+                    "Danielle Diron",
+                    "Valkyrie",
+                    "Medic, The",
+                    "Jacques Rouge",
+                ],
+            );
+        },
+        seeds: 20,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, steps 10-15 (slice 16l): the cards and
+    /// their vampires — Vampiric Disease, Trap, Conquer the Beast, the
+    /// Society of Leopold, Ephor, Justicar Retribution.
+    random_games_with_twda_steps_10_to_15_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Auspex",
+            "Conquer the Beast",
+            "Ephor",
+            "Justicar Retribution",
+            "Quick Meld",
+            "Signet of King Saul, The",
+            "Society of Leopold",
+            "Trap",
+            "Vampiric Disease",
+            // A referendum and a Gangrel ally.
+            "Kine Resources Contested",
+            "Double Deuce",
+        ],
+        covers: &[
+            "play:Auspex",
+            "play:Conquer the Beast",
+            "play:Ephor",
+            "play:Justicar Retribution",
+            "play:Quick Meld",
+            "play:Signet of King Saul, The",
+            "play:Society of Leopold",
+            "play:Trap",
+            "play:Vampiric Disease",
+            "ability:Giovanni del Georgio",
+            "ability:Mary Anne Blaire",
+            "ability:Aksinya Daclau",
+            "ability:Randall",
+            "ability:Lodin (Olaf Holte)",
+            "ability:Fakir al Sidi",
+            "ability:T.J.",
+            "ability:Society of Leopold",
+            "burn_blood_to_avoid",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Giovanni del Georgio",
+                    "Mary Anne Blaire",
+                    "Karl Schrekt",
+                    "Aksinya Daclau",
+                    "Randall",
+                    "Lodin (Olaf Holte)",
+                    "Fakir al Sidi",
+                    "T.J.",
+                    "Matasuntha",
+                    "Gerald Windham",
+                    "Kevin Jackson",
+                    "Inyanga",
+                ],
+            );
+        },
+        seeds: 100,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, steps 16-20 (slice 16m): the cards and
+    /// their vampires — the Great Beast, Unleash Hell's Fury's blocker, the
+    /// Erciyes Fragments, the Soul Gem, a second Jimmy Dunn to come out.
+    random_games_with_twda_steps_16_to_20_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Call the Great Beast",
+            "Changeling",
+            "Condemnation: Mute",
+            "Crocodile's Tongue",
+            "Erciyes Fragments, The",
+            "Erebus Mask",
+            "I am Legion",
+            "My Kin Against the World",
+            "Plasmic Form",
+            "Sargon Fragment, The",
+            "Soul Gem of Etrius",
+            "Street Cred",
+            "Under My Skin",
+            "Unleash Hell's Fury",
+        ],
+        covers: &[
+            "play:Call the Great Beast",
+            "play:Condemnation: Mute",
+            "play:Erciyes Fragments, The",
+            "play:I am Legion",
+            "play:Soul Gem of Etrius",
+            "play:Street Cred",
+            "play:Under My Skin",
+            "play:Unleash Hell's Fury",
+            "ability:Lord Tremere",
+            "ability:Malgorzata",
+            "ability:Mistress Fanchon",
+            "ability:Beast, The Leatherface of Detroit",
+            "ability:Erciyes Fragments, The",
+            "ability:Call the Great Beast",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Nergal",
+                    "Lord Tremere",
+                    "Beast, The Leatherface of Detroit",
+                    "Capuchin, The",
+                    "Juliet Parr",
+                    "Malgorzata",
+                    "Mistress Fanchon",
+                    "Jimmy Dunn",
+                    "Arishat",
+                ],
+            );
+            let theo = CRYPT
+                .iter()
+                .position(|c| c.name == "Theo Bell" && c.group == 2)
+                .expect("Theo Bell G2") as u16;
+            // Not beside a G6 Theo already there: one vampire.
+            if !e.state.minions.iter().any(|m| m.in_play && m.name() == "Theo Bell") {
+                e.add_minion(SeatId(1), theo, 4, false);
+            }
+            // A second Jimmy ready to come out.
+            e.state.seats[2]
+                .uncontrolled
+                .push(zvtes::state::UncontrolledSlot {
+                    card: find_card("Jimmy Dunn"),
+                    counters: 4,
+                    banished: None,
+                });
+        },
+        seeds: 160,
         ..BASE
     };
 }

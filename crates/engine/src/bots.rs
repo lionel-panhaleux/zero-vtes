@@ -155,7 +155,11 @@ impl Scripted {
             W::ResolutionChoice
                 if matches!(
                     e.interrupt(),
-                    Some(Interrupt::MayPutOn { .. } | Interrupt::MayAddCounter { .. })
+                    Some(
+                        Interrupt::MayPutOn { .. }
+                            | Interrupt::MayAddCounter { .. }
+                            | Interrupt::MayGainPool { .. }
+                    )
                 ) =>
             {
                 i32::from(*o != Choice::Pass) * 10

@@ -49,6 +49,10 @@ pub enum ActionKind {
     /// resolving on success; directed when its announced target is
     /// another Methuselah's.
     Ability,
+    /// Rulebook "Become Anarch" (advanced rules): a ready untitled
+    /// non-Anarch vampire, +1 stealth, undirected; 2 blood, 1 if its
+    /// Methuselah controls another ready Anarch, paid at resolution.
+    BecomeAnarch,
 }
 
 /// One indexed option inside a decision request. `Pass` is always explicit;
@@ -270,6 +274,11 @@ pub enum Choice {
     /// After block resolution: the blocker burns blood to unlock (Truth in
     /// Darkness [OBL]).
     UnlockForBlood {
+        minion: MinionId,
+    },
+    /// In its controller's unlock phase: burn 1 pool to unlock this locked
+    /// infernal minion (rulebook "Infernal").
+    UnlockInfernal {
         minion: MinionId,
     },
     /// After combat: continue the action as if unblocked (Form of Mist

@@ -41,6 +41,17 @@ by the owner. Apply them to every new card; only a ruling overrides them.
   (created vampires: Embrace, Childe of the Revolution); a card on a minion is
   controlled by the minion's controller (38.4, 41.5).
 - **Choosing in a referendum's terms is never targeting.** (38.6)
+- **"During X, … can …" is once per X** (per copy, per vampire): "during
+  your turn" once a turn, "during your minion phase" once in it, "during an
+  action / a bleed / a referendum" once in it — never repeatable while
+  payable. Read the word "during" in every ability's wording before
+  choosing its limit. (6.6, 15.2, 42.3, 58.7)
+- **A mandatory phase effect applies in the phase its card is played in.**
+  "During your/each Methuselah's X phase, …" on a card that enters play
+  during an X phase is due in that very phase, ordered among the phase's
+  other mandatory effects by the player — not first in the next X phase.
+  Phase dues are read live, never snapshotted as the phase begins. (33.1,
+  40.5, 57.5)
 - **Card text addresses its controller** by default (32.7); **Ⓓ is only a
   reminder** (20.1); **conditions are read live**; **legal no-op plays stay
   offered** (25.5).
@@ -48,41 +59,41 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
-- **Legacy additions for TWDA decks** — 44.1–44.10
+- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22
 - **Ousts, Life Boon's decision point** — 45.1–45.8
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
 - **Periodicity ("during X" = once per X, once each …)** — 6.6, 7.4, 9.6, 10.4, 11.2, 15.1, 15.2, 16.1, 36.3, 36.4, 37.1, 38.8, 42.3, 42.9
 - **No-repeat-action, "same action"** — 1.4, 6.2, 16.6, 23.2, 25.4, 32.1
-- **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1, 55.3, 55.4, 55.5, 56.1
-- **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1
+- **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1, 55.3, 55.4, 55.5, 56.1, 58.1, 58.13
+- **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1, 57.10
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
-- **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7, 53.6, 53.8
+- **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7, 53.6, 53.8, 57.1, 57.2
 - **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3, 55.7
-- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8, 55.1, 55.2, 55.8
+- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8, 55.1, 55.2, 55.8, 57.3, 57.4, 58.2, 58.17, 58.18, 59.2, 59.17, 60.11
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9
-- **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6, 54.3, 54.4, 54.7, 55.7, 56.2
-- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8, 52.2, 52.3, 52.5, 52.7, 52.9, 52.10, 54.1
-- **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4, 52.5, 52.6, 52.9
-- **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1
+- **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6, 54.3, 54.4, 54.7, 55.7, 56.2, 58.6
+- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8, 52.2, 52.3, 52.5, 52.7, 52.9, 52.10, 54.1, 58.8, 58.14, 58.15, 58.16, 59.7, 59.9, 59.18, 59.19, 60.2, 60.14, 60.16
+- **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4, 52.5, 52.6, 52.9, 58.3, 58.11, 59.13, 59.14, 60.1
+- **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1, 57.9, 58.5, 58.19, 59.13, 60.1, 60.9, 60.20
 - **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7, 55.4, 55.6
-- **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6, 54.1
+- **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6, 54.1, 58.12, 59.5, 60.5, 60.7
 - **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5
 - **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6, 46.4, 47.1
 - **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7
 - **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6
-- **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7, 54.1
+- **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7, 54.1, 57.7
 - **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7
 - **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8
 - **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2, 53.8
-- **Master phase, master cards, out-of-turn** — 1.5, 3.3, 6.6, 7.5, 28.10, 32.3, 33.1, 33.8, 36.4, 49.6, 49.7, 50.1–50.3, 53.7
-- **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1, 48.7, 54.2, 54.5
-- **Discard phase, events** — 8.4, 15.2, 28.12, 33.8, 40.1–40.11, 54.5
+- **Master phase, master cards, out-of-turn** — 1.5, 3.3, 6.6, 7.5, 28.10, 32.3, 33.1, 33.8, 36.4, 49.6, 49.7, 50.1–50.3, 53.7, 57.8
+- **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1, 48.7, 54.2, 54.5, 58.4, 58.9, 59.3, 59.4, 60.6
+- **Discard phase, events** — 8.4, 15.2, 28.12, 33.8, 40.1–40.11, 54.5, 57.5, 57.6, 58.10
 - **Conditions read live; card-text defaults** — 4.3, 9.1, 13.2, 18.4, 19.3, 28.2, 28.6, 29.11, 32.4, 32.7, 39.5, 49.5, 49.7
 - **Corruption counters, multi-Discipline cards** — 25.1–25.6, 34.3, 35.2, 38.4, 52.1
 - **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14, 49.2, 49.3, 52.4
-- **Game end, VP, ousting** — 6.9, 18.2, 24.1, 33.2, 53.1
+- **Game end, VP, ousting** — 6.9, 18.2, 24.1, 33.2, 53.1, 58.20
 ## Batch 1 — sequencing, impulse, windows
 
 **1.1** Vote casting. A *source* is a vampire or a Methuselah. A vampire source is atomic: all its votes cast at once, in one commitment, all the same way; then spent for that referendum. Sources are independent commitments: a Methuselah may cast one source on one rotation and hold others for later rotations. Methuselah-sourced ballots (the Edge, each discarded/burned card, each card granting Methuselah votes) are each independent and may go either way. Card effects that modify a vampire's votes fold into that vampire's source.
@@ -574,7 +585,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 
 ## Batch 33 — pool masters, wave 1
 
-**33.1** Brujah Debate: at the start of each Methuselah's master phase, one mandatory lock per copy; "the oldest Brujah they control" counts torpid vampires (highest capacity among all their Brujah).
+**33.1** Brujah Debate: during each Methuselah's master phase, one mandatory lock per copy, ordered by that Methuselah among the phase's other mandatory effects; a copy played during a master phase locks in that same phase (owner, 2026-10-09, revising "at the start of each master phase": see Default readings); "the oldest Brujah they control" counts torpid vampires (highest capacity among all their Brujah).
 
 **33.2** Oxford University, England: X from 1 up to the player's pool, named as it locks; paying the last pool ousts them and they cast nothing (as Ferraille, LSJ 20081105).
 
@@ -944,9 +955,9 @@ Readings no ruling settles, implemented with the slice; answered by the owner on
 
 ## Batch 55 — Sabbat V5, the Path of Death and the Soul, implemented readings (2026-10-07)
 
-Readings no ruling settles, implemented with the slice; answered by the owner on 2026-10-08, except 55.1 and 55.5 (still questions).
+Readings no ruling settles, implemented with the slice; answered by the owner on 2026-10-08.
 
-**55.1** Target Vitals: the aim's +2 damage is added once the strike's damage is successfully inflicted (after the prevention step, so it cannot be prevented), of the strike's kind (RTR 19970630); "the opposing minion cannot press this round" applies only when the aim lands. Question (implemented reading).
+**55.1** Target Vitals: the aim's +2 damage is added once the strike's damage is successfully inflicted (after the prevention step, so it cannot be prevented), of the strike's kind (RTR 19970630); "the opposing minion cannot press this round" applies only when the aim lands. Confirmed (owner, 2026-10-08).
 
 **55.2** Morbidity: the card takes as much of the opposing vampire's blood as it has, up to 2; the blood goes back as the combat ends (after every round, a press included), then the card burns. Confirmed (owner, 2026-10-08).
 
@@ -954,7 +965,7 @@ Readings no ruling settles, implemented with the slice; answered by the owner on
 
 **55.4** Heartrender: "remove itself from the game" is paid as the action succeeds, with the target burned; blocked, it stays in play. Confirmed (owner, 2026-10-08).
 
-**55.5** Gifts From Hereafter [DOM]/[OBL]: "after action resolution" opens whether the bleed succeeded or not (a fizzle included), not after a block; the vampire's 1 blood is paid then, as the ally unlocks. Question (implemented reading).
+**55.5** Gifts From Hereafter [DOM]/[OBL]: "after action resolution" opens whether the bleed succeeded or not (a fizzle included), not after a block; the vampire's 1 blood is paid then, as the ally unlocks. Confirmed (owner, 2026-10-08).
 
 **55.6** Cursed Abattoir: "after a zombie you control is burned, you can add 1 counter" whenever one of its controller's zombie allies burns (in or out of combat, from damage or a card) — optional, its controller's choice (`Interrupt::MayAddCounter`), never worse to add: an agent may take it unasked (the scripted bots do). The pool has no zombie retainer: a burned retainer is not counted yet (owner, 2026-10-08).
 
@@ -969,3 +980,161 @@ Readings no ruling settles, implemented with the answers; answered by the owner 
 **56.1** Hedonism's queued combat when the action, unblocked, does not succeed: a fizzled action (successful, with no effect: its target gone, its cost unpayable) still has it, after resolution; a failed action (Archon Investigation, Spying Mission [OBF] failing it at resolution; Obedience ending it) loses it, as an action ending early (LSJ 20090826). Confirmed (owner, 2026-10-08).
 
 **56.2** Obedience against a combat the action itself begins (55.7): played in the reaction window once blocks are declined, before the action resolves, by the vampire the action is to enter combat with; there the action ends, failed, at resolution (NRA holds, LSJ 20070709). Not earlier in the action, nor against a combat Hedonism queues, a reacting minion's (The Guardian) or the after-resolution window's. Confirmed (owner, 2026-10-08).
+
+## Batch 57 — Legacy cards for TWDA decks (staples, steps 1–3), implemented readings (2026-10-08)
+
+Readings no ruling settles, implemented with slice 16j; questions for the owner.
+
+**57.1** Alonso Petrodon: "each anarch controlled by the target of the bleed" is every Anarch vampire of the bled Methuselah, those in torpor included (an ally is not an anarch); the damage is inflicted as the bleed resolves, with the pool loss, before after-resolution effects. Confirmed (owner, 2026-10-09).
+
+**57.2** Maila: "a minion you control" is any minion acting for her Methuselah, Maila herself included; the +1 stealth is offered only when stealth is needed (3.2), once each of her Methuselah's turns (ANK 20230122). Confirmed (owner, 2026-10-09).
+
+**57.3** Gabriel Tremblay: his discard for +1 strength is untimed within the combat (before range, at the strike…), once each combat; the strength counts for every round left. Confirmed (owner, 2026-10-09).
+
+**57.4** Lam Into: each Discipline is the hand strike or a melee weapon of the vampire's at that bonus; [for] played at the maneuver commits the round's strike (the weapon's, if chosen), not usable while the strike could not be; "do not replace until after combat" is replaced as the combat ends, before the after-combat window. [vic] is playable since slice 16m (Lord Tremere, Malgorzata and Mistress Fanchon print Vicissitude; one made Anarch may play it). Confirmed (owner, 2026-10-09).
+
+**57.5** Dragonbound: a mandatory effect of each Methuselah's discard phase, ordered among that phase's other mandatory effects (as The Uncoiling, 40.5); played during a discard phase, it applies in that same phase; vampires in torpor are counted when the burn resolves. (Owner, 2026-10-09, correcting the first reading: a mandatory "during X phase" effect applies in the phase its card is played in — see Default readings.)
+
+**57.6** Scourge of the Enochians: "a vampire with capacity 2 or less" is any vampire in play, any Methuselah's, in torpor included; played in its controller's discard phase, it can be used then, and if not, the predator takes it as that phase ends (as The Coven). Confirmed (owner, 2026-10-09).
+
+**57.7** Heidelberg Castle: each use moves from one vampire to the other (blood, then any of the equipment and retainers it could have), not both ways; the blood amount is any, the excess to the bank (ANK 20170804). Confirmed (owner, 2026-10-09).
+
+**57.8** Lilith's Blessing: banned (since 2013), so not in the pool at all; removed (owner, 2026-10-09).
+
+**57.9** Anarch Convert: his ability applies as he is moved out of the uncontrolled region (the pool's only way in); it is not offered with no other non-titled vampire to make Anarch; gaining 1 pool or drawing from the crypt is chosen after the vampire is chosen. Moved out beside a copy in play, he must use it (no voluntary self-contest). Confirmed (owner, 2026-10-09).
+
+**57.10** Mylan Horseed: his unlock can target a vampire already unlocked (a legal no-op play, 17.4); "cannot block vampires" leaves his blocks of allies. Confirmed (owner, 2026-10-09).
+
+## Batch 58 — Legacy cards for TWDA decks (steps 4–9), implemented readings (2026-10-09)
+
+Readings no ruling settles, implemented with slice 16k; questions for the owner.
+
+**58.1** Become Anarch (advanced rules): added as a rulebook action — a ready untitled non-Anarch vampire, +1 stealth, undirected; offered only if its cost is payable as announced, the cost paid at resolution (2 blood, 1 if its Methuselah controls another ready Anarch, read then). Brunhilde's "costs vampires you control 0 blood" reaches her Methuselah's other vampires, read at resolution, in torpor too (a printed passive), not while contested. Confirmed (owner, 2026-10-09).
+
+**58.2** First strike (Elimelech, "strikes with first strike"): his strike resolves alone; the opposing strike waits for its damage to be prevented and applied, and is lost if its minion is no longer ready (burned, in torpor) or the round is over; a dodge opposing it still resolves at once (it protects); both with first strike resolve together. Confirmed (owner, 2026-10-09).
+
+**58.3** "n votes (titled)" (Arishat, Scout Youngwood) is a title of its own, not unique and never contested; it can be removed (Patsy) like any title. Confirmed (owner, 2026-10-09).
+
+**58.4** Infernal (Arishat): the 1-pool unlock is offered in its controller's unlock phase whenever it is locked there (again if something locks it again that phase), ordered among that phase's effects; paying the last pool ousts. Confirmed (owner, 2026-10-09).
+
+**58.5** Valkyrie: "unless /Brunhilde/ is ready" — any ready Brunhilde in play, any Methuselah's; "Non-unique." — copies neither contest nor self-contest (several may be influenced). Confirmed (owner, 2026-10-09).
+
+**58.6** Reginald Moore: "take actions to enter combat with them" bars his action cards entering combat with a Tremere (or Tremere antitribu), read live on the target's clan; combats he does not choose (blocked by one, rushed) are not barred. Confirmed (owner, 2026-10-09).
+
+**58.7** The Medic: "during your turn" — once each of his Methuselah's turns (the "during" template, 6.6, 15.2); any Anarch they control, in torpor too, its blood capped at capacity. (Owner, 2026-10-09, correcting "as often as he has the Edge".)
+
+**58.8** Arishat: "a vampire" is any vampire, any Methuselah's, herself included, one yet to vote as well (it then casts none); Danielle Diron's vote ability is offered in torpor too (a printed ability without "if ready"), though a vampire in torpor casts no vote. Confirmed (owner, 2026-10-09).
+
+**58.9** Scout Youngwood: her lock targets a ready ally or younger vampire of her prey's (not one in torpor), once each unlock phase, usable from torpor; her +1 blood on reaction cards is paid with the card's cost. Confirmed (owner, 2026-10-09).
+
+**58.10** Karen Suadela's Gehenna immunity, beyond the rulings: her actions and rescues are not surcharged by Torpid Blood, her cards not by The Slow Withering, her replacements not held by Blood Weakens, her capacity not ceiled by Wormwood, she does not burn to Thirst, she hunts freely under Restricted Vitae; read live on her claimed prince title. Confirmed (owner, 2026-10-09).
+
+**58.11** Patsy: the Edge no longer its caller's controller's by resolution, nothing happens (no title removed, no pool burned); the title of a card representing it burns the card. Confirmed (owner, 2026-10-09).
+
+**58.12** Hackerspace: "each Anarch you control" counts Anarch vampires, in torpor too; an Anarch "comes into play under your control" as it is moved out of the uncontrolled region; its counters pay any equip an Anarch of its controller's makes, no lock, as Ravnos Cache's are spent. Confirmed (owner, 2026-10-09).
+
+**58.13** Mask of a Thousand Faces: the masker must be capable of the action's kind (not a granted action, a torpor action or one needing a locked minion), of its action card (clan, Disciplines, the card's title and sect requirements) and of each card the acting minion played on it (clan, one of its Disciplines); the masked minion's inherent stealth already used does not bar it; the masker takes the action's NRA marks; [OBF] is not playable unless stealth is needed (3.2). (Owner, 2026-10-09, correcting the [OBF] reading; the rest confirmed.)
+
+**58.14** SchreckNET: "whenever a referendum succeeds" is any referendum passing in an action, a blood hunt included, any Methuselah's; the hand is open to its user until that action ends. Confirmed (owner, 2026-10-09).
+
+**58.15** Benjamin Rose: his referendum is not conditioned on his title; each passed one adds 1 hand size, kept after he leaves play. Confirmed (owner, 2026-10-09).
+
+**58.16** Dmitra Ilyanova: the allocation of the 4 blood is the terms of the referendum she calls — fixed when the terms are set (picks of ready vampires, any Methuselah's, the same one again as often as wished); blood over capacity is lost to the bank. (Owner, 2026-10-09.)
+
+**58.17** Disguised Weapon [OBF]: played as the strike is chosen, the vampire then chooses its strike (the weapon's included); a weapon whose cost cannot be paid is not offered. Confirmed (owner, 2026-10-09).
+
+**58.18** Unflinching Persistence [FOR]: the later prevention is optional, any damage pending on it this round (aggravated included), once, lost as the round ends. Confirmed (owner, 2026-10-09).
+
+**58.19** Taking control of a unique vampire whose copy one already controls: by choice (Puppet Master's take), not offered; forced, the incoming copy burns (advanced rules 1.13.1). Confirmed (owner, 2026-10-09).
+
+**58.20** A bleed ousting the active Methuselah (by another's minion in their minion phase, Enkil Cog): the turn passes with the action. Confirmed (owner, 2026-10-09).
+
+## Batch 59 — Legacy cards for TWDA decks (steps 10–15), implemented readings (2026-10-09)
+
+Readings no ruling settles, implemented with slice 16l; questions for the owner.
+
+**59.1** Giovanni del Georgio: the card is named as the action is announced (a card two copies of which are in his prey's ash heap; the action is not offered without such a pair); both copies are removed at resolution as its cost — fewer left by then, the action fizzles; +2 hunt is 3 blood; once each turn. Confirmed (owner, 2026-10-09).
+
+**59.2** Quick Meld [PRO]: the additional maneuver is usable later in the same determine-range step (after an opposing maneuver), at either range, once this round, for 1 blood paid as it is used. Confirmed (owner, 2026-10-09).
+
+**59.3** Society of Leopold: put on any Methuselah's vampire, in torpor too; the choice is free while the vampire has the blood, forced (burned) without it; its host's controller's unlock phase; the move action targets any other vampire, any Methuselah's (directed when another's), the card moving on success. Confirmed (owner, 2026-10-09).
+
+**59.4** Vampiric Disease: played on any Methuselah's vampire, in torpor too (on a diseased one, a legal no-op); the counter is the vampire's state, kept through torpor, a change of control and banishment; every genuine unlock of a locked vampire burns (the unlock phase and any card or effect unlocking it); "cannot gain blood by hunting" covers every hunt (rulebook, granted or card hunts; a hunt stealing blood takes none); the spread happens at close range as the before-strikes step opens, between two vampires, either way. Confirmed (owner, 2026-10-09).
+
+**59.5** Inyanga: an ally "requiring a Gangrel" is one printed with the Gangrel clan requirement (Double Deuce); the reduction applies to her recruiting it. Confirmed (owner, 2026-10-09).
+
+**59.6** Matasuntha: the pool is optional, for her controller as the opposing minion leaves the ready region by any route (torpor, burned). Confirmed (owner, 2026-10-09).
+
+**59.7** T.J.: usable during the polling step of a referendum called by a vampire whose title, read then, is a Camarilla one (contested or off-sect titles excluded; a blood hunt is called by none); lock and 2 blood are the cost (unlocked, 2 blood, in torpor too); the political action card is not returned. Confirmed (owner, 2026-10-09).
+
+**59.8** Randall: out of the combat only, in the step for minions out of the combat (after the combatants' own prevention), any Methuselah's combat; locked or in torpor too; once each turn (one minion phase a turn); only while non-aggravated damage is pending on the target. Confirmed (owner, 2026-10-09).
+
+**59.9** Justicar Retribution: "all vampires" are every vampire in play, any Methuselah's, the caller's included, those in torpor too (Stanislava in torpor burns to it); the current bleed is the base, printed text, cards borne and layers reaching it, against its controller's prey, no action modifier; read as the referendum passes; burned. (Owner, 2026-10-09, correcting "ready vampires".)
+
+**59.10** Lodin: only damage from an opposing minion's strike, aggravated first (no allocation asked, unlike 4.2: a strike's damage is seldom mixed); damage to Lodin only (not his retainers); once each combat. Confirmed (owner, 2026-10-09).
+
+**59.11** Mary Anne Blaire: "Inner Circle members" are any Methuselah's, read live on their title (contested or off-sect ones excluded); her action adds the blood to any vampire in her controller's uncontrolled region. Confirmed (owner, 2026-10-09).
+
+**59.12** Victor Donaldson: any cancellation of a Golconda: Inner Peace his controller played (its own 2-pool cancel included), Victor in play (in torpor too); offered once the canceled card is replaced, so the replacement cannot draw it; the library shuffled. Confirmed (owner, 2026-10-09).
+
+**59.13** Ephor: put on any Methuselah's Ventrue with capacity 8 or more (read at play; it stays if the capacity drops, but the action then needs it); the +1 vote is no title; the action targets any vampire whose title is contested, which loses it — its rivals' claims return free in their unlock phase. Confirmed (owner, 2026-10-09).
+
+**59.14** Karl Schrekt: he meets a justicar requirement on the cards he plays (never a master card's, Camarilla Conclave), whatever his sect — a justicar implying the Camarilla (LSJ 20050128); a title requirement he meets this way makes him a titled Camarilla vampire from the card's point of view, so he can call Camarilla's Iron Fist even when no longer Camarilla; no in-play effect of the pool requires a justicar. (Owner, 2026-10-09, over ANK 20250410.)
+
+**59.15** The Signet of King Saul: the capacity is read live at the block attempt (Discipline masters count); allies may block; any action of the bearer. Confirmed (owner, 2026-10-09).
+
+**59.16** Aksinya Daclau: ready and unlocked; once in each Methuselah's turn; the master card discarded is the cost, replaced at once like any card leaving the hand; a legal bleed target only. (Owner, 2026-10-09, correcting a deferred replacement.)
+
+**59.17** Trap, Conquer the Beast: put in play (on no minion) by the combatant's Methuselah; any card played in that combat by anyone resets the counters, a canceled one included; each burns a counter as each press step opens, both combatants ready — Trap's press to continue is no combatant's and applies first, a second Trap's adds nothing (its counter still burns); Conquer's is its vampire's for that round (mandatory at [ani], optional at [ANI]), and its vampire cannot use equipment for the whole combat; burned as the combat ends. Confirmed (owner, 2026-10-09).
+
+**59.18** Fakir al Sidi: during the polling step of a political action before any vote, locked or in torpor too, once per referendum; the referendum fails (not canceled). Confirmed (owner, 2026-10-09).
+
+**59.19** Gerald Windham: the ready titled vampires of other Methuselahs, contested or off-sect titles excluded, "n votes (titled)" included; read when votes are counted; nothing while Gerald has a title. Confirmed (owner, 2026-10-09).
+
+## Batch 60 — Legacy cards for TWDA decks (steps 16–20), implemented readings (2026-10-09)
+
+Readings no ruling settles, implemented with slice 16m; questions for the owner.
+
+**60.1** Theo Bell (G2): the ready prince or justicar is another vampire of his controller's, read live; the G2 and G6 cards are one vampire for contests (no merge: the G2 advanced card is not in the pool). Confirmed (owner, 2026-10-09).
+
+**60.2** Juliet Parr: the referendum of her own political action (not a blood hunt); each one passed adds 2 hand size, until her controller's next unlock phase begins. Confirmed (owner, 2026-10-09).
+
+**60.3** Mistress Fanchon: "a minion card" is any library card but a master or an event. (Owner, 2026-10-09.)
+
+**60.4** The Beast: "action cards" are all the action card types — action, political action, ally, equipment and retainer cards. (Owner, 2026-10-09.)
+
+**60.5** Lord Tremere: the Blood Sorcery reduction applies to any card requiring [tha] he plays; his ability targets any Methuselah's ready Tremere or Tremere antitribu. Confirmed (owner, 2026-10-09).
+
+**60.6** Lord Tremere: "during your minion phase" — once in it (6.6, 58.7): the lock of an unlocked vampire or the unlock of a locked one, in torpor too. Confirmed (owner, 2026-10-09).
+
+**60.7** Nergal: the reduction is his choice, of the card he uses it on — announced with that card (among its cost terms), once each Methuselah's turn, spent only when that cost is paid (canceled unpaid or unpayable: not spent). (Owner, 2026-10-09.)
+
+**60.8** The Capuchin: burned by any means, he goes to his owner's uncontrolled region as a new card with no counter; the +3 transfers are his controller's at the burn, at the start of their next influence phase. Confirmed (owner, 2026-10-09).
+
+**60.9** Jimmy Dunn: a second Jimmy entering play (influenced, or by any effect) burns every other Jimmy in play, any Methuselah's, before any contest. Confirmed (owner, 2026-10-09).
+
+**60.10** Malgorzata: the vampire receiving the blood is the action's target, the one removed named as it is announced; either gone by resolution, nothing happens. Confirmed (owner, 2026-10-09).
+
+**60.11** Street Cred: "younger" than the vampire playing it (the blocker too); the damage compared is the strikes' successfully inflicted this round; one each turn per vampire. Confirmed (owner, 2026-10-09).
+
+**60.12** Under My Skin: the card put on the vampire is burned for +1 stealth only when stealth is needed, in any action of a later action number (the same turn too); several copies each burn on their own. Confirmed (owner, 2026-10-09).
+
+**60.13** Crocodile's Tongue: "younger" than the acting vampire; the blocking minion's cancel is offered while it has the blood or life (an ally paying its last life burns); the bar covers every minion of the blocker's Methuselah for that action. Confirmed (owner, 2026-10-09).
+
+**60.14** Condemnation: Mute: [chi] locks any younger vampire, any Methuselah's; [dai] goes on any ready vampire; [DAI]'s blood burns after any referendum passes, a blood hunt included. Confirmed (owner, 2026-10-09).
+
+**60.15** I am Legion [DAI][OBF]: three plays — the cancel, the cancel with the pool, the pool alone (an action modifier any time in the action); the pool after resolution if the action succeeded (a fizzled one included). Confirmed (owner, 2026-10-09).
+
+**60.16** My Kin Against the World: X is announced with the card; the terms choose exactly X younger vampires of the acting vampire's clan (any Methuselah's, in torpor too), fewer if fewer qualify; "only one … each turn" counts it played. Confirmed (owner, 2026-10-09).
+
+**60.17** The Sargon Fragment: an ally bearer gets nothing ("this vampire"); the card is named among the bearer's controller's ash heap as the action is announced; not offered with an empty ash heap. Confirmed (owner, 2026-10-09).
+
+**60.18** Soul Gem of Etrius: "younger" compares the burned vampire's capacity in game (Discipline cards and other capacity increases included) to the drawn crypt card's printed capacity; the bearer's controller draws; the new vampire enters unlocked (it may act this turn); a drawn copy of a vampire its Methuselah controls burns and the Gem draws again; an empty crypt: the Gem burns. (Owner, 2026-10-09.)
+
+**60.19** The Erciyes Fragments: the lock at any impulse but an as-played window; the card on it stays its owner's (the prey's): played from it, it is removed to its owner's removed cards, a political card Delaying Tactics returns goes to its owner's hand (LSJ 20050322), a card entering play from it is its owner's; a master is played with a master phase action; the card on the Fragments as they leave play burns to its owner's ash heap. (Owner, 2026-10-09.)
+
+**60.20** Call the Great Beast: the 11 counters checked as it is played and after each counter action; no play or counter action while its Methuselah controls a Great Beast (LSJ 20101130 read for every capacity); the Great Beast enters unlocked, three distinct Disciplines chosen from the rulebook's list; its prevention: any damage, once each combat. Confirmed (owner, 2026-10-09).
+
+**60.21** Unleash Hell's Fury: no token — the card itself is a minion for the duration of its block attempt (a 9-capacity infernal vampire, +2 intercept, 0 blood); its successful block ends the action at once — damage and burn, no combat, nothing played on it afterward (Change of Target); it is never locked; offered against an action directed at its controller (an action directed at a card of theirs is directed at them). (Owner, 2026-10-09.)
+
+**60.22** Brujah Debate played during a master phase locks in that same phase: 33.1 revised (owner, 2026-10-09).

@@ -242,11 +242,26 @@ fn donnybrook_burns_a_weapon_first_strikes_aggravated_or_steals() {
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(e.state.minions[z.index()].in_torpor);
 
-    // [ser]: no vampire of the pool has Serpentis (V5's Ministry prints
-    // none), so the steal mode is never offered.
-    assert!(!CRYPT
+    // [ser]: 2 blood stolen (Nadima, made Anarch, prints Serpentis).
+    let mut e = Engine::bare(2);
+    e.state.turn = 4;
+    let nadima = CRYPT
         .iter()
-        .any(|c| c.disciplines.iter().any(|d| d.eq_ignore_ascii_case("ser"))));
+        .position(|c| c.name == "Nadima")
+        .expect("Nadima") as u16;
+    let a = e.add_minion(SeatId(0), nadima, 4, false);
+    e.state.minions[a.index()].sect_override = Some(Sect::Anarch);
+    e.add_minion(SeatId(0), plain("Brujah", &[], 0), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", &[], 0), 4, false);
+    hand(&mut e, 0, &["Donnybrook"]);
+    pick(&mut e, bleed(a));
+    pick(&mut e, block(z));
+    let req = until(&mut e, SeatId(0), WindowLabel::CombatStrike);
+    let steal = play_at(0, 2, Some(a), Target::None);
+    assert!(req.options.contains(&steal), "{:?}", req.options);
+    pick(&mut e, steal);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, z), 2, "2 blood stolen");
 }
 
 // First strike and a dodge: the dodge protects from it (rulebook "First

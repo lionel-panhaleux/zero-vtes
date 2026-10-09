@@ -512,3 +512,40 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 102201,Yoruba Shrine,Master,,yes,MASTER_PHASE,,,ok
 102207,Zillah's Valley,Master,,no,MASTER_PHASE,,,ok
 102212,Zoo Hunting Ground,Master,,yes,MASTER_PHASE,,,ok
+100266,Bum's Rush,Action,,no,ACTION_DECLARE,delayed_replacement,,ok
+100581,Dragonbound,Event,,no,DISCARD_PHASE,delayed_replacement,,ok
+100908,"Heidelberg Castle, Germany",Master,,no,MASTER_PHASE,,,ok
+101015,"J. S. Simmons, Esq.",Retainer,,no,ACTION_DECLARE_EMPLOY,,,ok
+101071,Lam Into,Combat,for/pot/vic,no,COMBAT_STRIKE_DECLARATION;COMBAT_DETERMINE_RANGE,delayed_replacement;maneuver_rider,,ok
+101261,Mylan Horseed,Ally,,no,ACTION_DECLARE_RECRUIT,in_play_action,,ok
+101697,Scourge of the Enochians,Event,,no,DISCARD_PHASE,,,ok
+101943,Tasha Morgan,Retainer,,no,ACTION_DECLARE_EMPLOY,,,ok
+100555,Disguised Weapon,Combat,obf,no,COMBAT_BEFORE_RANGE;COMBAT_STRIKE_DECLARATION,,,ok
+100876,Hackerspace,Master,,no,MASTER_PHASE,,,ok
+101179,Mask of a Thousand Faces,Action Modifier,obf,no,ACTION_BLOCKED;ACTION_DURING;ACTION_STEALTH_INTERCEPT,,,corrected
+101377,Patsy,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
+101690,SchreckNET,Action,,no,ACTION_DECLARE,,,ok
+102071,Unflinching Persistence,Combat,for,no,COMBAT_DAMAGE_PREVENTION;COMBAT_DETERMINE_RANGE,,,ok
+100114,Auspex,Master,,no,MASTER_PHASE,,,ok
+100408,Conquer the Beast,Combat,ani,no,COMBAT_BEFORE_RANGE,,,ok
+100654,Ephor,Master,,no,MASTER_PHASE,in_play_action,,ok
+101031,Justicar Retribution,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
+101530,Quick Meld,Combat,pro,no,COMBAT_DETERMINE_RANGE,,,ok
+101781,The Signet of King Saul,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+101822,Society of Leopold,Master,,no,MASTER_PHASE,in_play_action,,ok
+102012,Trap,Combat,,no,COMBAT_BEFORE_RANGE,,,ok
+102088,Vampiric Disease,Master,,no,MASTER_PHASE,,,ok
+100280,Call the Great Beast,Action,,no,ACTION_DECLARE,token_entity;in_play_action,,ok
+100324,Changeling,Action Modifier,vic,no,ACTION_DURING;ACTION_STEALTH_INTERCEPT,,,ok
+100400,Condemnation: Mute,Action,dai/chi,no,ACTION_DECLARE,,,ok
+100450,Crocodile's Tongue,Action Modifier,aus,no,ACTION_BLOCK_ATTEMPT,cancel_as_played,,ok
+100656,The Erciyes Fragments,Master,,no,MASTER_PHASE,in_play_action,,ok
+100657,Erebus Mask,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+100947,I am Legion,Action Modifier,dai/obf,no,ACTION_STEALTH_INTERCEPT;CARD_AS_PLAYED;ACTION_DURING,cancel_as_played,yes,ok
+101260,My Kin Against the World,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
+101402,Plasmic Form,Action Modifier/Combat,vic,no,ACTION_STEALTH_INTERCEPT;COMBAT_STRIKE_DECLARATION,,,ok
+101681,The Sargon Fragment,Equipment,,no,ACTION_DECLARE_EQUIP,in_play_action,,ok
+101832,Soul Gem of Etrius,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+101882,Street Cred,Combat,pot,no,COMBAT_END_OF_ROUND,,,ok
+102062,Under My Skin,Action Modifier,thn/obf,no,ACTION_STEALTH_INTERCEPT,,,ok
+102076,Unleash Hell's Fury,Action,dai,no,ACTION_DECLARE,,,ok

@@ -66,6 +66,9 @@ LABELS = [
     # The Operation Antigen cards (Mobile HQ keys on them): the sentence on
     # the type line, not "An Operation Antigen ally" in the text.
     ("OperationAntigen", r"\boperation antigen\."),
+    # "Condemnation." on the type line (Condemnation: Mute burns the
+    # other condemnation cards on its minion).
+    ("Condemnation", r"\bcondemnation\."),
 ]
 # An ally's or retainer's type line: "Unique mortal with 2 life. 1 strength,
 # 0 bleed." (a retainer prints its life only).

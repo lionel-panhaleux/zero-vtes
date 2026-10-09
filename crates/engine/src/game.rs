@@ -283,6 +283,7 @@ pub fn public_choice(c: &Choice) -> bool {
             | BurnWeaponStrike { .. }
             | BurnBloodForIntercept { .. }
             | UnlockForBlood { .. }
+            | UnlockInfernal { .. }
             | ContinueAction
             | GainStrength
             | BurnBloodToAvoid
@@ -448,6 +449,36 @@ impl Engine {
 
     /// Test fixture: enter the card and title contests `m` would have
     /// entered on coming into play.
+    /// `m` becomes Anarch (the Become Anarch action, Anarch Convert, Gilbert
+    /// Duane, Twilight Camp): an Anarch already stays one, nothing arrives.
+    pub(crate) fn make_anarch(&mut self, m: MinionId) {
+        let was = self.state.sect_of(m) == Some(crate::crypt::Sect::Anarch);
+        self.state.minions[m.index()].sect_override = Some(crate::crypt::Sect::Anarch);
+        if !was {
+            let seat = self.state.minions[m.index()].owner;
+            self.anarch_arrives(seat);
+        }
+    }
+
+    /// An Anarch came into play under `seat`'s control or became one: the
+    /// cards counting it (Hackerspace).
+    pub(crate) fn anarch_arrives(&mut self, seat: SeatId) {
+        for (id, r) in self.state.card_riders(crate::cards::Hook::OwnAnarchArrives) {
+            let c = &self.state.cards[id.index()];
+            if !c.present() || self.state.card_controller(id) != seat {
+                continue;
+            }
+            for e in r.effects {
+                match *e {
+                    crate::cards::Effect::AddCounter(n) => {
+                        self.state.cards[id.index()].counters += n;
+                    }
+                    other => unreachable!("not an Anarch-arrival rider effect: {other:?}"),
+                }
+            }
+        }
+    }
+
     pub fn stage_contests(&mut self, m: MinionId) {
         self.enter_card_contest(m);
         self.enter_title_contest(m);
@@ -586,6 +617,7 @@ impl Engine {
     /// not logged.
     pub fn run(&mut self) -> Step {
         loop {
+            self.rest_fury_tokens();
             self.settle_interrupts();
             if self.interrupts.is_empty() {
                 self.settle_ousting();
@@ -1059,6 +1091,46 @@ impl Engine {
             }
         }
         let was_ready = self.state.minions[m.index()].ready();
+        // The Capuchin: to his owner's uncontrolled region, a new vampire,
+        // his controller's transfers next influence phase (ANK 20200417).
+        let capuchin = self.state.minions[m.index()].in_play.then(|| {
+            self.state.printed_mod(
+                m,
+                crate::cards::Stat::ToUncontrolledWhenBurned,
+                crate::state::PrintedCtx::default(),
+            )
+        });
+        let capuchin = capuchin.filter(|&n| n > 0);
+        // Soul Gem of Etrius on a vampire: kept from the burn, then drawn
+        // for (LSJ 20010729: whatever kept it from using equipment).
+        let gem = (self.state.minions[m.index()].in_play
+            && self.state.minions[m.index()].is_vampire())
+        .then(|| {
+            (0..self.state.cards.len())
+                .map(|i| CardId(i as u32))
+                .find(|&c| {
+                    let card = &self.state.cards[c.index()];
+                    card.present()
+                        && card.host == Some(m)
+                        && crate::cards::lookup(card.card).is_some_and(|d| {
+                            d.riders.iter().any(|r| {
+                                r.hook == Hook::BearerBurned
+                                    && r.effects.contains(&crate::cards::Effect::SoulGemDraw)
+                            })
+                        })
+                })
+        })
+        .flatten();
+        // "Younger": the burned vampire's capacity in game (Discipline
+        // cards included) against the drawn card's printed one (owner,
+        // 2026-10-09: rules-qa 60.18).
+        let gem_ctx = gem.map(|g| {
+            let v = &self.state.minions[m.index()];
+            (g, v.owner, self.state.capacity_of(m).unwrap_or(1))
+        });
+        if let Some(g) = gem {
+            self.state.cards[g.index()].host = None;
+        }
         self.about_to_leave_ready(&[m]);
         {
             let v = &mut self.state.minions[m.index()];
@@ -1069,7 +1141,19 @@ impl Engine {
             // controls it (an ally's card goes with the cards on it, below).
             if let Some(card) = v.crypt_card() {
                 let owner = v.origin.or(v.temp_from).unwrap_or(v.owner);
-                self.state.seats[owner.index()].ash_crypt.push(card);
+                if let Some(n) = capuchin {
+                    let controller = v.owner;
+                    self.state.seats[owner.index()].uncontrolled.push(
+                        crate::state::UncontrolledSlot {
+                            card,
+                            counters: 0,
+                            banished: None,
+                        },
+                    );
+                    self.state.seats[controller.index()].transfers_next += n as u8;
+                } else {
+                    self.state.seats[owner.index()].ash_crypt.push(card);
+                }
             }
             // Absimiliard's Army's ghoul: burned, then removed from the game
             // (LSJ 20090920).
@@ -1100,6 +1184,94 @@ impl Engine {
         }
         if was_ready {
             self.leave_riders(Hook::ReadyMinionBurnedOrTorpor, &[m]);
+        }
+        if let Some((g, seat, cap)) = gem_ctx {
+            self.soul_gem(g, seat, cap);
+        }
+    }
+
+    /// Unleash Hell's Fury's token is in play only while it attempts to
+    /// block.
+    fn rest_fury_tokens(&mut self) {
+        let attempting = self.action.as_ref().and_then(|a| match a.state {
+            crate::actions::ActionState::Attempt(m) => Some(m),
+            _ => None,
+        });
+        for i in 0..self.state.minions.len() {
+            let v = &mut self.state.minions[i];
+            if v.in_play
+                && matches!(v.kind, crate::state::MinionKind::Fury { .. })
+                && attempting != Some(MinionId(i as u32))
+            {
+                v.in_play = false;
+            }
+        }
+    }
+
+    /// Call the Great Beast `id` with 11 ritual counters or more: off its
+    /// Baali, who burns, it enters its controller's ready region as the
+    /// Great Beast, 9 blood, unlocked; three Disciplines chosen next.
+    pub(crate) fn great_beast_at_eleven(&mut self, id: CardId) {
+        let c = &self.state.cards[id.index()];
+        if !c.present() || c.counters < 11 {
+            return;
+        }
+        let (seat, card, baali) = (self.state.card_controller(id), c.card, c.host);
+        self.state.cards[id.index()].host = None;
+        self.state.cards[id.index()].counters = 0;
+        if let Some(b) = baali {
+            self.burn_minion(b);
+        }
+        let m = MinionId(self.state.minions.len() as u32);
+        self.state.minions.push(crate::state::Minion::new(
+            seat,
+            crate::state::MinionKind::GreatBeast { card, id },
+            9,
+        ));
+        self.state.cards[id.index()].body = Some(m);
+        self.interrupts
+            .push(crate::draws::Interrupt::BeastDisciplines { seat, minion: m });
+        self.stage_contests(m);
+    }
+
+    /// Soul Gem of Etrius, its vampire of capacity `cap` burned: `seat`
+    /// draws their crypt's top card — younger, it enters their ready
+    /// region with the Gem and blood to capacity (a new vampire, LSJ
+    /// 20100213; burned again, the Gem draws again, RTR 20010710);
+    /// otherwise, or with no crypt left, the card goes to their
+    /// uncontrolled region and the Gem burns.
+    fn soul_gem(&mut self, g: CardId, seat: SeatId, cap: u8) {
+        let drawn = self.state.seats[seat.index()].crypt.pop();
+        // A copy of a vampire already theirs: it burns as it would enter,
+        // and the Gem draws again against it (RTR 20010710; 58.19).
+        if let Some(card) = drawn.filter(|&c| {
+            crate::crypt::CRYPT[c as usize].capacity < cap && self.state.controls_copy(seat, c)
+        }) {
+            self.state.seats[seat.index()].ash_crypt.push(card);
+            return self.soul_gem(g, seat, crate::crypt::CRYPT[card as usize].capacity);
+        }
+        match drawn {
+            Some(card) if crate::crypt::CRYPT[card as usize].capacity < cap => {
+                let capacity = crate::crypt::CRYPT[card as usize].capacity;
+                let v = self.add_minion(seat, card, capacity, false);
+                self.state.cards[g.index()].host = Some(v);
+                if self.state.sect_of(v) == Some(crate::crypt::Sect::Anarch) {
+                    self.anarch_arrives(seat);
+                }
+                self.stage_contests(v);
+            }
+            other => {
+                if let Some(card) = other {
+                    self.state.seats[seat.index()].uncontrolled.push(
+                        crate::state::UncontrolledSlot {
+                            card,
+                            counters: 0,
+                            banished: None,
+                        },
+                    );
+                }
+                self.burn_card_in_play(g);
+            }
         }
     }
 
@@ -1141,7 +1313,7 @@ impl Engine {
     /// it (`ActionCtx::no_unlock`).
     pub(crate) fn effect_unlock(&mut self, m: MinionId) {
         if !self.action.as_ref().is_some_and(|a| a.no_unlock) {
-            self.state.minions[m.index()].locked = false;
+            self.state.unlock(m);
         }
     }
 
@@ -1206,8 +1378,11 @@ impl Engine {
             return;
         }
         c.in_play = false;
+        let removed = removed || c.removed_when_burned;
         let (owner, card) = (c.owner, c.card);
         let stored = std::mem::take(&mut c.stored);
+        // The Erciyes Fragments: the card on it burns to its owner's.
+        let stored_to = c.stored_owner.unwrap_or(owner);
         self.remove_ghouls_of(id);
         // "Do not replace as long as this card is in play".
         for i in 0..self.state.seats.len() {
@@ -1230,7 +1405,9 @@ impl Engine {
             } else {
                 seat.ash.push(card);
             }
-            seat.ash.extend(stored);
+        }
+        if !self.state.cards[id.index()].effect_only {
+            self.state.seats[stored_to.index()].ash.extend(stored);
         }
         self.state
             .layers
@@ -1349,7 +1526,10 @@ impl Engine {
                 self.state.phase_uses.clear();
                 self.flow = Flow::Influence {
                     left: transfers_for_turn(self.state.turn)
-                        + self.state.transfer_bonus(self.state.active),
+                        + self.state.transfer_bonus(self.state.active)
+                        + std::mem::take(
+                            &mut self.state.seats[self.state.active.index()].transfers_next,
+                        ),
                 }
             }
             Flow::Influence { .. } => self.end_influence(),
@@ -1375,6 +1555,7 @@ impl Engine {
                 && v.is_vampire()
                 && !v.hunted
                 && (self.state.capacity_of(m).unwrap_or(0) as usize) < n
+                && !self.state.gehenna_immune(m)
             {
                 self.state.burn_blood(m, 1);
             }
@@ -1405,6 +1586,33 @@ impl Engine {
         }
     }
 
+    /// The mandatory discard-phase effects due now for the active
+    /// Methuselah, read live: The Uncoiling (its controller's), Dragonbound
+    /// (every Methuselah's) — one played during this discard phase applies
+    /// in it (rules-qa 57.5) — less those resolved this phase.
+    pub(crate) fn discard_dues(&self) -> Vec<CardId> {
+        let s = self.state.active;
+        let mut due: Vec<CardId> = self
+            .state
+            .layers
+            .iter()
+            .filter(|l| match l.modifier {
+                crate::cards::Modifier::BurnsAnEventEachDiscard => {
+                    self.state.card_controller(l.source) == s
+                }
+                crate::cards::Modifier::TorporPoolBurn => true,
+                _ => false,
+            })
+            .map(|l| l.source)
+            .filter(|&c| {
+                self.state.cards[c.index()].present()
+                    && !self.state.seats[s.index()].discard_resolved.contains(&c)
+            })
+            .collect();
+        due.dedup();
+        due
+    }
+
     /// End of the influence phase: on to the discard phase (one discard
     /// phase action; events are a later slice).
     pub(crate) fn end_influence(&mut self) {
@@ -1415,11 +1623,8 @@ impl Engine {
         if held > 0 {
             self.replace(s, held as usize, None);
         }
-        // The Uncoiling: due this phase.
-        self.state.seats[s.index()].uncoiling_due = self
-            .state
-            .global(crate::cards::Modifier::BurnsAnEventEachDiscard)
-            .filter(|&u| self.state.card_controller(u) == s);
+        // The Uncoiling's and Dragonbound's effects: due again this phase.
+        self.state.seats[s.index()].discard_resolved.clear();
         let printed = self.state.printed_discard_actions(s);
         self.state.seats[s.index()].dpa = (1 + printed).max(0) as u8;
         self.state.seats[s.index()].granted_dpa = 0;
@@ -1427,9 +1632,9 @@ impl Engine {
         // Fotini Katsikaris's bonus ends as the discard phase begins.
         self.state.seats[s.index()].hand_bonus_discard = 0;
         // "Unlock this vampire during the next discard phase" (Feral Hound).
-        for m in &mut self.state.minions {
-            if std::mem::take(&mut m.unlock_at_discard) {
-                m.locked = false;
+        for i in 0..self.state.minions.len() {
+            if std::mem::take(&mut self.state.minions[i].unlock_at_discard) {
+                self.state.unlock(MinionId(i as u32));
             }
         }
         self.flow = Flow::Discard;
@@ -1691,6 +1896,8 @@ impl Engine {
             seat.auto_pass_pending = false;
             seat.sabbat_referendum_called = false;
         }
+        // Juliet Parr's hand size lasts until this unlock phase.
+        self.state.seats[s.index()].hand_bonus_unlock = 0;
         // Delayed replacements ("do not replace until your next unlock
         // phase") are drawn before unlocking (ANK 20200129).
         let held = std::mem::take(&mut self.state.seats[s.index()].held.unlock);
@@ -1730,6 +1937,10 @@ impl Engine {
                 self.state.minions[i].skip_unlock = false;
                 continue;
             }
+            // Infernal: not as normal; its controller may pay instead.
+            if m.vampire().is_some_and(|v| v.infernal) {
+                continue;
+            }
             // "Does not unlock as normal" (Puppet Master [DOM]).
             if self.state.does_not_unlock(id) {
                 continue;
@@ -1739,7 +1950,7 @@ impl Engine {
             // minion (advanced rules §5.2.2).
             let substitutes = self.state.counter_instead_of_unlock(id);
             if substitutes.is_empty() {
-                self.state.minions[i].locked = false;
+                self.state.unlock(id);
                 continue;
             }
             for c in substitutes {
@@ -1880,7 +2091,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 261);
+        assert_eq!(CRYPT.len(), 303);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

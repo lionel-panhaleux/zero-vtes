@@ -10526,6 +10526,36 @@ fn brujah_debate_locks_an_oldest_brujah_each_master_phase() {
     assert_eq!(e.state.clan_combat_maneuvers(young), 1);
 }
 
+// Brujah Debate (owner, 2026-10-09: rules-qa 33.1): played during a master
+// phase, its lock is due in that same phase — the one Brujah locked before
+// the phase can end.
+#[test]
+fn brujah_debate_locks_in_the_master_phase_it_is_played_in() {
+    let mut e = Engine::bare(3);
+    let b = e.add_minion(SeatId(0), plain("Brujah", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    e.state.seats[0].pool = 10;
+    hand(&mut e, 0, &["Brujah Debate"]);
+    e.at_master_phase();
+    pick(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: None,
+            target: Target::None,
+        },
+    );
+    let req = request(&mut e);
+    assert!(e.state.minions[b.index()].locked, "{req:?}");
+    // Seat 0's turn still: locked in that master phase, not the next.
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(0), WindowLabel::MinionPhase)
+    );
+}
+
 // [RTR 20040501] Fragment of the Book of Nod: "Cannot be used when a card
 // is played to draw a card that would cancel it 'as it is played'."
 #[test]

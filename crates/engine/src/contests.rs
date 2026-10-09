@@ -123,6 +123,28 @@ impl Engine {
     /// A copy of a unique vampire entering play while another Methuselah has
     /// one: every copy is contested (face down, out of play).
     pub(crate) fn enter_card_contest(&mut self, m: MinionId) {
+        // Jimmy Dunn: the copy already in play burns instead (any
+        // Methuselah's; the newcomer's controller does not burn it, LSJ
+        // 19990719).
+        if self.state.printed_mod(
+            m,
+            crate::cards::Stat::NeverContested,
+            crate::state::PrintedCtx::default(),
+        ) > 0
+        {
+            let name = self.state.minions[m.index()].name();
+            let firsts: Vec<MinionId> = (0..self.state.minions.len())
+                .map(|i| MinionId(i as u32))
+                .filter(|&o| {
+                    let v = &self.state.minions[o.index()];
+                    o != m && v.in_play && v.name() == name
+                })
+                .collect();
+            for o in firsts {
+                self.burn_minion(o);
+            }
+            return;
+        }
         let rivals = self.state.card_rivals(m);
         if !rivals.is_empty() {
             self.set_minion_contested(m, true);
@@ -198,6 +220,13 @@ impl Engine {
         } else {
             self.state.minions[m.index()].title_lost = true;
         }
+    }
+
+    /// Vampire `m` yields its contested title outside the unlock phase
+    /// (Ephor): as a yield in upkeep, its rivals' claims return free.
+    pub(crate) fn yield_title(&mut self, m: MinionId) {
+        self.set_title_contested(m, false);
+        self.lose_title(m);
     }
 
     /// `thief` steals the title `from` holds (Valerius): `from` loses it

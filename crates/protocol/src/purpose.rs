@@ -140,12 +140,46 @@ impl Describer<'_> {
             GiveBlood { from, .. } => {
                 format!("Choose the vampire who receives 1 blood from {}", self.named(from))
             }
+            AnarchConvert {
+                convert,
+                chosen: None,
+                ..
+            } => format!(
+                "{} enters play: you can remove him from the game to make a non-titled vampire you control Anarch",
+                self.named(convert)
+            ),
+            AnarchConvert { .. } => "Gain 1 pool or draw 1 card from your crypt".into(),
+            MoveBetween { from, to: None, .. } => format!(
+                "Choose the vampire who receives blood, equipment and retainers from {}",
+                self.named(from)
+            ),
+            MoveBetween {
+                from,
+                to: Some(to),
+                blood_done: false,
+                ..
+            } => format!(
+                "How much blood moves from {} to {}?",
+                self.named(from),
+                self.named(to)
+            ),
+            MoveBetween {
+                from, to: Some(to), ..
+            } => format!(
+                "Move equipment or retainers from {} to {}",
+                self.named(from),
+                self.named(to)
+            ),
             PayOrBurn { card, pool, .. } => format!(
                 "{} burns unless you burn {pool} pool",
                 self.card_name(card)
             ),
             LockOrDiscard { minion, .. } => format!(
                 "{} is locked unless you discard a card",
+                self.named(minion)
+            ),
+            BloodOrBurned { minion, n, .. } => format!(
+                "{} burns {n} blood or is burned",
                 self.named(minion)
             ),
             StoreSearch { card, left, .. } => format!(
@@ -163,6 +197,9 @@ impl Describer<'_> {
             ),
             MayAddCounter { card, .. } => {
                 format!("You can add 1 counter to {}", self.card_name(card))
+            }
+            MayGainPool { minion, n, .. } => {
+                format!("{}: you can gain {n} pool", self.named(minion))
             }
             EntryRemoveOrBurn { ally, .. } => format!(
                 "{} burns unless you remove an ally or vampire in your ash heap from the game",
@@ -293,6 +330,23 @@ impl Describer<'_> {
             AllyFromAsh { .. } => {
                 "Choose the ally to move from your ash heap to your ready region".into()
             }
+            MayRecycleCanceled { card, .. } => format!(
+                "You can move the canceled {} from your ash heap to your library",
+                LIBRARY[card as usize].name
+            ),
+            BeastDisciplines { .. } => "Choose a Discipline for the Great Beast, at superior".into(),
+            StorePreyAsh { .. } => {
+                "Choose the library card of your prey's ash heap to move onto the Fragments".into()
+            }
+            NameOwnAshCard { .. } => {
+                "Name the library card in your ash heap to take back".into()
+            }
+            NameUncontrolled { .. } => {
+                "Choose the vampire in your uncontrolled region to remove from the game".into()
+            }
+            NameAshPair { .. } => {
+                "Name the card two copies of which in your prey's ash heap to remove".into()
+            }
             MoveForBlood {
                 payer, minion, n, ..
             } => format!(
@@ -321,6 +375,16 @@ impl Describer<'_> {
             use Interrupt::*;
             return match (i, *c) {
                 (GiveBlood { .. }, Choice::ChooseMinion(_)) => role("receives 1 blood".into()),
+                (AnarchConvert { chosen: None, .. }, Choice::Pass) => {
+                    Some("Keep him in play".into())
+                }
+                (AnarchConvert { chosen: None, .. }, Choice::ChooseMinion(_)) => {
+                    role("becomes Anarch".into())
+                }
+                (AnarchConvert { .. }, Choice::Pass) => Some("Gain 1 pool".into()),
+                (MoveBetween { .. }, Choice::ChooseMinion(_)) => role("receives".into()),
+                (MoveBetween { .. }, Choice::Pass) => Some("Move nothing more".into()),
+                (MoveBetween { .. }, Choice::ChooseCard(_)) => role("moves".into()),
                 (PayOrBurn { card, .. }, Choice::Pass) => {
                     Some(format!("Let {} burn", self.card_name(card)))
                 }
@@ -329,6 +393,12 @@ impl Describer<'_> {
                 }
                 (LockOrDiscard { minion, .. }, Choice::Pass) => {
                     Some(format!("Lock {}", self.named(minion)))
+                }
+                (BloodOrBurned { minion, .. }, Choice::Pass) => {
+                    Some(format!("Let {} burn", self.named(minion)))
+                }
+                (BloodOrBurned { minion, n, .. }, Choice::BurnBloodToAvoid) => {
+                    Some(format!("{} burns {n} blood", self.named(minion)))
                 }
                 (StoreSearch { .. } | DisciplineSearch { .. }, Choice::Pass) => {
                     Some("Stop searching".into())
@@ -339,6 +409,10 @@ impl Describer<'_> {
                     zvtes::library::LIBRARY[held.card as usize].name
                 )),
                 (MayAddCounter { .. }, Choice::Pass) => Some("Add no counter".into()),
+                (MayGainPool { .. }, Choice::Pass) => Some("Gain no pool".into()),
+                (MayGainPool { n, .. }, Choice::ResolvePrinted { .. }) => {
+                    Some(format!("Gain {n} pool"))
+                }
                 (MayAddCounter { card, .. }, Choice::ResolveRider { .. }) => {
                     Some(format!("Add 1 counter to {}", self.card_name(card)))
                 }
@@ -439,6 +513,13 @@ impl Describer<'_> {
                 (AshurPicks { .. }, Choice::Pass) => Some("No more".into()),
                 (BecomesAnarch { .. }, Choice::ChooseMinion(_)) => role("becomes Anarch".into()),
                 (UncontrolledBlood { n, .. }, Choice::Slot(_)) => role(format!("gets {n} blood")),
+                (MayRecycleCanceled { card, .. }, Choice::ResolvePrinted { .. }) => Some(format!(
+                    "Shuffle {} into your library",
+                    LIBRARY[card as usize].name
+                )),
+                (NameAshPair { .. }, Choice::FindCard(card)) => {
+                    Some(format!("Remove two {}", LIBRARY[card as usize].name))
+                }
                 (AllyFromAsh { .. }, Choice::FindCard(card)) => Some(format!(
                     "Move {} to your ready region",
                     LIBRARY[card as usize].name

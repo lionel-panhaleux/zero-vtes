@@ -83,6 +83,15 @@ pub const N_WINDOWS: usize = WindowLabel::CombatEndOfRound as usize + 1;
 pub const V_CLAN: i32 = V_WINDOW + N_WINDOWS as i32;
 pub const N_ACTION_KINDS: usize = ActionKind::Ability as usize + 1;
 
+/// An action kind's one-hot slot: Become Anarch shares the granted
+/// actions' (no schema change for trained networks).
+fn action_slot(kind: ActionKind) -> usize {
+    match kind {
+        ActionKind::BecomeAnarch => ActionKind::Ability as usize,
+        k => k as usize,
+    }
+}
+
 /// Seats at most (relative-seat one-hots).
 const SEATS: usize = 6;
 
@@ -232,6 +241,8 @@ fn minion_id(kind: MinionKind) -> i32 {
         MinionKind::Vampire(c) => crypt_id(c),
         MinionKind::Ally { card, .. }
         | MinionKind::Created { card, .. }
+        | MinionKind::GreatBeast { card, .. }
+        | MinionKind::Fury { card, .. }
         | MinionKind::Token { card, .. } => library_id(card),
     }
 }
@@ -345,7 +356,7 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
         f[F_RECRUITED] = flag(m.recruited);
         f[F_EXPELLED] = flag(m.expelled);
         f[F_CORRUPTION] = m.corruption.iter().map(|&(_, n)| n as f32).sum::<f32>() / 5.0;
-        f[F_MARKERS] = (m.hostage + m.nightmare) as f32 / 5.0;
+        f[F_MARKERS] = (m.hostage + m.nightmare + u8::from(m.disease)) as f32 / 5.0;
         ix.minions[i] = push(&mut o, [T_MINION, minion_id(m.kind), 0, 0], f);
     }
 
@@ -533,7 +544,7 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
         f[F_MPA] = *left as f32 / 4.0;
     }
     if let Some(a) = e.action() {
-        f[F_ACTION + a.kind as usize] = 1.0;
+        f[F_ACTION + action_slot(a.kind)] = 1.0;
         if let Some(t) = a.bleed_target {
             f[F_REL + rel(st, viewer, t).min(SEATS - 1)] = 1.0;
         }
@@ -668,7 +679,7 @@ fn option(
             action,
             target,
         } => {
-            f[O_ACTION + action as usize] = 1.0;
+            f[O_ACTION + action_slot(action)] = 1.0;
             let t = target.map_or(0, |m| ix.minion(m));
             [22, minion_v(minion), ix.minion(minion), 0, t]
         }
@@ -731,7 +742,10 @@ fn option(
             [50, library_id(card), 0, 0, 0]
         }
         Choice::BurnBloodForIntercept { minion } => [51, minion_v(minion), ix.minion(minion), 0, 0],
-        Choice::UnlockForBlood { minion } => [52, minion_v(minion), ix.minion(minion), 0, 0],
+        // A paid unlock, as UnlockForBlood (no schema change).
+        Choice::UnlockForBlood { minion } | Choice::UnlockInfernal { minion } => {
+            [52, minion_v(minion), ix.minion(minion), 0, 0]
+        }
         Choice::ContinueAction => [53, 0, 0, 0, 0],
         Choice::GainStrength => [54, 0, 0, 0, 0],
         Choice::BurnBloodToAvoid => [55, 0, 0, 0, 0],

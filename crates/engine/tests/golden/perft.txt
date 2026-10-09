@@ -17,7 +17,7 @@ action depth 7: 3716 leaves
   ActionBlocksDeclined 33 nodes 99 options
   DiscardPhase 599 nodes 2435 options
   MinionPhase 698 nodes 2094 options
-combat depth 7: 1681 leaves
+combat depth 7: 1879 leaves
   ActionBlock 57 nodes 132 options
   CombatBeforeRange 10 nodes 30 options
   CombatBeforeStrikes 9 nodes 27 options
@@ -25,20 +25,20 @@ combat depth 7: 1681 leaves
   CombatPress 54 nodes 108 options
   CombatStrike 55 nodes 165 options
   DiscardPhase 137 nodes 481 options
-  MinionPhase 290 nodes 1274 options
-referendum depth 6: 6168 leaves
-  MinionPhase 312 nodes 1536 options
+  MinionPhase 290 nodes 1472 options
+referendum depth 6: 6480 leaves
+  MinionPhase 312 nodes 1848 options
   ReferendumPolling 1284 nodes 6216 options
   ReferendumTerms 5 nodes 16 options
-masters depth 6: 5293 leaves
-  ActionAsAnnounced 4 nodes 8 options
-  ActionBlock 381 nodes 762 options
+masters depth 6: 8565 leaves
+  ActionAsAnnounced 5 nodes 10 options
+  ActionBlock 441 nodes 882 options
   CardAsPlayed 167 nodes 334 options
-  CombatDetermineRange 111 nodes 222 options
-  CombatPress 68 nodes 136 options
-  DiscardPhase 437 nodes 1837 options
+  CombatDetermineRange 127 nodes 254 options
+  CombatPress 70 nodes 140 options
+  DiscardPhase 736 nodes 2972 options
   InfluenceTransfers 1 nodes 2 options
   MasterPhase 52 nodes 249 options
-  MinionPhase 1247 nodes 4170 options
+  MinionPhase 1738 nodes 7018 options
   PlayTerms 10 nodes 40 options
   UnlockAbilities 5 nodes 15 options

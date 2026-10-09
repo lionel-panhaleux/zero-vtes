@@ -645,7 +645,10 @@ impl Engine {
             .map(|i| MinionId(i as u32))
             .filter(|&m| {
                 st.minions[m.index()].present()
-                    && !ctx.terms.minions.contains(&m)
+                    // A distribution picks a vampire again as often as
+                    // wished.
+                    && (matches!(ctx.current_term(), Some(cards::Term::DistributeBlood { .. }))
+                        || !ctx.terms.minions.contains(&m))
                     && filter.iter().all(|&r| {
                         cards::holds_for_minion(
                             r,
@@ -725,6 +728,18 @@ impl Engine {
                 }
                 options
             }
+            Term::ChooseMinionsX { filter } => {
+                let x = self.action.as_ref().and_then(|a| a.card).map_or(0, |c| c.x);
+                let left = self.minion_choices(ctx, filter);
+                let mut options = Vec::new();
+                if ctx.terms.minions.len() as u8 >= x || left.is_empty() {
+                    options.push(Choice::Pass);
+                }
+                if (ctx.terms.minions.len() as u8) < x {
+                    options.extend(left.into_iter().map(Choice::ChooseMinion));
+                }
+                options
+            }
             Term::ChooseClan => clans().into_iter().map(Choice::ChooseClan).collect(),
             Term::ChooseCard(filter) => (0..st.cards.len())
                 .filter(|&i| chooseable_card(st, crate::state::CardId(i as u32), filter))
@@ -753,6 +768,11 @@ impl Engine {
                 }
                 options
             }
+            Term::DistributeBlood { filter, .. } => self
+                .minion_choices(ctx, filter)
+                .into_iter()
+                .map(Choice::ChooseMinion)
+                .collect(),
             Term::AllocatePerChosenWithCards { per } => {
                 let total = per * ctx.terms.minions.len() as u8;
                 let given: u8 = ctx.terms.alloc.iter().map(|(_, n)| *n).sum::<u8>()
@@ -1060,7 +1080,16 @@ impl Engine {
                 ctx.terms.minions.push(*m);
                 ctx.terms.minions.len() as u8 >= max
             }
-            (Term::ChooseMinions { .. }, Choice::Pass) => true,
+            (Term::ChooseMinions { .. } | Term::ChooseMinionsX { .. }, Choice::Pass) => true,
+            (Term::ChooseMinionsX { .. }, Choice::ChooseMinion(m)) => {
+                ctx.terms.minions.push(*m);
+                let x = self.action.as_ref().and_then(|a| a.card).map_or(0, |c| c.x);
+                ctx.terms.minions.len() as u8 >= x
+            }
+            (Term::DistributeBlood { points, .. }, Choice::ChooseMinion(m)) => {
+                ctx.terms.minions.push(*m);
+                ctx.terms.minions.len() as u8 >= points
+            }
             (Term::ChooseClan, Choice::ChooseClan(c)) => {
                 ctx.terms.clan = Some(c);
                 true
@@ -1191,6 +1220,23 @@ impl Engine {
         debug_assert!(ctx.step == RefStep::Polling && ctx.window.is_closed());
         let (favor, against) = ctx.tally();
         let passed = (favor > against || ctx.auto_pass) && !ctx.forced_fail;
+        // "The attached vampire burns 1 blood after a referendum passes"
+        // (Condemnation: Mute [DAI]): any referendum.
+        if passed {
+            for (id, r) in self.state.card_riders(cards::Hook::AnyReferendumPassed) {
+                let host = self.state.cards[id.index()].bearer();
+                if self.state.cards[id.index()].present() && self.state.rider_holds(r, id) {
+                    if let Some(h) = host {
+                        for e in r.effects {
+                            match *e {
+                                cards::Effect::HostBurnBlood(n) => self.state.burn_blood(h, n),
+                                other => unreachable!("not a referendum rider effect: {other:?}"),
+                            }
+                        }
+                    }
+                }
+            }
+        }
         match ctx.kind {
             RefKind::BloodHunt { diablerist } => {
                 if passed {
@@ -1452,6 +1498,19 @@ impl Engine {
                 | RefEffect::ChosenVampireTakesChosenCard
                 | RefEffect::ChosenShuffleFromAsh(_) => {}
                 RefEffect::CallerGainsPool(n) => gain[ctx.caller.index()] += n as i32,
+                RefEffect::BloodToChosenEach
+                | RefEffect::CallerHandSizeForGame(_)
+                | RefEffect::BurnVampiresBleedAtLeast(_)
+                | RefEffect::UnlockCallerAndChosen => {}
+                RefEffect::BurnEdgeToUntitle(n) => {
+                    if st.seats[ctx.caller.index()].has_edge {
+                        if let Some(&m) = ctx.terms.minions.first() {
+                            if st.minions[m.index()].in_play {
+                                loss[st.minions[m.index()].owner.index()] += n as i32;
+                            }
+                        }
+                    }
+                }
                 RefEffect::ChosenBurnsPoolCardBurned(n) => {
                     if let Some(s) = ctx.terms.chosen {
                         loss[s.index()] += n as i32;
@@ -1477,6 +1536,27 @@ impl Engine {
             }
         }
         match effect {
+            RefEffect::UnlockCallerAndChosen => {
+                let caller = self.action.as_ref().map(|a| a.acting);
+                for m in caller.into_iter().chain(ctx.terms.minions.iter().copied()) {
+                    if self.state.minions[m.index()].present() {
+                        self.effect_unlock(m);
+                    }
+                }
+            }
+            RefEffect::BurnVampiresBleedAtLeast(n) => {
+                let burned: Vec<MinionId> = (0..self.state.minions.len())
+                    .map(|i| MinionId(i as u32))
+                    .filter(|&m| {
+                        // In torpor too (owner, 2026-10-09: rules-qa 59.9).
+                        let v = &self.state.minions[m.index()];
+                        v.present() && v.is_vampire() && self.state.current_bleed(m) >= n
+                    })
+                    .collect();
+                for m in burned {
+                    self.burn_minion(m);
+                }
+            }
             RefEffect::AnarchSalon => {
                 for i in 0..self.state.minions.len() {
                     let m = &self.state.minions[i];
@@ -1491,6 +1571,27 @@ impl Engine {
                 let m = ctx.terms.minions[0];
                 let to = self.state.minions[m.index()].owner;
                 self.banish(m, to);
+            }
+            RefEffect::BloodToChosenEach => {
+                for &m in &ctx.terms.minions {
+                    if self.state.minions[m.index()].ready() {
+                        self.state.gain_blood(m, 1);
+                    }
+                }
+            }
+            RefEffect::CallerHandSizeForGame(n) => {
+                self.state.seats[ctx.caller.index()].hand_bonus_game += n;
+            }
+            // The pool was burned with the batch, the Edge read the same.
+            RefEffect::BurnEdgeToUntitle(_) => {
+                if self.state.seats[ctx.caller.index()].has_edge {
+                    self.state.seats[ctx.caller.index()].has_edge = false;
+                    if let Some(&m) = ctx.terms.minions.first() {
+                        if self.state.minions[m.index()].in_play {
+                            self.lose_title(m);
+                        }
+                    }
+                }
             }
             RefEffect::Expel => {
                 for &m in &ctx.terms.minions {
@@ -1736,22 +1837,27 @@ impl Engine {
     /// resolves, before the after-resolution window.
     fn own_referendum_failed_riders(&mut self) {
         let a = self.action.as_ref().expect("action");
-        if a.kind != crate::decision::ActionKind::Political || a.referendum_passed {
+        if a.kind != crate::decision::ActionKind::Political {
             return;
         }
-        let m = a.acting;
+        let (m, seat) = (a.acting, a.seat);
+        // "After a referendum called by Juliet passes" (Juliet Parr).
+        let hook = if a.referendum_passed {
+            cards::Hook::OwnReferendumPassed
+        } else {
+            cards::Hook::OwnReferendumFailed
+        };
         let v = &self.state.minions[m.index()];
         let Some(def) = cards::vampire_of(v).filter(|_| v.ready()) else {
             return;
         };
-        for r in def
-            .riders
-            .iter()
-            .filter(|r| r.hook == cards::Hook::OwnReferendumFailed)
-        {
+        for r in def.riders.iter().filter(|r| r.hook == hook) {
             for e in r.effects {
                 match *e {
                     cards::Effect::GoToTorpor => self.minions_to_torpor(&[m]),
+                    cards::Effect::HandSizeUntilUnlock(n) => {
+                        self.state.seats[seat.index()].hand_bonus_unlock += n;
+                    }
                     other => unreachable!("not a referendum rider effect: {other:?}"),
                 }
             }
@@ -1912,7 +2018,13 @@ impl Engine {
                     .card
                     .filter(|c| !cards::removed_once_played(c.card, c.mode))
                 {
-                    self.state.seats[a.seat.index()].hand.push(card.card);
+                    // Its owner's: the prey's card played from The Erciyes
+                    // Fragments goes back to them (rules-qa 60.19).
+                    let owner = card
+                        .from
+                        .and_then(|f| self.state.cards[f.index()].stored_owner)
+                        .unwrap_or(a.seat);
+                    self.state.seats[owner.index()].hand.push(card.card);
                     a.card_returned = true;
                 }
                 // The forbidden action is the card's from hand (by name),
@@ -1929,7 +2041,7 @@ impl Engine {
                         .push(id);
                 }
                 if unlock_acting && !a.no_unlock {
-                    self.state.minions[a.acting.index()].locked = false;
+                    self.state.unlock(a.acting);
                 }
             }
             other => unreachable!("not a referendum effect: {other:?}"),
