@@ -2291,15 +2291,19 @@ pub static FOTINI_KATSIKARIS: VampireDef = VampireDef {
 };
 
 /// "Sabbat: After Gostoso successfully bleeds your prey (for 1 or more),
-/// he can gain 1 blood."
+/// he can gain 1 blood." Once, after that bleed (owner, 2026-10-09, from
+/// play: offered again after each use).
 pub static GOSTOSO: VampireDef = VampireDef {
     name: "Gostoso",
-    abilities: &[mode_of(
-        &[Window::ActionAfterResolution],
-        Actor::Host,
-        &[R::ActorActing, R::BleedAgainstPrey, R::BleedSuccessful],
-        &[Effect::AddHostBlood(1)],
-    )],
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerAction),
+        ..mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::Host,
+            &[R::ActorActing, R::BleedAgainstPrey, R::BleedSuccessful],
+            &[Effect::AddHostBlood(1)],
+        )
+    }],
     ..VAMP
 };
 

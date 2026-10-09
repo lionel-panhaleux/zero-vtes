@@ -224,7 +224,13 @@ fn gostoso_gains_a_blood_after_bleeding_his_prey() {
     let (mut e, gostoso, _) = table("Gostoso");
     pick(&mut e, bleed(gostoso));
     pick_when(&mut e, vampire_ability(gostoso, 0));
-    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    // Once after that bleed (owner, 2026-10-09).
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        vampire_ability(gostoso, 0),
+    );
     assert_eq!(blood(&e, gostoso), 5);
 }
 
@@ -390,6 +396,15 @@ fn forward_momentum_counts_bleeds_and_unlocks() {
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.minions[devorah.index()].locked);
     assert_eq!(e.state.cards[fm.index()].counters, 0);
+
+    // Counters for two: once after the action (rules-qa 16.1).
+    let (mut e, devorah, _) = table("Devorah");
+    let fm = in_play(&mut e, 0, "Forward Momentum", None);
+    e.state.cards[fm.index()].counters = 4;
+    pick(&mut e, bleed(devorah));
+    pick_when(&mut e, unlock);
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, unlock);
+    assert_eq!(e.state.cards[fm.index()].counters, 4 + 1 - 2);
 }
 
 // Hedonism [for] or [pre]: played by another ready unlocked vampire of the

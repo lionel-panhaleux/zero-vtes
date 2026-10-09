@@ -10737,11 +10737,37 @@ fn dead_pool_counts_victims_and_pays_them_as_bleed() {
     e.state.minions[l.index()].locked = false;
     e.state.minions[l.index()].bled_this_turn = false;
     let p1 = pool(&e, 1);
+    // Counters for two: "during a bleed action", once (rules-qa 58.7).
+    e.state.cards[dp.index()].counters = 2;
     pick(&mut e, action(l, ActionKind::Bleed));
     pick_when(&mut e, use_on(dp, 0, Some(l), Target::None));
-    to_minion_phase(&mut e, 0);
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        use_on(dp, 0, Some(l), Target::None),
+    );
     assert_eq!(pool(&e, 1), p1 - 3);
-    assert_eq!(e.state.cards[dp.index()].counters, 0);
+    assert_eq!(e.state.cards[dp.index()].counters, 1);
+}
+
+// Dead Pool: "During … the polling step of any referendum, a Lasombra you
+// control can burn 1 counter from this card to get … +2 votes" — once in
+// it (rules-qa 58.7), counters left or not.
+#[test]
+fn dead_pool_pays_votes_once_a_referendum() {
+    let mut e = Engine::bare(3);
+    let l = e.add_minion(SeatId(0), plain("Lasombra", "", 0), 4, false);
+    let an = e.add_minion(SeatId(0), anarch(0), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    let dp = location(&mut e, 0, "Dead Pool");
+    e.state.cards[dp.index()].counters = 2;
+    hand(&mut e, 0, &["Anarchist Uprising"]);
+    pick(&mut e, play(0, 0, an));
+    let votes = use_on(dp, 1, Some(l), Target::None);
+    pick_when(&mut e, votes);
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, votes);
+    assert_eq!(e.state.cards[dp.index()].counters, 1);
 }
 
 // Alamut: "After an Assamite you control successfully bleeds a Methuselah,
@@ -10771,6 +10797,16 @@ fn alamut_banks_bled_pool_for_votes() {
     assert_eq!(e.state.cards[al.index()].counters, 0);
     let r = e.referendum().expect("referendum");
     assert_eq!(r.votes_of(&e.state, h), 1);
+
+    // Counters left: "during the polling step", once (rules-qa 58.7).
+    e.state.cards[al.index()].counters = 1;
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        use_on(al, 0, Some(h), Target::None),
+    );
+    assert_eq!(e.state.cards[al.index()].counters, 1);
 }
 
 // Cappadocian Crypt: "You can lock this location after resolution of a

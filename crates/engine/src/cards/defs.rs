@@ -1206,16 +1206,21 @@ pub static ROTTING_BEHEMOTH: CardDef = CardDef {
                 ],
             )
         },
-        mode_of(
-            &[Window::CombatPress],
-            Actor::Host,
-            &[
-                Requirement::SuperiorVersion,
-                Requirement::FirstRound,
-                Requirement::LifeAtLeast(1),
-            ],
-            &[Effect::BurnOwnLife(1), Effect::Press],
-        ),
+        // "During the first round of each combat": once in it (rules-qa
+        // 58.7).
+        ModeDef {
+            limit: Some(Limit::PerCombat),
+            ..mode_of(
+                &[Window::CombatPress],
+                Actor::Host,
+                &[
+                    Requirement::SuperiorVersion,
+                    Requirement::FirstRound,
+                    Requirement::LifeAtLeast(1),
+                ],
+                &[Effect::BurnOwnLife(1), Effect::Press],
+            )
+        },
     ],
     ..CARD
 };
@@ -1246,18 +1251,23 @@ pub static VOZHD_OF_GRAVESEND: CardDef = CardDef {
             Limit::PerRound,
             &[Effect::Prevent(1)],
         ),
-        mode_of(
-            &[Window::CardAsPlayed],
-            Actor::Host,
-            &[
-                Requirement::PlayedStrikeByOpponent,
-                Requirement::LifeAtLeast(1),
-            ],
-            &[
-                Effect::BurnOwnLife(1),
-                Effect::CancelPlayed { refund: true },
-            ],
-        ),
+        // "During combat, this ally can": once each combat (rules-qa
+        // 58.7).
+        ModeDef {
+            limit: Some(Limit::PerCombat),
+            ..mode_of(
+                &[Window::CardAsPlayed],
+                Actor::Host,
+                &[
+                    Requirement::PlayedStrikeByOpponent,
+                    Requirement::LifeAtLeast(1),
+                ],
+                &[
+                    Effect::BurnOwnLife(1),
+                    Effect::CancelPlayed { refund: true },
+                ],
+            )
+        },
     ],
     ..CARD
 };
@@ -11986,29 +11996,37 @@ pub static DABBLER: CardDef = CardDef {
 pub static DEAD_POOL: CardDef = CardDef {
     name: "Dead Pool",
     modes: &[master_in_play(&[], &[Effect::PutInPlay])],
+    // "During a bleed action or the polling step": once in it (rules-qa
+    // 58.7).
     abilities: &[
-        mode_of(
-            &[Window::ActionDuring],
-            Actor::AnyReadyVampire,
-            &[
-                Requirement::ActorActing,
-                Requirement::IsBleed,
-                Requirement::ActorClan("Lasombra"),
-                Requirement::CountersAtLeast(1),
-            ],
-            &[Effect::RemoveCounter(1), bleed(2, false)],
-        ),
-        mode_of(
-            &[Window::Referendum],
-            Actor::AnyReadyVampire,
-            &[
-                Requirement::AnyPollingStep,
-                Requirement::ActorClan("Lasombra"),
-                Requirement::NotAbstaining,
-                Requirement::CountersAtLeast(1),
-            ],
-            &[Effect::RemoveCounter(1), Effect::AddVotes(2)],
-        ),
+        ModeDef {
+            limit: Some(Limit::PerAction),
+            ..mode_of(
+                &[Window::ActionDuring],
+                Actor::AnyReadyVampire,
+                &[
+                    Requirement::ActorActing,
+                    Requirement::IsBleed,
+                    Requirement::ActorClan("Lasombra"),
+                    Requirement::CountersAtLeast(1),
+                ],
+                &[Effect::RemoveCounter(1), bleed(2, false)],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::PerReferendum),
+            ..mode_of(
+                &[Window::Referendum],
+                Actor::AnyReadyVampire,
+                &[
+                    Requirement::AnyPollingStep,
+                    Requirement::ActorClan("Lasombra"),
+                    Requirement::NotAbstaining,
+                    Requirement::CountersAtLeast(1),
+                ],
+                &[Effect::RemoveCounter(1), Effect::AddVotes(2)],
+            )
+        },
     ],
     riders: &[Rider {
         hook: Hook::CombatOpponentOfOwnClanLeft("Lasombra"),
@@ -12026,8 +12044,10 @@ pub static DEAD_POOL: CardDef = CardDef {
 pub static ALAMUT: CardDef = CardDef {
     name: "Alamut",
     modes: &[LOCATION],
+    // "During the polling step": once in it (rules-qa 58.7).
     abilities: &[ModeDef {
         terms: Some(Terms::XCounters),
+        limit: Some(Limit::PerReferendum),
         ..mode_of(
             &[Window::Referendum],
             Actor::AnyReadyVampire,
@@ -14822,20 +14842,24 @@ pub static FEVER_PITCH: CardDef = CardDef {
 pub static FORWARD_MOMENTUM: CardDef = CardDef {
     name: "Forward Momentum",
     modes: &[master_in_play(&[], &[Effect::PutInPlay])],
-    abilities: &[mode_of(
-        &[Window::ActionAfterResolution],
-        Actor::Controller,
-        &[
-            Requirement::OtherActingControlled,
-            Requirement::ActingFollowsPath("Cathari"),
-            Requirement::CountersWithBleedGainAtLeast(2),
-        ],
-        &[
-            Effect::TakeBleedGain,
-            Effect::RemoveCounter(2),
-            Effect::UnlockActing,
-        ],
-    )],
+    // "After … performs an action, you can": once after it (rules-qa 16.1).
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerAction),
+        ..mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::Controller,
+            &[
+                Requirement::OtherActingControlled,
+                Requirement::ActingFollowsPath("Cathari"),
+                Requirement::CountersWithBleedGainAtLeast(2),
+            ],
+            &[
+                Effect::TakeBleedGain,
+                Effect::RemoveCounter(2),
+                Effect::UnlockActing,
+            ],
+        )
+    }],
     riders: &[Rider {
         hook: Hook::OwnBleedEnds,
         scope: RiderScope::Controller,

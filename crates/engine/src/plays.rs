@@ -3956,9 +3956,13 @@ impl Engine {
                     continue;
                 }
                 // One use each action for the card, whoever the actor
-                // (Camarilla Conclave).
-                if ability.limit == Some(Limit::PerActionCard)
-                    && self.limit_spent(ability.limit, AbilitySource::Card(id), ai as u8)
+                // (Camarilla Conclave); once each action or referendum for
+                // this ability, whoever uses it ("after …", "during …":
+                // rules-qa 16.1, 58.7 — Forward Momentum, Alamut).
+                if matches!(
+                    ability.limit,
+                    Some(Limit::PerActionCard | Limit::PerAction | Limit::PerReferendum)
+                ) && self.limit_spent(ability.limit, AbilitySource::Card(id), ai as u8)
                 {
                     continue;
                 }

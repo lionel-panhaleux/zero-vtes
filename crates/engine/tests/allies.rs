@@ -1847,7 +1847,13 @@ fn rotting_behemoth_superior_burns_life_for_a_press_in_the_first_round() {
     );
     until(&mut e, SeatId(0), WindowLabel::CombatPress);
     pick(&mut e, ability_of(id, 1, None));
-    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    // "During the first round": once (rules-qa 58.7).
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        ability_of(id, 1, None),
+    );
     // 6 life, 1 for the rush, 1 for the press, 1 per round from Z.
     assert_eq!(e.state.minions[rb.index()].blood, 2);
 }
@@ -1862,7 +1868,7 @@ fn vozhd_of_gravesend_burns_life_to_cancel_an_opposing_strike_card() {
     let vozhd = e.add_ally(SeatId(1), find_library("Vozhd of Gravesend, The"));
     request(&mut e); // the entry burn: the Revenant
     let id = e.state.minions[vozhd.index()].ally_id().unwrap();
-    hand(&mut e, 0, &["Roundhouse"]);
+    hand(&mut e, 0, &["Roundhouse", "Roundhouse"]);
     pick(&mut e, action(a, ActionKind::Bleed));
     until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     pick(&mut e, Choice::DeclareBlock { minion: vozhd });
@@ -1876,16 +1882,30 @@ fn vozhd_of_gravesend_burns_life_to_cancel_an_opposing_strike_card() {
     pick(&mut e, rh);
     expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
     pick(&mut e, ability_of(id, 2, None));
-    // Canceled, unpaid: A chooses a strike again (its hand strike, elided).
-    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    // Canceled, unpaid: A chooses a strike again — the second Roundhouse,
+    // not canceled ("during combat": once, rules-qa 58.7).
+    let req = until(&mut e, SeatId(0), WindowLabel::CombatStrike);
+    let rh = req
+        .options
+        .iter()
+        .copied()
+        .find(|o| matches!(o, Choice::Play { .. }))
+        .expect("the second Roundhouse");
+    pick(&mut e, rh);
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        ability_of(id, 2, None),
+    );
     assert!(e.state.seats[0].ash.contains(&find_library("Roundhouse")));
     assert_eq!(
         e.state.minions[a.index()].blood,
         0,
         "4 strength, none prevented"
     );
-    // 5 life: 1 for the cancel, 1 from A's hand strike.
-    assert_eq!(e.state.minions[vozhd.index()].blood, 3);
+    // 5 life: 1 for the cancel, 3 from the second Roundhouse.
+    assert_eq!(e.state.minions[vozhd.index()].blood, 1);
 }
 
 // ---- Allies playing cards "as a vampire" ------------------------------

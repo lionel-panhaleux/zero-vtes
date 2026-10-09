@@ -46,6 +46,11 @@ by the owner. Apply them to every new card; only a ruling overrides them.
   action / a bleed / a referendum" once in it — never repeatable while
   payable. Read the word "during" in every ability's wording before
   choosing its limit. (6.6, 15.2, 42.3, 58.7)
+- **"After X, … can …" is once after X** (per copy, per vampire): "after a
+  successful bleed / an action / a referendum passes" once after it
+  (`Limit::PerAction`), unless a cost or condition the use spends limits it
+  already (lock this card, must be locked). (16.1; Gostoso, Forward
+  Momentum, owner 2026-10-09)
 - **A mandatory phase effect applies in the phase its card is played in.**
   "During your/each Methuselah's X phase, …" on a card that enters play
   during an X phase is due in that very phase, ordered among the phase's
