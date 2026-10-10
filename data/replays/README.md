@@ -41,6 +41,17 @@ as it was played.
 | `zero-vtes-replay-2026-10-06T05-40-36-622Z.json` | uncommitted, after `cf4a56c` | Nosferatu, Brujah, Malkavian, **The Unnamed** | `p7-politics@1400` (network, default politics) | — (log ends at 390) |
 | `zero-vtes-replay-2026-10-06T06-18-50-630Z.json` | uncommitted, after `cf4a56c` | Brujah, **The Unnamed**, Salubri, Toreador | `p7-politics@1400` (network, default politics) | owner 4 VP, the bots 0 |
 | `zero-vtes-replay-2026-10-07T05-33-18-077Z.json` | uncommitted, after `cf4a56c` | Ravnos, **The Unnamed**, Lasombra, Malkavian | `p7-politics@1800` (network, default politics, temperature 0.5, rescue bonus) | owner 3 VP, Malkavian 1 |
+| `zero-vtes-replay-2026-10-08T20-32-01-306Z.json` | the fork's build of that day | Nosferatu, Tzimisce, Salubri, **The Unnamed** | `p7-politics@1800` (network, default politics) | owner 4 VP, the bots 0 |
+| `zero-vtes-replay-2026-10-08T20-49-30-439Z.json` | the fork's build of that day | Hecata, Malkavian, Ravnos, **The Unnamed** | `p7-politics@1800` (network, default politics) | owner 3 VP, Malkavian 1 |
+| `zero-vtes-replay-2026-10-08T21-17-05-603Z.json` | the fork's build of that day | Malkavian, Ravnos, **The Unnamed**, Toreador | `p7-politics@1800` (network, default politics) | owner 3 VP, Malkavian 1 |
+| `zero-vtes-replay-2026-10-09T19-28-48-837Z.json` | the fork's build of that day | Hecata, Banu Haqim, **The Unnamed**, Brujah | `p7-politics@1800` (network, default politics) | — (reads up to 305) |
+| `zero-vtes-replay-2026-10-09T19-39-10-276Z.json` | the fork's build of that day | Hecata, Banu Haqim, **The Unnamed**, Brujah | `p7-politics@1800` (network, default politics) | — (reads up to 305) |
+| `zero-vtes-replay-2026-10-09T20-04-50-919Z.json` | the fork's build of that day | Tremere, **The Unnamed**, Nosferatu, Malkavian | `p7-politics@1800` (network, default politics) | — (reads up to 195) |
+| `zero-vtes-replay-2026-10-09T21-05-23-015Z.json` | the fork's build of that day | Tremere, Salubri, **The Unnamed**, Tzimisce | `p7-politics@1800` (network, default politics) | owner 3 VP, Tremere 1 |
+| `zero-vtes-replay-2026-10-09T21-51-54-561Z.json` | the fork's build of that day | Hecata, Salubri, Toreador, **The Unnamed** | `p7-politics@1800` (network, default politics) | owner 4 VP, the bots 0 |
+| `zero-vtes-replay-2026-10-09T22-19-25-019Z.json` | the fork's build of that day | Gangrel, Tremere, Toreador, **The Unnamed** | `p7-politics@1800` (network, default politics) | owner 2 VP, Gangrel 1, Tremere 1 |
+| `zero-vtes-replay-2026-10-09T22-52-40-908Z.json` | the fork's build of that day | Hecata, Ravnos, Malkavian, **The Unnamed** | `p7-politics@1800` (network, default politics) | owner 3 VP, Ravnos 1 |
+| `zero-vtes-replay-2026-10-09T23-20-20-474Z.json` | the fork's build of that day | **The Unnamed**, Nosferatu, Brujah, Ravnos | `p7-politics@1800` (network, default politics) | owner 4 VP, the bots 0 |
 
 Since rules-qa 48.1 (intercept not floored at 0), `2026-10-03T09-03-44`
 replays on later engines only up to decision 72: its Form of the Bat
@@ -93,3 +104,8 @@ at 400 (whole at `65d1539`), `…T08-31-11` at 294 and `…T15-07-24` at
 The games of 2026-10-04 evening to 2026-10-07 (`…T19-47-18` to
 `…T05-33-18`: the bots' decks as the fork names them, the owner's own
 deck "The Unnamed") read whole at `cf4a56c` and after.
+
+The games of 2026-10-08 and 2026-10-09 read whole at `adfd807` and
+after, but three: `…T19-28-48` and `…T19-39-10` stop at decision 306
+and `…T20-04-50` at 196, where an "after" or "during" ability used a
+second time is no longer offered (once each, `36ce7d0`).
