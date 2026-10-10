@@ -262,16 +262,19 @@ def test_imitation_and_weak_decks(tmp_path):
         eval_every=1, eval_games=4, device="cpu", best_seeds=1,
     )
     Trainer(Config(**small, out=str(tmp_path / "old"))).run()
-    twice = [
-        "data/replays/zero-vtes-replay-2026-10-09T19-28-48-837Z.json",
-        "data/replays/zero-vtes-replay-2026-10-09T19-39-10-276Z.json",
-    ]
-    assert [p.name for p, _, _ in load_replays(",".join(twice))] == [twice[1].split("/")[-1]]
     # Malkavian, Ravnos, Path of Caine (the owner), Toreador.
     start = "data/replays/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
+    # The game exported twice: early (a start of its log), then whole.
+    game = json.loads(open(start).read())
+    early = {**game, "log": game["log"][:100], "choices": game["choices"][:100]}
+    twice = [tmp_path / "a.json", tmp_path / "b.json"]
+    twice[0].write_text(json.dumps(early))
+    twice[1].write_text(json.dumps(game))
+    assert [p.name for p, _, _ in load_replays(",".join(map(str, twice)))] == ["b.json"]
     cfg = Config(
         **small, out=str(tmp_path / "new"), league=True, opponents=str(tmp_path / "old" / "model.pt"),
-        bc=",".join([start, twice[0]]), bc_coef=0.1, bc_holdout=2, bc_batch=32,
+        bc=",".join([start, "data/replays/zero-vtes-replay-2026-10-09T21-05-23-015Z.json"]),
+        bc_coef=0.1, bc_holdout=2, bc_batch=32,
         weak_decks="32,5", weak_rate=0.5, starts=start, start_tables=0.3, bots_every=0, critic_warmup=0,
     )
     trainer = Trainer(cfg)
