@@ -590,6 +590,12 @@ slice-11 cards by section).
 **Run loop and interrupts** (`game.rs`, `draws.rs`)
 - `Engine::run`: settle interrupts, drain excess blood (`drain_all_excess`),
   release hostages, then request; single-option requests auto-apply.
+- Hand size is settled live both ways (rulebook "Drawing Cards": at once):
+  discard-down whenever `hand_excess` > 0; draw-up (`settle_draw_up`)
+  whenever a hand is below its size with a library to draw from, between
+  plays only (no interrupt, ousting, action, combat or referendum; a phase
+  flow), so a card played but not yet replaced is never drawn for early.
+  `GameState::hand_load` counts the hand, `held` and `held_in_play`.
 - A choice owed by a specific player in the middle of a resolution is an
   `Interrupt` (`Engine.interrupts`), served in order before any other decision:
   discard-down, draw alternatives, replacement treatment, entry effects
@@ -1903,7 +1909,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (`docs/human-play.md` has the board).
 
-Definitions: 550 library, 175 vampires; 1241 Rust tests, 32 Python tests
+Definitions: 550 library, 175 vampires; 1244 Rust tests, 32 Python tests
 
 ## Outlook: deck building (post-v1)
 

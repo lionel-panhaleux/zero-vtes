@@ -37,6 +37,7 @@ fn put_on(e: &mut Engine, name: &str, host: MinionId) -> u32 {
 /// Seat 0's library, bottom first.
 fn library(e: &mut Engine, cards: &[&str]) {
     e.state.seats[0].library = cards.iter().map(|c| find_library(c)).collect();
+    fill_hand(e, 0);
 }
 
 fn in_play(e: &Engine, name: &str) -> Option<MinionId> {
@@ -69,6 +70,14 @@ fn table() -> (Engine, MinionId, MinionId) {
 fn magic_of_the_smith_searches_at_resolution_for_an_equipment_the_vampire_can_equip() {
     let (mut e, t, _) = table();
     put_on(&mut e, "Unlicensed Taxicab", t);
+    // A full hand: playing the card draws only its replacement (the top
+    // card) before the action resolves.
+    e.state.seats[0]
+        .hand
+        .push(find_library("Magic of the Smith"));
+    for _ in 0..6 {
+        e.state.seats[0].hand.push(find_library("Deflection"));
+    }
     library(
         &mut e,
         &[
@@ -79,14 +88,6 @@ fn magic_of_the_smith_searches_at_resolution_for_an_equipment_the_vampire_can_eq
             "Conditioning",
         ],
     );
-    // A full hand: playing the card draws only its replacement (the top
-    // card) before the action resolves.
-    e.state.seats[0]
-        .hand
-        .push(find_library("Magic of the Smith"));
-    for _ in 0..6 {
-        e.state.seats[0].hand.push(find_library("Deflection"));
-    }
     pick(
         &mut e,
         Choice::Play {

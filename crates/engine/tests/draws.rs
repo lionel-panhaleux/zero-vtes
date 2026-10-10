@@ -271,6 +271,7 @@ fn shilmulo_tarot_equipped_by_a_search_takes_its_cards_before_entering_contest()
     let theirs = put(&mut e, "Shilmulo Tarot", 1, Some(y));
     let wealth = put(&mut e, "Vast Wealth", 0, Some(r));
     library(&mut e, &["Conditioning", "Deflection", "Shilmulo Tarot"]);
+    fill_hand(&mut e, 0);
     pick(
         &mut e,
         Choice::UseAbility {

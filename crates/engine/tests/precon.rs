@@ -1747,6 +1747,7 @@ fn zombie_bleed(library: &[&str]) -> (Engine, MinionId) {
         false,
     );
     e.state.seats[1].library = library.iter().map(|c| find_library(c)).collect();
+    fill_hand(&mut e, 1);
     pick(&mut e, action(shambler, ActionKind::Bleed));
     (e, shambler)
 }
@@ -1777,6 +1778,7 @@ fn parijat_tolls_a_forced_attempt_after_its_card_is_replaced() {
     let p = e.add_minion(SeatId(1), prince(0), 3, false);
     e.state.minions[p.index()].locked = true;
     // A full hand: the replacement draws one card.
+    e.state.seats[1].hand.clear();
     hand(&mut e, 1, &["Second Tradition: Domain"]);
     for _ in 0..6 {
         hand(&mut e, 1, &["Soak"]);
@@ -1918,6 +1920,7 @@ fn a_canceled_forced_attempt_pays_no_parijat_toll() {
     let p = e.add_minion(SeatId(1), prince(0), 3, false);
     e.state.minions[p.index()].locked = true;
     e.add_minion(SeatId(2), plain("Tremere", "", 0), 4, false);
+    e.state.seats[1].hand.clear();
     hand(&mut e, 1, &["Second Tradition: Domain"]);
     for _ in 0..6 {
         hand(&mut e, 1, &["Soak"]);
@@ -5078,7 +5081,11 @@ fn revelations_discards_a_card_of_the_preys_hand() {
     e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
     hand(&mut e, 0, &["Revelations"]);
-    hand(&mut e, 1, &["Soak", "Majesty", "Soak"]);
+    hand(
+        &mut e,
+        1,
+        &["Soak", "Majesty", "Soak", "Soak", "Soak", "Soak", "Soak"],
+    );
     let villein = find_library("Villein");
     e.state.seats[1].library = vec![villein; 5];
     pick(&mut e, play_at(0, 0, Some(a), Target::Seat(SeatId(1))));
@@ -8680,19 +8687,17 @@ fn elder_intervention_blocks_a_bleed_redirected_at_you_and_waits_to_be_replaced(
     hand(&mut e, 0, &["Lost in Crowds"]);
     hand(&mut e, 1, &["Telepathic Misdirection"]);
     hand(&mut e, 2, &["Elder Intervention"]);
+    fill_hand(&mut e, 2);
     e.state.seats[2].library = vec![find_library("Elder Intervention"); 3];
     pick(&mut e, action(a, ActionKind::Bleed));
     pick_when(&mut e, play_at(0, 1, Some(t), Target::Seat(SeatId(2))));
     pick_when(&mut e, Choice::DeclareBlock { minion: w });
     pick_when(&mut e, play(0, 0, a)); // +1 stealth
     pick_when(&mut e, play(0, 0, w)); // +2 intercept
-    assert!(e.state.seats[2].hand.is_empty(), "not replaced yet");
+    assert_eq!(e.state.seats[2].hand.len(), 6, "not replaced yet");
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(e.state.minions[w.index()].locked, "blocked");
-    assert!(
-        !e.state.seats[2].hand.is_empty(),
-        "replaced after the action"
-    );
+    assert_eq!(e.state.seats[2].hand.len(), 7, "replaced after the action");
 }
 
 // Forced Awakening: "Only usable by a locked vampire. This vampire wakes …
@@ -9598,6 +9603,9 @@ fn aranthebes_shields_against_young_bleeds_and_shuffles_away() {
     let y2 = e.add_minion(SeatId(2), vampire(|c| c.capacity <= 4, 1), 3, false);
     e.add_minion(SeatId(1), plain("", "", 2), 4, false);
     hand(&mut e, 0, &["Aranthebes, The Immortal"]);
+    fill_hand(&mut e, 0);
+    // Its replacement drawn: the hand is full as the card is shuffled back.
+    e.state.seats[0].library = vec![find_library("Form of Mist")];
     pick(&mut e, play(0, 0, young));
     let req = to_minion_phase(&mut e, 0);
     let id = CardId(e.state.cards.len() as u32 - 1);
@@ -11706,6 +11714,7 @@ fn michael_harris_searches_the_library_for_equipment_to_equip() {
     e.state.seats[0].library = vec![candle, magnum, blade];
     e.state.once_played.push(candle);
     hand(&mut e, 0, &[".44 Magnum"]);
+    fill_hand(&mut e, 0);
     let search = Choice::UseAbility {
         source: AbilitySource::Card(card),
         ability: 0,
@@ -11921,15 +11930,17 @@ fn direct_intervention_cancels_a_card_played_from_fleshforge_chamber() {
     e.state.cards[ff.index()].stored = vec![ghoul];
     e.state.seats[0].library = vec![find_library("Soak"); 3];
     hand(&mut e, 1, &["Direct Intervention"]);
+    fill_hand(&mut e, 0);
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    pick(&mut e, play(0, 0, t));
+    // The ghoul on the Chamber follows the 7 cards in hand.
+    pick(&mut e, play(7, 0, t));
     pick_when(&mut e, master(0));
     let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.minions[t.index()].locked, "no action");
     assert!(e.state.cards[ff.index()].stored.is_empty());
     assert!(e.state.seats[0].ash.contains(&ghoul));
-    assert!(e.state.seats[0].hand.is_empty(), "not replaced");
-    assert!(!req.options.contains(&play(0, 0, t)));
+    assert_eq!(e.state.seats[0].library.len(), 3, "not replaced");
+    assert!(!req.options.contains(&play(7, 0, t)));
 }
 
 // [PIB 20120214] Michael Harris: "If another effect was already setting that
@@ -12012,6 +12023,7 @@ fn a_searched_equipment_takes_ravnos_cache_counters_once_chosen() {
     let cache = in_play_with(&mut e, 0, "Ravnos Cache", 2);
     let magnum = find_library(".44 Magnum");
     e.state.seats[0].library = vec![magnum];
+    fill_hand(&mut e, 0);
     e.state.seats[0].pool = 1;
     pick(
         &mut e,
@@ -12554,6 +12566,7 @@ fn vast_wealth_takes_ravnos_cache_counters_for_its_find() {
     let cache = in_play_with(&mut e, 0, "Ravnos Cache", 2);
     let magnum = find_library(".44 Magnum");
     e.state.seats[0].library = vec![magnum];
+    fill_hand(&mut e, 0);
     e.state.seats[0].pool = 1;
     pick(
         &mut e,
@@ -12794,18 +12807,22 @@ fn blood_weakens_holds_discipline_card_replacements_until_the_action_ends() {
         e.state.seats[0].library = vec![find_library("Soak"); 5];
         hand(&mut e, 0, &["Conditioning"]);
         if spare {
-            hand(&mut e, 0, &["Soak"]);
+            fill_hand(&mut e, 0);
+        } else {
+            // The rest held until the next unlock phase (Old Friends):
+            // Conditioning is the only card in hand.
+            e.state.seats[0].held.unlock = 6;
         }
         pick(&mut e, action(a, ActionKind::Bleed));
         pick(&mut e, play(0, 0, a));
         request(&mut e);
-        // Held, it counts against the hand size: no draw-up (hand 1); with
-        // the hand emptied, drawn at once (and up to the hand size).
+        // Held, it counts against the hand size: no draw-up (hand 6); with
+        // the hand emptied, drawn at once.
         let hand_now = e.state.seats[0].hand.len();
         if spare {
-            assert_eq!(hand_now, 1);
+            assert_eq!(hand_now, 6);
         } else {
-            assert!(hand_now > 1, "drawn up");
+            assert_eq!(hand_now, 1, "drawn at once");
         }
         assert_eq!(e.state.seats[0].held.weakens, u8::from(spare));
         until(&mut e, SeatId(0), WindowLabel::MinionPhase);
@@ -12813,7 +12830,7 @@ fn blood_weakens_holds_discipline_card_replacements_until_the_action_ends() {
             e.state.seats[0].held.weakens, 0,
             "replaced as the action ends"
         );
-        assert!(e.state.seats[0].hand.len() > 1);
+        assert_eq!(e.state.hand_load(SeatId(0)), e.state.hand_size(SeatId(0)));
     }
 }
 
@@ -13443,6 +13460,7 @@ fn absimiliards_army_raises_textless_ghouls_from_the_library() {
     let req = until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
     assert!(req.options.contains(&raise));
     e.state.seats[0].library = vec![find_library("Soak"), stray, stray];
+    fill_hand(&mut e, 0);
     let before = e.state.minions.len();
     pick(&mut e, raise);
     let g = MinionId(before as u32);
@@ -13469,6 +13487,7 @@ fn absimiliards_army_raises_textless_ghouls_from_the_library() {
     let req = until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
     assert!(req.options.contains(&raise));
     e.state.seats[0].library = vec![stray];
+    fill_hand(&mut e, 0);
     let before = e.state.minions.len();
     pick(&mut e, raise);
     let g2 = MinionId(before as u32);
@@ -13568,9 +13587,10 @@ fn blood_weakens_holds_an_action_card_played_with_a_discipline() {
     event_in_play(&mut e, 1, "Blood Weakens", 0);
     e.state.seats[0].library = vec![find_library("Soak"); 5];
     hand(&mut e, 0, &["Intimidation", "Soak"]);
+    fill_hand(&mut e, 0);
     pick(&mut e, play(0, 1, a));
     request(&mut e);
-    assert_eq!(e.state.seats[0].hand.len(), 1, "not replaced yet");
+    assert_eq!(e.state.seats[0].hand.len(), 6, "not replaced yet");
     assert_eq!(e.state.seats[0].held.weakens, 1);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.seats[0].held.weakens, 0, "replaced as it ends");
@@ -14068,6 +14088,7 @@ fn tension_in_the_ranks_counts_a_burned_ghoul_of_absimiliards_army_only() {
     };
     until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
     e.state.seats[0].library = vec![find_library("Soak"); 3];
+    fill_hand(&mut e, 0);
     let before = e.state.minions.len();
     pick(&mut e, raise);
     let g = MinionId(before as u32);
@@ -14077,6 +14098,7 @@ fn tension_in_the_ranks_counts_a_burned_ghoul_of_absimiliards_army_only() {
     assert_eq!(e.state.seats[0].removed.len(), 1, "and removed");
     until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
     e.state.seats[0].library = vec![find_library("Soak"); 3];
+    fill_hand(&mut e, 0);
     let before = e.state.minions.len();
     pick(&mut e, raise);
     let g2 = MinionId(before as u32);
@@ -14548,20 +14570,22 @@ fn a_card_held_until_after_the_action_is_replaced_after_freak_drive() {
     let z = e.add_minion(SeatId(1), plain("", "", 1), 5, false);
     hand(&mut e, 0, &["Freak Drive", "Lost in Crowds"]);
     hand(&mut e, 1, &["Elder Intervention"]);
-    e.state.seats[1].library = vec![find_library("Soak"); 3];
+    fill_hand(&mut e, 1);
+    let soak = find_library("Soak");
+    e.state.seats[1].library = vec![soak; 3];
     pick(&mut e, action(a, ActionKind::Bleed));
     pick_when(&mut e, Choice::DeclareBlock { minion: z });
     pick_when(&mut e, play(1, 0, a)); // Lost in Crowds: +1 stealth
     pick_when(&mut e, play(0, 0, z)); // Elder Intervention: +2 intercept
     let req = until(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
-    assert!(e.state.seats[1].hand.is_empty(), "not replaced yet");
+    assert!(!e.state.seats[1].hand.contains(&soak), "not replaced yet");
     assert!(req.options.contains(&play(0, 1, a)));
     pick(&mut e, play(0, 1, a)); // Freak Drive [FOR]
-    assert!(e.state.seats[1].hand.is_empty(), "not replaced yet");
+    assert!(!e.state.seats[1].hand.contains(&soak), "not replaced yet");
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.minions[a.index()].locked);
     assert!(
-        !e.state.seats[1].hand.is_empty(),
+        e.state.seats[1].hand.contains(&soak),
         "replaced after the action"
     );
 }

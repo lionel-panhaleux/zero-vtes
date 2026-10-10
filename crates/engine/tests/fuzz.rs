@@ -119,6 +119,22 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
             s.hand.len(),
             s.held.total(),
         );
+        // Never under hand size between plays with a library to draw from
+        // (rulebook "Drawing Cards": a hand-size change draws up at once).
+        let quiet = e.action().is_none()
+            && matches!(
+                window,
+                WindowLabel::MasterPhase
+                    | WindowLabel::MinionPhase
+                    | WindowLabel::InfluenceTransfers
+                    | WindowLabel::DiscardPhase
+            );
+        assert!(
+            s.ousted || !quiet || s.library.is_empty() || st.hand_load(zvtes::ids::SeatId(i as u8)) >= size,
+            "hand under size at seat {i} (seed {seed}): {} cards + {} held, size {size}, at {window:?}",
+            s.hand.len(),
+            s.held.total(),
+        );
     }
     // Every card in play is controlled by a living Methuselah.
     for ci in 0..st.cards.len() {

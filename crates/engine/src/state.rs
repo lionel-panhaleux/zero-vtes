@@ -1704,8 +1704,15 @@ impl GameState {
     /// Cards over hand size, the cards not replaced yet counting against
     /// it: discarded down at once (rulebook "Drawing Cards"; spec §6.8.1).
     pub fn hand_excess(&self, s: SeatId) -> usize {
+        self.hand_load(s).saturating_sub(self.hand_size(s))
+    }
+
+    /// The cards counted against the hand size: the hand, plus the cards
+    /// played but not replaced yet, a card's "do not replace as long as
+    /// this card is in play" included (spec §6.8.1).
+    pub fn hand_load(&self, s: SeatId) -> usize {
         let seat = &self.seats[s.index()];
-        (seat.hand.len() + seat.held.total()).saturating_sub(self.hand_size(s))
+        seat.hand.len() + seat.held.total() + seat.held_in_play.len()
     }
 
     /// A rider's card and host predicates hold (a hostless card has no

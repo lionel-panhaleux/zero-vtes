@@ -466,6 +466,7 @@ fn consign_superior_defers_reaction_replacement_to_the_end_of_the_action() {
         .push(find_library("Consign to Oblivion"));
     e.state.seats[1].hand.push(find_library("Deflection"));
     e.state.seats[1].library.push(find_library("Villein"));
+    fill_hand(e, 1);
     pick(e, bleed(t.o));
     pick(e, play(0, 1, t.o)); // [OBL]
     pick(e, Choice::Pass); // seat 1 declines
@@ -474,10 +475,10 @@ fn consign_superior_defers_reaction_replacement_to_the_end_of_the_action() {
     let req = expect(e, SeatId(2), WindowLabel::ActionBlock);
     assert!(req.options.contains(&Choice::DeclareBlock { minion: t.d }));
     assert_eq!(e.state.minions[t.c.index()].blood, 4);
-    assert!(e.state.seats[1].hand.is_empty());
+    assert!(!e.state.seats[1].hand.contains(&find_library("Villein")));
     pick(e, Choice::Pass); // seat 2 declines
     expect(e, SeatId(0), WindowLabel::MinionPhase);
-    assert_eq!(e.state.seats[1].hand, vec![find_library("Villein")]);
+    assert_eq!(e.state.seats[1].hand.last(), Some(&find_library("Villein")));
     assert!(e.state.layers.is_empty()); // action layers popped
     assert_eq!(e.state.seats[2].pool, 29);
 }

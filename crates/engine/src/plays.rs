@@ -60,8 +60,8 @@ impl Engine {
             return;
         }
         let size = self.state.hand_size(s);
-        let seat = &mut self.state.seats[s.index()];
-        while seat.hand.len() + seat.held.total() < size {
+        while self.state.hand_load(s) < size {
+            let seat = &mut self.state.seats[s.index()];
             match seat.library.pop() {
                 Some(c) => seat.hand.push(c),
                 None => break,

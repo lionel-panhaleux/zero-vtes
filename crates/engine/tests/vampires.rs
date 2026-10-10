@@ -1022,6 +1022,7 @@ fn mora_moves_an_ash_heap_card_to_the_library_bottom_once_per_discard_phase() {
     );
     e.state.seats[0].ash = vec![bonding, bonding, conditioning];
     e.state.seats[0].library = vec![villein];
+    fill_hand(&mut e, 0);
     until(&mut e, SeatId(0), WindowLabel::DiscardPhase);
     pick(&mut e, vampire_ability(mora, 0));
     let req = request(&mut e);
@@ -1488,6 +1489,7 @@ fn gathii_reveals_the_top_card_for_blood_or_stealth() {
         e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
         let blocker = e.add_minion(SeatId(1), plain("Brujah", 0), 4, false);
         e.state.seats[0].library.push(find_library(top));
+        fill_hand(&mut e, 0);
         (e, gathii, blocker)
     };
     // A master card on top: 1 blood, whatever the block attempt.
@@ -1542,6 +1544,7 @@ fn gathii_reveals_the_top_card_for_blood_or_stealth() {
     e.state.seats[0]
         .library
         .push(find_library("Dreams of the Sphinx"));
+    fill_hand(&mut e, 0);
     pick(&mut e, action(gathii, ActionKind::LeaveTorpor));
     pick(&mut e, vampire_ability(gathii, 0));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
@@ -1664,6 +1667,7 @@ fn sakhar_searches_his_library_for_an_equipment_card() {
         0,
         &[".44 Magnum", "Blood Rage", "Kevlar Vest", ".44 Magnum"],
     );
+    fill_hand(&mut e, 0);
     let magnum = find_library(".44 Magnum");
     let kevlar = find_library("Kevlar Vest");
     pick(&mut e, printed_action(sakhar, 0, Target::None));
@@ -1693,12 +1697,13 @@ fn dominica_searches_her_library_for_a_master_archetype_card() {
     let dominica = add(&mut e, 0, "Dominica");
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     library(&mut e, 0, &["Blood Doll", "Rebel", "Kevlar Vest"]);
+    fill_hand(&mut e, 0);
     pick(&mut e, printed_action(dominica, 0, Target::None));
     let req = until(&mut e, SeatId(0), WindowLabel::LibrarySearch);
     let rebel = find_library("Rebel");
     assert_eq!(req.options, vec![Choice::Pass, Choice::FindCard(rebel)]);
     pick(&mut e, Choice::FindCard(rebel));
-    assert_eq!(e.state.seats[0].hand, vec![rebel]);
+    assert_eq!(e.state.seats[0].hand.last(), Some(&rebel));
 }
 
 // Seraphina adds 2 blood to a minion her Methuselah controls — herself, or
@@ -3025,6 +3030,7 @@ fn regina_blake_pays_for_a_location_found_by_a_search() {
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     let wealth = in_play(&mut e, "Vast Wealth", 0, Some(tzimisce));
     e.state.seats[0].library = vec![find_library("Living Manse")];
+    fill_hand(&mut e, 0);
     pick(&mut e, granted(wealth as u32, tzimisce));
     let req = until(&mut e, SeatId(0), WindowLabel::PlayTerms);
     assert!(req.options.contains(&Choice::Pass));

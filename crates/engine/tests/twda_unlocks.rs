@@ -2443,6 +2443,9 @@ fn victor_donaldson_shuffles_a_canceled_golconda_back() {
     e.add_minion(SeatId(0), find_card("Victor Donaldson"), 4, false);
     let z = e.add_minion(SeatId(1), find_card("Stanislava"), 4, false);
     hand(&mut e, 0, &["Golconda: Inner Peace"]);
+    fill_hand(&mut e, 0);
+    // Its replacement drawn: the hand is full as the card is shuffled back.
+    e.state.seats[0].library = vec![find_library("Form of Mist")];
     e.at_master_phase();
     pick(
         &mut e,
@@ -2606,6 +2609,7 @@ fn mistress_fanchon_searches_for_a_minion_card() {
     let f = e.add_minion(SeatId(0), find_card("Mistress Fanchon"), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     seat_library(&mut e, 0, &["Double Deuce", "Kevlar Vest", "Auspex"]);
+    fill_hand(&mut e, 0);
     pick(&mut e, printed(f));
     let req = until(&mut e, SeatId(0), WindowLabel::LibrarySearch);
     let deuce = find_library("Double Deuce");
@@ -3447,4 +3451,56 @@ fn i_am_legion_cancels_an_auspex_reaction() {
         .ash
         .contains(&find_library("Eagle's Sight")));
     assert_eq!(pool(&e)[1], 10 - 3, "Nergal's bleed for 3");
+}
+
+// The Capuchin: "+2 hand size" — influenced out, his Methuselah draws up
+// to 9 at once (rulebook "Drawing Cards": "whenever an effect changes your
+// hand size ..., immediately draw up"), not at the next replacement.
+#[test]
+fn the_capuchin_influenced_out_draws_up_at_once() {
+    let mut e = game(2);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.state.seats[0]
+        .uncontrolled
+        .push(zvtes::state::UncontrolledSlot {
+            card: find_card("Capuchin, The"),
+            counters: 11,
+            banished: None,
+        });
+    let villein = find_library("Villein");
+    e.state.seats[0].hand = vec![villein; 7];
+    e.state.seats[0].library = vec![villein; 10];
+    to_window(&mut e, SeatId(0), WindowLabel::InfluenceTransfers);
+    assert_eq!(e.state.seats[0].hand.len(), 7);
+    pick(&mut e, Choice::InfluenceOut { slot: 0 });
+    e.run();
+    assert_eq!(e.state.hand_size(SeatId(0)), 9);
+    assert_eq!(e.state.seats[0].hand.len(), 9);
+    assert_eq!(e.state.seats[0].library.len(), 8);
+}
+
+// The Capuchin's 9 cards: a card played is out of hand until its
+// replacement, never drawn for early — the hand stays at 9, no discard.
+#[test]
+fn the_capuchin_hand_stays_at_nine_through_a_play() {
+    let mut e = game(2);
+    e.add_minion(SeatId(0), find_card("Capuchin, The"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Dreams of the Sphinx"]);
+    fill_hand(&mut e, 0);
+    e.state.seats[0].library = vec![find_library("Villein"); 10];
+    assert_eq!(e.state.seats[0].hand.len(), 9);
+    e.at_master_phase();
+    pick(&mut e, master_play(0));
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        Choice::Discard(0),
+    );
+    assert_eq!(e.state.seats[0].hand.len(), 9);
+    assert_eq!(e.state.seats[0].library.len(), 9, "one replacement");
 }

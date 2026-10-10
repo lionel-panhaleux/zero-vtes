@@ -557,8 +557,7 @@ impl Engine {
                     }
                 }
                 Interrupt::DrawUp { .. } => {
-                    let seat = &self.state.seats[s.index()];
-                    if empty || seat.hand.len() + seat.held.total() >= self.state.hand_size(s) {
+                    if empty || self.state.hand_load(s) >= self.state.hand_size(s) {
                         false
                     } else if choice {
                         true

@@ -352,3 +352,15 @@ pub fn plain(clan: &str, nth: usize) -> u16 {
         .map(|(i, _)| i as u16)
         .unwrap_or_else(|| panic!("no plain {clan} vampire"))
 }
+
+/// Pad `seat`'s hand up to its hand size with Form of Mist, a [pro] combat
+/// card the plain fixture vampires cannot play: a short hand is drawn up at
+/// once from the library (rulebook "Drawing Cards"), which would take the
+/// cards a fixture prepared there.
+pub fn fill_hand(e: &mut Engine, seat: u8) {
+    let s = SeatId(seat);
+    let filler = find_library("Form of Mist");
+    while e.state.hand_load(s) < e.state.hand_size(s) {
+        e.state.seats[seat as usize].hand.push(filler);
+    }
+}

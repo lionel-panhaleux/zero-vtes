@@ -622,6 +622,9 @@ impl Engine {
             if self.interrupts.is_empty() {
                 self.settle_ousting();
             }
+            if self.settle_draw_up() {
+                continue;
+            }
             self.state.drain_all_excess();
             self.state.release_hostages();
             if matches!(self.flow, Flow::GameOver) {
@@ -692,6 +695,47 @@ impl Engine {
         st.clockwise_from(st.active)
             .into_iter()
             .find(|&s| !st.seats[s.index()].hand.is_empty() && st.hand_excess(s) > 0)
+    }
+
+    /// Draw up a hand below its hand size (rulebook "Drawing Cards":
+    /// "whenever an effect changes your hand size ..., immediately draw
+    /// up"): a vampire with a hand size entering play (The Capuchin) or
+    /// leaving torpor, a condition turning true. Checked live, between
+    /// plays only — no draw, action, combat or referendum under way — so
+    /// a card played but not yet replaced is never drawn for early.
+    /// True when a draw-up was queued as a draw choice.
+    fn settle_draw_up(&mut self) -> bool {
+        let quiet = self.interrupts.is_empty()
+            && self.ousting.is_none()
+            && self.action.is_none()
+            && self.combat.is_none()
+            && self.referendum.is_none()
+            && matches!(
+                self.flow,
+                Flow::MasterPhase
+                    | Flow::MinionPhase
+                    | Flow::Influence { .. }
+                    | Flow::Discard
+                    | Flow::Abilities { .. }
+                    | Flow::PhaseRotation { .. }
+            );
+        if !quiet {
+            return false;
+        }
+        for s in self.state.clockwise_from(self.state.active) {
+            let seat = &self.state.seats[s.index()];
+            if seat.ousted
+                || seat.library.is_empty()
+                || self.state.hand_load(s) >= self.state.hand_size(s)
+            {
+                continue;
+            }
+            self.draw_up(s);
+            if !self.interrupts.is_empty() {
+                return true;
+            }
+        }
+        false
     }
 
     fn request(&self) -> Option<DecisionRequest> {

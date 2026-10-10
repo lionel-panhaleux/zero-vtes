@@ -223,6 +223,7 @@ fn eulogio_reorders_the_top_of_his_library() {
         "Abbot",
     ];
     e.state.seats[0].library = names.iter().map(|n| find_library(n)).collect();
+    fill_hand(&mut e, 0);
     pick(
         &mut e,
         Choice::UseAbility {
@@ -261,6 +262,7 @@ fn eulogio_reorders_the_top_of_his_library() {
     let z = e.add_minion(SeatId(2), with("aus", 4..=6), 4, false);
     hand(&mut e, 2, &["Eagle's Sight"]);
     e.state.seats[0].library = names.iter().map(|n| find_library(n)).collect();
+    fill_hand(&mut e, 0);
     pick(
         &mut e,
         Choice::UseAbility {

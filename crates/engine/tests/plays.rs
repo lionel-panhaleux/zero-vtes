@@ -247,15 +247,55 @@ fn discard_phase_replaces_from_the_library() {
     let b = find_library("AK-47");
     e.state.seats[0].hand.push(a);
     e.state.seats[0].library.push(b);
+    fill_hand(&mut e, 0);
     e.state.turn = 4;
     pick(&mut e, Choice::Pass); // minion phase; influence elides
     let req = expect(&mut e, SeatId(0), WindowLabel::DiscardPhase);
-    assert_eq!(req.options, vec![Choice::Pass, Choice::Discard(0)]);
+    // The .44 Magnum, and the first filler card.
+    assert_eq!(
+        req.options,
+        vec![Choice::Pass, Choice::Discard(0), Choice::Discard(1)]
+    );
     pick(&mut e, Choice::Discard(0));
     assert_eq!(e.state.seats[0].ash, vec![a]);
-    assert_eq!(e.state.seats[0].hand, vec![b]);
+    assert_eq!(e.state.seats[0].hand.last(), Some(&b));
     // One discard phase action: the phase elides and the turn passes; the
     // two empty seats elide their whole turns.
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.turn, 7);
+}
+
+// "Do not replace as long as this card is in play" (The Uncoiling): the
+// card not replaced counts against the hand size (spec §6.8.1), so with a
+// full hand its player discards down at once; as the card leaves play,
+// the replacement is drawn.
+#[test]
+fn a_card_held_while_in_play_counts_against_the_hand_size() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), find_card("Abraham DuSable"), 5, false);
+    e.add_minion(SeatId(0), find_card("Abraham Mellon"), 5, false);
+    let id = zvtes::state::CardId(e.state.cards.len() as u32);
+    e.state.cards.push(zvtes::state::CardInPlay::new(
+        find_library("Uncoiling, The"),
+        SeatId(0),
+        None,
+        0,
+    ));
+    e.state.seats[0].held_in_play.push(id);
+    let size = e.state.hand_size(SeatId(0));
+    let mist = find_library("Form of Mist");
+    e.state.seats[0].hand = vec![mist; size];
+    e.state.seats[0].library = vec![find_library("AK-47"); 5];
+    // All alike: the one discard-down choice applies by itself.
+    request(&mut e);
+    assert_eq!(e.state.seats[0].hand.len(), size - 1);
+    assert_eq!(e.state.seats[0].ash, vec![mist]);
+    e.burn_card(id);
+    request(&mut e);
+    assert_eq!(
+        e.state.seats[0].hand.len(),
+        size,
+        "replaced as it leaves play"
+    );
+    assert_eq!(e.state.seats[0].library.len(), 4);
 }

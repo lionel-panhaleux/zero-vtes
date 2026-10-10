@@ -534,6 +534,7 @@ fn reinforcements_shuffles_ash_cards_back_and_leaves_the_game() {
         find_library("Majesty"),
     ];
     hand(&mut e, 0, &["Reinforcements"]);
+    fill_hand(&mut e, 0);
     pick(&mut e, play(0, 0, francois));
     pick_when(&mut e, Choice::ChooseSeat(SeatId(0)));
     pick_when(&mut e, Choice::Pass);
