@@ -10,7 +10,8 @@
 //! rescue of one's own vampire), `pass:<bonus>` (to passing one's discard
 //! phase), `reaction:<bonus>` (taken off cycling a reaction),
 //! `bleed:<bonus>` (taken off a bleed for nothing), `idle:<bonus>` (taken
-//! off ending the influence phase with a crypt draw offered), `chores:1`
+//! off ending the influence phase with a crypt draw offered), `draw:<bonus>`
+//! (to that crypt draw), `chores:1`
 //! (the chores never declined) — e.g.
 //! `t:0.5+rescue:1.5`. Every seat plays the default politics, as in
 //! training.
@@ -63,10 +64,11 @@ impl Variant {
                 "reaction" => v.nudges.reaction = num()?,
                 "bleed" => v.nudges.bleed = num()?,
                 "idle" => v.nudges.idle = num()?,
+                "draw" => v.nudges.draw = num()?,
                 "chores" => v.chores = num()? != 0.0,
                 _ => {
                     return Err(format!(
-                        "{k:?}: habits, t, rescue, pass, reaction, bleed, idle"
+                        "{k:?}: habits, t, rescue, pass, reaction, bleed, idle, draw"
                     ))
                 }
             }

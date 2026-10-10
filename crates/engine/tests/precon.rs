@@ -3322,6 +3322,37 @@ fn pack_alpha_employs_an_animal_retainer_from_hand() {
     );
 }
 
+// Pack Alpha out of turn, its retainer's cost paying the player's last
+// pool (costs payable even if the payer burns): the player is ousted and
+// the acting Methuselah's turn goes on — it passed the turn and left a
+// combat flow with no combat (p9 training, 2026-10-10: "combat context").
+#[test]
+fn pack_alpha_paid_down_to_zero_out_of_turn_ousts_without_passing_the_turn() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let gangrel = vampire(
+        |c| c.clan == "Gangrel" && has(c, &["ani"]) && c.title == Title::None,
+        0,
+    );
+    let b = e.add_minion(SeatId(1), gangrel, 3, false);
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+    e.state.seats[1].pool = 2;
+    hand(&mut e, 1, &["Pack Alpha", "Dog Pack"]);
+    bleed_blocked(&mut e, a, b);
+    until(&mut e, SeatId(1), WindowLabel::CombatBeforeRange);
+    pick(&mut e, play(0, 0, b));
+    let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.seats[1].ousted, "paid its last pool");
+    assert_eq!(
+        e.state.active,
+        SeatId(0),
+        "the acting Methuselah's turn goes on"
+    );
+    assert_eq!(req.seat, SeatId(0));
+    assert_eq!(e.state.seats[0].half_vps, 2, "its predator's victory point");
+}
+
 // Pack Alpha [ANI]: "Burn an animal retainer employed by this vampire to
 // put this card on this vampire. This minion gets +1 strength. A minion can
 // have only one Pack Alpha."

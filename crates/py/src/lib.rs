@@ -70,10 +70,11 @@ fn kind_name(k: Kind) -> String {
     }
 }
 
-/// A table Python asks for: seat kinds, and decks (drawn when absent).
+/// A table Python asks for: seat kinds, and decks (a seat's drawn when
+/// absent).
 struct Spec {
     kinds: Vec<Kind>,
-    decks: Option<Vec<usize>>,
+    decks: Option<Vec<Option<usize>>>,
     /// A start (`starts`): the game replayed to one of its decisions, its
     /// decks the replay's.
     start: Option<usize>,
@@ -96,6 +97,8 @@ struct Episode {
     log: Option<Vec<usize>>,
     /// The game began from a start: (start index, decision).
     start: Option<(usize, usize)>,
+    /// The engine panicked (`Game::advance_caught`): its message.
+    panic: Option<String>,
 }
 
 struct Game {
@@ -124,6 +127,17 @@ struct Game {
     chores: bool,
     /// The pending decision's omniscient encoding (`critic` pools).
     critic: Option<Obs>,
+    /// The engine panicked on the policy's answer (`GamePool::act`): the
+    /// game ends at the next `advance`, as a `panic` episode.
+    crashed: Option<String>,
+}
+
+/// A caught panic's message.
+fn panic_message(e: &(dyn std::any::Any + Send)) -> String {
+    e.downcast_ref::<&str>()
+        .map(|s| s.to_string())
+        .or_else(|| e.downcast_ref::<String>().cloned())
+        .unwrap_or_else(|| "unknown panic".into())
 }
 
 impl Game {
@@ -181,7 +195,56 @@ impl Game {
             habits: habits::Set::ALL,
             chores: false,
             critic: None,
+            crashed: None,
         }
+    }
+
+    /// `advance`, an engine panic caught (owner's p9 run, 2026-10-10: one
+    /// game's panic stopped a 40-hour run): the game ends as a truncated
+    /// `panic` episode, named on stderr (seed, decks, seats, start, log)
+    /// so it replays.
+    fn advance_caught(
+        &mut self,
+        budget: u64,
+        slot: usize,
+        keep_log: bool,
+        critic: bool,
+    ) -> Option<Episode> {
+        let message = match self.crashed.take() {
+            Some(m) => m,
+            None => match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                self.advance(budget, slot, keep_log, critic)
+            })) {
+                Ok(ep) => return ep,
+                Err(e) => panic_message(&*e),
+            },
+        };
+        self.pending = None;
+        eprintln!(
+            "engine panic: {message:?} seed {} time_limit {} decks {:?} seats {:?} start {:?} log {:?}",
+            self.seed,
+            self.engine.time_limit,
+            self.decks,
+            self.kinds.iter().map(|&k| kind_name(k)).collect::<Vec<_>>(),
+            self.start,
+            self.engine.log
+        );
+        let e = &self.engine;
+        Some(Episode {
+            slot,
+            game: self.number,
+            time_limit: e.time_limit,
+            seed: self.seed,
+            decks: self.decks.clone(),
+            kinds: self.kinds.clone(),
+            half_vps: e.state.seats.iter().map(|s| s.half_vps).collect(),
+            turns: e.state.turn,
+            decisions: e.decisions,
+            truncated: true,
+            log: keep_log.then(|| e.log.clone()),
+            start: self.start,
+            panic: Some(message),
+        })
     }
 
     /// Advance to the next policy decision; the finished game, if it
@@ -207,6 +270,7 @@ impl Game {
                 truncated,
                 log: keep_log.then(|| e.log.clone()),
                 start: self.start,
+                panic: None,
             };
             if self.engine.decisions >= budget {
                 let vps = self.engine.state.seats.iter().map(|s| s.half_vps).collect();
@@ -489,7 +553,7 @@ impl GamePool {
             g.chores = self.chores;
             return g;
         }
-        let decks = decks.unwrap_or_else(|| self.draw_decks(kinds.len()));
+        let decks = self.draw_decks(decks.unwrap_or_else(|| vec![None; kinds.len()]));
         self.started += 1;
         let mut g = Game::new(
             self.started - 1,
@@ -515,9 +579,12 @@ impl GamePool {
     /// more than 20% of its crypt with one already seated is redrawn
     /// (owner, 2026-09-28: crippling contests; the same deck twice shares
     /// all of it), up to a few tries — a small pool may have to accept one.
-    fn draw_decks(&mut self, n: usize) -> Vec<usize> {
-        let mut out: Vec<usize> = Vec::with_capacity(n);
-        for _ in 0..n {
+    /// Seats given a deck (`pinned`, one entry a seat) keep it; the
+    /// others are drawn against every deck already chosen, pinned ones too.
+    fn draw_decks(&mut self, pinned: Vec<Option<usize>>) -> Vec<usize> {
+        let mut out: Vec<usize> = pinned.iter().flatten().copied().collect();
+        let fixed = out.len();
+        for _ in pinned.iter().filter(|d| d.is_none()) {
             let mut pick = self.draw_deck();
             for _ in 0..32 {
                 let clash = out
@@ -530,13 +597,17 @@ impl GamePool {
             }
             out.push(pick);
         }
-        out
+        let mut drawn = out.split_off(fixed).into_iter();
+        pinned
+            .into_iter()
+            .map(|d| d.unwrap_or_else(|| drawn.next().expect("a deck a seat")))
+            .collect()
     }
 
     fn spec(
         &self,
         seats: Vec<String>,
-        decks: Option<Vec<usize>>,
+        decks: Option<Vec<Option<usize>>>,
         start: Option<usize>,
     ) -> PyResult<Spec> {
         if !(4..=5).contains(&seats.len()) {
@@ -547,8 +618,11 @@ impl GamePool {
             .map(|s| kind(s))
             .collect::<PyResult<Vec<_>>>()?;
         if let Some(d) = &decks {
-            if d.len() != kinds.len() || d.iter().any(|&d| d >= all_decks().len()) {
-                return Err(PyValueError::new_err("one deck index in 0..28 per seat"));
+            let n = all_decks().len();
+            if d.len() != kinds.len() || d.iter().flatten().any(|&d| d >= n) {
+                return Err(PyValueError::new_err(format!(
+                    "one deck index in 0..{n} (or None: drawn) per seat"
+                )));
             }
         }
         if let Some(i) = start {
@@ -580,7 +654,7 @@ impl GamePool {
                     .par_iter_mut()
                     .enumerate()
                     .filter(|(_, g)| g.pending.is_none())
-                    .filter_map(|(i, g)| g.advance(budget, i, keep, critic))
+                    .filter_map(|(i, g)| g.advance_caught(budget, i, keep, critic))
                     .collect()
             });
             if done.is_empty() {
@@ -818,7 +892,8 @@ impl GamePool {
     /// Answer every pending decision (one option index per game), advance,
     /// and return the games finished since the last call: dicts with
     /// `slot`, `seed`, `decks`, `seats`, `half_vps`, `turns`, `decisions`,
-    /// `truncated` (and `log` with `keep_logs`). A finished slot already
+    /// `truncated` (and `log` with `keep_logs`; `panic`, the message, for a
+    /// game the engine panicked in: `Game::advance_caught`). A finished slot already
     /// holds its next game (but past the queue without `refill`: the slot
     /// is gone).
     fn act<'py>(
@@ -866,7 +941,12 @@ impl GamePool {
                 }
             }
             let a = g.offered.take().map_or(a, |o| o[a]);
-            g.engine.choose(a);
+            let engine = &mut g.engine;
+            if let Err(e) =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| engine.choose(a)))
+            {
+                g.crashed = Some(panic_message(&*e));
+            }
         }
         self.settle(py);
         std::mem::take(&mut self.finished)
@@ -892,6 +972,9 @@ impl GamePool {
                 if let Some(start) = ep.start {
                     d.set_item("start", start)?;
                 }
+                if let Some(panic) = ep.panic {
+                    d.set_item("panic", panic)?;
+                }
                 Ok(d)
             })
             .collect()
@@ -899,7 +982,7 @@ impl GamePool {
 
     /// Replace the queue of tables the next new games take, in order:
     /// dicts with `seats` (kinds: "net:k", "random", "aggro", "wall"; 4 or
-    /// 5), optionally `decks` (one index per seat) or `start` (an index into
+    /// 5), optionally `decks` (one index per seat, None for one drawn) or `start` (an index into
     /// `replays`: the game from one of its decisions, its decks the
     /// replay's, as many seats as it has). When it runs out, new
     /// games take the pool's default table.
@@ -910,7 +993,7 @@ impl GamePool {
                 .get_item("seats")?
                 .ok_or_else(|| PyValueError::new_err("a spec needs seats"))?
                 .extract()?;
-            let decks: Option<Vec<usize>> = match d.get_item("decks")? {
+            let decks: Option<Vec<Option<usize>>> = match d.get_item("decks")? {
                 Some(v) => Some(v.extract()?),
                 None => None,
             };
@@ -956,7 +1039,8 @@ impl GamePool {
     /// cycle), "reaction" (taken off cycling a reaction), "bleed" (taken
     /// off a bleed for nothing: `zvtes_policy::empty_bleed`), "idle" (taken
     /// off ending the influence phase with a crypt draw still offered:
-    /// `zvtes_policy::idle_influence`), all 0 by default.
+    /// `zvtes_policy::idle_influence`), "draw" (on a crypt draw there), all
+    /// 0 by default.
     /// Set with any of the keys; those left out are kept.
     #[getter]
     fn nudges(&self) -> std::collections::BTreeMap<&'static str, f32> {
@@ -967,6 +1051,7 @@ impl GamePool {
             ("reaction", n.reaction),
             ("bleed", n.bleed),
             ("idle", n.idle),
+            ("draw", n.draw),
         ]
         .into()
     }
@@ -980,9 +1065,10 @@ impl GamePool {
                 "reaction" => self.nudges.reaction = v,
                 "bleed" => self.nudges.bleed = v,
                 "idle" => self.nudges.idle = v,
+                "draw" => self.nudges.draw = v,
                 _ => {
                     return Err(PyValueError::new_err(format!(
-                        "nudge {k:?}: rescue, pass, reaction, bleed, idle"
+                        "nudge {k:?}: rescue, pass, reaction, bleed, idle, draw"
                     )))
                 }
             }

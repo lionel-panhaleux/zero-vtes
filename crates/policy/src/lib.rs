@@ -479,6 +479,11 @@ pub struct Nudges {
     /// the network ends 69% of its influence phases with none made, pool
     /// 11.7 on average, the owner 25%).
     pub idle: f32,
+    /// Added to a crypt draw (4 transfers) with 5 pool or more (owner,
+    /// 2026-10-10: "the bot never pays 4 transfers to draw from the
+    /// crypt": offered ~40 times a game, never taken — p8 gave it 6e-8 —
+    /// the owner 11% of the times it is offered).
+    pub draw: f32,
 }
 
 impl Nudges {
@@ -498,6 +503,9 @@ impl Nudges {
         }
         if self.idle != 0.0 && *o == Choice::Pass && idle_influence(e, req) {
             b -= self.idle;
+        }
+        if self.draw != 0.0 && *o == Choice::DrawCrypt && idle_influence(e, req) {
+            b += self.draw;
         }
         if (self.pass != 0.0 || self.reaction != 0.0) && cycling(e, req) {
             let hand = &e.state.seats[req.seat.index()].hand;

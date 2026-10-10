@@ -45,6 +45,7 @@ struct Counts {
     /// (`zvtes_policy::idle_influence`), and those ending the phase.
     idle_offered: u64,
     idle_passed: u64,
+    idle_drawn: u64,
     empty_bleed_offered: u64,
     empty_bled: u64,
     rescue_offered: u64,
@@ -203,6 +204,7 @@ impl Watch {
         if zvtes_policy::idle_influence(e, req) {
             c.idle_offered += 1;
             c.idle_passed += (o == Choice::Pass) as u64;
+            c.idle_drawn += (o == Choice::DrawCrypt) as u64;
         }
         if req.window == WindowLabel::InfluenceTransfers && e.state.active == me {
             let st = &e.state;
@@ -312,8 +314,8 @@ fn self_play(
     let net = Rc::new(Net::load(&std::fs::read(path).expect("the policy")).expect("a policy"));
     let decks: Vec<Deck> = Deck::all().take(14).collect();
     let group = format!(
-        "self-play (t {temperature}, nudges rescue {} pass {} reaction {} bleed {} idle {})",
-        nudges.rescue, nudges.pass, nudges.reaction, nudges.bleed, nudges.idle
+        "self-play (t {temperature}, nudges rescue {} pass {} reaction {} bleed {} idle {} draw {})",
+        nudges.rescue, nudges.pass, nudges.reaction, nudges.bleed, nudges.idle, nudges.draw
     );
     for g in 0..games {
         let seats: Vec<Deck> = (0..4)
@@ -342,7 +344,7 @@ fn self_play(
 
 fn main() {
     let mut args = std::env::args().skip(1);
-    let usage = "usage: waste <policy.zvp> <games> [--t T] [--rescue B] [--pass B] [--reaction B] [--bleed B] [--idle B] [replay]...";
+    let usage = "usage: waste <policy.zvp> <games> [--t T] [--rescue B] [--pass B] [--reaction B] [--bleed B] [--idle B] [--draw B] [replay]...";
     let policy = args.next().expect(usage);
     let games: u64 = args.next().and_then(|n| n.parse().ok()).expect(usage);
     let (mut temperature, mut nudges, mut replays) = (1.0, Nudges::default(), Vec::new());
@@ -359,6 +361,7 @@ fn main() {
             "--reaction" => nudges.reaction = num(),
             "--bleed" => nudges.bleed = num(),
             "--idle" => nudges.idle = num(),
+            "--draw" => nudges.draw = num(),
             _ => replays.push(a),
         }
     }
@@ -413,9 +416,10 @@ fn main() {
             .collect();
         println!("  types, share of hand / of cycled: {}", line.join(", "));
         println!(
-            "  influence with a crypt draw offered and 5+ pool: {}, ended there {:.0}%",
+            "  influence with a crypt draw offered and 5+ pool: {}, ended there {:.0}%, drew {:.0}%",
             c.idle_offered,
-            pct(c.idle_passed, c.idle_offered)
+            pct(c.idle_passed, c.idle_offered),
+            pct(c.idle_drawn, c.idle_offered)
         );
         for (name, i) in ["no ready minion", "some ready"].iter().zip(&c.influence) {
             println!(

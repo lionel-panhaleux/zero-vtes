@@ -10,7 +10,7 @@ import torch
 
 from train.league import EXP, EXPLOITER, FROZEN, League
 from train.model import remap_vocab
-from train.ppo import Config, Trainer, eval_tables
+from train.ppo import Config, Trainer, eval_tables, load_replays
 
 
 def test_one_iteration(tmp_path):
@@ -242,7 +242,7 @@ def test_nudges_fade(tmp_path):
 
     cfg = Config(rescue_bonus=2.0, pass_bonus=4.0, nudge_from=100, nudge_until=200)
     assert [nudges(cfg, it)["rescue"] for it in (50, 100, 150, 200, 300)] == [2.0, 2.0, 1.0, 0.0, 0.0]
-    assert nudges(cfg, 150) == {"rescue": 1.0, "pass": 2.0, "reaction": 0.0, "bleed": 0.0, "idle": 0.0}
+    assert nudges(cfg, 150) == {"rescue": 1.0, "pass": 2.0, "reaction": 0.0, "bleed": 0.0, "idle": 0.0, "draw": 0.0}
     assert nudges(Config(reaction_bonus=1.5), 10_000)["reaction"] == 1.5
     small = dict(
         games=8, steps=16, iterations=1, epochs=1, minibatch=64, d=32, layers=1,
@@ -250,4 +250,41 @@ def test_nudges_fade(tmp_path):
     )
     Trainer(Config(**small, out=str(tmp_path), rescue_bonus=1.5, pass_bonus=3.0)).run()
     row = json.loads(open(tmp_path / "metrics.jsonl").read().splitlines()[-1])
-    assert row["nudges"] == {"rescue": 1.5, "pass": 3.0, "reaction": 0.0, "bleed": 0.0, "idle": 0.0} and "habits" in row
+    assert row["nudges"] == {"rescue": 1.5, "pass": 3.0, "reaction": 0.0, "bleed": 0.0, "idle": 0.0, "draw": 0.0} and "habits" in row
+
+
+def test_imitation_and_weak_decks(tmp_path):
+    """p9 (owner, 2026-10-10): the cross-entropy on the owner's choices
+    trained and logged (held-out games apart), a game exported twice read
+    once, the learner given a weak deck (in a start, seated at one)."""
+    small = dict(
+        games=8, steps=16, iterations=1, epochs=1, minibatch=64, d=32, layers=1,
+        eval_every=1, eval_games=4, device="cpu", best_seeds=1,
+    )
+    Trainer(Config(**small, out=str(tmp_path / "old"))).run()
+    twice = [
+        "data/replays/zero-vtes-replay-2026-10-09T19-28-48-837Z.json",
+        "data/replays/zero-vtes-replay-2026-10-09T19-39-10-276Z.json",
+    ]
+    assert [p.name for p, _, _ in load_replays(",".join(twice))] == [twice[1].split("/")[-1]]
+    # Malkavian, Ravnos, Path of Caine (the owner), Toreador.
+    start = "data/replays/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
+    cfg = Config(
+        **small, out=str(tmp_path / "new"), league=True, opponents=str(tmp_path / "old" / "model.pt"),
+        bc=",".join([start, twice[0]]), bc_coef=0.1, bc_holdout=2, bc_batch=32,
+        weak_decks="32,5", weak_rate=0.5, starts=start, start_tables=0.3, bots_every=0, critic_warmup=0,
+    )
+    trainer = Trainer(cfg)
+    assert trainer.bc and trainer.bc_held
+    specs = [trainer.spec() for _ in range(80)]
+    for spec in specs:
+        if "start" in spec:
+            assert spec["seats"].index("net:0") == 2
+        elif "decks" in spec:
+            assert spec["decks"][spec["seats"].index("net:0")] in (32, 5)
+            assert sum(d is not None for d in spec["decks"]) == 1
+    assert any("decks" in s for s in specs) and any("decks" not in s and "start" not in s for s in specs)
+    trainer.run()
+    row = json.loads(open(tmp_path / "new" / "metrics.jsonl").read().splitlines()[-1])
+    assert {"bc_nll", "bc_val_nll", "bc_val_acc", "bc_fit_nll"} <= set(row)
+    assert "vs_bots4" not in row, "bots_every 0: no bots once frozen opponents select"

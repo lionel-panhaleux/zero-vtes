@@ -22,15 +22,7 @@ import torch
 import zvtes_py
 
 from train.model import Critic, Policy, remap_vocab
-from train.ppo import collate, collate_critic, forward
-
-# A decision's arrays, in `train.ppo.rows`' order (the bias aside).
-ROW_KEYS = [
-    f"{c}{k}"
-    for c, ks in (("", ("tok_ids", "tok_f", "opt_ids", "opt_f", "deck_ids", "deck_f")),
-                  ("critic_", ("tok_ids", "tok_f", "deck_ids", "deck_f")))
-    for k in ks
-]
+from train.ppo import ROW_KEYS, collate, collate_critic, forward
 
 
 def load(path):

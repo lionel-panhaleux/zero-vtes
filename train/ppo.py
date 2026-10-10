@@ -64,7 +64,10 @@ class Config:
     # `critic_warmup` iterations train it alone, the policy frozen.
     critic_warmup: int = 10
     # The game win's weight in the reward, in VPs (tournament ranking puts
-    # game wins first).
+    # game wins first). p9 runs at 5 (owner, 2026-10-10: "penalize doing
+    # only 1vp and not winning": ousting a prey then dying earned half a
+    # 3-VP win's reward at 2; win-only would leave ~70% of the games
+    # without a gradient).
     gw_weight: float = 2.0
     d: int = 96
     layers: int = 2
@@ -90,6 +93,8 @@ class Config:
     # evaluation from each multiple of `bots_every` (their scores sat at
     # 2.4–2.8 VP for hundreds of iterations).
     eval_every: int = 20
+    # 0: never, once frozen opponents select (owner, 2026-10-10: "scripted
+    # bots are too bad to matter").
     bots_every: int = 50
     eval_games: int = 256
     budget: int = 20_000
@@ -163,6 +168,9 @@ class Config:
     reaction_bonus: float = 0.0
     bleed_bonus: float = 0.0
     idle_bonus: float = 0.0
+    # Added to a crypt draw with 5 pool or more (owner, 2026-10-10: "the
+    # bot never pays 4 transfers to draw from the crypt").
+    draw_bonus: float = 0.0
     nudge_from: int = 0
     nudge_until: int = 0
     # Starts (owner, 2026-10-04): the share of training tables begun from a
@@ -171,6 +179,22 @@ class Config:
     # random seat, the libraries and crypts shuffled again.
     starts: str = ""
     start_tables: float = 0.0
+    # Imitation (owner, 2026-10-10, the p9 plan; AlphaStar's recipe: RL
+    # leads, the human term guides): each PPO minibatch adds `bc_coef` ×
+    # the cross-entropy of the policy (its own logits, no nudge) on
+    # `bc_batch` of the humans' choices with an alternative, from the
+    # replays in `bc` (as `starts`). Every `bc_holdout`-th game (0: none)
+    # is held out: its loss is logged, never trained on (overfitting).
+    bc: str = ""
+    bc_coef: float = 0.0
+    bc_batch: int = 256
+    bc_holdout: int = 8
+    # Weak decks (deck indices, comma-separated; owner, 2026-10-10, the p9
+    # plan): the learner's seat is given one of them on `weak_rate` of
+    # the tables, its opponents' decks drawn as ever; in a start, the
+    # learner sits at a seat playing one when there is one.
+    weak_decks: str = ""
+    weak_rate: float = 0.0
 
 
 def device_of(name):
@@ -184,6 +208,14 @@ FIELDS = ("tok_ids", "tok_f", "opt_ids", "opt_f", "deck_ids", "deck_f")
 # before), the critic's tokens and deck rows (None without the critic),
 # the options' logit bias (the nudges).
 TOK, TOK_F, OPT, OPT_F, DECK, DECK_F, C_TOK, C_TOK_F, C_DECK, C_DECK_F, BIAS = range(11)
+
+# A decision's arrays as `zvtes_py.replay_decisions` names them, in a
+# row's order (`rows`, the bias aside).
+ROW_KEYS = [
+    f"{c}{k}"
+    for c, ks in (("", FIELDS), ("critic_", ("tok_ids", "tok_f", "deck_ids", "deck_f")))
+    for k in ks
+]
 
 # Batch shapes are rounded up to these multiples (rows, tokens, options):
 # the MPS backend compiles and keeps a graph per shape, never freed — the
@@ -335,6 +367,12 @@ def rewards(ep, gw_weight):
     return (vps + gw_weight * win) / 5
 
 
+def selection(e4, e5, gw_weight):
+    """An evaluation's score at 4 and 5 seats (`Trainer.evaluate`'s
+    results): the reward's VPs + `gw_weight` × game wins, averaged."""
+    return sum(e["vps"] + gw_weight * e["gw"] for e in (e4, e5)) / 2
+
+
 def eval_tables(opponents, games):
     """`games` seatings: the learner (`net:0`) at every seat in turn, then
     the next distinct order of `opponents` around it."""
@@ -372,13 +410,14 @@ def act(nets, obs, device, rng):
 
 def nudges(cfg, it):
     """The nudges at iteration `it` (`Config.rescue_bonus`, `pass_bonus`,
-    `reaction_bonus`, `bleed_bonus`, `idle_bonus`), as `GamePool.nudges` takes them."""
+    `reaction_bonus`, `bleed_bonus`, `idle_bonus`, `draw_bonus`), as `GamePool.nudges` takes them."""
     full = {
         "rescue": cfg.rescue_bonus,
         "pass": cfg.pass_bonus,
         "reaction": cfg.reaction_bonus,
         "bleed": cfg.bleed_bonus,
         "idle": cfg.idle_bonus,
+        "draw": cfg.draw_bonus,
     }
     if cfg.nudge_until <= 0 or it <= cfg.nudge_from:
         return full
@@ -387,16 +426,62 @@ def nudges(cfg, it):
     return {k: v * fade for k, v in full.items()}
 
 
-def load_starts(spec):
-    """The replays to start from (`--starts`: a directory of `.json` files
-    or comma-separated paths): (path, text, seats) each."""
+def load_replays(spec):
+    """Replays (`--starts`, `--bc`: a directory of `.json` files or
+    comma-separated paths): (path, text, seats) each. A game exported
+    twice (the same spec, one log the other's start) is kept once, its
+    longest export."""
     if not spec:
         return []
     paths = []
     for part in spec.split(","):
         p = Path(part.strip())
         paths += sorted(p.glob("*.json")) if p.is_dir() else [p]
-    return [(p, p.read_text(), len(json.loads(p.read_text())["spec"]["seats"])) for p in paths]
+    games = [(p, p.read_text()) for p in paths]
+    parsed = [json.loads(t) for _, t in games]
+    out = []
+    for i, ((p, text), g) in enumerate(zip(games, parsed)):
+        n = len(g["log"])
+        longer = any(
+            j != i
+            and h["spec"] == g["spec"]
+            and h["log"][:n] == g["log"]
+            and (len(h["log"]) > n or j < i)
+            for j, h in enumerate(parsed)
+        )
+        if not longer:
+            out.append((p, text, len(g["spec"]["seats"])))
+    return out
+
+
+def deck_index(seat):
+    """A replay seat's deck (KRCG id -> count) as a pool deck index, None
+    when it is none of them (a human's own list)."""
+    global DECK_INDEX
+    if DECK_INDEX is None:
+        n = len(zvtes_py.deck_names())
+        DECK_INDEX = {frozenset(zvtes_py.deck_cards(d)): d for d in range(n)}
+    return DECK_INDEX.get(frozenset((int(k), v) for k, v in seat["deck"].items()))
+
+
+DECK_INDEX = None
+
+
+def imitation(replays, obs, holdout):
+    """The humans' choices with an alternative in `replays` (rows as the
+    rollout's, the bias zero, and the option chosen): (trained, held out),
+    every `holdout`-th game held out (and their names)."""
+    train, held, names = [], [], []
+    for g, (path, text, _) in enumerate(replays):
+        game = zvtes_py.replay_decisions(text, obs)
+        out = held if holdout and g % holdout == holdout - 1 else train
+        if out is held:
+            names.append(path.name)
+        for d in game["decisions"]:
+            if d["seat"] in game["humans"] and d["chosen"] is not None and len(d["options"]) > 1:
+                row = tuple(d[k] for k in ROW_KEYS) + (np.zeros(len(d["options"]), np.float32),)
+                out.append((row, d["chosen"]))
+    return train, held, names
 
 
 class Learner:
@@ -459,8 +544,10 @@ class Trainer:
             if "critic_optimizer" in saved and same_shapes:
                 self.critic_opt.load_state_dict(saved["critic_optimizer"])
             self.warmup = saved.get("critic_warmup", self.warmup)
-            # A new observation is a new input for the critic too.
-            if saved and saved.get("config", {}).get("obs", 1) != cfg.obs:
+            # A new observation is a new input for the critic too, a new
+            # game-win weight a new scale for its returns.
+            old_cfg = saved.get("config", {})
+            if saved and (old_cfg.get("obs", 1) != cfg.obs or old_cfg.get("gw_weight", 2.0) != cfg.gw_weight):
                 self.warmup = cfg.critic_warmup
         # The best selection evaluation so far (`best.pt`: against the bots
         # or the frozen opponents; kept across a resume into the same
@@ -511,7 +598,18 @@ class Trainer:
                 f"deck families: precons, anniversary, sabbat, twda (got {cfg.decks!r})"
             )
         self.decks = [i for f in names for i in families[f]]
-        self.starts = load_starts(cfg.starts)
+        self.starts = load_replays(cfg.starts)
+        # Each start's seats' pool decks (None: a human's own list).
+        self.start_decks = [
+            [deck_index(s) for s in json.loads(text)["spec"]["seats"]] for _, text, _ in self.starts
+        ]
+        self.weak = [int(d) for d in cfg.weak_decks.split(",") if d.strip()]
+        self.bc, self.bc_held = [], []
+        if cfg.bc_coef > 0:
+            self.bc, self.bc_held, held = imitation(load_replays(cfg.bc), cfg.obs, cfg.bc_holdout)
+            if not self.bc:
+                raise ValueError("--bc-coef needs --bc replays with human choices")
+            print(json.dumps({"bc": len(self.bc), "bc_held": len(self.bc_held), "held_out": held}), flush=True)
         if cfg.start_tables > 0 and not self.starts:
             raise ValueError("--start-tables needs --starts")
         self.pool = zvtes_py.GamePool(
@@ -543,22 +641,29 @@ class Trainer:
         return self.league.nets(self.model, self.exploiter.model if self.exploiter else None)
 
     def spec(self):
-        start, n = None, None
+        start, n, at = None, None, None
         if self.starts and self.rng.random() < self.cfg.start_tables:
             start = int(self.rng.integers(len(self.starts)))
             n = self.starts[start][2]
+            weak = [s for s, d in enumerate(self.start_decks[start]) if d in self.weak]
+            if weak:
+                at = int(self.rng.choice(weak))
         if self.league:
-            spec = self.league.spec(n)
+            spec = self.league.spec(n, at)
         else:
             spec = {"seats": ["net:0"] * (n or int(self.rng.choice(TABLES)))}
         if start is not None:
             spec["start"] = start
+        elif self.league and self.weak and self.rng.random() < self.cfg.weak_rate:
+            decks = [None] * len(spec["seats"])
+            decks[spec["seats"].index("net:0")] = int(self.rng.choice(self.weak))
+            spec["decks"] = decks
         return spec
 
     def rollout(self):
         """Play `steps` pool steps; each learner's transitions with their
         advantages and returns, and episode statistics."""
-        stats = {"episodes": 0, "truncated": 0, "turns": 0, "starts": 0}
+        stats = {"episodes": 0, "truncated": 0, "turns": 0, "starts": 0, "panics": 0}
         by_agent = {lr.agent: lr for lr in self.learners()}
         closed = {a: [] for a in by_agent}
         self.pool.queue([self.spec() for _ in range(self.cfg.games)])
@@ -575,6 +680,14 @@ class Trainer:
                     [row, int(actions[i]), float(logp[i]), float(values[i]), 0.0, False]
                 )
             for ep in self.pool.act(actions.tolist()):
+                if "panic" in ep:
+                    # An engine bug (named on stderr): the game's chains
+                    # are dropped, not rewarded.
+                    stats["panics"] += 1
+                    for s in range(len(ep["seats"])):
+                        for learner in self.learners():
+                            learner.chains.pop((ep["slot"], s), None)
+                    continue
                 stats["episodes"] += 1
                 stats["truncated"] += ep["truncated"]
                 stats["turns"] += ep["turns"]
@@ -665,7 +778,7 @@ class Trainer:
             return {}
         adv = np.array([s[3] for s in samples], np.float32)
         adv = (adv - adv.mean()) / (adv.std() + 1e-8)
-        losses = []
+        losses, bc = [], []
         critic = self.critic is not None and learner.agent == 0
         warming = critic and self.warmup > 0
         for _ in range(cfg.epochs):
@@ -704,6 +817,11 @@ class Trainer:
                         kl = ((ratio - 1) - (logp - old)).mean()
                         clipped = ((ratio - 1).abs() > cfg.clip).float().mean()
                     totals += w * np.array([pg.item(), vf.item(), ent.item(), kl.item(), clipped.item()])
+                if self.bc and learner.agent == 0 and not warming:
+                    pick = self.rng.choice(len(self.bc), min(cfg.bc_batch, len(self.bc)), replace=False)
+                    nll, _ = self.imitation_loss(learner.model, [self.bc[i] for i in pick])
+                    (cfg.bc_coef * nll).backward()
+                    bc.append(nll.item())
                 torch.nn.utils.clip_grad_norm_(learner.model.parameters(), 1.0)
                 if not warming:
                     learner.opt.step()
@@ -714,7 +832,36 @@ class Trainer:
         pg, vf, ent, kl, clipfrac = np.mean(losses, 0)
         # Of the last epoch: what the epochs add up to.
         last = np.mean(losses[-max(1, len(losses) // cfg.epochs) :], 0)
-        return {"pg": pg, "vf": vf, "entropy": ent, "kl": last[3], "clipfrac": last[4]}
+        out = {"pg": pg, "vf": vf, "entropy": ent, "kl": last[3], "clipfrac": last[4]}
+        if bc:
+            out["bc_nll"] = float(np.mean(bc))
+        return out
+
+    def imitation_loss(self, model, pairs):
+        """The policy's mean -log p of the humans' choices in `pairs` (row,
+        chosen), and how often it is the policy's favourite."""
+        rows = [r for r, _ in pairs]
+        logits, _ = forward(model, collate(rows, self.device))
+        chosen = torch.tensor([c for _, c in pairs], device=self.device)
+        logp = torch.log_softmax(logits.float(), -1)
+        nll = -logp.gather(1, chosen[:, None]).squeeze(1).mean()
+        return nll, (logits.argmax(-1) == chosen).float().mean().item()
+
+    @torch.no_grad()
+    def imitation_check(self):
+        """The held-out human choices' loss and agreement (and the trained
+        ones', on as many), the policy in eval mode."""
+        out = {}
+        for name, pairs in (("bc_val", self.bc_held), ("bc_fit", self.bc[: len(self.bc_held) or 512])):
+            if not pairs:
+                continue
+            n, nll, acc = 0, 0.0, 0.0
+            for k in range(0, len(pairs), 256):
+                part = pairs[k : k + 256]
+                a, b = self.imitation_loss(self.model, part)
+                nll, acc, n = nll + a.item() * len(part), acc + b * len(part), n + len(part)
+            out[f"{name}_nll"], out[f"{name}_acc"] = round(nll / n, 4), round(acc / n, 4)
+        return out
 
     def evaluate(self, opponents, games, seed=0):
         """The learner's mean VPs and game-win rate over `games` games
@@ -814,6 +961,8 @@ class Trainer:
                 metrics.update({prefix + k: v for k, v in m.items()})
                 learner.model.eval()
             self.release()
+            if self.bc:
+                metrics.update(self.imitation_check())
             t2 = time.perf_counter()
             warming = self.warmup > 0
             self.warmup = max(0, self.warmup - 1)
@@ -853,7 +1002,9 @@ class Trainer:
                 frozen = self.league.candidates() if self.league and self.league.frozen else []
                 if not frozen:
                     row["vs_random"] = self.evaluate(["random"] * 4, cfg.eval_games)
-                bots = not frozen or it % cfg.bots_every < cfg.eval_every or it == cfg.iterations
+                bots = not frozen or cfg.bots_every > 0 and (
+                    it % cfg.bots_every < cfg.eval_every or it == cfg.iterations
+                )
                 if bots:
                     row["vs_bots4"] = self.evaluate(["aggro", "wall", "aggro"], cfg.eval_games)
                     row["vs_bots5"] = self.evaluate(["aggro", "wall", "aggro", "wall"], cfg.eval_games)
@@ -879,19 +1030,21 @@ class Trainer:
                     snap = f"net:{self.league.latest()}"
                     row["vs_snapshot"] = self.evaluate([snap] * 4, cfg.eval_games)
                     row["pfsp"] = {label(k): round(v, 2) for k, v in sorted(self.league.p.items())}
-                # `best.pt`: the VPs at 4 and 5 seats (`sel`), averaged —
+                # `best.pt`: the reward's measure at 4 and 5 seats (`sel`):
+                # VPs + `gw_weight` × game wins, averaged (owner,
+                # 2026-10-10: winning first; VPs alone until p9) —
                 # a candidate within `best_margin` of the best is measured
                 # again on `best_seeds` - 1 more evaluation seeds, and
                 # kept on the mean (one evaluation's noise, ±0.15 VP, would
                 # otherwise pick lucky checkpoints).
-                score = (first[0]["vps"] + first[1]["vps"]) / 2
+                score = selection(*first, cfg.gw_weight)
                 better = False
                 if score > self.best - cfg.best_margin:
                     scores = [score]
                     for k in range(1, cfg.best_seeds):
                         b4 = self.evaluate(sel[0], cfg.eval_games, seed=k)
                         b5 = self.evaluate(sel[1], cfg.eval_games, seed=k)
-                        scores.append((b4["vps"] + b5["vps"]) / 2)
+                        scores.append(selection(b4, b5, cfg.gw_weight))
                     mean = float(np.mean(scores))
                     row["frozen_mean" if frozen else "bots_mean"] = round(mean, 3)
                     better = mean > self.best

@@ -1872,6 +1872,85 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   seated on the decks it struggles with. Open with the owner: the
   Ravnos / Gangrel / Brujah reading, to calibrate (3). Then p9 from
   `p8-nudges@2600` (frozen opponent: p8 or p7+p8).
+  Settled with the owner (2026-10-10): the aggro decks (Ravnos, Gangrel,
+  Brujah) not oversampled; the weak paths Cathari, Caine and Death (Path
+  of Power 1.40 / 2.11 is not weak); opponents p7 + p8, and the scripted
+  bots out of evaluation too ("too bad to matter"); what p8 lacks, by
+  the owner: "going forward" (keep influencing when more vampires give a
+  chance) and rush decks (Brujah, Hecata) not rushing backward to
+  control their predator — the replays are the lever.
+- **p9 machinery** (2026-10-10). (1) Imitation: `--bc` (replays, as
+  `--starts`), `--bc-coef`, `--bc-batch` (256), `--bc-holdout` (every
+  8th game held out, its names logged at launch): each PPO minibatch
+  adds `bc_coef` × the cross-entropy of the policy's own logits (no
+  nudge) on 256 of the humans' choices with an alternative; each
+  iteration logs `bc_nll` (the update's), `bc_val_nll/acc` (held out)
+  and `bc_fit_nll/acc` (as many trained ones). A game exported twice
+  (the same spec, one log the other's start: `…T19-28-48` and
+  `…T19-39-10`) is read once, for starts too (`load_replays`). (3) A
+  table spec's `decks` takes None for a seat to draw (`GamePool`; the
+  drawn ones still avoid the pinned ones' crypts); `--weak-decks`
+  (indices) and `--weak-rate`: the learner's seat given one of them on
+  that share of the league tables. (4) In a start, the learner sits at a
+  seat whose deck (matched to the pool by its list, `deck_index`; a
+  human's own list matches none) is weak, when one is (`League.spec(n,
+  at)`). `--bots-every 0`: no bots once frozen opponents select.
+  The reward's game-win weight (owner, 2026-10-10: "penalize doing only
+  1vp and not winning … if it does not get a reward for ousting then
+  dying, but only when it wins in the end"): `gw_weight` 2 → 5 (a 3-VP
+  win 8, an oust then ousted 1; win-only would leave ~70% of the
+  learner's games without a gradient), `best.pt` selected on the same
+  measure (VPs + `gw_weight` × game wins, at 4 and 5 seats averaged), the
+  critic warmed up again when the weight changes (as for a new
+  observation). Calibration (10 iterations from `p8-nudges@2600`, `gw`
+  2): bc 0.1 moved too much — kl 0.032 the first iteration, entropy
+  0.68 → 0.89, against p7 + p8 0.76 VP (p8 itself 1.04 nudged, 1.07
+  plain); bc 0.02: kl 0.010 → 0.001, entropy 0.64 → 0.80 (flat from the
+  6th), 0.94 VP, held-out nll 2.10 → 1.80 (acc 42 → 44%), trained
+  1.57. Entropy rose by ~0.15 at either weight: the policy spreads
+  toward the owner's choices it gave little weight to (the evaluation
+  samples it: costs some strength, the plateau to watch).
+- **p9 run** (`runs/p9-imitation`, from 2026-10-10): from
+  `p8-nudges@2600`, frozen opponents `p7-politics@1800` and
+  `p8-nudges@2600`, lr 1e-4, entropy coefficient 0.048 (p8's last),
+  `gw_weight` 5, decks precons + anniversary + Sabbat + TWDA, owner
+  starts 25%, permanent nudges rescue 6, bleed 4, idle 3 (pass and
+  reaction 0: imitation's), chores on, bc 0.02 on `data/replays` (37
+  games: 5456 choices trained, 894 held out —
+  `…T08-31-11`, `…T19-47-18`, `…T20-32-01`, `…T22-52-40`), weak
+  decks Salubri, Hecata, Tremere, Reign of Stanislava, Cathari, Caine,
+  Death (12, 0, 5, 28, 31, 32, 33) at the learner's seat on 40% of the
+  tables, no bots; to 3400. The bar (`best.pt`'s measure): p8 itself
+  scores 2.16 (VPs 1.13 / 0.95, wins 27% / 18% at 4 / 5 seats). Check
+  at ~200 iterations: `examples/waste.rs` (rescues, cycling, blocks
+  after wakes) — what the nudges did not teach.
+  It stopped at iteration ~2636 on an engine panic ("combat context"):
+  Pack Alpha played out of turn, its retainer (Dog Pack, 2 pool) paying
+  the defender's last pool — the employ ousted them *and passed the
+  turn*, leaving a combat flow without a combat (fixed: out of turn the
+  play's resolution ousts and the turn goes on, as for any out-of-turn
+  play paid down to 0; `pack_alpha_paid_down_to_zero_out_of_turn_…`).
+  Found again in ~21 000 games of random play from the same decks (1
+  panic). The pool now survives one: a game the engine panics in ends
+  as a truncated `panic` episode named on stderr (seed, decks, seats,
+  start, log: it replays), its chains dropped (`Game::advance_caught`;
+  `panics` in the rollout's statistics). Resumed from 2620.
+- **The crypt draw, never taken** (owner, 2026-10-10: "I see the bot
+  never pays 4 transfers to draw from the crypt, is it even a move
+  offered to it?"). Offered (census, 32 games: ~1300 influence decisions
+  offering it), taken by neither p8 nor p9 — p8 gives it a median 6e-8
+  where the owner drew (p9@2640 1.4e-4: imitation lifts it, far too
+  slowly); the owner draws at 42 of his 389 offers (11%). A collapsed
+  option is never sampled, so never learned. The `draw` nudge
+  (`Nudges::draw`, `--draw-bonus`; the pool's "draw"; `waste --draw`,
+  `strength draw:`): added to a crypt draw where `idle_influence` holds
+  (5 pool or more). Self-play of p9@2640 (`waste`, 24 games, rescue 6,
+  bleed 4, idle 3): drew 0% of those offers at 0, 7% at 6, 21% at 9, 45%
+  at 12; influence phases with nothing done 46% → 28%, 15%, 3%. p9 runs
+  at 7 (~the owner's rate) from its restart, permanent like the others.
+  The owner on the decks (2026-10-10): Cathari "is weak alright … we
+  might want to remove it from the priority list" — out of `--weak-decks`
+  from the restart.
 
 ### 11.3 Open gaps
 
@@ -1953,7 +2032,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (`docs/human-play.md` has the board).
 
-Definitions: 550 library, 175 vampires; 1244 Rust tests, 32 Python tests
+Definitions: 550 library, 175 vampires; 1245 Rust tests, 34 Python tests
 
 ## Outlook: deck building (post-v1)
 

@@ -3302,7 +3302,14 @@ impl Engine {
                         self.put_retainer(s, m, play, true);
                     }
                     self.replace(s, 1, None);
-                    if pool > 0 && self.state.seats[s.index()].pool == 0 {
+                    // Paid down to 0 on one's own turn (Piper): ousted, the
+                    // turn passed with it. Out of turn (Pack Alpha in a
+                    // combat on another's turn) the play's resolution
+                    // ousts them and the turn goes on (`resolve_play`).
+                    if pool > 0
+                        && self.state.seats[s.index()].pool == 0
+                        && s == self.state.active
+                    {
                         self.oust_and_pass(s);
                     }
                 }

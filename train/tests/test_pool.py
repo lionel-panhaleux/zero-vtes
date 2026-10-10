@@ -250,3 +250,18 @@ def test_nudges_bias_their_options_only():
     counts = pool.habits()
     (phases, passed), (held, cycled) = counts["keep"], counts["reaction"]
     assert 0 < phases and passed <= phases and cycled <= held <= phases
+
+
+def test_a_seat_given_a_deck_keeps_it():
+    """`decks` with None entries: the seats given one keep it, the others
+    are drawn, never sharing much of a crypt with it."""
+    pool = zvtes_py.GamePool(4, ["policy"] * 4, seed=5, decks=list(range(14)))
+    pool.queue([{"seats": ["net:0", "random", "random", "random"], "decks": [None, 12, None, None]}] * 8)
+    rng = np.random.default_rng(5)
+    done = []
+    while len(done) < 4:
+        # The pool's first games (dealt as it is made) are its default table.
+        done += [ep for ep in pool.act(random_actions(pool.observe(), rng)) if ep["seats"][1] == "random"]
+    for ep in done:
+        assert ep["decks"][1] == 12 and ep["decks"].count(12) == 1
+    assert len({ep["decks"][0] for ep in done}) > 1, "the others drawn"

@@ -162,14 +162,17 @@ class League:
             name += HABITS
         return name
 
-    def spec(self, n=None):
-        """A table: `n` seats (4 or 5 drawn when None)."""
+    def spec(self, n=None, at=None):
+        """A table: `n` seats (4 or 5 drawn when None), the learner at seat
+        `at` (drawn when None)."""
         n = int(self.rng.choice(TABLES)) if n is None else n
         seats = []
         for _ in range(n):
             bots_ok = sum(x in BOTS for x in seats) < self.cfg.table_bots
             seats.append(self.draw(bots_ok))
         order = self.rng.permutation(n)
+        if at is not None:
+            order = np.concatenate([[at], order[order != at]])
         k = self.cfg.learner_seats
         for i in order[:k]:
             seats[i] = "net:0"
