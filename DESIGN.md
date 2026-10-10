@@ -1828,6 +1828,50 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   Fever Pitch put on its vampire (rules-qa 53.5), Cursed Abattoir's
   counter (55.6); Forward Momentum's counter is no option (the engine
   adds it; only its order with the unlock is chosen, 53.6).
+- **p8 run** (`runs/p8-nudges`, 2026-10-08 → 10): from `p7-politics@1800`
+  (frozen opponent), observation `V3`, lr 1e-4, decks precons +
+  anniversary + Sabbat + TWDA, owner starts 25%, nudges (rescue 6, pass
+  3, reaction 2, bleed 4, idle 3) full to 2200 then faded to 0 at 2600,
+  chores on; ~3 min an iteration with evaluations. Best = last
+  (`p8-nudges@2600`, kept as `runs/p8-nudges-best-2600.pt`): 1.41 VP a
+  seat against p7 (3-seed mean; game wins 34% at 4 seats, 29% at 5),
+  2.56 / 2.93 against the bots; rising throughout. Served in the fork
+  since 2026-10-10 (wasm built from `adfd807`; previous pkg and model in
+  `runs/wasm-pkg-prev-2026-10-10`, `runs/served-prev-2026-10-10-p7at1800.zvp`).
+  **The nudges taught nothing that lasted**: faded to 0, the behaviours
+  went back to p7's (self-play, `examples/waste.rs`: rescues 0% p7 → 24%
+  nudged → 1.6% at 2600, owner 92%; bleed for nothing 18% → 4% → 11%,
+  owner 0%; influence ended with a crypt draw offered 38% → 17% → 36%,
+  owner 8%; cycling 95% → 76% → 96%, owner 63%; wakes with no block 86%,
+  owner 29%) — bot opponents never punish their absence, so self-play
+  gives no reason to keep them. Per deck (`examples/decks.rs`, p8
+  self-play ~250 seats a deck / p8 at one seat against three p7):
+  Ravnos 1.58 / 1.89, Nosferatu 1.47 / 1.24, Lasombra 1.46 / 1.80,
+  Path of Power 1.40 / 2.11, Gangrel 1.36 / 1.91, Ventrue 1.34 / 1.84,
+  Brujah 1.29 / 1.57, Malkavian 1.22, Ministry 1.19, Banu Haqim 1.16,
+  Tzimisce 1.11, Toreador 1.07, Endless Dance 1.00, Path of Death 0.85 /
+  1.01, Tremere 0.65 / 1.30, Hecata 0.46 / 1.29, Path of Caine 0.32 /
+  0.73, Reign of Stanislava 0.30 / 0.60, Salubri 0.28 / 0.72, Path of
+  Cathari 0.18 / 0.32. Salubri, Hecata, Tremere trained all along:
+  misplayed (or weak here); the Sabbat and anniversary decks met only in
+  p8's 800 iterations. Ravnos, Gangrel, Brujah strong in self-play but,
+  by the owner, underperforming against him: aggressive decks may score
+  against bots that defend badly (the owner to judge).
+- **Plan for p9** (owner, 2026-10-10: "mark this down as the plan"):
+  (1) imitation from the owner's replays — a small behaviour-cloning
+  term in the PPO update toward the owner's choices at his seats in
+  `data/replays` (~30 games; AlphaStar's recipe: RL leads, the human
+  term guides; small weight, watch overfitting; grows with every replay)
+  — the lever for the skills self-play never rewards (rescues 92%,
+  selective cycling, blocks after wakes); (2) permanent light nudges
+  for the behaviours the owner calls simply correct (rescue, no bleed
+  for nothing, spending transfers): fading loses them, full-size cost
+  nothing measurable; (3) the learner's seat oversampling the weak decks
+  (Salubri, Hecata, Tremere, the Sabbat paths, Reign of Stanislava),
+  opponents keeping the full mix; (4) in owner starts, the learner
+  seated on the decks it struggles with. Open with the owner: the
+  Ravnos / Gangrel / Brujah reading, to calibrate (3). Then p9 from
+  `p8-nudges@2600` (frozen opponent: p8 or p7+p8).
 
 ### 11.3 Open gaps
 
