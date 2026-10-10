@@ -5113,6 +5113,18 @@ impl Engine {
             }
             return true;
         }
+        // Ilonka looks at the acting minion's controller's hand, then
+        // chooses whether to discard at random: the look comes before
+        // the count.
+        if let (AbilitySource::Vampire(m), Some(a)) = (source, self.action.as_ref()) {
+            if mode
+                .effects
+                .contains(&Effect::ActingControllerDiscardsAtRandom)
+            {
+                let viewer = self.state.minions[m.index()].owner;
+                self.state.peeks.push((viewer, a.seat));
+            }
+        }
         // Terms announced with the use (the master cards to discard, a
         // number of cards): the ability resolves once they are chosen.
         if let Some(

@@ -1272,9 +1272,12 @@ fn ilonka_discards_at_random_from_the_bleeders_hand_once_each_turn() {
     hand(&mut e, 0, &["Blood Rage", "Army of Rats"]);
     pick(&mut e, action(a, ActionKind::Bleed));
     until(&mut e, SeatId(1), WindowLabel::ActionAfterResolution);
+    assert!(!e.state.hand_visible_to(SeatId(0), SeatId(1)));
     pick(&mut e, vampire_ability(ilonka, 0));
     let req = request(&mut e);
     assert_eq!(req.options, vec![Choice::SetX(0), Choice::SetX(1)]);
+    // She looked at the hand before choosing (owner play feedback).
+    assert!(e.state.hand_visible_to(SeatId(0), SeatId(1)));
     pick(&mut e, Choice::SetX(1));
     assert_eq!(e.state.seats[0].hand.len(), 1);
     assert_eq!(e.state.seats[0].ash.len(), 1);

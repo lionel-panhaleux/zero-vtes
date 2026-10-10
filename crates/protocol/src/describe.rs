@@ -66,6 +66,14 @@ pub struct OptionView {
 pub struct ModeView {
     pub index: u8,
     pub tags: Vec<String>,
+    /// The printed line it is played from: one line split into several
+    /// modes (`cards::library_mode`) is one choice of Disciplines.
+    #[serde(default)]
+    pub line: u8,
+    /// What sets it apart from the other modes of its line ("gain 3
+    /// blood"), when the definition splits the line and its effects say.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
 }
 
 pub fn action_kind(k: ActionKind) -> &'static str {
@@ -975,8 +983,8 @@ impl Describer<'_> {
 }
 
 /// The mode a card is played in: the level and Disciplines of its printed
-/// line ("at superior [DOM]"), and its rank when the definition splits that
-/// line into several modes (by effect or by target).
+/// line ("at superior [DOM]"), and what sets it apart when the definition
+/// splits that line into several modes ("(gain 3 blood)", `split_label`).
 fn mode_text(card: u16, mode: u8) -> String {
     let lib = &LIBRARY[card as usize];
     let mode = mode as usize;
@@ -1000,14 +1008,36 @@ fn mode_text(card: u16, mode: u8) -> String {
         };
         s = format!(" at {level}[{}]", tags.join("]["));
     }
-    let siblings: Vec<usize> = (0..def.modes.len())
-        .filter(|&i| zvtes::cards::library_mode(card, i) == printed)
-        .collect();
-    if siblings.len() > 1 {
-        let rank = siblings.iter().position(|&i| i == mode).unwrap_or(0);
-        s += &format!(" (option {})", rank + 1);
+    if let Some(label) = split_label(card, mode as u8) {
+        s += &format!(" ({label})");
     }
     s
+}
+
+/// What sets a mode apart from the other modes its printed line splits
+/// into: its effects that not all of them have ("gain 3 blood" against
+/// "gain 2 blood and unlock"). None for a line not split, or a mode set
+/// apart by its target or its window alone (the target names it).
+fn split_label(card: u16, mode: u8) -> Option<String> {
+    let def = zvtes::cards::lookup(card)?;
+    let mode = mode as usize;
+    let own = def.modes.get(mode)?;
+    let printed = zvtes::cards::library_mode(card, mode);
+    let siblings: Vec<_> = (0..def.modes.len())
+        .filter(|&i| i != mode && zvtes::cards::library_mode(card, i) == printed)
+        .map(|i| &def.modes[i])
+        .collect();
+    if siblings.is_empty() {
+        return None;
+    }
+    let apart: Vec<Effect> = own
+        .effects
+        .iter()
+        .filter(|e| siblings.iter().any(|m| !m.effects.contains(e)))
+        .copied()
+        .collect();
+    let label = ability_label(&apart);
+    (!label.is_empty()).then_some(label)
 }
 
 /// What an ability does, by its effects ("4 transfers, burn it, gain 2
@@ -1037,7 +1067,12 @@ fn ability_label(effects: &[Effect]) -> String {
                 Effect::ReduceStealth(n) => format!("-{n} stealth"),
                 Effect::AddIntercept(n) => format!("+{n} intercept"),
                 Effect::AttemptingIntercept(n) => format!("+{n} intercept"),
-                Effect::Strike(k) => format!("strike: {}", crate::narrate::strike_text(Some(k))),
+                Effect::Strike(k) | Effect::CommittedStrike(k) => {
+                    format!("strike: {}", crate::narrate::strike_text(Some(k)))
+                }
+                Effect::WeaponStrikePlus(n) | Effect::CommittedWeaponStrikePlus(n) => {
+                    format!("a melee weapon's strike at +{n} damage")
+                }
                 Effect::StrengthThisRound(n) => format!("+{n} strength this round"),
                 Effect::StrengthThisCombat(n) => format!("+{n} strength"),
                 Effect::Prevent(n) => format!("prevent {n} damage"),
@@ -1063,6 +1098,17 @@ fn ability_label(effects: &[Effect]) -> String {
                 Effect::TargetBurnsBlood(n) => format!("the target burns {n} blood"),
                 Effect::TargetLeavesTorpor => "the target leaves torpor".into(),
                 Effect::GainPool(n) => format!("gain {n} pool"),
+                Effect::PoolIfSuccessful(n) => format!("gain {n} pool if successful"),
+                Effect::EatAshAlly { blood, unlock } => {
+                    format!(
+                        "gain {blood} blood{}",
+                        if unlock { " and unlock" } else { "" }
+                    )
+                }
+                Effect::EatAshAllyToTarget(n) => format!("{n} life to the target"),
+                Effect::IfBleedSuccessful(then) => {
+                    format!("if the bleed is successful, {}", ability_label(then))
+                }
                 Effect::GainTransfers(n) => format!("+{}", plural(n, "transfer", "transfers")),
                 Effect::AddVotes(n) => format!("+{}", plural(n, "vote", "votes")),
                 Effect::MethuselahVotes { n, favor } => format!(
@@ -1141,6 +1187,8 @@ pub(crate) fn mode_view(card: u16, mode: u8) -> ModeView {
             .map_or(Vec::new(), |m| {
                 m.tags.iter().map(|t| t.to_string()).collect()
             }),
+        line: printed.unwrap_or(mode as usize) as u8,
+        label: split_label(card, mode),
     }
 }
 
@@ -1214,5 +1262,45 @@ pub fn kind(c: &Choice) -> &'static str {
         Choice::BurnCorruptionToFail { .. } => "burn_corruption_to_fail",
         Choice::BurnCorruptionToUnlock { .. } => "burn_corruption_to_unlock",
         Choice::Diablerise => "diablerise",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn card(name: &str) -> u16 {
+        LIBRARY.iter().position(|c| c.name == name).unwrap() as u16
+    }
+
+    /// A printed line split into several modes is one choice of
+    /// Disciplines, each mode named by what sets it apart.
+    #[test]
+    fn split_modes_share_their_line_and_say_what_sets_them_apart() {
+        let view = |name: &str, mode: u8| {
+            let v = mode_view(card(name), mode);
+            (v.line, v.label)
+        };
+        let s = |l: &str| Some(l.to_string());
+        assert_eq!(view("Psychophagia", 0), (0, s("gain 3 blood")));
+        assert_eq!(view("Psychophagia", 1), (0, s("gain 2 blood and unlock")));
+        assert_eq!(view("Putrescent Sustenance", 2), (1, s("gain 3 blood")));
+        assert_eq!(
+            view("Putrescent Sustenance", 3),
+            (1, s("3 life to the target"))
+        );
+        assert_eq!(view("Feast of the Soul's Secrets", 0), (0, None));
+        assert_eq!(
+            view("Feast of the Soul's Secrets", 2),
+            (
+                1,
+                s("if the bleed is successful, 2 blood to an uncontrolled vampire")
+            )
+        );
+        assert_eq!(
+            view("Lam Into", 3).1,
+            s("a melee weapon's strike at +2 damage")
+        );
+        assert!(!mode_text(card("Psychophagia"), 1).contains("option"));
     }
 }
