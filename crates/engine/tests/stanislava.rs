@@ -872,6 +872,28 @@ fn enkil_cog_goes_on_a_big_vampire_after_a_bleed_against_the_prey() {
     let _ = req;
 }
 
+// A bleed ousting the prey was against the prey (rules-qa 61.2; owner,
+// from play): the Cog is offered after it, the next Methuselah now the
+// prey.
+#[test]
+fn enkil_cog_after_a_bleed_that_ousts_the_prey() {
+    let (mut e, stan) = stanislava_alone();
+    e.state.seats[1].pool = 1;
+    hand(&mut e, 0, &["Enkil Cog"]);
+    pick(&mut e, bleed(stan));
+    let req = until(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
+    assert!(e.state.seats[1].ousted);
+    assert!(plays(&req).contains(&play(0, 0, stan)));
+    pick(&mut e, play(0, 0, stan));
+    request(&mut e);
+    let cog = find_library("Enkil Cog");
+    assert!(e
+        .state
+        .cards
+        .iter()
+        .any(|c| c.in_play && c.card == cog && c.host == Some(stan)));
+}
+
 // "During any Methuselah's minion phase, this vampire can lock this card to
 // take an action": offered as another Methuselah declares the end of their
 // minion phase; the action is the vampire's own, against its Methuselah's

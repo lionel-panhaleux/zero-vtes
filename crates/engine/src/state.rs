@@ -921,6 +921,16 @@ impl GameState {
         SeatId(i as u8)
     }
 
+    /// `s`'s prey with `seated` counted as in the game, ousted or not.
+    pub fn prey_counting(&self, s: SeatId, seated: SeatId) -> SeatId {
+        let n = self.seats.len();
+        let mut i = (s.index() + 1) % n;
+        while self.seats[i].ousted && i != seated.index() && i != s.index() {
+            i = (i + 1) % n;
+        }
+        SeatId(i as u8)
+    }
+
     pub fn predator(&self, s: SeatId) -> SeatId {
         let n = self.seats.len();
         let mut i = (s.index() + n - 1) % n;

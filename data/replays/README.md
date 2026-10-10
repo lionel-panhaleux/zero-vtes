@@ -52,6 +52,14 @@ as it was played.
 | `zero-vtes-replay-2026-10-09T22-19-25-019Z.json` | the fork's build of that day | Gangrel, Tremere, Toreador, **The Unnamed** | `p7-politics@1800` (network, default politics) | owner 2 VP, Gangrel 1, Tremere 1 |
 | `zero-vtes-replay-2026-10-09T22-52-40-908Z.json` | the fork's build of that day | Hecata, Ravnos, Malkavian, **The Unnamed** | `p7-politics@1800` (network, default politics) | owner 3 VP, Ravnos 1 |
 | `zero-vtes-replay-2026-10-09T23-20-20-474Z.json` | the fork's build of that day | **The Unnamed**, Nosferatu, Brujah, Ravnos | `p7-politics@1800` (network, default politics) | owner 4 VP, the bots 0 |
+| `zero-vtes-replay-2026-10-10T08-03-34-644Z.json` | the fork's build of that day | Tzimisce, **The Unnamed**, Ministry, Brujah | `p8-nudges@2600` (network, default politics) | owner 3 VP, Brujah 1 |
+| `zero-vtes-replay-2026-10-10T08-23-07-092Z.json` | the fork's build of that day | Gangrel, Malkavian, **The Unnamed**, Lasombra | `p8-nudges@2600` (network, default politics) | Lasombra 3 VP, Malkavian 1 |
+| `zero-vtes-replay-2026-10-10T09-00-31-909Z.json` | the fork's build of that day | Nosferatu, Tremere, Hecata, **The Unnamed** | `p8-nudges@2600` (network, default politics) | owner 3 VP, Tremere 1 |
+| `zero-vtes-replay-2026-10-10T14-28-58-609Z.json` | the fork's build of that day | Malkavian, Lasombra, **The Unnamed**, Ventrue | `p8-nudges@2600` (network, default politics) | Lasombra 3 VP, Ventrue 1 |
+| `zero-vtes-replay-2026-10-10T15-01-52-455Z.json` | the fork's build of that day | Nosferatu, Ventrue, Tzimisce, **The Unnamed** | `p8-nudges@2600` (network, default politics) | owner 3 VP, Ventrue 1 |
+| `zero-vtes-replay-2026-10-10T15-16-15-595Z.json` | the fork's build of that day | Banu Haqim, **The Unnamed**, Salubri, Tremere | `p8-nudges@2600` (network, default politics) | owner 3 VP, Tremere 1 |
+| `zero-vtes-replay-2026-10-10T15-48-57-982Z.json` | the fork's build of that day | **The Unnamed**, Tremere, Toreador, Tzimisce | `p8-nudges@2600` (network, default politics) | — (reads up to 342) |
+| `zero-vtes-replay-2026-10-10T16-13-44-440Z.json` | the fork's build of that day | Nosferatu, **The Unnamed**, Ventrue, Tzimisce | `p8-nudges@2600` (network, default politics) | — (reads up to 338) |
 
 Since rules-qa 48.1 (intercept not floored at 0), `2026-10-03T09-03-44`
 replays on later engines only up to decision 72: its Form of the Bat
@@ -109,3 +117,11 @@ The games of 2026-10-08 and 2026-10-09 read whole at `adfd807` and
 after, but three: `…T19-28-48` and `…T19-39-10` stop at decision 306
 and `…T20-04-50` at 196, where an "after" or "during" ability used a
 second time is no longer offered (once each, `36ce7d0`).
+
+The games of 2026-10-10 read whole at the end-of-round and
+bleed-against-prey fixes (rules-qa 61.1, 61.2), but two the fixes met:
+`…T15-48-57` stops at decision 343, where Taste of Vitae is now offered
+at the end of the round a press continued, and `…T16-13-44` at 339,
+where Enkil Cog is now offered after the bleed that ousted the prey
+(both whole at `dfbf114`). With 61.1, `2026-10-04T22-26-33` stops at
+decision 496 (whole at `dfbf114`).

@@ -1471,13 +1471,9 @@ impl Engine {
                     self.trap_presses();
                 }
             }
-            Step::Press => {
-                if c.press_continue {
-                    self.new_round();
-                } else {
-                    c.fresh_window(Step::EndOfRound);
-                }
-            }
+            // The end of round follows the press step whether a press
+            // continues the combat or not (rules-qa 61.1).
+            Step::Press => c.fresh_window(Step::EndOfRound),
             // No new round once a combatant left the ready region (Disarm
             // after Telepathic Tracking): the combat ends.
             Step::EndOfRound => {

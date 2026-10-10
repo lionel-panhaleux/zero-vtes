@@ -631,7 +631,8 @@ pub enum Requirement {
     /// The current action is a bleed.
     IsBleed,
     /// The current action is a bleed against the acting Methuselah's prey
-    /// (Enkil Cog): read live, a redirected bleed is not.
+    /// (Enkil Cog): read live, a redirected bleed is not (rules-qa 50.3);
+    /// a prey this bleed ousted still is (rules-qa 61.2).
     BleedAgainstPrey,
     /// The current bleed was successful: it resolved for 1 pool or more
     /// ("after a successful bleed", Ilonka; rulebook "Bleed").
@@ -4659,8 +4660,12 @@ pub fn holds(
         Requirement::PreyBurnedPool => action.is_some_and(|a| a.prey_burned),
         Requirement::ActingFollowsPath(path) => action.is_some_and(|a| st.follows(a.acting, path)),
         Requirement::NoQueuedCombat => !action.is_some_and(|a| a.queued_combat.is_some()),
+        // The target counted as seated: a bleed ousting the prey was
+        // against the prey (rules-qa 61.2).
         Requirement::BleedAgainstPrey => action.is_some_and(|a| {
-            a.kind == ActionKind::Bleed && a.bleed_target == Some(st.prey(a.seat))
+            a.kind == ActionKind::Bleed
+                && a.bleed_target
+                    .is_some_and(|t| st.prey_counting(a.seat, t) == t)
         }),
         Requirement::BleedSuccessful => action.is_some_and(|a| a.bleed_successful),
         Requirement::BleedAmountAtLeast(n) => action.is_some_and(|a| a.bleed_amount(st) >= n),

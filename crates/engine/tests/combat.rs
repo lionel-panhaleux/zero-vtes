@@ -437,6 +437,35 @@ fn taste_of_vitae_gains_blood_lost_by_opponent() {
     assert_eq!(blood(e, t.x), 4 - 3 + 1);
 }
 
+// Rulebook 2024 "End of Round": "after the press step", whether a press
+// continues the combat or not — Taste of Vitae after a round that a press
+// continued, then again after the next one (one a round).
+#[test]
+fn taste_of_vitae_after_a_round_a_press_continued() {
+    let mut t = table();
+    let e = &mut t.e;
+    hand(
+        e,
+        0,
+        &["Immortal Grapple", "Taste of Vitae", "Taste of Vitae"],
+    );
+    blocked_bleed(e, t.a, t.x);
+    pick(e, play(0, 1, t.a)); // Immortal Grapple: a press
+    let req = expect(e, SeatId(0), WindowLabel::CombatPress);
+    assert_eq!(req.options, vec![Choice::Pass, Choice::UsePress]);
+    pick(e, Choice::UsePress);
+    let req = expect(e, SeatId(0), WindowLabel::CombatEndOfRound);
+    assert_eq!(plays(&req), vec![play(0, 0, t.a)]);
+    pick(e, play(0, 0, t.a));
+    // Round 2, then its own end of round.
+    let req = expect(e, SeatId(0), WindowLabel::CombatEndOfRound);
+    assert_eq!(blood(e, t.a), 4 - 1 + 1 - 1);
+    assert_eq!(plays(&req), vec![play(0, 0, t.a)]);
+    pick(e, play(0, 0, t.a));
+    expect(e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((blood(e, t.a), blood(e, t.x)), (4, 4 - 1 - 1));
+}
+
 // Theft of Vitae [THA]: a ranged strike works at long range where the
 // hand strike does not; stolen blood moves before damage is mended.
 #[test]

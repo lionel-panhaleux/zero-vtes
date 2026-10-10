@@ -1951,6 +1951,10 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   The owner on the decks (2026-10-10): Cathari "is weak alright … we
   might want to remove it from the priority list" — out of `--weak-decks`
   from the restart.
+  Restarted from 2640 (2026-10-10, `dfbf114` plus the end-of-round and
+  bleed-against-prey fixes): draw 7, weak decks 12, 0, 5, 28, 32, 33,
+  44 replays (6129 choices trained, 1008 held out: the four before and
+  `…T15-48-57` — the held-out loss is not comparable across the restart).
 
 ### 11.3 Open gaps
 
@@ -2032,7 +2036,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (`docs/human-play.md` has the board).
 
-Definitions: 550 library, 175 vampires; 1245 Rust tests, 34 Python tests
+Definitions: 550 library, 175 vampires; 1247 Rust tests, 34 Python tests
 
 ## Outlook: deck building (post-v1)
 
