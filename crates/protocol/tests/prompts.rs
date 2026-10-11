@@ -301,3 +301,45 @@ fn the_acting_strike_is_shown_before_the_blocker_chooses() {
     }
     panic!("no strike asked of the blocker");
 }
+
+/// A pass that does something says it (owner play feedback: Anarch
+/// Convert's "gain 1 pool" read "Pass"): keeping him, then the pool.
+#[test]
+fn anarch_converts_passes_say_what_they_do() {
+    let mut e = Engine::bare(2);
+    let camarilla = |n| plain(|c| c.sect == Sect::Camarilla && c.title == Title::None, n);
+    let v = e.add_minion(SeatId(0), camarilla(0), 4, false);
+    e.add_minion(SeatId(1), camarilla(1), 4, false);
+    let convert = CRYPT
+        .iter()
+        .position(|c| c.name == "Anarch Convert")
+        .unwrap() as u16;
+    e.state.seats[0]
+        .uncontrolled
+        .push(zvtes::state::UncontrolledSlot {
+            card: convert,
+            counters: 1,
+            banished: None,
+        });
+    e.at_master_phase();
+    let mut req = next(&mut e);
+    for _ in 0..20 {
+        match req.window {
+            WindowLabel::EntryEffect => break,
+            WindowLabel::InfluenceTransfers => {
+                pick(&mut e, &req, &Choice::InfluenceOut { slot: 0 })
+            }
+            _ => pick(&mut e, &req, &Choice::Pass),
+        }
+        req = next(&mut e);
+    }
+    assert_eq!(req.window, WindowLabel::EntryEffect);
+    let pass = req.options.iter().position(|c| *c == Choice::Pass).unwrap();
+    assert_eq!(read(&e, &req, None).0[pass], "Keep him in play");
+    pick(&mut e, &req, &Choice::ChooseMinion(v));
+    let req = next(&mut e);
+    let (texts, _) = read(&e, &req, None);
+    let pass = req.options.iter().position(|c| *c == Choice::Pass).unwrap();
+    assert_eq!(texts[pass], "Gain 1 pool");
+    assert!(req.options.contains(&Choice::DrawCrypt));
+}
