@@ -1708,3 +1708,84 @@ fn vessel_on_any_vampire_burns_any_blood_doll_and_is_the_controllers_to_use() {
     let req = request(&mut e);
     assert!(abilities(&req).is_empty(), "{req:?}");
 }
+
+/// Alamut: "you can burn X counters from this card to give a vampire you
+/// control +X votes" — its controller's vampires only (owner replay
+/// 2026-10-11T11-43-43: a bot burned the owner's counters for its own
+/// vampire, the owner asked for X).
+#[test]
+fn alamut_gives_votes_to_its_controllers_vampires_only() {
+    let untitled = |clan: &str, nth: usize| -> u16 {
+        CRYPT
+            .iter()
+            .enumerate()
+            .filter(|(i, c)| {
+                c.clan == clan
+                    && c.title == zvtes::crypt::Title::None
+                    && zvtes::cards::vampire(*i as u16).is_none()
+            })
+            .nth(nth)
+            .map(|(i, _)| i as u16)
+            .expect("an untitled vampire")
+    };
+    let mut e = Engine::bare(3);
+    let anarch = CRYPT
+        .iter()
+        .enumerate()
+        .position(|(i, c)| {
+            c.sect == Sect::Anarch
+                && c.title == zvtes::crypt::Title::None
+                && zvtes::cards::vampire(i as u16).is_none()
+        })
+        .expect("an anarch") as u16;
+    let caller = e.add_minion(SeatId(0), anarch, 4, false);
+    let mine = e.add_minion(SeatId(0), untitled("Banu Haqim", 0), 4, false);
+    let theirs = e.add_minion(SeatId(1), untitled("Banu Haqim", 1), 4, false);
+    e.state
+        .cards
+        .push(CardInPlay::new(find_library("Alamut"), SeatId(0), None, 0));
+    let alamut = CardId(e.state.cards.len() as u32 - 1);
+    e.state.cards[alamut.index()].counters = 3;
+    // The Edge to burn for a vote: the other seat is asked in the polling.
+    e.state.seats[1].has_edge = true;
+    let uses = |r: &DecisionRequest| -> Vec<Option<MinionId>> {
+        r.options
+            .iter()
+            .filter_map(|o| match *o {
+                Choice::UseAbility {
+                    source: AbilitySource::Card(c),
+                    actor,
+                    ..
+                } if c == alamut => Some(actor),
+                _ => None,
+            })
+            .collect()
+    };
+    to_minion_phase(&mut e, SeatId(0));
+    hand(&mut e, 0, &["Anarchist Uprising"]);
+    pick(&mut e, play(0, 0, caller));
+    let (mut own, mut polled_other) = (false, false);
+    for _ in 0..40 {
+        let r = request(&mut e);
+        if r.window != WindowLabel::ReferendumPolling {
+            break;
+        }
+        let offered = uses(&r);
+        if r.seat == SeatId(1) {
+            polled_other = true;
+            assert!(
+                offered.is_empty(),
+                "the owner's Alamut offered to another: {offered:?}"
+            );
+        } else if !offered.is_empty() {
+            assert!(!offered.contains(&Some(theirs)));
+            own = offered.contains(&Some(mine));
+        }
+        let pass = index_of(&r, Choice::Pass);
+        e.choose(pass);
+    }
+    assert!(
+        own && polled_other,
+        "own {own}, polled the other {polled_other}"
+    );
+}

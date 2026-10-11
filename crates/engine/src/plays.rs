@@ -4239,6 +4239,14 @@ impl Engine {
                     // Any ready vampire of the user's, whoever controls the
                     // card (Carver's Meat Packing and Storage).
                     Actor::AnyReadyVampire => {
+                        // "… you control can …" (Alamut, Dead Pool): the
+                        // card's controller's only (owner replay: a bot used
+                        // the owner's Alamut).
+                        if ability.requires.contains(&Requirement::YouControlThisCard)
+                            && st.card_controller(id) != seat
+                        {
+                            continue;
+                        }
                         if ability.limit == Some(Limit::PerTurn)
                             && st
                                 .turn_uses

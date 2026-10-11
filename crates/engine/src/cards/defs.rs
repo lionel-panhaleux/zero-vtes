@@ -12043,6 +12043,7 @@ pub static DEAD_POOL: CardDef = CardDef {
                     Requirement::IsBleed,
                     Requirement::ActorClan("Lasombra"),
                     Requirement::CountersAtLeast(1),
+                    Requirement::YouControlThisCard,
                 ],
                 &[Effect::RemoveCounter(1), bleed(2, false)],
             )
@@ -12057,6 +12058,7 @@ pub static DEAD_POOL: CardDef = CardDef {
                     Requirement::ActorClan("Lasombra"),
                     Requirement::NotAbstaining,
                     Requirement::CountersAtLeast(1),
+                    Requirement::YouControlThisCard,
                 ],
                 &[Effect::RemoveCounter(1), Effect::AddVotes(2)],
             )
@@ -12089,6 +12091,7 @@ pub static ALAMUT: CardDef = CardDef {
                 Requirement::PollingStep,
                 Requirement::NotAbstaining,
                 Requirement::CountersAtLeast(1),
+                Requirement::YouControlThisCard,
             ],
             &[Effect::RemoveCountersX, Effect::AddVotesX],
         )
@@ -14751,6 +14754,7 @@ pub static UNDER_SIEGE: CardDef = CardDef {
                 Requirement::CountersAtLeast(1),
                 Requirement::ActorSectIn(&[Sect::Sabbat]),
                 Requirement::CanAttemptBlock,
+                Requirement::YouControlThisCard,
             ],
             &[
                 Effect::RemoveCounter(1),
@@ -15524,6 +15528,7 @@ pub static YAWP_COURT: CardDef = CardDef {
             Requirement::ActorSectIn(&[Sect::Sabbat]),
             Requirement::ActorUnlocked,
             Requirement::ActorNotActing,
+            Requirement::YouControlThisCard,
         ],
         &[Effect::YawpCourtCombat],
     )],
