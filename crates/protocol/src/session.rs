@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use zvtes::agent::{Agent, RandomLegal};
 use zvtes::bots::{Scripted, Style};
 use zvtes::cards::{AbilitySource, Effect, Window};
+use zvtes::combat::CombatNote;
 use zvtes::decision::{Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::SeatId;
@@ -18,7 +19,7 @@ use zvtes::referendum::{Recipient, RefStep};
 use crate::deck::{resolve, DeckError, DeckList, Resolved};
 use crate::describe::{window_text, CardRef, Describer, OptionView};
 use crate::logged::{logged, moot, resolve as resolve_logged, Logged};
-use crate::narrate::{action_thing, combat_text, minion_name, Mark};
+use crate::narrate::{action_thing, combat_text, minion_name, strike_text, Mark};
 use crate::track::Tracker;
 use crate::view::{knowledge, learned_nothing, table_view, Knowledge, TableView};
 
@@ -299,6 +300,9 @@ pub struct Session {
     standing: Vec<(SeatId, bool)>,
     /// Human seats passing on their opportunities (`set_opportunities`).
     quiet: Vec<SeatId>,
+    /// The last pair of strikes resolved (`CombatNote::Strikes`): what each
+    /// side struck with once the strikes are spent (`view`).
+    struck: Option<CombatNote>,
     /// The table at the last decision or message (`narrate`), and what
     /// changed since, told with the next message.
     mark: Option<Mark>,
@@ -393,6 +397,7 @@ impl Session {
             over: None,
             standing: Vec::new(),
             quiet: Vec::new(),
+            struck: None,
             mark: None,
             events: Vec::new(),
             about: None,
@@ -608,7 +613,45 @@ impl Session {
     /// The table as `seat` sees it (`None`: everything).
     pub fn view(&mut self, seat: Option<SeatId>) -> TableView {
         let tracker = self.trackers.entry(seat.map(|s| s.0)).or_default();
-        table_view(&self.engine, seat, tracker)
+        let mut view = table_view(&self.engine, seat, tracker);
+        self.struck_view(&mut view);
+        view
+    }
+
+    /// A strike spent as it resolved, in the combat's view until the next
+    /// pair (owner: hand strikes chosen by themselves, then the prevention
+    /// "shows 'no strike' for both"): "hand strike (resolved, 1 damage)".
+    fn struck_view(&self, view: &mut TableView) {
+        let (
+            Some(c),
+            Some(cv),
+            Some(CombatNote::Strikes {
+                minions,
+                round,
+                pair,
+                strikes,
+                damage,
+                ..
+            }),
+        ) = (self.engine.combat(), view.combat.as_mut(), self.struck)
+        else {
+            return;
+        };
+        if c.round != round || c.pair != pair {
+            return;
+        }
+        for (side, view) in c.sides.iter().zip(&mut cv.sides) {
+            let Some(j) = minions.iter().position(|&m| m == side.minion) else {
+                continue;
+            };
+            if side.chosen && side.strike.is_none() && strikes[j].is_some() {
+                let what = strike_text(strikes[j]);
+                view.strike = Some(match damage[j] {
+                    0 => format!("{what} (resolved)"),
+                    n => format!("{what} (resolved, {n} damage)"),
+                });
+            }
+        }
     }
 
     fn step(&mut self) {
@@ -634,6 +677,9 @@ impl Session {
             .unwrap_or_default();
         for n in &notes {
             self.events.push(combat_text(&self.engine, n));
+            if matches!(n, CombatNote::Strikes { .. }) {
+                self.struck = Some(*n);
+            }
         }
         let all = self.view(None);
         let now = Mark::of(&self.engine, &all);

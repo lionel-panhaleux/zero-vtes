@@ -878,3 +878,48 @@ fn a_seat_passing_on_its_opportunities_is_asked_only_in_their_moment() {
         "{hidden} {passed} {undone} {woken} {paused}"
     );
 }
+
+/// At prevention the strikes are spent: each side shows what it struck
+/// with (owner: hand strikes chosen by themselves, then "no strike" for
+/// both), never as still choosing.
+#[test]
+fn prevention_shows_the_strikes_that_resolved() {
+    let all: Vec<Deck> = Deck::all().collect();
+    let prevention = zvtes_protocol::describe::window_text(WindowLabel::CombatPrevention);
+    let mut resolved = 0;
+    for seed in 0..24u64 {
+        let mut rng = Rng::new(seed);
+        let decks: Vec<Deck> = (0..4).map(|_| all[rng.below(all.len())]).collect();
+        let mut s = Session::new(spec(seed, &decks)).expect("spec");
+        for _ in 0..20_000 {
+            let out = s.advance();
+            let (window, view) = match &out {
+                Out::Over { .. } => break,
+                Out::Decided { window, view, .. } | Out::Decision { window, view, .. } => {
+                    (window, view)
+                }
+            };
+            if window == prevention {
+                let c = view.combat.as_ref().expect("a combat");
+                for side in &c.sides {
+                    let strike = side.strike.as_deref();
+                    assert!(
+                        strike.is_some(),
+                        "seed {seed}: a strike untold at prevention"
+                    );
+                    if strike.is_some_and(|t| t.contains("(resolved")) {
+                        resolved += 1;
+                    }
+                }
+            }
+            if let Out::Decision {
+                decision, options, ..
+            } = &out
+            {
+                let i = options[rng.below(options.len())].index;
+                s.answer(*decision, i).expect("answer");
+            }
+        }
+    }
+    assert!(resolved > 0);
+}
