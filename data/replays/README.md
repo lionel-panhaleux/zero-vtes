@@ -49,6 +49,8 @@ as it was played.
 | `zero-vtes-replay-2026-10-10T21-16-37-859Z.json` | the fork's build of that day | Hecata, Ventrue, Toreador, **The Unnamed** | `p8-nudges@2600` (network, default politics) | owner 4 VP, the bots 0 |
 | `zero-vtes-replay-2026-10-10T22-05-29-762Z.json` | the fork's build of that day | Tremere, Hecata, Ravnos, **The Unnamed** | `p8-nudges@2600` (network, default politics) | owner 3 VP, Hecata 1 |
 | `zero-vtes-replay-2026-10-10T22-26-31-637Z.json` | the fork's build of that day | Tzimisce, Brujah, Malkavian, **The Unnamed** | `p8-nudges@2600` (network, default politics) | owner 3 VP, Brujah 1 |
+| `zero-vtes-replay-2026-10-11T06-38-09-412Z.json` | the fork's build of `7fedb25` | **The Unnamed**, Banu Haqim, Ventrue, Gangrel | `p8-nudges@2600` (network, default politics) | owner 3 VP, Banu Haqim 1 |
+| `zero-vtes-replay-2026-10-11T06-58-41-552Z.json` | the fork's build of `7fedb25` | Nosferatu, Tzimisce, **The Unnamed**, Hecata | `p8-nudges@2600` (network, default politics) | owner 3 VP, Nosferatu 1 |
 
 The games before 2026-10-04 12:00 were played on wasm builds of the
 working tree between commits (the engine column names the last commit
