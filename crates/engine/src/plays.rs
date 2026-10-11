@@ -63,7 +63,10 @@ impl Engine {
         while self.state.hand_load(s) < size {
             let seat = &mut self.state.seats[s.index()];
             match seat.library.pop() {
-                Some(c) => seat.hand.push(c),
+                Some(c) => {
+                    seat.hand.push(c);
+                    self.offer_redraw(s, c);
+                }
                 None => break,
             }
         }
@@ -95,7 +98,54 @@ impl Engine {
                 self.apply_replacement_rider(id);
             }
         }
+        let drawing = !self.state.seats[s.index()].library.is_empty()
+            && self.replacement_rider(s, except).is_none();
+        // Infernal Pursuit [CEL]: with each card replaced, k more drawn —
+        // as many as the library has (LSJ 20060620) — then discarded down
+        // to hand size (the engine's discard-down); several replaced at
+        // once (Blood Weakens' held ones, released by an empty hand), one
+        // at a time, its extras discarded before the next (ANK
+        // 20180925-1).
+        let k = self.state.seats[s.index()].combat_extra_draws;
+        if drawing && k > 0 && self.combat.is_some() && n > 1 {
+            for _ in 0..n {
+                self.interrupts
+                    .push(Interrupt::PursuitDraw { seat: s, extra: k });
+            }
+            self.interrupts.push(Interrupt::DrawUp { seat: s });
+            return;
+        }
         self.draw_up(s);
+        if drawing && k > 0 && self.combat.is_some() {
+            for _ in 0..n * k as usize {
+                let seat = &mut self.state.seats[s.index()];
+                match seat.library.pop() {
+                    Some(c) => seat.hand.push(c),
+                    None => break,
+                }
+            }
+        }
+    }
+
+    /// Learjet: "you may draw an additional card (discard afterward)",
+    /// after the normal replacement is seen (LSJ 20050224-4); none from an
+    /// empty library.
+    pub(crate) fn offer_extra_draw(&mut self, s: SeatId) {
+        if !self.state.seats[s.index()].library.is_empty() {
+            self.interrupts.push(Interrupt::MayDrawExtra { seat: s });
+        }
+    }
+
+    /// A card played by Learjet's bearer as the acting minion (its action's
+    /// modifiers, combat cards in its combats; a canceled one too).
+    fn learjet_play(&self, ctx: &PlayCtx) -> bool {
+        ctx.actor.is_some_and(|m| {
+            self.action.as_ref().is_some_and(|a| a.acting == m)
+                && self
+                    .state
+                    .borne(m)
+                    .any(|l| l.modifier == cards::Modifier::ExtraDrawOnReplace)
+        })
     }
 
     /// The end of the action (or of the turn it could not outlive): the
@@ -112,8 +162,12 @@ impl Engine {
     pub(crate) fn release_held(&mut self, pick: fn(&mut crate::state::Held) -> &mut u8) {
         for i in 0..self.state.seats.len() {
             let n = std::mem::take(pick(&mut self.state.seats[i].held));
+            let jet = std::mem::take(pick(&mut self.state.seats[i].learjet_held)).min(n);
             if n > 0 && !self.state.seats[i].ousted {
                 self.replace(SeatId(i as u8), n as usize, None);
+                for _ in 0..jet {
+                    self.offer_extra_draw(SeatId(i as u8));
+                }
             }
         }
     }
@@ -198,14 +252,16 @@ impl Engine {
         }
         let seat = &mut self.state.seats[s.index()];
         seat.mpa = 1;
+        // Anson's second action, read live (`GameState::mpa_left`).
+        seat.second_mpa_spent = false;
         seat.trifle_used = false;
         seat.master_played = false;
         seat.mpa += std::mem::take(&mut seat.mpa_next);
         if let Some(OutOfTurn { trifle }) = seat.out_of_turn.take() {
-            seat.mpa -= 1;
             if trifle {
-                seat.mpa += 1;
                 seat.trifle_used = true;
+            } else {
+                self.state.spend_mpa(s);
             }
         }
         self.state.phase_uses.clear();
@@ -280,6 +336,7 @@ impl Engine {
                 .collect(),
             Actor::Host
             | Actor::HostOutOfCombat
+            | Actor::HostControllersPrey
             | Actor::Controller
             | Actor::ForOwnCombatant
             | Actor::ChosenController => {
@@ -1018,7 +1075,7 @@ impl Engine {
     pub(crate) fn master_request(&self) -> DecisionRequest {
         let s = self.state.active;
         let mut options = vec![Choice::Pass];
-        if self.state.seats[s.index()].mpa > 0 {
+        if self.state.mpa_left(s) > 0 {
             options.extend(self.play_options(s, &[Window::MasterPhase], None));
         }
         // "During their master phase" abilities of cards in play (Blood
@@ -1045,7 +1102,7 @@ impl Engine {
                 target,
             } => {
                 let s = self.state.active;
-                self.state.seats[s.index()].mpa -= 1;
+                self.state.spend_mpa(s);
                 // Played as announced, canceled or not.
                 self.state.seats[s.index()].master_played = true;
                 self.announce_play(s, *card, *mode, *actor, *target, Flow::MasterPhase);
@@ -1348,6 +1405,16 @@ impl Engine {
                 }
                 Some(cards::CostSource::Cache) if !c.locked && equip && (blood > 0 || pool > 0) => {
                     c.counters.min(blood.max(pool))
+                }
+                // Focus the Blood: a combat card its host plays.
+                Some(cards::CostSource::FocusBlood)
+                    if c.host.is_some()
+                        && c.host == ctx.actor
+                        && blood > 0
+                        && LIBRARY[card as usize].types.contains(&CardType::Combat)
+                        && mode.windows.iter().all(|w| w.is_combat()) =>
+                {
+                    1
                 }
                 // An Anarch's equipment (Hackerspace).
                 Some(cards::CostSource::Hackerspace)
@@ -1666,7 +1733,12 @@ impl Engine {
                 } else {
                     0
                 };
+                // Concealed Weapon: "cannot cost 3 or more pool", its cost
+                // as modified in play (LSJ 20040701), announced reductions
+                // and other sources aside (LSJ 20080125).
+                let cheap = filter != cards::CardFilter::ConcealableWeapon || pool < 3;
                 filter.matches(card)
+                    && cheap
                     && cards::lookup(card).is_some()
                     && self.equip_requirements_met(m, card)
                     && have >= blood
@@ -2447,6 +2519,9 @@ impl Engine {
         }
         if ctx.from.is_none() {
             self.replace(ctx.seat, 1, None);
+            if self.learjet_play(&ctx) {
+                self.offer_extra_draw(ctx.seat);
+            }
         }
         // Victor Donaldson: his Methuselah's canceled card back to the
         // library, if they will — once it is replaced.
@@ -2659,10 +2734,12 @@ impl Engine {
             blood_off += once;
             self.spend_once_cost_off(&ctx, once);
         }
+        let mut focus_burned = Vec::new();
         for (c, n) in ctx.discounts.into_iter().flatten().filter(|_| !names) {
             let card = &self.state.cards[c.index()];
-            if card.present()
-                && !card.locked
+            let (present, locked) = (card.present(), card.locked);
+            if present
+                && !locked
                 && self.state.cost_source_of(c) == Some(cards::CostSource::Shard)
                 && self.state.seats[s.index()].has_edge
             {
@@ -2673,6 +2750,14 @@ impl Engine {
                     blood_off += n;
                 }
             }
+            // Focus the Blood: burned as the combat card's cost is paid.
+            if present && self.state.cost_source_of(c) == Some(cards::CostSource::FocusBlood) {
+                blood_off += n;
+                focus_burned.push(c);
+            }
+        }
+        for c in focus_burned {
+            self.burn_card_in_play(c);
         }
         // A vampire's blood paying 1 of it (Regina Blake).
         if let Some(r) = ctx.blood_payer.filter(|_| !names) {
@@ -2769,6 +2854,10 @@ impl Engine {
                 .action
                 .as_ref()
                 .is_some_and(|a| a.defer_reaction_replacement);
+        // Learjet: this play's replacement, now or when it comes due.
+        let learjet = self.learjet_play(&ctx);
+        let held_before = self.state.seats[s.index()].held;
+        let in_play_before = self.state.seats[s.index()].held_in_play.len();
         // The card's own "do not replace until" clause outlasts an
         // end-of-action deferral (spec §1.9.2: the longest delay wins).
         match def.delayed_replacement {
@@ -2796,6 +2885,15 @@ impl Engine {
                 self.hold_weakened(s, in_play)
             }
             None => self.replace(s, 1, in_play),
+        }
+        if learjet && ctx.from.is_none() {
+            let seat = &mut self.state.seats[s.index()];
+            let after = seat.held;
+            if after.total() > held_before.total() {
+                seat.learjet_held.add_diff(held_before, after);
+            } else if seat.held_in_play.len() == in_play_before {
+                self.offer_extra_draw(s);
+            }
         }
         // A forced attempt's library toll, once the card is replaced (ANK
         // 20260317).
@@ -2894,6 +2992,51 @@ impl Engine {
             Effect::AutoPassFirstSabbatReferendum => {
                 self.state.seats[s.index()].auto_pass_pending = true;
             }
+            // Renewed Vigor [obe]: a vampire out of torpor (the card action
+            // re-checked its target).
+            Effect::TargetLeavesTorpor => {
+                if let Target::Minion(t) = ctx.target {
+                    if self.state.minions[t.index()].present() && self.state.minions[t.index()].in_torpor
+                    {
+                        self.leave_torpor(t);
+                    }
+                }
+            }
+            Effect::RetainerToStartingLife => {
+                if let Target::Card(c) = ctx.target {
+                    if self.state.cards[c.index()].present() {
+                        let card = self.state.cards[c.index()].card;
+                        let mode = self.state.cards[c.index()].mode;
+                        let life = cards::lookup(card)
+                            .and_then(|d| d.modes.get(mode as usize))
+                            .and_then(|m| {
+                                m.effects.iter().find_map(|e| match e {
+                                    Effect::EmployRetainer { life } => Some(*life),
+                                    _ => None,
+                                })
+                            })
+                            .unwrap_or(0);
+                        let owner = self.state.card_controller(c);
+                        let life = if LIBRARY[card as usize]
+                            .labels
+                            .contains(&crate::library::Label::Zombie)
+                        {
+                            life + self.state.zombie_life_bonus(owner)
+                        } else {
+                            life
+                        };
+                        let k = &mut self.state.cards[c.index()].counters;
+                        *k = (*k).max(life);
+                    }
+                }
+            }
+            // A played combat card ending the combat before range (Alpha
+            // Glint [ANI][FOR]).
+            Effect::EndCombat if self.combat.is_some() => self.end_combat_now(),
+            // Liquidation: "burn 7 cards from the top of your library to
+            // gain 3 pool".
+            Effect::BurnLibraryTop(n) => self.burn_library_top(s, n),
+            Effect::GainPool(n) => self.state.seats[s.index()].pool += n as i32,
             Effect::BloodToEachUncontrolledOfSect(sect, n) => {
                 for i in 0..self.state.seats[s.index()].uncontrolled.len() {
                     if self.state.slot_sect(s, i) == sect {
@@ -2934,6 +3077,14 @@ impl Engine {
             }
             // Call the Great Beast: X counters, X the Baali's capacity — 11
             // or more, it rises at once (ANK 20180723).
+            Effect::CountersFromTargetCapacity => {
+                if let (Some(id), Target::Minion(t)) = (*in_play, ctx.target) {
+                    self.state.cards[id.index()].counters = self.state.capacity_of(t).unwrap_or(0);
+                    if self.state.cards[id.index()].counters == 0 {
+                        self.burn_card_in_play(id);
+                    }
+                }
+            }
             Effect::CountersFromActorCapacity => {
                 if let (Some(id), Some(a)) = (*in_play, ctx.actor) {
                     self.state.cards[id.index()].counters =
@@ -3121,11 +3272,12 @@ impl Engine {
             // "Put this card on this vampire" as the combat card resolves
             // (Wall of Filth): the card itself enters play, not the ash heap
             // — one of its name a vampire, a second one to the ash heap.
-            Effect::PutOnActorNow => {
+            Effect::PutOnActorNow | Effect::PutOnActorNowStacking => {
                 let actor = ctx.actor.expect("a combatant");
                 let name = LIBRARY[ctx.card as usize].name;
                 if self.state.minions[actor.index()].in_play
-                    && !self.state.holds_a(actor, cards::Holding::Named(name))
+                    && (effect == Effect::PutOnActorNowStacking
+                        || !self.state.holds_a(actor, cards::Holding::Named(name)))
                 {
                     let id = self.enter_play(CardInPlay {
                         by: Some(actor),
@@ -3600,9 +3752,10 @@ impl Engine {
             // life" (Touch of Valeren [ACTION]).
             Effect::BloodToTargetToStart(n) => {
                 if let Target::Minion(t) = ctx.target {
+                    // Renewed Vigor's "enough … to reach" passes u8::MAX.
                     let b = self
                         .state
-                        .cap_starting(t, self.state.minions[t.index()].blood + n);
+                        .cap_starting(t, self.state.minions[t.index()].blood.saturating_add(n));
                     self.state.minions[t.index()].blood = b;
                 }
             }
@@ -3679,7 +3832,6 @@ impl Engine {
             | Effect::BurnSelfAtCounters(_)
             | Effect::RemoveCounter(_)
             | Effect::BurnSelfWithoutCounters
-            | Effect::GainPool(_)
             | Effect::HandSizeBonusUntilEndOfTurn(_)
             | Effect::PredatorTakesControl
             | Effect::BurnSelf
@@ -4010,7 +4162,11 @@ impl Engine {
                     // The controller picks the ability's target (a hunting
                     // ground: "a ready vampire you control can gain 1 blood").
                     Actor::Controller => {
-                        if st.card_controller(id) != seat {
+                        // "Once each turn" (CrimethInc. [tha]'s "during your
+                        // minion phase").
+                        if st.card_controller(id) != seat
+                            || self.limit_spent(ability.limit, AbilitySource::Card(id), ai as u8)
+                        {
                             continue;
                         }
                         let ok = ability.requires.iter().all(|&r| {
@@ -4663,13 +4819,22 @@ impl Engine {
     fn vampire_ability_options(&self, seat: SeatId, window: Window, out: &mut Vec<Choice>) {
         let st = &self.state;
         let cb = self.combat.as_ref();
-        for m in st.minions_of(seat) {
+        // Its controller's prey's abilities on a vampire (Keith Moody): the
+        // vampires of the user's predator.
+        let predator = st.predator(seat);
+        let theirs = st
+            .minions_of(predator)
+            .filter(|_| predator != seat)
+            .map(|m| (m, true));
+        for (m, of_predator) in st.minions_of(seat).map(|m| (m, false)).chain(theirs) {
             let Some(def) = cards::vampire_of(&st.minions[m.index()]) else {
                 continue;
             };
             let source = AbilitySource::Vampire(m);
             for (ai, ability) in def.abilities.iter().enumerate() {
-                if !ability.windows.contains(&window) {
+                if !ability.windows.contains(&window)
+                    || (ability.actor == Actor::HostControllersPrey) != of_predator
+                {
                     continue;
                 }
                 // "During your minion phase" (Lord Tremere).
@@ -4697,6 +4862,7 @@ impl Engine {
                     }
                     (Actor::HostOutOfCombat, Some(_)) => None,
                     (Actor::HostOutOfCombat, None) => continue,
+                    (Actor::HostControllersPrey, _) => None,
                     (other, _) => unreachable!("not a vampire ability actor: {other:?}"),
                 };
                 if self.limit_spent(ability.limit, source, ai as u8) {
@@ -5170,6 +5336,9 @@ impl Engine {
     /// can …", the card's controller otherwise.
     fn ability_user(&self, source: AbilitySource, ability: u8) -> SeatId {
         match (source, self.ability_mode(source, ability).actor) {
+            (AbilitySource::Vampire(m), Actor::HostControllersPrey) => {
+                self.state.prey(self.state.minions[m.index()].owner)
+            }
             (AbilitySource::Vampire(m), _) => self.state.minions[m.index()].owner,
             (AbilitySource::Card(_), Actor::ActingMinion) => {
                 self.action.as_ref().expect("action").seat
@@ -5414,7 +5583,15 @@ impl Engine {
         let (seat, host, card) = match source {
             // A vampire's own text: the vampire is its host, and there is no
             // library card (`u16::MAX`: no effect of a vampire reads it).
-            AbilitySource::Vampire(m) => (self.state.minions[m.index()].owner, Some(m), u16::MAX),
+            AbilitySource::Vampire(m) => {
+                let owner = self.state.minions[m.index()].owner;
+                let seat = if mode.actor == Actor::HostControllersPrey {
+                    self.state.prey(owner)
+                } else {
+                    owner
+                };
+                (seat, Some(m), u16::MAX)
+            }
             AbilitySource::Card(id) => {
                 let c = &self.state.cards[id.index()];
                 match mode.actor {
@@ -5486,9 +5663,7 @@ impl Engine {
         let mut moved = false;
         for e in mode.effects {
             match *e {
-                Effect::SpendMasterPhaseAction => {
-                    self.state.seats[ctx.seat.index()].mpa -= 1;
-                }
+                Effect::SpendMasterPhaseAction => self.state.spend_mpa(ctx.seat),
                 Effect::BurnSelf => self.burn_card_in_play(source.card()),
                 Effect::LockSelf => self.lock_card(source.card()),
                 Effect::AddCounter(n) => self.state.cards[source.card().index()].counters += n,
@@ -5501,6 +5676,19 @@ impl Engine {
                 // Spent from the influence phase's as it is used
                 // (`influence_apply`).
                 Effect::SpendTransfers(_) | Effect::GainTransfers(_) => {}
+                Effect::SlaveTakesCombat => {
+                    if let (AbilitySource::Vampire(m), Some(a)) = (source, self.action.as_mut()) {
+                        a.slave = Some(m);
+                    }
+                }
+                Effect::SearchMageAlly => {
+                    if let AbilitySource::Vampire(m) = source {
+                        self.interrupts.push(Interrupt::AllySearch {
+                            seat: ctx.seat,
+                            minion: m,
+                        });
+                    }
+                }
                 Effect::CounterToTarget(clan) => {
                     if let Target::Minion(t) = target {
                         let c = &mut self.state.cards[source.card().index()];
@@ -5535,6 +5723,14 @@ impl Engine {
                     if let Target::Minion(t) = target {
                         if self.state.minions[t.index()].present() {
                             self.leave_torpor(t);
+                        }
+                    }
+                }
+                Effect::HostLeavesTorpor => {
+                    if let Some(h) = host {
+                        if self.state.minions[h.index()].present() && self.state.minions[h.index()].in_torpor
+                        {
+                            self.leave_torpor(h);
                         }
                     }
                 }
@@ -5838,6 +6034,7 @@ impl Engine {
                 | Effect::VampiresCannotBlock
                 // Aksinya Daclau's redirection.
                 | Effect::RedirectBleed
+                | Effect::HuntBonusThisAction(_)
                 | Effect::ActionFails => self.apply_action_effect(*e, &ctx),
                 Effect::FailReferendum => self.apply_vote_effect(*e, &ctx),
                 // In an action or out of one (Daria's lock, Kalinda's unlock).
@@ -6145,6 +6342,8 @@ impl Engine {
                     let c = &mut self.state.cards[source.card().index()];
                     c.counters -= ctx.x.min(c.counters);
                 }
+                // Illusory Resources: "reduce a bleed against you by X".
+                Effect::ReduceBleedX => self.apply_action_effect(Effect::ReduceBleed(ctx.x), &ctx),
                 Effect::AddVotesX => self.apply_vote_effect(Effect::AddVotes(ctx.x), &ctx),
                 Effect::TargetBloodToPool(n) => {
                     if let Target::Minion(t) = target {
@@ -6276,6 +6475,7 @@ impl Engine {
                         let seat = &mut self.state.seats[ctx.seat.index()];
                         if let Some(c) = seat.library.pop() {
                             seat.hand.push(c);
+                            self.offer_redraw(ctx.seat, c);
                         }
                     }
                 }
@@ -6390,8 +6590,7 @@ impl Engine {
                 self.state
                     .minions_of(seat)
                     .filter(|&m| {
-                        let v = &self.state.minions[m.index()];
-                        v.locked && v.vampire().is_some_and(|c| c.infernal)
+                        self.state.minions[m.index()].locked && self.state.unlocks_as_infernal(m)
                     })
                     .map(|minion| Choice::UnlockInfernal { minion }),
             );
@@ -6699,6 +6898,12 @@ impl Engine {
                     Effect::AddHostBlood(n) => {
                         let h = self.state.cards[id.index()].bearer().expect("host");
                         self.state.gain_blood(h, n);
+                    }
+                    // Baltimore Purge: burned, then the picks.
+                    Effect::Purge => {
+                        let host = self.state.cards[id.index()].bearer().expect("host");
+                        self.burn_card_in_play(id);
+                        self.start_purge(host);
                     }
                     // "The attached minion burns 1 blood or life" (Sculpt the
                     // Flesh [PRO]): an ally with no life left is burned.

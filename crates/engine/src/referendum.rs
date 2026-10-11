@@ -1817,6 +1817,12 @@ impl Engine {
             self.flow = Flow::GameOver;
             return;
         }
+        self.political_passed_riders();
+        if self.state.living() <= 1 {
+            self.action = None;
+            self.flow = Flow::GameOver;
+            return;
+        }
         let a = self.action.as_ref().expect("action");
         let (seat, blocked) = (a.seat, a.outcome == Some(Outcome::Blocked));
         if self.state.seats[seat.index()].ousted {
@@ -1830,6 +1836,47 @@ impl Engine {
             self.own_referendum_failed_riders();
         }
         self.after_resolution();
+    }
+
+    /// "If Lutz is ready, your prey burns 1 pool after the referendum of a
+    /// political action passes": any Methuselah's political action, after
+    /// all the referendum's effects — its ousts and pool gains included —,
+    /// not for a controller ousted by them (ANK 20220808); the prey read
+    /// then, live (a new one if the referendum ousted the old).
+    fn political_passed_riders(&mut self) {
+        let a = self.action.as_ref().expect("action");
+        if a.kind != crate::decision::ActionKind::Political || !a.referendum_passed {
+            return;
+        }
+        let mut loss = vec![0i32; self.state.seats.len()];
+        for m in 0..self.state.minions.len() {
+            let v = &self.state.minions[m];
+            let Some(def) = cards::vampire_of(v).filter(|_| v.ready()) else {
+                continue;
+            };
+            let s = v.owner;
+            let seat = &self.state.seats[s.index()];
+            if seat.ousted || seat.oust_pending {
+                continue;
+            }
+            for r in def
+                .riders
+                .iter()
+                .filter(|r| r.hook == cards::Hook::PoliticalReferendumPassed)
+            {
+                for e in r.effects {
+                    match *e {
+                        cards::Effect::PreyBurnsPool(n) => {
+                            loss[self.state.prey(s).index()] += n as i32;
+                        }
+                        other => unreachable!("not a referendum rider effect: {other:?}"),
+                    }
+                }
+            }
+        }
+        if loss.iter().any(|&n| n > 0) {
+            self.burn_pool_batch(&loss);
+        }
     }
 
     /// "If the referendum of a political action called by this vampire is
@@ -2004,6 +2051,45 @@ impl Engine {
                 ctx.forced_fail = true;
                 ctx.window = PollingWindow::new(Vec::new());
             }
+            // Confusion of the Eye [OBF]: the acting vampire casts no votes
+            // or ballots.
+            cards::Effect::ActingAbstains => {
+                if let Some(t) = self.action.as_ref().map(|a| a.acting) {
+                    for r in &mut ctx.records {
+                        if r.source == Source::Vampire(t) {
+                            r.canceled = true;
+                        }
+                    }
+                    ctx.abstaining.push(t);
+                }
+            }
+            // "If the referendum requires a titled vampire, the referendum
+            // fails": a title requirement on the calling card or granted
+            // action (rules-qa 63.3).
+            cards::Effect::FailIfTitleRequired => {
+                let titled = self.action.as_ref().is_some_and(|a| {
+                    let mode = match (a.card, a.source, a.ability) {
+                        (Some(p), _, _) => {
+                            cards::lookup(p.card).and_then(|d| d.modes.get(p.mode as usize))
+                        }
+                        (None, Some(src), Some(ab)) => Some(src.mode(&self.state, ab)),
+                        _ => None,
+                    };
+                    mode.is_some_and(|m| {
+                        m.requires.iter().any(|r| {
+                            matches!(
+                                r,
+                                cards::Requirement::ActorTitleIn(_)
+                                    | cards::Requirement::ActorClaimsTitleIn(_)
+                            )
+                        })
+                    })
+                });
+                if titled {
+                    ctx.forced_fail = true;
+                    ctx.window = PollingWindow::new(Vec::new());
+                }
+            }
             cards::Effect::CancelReferendum {
                 unlock_acting,
                 forbid_repeat,
@@ -2066,6 +2152,8 @@ pub(crate) fn is_vote_effect(e: &cards::Effect) -> bool {
             | cards::Effect::PoolForVotesRound { .. }
             | cards::Effect::AddVotesXLinear { .. }
             | cards::Effect::FailReferendum
+            | cards::Effect::ActingAbstains
+            | cards::Effect::FailIfTitleRequired
             | cards::Effect::CancelReferendum { .. }
     )
 }

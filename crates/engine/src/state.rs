@@ -32,6 +32,11 @@ pub fn once_cost_off_key(m: MinionId) -> (crate::cards::AbilitySource, u8) {
     (crate::cards::AbilitySource::Vampire(m), u8::MAX)
 }
 
+/// The `turn_uses` key of a once-each-turn redraw (Blackhorse Tanner).
+pub fn once_redraw_key(m: MinionId) -> (crate::cards::AbilitySource, u8) {
+    (crate::cards::AbilitySource::Vampire(m), u8::MAX - 2)
+}
+
 pub fn distinct(cards: &[u16], keep: impl Fn(u16) -> bool) -> Vec<u16> {
     let mut out: Vec<u16> = cards.iter().copied().filter(|&c| keep(c)).collect();
     out.sort_unstable();
@@ -705,6 +710,31 @@ pub struct Held {
 }
 
 impl Held {
+    /// Add what `after` holds over `before`, field by field: the
+    /// replacements a play just held, for a second ledger of them (Learjet's
+    /// extra draws, `Seat::learjet_held`).
+    pub fn add_diff(&mut self, before: Held, after: Held) {
+        macro_rules! diff {
+            ($($f:ident),*) => {$(
+                self.$f += after.$f.saturating_sub(before.$f);
+            )*};
+        }
+        diff!(
+            unlock,
+            discard,
+            action,
+            combat,
+            weakens,
+            ousted,
+            diablerie,
+            titled_torpor,
+            hunt,
+            leaves_torpor,
+            liaison,
+            master
+        );
+    }
+
     pub fn total(self) -> usize {
         [
             self.unlock,
@@ -749,8 +779,11 @@ pub struct Seat {
     pub ash_crypt: Vec<u16>,
     /// Vampires removed from the game (CRYPT indices).
     pub removed_crypt: Vec<u16>,
-    /// Master phase actions left in the current master phase.
+    /// Master phase actions left in the current master phase (Anson's
+    /// second one aside: `GameState::mpa_left`).
     pub mpa: u8,
+    /// Anson's second master phase action was spent this master phase.
+    pub second_mpa_spent: bool,
     /// Hand size above the rulebook's 7 until the end of the turn (Dreams
     /// of the Sphinx).
     pub hand_bonus: u8,
@@ -766,6 +799,9 @@ pub struct Seat {
     pub transfers_next: u8,
     /// Hand size above 7 for the combat under way (Rage of Apedemak).
     pub combat_hand_bonus: u8,
+    /// Infernal Pursuit [CEL]: extra cards drawn with each replacement for
+    /// the rest of the combat (then discarded down to hand size).
+    pub combat_extra_draws: u8,
     /// One additional master phase action from trifles per master phase.
     pub trifle_used: bool,
     /// Día de los Muertos this turn: the first referendum a Sabbat vampire
@@ -802,6 +838,10 @@ pub struct Seat {
     /// Cards played but not replaced yet: they count against the hand
     /// size until then (rulebook "Drawing Cards"; spec §6.8.1).
     pub held: Held,
+    /// Of `held`, the replacements of cards Learjet's bearer played as the
+    /// acting minion: each brings an optional extra draw when it comes due
+    /// (PIB 20110718).
+    pub learjet_held: Held,
     /// "Do not replace as long as this card is in play" (Fall of the
     /// Camarilla, The Uncoiling): replaced as the card leaves play (even
     /// burned, LSJ 20080805).
@@ -1271,6 +1311,27 @@ impl GameState {
     }
 
     /// Is `m` an infernal vampire (its card's trait)?
+    /// Infernal for the unlock phase (rulebook "Infernal"): a vampire printed
+    /// so, or an ally whose card is (Herald of Topheth) — it does not unlock
+    /// as normal; its controller may burn 1 pool to unlock it.
+    pub fn unlocks_as_infernal(&self, m: MinionId) -> bool {
+        let v = &self.minions[m.index()];
+        v.vampire().is_some_and(|c| c.infernal)
+            || v.kind.ally_card().is_some_and(|c| {
+                crate::library::LIBRARY[c as usize]
+                    .labels
+                    .contains(&crate::library::Label::Infernal)
+            })
+    }
+
+    /// "Blood cursed" (rulebook "Traits"): it cannot commit diablerie — nor
+    /// be compelled to (advanced rules §3.7.8.4).
+    pub fn blood_cursed(&self, m: MinionId) -> bool {
+        self.minions[m.index()]
+            .vampire()
+            .is_some_and(|c| c.blood_cursed)
+    }
+
     pub fn is_infernal(&self, m: MinionId) -> bool {
         let v = &self.minions[m.index()];
         matches!(
@@ -1483,10 +1544,21 @@ impl GameState {
                 types.contains(&crate::library::CardType::Reaction)
                     && (!types.contains(&crate::library::CardType::ActionModifier) || ctx.reacting)
             }),
+            // A combat card, or one with two types played in a combat
+            // window (Swift Cover's combat mode, not its action modifier).
+            R::PlayedAsCombat => ctx.card.is_some_and(|(c, mode)| {
+                let types = crate::library::LIBRARY[c as usize].types;
+                types.contains(&crate::library::CardType::Combat)
+                    && (types.len() == 1
+                        || cards::lookup(c)
+                            .and_then(|d| d.modes.get(mode as usize))
+                            .is_some_and(|m| m.windows.iter().all(|w| w.is_combat())))
+            }),
             R::ActionDirected => ctx.directed == Some(true),
             R::ActionUndirected => ctx.directed == Some(false),
             R::IsBleed => ctx.kind == Some(ActionKind::Bleed),
             R::IsHunt => ctx.kind == Some(ActionKind::Hunt),
+            R::IsDiablerie => ctx.kind == Some(ActionKind::Diablerie),
             R::IsRecruitOrEmploy => {
                 matches!(ctx.kind, Some(ActionKind::Recruit | ActionKind::Employ))
             }
@@ -1557,6 +1629,10 @@ impl GameState {
                     && w.clan() == Some(clan)
                     && self.younger_than(source, o)
             }),
+            R::ControlsNoReadyOfClan(clan) => !self.minions_of(src.owner).any(|o| {
+                let w = &self.minions[o.index()];
+                w.is_vampire() && w.ready() && w.clan() == Some(clan)
+            }),
             R::ControlsReadyTitledOther(classes) => self.minions_of(src.owner).any(|o| {
                 o != source
                     && self.minions[o.index()].ready()
@@ -1621,6 +1697,30 @@ impl GameState {
     /// Discard phase actions printed on the seat's vampires ("if Sreelekha
     /// is ready at the start of your discard phase, you get +1 discard
     /// phase action"), read as the phase begins.
+    /// Master phase actions `s` has left: those counted in `Seat::mpa`, and
+    /// the second one while a vampire of theirs printing "two master phase
+    /// actions (instead of one)" is ready (Anson) and it is unspent — read
+    /// live (rules-qa 62.5).
+    pub fn mpa_left(&self, s: SeatId) -> u8 {
+        let seat = &self.seats[s.index()];
+        let two = !seat.second_mpa_spent
+            && self.minions_of(s).any(|m| {
+                self.printed_mod(m, Stat::TwoMasterPhaseActions, PrintedCtx::default()) > 0
+            });
+        seat.mpa + u8::from(two)
+    }
+
+    /// Spend a master phase action of `s`: the ordinary ones first, Anson's
+    /// second one last (lost if he leaves the ready region first).
+    pub fn spend_mpa(&mut self, s: SeatId) {
+        let seat = &mut self.seats[s.index()];
+        if seat.mpa > 0 {
+            seat.mpa -= 1;
+        } else {
+            seat.second_mpa_spent = true;
+        }
+    }
+
     pub fn printed_discard_actions(&self, s: SeatId) -> i32 {
         self.minions_of(s)
             .map(|m| self.printed_mod(m, Stat::DiscardPhaseActions, PrintedCtx::default()))
@@ -1699,16 +1799,32 @@ impl GameState {
     /// control get +1 hunt", The Hungry Coyote).
     pub fn hunt_bonus(&self, m: MinionId) -> u8 {
         let owner = self.minions[m.index()].owner;
-        self.in_play_layers()
+        // This action's (Hospital Food): only one action at a time.
+        let action: u8 = self
+            .layers
+            .iter()
+            .filter(|l| l.scope == Scope::Action)
             .map(|l| match l.modifier {
-                Modifier::OwnSectHunt(sect, n)
-                    if self.card_controller(l.source) == owner && self.sect_of(m) == Some(sect) =>
-                {
-                    n
-                }
+                Modifier::ActionHunt(n) => n,
                 _ => 0,
             })
-            .sum()
+            .sum();
+        action
+            + self
+                .in_play_layers()
+                .map(|l| match l.modifier {
+                    Modifier::OwnSectHunt(sect, n)
+                        if self.card_controller(l.source) == owner
+                            && self.sect_of(m) == Some(sect) =>
+                    {
+                        n
+                    }
+                    Modifier::BearerHunt(n) if self.cards[l.source.index()].bearer() == Some(m) => {
+                        n
+                    }
+                    _ => 0,
+                })
+                .sum::<u8>()
     }
 
     /// Cards over hand size, the cards not replaced yet counting against
@@ -1951,9 +2067,15 @@ impl GameState {
         {
             return false;
         }
-        self.borne(m).all(|l| {
-            !matches!(l.modifier, Modifier::DirectedOnlyBy(ds)
-                if !ds.iter().any(|d| self.has_discipline(actor, d)))
+        self.borne(m).all(|l| match l.modifier {
+            Modifier::DirectedOnlyBy(ds) => ds.iter().any(|d| self.has_discipline(actor, d)),
+            // Veneficti: "cannot be the target of a directed action
+            // performed by an ally or a vampire with capacity 6 or less".
+            Modifier::NotDirectedByAllyOrCapacityAtMost(n) => {
+                !self.minions[actor.index()].is_ally()
+                    && self.capacity_of(actor).is_none_or(|c| c > n)
+            }
+            _ => true,
         })
     }
 
@@ -2565,6 +2687,18 @@ impl GameState {
 
     /// The in-play layers of the cards `m` bears (`CardInPlay::bearer`: on
     /// it, or the ally it is).
+    /// Damage each opposing strike inflicts on `m` less (Nephandus: "each
+    /// strike or damaging effect made by the opposing minion against
+    /// Nephandus in combat inflicts 1 less damage").
+    pub fn damage_reduction(&self, m: MinionId) -> u8 {
+        self.borne(m)
+            .map(|l| match l.modifier {
+                Modifier::OpposingDamageLess(n) => n,
+                _ => 0,
+            })
+            .sum()
+    }
+
     pub fn borne(&self, m: MinionId) -> impl Iterator<Item = &Layer> + '_ {
         self.in_play_layers()
             .filter(move |l| self.cards[l.source.index()].bearer() == Some(m))

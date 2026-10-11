@@ -281,6 +281,28 @@ impl Describer<'_> {
                 "You can search for a Discipline master card to put on {}",
                 self.named(minion)
             ),
+            MayDrawExtra { .. } => "Learjet: you can draw an additional card (discard afterward)".into(),
+            PursuitDraw { .. } => "Infernal Pursuit: replace a card and draw more".into(),
+            PursuitDiscard { left, .. } => format!("Infernal Pursuit: discard {left} card(s)"),
+            PurgePick { of, host, .. } => format!(
+                "Baltimore Purge: choose a ready vampire of {} not older than {} to go to torpor",
+                self.seat_name(of),
+                self.named(host)
+            ),
+            StealUpTo { from, to, .. } => format!(
+                "How much blood does {} steal from {}?",
+                self.named(to),
+                self.named(from)
+            ),
+            AllySearch { minion, .. } => format!(
+                "{}: you can search for a mage ally to put in play",
+                self.named(minion)
+            ),
+            Redraw { minion, card, .. } => format!(
+                "{}: you can put {} on the bottom of your library and draw a new card",
+                self.named(minion),
+                zvtes::library::LIBRARY[card as usize].name
+            ),
             RemoveUncontrolled { .. } => {
                 "Remove a crypt card in your uncontrolled region from the game".into()
             }
@@ -403,6 +425,19 @@ impl Describer<'_> {
                 (StoreSearch { .. } | DisciplineSearch { .. }, Choice::Pass) => {
                     Some("Stop searching".into())
                 }
+                (AllySearch { .. }, Choice::Pass) => Some("Find nothing".into()),
+                (MayDrawExtra { .. }, Choice::Pass) => Some("Draw no more".into()),
+                (MayDrawExtra { .. }, Choice::DrawLibrary) => {
+                    Some("Draw an additional card".into())
+                }
+                (Redraw { card, .. }, Choice::Pass) => Some(format!(
+                    "Keep {}",
+                    zvtes::library::LIBRARY[card as usize].name
+                )),
+                (Redraw { card, .. }, Choice::DrawLibrary) => Some(format!(
+                    "Put {} on the bottom and draw a new card",
+                    zvtes::library::LIBRARY[card as usize].name
+                )),
                 (EntryBurn { .. }, Choice::ChooseMinion(_)) => role("burned".into()),
                 (MayPutOn { held, .. }, Choice::Pass) => Some(format!(
                     "Leave {} in the ash heap",

@@ -28,8 +28,10 @@ TYPES = ["Master", "Action", "Action Modifier", "Reaction", "Combat", "Political
 LABELS = [
     ("Unique", r"^unique\b|\bunique (location|\w+ with)|\. unique\."),
     # The type line only ("Burn a location." is an action's text).
-    ("Location", r"(^|\. )(unique )?location\."),
-    ("HuntingGround", r"^hunting ground\."),
+    # A locquipment too ("This equipment card represents a location",
+    # Ruins of Ceoris).
+    ("Location", r"(^|\. )(unique )?location\.|represents a location"),
+    ("HuntingGround", r"(^|\. )hunting ground\."),
     ("Weapon", r"^(unique )?(melee )?weapon\b"),
     ("Gun", r"^weapon: gun"),
     ("Vehicle", r"^vehicle\."),
@@ -53,6 +55,11 @@ LABELS = [
     ("Zombie", r"^(unique )?zombie with"),
     ("Wraith", r"^(unique )?wraith with"),
     ("Werewolf", r"^(unique )?werewolf with"),
+    ("Mage", r"^(unique )?mage with"),
+    ("Demon", r"^(unique )?demon with"),
+    # An infernal ally (Herald of Topheth): "… flight [FLIGHT]. Infernal."
+    # on its type line.
+    ("Infernal", r"^(unique )?\w+ with [^\n]*\. infernal\."),
     # "More than one Discipline can be used to play this card": one mode per
     # non-empty set of its Disciplines, each set required in full (LSJ
     # 20011204-3: played, it requires the Disciplines used).
@@ -72,7 +79,12 @@ LABELS = [
 ]
 # An ally's or retainer's type line: "Unique mortal with 2 life. 1 strength,
 # 0 bleed." (a retainer prints its life only).
-BODY = re.compile(r"^(?:unique )?[\w ]+? with (\d+) life\.(?: (\d+) strength, (\d+) bleed\.)?", re.I)
+# "… 3 strength, 1 bleed, flight [FLIGHT]." (Herald of Topheth): flight is
+# a bare trait (rules-qa 16.6).
+BODY = re.compile(
+    r"^(?:unique )?[\w ]+? with (\d+) life\.(?: (\d+) strength, (\d+) bleed(?:, flight \[FLIGHT\])?\.)?",
+    re.I,
+)
 
 
 def rust_str(s):

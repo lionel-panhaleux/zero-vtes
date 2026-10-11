@@ -63,13 +63,17 @@ pub struct CryptCard {
     pub infernal: bool,
     /// "Black Hand." (Elimelech): a trait cards read.
     pub black_hand: bool,
-    /// Unique, unless printed "Non-unique." (Valkyrie): copies of a
+    /// Unique, unless printed "Non-unique." (Valkyrie) or "Tupdogs are not
+    /// unique." (Tupdog): copies of a
     /// non-unique vampire do not contest.
     pub unique: bool,
+    /// "Blood cursed." (Alu, Wise Frog): it cannot commit diablerie
+    /// (rulebook "Traits").
+    pub blood_cursed: bool,
 }
 
 #[rustfmt::skip]
-pub static CRYPT: [CryptCard; 303] = [
+pub static CRYPT: [CryptCard; 331] = [
     CryptCard {
         id: 201661,
         name: "\"Coach\" Tyrone Soros",
@@ -84,6 +88,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201725,
@@ -99,6 +104,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201663,
@@ -114,6 +120,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201623,
@@ -129,6 +136,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201634,
@@ -144,6 +152,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201635,
@@ -159,6 +168,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201636,
@@ -174,6 +184,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201664,
@@ -189,6 +200,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201708,
@@ -204,6 +216,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200030,
@@ -219,6 +232,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200039,
@@ -234,6 +248,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201717,
@@ -249,6 +264,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201529,
@@ -264,6 +280,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201530,
@@ -279,6 +296,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201531,
@@ -294,6 +312,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201575,
@@ -309,6 +328,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201576,
@@ -324,6 +344,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201577,
@@ -339,6 +360,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201624,
@@ -354,6 +376,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201532,
@@ -369,6 +392,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200081,
@@ -384,6 +408,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201666,
@@ -399,6 +424,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201657,
@@ -414,6 +440,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200105,
@@ -429,6 +456,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200123,
@@ -444,6 +472,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201709,
@@ -459,6 +488,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200132,
@@ -474,6 +504,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201655,
@@ -489,6 +520,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201533,
@@ -504,6 +536,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201578,
@@ -519,6 +552,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201579,
@@ -534,6 +568,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201534,
@@ -549,6 +584,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201535,
@@ -564,6 +600,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201637,
@@ -579,6 +616,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201710,
@@ -594,6 +632,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201536,
@@ -609,6 +648,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201781,
@@ -624,6 +664,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201537,
@@ -639,6 +680,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201580,
@@ -654,6 +696,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201711,
@@ -669,6 +712,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201581,
@@ -684,6 +728,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201667,
@@ -699,6 +744,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201538,
@@ -714,6 +760,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201539,
@@ -729,6 +776,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201625,
@@ -744,6 +792,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201521,
@@ -759,6 +808,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201668,
@@ -774,6 +824,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201540,
@@ -789,6 +840,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201626,
@@ -804,6 +856,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201541,
@@ -819,6 +872,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201542,
@@ -834,6 +888,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201638,
@@ -849,6 +904,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201669,
@@ -864,6 +920,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201543,
@@ -879,6 +936,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200303,
@@ -894,6 +952,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201582,
@@ -909,6 +968,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201729,
@@ -924,6 +984,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201639,
@@ -939,6 +1000,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201583,
@@ -954,6 +1016,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201640,
@@ -969,6 +1032,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201782,
@@ -984,6 +1048,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201670,
@@ -999,6 +1064,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201584,
@@ -1014,6 +1080,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201671,
@@ -1029,6 +1096,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201544,
@@ -1044,6 +1112,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201545,
@@ -1059,6 +1128,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201546,
@@ -1074,6 +1144,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201730,
@@ -1089,6 +1160,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201585,
@@ -1104,6 +1176,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201586,
@@ -1119,6 +1192,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201627,
@@ -1134,6 +1208,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201587,
@@ -1149,6 +1224,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201588,
@@ -1164,6 +1240,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201547,
@@ -1179,6 +1256,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201672,
@@ -1194,6 +1272,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201718,
@@ -1209,6 +1288,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201548,
@@ -1224,6 +1304,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201712,
@@ -1239,6 +1320,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201589,
@@ -1254,6 +1336,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201641,
@@ -1269,6 +1352,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201642,
@@ -1284,6 +1368,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201783,
@@ -1299,6 +1384,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200562,
@@ -1314,6 +1400,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201590,
@@ -1329,6 +1416,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201731,
@@ -1344,6 +1432,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201591,
@@ -1359,6 +1448,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201719,
@@ -1374,6 +1464,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201720,
@@ -1389,6 +1480,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201549,
@@ -1404,6 +1496,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201550,
@@ -1419,6 +1512,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201673,
@@ -1434,6 +1528,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201592,
@@ -1449,6 +1544,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201551,
@@ -1464,6 +1560,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201628,
@@ -1479,6 +1576,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201674,
@@ -1494,6 +1592,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201593,
@@ -1509,6 +1608,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201595,
@@ -1524,6 +1624,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200723,
@@ -1539,6 +1640,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201596,
@@ -1554,6 +1656,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201713,
@@ -1569,6 +1672,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201597,
@@ -1584,6 +1688,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201598,
@@ -1599,6 +1704,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201604,
@@ -1614,6 +1720,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201552,
@@ -1629,6 +1736,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201659,
@@ -1644,6 +1752,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201629,
@@ -1659,6 +1768,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201599,
@@ -1674,6 +1784,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201574,
@@ -1689,6 +1800,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201643,
@@ -1704,6 +1816,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201553,
@@ -1719,6 +1832,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200816,
@@ -1734,6 +1848,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201554,
@@ -1749,6 +1864,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201721,
@@ -1764,6 +1880,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201555,
@@ -1779,6 +1896,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201526,
@@ -1794,6 +1912,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201556,
@@ -1809,6 +1928,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201675,
@@ -1824,6 +1944,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201557,
@@ -1839,6 +1960,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201676,
@@ -1854,6 +1976,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201600,
@@ -1869,6 +1992,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201722,
@@ -1884,6 +2008,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201677,
@@ -1899,6 +2024,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201601,
@@ -1914,6 +2040,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201714,
@@ -1929,6 +2056,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201630,
@@ -1944,6 +2072,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201602,
@@ -1959,6 +2088,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201558,
@@ -1974,6 +2104,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201631,
@@ -1989,6 +2120,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201559,
@@ -2004,6 +2136,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201603,
@@ -2019,6 +2152,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201644,
@@ -2034,6 +2168,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201605,
@@ -2049,6 +2184,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201560,
@@ -2064,6 +2200,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201645,
@@ -2079,6 +2216,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201561,
@@ -2094,6 +2232,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201723,
@@ -2109,6 +2248,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201724,
@@ -2124,6 +2264,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201784,
@@ -2139,6 +2280,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201562,
@@ -2154,6 +2296,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201563,
@@ -2169,6 +2312,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201606,
@@ -2184,6 +2328,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201632,
@@ -2199,6 +2344,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201607,
@@ -2214,6 +2360,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201678,
@@ -2229,6 +2376,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201564,
@@ -2244,6 +2392,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201785,
@@ -2259,6 +2408,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201608,
@@ -2274,6 +2424,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201609,
@@ -2289,6 +2440,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201679,
@@ -2304,6 +2456,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201656,
@@ -2319,6 +2472,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201680,
@@ -2334,6 +2488,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201565,
@@ -2349,6 +2504,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201646,
@@ -2364,6 +2520,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201726,
@@ -2379,6 +2536,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201566,
@@ -2394,6 +2552,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201727,
@@ -2409,6 +2568,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201681,
@@ -2424,6 +2584,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201682,
@@ -2439,6 +2600,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201647,
@@ -2454,6 +2616,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201660,
@@ -2469,6 +2632,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201610,
@@ -2484,6 +2648,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201648,
@@ -2499,6 +2664,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201649,
@@ -2514,6 +2680,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201715,
@@ -2529,6 +2696,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201683,
@@ -2544,6 +2712,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201732,
@@ -2559,6 +2728,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201567,
@@ -2574,6 +2744,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201650,
@@ -2589,6 +2760,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201651,
@@ -2604,6 +2776,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201684,
@@ -2619,6 +2792,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201611,
@@ -2634,6 +2808,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201568,
@@ -2649,6 +2824,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201786,
@@ -2664,6 +2840,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201685,
@@ -2679,6 +2856,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201658,
@@ -2694,6 +2872,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201686,
@@ -2709,6 +2888,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201662,
@@ -2724,6 +2904,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201612,
@@ -2739,6 +2920,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201687,
@@ -2754,6 +2936,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201652,
@@ -2769,6 +2952,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201321,
@@ -2784,6 +2968,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201569,
@@ -2799,6 +2984,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201688,
@@ -2814,6 +3000,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201570,
@@ -2829,6 +3016,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201571,
@@ -2844,6 +3032,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201613,
@@ -2859,6 +3048,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201728,
@@ -2874,6 +3064,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201572,
@@ -2889,6 +3080,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201689,
@@ -2904,6 +3096,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201653,
@@ -2919,6 +3112,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201614,
@@ -2934,6 +3128,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201615,
@@ -2949,6 +3144,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201594,
@@ -2964,6 +3160,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201573,
@@ -2979,6 +3176,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201465,
@@ -2994,6 +3192,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201690,
@@ -3009,6 +3208,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201691,
@@ -3024,6 +3224,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201716,
@@ -3039,6 +3240,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201692,
@@ -3054,6 +3256,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201665,
@@ -3069,6 +3272,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201617,
@@ -3084,6 +3288,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200575,
@@ -3099,6 +3304,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200634,
@@ -3114,6 +3320,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200937,
@@ -3129,6 +3336,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201312,
@@ -3144,6 +3352,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201478,
@@ -3159,6 +3368,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201694,
@@ -3174,6 +3384,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201696,
@@ -3189,6 +3400,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201699,
@@ -3204,6 +3416,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201702,
@@ -3219,6 +3432,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201703,
@@ -3234,6 +3448,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201706,
@@ -3249,6 +3464,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201707,
@@ -3264,6 +3480,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201733,
@@ -3279,6 +3496,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201744,
@@ -3294,6 +3512,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201747,
@@ -3309,6 +3528,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201760,
@@ -3324,6 +3544,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201762,
@@ -3339,6 +3560,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201764,
@@ -3354,6 +3576,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201766,
@@ -3369,6 +3592,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201769,
@@ -3384,6 +3608,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201770,
@@ -3399,6 +3624,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201774,
@@ -3414,6 +3640,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201775,
@@ -3429,6 +3656,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201776,
@@ -3444,6 +3672,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201735,
@@ -3459,6 +3688,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201736,
@@ -3474,6 +3704,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201743,
@@ -3489,6 +3720,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201746,
@@ -3504,6 +3736,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201748,
@@ -3519,6 +3752,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201751,
@@ -3534,6 +3768,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201753,
@@ -3549,6 +3784,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201754,
@@ -3564,6 +3800,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201758,
@@ -3579,6 +3816,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201767,
@@ -3594,6 +3832,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201777,
@@ -3609,6 +3848,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201778,
@@ -3624,6 +3864,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201738,
@@ -3639,6 +3880,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201739,
@@ -3654,6 +3896,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201742,
@@ -3669,6 +3912,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201745,
@@ -3684,6 +3928,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201755,
@@ -3699,6 +3944,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201756,
@@ -3714,6 +3960,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201759,
@@ -3729,6 +3976,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201761,
@@ -3744,6 +3992,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201763,
@@ -3759,6 +4008,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201768,
@@ -3774,6 +4024,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201772,
@@ -3789,6 +4040,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201773,
@@ -3804,6 +4056,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201734,
@@ -3819,6 +4072,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201737,
@@ -3834,6 +4088,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201740,
@@ -3849,6 +4104,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201741,
@@ -3864,6 +4120,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201749,
@@ -3879,6 +4136,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201750,
@@ -3894,6 +4152,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201752,
@@ -3909,6 +4168,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201757,
@@ -3924,6 +4184,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201765,
@@ -3939,6 +4200,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201771,
@@ -3954,6 +4216,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201779,
@@ -3969,6 +4232,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201780,
@@ -3984,6 +4248,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200060,
@@ -3999,6 +4264,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200076,
@@ -4014,6 +4280,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201527,
@@ -4029,6 +4296,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201633,
@@ -4044,6 +4312,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200136,
@@ -4059,6 +4328,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: true,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200190,
@@ -4074,6 +4344,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200224,
@@ -4089,6 +4360,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200317,
@@ -4104,6 +4376,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200349,
@@ -4119,6 +4392,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200410,
@@ -4134,6 +4408,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: true,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200753,
@@ -4149,6 +4424,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200968,
@@ -4164,6 +4440,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201176,
@@ -4179,6 +4456,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201253,
@@ -4194,6 +4472,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201341,
@@ -4209,6 +4488,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201423,
@@ -4224,6 +4504,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: false,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201523,
@@ -4239,6 +4520,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201524,
@@ -4254,6 +4536,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200034,
@@ -4269,6 +4552,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200373,
@@ -4284,6 +4568,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200455,
@@ -4299,6 +4584,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200508,
@@ -4314,6 +4600,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200521,
@@ -4329,6 +4616,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200533,
@@ -4344,6 +4632,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200638,
@@ -4359,6 +4648,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200848,
@@ -4374,6 +4664,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200946,
@@ -4389,6 +4680,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200956,
@@ -4404,6 +4696,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201029,
@@ -4419,6 +4712,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201160,
@@ -4434,6 +4728,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201334,
@@ -4449,6 +4744,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201438,
@@ -4464,6 +4760,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201621,
@@ -4479,6 +4776,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200179,
@@ -4494,6 +4792,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200242,
@@ -4509,6 +4808,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200705,
@@ -4524,6 +4824,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200856,
@@ -4539,6 +4840,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200905,
@@ -4554,6 +4856,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 200999,
@@ -4569,6 +4872,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201048,
@@ -4584,6 +4888,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: true,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201362,
@@ -4599,6 +4904,7 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
     },
     CryptCard {
         id: 201698,
@@ -4614,6 +4920,455 @@ pub static CRYPT: [CryptCard; 303] = [
         infernal: false,
         black_hand: false,
         unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 200011,
+        name: "Adana de Sforza",
+        capacity: 11,
+        group: 4,
+        clan: "Brujah",
+        disciplines: &["aus", "CEL", "OBF", "POT", "PRE", "PRO"],
+        sect: Sect::Camarilla,
+        title: Title::InnerCircle("Brujah"),
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 200049,
+        name: "Alexandra",
+        capacity: 11,
+        group: 2,
+        clan: "Toreador",
+        disciplines: &["dom", "ANI", "AUS", "CEL", "PRE"],
+        sect: Sect::Camarilla,
+        title: Title::InnerCircle("Toreador"),
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 200106,
+        name: "Anneke",
+        capacity: 10,
+        group: 1,
+        clan: "Toreador",
+        disciplines: &["dom", "AUS", "CEL", "PRE"],
+        sect: Sect::Camarilla,
+        title: Title::Justicar("Toreador"),
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 200107,
+        name: "Anson",
+        capacity: 8,
+        group: 1,
+        clan: "Toreador",
+        disciplines: &["aus", "dom", "CEL", "PRE"],
+        sect: Sect::Camarilla,
+        title: Title::Prince("Seattle"),
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 200116,
+        name: "Antonio d'Erlette",
+        capacity: 5,
+        group: 4,
+        clan: "Tremere antitribu",
+        disciplines: &["dom", "for", "pot", "THA"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 200204,
+        name: "Blackhorse Tanner",
+        capacity: 7,
+        group: 3,
+        clan: "Ventrue antitribu",
+        disciplines: &["AUS", "DOM", "FOR"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: true,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 200339,
+        name: "Devin Bisley",
+        capacity: 5,
+        group: 2,
+        clan: "Tzimisce",
+        disciplines: &["vic", "ANI", "AUS"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 200418,
+        name: "Ember Wright",
+        capacity: 3,
+        group: 3,
+        clan: "Tremere antitribu",
+        disciplines: &["aus", "dom"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 200478,
+        name: "François Villon",
+        capacity: 10,
+        group: 2,
+        clan: "Toreador",
+        disciplines: &["chi", "obf", "pot", "AUS", "CEL", "PRE"],
+        sect: Sect::Camarilla,
+        title: Title::Prince("Paris"),
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 200528,
+        name: "Goratrix",
+        capacity: 10,
+        group: 2,
+        clan: "Tremere antitribu",
+        disciplines: &["vic", "ANI", "AUS", "DOM", "THA"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 200686,
+        name: "Jefferson Foster",
+        capacity: 6,
+        group: 4,
+        clan: "Ventrue antitribu",
+        disciplines: &["for", "tha", "AUS", "DOM"],
+        sect: Sect::Sabbat,
+        title: Title::Bishop,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 200767,
+        name: "Keith Moody",
+        capacity: 3,
+        group: 4,
+        clan: "Tremere antitribu",
+        disciplines: &["DOM"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 200890,
+        name: "Lutz von Hohenzollern",
+        capacity: 11,
+        group: 4,
+        clan: "Malkavian",
+        disciplines: &["pot", "AUS", "DEM", "OBF", "PRE"],
+        sect: Sect::Camarilla,
+        title: Title::InnerCircle("Malkavian"),
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 200910,
+        name: "Marcellus",
+        capacity: 8,
+        group: 2,
+        clan: "Toreador",
+        disciplines: &["pro", "AUS", "CEL"],
+        sect: Sect::Camarilla,
+        title: Title::Prince("Monaco"),
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 201046,
+        name: "Neighbor John",
+        capacity: 5,
+        group: 4,
+        clan: "Ventrue antitribu",
+        disciplines: &["dom", "for", "AUS"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 201079,
+        name: "Omaya",
+        capacity: 7,
+        group: 2,
+        clan: "Gangrel antitribu",
+        disciplines: &["pro", "ANI", "AUS", "FOR"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 201087,
+        name: "Owain Evans, The Wanderer",
+        capacity: 8,
+        group: 3,
+        clan: "Ventrue antitribu",
+        disciplines: &["cel", "pre", "AUS", "DOM", "FOR"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 201151,
+        name: "Rafael de Corazon",
+        capacity: 11,
+        group: 4,
+        clan: "Toreador",
+        disciplines: &["AUS", "CEL", "DOM", "OBF", "PRE"],
+        sect: Sect::Camarilla,
+        title: Title::InnerCircle("Toreador"),
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 201222,
+        name: "Saiz",
+        capacity: 3,
+        group: 3,
+        clan: "Tremere antitribu",
+        disciplines: &["aus", "dom"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 201393,
+        name: "Tupdog",
+        capacity: 1,
+        group: 3,
+        clan: "Gargoyle",
+        disciplines: &["POT", "VIS"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: false,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 201410,
+        name: "Unmada",
+        capacity: 10,
+        group: 5,
+        clan: "Malkavian",
+        disciplines: &["cel", "for", "AUS", "DEM", "OBF", "VIC"],
+        sect: Sect::Camarilla,
+        title: Title::Justicar("Malkavian"),
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 201411,
+        name: "unnamed, The",
+        capacity: 10,
+        group: 6,
+        clan: "Baali",
+        disciplines: &["CEL", "DAI", "OBF", "PRE", "PRO"],
+        sect: Sect::Independent,
+        title: Title::None,
+        adv: false,
+        path: None,
+        infernal: true,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 201444,
+        name: "Victoria Ash",
+        capacity: 6,
+        group: 2,
+        clan: "Toreador",
+        disciplines: &["aus", "cel", "dom", "PRE"],
+        sect: Sect::Camarilla,
+        title: Title::Primogen,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 200062,
+        name: "Alu",
+        capacity: 2,
+        group: 5,
+        clan: "Banu Haqim",
+        disciplines: &["obf"],
+        sect: Sect::Independent,
+        title: Title::None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: true,
+    },
+    CryptCard {
+        id: 200239,
+        name: "Cameron",
+        capacity: 3,
+        group: 2,
+        clan: "Lasombra",
+        disciplines: &["dom", "pot"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 200595,
+        name: "Hester Reed",
+        capacity: 3,
+        group: 3,
+        clan: "Lasombra",
+        disciplines: &["obt", "pot"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 200842,
+        name: "Lisette Vizquel",
+        capacity: 6,
+        group: 2,
+        clan: "Lasombra",
+        disciplines: &["pro", "DOM", "POT"],
+        sect: Sect::Sabbat,
+        title: Title::Bishop,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: false,
+    },
+    CryptCard {
+        id: 201472,
+        name: "Wise Frog",
+        capacity: 5,
+        group: 6,
+        clan: "Banu Haqim",
+        disciplines: &["aus", "cel", "qui", "OBF"],
+        sect: Sect::Camarilla,
+        title: Title::None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        unique: true,
+        blood_cursed: true,
     },
 ];
 

@@ -206,6 +206,9 @@ pub struct Engine {
     /// Methuselahs about to be ousted while someone may save them with a
     /// Life Boon (`ousting`): the oust waits on that decision.
     pub(crate) ousting: Option<crate::ousting::Ousting>,
+    /// Baltimore Purge's vampires chosen so far (`Interrupt::PurgePick`),
+    /// sent to torpor together once every pick is made.
+    pub(crate) purge_picks: Vec<MinionId>,
     /// How the most recent action ended (tests, and after-resolution
     /// riders to come).
     pub last_outcome: Option<crate::actions::Outcome>,
@@ -373,6 +376,7 @@ impl Engine {
             ousted_during_play: false,
             interrupts: Vec::new(),
             ousting: None,
+            purge_picks: Vec::new(),
             rng,
             last_outcome: None,
             combat_notes: None,
@@ -1566,6 +1570,7 @@ impl Engine {
             }
             Flow::MinionPhase => {
                 self.thirst();
+                self.minion_phase_end_riders();
                 // "During your influence phase" abilities: once per phase.
                 self.state.phase_uses.clear();
                 self.flow = Flow::Influence {
@@ -1602,6 +1607,43 @@ impl Engine {
                 && !self.state.gehenna_immune(m)
             {
                 self.state.burn_blood(m, 1);
+            }
+        }
+    }
+
+    /// "After the end of your minion phase, burn Tupdog and move the top
+    /// card from your crypt to your uncontrolled region": each such vampire
+    /// of the active Methuselah, in torpor too; an empty crypt moves
+    /// nothing.
+    fn minion_phase_end_riders(&mut self) {
+        let s = self.state.active;
+        let ms: Vec<MinionId> = self.state.minions_of(s).collect();
+        for m in ms {
+            let v = &self.state.minions[m.index()];
+            let Some(def) = cards::vampire_of(v).filter(|_| v.present()) else {
+                continue;
+            };
+            for r in def
+                .riders
+                .iter()
+                .filter(|r| r.hook == cards::Hook::MinionPhaseEnd)
+            {
+                for e in r.effects {
+                    match *e {
+                        cards::Effect::BurnHostCryptTopOut => {
+                            self.burn_minion(m);
+                            let seat = &mut self.state.seats[s.index()];
+                            if let Some(card) = seat.crypt.pop() {
+                                seat.uncontrolled.push(crate::state::UncontrolledSlot {
+                                    card,
+                                    counters: 0,
+                                    banished: None,
+                                });
+                            }
+                        }
+                        other => unreachable!("not a minion-phase-end rider effect: {other:?}"),
+                    }
+                }
             }
         }
     }
@@ -1982,7 +2024,7 @@ impl Engine {
                 continue;
             }
             // Infernal: not as normal; its controller may pay instead.
-            if m.vampire().is_some_and(|v| v.infernal) {
+            if self.state.unlocks_as_infernal(id) {
                 continue;
             }
             // "Does not unlock as normal" (Puppet Master [DOM]).
@@ -2135,7 +2177,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 303);
+        assert_eq!(CRYPT.len(), 331);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

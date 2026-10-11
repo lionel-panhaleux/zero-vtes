@@ -125,6 +125,8 @@ pub(crate) fn strike_text(s: Option<StrikeKind>) -> String {
         Some(StrikeKind::CardEffect) => "strike".into(),
         Some(StrikeKind::BurnWeapon) => "burn weapon".into(),
         Some(StrikeKind::BurnEquipment) => "burn equipment".into(),
+        Some(StrikeKind::RangedBurnEquipment) => "burn equipment, ranged".into(),
+        Some(StrikeKind::Corrupt) => "corruption counter".into(),
     }
 }
 

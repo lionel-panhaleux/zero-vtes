@@ -64,7 +64,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
-- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22
+- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17
 - **Ousts, Life Boon's decision point** — 45.1–45.8
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
@@ -75,7 +75,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
 - **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7, 53.6, 53.8, 57.1, 57.2, 61.2
 - **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3, 55.7
-- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8, 55.1, 55.2, 55.8, 57.3, 57.4, 58.2, 58.17, 58.18, 59.2, 59.17, 60.11, 61.1
+- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8, 55.1, 55.2, 55.8, 57.3, 57.4, 58.2, 58.17, 58.18, 59.2, 59.17, 60.11, 61.1, 62.1, 63.4, 63.6, 63.8
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9
 - **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6, 54.3, 54.4, 54.7, 55.7, 56.2, 58.6
@@ -1149,3 +1149,107 @@ Readings no ruling settles, implemented with slice 16m; questions for the owner.
 **61.1** The end-of-round window follows the press step in every round, a press continuing the combat or not (rulebook 2024 "End of Round"): Taste of Vitae after a round a press continued (owner, from play).
 
 **61.2** "A bleed against your prey" (Enkil Cog, Gostoso) still holds when that bleed ousted the prey: the target is read as if still seated, live otherwise (a redirected bleed still is not, 50.3). Owner, from play: Enkil Cog drawn after an ousting bleed was not offered.
+
+## Batch 62 — Legacy cards for TWDA decks, round 2 (steps 1–6), implemented readings (2026-10-11)
+
+**62.1** Aims (Target Vitals): the strike is chosen first, then an aim may be played on top of it — the striking minion's Methuselah gets one decision after its strike choice, an aim or pass, before the strikes resolve; a strike committed at the maneuver likewise (55.8 stands). Owner, 2026-10-11 (the engine had the aim before the strike choice).
+
+**62.2** Adana de Sforza: 1 blood off a card played as a combat card — one of several types counts as the type it is played as (Rapid Change's [PRO] strike, not its [pro] stealth); never off a "burn blood" effect in a card's text (Charismatic Aura).
+
+**62.3** Alexandra: once in each of her controller's turns, at any impulse of it but an as-played window, from torpor too; any Methuselah's other ready Toreador (49.5), locked if unlocked, unlocked if locked (60.6); a blocker locked during its attempt fails it.
+
+**62.4** François Villon (G2): how much he steals, 1 or 2, is chosen at resolution, not as the action is announced, among what the target has left; the excess over his capacity drains. G2 and G6 are one vampire for contests (60.1), each with its own text. (Owner, 2026-10-11.)
+
+**62.5** Anson: his controller gets a second master phase action while he is ready, read live — the ordinary action spent first, the second lost if he leaves the ready region before it is used; a trifle or an extra action adds to them. An out-of-turn master spends one of them, but there is still only one out-of-turn master per full turn (3.3), Anson or not. (Owner, 2026-10-11.)
+
+**62.6** Lutz von Hohenzollern: any Methuselah's political action whose referendum passes, after all its effects; nothing if his controller was ousted (or is pending an oust) by them; "your prey" read then — a new prey if the old one was ousted; his own pool burn ousts through the normal oust (Life Boon's decision point).
+
+**62.7** Marcellus: an action cost, as Daria's (42.1, 42.6): every Nosferatu's political action, card or granted, any Methuselah's; payable with the action's own blood as it is announced, paid first at resolution, unpaid if blocked; Marcellus's readiness read at both points.
+
+**62.8** Rafael de Corazon: each title rival of his yields in its controller's unlock phase (no pay option); Rafael himself pays or yields as usual.
+
+**62.9** Anneke: her Methuselah is an eligible blocker against any action by a vampire of another Methuselah, for her alone; her other restrictions stand — Seduction, her Methuselah's decline (a pass with no attempt pending), allies acting.
+
+**62.10** Keith Moody: offered to his controller's prey, holding the Edge, as the impulse reaches them in his controller's unlock phase; once that phase; not with Keith at 0 blood (nothing to burn); Keith in torpor included.
+
+**62.11** Owain Evans: in every unlock phase (his controller's own too), once per phase, any vampire of the active Methuselah (in torpor too, one at capacity a no-op); offered once the active Methuselah's mandatory effects are resolved (the unlock rotation).
+
+**62.12** Blackhorse Tanner: any library draw of his controller's — a replacement, a draw-up, a card's draw —, each card drawn offered until the use is spent, once in each Methuselah's turn, from torpor too; the card goes under the library and the new card drawn is not offered again; not offered with no other card in the library.
+
+**62.13** Antonio d'Erlette: in his controller's influence phase, 4 of the phase's transfers, Antonio ready; his library and hand searched at once for a mage ally whose clan requirement he meets and whose cost is payable — reduced as LSJ 20090920-2 rules, except by a reduction keyed to an action (Charisma, 36.5); the library shuffled either way; a pick from hand replaced. Whether the ally counts as recruited is moot: in the influence phase, after the minion phase, it cannot act that turn anyway (owner, 2026-10-11). Veneficti (Baali) is never his.
+
+**62.14** Tupdog: his rush at another Methuselah's minion (17.3); "Tremere antitribu slave" (rulebook "Slave"): no directed action while his controller controls no ready Tremere antitribu (read as it is offered); as a Tremere antitribu of his controller's is blocked, he may lock to fight the blocker instead — the acting vampire unlocked, the canceled combat's riders gone (advanced rules §5.7.2); after the normal end of his controller's minion phase, every Tupdog of theirs burns (in torpor too), each moving one crypt card to the uncontrolled region (an empty crypt: none). No Visceratika card is in the pool; Flight stays a bare trait (16.6).
+
+**62.15** Unmada: the discard phase action if she is ready as the phase begins (as Sreelekha); the hand size read live.
+
+**62.16** The unnamed: the strike's blood paid as it is chosen (not refunded if dodged); 2R aggravated, effective at any range; the 2 pool optional, once after each successful bleed.
+
+**62.17** Victoria Ash: any Methuselah's younger ready vampire, a locked one a no-op lock (57.10). Goratrix: a ranged steal of blood or life, not damage. Omaya: any damage pending on her, once over the combat. Neighbor John: a plain +1 intercept.
+
+**62.18** Canine Horde [ANI]: the opposing minion's equipment named with the strike (Weighted Walking Stick included, a location in play not); with first strike, at either range; not offered against a minion with none (RTR 19980928).
+
+**62.19** Contagion: the card itself goes on the vampire, remembering its level; each other Methuselah burns 1 pool as a mandatory effect of their unlock phase while the vampire is ready (read as it resolves); [DAI]'s strike: close range, once over the combat; its counter is the striker's controller's; the steal optional once their counters equal the minion's capacity or cost (35.2), after the strike's resolution, damage pending applied first, the combat ending.
+
+**62.20** Corporate Hunting Ground: as the other hunting grounds (6.5, 6.6, 7.2).
+
+**62.21** CrimethInc.: the actions it follows: the rulebook action to become Anarch (58.1); an action card requiring an Anarch or a baron or making a vampire Anarch; a recruit, employ or equip of a card requiring an Anarch (owner, 2026-10-11 — the ledger's "Equip/Employ/Recruit action" rows superseded); not a card another card fetches or plays as part of the action (LSJ 20100725: none in the pool); an action a card in play grants Anarchs only (Open War). [qui]: any Methuselah's other ready Anarch (49.5). [tha]: once in its controller's minion phase, 1 pool, a locked Anarch of theirs.
+
+**62.22** Liquidation: 7 library cards needed as it is played; replaced as this turn's discard phase begins (8.4).
+
+**62.23** Memory Rift: one mode per set of its Disciplines used (25.2); [dem]'s vampire any Methuselah's, titled or younger, chosen as it is played; [pre]: "strike: combat ends" offered in the first round of the combat its block starts.
+
+**62.24** Nephandus: the reduction is its own step, before prevention, for each strike of the opposing minion — hand, melee weapon, ranged, unpreventable included — and a strike's damage after combat (Catatonic Fear); not environmental damage (Carrion Crows), nor an aim's add-on, which comes after (55.1). His strike: 1R; his press: once over the combat; his torpor burn: any Methuselah's vampire, +1 life over his starting life.
+
+**62.25** Powerbase: Barranquilla: the ready Sabbat vampire chosen as it is played (none: not playable), its capacity read as it resolves; the unlock move once each unlock phase; the burn: any Methuselah's vampire, +1 stealth while the acting vampire is titled, read live; burned once no counter is left.
+
+**62.26** Psychic Assault: normal at its source — an aggravating effect (Dawn Operation) leaves its damage normal; Black Hand read on the striker as the strike resolves; unpreventable damage is still reduced by Nephandus (LSJ 20100519).
+
+**62.27** Ruins of Ceoris: one use over the combat, a maneuver (before or as range is determined) or a press; for a Tremere antitribu bearer only, read live.
+
+**62.28** Sense the Sin: [aus] against a younger acting vampire; [dai]'s extra +1 if the acting minion has anyone's corruption counter; [DAI]'s -1 intercept to every minion with any counter, any Methuselah's, read live during the action.
+
+**62.29** The Unmasking: every Methuselah's allies, +1 intercept while the acting minion is a vampire; replaced as its controller's next turn's discard phase begins.
+
+**62.30** Veneficti: +1 stealth; not the target of a directed action of an ally or of a vampire of capacity 6 or less (read as it is offered); he steals a demon ally — Herald of Topheth, added for it (owner, 2026-10-11) —; no demon retainer is in the pool; his burn option per his printed clan, Baali — any of the pool's Baali is infernal.
+
+**62.31** 41.8's "no mage ally in the pool" no longer holds: Sri Sansa moves blood or life with Nephandus and Veneficti too.
+
+**62.32** "Once each turn" on an in-play ability its controller uses (Ferraille, CrimethInc. [tha]) is now enforced across the turn, not only within one referendum (a fix seen in the random games). Known edge: Ferraille's two modes (votes for, votes against) are limited each on its own — one each in two referendums of a turn is still offered.
+
+**62.33** Herald of Topheth (owner, 2026-10-11): an infernal ally — it does not unlock as normal, its controller may burn 1 pool to unlock it, as an infernal vampire (`GameState::unlocks_as_infernal`); it plays [dai], [pot] and [pre] cards as a capacity-5 Independent vampire; its rush at another Methuselah's minion; its life back to 5 at most, 1 each of its controller's unlock phases.
+
+## Batch 63 — Legacy cards for TWDA decks, round 3 (the owner's list), implemented readings (2026-10-11; owner: all confirmed)
+
+**63.1** Blood cursed (Alu, Wise Frog; rulebook "Blood Cursed"): the vampire commits no diablerie — no diablerie action, no diablerie of a blocked leave-torpor vampire, no Mask take-over of a diablerie; Abactor's blood hunt and a rescue stay open to it.
+
+**63.2** Abactor: +4 hunt is 5 blood with the hunt bonuses on top (59.1: Aaron's Feeding Razor, Hospital Food); "successful resolution" is an unblocked action that gained blood (LSJ 20090411) — at capacity or diseased, no blood hunt; the blood hunt is part of the action, before its after-resolution window (Freak Drive, CrimethInc. after it; Heidelberg Castle not during it), its rotation from the hunting vampire's controller; no diablerie is recorded (Carlton Van Wyk, Rebirth); a special hunt, once per minion each turn, open to a vampire that must hunt and to a Ravnos under Week of Nightmares (Week's own steal does not combine).
+
+**63.3** Confusion of the Eye: [obf] against the bleed of an ally or a vampire younger than the reacting one. [OBF] in a political action's polling step only, before any vote or ballot (a blood hunt takes no reactions; an automatic pass opens no polling step); the acting vampire casts nothing; "If the referendum requires a titled vampire" reads any title requirement on the calling card or granted action (prince, justicar, baron, "titled Sabbat"…), not only the literal "Requires a titled vampire". Owner, 2026-10-11: confirmed.
+
+**63.4** Alpha Glint: "an older vampire" by capacity, read live — equal capacity is not older; against an ally, neither mode. [ani][for]'s "combat ends" strike resolves first, before any first strike (rulebook "Combat Ends"), so no damage lands beside it: of the end-of-round cards RTR 20001020 names, Taste of Vitae is offered (for nothing), Disarm never is (it needs damage inflicted that round). [ANI][FOR] ends the combat in the before-range step of any round, Weather Control's damage of that step landing first (LSJ 19971110); the range stays at its default.
+
+**63.5** Preternatural Evasion [CEL]: the blood burned as the strike is chosen (ANK 20200703-2), so not offered to a vampire with none, nor to an ally ("this vampire"); a burn, not the card's cost — Adana de Sforza does not reduce it.
+
+**63.6** Torrent [CEL]: "the action continues as if unblocked" is mandatory and free, applied as the after-combat window closes — only for a vampire blocked while acting (not after a rush's combat, RTR 19970630); lost if the combat goes on to another round (Telepathic Tracking, RTR 20020501); the action's modifiers, reactions and the Methuselahs' declines stand (ANK 20190116); an action card's resolution follows (LSJ 20070808-1).
+
+**63.7** Focus the Blood: the card itself goes on the vampire with 1 blood from the bank; one play each combat per vampire, copies from earlier combats stacking; each copy, burned as its host pays a card played as a combat card (62.2), takes 1 blood off it, in any later combat too, announced with the card (36.1).
+
+**63.8** Renegade Garou: his additional strike each round is mandatory (PIB 20121028), right after the first pair of strikes, and takes the round's limited slot; his maneuver once each combat; his rush +1 stealth at another Methuselah's minion; his unlock-phase life gain from the bank at 2 or fewer life.
+
+**63.9** Concealed Weapon: the weapon named as the card is played, still in hand until it resolves, then paid and shown (LSJ 20100130); "cannot cost 3 or more pool" reads its cost as modified in play, not the reductions announced with it nor another source paying it (Ravnos Cache's counters pay a .44 Magnum, never let in an AK-47; LSJ 20080125); "inflict (with a regular strike)" reads the card's printed strike — the minion's strength aside (Righteous Blade's strength+1 is 2); requirements apply (a Salubri's Righteous Blade); not the equip action — the minion may still equip that turn (LSJ 20080815) — and no action-keyed reduction (Charisma).
+
+**63.10** Learjet: "a card this minion played as an acting minion" is any card the bearer plays while acting in the action, its combats' cards and a canceled card included; the extra draw is offered after the normal replacement is drawn (LSJ 20050224-4), and with a delayed replacement when that one comes due (PIB 20110718, Blood Weakens); "a minion may have only one vehicle".
+
+**63.11** Infernal Pursuit [CEL]: from its own replacement on, each replacement in the combat draws one extra card per copy played, then the hand is discarded down; none past the library (LSJ 20060620) or once the combat is over. Several cards replaced at once (Blood Weakens' held replacements, released by an empty hand; the two combat cards discarded to cancel Target Vitals) are replaced one at a time, each followed by its extra cards and as many discarded (ANK 20180925-1 literally: "discarding each time X cards" — even below hand size). Owner, 2026-10-11: confirmed.
+
+**63.12** Hospital Food: any Methuselah's anarch's hunt (49.5); "Lock when an anarch announces a hunting action" its controller's option, usable on another Methuselah's anarch too; a hunt bonus of that action — a blocked hunt gains nothing, one at capacity has nothing to add to though successful (LSJ 20050720-2). Owner, 2026-10-11: confirmed.
+
+**63.13** Baltimore Purge: the picks clockwise from its controller, in the open, among each other Methuselah's ready vampires of capacity not above the purging vampire's, read as each pick is made; a Methuselah with none is skipped; a purging vampire already in torpor or gone goes nowhere, the chosen still do; all at once (LSJ 20050111). Its Ravnos +1 stealth is read as the action is announced.
+
+**63.14** Illusory Resources: the unlock-phase move once each unlock phase (6.6), by a ready vampire with Chimerstry; the burn of X counters once each bleed against its controller.
+
+**63.15** Renewed Vigor: [obe] at any Methuselah's torpid vampire, [OBE] at any other vampire, torpid included; a target already at full life or capacity stays a legal no-op (17.4); [for]'s unlock-phase burn only for a bearer in torpor.
+
+**63.16** Gregory Winter: his steal at a vampire with no blood is legal and steals nothing (RTR 20010711); his torpor burn raises his life over his starting life; his two actions do not restrict each other (LSJ 20100909); his unlock-phase life burn can burn him. Aaron's Feeding Razor: +1 to every hunt of its bearer, mandatory. Abombwe: any Methuselah's vampire with Protean (no Laibon in the pool); put on by Childe of the Revolution's search, its requirement ignored (LSJ 20051116-2). Lisette Vizquel: +1 intercept as she attempts to block a diablerie action. Wise Frog: first strike in a combat with a vampire younger than her, read as the strikes resolve. Cameron and Hester Reed have no text.
+
+**63.17** Seen while testing: an action card's "+1 stealth if this vampire is Ravnos" (Baltimore Purge) is read as the action is announced and skipped at resolution (it crashed the resolution); Focus the Blood's discount was offered but not taken on a combat card's blood cost (now taken, the card burned as the cost is paid); Renewed Vigor's "add enough life to reach their starting life" overflowed its counter.

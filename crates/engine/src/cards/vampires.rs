@@ -576,7 +576,7 @@ pub static DARIA: VampireDef = VampireDef {
         ],
         &[Effect::LockActor, Effect::AddStealth(1)],
     )],
-    printed: &[own(Stat::DirectedActionCost, 1, &[R::ActionDirected])],
+    printed: &[own(Stat::ActionCost, 1, &[R::ActionDirected])],
     ..VAMP
 };
 
@@ -1590,8 +1590,8 @@ pub static SREELEKHA: VampireDef = VampireDef {
 /// one move each unlock phase, either way (rules-qa 6.6), in torpor too
 /// (LSJ 20011022); the starting-life cap is the ally's — not offered to an
 /// ally at its starting life —, Sri's blood above her capacity draining as
-/// usual; an ally giving its last life burns (rules-qa 41.8). No mage ally
-/// is in the engine pool: the generator labels none.
+/// usual; an ally giving its last life burns (rules-qa 41.8). Mages:
+/// Nephandus, Veneficti (slice 16n).
 pub static SRI_SANSA: VampireDef = VampireDef {
     name: "Sri Sansa",
     abilities: &[
@@ -1600,7 +1600,10 @@ pub static SRI_SANSA: VampireDef = VampireDef {
                 TargetKind::Minion,
                 &[
                     R::Controlled,
-                    R::TargetAllyCard(CardFilter::HasLabel(Label::Mortal)),
+                    R::AnyOf(&[
+                        &[R::TargetAllyCard(CardFilter::HasLabel(Label::Mortal))],
+                        &[R::TargetAllyCard(CardFilter::HasLabel(Label::Mage))],
+                    ]),
                     R::TargetAllyHurt,
                 ],
             ),
@@ -1616,7 +1619,10 @@ pub static SRI_SANSA: VampireDef = VampireDef {
                 TargetKind::Minion,
                 &[
                     R::Controlled,
-                    R::TargetAllyCard(CardFilter::HasLabel(Label::Mortal)),
+                    R::AnyOf(&[
+                        &[R::TargetAllyCard(CardFilter::HasLabel(Label::Mortal))],
+                        &[R::TargetAllyCard(CardFilter::HasLabel(Label::Mage))],
+                    ]),
                 ],
             ),
             ..mode_of(
@@ -1764,7 +1770,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 175] = [
+pub static VAMPIRES: [&VampireDef; 196] = [
     &PARIJAT,
     &ABADDON,
     &ABRAHAM_DUSABLE,
@@ -1940,6 +1946,27 @@ pub static VAMPIRES: [&VampireDef; 175] = [
     &THE_CAPUCHIN,
     &JIMMY_DUNN,
     &MALGORZATA,
+    &ADANA_DE_SFORZA,
+    &ALEXANDRA,
+    &FRANCOIS_VILLON_G2,
+    &GORATRIX,
+    &NEIGHBOR_JOHN,
+    &OMAYA,
+    &UNMADA,
+    &THE_UNNAMED,
+    &VICTORIA_ASH,
+    &ANSON,
+    &LUTZ_VON_HOHENZOLLERN,
+    &MARCELLUS,
+    &OWAIN_EVANS,
+    &RAFAEL_DE_CORAZON,
+    &ANNEKE,
+    &KEITH_MOODY,
+    &BLACKHORSE_TANNER,
+    &ANTONIO_D_ERLETTE,
+    &TUPDOG,
+    &LISETTE_VIZQUEL,
+    &WISE_FROG,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -2078,6 +2105,7 @@ pub static DIANA_IADANZA: VampireDef = VampireDef {
 /// each unlock phase (rules-qa 6.6).
 pub static FRANCOIS_VILLON: VampireDef = VampireDef {
     name: "François Villon",
+    group: Some(6),
     printed: &[own(Stat::Bleed, 1, &[])],
     abilities: &[ModeDef {
         target: target(TargetKind::Minion, &[R::TargetVampire, R::Younger]),
@@ -3287,5 +3315,374 @@ pub static GREAT_BEAST: VampireDef = VampireDef {
             &[Effect::Prevent(1)],
         ),
     ],
+    ..VAMP
+};
+
+// ---- TWDA unlocks, round 2: steps 1-6 (slice 16n) ----------------------------
+
+/// "Camarilla Brujah Inner Circle: Combat cards cost Adana 1 fewer blood.
+/// +2 bleed." A card played as a combat card, of several types or not
+/// (PIB 20150924-2); blood only — never a "burn blood" effect in a card's
+/// text (ANK 20210226).
+pub static ADANA_DE_SFORZA: VampireDef = VampireDef {
+    name: "Adana de Sforza",
+    printed: &[
+        own(Stat::BloodCostOff, 1, &[R::PlayedAsCombat]),
+        own(Stat::Bleed, 2, &[]),
+    ],
+    ..VAMP
+};
+
+/// "Camarilla Toreador Inner Circle: Once during your turn, you may lock or
+/// unlock another ready Toreador. +2 bleed." At any point of the turn — a
+/// political action included (TOM 19960214) —, in torpor too (LSJ
+/// 20011022), any Methuselah's Toreador (rules-qa 49.5): the lock or the
+/// unlock, whichever its state allows (as Lord Tremere, rules-qa 60.6). A
+/// minion attempting to block, locked so, fails its attempt (LSJ
+/// 20010702).
+pub static ALEXANDRA: VampireDef = VampireDef {
+    name: "Alexandra",
+    printed: &[own(Stat::Bleed, 2, &[])],
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[R::ActorReady, R::NotHost, R::TargetClan("Toreador")],
+        ),
+        limit: Some(Limit::PerTurn),
+        ..mode_of(
+            &[Window::AnyImpulse],
+            Actor::Host,
+            &[R::OwnTurn],
+            &[Effect::ToggleLockTarget],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Camarilla Prince of Paris: François may steal up to 2 blood from a
+/// younger vampire as a +1 stealth Ⓓ action. +1 bleed." (Group 2; the G6
+/// card is another text of the same vampire, rules-qa 60.1.) The amount
+/// chosen at resolution, among what the target has (owner, rules-qa 62.4),
+/// the excess over his capacity draining.
+pub static FRANCOIS_VILLON_G2: VampireDef = VampireDef {
+    name: "François Villon",
+    group: Some(2),
+    printed: &[own(Stat::Bleed, 1, &[])],
+    abilities: &[printed_action(
+        target(TargetKind::Minion, &[R::TargetVampire, R::Younger]),
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::AddStealth(1),
+            Effect::StealBloodUpTo(2),
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat: Goratrix can steal 2 blood as a ranged strike. +1 bleed." Blood
+/// or life (ANK 20190701): not damage, dodged like any strike.
+pub static GORATRIX: VampireDef = VampireDef {
+    name: "Goratrix",
+    printed: &[own(Stat::Bleed, 1, &[])],
+    abilities: &[mode_of(
+        &[Window::CombatStrikeDeclaration],
+        Actor::Host,
+        &[],
+        &[Effect::Strike(StrikeKind::StealBlood {
+            n: 2,
+            ranged: true,
+        })],
+    )],
+    ..VAMP
+};
+
+pub static NEIGHBOR_JOHN: VampireDef = VampireDef {
+    name: "Neighbor John",
+    printed: &[own(Stat::Intercept, 1, &[])],
+    ..VAMP
+};
+
+/// "Sabbat: Omaya may prevent one damage each combat." Any damage pending
+/// on her, aggravated included, once over the combat (rules-qa 14.2).
+pub static OMAYA: VampireDef = VampireDef {
+    name: "Omaya",
+    abilities: &[ability(
+        &[Window::CombatDamagePrevention],
+        Actor::Host,
+        &[R::DamagePending],
+        Limit::PerCombat,
+        &[Effect::Prevent(1)],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla Malkavian Justicar: While Unmada is ready, you get +1 discard
+/// phase action at the start of your discard phase, and +1 hand size." The
+/// action if she is ready as the phase begins (as Sreelekha); the hand size
+/// read live.
+pub static UNMADA: VampireDef = VampireDef {
+    name: "Unmada",
+    printed: &[
+        own(Stat::DiscardPhaseActions, 1, &[R::ThisVampireReady]),
+        own(Stat::HandSize, 1, &[R::ThisVampireReady]),
+    ],
+    ..VAMP
+};
+
+/// "Independent: The unnamed can burn 1 blood to strike: 2R aggravated
+/// damage. After it successfully bleeds, you can gain 2 pool. Infernal."
+/// The blood paid as the strike is chosen; the pool once after each
+/// successful bleed, after the Edge (LSJ 20100210-2).
+pub static THE_UNNAMED: VampireDef = VampireDef {
+    name: "unnamed, The",
+    abilities: &[
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Host,
+            &[R::HostBloodAtLeast(1)],
+            &[
+                Effect::HostBurnBlood(1),
+                Effect::Strike(StrikeKind::Damage {
+                    n: 2,
+                    ranged: true,
+                    aggravated: true,
+                }),
+            ],
+        ),
+        ModeDef {
+            limit: Some(Limit::PerAction),
+            ..mode_of(
+                &[Window::ActionAfterResolution],
+                Actor::Host,
+                &[R::ActorActing, R::BleedSuccessful],
+                &[Effect::GainPool(2)],
+            )
+        },
+    ],
+    ..VAMP
+};
+
+/// "Camarilla primogen: Victoria can lock a younger ready vampire as a +1
+/// stealth Ⓓ action." Any Methuselah's, locked or not (a no-op lock kept,
+/// rules-qa 57.10).
+pub static VICTORIA_ASH: VampireDef = VampireDef {
+    name: "Victoria Ash",
+    abilities: &[printed_action(
+        target(
+            TargetKind::Minion,
+            &[R::TargetVampire, R::ActorReady, R::Younger],
+        ),
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::AddStealth(1),
+            Effect::LockTarget,
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla Toreador Prince of Seattle: If Anson is ready during your
+/// master phase, you get two master phase actions (instead of one)." Ready
+/// as the phase begins; a trifle or an extra action adds to the two, an
+/// out-of-turn master spends one of them (rules-qa 3.3).
+pub static ANSON: VampireDef = VampireDef {
+    name: "Anson",
+    printed: &[own(Stat::TwoMasterPhaseActions, 1, &[R::ThisVampireReady])],
+    ..VAMP
+};
+
+/// "Camarilla Malkavian Inner Circle: If Lutz is ready, your prey burns 1
+/// pool after the referendum of a political action passes. +2 bleed." Any
+/// Methuselah's political action, after all the referendum's effects; not
+/// if they oust his controller (ANK 20220808).
+pub static LUTZ_VON_HOHENZOLLERN: VampireDef = VampireDef {
+    name: "Lutz von Hohenzollern",
+    printed: &[own(Stat::Bleed, 2, &[])],
+    riders: &[Rider {
+        hook: Hook::PoliticalReferendumPassed,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::PreyBurnsPool(1)],
+    }],
+    ..VAMP
+};
+
+/// "Camarilla Prince of Monaco: If Marcellus is ready, political actions
+/// cost Nosferatu 1 additional blood. +1 bleed." Any Methuselah's
+/// Nosferatu, an action card's or a granted political action: the action's
+/// cost, payable as it is announced, paid first as it resolves (as Daria's,
+/// rules-qa 42.1).
+pub static MARCELLUS: VampireDef = VampireDef {
+    name: "Marcellus",
+    printed: &[
+        Printed {
+            stat: Stat::ActionCost,
+            n: 1,
+            to: PrintedTo::Others,
+            per: Per::One,
+            requires: &[
+                R::ThisVampireReady,
+                R::IsPolitical,
+                R::ActorClan("Nosferatu"),
+            ],
+        },
+        own(Stat::Bleed, 1, &[]),
+    ],
+    ..VAMP
+};
+
+/// "Sabbat: During any Methuselah's unlock phase, if Owain is ready, you may
+/// move a blood from the blood bank to a vampire that Methuselah controls."
+/// Once each unlock phase, even across a control change (LSJ 20040127),
+/// once the active Methuselah's mandatory effects are done (LSJ 20100723:
+/// the unlock rotation); any of their vampires, in torpor included, one at
+/// capacity a legal no-op (rules-qa 7.2).
+pub static OWAIN_EVANS: VampireDef = VampireDef {
+    name: "Owain Evans, The Wanderer",
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[R::TargetVampire, R::ControlledByActive],
+        ),
+        ..mode_of(
+            &[Window::UnlockPhaseAny],
+            Actor::Host,
+            &[R::HostReady],
+            &[Effect::BloodToTarget(1)],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Camarilla Toreador Inner Circle: Any vampire contesting Rafael's title
+/// must yield during their unlock phase. +2 bleed." Not Rafael himself: he
+/// pays or yields as usual.
+pub static RAFAEL_DE_CORAZON: VampireDef = VampireDef {
+    name: "Rafael de Corazon",
+    printed: &[
+        own(Stat::RivalsYieldTitle, 1, &[]),
+        own(Stat::Bleed, 2, &[]),
+    ],
+    ..VAMP
+};
+
+/// "Camarilla Toreador Justicar: Anneke may attempt to block a vampire
+/// controlled by another Methuselah, ignoring the normal prey, predator or
+/// target restrictions for blocking actions. +1 bleed." Only who may block:
+/// every other restriction stands — Blood Bond, Seduction, her Methuselah's
+/// decision not to block (RTR 20020501, LSJ 20041203).
+pub static ANNEKE: VampireDef = VampireDef {
+    name: "Anneke",
+    printed: &[
+        own(Stat::BlocksAnyVampire, 1, &[]),
+        own(Stat::Bleed, 1, &[]),
+    ],
+    ..VAMP
+};
+
+/// "Sabbat: Your prey can burn the Edge during your unlock phase to burn 1
+/// blood from Keith." His controller's prey's choice, once that unlock
+/// phase (rules-qa 6.6), as the impulse reaches them (rules-qa 3.7); with
+/// Keith at 0 blood, nothing to burn: not offered.
+pub static KEITH_MOODY: VampireDef = VampireDef {
+    name: "Keith Moody",
+    abilities: &[mode_of(
+        &[Window::UnlockPhaseAny],
+        Actor::HostControllersPrey,
+        &[R::HostControllerActive, R::HasEdge, R::HostBloodAtLeast(1)],
+        &[Effect::BurnEdge, Effect::HostBurnBlood(1)],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat. Black Hand: Once each turn, when you draw a card from your
+/// library, you may place that card on the bottom of your library and draw
+/// a new card." Any library draw of his controller's — a replacement, a
+/// draw-up, a card's draw —, once in each Methuselah's turn (ANK
+/// 20180719-4), in torpor too; the new card is drawn, the use spent. Black
+/// Hand is a trait (LSJ 20070322), generated.
+pub static BLACKHORSE_TANNER: VampireDef = VampireDef {
+    name: "Blackhorse Tanner",
+    printed: &[own(Stat::RedrawOncePerTurn, 1, &[])],
+    ..VAMP
+};
+
+/// "Sabbat: While Antonio is ready, you can use 4 transfers to search your
+/// library (shuffle afterward) and/or hand for a mage ally he could play.
+/// Put that ally in play with life equal to its starting life and pay its
+/// cost as normal." In the influence phase, while transfers last; the ally
+/// picked at resolution, its cost reductions applying — not those of an
+/// action (LSJ 20090920-2) —, put in play, not recruited.
+pub static ANTONIO_D_ERLETTE: VampireDef = VampireDef {
+    name: "Antonio d'Erlette",
+    abilities: &[mode_of(
+        &[Window::Transfers],
+        Actor::Host,
+        &[R::HostReady],
+        &[Effect::SpendTransfers(4), Effect::SearchMageAlly],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat. Tremere antitribu slave: Visceratika [vis] cards cost Tupdog 1
+/// less blood. Tupdog may enter combat with any minion as a Ⓓ action.
+/// Tupdogs are not unique. After the end of your minion phase, burn Tupdog
+/// and move the top card from your crypt to your uncontrolled region.
+/// Flight [FLIGHT]." The slave (rulebook "Slave"): no directed action while
+/// his controller controls no ready Tremere antitribu, and, as one of
+/// theirs is blocked, he may lock to fight the blocker instead, the acting
+/// vampire unlocked. Another Methuselah's minion (rules-qa 17.3). No
+/// Visceratika card is in the pool; Flight is a bare trait (rules-qa
+/// 16.6).
+pub static TUPDOG: VampireDef = VampireDef {
+    name: "Tupdog",
+    printed: &[
+        own(Stat::BloodCostOff, 1, &[R::PlayedRequiresDiscipline("vis")]),
+        own(
+            Stat::NoDirectedActions,
+            1,
+            &[R::ControlsNoReadyOfClan("Tremere antitribu")],
+        ),
+    ],
+    abilities: &[
+        enter_combat(&[R::NotControlled, R::ActorReady]),
+        mode_of(
+            &[Window::ActionBlocked],
+            Actor::Host,
+            &[
+                R::HostReady,
+                R::HostUnlocked,
+                R::ActingClan("Tremere antitribu"),
+                R::NoSlaveInstead,
+            ],
+            &[Effect::LockHost, Effect::SlaveTakesCombat],
+        ),
+    ],
+    riders: &[Rider {
+        hook: Hook::MinionPhaseEnd,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::BurnHostCryptTopOut],
+    }],
+    ..VAMP
+};
+
+// ---- Owner's list, round 3 (slice 16o) -------------------------------------
+
+/// "Sabbat bishop: Lisette gets +1 intercept during diablerie actions."
+pub static LISETTE_VIZQUEL: VampireDef = VampireDef {
+    name: "Lisette Vizquel",
+    printed: &[own(Stat::Intercept, 1, &[R::IsDiablerie])],
+    ..VAMP
+};
+
+/// "Camarilla: Wise Frog strikes with first strike in combat with a younger
+/// vampire. Blood cursed." Read on the opposing vampire, live; an ally or an
+/// equal capacity not younger. Blood cursed is a generated trait
+/// (`CryptCard::blood_cursed`): Alu (G5), "Independent: Blood cursed.",
+/// needs no definition; nor do Cameron and Hester Reed ("Sabbat.").
+pub static WISE_FROG: VampireDef = VampireDef {
+    name: "Wise Frog",
+    printed: &[own(Stat::FirstStrike, 1, &[R::OpponentYounger])],
     ..VAMP
 };

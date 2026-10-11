@@ -61,7 +61,15 @@ impl Engine {
             }
             Contest::Title(m) => {
                 let v = &st.minions[m.index()];
-                if v.in_torpor || v.blood == 0 {
+                // Rafael de Corazon: his rivals yield.
+                let forced = st.title_rivals(m).into_iter().any(|r| {
+                    st.printed_mod(
+                        r,
+                        crate::cards::Stat::RivalsYieldTitle,
+                        crate::state::PrintedCtx::default(),
+                    ) > 0
+                });
+                if v.in_torpor || v.blood == 0 || forced {
                     vec![Choice::YieldContest(item)]
                 } else {
                     vec![Choice::PayContest(item), Choice::YieldContest(item)]

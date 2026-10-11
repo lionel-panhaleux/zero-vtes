@@ -100,12 +100,12 @@ Obedience, Putrescent Sustenance, Target Vitals, Wall Street Night.
 - **v1 training roster**: the 14 full-size precons (Fifth Edition 7 · Anarch 4 ·
   Companion 3), from KRCG `_set` bundle codes: 379 unique cards (138 crypt, 241
   library), 17–41 uniques per deck; since 2026-09-28 also the TWDA decks
-  fully in the pool (`--decks precons,twda`; `Deck::twda`): 81 with the
-  added legacy cards (28 without; 23 of the 81 Gangrel), capped at 3
+  fully in the pool (`--decks precons,twda`; `Deck::twda`): 186 with the
+  added legacy cards (2026-10-11; 28 without), capped at 3
   versions of a deck (owner: decks sharing more than 25% of their crypt
   are the same deck; a precon is its deck's first version; a further
-  version only with a library sharing at most 50% with each kept one): 13
-  TWDA decks, 1–3 a clan. A seat draws a clan uniformly, then a deck of it,
+  version only with a library sharing at most 50% with each kept one): 49
+  TWDA decks (2026-10-11). A seat draws a clan uniformly, then a deck of it,
   and a deck sharing more than 20% of its crypt with one already at the
   table is redrawn (contests). The New Blood mini-starters are decklist data
   (`Deck::mini`) outside the roster — half decks, not legal (owner): never
@@ -549,6 +549,8 @@ titles; `git log` has the detail.
 | P3 · 14a–14c | 09-27 | Observations (`obs.rs`: entity tokens, option rows with pointers; honest by test); `crates/py` `GamePool` (batched parallel stepping, bots inside, replayable); `train/`: pointer-scoring transformer, PPO self-play, evaluation vs random and bots |
 | P4 · 16c | 09-30 | Remaining-deck tokens (`obs::T_DECK`): the viewer's own library and crypt by contents; `legal_view` keeps them, sorted. Referendum tokens (`obs::T_REFERENDUM`): the calling card, the tally, the terms on the tokens they name |
 | P4 · 16b | 09-28 | The decision point before an oust (`ousting.rs`): Life Boon playable, its VP redirection (`Engine::gain_half_vps`) and pool steal; `oust_and_pass` reports a waiting oust to its callers |
+| P4 · 16n | 10-11 | Legacy cards for TWDA decks, round 2 (owner: the cheapest new 2025–26 archetypes, steps 1–6 — Nephandus/Tupdog, The unnamed, Lutz's Inner Circle, Goratrix, the Toreador G1/G2 wall, the Ventrue grinder): 36 cards as a twelfth batch (nine more TWDA decks, 49, the six archetypes in); damage reduction (Nephandus: `Modifier::OpposingDamageLess`, before prevention, unpreventable and after-combat strike damage included, environmental not), Contagion's corruption strike (`StrikeKind::Corrupt`, the steal ending the combat), a ranged equipment burn (`StrikeKind::RangedBurnEquipment`, Canine Horde), Psychic Assault's never-aggravated and Black Hand unpreventable riders (`Side::keep_normal` against Dawn Operation), an action cost read with the action's kind (`Stat::ActionCost`: Daria's directed toll generalized for Marcellus's political one), the slave rule (Tupdog: no directed action without a ready Tremere antitribu; `Effect::SlaveTakesCombat` in the blocked window), a minion-phase-end rider (`Hook::MinionPhaseEnd`), a vampire's ability used by its controller's prey (`Actor::HostControllersPrey`, Keith Moody), a post-draw redraw (`Interrupt::Redraw`, Blackhorse Tanner), a mage-ally search put in play (`Interrupt::AllySearch`, Antonio d'Erlette), Anneke's block outside the prey/predator rule (`Stat::BlocksAnyVampire`), Rafael's forced yield, Anson's two master phase actions, Lutz's after-referendum burn (`Hook::PoliticalReferendumPassed`), Liquidation, The Unmasking, CrimethInc.'s "action requiring an Anarch" (`ActionCtx::requires_anarch`); aims now come after the strike choice (owner, rules-qa 62.1); `Limit::PerTurn` enforced on controller-used abilities (Ferraille, across referendums); generators: Black Hand read before a colon, locquipment and "unique location. Hunting ground." labels, Mage and Demon subtypes, "Tupdogs are not unique"; goldens re-blessed (enum discriminants: hash-only; Ferraille and Target Vitals fixtures: real changes); rules-qa Batch 62 |
+| P4 · 16o | 10-11 | Legacy cards for TWDA decks, round 3 (the owner's list): 20 library cards and 5 vampires as a thirteenth batch (seven more TWDA decks in the pool, 186; the kept 49 unchanged in number, Toreador no carnaval in); blood cursed vampires (`CryptCard::blood_cursed`: no diablerie of any kind), Abactor's hunt at +4 with its blood hunt inside the action (`Effect::HuntAt`, `BloodHuntIfHuntGained`), hunt bonuses of a bearer and of one action (`Modifier::BearerHunt`, `Effect::HuntBonusThisAction`: Aaron's Feeding Razor, Hospital Food), Torrent's free continuation as if unblocked (`ActionCtx::continue_free`), a mandatory additional strike each round (`Modifier::AdditionalStrikeEachRound`, Renegade Garou), Focus the Blood's banked discount (`CostSource::FocusBlood`), Concealed Weapon's weapon filter (`CardFilter::ConcealableWeapon`, `cards::regular_strike_damage`), Learjet's optional extra draw and Infernal Pursuit's per-replacement extras (`Interrupt::MayDrawExtra`, `Seat::combat_extra_draws`, several replacements one at a time: `Interrupt::PursuitDraw`/`PursuitDiscard`), Baltimore Purge's picks (`Interrupt::PurgePick`), Confusion of the Eye's abstaining actor and title failure, Alpha Glint's not-older opponent and before-range end, Renewed Vigor's five modes, Illusory Resources' X counters; fixes found by the new tests: a card action's Ravnos stealth crashed its resolution, Focus the Blood's discount was never taken on a combat card, Renewed Vigor's life fill overflowed; generators: "Blood cursed.", "[A-Z]… are not unique", Infernal and "represents a location" labels; rules-qa Batch 63 |
 | P4 · 16k | 10-09 | Legacy cards for TWDA decks, steps 4–9: 20 cards as a ninth batch (seven more TWDA decks, 28); the rulebook Become Anarch action (missing until now; Brunhilde's 0 cost; obs keeps its schema, the kind in the granted actions' slot), general first strike (Elimelech: the opposing strike held for the damage, `CombatCtx::held_strike`), infernal (no normal unlock, 1 pool in the unlock phase, `Choice::UnlockInfernal` in UnlockForBlood's obs slot), Black Hand and non-unique vampires (crypt flags), personal "n votes (titled)" titles (`Title::Votes`), Mask of a Thousand Faces' actor swap (`Effect::TakeOverAction`, `mask_capable`), vampires' printed political actions (Benjamin Rose's game-long hand size, Dmitra's blood picks: `Term::DistributeBlood`), Gehenna immunity (Karen Suadela, at each event), a hand looked at for the action (SchreckNET, `GameState::peeks`), seat targets for abilities, Hackerspace's Anarch counters (`Hook::OwnAnarchArrives`, `CostSource::Hackerspace`), a reaction-card surcharge (Scout Youngwood), Patsy's Edge-for-a-title referendum, Disguised Weapon; fixes: no chosen self-contest by control change (forced: the incoming burns), a bleed ousting the active Methuselah passes the turn; fuzz seeds raised for two fixtures diluted by the new action (allies 500, corruption 400 — above the 300 guideline); rules-qa Batch 58 |
 | P4 · 16l | 10-09 | Legacy cards for TWDA decks, steps 10–15: 24 cards as a tenth batch (six more TWDA decks, 34); Vampiric Disease (a minion's counter, shown as a marker — obs `F_MARKERS`, the protocol view —: every genuine unlock routed through `GameState::unlock` burns, hunts gain nothing via `hunt_blood`, the spread at close range as before-strikes opens), Trap and Conquer the Beast (cards in play for the combat, `CombatCtx::traps`: counters reset by any card played, an automatic press as each press step opens, burned at its end), Justicar Retribution's current bleed outside an action (`GameState::current_bleed`), Karl Schrekt's justicar reading on the cards he plays (`Stat::PlaysAsJusticar`), Ephor's forced yield of a contested title, the Society of Leopold's burn-or-be-burned choice (`Interrupt::BloodOrBurned`, `BurnBloodToAvoid`'s obs slot) and its move action, Giovanni's ash-heap pair named at the announcement (`Interrupt::NameAshPair`), Victor Donaldson's canceled Golconda back to the library, Aksinya's redirect, Mary Anne Blaire's Inner Circle bleed (`PrintedTo::Others`), Lodin's strike-only prevention (`Effect::PreventStrike`), Randall in the out-of-combat prevention step, Ephor's vote in `host_votes`; Nadima prints Serpentis (Donnybrook's [ser] now tested); rules-qa Batch 59 |
 | P4 · 16m | 10-09 | Legacy cards for TWDA decks, steps 16–20: 23 cards as an eleventh batch (six more TWDA decks, 40); a second version of a name (Theo Bell G2 beside G6: `VampireDef::group`, one vampire for contests); the Great Beast (`MinionKind::GreatBeast`: 9 capacity, 4 strength, 3 bleed, infernal, three superior Disciplines chosen, its own text), Unleash Hell's Fury's blocker (`MinionKind::Fury`, out of play but for its own attempts; its successful block ends the action), The Erciyes Fragments (a store of no clan, any card played from it removed instead of burned: `CardInPlay::removed_when_burned`), the Soul Gem's draw as its vampire burns (`Hook::BearerBurned`, a drawn copy burning and drawing again), The Capuchin's return to the uncontrolled region and Jimmy Dunn's no-contest burn, Nergal's once-each-turn blood off (spent when paid), Lord Tremere's lock/unlock in his minion phase (vampire abilities now check `OwnMinionPhase`), Condemnation: Mute (a `Condemnation` label, -3 votes, a blood after any referendum: `Hook::AnyReferendumPassed`), Crocodile's Tongue's cancel paid by the blocker and its per-Methuselah bar, I am Legion's pool after a successful action, My Kin Against the World's X chosen vampires (`Term::ChooseMinionsX`), The Sargon Fragment's superior Necromancy and named ash card, Under My Skin's later-action stealth (`GameState::action_serial`), Juliet Parr's hand size until the next unlock phase, Malgorzata's two uncontrolled picks; `AnyOf` read in minion target filters; the generator reads "As [dai][obf] above" and an "and/or" mode; the fuzz conservation check allows cards taken across Methuselahs (`GameState::taken_across`); rules-qa Batch 60 |
@@ -755,6 +757,23 @@ slice-11 cards by section).
 - Weapons: melee `StrikeKind::Melee` (not a hand strike); a weapon's per-combat
   maneuver is `Limit::PerCombat` per copy; `cards::melee_strike`,
   `cards::becomes_weapon` (Weighted Walking Stick is a weapon only in play).
+- Aims (Target Vitals) come after the strike choice: a side whose strike
+  is chosen gets one more `ChooseStrike` decision, an aim or pass
+  (`Side::aim_declined`; rules-qa 62.1). Damage reduction is not prevention:
+  `GameState::damage_reduction` (Nephandus, `Modifier::OpposingDamageLess`)
+  lowers each opposing strike's damage before it is pending — unpreventable
+  and after-combat strike damage included, environmental not.
+  `Side::keep_normal` keeps a never-aggravated strike's damage (Psychic
+  Assault) normal under Dawn Operation. `StrikeKind::Corrupt` (Contagion)
+  adds the striker's counter as it lands and queues the corruption steal,
+  which ends the combat when taken.
+- A "combat ends" strike resolves before the other strikes (no damage
+  beside it); `Effect::EndCombat` on a played card ends the combat before
+  range (Alpha Glint [ANI][FOR], Weather Control's damage first).
+  `Modifier::AdditionalStrikeEachRound` (Renegade Garou) adds a mandatory
+  strike after the first pair, in the limited slot. Torrent's "continues as
+  if unblocked" is `Side::continue_free` → `ActionCtx::continue_free`, taken
+  as the after-combat window closes, cleared if the combat goes on.
 
 **Referendums** (`referendum.rs`: `ReferendumCtx`, `RefKind`, `RefStep`,
 `Source`, `VoteRecord`, `TermsState`; `ReferendumDef`, `Term`, `RefEffect`)
@@ -821,6 +840,11 @@ slice-11 cards by section).
   change, banishment; cleared when burned/removed), `hostage`, `nightmare`,
   `diablerie_shield`, `must_hunt`, `played_since_unlock` (wake limits),
   `unlock_at_discard`.
+- Slaves (rulebook "Slave", Tupdog): the directed-action bar is printed
+  (`Stat::NoDirectedActions` with `ControlsNoReadyOfClan`); the block swap is
+  the slave's ability in the blocked window (`Effect::SlaveTakesCombat`,
+  `ActionCtx::slave`): the slave fights the blocker, the acting vampire
+  unlocked, the block riders dropped.
 
 **Cards in play** (`state.rs` `CardInPlay`; `cards/mod.rs`)
 - Control: `CardInPlay.controller` is state; `GameState::card_controller`
@@ -894,6 +918,13 @@ slice-11 cards by section).
   (`AbilitySource::use_key`, Kevlar Vest's branches share one use); "during
   an action" per copy and ability (`AbilitySource::action_key`, Bone
   Shambler's two, rules-qa 42.9).
+- A vampire's ability its controller's prey uses (`Actor::HostControllersPrey`,
+  Keith Moody): `vampire_ability_options` also walks the user's predator's
+  vampires; `ability_user` and `resolve_ability` resolve for the prey.
+  `Hook::PoliticalReferendumPassed` (Lutz) and `Hook::MinionPhaseEnd`
+  (Tupdog) are vampire riders read on every vampire in play / the active
+  Methuselah's. `Stat::ActionCost` is any action's surcharge, read with its
+  kind and directedness (Daria, Marcellus).
 
 **Equipment** (`plays.rs`, `actions.rs`)
 - Equip from hand: +1 stealth plus printed, cost at resolution (unpayable or no
@@ -923,6 +954,16 @@ slice-11 cards by section).
   `SearchToHand`) pick by card, not position, at resolution (spec §1.14.1), and
   shuffle with the engine's `Rng`; an equipment search offers only what could
   be equipped as a play (no unpayable blood cost, rules-qa 9.3).
+- Every library draw goes through `Engine::offer_redraw` (Blackhorse
+  Tanner's `Interrupt::Redraw`, once each turn); `Interrupt::AllySearch`
+  (Antonio d'Erlette) searches library and hand for a mage ally and puts
+  it in play, not recruited.
+- Extra draws on replacement: Learjet's (`Modifier::ExtraDrawOnReplace`,
+  `Interrupt::MayDrawExtra` after the replacement, `Seat::learjet_held`
+  for one Blood Weakens holds back) and Infernal Pursuit's
+  (`Seat::combat_extra_draws`, reset as the combat ends; read in
+  `Engine::replace`; several cards replaced at once go one at a time,
+  `Interrupt::PursuitDraw` then `PursuitDiscard`, rules-qa 63.11).
 
 **Costs and reductions** (`plays.rs`)
 - Reductions are announced with the card (`Flow::CostTerms`,
@@ -939,6 +980,11 @@ slice-11 cards by section).
 - Paying the last pool ousts: out of turn or from an ability, without passing the
   active turn (`pay_pool_for_ability`); a play whose effects already ousted its
   player does not oust again.
+- `CostSource::FocusBlood`: a card on its host, burned as the host pays a
+  card played as a combat card, 1 blood off (taken in the non-action
+  payment beside The Shard). Concealed Weapon's "cannot cost 3 or more
+  pool" reads the cost as modified in play, not the announced reductions
+  or another payer (`equippable_from_hand`).
 
 **Events** (`plays.rs`; `defs.rs` section "Events")
 - A discard phase action, one per phase (`Seat::event_played`), each event once a
@@ -1955,6 +2001,31 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   bleed-against-prey fixes): draw 7, weak decks 12, 0, 5, 28, 32, 33,
   44 replays (6129 choices trained, 1008 held out: the four before and
   `…T15-48-57` — the held-out loss is not comparable across the restart).
+- **Stuck pool and own nightmares** (owner, 2026-10-10, via the play
+  sessions): a Toreador bot transferred onto a second copy of a unique
+  vampire it had in play — never offered out while the first stays (no
+  voluntary self-contest), the pool on it stuck; a Ravnos bot moved its
+  Week of Nightmares' counters onto its own minions ("never a good
+  move"). Both legal, both kept (rules-qa 17.4). `waste` counts them
+  (`zvtes_policy::stuck_transfer`, `own_nightmare`). p9@2700: onto the
+  stuck copy in 35% of the influence decisions offering one in
+  self-play, 44% for the bots in the owner's games (`…T16-45-56`: 11 of
+  50), the owner 0 of 178; nightmare counters 2 of 9 onto its own in
+  self-play (`…T22-05-29`: 2 of 7). Two permanent nudges taken off them
+  (`Nudges::stuck`, `nightmare`; `--stuck-bonus`, `--nightmare-bonus`;
+  `waste --stuck/--nightmare`, `strength stuck:/nightmare:`): at 4 and 4
+  the stuck rate is 11%, own nightmares 0; at 6, 5%.
+  Same `waste` run (p9@2700, 24 games, the restart's nudges): rescues
+  taken 44% of offers, bleeds for nothing 0, crypt draws 1% of offers
+  (the owner 11%: the nudge acts through training), cycling 91% of
+  discard phases (the owner 64%), 82% of wakes followed by no block.
+  Restarted from 2800 (2026-10-11; 2800 scored 2.50, `best.pt` a mean
+  of 2.56, p8's bar 2.16): stuck 6, nightmare 4, the Ilonka peek
+  (`7fedb25`), 31 replays — the 17 stopped ones removed, six new — 6240
+  choices trained, 1000 held out (`…T21-45-18`, `…T21-51-54`,
+  `…T15-01-52`, all three trained on before: the held-out accuracy,
+  0.76 at 2801, is not comparable and no longer a held-out measure for
+  this run).
 
 ### 11.3 Open gaps
 
@@ -1964,16 +2035,15 @@ Still true today; "(verify)" marks items inferred from older notes.
   conviction cards; self-damaging weapons (rows n/a); Black Forest Base's
   changeling burn (no changeling ally); the [MERGED] text of Brunhilde and
   Danielle Diron (their base cards are not in the pool); My Kin Against the
-  World's Laibon clause (no Laibon in the pool).
+  World's Laibon clause (no Laibon in the pool); Veneficti's demon steal or
+  burn (no demon); Tupdog's Visceratika reduction (no Visceratika card).
 - **Paths, deferred**: the influence-phase "burn 1 blood to follow a path"
   for a Sabbat vampire following none (a new choice; in the pool only
   Hartmut Stover and Styles Margs follow none), and paths in the
   observations (the policy sees a vampire's sect, not its path).
-- **Mechanisms missing** (ledger `blocked:` rows name the rest): a mage
-  subtype (Sri Sansa's "mortal or mage ally": no mage in the pool, none
-  generated); immunity to damage from a
-  source; tournament withdrawal (§10.6); allies paying blood costs under The
-  Shard (ANK 20230721, not modeled).
+- **Mechanisms missing** (ledger `blocked:` rows name the rest): immunity
+  to damage from a source; tournament withdrawal (§10.6); allies paying
+  blood costs under The Shard (ANK 20230721, not modeled).
 - **Known edges**:
   - `ImmuneToDirectedActions` is read on card plays only
     (`GameState::immune_to_directed` in `plays.rs`): a granted or printed
@@ -2021,7 +2091,10 @@ Still true today; "(verify)" marks items inferred from older notes.
   the Hourglass, Rewind Time) and legacy cards closing test loops (a sterile
   baron); more `EXTRA_CARDS` / `ADDED_CARDS` at the owner's call (§3); the
   TWDA unlocks by new archetype (owner, 2026-10-08: steps 0–20 of the greedy
-  ranking, slices 16j–16m).
+  ranking, slices 16j–16m; 2026-10-11: round 2 steps 1–6, slice 16n, and
+  the owner's list, slice 16o — next
+  in that ranking: Shalmath with Outside the Hourglass and Rewind Time, the
+  Lasombra G2, the Ravnos G2).
 
 ### 11.4 What remains
 
@@ -2036,7 +2109,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (`docs/human-play.md` has the board).
 
-Definitions: 550 library, 175 vampires; 1251 Rust tests, 34 Python tests
+Definitions: 584 library, 196 vampires; 1352 Rust tests, 34 Python tests
 
 ## Outlook: deck building (post-v1)
 

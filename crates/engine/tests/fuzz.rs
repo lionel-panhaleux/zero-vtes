@@ -2588,4 +2588,181 @@ fuzz_tests! {
         seeds: 160,
         ..BASE
     };
+    /// Legacy cards for TWDA decks, round 2 (slice 16n): Nephandus and
+    /// Tupdog, The unnamed, Lutz's Inner Circle, Goratrix, the Toreador
+    /// wall, the Ventrue grinder — their cards and vampires.
+    random_games_with_twda_round_2_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Canine Horde",
+            "Contagion",
+            "Corporate Hunting Ground",
+            "CrimethInc.",
+            "Liquidation",
+            "Memory Rift",
+            "Nephandus",
+            "Powerbase: Barranquilla",
+            "Psychic Assault",
+            "Ruins of Ceoris",
+            "Sense the Sin",
+            "Unmasking, The",
+            "Veneficti",
+            "Herald of Topheth",
+            // A referendum for Lutz and Marcellus.
+            "Kine Resources Contested",
+        ],
+        covers: &[
+            "play:Canine Horde",
+            "play:Contagion",
+            "play:CrimethInc.",
+            "play:Memory Rift",
+            "play:Nephandus",
+            "play:Psychic Assault",
+            "play:Unmasking, The",
+            "ability:Goratrix",
+            "ability:Alexandra",
+            "ability:Owain Evans, The Wanderer",
+            "ability:Tupdog",
+            "ability:Victoria Ash",
+            "ability:Nephandus",
+            "ability:Omaya",
+            "ability:Keith Moody",
+            "ability:Antonio d'Erlette",
+            "ability:unnamed, The",
+            "ability:Contagion",
+            "ability:CrimethInc.",
+            "ability:Ruins of Ceoris",
+            "ability:Powerbase: Barranquilla",
+            "ability:Corporate Hunting Ground",
+            "play:Liquidation",
+            "play:Sense the Sin",
+            "play:Veneficti",
+            "play:Herald of Topheth",
+            "rider:Contagion",
+        ],
+        setup: |e, seed| {
+            named(
+                e,
+                &[
+                    "Goratrix",
+                    "Omaya",
+                    "Alexandra",
+                    "Rafael de Corazon",
+                    "Lutz von Hohenzollern",
+                    "Unmada",
+                    "Anson",
+                    "Anneke",
+                    "Marcellus",
+                    "Owain Evans, The Wanderer",
+                    "Keith Moody",
+                    // Tupdog beside Antonio (seat 3): a ready Tremere
+                    // antitribu for his rush.
+                    "Antonio d'Erlette",
+                    "Blackhorse Tanner",
+                    "Saiz",
+                    "unnamed, The",
+                    "Tupdog",
+                    "Victoria Ash",
+                    "Adana de Sforza",
+                    "Neighbor John",
+                    "Elisha Tucker",
+                ],
+            );
+            // On even seeds, a [DAI] Contagion already on The unnamed: its
+            // strike (one played from hand is rarely the superior one).
+            if let Some(i) = (seed % 2 == 0).then_some(()).and_then(|_| {
+                e
+                .state
+                .minions
+                .iter()
+                .position(|m| m.in_play && m.name() == "unnamed, The")
+            }) {
+                let owner = e.state.minions[i].owner;
+                e.state.cards.push(zvtes::state::CardInPlay::new(
+                    zvtes::state::find_library("Contagion"),
+                    owner,
+                    Some(MinionId(i as u32)),
+                    1,
+                ));
+            }
+        },
+        seeds: 100,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, round 3 (slice 16o): the owner's list —
+    /// Abactor and the hunters, the Celerity and Obfuscate combat cards,
+    /// Concealed Weapon, Learjet, Baltimore Purge, Renewed Vigor and the
+    /// blood-cursed Banu Haqim.
+    random_games_with_twda_round_3_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Aaron's Feeding Razor",
+            "Abactor",
+            "Abombwe",
+            "Alpha Glint",
+            "Baltimore Purge",
+            "Behind You!",
+            "Concealed Weapon",
+            "Confusion of the Eye",
+            "Desert Eagle",
+            "Focus the Blood",
+            "Gregory Winter",
+            "Hospital Food",
+            "Illusory Resources",
+            "Infernal Pursuit",
+            "Learjet",
+            "Preternatural Evasion",
+            "Renegade Garou",
+            "Renewed Vigor",
+            "Staredown",
+            "Torrent",
+        ],
+        covers: &[
+            "play:Aaron's Feeding Razor",
+            "play:Abactor",
+            "play:Abombwe",
+            "play:Alpha Glint",
+            "play:Baltimore Purge",
+            "play:Behind You!",
+            "play:Concealed Weapon",
+            "play:Confusion of the Eye",
+            "play:Desert Eagle",
+            "play:Focus the Blood",
+            "play:Gregory Winter",
+            "play:Hospital Food",
+            "play:Illusory Resources",
+            "play:Infernal Pursuit",
+            "play:Learjet",
+            "play:Preternatural Evasion",
+            "play:Renegade Garou",
+            "play:Renewed Vigor",
+            "play:Staredown",
+            "play:Torrent",
+            "ability:Gregory Winter",
+            "ability:Renegade Garou",
+            "ability:Illusory Resources",
+            "ability:Hospital Food",
+            "ability:Renewed Vigor",
+            "rider:Baltimore Purge",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Lisette Vizquel",
+                    "Wise Frog",
+                    "Alu",
+                    "Cameron",
+                    "Hester Reed",
+                    "Lord Tremere",
+                    "Danielle Diron",
+                    "Elisha Tucker",
+                    "Casey Snyder",
+                    "Doc Martina",
+                    "Kalinda",
+                    "Crow",
+                ],
+            );
+        },
+        seeds: 240,
+        ..BASE
+    };
 }
