@@ -1770,7 +1770,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 198] = [
+pub static VAMPIRES: [&VampireDef; 200] = [
     &PARIJAT,
     &ABADDON,
     &ABRAHAM_DUSABLE,
@@ -1969,6 +1969,8 @@ pub static VAMPIRES: [&VampireDef; 198] = [
     &WISE_FROG,
     &ARIADNE,
     &JACOB_FERMOR,
+    &TABITHA_FISK,
+    &TATIANA_ROMANOV,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -2177,6 +2179,40 @@ pub static SILVIAN_POPESCU: VampireDef = VampireDef {
             &[Effect::TargetBloodToHost(1)],
         )
     }],
+    ..VAMP
+};
+
+/// "Sabbat: During your unlock phase, an archbishop you control can move 1
+/// blood from themselves to Tabitha." As Silvian Popescu's: once each
+/// unlock phase, in torpor too (no "if ready"); an archbishop only while
+/// Sabbat (the title's rule). An owner-added legacy card (2026-10-11).
+pub static TABITHA_FISK: VampireDef = VampireDef {
+    name: "Tabitha Fisk",
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                R::Controlled,
+                R::TargetTitleIn(&[TitleClass::Archbishop]),
+                R::BloodAtLeast(1),
+            ],
+        ),
+        ..mode_of(
+            &[Window::UnlockPhaseOwn],
+            Actor::Host,
+            &[],
+            &[Effect::TargetBloodToHost(1)],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Camarilla Prince of Houston: +1 bleed." Delilah Easton and Isabel de
+/// Leon ("Camarilla.") print no text. Owner-added legacy cards
+/// (2026-10-11).
+pub static TATIANA_ROMANOV: VampireDef = VampireDef {
+    name: "Tatiana Romanov",
+    printed: &[own(Stat::Bleed, 1, &[])],
     ..VAMP
 };
 

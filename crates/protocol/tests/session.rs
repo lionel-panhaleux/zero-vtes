@@ -804,7 +804,7 @@ fn a_seat_passing_on_its_opportunities_is_asked_only_in_their_moment() {
     let (mut hidden, mut passed, mut undone) = (0, 0, 0);
     // Wakes in their moment, abilities usable at any time where it pauses.
     let (mut woken, mut paused) = (0, 0);
-    for seed in 0..40u64 {
+    for seed in 0..200u64 {
         let mut rng = Rng::new(seed);
         let mut decks: Vec<Deck> = (0..4).map(|_| all[rng.below(all.len())]).collect();
         decks[0] = pool[rng.below(pool.len())];
@@ -950,7 +950,7 @@ fn a_library_search_shows_the_library_and_names_it() {
     assert!(!pool.is_empty());
     let search = zvtes_protocol::describe::window_text(WindowLabel::LibrarySearch);
     let (mut searched, mut after) = (0, 0);
-    for seed in 0..60u64 {
+    for seed in 0..120u64 {
         let mut rng = Rng::new(seed);
         let mut decks: Vec<Deck> = (0..4).map(|_| all[rng.below(all.len())]).collect();
         decks[0] = pool[rng.below(pool.len())];

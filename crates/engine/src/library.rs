@@ -106,7 +106,7 @@ pub struct LibraryCard {
 }
 
 #[rustfmt::skip]
-pub static LIBRARY: [LibraryCard; 593] = [
+pub static LIBRARY: [LibraryCard; 595] = [
     LibraryCard {
         id: 100001,
         name: ".44 Magnum",
@@ -13975,6 +13975,53 @@ pub static LIBRARY: [LibraryCard; 593] = [
             Mode {
                 tags: &[],
                 windows: &["COMBAT_BEFORE_RANGE"],
+                flags: &[],
+            },
+        ],
+        path: None,
+    },
+    LibraryCard {
+        id: 101270,
+        name: "Neighborhood Watch Commander",
+        types: &[CardType::Ally],
+        disciplines: &[],
+        clans: &[],
+        blood_cost: Cost::Fixed(2),
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[Label::Mortal],
+        body: Some(Body { life: 1, strength: 1, bleed: 0 }),
+        modes: &[
+            Mode {
+                tags: &[],
+                windows: &["ACTION_DECLARE_RECRUIT"],
+                flags: &[],
+            },
+        ],
+        path: None,
+    },
+    LibraryCard {
+        id: 101507,
+        name: "Psyche!",
+        types: &[CardType::Combat],
+        disciplines: &["cel"],
+        clans: &[],
+        blood_cost: Cost::None,
+        pool_cost: Cost::None,
+        burn_option: false,
+        combo: false,
+        labels: &[],
+        body: None,
+        modes: &[
+            Mode {
+                tags: &["cel"],
+                windows: &["COMBAT_PRESS"],
+                flags: &[],
+            },
+            Mode {
+                tags: &["CEL"],
+                windows: &["COMBAT_WOULD_END"],
                 flags: &[],
             },
         ],

@@ -190,6 +190,8 @@ pub struct ActionCtx {
     /// Controllers of the minions this directed action burned, outside
     /// combat (Predator's Transformation [ABO]).
     pub burned_owners: Vec<SeatId>,
+    /// A Neighborhood Watch Commander locked to damage the acting vampire.
+    pub watch_damaged: bool,
     /// The blocker was unlocked when it blocked (Change of Target leaves it
     /// so: played before the blocker is locked, LSJ 19980224).
     pub blocker_was_unlocked: bool,

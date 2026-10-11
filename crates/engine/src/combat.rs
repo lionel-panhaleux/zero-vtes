@@ -568,6 +568,9 @@ pub struct CombatCtx {
     /// A combat the action queued (Hedonism): the action's step resumes
     /// after it.
     pub queued: bool,
+    /// Psyche! [CEL]: a combat with the same minions queued as this one
+    /// ends.
+    pub psyche: bool,
     /// Abuse of Power: at the end of the combat, if only one combatant is
     /// ready, the controller of the other burns n pool.
     pub one_ready_burn: Option<u8>,
@@ -2634,8 +2637,51 @@ impl Engine {
                 minions: c.sides.each_ref().map(|s| s.minion),
             });
         }
-        // "Do not replace until after combat" (Lam Into).
+        // "Do not replace until after combat" (Lam Into): before a new
+        // combat Psyche! queued too (LSJ 20001122).
         self.release_held(|h| &mut h.combat);
+        // Psyche! [CEL]: the new combat begins, still in the action, both
+        // minions ready; this combat's after-combat effects are lost
+        // (unlocks aside, applied as their strikes resolved: LSJ 19980109)
+        // — Torrent's continuation, a continuation as if unblocked
+        // included (RTR 20020501); the new combat ends as this one would
+        // have.
+        if let Some(c) = ended.as_ref().filter(|c| c.psyche) {
+            let [x, y] = c.sides.each_ref().map(|s| s.minion);
+            let ready = |m: MinionId| self.state.minions[m.index()].ready();
+            if ready(x) && ready(y) {
+                if let Some(a) = self.action.as_mut() {
+                    a.continue_free = false;
+                    a.continued = false;
+                    a.last_combat = Some([x, y]);
+                }
+                let (at_resolution, after_resolution, queued, yawp) =
+                    (c.at_resolution, c.after_resolution, c.queued, c.yawp);
+                // A hand size this combat lowered comes back between the
+                // combats: drawn up, discarded again as the new one begins
+                // (Raptor [ANI]; LSJ 20030530).
+                let lowered: Vec<SeatId> = (0..2)
+                    .filter(|&i| self.state.combat_hand_penalty(c.sides[1 - i].minion) > 0)
+                    .map(|i| c.sides[i].seat)
+                    .collect();
+                self.state.combatants = None;
+                for s in lowered {
+                    if !self.state.seats[s.index()].ousted {
+                        self.draw_up(s);
+                    }
+                }
+                self.begin_combat(x, y, at_resolution);
+                let n = self.combat.as_mut().expect("the new combat");
+                // No block began it: block riders and "when blocking"
+                // equipment (Sniper Rifle) do not carry over (LSJ 20010813,
+                // LSJ 20010814).
+                n.held_at_block.clear();
+                n.after_resolution = after_resolution;
+                n.queued = queued;
+                n.yawp = yawp;
+                return;
+            }
+        }
         // FBI Special Affairs Division: its unpreventable environmental
         // damage to the acting vampire after the combat; enough counters,
         // burned.
@@ -3212,6 +3258,10 @@ impl Engine {
             Effect::OnlyHandStrikes => c.only_hand_strikes = true,
             Effect::NextRoundClose => c.next_round_close = true,
             Effect::NewRound => c.continued = true,
+            Effect::QueueCombatWithOpponent => {
+                c.psyche = true;
+                c.end_fixed = true;
+            }
             Effect::GainBloodLostByOpponent => {
                 let gained = c.sides[1 - i].lost_to_damage;
                 self.state.gain_blood(actor, gained);
@@ -3416,6 +3466,7 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::OnlyHandStrikes
             | Effect::NextRoundClose
             | Effect::NewRound
+            | Effect::QueueCombatWithOpponent
             | Effect::GainBloodLostByOpponent
             | Effect::ContinueAfterCombat { .. }
             | Effect::ContinueFreeAfterCombat

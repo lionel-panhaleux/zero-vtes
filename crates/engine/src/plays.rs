@@ -6345,6 +6345,16 @@ impl Engine {
                     }
                 }
                 Effect::GainMasterPhaseAction => self.state.seats[ctx.seat.index()].mpa += 1,
+                Effect::WatchDamagesActing(n) => {
+                    if let Some(a) = self.action.as_mut() {
+                        a.watch_damaged = true;
+                        let acting = a.acting;
+                        let v = &self.state.minions[acting.index()];
+                        if v.present() && v.is_vampire() {
+                            self.damage_out_of_combat(acting, n, false);
+                        }
+                    }
+                }
                 Effect::UnlockActing => {
                     if let Some(a) = self.action.as_mut() {
                         let m = a.acting;

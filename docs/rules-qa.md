@@ -64,7 +64,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
-- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12
+- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3
 - **Ousts, Life Boon's decision point** — 45.1–45.8
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
@@ -1279,3 +1279,11 @@ Readings no ruling settles, implemented with slice 16m; questions for the owner.
 **64.11** Generators: the window matrix reads "when … attempts to block" (The Kiss of Ra), "when this vampire burns a minion" (Predator's Transformation [ABO]: no in-play action flag) and "with an optional maneuver each combat" (Zip Gun: a rider, no play window); "As above, with +1 stealth" over a mode with no printed timing keeps the stealth window alone (Mind of the Wilds [ANI][AUS], 3.2; Mask of a Thousand Faces keeps its timings); a mode's two type tags ([ACTION MODIFIER][COMBAT]) are read in a fixed order (the generator was nondeterministic on Predator's Transformation).
 
 **64.12** Owner, 2026-10-11 (relayed by Z-play): as a political referendum's polling step opens, the other Methuselahs get a chance to play the cards usable "before any votes and ballots are cast" before the caller casts — Confusion of the Eye [OBF] (63.3), Fakir al Sidi (59.18), Closed Session. The engine opens it with a pre-vote rotation from the caller's left, the caller last, offering those cards (and their abilities) alone, no vote; once it closes, the polling proper rotates from the caller. Not for a blood hunt, nor a referendum passing automatically.
+
+## Batch 65 — Legacy cards for TWDA decks, round 6, implemented readings (2026-10-11)
+
+**65.1** Psyche!: [CEL] in the end-of-round window as the combat would end, both combatants ready, no combat queued (RTR 20020501) — no "would end" replacement after it (Telepathic Tracking, Hunting the Quarry: ANK 20191219), the end-of-round cards still open before or after it (LSJ 20021113). The queued combat begins as this one ends, the same two minions, still in the action (LSJ 20021213) and ending as this one would have (into the after-combat window, or back to an action's step); this combat's after-combat effects are lost (a continuation as if unblocked, Torrent's included; damage or a card after combat), unlocks aside, applied as their strikes resolved (LSJ 19980109); cards held "until after combat" are replaced before it (LSJ 20001122); no block began it, so no block rider nor "when blocking" equipment carries over (Spirit's Touch, Sniper Rifle: LSJ 20010813, LSJ 20010814); a hand size the first combat lowered is drawn up between them and discarded down again (Raptor, LSJ 20030530).
+
+**65.2** Neighborhood Watch Commander: any Methuselah's, after the resolution of any Methuselah's blocked or failed action whose acting minion is a vampire; ready and unlocked, it locks to inflict 1 normal damage out of combat (the vampire burns a blood, else goes to torpor); one Commander each action, any controller's.
+
+**65.3** Tabitha Fisk: as Silvian Popescu — her controller's unlock phase, once, from an archbishop of theirs with blood, she in torpor too. Tatiana Romanov: +1 bleed. Delilah Easton and Isabel de Leon print no text.

@@ -424,6 +424,15 @@ ADDED_BATCHES = [
         200836: "Lillian (G5)",
         201192: "Robert Price (G4)",
     },
+    # 2026-10-11: owner's list, round 6.
+    {
+        201335: "Tabitha Fisk (G3)",
+        101270: "Neighborhood Watch Commander",
+        101507: "Psyche!",
+        200330: "Delilah Easton (G1)",
+        200642: "Isabel de Leon (G2)",
+        201347: "Tatiana Romanov (G1)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 

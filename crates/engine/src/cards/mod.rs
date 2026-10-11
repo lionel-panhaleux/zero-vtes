@@ -1447,6 +1447,15 @@ pub enum Requirement {
     /// The minion attempting to block is of this clan (Market Square:
     /// "give an Assamite you control +1 intercept").
     AttemptingClan(&'static str),
+    /// The action was unsuccessful: blocked or failed (Neighborhood Watch
+    /// Commander: "after resolution of an unsuccessful action").
+    ActionUnsuccessful,
+    /// No Neighborhood Watch Commander has locked to inflict its damage in
+    /// this action ("only one … each action").
+    NoWatchDamageThisAction,
+    /// No combat is queued (Psyche! [CEL]: "not usable if there is already
+    /// a combat queued").
+    NoCombatQueued,
     /// "A vampire who does not have Fortitude attempts to block" (The Kiss
     /// of Ra): a vampire attempting, without the Discipline, read live.
     AttemptingVampireWithout(&'static str),
@@ -3595,6 +3604,16 @@ pub enum Effect {
     /// "Each Methuselah who controls any vampires with torture counters
     /// burns n pool" (The Path of Lilith, its controller's unlock phase).
     TortureBurnPool(u8),
+    /// "Inflict n damage on the acting vampire" after the action's
+    /// resolution (Neighborhood Watch Commander): out of combat, the
+    /// action marked (one each action).
+    WatchDamagesActing(u8),
+    /// "Queue a combat with the opposing minion" as combat is about to end
+    /// (Psyche! [CEL]): the new combat begins as this one ends, still in
+    /// the action; this combat's after-combat effects are lost but unlocks
+    /// (LSJ 19980109, RTR 20020501); no "would end" replacement after it
+    /// (ANK 20191219).
+    QueueCombatWithOpponent,
     /// "If he or she currently has any, they are burned" (Anachronism):
     /// the target's ranged weapons, `except` the named one.
     BurnRangedWeaponsOnTarget {
@@ -5166,6 +5185,16 @@ pub fn holds(
             .is_some_and(|(c, i)| !st.holds_a(c.sides[1 - i].minion, h)),
         Requirement::ActionBlocked => {
             action.is_some_and(|a| a.outcome == Some(crate::actions::Outcome::Blocked))
+        }
+        Requirement::ActionUnsuccessful => action.is_some_and(|a| {
+            matches!(
+                a.outcome,
+                Some(crate::actions::Outcome::Blocked | crate::actions::Outcome::Failed)
+            )
+        }),
+        Requirement::NoWatchDamageThisAction => action.is_some_and(|a| !a.watch_damaged),
+        Requirement::NoCombatQueued => {
+            combat.is_none_or(|c| !c.psyche) && action.is_none_or(|a| a.queued_combat.is_none())
         }
         Requirement::NoSuperiorVeilThisTurn => !st.veil_superior,
         Requirement::OpposingWeapon => combat.zip(actor).is_some_and(|(c, m)| {

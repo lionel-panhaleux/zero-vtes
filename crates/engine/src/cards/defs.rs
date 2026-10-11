@@ -2608,7 +2608,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     ..CARD
 };
 
-pub static DEFS: [&CardDef; 593] = [
+pub static DEFS: [&CardDef; 595] = [
     &MAGIC_OF_THE_SMITH,
     &VAST_WEALTH,
     &BLACK_MARKET_CACHE,
@@ -3202,6 +3202,8 @@ pub static DEFS: [&CardDef; 593] = [
     &PREDATORS_TRANSFORMATION,
     &READ_THE_WINDS,
     &ZIP_GUN,
+    &NEIGHBORHOOD_WATCH_COMMANDER,
+    &PSYCHE,
 ];
 
 // ---- Cards in play with riders and granted actions (slice 5) ------------
@@ -18655,6 +18657,56 @@ pub static ZIP_GUN: CardDef = CardDef {
             ],
         ),
         GUN_MANEUVER,
+    ],
+    ..CARD
+};
+
+// ---- Owner's list, round 6 (slice 16r) -------------------------------------
+
+/// "Mortal with 1 life. 1 strength, 0 bleed. Lock after resolution of an
+/// unsuccessful action to inflict 1 damage on the acting vampire. Only one
+/// Neighborhood Watch Commander can lock to inflict damage each action." (2
+/// blood.) Any Methuselah's action, blocked or failed; normal damage out
+/// of combat (the vampire burns its blood, else goes to torpor).
+pub static NEIGHBORHOOD_WATCH_COMMANDER: CardDef = CardDef {
+    name: "Neighborhood Watch Commander",
+    modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
+    abilities: &[mode_of(
+        &[Window::ActionAfterResolution],
+        Actor::Host,
+        &[
+            Requirement::HostReady,
+            Requirement::HostUnlocked,
+            Requirement::ActionUnsuccessful,
+            Requirement::ActingVampire,
+            Requirement::NoWatchDamageThisAction,
+        ],
+        &[Effect::LockHost, Effect::WatchDamagesActing(1)],
+    )],
+    ..CARD
+};
+
+/// "[cel] Press. [CEL] Only usable if both combatants are still ready and
+/// combat is about to end. Queue a combat with the opposing minion. (Not
+/// usable if there is already a combat queued. This can interrupt the
+/// resolution of an effect that ends a combat.)" The new combat begins as
+/// this one ends, still part of the action (LSJ 20021213); this combat's
+/// after-combat effects are lost, unlocks aside (LSJ 19980109, RTR
+/// 20020501); no "would end" replacement after it (ANK 20191219); cards
+/// replaced after combat are replaced before the new one (LSJ 20001122).
+pub static PSYCHE: CardDef = CardDef {
+    name: "Psyche!",
+    modes: &[
+        combat(&[Window::CombatPress], &[], &[Effect::Press]),
+        combat(
+            &[Window::CombatWouldEnd],
+            &[
+                Requirement::BothCombatantsReady,
+                Requirement::CombatWouldEnd,
+                Requirement::NoCombatQueued,
+            ],
+            &[Effect::QueueCombatWithOpponent],
+        ),
     ],
     ..CARD
 };

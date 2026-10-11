@@ -781,3 +781,379 @@ fn library(e: &mut Engine, seat: u8, name: &str, n: usize) {
             .push(find_library(name));
     }
 }
+
+// ---- Tabitha Fisk (round 6) ---------------------------------------------------------
+
+// Tabitha Fisk: "During your unlock phase, an archbishop you control can
+// move 1 blood from themselves to Tabitha." In torpor too (as Silvian
+// Popescu, LSJ 20011022): Damian (archbishop) feeds her; Concordia (a
+// bishop) is no target.
+#[test]
+fn tabitha_fisk_takes_an_archbishops_blood() {
+    let mut e = game(2);
+    let t = e.add_minion(SeatId(0), find_card("Tabitha Fisk"), 0, true);
+    let damian = e.add_minion(SeatId(0), find_card("Damian"), 4, false);
+    let bishop = e.add_minion(SeatId(0), find_card("Concordia"), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let take = |m| Choice::UseAbility {
+        source: AbilitySource::Vampire(t),
+        ability: 0,
+        actor: None,
+        target: Target::Minion(m),
+    };
+    pick(&mut e, Choice::Pass);
+    let req = offering(&mut e, take(damian));
+    assert_eq!(req.seat, SeatId(0));
+    assert!(
+        !req.options.contains(&take(bishop)),
+        "a bishop is no archbishop"
+    );
+    e.choose(index_of(&req, take(damian)));
+    request(&mut e);
+    assert_eq!((blood(&e, t), blood(&e, damian)), (1, 3));
+}
+
+// ---- Psyche! (round 6) ----------------------------------------------------------------
+
+/// Seat 0's `a` ([cel]/[CEL]) bleeds seat 1, `z` blocks; `a` passes its
+/// way to the end of the first round, where it plays Psyche! [CEL] (hand
+/// card `psyche`).
+fn psyche_at_round_end(e: &mut Engine, a: MinionId, z: MinionId, psyche: u8) {
+    blocked_bleed(e, a, z);
+    let req = loop {
+        let req = request(e);
+        if req.options.contains(&play(psyche, 1, a)) {
+            break req;
+        }
+        e.choose(fallback(&req));
+    };
+    assert_eq!(req.window, WindowLabel::CombatEndOfRound);
+    e.choose(index_of(&req, play(psyche, 1, a)));
+}
+
+// Psyche!: "[CEL] Only usable if both combatants are still ready and
+// combat is about to end. Queue a combat with the opposing minion." [LSJ
+// 20021213] "The new combat is still part of the current action: that
+// action can be continued (eg. Form of Mist, Mirror Image)": a second
+// combat with the blocker; Torrent [CEL] in it continues the bleed.
+#[test]
+fn psyche_queues_a_combat_still_in_the_action() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), vampire_with("CEL", 0), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 8, false);
+    hand(&mut e, 0, &["Psyche!", "Torrent"]);
+    psyche_at_round_end(&mut e, a, z, 0);
+    // The second combat: Torrent's combat ends strike, the action going on.
+    let req = offering(&mut e, play(0, 1, a));
+    assert_eq!(req.window, WindowLabel::CombatStrike);
+    let c = e.combat().expect("a second combat");
+    assert_eq!(c.round, 1, "a new combat");
+    e.choose(index_of(&req, play(0, 1, a)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e)[1], 10 - 1, "continued as if unblocked");
+}
+
+// [LSJ 19980109] [RTR 20020501] Psyche!: "Effects that end combat and then
+// do something else after combat (include continuing the action as if
+// unblocked) will be lost, except for unlock effects." Torrent [CEL]'s
+// strike ends the first combat; Psyche! queues another: no continuation —
+// the bleed stays blocked. [RTR 20020501] [LSJ 19980109] (After Combat
+// Ends): "If the combat continues or a new combat begins, the after combat
+// effect does not happen."
+#[test]
+fn psyche_loses_the_first_combats_continuation() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), vampire_with("CEL", 0), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 8, false);
+    hand(&mut e, 0, &["Torrent", "Psyche!"]);
+    blocked_bleed(&mut e, a, z);
+    pick_when(&mut e, play(0, 1, a));
+    let req = offering(&mut e, play(0, 1, a));
+    assert_eq!(req.window, WindowLabel::CombatEndOfRound);
+    e.choose(index_of(&req, play(0, 1, a)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e)[1], 10, "no continuation: blocked");
+}
+
+// [RTR 20020501] Psyche!: "Cannot be played if there is already a combat
+// queued." [ANK 20191219] "Replacements effects that are played when a
+// combat 'would end' (eg. Telepathic Tracking) cannot be play afterwards"
+// — nor Hunting the Quarry's. [LSJ 20021113] [ANK 20191219] [ANK
+// 20180910-1] "Can be played before or after effects that are played 'at
+// the end of combat'": Taste of Vitae still offered after it.
+#[test]
+fn psyche_closes_the_would_end_window_but_not_the_end_of_round() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), vampire_with("CEL", 0), 6, false);
+    superior(&mut e, a, "aus");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 8, false);
+    hand(
+        &mut e,
+        0,
+        &[
+            "Psyche!",
+            "Psyche!",
+            "Telepathic Tracking",
+            "Hunting the Quarry",
+            "Taste of Vitae",
+        ],
+    );
+    psyche_at_round_end(&mut e, a, z, 0);
+    let req = expect(&mut e, SeatId(0), WindowLabel::CombatEndOfRound);
+    // The hand shifts down: Psyche!, Telepathic Tracking, Hunting the
+    // Quarry, Taste of Vitae.
+    assert!(!req.options.contains(&play(0, 1, a)), "a combat is queued");
+    assert!(
+        !req.options.contains(&play(1, 1, a)),
+        "no would-end replacement"
+    );
+    assert!(!req
+        .options
+        .iter()
+        .any(|o| matches!(o, Choice::Play { card: 2, .. })));
+    assert!(
+        req.options.contains(&play(3, 0, a)),
+        "Taste of Vitae after it"
+    );
+}
+
+// [LSJ 20010813] [LSJ 20010819-2] Block riders "do not carry over to a
+// follow-up combat (eg. [CEL] Psyche!)": the blocker's Spirit's Touch [AUS]
+// maneuver in the block's combat, none in the queued one. [LSJ 20010814]
+// "If a new combat occurs due to an effect like Psyche!, the Rifle cannot
+// be used to set the range."
+#[test]
+fn psyche_carries_no_block_rider_into_the_new_combat() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), vampire_with("CEL", 0), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), vampire_with("AUS", 0), 8, false);
+    let rifle = in_play(&mut e, 1, "Sniper Rifle", Some(z));
+    hand(&mut e, 0, &["Psyche!", "Cloak the Gathering"]);
+    hand(&mut e, 1, &["Spirit's Touch"]);
+    superior(&mut e, a, "obf");
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, block(z));
+    pick_when(&mut e, play(1, 0, a));
+    pick_when(&mut e, play(0, 1, z));
+    let set_long = use_at(rifle, 1, None, Target::None);
+    let req = offering(&mut e, set_long);
+    assert_eq!(req.seat, SeatId(1), "the Rifle at the block's combat");
+    e.choose(fallback(&req));
+    let req = loop {
+        let req = request(&mut e);
+        if req.options.contains(&play(0, 1, a)) {
+            break req;
+        }
+        e.choose(fallback(&req));
+    };
+    e.choose(index_of(&req, play(0, 1, a)));
+    // The queued combat: neither the rider's maneuver nor the Rifle.
+    loop {
+        let req = request(&mut e);
+        if req.seat == SeatId(1) {
+            assert!(!req.options.contains(&set_long), "{req:?}");
+            assert!(
+                req.window != WindowLabel::CombatDetermineRange
+                    || !req.options.contains(&Choice::UseManeuver),
+                "{req:?}"
+            );
+        }
+        if (req.seat, req.window) == (SeatId(0), WindowLabel::MinionPhase) {
+            break;
+        }
+        e.choose(fallback(&req));
+    }
+}
+
+// [ANK 20180910-3] Terror Frenzy: "[ANI] Also affects the cost of combat
+// cards played at then of a round or combat (eg. Disarm, Telepathic
+// Tracking, Psyche!)": Psyche! costs the frenzied vampire 1 blood.
+#[test]
+fn psyche_costs_more_under_terror_frenzy() {
+    let run = |frenzy: bool| {
+        let mut e = game(2);
+        let a = e.add_minion(SeatId(0), vampire_with("CEL", 0), 6, false);
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        let z = e.add_minion(SeatId(1), vampire_with("ANI", 0), 8, false);
+        hand(&mut e, 0, &["Psyche!"]);
+        hand(&mut e, 1, &["Terror Frenzy"]);
+        blocked_bleed(&mut e, a, z);
+        if frenzy {
+            pick_when(&mut e, play(0, 1, z));
+        }
+        let req = loop {
+            let req = request(&mut e);
+            if req.options.contains(&play(0, 1, a)) {
+                break req;
+            }
+            e.choose(fallback(&req));
+        };
+        e.choose(index_of(&req, play(0, 1, a)));
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        blood(&e, a)
+    };
+    // The same two combats either way: 1 blood more with Terror Frenzy.
+    assert_eq!(run(false), run(true) + 1);
+}
+
+// [LSJ 20001122] Psyche!: "Cards that are only replaced after combat (eg.
+// Lucky Blow) are replaced before the new combat": Lam Into, played in the
+// first combat, is replaced as it ends.
+#[test]
+fn psyche_replaces_after_combat_cards_before_the_new_combat() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), vampire_with("CEL", 0), 6, false);
+    superior(&mut e, a, "pot");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 8, false);
+    hand(&mut e, 0, &["Lam Into", "Psyche!"]);
+    fill_hand(&mut e, 0);
+    e.state.seats[0].library.clear();
+    library(&mut e, 0, "Bonding", 4);
+    blocked_bleed(&mut e, a, z);
+    let lam = loop {
+        let req = request(&mut e);
+        if let Some(o) = req
+            .options
+            .iter()
+            .find(|o| matches!(o, Choice::Play { card: 0, actor: Some(m), .. } if *m == a))
+        {
+            break *o;
+        }
+        e.choose(fallback(&req));
+    };
+    pick(&mut e, lam);
+    let req = loop {
+        let req = request(&mut e);
+        if req.options.contains(&play(0, 1, a)) {
+            break req;
+        }
+        e.choose(fallback(&req));
+    };
+    assert_eq!(e.state.seats[0].library.len(), 4, "Lam Into held back");
+    e.choose(index_of(&req, play(0, 1, a)));
+    request(&mut e);
+    assert_eq!(
+        e.state.seats[0].library.len(),
+        4 - 2,
+        "Lam Into and Psyche! replaced"
+    );
+}
+
+// ---- Neighborhood Watch Commander, Tatiana Romanov (round 6) ------------------------
+
+// Neighborhood Watch Commander: "Lock after resolution of an unsuccessful
+// action to inflict 1 damage on the acting vampire. Only one Neighborhood
+// Watch Commander can lock to inflict damage each action." A blocked bleed:
+// one of seat 1's two Commanders locks — the acting vampire burns 1 blood;
+// the other is not offered. A successful bleed: none.
+#[test]
+fn neighborhood_watch_commander_punishes_an_unsuccessful_action() {
+    for blocked in [true, false] {
+        let mut e = game(2);
+        let a = e.add_minion(SeatId(0), vampire_with("obf", 0), 4, false);
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 8, false);
+        let w1 = e.add_ally(SeatId(1), find_library("Neighborhood Watch Commander"));
+        let w2 = e.add_ally(SeatId(1), find_library("Neighborhood Watch Commander"));
+        let ids: Vec<CardId> = (0..e.state.cards.len())
+            .map(|i| CardId(i as u32))
+            .filter(|&c| {
+                e.state.cards[c.index()].card == find_library("Neighborhood Watch Commander")
+            })
+            .collect();
+        let lock = |i: usize, _m: MinionId| use_at(ids[i], 0, None, Target::None);
+        pick(&mut e, bleed(a));
+        if blocked {
+            pick_when(&mut e, block(z));
+        }
+        let mut locked = 0;
+        loop {
+            let req = request(&mut e);
+            let offered: Vec<usize> = (0..2)
+                .filter(|&i| req.options.contains(&lock(i, [w1, w2][i])))
+                .collect();
+            assert!(blocked || offered.is_empty());
+            if let Some(&i) = offered.first() {
+                assert_eq!(locked, 0, "one each action");
+                e.choose(index_of(&req, lock(i, [w1, w2][i])));
+                locked += 1;
+                continue;
+            }
+            if (req.seat, req.window) == (SeatId(0), WindowLabel::MinionPhase) {
+                break;
+            }
+            e.choose(fallback(&req));
+        }
+        assert_eq!(locked, usize::from(blocked));
+    }
+}
+
+// Tatiana Romanov: "Camarilla Prince of Houston: +1 bleed."
+#[test]
+fn tatiana_romanov_bleeds_for_two() {
+    let mut e = game(2);
+    let t = e.add_minion(SeatId(0), find_card("Tatiana Romanov"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    pick(&mut e, bleed(t));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e)[1], 10 - 2);
+}
+
+// [LSJ 20030530] Raptor: "If combat ends and a new combat start (eg. [CEL]
+// Psyche!), the opponent redraws and discard again." The blocker's Raptor
+// [ANI] lowers seat 0's hand size in combat: a discard as the first combat
+// begins, a draw as it ends, another discard as the queued one begins.
+#[test]
+fn psyche_redraws_and_discards_again_under_raptor() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), vampire_with("CEL", 0), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 8, false);
+    let raptor = find_library("Raptor");
+    e.state
+        .cards
+        .push(CardInPlay::new(raptor, SeatId(1), Some(z), 1));
+    let id = CardId(e.state.cards.len() as u32 - 1);
+    for effect in cards::lookup(raptor).expect("definition").modes[1].effects {
+        if let Effect::Layer(modifier) = effect {
+            e.state.layers.push(Layer {
+                scope: Scope::InPlay,
+                modifier: *modifier,
+                source: id,
+            });
+        }
+    }
+    hand(&mut e, 0, &["Psyche!"]);
+    fill_hand(&mut e, 0);
+    e.state.seats[0].library.clear();
+    library(&mut e, 0, "Bonding", 5);
+    blocked_bleed(&mut e, a, z);
+    let mut discards = 0;
+    let mut played = false;
+    loop {
+        let req = request(&mut e);
+        if req.window == WindowLabel::DiscardDown && req.seat == SeatId(0) {
+            discards += 1;
+            // Psyche! (card 0) kept.
+            e.choose(req.options.len() - 1);
+            continue;
+        }
+        if !played && req.options.contains(&play(0, 1, a)) {
+            played = true;
+            e.choose(index_of(&req, play(0, 1, a)));
+            continue;
+        }
+        if (req.seat, req.window) == (SeatId(0), WindowLabel::MinionPhase) {
+            break;
+        }
+        e.choose(fallback(&req));
+    }
+    assert!(played);
+    assert_eq!(discards, 2, "discarded again in the queued combat");
+}

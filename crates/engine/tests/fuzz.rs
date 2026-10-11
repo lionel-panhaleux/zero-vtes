@@ -2784,6 +2784,8 @@ fuzz_tests! {
             // Ranged weapons for Anachronism, a frenzy for the reflex.
             ".44 Magnum",
             "Terror Frenzy",
+            "Neighborhood Watch Commander",
+            "Psyche!",
         ],
         covers: &[
             "play:Anachronism",
@@ -2798,6 +2800,9 @@ fuzz_tests! {
             "ability:Ossian",
             "ability:Zip Gun",
             "rider:Path of Lilith, The",
+            "play:Neighborhood Watch Commander",
+            "play:Psyche!",
+            "ability:Neighborhood Watch Commander",
         ],
         setup: |e, _| {
             named(
@@ -2811,10 +2816,14 @@ fuzz_tests! {
                     "Xaviar",
                     "Fakir al Sidi",
                     "Vivian VI",
+                    "Tabitha Fisk",
+                    "Tatiana Romanov",
+                    "Delilah Easton",
+                    "Isabel de Leon",
                 ],
             );
         },
-        seeds: 50,
+        seeds: 40,
         ..BASE
     };
 }
