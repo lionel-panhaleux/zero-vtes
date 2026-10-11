@@ -45,7 +45,6 @@ as it was played.
 | `zero-vtes-replay-2026-10-10T15-16-15-595Z.json` | the fork's build of that day | Banu Haqim, **The Unnamed**, Salubri, Tremere | `p8-nudges@2600` (network, default politics) | owner 3 VP, Tremere 1 |
 | `zero-vtes-replay-2026-10-10T16-45-56-513Z.json` | the fork's build of that day | Toreador, **The Unnamed**, Ventrue, Nosferatu | `p8-nudges@2600` (network, default politics) | owner 4 VP, the bots 0 |
 | `zero-vtes-replay-2026-10-10T18-44-21-018Z.json` | the fork's build of that day | Salubri, Nosferatu, **The Unnamed**, Ravnos | `p8-nudges@2600` (network, default politics) | owner 3 VP, Ravnos 1 |
-| `zero-vtes-replay-2026-10-10T21-00-19-649Z.json` | the fork's build of that day | Tremere, Banu Haqim, Malkavian, **The Unnamed** | `p8-nudges@2600` (network, default politics) | owner 3 VP, Banu Haqim 1 |
 | `zero-vtes-replay-2026-10-10T21-16-37-859Z.json` | the fork's build of that day | Hecata, Ventrue, Toreador, **The Unnamed** | `p8-nudges@2600` (network, default politics) | owner 4 VP, the bots 0 |
 | `zero-vtes-replay-2026-10-10T22-05-29-762Z.json` | the fork's build of that day | Tremere, Hecata, Ravnos, **The Unnamed** | `p8-nudges@2600` (network, default politics) | owner 3 VP, Hecata 1 |
 | `zero-vtes-replay-2026-10-10T22-26-31-637Z.json` | the fork's build of that day | Tzimisce, Brujah, Malkavian, **The Unnamed** | `p8-nudges@2600` (network, default politics) | owner 3 VP, Brujah 1 |
