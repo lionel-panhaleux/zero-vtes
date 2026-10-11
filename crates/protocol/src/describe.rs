@@ -601,10 +601,13 @@ impl Describer<'_> {
                     // or pool, Dreams of the Sphinx's hand size or pool).
                     None if abilities.len() > 1 || ability > 0 => {
                         let label = |i: usize| abilities.get(i).map(|a| ability_label(a.effects));
+                        // The same label for the same effects: either does
+                        // the same (The Louvre, Paris's two locks).
+                        let effects = |i: usize| abilities.get(i).map(|a| a.effects);
                         match label(ability as usize).filter(|l| !l.is_empty()) {
                             Some(l)
                                 if (0..abilities.len())
-                                    .filter(|&i| i != ability as usize)
+                                    .filter(|&i| effects(i) != effects(ability as usize))
                                     .all(|i| label(i).as_deref() != Some(l.as_str())) =>
                             {
                                 what = format!(": {l}")
@@ -1130,6 +1133,80 @@ fn ability_label(effects: &[Effect]) -> String {
                 Effect::DrawCryptThenRemove => {
                     "draw a crypt card, then remove one from your uncontrolled region".into()
                 }
+                Effect::DrawThenDiscardDown(n) => {
+                    format!("draw {}, then discard down", plural(n, "card", "cards"))
+                }
+                // Which way blood goes (Powerbase: Munich, Sri Sansa).
+                Effect::TargetBloodToPool(n) => format!("{n} blood from the target to your pool"),
+                Effect::PoolToTargetBlood(n) => format!("{n} pool to the target"),
+                Effect::HostBloodToTarget(n) => format!("{n} blood to the target"),
+                Effect::TargetBloodToHost(n) => format!("{n} blood from the target"),
+                Effect::StealBloodToHostX => "X blood from the target".into(),
+                Effect::BloodToActing(n) => format!("{n} blood to the acting vampire"),
+                Effect::BloodToChosen(n) => format!("{n} blood to the chosen vampire"),
+                Effect::BloodToTargetToStart(_) => "blood to the target".into(),
+                Effect::BloodPerHostage => "1 blood to the target per hostage".into(),
+                Effect::HuntingGroundBlood(n) => format!("{n} blood to the target"),
+                Effect::HuntingGroundLife(n) => format!("{n} life to the target"),
+                Effect::BloodToCard(n) => format!("{n} blood from the target to this card"),
+                Effect::CountersToUncontrolledTarget => {
+                    "its counters to an uncontrolled vampire".into()
+                }
+                Effect::HostBurnBloodToUnlock => "burn 1 blood to unlock".into(),
+                Effect::TargetBurnLife(n) => format!("the target burns {n} blood or life"),
+                Effect::BleedMod { n, .. } => format!("+{n} bleed"),
+                Effect::ReduceBleedX => "reduce the bleed by X".into(),
+                Effect::RemoveCounter(n) => {
+                    format!("burn {}", plural(n, "counter", "counters"))
+                }
+                Effect::RemoveCountersX => "burn X counters".into(),
+                Effect::AddCounter(n) => format!("add {}", plural(n, "counter", "counters")),
+                Effect::PoolToCounterPlusBank { pool, bank } => {
+                    format!("{pool} pool to this card, +{bank} counter")
+                }
+                Effect::PayActionWithCountersX => "pay the equipment with X counters".into(),
+                Effect::CounterToTarget(_) => "a counter on the target".into(),
+                Effect::PreventGunStrikeAllowance(n) => {
+                    format!("prevent {n} damage from gun strikes")
+                }
+                Effect::PreventNonGun(n) => format!("prevent {n} damage not from a gun"),
+                Effect::PreventNonAggravated(n) => {
+                    format!("prevent {n} non-aggravated damage")
+                }
+                Effect::ImmuneStrikeNonAggravated => {
+                    "immune to a strike's non-aggravated damage".into()
+                }
+                Effect::ImmuneEffectNonAggravated => {
+                    "immune to an effect's non-aggravated damage".into()
+                }
+                Effect::SetRange(r) => format!("{} range", format!("{r:?}").to_lowercase()),
+                Effect::CommitStrike => "its strike this round".into(),
+                Effect::OptionalManeuver => "a maneuver".into(),
+                Effect::OptionalPress => "a press".into(),
+                Effect::ContinuePressForOwnCombatant => "a press to continue combat".into(),
+                Effect::ReduceActionBlood(n) => format!("the card costs {n} blood less"),
+                Effect::ReduceActionCost(n) => format!("the card costs {n} less"),
+                Effect::UnlockActing => "unlock the acting minion".into(),
+                Effect::UnlockActingIfSuccessful(_) => {
+                    "unlock the acting minion if successful".into()
+                }
+                Effect::FailReferendum => "the referendum fails".into(),
+                Effect::NonCamarillaVotesMinus(n) => {
+                    format!("non-Camarilla vampires get -{n} votes")
+                }
+                Effect::TargetVotesPerCounter => "the target gets +1 vote per counter".into(),
+                Effect::PayPoolX => "pay X pool".into(),
+                Effect::MethuselahVotesX { per, favor } => {
+                    format!("+{per}X votes {}", if favor { "for" } else { "against" })
+                }
+                Effect::SpendMasterPhaseAction => "a master phase action".into(),
+                Effect::PoolToCounter(n) => format!("{n} pool to this card"),
+                Effect::GiveToPrey => "give it to your prey".into(),
+                Effect::LockPreyVampires(n) => format!("lock up to {n} of your prey's vampires"),
+                Effect::CryptNamedToUncontrolled(name) => {
+                    format!("{name} from your crypt to your uncontrolled region")
+                }
+                Effect::StoreFromPreyAsh => "a card from your prey's ash heap onto it".into(),
                 _ => return None,
             })
         })
@@ -1329,6 +1406,52 @@ mod tests {
             s("a melee weapon's strike at +2 damage")
         );
         assert!(!mode_text(card("Psychophagia"), 1).contains("option"));
+    }
+
+    /// A card or vampire with several abilities says what each does, never
+    /// "ability 2" (owner: Powerbase: Munich "with no clear statement about
+    /// which is blood to pool or pool to blood"): a label each, distinct
+    /// from the others' unless their effects are the same.
+    #[test]
+    fn every_ability_among_several_is_told_apart() {
+        let mut bad = Vec::new();
+        let mut check = |name: &str, abilities: &[zvtes::cards::ModeDef]| {
+            if abilities.len() < 2 {
+                return;
+            }
+            let labels: Vec<String> = abilities.iter().map(|a| ability_label(a.effects)).collect();
+            for (i, a) in abilities.iter().enumerate() {
+                let moved = a
+                    .effects
+                    .iter()
+                    .any(|e| matches!(e, Effect::HostBloodToPool(_) | Effect::PoolToHostBlood(_)));
+                let clash = (0..abilities.len())
+                    .any(|j| j != i && labels[j] == labels[i] && abilities[j].effects != a.effects);
+                if !moved && (labels[i].is_empty() || clash) {
+                    bad.push(format!("{name} #{i}: {:?}", a.effects));
+                }
+            }
+        };
+        for i in 0..LIBRARY.len() {
+            if let Some(d) = zvtes::cards::lookup(i as u16) {
+                check(d.name, d.abilities);
+            }
+        }
+        for i in 0..zvtes::crypt::CRYPT.len() {
+            if let Some(v) = zvtes::cards::vampire(i as u16) {
+                check(v.name, v.abilities);
+            }
+        }
+        assert!(bad.is_empty(), "abilities told apart by number: {bad:#?}");
+        let munich = zvtes::cards::lookup(card("Powerbase: Munich")).unwrap();
+        assert_eq!(
+            ability_label(munich.abilities[0].effects),
+            "1 blood from the target to your pool"
+        );
+        assert_eq!(
+            ability_label(munich.abilities[1].effects),
+            "1 pool to the target"
+        );
     }
 
     /// Toreador Grand Ball's two Toreador: the target says it is the one
