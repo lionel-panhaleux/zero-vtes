@@ -65,6 +65,8 @@ impl Variant {
                 "bleed" => v.nudges.bleed = num()?,
                 "idle" => v.nudges.idle = num()?,
                 "draw" => v.nudges.draw = num()?,
+                "stuck" => v.nudges.stuck = num()?,
+                "nightmare" => v.nudges.nightmare = num()?,
                 "chores" => v.chores = num()? != 0.0,
                 _ => {
                     return Err(format!(

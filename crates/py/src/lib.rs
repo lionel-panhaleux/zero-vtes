@@ -1039,8 +1039,9 @@ impl GamePool {
     /// cycle), "reaction" (taken off cycling a reaction), "bleed" (taken
     /// off a bleed for nothing: `zvtes_policy::empty_bleed`), "idle" (taken
     /// off ending the influence phase with a crypt draw still offered:
-    /// `zvtes_policy::idle_influence`), "draw" (on a crypt draw there), all
-    /// 0 by default.
+    /// `zvtes_policy::idle_influence`), "draw" (on a crypt draw there),
+    /// "stuck" (taken off `zvtes_policy::stuck_transfer`), "nightmare"
+    /// (taken off `zvtes_policy::own_nightmare`), all 0 by default.
     /// Set with any of the keys; those left out are kept.
     #[getter]
     fn nudges(&self) -> std::collections::BTreeMap<&'static str, f32> {
@@ -1052,6 +1053,8 @@ impl GamePool {
             ("bleed", n.bleed),
             ("idle", n.idle),
             ("draw", n.draw),
+            ("stuck", n.stuck),
+            ("nightmare", n.nightmare),
         ]
         .into()
     }
@@ -1066,9 +1069,11 @@ impl GamePool {
                 "bleed" => self.nudges.bleed = v,
                 "idle" => self.nudges.idle = v,
                 "draw" => self.nudges.draw = v,
+                "stuck" => self.nudges.stuck = v,
+                "nightmare" => self.nudges.nightmare = v,
                 _ => {
                     return Err(PyValueError::new_err(format!(
-                        "nudge {k:?}: rescue, pass, reaction, bleed, idle, draw"
+                        "nudge {k:?}: rescue, pass, reaction, bleed, idle, draw, stuck, nightmare"
                     )))
                 }
             }

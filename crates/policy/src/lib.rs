@@ -25,6 +25,7 @@ use zvtes::cards::Stat;
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::Engine;
 use zvtes::habits::{self, Habit};
+use zvtes::ids::SeatId;
 use zvtes::library::{CardType, LIBRARY};
 use zvtes::obs::{self, Obs};
 use zvtes::politics;
@@ -484,6 +485,14 @@ pub struct Nudges {
     /// crypt": offered ~40 times a game, never taken — p8 gave it 6e-8 —
     /// the owner 11% of the times it is offered).
     pub draw: f32,
+    /// Taken off a transfer onto a vampire that cannot be influenced out
+    /// (`stuck_transfer`; owner, 2026-10-10: a Toreador bot's pool spent
+    /// on a second copy of its unique vampire — the network makes it in
+    /// 35% of the influence decisions offering one, the owner never).
+    pub stuck: f32,
+    /// Taken off moving a nightmare counter onto one's own minion
+    /// (`own_nightmare`; owner, 2026-10-10: "never a good move").
+    pub nightmare: f32,
 }
 
 impl Nudges {
@@ -506,6 +515,12 @@ impl Nudges {
         }
         if self.draw != 0.0 && *o == Choice::DrawCrypt && idle_influence(e, req) {
             b += self.draw;
+        }
+        if self.stuck != 0.0 && stuck_transfer(e, req.seat, o) {
+            b -= self.stuck;
+        }
+        if self.nightmare != 0.0 && own_nightmare(e, req.seat, o) == Some(true) {
+            b -= self.nightmare;
         }
         if (self.pass != 0.0 || self.reaction != 0.0) && cycling(e, req) {
             let hand = &e.state.seats[req.seat.index()].hand;
@@ -532,6 +547,40 @@ pub fn empty_bleed(e: &Engine, o: &Choice) -> bool {
     let st = &e.state;
     matches!(*o, Choice::TakeAction { minion, action: ActionKind::Bleed, .. }
         if st.base_bleed(minion) as i32 + st.bearer_mod(minion, Stat::Bleed, ActionKind::Bleed) <= 0)
+}
+
+/// `o` is a transfer onto a copy of a unique vampire `seat` already has
+/// in play: it is not offered out while that copy stays (no voluntary
+/// self-contest, `zvtes::influence`), the pool on it stuck.
+pub fn stuck_transfer(e: &Engine, seat: SeatId, o: &Choice) -> bool {
+    let Choice::Transfer { slot } = *o else {
+        return false;
+    };
+    let card = e.state.seats[seat.index()].uncontrolled[slot as usize].card;
+    card != zvtes::state::CREATED
+        && zvtes::crypt::CRYPT[card as usize].name != "Anarch Convert"
+        && e.state.controls_copy(seat, card)
+}
+
+/// `o` moves a nightmare counter (Week of Nightmares): onto a minion of
+/// `seat`'s? `None` when it moves none.
+pub fn own_nightmare(e: &Engine, seat: SeatId, o: &Choice) -> Option<bool> {
+    let Choice::UseAbility {
+        source: zvtes::cards::AbilitySource::Card(c),
+        ability,
+        target: zvtes::cards::Target::Minion(t),
+        ..
+    } = *o
+    else {
+        return None;
+    };
+    let def = zvtes::cards::lookup(e.state.cards[c.index()].card)?;
+    def.abilities
+        .get(ability as usize)?
+        .effects
+        .iter()
+        .any(|f| matches!(f, zvtes::cards::Effect::CounterToTarget(_)))
+        .then(|| e.state.minions[t.index()].owner == seat)
 }
 
 /// `req` is a seat's influence phase with a crypt draw still offered (4

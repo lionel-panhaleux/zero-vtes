@@ -242,7 +242,7 @@ def test_nudges_fade(tmp_path):
 
     cfg = Config(rescue_bonus=2.0, pass_bonus=4.0, nudge_from=100, nudge_until=200)
     assert [nudges(cfg, it)["rescue"] for it in (50, 100, 150, 200, 300)] == [2.0, 2.0, 1.0, 0.0, 0.0]
-    assert nudges(cfg, 150) == {"rescue": 1.0, "pass": 2.0, "reaction": 0.0, "bleed": 0.0, "idle": 0.0, "draw": 0.0}
+    assert nudges(cfg, 150) == {"rescue": 1.0, "pass": 2.0, "reaction": 0.0, "bleed": 0.0, "idle": 0.0, "draw": 0.0, "stuck": 0.0, "nightmare": 0.0}
     assert nudges(Config(reaction_bonus=1.5), 10_000)["reaction"] == 1.5
     small = dict(
         games=8, steps=16, iterations=1, epochs=1, minibatch=64, d=32, layers=1,
@@ -250,7 +250,7 @@ def test_nudges_fade(tmp_path):
     )
     Trainer(Config(**small, out=str(tmp_path), rescue_bonus=1.5, pass_bonus=3.0)).run()
     row = json.loads(open(tmp_path / "metrics.jsonl").read().splitlines()[-1])
-    assert row["nudges"] == {"rescue": 1.5, "pass": 3.0, "reaction": 0.0, "bleed": 0.0, "idle": 0.0, "draw": 0.0} and "habits" in row
+    assert row["nudges"] == {"rescue": 1.5, "pass": 3.0, "reaction": 0.0, "bleed": 0.0, "idle": 0.0, "draw": 0.0, "stuck": 0.0, "nightmare": 0.0} and "habits" in row
 
 
 def test_imitation_and_weak_decks(tmp_path):

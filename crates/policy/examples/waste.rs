@@ -23,7 +23,13 @@
 //!   crypt card or try to influence one more vampire"), with no ready
 //!   minion and with some: those ended with a transfer or a crypt draw
 //!   still possible and none made, the pool then, and those ended with a
-//!   fully influenced vampire left uncontrolled.
+//!   fully influenced vampire left uncontrolled;
+//! - transfers onto a copy of a unique vampire the seat already controls
+//!   (`zvtes_policy::stuck_transfer`: not offered out while that copy
+//!   stays, no voluntary self-contest), of the influence decisions
+//!   offering one (owner, 2026-10-10);
+//! - nightmare counters (Week of Nightmares) moved, and those onto one's
+//!   own minion (`zvtes_policy::own_nightmare`; owner, 2026-10-10: "never a good move").
 
 use std::collections::BTreeMap;
 use std::rc::Rc;
@@ -47,6 +53,13 @@ struct Counts {
     idle_passed: u64,
     idle_drawn: u64,
     empty_bleed_offered: u64,
+    /// Transfers decided with one onto a duplicate offered, and those
+    /// made onto it.
+    dup_offered: u64,
+    dup_transfers: u64,
+    /// Nightmare counter moves, and those onto one's own minion.
+    nightmares: u64,
+    nightmares_own: u64,
     empty_bled: u64,
     rescue_offered: u64,
     rescued: u64,
@@ -179,6 +192,15 @@ impl Watch {
         if req.options.iter().any(empty) {
             c.empty_bleed_offered += 1;
             c.empty_bled += empty(&o) as u64;
+        }
+        let stuck = |o: &Choice| zvtes_policy::stuck_transfer(e, me, o);
+        if req.options.iter().any(stuck) {
+            c.dup_offered += 1;
+            c.dup_transfers += stuck(&o) as u64;
+        }
+        if let Some(own) = zvtes_policy::own_nightmare(e, me, &o) {
+            c.nightmares += 1;
+            c.nightmares_own += own as u64;
         }
         if req.options.iter().any(rescue) {
             c.rescue_offered += 1;
@@ -314,8 +336,15 @@ fn self_play(
     let net = Rc::new(Net::load(&std::fs::read(path).expect("the policy")).expect("a policy"));
     let decks: Vec<Deck> = Deck::all().take(14).collect();
     let group = format!(
-        "self-play (t {temperature}, nudges rescue {} pass {} reaction {} bleed {} idle {} draw {})",
-        nudges.rescue, nudges.pass, nudges.reaction, nudges.bleed, nudges.idle, nudges.draw
+        "self-play (t {temperature}, nudges rescue {} pass {} reaction {} bleed {} idle {} draw {} stuck {} nightmare {})",
+        nudges.rescue,
+        nudges.pass,
+        nudges.reaction,
+        nudges.bleed,
+        nudges.idle,
+        nudges.draw,
+        nudges.stuck,
+        nudges.nightmare
     );
     for g in 0..games {
         let seats: Vec<Deck> = (0..4)
@@ -344,7 +373,7 @@ fn self_play(
 
 fn main() {
     let mut args = std::env::args().skip(1);
-    let usage = "usage: waste <policy.zvp> <games> [--t T] [--rescue B] [--pass B] [--reaction B] [--bleed B] [--idle B] [--draw B] [replay]...";
+    let usage = "usage: waste <policy.zvp> <games> [--t T] [--rescue B] [--pass B] [--reaction B] [--bleed B] [--idle B] [--draw B] [--stuck B] [--nightmare B] [replay]...";
     let policy = args.next().expect(usage);
     let games: u64 = args.next().and_then(|n| n.parse().ok()).expect(usage);
     let (mut temperature, mut nudges, mut replays) = (1.0, Nudges::default(), Vec::new());
@@ -362,6 +391,8 @@ fn main() {
             "--bleed" => nudges.bleed = num(),
             "--idle" => nudges.idle = num(),
             "--draw" => nudges.draw = num(),
+            "--stuck" => nudges.stuck = num(),
+            "--nightmare" => nudges.nightmare = num(),
             _ => replays.push(a),
         }
     }
@@ -386,6 +417,13 @@ fn main() {
             "  bleeds for nothing offered {}, taken {:.1}%",
             c.empty_bleed_offered,
             pct(c.empty_bled, c.empty_bleed_offered)
+        );
+        println!(
+            "  transfers decided with a duplicate unique offered {}, onto it {:.1}%; nightmare counters moved {}, onto one's own minion {:.0}%",
+            c.dup_offered,
+            pct(c.dup_transfers, c.dup_offered),
+            c.nightmares,
+            pct(c.nightmares_own, c.nightmares)
         );
         println!(
             "  wakes {} ({:.0}% with no block after), unlocks {} ({:.0}% with no action after)",

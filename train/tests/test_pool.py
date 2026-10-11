@@ -228,13 +228,13 @@ def test_nudges_bias_their_options_only():
     on a bleed for nothing, minus the idle nudge on ending the influence
     phase with a crypt draw offered; 0 elsewhere (and everywhere at 0)."""
     pool = zvtes_py.GamePool(16, ["policy"] * 4, seed=11)
-    assert pool.nudges == {"rescue": 0.0, "pass": 0.0, "reaction": 0.0, "bleed": 0.0, "idle": 0.0}
+    assert pool.nudges == {"rescue": 0.0, "pass": 0.0, "reaction": 0.0, "bleed": 0.0, "idle": 0.0, "draw": 0.0, "stuck": 0.0, "nightmare": 0.0}
     rng = np.random.default_rng(11)
     obs = pool.observe()
     assert (obs["opt_bias"] == 0).all() and obs["opt_bias"].shape == obs["opt_f"].shape[:2]
     pool.nudges = {"rescue": 2.0, "pass": 0.5}
     pool.nudges = {"reaction": 0.25, "bleed": 0.125, "idle": 1.0}
-    assert pool.nudges == {"rescue": 2.0, "pass": 0.5, "reaction": 0.25, "bleed": 0.125, "idle": 1.0}
+    assert pool.nudges == {"rescue": 2.0, "pass": 0.5, "reaction": 0.25, "bleed": 0.125, "idle": 1.0, "draw": 0.0, "stuck": 0.0, "nightmare": 0.0}
     with pytest.raises(ValueError):
         pool.nudges = {"rush": 1.0}
     seen = {2.0: 0, 0.5: 0, -0.25: 0, -0.125: 0, -1.0: 0}

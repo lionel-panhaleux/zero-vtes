@@ -171,6 +171,12 @@ class Config:
     # Added to a crypt draw with 5 pool or more (owner, 2026-10-10: "the
     # bot never pays 4 transfers to draw from the crypt").
     draw_bonus: float = 0.0
+    # Taken off a transfer onto a second copy of a unique vampire one has
+    # in play (`zvtes_policy::stuck_transfer`: never offered out while
+    # the first stays) and off a nightmare counter onto one's own minion
+    # (`zvtes_policy::own_nightmare`; owner, 2026-10-10).
+    stuck_bonus: float = 0.0
+    nightmare_bonus: float = 0.0
     nudge_from: int = 0
     nudge_until: int = 0
     # Starts (owner, 2026-10-04): the share of training tables begun from a
@@ -410,7 +416,7 @@ def act(nets, obs, device, rng):
 
 def nudges(cfg, it):
     """The nudges at iteration `it` (`Config.rescue_bonus`, `pass_bonus`,
-    `reaction_bonus`, `bleed_bonus`, `idle_bonus`, `draw_bonus`), as `GamePool.nudges` takes them."""
+    `reaction_bonus`, `bleed_bonus`, `idle_bonus`, `draw_bonus`, `stuck_bonus`, `nightmare_bonus`), as `GamePool.nudges` takes them."""
     full = {
         "rescue": cfg.rescue_bonus,
         "pass": cfg.pass_bonus,
@@ -418,6 +424,8 @@ def nudges(cfg, it):
         "bleed": cfg.bleed_bonus,
         "idle": cfg.idle_bonus,
         "draw": cfg.draw_bonus,
+        "stuck": cfg.stuck_bonus,
+        "nightmare": cfg.nightmare_bonus,
     }
     if cfg.nudge_until <= 0 or it <= cfg.nudge_from:
         return full
