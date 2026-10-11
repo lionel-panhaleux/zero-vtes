@@ -74,6 +74,11 @@ pub struct ModeView {
     /// blood"), when the definition splits the line and its effects say.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
+    /// What its target is for, when the play chooses another minion after
+    /// it ("the Toreador to lock, who does not unlock as normal": Toreador
+    /// Grand Ball), so the target clicked on the table is not ambiguous.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
 }
 
 pub fn action_kind(k: ActionKind) -> &'static str {
@@ -1189,7 +1194,29 @@ pub(crate) fn mode_view(card: u16, mode: u8) -> ModeView {
             }),
         line: printed.unwrap_or(mode as usize) as u8,
         label: split_label(card, mode),
+        target: target_role(card, mode),
     }
+}
+
+/// The role of a play's target when a second vampire is chosen after it
+/// (`second_chosen`): by what the mode does to the target.
+fn target_role(card: u16, mode: u8) -> Option<String> {
+    second_chosen(card, mode)?;
+    let m = zvtes::cards::lookup(card)?.modes.get(mode as usize)?;
+    let Some(Terms::OwnOfClan { clan, .. }) = m.terms else {
+        return None;
+    };
+    let lock = m.effects.contains(&Effect::LockTarget);
+    let stays = m
+        .effects
+        .contains(&Effect::Layer(Modifier::FirstChosenDoesNotUnlock));
+    let put_on = m.effects.contains(&Effect::PutOnTarget);
+    Some(match (lock, stays) {
+        (true, true) => format!("the {clan} to lock, who does not unlock as normal"),
+        (true, false) => format!("the {clan} to lock"),
+        _ if put_on => "the minion to put this card on".into(),
+        _ => format!("the card's first {clan}"),
+    })
 }
 
 fn capitalize(s: &str) -> String {
@@ -1302,5 +1329,26 @@ mod tests {
             s("a melee weapon's strike at +2 damage")
         );
         assert!(!mode_text(card("Psychophagia"), 1).contains("option"));
+    }
+
+    /// Toreador Grand Ball's two Toreador: the target says it is the one
+    /// locked (owner play feedback), Priority Contract's the one it goes on;
+    /// a single-target play says nothing.
+    #[test]
+    fn a_play_choosing_two_vampires_names_its_targets_role() {
+        let ball = card("Toreador Grand Ball");
+        assert_eq!(
+            mode_view(ball, 0).target.as_deref(),
+            Some("the Toreador to lock, who does not unlock as normal")
+        );
+        assert_eq!(
+            second_chosen(ball, 0).unwrap().1,
+            "non-bleed actions cannot be blocked"
+        );
+        assert_eq!(
+            mode_view(card("Priority Contract"), 0).target.as_deref(),
+            Some("the minion to put this card on")
+        );
+        assert_eq!(mode_view(card("Psychophagia"), 0).target, None);
     }
 }

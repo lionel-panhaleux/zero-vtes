@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use zvtes::agent::{Agent, RandomLegal};
 use zvtes::bots::{Scripted, Style};
-use zvtes::cards::AbilitySource;
+use zvtes::cards::{AbilitySource, Effect, Window};
 use zvtes::decision::{Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::SeatId;
@@ -284,9 +284,8 @@ pub struct Session {
     decks: Vec<Resolved>,
     /// Every logged decision by what it chose (`Replay::choices`).
     choices: Vec<Logged>,
-    /// Who took each logged decision, in which window; for a human seat,
-    /// what it knew of the cards when it was asked (`can_undo`).
-    history: Vec<(SeatId, WindowLabel, Option<Knowledge>)>,
+    /// Who took each logged decision, in which window, and how (`undo`).
+    history: Vec<(SeatId, WindowLabel, Taken)>,
     engine: Engine,
     agents: Vec<Option<Box<dyn Agent>>>,
     /// Who the session narrates to: the first human seat (`None`: all
@@ -298,6 +297,8 @@ pub struct Session {
     /// Seats casting all their votes one way (`vote_all`), for the rest of
     /// the referendum's polling.
     standing: Vec<(SeatId, bool)>,
+    /// Human seats passing on their opportunities (`set_opportunities`).
+    quiet: Vec<SeatId>,
     /// The table at the last decision or message (`narrate`), and what
     /// changed since, told with the next message.
     mark: Option<Mark>,
@@ -305,6 +306,24 @@ pub struct Session {
     /// The card the last decision played or used, and by whom: what the
     /// seat's terms decisions that follow choose for.
     about: Option<(SeatId, String)>,
+}
+
+/// How a logged decision was taken: by a bot, by a human seat (what it
+/// knew of the cards when it was asked: `undo_depth`), or by a human seat
+/// passing on an opportunity by itself (`set_opportunities`).
+enum Taken {
+    Bot,
+    Human(Knowledge),
+    Passed,
+}
+
+/// An opportunity offered to a seat passing on them (`Session::shown`).
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Opportunity {
+    /// A wake, in its moment or not.
+    Wake(bool),
+    /// An ability usable at any time.
+    AnyTime,
 }
 
 /// The bot styles a session builds itself.
@@ -373,6 +392,7 @@ impl Session {
             pending: None,
             over: None,
             standing: Vec::new(),
+            quiet: Vec::new(),
             mark: None,
             events: Vec::new(),
             about: None,
@@ -396,27 +416,45 @@ impl Session {
 
     /// The pending decision is the seat's again, right after its previous
     /// one: nothing was decided since (by a bot, or by the seat's standing
-    /// order to vote) and nothing hidden was revealed to it (a draw, a card
+    /// order to vote; the opportunities it passed on by itself are taken
+    /// back with it) and nothing hidden was revealed to it (a draw, a card
     /// turned face up), so taking that decision back teaches it nothing.
+    /// How many logged decisions undoing takes back.
+    fn undo_depth(&self) -> Option<usize> {
+        let req = self.pending.as_ref()?;
+        if self.agents[req.seat.index()].is_some()
+            || self.standing.iter().any(|&(s, _)| s == req.seat)
+        {
+            return None;
+        }
+        for (k, (seat, _, taken)) in self.history.iter().rev().enumerate() {
+            if *seat != req.seat {
+                return None;
+            }
+            match taken {
+                Taken::Passed => continue,
+                Taken::Human(before) => {
+                    return learned_nothing(before, &knowledge(&self.engine, *seat))
+                        .then_some(k + 1)
+                }
+                Taken::Bot => return None,
+            }
+        }
+        None
+    }
+
     fn can_undo(&self) -> bool {
-        let (Some(req), Some((seat, _, Some(before)))) = (&self.pending, self.history.last())
-        else {
-            return false;
-        };
-        req.seat == *seat
-            && self.agents[seat.index()].is_none()
-            && !self.standing.iter().any(|&(s, _)| s == *seat)
-            && learned_nothing(before, &knowledge(&self.engine, *seat))
+        self.undo_depth().is_some()
     }
 
     /// Take back the seat's previous decision (`Out::Decision::undo`): the
     /// game is dealt again and replayed to the decision before.
     pub fn undo(&mut self) -> Result<(), AnswerError> {
         self.step();
-        if !self.can_undo() {
+        let Some(k) = self.undo_depth() else {
             return Err(AnswerError::NoUndo);
-        }
-        let log = &self.engine.log[..self.engine.log.len() - 1];
+        };
+        let log = &self.engine.log[..self.engine.log.len() - k];
         let mut engine = Self::deal(&self.spec, &self.decks);
         for &index in log {
             match engine.run() {
@@ -427,8 +465,8 @@ impl Session {
         // The replayed combats were told already.
         engine.combat_notes = Some(Vec::new());
         self.engine = engine;
-        self.history.pop();
-        self.choices.pop();
+        self.history.truncate(self.history.len() - k);
+        self.choices.truncate(self.choices.len() - k);
         self.pending = None;
         self.over = None;
         self.mark = None;
@@ -459,6 +497,89 @@ impl Session {
     /// Narrate to no seat: every card shown (a replay read to debug).
     pub fn show_all(&mut self) {
         self.viewer = None;
+    }
+
+    /// Whether the human seats are asked on their opportunities (on by
+    /// default; owner, 2026-10-11: "it's very awkward to play with all the
+    /// interruptions", "the whole idea is to avoid adding unnecessary
+    /// pauses"). Off, an option out of its moment (`shown`) is not offered,
+    /// and a decision left with only a pass passes by itself.
+    pub fn set_opportunities(&mut self, on: bool) {
+        self.quiet.clear();
+        if !on {
+            self.quiet = (0..self.agents.len())
+                .filter(|&i| self.agents[i].is_none())
+                .map(|i| SeatId(i as u8))
+                .collect();
+        }
+    }
+
+    /// Whether `c` is an opportunity: a wake (in its moment or not), or an
+    /// ability usable at any time (The Louvre, Paris).
+    fn opportunity(&self, req: &DecisionRequest, c: &Choice) -> Option<Opportunity> {
+        let e = &self.engine;
+        let st = &e.state;
+        match *c {
+            Choice::Play { card, mode, .. } => {
+                let played = e.virtual_hand(req.seat)[card as usize].0;
+                let wakes = zvtes::cards::lookup(played)
+                    .and_then(|d| d.modes.get(mode as usize))
+                    .is_some_and(|m| {
+                        m.effects
+                            .iter()
+                            .any(|f| matches!(f, Effect::Wake | Effect::WakeTarget))
+                    });
+                // A wake's moment: an action of the seat's prey or
+                // predator, or one directed at the seat.
+                let moment = e.action().is_some_and(|a| {
+                    a.seat == st.prey(req.seat)
+                        || a.seat == st.predator(req.seat)
+                        || a.directed_seats(st).contains(req.seat)
+                });
+                wakes.then_some(Opportunity::Wake(moment))
+            }
+            Choice::UseAbility {
+                source, ability, ..
+            } => source
+                .mode(st, ability)
+                .windows
+                .contains(&Window::AnyImpulse)
+                .then_some(Opportunity::AnyTime),
+            _ => None,
+        }
+    }
+
+    /// The options a human seat is shown: all, unless it passes on its
+    /// opportunities. Then no wake out of its moment, and the abilities
+    /// usable at any time only where the decision pauses anyway (another
+    /// option than a pass on offer: its master phase with a master card,
+    /// its minion, influence or discard phase...); all if none is left.
+    fn shown(&self, req: &DecisionRequest) -> Vec<usize> {
+        let all = (0..req.options.len()).collect::<Vec<_>>();
+        if !self.quiet.contains(&req.seat) {
+            return all;
+        }
+        let kinds: Vec<_> = req
+            .options
+            .iter()
+            .map(|c| self.opportunity(req, c))
+            .collect();
+        let mut shown: Vec<usize> = all
+            .iter()
+            .copied()
+            .filter(|&i| kinds[i] != Some(Opportunity::Wake(false)))
+            .collect();
+        let pause = shown
+            .iter()
+            .any(|&i| req.options[i] != Choice::Pass && kinds[i] != Some(Opportunity::AnyTime));
+        if !pause {
+            shown.retain(|&i| kinds[i] != Some(Opportunity::AnyTime));
+        }
+        if shown.is_empty() {
+            all
+        } else {
+            shown
+        }
     }
 
     /// Install a bot for a seat (a style the session does not build).
@@ -694,14 +815,22 @@ impl Session {
                         return self.answer(decision, i).expect("a vote offered");
                     }
                 }
+                let shown = self.shown(&req);
+                // Only a pass left: the seat passes on the opportunity.
+                if shown.len() < req.options.len()
+                    && shown.len() == 1
+                    && req.options[shown[0]] == Choice::Pass
+                {
+                    let out = self.answer(decision, shown[0]).expect("a pass offered");
+                    self.history.last_mut().expect("just answered").2 = Taken::Passed;
+                    return out;
+                }
                 let mut d = self.describer(&req, &view, false);
                 d.names = &names;
                 d.offered = &req.options;
-                let options = req
-                    .options
+                let options = shown
                     .iter()
-                    .enumerate()
-                    .map(|(i, c)| d.describe(i, c))
+                    .map(|&i| d.describe(i, &req.options[i]))
                     .collect();
                 let prompt = d.prompt();
                 Out::Decision {
@@ -729,7 +858,7 @@ impl Session {
                 self.choices.push(logged(&self.engine, &req, idx));
                 let effects = untold_effects(&req.options[idx]);
                 self.engine.choose(idx);
-                self.history.push((req.seat, req.window, None));
+                self.history.push((req.seat, req.window, Taken::Bot));
                 self.aim(had_action, &mut choice);
                 self.observe(effects);
                 self.pending = None;
@@ -782,7 +911,8 @@ impl Session {
         self.choices.push(logged(&self.engine, &req, index));
         let effects = untold_effects(&req.options[index]);
         self.engine.choose(index);
-        self.history.push((req.seat, req.window, Some(known)));
+        self.history
+            .push((req.seat, req.window, Taken::Human(known)));
         self.aim(had_action, &mut choice);
         self.observe(effects);
         self.pending = None;

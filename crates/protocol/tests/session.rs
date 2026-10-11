@@ -730,3 +730,151 @@ fn allocations_and_vote_orders_at_once() {
     );
     assert!(allocations >= 10 && cast_by_order >= 10);
 }
+
+/// A wake (and whether it is in its moment for the seat: an action of its
+/// prey or predator, or one directed at it), or an ability usable at any
+/// time (The Louvre, Paris): `None` (owner, 2026-10-11).
+fn opportunity(e: &Engine, seat: SeatId, c: &Choice) -> Option<Option<bool>> {
+    use zvtes::cards::{Effect, Window};
+    let st = &e.state;
+    match *c {
+        Choice::Play { card, mode, .. } => {
+            let def = zvtes::cards::lookup(e.virtual_hand(seat)[card as usize].0);
+            let wakes = def
+                .and_then(|d| d.modes.get(mode as usize))
+                .is_some_and(|m| {
+                    m.effects.contains(&Effect::Wake) || m.effects.contains(&Effect::WakeTarget)
+                });
+            wakes.then(|| {
+                Some(e.action().is_some_and(|a| {
+                    a.seat == st.prey(seat)
+                        || a.seat == st.predator(seat)
+                        || a.directed_seats(st).contains(seat)
+                }))
+            })
+        }
+        Choice::UseAbility {
+            source, ability, ..
+        } => source
+            .mode(st, ability)
+            .windows
+            .contains(&Window::AnyImpulse)
+            .then_some(None),
+        _ => None,
+    }
+}
+
+/// Whether option `i` is out of its moment for a seat passing on its
+/// opportunities: a wake out of its moment; an ability usable at any time
+/// where nothing else than a pass is on offer (no wake out of its moment,
+/// no such ability) — the decision would not pause otherwise.
+fn untimely(e: &Engine, seat: SeatId, options: &[Choice], i: usize) -> bool {
+    let kinds: Vec<_> = options.iter().map(|c| opportunity(e, seat, c)).collect();
+    let pause = (0..options.len()).any(|j| options[j] != Choice::Pass && kinds[j].is_none());
+    let timely_wake = kinds.contains(&Some(Some(true)));
+    match kinds[i] {
+        Some(Some(moment)) => !moment,
+        Some(None) => !pause && !timely_wake,
+        None => false,
+    }
+}
+
+/// Opportunities off: the untimely options are hidden (the others keep
+/// their engine index), a decision left with a pass alone passes by
+/// itself, and undo takes those passes back with the seat's decision.
+#[test]
+fn a_seat_passing_on_its_opportunities_is_asked_only_in_their_moment() {
+    use zvtes::cards::{Effect, Window};
+    let all: Vec<Deck> = Deck::all().collect();
+    // The human's deck holds a wake or a card with an ability usable at
+    // any time.
+    let opportune = |d: &&Deck| {
+        d.library.iter().any(|&(c, _)| {
+            zvtes::cards::lookup(c).is_some_and(|def| {
+                def.modes.iter().any(|m| m.effects.contains(&Effect::Wake))
+                    || def
+                        .abilities
+                        .iter()
+                        .any(|m| m.windows.contains(&Window::AnyImpulse))
+            })
+        })
+    };
+    let pool: Vec<Deck> = all.iter().filter(opportune).copied().collect();
+    assert!(!pool.is_empty());
+    let (mut hidden, mut passed, mut undone) = (0, 0, 0);
+    // Wakes in their moment, abilities usable at any time where it pauses.
+    let (mut woken, mut paused) = (0, 0);
+    for seed in 0..40u64 {
+        let mut rng = Rng::new(seed);
+        let mut decks: Vec<Deck> = (0..4).map(|_| all[rng.below(all.len())]).collect();
+        decks[0] = pool[rng.below(pool.len())];
+        let mut s = Session::new(spec(seed, &decks)).expect("spec");
+        s.set_opportunities(false);
+        // The human's answers since its last own choice: passes by itself.
+        let mut trailing = 0;
+        for _ in 0..20_000 {
+            let out = s.advance();
+            match &out {
+                Out::Over { .. } => break,
+                Out::Decided {
+                    seat: 0, choice, ..
+                } => {
+                    assert_eq!(
+                        choice.kind, "pass",
+                        "seed {seed}: only a pass is taken by itself"
+                    );
+                    passed += 1;
+                    trailing += 1;
+                }
+                Out::Decided { .. } => trailing = 0,
+                Out::Decision {
+                    decision,
+                    options,
+                    undo,
+                    ..
+                } => {
+                    let req = s.request().expect("pending").clone();
+                    let e = s.engine();
+                    let shown: Vec<usize> = options.iter().map(|o| o.index).collect();
+                    for (i, c) in req.options.iter().enumerate() {
+                        let off = untimely(e, req.seat, &req.options, i);
+                        if shown.contains(&i) {
+                            assert!(
+                                !off || shown.iter().all(|&j| untimely(
+                                    e,
+                                    req.seat,
+                                    &req.options,
+                                    j
+                                )),
+                                "seed {seed}: {c:?} shown out of its moment"
+                            );
+                            match opportunity(e, req.seat, c) {
+                                Some(Some(_)) => woken += 1,
+                                Some(None) => paused += 1,
+                                None => {}
+                            }
+                        } else {
+                            assert!(off, "seed {seed}: {c:?} hidden in its moment");
+                            hidden += 1;
+                        }
+                    }
+                    if *undo && trailing > 0 && rng.below(2) == 0 {
+                        let before = s.engine().log.len();
+                        s.undo().expect("undo");
+                        assert_eq!(s.engine().log.len(), before - 1 - trailing, "seed {seed}");
+                        undone += 1;
+                        trailing = 0;
+                        continue;
+                    }
+                    let i = shown[rng.below(shown.len())];
+                    s.answer(*decision, i).expect("answer");
+                    trailing = 0;
+                }
+            }
+        }
+    }
+    assert!(
+        passed > 0 && undone > 0 && woken > 0 && paused > 0,
+        "{hidden} {passed} {undone} {woken} {paused}"
+    );
+}

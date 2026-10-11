@@ -119,6 +119,16 @@ impl Game {
         self.session.undo().map_err(|e| JsError::new(&json(&e)))
     }
 
+    /// Whether the human seat is asked on its opportunities (on by
+    /// default): off, a wake is offered only during its prey's or
+    /// predator's actions or one directed at it, an ability usable at any
+    /// time only where the decision pauses anyway, and a decision left
+    /// with a pass alone passes by itself (`advance` returns it decided).
+    #[wasm_bindgen(js_name = setOpportunities)]
+    pub fn set_opportunities(&mut self, on: bool) {
+        self.session.set_opportunities(on);
+    }
+
     /// The replay (JSON): the spec and every decision.
     pub fn replay(&self) -> String {
         json(&self.session.replay())
