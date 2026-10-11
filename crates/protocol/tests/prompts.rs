@@ -240,7 +240,7 @@ fn several_abilities_say_what_each_does() {
     let sphinx = put("Dreams of the Sphinx");
     assert_eq!(
         read(&e, wider, 0),
-        "Use Wider View: 1 transfer, draw a crypt card, then remove one from your uncontrolled region"
+        "Use Wider View: 1 transfer, crypt draw, then remove one"
     );
     assert_eq!(
         read(&e, wider, 1),
@@ -248,12 +248,9 @@ fn several_abilities_say_what_each_does() {
     );
     assert_eq!(
         read(&e, sphinx, 0),
-        "Use Dreams of the Sphinx: add 1 counter, +2 hand size this turn"
+        "Use Dreams of the Sphinx: +2 hand size this turn"
     );
-    assert_eq!(
-        read(&e, sphinx, 1),
-        "Use Dreams of the Sphinx: add 1 counter, gain 1 pool"
-    );
+    assert_eq!(read(&e, sphinx, 1), "Use Dreams of the Sphinx: gain 1 pool");
 }
 
 /// The blocker chooses its strike knowing the acting minion's: the table
