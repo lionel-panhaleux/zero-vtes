@@ -404,6 +404,26 @@ ADDED_BATCHES = [
         200842: "Lisette Vizquel (G2)",
         201472: "Wise Frog (G6)",
     },
+    # 2026-10-11: owner's list, round 4 (Gangrel vampires).
+    {
+        200131: "Ariadne (G5)",
+        200547: "Gunnar (G4)",
+        200663: "Jacob Fermor (G4)",
+    },
+    # 2026-10-11: owner's list, round 5 (the Gangrel decks' missing cards).
+    {
+        100050: "Anachronism",
+        100237: "Bone Spur",
+        101062: "Kiss of Ra, The",
+        101214: "Mind of the Wilds",
+        101333: "Ossian",
+        101363: "Path of Lilith, The",
+        101479: "Predator's Transformation",
+        101559: "Read the Winds",
+        102208: "Zip Gun",
+        200836: "Lillian (G5)",
+        201192: "Robert Price (G4)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -539,6 +559,8 @@ RIDERS = [
     r"but to prevent \d[^.]*",                            # its [PRO] "as above, but to prevent 2"
     r"to get \+\d intercept",                             # granted intercept ability
     r"skip the determine range step",
+    # A weapon's own maneuver once in play (Zip Gun): no play window.
+    r"with an optional maneuver each combat",
     # A card in play pressing for its vampire each round (Trap, Conquer the
     # Beast): a rider, no play window.
     r"during the press step of each round this combat, this \w+ automatically burns 1 "
@@ -567,6 +589,9 @@ COMBAT_TIMING = [
     # "Only usable if combat is about to end" (Hunting the Quarry [cel]):
     # the same moment, before it ends.
     (r"combat is about to end", "COMBAT_WOULD_END"),
+    # "Only usable when this vampire burns a minion … in combat"
+    # (Predator's Transformation [ABO]): after the round's damage.
+    (r"when this vampire burns a minion", "COMBAT_END_OF_ROUND"),
 ]
 COMBAT_DEFAULT = "COMBAT_UNTIMED"   # rules-qa 2.2: no printed step
 
@@ -576,6 +601,11 @@ MODIFIER_TIMING = [
     # "Only usable if an ally or younger vampire attempts to block"
     # (Crocodile's Tongue).
     (r"if an? [^.]{0,40}? attempts to block", "ACTION_BLOCK_ATTEMPT"),
+    # "Only usable when a vampire who does not have Fortitude attempts to
+    # block" (The Kiss of Ra).
+    (r"when an? [^.]{0,60}? attempts to block", "ACTION_BLOCK_ATTEMPT"),
+    # "… burns a minion … as a Ⓓ action" (Predator's Transformation [ABO]).
+    (r"when this vampire burns a minion", "ACTION_AFTER_RESOLUTION"),
     (r"if (this|the acting) minion is blocked", "ACTION_BLOCKED"),
     (r"would be successful", "ACTION_WOULD_BE_SUCCESSFUL"),
     (r"only usable after (the )?(action )?resol", "ACTION_AFTER_RESOLUTION"),
@@ -715,7 +745,7 @@ def modes_for(card):
     text = card.get("card_text", "")
     wins = []
     flags = [f for pat, f in FLAGS if re.search(pat, text, re.I)]
-    if re.search(IN_PLAY_ACTION, re.sub(r"[^.]*announces?\b[^.]*\.", "", text), re.I):
+    if re.search(IN_PLAY_ACTION, re.sub(r"[^.]*(announces?\b|burns a minion)[^.]*\.", "", text), re.I):
         flags.append("in_play_action")
 
     out_of_turn = "out_of_turn" in flags
@@ -749,9 +779,17 @@ def modes_for(card):
         # "As above", or "As [dai][obf] above" (I am Legion).
         as_above = bool(re.match(r"\s*as (?:\[\w+\])*\s*above", mtext, re.I))
         mwins = list(prev) if as_above else []
+        # "As above, with +1 stealth" over a mode with no printed timing
+        # (Mind of the Wilds [ANI][AUS]): the stealth only when needed
+        # (rules-qa 3.2) — its stealth window alone (Mask of a Thousand
+        # Faces keeps its take-over timings).
+        if as_above and prev == ["ACTION_DURING"] and \
+                re.match(r"\s*as above, with \+\d stealth\.?\s*$", mtext, re.I):
+            mwins = ["ACTION_STEALTH_INTERCEPT"]
+            prev = []
         action_mode = False
         if tags:
-            mts = [t for t in tags if t in MODE_TABLES]
+            mts = sorted(t for t in tags if t in MODE_TABLES)  # a set: a fixed order
             action_mode = bool(tags & {"Action", "Political Action"})
         elif "Action" in types and ACTION_MODE.match(mtext.strip()):
             mts = []                     # the action mode of an Action/Combat card

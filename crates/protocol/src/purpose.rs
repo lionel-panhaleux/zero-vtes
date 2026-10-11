@@ -282,6 +282,10 @@ impl Describer<'_> {
                 self.named(minion)
             ),
             MayDrawExtra { .. } => "Learjet: you can draw an additional card (discard afterward)".into(),
+            MayTorture { minion, .. } => format!(
+                "The Path of Lilith: you can lock it to put a torture counter on {}",
+                self.named(minion)
+            ),
             PursuitDraw { .. } => "Infernal Pursuit: replace a card and draw more".into(),
             PursuitDiscard { left, .. } => format!("Infernal Pursuit: discard {left} card(s)"),
             PurgePick { of, host, .. } => format!(
@@ -444,6 +448,10 @@ impl Describer<'_> {
                     zvtes::library::LIBRARY[held.card as usize].name
                 )),
                 (MayAddCounter { .. }, Choice::Pass) => Some("Add no counter".into()),
+                (MayTorture { .. }, Choice::Pass) => Some("No torture counter".into()),
+                (MayTorture { .. }, Choice::ResolveRider { .. }) => {
+                    Some("Lock The Path of Lilith: a torture counter".into())
+                }
                 (MayGainPool { .. }, Choice::Pass) => Some("Gain no pool".into()),
                 (MayGainPool { n, .. }, Choice::ResolvePrinted { .. }) => {
                     Some(format!("Gain {n} pool"))

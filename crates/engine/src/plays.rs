@@ -568,6 +568,15 @@ impl Engine {
                             continue;
                         }
                     }
+                    // "Cancel a frenzy card played on this vampire as it is
+                    // played" (Predator's Transformation [abo]).
+                    if mode.requires.contains(&Requirement::PlayedFrenzyOnActor)
+                        && !played.zip(actor).is_some_and(|(p, m)| {
+                            self.frenzy_on(p.card, p.mode, p.actor, p.target) == Some(m)
+                        })
+                    {
+                        continue;
+                    }
                     // "Cancel the opposing minion's strike card as it is
                     // played" (Anticipation [AUS]).
                     if mode.requires.contains(&Requirement::PlayedStrikeByOpponent)
@@ -762,6 +771,11 @@ impl Engine {
                                 .types
                                 .contains(&crate::library::CardType::Equipment)
                         {
+                            continue;
+                        }
+                        // Anachronism: no ranged weapon, from hand or
+                        // becoming one (Zip Gun).
+                        if st.ranged_barred(m, card) {
                             continue;
                         }
                         // An ally has life, not blood: it never pays a
@@ -1186,6 +1200,7 @@ impl Engine {
                 a.disciplines_played.push((m, cards::discipline_key(t)));
             }
         }
+        self.freeze_auspex_foes();
         // "Only one … can be played in a game": played, even if canceled;
         // an event once each game (rulebook "Event Cards").
         if def.modes[mode as usize]
@@ -3115,6 +3130,29 @@ impl Engine {
                     }
                 }
             }
+            // "Your prey burns n pool" (Predator's Transformation [ABO]).
+            Effect::PreyBurnsPool(n) => {
+                let mut loss = vec![0i32; self.state.seats.len()];
+                loss[self.state.prey(ctx.seat).index()] = n as i32;
+                self.burn_pool_batch(&loss);
+            }
+            Effect::BurnRangedWeaponsOnTarget { except } => {
+                if let Target::Minion(t) = ctx.target {
+                    let ranged: Vec<CardId> = (0..self.state.cards.len())
+                        .map(|i| CardId(i as u32))
+                        .filter(|&c| {
+                            let card = &self.state.cards[c.index()];
+                            card.present()
+                                && card.host == Some(t)
+                                && cards::is_ranged_weapon(card.card)
+                                && LIBRARY[card.card as usize].name != except
+                        })
+                        .collect();
+                    for c in ranged {
+                        self.burn_card_in_play(c);
+                    }
+                }
+            }
             // Vampiric Disease: one counter at most.
             Effect::DiseaseTarget => {
                 let t = ctx.target.minion();
@@ -3541,6 +3579,7 @@ impl Engine {
             | Effect::RepresentsTitle(_)
             | Effect::CancelPlayed { .. }
             | Effect::BecomesWeapon
+            | Effect::BecomesGun
             | Effect::TitledCannotBlock
             | Effect::TargetLocksReadyUnlocked
             | Effect::PlayableFromStore(_)
@@ -3819,7 +3858,6 @@ impl Engine {
             | Effect::PoolToHostBlood(_)
             | Effect::HuntingGroundBlood(_)
             | Effect::UnlockBurnPoolUnlessReady { .. }
-            | Effect::PreyBurnsPool(_)
             | Effect::BurnPool(_)
             | Effect::PoolToCounter(_)
             | Effect::PoolOrBloodPerCounter
@@ -4379,6 +4417,10 @@ impl Engine {
                                     .is_some_and(|i| cb.sides[i].equipment_barred())
                             })
                         {
+                            continue;
+                        }
+                        // Anachronism: no ranged weapon used.
+                        if st.ranged_barred(host, c.card) {
                             continue;
                         }
                         // An ally never pays a blood cost (advanced rules
@@ -6178,6 +6220,7 @@ impl Engine {
                 // Read when the strike resolves.
                 Effect::AdditionalStrikeWithSource
                 | Effect::CountersPerDamage
+                | Effect::BearerDamageOncePerCombat
                 | Effect::UnpreventableStrike
                 | Effect::BecomesOnOpponent => {}
                 // One point a use; the first use opens the combat's
@@ -6850,6 +6893,17 @@ impl Engine {
                     Effect::PreyBurnsPool(n) => {
                         loss[self.state.prey(s).index()] += n as i32;
                     }
+                    Effect::TortureBurnPool(n) => {
+                        for (seat, l) in loss.iter_mut().enumerate() {
+                            let tortured = self.state.minions_of(SeatId(seat as u8)).any(|m| {
+                                let v = &self.state.minions[m.index()];
+                                v.is_vampire() && v.torture > 0
+                            });
+                            if tortured {
+                                *l += n as i32;
+                            }
+                        }
+                    }
                     // "During your unlock phase, burn this ally" (Spectral
                     // Servitor).
                     Effect::BurnSelf => burn_self = true,
@@ -7237,6 +7291,7 @@ impl Engine {
             for &m in subjects {
                 self.by_left_ready(m);
                 self.dead_pool_counters(m);
+                self.torture_offers(m);
             }
         }
         let mut loss = vec![0i32; self.state.seats.len()];
@@ -7352,6 +7407,46 @@ impl Engine {
                     .count()
             });
             self.state.cards[ci].counters += hits as u8;
+        }
+    }
+
+    /// "When a non-Camarilla vampire you control sends an opposing vampire
+    /// to torpor in combat, you may lock this card to put a torture counter
+    /// on the opposing vampire" (The Path of Lilith): offered at once.
+    fn torture_offers(&mut self, subject: MinionId) {
+        let v = &self.state.minions[subject.index()];
+        if !v.is_vampire() || !v.in_torpor {
+            return;
+        }
+        let Some(opponent) = self.combat.as_ref().and_then(|cb| {
+            cb.side_of_minion(subject)?;
+            cb.sides.iter().map(|s| s.minion).find(|&o| o != subject)
+        }) else {
+            return;
+        };
+        let o = &self.state.minions[opponent.index()];
+        if !o.is_vampire() || self.state.sect_of(opponent) == Some(crate::crypt::Sect::Camarilla) {
+            return;
+        }
+        let seat = o.owner;
+        for ci in 0..self.state.cards.len() {
+            let id = CardId(ci as u32);
+            let c = &self.state.cards[ci];
+            if c.present()
+                && !c.locked
+                && self.state.card_controller(id) == seat
+                && cards::lookup(c.card).is_some_and(|d| {
+                    d.riders
+                        .iter()
+                        .any(|r| r.hook == Hook::OwnNonCamarillaSendsToTorpor)
+                })
+            {
+                self.interrupts.push(Interrupt::MayTorture {
+                    seat,
+                    card: id,
+                    minion: subject,
+                });
+            }
         }
     }
 

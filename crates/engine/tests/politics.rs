@@ -734,13 +734,15 @@ fn closed_session_bars_non_camarilla_votes() {
         &["Ancilla Empowerment", "Closed Session", "Closed Session"],
     );
     pick(&mut e, play(0, 0, alexa));
+    // The pre-vote rotation, the caller last (owner, 2026-10-11: rules-qa
+    // 64.12): Closed Session (one each referendum: the rotation then
+    // closes).
     pick(&mut e, play(0, 0, alexa));
+    // The polling proper, from the caller. Votes cast: the second copy is
+    // no longer usable.
+    pick(&mut e, votes(alexa, true));
     let req = expect(&mut e, SeatId(1), WindowLabel::ReferendumPolling);
     assert!(!req.options.contains(&votes(saku, true)));
-    pick(&mut e, Choice::Pass);
-    pick(&mut e, Choice::Pass); // seat 2
-                                // Votes cast: the second copy is no longer usable.
-    pick(&mut e, votes(alexa, true));
     pick(&mut e, Choice::Pass); // seat 1 (Kevin abstains)
     pick(&mut e, Choice::Pass); // seat 2
     let req = expect(&mut e, SeatId(0), WindowLabel::ReferendumPolling);

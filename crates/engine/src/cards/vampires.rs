@@ -1770,7 +1770,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 196] = [
+pub static VAMPIRES: [&VampireDef; 198] = [
     &PARIJAT,
     &ABADDON,
     &ABRAHAM_DUSABLE,
@@ -1967,6 +1967,8 @@ pub static VAMPIRES: [&VampireDef; 196] = [
     &TUPDOG,
     &LISETTE_VIZQUEL,
     &WISE_FROG,
+    &ARIADNE,
+    &JACOB_FERMOR,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -3684,5 +3686,35 @@ pub static LISETTE_VIZQUEL: VampireDef = VampireDef {
 pub static WISE_FROG: VampireDef = VampireDef {
     name: "Wise Frog",
     printed: &[own(Stat::FirstStrike, 1, &[R::OpponentYounger])],
+    ..VAMP
+};
+
+// ---- Owner's list, round 4 (slice 16p) ---------------------------------------
+//
+// Gunnar ("Independent.") prints no text.
+
+/// "Camarilla: Blood hunts cannot be called on Ariadne. +1 hunt." The hunt
+/// bonus on her non-standard hunts too (RTR 20030519, RTR 20180511).
+pub static ARIADNE: VampireDef = VampireDef {
+    name: "Ariadne",
+    printed: &[own(Stat::NoBloodHunt, 1, &[]), own(Stat::Hunt, 1, &[])],
+    ..VAMP
+};
+
+/// "Independent: While Jacob is ready, werewolves you control get +1
+/// bleed. Jacob gets an optional press each combat." The werewolves are
+/// allies of the subtype (Renegade Garou), read live.
+pub static JACOB_FERMOR: VampireDef = VampireDef {
+    name: "Jacob Fermor",
+    printed: &[
+        Printed {
+            stat: Stat::Bleed,
+            n: 1,
+            to: PrintedTo::OthersControlled,
+            per: Per::One,
+            requires: &[R::ThisVampireReady, R::ActorSubtype(Label::Werewolf)],
+        },
+        own(Stat::CombatPress, 1, &[]),
+    ],
     ..VAMP
 };

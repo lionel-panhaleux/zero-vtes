@@ -526,6 +526,9 @@ pub enum Stat {
     /// Blood hunts cannot be called on it (Theo Bell G2, "if you control a
     /// ready prince or justicar"): any positive total.
     NoBloodHunt,
+    /// "+1 hunt" printed on a vampire (Ariadne): added to its hunts, the
+    /// non-standard ones too (RTR 20030519).
+    Hunt,
     /// It cannot play action cards (The Beast): any positive total.
     NoActionCards,
     /// "If The Capuchin is burned, move him to his owner's uncontrolled
@@ -857,6 +860,13 @@ pub enum Requirement {
     /// The card being played is a frenzy card played on a vampire of the
     /// clan the user controls (Meditative Grove): engine-checked.
     PlayedFrenzyOnYour(&'static str),
+    /// The card being played is a frenzy card played on the actor
+    /// (Predator's Transformation [abo] reflex; LSJ 20051113): engine-checked.
+    PlayedFrenzyOnActor,
+    /// The actor burned a minion of its controller's prey, in this combat
+    /// or by this directed action (Predator's Transformation [ABO]; ANK
+    /// 20220507: a directed action that ends up burning an ally counts).
+    ActorBurnedPreyMinion,
     /// The target is the minion this card is on (Haven Uncovered):
     /// engine-checked.
     TargetIsHost,
@@ -1380,6 +1390,9 @@ pub enum Requirement {
     /// The actor's opposing combatant is an ally of this subtype ("in
     /// combat with a werewolf", Rowena).
     OpponentSubtype(crate::library::Label),
+    /// The modified minion is an ally of this subtype ("werewolves you
+    /// control get +1 bleed", Jacob Fermor): a printed predicate.
+    ActorSubtype(crate::library::Label),
     /// The actor's opposing combatant is a vampire: a card naming the
     /// opposing vampire has no object in an ally (Taste of Vitae; advanced
     /// rules 5.5.1).
@@ -1434,6 +1447,9 @@ pub enum Requirement {
     /// The minion attempting to block is of this clan (Market Square:
     /// "give an Assamite you control +1 intercept").
     AttemptingClan(&'static str),
+    /// "A vampire who does not have Fortitude attempts to block" (The Kiss
+    /// of Ra): a vampire attempting, without the Discipline, read live.
+    AttemptingVampireWithout(&'static str),
     /// The bleed's current target has n or fewer pool (Foreshadowing
     /// Destruction [DOM]: "if the target Methuselah has 9 or fewer pool").
     BleedTargetPoolAtMost(u8),
@@ -1480,6 +1496,13 @@ pub enum Requirement {
 pub enum BlockRider {
     /// "1 optional maneuver during the resulting combat" (Spirit's Touch).
     Maneuver,
+    /// "1 optional maneuver during the first round of the resulting
+    /// combat" (Mind of the Wilds).
+    ManeuverFirstRound,
+    /// "The blocking minion cannot strike: combat ends" (Mind of the
+    /// Wilds): for the rest of the action, any round of any combat (LSJ
+    /// 20100308) — `ActionCtx::no_combat_ends`.
+    OpponentNoCombatEndsThisAction,
     /// "Can prevent n damage during the first round of the resulting
     /// combat" (Precognition).
     PreventFirstRound(u8),
@@ -2408,6 +2431,21 @@ pub enum Modifier {
     /// The minion this card is cannot have or use equipment (Gravebound
     /// Drone).
     NoEquipmentHeld,
+    /// "This vampire cannot have or use any ranged weapons except the
+    /// Ivory Bow" (Anachronism): on the card's host; every weapon with a
+    /// ranged strike (LSJ 20060825), the named one aside.
+    NoRangedWeaponsExcept(&'static str),
+    /// Ossian: "In the first round of combat with a vampire who has
+    /// played a card that requires Auspex during this action, that vampire
+    /// cannot use any maneuvers or strikes" — any action (LSJ 20050201),
+    /// read as cards are played (an Auspex strike stays legal until one
+    /// is: ANK 20210614).
+    FreezesAuspexFoeFirstRound,
+    /// Ossian: "gains 1 life at the end of each round for each blood the
+    /// opposing vampire used to heal damage or prevent destruction that
+    /// round" — after the presses, a round ended early too (RTR 20030519),
+    /// over his starting life (ANK 20171109).
+    LifePerFoeBloodLost,
     /// "While the employer is in combat, the opposing minion's controller
     /// gets -n hand size" (Raptor [ANI]).
     OpponentHandSizeInCombat(u8),
@@ -3035,6 +3073,9 @@ pub enum Effect {
     SetStrength(u8),
     /// The actor's hand strikes are aggravated this round.
     AggravatedHands,
+    /// The actor's hand damage is aggravated for the rest of the combat
+    /// (Bone Spur [PRO]).
+    AggravatedHandsThisCombat,
     /// Strike rider: "damage from this strike cannot be prevented by cards
     /// requiring Fortitude" — once it lands, the opposing minion cannot
     /// play Fortitude prevention cards this round, even to cycle them (LSJ
@@ -3535,6 +3576,35 @@ pub enum Effect {
     /// "It becomes a melee weapon equipment" (Weighted Walking Stick): the
     /// card in play counts as weapon equipment.
     BecomesWeapon,
+    /// "This equipment is a weapon, gun" (Zip Gun): a gun once in play
+    /// (`cards::is_gun`).
+    BecomesGun,
+    /// "This vampire does not lock for the block" (Read the Winds [ani]).
+    NoLockForBlock,
+    /// "The blocking vampire burns n blood" (The Kiss of Ra): the minion
+    /// attempting, as much as it has.
+    AttemptingBurnsBlood(u8),
+    /// "Send the blocking vampire to torpor" (The Kiss of Ra [FOR]).
+    AttemptingToTorpor,
+    /// "The block attempt is canceled … and the current action is ended
+    /// (without combat)" (The Kiss of Ra): the action ends at once, before
+    /// resolution — no card is played after it (RTR 20180719), it is
+    /// canceled (no NRA mark: it may be taken again, unless it was blocked
+    /// then continued before; ANK 20211015), still taken (ANK 20210124).
+    CancelAction,
+    /// "Each Methuselah who controls any vampires with torture counters
+    /// burns n pool" (The Path of Lilith, its controller's unlock phase).
+    TortureBurnPool(u8),
+    /// "If he or she currently has any, they are burned" (Anachronism):
+    /// the target's ranged weapons, `except` the named one.
+    BurnRangedWeaponsOnTarget {
+        except: &'static str,
+    },
+    /// Weapon strike rider: "Bearer takes 1 damage during strike
+    /// resolution when striking with this gun, but only once each combat"
+    /// (Zip Gun): environmental (LSJ 19970801), none if the strike never
+    /// resolves (LSJ 20100310).
+    BearerDamageOncePerCombat,
     /// Weapon strike rider: "for each damage inflicted by this strike (even
     /// if prevented), burn 1 counter from this card. Burn this card if it
     /// has no counters" (Weighted Walking Stick).
@@ -4136,6 +4206,10 @@ pub enum Hook {
     /// A vampire in combat with a vampire of `clan` its controller controls
     /// left the ready region (Dead Pool: "you can add 1 counter").
     CombatOpponentOfOwnClanLeft(&'static str),
+    /// A non-Camarilla vampire its controller controls sent an opposing
+    /// vampire to torpor in combat (The Path of Lilith: "you may lock this
+    /// card to put a torture counter on the opposing vampire").
+    OwnNonCamarillaSendsToTorpor,
     /// A vampire from the controller's uncontrolled region entered play
     /// (Twilight Camp).
     OwnVampireInfluenced,
@@ -4357,6 +4431,36 @@ pub fn becomes_weapon(card: u16) -> bool {
     })
 }
 
+/// A ranged weapon: a weapon with a ranged strike (LSJ 20060825: "all
+/// weapons that provide ranged strikes", Zip Gun included).
+pub fn is_ranged_weapon(card: u16) -> bool {
+    is_weapon(card)
+        && lookup(card).is_some_and(|d| {
+            d.abilities.iter().flat_map(|m| m.effects.iter()).any(|e| {
+                matches!(
+                    e,
+                    Effect::Strike(
+                        StrikeKind::Damage { ranged: true, .. }
+                            | StrikeKind::StealBlood { ranged: true, .. }
+                            | StrikeKind::RangedBurnEquipment
+                    )
+                )
+            })
+        })
+}
+
+/// A gun: printed so, or one once in play (Zip Gun, `Effect::BecomesGun`).
+pub fn is_gun(card: u16) -> bool {
+    LIBRARY[card as usize]
+        .labels
+        .contains(&crate::library::Label::Gun)
+        || lookup(card).is_some_and(|d| {
+            d.modes
+                .iter()
+                .any(|m| m.effects.contains(&Effect::BecomesGun))
+        })
+}
+
 /// A weapon: printed so, or one once in play (`becomes_weapon`).
 pub fn is_weapon(card: u16) -> bool {
     LIBRARY[card as usize]
@@ -4424,6 +4528,8 @@ pub fn library_mode(card: u16, mi: usize) -> usize {
         "I am Legion" => [0, 1, 2, 2][mi],
         // [obe]'s life: an ally, or a retainer (a card target).
         "Renewed Vigor" => [0, 1, 2, 2, 3][mi],
+        // [ABO]: in combat, or after a directed action.
+        "Predator's Transformation" => [0, 1, 2, 2][mi],
         // Each version on a minion or on a retainer.
         "Martyr's Resilience" => [0, 0, 1, 1][mi],
         // "To gain 3 blood or to gain 2 blood and unlock".
@@ -4924,6 +5030,7 @@ pub fn holds(
         | Requirement::ActorIsHost
         | Requirement::ActorIsChosen
         | Requirement::PlayedFrenzyOnYour(_)
+        | Requirement::PlayedFrenzyOnActor
         | Requirement::NotPlayedThisGame
         | Requirement::NotPlayedThisTurn
         | Requirement::OnePerMethuselah
@@ -5365,6 +5472,17 @@ pub fn holds(
             ActionState::Attempt(m) => st.minions[m.index()].clan() == Some(c),
             _ => false,
         }),
+        Requirement::ActorBurnedPreyMinion => actor.is_some_and(|m| {
+            let prey = st.prey(st.minions[m.index()].owner);
+            combat.is_some_and(|c| c.burned_minions.contains(&(m, prey)))
+                || action.is_some_and(|a| a.acting == m && a.burned_owners.contains(&prey))
+        }),
+        Requirement::AttemptingVampireWithout(d) => action.is_some_and(|a| match a.state {
+            ActionState::Attempt(m) => {
+                st.minions[m.index()].is_vampire() && st.discipline_level(m, d) == 0
+            }
+            _ => false,
+        }),
         Requirement::YourAttemptNeedsIntercept => action.is_some_and(|a| match a.state {
             ActionState::Attempt(m) => {
                 st.minions[m.index()].owner == seat && a.stealth(st) > a.intercept_of(st, m)
@@ -5497,6 +5615,7 @@ pub fn holds(
         Requirement::ControlledByPredatorOrPrey => true, // target predicate
         Requirement::HostClan(_) | Requirement::HostDiscipline(_) => true, // host predicates
         Requirement::ThisVampireReady
+        | Requirement::ActorSubtype(_)
         | Requirement::OpponentClan(_)
         | Requirement::OpponentYounger
         | Requirement::OpponentOlder
@@ -5733,8 +5852,10 @@ pub fn holds_for_card_target(
         // A card that became another has no type nor label (Enhanced
         // Coagulant): still a card.
         Requirement::TargetCard(f) if f != CardFilter::Any && became(c.card, c.mode) => false,
+        // A card that became weapon equipment in play (Weighted Walking
+        // Stick, Zip Gun: "this card represents an equipment card").
         Requirement::TargetCard(CardFilter::Type(CardType::Equipment)) => {
-            is_equipment_in_play(c.card)
+            is_equipment_in_play(c.card) || becomes_weapon(c.card)
         }
         Requirement::TargetCard(f) => f.matches(c.card),
         Requirement::TargetOnReadyMinion => c.host.is_some_and(|h| st.minions[h.index()].ready()),

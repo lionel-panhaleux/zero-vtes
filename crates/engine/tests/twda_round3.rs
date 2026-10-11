@@ -1368,6 +1368,49 @@ fn confusion_of_the_eye_fails_a_titled_referendum() {
     assert!(!e.state.cards.iter().any(|x| x.in_play && x.card == war));
 }
 
+// Owner, 2026-10-11 (rules-qa 64.12): as a political referendum's polling
+// opens, the other Methuselahs may play the cards usable "before any votes"
+// before the caller casts. Seat 0 calls Kine Resources Contested; seat 2,
+// across the table, is offered Confusion of the Eye [OBF] first — then the
+// caller's vampire casts nothing.
+#[test]
+fn confusion_of_the_eye_comes_before_the_callers_votes() {
+    let mut e = game(4);
+    let c = e.add_minion(SeatId(0), find_card("Tara"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let z = e.add_minion(SeatId(2), of_capacity(5, 0), 4, false);
+    superior(&mut e, z, "obf");
+    e.add_minion(SeatId(3), plain("Ventrue", 1), 4, false);
+    hand(&mut e, 0, &["Kine Resources Contested"]);
+    hand(&mut e, 2, &["Confusion of the Eye"]);
+    pick(&mut e, play(0, 0, c));
+    let req = loop {
+        let req = request(&mut e);
+        assert!(
+            !req.options.contains(&votes(c, true)),
+            "the caller first: {req:?}"
+        );
+        if req.options.contains(&play(0, 1, z)) {
+            break req;
+        }
+        e.choose(fallback(&req));
+    };
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(2), WindowLabel::ReferendumPolling)
+    );
+    e.choose(index_of(&req, play(0, 1, z)));
+    loop {
+        let req = request(&mut e);
+        assert!(!req.options.contains(&votes(c, true)), "{req:?}");
+        if req.window != WindowLabel::ReferendumPolling {
+            break;
+        }
+        e.choose(fallback(&req));
+    }
+}
+
 // [PIB 20150105] [LSJ 19980107] "Cannot be used during a referendum that is
 // automatically passing": after Día de los Muertos, the first Sabbat
 // referendum passes with no polling step — Confusion of the Eye is never
@@ -1535,4 +1578,64 @@ fn hospital_food_feeds_another_methuselahs_anarch() {
     until(&mut e, SeatId(1), WindowLabel::MinionPhase);
     assert_eq!(blood(&e, a), 1 + 1 + 1);
     assert!(e.state.cards[food.index()].locked);
+}
+
+// ---- Owner's list, round 4 (slice 16p) -------------------------------------------
+
+// Ariadne: "Blood hunts cannot be called on Ariadne. +1 hunt." [RTR
+// 20030519] [RTR 20180511] "The hunt bonus applies to non-standard hunt
+// actions, blood comes from the target of the hunt": a hunt for 2; an
+// Abactor for 1 + 4 + 1, and no blood hunt called on her (Tara's votes
+// there to cast).
+#[test]
+fn ariadne_hunts_for_one_more_and_escapes_blood_hunts() {
+    for abactor in [false, true] {
+        let mut e = game(2);
+        let a = e.add_minion(SeatId(0), find_card("Ariadne"), 0, false);
+        e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+        e.add_minion(SeatId(1), find_card("Tara"), 4, false);
+        if abactor {
+            hand(&mut e, 0, &["Abactor"]);
+            pick(&mut e, play(0, 0, a));
+        }
+        // With no blood, a lone hunt is taken at once.
+        loop {
+            let req = request(&mut e);
+            assert_ne!(req.window, WindowLabel::BloodHuntPolling);
+            if (req.seat, req.window) == (SeatId(0), WindowLabel::MinionPhase) {
+                break;
+            }
+            e.choose(fallback(&req));
+        }
+        assert_eq!(blood(&e, a), if abactor { 1 + 4 + 1 } else { 1 + 1 });
+        assert!(e.state.minions[a.index()].in_play);
+    }
+}
+
+// Jacob Fermor: "While Jacob is ready, werewolves you control get +1
+// bleed. Jacob gets an optional press each combat." Renegade Garou (0
+// bleed) bleeds for 1 while Jacob is ready, none with Jacob in torpor;
+// blocked, Jacob is offered his press.
+#[test]
+fn jacob_fermor_gives_werewolves_bleed_and_presses() {
+    for torpid in [false, true] {
+        let mut e = game(2);
+        e.add_minion(SeatId(0), find_card("Jacob Fermor"), 4, torpid);
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        let g = e.add_ally(SeatId(0), find_library("Renegade Garou"));
+        e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        pick(&mut e, bleed(g));
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert_eq!(
+            pool(&e)[1],
+            if torpid { 10 } else { 10 - 1 },
+            "torpid {torpid}"
+        );
+    }
+    let mut e = game(2);
+    let j = e.add_minion(SeatId(0), find_card("Jacob Fermor"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    blocked_bleed(&mut e, j, z);
+    offering(&mut e, Choice::UsePress);
 }

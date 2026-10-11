@@ -185,6 +185,11 @@ pub struct ActionCtx {
     /// The blocked action ends before block resolution (Change of Target):
     /// no other card is played, no combat.
     pub ended_early: bool,
+    /// Ended without resolution (The Kiss of Ra): `Effect::CancelAction`.
+    pub canceled: bool,
+    /// Controllers of the minions this directed action burned, outside
+    /// combat (Predator's Transformation [ABO]).
+    pub burned_owners: Vec<SeatId>,
     /// The blocker was unlocked when it blocked (Change of Target leaves it
     /// so: played before the blocker is locked, LSJ 19980224).
     pub blocker_was_unlocked: bool,
@@ -227,6 +232,11 @@ pub struct ActionCtx {
     /// Intercept gained by a minion, from any source, for the rest of the
     /// action: a failed attempt keeps it for a new one (rules-qa 15.2).
     pub intercept_given: Vec<(MinionId, i8)>,
+    /// Minions that do not lock for their block (Read the Winds [ani]).
+    pub no_lock_blockers: Vec<MinionId>,
+    /// Minions barred from "strike: combat ends" for the rest of the
+    /// action (Mind of the Wilds' blocker).
+    pub no_combat_ends: Vec<MinionId>,
     /// "If this vampire blocks" riders of reactions played this action,
     /// given again to each block (LSJ 20010814-2).
     pub block_riders: Vec<(MinionId, cards::BlockRider)>,
@@ -2365,6 +2375,11 @@ impl Engine {
             // action ends unsuccessfully before it resolves, no combat
             // (owner, 2026-10-08: rules-qa 55.7, the window 56.2); it
             // reached resolution, so NRA holds (LSJ 20070709).
+            // Canceled before resolution (The Kiss of Ra): no outcome, no
+            // NRA mark, no after-resolution window.
+            ActionState::Declined if a.canceled => {
+                self.end_action();
+            }
             ActionState::Declined if a.ended_early => {
                 a.outcome = Some(Outcome::Failed);
                 let (acting, kind) = (a.acting, a.kind);
@@ -2478,12 +2493,18 @@ impl Engine {
     fn combat_riders(&mut self, riders: &[(MinionId, cards::BlockRider)]) -> Vec<(MinionId, u8)> {
         let c = self.combat.as_mut().expect("combat");
         let mut unlocks = Vec::new();
+        let mut barred = Vec::new();
         for &(m, rider) in riders {
             let Some(i) = c.side_of_minion(m) else {
                 continue;
             };
             match rider {
                 cards::BlockRider::Maneuver => c.sides[i].combat_maneuvers += 1,
+                cards::BlockRider::ManeuverFirstRound => c.sides[i].maneuvers += 1,
+                cards::BlockRider::OpponentNoCombatEndsThisAction => {
+                    c.sides[1 - i].no_combat_ends_combat = true;
+                    barred.push(c.sides[1 - i].minion);
+                }
                 cards::BlockRider::Press => c.sides[i].combat_presses += 1,
                 cards::BlockRider::PreventFirstRound(n) => c.sides[i].round_prevents += n,
                 cards::BlockRider::PreventInCombat(n) => c.sides[i].combat_prevents += n,
@@ -2500,6 +2521,9 @@ impl Engine {
                     c.won_uncontrolled_blood = Some((m, clan, n))
                 }
             }
+        }
+        if let Some(a) = self.action.as_mut() {
+            a.no_combat_ends.extend(barred);
         }
         unlocks
     }
@@ -2835,6 +2859,10 @@ impl Engine {
                 a.acting = new;
             }
             Effect::AddStealth(n) => a.stealth_mods += n,
+            Effect::NoLockForBlock => {
+                a.no_lock_blockers
+                    .push(play.actor.expect("the blocking minion"));
+            }
             // For the rest of the action (rules-qa 15.2).
             Effect::AddIntercept(n) => {
                 // The minion given the intercept: the card's actor, else the
@@ -2926,6 +2954,24 @@ impl Engine {
                 if let ActionState::Attempt(m) = a.state {
                     self.state.minions[m.index()].locked = true;
                 }
+            }
+            Effect::AttemptingBurnsBlood(n) => {
+                if let ActionState::Attempt(m) = a.state {
+                    let v = &mut self.state.minions[m.index()];
+                    v.blood = v.blood.saturating_sub(n);
+                }
+            }
+            Effect::AttemptingToTorpor => {
+                if let ActionState::Attempt(m) = a.state {
+                    if self.state.minions[m.index()].ready() {
+                        self.minions_to_torpor(&[m]);
+                    }
+                }
+            }
+            Effect::CancelAction => {
+                a.attempt_fails();
+                a.ended_early = true;
+                a.canceled = true;
             }
             Effect::QueueCombatWithAttempting => {
                 if let ActionState::Attempt(m) = a.state {
@@ -3285,13 +3331,16 @@ impl Engine {
         }
         self.awakening_burns(Some(blocker));
         let was_unlocked = !self.state.minions[blocker.index()].locked;
-        let (acting, kind) = {
+        let (acting, kind, no_lock) = {
             let a = self.action.as_mut().expect("action context");
             a.blocker = Some(blocker);
             a.blocker_was_unlocked = was_unlocked;
-            (a.acting, a.kind)
+            (a.acting, a.kind, a.no_lock_blockers.contains(&blocker))
         };
-        self.state.minions[blocker.index()].locked = true;
+        // "This vampire does not lock for the block" (Read the Winds).
+        if !no_lock {
+            self.state.minions[blocker.index()].locked = true;
+        }
         // NRA triggers on resolution, blocked included (rules-qa 1.4).
         self.mark_resolved(acting, kind);
         // "If blocked" riders of the acting minion's cards (Unlicensed
@@ -4937,20 +4986,26 @@ impl Engine {
             } else if !a.card_entered_play && !a.card_returned {
                 self.state.seats[seat.index()].ash.push(play.card);
             }
-            self.state.minions[acting.index()]
-                .acted
-                .push(ActionId::Card(play.card));
+            // Canceled before resolution, the same action may be taken
+            // again — not one blocked and continued before (ANK 20211015).
+            if !a.canceled || !a.blocked_by.is_empty() {
+                self.state.minions[acting.index()]
+                    .acted
+                    .push(ActionId::Card(play.card));
+            }
         }
         if let (Some(src), Some(ab)) = (a.source, a.ability) {
-            let id = src.action_id(&self.state, ab);
-            self.state.minions[acting.index()].acted.push(id);
+            if !a.canceled || !a.blocked_by.is_empty() {
+                let id = src.action_id(&self.state, ab);
+                self.state.minions[acting.index()].acted.push(id);
+            }
         }
         if !a.mandatory {
             self.state.optional_action = true;
         }
         // "This minion cannot perform the same action again this turn"
         // (Change of Target): a rulebook action, by kind and target.
-        if a.ended_early && a.card.is_none() && a.source.is_none() {
+        if a.ended_early && !a.canceled && a.card.is_none() && a.source.is_none() {
             let id = ActionId::Rulebook(a.kind, a.torpor_target.or(a.giver));
             self.state.minions[acting.index()].acted.push(id);
         }

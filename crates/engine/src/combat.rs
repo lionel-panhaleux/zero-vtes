@@ -206,6 +206,9 @@ pub struct Side {
     pub additional: u8,
     pub limited_used: bool,
     pub aggravated_hands: bool,
+    /// Its hand damage aggravated for the rest of the combat (Bone Spur
+    /// [PRO]): each new round starts with `aggravated_hands`.
+    pub aggravated_hands_combat: bool,
     /// Blood burned to damage this round (Taste of Vitae).
     pub lost_to_damage: u8,
     pub pending: Damage,
@@ -262,6 +265,11 @@ pub struct Side {
     /// This side cannot strike: combat ends in this round (Hunter's Mark
     /// [CEL][THA] on the opposing minion: the first).
     pub no_combat_ends_round: Option<u8>,
+    /// Barred from "strike: combat ends" this combat (Mind of the Wilds;
+    /// set again in a later combat of the action).
+    pub no_combat_ends_combat: bool,
+    /// No maneuver nor strike this round (Ossian's Auspex-playing foe).
+    pub frozen_round: Option<u8>,
     /// Strength this side can gain for the combat before range is
     /// determined in the first round (Show of Force): `Choice::GainStrength`.
     pub strength_option: u8,
@@ -432,6 +440,8 @@ impl Side {
             combat_maneuvers: self.combat_maneuvers,
             combat_presses: self.combat_presses,
             no_combat_ends_round: self.no_combat_ends_round,
+            no_combat_ends_combat: self.no_combat_ends_combat,
+            frozen_round: self.frozen_round,
             no_equipment: self.no_equipment,
             no_close_maneuver: self.no_close_maneuver,
             no_continue_press: self.no_continue_press,
@@ -443,6 +453,8 @@ impl Side {
             marble: self.marble,
             combat_ends_round: self.combat_ends_round,
             environmental: self.environmental,
+            aggravated_hands: self.aggravated_hands_combat,
+            aggravated_hands_combat: self.aggravated_hands_combat,
             prevent_each_round: self.prevent_each_round,
             combat_prevents: self.combat_prevents,
             round_prevents: self.prevent_each_round,
@@ -469,6 +481,12 @@ pub struct CombatCtx {
     /// Weapons whose strike resolution burned the opposing vampire (Sword
     /// of the Archangel).
     pub burned_by: Vec<CardId>,
+    /// Weapons whose bearer took their once-each-combat damage for
+    /// striking with them (Zip Gun).
+    pub bearer_damaged: Vec<CardId>,
+    /// Minions burned in this combat: (the minion burning them, their
+    /// controller) — Predator's Transformation [ABO].
+    pub burned_minions: Vec<(MinionId, SeatId)>,
     pub round: u8,
     /// Strike pair within the round; 0 is the normal pair.
     pub pair: u8,
@@ -694,7 +712,12 @@ impl CombatCtx {
     /// A maneuver now: none to close range under a frenzy (Terror Frenzy
     /// [ani]).
     pub(crate) fn may_maneuver(&self, side: usize) -> bool {
-        !(self.sides[side].no_close_maneuver && self.range == Range::Long)
+        !(self.sides[side].no_close_maneuver && self.range == Range::Long) && !self.frozen(side)
+    }
+
+    /// Side `side` can use no maneuver nor strike this round (Ossian).
+    pub(crate) fn frozen(&self, side: usize) -> bool {
+        self.sides[side].frozen_round == Some(self.round)
     }
 
     /// A press now: none to continue under a frenzy (Terror Frenzy [ani]).
@@ -713,8 +736,19 @@ impl CombatCtx {
         // (Dog Pack; Faruq Abd al-Qadir for minions with his Methuselah's
         // corruption counters).
         let no_ends = st.combat_ends_barred(self.sides[side].minion, self.sides[1 - side].minion)
-            || self.sides[side].no_combat_ends_round == Some(self.round);
+            || self.sides[side].no_combat_ends_round == Some(self.round)
+            || self.sides[side].no_combat_ends_combat;
+        let frozen = self.frozen(side);
         mode.effects.iter().all(|e| match e {
+            Effect::Strike(_)
+            | Effect::Maneuver
+            | Effect::CommitStrike
+            | Effect::CommittedStrike(_)
+            | Effect::CommittedWeaponStrikePlus(_)
+                if frozen =>
+            {
+                false
+            }
             Effect::Strike(StrikeKind::CombatEnds { .. }) if no_ends => false,
             // "Cannot maneuver to close range" (Terror Frenzy [ani]).
             Effect::Maneuver if self.step == Step::DetermineRange => {
@@ -857,6 +891,11 @@ impl Engine {
             // "1 optional press each combat" (Serhat Gunde; Dread Mastiff
             // [ANI] on its employer).
             s.combat_presses += st.combat_presses_of(s.minion);
+            // Barred from combat ends for the action (Mind of the Wilds).
+            s.no_combat_ends_combat = self
+                .action
+                .as_ref()
+                .is_some_and(|a| a.no_combat_ends.contains(&s.minion));
         }
         let order = vec![sides[0].seat, sides[1].seat];
         self.state.combatants = Some([acting, opposing]);
@@ -879,6 +918,31 @@ impl Engine {
         self.note(CombatNote::Begins {
             minions: [acting, opposing],
         });
+        self.freeze_auspex_foes();
+    }
+
+    /// Ossian: in the first round, a vampire opposing him that played a
+    /// card requiring Auspex during this action can use no maneuver nor
+    /// strike — read at the combat's start and as each card is played.
+    pub(crate) fn freeze_auspex_foes(&mut self) {
+        let (Some(c), Some(a)) = (self.combat.as_mut(), self.action.as_ref()) else {
+            return;
+        };
+        if c.round != 1 {
+            return;
+        }
+        for i in 0..2 {
+            let (m, foe) = (c.sides[i].minion, c.sides[1 - i].minion);
+            if self.state.minions[m.index()].is_vampire()
+                && a.disciplines_played.contains(&(m, "aus"))
+                && self
+                    .state
+                    .borne(foe)
+                    .any(|l| l.modifier == cards::Modifier::FreezesAuspexFoeFirstRound)
+            {
+                c.sides[i].frozen_round = Some(1);
+            }
+        }
     }
 
     fn note(&mut self, n: CombatNote) {
@@ -1008,6 +1072,7 @@ impl Engine {
                 // barred (Dog Pack, a grapple).
                 if side.combat_ends_round == Some(c.round)
                     && side.no_combat_ends_round != Some(c.round)
+                    && !side.no_combat_ends_combat
                     && !c.only_hand_strikes
                     && !self
                         .state
@@ -1507,6 +1572,24 @@ impl Engine {
             // No new round once a combatant left the ready region (Disarm
             // after Telepathic Tracking): the combat ends.
             Step::EndOfRound => {
+                // Ossian: a life for each blood the opposing vampire lost to
+                // damage this round.
+                for i in 0..2 {
+                    let foe = c.sides[1 - i].minion;
+                    let n = c.sides[1 - i].lost_to_damage;
+                    let m = c.sides[i].minion;
+                    if n > 0
+                        && self.state.minions[foe.index()].is_vampire()
+                        && self.state.minions[m.index()].present()
+                        && self
+                            .state
+                            .borne(m)
+                            .any(|l| l.modifier == cards::Modifier::LifePerFoeBloodLost)
+                    {
+                        self.state.gain_blood(m, n);
+                    }
+                }
+                let c = self.combat.as_mut().expect("combat context");
                 if (c.continued || c.press_continue) && c.both_ready(&self.state) {
                     self.new_round();
                 } else {
@@ -1736,6 +1819,7 @@ impl Engine {
             self.state
                 .combat_ends_barred(c.sides[i].minion, c.sides[1 - i].minion)
                 || c.sides[i].no_combat_ends_round == Some(c.round)
+                || c.sides[i].no_combat_ends_combat
         });
         let ends: Vec<usize> = (0..2)
             .filter(|&i| !barred[i] && matches!(strikes[i], Some(StrikeKind::CombatEnds { .. })))
@@ -1923,6 +2007,20 @@ impl Engine {
                 c.sides[1 - i].pending.add(n, false);
             }
         }
+        // Zip Gun: its bearer takes 1 environmental damage as it strikes
+        // with it, once each combat; a gun gone before its strike resolves
+        // deals none (LSJ 19970801, LSJ 20100310).
+        for (i, strike) in strikes.iter().enumerate() {
+            if let Some(w) = c.sides[i].strike_source.filter(|_| strike.is_some()) {
+                if st.cards[w.index()].present()
+                    && source_rider(st, Some(w), Effect::BearerDamageOncePerCombat)
+                    && !c.bearer_damaged.contains(&w)
+                {
+                    c.sides[i].pending.add(1, false);
+                    c.bearer_damaged.push(w);
+                }
+            }
+        }
         // This pair's damage from the opposing strikes, apart.
         for s in &mut c.sides {
             s.strike_damage = Damage::default();
@@ -2105,11 +2203,9 @@ impl Engine {
                             n
                         }
                         .saturating_sub(less);
-                        let gun = c.sides[i].strike_source.is_some_and(|w| {
-                            LIBRARY[st.cards[w.index()].card as usize]
-                                .labels
-                                .contains(&Label::Gun)
-                        });
+                        let gun = c.sides[i]
+                            .strike_source
+                            .is_some_and(|w| cards::is_gun(st.cards[w.index()].card));
                         let black_hand = c.sides[i].unpreventable_if_black_hand
                             && st.minions[c.sides[i].minion.index()]
                                 .vampire()
@@ -2390,6 +2486,14 @@ impl Engine {
                 burned.push(s.minion);
             } else if r.wounded || sent {
                 wounded.push(s.minion);
+            }
+        }
+        // Who burned whom (Predator's Transformation [ABO]).
+        for i in 0..2 {
+            let opp = c.sides[1 - i].minion;
+            if burned.contains(&opp) {
+                let owner = self.state.minions[opp.index()].owner;
+                c.burned_minions.push((c.sides[i].minion, owner));
             }
         }
         // A vampire burned by the strike of the opposing weapon (Sword of the
@@ -3077,6 +3181,10 @@ impl Engine {
             Effect::SetStrength(n) => c.sides[i].strength_set = Some(n),
             Effect::StrengthThisCombat(n) => c.sides[i].strength_mods += n,
             Effect::AggravatedHands => c.sides[i].aggravated_hands = true,
+            Effect::AggravatedHandsThisCombat => {
+                c.sides[i].aggravated_hands = true;
+                c.sides[i].aggravated_hands_combat = true;
+            }
             Effect::Prevent(n) => c.prevent(i, n),
             Effect::PreventXPlus(k) => c.prevent(i, play.x + k),
             Effect::PreventNonAggravated(n) => {
@@ -3138,9 +3246,10 @@ impl CombatCtx {
         // "Cannot strike" this round: no strike is chosen, in any pair
         // (additional strikes are still gained, uselessly: LSJ 19970814-2).
         let barred = self.no_strikes_round == Some(self.round);
+        let round = self.round;
         for s in &mut self.sides {
             s.set_strike(None);
-            if barred {
+            if barred || s.frozen_round == Some(round) {
                 // The pair's additional strike is spent, unused.
                 if self.pair > 0 {
                     s.additional = s.additional.saturating_sub(1);
@@ -3251,6 +3360,7 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::AdditionalStrikes { .. }
             | Effect::SetStrength(_)
             | Effect::AggravatedHands
+            | Effect::AggravatedHandsThisCombat
             | Effect::FortitudeProofStrike
             | Effect::CommittedStrike(_)
             | Effect::AdditionalStrikeOnly { .. }

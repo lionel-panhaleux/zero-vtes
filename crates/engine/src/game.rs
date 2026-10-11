@@ -631,6 +631,7 @@ impl Engine {
             }
             self.state.drain_all_excess();
             self.state.release_hostages();
+            self.state.release_torture();
             if matches!(self.flow, Flow::GameOver) {
                 return Step::Over(self.state.seats.iter().map(|s| s.half_vps).collect());
             }
@@ -1094,6 +1095,17 @@ impl Engine {
     /// is burned" riders fire if it was ready (a minion burned from torpor
     /// or from a contest is not).
     pub(crate) fn burn_minion(&mut self, m: MinionId) {
+        // Burned by a directed action, out of combat (Predator's
+        // Transformation [ABO]).
+        if self.combat.is_none() {
+            let owner = self.state.minions[m.index()].owner;
+            let st = &self.state;
+            if let Some(a) = self.action.as_mut() {
+                if a.directed_seat(st).is_some() {
+                    a.burned_owners.push(owner);
+                }
+            }
+        }
         // "After a zombie (ally or retainer) you control is burned, you can
         // add 1 counter to this location" (Cursed Abattoir; rules-qa 55.6).
         let zombie = self.state.minions[m.index()]
@@ -2177,7 +2189,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 331);
+        assert_eq!(CRYPT.len(), 336);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

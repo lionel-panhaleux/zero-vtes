@@ -316,6 +316,13 @@ pub enum Interrupt {
     /// "You can add 1 counter to this location" (Cursed Abattoir):
     /// `ResolveRider` it, or pass — never worse to add (rules-qa 55.6).
     MayAddCounter { seat: SeatId, card: CardId },
+    /// The Path of Lilith: `seat` may lock `card` to put a torture counter
+    /// on `minion` (`ResolveRider`), or pass.
+    MayTorture {
+        seat: SeatId,
+        card: CardId,
+        minion: MinionId,
+    },
     /// "You can gain n pool" printed on `minion` (Matasuntha): Pass, or
     /// `ResolvePrinted` to gain it — optional, never worse.
     MayGainPool {
@@ -426,6 +433,7 @@ impl Interrupt {
             | Interrupt::MayRecycleCanceled { seat, .. }
             | Interrupt::MayPutOn { seat, .. }
             | Interrupt::MayAddCounter { seat, .. }
+            | Interrupt::MayTorture { seat, .. }
             | Interrupt::MayGainPool { seat, .. }
             | Interrupt::MoveForBlood { seat, .. }
             | Interrupt::MoveCardToTitled { seat, .. } => seat,
@@ -903,6 +911,10 @@ impl Engine {
                 }
                 Interrupt::MayPutOn { held, .. } => self.may_put_held(held),
                 Interrupt::MayAddCounter { card, .. } => self.state.cards[card.index()].present(),
+                Interrupt::MayTorture { card, minion, .. } => {
+                    let c = &self.state.cards[card.index()];
+                    c.present() && !c.locked && present(minion)
+                }
                 Interrupt::MayGainPool { seat, .. } => !self.state.seats[seat.index()].ousted,
                 // Unspent still, the card still in hand, another to draw.
                 Interrupt::Redraw { seat, minion, card } => {
@@ -1289,7 +1301,7 @@ impl Engine {
                 WindowLabel::ResolutionChoice,
                 vec![Choice::Pass, Choice::ChooseMinion(held.minion)],
             ),
-            Interrupt::MayAddCounter { card, .. } => (
+            Interrupt::MayAddCounter { card, .. } | Interrupt::MayTorture { card, .. } => (
                 WindowLabel::ResolutionChoice,
                 vec![Choice::Pass, Choice::ResolveRider { card: card.0 }],
             ),
@@ -2557,6 +2569,7 @@ impl Engine {
             (
                 Interrupt::MayPutOn { .. }
                 | Interrupt::MayAddCounter { .. }
+                | Interrupt::MayTorture { .. }
                 | Interrupt::MayGainPool { .. },
                 Choice::Pass,
             ) => {
@@ -2569,6 +2582,11 @@ impl Engine {
             (Interrupt::MayAddCounter { card, .. }, Choice::ResolveRider { .. }) => {
                 self.interrupts.remove(0);
                 self.state.cards[card.index()].counters += 1;
+            }
+            (Interrupt::MayTorture { card, minion, .. }, Choice::ResolveRider { .. }) => {
+                self.interrupts.remove(0);
+                self.state.cards[card.index()].locked = true;
+                self.state.minions[minion.index()].torture += 1;
             }
             // Not paid: burned.
             (Interrupt::PayOrBurn { card, .. }, Choice::Pass) => {

@@ -64,7 +64,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
-- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17
+- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12
 - **Ousts, Life Boon's decision point** — 45.1–45.8
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
@@ -1253,3 +1253,29 @@ Readings no ruling settles, implemented with slice 16m; questions for the owner.
 **63.16** Gregory Winter: his steal at a vampire with no blood is legal and steals nothing (RTR 20010711); his torpor burn raises his life over his starting life; his two actions do not restrict each other (LSJ 20100909); his unlock-phase life burn can burn him. Aaron's Feeding Razor: +1 to every hunt of its bearer, mandatory. Abombwe: any Methuselah's vampire with Protean (no Laibon in the pool); put on by Childe of the Revolution's search, its requirement ignored (LSJ 20051116-2). Lisette Vizquel: +1 intercept as she attempts to block a diablerie action. Wise Frog: first strike in a combat with a vampire younger than her, read as the strikes resolve. Cameron and Hester Reed have no text.
 
 **63.17** Seen while testing: an action card's "+1 stealth if this vampire is Ravnos" (Baltimore Purge) is read as the action is announced and skipped at resolution (it crashed the resolution); Focus the Blood's discount was offered but not taken on a combat card's blood cost (now taken, the card burned as the cost is paid); Renewed Vigor's "add enough life to reach their starting life" overflowed its counter.
+
+## Batch 64 — Legacy cards for TWDA decks, rounds 4–5 (the Gangrel decks), implemented readings (2026-10-11)
+
+**64.1** Ariadne: her "+1 hunt" adds to every hunt of hers, non-standard ones too (RTR 20030519); no blood hunt is ever called on her (her diablerie, an Abactor). Jacob Fermor: "werewolves you control" are allies of the Werewolf subtype (Renegade Garou, Ossian), +1 bleed while Jacob is ready (in torpor: none), read live; his press once each combat. Gunnar, Lillian and Robert Price print no text.
+
+**64.2** Anachronism: on any Methuselah's vampire of capacity 7 or more; "ranged weapons" are the weapons with a ranged strike (LSJ 20060825), Zip Gun included, the Ivory Bow excepted; those on it burn as it enters; it cannot equip one (from hand, by an action or another card), move one to it, nor use one, nor play Zip Gun.
+
+**64.3** Bone Spur: an untimed combat card — before the strike it should affect resolves, after both strikes are chosen too (RTR 19960112); [pro] this round's hand damage, [PRO] every later round's of the combat as well.
+
+**64.4** The Kiss of Ra: against a block attempt by a vampire without Fortitude (the Fury of Unleash Hell's Fury included: LSJ 20100210); the blocker burns 2 blood (as much as it has), [FOR] then goes to torpor; the action is canceled before resolution: nothing more is played in it (RTR 20180719), no outcome — no after-resolution window, so no Daring the Dawn damage —, no torpor-block diablerie (LSJ 19970325), no NRA mark (the same action may be taken again, unless it was blocked then continued before: ANK 20211015), still taken (the optional action, Veil the Legions' count: ANK 20210124); the acting minion stays locked.
+
+**64.5** Mind of the Wilds: [ani][aus] in the action's own window, [ANI][AUS]'s +1 stealth only when needed (3.2); the maneuver banked for the first round of the block's combat only; the blocker barred from "strike: combat ends" for the rest of the action, any round of any combat (LSJ 20100308).
+
+**64.6** Ossian: his rush at any vampire, any Methuselah's; the freeze read as cards are played: a vampire opposing him that played a card requiring Auspex in the current action (any action, LSJ 20050201; the Discipline the card was played with) uses no maneuver nor strike for the rest of the first round — from the combat's start, or from that card on mid-round (an Auspex strike played first stands: ANK 20210614); a range set by an effect stays open, a Sniper Rifle's (a strike commitment) not (LSJ 20100827). His life: the blood the opposing vampire lost to damage that round, at the end of the round, after the presses, the round ended early too (RTR 20030519), over his starting life (ANK 20171109). "Red List" is a bare trait.
+
+**64.7** The Path of Lilith: offered as the torpor lands — the opposing vampire sent to torpor in combat (not burned), the vampire opposing it non-Camarilla and the card's controller's, the card unlocked; its controller's unlock phase: each Methuselah controlling a vampire with a torture counter (ready or in torpor), its controller included, burns 1 pool. Every torture counter goes once no Path of Lilith is in play (one held by another Methuselah keeps them all: none other in the pool). _open_
+
+**64.8** Predator's Transformation: the reflex by the vampire the frenzy card is played on (rules-qa 28.11), locked or not, its cost still paid (ANK 20260216); [abo] +1 stealth as the action is announced, even if not needed; [ABO] at the end of the round in which this vampire's combat burned a minion of its controller's prey, or after the resolution of its directed action that burned one out of combat (ANK 20220507), once per action. That a locked vampire may play a reflex is a reading. _open_
+
+**64.9** Read the Winds: replaced after the action (Blood Weakens' rules aside); [ani][aus] keeps its vampire unlocked after a successful block; [ANI][AUS] prints no "as above": its vampire locks as usual; the usual blocking restrictions apply (ANK 20180623, LSJ 20010714-2).
+
+**64.10** Zip Gun: before range is determined in any round, put on the minion; in play it is weapon equipment — a target for "equipment" effects (Canine Horde) as 22.4 has it (this extended 22.4 to card targets; five random opening games changed) — and a gun (Kevlar Vest); 1R damage, its maneuver committing the strike (LSJ 20021028); its bearer takes 1 environmental damage the first time it strikes with it each combat, none if the gun is gone first (LSJ 19970801, LSJ 20100310). No ammo card is in the pool.
+
+**64.11** Generators: the window matrix reads "when … attempts to block" (The Kiss of Ra), "when this vampire burns a minion" (Predator's Transformation [ABO]: no in-play action flag) and "with an optional maneuver each combat" (Zip Gun: a rider, no play window); "As above, with +1 stealth" over a mode with no printed timing keeps the stealth window alone (Mind of the Wilds [ANI][AUS], 3.2; Mask of a Thousand Faces keeps its timings); a mode's two type tags ([ACTION MODIFIER][COMBAT]) are read in a fixed order (the generator was nondeterministic on Predator's Transformation).
+
+**64.12** Owner, 2026-10-11 (relayed by Z-play): as a political referendum's polling step opens, the other Methuselahs get a chance to play the cards usable "before any votes and ballots are cast" before the caller casts — Confusion of the Eye [OBF] (63.3), Fakir al Sidi (59.18), Closed Session. The engine opens it with a pre-vote rotation from the caller's left, the caller last, offering those cards (and their abilities) alone, no vote; once it closes, the polling proper rotates from the caller. Not for a blood hunt, nor a referendum passing automatically.

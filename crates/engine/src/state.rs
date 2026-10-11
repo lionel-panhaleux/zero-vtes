@@ -293,6 +293,9 @@ pub struct Minion {
     /// any, the vampire cannot be moved to the ready region or be
     /// diablerized.
     pub hostage: u8,
+    /// Torture counters (The Path of Lilith): their controller burns 1
+    /// pool in its unlock phase while any of their vampires has one.
+    pub torture: u8,
     /// Nightmare counters (Week of Nightmares).
     pub nightmare: u8,
 }
@@ -393,6 +396,7 @@ impl Minion {
             no_life_gain: false,
             must_hunt: false,
             hostage: 0,
+            torture: 0,
             nightmare: 0,
         }
     }
@@ -1254,6 +1258,27 @@ impl GameState {
     /// a vampire keeps it.
     /// "After this card leaves play, burn all the hostage counters"
     /// (Carver's Meat Packing and Storage): none while no copy is present.
+    /// "Burn all torture counters when this card leaves play" (The Path of
+    /// Lilith): none left once no such card is in play.
+    pub fn release_torture(&mut self) {
+        if !self.minions.iter().any(|m| m.torture > 0) {
+            return;
+        }
+        let held = self.cards.iter().any(|c| {
+            c.present()
+                && cards::lookup(c.card).is_some_and(|d| {
+                    d.riders
+                        .iter()
+                        .any(|r| r.hook == cards::Hook::OwnNonCamarillaSendsToTorpor)
+                })
+        });
+        if !held {
+            for m in &mut self.minions {
+                m.torture = 0;
+            }
+        }
+    }
+
     pub fn release_hostages(&mut self) {
         if !self.minions.iter().any(|m| m.hostage > 0) {
             return;
@@ -1578,6 +1603,10 @@ impl GameState {
             R::OpponentSubtype(l) => opp
                 .and_then(|o| o.kind.ally_card())
                 .is_some_and(|card| LIBRARY[card as usize].labels.contains(&l)),
+            R::ActorSubtype(l) => me
+                .kind
+                .ally_card()
+                .is_some_and(|card| LIBRARY[card as usize].labels.contains(&l)),
             // Younger and older compare vampires: an ally has no capacity.
             R::OpponentYounger => ctx.opponent.is_some_and(|o| self.younger_than(o, actor)),
             R::OpponentAllyOrYounger => {
@@ -1825,6 +1854,8 @@ impl GameState {
                     _ => 0,
                 })
                 .sum::<u8>()
+            // Printed "+1 hunt" (Ariadne).
+            + self.printed_mod(m, Stat::Hunt, PrintedCtx::default()).max(0) as u8
     }
 
     /// Cards over hand size, the cards not replaced yet counting against
@@ -1891,7 +1922,7 @@ impl GameState {
     /// "a minion can have only one X" limits reached by what it has or by
     /// the cards `with` it takes in the same action?
     pub fn can_hold(&self, m: MinionId, card: u16, with: &[u16]) -> bool {
-        if self.no_equipment(m) {
+        if self.no_equipment(m) || self.ranged_barred(m, card) {
             return false;
         }
         let Some(def) = cards::lookup(card) else {
@@ -2727,6 +2758,16 @@ impl GameState {
     }
 
     /// Does a card on `m` give `modifier`?
+    /// Can `m` not have or use the weapon `card` — a ranged weapon under
+    /// Anachronism, its named exception aside?
+    pub fn ranged_barred(&self, m: MinionId, card: u16) -> bool {
+        cards::is_ranged_weapon(card)
+            && self.hosted(m).any(|l| {
+                matches!(l.modifier, Modifier::NoRangedWeaponsExcept(name)
+                    if LIBRARY[card as usize].name != name)
+            })
+    }
+
     pub fn hosts(&self, m: MinionId, modifier: Modifier) -> bool {
         self.hosted(m).any(|l| l.modifier == modifier)
     }

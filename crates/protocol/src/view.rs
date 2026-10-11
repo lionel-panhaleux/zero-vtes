@@ -646,6 +646,9 @@ fn minion_view(st: &GameState, lay: &Layout, copies: &Copies, i: usize) -> Minio
     if m.nightmare > 0 {
         markers.push(format!("{} nightmare", m.nightmare));
     }
+    if m.torture > 0 {
+        markers.push(format!("{} torture", m.torture));
+    }
     if m.disease {
         markers.push("disease".into());
     }

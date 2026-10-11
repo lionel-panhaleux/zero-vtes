@@ -356,7 +356,7 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
         f[F_RECRUITED] = flag(m.recruited);
         f[F_EXPELLED] = flag(m.expelled);
         f[F_CORRUPTION] = m.corruption.iter().map(|&(_, n)| n as f32).sum::<f32>() / 5.0;
-        f[F_MARKERS] = (m.hostage + m.nightmare + u8::from(m.disease)) as f32 / 5.0;
+        f[F_MARKERS] = (m.hostage + m.nightmare + m.torture + u8::from(m.disease)) as f32 / 5.0;
         ix.minions[i] = push(&mut o, [T_MINION, minion_id(m.kind), 0, 0], f);
     }
 

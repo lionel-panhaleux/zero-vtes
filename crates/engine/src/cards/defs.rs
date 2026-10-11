@@ -2608,7 +2608,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     ..CARD
 };
 
-pub static DEFS: [&CardDef; 584] = [
+pub static DEFS: [&CardDef; 593] = [
     &MAGIC_OF_THE_SMITH,
     &VAST_WEALTH,
     &BLACK_MARKET_CACHE,
@@ -3193,6 +3193,15 @@ pub static DEFS: [&CardDef; 584] = [
     &BALTIMORE_PURGE,
     &LEARJET,
     &INFERNAL_PURSUIT,
+    &ANACHRONISM,
+    &BONE_SPUR,
+    &KISS_OF_RA,
+    &MIND_OF_THE_WILDS,
+    &OSSIAN,
+    &PATH_OF_LILITH,
+    &PREDATORS_TRANSFORMATION,
+    &READ_THE_WINDS,
+    &ZIP_GUN,
 ];
 
 // ---- Cards in play with riders and granted actions (slice 5) ------------
@@ -18363,6 +18372,289 @@ pub static INFERNAL_PURSUIT: CardDef = CardDef {
             &[],
             &[Effect::ExtraDrawPerReplacementThisCombat],
         ),
+    ],
+    ..CARD
+};
+
+// ---- Owner's list, round 5 (slice 16q) -------------------------------------
+//
+// Lillian and Robert Price ("Independent.") print no text.
+
+/// "Master. Put this card on a vampire with capacity above 6. This vampire
+/// cannot have or use any ranged weapons except the Ivory Bow. (If he or
+/// she currently has any, they are burned.)" (1 pool.) Any Methuselah's
+/// vampire; every weapon with a ranged strike (LSJ 20060825).
+pub static ANACHRONISM: CardDef = CardDef {
+    name: "Anachronism",
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::TargetVampire,
+                Requirement::TargetCapacityAtLeast(7),
+            ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutOnTarget,
+                Effect::Layer(Modifier::NoRangedWeaponsExcept("Ivory Bow")),
+                Effect::BurnRangedWeaponsOnTarget {
+                    except: "Ivory Bow",
+                },
+            ],
+        )
+    }],
+    ..CARD
+};
+
+/// "[pro] For the remainder of this round, this vampire's hand damage is
+/// aggravated. [PRO] As above, but for the remainder of this combat." (1
+/// blood.) Before the strike resolves to reach it, after both strikes are
+/// chosen too (RTR 19960112), as Wolf Claws.
+pub static BONE_SPUR: CardDef = CardDef {
+    name: "Bone Spur",
+    modes: &[
+        combat(&[Window::CombatUntimed], &[], &[Effect::AggravatedHands]),
+        combat(
+            &[Window::CombatUntimed],
+            &[],
+            &[Effect::AggravatedHandsThisCombat],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Only usable when a vampire who does not have Fortitude attempts to
+/// block this acting minion. [for] The block attempt is canceled, the
+/// blocking vampire burns 2 blood, and the current action is ended
+/// (without combat). [FOR] As above, and send the blocking vampire to
+/// torpor." (3 blood.) The action canceled before resolution: nothing more
+/// played (RTR 20180719), no diablerie of a torpid acting vampire (LSJ
+/// 19970325), the same action again allowed unless blocked and continued
+/// before (ANK 20211015), still taken (ANK 20210124).
+pub static KISS_OF_RA: CardDef = CardDef {
+    name: "Kiss of Ra, The",
+    modes: &[
+        on_attempt!(
+            &[Requirement::AttemptingVampireWithout("for")],
+            &[Effect::AttemptingBurnsBlood(2), Effect::CancelAction]
+        ),
+        on_attempt!(
+            &[Requirement::AttemptingVampireWithout("for")],
+            &[
+                Effect::AttemptingBurnsBlood(2),
+                Effect::AttemptingToTorpor,
+                Effect::CancelAction,
+            ]
+        ),
+    ],
+    ..CARD
+};
+
+/// "[ani][aus] If this action is blocked, this vampire gets 1 optional
+/// maneuver during the first round of the resulting combat and the
+/// blocking minion cannot strike: combat ends. [ANI][AUS] As above, with
+/// +1 stealth." The combat ends bar for the rest of the action, any round
+/// of any combat (LSJ 20100308); the stealth only when needed (rules-qa
+/// 3.2).
+pub static MIND_OF_THE_WILDS: CardDef = CardDef {
+    name: "Mind of the Wilds",
+    modes: &[
+        modifier(
+            &[],
+            &[
+                Effect::IfBlocks(BlockRider::ManeuverFirstRound),
+                Effect::IfBlocks(BlockRider::OpponentNoCombatEndsThisAction),
+            ],
+        ),
+        stealth(&[
+            Effect::AddStealth(1),
+            Effect::IfBlocks(BlockRider::ManeuverFirstRound),
+            Effect::IfBlocks(BlockRider::OpponentNoCombatEndsThisAction),
+        ]),
+    ],
+    ..CARD
+};
+
+/// "Unique werewolf with 4 life. 2 strength, 0 bleed. Red List. Ossian may
+/// enter combat with any vampire as a +1 stealth Ⓓ action. In the first
+/// round of combat with a vampire who has played a card that requires
+/// Auspex during this action, that vampire cannot use any maneuvers or
+/// strikes. Ossian gains 1 life at the end of each round for each blood
+/// the opposing vampire used to heal damage or prevent destruction that
+/// round." (3 pool.) The Auspex clause in any action (LSJ 20050201); range
+/// set by an effect still (LSJ 20100827); an Auspex strike before any
+/// Auspex card is legal (ANK 20210614); the life after the presses, a
+/// round ended early too (RTR 20030519), over his starting life (ANK
+/// 20171109). "Red List" is a bare trait: no pool card reads it.
+pub static OSSIAN: CardDef = CardDef {
+    name: "Ossian",
+    modes: &[recruit(&[
+        Effect::DeclareAction(ActionKind::Recruit),
+        Effect::Layer(Modifier::FreezesAuspexFoeFirstRound),
+        Effect::Layer(Modifier::LifePerFoeBloodLost),
+    ])],
+    abilities: &[printed_action(
+        target(
+            TargetKind::Minion,
+            &[Requirement::TargetVampire, Requirement::ActorReady],
+        ),
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::AddStealth(1),
+            Effect::EnterCombatWithTarget,
+        ],
+    )],
+    ..CARD
+};
+
+/// "Unique master. Put this card in play. When a non-Camarilla vampire you
+/// control sends an opposing vampire to torpor in combat, you may lock this
+/// card to put a torture counter on the opposing vampire. During your
+/// unlock phase, each Methuselah who controls any vampires with torture
+/// counters burns 1 pool. Any minion may burn this card as a Ⓓ action.
+/// Burn all torture counters when this card leaves play." The lock offered
+/// as the torpor lands (rules-qa 6.4); the counters gone once no such card
+/// is in play (`GameState::release_torture`).
+pub static PATH_OF_LILITH: CardDef = CardDef {
+    name: "Path of Lilith, The",
+    modes: &[master_in_play(&[], &[Effect::PutInPlay])],
+    abilities: &[burn_this_by(&[])],
+    riders: &[
+        Rider {
+            hook: Hook::UnlockPhase,
+            scope: RiderScope::Controller,
+            requires: &[],
+            effects: &[Effect::TortureBurnPool(1)],
+        },
+        Rider {
+            hook: Hook::OwnNonCamarillaSendsToTorpor,
+            scope: RiderScope::Controller,
+            requires: &[],
+            effects: &[],
+        },
+    ],
+    ..CARD
+};
+
+/// "[abo] [REFLEX] Cancel a frenzy card played on this vampire as it is
+/// played. [abo] [ACTION MODIFIER] Only usable as the action is announced.
+/// +1 stealth, even if stealth is not yet needed. [ABO] [ACTION
+/// MODIFIER][COMBAT] Only usable when this vampire burns a minion
+/// controlled by your prey, either in combat or as a Ⓓ action. Your prey
+/// burns two pool. A vampire may play only one Predator's Transformation at
+/// superior each action." The reflex by any ready vampire it is played on,
+/// locked too, its cost paid (ANK 20260216); [ABO] at the end of the
+/// round of the burn, or after the directed action's resolution (ANK
+/// 20220507: an action that ends up burning an ally counts). Modes: the
+/// reflex, the stealth, [ABO] in combat, [ABO] after an action.
+pub static PREDATORS_TRANSFORMATION: CardDef = CardDef {
+    name: "Predator's Transformation",
+    modes: &[
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::AnyReadyVampire,
+            &[Requirement::PlayedFrenzyOnActor],
+            &[Effect::CancelPlayed { refund: false }],
+        ),
+        ModeDef {
+            waives_needed: true,
+            ..mode_of(
+                &[Window::ActionAsAnnounced],
+                Actor::ActingMinion,
+                &[],
+                &[Effect::AddStealth(1)],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::PerAction),
+            ..combat(
+                &[Window::CombatEndOfRound],
+                &[Requirement::ActorBurnedPreyMinion],
+                &[Effect::PreyBurnsPool(2)],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::PerAction),
+            ..mode_of(
+                &[Window::ActionAfterResolution],
+                Actor::ActingMinion,
+                &[Requirement::ActorBurnedPreyMinion],
+                &[Effect::PreyBurnsPool(2)],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "Do not replace until after this action. [ani][aus] +1 intercept. This
+/// vampire does not lock for the block. [ANI][AUS] Only usable by a locked
+/// vampire. This vampire unlocks and attempts to block with +1 intercept,
+/// even if intercept is not yet needed." (1 blood.) [ANI][AUS] locks as
+/// usual (no "as above"); already attempting, it keeps its attempt (ANK
+/// 20181122-2); only where it could attempt (LSJ 20010714-2, ANK
+/// 20180623); the attempt stands without a target left (LSJ 20090514).
+pub static READ_THE_WINDS: CardDef = CardDef {
+    name: "Read the Winds",
+    delayed_replacement: Some(Until::EndOfAction),
+    modes: &[
+        intercept(
+            &[Requirement::InterceptNeeded],
+            &[Effect::AddIntercept(1), Effect::NoLockForBlock],
+        ),
+        unlock_attempt!(
+            &[
+                Requirement::ActorVampire,
+                Requirement::LockedActor,
+                Requirement::CanAttemptBlock,
+            ],
+            &[
+                Effect::UnlockActor,
+                Effect::AttemptBlock,
+                Effect::AddIntercept(1)
+            ]
+        ),
+    ],
+    ..CARD
+};
+
+/// "Before range is determined, put this card on this minion. This card
+/// represents an equipment card and doesn't count as a combat card while
+/// in play. This equipment is a weapon, gun. Ammo cards cannot be used with
+/// this gun. It does 1R damage each strike, with an optional maneuver each
+/// combat. Bearer takes 1 damage during strike resolution when striking
+/// with this gun, but only once each combat. This card is kept as normal
+/// equipment and is not discarded after combat." The bearer's damage
+/// environmental (LSJ 19970801), none if the strike never resolves (LSJ
+/// 20100310); its maneuver commits the strike (LSJ 20021028). No ammo card
+/// is in the pool.
+pub static ZIP_GUN: CardDef = CardDef {
+    name: "Zip Gun",
+    modes: &[combat(
+        &[Window::CombatBeforeRange],
+        &[],
+        &[
+            Effect::PutOnActor,
+            Effect::BecomesWeapon,
+            Effect::BecomesGun,
+        ],
+    )],
+    abilities: &[
+        weapon_strike(
+            &[],
+            &[
+                Effect::Strike(StrikeKind::Damage {
+                    n: 1,
+                    ranged: true,
+                    aggravated: false,
+                }),
+                Effect::BearerDamageOncePerCombat,
+            ],
+        ),
+        GUN_MANEUVER,
     ],
     ..CARD
 };

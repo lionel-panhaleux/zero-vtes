@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use zvtes::cards::Target;
 use zvtes::crypt::CRYPT;
 use zvtes::decision::{Choice, DecisionRequest};
+use zvtes::draws::Interrupt;
 use zvtes::game::Engine;
 use zvtes::library::LIBRARY;
 
@@ -69,8 +70,16 @@ fn key(e: &Engine, req: &DecisionRequest, choice: &Choice) -> Logged {
     let crypt = |c: u16| CRYPT[c as usize].id;
     // A vampire in the uncontrolled region: its card, and which of that
     // card's copies there (counters on one, not the other).
+    // The region a slot is in: the interrupt's seat's (Malgorzata names a
+    // vampire of another Methuselah's), else the deciding seat's.
+    let region_seat = match e.interrupt() {
+        Some(
+            Interrupt::NameUncontrolled { seat, .. } | Interrupt::UncontrolledBlood { seat, .. },
+        ) => seat,
+        _ => seat,
+    };
     let uncontrolled = |i: &mut u8, cards: &mut Vec<u32>| {
-        let region = &e.state.seats[seat.index()].uncontrolled;
+        let region = &e.state.seats[region_seat.index()].uncontrolled;
         let card = region[*i as usize].card;
         cards.push(crypt(card));
         *i = region[..*i as usize]
@@ -99,6 +108,9 @@ fn key(e: &Engine, req: &DecisionRequest, choice: &Choice) -> Logged {
             cards.push(lib(hand(*i)));
             *i = 0;
         }
+        // The Great Beast's Disciplines: a slot of the Discipline list, no
+        // card.
+        Choice::Slot(_) if matches!(e.interrupt(), Some(Interrupt::BeastDisciplines { .. })) => {}
         Choice::Slot(i)
         | Choice::Transfer { slot: i }
         | Choice::Withdraw { slot: i }

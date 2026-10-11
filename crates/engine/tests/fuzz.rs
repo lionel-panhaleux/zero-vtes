@@ -2759,10 +2759,62 @@ fuzz_tests! {
                     "Doc Martina",
                     "Kalinda",
                     "Crow",
+                    "Ariadne",
+                    "Gunnar",
+                    "Jacob Fermor",
                 ],
             );
         },
         seeds: 240,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, rounds 4–5 (slices 16p–16q): the Gangrel
+    /// decks' missing cards and vampires.
+    random_games_with_twda_round_5_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Anachronism",
+            "Bone Spur",
+            "Kiss of Ra, The",
+            "Mind of the Wilds",
+            "Ossian",
+            "Path of Lilith, The",
+            "Predator's Transformation",
+            "Read the Winds",
+            "Zip Gun",
+            // Ranged weapons for Anachronism, a frenzy for the reflex.
+            ".44 Magnum",
+            "Terror Frenzy",
+        ],
+        covers: &[
+            "play:Anachronism",
+            "play:Bone Spur",
+            "play:Kiss of Ra, The",
+            "play:Mind of the Wilds",
+            "play:Ossian",
+            "play:Path of Lilith, The",
+            "play:Predator's Transformation",
+            "play:Read the Winds",
+            "play:Zip Gun",
+            "ability:Ossian",
+            "ability:Zip Gun",
+            "rider:Path of Lilith, The",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Ariadne",
+                    "Gunnar",
+                    "Jacob Fermor",
+                    "Lillian",
+                    "Robert Price",
+                    "Xaviar",
+                    "Fakir al Sidi",
+                    "Vivian VI",
+                ],
+            );
+        },
+        seeds: 50,
         ..BASE
     };
 }
