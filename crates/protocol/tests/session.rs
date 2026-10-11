@@ -923,3 +923,83 @@ fn prevention_shows_the_strikes_that_resolved() {
     }
     assert!(resolved > 0);
 }
+
+/// A library search: each card found names the searcher's library, the
+/// searcher sees the cards it may take while it searches (owner: "let the user
+/// click on the stack and search in it manually"), and no undo then.
+#[test]
+fn a_library_search_shows_the_library_and_names_it() {
+    use zvtes::cards::Effect;
+    let all: Vec<Deck> = Deck::all().collect();
+    // The human's deck searches its library.
+    let searches = |d: &&Deck| {
+        d.library.iter().any(|&(c, _)| {
+            zvtes::cards::lookup(c).is_some_and(|def| {
+                def.modes.iter().chain(def.abilities).any(|m| {
+                    m.effects.iter().any(|e| {
+                        matches!(
+                            e,
+                            Effect::SearchEquip | Effect::SearchToHand(_) | Effect::SearchStore(_)
+                        )
+                    })
+                })
+            })
+        })
+    };
+    let pool: Vec<Deck> = all.iter().filter(searches).copied().collect();
+    assert!(!pool.is_empty());
+    let search = zvtes_protocol::describe::window_text(WindowLabel::LibrarySearch);
+    let (mut searched, mut after) = (0, 0);
+    for seed in 0..60u64 {
+        let mut rng = Rng::new(seed);
+        let mut decks: Vec<Deck> = (0..4).map(|_| all[rng.below(all.len())]).collect();
+        decks[0] = pool[rng.below(pool.len())];
+        let mut s = Session::new(spec(seed, &decks)).expect("spec");
+        let mut just_searched = false;
+        for _ in 0..20_000 {
+            match s.advance() {
+                Out::Over { .. } => break,
+                Out::Decided { .. } => just_searched = false,
+                Out::Decision {
+                    decision,
+                    options,
+                    window,
+                    view,
+                    undo,
+                    ..
+                } => {
+                    if just_searched {
+                        assert!(!undo, "seed {seed}: a search taken back");
+                        after += 1;
+                    }
+                    just_searched = window == search;
+                    if window == search {
+                        searched += 1;
+                        // Only the cards it may take are shown, each of them.
+                        let own = &view.seats[0].library;
+                        let found: Vec<u32> = options
+                            .iter()
+                            .filter(|o| o.kind == "find_card")
+                            .filter_map(|o| o.card.as_ref().and_then(|c| c.id))
+                            .collect();
+                        assert!(
+                            own.iter()
+                                .all(|c| c.id.is_none_or(|id| found.contains(&id))),
+                            "seed {seed}: a card shown it may not take"
+                        );
+                        for id in &found {
+                            assert!(own.iter().any(|c| c.id == Some(*id)), "seed {seed}: hidden");
+                        }
+                        for o in options.iter().filter(|o| o.kind == "find_card") {
+                            let z = o.zone.as_ref().expect("a zone");
+                            assert_eq!((z.seat, z.zone.as_str()), (0, "library"));
+                        }
+                    }
+                    let i = options[rng.below(options.len())].index;
+                    s.answer(decision, i).expect("answer");
+                }
+            }
+        }
+    }
+    assert!(searched > 0 && after > 0, "{searched} {after}");
+}

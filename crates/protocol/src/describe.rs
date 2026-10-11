@@ -60,6 +60,17 @@ pub struct OptionView {
     /// on (`minion`): Blood Doll's two abilities.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub blood: Option<i8>,
+    /// Where a card chosen by name is taken from, and whose (a search: a
+    /// library, an ash heap, a hand): the table shows it there.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub zone: Option<ZoneRef>,
+}
+
+/// A seat's zone: "library", "ash_heap", "hand".
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ZoneRef {
+    pub seat: u8,
+    pub zone: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -294,6 +305,28 @@ impl Describer<'_> {
         }
     }
 
+    /// Where a card named by `Choice::FindCard` is: a library search, the
+    /// ash heap of an exchange (Lenelle) or of the prey (The Erciyes
+    /// Fragments), the hand looked at.
+    fn found_in(&self) -> Option<ZoneRef> {
+        use zvtes::draws::Interrupt;
+        let at = |seat: SeatId, zone: &str| {
+            Some(ZoneRef {
+                seat: seat.0,
+                zone: zone.into(),
+            })
+        };
+        match (self.window, self.e.interrupt()) {
+            (WindowLabel::LibrarySearch, _) => at(self.seat, "library"),
+            (WindowLabel::ActionExchange, _) => at(self.seat, "ash_heap"),
+            (_, Some(Interrupt::DiscardFromHandOf { of, .. })) => at(of, "hand"),
+            (_, Some(Interrupt::StorePreyAsh { seat, .. })) => {
+                at(self.e.state.prey(seat), "ash_heap")
+            }
+            _ => None,
+        }
+    }
+
     fn contest(&self, c: Contest) -> String {
         match c {
             Contest::Card(m) => self.minion_name(m),
@@ -474,6 +507,7 @@ impl Describer<'_> {
             favor: None,
             mode: None,
             blood: None,
+            zone: None,
         };
         let card_named = |name: Option<&str>| name.unwrap_or("a card").to_string();
         o.text = match *c {
@@ -512,8 +546,17 @@ impl Describer<'_> {
             }
             Choice::Pass => pass_text(self.window).into(),
             Choice::BurnEdge => "Gain 1 pool (the Edge)".into(),
-            Choice::PayContest(x) => format!("Pay to keep contesting {}", self.contest(x)),
-            Choice::YieldContest(x) => format!("Yield {}", self.contest(x)),
+            // The card or minion contested: its buttons go under it.
+            Choice::PayContest(x) | Choice::YieldContest(x) => {
+                match x {
+                    Contest::Card(m) | Contest::Title(m) => o.minion = Some(m.0),
+                    Contest::Library(id) => o.card = Some(self.in_play(id.0)),
+                }
+                match c {
+                    Choice::PayContest(_) => format!("Pay to keep contesting {}", self.contest(x)),
+                    _ => format!("Yield {}", self.contest(x)),
+                }
+            }
             Choice::Play {
                 card,
                 mode,
@@ -674,6 +717,7 @@ impl Describer<'_> {
                 format!("Discard {}", card_named(name))
             }
             Choice::FindCard(card) => {
+                o.zone = self.found_in();
                 let public = !self.narrate;
                 o.card = Some(CardRef {
                     id: public.then_some(LIBRARY[card as usize].id),
@@ -687,6 +731,15 @@ impl Describer<'_> {
                 }
             }
             Choice::TakeFrom { zone, card } => {
+                o.zone = Some(ZoneRef {
+                    seat: self.seat.0,
+                    zone: match zone {
+                        Zone::Library => "library",
+                        Zone::Hand => "hand",
+                        Zone::AshHeap => "ash_heap",
+                    }
+                    .into(),
+                });
                 let public = !self.narrate || zone == Zone::AshHeap;
                 o.card = Some(CardRef {
                     id: public.then_some(LIBRARY[card as usize].id),
@@ -711,6 +764,10 @@ impl Describer<'_> {
                 format!("Choose {name}")
             }
             Choice::AshVampire(card) => {
+                o.zone = Some(ZoneRef {
+                    seat: self.seat.0,
+                    zone: "ash_heap".into(),
+                });
                 o.card = Some(CardRef {
                     id: Some(CRYPT[card as usize].id),
                     copy: None,
@@ -917,6 +974,10 @@ impl Describer<'_> {
                 format!("Strike: burn {}", self.in_play_name(weapon))
             }
             Choice::EmployFromHand { card, mode } => {
+                o.zone = Some(ZoneRef {
+                    seat: self.seat.0,
+                    zone: "hand".into(),
+                });
                 o.card = Some(CardRef {
                     id: Some(LIBRARY[card as usize].id),
                     copy: None,

@@ -10,7 +10,7 @@ use zvtes::agent::{Agent, RandomLegal};
 use zvtes::bots::{Scripted, Style};
 use zvtes::cards::{AbilitySource, Effect, Window};
 use zvtes::combat::CombatNote;
-use zvtes::decision::{Choice, DecisionRequest, WindowLabel};
+use zvtes::decision::{Choice, DecisionRequest, WindowLabel, Zone};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::SeatId;
 use zvtes::library::LIBRARY;
@@ -319,6 +319,8 @@ enum Taken {
     Bot,
     Human(Knowledge),
     Passed,
+    /// A human decision that showed it library cards (a search).
+    Revealed,
 }
 
 /// An opportunity offered to a seat passing on them (`Session::shown`).
@@ -438,6 +440,8 @@ impl Session {
             }
             match taken {
                 Taken::Passed => continue,
+                // A search showed library cards: no taking it back.
+                Taken::Revealed => return None,
                 Taken::Human(before) => {
                     return learned_nothing(before, &knowledge(&self.engine, *seat))
                         .then_some(k + 1)
@@ -615,7 +619,46 @@ impl Session {
         let tracker = self.trackers.entry(seat.map(|s| s.0)).or_default();
         let mut view = table_view(&self.engine, seat, tracker);
         self.struck_view(&mut view);
+        self.searched_view(seat, &mut view);
         view
+    }
+
+    /// The library cards a decision lets its seat take by name: a library
+    /// search, Childe of the Revolution's library (LIBRARY indices).
+    fn searched(req: &DecisionRequest) -> Vec<u16> {
+        req.options
+            .iter()
+            .filter_map(|c| match *c {
+                Choice::FindCard(card) if req.window == WindowLabel::LibrarySearch => Some(card),
+                Choice::TakeFrom {
+                    zone: Zone::Library,
+                    card,
+                } => Some(card),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The seat's library cards it may take, shown to it while it searches
+    /// (owner: "let the player search in the library by clicking it …
+    /// reveal only the matching cards"); no undo of that decision then
+    /// (`Taken::Revealed`).
+    fn searched_view(&self, seat: Option<SeatId>, view: &mut TableView) {
+        let (Some(seat), Some(req)) = (seat, self.pending.as_ref()) else {
+            return;
+        };
+        let found = Self::searched(req);
+        if req.seat != seat || found.is_empty() {
+            return;
+        }
+        let library = &self.engine.state.seats[seat.index()].library;
+        if let Some(s) = view.seats.iter_mut().find(|s| s.seat == seat.0) {
+            for (c, &card) in s.library.iter_mut().zip(library) {
+                if found.contains(&card) {
+                    c.id = Some(LIBRARY[card as usize].id);
+                }
+            }
+        }
     }
 
     /// A strike spent as it resolved, in the combat's view until the next
@@ -957,8 +1000,12 @@ impl Session {
         self.choices.push(logged(&self.engine, &req, index));
         let effects = untold_effects(&req.options[index]);
         self.engine.choose(index);
-        self.history
-            .push((req.seat, req.window, Taken::Human(known)));
+        let taken = if Self::searched(&req).is_empty() {
+            Taken::Human(known)
+        } else {
+            Taken::Revealed
+        };
+        self.history.push((req.seat, req.window, taken));
         self.aim(had_action, &mut choice);
         self.observe(effects);
         self.pending = None;
