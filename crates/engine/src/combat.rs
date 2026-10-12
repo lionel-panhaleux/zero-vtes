@@ -259,6 +259,15 @@ pub struct Side {
     pub additional_with: Option<CardId>,
     /// Optional presses only usable to continue combat (Righteous Blade).
     pub continue_presses: u8,
+    /// Additional strikes (limited) it gets each round of the combat
+    /// (Octopod).
+    pub strikes_each_round: u8,
+    /// The round it cannot play strike cards (Coordinate Attacks).
+    pub no_strike_cards_round: Option<u8>,
+    /// "If this strike is used at close range, this striking vampire also
+    /// takes n environmental aggravated damage" (Breath of the Dragon): this
+    /// round's strike.
+    pub close_self_damage: u8,
     /// One optional maneuver or press for the combat, either (Mind Tricks
     /// [DEM]).
     pub maneuver_or_press: u8,
@@ -459,6 +468,8 @@ impl Side {
             aggravated_hands: self.aggravated_hands_combat,
             aggravated_hands_combat: self.aggravated_hands_combat,
             prevent_each_round: self.prevent_each_round,
+            strikes_each_round: self.strikes_each_round,
+            no_strike_cards_round: self.no_strike_cards_round,
             combat_prevents: self.combat_prevents,
             round_prevents: self.prevent_each_round,
             continue_rider: None,
@@ -577,6 +588,10 @@ pub struct CombatCtx {
     /// Psyche! [CEL]: a combat with the same minions queued as this one
     /// ends.
     pub psyche: bool,
+    /// Coordinate Attacks: the Blood Brother who locks and enters combat
+    /// with the opposing minion as this one ends, in place of side `.1`'s
+    /// minion, with an optional maneuver the first round if `.2`.
+    pub coordinate: Option<(MinionId, usize, bool)>,
     /// Abuse of Power: at the end of the combat, if only one combatant is
     /// ready, the controller of the other burns n pool.
     pub one_ready_burn: Option<u8>,
@@ -597,6 +612,9 @@ pub struct CombatCtx {
     /// Trap and Conquer the Beast in play: the card, and for Conquer its
     /// vampire's side and whether its press is optional.
     pub traps: Vec<(CardId, Option<(usize, bool)>)>,
+    /// Cards put on a combatant for this combat, burned as it ends (Inner
+    /// Essence: "once this combat").
+    pub burn_at_end: Vec<CardId>,
 }
 
 impl CombatCtx {
@@ -770,6 +788,17 @@ impl CombatCtx {
                 false
             }
             Effect::Strike(StrikeKind::CombatEnds { .. }) if no_ends => false,
+            // Gabi: no dodge against her the first round.
+            Effect::Strike(StrikeKind::Dodge)
+                if self.round == 1
+                    && st.printed_mod(
+                        self.sides[1 - side].minion,
+                        cards::Stat::OpposingNoDodgeFirstRound,
+                        crate::state::PrintedCtx::default(),
+                    ) > 0 =>
+            {
+                false
+            }
             // "Cannot maneuver to close range" (Terror Frenzy [ani]).
             Effect::Maneuver if self.step == Step::DetermineRange => {
                 self.last_maneuver != Some(side) && self.may_maneuver(side)
@@ -1731,16 +1760,17 @@ impl Engine {
                     c.pair == 0
                         && !c.round_over
                         && !c.sides[i].limited_used
-                        && self
-                            .state
-                            .borne(c.sides[i].minion)
-                            .any(|l| l.modifier == cards::Modifier::AdditionalStrikeEachRound)
+                        && (c.sides[i].strikes_each_round > 0
+                            || self
+                                .state
+                                .borne(c.sides[i].minion)
+                                .any(|l| l.modifier == cards::Modifier::AdditionalStrikeEachRound))
                 })
                 .collect()
         };
         let c = self.combat.as_mut().expect("combat context");
         for i in each_round {
-            c.sides[i].additional += 1;
+            c.sides[i].additional += c.sides[i].strikes_each_round.max(1);
             c.sides[i].limited_used = true;
         }
         // After every pair, the normal one and each additional one, a new
@@ -2075,6 +2105,14 @@ impl Engine {
                 // Environmental damage (Carrion Crows): dodge or not.
                 let n = c.sides[i].environmental;
                 c.sides[1 - i].pending.add(n, false);
+            }
+        }
+        // Breath of the Dragon: at close range, the striker takes its
+        // environmental aggravated damage (LSJ 19970801).
+        for (i, strike) in strikes.iter().enumerate() {
+            let n = std::mem::take(&mut c.sides[i].close_self_damage);
+            if strike.is_some() && n > 0 && c.range == Range::Close {
+                c.sides[i].pending.add(n, true);
             }
         }
         // Zip Gun: its bearer takes 1 environmental damage as it strikes
@@ -2802,6 +2840,29 @@ impl Engine {
                 return;
             }
         }
+        // Coordinate Attacks: the Blood Brother locks and enters combat with
+        // the opposing minion, still ready; the opposing minion plays no
+        // strike card the first round.
+        if let Some((c, (m, i, maneuver))) =
+            ended.as_ref().and_then(|c| c.coordinate.map(|k| (c, k)))
+        {
+            let opposing = c.sides[1 - i].minion;
+            let ready = |m: MinionId| self.state.minions[m.index()].ready();
+            if ready(m) && ready(opposing) && !self.state.minions[m.index()].locked {
+                let at_resolution = c.at_resolution;
+                self.state.combatants = None;
+                self.state.minions[m.index()].locked = true;
+                let (x, y) = if i == 0 { (m, opposing) } else { (opposing, m) };
+                self.begin_combat(x, y, at_resolution);
+                let n = self.combat.as_mut().expect("the new combat");
+                n.held_at_block.clear();
+                n.sides[1 - i].no_strike_cards_round = Some(1);
+                if maneuver {
+                    n.sides[i].maneuvers += 1;
+                }
+                return;
+            }
+        }
         // FBI Special Affairs Division: its unpreventable environmental
         // damage to the acting vampire after the combat; enough counters,
         // burned.
@@ -2861,6 +2922,12 @@ impl Engine {
             if self.state.minions[from.index()].present() {
                 self.state.gain_blood(from, n);
             }
+            if self.state.cards[id.index()].present() {
+                self.burn_card_in_play(id);
+            }
+        }
+        // Inner Essence: its discount for this combat only.
+        for id in ended.iter().flat_map(|c| c.burn_at_end.clone()) {
             if self.state.cards[id.index()].present() {
                 self.burn_card_in_play(id);
             }
@@ -3361,6 +3428,9 @@ impl Engine {
                 let seat = c.sides[i].seat;
                 self.state.seats[seat.index()].combat_extra_draws += 1;
             }
+            Effect::AdditionalStrikesEachRound(n) => c.sides[i].strikes_each_round += n,
+            Effect::CloseSelfDamage(n) => c.sides[i].close_self_damage = n,
+            Effect::ContinuePressThisRound => c.sides[i].continue_presses += 1,
             Effect::HandSizeThisCombat(n) => {
                 let seat = c.sides[i].seat;
                 self.state.seats[seat.index()].combat_hand_bonus += n;
@@ -3418,6 +3488,12 @@ impl Engine {
             Effect::NewRound => c.continued = true,
             Effect::QueueCombatWithOpponent => {
                 c.psyche = true;
+                c.end_fixed = true;
+            }
+            // Coordinate Attacks: the actor out of the combat takes its
+            // Methuselah's combatant's place as the combat ends.
+            Effect::CoordinateAttack { maneuver } => {
+                c.coordinate = Some((actor, i, maneuver));
                 c.end_fixed = true;
             }
             Effect::GainBloodLostByOpponent => {
@@ -3567,6 +3643,10 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::Maneuver
             | Effect::Press
             | Effect::OptionalPress
+            | Effect::AdditionalStrikesEachRound(_)
+            | Effect::CloseSelfDamage(_)
+            | Effect::ContinuePressThisRound
+            | Effect::CoordinateAttack { .. }
             | Effect::OptionalManeuver
             | Effect::NextRoundManeuver
             | Effect::AdditionalStrikes { .. }

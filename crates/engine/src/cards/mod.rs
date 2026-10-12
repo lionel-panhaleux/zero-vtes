@@ -41,6 +41,9 @@ pub enum Window {
     ActionWouldBeSuccessful,
     ActionAfterResolution,
     ActionAfterCombat,
+    /// A diablerie made, before its blood hunt (Slake the Thirst: "can be
+    /// played after a diablerie, before the blood hunt", ANK 20201228).
+    ActionAfterDiablerie,
     ReactionDuringAction,
     ReactionUnlock,
     ReactionUnlockAttempt,
@@ -150,6 +153,7 @@ impl Window {
             "ACTION_WOULD_BE_SUCCESSFUL" => ActionWouldBeSuccessful,
             "ACTION_AFTER_RESOLUTION" => ActionAfterResolution,
             "ACTION_AFTER_COMBAT" => ActionAfterCombat,
+            "ACTION_AFTER_DIABLERIE" => ActionAfterDiablerie,
             "REACTION_DURING_ACTION" => ReactionDuringAction,
             "REACTION_UNLOCK" => ReactionUnlock,
             "REACTION_UNLOCK_ATTEMPT" => ReactionUnlockAttempt,
@@ -342,6 +346,9 @@ pub enum CardFilter {
     Location,
     /// A melee weapon: a weapon whose strike is a melee one ("strength+n
     /// damage"), Weighted Walking Stick included.
+    /// A master location — not an equipment that is a location in play
+    /// (Danylo: "cannot fetch locquipments", LSJ 20080114).
+    MasterLocation,
     MeleeWeapon,
     /// A non-unique equipment card.
     NonUniqueEquipment,
@@ -379,6 +386,10 @@ impl CardFilter {
                 c.types.contains(&CardType::Ally) || c.types.contains(&CardType::Retainer)
             }
             CardFilter::Location => c.labels.contains(&crate::library::Label::Location),
+            CardFilter::MasterLocation => {
+                c.types.contains(&CardType::Master)
+                    && c.labels.contains(&crate::library::Label::Location)
+            }
             CardFilter::MeleeWeapon => melee_strike(card).is_some(),
             CardFilter::HasLabel(l) => c.labels.contains(&l),
             CardFilter::Clan(k) => c.clans.contains(&k),
@@ -571,6 +582,16 @@ pub enum Stat {
     /// blood" (Nergal): chosen for a blood-costing card he plays
     /// (`PlayCtx::once_off`), once each turn.
     BloodCostOffOncePerTurn,
+    /// "You may lock <this vampire> when you play a Master: location
+    /// (unique or not) to reduce the cost of that location by n pool"
+    /// (Jack): announced with the card, in torpor too (LSJ 20011022).
+    LockForLocationDiscount,
+    /// "A minion opposing <this vampire> cannot strike: dodge during the
+    /// first round of combat" (Gabi).
+    OpposingNoDodgeFirstRound,
+    /// "Allies and younger vampires get -1 intercept against <this
+    /// vampire>" (Gavrylo): read on the acting vampire.
+    YoungerInterceptAgainst,
     /// "If a card … you play is canceled, you can move that card from your
     /// ash heap to your library (shuffle afterward)" (Victor Donaldson):
     /// the card read as `PrintedCtx::card`.
@@ -1271,6 +1292,51 @@ pub enum Requirement {
     /// The actor (the modified minion, for a printed modifier) is of this
     /// clan ("Brujah get +1 strength", "Hecata you control can …").
     ActorClan(&'static str),
+    /// The actor is a Blood Brother of the same circle as the acting minion
+    /// (Claiming the Body; LSJ 20020609: no circle, a circle of one).
+    SameCircleAsActing,
+    /// The actor, out of the combat, is a Blood Brother of the circle of
+    /// its player's minion in it (Octopod, Three's a Crowd).
+    SameCircleAsOwnCombatant,
+    /// The minion opposing its player's combatant is still ready
+    /// (Coordinate Attacks).
+    OwnCombatantsOpponentReady,
+    /// Major Boon: a bleed of another Methuselah than the player, by a minion
+    /// they do not control, for 1 or more, no Methuselah burning pool for it
+    /// in the target's place yet.
+    BoonableBleed,
+    /// Major Boon's burn: a bleed of the card's controller for 1 or more,
+    /// no Methuselah burning pool for it in their place yet.
+    BleedAtYouUnboonedForOne,
+    /// A card ability of the acting minion's own card: the acting minion is
+    /// its host (Loki's Gift: "this vampire can burn this card and 1 blood
+    /// to get +1 stealth").
+    ActingIsHost,
+    /// A granted action's actor is the minion who put the card in play or
+    /// a Blood Brother of its circle (Oppugnant Night: "each Blood Brother
+    /// of this circle (including this one)").
+    ActorOfByCircle,
+    /// Its player controls another ready unlocked Blood Brother of the
+    /// actor's circle (Camaraderie [SAN]).
+    ControlsOtherReadyUnlockedSameCircle,
+    /// Target filter: a Blood Brother of the actor's circle, another than
+    /// the actor (Hive Mind, Slake the Thirst); on an uncontrolled vampire,
+    /// its printed circle (Hive Mind [SAN]).
+    TargetSameCircle,
+    /// The actor is a Blood Brother with no printed circle (New Blood,
+    /// Angelo: Unwholesome Bond, LSJ 20050927).
+    ActorUnprintedCircle,
+    /// Target filter: a vampire lacking at superior a Discipline the actor
+    /// has at superior (Sanguine Instruction: "cannot be placed on a
+    /// vampire with the superior version of the Discipline").
+    TargetLacksActorSuperior,
+    /// Target filter: an uncontrolled Blood Brother with no printed circle,
+    /// in a circle of one (Unwholesome Bond, ANK 20211113).
+    TargetCirclelessBloodBrother,
+    /// The actor gained blood just before (`GameState::blood_gained`:
+    /// Slake the Thirst, "only usable after this Blood Brother gains
+    /// blood").
+    ActorGainedBlood,
     /// The vampire's controller has at most n pool ("while you have 9 or
     /// fewer pool").
     PoolAtMost(u8),
@@ -2147,6 +2213,21 @@ pub enum Limit {
     BetweenUnlockPhases,
 }
 
+/// Which Blood Brothers of the actor's circle a `Terms::CirclePicks`
+/// offers (all ready, controlled by the player).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum CirclePick {
+    /// Others, unlocked: they lock (Shell Game).
+    OthersUnlocked,
+    /// Others (Coagulated Entity).
+    Others,
+    /// The actor included, with 1 blood or more: they burn it (Walk of
+    /// Caine).
+    WithBloodSelfIncluded,
+    /// The actor included (Gestalt).
+    SelfIncluded,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TargetKind {
     Minion,
@@ -2356,6 +2437,19 @@ pub enum Terms {
     /// `other`, another than the play's target (Priority Contract, Toreador
     /// Grand Ball; owner, 2026-09-26: rules-qa 28.5).
     OwnOfClan { clan: &'static str, other: bool },
+    /// "Choose X <kind> Blood Brothers you control … of the same circle as
+    /// this one", one at a time as the card is played, Pass stopping
+    /// (`PlayCtx::picks`; X their count): Shell Game, Walk of Caine,
+    /// Gestalt, Coagulated Entity.
+    CirclePicks(CirclePick),
+    /// "Choose a Discipline this vampire has at superior" (Sanguine
+    /// Instruction): one the target does not have at superior
+    /// (`PlayCtx::discipline`).
+    SuperiorDiscipline,
+    /// Which of the actor's recent blood gains the card answers, by its
+    /// amount (`PlayCtx::x`; Slake the Thirst, LSJ 20100203: "you choose on
+    /// which effect to apply").
+    ActorGain,
     /// The pool Life Boon gives the target Methuselah: at least what keeps
     /// them in the game (their debt, plus 1), at most what leaves its
     /// player 1.
@@ -2446,6 +2540,12 @@ pub enum Modifier {
     /// "+1 level of <Discipline> and +1 capacity" on the host (a Discipline
     /// master card: Oblivion).
     DisciplineLevel(&'static str),
+    /// "Any minion who successfully performs an equip action unlocks at the
+    /// end of the turn" (NRA PAC): read as the action ends.
+    EquipUnlocksEndOfTurn,
+    /// As `DisciplineLevel`, of the Discipline chosen as the card was played
+    /// (`CardInPlay::discipline`: Sanguine Instruction).
+    ChosenDisciplineLevel,
     /// "This vampire gets +1 level of <Discipline>" (Ritual Goblet): an
     /// equipment's, no capacity with it; nothing on an ally.
     BearerDisciplineLevel(&'static str),
@@ -3526,6 +3626,9 @@ pub enum Effect {
     /// Unlock rider: the host burns n blood or is burned, its controller's
     /// choice — burned when it has fewer (Society of Leopold).
     HostBurnsBloodOrIsBurned(u8),
+    /// Unlock rider: the host burns n blood or this card is burned, its
+    /// controller's choice (Robert Carter).
+    HostBurnsBloodOrThisBurns(u8),
     /// "Stun" the target minion: it locks and does not unlock during its
     /// controller's next unlock phase (Mind Numb).
     Stun,
@@ -3799,6 +3902,106 @@ pub enum Effect {
     LockOrBurnPool(u8),
     /// Entry rider: "draw 1 card from your crypt" (New Blood).
     DrawCryptOnEntry,
+    /// "As New Blood enters play … choose any circle": his circle, chosen
+    /// among those of the crypt (`Interrupt::ChooseCircle`).
+    ChooseCircleOnEntry,
+    /// Entry rider ("when moved to the ready region in your influence
+    /// phase, this vampire burns n blood or is burned", Hermana Hambrienta):
+    /// its controller's choice, as Society of Leopold's, after the excess
+    /// drained (LSJ 20051126).
+    BurnsBloodOrIsBurnedOnEntry(u8),
+    /// Lock the minion that blocked (Claiming the Body).
+    LockBlocker,
+    /// The Blood Brothers picked (`Terms::CirclePicks`) lock (Shell Game).
+    LockPicks,
+    /// +1 stealth for each Blood Brother picked (Shell Game).
+    StealthPerPick,
+    /// If the action is successful, its player may unlock up to n of the
+    /// Blood Brothers picked (Shell Game).
+    UnlockPicksIfSuccessful(u8),
+    /// Each Blood Brother picked burns 1 blood (Walk of Caine).
+    PicksBurnBlood,
+    /// +1 bleed (limited) for each Blood Brother picked (Walk of Caine).
+    BleedPerPick,
+    /// "The other Blood Brother gets n additional strikes (limited) each
+    /// round" (Octopod): its player's combatant, every round of the combat,
+    /// after the normal pair (as Renegade Garou's).
+    AdditionalStrikesEachRound(u8),
+    /// "Gets an optional press, only usable to continue combat" this round
+    /// (Three's a Crowd).
+    ContinuePressThisRound,
+    /// The card put on the combatant is burned as the combat ends ("once
+    /// this combat", Inner Essence).
+    BurnAtCombatEnd,
+    /// With the strike: "if this strike is used at close range, this
+    /// striking vampire also takes n environmental aggravated damage"
+    /// (Breath of the Dragon).
+    CloseSelfDamage(u8),
+    /// "Move 1 blood from each ready vampire you control to your pool"
+    /// (Tribute to the Master).
+    OwnReadyVampiresBloodToPool,
+    /// "After this round, this Blood Brother locks and enters combat with
+    /// the opposing minion. The first round of combat, the opposing minion
+    /// cannot play any strike cards" (Coordinate Attacks), with an optional
+    /// maneuver the first round if `maneuver`.
+    CoordinateAttack {
+        maneuver: bool,
+    },
+    /// Coagulated Entity, before its combat begins: each Blood Brother
+    /// picked moves 1 blood to the acting vampire, or the action is
+    /// canceled; then +X strength and +X capacity for the action, and with
+    /// `prevent`, up to X damage it may prevent in that combat (X the
+    /// picks).
+    CoagulateFromPicks {
+        prevent: bool,
+    },
+    /// Gestalt: each Blood Brother picked burns 1 blood, or the card has no
+    /// effect; then +X intercept for the reacting vampire, and with
+    /// `borrow`, it plays cards with the picked ones' Disciplines for the
+    /// rest of the action (X the picks).
+    CircleIntercept {
+        borrow: bool,
+    },
+    /// "Lock to give any minion +n intercept for the current action"
+    /// (London Evening Star): the ability's target.
+    TargetInterceptThisAction(i8),
+    /// "This vampire gains X+1 blood, where X is the number of ready,
+    /// unlocked Blood Brothers of the same circle as the acting vampire"
+    /// (Unwholesome Bond [san]): any Methuselah's, counted at resolution.
+    GainPerUnlockedCircleMember,
+    /// "Add 1 blood … to each Blood Brother in your uncontrolled region of
+    /// the same circle as the acting vampire" (Unwholesome Bond [SAN]).
+    BloodToUncontrolledCircle,
+    /// "Move any amount of blood … among the Blood Brothers in this circle"
+    /// (Jerry, Redistribution): `Interrupt::CircleBlood` for the actor's
+    /// (the host's) circle, its controller's Blood Brothers.
+    CircleBloodMoves,
+    /// "If you control the <target card>, this is a +n stealth action"
+    /// (Rampage): read with the action's stealth.
+    StealthIfOwnTargetCard(u8),
+    /// "This vampire cannot play cards requiring Disciplines until the
+    /// action is complete" (Concoction of Vitality).
+    NoDisciplineCardsThisAction,
+    /// Major Boon played: its player burns pool for this bleed instead of
+    /// the target, the card remembering the target (`CardInPlay::against`).
+    TakeBleedForTarget,
+    /// Major Boon burned: the Methuselah it remembers burns pool for this
+    /// bleed instead of its controller.
+    BleedToRemembered,
+    /// "That card cannot be played again this turn" (Dark Influences): the
+    /// card it cancels.
+    BarCanceledThisTurn,
+    /// "The next card played that would cancel another Methuselah's minion
+    /// card as it is played is canceled, its cost is not paid, and this
+    /// card is burned instead" (Dark Influences): a shield read as a cancel
+    /// is played (`Engine::open_as_played`).
+    CancelShield,
+    /// The host gets +n votes (Loki's Gift [PRO]: burned in a polling step).
+    HostVotes(u8),
+    /// The target gains the blood the actor just gained, the gain chosen as
+    /// the card is played (`Terms::ActorGain` into `PlayCtx::x`; Slake the
+    /// Thirst).
+    TargetGainsActorGain,
     /// "Be able to attempt to block and/or play reaction cards that require
     /// Auspex [aus] as if unlocked for the remainder of the action"
     /// (Helena): the host's, this action.
@@ -4768,6 +4971,10 @@ pub fn library_mode(card: u16, mi: usize) -> usize {
         "Confusion" => [0, 1, 1][mi],
         // [obf][pot]: the maneuver to close, or the press to continue.
         "Shadow Boxing" => [0, 0, 1][mi],
+        // [SAN]: as the combat card, or as an action modifier.
+        "Slake the Thirst" => [0, 1, 1][mi],
+        // [SAN]: the circle's, or New Blood's circle of one (LSJ 20050927).
+        "Unwholesome Bond" => [0, 1, 1][mi],
         _ => mi,
     }
 }
@@ -5015,6 +5222,13 @@ pub struct PlayCtx {
     /// The library cards of the ash heap named as the card is played
     /// (Sudario Refraction's three; LSJ 20050422).
     pub ash_names: [Option<u16>; 3],
+    /// The Blood Brothers chosen by `Terms::CirclePicks`, in order.
+    pub picks: [Option<MinionId>; 8],
+    /// The Discipline chosen as the card is played (`Terms::SuperiorDiscipline`).
+    pub discipline: Option<&'static str>,
+    /// The vampire locked to take pool off the card (Jack:
+    /// `Stat::LockForLocationDiscount`), announced with it.
+    pub locker: Option<MinionId>,
 }
 
 impl PlayCtx {
@@ -5043,6 +5257,9 @@ impl PlayCtx {
             from: None,
             once_off: false,
             ash_names: [None; 3],
+            picks: [None; 8],
+            locker: None,
+            discipline: None,
         }
     }
 }
@@ -5111,7 +5328,10 @@ pub fn holds(
     });
     let political = referendum.filter(|r| r.kind == RefKind::Political);
     match req {
-        Requirement::Controlled
+        Requirement::TargetSameCircle
+        | Requirement::TargetLacksActorSuperior
+        | Requirement::TargetCirclelessBloodBrother
+        | Requirement::Controlled
         | Requirement::BloodAtLeast(_)
         | Requirement::NotActingController
         | Requirement::NotSelf
@@ -5411,7 +5631,8 @@ pub fn holds(
         }),
         Requirement::NoWatchDamageThisAction => action.is_some_and(|a| !a.watch_damaged),
         Requirement::NoCombatQueued => {
-            combat.is_none_or(|c| !c.psyche) && action.is_none_or(|a| a.queued_combat.is_none())
+            combat.is_none_or(|c| !c.psyche && c.coordinate.is_none())
+                && action.is_none_or(|a| a.queued_combat.is_none())
         }
         Requirement::NoSuperiorVeilThisTurn => !st.veil_superior,
         Requirement::OpposingWeapon => combat.zip(actor).is_some_and(|(c, m)| {
@@ -5847,6 +6068,47 @@ pub fn holds(
             .is_some_and(|b| !st.minions[b.index()].ready()),
         Requirement::OtherNonHuntAction => true, // printed predicate
         Requirement::NoSlaveTookCombat => action.is_some_and(|a| a.slave.is_none()),
+        Requirement::SameCircleAsActing => {
+            matches!((actor, action), (Some(m), Some(a)) if st.same_circle(m, a.acting))
+        }
+        Requirement::ControlsOtherReadyUnlockedSameCircle => actor.is_some_and(|m| {
+            st.minions_of(seat).any(|o| {
+                let v = &st.minions[o.index()];
+                v.ready() && !v.locked && st.same_circle(m, o)
+            })
+        }),
+        Requirement::ActorGainedBlood => actor.is_some_and(|m| st.blood_gained(m) > 0),
+        Requirement::ActorUnprintedCircle => actor.is_some_and(|m| {
+            let v = &st.minions[m.index()];
+            v.clan() == Some("Blood Brother")
+                && v.crypt_card()
+                    .is_some_and(|c| crate::crypt::CRYPT[c as usize].circle.is_none())
+        }),
+        Requirement::SameCircleAsOwnCombatant => match (actor, combat) {
+            (Some(m), Some(c)) => c
+                .side_of(seat)
+                .is_some_and(|i| st.same_circle(m, c.sides[i].minion)),
+            _ => false,
+        },
+        // Read against the card (`Engine::ability_options`).
+        Requirement::ActorOfByCircle | Requirement::ActingIsHost => true,
+        Requirement::BoonableBleed => action.is_some_and(|a| {
+            a.kind == ActionKind::Bleed
+                && a.bleed_target.is_some_and(|t| t != seat)
+                && st.minions[a.acting.index()].owner != seat
+                && a.bleed_payer.is_none()
+                && a.bleed_amount(st) >= 1
+        }),
+        Requirement::BleedAtYouUnboonedForOne => action.is_some_and(|a| {
+            a.kind == ActionKind::Bleed
+                && a.bleed_target == Some(seat)
+                && a.bleed_payer.is_none()
+                && a.bleed_amount(st) >= 1
+        }),
+        Requirement::OwnCombatantsOpponentReady => combat.is_some_and(|c| {
+            c.side_of(seat)
+                .is_some_and(|i| st.minions[c.sides[1 - i].minion.index()].ready())
+        }),
         Requirement::CombatFromBlock => {
             action.is_some_and(|a| !a.blocked_by.is_empty() && !a.resolved)
         }
@@ -5988,6 +6250,12 @@ pub fn holds_for_minion(
             .is_some_and(|t| v.owner == t),
         Requirement::Controlled => v.owner == seat && v.present(),
         Requirement::NotControlled => v.owner != seat,
+        Requirement::TargetSameCircle => acting.is_some_and(|a| st.same_circle(a, m)),
+        Requirement::TargetLacksActorSuperior => acting.is_some_and(|a| {
+            crate::state::disciplines()
+                .into_iter()
+                .any(|d| st.discipline_level(a, d) == 2 && st.discipline_level(m, d) < 2)
+        }),
         Requirement::TargetLocked => v.locked,
         Requirement::TargetVampire => !v.is_ally(),
         Requirement::TargetFollowsPath(path) => st.follows(m, path),
@@ -6103,6 +6371,20 @@ pub fn holds_for_uncontrolled(
             .and_then(|a| st.capacity_of(a))
             .is_some_and(|c| capacity < c),
         Requirement::TargetClan(c) => clan == c,
+        Requirement::TargetCirclelessBloodBrother => {
+            let slot = st.seats[seat.index()].uncontrolled[i].card;
+            slot != crate::state::CREATED
+                && clan == "Blood Brother"
+                && crate::crypt::CRYPT[slot as usize].circle.is_none()
+        }
+        // Its printed circle: an uncontrolled New Blood has chosen none.
+        Requirement::TargetSameCircle => acting.is_some_and(|a| {
+            let slot = st.seats[seat.index()].uncontrolled[i].card;
+            slot != crate::state::CREATED
+                && st.minions[a.index()].clan() == Some("Blood Brother")
+                && st.minions[a.index()].circle().is_some()
+                && crate::crypt::CRYPT[slot as usize].circle == st.minions[a.index()].circle()
+        }),
         Requirement::SameClanAsActor => {
             acting.is_some_and(|a| st.minions[a.index()].clan() == Some(clan))
         }

@@ -181,8 +181,24 @@ impl Engine {
                 if self.state.sect_of(m) == Some(crate::crypt::Sect::Anarch) {
                     self.anarch_arrives(s);
                 }
-                // New Blood: "draw 1 card from your crypt" as he enters.
-                if entry_draws_crypt(out.card) {
+                // New Blood: "choose any circle and draw 1 card from your
+                // crypt" as he enters.
+                if entry_has(out.card, crate::cards::Effect::ChooseCircleOnEntry) {
+                    self.interrupts
+                        .push(crate::draws::Interrupt::ChooseCircle { seat: s, minion: m });
+                }
+                // Hermana Hambrienta: "burns 2 blood or is burned", after
+                // the excess drained (LSJ 20051126).
+                if let Some(n) = entry_burn(out.card) {
+                    self.interrupts
+                        .push(crate::draws::Interrupt::BloodOrBurned {
+                            seat: s,
+                            minion: m,
+                            n,
+                            card: None,
+                        });
+                }
+                if entry_has(out.card, crate::cards::Effect::DrawCryptOnEntry) {
                     let st = &mut self.state.seats[s.index()];
                     if let Some(card) = st.crypt.pop() {
                         st.uncontrolled.push(crate::state::UncontrolledSlot {
@@ -293,14 +309,31 @@ fn entry_distribution(card: u16) -> Option<(u8, &'static str)> {
         })
 }
 
-/// A vampire's "as he enters play during your influence phase … draw 1 card
-/// from your crypt" (New Blood): its entry rider.
-fn entry_draws_crypt(card: u16) -> bool {
+/// A vampire's "when moved to the ready region in your influence phase,
+/// this vampire burns n blood or is burned" (Hermana Hambrienta).
+fn entry_burn(card: u16) -> Option<u8> {
+    if card == crate::state::CREATED {
+        return None;
+    }
+    crate::cards::vampire(card)?
+        .riders
+        .iter()
+        .filter(|r| r.hook == crate::cards::Hook::EntersPlay)
+        .flat_map(|r| r.effects)
+        .find_map(|e| match *e {
+            crate::cards::Effect::BurnsBloodOrIsBurnedOnEntry(n) => Some(n),
+            _ => None,
+        })
+}
+
+/// A vampire's "as he enters play during your influence phase …" (New
+/// Blood: choose a circle, draw 1 card from your crypt): `effect` among its
+/// entry riders.
+fn entry_has(card: u16, effect: crate::cards::Effect) -> bool {
     card != crate::state::CREATED
         && crate::cards::vampire(card).is_some_and(|d| {
-            d.riders.iter().any(|r| {
-                r.hook == crate::cards::Hook::EntersPlay
-                    && r.effects.contains(&crate::cards::Effect::DrawCryptOnEntry)
-            })
+            d.riders
+                .iter()
+                .any(|r| r.hook == crate::cards::Hook::EntersPlay && r.effects.contains(&effect))
         })
 }

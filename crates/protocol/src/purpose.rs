@@ -178,6 +178,16 @@ impl Describer<'_> {
                 "{} is locked unless you discard a card",
                 self.named(minion)
             ),
+            BloodOrBurned {
+                minion,
+                n,
+                card: Some(c),
+                ..
+            } => format!(
+                "{} burns {n} blood or {} is burned",
+                self.named(minion),
+                self.card_name(c)
+            ),
             BloodOrBurned { minion, n, .. } => format!(
                 "{} burns {n} blood or is burned",
                 self.named(minion)
@@ -361,6 +371,25 @@ impl Describer<'_> {
                 "Choose the uncontrolled vampire of {} whose blood goes to their pool",
                 self.seat_name(of)
             ),
+            CircleBlood {
+                circle,
+                from,
+                to,
+                moving,
+                ..
+            } => match (from, moving) {
+                (Some(f), _) if to.is_some() => {
+                    format!("How much blood {} moves", self.named(f))
+                }
+                (Some(f), _) => format!("Choose the Blood Brother {} moves blood to", self.named(f)),
+                (None, Some(c)) => format!("Choose the Blood Brother {} moves to", self.card_name(c)),
+                (None, None) => format!(
+                    "Choose a Blood Brother of the {circle} Circle to move blood or equipment from (or stop)"
+                ),
+            },
+            ChooseCircle { minion, .. } => {
+                format!("Choose the circle {} belongs to", self.named(minion))
+            }
             DistributeFrom { from, clan, left, .. } => format!(
                 "You can move 1 blood from {} to a {clan} in your uncontrolled region ({left} more at most)",
                 self.named(from)
@@ -434,6 +463,9 @@ impl Describer<'_> {
                 }
                 (LockOrDiscard { minion, .. }, Choice::Pass) => {
                     Some(format!("Lock {}", self.named(minion)))
+                }
+                (BloodOrBurned { card: Some(c), .. }, Choice::Pass) => {
+                    Some(format!("Let {} burn", self.card_name(c)))
                 }
                 (BloodOrBurned { minion, .. }, Choice::Pass) => {
                     Some(format!("Let {} burn", self.named(minion)))
@@ -587,6 +619,7 @@ impl Describer<'_> {
                 )),
                 (DistributeFrom { .. }, Choice::Slot(_)) => role("gets 1 blood".into()),
                 (DistributeFrom { .. }, Choice::Pass) => Some("Move no more blood".into()),
+                (ChooseCircle { .. }, Choice::Pass) => Some("Keep his own circle".into()),
                 (MayRecycleCanceled { card, .. }, Choice::ResolvePrinted { .. }) => Some(format!(
                     "Shuffle {} into your library",
                     LIBRARY[card as usize].name

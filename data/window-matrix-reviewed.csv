@@ -628,3 +628,41 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 100524,Deny,Action Modifier/Combat,dem,no,COMBAT_PRESS;ACTION_STEALTH_INTERCEPT,,,ok
 100616,Effective Management,Master,,no,MASTER_PHASE,,,ok
 100163,The Bitter and Sweet Story,Event,,no,DISCARD_PHASE,,,ok
+100196,Blood Buff,Master,,no,MASTER_PHASE,trifle,,ok
+100283,Camaraderie,Reaction,san,no,REACTION_DURING_ACTION,,,ok
+100352,Claiming the Body,Action Modifier,san,no,ACTION_BLOCKED,,,ok
+100931,Hive Mind,Action,san,no,ACTION_DECLARE,,,ok
+101764,Shell Game,Action Modifier,san,no,ACTION_AS_ANNOUNCED,,,ok
+102138,Walk of Caine,Action Modifier,san,no,ACTION_AS_ANNOUNCED;ACTION_DURING,,,ok
+102206,Zillah's Tears,Action,,no,ACTION_DECLARE,,,ok
+101327,Oppugnant Night,Action,,no,ACTION_DECLARE,in_play_action,,ok
+101314,Octopod,Combat,san,no,COMBAT_BEFORE_RANGE,,,ok
+101979,Three's a Crowd,Combat,,no,COMBAT_BEFORE_RANGE,,,ok
+100369,Coagulated Entity,Action,san,no,ACTION_DECLARE,,,ok
+102082,Unwholesome Bond,Action,san,no,ACTION_DECLARE,,,ok
+100423,Coordinate Attacks,Combat,san,no,COMBAT_WOULD_END,,,ok
+100046,Ambush,Action,,no,ACTION_DECLARE,,,ok
+101120,"London Evening Star, Tabloid Newspaper",Master,,no,MASTER_PHASE,,,ok
+101680,Sanguine Instruction,Action,,no,ACTION_DECLARE,,,ok
+100815,Gestalt,Reaction,san,no,ACTION_STEALTH_INTERCEPT,,,ok
+100493,Dark Influences,Master,,no,CARD_AS_PLAYED,out_of_turn;cancel_as_played,,ok
+101119,Loki's Gift,Action,pro,no,ACTION_DECLARE,,,ok
+101491,Procurer,Ally,,no,ACTION_DECLARE_RECRUIT,in_play_action,,ok
+101145,Major Boon,Master,,no,ACTION_BLOCKS_DECLINED,out_of_turn,,ok
+101539,Rampage,Action,pot,no,ACTION_DECLARE,,,ok
+101791,Skin of Rock,Combat,for,no,COMBAT_DAMAGE_PREVENTION,,,ok
+101240,Monocle of Clarity,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+101579,Redistribution,Action,san,no,ACTION_DECLARE,,,ok
+101644,Robert Carter,Retainer,,no,ACTION_DECLARE_EMPLOY,,,ok
+100250,Breath of the Dragon,Combat,vic,no,COMBAT_STRIKE_DECLARATION,,,ok
+100344,Chiropteran Marauder,Combat,vic,no,COMBAT_DETERMINE_RANGE;COMBAT_UNTIMED,,,ok
+102023,Tribute to the Master,Master,,no,MASTER_PHASE,,,ok
+100212,Blood Tears of Kephran,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+100394,Concoction of Vitality,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+101305,NRA PAC,Event,,no,DISCARD_PHASE,,,ok
+100774,Fortitude,Master,,no,MASTER_PHASE,,,ok
+100934,Horrid Form,Combat,vic,no,COMBAT_BEFORE_RANGE,,,ok
+100986,Inner Essence,Combat,vic,no,COMBAT_BEFORE_RANGE,,,ok
+101792,Skin of Steel,Combat,for,no,COMBAT_DAMAGE_PREVENTION,,,ok
+102116,Vicissitude,Master,,no,MASTER_PHASE,,,ok
+101797,Slake the Thirst,Action Modifier/Combat,san,no,COMBAT_UNTIMED;ACTION_DURING;ACTION_AFTER_RESOLUTION;ACTION_AFTER_DIABLERIE,,yes,ok

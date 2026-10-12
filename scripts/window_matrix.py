@@ -536,6 +536,70 @@ ADDED_BATCHES = [
         100163: "The Bitter and Sweet Story",
         201408: "Uncle George (G3)",
     },
+    # Round 8 (slice 16t): Blood Brother circles, the ten Blood Brother TWDA
+    # decks in unlock order (owner, 2026-10-12).
+    {
+        100196: "Blood Buff",
+        100283: "Camaraderie",
+        100352: "Claiming the Body",
+        200592: "Hermana Hambrienta Mayor (G4)",
+        200593: "Hermana Hambrienta Menor (G4)",
+        100931: "Hive Mind",
+        101764: "Shell Game",
+        101797: "Slake the Thirst",
+        102138: "Walk of Caine",
+        102206: "Zillah's Tears",
+        200628: "Ilse (G2)",
+        200652: "Jack (G2)",
+        200755: "Karl (G2)",
+        200936: "Mark (G2)",
+        101314: "Octopod",
+        101327: "Oppugnant Night",
+        101979: "Three's a Crowd",
+        201389: "Truman (G2)",
+        100369: "Coagulated Entity",
+        100423: "Coordinate Attacks",
+        102082: "Unwholesome Bond",
+        100046: "Ambush",
+        100815: "Gestalt",
+        101120: "London Evening Star, Tabloid Newspaper",
+        101680: "Sanguine Instruction",
+        200319: "Danylo (G5)",
+        100493: "Dark Influences",
+        200497: "Gavrylo (G5)",
+        200799: "Kyrylo (G5)",
+        101119: "Loki's Gift",
+        201105: "Pavlo (G5)",
+        101491: "Procurer",
+        201459: "Volo (G5)",
+        200170: "Barry (G2)",
+        200697: "Jerry (G2)",
+        200814: "Larry (G2)",
+        101145: "Major Boon",
+        101539: "Rampage",
+        101791: "Skin of Rock",
+        201359: "Terry (G2)",
+        201378: "Tom (G2)",
+        200370: "Dorka (G6)",
+        200487: "Gabi (G6)",
+        101240: "Monocle of Clarity",
+        101579: "Redistribution",
+        101644: "Robert Carter",
+        201453: "Viri (G6)",
+        201508: "Zizi (G6)",
+        200021: "Ági (G6)",
+        100250: "Breath of the Dragon",
+        100344: "Chiropteran Marauder",
+        102023: "Tribute to the Master",
+        100212: "Blood Tears of Kephran",
+        100394: "Concoction of Vitality",
+        101305: "NRA PAC",
+        100774: "Fortitude",
+        100934: "Horrid Form",
+        100986: "Inner Essence",
+        101792: "Skin of Steel",
+        102116: "Vicissitude",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -711,6 +775,20 @@ COMBAT_DEFAULT = "COMBAT_UNTIMED"   # rules-qa 2.2: no printed step
 
 MODIFIER_TIMING = [
     (r"as (an?|the|this)\b[^.]{0,60}?\bis announced", "ACTION_AS_ANNOUNCED"),
+    # "Only usable when the action is announced" (Shell Game).
+    (r"when the action is announced", "ACTION_AS_ANNOUNCED"),
+    # "… another one who has just been blocked, before block resolution"
+    # (Claiming the Body).
+    (r"has just been blocked", "ACTION_BLOCKED"),
+    # "As above, but usable as an action modifier" (Slake the Thirst
+    # [SAN]); "As above, but usable any time before the action is
+    # resolved" (Walk of Caine [SAN]).
+    (r"usable as an action modifier|any time before the action is resolved", "ACTION_DURING"),
+    # "Only usable after this Blood Brother gains blood" (Slake the Thirst
+    # [SAN]): whenever the gain comes, after resolution too (LSJ 20100325).
+    (r"after this [^.]{0,30}gains blood", "ACTION_AFTER_RESOLUTION"),
+    # … and after a diablerie, before its blood hunt (ANK 20201228).
+    (r"after this [^.]{0,30}gains blood", "ACTION_AFTER_DIABLERIE"),
     (r"if a minion attempts to block", "ACTION_BLOCK_ATTEMPT"),
     # "Only usable if an ally or younger vampire attempts to block"
     # (Crocodile's Tongue).
@@ -762,7 +840,8 @@ REACTION_TIMING = [
     (r"methuselah with no pool to keep them in the game", "OUSTING"),
 ]
 REACTION_GENERIC = [
-    (r"\+\d+ intercept", "ACTION_STEALTH_INTERCEPT"),
+    # "+X intercept" (Gestalt) too.
+    (r"\+(\d+|X) intercept", "ACTION_STEALTH_INTERCEPT"),
 ]
 REACTION_DEFAULT = "REACTION_DURING_ACTION"
 
@@ -788,7 +867,7 @@ FLAGS = [
 # Card in play grants a minion action (Ⓓ actions, referendum-to-burn, granted
 # hunt/equip variants); MPA/DPA-consuming abilities excluded; "as an action …
 # is announced" timing clauses are not grants.
-IN_PLAY_ACTION = r"\bas an? [^.;]{0,40}?\baction\b(?! to )(?![^.]* is announced)"
+IN_PLAY_ACTION = r"\bas an? [^.;]{0,40}?\baction\b(?! to )(?! modifier)(?![^.]* is announced)"
 
 # "[cel] or [for]" (the Sabbat V5 layout): either Discipline, one mode
 # (rules-qa 52.1); side by side, a combo (rules-qa 25.2).
@@ -832,9 +911,24 @@ def strip_riders(text):
     return text
 
 
+# Windows a combat card's effect words suggest, not its own timing when one
+# is printed ("Only usable before range is determined").
+GRANTED_LATER = {"COMBAT_ADDITIONAL_STRIKE", "COMBAT_PRESS", "COMBAT_DETERMINE_RANGE",
+                 "COMBAT_DAMAGE_PREVENTION"}
+
+
 def classify_mode(mtype, text, as_above=False):
     timing, generic, default = MODE_TABLES[mtype]
     hits = [w for pat, w in timing if re.search(pat, text, re.I)]
+    # "Only usable before range is determined/chosen": no window from what
+    # the effect grants for later (Octopod's strikes each round, Three's a
+    # Crowd's press); an explicit timing stays (Disguised Weapon).
+    if mtype == "Combat" and re.search(r"only usable before range is (determined|chosen)", text, re.I):
+        hits = [w for w in hits if w not in GRANTED_LATER]
+    # "Only usable at the end of a round if … combat is about to end"
+    # (Coordinate Attacks): the would-end moment alone.
+    if mtype == "Combat" and re.search(r"combat is about to end", text, re.I):
+        hits = ["COMBAT_WOULD_END"]
     if "ACTION_AFTER_COMBAT" in hits:
         hits = [w for w in hits if w != "REACTION_UNLOCK"]
     if hits:
@@ -926,7 +1020,13 @@ def modes_for(card):
             # effect alone is a play of its own, timed by its text.
             either = as_above and re.search(r"\band/or\b", mtext, re.I)
             for mt in mts:
-                mwins += classify_mode(mt, stripped, as_above and not either)
+                got = classify_mode(mt, stripped, as_above and not either)
+                # "As [san] above, but with two additional strikes" over a
+                # mode only usable before range (Octopod [SAN]).
+                if as_above and mt == "Combat" and \
+                        {"COMBAT_BEFORE_RANGE", "COMBAT_WOULD_END"} & set(prev):
+                    got = [w for w in got if w not in GRANTED_LATER]
+                mwins += got
         if "WAKE" in mwins:
             mwins.append("CARD_AS_PLAYED")          # rules-qa 2.4
         if "COMBAT_STRIKE_DECLARATION" in mwins and \

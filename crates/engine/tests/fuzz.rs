@@ -349,6 +349,8 @@ fn kind_of(c: &Choice) -> &'static str {
         Choice::BurnCorruptionToUnlock { .. } => "burn_corruption_to_unlock",
         Choice::Diablerise => "diablerise_blocked",
         Choice::UnlockInfernal { .. } => "unlock_infernal",
+        Choice::ChooseCircle(_) => "choose_circle",
+        Choice::ChooseDiscipline(_) => "choose_discipline",
     }
 }
 
@@ -3010,6 +3012,152 @@ fuzz_tests! {
             );
         },
         seeds: 90,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, round 8 (slice 16t), steps 1–5: Blood
+    /// Brother circles — the Mexico City, Torrance and Kiev circles' cards,
+    /// New Blood's choice.
+    random_games_with_twda_round_8a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Blood Buff",
+            "Camaraderie",
+            "Claiming the Body",
+            "Hive Mind",
+            "Shell Game",
+            "Slake the Thirst",
+            "Walk of Caine",
+            "Zillah's Tears",
+            "Octopod",
+            "Oppugnant Night",
+            "Three's a Crowd",
+            "Coagulated Entity",
+            "Coordinate Attacks",
+            "Unwholesome Bond",
+            "Ambush",
+            "Gestalt",
+            "London Evening Star, Tabloid Newspaper",
+            "Sanguine Instruction",
+            "Dark Influences",
+            "Loki's Gift",
+            "Procurer",
+        ],
+        covers: &[
+            "play:Blood Buff",
+            "play:Camaraderie",
+            "play:Hive Mind",
+            "play:Shell Game",
+            "play:Walk of Caine",
+            "play:Zillah's Tears",
+            "play:Octopod",
+            "play:Oppugnant Night",
+            "play:Coagulated Entity",
+            "play:Unwholesome Bond",
+            "play:Gestalt",
+            "play:London Evening Star, Tabloid Newspaper",
+            "play:Sanguine Instruction",
+            "play:Loki's Gift",
+            "play:Procurer",
+            "ability:Oppugnant Night",
+            "ability:Danylo",
+            "ability:Pavlo",
+            "choose_circle",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Hermana Hambrienta Mayor",
+                    "Hermana Hambrienta Menor",
+                    "Ilse",
+                    "Jack",
+                    "Karl",
+                    "Mark",
+                    "Truman",
+                    "Danylo",
+                    "Gavrylo",
+                    "Kyrylo",
+                    "Pavlo",
+                    "Volo",
+                ],
+            );
+            // New Blood uncontrolled, to be influenced out.
+            let nb = find_card("New Blood");
+            for s in &mut e.state.seats {
+                s.uncontrolled.push(zvtes::state::UncontrolledSlot {
+                    card: nb,
+                    counters: 0,
+                    banished: None,
+                });
+            }
+        },
+        seeds: 8,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, round 8 (slice 16t), steps 6–10: the
+    /// Chicago and Budapest circles' cards, Major Boon, the Tzimisce
+    /// toolbox.
+    random_games_with_twda_round_8b_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Major Boon",
+            "Rampage",
+            "Skin of Rock",
+            "Monocle of Clarity",
+            "Redistribution",
+            "Robert Carter",
+            "Breath of the Dragon",
+            "Chiropteran Marauder",
+            "Tribute to the Master",
+            "Blood Tears of Kephran",
+            "Concoction of Vitality",
+            "NRA PAC",
+            "Fortitude",
+            "Horrid Form",
+            "Inner Essence",
+            "Skin of Steel",
+            "Vicissitude",
+            // A location for Rampage.
+            "Channel 10",
+        ],
+        covers: &[
+            "play:Major Boon",
+            "play:Rampage",
+            "play:Skin of Rock",
+            "play:Redistribution",
+            "play:Robert Carter",
+            "play:Breath of the Dragon",
+            "play:Chiropteran Marauder",
+            "play:Tribute to the Master",
+            "play:Blood Tears of Kephran",
+            "play:Concoction of Vitality",
+            "play:NRA PAC",
+            "play:Fortitude",
+            "play:Horrid Form",
+            "play:Inner Essence",
+            "play:Skin of Steel",
+            "play:Vicissitude",
+            "ability:Jerry",
+            "ability:Terry",
+            "ability:Dorka",
+            "ability:Zizi",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Barry",
+                    "Jerry",
+                    "Larry",
+                    "Terry",
+                    "Tom",
+                    "Dorka",
+                    "Gabi",
+                    "Viri",
+                    "Zizi",
+                    "Ági",
+                ],
+            );
+        },
+        seeds: 8,
         ..BASE
     };
 }

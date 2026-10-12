@@ -714,6 +714,23 @@ fn option(
             let k = clans.iter().position(|&x| x == c).unwrap_or(0) as i32;
             [32, V_CLAN + k, 0, 0, 0]
         }
+        // A Discipline: its token after the circles'.
+        Choice::ChooseDiscipline(d) => {
+            let k = crate::state::disciplines()
+                .iter()
+                .position(|&x| x == d)
+                .unwrap_or(0);
+            let base = clans.len() + crate::state::circles().len();
+            [32, V_CLAN + (base + k) as i32, 0, 0, 0]
+        }
+        // A circle: its token after the clans'.
+        Choice::ChooseCircle(c) => {
+            let k = crate::state::circles()
+                .iter()
+                .position(|&x| x == c)
+                .unwrap_or(0);
+            [32, V_CLAN + (clans.len() + k) as i32, 0, 0, 0]
+        }
         Choice::ChooseCard(c) => [33, card_v(c), ix.card(CardId(c)), 0, 0],
         Choice::AllocateToCard { card, n: k } => {
             n(k);
@@ -775,15 +792,30 @@ pub fn vocab_keys() -> Vec<String> {
             .into_iter()
             .map(|c| format!("clan:{c}")),
     );
-    debug_assert_eq!(
-        keys.len(),
-        V_CLAN as usize + crate::referendum::clans().len()
+    keys.extend(
+        crate::state::circles()
+            .into_iter()
+            .map(|c| format!("circle:{c}")),
     );
+    keys.extend(
+        crate::state::disciplines()
+            .into_iter()
+            .map(|d| format!("discipline:{d}")),
+    );
+    debug_assert_eq!(keys.len(), vocab_len());
     keys
 }
 
+/// The token vocabulary: cards, windows, clans, circles, then Disciplines.
+fn vocab_len() -> usize {
+    V_CLAN as usize
+        + crate::referendum::clans().len()
+        + crate::state::circles().len()
+        + crate::state::disciplines().len()
+}
+
 pub fn schema_json() -> String {
-    let vocab = V_CLAN as usize + crate::referendum::clans().len();
+    let vocab = vocab_len();
     format!(
         "{{\"tok_ids\": {TOK_IDS}, \"tok_f\": {TOK_F}, \"opt_ids\": {OPT_IDS}, \
          \"opt_f\": {OPT_F}, \"vocab\": {vocab}, \"choice_kinds\": {N_CHOICE_KINDS}, \

@@ -586,6 +586,7 @@ fn action_step(s: ActionState) -> &'static str {
         ActionState::Blocked(_) => "blocked",
         ActionState::AfterCombat => "after combat",
         ActionState::AfterResolution => "resolved",
+        ActionState::AfterDiablerie(..) => "diablerie",
     }
 }
 

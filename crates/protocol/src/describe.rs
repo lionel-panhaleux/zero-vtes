@@ -938,6 +938,8 @@ impl Describer<'_> {
                 }
             }
             Choice::ChooseClan(clan) => format!("Choose {clan}"),
+            Choice::ChooseCircle(circle) => format!("Choose the {circle} Circle"),
+            Choice::ChooseDiscipline(d) => format!("Choose [{d}]"),
             Choice::ChooseCard(card) => {
                 o.card = Some(self.in_play(card));
                 o.target = Some(TargetView::Card { card_id: card });
@@ -1456,6 +1458,8 @@ pub fn kind(c: &Choice) -> &'static str {
         Choice::ChooseSeat(_) => "choose_seat",
         Choice::ChooseMinion(_) => "choose_minion",
         Choice::ChooseClan(_) => "choose_clan",
+        Choice::ChooseCircle(_) => "choose_circle",
+        Choice::ChooseDiscipline(_) => "choose_discipline",
         Choice::ChooseCard(_) => "choose_card",
         Choice::AllocateToCard { .. } => "allocate_to_card",
         Choice::Transfer { .. } => "transfer",

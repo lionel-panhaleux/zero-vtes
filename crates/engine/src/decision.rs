@@ -202,6 +202,10 @@ pub enum Choice {
     ChooseMinion(MinionId),
     /// Referendum terms: choose this clan.
     ChooseClan(&'static str),
+    /// A Blood Brother circle (New Blood entering play).
+    ChooseCircle(&'static str),
+    /// A Discipline, lower case (Sanguine Instruction).
+    ChooseDiscipline(&'static str),
     /// Referendum terms: choose this card in play (arena index; Disputed
     /// Territory's location).
     ChooseCard(u32),

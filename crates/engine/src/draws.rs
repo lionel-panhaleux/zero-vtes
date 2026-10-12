@@ -47,11 +47,14 @@ pub enum Interrupt {
     /// phase).
     LockOrDiscard { seat: SeatId, minion: MinionId },
     /// Society of Leopold: `minion` burns `n` blood or is burned, its
-    /// Methuselah's choice (Pass: burned).
+    /// Methuselah's choice (Pass: burned) — or `card` is burned instead
+    /// (Robert Carter: "Carter's employer burns 1 blood, or Carter is
+    /// burned").
     BloodOrBurned {
         seat: SeatId,
         minion: MinionId,
         n: u8,
+        card: Option<CardId>,
     },
     /// A replacement Visit from the Capuchin would take instead while a
     /// draw alternative applies too: one treatment or the other (ANK
@@ -297,6 +300,28 @@ pub enum Interrupt {
         clan: &'static str,
         left: u8,
     },
+    /// "Move any amount of blood from the Blood Brothers in the <circle> to
+    /// any other Blood Brothers in this circle" (Jerry, Redistribution):
+    /// one move at a time among `seat`'s — `from` the source, `to` the
+    /// destination, then the amount (`Choice::SetX`), each move a gain of
+    /// its own (Slake the Thirst; owner, rules-qa 68.10), one blood move a
+    /// pair of them (`paired`, source and destination); Pass ending the
+    /// moves. With `equipment`, their equipment too ("move any amount of
+    /// blood and equipment", Redistribution), one at a time, as many as
+    /// wanted (`moving` the one picked).
+    CircleBlood {
+        seat: SeatId,
+        circle: &'static str,
+        from: Option<MinionId>,
+        to: Option<MinionId>,
+        equipment: bool,
+        moving: Option<CardId>,
+        paired: [Option<(MinionId, MinionId)>; 12],
+    },
+    /// New Blood entering play: the circle he belongs to
+    /// (`Choice::ChooseCircle`, among `state::circles`), or his own circle
+    /// of one (Pass).
+    ChooseCircle { seat: SeatId, minion: MinionId },
     /// "Move a wraith or zombie ally from your ash heap to your ready
     /// region" (Split the Veil): the player's pick among the allies
     /// matching one of `of`; with `named`, the pick is named for the
@@ -448,6 +473,8 @@ impl Interrupt {
             | Interrupt::LockOrPay { seat, .. }
             | Interrupt::PreySlotToPool { seat, .. }
             | Interrupt::DistributeFrom { seat, .. }
+            | Interrupt::ChooseCircle { seat, .. }
+            | Interrupt::CircleBlood { seat, .. }
             | Interrupt::BecomesAnarch { seat }
             | Interrupt::AnarchConvert { seat, .. }
             | Interrupt::AshurPicks { seat, .. }
@@ -962,6 +989,10 @@ impl Engine {
                     }
                     true
                 }
+                Interrupt::ChooseCircle { minion, .. } => {
+                    self.state.minions[minion.index()].present()
+                }
+                Interrupt::CircleBlood { .. } => true,
                 Interrupt::PreySlotToPool { of, .. } => self.state.seats[of.index()]
                     .uncontrolled
                     .iter()
@@ -1066,6 +1097,14 @@ impl Engine {
                     Some(to) => !self.movable_cards(from, to).is_empty(),
                 },
                 Interrupt::PayOrBurn { card, .. } => self.state.cards[card.index()].present(),
+                Interrupt::BloodOrBurned {
+                    minion,
+                    card: Some(c),
+                    ..
+                } => {
+                    self.state.minions[minion.index()].in_play
+                        && self.state.cards[c.index()].present()
+                }
                 Interrupt::LockOrDiscard { minion, .. }
                 | Interrupt::BloodOrBurned { minion, .. } => {
                     self.state.minions[minion.index()].in_play
@@ -1375,6 +1414,77 @@ impl Engine {
                 (0..st.seats[of.index()].uncontrolled.len())
                     .filter(|&i| st.seats[of.index()].uncontrolled[i].counters > 0)
                     .map(|i| Choice::Slot(i as u8))
+                    .collect(),
+            ),
+            Interrupt::CircleBlood {
+                seat,
+                circle,
+                from,
+                to,
+                equipment,
+                moving,
+                paired,
+            } => {
+                let members = self.circle_members(seat, circle);
+                let used = |f: MinionId, t: MinionId| paired.contains(&Some((f, t)));
+                let mut options = vec![Choice::Pass];
+                if let (Some(f), Some(_)) = (from, to) {
+                    let n = st.minions[f.index()].blood;
+                    return Some(DecisionRequest::new(
+                        seat,
+                        WindowLabel::ResolutionChoice,
+                        (1..=n).map(Choice::SetX).collect(),
+                    ));
+                }
+                match (from, moving) {
+                    (None, None) => {
+                        options.extend(
+                            members
+                                .iter()
+                                .filter(|&&m| {
+                                    self.state.minions[m.index()].blood > 0
+                                        && members.iter().any(|&t| t != m && !used(m, t))
+                                })
+                                .map(|&m| Choice::ChooseMinion(m)),
+                        );
+                        if equipment {
+                            for &m in &members {
+                                options.extend(
+                                    self.state
+                                        .equipment_on(m)
+                                        .into_iter()
+                                        .map(|c| Choice::ChooseCard(c.0)),
+                                );
+                            }
+                        }
+                    }
+                    (Some(f), _) => options.extend(
+                        members
+                            .iter()
+                            .filter(|&&m| m != f && !used(f, m))
+                            .map(|&m| Choice::ChooseMinion(m)),
+                    ),
+                    (None, Some(c)) => {
+                        let on = st.cards[c.index()].host;
+                        options.extend(
+                            members
+                                .iter()
+                                .filter(|&&m| Some(m) != on)
+                                .map(|&m| Choice::ChooseMinion(m)),
+                        );
+                    }
+                }
+                (WindowLabel::ResolutionChoice, options)
+            }
+            // Pass: his own circle of one (owner, rules-qa 68.1).
+            Interrupt::ChooseCircle { .. } => (
+                WindowLabel::EntryEffect,
+                std::iter::once(Choice::Pass)
+                    .chain(
+                        crate::state::circles()
+                            .into_iter()
+                            .map(Choice::ChooseCircle),
+                    )
                     .collect(),
             ),
             Interrupt::DistributeFrom { seat, clan, .. } => (
@@ -2702,9 +2812,12 @@ impl Engine {
                 self.interrupts.remove(0);
                 self.pay_pool_for_ability(seat, pool as i32);
             }
-            (Interrupt::BloodOrBurned { minion, .. }, Choice::Pass) => {
+            (Interrupt::BloodOrBurned { minion, card, .. }, Choice::Pass) => {
                 self.interrupts.remove(0);
-                self.burn_minion(minion);
+                match card {
+                    Some(c) => self.burn_card_in_play(c),
+                    None => self.burn_minion(minion),
+                }
             }
             (Interrupt::BloodOrBurned { minion, n, .. }, Choice::BurnBloodToAvoid) => {
                 self.interrupts.remove(0);
@@ -2776,6 +2889,95 @@ impl Engine {
                     left: left - 1,
                 };
             }
+            (
+                Interrupt::CircleBlood {
+                    seat,
+                    circle,
+                    from,
+                    equipment,
+                    moving,
+                    paired,
+                    ..
+                },
+                Choice::ChooseMinion(m),
+            ) => {
+                let next = |from, to| Interrupt::CircleBlood {
+                    seat,
+                    circle,
+                    from,
+                    to,
+                    equipment,
+                    moving: None,
+                    paired,
+                };
+                match (from, moving) {
+                    (None, None) => self.interrupts[0] = next(Some(m), None),
+                    (Some(f), _) => self.interrupts[0] = next(Some(f), Some(m)),
+                    (None, Some(c)) => {
+                        self.state.cards[c.index()].host = Some(m);
+                        self.interrupts[0] = next(None, None);
+                    }
+                }
+            }
+            // A move of n blood: one gain (Slake the Thirst answers one move).
+            (
+                Interrupt::CircleBlood {
+                    seat,
+                    circle,
+                    from: Some(f),
+                    to: Some(t),
+                    equipment,
+                    mut paired,
+                    ..
+                },
+                Choice::SetX(n),
+            ) => {
+                self.state.burn_blood(f, n);
+                let b = self.state.minions[t.index()].blood + n;
+                self.state.set_blood(t, b);
+                if let Some(slot) = paired.iter_mut().find(|p| p.is_none()) {
+                    *slot = Some((f, t));
+                }
+                self.interrupts[0] = Interrupt::CircleBlood {
+                    seat,
+                    circle,
+                    from: None,
+                    to: None,
+                    equipment,
+                    moving: None,
+                    paired,
+                };
+            }
+            (
+                Interrupt::CircleBlood {
+                    seat,
+                    circle,
+                    equipment,
+                    paired,
+                    ..
+                },
+                Choice::ChooseCard(c),
+            ) => {
+                self.interrupts[0] = Interrupt::CircleBlood {
+                    seat,
+                    circle,
+                    from: None,
+                    to: None,
+                    equipment,
+                    moving: Some(CardId(c)),
+                    paired,
+                };
+            }
+            (Interrupt::CircleBlood { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+            }
+            (Interrupt::ChooseCircle { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+            }
+            (Interrupt::ChooseCircle { minion, .. }, Choice::ChooseCircle(c)) => {
+                self.interrupts.remove(0);
+                self.state.minions[minion.index()].chosen_circle = Some(c);
+            }
             (Interrupt::DistributeFrom { from, .. }, Choice::Pass) => {
                 self.interrupts.remove(0);
                 self.stage_contests(from);
@@ -2786,6 +2988,17 @@ impl Engine {
             }
             (front, choice) => unreachable!("illegal choice {choice:?} for {front:?}"),
         }
+    }
+
+    /// `seat`'s Blood Brothers of `circle` in play (in torpor too).
+    pub(crate) fn circle_members(&self, seat: SeatId, circle: &'static str) -> Vec<MinionId> {
+        self.state
+            .minions_of(seat)
+            .filter(|&m| {
+                let v = &self.state.minions[m.index()];
+                v.clan() == Some("Blood Brother") && v.circle() == Some(circle)
+            })
+            .collect()
     }
 
     /// The ready `clan` vampires below capacity the Methuselah controls,

@@ -64,7 +64,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
-- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7
+- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17
 - **Ousts, Life Boon's decision point** — 45.1–45.8
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5, 66.1
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
@@ -1308,7 +1308,45 @@ Slice 16s: the next hundred cards by TWDA importance (ten new archetypes). Only 
 
 **67.5** The Red List (rulebook "Traits", Enkidu): the master phase action marks another Methuselah's Red List minion (one's own is not offered); the action to enter combat with it is a +1 stealth Ⓓ rulebook action, once per vampire per turn, its 1 blood paid at resolution (unpayable then: it fizzles, as other action costs, rules-qa 3.6); trophies are not modeled (none is in the pool). (Test the_red_list_marks_enkidu_for_a_rush.)
 
-**67.6** New Blood: "choose any circle … New Blood belongs to the chosen circle" — not modeled, no card of the pool reading a circle (Unwholesome Bond and Angelo are not in the pool); the crypt draw as he enters is. (Test new_blood_draws_a_crypt_card_as_he_enters.)
+**67.6** New Blood: "choose any circle … New Blood belongs to the chosen circle" — not modeled, no card of the pool reading a circle (Unwholesome Bond and Angelo are not in the pool); the crypt draw as he enters is. (Test new_blood_draws_a_crypt_card_as_he_enters.) Superseded by 68.1 (slice 16t: circles modeled).
 
 **67.7** Trochomancy: "remove thirteen (seven) cards in the target Methuselah's ash heap from the game to get +1 bleed" — the removal is the price: not playable unless that ash heap holds them (burned vampires counted, as Shroud of Decay's, rules-qa 42.7). (Test trochomancy_burns_the_targets_ash_heap_for_bleed.)
+
+## Batch 68 — Blood Brother circles, legacy cards for TWDA decks, round 8: readings no ruling settles (Claude, 2026-10-12)
+
+Slice 16t: the sixty cards of the ten Blood Brother TWDA decks. Only the readings that no ruling or default reading settles; each is implemented and tested, for the owner to confirm or correct. A vampire with no circle is in a circle of one (LSJ 20020609): `GameState::same_circle` needs two Blood Brothers of one printed (or chosen) circle.
+
+**68.1** New Blood: "choose any circle" — owner (2026-10-12): a circle printed in the crypt (Mexico City, Torrance, Kiev, Chicago, Budapest), or his own circle of one (Pass), as he enters play (`Interrupt::ChooseCircle`); "the unique circle of one of any vampire" (ANK 20211113) read where a card reads it, Unwholesome Bond [SAN] on one circle-less uncontrolled Blood Brother (68.7). Supersedes 67.6. (Tests new_blood_chooses_a_circle_or_keeps_his_own, a_blood_brother_with_no_circle_is_in_a_circle_of_one, unwholesome_bond_lets_new_blood_feed_a_circle_of_one.)
+
+**68.2** Slake the Thirst: "only usable after this Blood Brother gains blood" — each effect's gain is recorded where blood is added (`GameState::set_blood`); a gain stays usable while the real decisions stay in the window of the first real decision after it (the play's own terms and as-played window, an effect's choices as it resolves, aside), so a strike's gain as the strikes end; several gains: the one answered chosen by its amount (LSJ 20100203). Owner (2026-10-12): it is offered between a diablerie and its blood hunt (ANK 20201228) — a window of its own (`ActionState::AfterDiablerie`, `Window::ActionAfterDiablerie`). (Tests slake_the_thirst_shares_a_hunt, slake_the_thirst_again_on_the_same_gain, slake_the_thirst_answers_one_gain_of_several, slake_the_thirst_after_a_diablerie.)
+
+**68.3** Hermana Hambrienta ("burns 2 blood or is burned"), Robert Carter ("Carter's employer burns 1 blood, or Carter is burned"): the controller's choice, as Society of Leopold's same wording; the Hermanas only as influenced out (after the excess drained, LSJ 20051126). (Tests a_hermana_burns_two_blood_as_she_enters_play, robert_carter_bleeds_for_blood.)
+
+**68.4** Octopod, Three's a Crowd, Coordinate Attacks: "another one (you control) in combat" — its player's combatant, the card played by a minion out of the combat; Octopod's strikes each round come after the normal pair, as Renegade Garou's (mandatory, limited). (Tests octopod_gives_strikes_each_round, threes_a_crowd_closes_and_presses, coordinate_attacks_sends_the_next_one_in.)
+
+**68.5** Shell Game: X = 0 is a legal no-op (17.4); "you may unlock one of those" — offered after a successful action, one (two at [SAN]) of the locked ones, its player's pick. (Test shell_game_locks_the_circle_for_stealth.)
+
+**68.6** Coagulated Entity: the blood moved as the action resolves, before the combat; any chosen Blood Brother unable (no blood, gone) and the action is canceled: no combat. The +X capacity lasts until the action ends, the excess then drains. (Test coagulated_entity_feeds_the_rush.)
+
+**68.7** Unwholesome Bond [SAN] for New Blood: one chosen uncontrolled Blood Brother with no printed circle (LSJ 20050927, ANK 20211113), a mode of its own; [san]'s X counts any Methuselah's ready unlocked Blood Brothers of the circle at resolution. (Tests unwholesome_bond_counts_the_circle, unwholesome_bond_lets_new_blood_feed_a_circle_of_one.)
+
+**68.8** Sanguine Instruction: the target chosen first, then the Discipline — one the actor has at superior and the target not; a target with none of them is not offered; any Methuselah's vampire of the acting vampire's clan, the actor included. (Test sanguine_instruction_teaches_a_discipline.)
+
+**68.9** Dark Influences: as Direct Intervention, played on another Methuselah's turn; its shield is any Dark Influences in play, whoever controls it, against a cancel of a minion card of another Methuselah than the canceling one. (Test dark_influences_cancels_and_shields.)
+
+**68.10** Jerry ("move any amount of blood from the Blood Brothers in the Chicago Circle to any other Blood Brothers in this circle") and Redistribution ("among the Blood Brothers in this circle"): its controller's Blood Brothers only (32.7); owner (2026-10-12): one move at a time — x blood between two of them (the source, the destination, then the amount), once for a given source and destination, or (Redistribution) any number of equipment, one at a time — each move a separate part of the effect: Slake the Thirst answers one move, x blood. Jerry once each master phase. (Tests jerry_moves_the_circles_blood, redistribution_moves_blood_and_equipment, redistribution_moves_equipment_freely_and_blood_once_a_pair, slake_the_thirst_answers_one_move.)
+
+**68.11** Monocle of Clarity: its question changes no game state — the equip action alone; its rulings n/a. (Test monocle_of_clarity_is_equipped.)
+
+**68.12** Inner Essence: "once this combat" — the card stays on the vampire for the combat (as Focus the Blood's discount, 36.1) and burns as the combat ends if unused. (Test inner_essence_discounts_a_combat_card.)
+
+**68.13** Major Boon: after it is played (as blocks are declined) or burned, the blocks-declined window closes — only "would be successful" plays (LSJ 20090205). (Test major_boons_do_not_stack.)
+
+**68.14** Hive Mind: [san]'s "another ready Blood Brother of the same circle" any Methuselah's; "only one Hive Mind can be played at [san] each turn" counts [san] plays only. (Test hive_mind_unlocks_the_circle_or_feeds_it.)
+
+**68.15** Gestalt: all or nothing at resolution (a chosen Blood Brother unable to burn: no effect); [SAN]: the reacting vampire plays cards with the chosen ones' Discipline levels until the action ends. (Test gestalt_lends_the_circles_strength.)
+
+**68.16** Zizi "can lock to unlock another Blood Brother of the same circle": no printed timing — at any impulse, Viri ready. (Test viri_and_zizi_work_together.)
+
+**68.17** Loki's Gift [PRO] "burn 1 blood from any vampire": the vampire chosen as the card is played, its action directed at that vampire's Methuselah when another's. (Test lokis_gift_hunts_and_bites.)
 

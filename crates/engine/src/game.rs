@@ -269,6 +269,8 @@ pub fn public_choice(c: &Choice) -> bool {
             | ChooseSeat(_)
             | ChooseMinion(_)
             | ChooseClan(_)
+            | ChooseCircle(_)
+            | ChooseDiscipline(_)
             | ChooseCard(_)
             | AllocateToCard { .. }
             | Transfer { .. }
@@ -636,7 +638,14 @@ impl Engine {
             if matches!(self.flow, Flow::GameOver) {
                 return Step::Over(self.state.seats.iter().map(|s| s.half_vps).collect());
             }
-            match self.request() {
+            self.note_blood_gains();
+            let mut next = self.request();
+            if let Some(req) = next.as_ref().filter(|r| r.options.len() > 1) {
+                if self.settle_gain_window(req.window) {
+                    next = self.request();
+                }
+            }
+            match next {
                 None => self.advance(),
                 Some(req) => {
                     debug_assert!(
@@ -656,6 +665,42 @@ impl Engine {
                 }
             }
         }
+    }
+
+    /// Notes the blood gained since the last look (`GameState::set_blood`;
+    /// Slake the Thirst: "only usable after this Blood Brother gains
+    /// blood"), their window set by the next real decision
+    /// (`settle_gain_window`).
+    fn note_blood_gains(&mut self) {
+        let st = &mut self.state;
+        for (m, n) in std::mem::take(&mut st.gains_pending) {
+            st.blood_gains.push((m, n, None));
+        }
+    }
+
+    /// A gain stays usable while the real decisions stay in the window of
+    /// the first one after it (rules-qa 68.2): a real decision in another
+    /// window drops it — a play's terms and as-played window aside. Whether
+    /// the record changed.
+    fn settle_gain_window(&mut self, window: WindowLabel) -> bool {
+        // A play's own terms and as-played window, an effect's choices as
+        // it resolves (Redistribution's moves), are the same moment.
+        if matches!(
+            window,
+            WindowLabel::PlayTerms
+                | WindowLabel::CardAsPlayed
+                | WindowLabel::RiderTerms
+                | WindowLabel::ResolutionChoice
+        ) {
+            return false;
+        }
+        let gains = &mut self.state.blood_gains;
+        let before = gains.len();
+        gains.retain(|&(_, _, w)| w.is_none_or(|w| w == window));
+        for g in gains.iter_mut() {
+            g.2 = Some(window);
+        }
+        gains.len() != before
     }
 
     /// Answer the pending decision request by option index.
@@ -1719,6 +1764,23 @@ impl Engine {
                 }
             }
         }
+        // "Burn this card at the end of this minion phase" (Oppugnant
+        // Night): any Methuselah's copy.
+        let burning: Vec<CardId> = (0..self.state.cards.len())
+            .map(|i| CardId(i as u32))
+            .filter(|&c| {
+                self.state.cards[c.index()].present()
+                    && cards::lookup(self.state.cards[c.index()].card).is_some_and(|d| {
+                        d.riders.iter().any(|r| {
+                            r.hook == cards::Hook::MinionPhaseEnd
+                                && r.effects.contains(&cards::Effect::BurnSelf)
+                        })
+                    })
+            })
+            .collect();
+        for c in burning {
+            self.burn_card_in_play(c);
+        }
     }
 
     /// The Uncoiling `u`, in its controller's discard phase: another event
@@ -2069,6 +2131,7 @@ impl Engine {
             seat.forbidden_political.clear();
         }
         self.state.turn_played.clear();
+        self.state.barred_this_turn.clear();
         self.state.turn_plays.clear();
         for seat in &mut self.state.seats {
             seat.auto_pass_pending = false;
@@ -2279,7 +2342,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 406);
+        assert_eq!(CRYPT.len(), 428);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

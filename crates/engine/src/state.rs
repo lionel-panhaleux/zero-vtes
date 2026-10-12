@@ -129,13 +129,16 @@ pub struct CostOff {
     pub pool: u8,
     pub blood: u8,
     pub either: u8,
+    /// Blood added instead ("cards that require Sanguinus cost Tom an
+    /// additional blood"): a negative `Stat::BloodCostOff`.
+    pub blood_extra: u8,
 }
 
 impl CostOff {
-    /// Take the reductions off a `(pool, blood)` cost.
+    /// Take the reductions off a `(pool, blood)` cost, the surcharges on.
     pub fn apply(self, pool: &mut i32, blood: &mut u8) {
         *pool = (*pool - self.pool as i32).max(0);
-        *blood = blood.saturating_sub(self.blood);
+        *blood = blood.saturating_sub(self.blood) + self.blood_extra;
         crate::plays::reduce(pool, blood, self.either);
     }
 }
@@ -267,6 +270,8 @@ pub struct Minion {
     pub bleed_bonus_turn: u8,
     /// Unlocks at the end of the turn (Enkidu, The Noah's employ).
     pub unlock_end_of_turn: bool,
+    /// The circle New Blood chose as he entered play (`Minion::circle`).
+    pub chosen_circle: Option<&'static str>,
     /// Fiendish Tongue: the blood this Tzimisce can burn during its
     /// controller's next discard phase to unlock (0: none); cleared at the
     /// end of that turn.
@@ -397,6 +402,7 @@ impl Minion {
             unlock_at_discard: false,
             bleed_bonus_turn: 0,
             unlock_end_of_turn: false,
+            chosen_circle: None,
             discard_unlock_for_blood: 0,
             corruption: Vec::new(),
             diablerie_shield: false,
@@ -477,6 +483,16 @@ impl Minion {
             | MinionKind::Fury { card, .. } => LIBRARY[card as usize].name,
             // "Nameless": the name on its card is ignored (LSJ 20040623).
             MinionKind::Token { .. } => "",
+        }
+    }
+
+    /// A Blood Brother's circle: printed, or chosen (New Blood); `None`, a
+    /// circle of one (LSJ 20020609: created vampires and copies of a
+    /// non-unique one included).
+    pub fn circle(&self) -> Option<&'static str> {
+        match self.kind {
+            MinionKind::Vampire(c) => CRYPT[c as usize].circle.or(self.chosen_circle),
+            _ => None,
         }
     }
 
@@ -606,6 +622,9 @@ pub struct CardInPlay {
     /// The owner of the card stored on it, if not its controller's (The
     /// Erciyes Fragments: the prey's card).
     pub stored_owner: Option<SeatId>,
+    /// The Discipline it was played for (Sanguine Instruction:
+    /// `Modifier::ChosenDisciplineLevel`).
+    pub discipline: Option<&'static str>,
     /// The vampires it chose, kept through their leaving play and coming
     /// back (advanced rules 6.4.3): The Rack's, Priority Contract's
     /// Assamite, Toreador Grand Ball's locked Toreador then the other.
@@ -635,6 +654,7 @@ impl CardInPlay {
             entered_action: 0,
             removed_when_burned: false,
             stored_owner: None,
+            discipline: None,
             chosen: Vec::new(),
         }
     }
@@ -932,10 +952,27 @@ pub struct GameState {
     /// Cards played this turn that "can be played only once each turn"
     /// (Ashur Tablets), by LIBRARY index; cleared as each turn begins.
     pub turn_played: Vec<u16>,
+    /// The cards that cannot be played again this turn (Dark Influences:
+    /// "That card cannot be played again this turn"), by LIBRARY index.
+    pub barred_this_turn: Vec<u16>,
     /// Cards each minion played this turn under `Limit::PerTurn` ("a
     /// vampire can play only one Forced March each turn"), by LIBRARY
     /// index; cleared as each turn begins.
     pub turn_plays: Vec<(MinionId, u16)>,
+    /// Gestalt [SAN]: (the reacting vampire, a chosen Blood Brother whose
+    /// Disciplines it plays cards with), until the action ends.
+    pub lent_disciplines: Vec<(MinionId, MinionId)>,
+    /// "+X capacity during this action" (Coagulated Entity): the acting
+    /// vampire's, until the action ends.
+    pub action_capacity: Option<(MinionId, u8)>,
+    /// The blood gains since the last look (`GameState::set_blood`,
+    /// `Engine::note_blood_gains`).
+    pub gains_pending: Vec<(MinionId, u8)>,
+    /// The blood gains still usable ("after this Blood Brother gains
+    /// blood", Slake the Thirst), each with the window of the first real
+    /// decision after it (`None` until then): kept while the decisions stay
+    /// in that window.
+    pub blood_gains: Vec<(MinionId, u8, Option<crate::decision::WindowLabel>)>,
     /// Continuous effects (DESIGN §4.5 scope layers).
     pub layers: Vec<Layer>,
     pub active: SeatId,
@@ -1060,6 +1097,11 @@ impl GameState {
             {
                 Some(d)
             }
+            Modifier::ChosenDisciplineLevel
+                if self.layer_active(l) && self.cards[l.source.index()].host == Some(m) =>
+            {
+                self.cards[l.source.index()].discipline
+            }
             _ => None,
         })
     }
@@ -1069,7 +1111,11 @@ impl GameState {
     /// for an ally.
     pub fn capacity_of(&self, m: MinionId) -> Option<u8> {
         let printed = self.minions[m.index()].printed_capacity()?;
-        let cap = (printed + self.discipline_grants(m).count() as u8).max(1);
+        let cap = (printed + self.discipline_grants(m).count() as u8).max(1)
+            + self
+                .action_capacity
+                .filter(|&(v, _)| v == m)
+                .map_or(0, |(_, n)| n);
         // Wormwood: "considered vampires with capacity X (minimum of 1)",
         // the capacity as changed by other effects ceiled (LSJ 20051205);
         // not Karen's (a Gehenna event).
@@ -1119,9 +1165,22 @@ impl GameState {
         })
     }
 
-    /// `m`'s level in Discipline `d` (lower case): 0 none, 1 inferior, 2
-    /// superior — printed, +1 level for each Discipline master card on it.
+    /// `m`'s level in Discipline `d` (lower case): its own, or a lender's
+    /// for the action (Gestalt [SAN]: "as if he or she possessed all of
+    /// the chosen Blood Brothers' Disciplines").
     pub fn discipline_level(&self, m: MinionId, d: &str) -> u8 {
+        let own = self.own_discipline_level(m, d);
+        self.lent_disciplines
+            .iter()
+            .filter(|&&(b, _)| b == m)
+            .map(|&(_, l)| self.own_discipline_level(l, d))
+            .fold(own, u8::max)
+    }
+
+    /// `m`'s own level in Discipline `d` (lower case): 0 none, 1 inferior,
+    /// 2 superior — printed, +1 level for each Discipline master card on
+    /// it.
+    fn own_discipline_level(&self, m: MinionId, d: &str) -> u8 {
         let printed = self.minions[m.index()]
             .printed_disciplines()
             .iter()
@@ -1278,7 +1337,17 @@ impl GameState {
     /// the blood bank.
     pub fn gain_blood(&mut self, m: MinionId, n: u8) {
         let b = self.cap_blood(m, self.minions[m.index()].blood.saturating_add(n));
+        self.set_blood(m, b);
+    }
+
+    /// Set `m`'s blood (life) to `b`, noting what it gained (Slake the
+    /// Thirst's "after this Blood Brother gains blood").
+    pub fn set_blood(&mut self, m: MinionId, b: u8) {
+        let old = self.minions[m.index()].blood;
         self.minions[m.index()].blood = b;
+        if b > old {
+            self.gains_pending.push((m, b - old));
+        }
     }
 
     /// Burn up to `n` blood (life) from `m`.
@@ -1576,6 +1645,7 @@ impl GameState {
             pool: n(Stat::PoolCostOff),
             blood: n(Stat::BloodCostOff),
             either: n(Stat::CostOff),
+            blood_extra: (-self.printed_mod(m, Stat::BloodCostOff, ctx)).max(0) as u8,
         }
     }
 
@@ -2701,6 +2771,26 @@ impl GameState {
             && self.printed_mod(m, Stat::GehennaImmune, PrintedCtx::default()) > 0
     }
 
+    /// The blood `m` just gained (`blood_gains`), 0 if none.
+    pub fn blood_gained(&self, m: MinionId) -> u8 {
+        self.blood_gains
+            .iter()
+            .filter(|&&(g, _, _)| g == m)
+            .map(|&(_, n, _)| n)
+            .sum()
+    }
+
+    /// Are `a` and `b` two Blood Brothers of the same circle? A vampire
+    /// with no circle is in a circle of one (LSJ 20020609).
+    pub fn same_circle(&self, a: MinionId, b: MinionId) -> bool {
+        let (x, y) = (&self.minions[a.index()], &self.minions[b.index()]);
+        a != b
+            && x.clan() == Some("Blood Brother")
+            && y.clan() == Some("Blood Brother")
+            && x.circle().is_some()
+            && x.circle() == y.circle()
+    }
+
     pub fn sect_of(&self, m: MinionId) -> Option<Sect> {
         let s = self.minions[m.index()].underlying_sect()?;
         // A Fall of a sect is a Gehenna event: Karen keeps hers, and her
@@ -3009,4 +3099,27 @@ fn holding_matches(card: u16, h: Holding) -> bool {
         Holding::Label(l) => LIBRARY[card as usize].labels.contains(&l),
         Holding::Named(n) => LIBRARY[card as usize].name == n,
     }
+}
+
+/// The circles printed in the crypt, in crypt order (New Blood's choices).
+pub fn circles() -> Vec<&'static str> {
+    let mut out: Vec<&'static str> = Vec::new();
+    for c in CRYPT.iter().filter_map(|c| c.circle) {
+        if !out.contains(&c) {
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// The Disciplines printed in the crypt, lower case, in crypt order
+/// (Sanguine Instruction's choices).
+pub fn disciplines() -> Vec<&'static str> {
+    let mut out: Vec<&'static str> = Vec::new();
+    for d in CRYPT.iter().flat_map(|c| c.disciplines.iter()) {
+        if d.chars().all(|c| c.is_ascii_lowercase()) && !out.contains(d) {
+            out.push(d);
+        }
+    }
+    out
 }

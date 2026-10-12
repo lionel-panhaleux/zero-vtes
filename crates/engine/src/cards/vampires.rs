@@ -1771,7 +1771,25 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 244] = [
+pub static VAMPIRES: [&VampireDef; 262] = [
+    &DORKA,
+    &GABI,
+    &VIRI,
+    &ZIZI,
+    &AGI,
+    &BARRY,
+    &JERRY,
+    &LARRY,
+    &TERRY,
+    &TOM,
+    &DANYLO,
+    &GAVRYLO,
+    &PAVLO,
+    &VOLO,
+    &JACK,
+    &MARK,
+    &HERMANA_HAMBRIENTA_MAYOR,
+    &HERMANA_HAMBRIENTA_MENOR,
     &PARIJAT,
     &ABADDON,
     &ABRAHAM_DUSABLE,
@@ -4332,16 +4350,16 @@ pub static ENKIDU: VampireDef = VampireDef {
 
 /// "Sabbat: As New Blood enters play during your influence phase, choose
 /// any circle and draw 1 card from your crypt. New Blood belongs to the
-/// chosen circle. Sterile." No card of the pool reads a circle: the choice
-/// is not modeled (a circle is no clan nor the Inner Circle title, ANK
-/// 20190117-2); the draw is.
+/// chosen circle. Sterile." The circle chosen among those of the crypt (a
+/// circle is no clan nor the Inner Circle title, ANK 20190117-2; rules-qa
+/// 67.6, 68.1), then the draw.
 pub static NEW_BLOOD: VampireDef = VampireDef {
     name: "New Blood",
     riders: &[Rider {
         hook: Hook::EntersPlay,
         scope: RiderScope::Every,
         requires: &[],
-        effects: &[Effect::DrawCryptOnEntry],
+        effects: &[Effect::ChooseCircleOnEntry, Effect::DrawCryptOnEntry],
     }],
     ..VAMP
 };
@@ -4530,6 +4548,236 @@ pub static PERSIA: VampireDef = VampireDef {
         ],
         Limit::PerAction,
         &[Effect::HostBurnBlood(1), Effect::AddIntercept(1)],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat. Mexico City Circle: Hermanas are not unique. When moved to the
+/// ready region in your influence phase, this vampire burns 2 blood or is
+/// burned." Its controller's choice, after the excess drained (LSJ
+/// 20051126); a vampire it creates is in a circle of one (LSJ 20091012).
+pub static HERMANA_HAMBRIENTA_MAYOR: VampireDef = VampireDef {
+    name: "Hermana Hambrienta Mayor",
+    riders: HERMANA_ENTRY,
+    ..VAMP
+};
+
+/// As Hermana Hambrienta Mayor (Menor: capacity 2).
+pub static HERMANA_HAMBRIENTA_MENOR: VampireDef = VampireDef {
+    name: "Hermana Hambrienta Menor",
+    riders: HERMANA_ENTRY,
+    ..VAMP
+};
+
+const HERMANA_ENTRY: &[Rider] = &[Rider {
+    hook: Hook::EntersPlay,
+    scope: RiderScope::Every,
+    requires: &[],
+    effects: &[Effect::BurnsBloodOrIsBurnedOnEntry(2)],
+}];
+
+/// "Sabbat. Torrance Circle: You may lock Jack when you play a Master:
+/// location (unique or not) to reduce the cost of that location by 1 pool.
+/// +1 strength. Sterile." Announced with the card, in torpor too (LSJ
+/// 20011022).
+pub static JACK: VampireDef = VampireDef {
+    name: "Jack",
+    printed: &[
+        own(Stat::LockForLocationDiscount, 1, &[]),
+        own(Stat::Strength, 1, &[]),
+    ],
+    ..VAMP
+};
+
+/// "Sabbat bishop. Torrance Circle: Mark gets +1 intercept when attempting
+/// to block a bleed action. Sterile."
+pub static MARK: VampireDef = VampireDef {
+    name: "Mark",
+    printed: &[own(Stat::Intercept, 1, &[R::IsBleed])],
+    ..VAMP
+};
+
+/// "Sabbat: Danylo can search your library for a location, reveal it, and
+/// move it to your hand as an action that costs 1 pool (shuffle and
+/// discard down afterward). Kiev circle. Sterile." A master location, not
+/// an equipment that is a location in play (LSJ 20080114, ANK 20221210).
+pub static DANYLO: VampireDef = VampireDef {
+    name: "Danylo",
+    abilities: &[ModeDef {
+        requires: &[R::PoolAtLeast(1)],
+        ..printed_action(
+            None,
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::PayPool(1),
+                Effect::SearchToHand(CardFilter::MasterLocation),
+            ],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Sabbat: Allies and younger vampires get -1 intercept against Gavrylo.
+/// Kiev circle. Sterile."
+pub static GAVRYLO: VampireDef = VampireDef {
+    name: "Gavrylo",
+    printed: &[own(Stat::YoungerInterceptAgainst, -1, &[])],
+    ..VAMP
+};
+
+/// "Sabbat: During your unlock phase, you can move 1 blood from Pavlo to a
+/// ready Blood Brother of the Kiev circle. Kiev circle. Sterile." Any
+/// Methuselah's.
+pub static PAVLO: VampireDef = VampireDef {
+    name: "Pavlo",
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[R::TargetVampire, R::ActorReady, R::TargetSameCircle],
+        ),
+        ..mode_of(
+            &[Window::UnlockPhaseOwn],
+            Actor::Host,
+            &[R::HostBloodAtLeast(1)],
+            &[Effect::HostBloodToTarget(1)],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Sabbat: Volo gets -1 stealth when hunting. Kiev circle. Sterile."
+pub static VOLO: VampireDef = VampireDef {
+    name: "Volo",
+    printed: &[own(Stat::Stealth, -1, &[R::IsHunt])],
+    ..VAMP
+};
+
+/// "Sabbat. Chicago Circle: Barry gets +1 strength when in combat with an
+/// ally or a younger vampire. Sterile."
+pub static BARRY: VampireDef = VampireDef {
+    name: "Barry",
+    printed: &[own(Stat::Strength, 1, &[R::OpponentAllyOrYounger])],
+    ..VAMP
+};
+
+/// "Sabbat. Chicago Circle: During your master phase, you may move any
+/// amount of blood from the Blood Brothers in the Chicago Circle to any
+/// other Blood Brothers in this circle. Sterile." His Methuselah's, 1 blood
+/// at a time, once each master phase (rules-qa 68.10); in torpor too.
+pub static JERRY: VampireDef = VampireDef {
+    name: "Jerry",
+    abilities: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Host,
+        &[],
+        &[Effect::CircleBloodMoves],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat. Chicago Circle: Once each action, Larry can burn 1 blood to get
+/// +1 intercept. Sterile." As he attempts to block, while intercept is
+/// needed (Oskar Anasov's shape).
+pub static LARRY: VampireDef = VampireDef {
+    name: "Larry",
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerAction),
+        ..mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::Host,
+            &[
+                R::HostAttempting,
+                R::YourAttemptNeedsIntercept,
+                R::HostBloodAtLeast(1),
+            ],
+            &[Effect::HostBurnBlood(1), Effect::AttemptingIntercept(1)],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Sabbat. Chicago Circle: Once each combat, Terry can burn 1 blood to get
+/// a press. Sterile." In the press step only (PIB 20150121).
+pub static TERRY: VampireDef = VampireDef {
+    name: "Terry",
+    abilities: &[ability(
+        &[Window::CombatPress],
+        Actor::Host,
+        &[R::HostBloodAtLeast(1)],
+        Limit::PerCombat,
+        &[Effect::HostBurnBlood(1), Effect::Press],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat. Chicago Circle: Cards that require Sanguinus [san] cost Tom an
+/// additional blood. Sterile."
+pub static TOM: VampireDef = VampireDef {
+    name: "Tom",
+    printed: &[own(
+        Stat::BloodCostOff,
+        -1,
+        &[R::PlayedRequiresDiscipline("san")],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat: Dorka can enter combat with a minion controlled by your
+/// predator or prey as a Ⓓ action. Budapest circle. Sterile."
+pub static DORKA: VampireDef = VampireDef {
+    name: "Dorka",
+    abilities: &[enter_combat(&[
+        R::ControlledByPredatorOrPrey,
+        R::ActorReady,
+    ])],
+    ..VAMP
+};
+
+/// "Sabbat: A minion opposing Gabi cannot strike: dodge during the first
+/// round of combat. Budapest circle. Sterile."
+pub static GABI: VampireDef = VampireDef {
+    name: "Gabi",
+    printed: &[own(Stat::OpposingNoDodgeFirstRound, 1, &[])],
+    ..VAMP
+};
+
+/// "Sabbat: While /Zizi/ is in your ready region, Viri gets +1 strength.
+/// Budapest circle. Sterile."
+pub static VIRI: VampireDef = VampireDef {
+    name: "Viri",
+    printed: &[own(Stat::Strength, 1, &[R::ReadyNamed("Zizi")])],
+    ..VAMP
+};
+
+/// "Sabbat: If /Viri/ is in your ready region, Zizi can lock to unlock
+/// another Blood Brother of the same circle. Budapest circle. Sterile."
+/// Any time she is unlocked, a minion attempting to block unlocked too
+/// (LSJ 20010702).
+pub static ZIZI: VampireDef = VampireDef {
+    name: "Zizi",
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[R::TargetVampire, R::TargetLocked, R::TargetSameCircle],
+        ),
+        ..mode_of(
+            &[Window::AnyImpulse],
+            Actor::Host,
+            &[R::HostReady, R::HostUnlocked, R::ReadyNamed("Viri")],
+            &[Effect::LockHost, Effect::UnlockTarget],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Sabbat: Cards requiring Sanguinus [san] cost Ági 1 fewer blood.
+/// Budapest circle. Sterile."
+pub static AGI: VampireDef = VampireDef {
+    name: "Ági",
+    printed: &[own(
+        Stat::BloodCostOff,
+        1,
+        &[R::PlayedRequiresDiscipline("san")],
     )],
     ..VAMP
 };
