@@ -731,8 +731,66 @@ fn allocations_and_vote_orders_at_once() {
     assert!(allocations >= 10 && cast_by_order >= 10);
 }
 
-/// A wake (and whether it is in its moment for the seat: an action of its
-/// prey or predator, or one directed at it), or an ability usable at any
+/// A deck list from (KRCG id, copies).
+fn list(cards: &[(u32, u8)]) -> zvtes_protocol::deck::DeckList {
+    cards.iter().map(|&(id, n)| (id.to_string(), n)).collect()
+}
+
+/// A fixed table: the human's deck at seat 0, three shipped decks played by
+/// bleeding bots (the predator bleeds the human, the cross-table seat its
+/// own prey).
+fn fixture(human: &[(u32, u8)]) -> Session {
+    let all: Vec<Deck> = Deck::all().collect();
+    let mut sp = spec(0, &all[..4]);
+    sp.seats[0].deck = list(human);
+    for s in &mut sp.seats[1..] {
+        s.player = Player::Bot {
+            style: "aggro_bleed".into(),
+        };
+    }
+    Session::new(sp).expect("spec")
+}
+
+/// The fixture human's answer, from the table: `card` played while none
+/// is in play (other cards discarded until it is drawn), one vampire
+/// brought out (transfers, then influenced out) and bleeding, the first
+/// card a search offers taken; a pass otherwise (the first option when
+/// none).
+fn scripted(
+    options: &[zvtes_protocol::describe::OptionView],
+    card: u32,
+    view: &TableView,
+) -> usize {
+    let me = &view.seats[0];
+    let played = me.in_play.iter().any(|p| p.card.id == Some(card));
+    let out = !me.ready.is_empty();
+    let is = |o: &&zvtes_protocol::describe::OptionView| {
+        o.card.as_ref().and_then(|c| c.id) == Some(card)
+    };
+    let pick = |kind: &str| options.iter().find(|o| o.kind == kind);
+    options
+        .iter()
+        .find(|o| !played && o.kind == "play" && is(o))
+        .or_else(|| pick("find_card"))
+        .or_else(|| {
+            options
+                .iter()
+                .find(|o| !played && o.kind == "discard" && !is(o))
+        })
+        .or_else(|| pick("influence_out").filter(|_| !out))
+        .or_else(|| pick("transfer").filter(|_| !out))
+        .or_else(|| {
+            options
+                .iter()
+                .find(|o| o.kind == "take_action" && o.action.as_deref() == Some("bleed"))
+        })
+        .or_else(|| pick("pass"))
+        .unwrap_or(&options[0])
+        .index
+}
+
+/// A wake (and whether it is in its moment for the seat: an action
+/// directed at it, or an undirected one of its prey or predator), or an ability usable at any
 /// time (The Louvre, Paris): `None` (owner, 2026-10-11).
 fn opportunity(e: &Engine, seat: SeatId, c: &Choice) -> Option<Option<bool>> {
     use zvtes::cards::{Effect, Window};
@@ -746,10 +804,9 @@ fn opportunity(e: &Engine, seat: SeatId, c: &Choice) -> Option<Option<bool>> {
                     m.effects.contains(&Effect::Wake) || m.effects.contains(&Effect::WakeTarget)
                 });
             wakes.then(|| {
-                Some(e.action().is_some_and(|a| {
-                    a.seat == st.prey(seat)
-                        || a.seat == st.predator(seat)
-                        || a.directed_seats(st).contains(seat)
+                Some(e.action().is_some_and(|a| match a.directed_seat(st) {
+                    Some(target) => target == seat,
+                    None => a.seat == st.prey(seat) || a.seat == st.predator(seat),
                 }))
             })
         }
@@ -784,92 +841,73 @@ fn untimely(e: &Engine, seat: SeatId, options: &[Choice], i: usize) -> bool {
 /// itself, and undo takes those passes back with the seat's decision.
 #[test]
 fn a_seat_passing_on_its_opportunities_is_asked_only_in_their_moment() {
-    use zvtes::cards::{Effect, Window};
-    let all: Vec<Deck> = Deck::all().collect();
-    // The human's deck holds a wake or a card with an ability usable at
-    // any time.
-    let opportune = |d: &&Deck| {
-        d.library.iter().any(|&(c, _)| {
-            zvtes::cards::lookup(c).is_some_and(|def| {
-                def.modes.iter().any(|m| m.effects.contains(&Effect::Wake))
-                    || def
-                        .abilities
-                        .iter()
-                        .any(|m| m.windows.contains(&Window::AnyImpulse))
-            })
-        })
-    };
-    let pool: Vec<Deck> = all.iter().filter(opportune).copied().collect();
-    assert!(!pool.is_empty());
+    // The Barrens (a lock usable at any time; a second copy if one is
+    // cancelled) and On the Qui Vive (a wake), the whole library in the
+    // opening hand: the human bleeds with Ruslan
+    // Fedorenko, who is locked as the bots act.
+    let mut s = fixture(&[(201611, 12), (100135, 2), (101321, 5)]);
+    s.set_opportunities(false);
     let (mut hidden, mut passed, mut undone) = (0, 0, 0);
     // Wakes in their moment, abilities usable at any time where it pauses.
     let (mut woken, mut paused) = (0, 0);
-    for seed in 0..200u64 {
-        let mut rng = Rng::new(seed);
-        let mut decks: Vec<Deck> = (0..4).map(|_| all[rng.below(all.len())]).collect();
-        decks[0] = pool[rng.below(pool.len())];
-        let mut s = Session::new(spec(seed, &decks)).expect("spec");
-        s.set_opportunities(false);
-        // The human's answers since its last own choice: passes by itself.
-        let mut trailing = 0;
-        for _ in 0..20_000 {
-            let out = s.advance();
-            match &out {
-                Out::Over { .. } => break,
-                Out::Decided {
-                    seat: 0, choice, ..
-                } => {
-                    assert_eq!(
-                        choice.kind, "pass",
-                        "seed {seed}: only a pass is taken by itself"
-                    );
-                    passed += 1;
-                    trailing += 1;
-                }
-                Out::Decided { .. } => trailing = 0,
-                Out::Decision {
-                    decision,
-                    options,
-                    undo,
-                    ..
-                } => {
-                    let req = s.request().expect("pending").clone();
-                    let e = s.engine();
-                    let shown: Vec<usize> = options.iter().map(|o| o.index).collect();
-                    for (i, c) in req.options.iter().enumerate() {
-                        let off = untimely(e, req.seat, &req.options, i);
-                        if shown.contains(&i) {
-                            assert!(
-                                !off || shown.iter().all(|&j| untimely(
-                                    e,
-                                    req.seat,
-                                    &req.options,
-                                    j
-                                )),
-                                "seed {seed}: {c:?} shown out of its moment"
-                            );
-                            match opportunity(e, req.seat, c) {
-                                Some(Some(_)) => woken += 1,
-                                Some(None) => paused += 1,
-                                None => {}
-                            }
-                        } else {
-                            assert!(off, "seed {seed}: {c:?} hidden in its moment");
-                            hidden += 1;
+    // The human's answers since its last own choice: passes by itself.
+    let mut trailing = 0;
+    for _ in 0..20_000 {
+        if passed > 0 && undone > 0 && woken > 0 && paused > 0 {
+            break;
+        }
+        let out = s.advance();
+        match &out {
+            Out::Over { .. } => break,
+            Out::Decided {
+                seat: 0, choice, ..
+            } => {
+                assert_eq!(choice.kind, "pass", "only a pass is taken by itself");
+                passed += 1;
+                trailing += 1;
+            }
+            Out::Decided { .. } => trailing = 0,
+            Out::Decision {
+                decision,
+                options,
+                undo,
+                view,
+                ..
+            } => {
+                let req = s.request().expect("pending").clone();
+                let e = s.engine();
+                let shown: Vec<usize> = options.iter().map(|o| o.index).collect();
+                for (i, c) in req.options.iter().enumerate() {
+                    let off = untimely(e, req.seat, &req.options, i);
+                    if shown.contains(&i) {
+                        assert!(
+                            !off || shown
+                                .iter()
+                                .all(|&j| untimely(e, req.seat, &req.options, j)),
+                            "{c:?} shown out of its moment"
+                        );
+                        match opportunity(e, req.seat, c) {
+                            Some(Some(_)) => woken += 1,
+                            Some(None) => paused += 1,
+                            None => {}
                         }
+                    } else {
+                        assert!(off, "{c:?} hidden in its moment");
+                        hidden += 1;
                     }
-                    if *undo && trailing > 0 && rng.below(2) == 0 {
-                        let before = s.engine().log.len();
-                        s.undo().expect("undo");
-                        assert_eq!(s.engine().log.len(), before - 1 - trailing, "seed {seed}");
-                        undone += 1;
-                        trailing = 0;
-                        continue;
-                    }
-                    let i = shown[rng.below(shown.len())];
-                    s.answer(*decision, i).expect("answer");
-                    trailing = 0;
                 }
+                // Undone once: answered the same way, the passes come back.
+                if *undo && trailing > 0 && undone == 0 {
+                    let before = s.engine().log.len();
+                    s.undo().expect("undo");
+                    assert_eq!(s.engine().log.len(), before - 1 - trailing);
+                    undone += 1;
+                    trailing = 0;
+                    continue;
+                }
+                let i = scripted(options, 100135, view);
+                s.answer(*decision, i).expect("answer");
+                trailing = 0;
             }
         }
     }
@@ -929,75 +967,56 @@ fn prevention_shows_the_strikes_that_resolved() {
 /// click on the stack and search in it manually"), and no undo then.
 #[test]
 fn a_library_search_shows_the_library_and_names_it() {
-    use zvtes::cards::Effect;
-    let all: Vec<Deck> = Deck::all().collect();
-    // The human's deck searches its library.
-    let searches = |d: &&Deck| {
-        d.library.iter().any(|&(c, _)| {
-            zvtes::cards::lookup(c).is_some_and(|def| {
-                def.modes.iter().chain(def.abilities).any(|m| {
-                    m.effects.iter().any(|e| {
-                        matches!(
-                            e,
-                            Effect::SearchEquip | Effect::SearchToHand(_) | Effect::SearchStore(_)
-                        )
-                    })
-                })
-            })
-        })
-    };
-    let pool: Vec<Deck> = all.iter().filter(searches).copied().collect();
-    assert!(!pool.is_empty());
+    // Black Market Cache, played once Roy (Ravnos) is out, searches the
+    // library for .44 Magnums.
+    let mut s = fixture(&[(201684, 12), (102351, 7), (100001, 20)]);
     let search = zvtes_protocol::describe::window_text(WindowLabel::LibrarySearch);
     let (mut searched, mut after) = (0, 0);
-    for seed in 0..120u64 {
-        let mut rng = Rng::new(seed);
-        let mut decks: Vec<Deck> = (0..4).map(|_| all[rng.below(all.len())]).collect();
-        decks[0] = pool[rng.below(pool.len())];
-        let mut s = Session::new(spec(seed, &decks)).expect("spec");
-        let mut just_searched = false;
-        for _ in 0..20_000 {
-            match s.advance() {
-                Out::Over { .. } => break,
-                Out::Decided { .. } => just_searched = false,
-                Out::Decision {
-                    decision,
-                    options,
-                    window,
-                    view,
-                    undo,
-                    ..
-                } => {
-                    if just_searched {
-                        assert!(!undo, "seed {seed}: a search taken back");
-                        after += 1;
-                    }
-                    just_searched = window == search;
-                    if window == search {
-                        searched += 1;
-                        // Only the cards it may take are shown, each of them.
-                        let own = &view.seats[0].library;
-                        let found: Vec<u32> = options
-                            .iter()
-                            .filter(|o| o.kind == "find_card")
-                            .filter_map(|o| o.card.as_ref().and_then(|c| c.id))
-                            .collect();
-                        assert!(
-                            own.iter()
-                                .all(|c| c.id.is_none_or(|id| found.contains(&id))),
-                            "seed {seed}: a card shown it may not take"
-                        );
-                        for id in &found {
-                            assert!(own.iter().any(|c| c.id == Some(*id)), "seed {seed}: hidden");
-                        }
-                        for o in options.iter().filter(|o| o.kind == "find_card") {
-                            let z = o.zone.as_ref().expect("a zone");
-                            assert_eq!((z.seat, z.zone.as_str()), (0, "library"));
-                        }
-                    }
-                    let i = options[rng.below(options.len())].index;
-                    s.answer(decision, i).expect("answer");
+    let mut just_searched = false;
+    for _ in 0..20_000 {
+        if after > 0 && !just_searched {
+            break;
+        }
+        match s.advance() {
+            Out::Over { .. } => break,
+            Out::Decided { .. } => just_searched = false,
+            Out::Decision {
+                decision,
+                options,
+                window,
+                view,
+                undo,
+                ..
+            } => {
+                if just_searched {
+                    assert!(!undo, "a search taken back");
+                    after += 1;
                 }
+                just_searched = window == search;
+                if window == search {
+                    searched += 1;
+                    // Only the cards it may take are shown, each of them.
+                    let own = &view.seats[0].library;
+                    let found: Vec<u32> = options
+                        .iter()
+                        .filter(|o| o.kind == "find_card")
+                        .filter_map(|o| o.card.as_ref().and_then(|c| c.id))
+                        .collect();
+                    assert!(
+                        own.iter()
+                            .all(|c| c.id.is_none_or(|id| found.contains(&id))),
+                        "a card shown it may not take"
+                    );
+                    for id in &found {
+                        assert!(own.iter().any(|c| c.id == Some(*id)), "hidden");
+                    }
+                    for o in options.iter().filter(|o| o.kind == "find_card") {
+                        let z = o.zone.as_ref().expect("a zone");
+                        assert_eq!((z.seat, z.zone.as_str()), (0, "library"));
+                    }
+                }
+                let i = scripted(&options, 102351, &view);
+                s.answer(decision, i).expect("answer");
             }
         }
     }

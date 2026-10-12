@@ -14840,3 +14840,28 @@ fn martina_gets_no_intercept_against_a_superior_govern() {
         }
     }
 }
+
+// Priority Contract (owner, 2026-10-11: "sent to torpor during a combat with
+// my cross table"): offered in a combat its controller takes no part in.
+#[test]
+fn priority_contract_pays_when_its_minion_falls_in_anothers_combat() {
+    let mut e = Engine::bare(4);
+    e.add_minion(SeatId(0), plain("Banu Haqim", "", 0), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    let b = e.add_minion(SeatId(2), plain("", "", 3), 4, false);
+    e.add_minion(SeatId(3), plain("", "", 4), 4, false);
+    let pc = master_on(&mut e, 0, "Priority Contract", z);
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    // z bleeds the cross-table seat, which blocks: z goes to torpor.
+    pick(&mut e, action(z, ActionKind::Bleed));
+    e.state.minions[z.index()].blood = 0;
+    pick_when(&mut e, block(b));
+    let p0 = pool(&e, 0);
+    let req = offering(&mut e, Choice::ResolveRider { card: pc.0 });
+    assert_eq!(req.seat, SeatId(0));
+    assert!(e.state.minions[z.index()].in_torpor);
+    pick(&mut e, Choice::ResolveRider { card: pc.0 });
+    request(&mut e);
+    assert_eq!(pool(&e, 0), p0 + 3);
+    assert!(!e.state.cards[pc.index()].in_play);
+}

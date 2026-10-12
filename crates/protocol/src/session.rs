@@ -538,12 +538,13 @@ impl Session {
                             .iter()
                             .any(|f| matches!(f, Effect::Wake | Effect::WakeTarget))
                     });
-                // A wake's moment: an action of the seat's prey or
-                // predator, or one directed at the seat.
-                let moment = e.action().is_some_and(|a| {
-                    a.seat == st.prey(req.seat)
-                        || a.seat == st.predator(req.seat)
-                        || a.directed_seats(st).contains(req.seat)
+                // A wake's moment: an action directed at the seat, or an
+                // undirected one of its prey or predator — never one
+                // directed at another seat (owner, 2026-10-11: "not bleeds
+                // directed at my cross").
+                let moment = e.action().is_some_and(|a| match a.directed_seat(st) {
+                    Some(target) => target == req.seat,
+                    None => a.seat == st.prey(req.seat) || a.seat == st.predator(req.seat),
                 });
                 wakes.then_some(Opportunity::Wake(moment))
             }
