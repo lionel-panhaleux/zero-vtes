@@ -390,3 +390,97 @@ fn an_allys_ability_names_its_copy_on_the_table() {
     assert!(copy.is_some());
     assert_eq!(card.copy, copy);
 }
+
+/// Answers Pass (or the first option) until `want` is offered.
+fn until_offered(e: &mut Engine, want: &Choice) -> DecisionRequest {
+    for _ in 0..100 {
+        let req = next(e);
+        if req.options.contains(want) {
+            return req;
+        }
+        let i = req.options.iter().position(|c| *c == Choice::Pass);
+        e.choose(i.unwrap_or(0));
+    }
+    panic!("{want:?} never offered");
+}
+
+fn describe_one(
+    e: &Engine,
+    req: &DecisionRequest,
+    c: &Choice,
+) -> zvtes_protocol::describe::OptionView {
+    let view = table_view(e, Some(req.seat), &mut Tracker::default());
+    let d = Describer {
+        e,
+        seat: req.seat,
+        window: req.window,
+        view: &view,
+        names: &[],
+        narrate: false,
+        offered: &req.options,
+        about: None,
+    };
+    let i = req.options.iter().position(|o| o == c).expect("offered");
+    d.describe(i, c)
+}
+
+fn crypt(name: &str) -> u16 {
+    CRYPT.iter().position(|c| c.name == name).expect(name) as u16
+}
+
+// Disciple of Lazarus searches the crypt: its pick names the crypt, not the
+// ash heap. Solomon Batanea's pick is in his prey's uncontrolled region:
+// it names the prey's card there.
+#[test]
+fn searches_and_picks_name_the_zone_they_take_from() {
+    let mut e = Engine::bare(2);
+    e.state.turn = 4;
+    let erlik = e.add_minion(SeatId(0), crypt("Erlik"), 6, false);
+    e.add_minion(SeatId(0), plain(|c| c.clan == "Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain(|c| c.clan == "Ventrue", 0), 4, false);
+    let young = crypt("Nicomedes");
+    e.state.seats[0].crypt = vec![young];
+    e.state.seats[0].hand.push(library("Disciple of Lazarus"));
+    let play = Choice::Play {
+        card: 0,
+        mode: 1,
+        actor: Some(erlik),
+        target: Target::None,
+    };
+    let req = until_offered(&mut e, &play);
+    pick(&mut e, &req, &play);
+    let want = Choice::AshVampire(young);
+    let req = until_offered(&mut e, &want);
+    let o = describe_one(&e, &req, &want);
+    assert_eq!(o.zone.expect("a zone").zone, "crypt");
+
+    let mut e = Engine::bare(2);
+    e.state.turn = 4;
+    let s = e.add_minion(SeatId(0), crypt("Solomon Batanea"), 4, false);
+    e.add_minion(SeatId(0), plain(|c| c.clan == "Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain(|c| c.clan == "Ventrue", 0), 4, false);
+    let slot = |card, counters| zvtes::state::UncontrolledSlot {
+        card,
+        counters,
+        banished: None,
+    };
+    e.state.seats[0].uncontrolled = vec![slot(plain(|c| c.clan == "Brujah", 1), 0)];
+    e.state.seats[1].uncontrolled = vec![
+        slot(plain(|c| c.clan == "Ventrue", 1), 3),
+        slot(plain(|c| c.clan == "Ventrue", 2), 3),
+    ];
+    let solomon = Choice::UseAbility {
+        source: zvtes::cards::AbilitySource::Vampire(s),
+        ability: 0,
+        actor: None,
+        target: Target::None,
+    };
+    let req = until_offered(&mut e, &solomon);
+    pick(&mut e, &req, &solomon);
+    let want = Choice::Slot(1);
+    let req = until_offered(&mut e, &want);
+    let o = describe_one(&e, &req, &want);
+    let view = table_view(&e, Some(req.seat), &mut Tracker::default());
+    let copy = view.seats[1].uncontrolled[1].card.copy;
+    assert_eq!(o.card.expect("a card").copy, Some(copy));
+}

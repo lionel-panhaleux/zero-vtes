@@ -276,9 +276,15 @@ impl Describer<'_> {
     }
 
     pub(crate) fn slot(&self, i: u8) -> (String, CardRef) {
-        let seat = &self.view.seats[self.seat.index()];
+        self.slot_of(self.seat, i)
+    }
+
+    /// Slot `i` of `of`'s uncontrolled region (Solomon Batanea's pick in
+    /// his prey's).
+    fn slot_of(&self, of: SeatId, i: u8) -> (String, CardRef) {
+        let seat = &self.view.seats[of.index()];
         let shown = seat.uncontrolled.get(i as usize).map(|s| s.card);
-        let known = self.e.state.seats[self.seat.index()]
+        let known = self.e.state.seats[of.index()]
             .uncontrolled
             .get(i as usize)
             .map(|u| u.card)
@@ -769,21 +775,32 @@ impl Describer<'_> {
                 format!("Take {name} from {from}")
             }
             Choice::Slot(i) => {
-                let (name, r) = self.slot(i);
+                let of = match self.e.interrupt() {
+                    Some(zvtes::draws::Interrupt::PreySlotToPool { of, .. }) => of,
+                    _ => self.seat,
+                };
+                let (name, r) = self.slot_of(of, i);
                 o.card = Some(r);
                 format!("Choose {name}")
             }
             Choice::AshVampire(card) => {
+                // Disciple of Lazarus's search takes it from the crypt.
+                let crypt = matches!(
+                    self.e.interrupt(),
+                    Some(zvtes::draws::Interrupt::CryptSearch { .. })
+                );
+                let from = if crypt { "crypt" } else { "ash_heap" };
                 o.zone = Some(ZoneRef {
                     seat: self.seat.0,
-                    zone: "ash_heap".into(),
+                    zone: from.into(),
                 });
                 o.card = Some(CardRef {
                     id: Some(CRYPT[card as usize].id),
                     copy: None,
                     card_id: None,
                 });
-                format!("Choose {} in the ash heap", CRYPT[card as usize].name)
+                let from = if crypt { "your crypt" } else { "the ash heap" };
+                format!("Choose {} in {from}", CRYPT[card as usize].name)
             }
             Choice::DrawLibrary => "Draw from the library".into(),
             Choice::DrawStored { card, stored } => {
