@@ -259,6 +259,9 @@ pub struct Side {
     pub additional_with: Option<CardId>,
     /// Optional presses only usable to continue combat (Righteous Blade).
     pub continue_presses: u8,
+    /// One optional maneuver or press for the combat, either (Mind Tricks
+    /// [DEM]).
+    pub maneuver_or_press: u8,
     /// Optional presses usable in any round of this combat (Hunter's
     /// Mark).
     pub combat_presses: u8,
@@ -507,6 +510,9 @@ pub struct CombatCtx {
     pub last_press: Option<usize>,
     /// An uncanceled press to continue stands.
     pub press_continue: bool,
+    /// The side that just pressed to continue, its opponent's printed toll
+    /// to pay (Petra; `Engine::pay_press_toll`).
+    pub press_toll: Option<usize>,
     /// The round ended early (a combat ends strike, a combatant no longer
     /// ready): straight to the end-of-round window.
     pub round_over: bool,
@@ -724,6 +730,17 @@ impl CombatCtx {
     }
 
     /// A press now: none to continue under a frenzy (Terror Frenzy [ani]).
+    /// A press now would end the combat and the side's minion cannot press
+    /// to end it (Don Michael Antonio Giovanni).
+    pub(crate) fn end_press_barred(&self, st: &GameState, side: usize) -> bool {
+        self.press_continue
+            && st.printed_mod(
+                self.sides[side].minion,
+                cards::Stat::NoPressToEnd,
+                crate::state::PrintedCtx::default(),
+            ) > 0
+    }
+
     pub(crate) fn may_press(&self, side: usize) -> bool {
         !(self.sides[side].no_continue_press && !self.press_continue)
             && !self.sides[side].no_press_round
@@ -784,7 +801,9 @@ impl CombatCtx {
             }
             Effect::CommittedWeaponStrikePlus(_) => !self.only_hand_strikes,
             Effect::Press if self.step == Step::Press => {
-                self.last_press != Some(side) && self.may_press(side)
+                self.last_press != Some(side)
+                    && self.may_press(side)
+                    && !self.end_press_barred(st, side)
             }
             // One additional-strike card at a time: a combatant with an
             // additional strike still to make gains no other before that
@@ -993,8 +1012,35 @@ impl Engine {
         ))
     }
 
+    /// Spiritual Guidance resolving: its player and the plays of an ash
+    /// heap combat card they can make now (rules-qa 67.4).
+    pub(crate) fn ash_play_due(&self) -> Option<(SeatId, Vec<Choice>)> {
+        let c = self.combat.as_ref()?;
+        let seat = c
+            .sides
+            .iter()
+            .map(|s| s.seat)
+            .find(|s| self.state.seats[s.index()].ash_combat_play)?;
+        let hand = self.virtual_hand(seat);
+        let options: Vec<Choice> = self
+            .play_options(seat, &c.windows(), None)
+            .into_iter()
+            .filter(|o| {
+                matches!(*o, Choice::Play { card, .. }
+                    if hand.get(card as usize).map(|&(_, f)| f)
+                        == Some(Some(crate::state::ASH_PLAY)))
+            })
+            .collect();
+        (!options.is_empty()).then_some((seat, options))
+    }
+
     pub(crate) fn combat_request(&self) -> Option<DecisionRequest> {
         let c = self.combat.as_ref().expect("combat context");
+        // Spiritual Guidance's play from the ash heap: its resolution, the
+        // impulse not going around (owner, 2026-10-12: rules-qa 67.4).
+        if let Some((seat, options)) = self.ash_play_due() {
+            return Some(DecisionRequest::new(seat, c.label(), options));
+        }
         match c.step {
             Step::ChooseStrike(i) => {
                 let side = &c.sides[i];
@@ -1180,6 +1226,7 @@ impl Engine {
                     Step::DetermineRange
                         if (c.sides[i].maneuvers > 0
                             || c.sides[i].combat_maneuvers > 0
+                            || c.sides[i].maneuver_or_press > 0
                             || (c.sides[i].close_maneuvers > 0 && c.range == Range::Long)
                             || (c.sides[i].close_maneuver_blood > 0
                                 && c.range == Range::Long
@@ -1201,8 +1248,10 @@ impl Engine {
                     Step::Press
                         if c.last_press != Some(i)
                             && c.may_press(i)
+                            && !c.end_press_barred(&self.state, i)
                             && (c.sides[i].presses > 0
                                 || c.sides[i].combat_presses > 0
+                                || c.sides[i].maneuver_or_press > 0
                                 || ((c.sides[i].continue_presses > 0
                                     || c.sides[i].mandatory_press > 0)
                                     && !c.press_continue)) =>
@@ -1230,6 +1279,19 @@ impl Engine {
 
     pub(crate) fn combat_apply(&mut self, choice: &Choice) {
         self.flow = Flow::Combat;
+        if let (
+            Some((seat, _)),
+            Choice::Play {
+                card,
+                mode,
+                actor,
+                target,
+            },
+        ) = (self.ash_play_due(), choice)
+        {
+            self.announce_play(seat, *card, *mode, *actor, *target, Flow::Combat);
+            return;
+        }
         let c = self.combat.as_mut().expect("combat context");
         // The seat acting on this choice, and whether the play goes through
         // the as-played stack (announced after the borrow ends).
@@ -1377,6 +1439,8 @@ impl Engine {
                     c.sides[i].maneuvers -= 1;
                 } else if c.sides[i].combat_maneuvers > 0 {
                     c.sides[i].combat_maneuvers -= 1;
+                } else if c.sides[i].maneuver_or_press > 0 {
+                    c.sides[i].maneuver_or_press -= 1;
                 } else {
                     // Quick Meld [PRO]: its blood as it is used.
                     let n = std::mem::take(&mut c.sides[i].maneuver_blood);
@@ -1399,8 +1463,10 @@ impl Engine {
                     c.sides[i].continue_presses -= 1;
                 } else if c.sides[i].presses > 0 {
                     c.sides[i].presses -= 1;
-                } else {
+                } else if c.sides[i].combat_presses > 0 {
                     c.sides[i].combat_presses -= 1;
+                } else {
+                    c.sides[i].maneuver_or_press -= 1;
                 }
                 c.window.play();
                 c.press(i);
@@ -1970,6 +2036,7 @@ impl Engine {
         let strength: [u8; 2] = std::array::from_fn(|i| {
             let ctx = crate::state::PrintedCtx {
                 opponent: Some(c.sides[1 - i].minion),
+                round: c.round,
                 ..Default::default()
             };
             // The acting minion's strength this action (Invigorate).
@@ -2048,7 +2115,10 @@ impl Engine {
                     // A strike works at close range unless it says ranged
                     // (owner, 2026-09-26: rules-qa 21.1).
                     Some(
-                        StrikeKind::TorporOrBurn | StrikeKind::CardEffect | StrikeKind::Corrupt,
+                        StrikeKind::TorporOrBurn
+                        | StrikeKind::Torpor { .. }
+                        | StrikeKind::CardEffect
+                        | StrikeKind::Corrupt,
                     ) => close,
                     Some(StrikeKind::BurnWeapon | StrikeKind::RangedBurnEquipment) => true,
                     Some(StrikeKind::BurnEquipment) => close,
@@ -2105,9 +2175,19 @@ impl Engine {
                     .strike_source
                     .is_some_and(|w| cards::is_weapon(st.cards[w.index()].card))
         });
+        // "Damage Petra inflicts on Baali is aggravated": her strikes'.
+        let printed_aggravated: [bool; 2] = std::array::from_fn(|i| {
+            let ctx = crate::state::PrintedCtx {
+                opponent: Some(c.sides[1 - i].minion),
+                ..Default::default()
+            };
+            st.printed_mod(c.sides[i].minion, cards::Stat::AggravatedDamage, ctx) > 0
+        });
         let mut steals = [0u8; 2];
         // Contagion [DAI]: the striking sides whose corruption lands.
         let mut corrupts: Vec<usize> = Vec::new();
+        // Coma [DEM]: the vampires that do not unlock as normal next.
+        let mut comatose: Vec<MinionId> = Vec::new();
         let mut burn_weapons: Vec<CardId> = Vec::new();
         // Weapons losing counters per damage inflicted (Weighted Walking
         // Stick): the card and the points.
@@ -2164,6 +2244,7 @@ impl Engine {
                         let n = (strength[i] + bonus + c.sides[i].hand_damage_bonus)
                             .saturating_sub(less);
                         let aggravated = c.sides[i].aggravated_hands
+                            || printed_aggravated[i]
                             || c.sides[i].aggravated_strike
                             || self.action.as_ref().is_some_and(|a| {
                                 a.aggravated_hands && a.acting == c.sides[i].minion
@@ -2174,6 +2255,21 @@ impl Engine {
                 StrikeKind::Melee { bonus, aggravated } => {
                     if close && !dodged && !harmless[i] {
                         let n = (strength[i] + bonus).saturating_sub(less);
+                        // "Damage inflicted on a Kiasyd by this weapon is
+                        // aggravated" (Banshee Ironwail).
+                        let against = st.minions[c.sides[j].minion.index()].clan();
+                        let aggravated = aggravated
+                            || printed_aggravated[i]
+                            || c.sides[i].strike_source.is_some_and(|w| {
+                                cards::lookup(st.cards[w.index()].card).is_some_and(|d| {
+                                    d.abilities.iter().any(|m| {
+                                        m.effects.iter().any(|e| {
+                                            matches!(e, Effect::AggravatedAgainstClan(k)
+                                                if against == Some(*k))
+                                        })
+                                    })
+                                })
+                            });
                         c.sides[j].strike_hit(n, aggravated, false);
                         // Inflicted, prevented or not (LSJ 20100519).
                         if let Some(w) = c.sides[i].strike_source {
@@ -2209,6 +2305,17 @@ impl Engine {
                         let gun = c.sides[i]
                             .strike_source
                             .is_some_and(|w| cards::is_gun(st.cards[w.index()].card));
+                        // Joaquin Murietta: his guns at long range.
+                        let n = if gun && !close {
+                            let more = st.printed_mod(
+                                c.sides[i].minion,
+                                cards::Stat::GunDamageAtLong,
+                                crate::state::PrintedCtx::default(),
+                            );
+                            (n as i32 + more).max(0) as u8
+                        } else {
+                            n
+                        };
                         let black_hand = c.sides[i].unpreventable_if_black_hand
                             && st.minions[c.sides[i].minion.index()]
                                 .vampire()
@@ -2222,7 +2329,8 @@ impl Engine {
                         {
                             c.sides[j].unpreventable += n;
                         } else {
-                            let aggravated = aggravated && !c.sides[i].never_aggravated;
+                            let aggravated = (aggravated || printed_aggravated[i])
+                                && !c.sides[i].never_aggravated;
                             if c.sides[i].never_aggravated {
                                 c.sides[j].keep_normal += n;
                             }
@@ -2243,6 +2351,15 @@ impl Engine {
                 StrikeKind::Corrupt => {
                     if close && !dodged {
                         corrupts.push(i);
+                    }
+                }
+                // Coma: a vampire only, wounded as it is sent.
+                StrikeKind::Torpor { skip_unlock } => {
+                    if close && !dodged && st.minions[c.sides[j].minion.index()].is_vampire() {
+                        c.sides[j].sent_to_torpor = true;
+                        if skip_unlock {
+                            comatose.push(c.sides[j].minion);
+                        }
                     }
                 }
                 StrikeKind::BurnWeapon
@@ -2273,6 +2390,9 @@ impl Engine {
                 )
             })
             .collect();
+        for m in comatose {
+            self.state.minions[m.index()].skip_unlock = true;
+        }
         for (seat, t) in corrupted {
             self.state.minions[t.index()].add_corruption(seat, 1);
             if self.corruption_steal_reached(seat, t) {
@@ -2756,6 +2876,7 @@ impl Engine {
         for s in ended.iter().flat_map(|c| c.sides.iter().map(|s| s.seat)) {
             self.state.seats[s.index()].combat_hand_bonus = 0;
             self.state.seats[s.index()].combat_extra_draws = 0;
+            self.state.seats[s.index()].combat_open_hand = false;
         }
         // Abuse of Power: one combatant ready, the other not — the
         // controller of the ready one's opponent burns pool, the acting
@@ -2930,6 +3051,32 @@ impl Engine {
         }
         options.extend(aimed);
         options
+    }
+
+    /// "A vampire burns 1 blood after using a press to continue combat with
+    /// her" (Petra): the press just used, if its opponent prints a toll.
+    pub(crate) fn pay_press_toll(&mut self) {
+        let Some(c) = self.combat.as_mut() else {
+            return;
+        };
+        let Some(i) = c.press_toll.take() else {
+            return;
+        };
+        let (presser, foe) = (c.sides[i].minion, c.sides[1 - i].minion);
+        if !self.state.minions[presser.index()].is_vampire() {
+            return;
+        }
+        let ctx = crate::state::PrintedCtx {
+            opponent: Some(presser),
+            ..Default::default()
+        };
+        let n = self
+            .state
+            .printed_mod(foe, cards::Stat::ContinuePressToll, ctx)
+            .max(0) as u8;
+        if n > 0 {
+            self.state.burn_blood(presser, n);
+        }
     }
 
     /// Effects of a combat card resolved during the combat.
@@ -3218,6 +3365,17 @@ impl Engine {
                 let seat = c.sides[i].seat;
                 self.state.seats[seat.index()].combat_hand_bonus += n;
             }
+            // Played at once if one can be (`ash_play_due`).
+            Effect::PlayCombatFromAsh => {
+                self.state.seats[play.seat.index()].ash_combat_play = true;
+                if self.ash_play_due().is_none() {
+                    self.state.seats[play.seat.index()].ash_combat_play = false;
+                }
+            }
+            Effect::OpponentOpenHandThisCombat => {
+                let seat = c.sides[1 - i].seat;
+                self.state.seats[seat.index()].combat_open_hand = true;
+            }
             Effect::AdditionalStrikes { n, limited } => {
                 c.sides[i].additional += n;
                 if limited {
@@ -3395,6 +3553,10 @@ impl CombatCtx {
     fn press(&mut self, i: usize) {
         self.press_continue = !self.press_continue;
         self.last_press = Some(i);
+        // A press to continue: Petra's toll, paid as the engine settles it.
+        if self.press_continue {
+            self.press_toll = Some(i);
+        }
     }
 }
 
@@ -3419,6 +3581,8 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::ManeuverForBlood(_)
             | Effect::HandStrikeDamageThisCombat(_)
             | Effect::HandSizeThisCombat(_)
+            | Effect::OpponentOpenHandThisCombat
+            | Effect::PlayCombatFromAsh
             | Effect::PreventOnTarget(_)
             | Effect::PreventOnTargetXPlus(_)
             | Effect::PreventNonAggravatedOnTarget(_)

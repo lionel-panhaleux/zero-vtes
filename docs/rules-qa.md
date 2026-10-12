@@ -64,7 +64,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
-- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3
+- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7
 - **Ousts, Life Boon's decision point** — 45.1–45.8
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5, 66.1
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
@@ -1293,3 +1293,22 @@ Readings no ruling settles, implemented with slice 16m; questions for the owner.
 **66.1** The as-announced window holds only the effects whose text says so ("only usable as the action is announced", "as … announces", Seduction, Warsaw Station, Yoruba Shrine, Screamer's fail): an effect usable during the action (Screamer's and Aranthebes's -1 stealth, Haqim's Law: Retribution's +1 bleed) waits for the block attempts — the reacting Methuselah's with its blocks and unlocks, the acting one's with its other modifiers (owner, from play).
 
 **66.2** A block attempt is offered when the stealth may yet be met, and stealth an ability in play can still take off (Screamer, Aranthebes) counts as much as intercept: a woken, locked Monica Giovanni attempts against a 1-stealth bleed bounced back to her Methuselah, who controls Screamer (owner, from play; refines 1.3's pruning).
+
+## Batch 67 — Legacy cards for TWDA decks, round 7: readings no ruling settles (Claude, 2026-10-12)
+
+Slice 16s: the next hundred cards by TWDA importance (ten new archetypes). Only the readings that no ruling or default reading settles; each is implemented and tested, for the owner to confirm or correct.
+
+**67.1** The Erciyes Fragments (a latent bug the roster reshuffle surfaced): its controller ousted, another Methuselah's card stored on it goes to its owner's ash heap — as another's card on a removed minion does (owner, 2026-09-06) — not out of every zone. (`remove_seat`; test the_erciyes_fragments_card_returns_to_its_owner_when_its_controller_is_ousted.)
+
+**67.2** Emerald Legionnaire: "if you control fewer copies of Emerald Legionnaire than ready unique Harbinger of Skulls" — read as the ready Harbingers of Skulls *you* control (crypt vampires), the ally ready itself (ANK 20180511-1). (Test emerald_legionnaire_raises_another_from_the_ash_heap.)
+
+**67.3** Donatello Giovanni: "if the chosen vampire attempts to bleed before your next unlock phase, they move 1 blood to Donatello" — every bleed it announces until then, not the first only; the chosen vampire any Methuselah's but the predator's, his own included. (Test donatello_giovanni_taxes_the_chosen_bleeder.)
+
+**67.4** Spiritual Guidance: "play a combat card from your ash heap as if from your hand" — owner (2026-10-12): it cannot be forgone: the card is played immediately, as the resolution of Spiritual Guidance, the impulse not going around; its requirements and cost as normal (the ash heap's combat cards the only options of its player's next decision; none playable, nothing happens). (`Engine::ash_play_due`; tests spiritual_guidance_plays_from_the_ash_heap, spiritual_guidance_forces_a_choice_among_the_ash_heaps_plays, spiritual_guidance_with_nothing_to_play_from_the_ash_heap.)
+
+**67.5** The Red List (rulebook "Traits", Enkidu): the master phase action marks another Methuselah's Red List minion (one's own is not offered); the action to enter combat with it is a +1 stealth Ⓓ rulebook action, once per vampire per turn, its 1 blood paid at resolution (unpayable then: it fizzles, as other action costs, rules-qa 3.6); trophies are not modeled (none is in the pool). (Test the_red_list_marks_enkidu_for_a_rush.)
+
+**67.6** New Blood: "choose any circle … New Blood belongs to the chosen circle" — not modeled, no card of the pool reading a circle (Unwholesome Bond and Angelo are not in the pool); the crypt draw as he enters is. (Test new_blood_draws_a_crypt_card_as_he_enters.)
+
+**67.7** Trochomancy: "remove thirteen (seven) cards in the target Methuselah's ash heap from the game to get +1 bleed" — the removal is the price: not playable unless that ash heap holds them (burned vampires counted, as Shroud of Decay's, rules-qa 42.7). (Test trochomancy_burns_the_targets_ash_heap_for_bleed.)
+

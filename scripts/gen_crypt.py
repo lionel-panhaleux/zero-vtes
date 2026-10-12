@@ -31,9 +31,9 @@ MINI_PRECON_SETS = ["New Blood", "New Blood II", "New Blood III"]
 # optional title. Prince/Baron/Archbishop of a city contest by city;
 # Justicar and Inner Circle by clan; primogen is not unique.
 TITLE = re.compile(
-    r"^(Camarilla|Anarch|Independent|Sabbat)"
+    r"^(Camarilla|Anarch|Independent|Sabbat|Laibon)"
     r"(?: (Prince|Baron|Archbishop) of ((?:[^:.]|\.(?=\w))+)| (primogen)| (\w+) Justicar"
-    r"| (\w+) Inner Circle| (bishop|cardinal|priscus|regent))?[:.]"
+    r"| (\w+) Inner Circle| (bishop|cardinal|priscus|regent|magaji))?[:.]"
 )
 
 
@@ -57,8 +57,9 @@ def parse(card):
     else:
         # "Independent. 2 votes (titled):" (Scout Youngwood; Karl Schrekt
         # Camarilla).
-        votes = re.match(r"^(?:Camarilla|Anarch|Independent|Sabbat)\. (\d) votes? \(titled\)",
-                         card["card_text"])
+        # "Independent: The Baron has 2 votes (titled)."
+        votes = re.match(r"^(?:Camarilla|Anarch|Independent|Sabbat)(?:\. |: [^.:]* has )"
+                         r"(\d) votes? \(titled\)", card["card_text"])
         title = f"Title::Votes({votes.group(1)})" if votes else "Title::None"
     return sect, title
 
@@ -84,6 +85,8 @@ def generate(cards):
     out.append("    Anarch,")
     out.append("    Independent,")
     out.append("    Sabbat,")
+    out.append("    /// A legacy sect (rulebook \"Other Vampire Sects\").")
+    out.append("    Laibon,")
     out.append("}")
     out.append("")
     out.append("/// A title, printed or granted by a card. Prince, Baron and Archbishop of the")
@@ -106,6 +109,8 @@ def generate(cards):
     out.append("    Cardinal,")
     out.append("    Priscus,")
     out.append("    Regent,")
+    out.append("    /// The Laibon magaji: 2 votes, not unique (rulebook \"Laibon\").")
+    out.append("    Magaji,")
     out.append("    /// \"n votes (titled)\" printed on an Independent vampire (Arishat,")
     out.append("    /// Scout Youngwood): a title worth n votes, not unique.")
     out.append("    Votes(u8),")
@@ -146,6 +151,15 @@ def generate(cards):
     out.append("    /// \"Blood cursed.\" (Alu, Wise Frog): it cannot commit diablerie")
     out.append("    /// (rulebook \"Traits\").")
     out.append("    pub blood_cursed: bool,")
+    out.append("    /// \"Scarce.\" (Le Dinh Tho): influenced out, 3 pool burned for each")
+    out.append("    /// vampire of its clan already controlled (rulebook \"Traits\").")
+    out.append("    pub scarce: bool,")
+    out.append("    /// \"Sterile.\" (Effie Lowery): it cannot perform actions to put new")
+    out.append("    /// vampires in play (rulebook \"Traits\").")
+    out.append("    pub sterile: bool,")
+    out.append("    /// \"Red List.\" (Enkidu, The Noah): any Methuselah may mark it in")
+    out.append("    /// their master phase and enter combat with it (rulebook \"Traits\").")
+    out.append("    pub red_list: bool,")
     out.append("}")
     out.append("")
     out.append("#[rustfmt::skip]")
@@ -172,6 +186,9 @@ def generate(cards):
         # "Non-unique." (Valkyrie) or "Tupdogs are not unique." (Tupdog).
         out.append(f"        unique: {flag(not re.search(r'(^|[.:] )(Non-unique|[A-Z]\w*s are not unique)\.', text))},")
         out.append(f"        blood_cursed: {flag(re.search(r'(^|[.:] )Blood cursed\.', text, re.I))},")
+        out.append(f"        scarce: {flag(re.search(r'(^|[.:] )Scarce\.', text))},")
+        out.append(f"        sterile: {flag(re.search(r'(^|[.:] )Sterile\.', text))},")
+        out.append(f"        red_list: {flag(re.search(r'(^|[.:] )Red List[.:]', text))},")
         out.append("    },")
     out.append("];")
     out.append("")

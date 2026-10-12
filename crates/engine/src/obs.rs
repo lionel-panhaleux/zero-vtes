@@ -87,7 +87,7 @@ pub const N_ACTION_KINDS: usize = ActionKind::Ability as usize + 1;
 /// actions' (no schema change for trained networks).
 fn action_slot(kind: ActionKind) -> usize {
     match kind {
-        ActionKind::BecomeAnarch => ActionKind::Ability as usize,
+        ActionKind::BecomeAnarch | ActionKind::RedListHunt => ActionKind::Ability as usize,
         k => k as usize,
     }
 }

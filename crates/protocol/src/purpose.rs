@@ -350,6 +350,21 @@ impl Describer<'_> {
                 format!("Choose up to {left} more ash heap cards to shuffle into your library")
             }
             BecomesAnarch { .. } => "Choose a non-titled vampire of yours to become Anarch".into(),
+            LockOrPay { card, pool, .. } => format!(
+                "Lock {} or burn {pool} pool",
+                self.card_name(card)
+            ),
+            CryptSearch { clan, .. } => {
+                format!("Choose a {clan} in your crypt to move to your uncontrolled region")
+            }
+            PreySlotToPool { of, .. } => format!(
+                "Choose the uncontrolled vampire of {} whose blood goes to their pool",
+                self.seat_name(of)
+            ),
+            DistributeFrom { from, clan, left, .. } => format!(
+                "You can move 1 blood from {} to a {clan} in your uncontrolled region ({left} more at most)",
+                self.named(from)
+            ),
             UncontrolledBlood { clan, n, .. } => {
                 format!("Add {n} blood to a {clan} vampire in your uncontrolled region")
             }
@@ -556,6 +571,22 @@ impl Describer<'_> {
                 (AshurPicks { .. }, Choice::Pass) => Some("No more".into()),
                 (BecomesAnarch { .. }, Choice::ChooseMinion(_)) => role("becomes Anarch".into()),
                 (UncontrolledBlood { n, .. }, Choice::Slot(_)) => role(format!("gets {n} blood")),
+                (LockOrPay { card, .. }, Choice::ResolveRider { .. }) => {
+                    Some(format!("Lock {}", self.card_name(card)))
+                }
+                (LockOrPay { pool, .. }, Choice::BurnPool) => Some(format!("Burn {pool} pool")),
+                (CryptSearch { .. }, Choice::AshVampire(card)) => Some(format!(
+                    "Move {} from your crypt to your uncontrolled region",
+                    zvtes::crypt::CRYPT[card as usize].name
+                )),
+                (CryptSearch { .. }, Choice::Pass) => Some("Find none".into()),
+                (PreySlotToPool { of, .. }, Choice::Slot(i)) => Some(format!(
+                    "1 blood from uncontrolled vampire #{} of {} to their pool",
+                    i + 1,
+                    self.seat_name(of)
+                )),
+                (DistributeFrom { .. }, Choice::Slot(_)) => role("gets 1 blood".into()),
+                (DistributeFrom { .. }, Choice::Pass) => Some("Move no more blood".into()),
                 (MayRecycleCanceled { card, .. }, Choice::ResolvePrinted { .. }) => Some(format!(
                     "Shuffle {} into your library",
                     LIBRARY[card as usize].name

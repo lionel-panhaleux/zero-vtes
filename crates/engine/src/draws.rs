@@ -274,6 +274,29 @@ pub enum Interrupt {
         clan: &'static str,
         n: u8,
     },
+    /// "Lock this card or burn n pool" (Bleeding the Vine): `ResolveRider`
+    /// locks it (if unlocked), `BurnPool` pays.
+    LockOrPay {
+        seat: SeatId,
+        card: CardId,
+        pool: u8,
+    },
+    /// "Search your crypt for a `clan` vampire … move them to your
+    /// uncontrolled region (shuffle afterward)" (Disciple of Lazarus): a
+    /// crypt card (`Choice::AshVampire`, a CRYPT index), or none (Pass).
+    CryptSearch { seat: SeatId, clan: &'static str },
+    /// Solomon Batanea: the slot of `of`'s uncontrolled region that gives 1
+    /// blood to `of`'s pool (`Choice::Slot`, `of`'s region).
+    PreySlotToPool { seat: SeatId, of: SeatId },
+    /// Erlik entering play: up to `left` more blood moved from `from` to
+    /// `seat`'s uncontrolled `clan` vampires, one at a time (`Choice::Slot`);
+    /// Pass stops. His contests are staged after (LSJ 20080526).
+    DistributeFrom {
+        seat: SeatId,
+        from: MinionId,
+        clan: &'static str,
+        left: u8,
+    },
     /// "Move a wraith or zombie ally from your ash heap to your ready
     /// region" (Split the Veil): the player's pick among the allies
     /// matching one of `of`; with `named`, the pick is named for the
@@ -421,6 +444,10 @@ impl Interrupt {
             | Interrupt::MakeAnarch { seat, .. }
             | Interrupt::StealForCorruption { seat, .. }
             | Interrupt::UncontrolledBlood { seat, .. }
+            | Interrupt::CryptSearch { seat, .. }
+            | Interrupt::LockOrPay { seat, .. }
+            | Interrupt::PreySlotToPool { seat, .. }
+            | Interrupt::DistributeFrom { seat, .. }
             | Interrupt::BecomesAnarch { seat }
             | Interrupt::AnarchConvert { seat, .. }
             | Interrupt::AshurPicks { seat, .. }
@@ -925,6 +952,41 @@ impl Engine {
                 Interrupt::UncontrolledBlood { seat, clan, .. } => {
                     !self.uncontrolled_of_clan(seat, clan).is_empty()
                 }
+                Interrupt::LockOrPay { card, .. } => self.state.cards[card.index()].present(),
+                Interrupt::CryptSearch { seat, clan } => {
+                    if self.crypt_of_clan(seat, clan).is_empty() {
+                        self.interrupts.remove(0);
+                        let crypt = &mut self.state.seats[seat.index()].crypt;
+                        self.rng.shuffle(crypt);
+                        continue;
+                    }
+                    true
+                }
+                Interrupt::PreySlotToPool { of, .. } => self.state.seats[of.index()]
+                    .uncontrolled
+                    .iter()
+                    .any(|u| u.counters > 0),
+                Interrupt::DistributeFrom {
+                    seat,
+                    from,
+                    clan,
+                    left,
+                } => {
+                    let v = &self.state.minions[from.index()];
+                    if v.present()
+                        && v.blood > 0
+                        && left > 0
+                        && !self.uncontrolled_of_clan(seat, clan).is_empty()
+                    {
+                        true
+                    } else {
+                        self.interrupts.remove(0);
+                        if self.state.minions[from.index()].present() {
+                            self.stage_contests(from);
+                        }
+                        continue;
+                    }
+                }
                 Interrupt::BecomesAnarch { seat } => !self.untitled_vampires(seat).is_empty(),
                 Interrupt::AnarchConvert {
                     seat,
@@ -1290,6 +1352,41 @@ impl Engine {
                 WindowLabel::EntryEffect,
                 vec![Choice::Pass, Choice::DrawCrypt],
             ),
+            Interrupt::LockOrPay { card, .. } => (
+                WindowLabel::RiderTerms,
+                if st.cards[card.index()].locked {
+                    vec![Choice::BurnPool]
+                } else {
+                    vec![Choice::ResolveRider { card: card.0 }, Choice::BurnPool]
+                },
+            ),
+            Interrupt::CryptSearch { seat, clan } => (
+                WindowLabel::ResolutionChoice,
+                std::iter::once(Choice::Pass)
+                    .chain(
+                        self.crypt_of_clan(seat, clan)
+                            .into_iter()
+                            .map(Choice::AshVampire),
+                    )
+                    .collect(),
+            ),
+            Interrupt::PreySlotToPool { of, .. } => (
+                WindowLabel::ResolutionChoice,
+                (0..st.seats[of.index()].uncontrolled.len())
+                    .filter(|&i| st.seats[of.index()].uncontrolled[i].counters > 0)
+                    .map(|i| Choice::Slot(i as u8))
+                    .collect(),
+            ),
+            Interrupt::DistributeFrom { seat, clan, .. } => (
+                WindowLabel::EntryEffect,
+                std::iter::once(Choice::Pass)
+                    .chain(
+                        self.uncontrolled_of_clan(seat, clan)
+                            .into_iter()
+                            .map(|i| Choice::Slot(i as u8)),
+                    )
+                    .collect(),
+            ),
             Interrupt::UncontrolledBlood { seat, clan, .. } => (
                 WindowLabel::ResolutionChoice,
                 self.uncontrolled_of_clan(seat, clan)
@@ -1518,6 +1615,14 @@ impl Engine {
     }
 
     /// The slots of `seat`'s uncontrolled region holding a `clan` vampire.
+    /// The distinct crypt cards of `clan` in `seat`'s crypt (Disciple of
+    /// Lazarus's search).
+    fn crypt_of_clan(&self, seat: SeatId, clan: &'static str) -> Vec<u16> {
+        distinct(&self.state.seats[seat.index()].crypt, |c| {
+            crate::crypt::CRYPT[c as usize].clan == clan
+        })
+    }
+
     fn uncontrolled_of_clan(&self, seat: SeatId, clan: &'static str) -> Vec<usize> {
         (0..self.state.seats[seat.index()].uncontrolled.len())
             .filter(|&i| self.state.slot_vampire(seat, i).1 == clan)
@@ -2618,6 +2723,62 @@ impl Engine {
                 let c = s.hand.remove(i as usize);
                 s.ash.push(c);
                 s.held.master += 1;
+            }
+            (Interrupt::LockOrPay { card, .. }, Choice::ResolveRider { .. }) => {
+                self.interrupts.remove(0);
+                self.state.cards[card.index()].locked = true;
+            }
+            (Interrupt::LockOrPay { seat, pool, .. }, Choice::BurnPool) => {
+                self.interrupts.remove(0);
+                self.pay_pool_for_ability(seat, pool as i32);
+            }
+            (Interrupt::CryptSearch { seat, .. }, Choice::AshVampire(card)) => {
+                self.interrupts.remove(0);
+                let st = &mut self.state.seats[seat.index()];
+                let k = st
+                    .crypt
+                    .iter()
+                    .position(|&c| c == card)
+                    .expect("in the crypt");
+                st.crypt.remove(k);
+                st.uncontrolled.push(crate::state::UncontrolledSlot {
+                    card,
+                    counters: 0,
+                    banished: None,
+                });
+                self.rng.shuffle(&mut self.state.seats[seat.index()].crypt);
+            }
+            (Interrupt::CryptSearch { seat, .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+                self.rng.shuffle(&mut self.state.seats[seat.index()].crypt);
+            }
+            (Interrupt::PreySlotToPool { of, .. }, Choice::Slot(i)) => {
+                self.interrupts.remove(0);
+                let st = &mut self.state.seats[of.index()];
+                st.uncontrolled[i as usize].counters -= 1;
+                st.pool += 1;
+            }
+            (
+                Interrupt::DistributeFrom {
+                    seat,
+                    from,
+                    clan,
+                    left,
+                },
+                Choice::Slot(i),
+            ) => {
+                self.state.minions[from.index()].blood -= 1;
+                self.state.add_uncontrolled_blood(seat, i as usize, 1);
+                self.interrupts[0] = Interrupt::DistributeFrom {
+                    seat,
+                    from,
+                    clan,
+                    left: left - 1,
+                };
+            }
+            (Interrupt::DistributeFrom { from, .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+                self.stage_contests(from);
             }
             (Interrupt::EntryBurn { .. }, Choice::BurnInPlay { card }) => {
                 self.interrupts.remove(0);

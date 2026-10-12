@@ -110,6 +110,7 @@ pub fn action_kind(k: ActionKind) -> &'static str {
         ActionKind::EquipFound => "equip from the library",
         ActionKind::Ability => "action",
         ActionKind::BecomeAnarch => "become Anarch",
+        ActionKind::RedListHunt => "enter combat with a Red List minion",
     }
 }
 
@@ -1296,6 +1297,11 @@ fn ability_parts(effects: &[Effect]) -> Vec<String> {
                 }
                 Effect::SpendMasterPhaseAction => "master phase action".into(),
                 Effect::PoolToCounter(n) => format!("{n} pool to the card"),
+                // Blood kept as counters (Acquired Ventrue Assets, Blood
+                // Puppy).
+                Effect::CounterToTargetBlood => "1 blood to the vampire".into(),
+                Effect::CounterToPool => "1 blood to pool".into(),
+                Effect::CountersToPool => "all its blood to pool".into(),
                 Effect::GiveToPrey => "give to prey".into(),
                 Effect::LockPreyVampires(n) => format!("lock {n} prey vampires"),
                 Effect::CryptNamedToUncontrolled(name) => {

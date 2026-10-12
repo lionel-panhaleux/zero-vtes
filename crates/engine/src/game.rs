@@ -622,6 +622,7 @@ impl Engine {
     pub fn run(&mut self) -> Step {
         loop {
             self.rest_fury_tokens();
+            self.pay_press_toll();
             self.settle_interrupts();
             if self.interrupts.is_empty() {
                 self.settle_ousting();
@@ -647,6 +648,7 @@ impl Engine {
                     if req.options.len() == 1 {
                         let choice = req.options[0];
                         self.record(&req, &choice);
+                        self.settle_ash_play(&req, &choice);
                         self.apply(&choice);
                     } else {
                         return Step::Decision(req);
@@ -664,7 +666,24 @@ impl Engine {
         self.decisions += 1;
         let choice = req.options[idx];
         self.record(&req, &choice);
+        self.settle_ash_play(&req, &choice);
         self.apply(&choice);
+    }
+
+    /// Spiritual Guidance's play from the ash heap is its player's next
+    /// decision, forced (`Engine::ash_play_due`, rules-qa 67.4): a decision
+    /// other than it (the play no longer possible) lets it lapse.
+    fn settle_ash_play(&mut self, req: &DecisionRequest, choice: &Choice) {
+        let s = req.seat;
+        if !self.state.seats[s.index()].ash_combat_play {
+            return;
+        }
+        let from_ash = matches!(*choice, Choice::Play { card, .. }
+            if self.virtual_hand(s).get(card as usize).map(|&(_, f)| f)
+                == Some(Some(crate::state::ASH_PLAY)));
+        if !from_ash {
+            self.state.seats[s.index()].ash_combat_play = false;
+        }
     }
 
     /// Keep `choice` in the history if it is public (before it applies:
@@ -1075,9 +1094,10 @@ impl Engine {
                 })
                 .map(|(i, _)| Pending::Rider(CardId(i as u32))),
         );
-        let printed: Vec<Pending> = self
-            .state
-            .minions_of(s)
+        // Any Methuselah's vampire, its rider's scope deciding (Arika's:
+        // in her controller's prey's unlock phase).
+        let printed: Vec<Pending> = (0..self.state.minions.len())
+            .map(|i| MinionId(i as u32))
             .filter(|&m| !self.printed_unlock_riders(m).is_empty())
             .map(Pending::Printed)
             .collect();
@@ -1151,6 +1171,10 @@ impl Engine {
             }
         }
         let was_ready = self.state.minions[m.index()].ready();
+        let (burned_vampire, burned_owner) = {
+            let v = &self.state.minions[m.index()];
+            (v.in_play && v.is_vampire(), v.owner)
+        };
         // The Capuchin: to his owner's uncontrolled region, a new vampire,
         // his controller's transfers next influence phase (ANK 20200417).
         let capuchin = self.state.minions[m.index()].in_play.then(|| {
@@ -1244,6 +1268,11 @@ impl Engine {
         }
         if was_ready {
             self.leave_riders(Hook::ReadyMinionBurnedOrTorpor, &[m]);
+        }
+        // "Whenever a vampire controlled by your predator or prey is
+        // burned, Mina gains 3 blood" — from torpor too.
+        if burned_vampire {
+            self.neighbor_vampire_burned(burned_owner);
         }
         if let Some((g, seat, cap)) = gem_ctx {
             self.soul_gem(g, seat, cap);
@@ -1429,6 +1458,38 @@ impl Engine {
             } else if c.host == Some(m) {
                 self.burn_card_in_play(CardId(ci as u32));
             }
+        }
+    }
+
+    /// A vampire of `owner`'s was burned: the vampires in play whose
+    /// controller has `owner` for predator or prey gain what their
+    /// `Hook::NeighborVampireBurned` rider says (Mina Grotius: 3 blood).
+    fn neighbor_vampire_burned(&mut self, owner: SeatId) {
+        let mut gains = Vec::new();
+        for (i, v) in self.state.minions.iter().enumerate() {
+            if !v.present() || v.owner == owner {
+                continue;
+            }
+            if self.state.predator(v.owner) != owner && self.state.prey(v.owner) != owner {
+                continue;
+            }
+            let Some(def) = crate::cards::vampire_of(v) else {
+                continue;
+            };
+            for r in def
+                .riders
+                .iter()
+                .filter(|r| r.hook == Hook::NeighborVampireBurned)
+            {
+                for e in r.effects {
+                    if let crate::cards::Effect::AddHostBlood(n) = *e {
+                        gains.push((MinionId(i as u32), n));
+                    }
+                }
+            }
+        }
+        for (m, n) in gains {
+            self.state.gain_blood(m, n);
         }
     }
 
@@ -1938,6 +1999,14 @@ impl Engine {
                 if owner != s && !effect_only {
                     self.state.seats[owner.index()].removed.push(card);
                 }
+                // Another Methuselah's cards on it (The Erciyes Fragments)
+                // burn to their owner's ash heap, as the cards on a
+                // removed minion (owner, 2026-09-06; rules-qa 67.1).
+                let stored = std::mem::take(&mut self.state.cards[ci].stored);
+                match self.state.cards[ci].stored_owner {
+                    Some(o) if o != s => self.state.seats[o.index()].ash.extend(stored),
+                    _ => {}
+                }
                 // Absimiliard's Army: the other Methuselahs' ghouls too.
                 self.remove_ghouls_of(id);
             } else if c
@@ -1954,6 +2023,17 @@ impl Engine {
     }
 
     pub(crate) fn next_turn(&mut self) {
+        // The end of the turn: the Red List marks lapse, Andre LeRoux's
+        // bleed too, Enkidu unlocks.
+        self.state.red_list_marks.clear();
+        for i in 0..self.state.minions.len() {
+            self.state.minions[i].bleed_bonus_turn = 0;
+            if std::mem::take(&mut self.state.minions[i].unlock_end_of_turn)
+                && self.state.minions[i].present()
+            {
+                self.state.unlock(MinionId(i as u32));
+            }
+        }
         if self.state.turn >= self.time_limit {
             // Time limit (tournament rules 3.7): 0.5 VP per survivor.
             for i in 0..self.state.seats.len() {
@@ -1996,6 +2076,16 @@ impl Engine {
         }
         // Juliet Parr's hand size lasts until this unlock phase.
         self.state.seats[s.index()].hand_bonus_unlock = 0;
+        self.state.seats[s.index()].hand_malus_unlock = 0;
+        // Donatello Giovanni's marks last until his controller's unlock.
+        let st = &self.state;
+        let keep: Vec<(MinionId, MinionId)> = st
+            .bleed_tolls
+            .iter()
+            .copied()
+            .filter(|&(_, d)| st.minions[d.index()].owner != s)
+            .collect();
+        self.state.bleed_tolls = keep;
         // Delayed replacements ("do not replace until your next unlock
         // phase") are drawn before unlocking (ANK 20200129).
         let held = std::mem::take(&mut self.state.seats[s.index()].held.unlock);
@@ -2189,7 +2279,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 340);
+        assert_eq!(CRYPT.len(), 406);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

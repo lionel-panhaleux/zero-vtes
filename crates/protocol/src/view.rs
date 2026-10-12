@@ -273,6 +273,7 @@ pub fn title_text(t: Title) -> Option<String> {
         Title::Cardinal => Some("Cardinal".into()),
         Title::Priscus => Some("Priscus".into()),
         Title::Regent => Some("Regent".into()),
+        Title::Magaji => Some("Magaji".into()),
         Title::Independent { name, .. } => Some(name.into()),
         Title::Votes(n) => Some(format!(
             "{n} vote{} (titled)",

@@ -53,6 +53,10 @@ pub enum ActionKind {
     /// non-Anarch vampire, +1 stealth, undirected; 2 blood, 1 if its
     /// Methuselah controls another ready Anarch, paid at resolution.
     BecomeAnarch,
+    /// Rulebook "Red List": enter combat with a Red List minion the
+    /// Methuselah marked this turn (`target`), +1 stealth, directed, 1
+    /// blood paid at resolution; once each turn per vampire.
+    RedListHunt,
 }
 
 /// One indexed option inside a decision request. `Pass` is always explicit;

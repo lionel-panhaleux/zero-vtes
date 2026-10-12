@@ -594,3 +594,37 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 102208,Zip Gun,Combat,,no,COMBAT_BEFORE_RANGE,,,corrected
 101270,Neighborhood Watch Commander,Ally,,no,ACTION_DECLARE_RECRUIT,,,ok
 101507,Psyche!,Combat,cel,no,COMBAT_PRESS;COMBAT_WOULD_END,,,ok
+100113,Aura Reading,Combat,aus,no,COMBAT_BEFORE_RANGE,,,ok
+100133,Banshee Ironwail,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+101404,Poacher's Hunting Ground,Master,,no,MASTER_PHASE,,,ok
+101810,Smear Campaign,Master,,no,MASTER_PHASE,,,ok
+100249,Breath of Thanatos,Action Modifier/Combat,nec,no,ACTION_STEALTH_INTERCEPT;COMBAT_STRIKE_DECLARATION,,,ok
+100552,Disciple of Lazarus,Action,,no,ACTION_DECLARE,,,ok
+100634,Emerald Legionnaire,Ally,,no,ACTION_DECLARE_RECRUIT,,,ok
+102026,Trochomancy,Action Modifier,aus/nec,no,ACTION_DURING,,,ok
+100378,Coma,Combat,dem,no,COMBAT_STRIKE_DECLARATION,,,ok
+100405,Confusion,Action Modifier,dem,no,ACTION_DURING;ACTION_STEALTH_INTERCEPT,,,ok
+100682,Eyes of Chaos,Action Modifier,dem,no,ACTION_DURING,,,ok
+101055,Kindred Spirits,Action,dem,no,ACTION_DECLARE,,,ok
+101216,Mind Tricks,Action Modifier,dem,no,ACTION_STEALTH_INTERCEPT,,,ok
+100019,Acquired Ventrue Assets,Master,,no,MASTER_PHASE,in_play_action,,ok
+100279,Call of the Hungry Dead,Action Modifier,nec,no,ACTION_BLOCK_ATTEMPT,,,ok
+100693,Fake Out,Combat,,no,COMBAT_DETERMINE_RANGE,delayed_replacement,,ok
+101433,Powerbase: Cape Verde,Master,,no,MASTER_PHASE,in_play_action,,ok
+101843,Spectral Divination,Action Modifier/Reaction,nec,no,ACTION_STEALTH_INTERCEPT,,,ok
+101851,Spiritual Guidance,Combat,,no,COMBAT_UNTIMED,,,ok
+101895,Sudario Refraction,Action,,no,ACTION_DECLARE,randomness,,ok
+101983,Thrown Sewer Lid,Combat,pot,no,COMBAT_STRIKE_DECLARATION,,,ok
+100178,Bleeding the Vine,Master,,no,MASTER_PHASE,,,ok
+101018,Jackie Therman,Retainer,,no,ACTION_DECLARE_EMPLOY,,,ok
+101736,Shadow Boxing,Action Modifier/Combat,obf/pot,no,COMBAT_DETERMINE_RANGE;COMBAT_PRESS;ACTION_AFTER_COMBAT,continues_action,yes,ok
+100207,Blood Puppy,Master,,no,MASTER_PHASE,in_play_action,,ok
+101210,"Millicent Smith, Puritan Vampire Hunter",Master,,no,MASTER_PHASE,,,ok
+101531,Quicken Sight,Reaction,aus/cel,no,ACTION_STEALTH_INTERCEPT,,,ok
+101779,Sideslip,Combat,cel,no,COMBAT_STRIKE_DECLARATION;COMBAT_DAMAGE_PREVENTION,,,ok
+100136,Base Hunting Ground,Master,,no,MASTER_PHASE,,,ok
+101189,"Mbare Market, Harare",Master,,no,MASTER_PHASE,,,ok
+100521,Dementation,Master,,no,MASTER_PHASE,,,ok
+100524,Deny,Action Modifier/Combat,dem,no,COMBAT_PRESS;ACTION_STEALTH_INTERCEPT,,,ok
+100616,Effective Management,Master,,no,MASTER_PHASE,,,ok
+100163,The Bitter and Sweet Story,Event,,no,DISCARD_PHASE,,,ok

@@ -181,6 +181,17 @@ impl Engine {
                 if self.state.sect_of(m) == Some(crate::crypt::Sect::Anarch) {
                     self.anarch_arrives(s);
                 }
+                // New Blood: "draw 1 card from your crypt" as he enters.
+                if entry_draws_crypt(out.card) {
+                    let st = &mut self.state.seats[s.index()];
+                    if let Some(card) = st.crypt.pop() {
+                        st.uncontrolled.push(crate::state::UncontrolledSlot {
+                            card,
+                            counters: 0,
+                            banished: None,
+                        });
+                    }
+                }
                 // Anarch Convert: his entry ability before any contest.
                 if is_anarch_convert(out.card) {
                     self.interrupts
@@ -189,6 +200,15 @@ impl Engine {
                             convert: m,
                             forced,
                             chosen: None,
+                        });
+                } else if let Some((n, clan)) = entry_distribution(out.card) {
+                    // Erlik: before any contest (LSJ 20080526).
+                    self.interrupts
+                        .push(crate::draws::Interrupt::DistributeFrom {
+                            seat: s,
+                            from: m,
+                            clan,
+                            left: n,
                         });
                 } else {
                     self.stage_contests(m);
@@ -219,6 +239,26 @@ impl Engine {
                         }
                     }
                 }
+                // Scarce: 3 pool for each vampire of its clan already
+                // controlled — the apparent clan (LSJ 20011015).
+                if out.card != crate::state::CREATED && CRYPT[out.card as usize].scarce {
+                    let clan = self.state.minions[m.index()].clan();
+                    let k = self
+                        .state
+                        .minions_of(s)
+                        .filter(|&o| {
+                            o != m
+                                && self.state.minions[o.index()].is_vampire()
+                                && self.state.minions[o.index()].clan() == clan
+                        })
+                        .count() as i32;
+                    if k > 0 {
+                        self.state.seats[s.index()].pool -= 3 * k;
+                        if self.state.seats[s.index()].pool <= 0 {
+                            self.oust_and_pass(s);
+                        }
+                    }
+                }
             }
             Choice::ResolveRider { card } => {
                 self.flow = Flow::Influence { left };
@@ -234,4 +274,33 @@ impl Engine {
 /// him from the game …").
 fn is_anarch_convert(card: u16) -> bool {
     card != crate::state::CREATED && CRYPT[card as usize].name == "Anarch Convert"
+}
+
+/// A vampire's "as he enters play, you can distribute up to n blood from
+/// him to your uncontrolled <clan>" (Erlik): its entry rider.
+fn entry_distribution(card: u16) -> Option<(u8, &'static str)> {
+    if card == crate::state::CREATED {
+        return None;
+    }
+    crate::cards::vampire(card)?
+        .riders
+        .iter()
+        .filter(|r| r.hook == crate::cards::Hook::EntersPlay)
+        .flat_map(|r| r.effects)
+        .find_map(|e| match *e {
+            crate::cards::Effect::DistributeToUncontrolled { n, clan } => Some((n, clan)),
+            _ => None,
+        })
+}
+
+/// A vampire's "as he enters play during your influence phase … draw 1 card
+/// from your crypt" (New Blood): its entry rider.
+fn entry_draws_crypt(card: u16) -> bool {
+    card != crate::state::CREATED
+        && crate::cards::vampire(card).is_some_and(|d| {
+            d.riders.iter().any(|r| {
+                r.hook == crate::cards::Hook::EntersPlay
+                    && r.effects.contains(&crate::cards::Effect::DrawCryptOnEntry)
+            })
+        })
 }

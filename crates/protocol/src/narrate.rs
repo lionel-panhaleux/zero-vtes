@@ -122,6 +122,7 @@ pub(crate) fn strike_text(s: Option<StrikeKind>) -> String {
             format!("steal {n} blood{}", if ranged { ", ranged" } else { "" })
         }
         Some(StrikeKind::TorporOrBurn) => "torpor or burn".into(),
+        Some(StrikeKind::Torpor { .. }) => "torpor".into(),
         Some(StrikeKind::CardEffect) => "strike".into(),
         Some(StrikeKind::BurnWeapon) => "burn weapon".into(),
         Some(StrikeKind::BurnEquipment) => "burn equipment".into(),

@@ -3138,6 +3138,27 @@ fn the_erciyes_fragments_play_a_card_from_the_preys_ash_heap() {
     assert!(e.state.seats[0].hand.is_empty(), "not replaced");
 }
 
+// The Erciyes Fragments' card belongs to the prey: its controller ousted,
+// the card on it goes to its owner's ash heap, as a card on a removed
+// minion does (owner, 2026-09-06; rules-qa 67.1) — not lost.
+#[test]
+fn the_erciyes_fragments_card_returns_to_its_owner_when_its_controller_is_ousted() {
+    let mut e = game(3);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let v = e.add_minion(SeatId(2), plain("Ventrue", 1), 4, false);
+    let frag = in_play(&mut e, 0, "Erciyes Fragments, The", None);
+    let rush = find_library("Bum's Rush");
+    e.state.cards[frag.index()].stored = vec![rush];
+    e.state.cards[frag.index()].stored_owner = Some(SeatId(1));
+    e.state.seats[0].pool = 1;
+    until(&mut e, SeatId(2), WindowLabel::MinionPhase);
+    pick(&mut e, bleed(v));
+    until(&mut e, SeatId(2), WindowLabel::MinionPhase);
+    assert!(e.state.seats[0].ousted);
+    assert!(e.state.seats[1].ash.contains(&rush));
+}
+
 // Call the Great Beast: "Put this card with X ritual counters on this
 // Baali, where X is this Baali's capacity. This Baali can put 1 ritual
 // counter on this card as a +1 stealth action. If this card has 11 or more

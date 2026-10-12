@@ -70,7 +70,8 @@ pub fn title_key(t: Title) -> Option<TitleKey> {
         Title::InnerCircle(k) => Some(TitleKey::InnerCircle(k)),
         // The regent is unique; bishops, cardinals, prisci are not.
         Title::Regent => Some(TitleKey::Named("Regent")),
-        Title::Bishop | Title::Cardinal | Title::Priscus | Title::Votes(_) => None,
+        // Nor is the Laibon magaji (rulebook "Laibon").
+        Title::Bishop | Title::Cardinal | Title::Priscus | Title::Magaji | Title::Votes(_) => None,
         Title::Independent { name, .. } => Some(TitleKey::Named(name)),
         Title::None | Title::Primogen => None,
     }
@@ -86,6 +87,7 @@ pub fn title_votes(t: Title) -> u8 {
         Title::Bishop => 1,
         Title::Cardinal => 3,
         Title::Regent => 4,
+        Title::Magaji => 2,
         // A priscus votes in the prisci block (its ballot), not with votes.
         Title::Priscus => 0,
         Title::Independent { votes, .. } | Title::Votes(votes) => votes,
@@ -111,6 +113,12 @@ pub struct PrintedCtx {
     /// "Action Modifier/Reaction" card is then played as a reaction (PIB
     /// 20150924-2).
     pub reacting: bool,
+    /// The combat round its strength is read in, 0 out of combat ("on any
+    /// round of combat after the first", Don Michael Antonio Giovanni).
+    pub round: u8,
+    /// The action is granted by the modified vampire's own text (Black
+    /// Annis: "other … actions").
+    pub own_printed: bool,
 }
 
 /// What a minion's printed text takes off a card's cost
@@ -255,6 +263,10 @@ pub struct Minion {
     /// "Unlock this vampire during the next discard phase" (Feral Hound
     /// [ani]): cleared by that phase.
     pub unlock_at_discard: bool,
+    /// Bleed added until the end of the turn (Andre LeRoux).
+    pub bleed_bonus_turn: u8,
+    /// Unlocks at the end of the turn (Enkidu, The Noah's employ).
+    pub unlock_end_of_turn: bool,
     /// Fiendish Tongue: the blood this Tzimisce can burn during its
     /// controller's next discard phase to unlock (0: none); cleared at the
     /// end of that turn.
@@ -383,6 +395,8 @@ impl Minion {
             recruits_this_turn: 0,
             played_since_unlock: Vec::new(),
             unlock_at_discard: false,
+            bleed_bonus_turn: 0,
+            unlock_end_of_turn: false,
             discard_unlock_for_blood: 0,
             corruption: Vec::new(),
             diablerie_shield: false,
@@ -640,6 +654,10 @@ impl CardInPlay {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct CardId(pub u32);
 
+/// The virtual-hand source of a combat card played from the ash heap as if
+/// from hand (Spiritual Guidance): no card in play.
+pub const ASH_PLAY: CardId = CardId(u32::MAX);
+
 impl CardId {
     pub fn index(self) -> usize {
         self.0 as usize
@@ -798,11 +816,19 @@ pub struct Seat {
     pub hand_bonus_game: u8,
     /// Hand size above 7 until their next unlock phase (Juliet Parr).
     pub hand_bonus_unlock: u8,
+    /// Hand size below 7 until their next unlock phase (Babalawo Alafin).
+    pub hand_malus_unlock: u8,
+    /// Spiritual Guidance resolved: their next decision may play a combat
+    /// card from the ash heap (`ASH_PLAY` in the virtual hand).
+    pub ash_combat_play: bool,
     /// Transfers added at the start of their next influence phase (The
     /// Capuchin burned).
     pub transfers_next: u8,
     /// Hand size above 7 for the combat under way (Rage of Apedemak).
     pub combat_hand_bonus: u8,
+    /// Plays with an open hand for the combat under way (Aura Reading
+    /// [aus], played by the opposing minion).
+    pub combat_open_hand: bool,
     /// Infernal Pursuit [CEL]: extra cards drawn with each replacement for
     /// the rest of the combat (then discarded down to hand size).
     pub combat_extra_draws: u8,
@@ -921,6 +947,15 @@ pub struct GameState {
     /// Hands looked at, (viewer, seat), until the current action ends
     /// (SchreckNET: "look at any Methuselah's hand").
     pub peeks: Vec<(SeatId, SeatId)>,
+    /// Donatello Giovanni's marks: (the chosen vampire, Donatello), until
+    /// his controller's next unlock phase.
+    pub bleed_tolls: Vec<(MinionId, MinionId)>,
+    /// Red List minions marked this turn: (the marking Methuselah, the
+    /// minion).
+    pub red_list_marks: Vec<(SeatId, MinionId)>,
+    /// The minion performing the action under way (Midget: "while Midget is
+    /// acting").
+    pub acting: Option<MinionId>,
 }
 
 impl GameState {
@@ -1398,6 +1433,7 @@ impl GameState {
             ..PrintedCtx::default()
         };
         (self.base_bleed(m) as i32
+            + self.minions[m.index()].bleed_bonus_turn as i32
             + self.bleed_against_mod(m, prey)
             + self.bearer_mod(m, Stat::Bleed, ActionKind::Bleed)
             + self.printed_mod(m, Stat::Bleed, ctx))
@@ -1596,6 +1632,47 @@ impl GameState {
                         .is_some_and(|c| clans.contains(&c))
                 })
             }),
+            // "When bleeding a Methuselah who controls a ready Tremere"
+            // (Queen Anne), "a ready non-Camarilla vampire" (Cornelius
+            // Ottavio), read as the bleed is.
+            R::TargetSeatControlsReadyClan(clans) => ctx.target.is_some_and(|s| {
+                self.minions_of(s).any(|m| {
+                    let v = &self.minions[m.index()];
+                    v.ready() && v.clan().is_some_and(|c| clans.contains(&c))
+                })
+            }),
+            R::TargetSeatControlsReadySect { sect, not } => ctx.target.is_some_and(|s| {
+                self.minions_of(s).any(|m| {
+                    let v = &self.minions[m.index()];
+                    v.ready() && v.is_vampire() && (self.sect_of(m) == Some(sect)) != not
+                })
+            }),
+            R::SourceTitleIn(classes) => {
+                let t = self.title_of(source);
+                classes.iter().any(|c| c.matches(t))
+            }
+            R::ActorSectIn(sects) => self.sect_of(actor).is_some_and(|s| sects.contains(&s)),
+            R::OpponentSectIn(sects) => ctx
+                .opponent
+                .and_then(|o| self.sect_of(o))
+                .is_some_and(|s| sects.contains(&s)),
+            // "Whose controller controls any Gehenna cards" (Céleste
+            // Lamontagne): an event or a card in play of theirs labeled so.
+            R::OpponentControllerHasGehenna => opp.is_some_and(|o| {
+                self.cards.iter().enumerate().any(|(i, c)| {
+                    c.present()
+                        && self.card_controller(CardId(i as u32)) == o.owner
+                        && LIBRARY[c.card as usize].labels.contains(&Label::Gehenna)
+                })
+            }),
+            R::NotFirstRound => ctx.round > 1,
+            R::OtherNonHuntAction => {
+                ctx.kind.is_some_and(|k| k != ActionKind::Hunt) && !ctx.own_printed
+            }
+            R::ReadyNamed(name) => self
+                .minions
+                .iter()
+                .any(|o| o.ready() && o.is_vampire() && o.name() == name),
             R::IsPolitical => ctx.kind == Some(ActionKind::Political),
             R::OpponentClan(c) => opp.and_then(|o| o.clan()) == Some(c),
             // "In combat with a werewolf" (Mark Decker): an ally of the
@@ -1791,6 +1868,7 @@ impl GameState {
             + seat.hand_bonus_discard as i32
             + seat.hand_bonus_game as i32
             + seat.hand_bonus_unlock as i32
+            - seat.hand_malus_unlock as i32
             + seat.combat_hand_bonus as i32
             + printed;
         // "While the employer is in combat, the opposing minion's
@@ -1809,6 +1887,13 @@ impl GameState {
                     size += self.cards[l.source.index()].counters as i32
                 }
                 _ => {}
+            }
+        }
+        // The Bitter and Sweet Story: every Methuselah, per whole VP.
+        let vps = (seat.half_vps / 2) as i32;
+        for l in self.in_play_layers() {
+            if let Modifier::HandSizePerVp(n) = l.modifier {
+                size += n as i32 * vps;
             }
         }
         size.max(0) as usize
@@ -2354,6 +2439,7 @@ impl GameState {
     pub fn hand_visible_to(&self, seat: SeatId, viewer: SeatId) -> bool {
         viewer == seat
             || self.peeks.contains(&(viewer, seat))
+            || self.seats[seat.index()].combat_open_hand
             || self.in_play_layers().any(|l| {
                 l.modifier == Modifier::PreyOpenHand
                     && self.prey(self.card_controller(l.source)) == seat
@@ -2381,7 +2467,9 @@ impl GameState {
 
     /// `m` cannot have or use equipment: Bone Shambler, Gravebound Drone.
     pub fn no_equipment(&self, m: MinionId) -> bool {
-        self.no_equipment_or_retainers(m) || self.bears(m, Modifier::NoEquipmentHeld)
+        self.no_equipment_or_retainers(m)
+            || self.bears(m, Modifier::NoEquipmentHeld)
+            || self.printed_mod(m, Stat::NoEquipment, PrintedCtx::default()) > 0
     }
 
     /// `m` cannot be the target of a directed action requiring one of the
@@ -2411,10 +2499,25 @@ impl GameState {
     /// Stanislava (rules-qa 49.3: its abilities, layers and riders, for
     /// that combat; it stays a retainer whose life takes damage).
     pub fn text_suppressed(&self, id: CardId) -> bool {
+        // Midget: acting or in combat, any animal retainer loses its text.
+        let c = &self.cards[id.index()];
+        let lib = &LIBRARY[c.card as usize];
+        if lib.types.contains(&CardType::Retainer) && lib.labels.contains(&Label::Animal) {
+            let midget = |m: MinionId| {
+                self.minions[m.index()].present()
+                    && self.printed_mod(m, Stat::AnimalRetainersLoseText, PrintedCtx::default()) > 0
+            };
+            if self.acting.is_some_and(midget)
+                || self
+                    .combatants
+                    .is_some_and(|p| p.iter().any(|&m| midget(m)))
+            {
+                return true;
+            }
+        }
         let Some(pair) = self.combatants else {
             return false;
         };
-        let c = &self.cards[id.index()];
         let Some(host) = c.host else {
             return false;
         };
@@ -2830,6 +2933,7 @@ impl GameState {
             | Title::Cardinal
             | Title::Priscus
             | Title::Regent => sect == Sect::Sabbat,
+            Title::Magaji => sect == Sect::Laibon,
             Title::Independent { .. } => sect == Sect::Independent,
             // A personal title, kept through a sect change (LSJ 20010714).
             Title::Votes(_) => true,
