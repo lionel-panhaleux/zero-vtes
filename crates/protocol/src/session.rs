@@ -6,6 +6,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use zvtes::actions::ActionState;
 use zvtes::agent::{Agent, RandomLegal};
 use zvtes::bots::{Scripted, Style};
 use zvtes::cards::{AbilitySource, Effect, Window};
@@ -324,12 +325,15 @@ enum Taken {
 }
 
 /// An opportunity offered to a seat passing on them (`Session::shown`).
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Opportunity {
     /// A wake, in its moment or not.
     Wake(bool),
     /// An ability usable at any time.
     AnyTime,
+    /// A denial of a block attempt (Stygian Shroud: -1 intercept, or the
+    /// attempt fails), needed or not: the attempt meets the stealth.
+    Denial(bool),
 }
 
 /// The bot styles a session builds itself.
@@ -542,21 +546,48 @@ impl Session {
                 // undirected one of its prey or predator — never one
                 // directed at another seat (owner, 2026-10-11: "not bleeds
                 // directed at my cross").
-                let moment = e.action().is_some_and(|a| match a.directed_seat(st) {
-                    Some(target) => target == req.seat,
-                    None => a.seat == st.prey(req.seat) || a.seat == st.predator(req.seat),
-                });
-                wakes.then_some(Opportunity::Wake(moment))
+                // Nor as a card is played: legal, rarely of use (owner,
+                // 2026-10-12: "more noise than usefulness").
+                let moment = req.window != WindowLabel::CardAsPlayed
+                    && e.action().is_some_and(|a| match a.directed_seat(st) {
+                        Some(target) => target == req.seat,
+                        None => a.seat == st.prey(req.seat) || a.seat == st.predator(req.seat),
+                    });
+                if wakes {
+                    return Some(Opportunity::Wake(moment));
+                }
+                let mode = zvtes::cards::lookup(played).and_then(|d| d.modes.get(mode as usize));
+                mode.and_then(|m| self.denial(m.effects))
             }
             Choice::UseAbility {
                 source, ability, ..
-            } => source
-                .mode(st, ability)
-                .windows
-                .contains(&Window::AnyImpulse)
-                .then_some(Opportunity::AnyTime),
+            } => {
+                let mode = source.mode(st, ability);
+                if mode.windows.contains(&Window::AnyImpulse) {
+                    return Some(Opportunity::AnyTime);
+                }
+                self.denial(mode.effects)
+            }
             _ => None,
         }
+    }
+
+    /// `effects` deny the block attempt under way: needed only while the
+    /// attempt meets the action's stealth — short of it, it fails anyway
+    /// (owner, 2026-10-12: "we should not propose block denials on
+    /// attempts not matching stealth with intercept"); the acting seat is
+    /// asked again if the blocker gains intercept.
+    fn denial(&self, effects: &[Effect]) -> Option<Opportunity> {
+        let denies = effects.iter().any(|f| {
+            matches!(f, Effect::AttemptFails)
+                || matches!(f, Effect::AttemptingIntercept(n) if *n < 0)
+        });
+        let a = self.engine.action()?;
+        let ActionState::Attempt(x) = a.state else {
+            return None;
+        };
+        let st = &self.engine.state;
+        denies.then(|| Opportunity::Denial(a.intercept_of(st, x) >= a.stealth(st)))
     }
 
     /// The options a human seat is shown: all, unless it passes on its
@@ -577,7 +608,10 @@ impl Session {
         let mut shown: Vec<usize> = all
             .iter()
             .copied()
-            .filter(|&i| kinds[i] != Some(Opportunity::Wake(false)))
+            .filter(|&i| {
+                kinds[i] != Some(Opportunity::Wake(false))
+                    && kinds[i] != Some(Opportunity::Denial(false))
+            })
             .collect();
         let pause = shown
             .iter()
@@ -1125,4 +1159,130 @@ fn untold_effects(c: &Choice) -> bool {
         c,
         Choice::ResolveRider { .. } | Choice::ResolvePrinted { .. } | Choice::UseAbility { .. }
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use zvtes::crypt::CRYPT;
+    use zvtes::decision::ActionKind;
+
+    /// A plain vampire with Oblivion at superior, capacity 4 or more.
+    fn oblivion() -> u16 {
+        CRYPT
+            .iter()
+            .enumerate()
+            .find(|(i, c)| {
+                c.disciplines.contains(&"OBL")
+                    && c.capacity >= 4
+                    && zvtes::cards::vampire(*i as u16).is_none()
+            })
+            .map(|(i, _)| i as u16)
+            .expect("an Oblivion vampire")
+    }
+
+    /// A vampire with no printed text and no Oblivion, with `with`
+    /// ("aus") if given.
+    fn plain(n: usize, with: Option<&str>) -> u16 {
+        CRYPT
+            .iter()
+            .enumerate()
+            .filter(|(i, c)| {
+                !c.disciplines.iter().any(|d| d.eq_ignore_ascii_case("obl"))
+                    && with.is_none_or(|w| c.disciplines.contains(&w))
+                    && zvtes::cards::vampire(*i as u16).is_none()
+            })
+            .nth(n)
+            .map(|(i, _)| i as u16)
+            .expect("a plain vampire")
+    }
+
+    /// Stygian Shroud on a block attempt, with the opportunities off:
+    /// offered as the attempt meets the stealth (a bleed), not short of it
+    /// (a hunt's +1 stealth, the blocker at 0 intercept, Enhanced Senses
+    /// unplayed: it fails unless the blocker plays it, and then the acting
+    /// seat is asked again).
+    #[test]
+    fn denials_wait_for_an_attempt_that_meets_the_stealth() {
+        let card = |name: &str| LIBRARY.iter().position(|c| c.name == name).unwrap() as u16;
+        let shroud = card("Stygian Shroud");
+        let decks = crate::deck::catalog();
+        let spec = GameSpec {
+            seed: 0,
+            time_limit: None,
+            seats: decks[..3]
+                .iter()
+                .enumerate()
+                .map(|(i, (_, list))| SeatSpec {
+                    name: format!("P{i}"),
+                    deck: list.clone(),
+                    player: Player::Human,
+                })
+                .collect(),
+        };
+        for (kind, offered) in [(ActionKind::Bleed, true), (ActionKind::Hunt, false)] {
+            let mut s = Session::new(spec.clone()).unwrap();
+            let mut e = Engine::bare(3);
+            let a = e.add_minion(SeatId(0), oblivion(), 1, false);
+            e.add_minion(SeatId(0), plain(0, None), 4, false);
+            // Enhanced Senses [aus]: +1 intercept within the blocker's reach.
+            let b = e.add_minion(SeatId(1), plain(0, Some("aus")), 4, false);
+            e.state.seats[0].hand.push(shroud);
+            e.state.seats[1].hand.push(card("Enhanced Senses"));
+            s.engine = e;
+            s.set_opportunities(true);
+            s.set_opportunities(false);
+            s.quiet = vec![SeatId(0)];
+            let mut req = None;
+            for _ in 0..30 {
+                let Step::Decision(r) = s.engine.run() else {
+                    panic!("over")
+                };
+                let i = r
+                    .options
+                    .iter()
+                    .position(|c| {
+                        matches!(*c, Choice::TakeAction { minion, action, .. } if minion == a && action == kind)
+                            || *c == Choice::DeclareBlock { minion: b }
+                    })
+                    .or_else(|| r.options.iter().position(|c| *c == Choice::Pass));
+                if r.window == WindowLabel::ActionBlock
+                    && r.seat == SeatId(0)
+                    && r.options.iter().any(|c| matches!(c, Choice::Play { .. }))
+                {
+                    req = Some(r);
+                    break;
+                }
+                s.engine.choose(i.unwrap_or(0));
+            }
+            let req = req.expect("the acting seat asked on the attempt");
+            let play = req
+                .options
+                .iter()
+                .position(|c| matches!(c, Choice::Play { .. }))
+                .expect("Stygian Shroud offered by the engine");
+            assert_eq!(s.shown(&req).contains(&play), offered, "{kind:?}");
+            // A wake of the bleed's target: in its moment during the block
+            // loop, not as a card is played (owner, 2026-10-12).
+            if kind == ActionKind::Bleed {
+                s.engine.state.seats[1].hand.push(card("On the Qui Vive"));
+                let wake = Choice::Play {
+                    card: s.engine.state.seats[1].hand.len() as u8 - 1,
+                    mode: 0,
+                    actor: Some(b),
+                    target: zvtes::cards::Target::None,
+                };
+                let asked = |window| DecisionRequest::new(SeatId(1), window, vec![wake]);
+                let moment = |window| s.opportunity(&asked(window), &wake);
+                assert_eq!(
+                    moment(WindowLabel::ActionBlock),
+                    Some(Opportunity::Wake(true))
+                );
+                assert_eq!(
+                    moment(WindowLabel::CardAsPlayed),
+                    Some(Opportunity::Wake(false))
+                );
+            }
+        }
+    }
 }

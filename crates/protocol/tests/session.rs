@@ -790,33 +790,51 @@ fn scripted(
 }
 
 /// A wake (and whether it is in its moment for the seat: an action
-/// directed at it, or an undirected one of its prey or predator), or an ability usable at any
-/// time (The Louvre, Paris): `None` (owner, 2026-10-11).
-fn opportunity(e: &Engine, seat: SeatId, c: &Choice) -> Option<Option<bool>> {
+/// directed at it, or an undirected one of its prey or predator, not as a
+/// card is played), a denial of a block attempt (and whether the attempt
+/// meets the stealth), or an ability usable at any time (The Louvre,
+/// Paris): `None` (owner, 2026-10-11, 2026-10-12).
+fn opportunity(e: &Engine, seat: SeatId, window: WindowLabel, c: &Choice) -> Option<Option<bool>> {
+    use zvtes::actions::ActionState;
     use zvtes::cards::{Effect, Window};
     let st = &e.state;
+    let denial = |effects: &[Effect]| {
+        let denies = effects.iter().any(|f| {
+            matches!(f, Effect::AttemptFails)
+                || matches!(f, Effect::AttemptingIntercept(n) if *n < 0)
+        });
+        let a = e.action()?;
+        let ActionState::Attempt(x) = a.state else {
+            return None;
+        };
+        denies.then(|| Some(a.intercept_of(st, x) >= a.stealth(st)))
+    };
     match *c {
         Choice::Play { card, mode, .. } => {
             let def = zvtes::cards::lookup(e.virtual_hand(seat)[card as usize].0);
-            let wakes = def
-                .and_then(|d| d.modes.get(mode as usize))
-                .is_some_and(|m| {
-                    m.effects.contains(&Effect::Wake) || m.effects.contains(&Effect::WakeTarget)
-                });
-            wakes.then(|| {
-                Some(e.action().is_some_and(|a| match a.directed_seat(st) {
-                    Some(target) => target == seat,
-                    None => a.seat == st.prey(seat) || a.seat == st.predator(seat),
-                }))
-            })
+            let m = def.and_then(|d| d.modes.get(mode as usize))?;
+            let wakes =
+                m.effects.contains(&Effect::Wake) || m.effects.contains(&Effect::WakeTarget);
+            if !wakes {
+                return denial(m.effects);
+            }
+            Some(Some(
+                window != WindowLabel::CardAsPlayed
+                    && e.action().is_some_and(|a| match a.directed_seat(st) {
+                        Some(target) => target == seat,
+                        None => a.seat == st.prey(seat) || a.seat == st.predator(seat),
+                    }),
+            ))
         }
         Choice::UseAbility {
             source, ability, ..
-        } => source
-            .mode(st, ability)
-            .windows
-            .contains(&Window::AnyImpulse)
-            .then_some(None),
+        } => {
+            let m = source.mode(st, ability);
+            if m.windows.contains(&Window::AnyImpulse) {
+                return Some(None);
+            }
+            denial(m.effects)
+        }
         _ => None,
     }
 }
@@ -825,8 +843,11 @@ fn opportunity(e: &Engine, seat: SeatId, c: &Choice) -> Option<Option<bool>> {
 /// opportunities: a wake out of its moment; an ability usable at any time
 /// where nothing else than a pass is on offer (no wake out of its moment,
 /// no such ability) — the decision would not pause otherwise.
-fn untimely(e: &Engine, seat: SeatId, options: &[Choice], i: usize) -> bool {
-    let kinds: Vec<_> = options.iter().map(|c| opportunity(e, seat, c)).collect();
+fn untimely(e: &Engine, seat: SeatId, window: WindowLabel, options: &[Choice], i: usize) -> bool {
+    let kinds: Vec<_> = options
+        .iter()
+        .map(|c| opportunity(e, seat, window, c))
+        .collect();
     let pause = (0..options.len()).any(|j| options[j] != Choice::Pass && kinds[j].is_none());
     let timely_wake = kinds.contains(&Some(Some(true)));
     match kinds[i] {
@@ -878,15 +899,19 @@ fn a_seat_passing_on_its_opportunities_is_asked_only_in_their_moment() {
                 let e = s.engine();
                 let shown: Vec<usize> = options.iter().map(|o| o.index).collect();
                 for (i, c) in req.options.iter().enumerate() {
-                    let off = untimely(e, req.seat, &req.options, i);
+                    let off = untimely(e, req.seat, req.window, &req.options, i);
                     if shown.contains(&i) {
                         assert!(
-                            !off || shown
-                                .iter()
-                                .all(|&j| untimely(e, req.seat, &req.options, j)),
+                            !off || shown.iter().all(|&j| untimely(
+                                e,
+                                req.seat,
+                                req.window,
+                                &req.options,
+                                j
+                            )),
                             "{c:?} shown out of its moment"
                         );
-                        match opportunity(e, req.seat, c) {
+                        match opportunity(e, req.seat, req.window, c) {
                             Some(Some(_)) => woken += 1,
                             Some(None) => paused += 1,
                             None => {}
