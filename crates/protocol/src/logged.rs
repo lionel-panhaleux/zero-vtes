@@ -19,6 +19,7 @@ use zvtes::decision::{Choice, DecisionRequest};
 use zvtes::draws::Interrupt;
 use zvtes::game::Engine;
 use zvtes::library::LIBRARY;
+use zvtes::state::{MinionKind, UncontrolledSlot, CREATED};
 
 /// One decision of a replay, by what was chosen.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -83,13 +84,27 @@ fn key(e: &Engine, req: &DecisionRequest, choice: &Choice) -> Logged {
         ) => of,
         _ => seat,
     };
+    // A created vampire banished there (Childe of the Revolution): no crypt
+    // card (`CREATED`), its library card instead.
+    let slot_id = |u: &UncontrolledSlot| {
+        if u.card != CREATED {
+            return crypt(u.card);
+        }
+        u.banished
+            .as_ref()
+            .and_then(|b| match e.state.minions[b.minion.index()].kind {
+                MinionKind::Created { card, .. } => Some(lib(card)),
+                _ => None,
+            })
+            .unwrap_or(0)
+    };
     let uncontrolled = |i: &mut u8, cards: &mut Vec<u32>| {
         let region = &e.state.seats[region_seat.index()].uncontrolled;
-        let card = region[*i as usize].card;
-        cards.push(crypt(card));
+        let id = slot_id(&region[*i as usize]);
+        cards.push(id);
         *i = region[..*i as usize]
             .iter()
-            .filter(|u| u.card == card)
+            .filter(|u| slot_id(u) == id)
             .count() as u8;
     };
     let target = |t: &mut Target, cards: &mut Vec<u32>| {
@@ -166,4 +181,51 @@ pub fn resolve(
 pub fn moot(e: &Engine, req: &DecisionRequest) -> bool {
     let first = key(e, req, &req.options[0]);
     req.options.iter().all(|c| key(e, req, c).same(&first))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use zvtes::crypt::Sect;
+    use zvtes::decision::WindowLabel;
+    use zvtes::ids::SeatId;
+    use zvtes::state::{Banished, CardId, Minion};
+
+    /// A created vampire banished to an uncontrolled region (Childe of the
+    /// Revolution) has no crypt card: a transfer to it is logged by its
+    /// library card, not by indexing the crypt (a panic).
+    #[test]
+    fn a_banished_created_vampire_is_logged_by_its_library_card() {
+        let mut e = Engine::bare(2);
+        let childe = LIBRARY
+            .iter()
+            .position(|c| c.name == "Childe of the Revolution")
+            .unwrap() as u16;
+        let m = zvtes::ids::MinionId(e.state.minions.len() as u32);
+        let kind = MinionKind::Created {
+            card: childe,
+            id: CardId(0),
+            clan: "Brujah",
+            sect: Sect::Anarch,
+            born: &zvtes::state::NEWBORN,
+        };
+        e.state.minions.push(Minion {
+            in_play: false,
+            ..Minion::new(SeatId(0), kind, 0)
+        });
+        e.state.seats[0].uncontrolled.push(UncontrolledSlot {
+            card: CREATED,
+            counters: 1,
+            banished: Some(Banished {
+                minion: m,
+                cards: Vec::new(),
+            }),
+        });
+        let choice = Choice::Transfer { slot: 0 };
+        let req = DecisionRequest::new(SeatId(0), WindowLabel::InfluenceTransfers, vec![choice]);
+        assert_eq!(
+            key(&e, &req, &choice).cards,
+            vec![LIBRARY[childe as usize].id]
+        );
+    }
 }
