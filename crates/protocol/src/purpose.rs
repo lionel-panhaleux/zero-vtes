@@ -248,6 +248,9 @@ impl Describer<'_> {
                     MinionPurpose::LockOldest(c) => {
                         format!("Choose one of the oldest {c} {of} to lock")
                     }
+                    MinionPurpose::OldestHuntingGround(_) => {
+                        "Choose one of your two oldest ready vampires to gain 1 blood".into()
+                    }
                     MinionPurpose::BurnOfCrowdedClan => {
                         "Choose a vampire to burn, of a clan you control 3 or more of".into()
                     }
@@ -371,6 +374,13 @@ impl Describer<'_> {
                 "Choose the uncontrolled vampire of {} whose blood goes to their pool",
                 self.seat_name(of)
             ),
+            NameSlotPair { of, from: None, .. } => format!(
+                "Choose the uncontrolled vampire of {} to move 1 blood from",
+                self.seat_name(of)
+            ),
+            NameSlotPair { from: Some(_), .. } => {
+                "Choose the vampire in your uncontrolled region to get it".into()
+            }
             CircleBlood {
                 circle,
                 from,
@@ -390,12 +400,27 @@ impl Describer<'_> {
             ChooseCircle { minion, .. } => {
                 format!("Choose the circle {} belongs to", self.named(minion))
             }
+            BaseSearch { minion, .. } => format!(
+                "Choose the base version of {} to merge with (crypt, uncontrolled region or ash heap)",
+                self.named(minion)
+            ),
+            PoolToVampires { to: Some(t), .. } => {
+                format!("How much blood moves from your pool to {}", self.named(t))
+            }
+            PoolToVampires { to: None, .. } => {
+                "Choose a vampire of yours to move blood to from your pool (or stop)".into()
+            }
             DistributeFrom { from, clan, left, .. } => format!(
                 "You can move 1 blood from {} to a {clan} in your uncontrolled region ({left} more at most)",
                 self.named(from)
             ),
-            UncontrolledBlood { clan, n, .. } => {
-                format!("Add {n} blood to a {clan} vampire in your uncontrolled region")
+            UncontrolledBlood {
+                clan: Some(clan),
+                n,
+                ..
+            } => format!("Add {n} blood to a {clan} vampire in your uncontrolled region"),
+            UncontrolledBlood { clan: None, n, .. } => {
+                format!("You can add {n} blood to a vampire in your uncontrolled region")
             }
             AllyFromAsh { .. } => {
                 "Choose the ally to move from your ash heap to your ready region".into()
@@ -528,6 +553,7 @@ impl Describer<'_> {
                     MinionPurpose::BurnBloodOfClan(_) => "burns 1 blood".into(),
                     MinionPurpose::HostCard(card) => format!("gets {}", self.card_name(card)),
                     MinionPurpose::BurnOfCrowdedClan => "burned".into(),
+                    MinionPurpose::OldestHuntingGround(_) => "gains 1 blood".into(),
                     MinionPurpose::Damage(n) => format!("takes {n} damage"),
                 }),
                 (MinionOf { purpose, .. }, Choice::Pass) => Some(
@@ -611,7 +637,12 @@ impl Describer<'_> {
                     "Move {} from your crypt to your uncontrolled region",
                     zvtes::crypt::CRYPT[card as usize].name
                 )),
-                (CryptSearch { .. }, Choice::Pass) => Some("Find none".into()),
+                (CryptSearch { .. } | BaseSearch { .. }, Choice::Pass) => Some("Find none".into()),
+                (BaseSearch { .. }, Choice::AshVampire(card)) => Some(format!(
+                    "Merge with {}",
+                    zvtes::crypt::CRYPT[card as usize].name
+                )),
+                (BaseSearch { .. }, Choice::Slot(_)) => Some("Merge with this vampire".into()),
                 (PreySlotToPool { of, .. }, Choice::Slot(i)) => Some(format!(
                     "1 blood from uncontrolled vampire #{} of {} to their pool",
                     i + 1,

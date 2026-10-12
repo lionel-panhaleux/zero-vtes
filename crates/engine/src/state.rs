@@ -174,12 +174,14 @@ pub enum MinionKind {
     /// Waters of Duat): only what the effect describes — a non-unique
     /// 1-capacity vampire of the clan and sect given, with no Discipline
     /// and no title; the card's own name, type and text are inert
-    /// (advanced rules 1.4, 5.1.3).
+    /// (advanced rules 1.4, 5.1.3). `born`: the capacity, Disciplines and
+    /// traits it prints for the new vampire (Web of Knives Recruit's).
     Created {
         card: u16,
         id: CardId,
         clan: &'static str,
         sect: Sect,
+        born: &'static Born,
     },
     /// The top card of a library put in play as "a nameless, textless
     /// ghoul ally" (Absimiliard's Army, `source`): an ally with the stats
@@ -191,6 +193,25 @@ pub enum MinionKind {
         source: CardId,
     },
 }
+
+/// What a created vampire is beyond its clan and sect, as its card prints
+/// it: "a 3-capacity (non-unique) Independent Assamite with Celerity [cel],
+/// Obfuscate [obf], Potence [pot], Quietus [qui] and 3 blood who is Blood
+/// cursed" (Web of Knives Recruit).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Born {
+    pub capacity: u8,
+    pub disciplines: &'static [&'static str],
+    pub blood_cursed: bool,
+}
+
+/// A 1-capacity vampire with no Discipline (Childe of the Revolution,
+/// Waters of Duat, The Embrace).
+pub const NEWBORN: Born = Born {
+    capacity: 1,
+    disciplines: &[],
+    blood_cursed: false,
+};
 
 impl MinionKind {
     /// The ally's LIBRARY index; `None` for a vampire.
@@ -233,6 +254,9 @@ pub struct Minion {
     pub title_lost: bool,
     pub granted_title: Option<Title>,
     pub bled_this_turn: bool,
+    /// Performed a political action whose referendum passed this turn
+    /// (Antonio Delgado: "he can unlock during the discard phase").
+    pub referendum_passed_turn: bool,
     /// One political action per minion per turn (rulebook "Political
     /// Action"; NRA on resolution, rules-qa 1.4).
     pub political_this_turn: bool,
@@ -293,11 +317,18 @@ pub struct Minion {
     /// Held on temporary control: the Methuselah it returns to at the end
     /// of its controller's turn (Puppet Master [DOM]).
     pub temp_from: Option<SeatId>,
+    /// Ends of its controller's turn the temporary control outlasts
+    /// ("until the end of your next turn", Ayelea: 1).
+    pub temp_skip: u8,
     /// The vampire's owner, when its control changed for good
     /// (Graverobbing): its ash heap is the owner's.
     pub origin: Option<SeatId>,
     /// A sect a card made it (Twilight Camp: "make that vampire Anarch").
     pub sect_override: Option<Sect>,
+    /// Merged (rulebook "Advanced"): the base card under the advanced one
+    /// (`MinionKind::Vampire` holds the advanced card) — its text still
+    /// applies, the advanced card's in full (`cards::vampire_of`).
+    pub merged: Option<u16>,
     /// The Great Beast's three Disciplines, superior.
     pub beast_disciplines: [Option<&'static str>; 3],
     /// The Sabbat path it follows when not the one printed on it (Black
@@ -391,6 +422,7 @@ impl Minion {
             title_lost: false,
             granted_title: None,
             bled_this_turn: false,
+            referendum_passed_turn: false,
             political_this_turn: false,
             expelled: false,
             hunting_ground_fed: false,
@@ -409,8 +441,10 @@ impl Minion {
             diablerie_turn: None,
             hunted: false,
             temp_from: None,
+            temp_skip: 0,
             origin: None,
             sect_override: None,
+            merged: None,
             beast_disciplines: [None; 3],
             path_override: None,
             no_life_gain: false,
@@ -535,12 +569,25 @@ impl Minion {
     /// A vampire's printed Disciplines (lower case inferior, upper case
     /// superior); none for an ally or a created vampire.
     pub fn printed_disciplines(&self) -> &'static [&'static str] {
-        self.vampire().map_or(&[], |v| v.disciplines)
+        match self.kind {
+            MinionKind::Created { born, .. } => born.disciplines,
+            _ => self.vampire().map_or(&[], |v| v.disciplines),
+        }
     }
 
-    /// A vampire's printed title; none for a created vampire.
+    /// A vampire's printed title; none for a created vampire. Merged: the
+    /// advanced card's — its [MERGED] title first — else the base card's
+    /// (rulebook "Advanced": the advanced card has precedence).
     pub fn printed_title(&self) -> Title {
-        self.vampire().map_or(Title::None, |v| v.title)
+        let printed = self.vampire().map_or(Title::None, |v| v.title);
+        match (self.merged, self.vampire()) {
+            (Some(base), Some(v)) => v.merged_title.unwrap_or(if printed == Title::None {
+                CRYPT[base as usize].title
+            } else {
+                printed
+            }),
+            _ => printed,
+        }
     }
 
     /// A vampire's capacity before cards in play (`GameState::capacity_of`
@@ -549,7 +596,7 @@ impl Minion {
     pub fn printed_capacity(&self) -> Option<u8> {
         match self.kind {
             MinionKind::Vampire(c) => Some(CRYPT[c as usize].capacity),
-            MinionKind::Created { .. } => Some(1),
+            MinionKind::Created { born, .. } => Some(born.capacity),
             MinionKind::GreatBeast { .. } | MinionKind::Fury { .. } => Some(9),
             MinionKind::Ally { .. } | MinionKind::Token { .. } => None,
         }
@@ -629,6 +676,10 @@ pub struct CardInPlay {
     /// back (advanced rules 6.4.3): The Rack's, Priority Contract's
     /// Assamite, Toreador Grand Ball's locked Toreador then the other.
     pub chosen: Vec<MinionId>,
+    /// In its controller's uncontrolled region with training counters,
+    /// out of play (Web of Knives Recruit): it becomes a vampire as the
+    /// last one burns.
+    pub training: bool,
 }
 
 impl CardInPlay {
@@ -656,6 +707,7 @@ impl CardInPlay {
             stored_owner: None,
             discipline: None,
             chosen: Vec::new(),
+            training: false,
         }
     }
 
@@ -806,6 +858,12 @@ pub struct Seat {
     /// surviving at the time limit).
     pub half_vps: u32,
     pub has_edge: bool,
+    /// Web of Knives Recruits whose training counter burned this unlock
+    /// phase ("no more than two … each unlock phase").
+    pub training_burned: u8,
+    /// "Give all vampires +1 stealth on hunt actions until your next unlock
+    /// phase" (Sunset Strip, Hollywood): its locks this Methuselah made.
+    pub hunt_stealth_unlock: u8,
     /// Remaining crypt cards (CRYPT indices), top at the end.
     pub crypt: Vec<u16>,
     pub uncontrolled: Vec<UncontrolledSlot>,
@@ -857,6 +915,9 @@ pub struct Seat {
     /// Día de los Muertos this turn: the first referendum a Sabbat vampire
     /// of theirs calls passes automatically.
     pub auto_pass_pending: bool,
+    /// Cryptic Rider: the next referendum a vampire of theirs calls this
+    /// turn passes automatically.
+    pub auto_pass_next: bool,
     /// A Sabbat vampire of theirs called a referendum this turn.
     pub sabbat_referendum_called: bool,
     /// A burn-option card discarded this unlock phase (rulebook, advanced:
@@ -1455,10 +1516,22 @@ impl GameState {
 
     /// "Blood cursed" (rulebook "Traits"): it cannot commit diablerie — nor
     /// be compelled to (advanced rules §3.7.8.4).
+    /// `m`'s prisci ballots: a priscus's, and printed ones ("Gratiano gets
+    /// +1 ballot", his even without the title: LSJ 20040519).
+    pub fn ballots(&self, m: MinionId) -> u8 {
+        let priscus = u8::from(self.title_of(m) == Title::Priscus);
+        priscus
+            + self
+                .printed_mod(m, cards::Stat::Ballots, PrintedCtx::default())
+                .max(0) as u8
+    }
+
     pub fn blood_cursed(&self, m: MinionId) -> bool {
-        self.minions[m.index()]
-            .vampire()
-            .is_some_and(|c| c.blood_cursed)
+        let v = &self.minions[m.index()];
+        match v.kind {
+            MinionKind::Created { born, .. } => born.blood_cursed,
+            _ => v.vampire().is_some_and(|c| c.blood_cursed),
+        }
     }
 
     pub fn is_infernal(&self, m: MinionId) -> bool {
@@ -1575,10 +1648,8 @@ impl GameState {
         let mut total = 0;
         for (i, v) in self.minions.iter().enumerate() {
             let source = MinionId(i as u32);
-            let Some(def) = v
-                .crypt_card()
-                .and_then(cards::vampire)
-                .filter(|_| v.present())
+            let Some(def) =
+                cards::vampire_of(v).filter(|_| v.present() && v.crypt_card().is_some())
             else {
                 continue;
             };
@@ -1594,7 +1665,7 @@ impl GameState {
                         .iter()
                         .all(|&r| self.printed_holds(r, source, m, ctx))
                 {
-                    total += p.n as i32 * self.printed_count(p.per, source);
+                    total += p.n as i32 * self.printed_count(p.per, source, ctx);
                 }
             }
         }
@@ -1835,7 +1906,7 @@ impl GameState {
         }
     }
 
-    fn printed_count(&self, per: cards::Per, source: MinionId) -> i32 {
+    fn printed_count(&self, per: cards::Per, source: MinionId, ctx: PrintedCtx) -> i32 {
         match per {
             cards::Per::One => 1,
             cards::Per::UniqueEquipmentOn => self
@@ -1849,6 +1920,15 @@ impl GameState {
                         && l.labels.contains(&Label::Unique)
                 })
                 .count() as i32,
+            // In torpor too: controlled.
+            cards::Per::TitledOfTarget => ctx.target.map_or(0, |t| {
+                self.minions_of(t)
+                    .filter(|&m| {
+                        self.minions[m.index()].is_vampire()
+                            && self.title_of(m) != crate::crypt::Title::None
+                    })
+                    .count() as i32
+            }),
             cards::Per::ReadyTitledOfOthers => {
                 let owner = self.minions[source.index()].owner;
                 (0..self.minions.len())
@@ -2628,6 +2708,7 @@ impl GameState {
     /// `m` cannot block (Pentex™ Subversion): a card on it.
     pub fn cannot_block(&self, m: MinionId) -> bool {
         self.hosts(m, Modifier::HostCannotBlock)
+            || self.printed_mod(m, cards::Stat::CannotBlock, PrintedCtx::default()) > 0
     }
 
     /// `m`'s actions of `kind` cannot be blocked (Toreador Grand Ball: "the

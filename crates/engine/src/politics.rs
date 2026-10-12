@@ -286,6 +286,7 @@ fn stake(e: &Engine, me: SeatId) -> Option<i32> {
                     })
                     .count() as i32,
         ),
+        RefEffect::GainPerMinion(n) => Some(n as i32 * st.minions_of(me).count() as i32),
         // Every Methuselah opposes an opponent's title (owner, 2026-10-04).
         RefEffect::PutOnChosen if !r.terms.minions.is_empty() => {
             Some(if mine > 0 { 1 } else { -1 })

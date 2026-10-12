@@ -254,9 +254,9 @@ pub struct ActionCtx {
     /// Methuselahs none of whose minions may attempt to block the action
     /// again (Crocodile's Tongue).
     pub barred_seats: Vec<SeatId>,
-    /// Where the Veil Thins [OBL]: an attempt costs 1 blood without
-    /// Oblivion.
-    pub veil_thins: bool,
+    /// Where the Veil Thins [OBL], Tenebrous Form [OBT]: an attempt costs
+    /// 1 blood for each of these cards whose Discipline the minion lacks.
+    pub veil_thins: Vec<&'static str>,
     /// Blood (or an ally's life) every minion burns to attempt to block
     /// this action (Unthinkable Humiliation).
     pub block_toll_extra: u8,
@@ -390,6 +390,10 @@ pub struct ActionCtx {
     /// The vampire of the uncontrolled region named as the action was
     /// declared, by slot and card (Malgorzata's removal).
     pub uncontrolled_named: Option<(u8, u16)>,
+    /// Lázár Dobrescu: the prey's uncontrolled vampire and the player's,
+    /// named as the action is announced (slot and card, each re-checked at
+    /// resolution).
+    pub slot_pair: Option<((u8, u16), (u8, u16))>,
     /// The action resolved into a combat (entering combat as a Ⓓ action):
     /// its after-combat window leads to after resolution (rules-qa 17.3).
     pub resolved: bool,
@@ -477,8 +481,15 @@ impl ActionCtx {
                 })
                 .sum()
         });
+        // Sunset Strip, Hollywood: every Methuselah's locks, any hunter.
+        let hunts: i32 = if self.kind == ActionKind::Hunt {
+            st.seats.iter().map(|s| s.hunt_stealth_unlock as i32).sum()
+        } else {
+            0
+        };
         self.base_stealth as i32
             + for_clan
+            + hunts
             + self.stealth_mods as i32
             + st.bearer_mod(self.acting, Stat::Stealth, self.kind)
             + st.printed_mod(self.acting, Stat::Stealth, self.printed_ctx(st, None))
@@ -1428,15 +1439,19 @@ impl Engine {
     }
 
     /// What `m` pays to attempt to block this action, if it can: blood
-    /// without Oblivion under Where the Veil Thins (none for an ally: it
+    /// without Oblivion under Where the Veil Thins, without Obtenebration
+    /// under Tenebrous Form (none for an ally: it
     /// cannot), a library card against a wraith or zombie ally while a
     /// Parijat is ready (none from an empty library: ANK 20260317), blood
     /// or life printed on the acting vampire (Sergio Bueno).
     pub(crate) fn block_toll(&self, a: &ActionCtx, m: MinionId) -> Option<(u8, u8)> {
         let st = &self.state;
         let v = &st.minions[m.index()];
-        let obl = st.has_discipline(m, "obl");
-        let veil = u8::from(a.veil_thins && !obl);
+        let veil = a
+            .veil_thins
+            .iter()
+            .filter(|&&d| !st.has_discipline(m, d))
+            .count() as u8;
         // A printed toll on the acting vampire (Sergio Bueno), in torpor too
         // (LSJ 20011022): an ally pays it in life, its last one too — it
         // burns and the attempt fails (rules-qa 41.4).
@@ -1628,6 +1643,10 @@ impl Engine {
                 }
                 Some(cards::CostSource::Cache) if !card.locked => {
                     counters.push((c, n));
+                    true
+                }
+                Some(cards::CostSource::SunsetStrip) if !card.locked => {
+                    either += n;
                     true
                 }
                 Some(cards::CostSource::Carnival(_) | cards::CostSource::Hackerspace) => {
@@ -2003,6 +2022,7 @@ impl Engine {
                     .map(|e| match e {
                         Effect::AttemptingIntercept(n) if *n > 0 => *n as u8,
                         Effect::AddIntercept(n) if v == m => *n,
+                        Effect::AddInterceptX if v == m => 1,
                         _ => 0,
                     })
                     .sum();
@@ -2013,6 +2033,9 @@ impl Engine {
                     Some(cards::Terms::Discard { n, of }) => {
                         (st.hand_picks(seat, of).len() / n.max(1) as usize).min(u8::MAX as usize)
                             as u8
+                    }
+                    Some(cards::Terms::DiscardAny { of }) => {
+                        st.hand_picks(seat, of).len().min(u8::MAX as usize) as u8
                     }
                     _ if ab
                         .effects
@@ -3267,13 +3290,20 @@ impl Engine {
             }
             Effect::FailBlockForCorruption => a.corruption_fails += 1,
             Effect::UnlockForCorruption(n) => a.corruption_unlock = n,
-            Effect::VeilThins => {
-                a.veil_thins = true;
-                // The minion attempting now pays, or resigns its attempt.
+            Effect::VeilThins(d) => {
+                // Each copy its toll (owner, rules-qa 69.12).
+                a.veil_thins.push(d);
+                // The minion attempting now pays this card's blood (none
+                // with the Discipline), or resigns its attempt.
                 if let ActionState::Attempt(m) = a.state {
-                    let seat = self.state.minions[m.index()].owner;
-                    self.interrupts
-                        .push(crate::draws::Interrupt::BlockToll { seat, minion: m });
+                    if !self.state.has_discipline(m, d) {
+                        let seat = self.state.minions[m.index()].owner;
+                        self.interrupts.push(crate::draws::Interrupt::BlockToll {
+                            seat,
+                            minion: m,
+                            n: 1,
+                        });
+                    }
                 }
             }
             Effect::LockFailedBlockers => a.lock_failed = true,
@@ -3721,11 +3751,11 @@ impl Engine {
         // Printed on the acting vampire (Marialena).
         if let Some(def) = cards::vampire_of(&self.state.minions[acting.index()]) {
             for r in def.riders.iter().filter(|r| r.hook == Hook::HostBlocked) {
-                if !r
-                    .requires
-                    .iter()
-                    .all(|&req| cards::holds_for_host(req, &self.state, acting))
-                {
+                if !r.requires.iter().all(|&req| match req {
+                    // Spleen: capacity, an ally never older.
+                    Requirement::BlockedByOlder => self.state.younger_than(acting, blocker),
+                    _ => cards::holds_for_host(req, &self.state, acting),
+                }) {
                     continue;
                 }
                 for e in r.effects {
@@ -4014,6 +4044,25 @@ impl Engine {
                 return self.fizzle(a);
             }
             self.state.minions[a.acting.index()].blood -= toll;
+        }
+        // Ambrosio Luis Monçada: "actions directed at him cost 1 additional
+        // pool", paid with the cost; one of his own Methuselah's is not
+        // directed (LSJ 20030214-2). Paid down to 0, the acting Methuselah
+        // is ousted and the action ends.
+        if a.directed_seat(&self.state).is_some() {
+            if let Some(t) = a.directed_minion() {
+                let n = self.state.printed_mod(
+                    t,
+                    cards::Stat::DirectedAtCostsPool,
+                    crate::state::PrintedCtx::default(),
+                );
+                if n > 0 {
+                    self.pay_pool_for_ability(seat, n);
+                    if self.state.seats[seat.index()].ousted {
+                        return;
+                    }
+                }
+            }
         }
         match a.kind {
             ActionKind::Bleed => {
@@ -5184,6 +5233,33 @@ impl Engine {
                                         seat,
                                         of: t,
                                     });
+                            }
+                        }
+                        // Ayelea: back at the end of her controller's next
+                        // turn.
+                        Effect::TakeControlOfTargetUntilNextTurn => {
+                            let t = target.minion();
+                            if self.state.minions[t.index()].present() {
+                                self.take_control(t, seat);
+                                self.state.minions[t.index()].temp_skip = 1;
+                            }
+                        }
+                        // Lázár Dobrescu: the pair named as it was announced,
+                        // both still there and the prey's with blood — or
+                        // nothing.
+                        Effect::PreySlotToOwnSlot => {
+                            let pair = self.action.as_ref().and_then(|a| a.slot_pair);
+                            if let (Some(((f, fc), (t, tc))), Target::Seat(of)) = (pair, target) {
+                                let st = &self.state;
+                                let from = st.seats[of.index()].uncontrolled.get(f as usize);
+                                let to = st.seats[seat.index()].uncontrolled.get(t as usize);
+                                if from.is_some_and(|u| u.card == fc && u.counters > 0)
+                                    && to.is_some_and(|u| u.card == tc)
+                                {
+                                    self.state.seats[of.index()].uncontrolled[f as usize]
+                                        .counters -= 1;
+                                    self.state.add_uncontrolled_blood(seat, t as usize, 1);
+                                }
                             }
                         }
                         other => unreachable!("not a granted action's effect: {other:?}"),

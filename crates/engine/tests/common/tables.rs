@@ -373,6 +373,7 @@ pub fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
             removed_when_burned: false,
             stored_owner: None,
             discipline: None,
+            training: false,
             chosen: Vec::new(),
         });
     }

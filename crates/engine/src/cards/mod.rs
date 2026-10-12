@@ -418,6 +418,18 @@ pub enum Stat {
     /// The damage it inflicts is aggravated (Petra: "on Baali", the
     /// opposing minion read by the requirements).
     AggravatedDamage,
+    /// Prisci ballots ("Gratiano gets +1 ballot"): cast with its votes,
+    /// with or without a title (LSJ 20040519).
+    Ballots,
+    /// "Monçada cannot block": any positive total bars its attempts.
+    CannotBlock,
+    /// Blood gained after any political action's referendum it cast no
+    /// vote or ballot in (Alvaro, The Scion of Angelica).
+    BloodIfAbstained,
+    /// "Actions directed at him cost 1 additional pool" (Ambrosio Luis
+    /// Monçada): read on the minion a directed action targets, paid by
+    /// the acting Methuselah as the action resolves.
+    DirectedAtCostsPool,
     /// "A vampire burns n blood after using a press to continue combat with
     /// her" (Petra).
     ContinuePressToll,
@@ -1427,6 +1439,20 @@ pub enum Requirement {
     /// The card being played is a strike card or a grapple card of the
     /// minion opposing the actor (Charismatic Aura): engine-checked.
     PlayedStrikeOrGrappleByOpponent,
+    /// The card being played is an aim, frenzy or grapple card of the
+    /// minion opposing the actor (Bollix [pre]): engine-checked.
+    PlayedAimFrenzyGrappleByOpponent,
+    /// The actor is an unmerged advanced vampire (Legacy).
+    ActorUnmergedAdvanced,
+    /// The actor performed a political action whose referendum passed this
+    /// turn (Antonio Delgado).
+    ActorPassedReferendumThisTurn,
+    /// The player has a vampire in their uncontrolled region (Lázár
+    /// Dobrescu: LSJ 19990215).
+    OwnUncontrolledNotEmpty,
+    /// Host rider: the host was blocked by an older vampire (Spleen,
+    /// Georgio Gutterpunk); engine-checked.
+    BlockedByOlder,
     /// The user controls the prince of this city ("if you control the
     /// Prince of Paris", The Louvre, Paris): its effective title.
     ControlsPrinceOf(&'static str),
@@ -1737,6 +1763,17 @@ pub enum CostSource {
     /// Burned: a combat card its host plays costs 1 blood less (Focus the
     /// Blood).
     FocusBlood,
+    /// Lock: recruiting a mortal ally or employing a mortal retainer costs
+    /// 1 blood or pool less (Sunset Strip, Hollywood), as an action or not
+    /// (ANK 20230824).
+    SunsetStrip,
+}
+
+/// A mortal ally or retainer (Sunset Strip, Hollywood's reduction).
+pub fn mortal_hire(card: u16) -> bool {
+    let c = &crate::library::LIBRARY[card as usize];
+    c.labels.contains(&crate::library::Label::Mortal)
+        && (c.types.contains(&CardType::Ally) || c.types.contains(&CardType::Retainer))
 }
 
 /// Whom a conditional bonus reads its condition on.
@@ -1898,6 +1935,9 @@ pub enum RefEffect {
     /// Each Methuselah gains n pool for each vampire they control with
     /// capacity `cap` or more (Political Stranglehold).
     GainPerVampireCapacityAtLeast { cap: u8, n: u8 },
+    /// Each Methuselah gains n pool for each minion they control, allies
+    /// and vampires in torpor included (Autarkis Persecution).
+    GainPerMinion(u8),
     /// The chosen minion is removed from the game (Permanent Vacation).
     RemoveChosen,
     /// The chosen vampire takes control of the chosen card: it moves onto
@@ -1983,6 +2023,9 @@ pub enum Voters {
     /// "Each titled Camarilla vampire you control" (Elysium: The Palace of
     /// Versailles): effective title and sect.
     TitledSect(Sect),
+    /// "Each Laibon Ravnos" (The Eldest Are Kholo): effective clan and
+    /// sect.
+    ClanSect(&'static str, Sect),
 }
 
 /// +n votes to each vampire `voters` names (of the granting Methuselah's
@@ -2001,6 +2044,7 @@ impl Voters {
             Voters::TitledSect(sect) => {
                 st.sect_of(m) == Some(sect) && st.title_of(m) != Title::None
             }
+            Voters::ClanSect(c, sect) => v.clan() == Some(c) && st.sect_of(m) == Some(sect),
         }
     }
 }
@@ -2381,6 +2425,10 @@ pub enum Terms {
     /// ones, chosen one at a time as the use is announced (Tension in the
     /// Ranks, The Barrens, Kasim Bayar, Alexa Draper).
     Discard { n: u8, of: CardFilter },
+    /// "Discard X <cards>": picked one at a time, all at once, Pass ending
+    /// once one is picked; X the number discarded (Angelica: "discard X
+    /// master cards to get +X intercept", LSJ 19981005).
+    DiscardAny { of: CardFilter },
     /// A number of cards in `min..=max`, chosen as the ability is used
     /// (Heart of Nizchetus: "up to 3"; rules-qa 11.1).
     Count { min: u8, max: u8 },
@@ -2780,6 +2828,16 @@ pub struct Layer {
     pub source: CardId,
 }
 
+/// The vampire a trained card becomes (Web of Knives Recruit): its clan,
+/// sect, what it is born with, and its blood.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Trained {
+    pub clan: &'static str,
+    pub sect: Sect,
+    pub born: crate::state::Born,
+    pub blood: u8,
+}
+
 /// Effect primitives; `X` is the play's terms.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Effect {
@@ -2928,8 +2986,12 @@ pub enum Effect {
     /// vampire" (Childe of the Revolution): after `PutInPlay`, of the sect
     /// printed, else of its sire's — the acting vampire's (rulebook
     /// "Sect": new vampires take their sire's; Waters of Duat, rules-qa
-    /// 32.6).
-    BecomesVampire(Option<Sect>),
+    /// 32.6). `master_search`: the Discipline master search printed on
+    /// both (The Embrace prints none).
+    BecomesVampire {
+        sect: Option<Sect>,
+        master_search: bool,
+    },
     /// Put this card on the target minion.
     PutOnTarget,
     /// Put this card in play with no host (Anarch Revolt).
@@ -3239,6 +3301,37 @@ pub enum Effect {
     /// capacity; it counts as fed by a hunting ground this turn either
     /// way, rules-qa 6.5).
     HuntingGroundBlood(u8),
+    /// "Move 1 blood from the blood bank to each of the two oldest ready
+    /// vampires you control" (Gurchon Hall): picked as it resolves
+    /// (`MinionPurpose::OldestHuntingGround`), each unless fed by a hunting
+    /// ground this turn.
+    HuntingGroundTwoOldest,
+    /// "Put this card in play in your uncontrolled region with n training
+    /// counters" (Web of Knives Recruit): out of play there
+    /// (`CardInPlay::training`); one counter burns in each of its
+    /// controller's unlock phases, from two such cards at most; the last
+    /// burned, it moves to the ready region as the vampire `becomes`.
+    TrainInUncontrolled {
+        counters: u8,
+        becomes: &'static Trained,
+    },
+    /// +X intercept for the host's block attempt, X the ability's terms
+    /// (Angelica, The Canonicus).
+    AddInterceptX,
+    /// "Give you control of <the target> until the end of your next turn"
+    /// (Ayelea, The Manipulator): `take_control`, outlasting one end of
+    /// turn (`Minion::temp_skip`).
+    TakeControlOfTargetUntilNextTurn,
+    /// "Allow that vampire to burn 1 blood to get +1 intercept" for the
+    /// rest of the action (Marciana Giovanni, Investigator; LSJ
+    /// 20100604-2).
+    TargetBurnsForInterceptThisAction,
+    /// "Move 1 blood from a crypt card in your prey's uncontrolled region
+    /// to a vampire in your uncontrolled region" (Lázár Dobrescu).
+    PreySlotToOwnSlot,
+    /// "Move any number of blood counters from your pool to 1 or more
+    /// vampires you control" (Gird Minions): `Interrupt::PoolToVampires`.
+    PoolToVampires,
     /// Burn the card in play chosen by the play's `BurnNamedInPlay` terms
     /// (Vessel), if it is still in play.
     BurnChosenInPlay,
@@ -4053,8 +4146,14 @@ pub enum Effect {
     GainBloodLostByOpponent,
     /// "If this vampire was blocked while performing an action, the action
     /// continues as if unblocked" (Torrent [CEL]): mandatory and free, as the
-    /// after-combat window closes.
-    ContinueFreeAfterCombat,
+    /// after-combat window closes — not during an action of the kinds
+    /// listed ("a non-bleed non-political action", Shadow Body [OBT]).
+    ContinueFreeAfterCombat(&'static [ActionKind]),
+    /// Rider of a strike: combat ends — "the opposing minion burns n blood
+    /// or life after combat ends (even at long range)" (Oubliette [OBT]):
+    /// not if the strike is dodged (LSJ 19980526) or the combat continues
+    /// (RTR 20020501); no damage (LSJ 20080226).
+    BurnAfterCombat(u8),
     /// Rider of a strike: combat ends — after combat, if the actor was
     /// blocked, it may burn `blood` to continue the action with +`stealth`
     /// as if unblocked. Lost if the combat continues (spec §4.9.2).
@@ -4259,6 +4358,13 @@ pub enum Effect {
     CancelableForBlockerBlood(u8),
     /// "You get +n hand size until your next unlock phase" (Juliet Parr).
     HandSizeUntilUnlock(u8),
+    /// "Give all vampires +n stealth on hunt actions until your next unlock
+    /// phase" (Sunset Strip, Hollywood).
+    HuntStealthUntilUnlock(u8),
+    /// "If this vampire is Laibon, draw 1 card from your crypt. Otherwise,
+    /// this vampire becomes Laibon, and they unlock if they are" of one of
+    /// these clans (Mozambique Allure).
+    LaibonOrCryptDraw(&'static [&'static str]),
     /// The target vampire gets a disease counter, one at most (Vampiric
     /// Disease).
     DiseaseTarget,
@@ -4318,6 +4424,21 @@ pub enum Effect {
     /// Each vampire of the user's the grant names gets its votes in this
     /// referendum (Elysium: The Palace of Versailles, Power Structure).
     GrantVotes(VoteGrant),
+    /// As `GrantVotes`, to every Methuselah's vampires the grant names
+    /// ("each Laibon Ravnos gets +2 votes", The Eldest Are Kholo: no "you
+    /// control", rules-qa 69.2).
+    GrantVotesAll(VoteGrant),
+    /// "The next referendum a vampire you control calls this turn passes
+    /// automatically" (Cryptic Rider).
+    NextReferendumPasses,
+    /// "Unlock this vampire, search your crypt (shuffle afterward),
+    /// uncontrolled region, and/or ash heap for their base version, and
+    /// merge them with it" (Legacy): `Interrupt::BaseSearch`.
+    MergeWithBase,
+    /// "If the referendum passes and the effect of the referendum causes
+    /// you to lose pool, the controller of the acting vampire loses the
+    /// same amount of pool" (Poison Pill).
+    PoisonPill,
     /// The user's own votes, cast at once on one side ("lock this card …
     /// to get +3 votes", Ventrue Headquarters): a vote source of their
     /// own, like the Edge.
@@ -4489,10 +4610,11 @@ pub enum Effect {
     /// The current block attempt fails; that minion cannot attempt to
     /// block this action again (Forced Confessional [DOM]).
     AttemptFails,
-    /// For the rest of the action, minions without Oblivion burn 1 blood
-    /// to attempt to block, allies cannot (Where the Veil Thins [OBL]); one
-    /// attempting may pay or resign (LSJ 20031121-2).
-    VeilThins,
+    /// For the rest of the action, minions without the Discipline burn 1
+    /// blood to attempt to block, allies cannot (Where the Veil Thins [OBL],
+    /// Tenebrous Form [OBT]), each copy its own 1 (owner, rules-qa 69.12);
+    /// one attempting may pay or resign (LSJ 20031121-2).
+    VeilThins(&'static str),
     /// Minions who attempt to block this action and fail become locked
     /// before action resolution (Faceless Night [OBF]).
     LockFailedBlockers,
@@ -4635,6 +4757,10 @@ pub enum Hook {
     /// A vampire in combat with a vampire of `clan` its controller controls
     /// left the ready region (Dead Pool: "you can add 1 counter").
     CombatOpponentOfOwnClanLeft(&'static str),
+    /// A minion opposing an Anarch in combat left the ready region: that
+    /// Anarch's controller, whoever controls this card, may move 1 blood
+    /// to a vampire in their uncontrolled region (Flames of Insurrection).
+    CombatOpponentOfAnarchLeft,
     /// A non-Camarilla vampire its controller controls sent an opposing
     /// vampire to torpor in combat (The Path of Lilith: "you may lock this
     /// card to put a torture counter on the opposing vampire").
@@ -5068,6 +5194,9 @@ pub enum Per {
     /// "For each ready titled vampire controlled by other Methuselahs"
     /// (Gerald Windham).
     ReadyTitledOfOthers,
+    /// "For each titled vampire controlled by the target Methuselah"
+    /// (Appolonius, advanced).
+    TitledOfTarget,
 }
 
 /// A modifier printed on a vampire, read live by `GameState::printed_mod`
@@ -5146,7 +5275,17 @@ pub fn vampire_of(m: &crate::state::Minion) -> Option<&'static VampireDef> {
     if let crate::state::MinionKind::GreatBeast { .. } = m.kind {
         return Some(&vampires::GREAT_BEAST);
     }
-    m.crypt_card().and_then(vampire)
+    let card = m.crypt_card()?;
+    // Merged: the definition of both cards' text (`vampires::MERGED`).
+    m.merged
+        .and_then(|_| {
+            let c = &crate::crypt::CRYPT[card as usize];
+            vampires::MERGED
+                .iter()
+                .find(|d| d.name == c.name && d.group.is_none_or(|g| g == c.group))
+                .copied()
+        })
+        .or_else(|| vampire(card))
 }
 
 /// Does crypt card `card` print `stat` unconditionally (Jimmy Dunn's
@@ -5904,6 +6043,7 @@ pub fn holds(
                             blood > a.blood_reduction && st.minions[a.acting.index()].is_vampire()
                         }
                         CostSource::Cache => a.kind == crate::decision::ActionKind::Equip,
+                        CostSource::SunsetStrip => mortal_hire(p.card) && (blood > 0 || pool > 0),
                         CostSource::Hackerspace => {
                             a.kind == crate::decision::ActionKind::Equip
                                 && st.sect_of(a.acting) == Some(Sect::Anarch)
@@ -6000,6 +6140,8 @@ pub fn holds(
         Requirement::OthersMinionPhase
         | Requirement::PlayedStrikeByOpponent
         | Requirement::PlayedStrikeOrGrappleByOpponent
+        | Requirement::PlayedAimFrenzyGrappleByOpponent
+        | Requirement::BlockedByOlder
         | Requirement::OwnMinionPhase
         | Requirement::ControlledByPredator
         | Requirement::ControlledByActive
@@ -6205,6 +6347,14 @@ pub fn holds(
         | Requirement::ActorClaimsTitleIn(_) => true, // printed-modifier predicates
         // An actor with no title (Powerbase: Barranquilla's untitled
         // burner); the printed predicate's reading too.
+        Requirement::OwnUncontrolledNotEmpty => !st.seats[seat.index()].uncontrolled.is_empty(),
+        Requirement::ActorPassedReferendumThisTurn => {
+            actor.is_some_and(|m| st.minions[m.index()].referendum_passed_turn)
+        }
+        Requirement::ActorUnmergedAdvanced => actor.is_some_and(|m| {
+            let v = &st.minions[m.index()];
+            v.merged.is_none() && v.vampire().is_some_and(|c| c.adv)
+        }),
         Requirement::ActorUntitled => {
             actor.is_none_or(|m| st.title_of(m) == crate::crypt::Title::None)
         }

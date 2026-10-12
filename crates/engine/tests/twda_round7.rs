@@ -837,6 +837,7 @@ fn le_dinh_tho_is_scarce() {
         id: CardId(e.state.cards.len() as u32 - 1),
         clan: "Nagaraja",
         sect: Sect::Independent,
+        born: &zvtes::state::NEWBORN,
     };
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     let tho = find_card("Le Dinh Tho");

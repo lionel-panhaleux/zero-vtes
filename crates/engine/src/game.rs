@@ -275,6 +275,7 @@ pub fn public_choice(c: &Choice) -> bool {
             | AllocateToCard { .. }
             | Transfer { .. }
             | InfluenceOut { .. }
+            | Merge { .. }
             | HandStrike
             | UseManeuver
             | UsePress
@@ -1042,6 +1043,17 @@ impl Engine {
                     source,
                     ability,
                     target,
+                    picked,
+                    resume,
+                    ..
+                },
+                Choice::Pass,
+            ) => self.ability_discards_done(source, ability, target, picked, resume),
+            (
+                Flow::AbilityTerms {
+                    source,
+                    ability,
+                    target,
                     user,
                     resume,
                     ..
@@ -1137,6 +1149,16 @@ impl Engine {
                             })
                         })
                 })
+                .map(|(i, _)| Pending::Rider(CardId(i as u32))),
+        );
+        // Web of Knives Recruit, in the uncontrolled region: a training
+        // counter to burn (`Engine::train`).
+        pending.extend(
+            self.state
+                .cards
+                .iter()
+                .enumerate()
+                .filter(|(_, c)| c.training && c.controller == s && c.counters > 0)
                 .map(|(i, _)| Pending::Rider(CardId(i as u32))),
         );
         // Any Methuselah's vampire, its rider's scope deciding (Arika's:
@@ -1282,6 +1304,10 @@ impl Engine {
                     self.state.seats[controller.index()].transfers_next += n as u8;
                 } else {
                     self.state.seats[owner.index()].ash_crypt.push(card);
+                    // Merged: both cards (rulebook "Advanced").
+                    if let Some(base) = v.merged {
+                        self.state.seats[owner.index()].ash_crypt.push(base);
+                    }
                 }
             }
             // Absimiliard's Army's ghoul: burned, then removed from the game
@@ -1831,6 +1857,26 @@ impl Engine {
             })
             .collect();
         due.dedup();
+        // "During your discard phase, burn 1 counter from this card" (Palla
+        // Grande): the controller's own, not The Coven's predator's.
+        for (ci, c) in self.state.cards.iter().enumerate() {
+            let id = CardId(ci as u32);
+            if c.present()
+                && self.state.card_controller(id) == s
+                && !self.state.seats[s.index()].discard_resolved.contains(&id)
+                && crate::cards::lookup(c.card).is_some_and(|d| {
+                    d.riders.iter().any(|r| {
+                        r.hook == crate::cards::Hook::DiscardPhase
+                            && !r
+                                .effects
+                                .contains(&crate::cards::Effect::PredatorTakesControl)
+                            && !r.effects.is_empty()
+                    })
+                })
+            {
+                due.push(id);
+            }
+        }
         due
     }
 
@@ -1881,6 +1927,10 @@ impl Engine {
             let Some(back) = m.temp_from.filter(|_| m.owner == s && m.in_play) else {
                 continue;
             };
+            if m.temp_skip > 0 {
+                self.state.minions[i].temp_skip -= 1;
+                continue;
+            }
             self.state.minions[i].temp_from = None;
             if self.state.seats[back.index()].ousted {
                 self.remove_minion(MinionId(i as u32));
@@ -2135,10 +2185,13 @@ impl Engine {
         self.state.turn_plays.clear();
         for seat in &mut self.state.seats {
             seat.auto_pass_pending = false;
+            seat.auto_pass_next = false;
             seat.sabbat_referendum_called = false;
         }
         // Juliet Parr's hand size lasts until this unlock phase.
         self.state.seats[s.index()].hand_bonus_unlock = 0;
+        self.state.seats[s.index()].training_burned = 0;
+        self.state.seats[s.index()].hunt_stealth_unlock = 0;
         self.state.seats[s.index()].hand_malus_unlock = 0;
         // Donatello Giovanni's marks last until his controller's unlock.
         let st = &self.state;
@@ -2163,6 +2216,7 @@ impl Engine {
         for m in &mut self.state.minions {
             // Per-turn NRA flags reset each new turn.
             m.bled_this_turn = false;
+            m.referendum_passed_turn = false;
             m.political_this_turn = false;
             m.expelled = false;
             m.hunting_ground_fed = false;
@@ -2342,7 +2396,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 428);
+        assert_eq!(CRYPT.len(), 463);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

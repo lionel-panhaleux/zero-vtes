@@ -93,11 +93,13 @@ pub enum Interrupt {
         ally: crate::ids::MinionId,
     },
     /// A block attempt made costly as it goes on (Where the Veil Thins
-    /// [OBL]): its minion pays, or resigns the attempt and pays nothing
-    /// (LSJ 20031121-2).
+    /// [OBL], Tenebrous Form [OBT]): its minion pays the `n` blood that
+    /// card adds, or resigns the attempt and pays nothing (LSJ 20031121-2);
+    /// an ally cannot burn blood.
     BlockToll {
         seat: SeatId,
         minion: crate::ids::MinionId,
+        n: u8,
     },
     /// Dawn Operation [for]: the vampire attempting to block may cancel its
     /// attempt (`ChooseMinion` it, or pass).
@@ -272,10 +274,14 @@ pub enum Interrupt {
     },
     /// "Add n blood to a `clan` vampire in your uncontrolled region"
     /// (Hunting the Beast [AUS]): the player's pick, none if they have none.
+    /// With no clan, any of them, and optional ("may move a counter from
+    /// the bank to a vampire in his or her uncontrolled region", Flames of
+    /// Insurrection).
     UncontrolledBlood {
         seat: SeatId,
-        clan: &'static str,
+        clan: Option<&'static str>,
         n: u8,
+        may: bool,
     },
     /// "Lock this card or burn n pool" (Bleeding the Vine): `ResolveRider`
     /// locks it (if unlocked), `BurnPool` pays.
@@ -318,6 +324,22 @@ pub enum Interrupt {
         moving: Option<CardId>,
         paired: [Option<(MinionId, MinionId)>; 12],
     },
+    /// "Move any number of blood counters from your pool to 1 or more
+    /// vampires you control" (Gird Minions): a vampire (`to`), then the
+    /// amount (`Choice::SetX`), up to its room (rulebook: no more blood
+    /// than capacity); Pass ends the moves.
+    PoolToVampires {
+        seat: SeatId,
+        to: Option<crate::ids::MinionId>,
+    },
+    /// Legacy: `minion`'s base version searched for in `seat`'s crypt
+    /// (`Choice::AshVampire`, taken from the crypt first, then the ash
+    /// heap), uncontrolled region (`Choice::Slot`) and ash heap, and merged
+    /// with it; Pass finds none. The crypt shuffled after.
+    BaseSearch {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+    },
     /// New Blood entering play: the circle he belongs to
     /// (`Choice::ChooseCircle`, among `state::circles`), or his own circle
     /// of one (Pass).
@@ -341,6 +363,14 @@ pub enum Interrupt {
     /// Malgorzata: the vampire of `seat`'s uncontrolled region to remove,
     /// another than the action's target (`Choice::Slot`).
     NameUncontrolled { seat: SeatId, target: u8 },
+    /// Lázár Dobrescu: named as the action is announced (rules-qa default
+    /// readings) — `from`, a vampire with blood in `of`'s uncontrolled
+    /// region, then the one of `seat`'s that gets it (`Choice::Slot`).
+    NameSlotPair {
+        seat: SeatId,
+        of: SeatId,
+        from: Option<u8>,
+    },
     /// The Great Beast's three Disciplines, one at a time (`Choice::Slot`
     /// into `GREAT_BEAST_DISCIPLINES`).
     BeastDisciplines { seat: SeatId, minion: MinionId },
@@ -425,6 +455,10 @@ pub enum MinionPurpose {
     /// A ready minion of the chooser's, which takes n unpreventable damage
     /// (Gnaeus Aemilius Augustinus): mandatory.
     Damage(u8),
+    /// One of the two oldest ready vampires of the chooser's, other than
+    /// the one already picked, gains 1 blood (Gurchon Hall): mandatory; a
+    /// tie for oldest is the chooser's pick (rules-qa 69.1).
+    OldestHuntingGround(Option<crate::ids::MinionId>),
 }
 
 impl Interrupt {
@@ -475,12 +509,15 @@ impl Interrupt {
             | Interrupt::DistributeFrom { seat, .. }
             | Interrupt::ChooseCircle { seat, .. }
             | Interrupt::CircleBlood { seat, .. }
+            | Interrupt::PoolToVampires { seat, .. }
+            | Interrupt::BaseSearch { seat, .. }
             | Interrupt::BecomesAnarch { seat }
             | Interrupt::AnarchConvert { seat, .. }
             | Interrupt::AshurPicks { seat, .. }
             | Interrupt::AllyFromAsh { seat, .. }
             | Interrupt::NameAshPair { seat, .. }
             | Interrupt::NameUncontrolled { seat, .. }
+            | Interrupt::NameSlotPair { seat, .. }
             | Interrupt::NameOwnAshCard { seat }
             | Interrupt::StorePreyAsh { seat, .. }
             | Interrupt::BeastDisciplines { seat, .. }
@@ -743,11 +780,9 @@ impl Engine {
                 }
                 // Nothing to cancel once the attempt is over.
                 Interrupt::CancelAttempt { minion, .. } => attempting(minion),
-                Interrupt::BlockToll { minion, .. } => {
-                    let affordable = self
-                        .action
-                        .as_ref()
-                        .is_some_and(|a| self.block_toll(a, minion).is_some());
+                Interrupt::BlockToll { minion, n, .. } => {
+                    let v = &self.state.minions[minion.index()];
+                    let affordable = !v.is_ally() && v.blood >= n;
                     if attempting(minion) && !affordable {
                         self.interrupts.remove(0);
                         self.resign_attempt();
@@ -959,6 +994,7 @@ impl Engine {
                 }
                 Interrupt::NameAshPair { .. }
                 | Interrupt::NameUncontrolled { .. }
+                | Interrupt::NameSlotPair { .. }
                 | Interrupt::NameOwnAshCard { .. } => self.action.is_some(),
                 Interrupt::MayRecycleCanceled { seat, card, .. } => {
                     self.state.seats[seat.index()].ash.contains(&card)
@@ -977,7 +1013,7 @@ impl Engine {
                         && !self.state.seats[seat.index()].library.is_empty()
                 }
                 Interrupt::UncontrolledBlood { seat, clan, .. } => {
-                    !self.uncontrolled_of_clan(seat, clan).is_empty()
+                    !self.uncontrolled_of(seat, clan).is_empty()
                 }
                 Interrupt::LockOrPay { card, .. } => self.state.cards[card.index()].present(),
                 Interrupt::CryptSearch { seat, clan } => {
@@ -993,6 +1029,11 @@ impl Engine {
                     self.state.minions[minion.index()].present()
                 }
                 Interrupt::CircleBlood { .. } => true,
+                Interrupt::PoolToVampires { seat, .. } => !self.state.seats[seat.index()].ousted,
+                Interrupt::BaseSearch { minion, .. } => {
+                    let v = &self.state.minions[minion.index()];
+                    v.present() && v.merged.is_none()
+                }
                 Interrupt::PreySlotToPool { of, .. } => self.state.seats[of.index()]
                     .uncontrolled
                     .iter()
@@ -1476,6 +1517,58 @@ impl Engine {
                 }
                 (WindowLabel::ResolutionChoice, options)
             }
+            Interrupt::BaseSearch { seat, minion } => {
+                let name = st.minions[minion.index()].name();
+                let base = |c: &u16| {
+                    *c != crate::state::CREATED
+                        && crate::crypt::CRYPT[*c as usize].name == name
+                        && !crate::crypt::CRYPT[*c as usize].adv
+                };
+                let sv = &st.seats[seat.index()];
+                let mut found: Vec<u16> = sv
+                    .crypt
+                    .iter()
+                    .chain(&sv.ash_crypt)
+                    .copied()
+                    .filter(base)
+                    .collect();
+                found.sort_unstable();
+                found.dedup();
+                let mut options = vec![Choice::Pass];
+                options.extend(found.into_iter().map(Choice::AshVampire));
+                options.extend(
+                    (0..sv.uncontrolled.len())
+                        .filter(|&i| {
+                            sv.uncontrolled[i].banished.is_none() && base(&sv.uncontrolled[i].card)
+                        })
+                        .map(|i| Choice::Slot(i as u8)),
+                );
+                (WindowLabel::ResolutionChoice, options)
+            }
+            Interrupt::PoolToVampires { seat, to } => {
+                let pool = st.seats[seat.index()].pool.max(0) as u8;
+                let room = |m: crate::ids::MinionId| {
+                    st.capacity_of(m)
+                        .unwrap_or(0)
+                        .saturating_sub(st.minions[m.index()].blood)
+                };
+                if let Some(t) = to {
+                    return Some(DecisionRequest::new(
+                        seat,
+                        WindowLabel::ResolutionChoice,
+                        (1..=pool.min(room(t))).map(Choice::SetX).collect(),
+                    ));
+                }
+                let mut options = vec![Choice::Pass];
+                if pool > 0 {
+                    options.extend(
+                        st.minions_of(seat)
+                            .filter(|&m| st.minions[m.index()].is_vampire() && room(m) > 0)
+                            .map(Choice::ChooseMinion),
+                    );
+                }
+                (WindowLabel::ResolutionChoice, options)
+            }
             // Pass: his own circle of one (owner, rules-qa 68.1).
             Interrupt::ChooseCircle { .. } => (
                 WindowLabel::EntryEffect,
@@ -1497,11 +1590,17 @@ impl Engine {
                     )
                     .collect(),
             ),
-            Interrupt::UncontrolledBlood { seat, clan, .. } => (
+            Interrupt::UncontrolledBlood {
+                seat, clan, may, ..
+            } => (
                 WindowLabel::ResolutionChoice,
-                self.uncontrolled_of_clan(seat, clan)
+                may.then_some(Choice::Pass)
                     .into_iter()
-                    .map(|i| Choice::Slot(i as u8))
+                    .chain(
+                        self.uncontrolled_of(seat, clan)
+                            .into_iter()
+                            .map(|i| Choice::Slot(i as u8)),
+                    )
                     .collect(),
             ),
             Interrupt::MayPutOn { held, .. } => (
@@ -1556,6 +1655,18 @@ impl Engine {
                     .map(Choice::FindCard)
                     .collect(),
             ),
+            Interrupt::NameSlotPair { seat, of, from } => (
+                WindowLabel::ResolutionChoice,
+                match from {
+                    None => (0..st.seats[of.index()].uncontrolled.len() as u8)
+                        .filter(|&i| st.seats[of.index()].uncontrolled[i as usize].counters > 0)
+                        .map(Choice::Slot)
+                        .collect(),
+                    Some(_) => (0..st.seats[seat.index()].uncontrolled.len() as u8)
+                        .map(Choice::Slot)
+                        .collect(),
+                },
+            ),
             Interrupt::NameUncontrolled { seat, target } => (
                 WindowLabel::ResolutionChoice,
                 (0..st.seats[seat.index()].uncontrolled.len() as u8)
@@ -1585,6 +1696,7 @@ impl Engine {
                         | MinionPurpose::BurnBloodOfClan(_)
                         | MinionPurpose::HostCard(_)
                         | MinionPurpose::LockOldest(_)
+                        | MinionPurpose::OldestHuntingGround(_)
                         | MinionPurpose::BurnOfCrowdedClan
                         | MinionPurpose::Damage(_)
                 ) {
@@ -1681,6 +1793,22 @@ impl Engine {
                                     >= 3
                             })
                     }
+                    // The oldest ready vampires left, the one picked
+                    // excluded.
+                    MinionPurpose::OldestHuntingGround(first) => {
+                        let left = |o: &crate::ids::MinionId| {
+                            Some(*o) != first
+                                && st.minions[o.index()].ready()
+                                && st.minions[o.index()].is_vampire()
+                        };
+                        left(m)
+                            && st.capacity_of(*m)
+                                == st
+                                    .minions_of(of)
+                                    .filter(left)
+                                    .filter_map(|o| st.capacity_of(o))
+                                    .max()
+                    }
                     MinionPurpose::LockOldest(c) => {
                         v.clan() == Some(c)
                             && st.capacity_of(*m)
@@ -1731,6 +1859,14 @@ impl Engine {
         distinct(&self.state.seats[seat.index()].crypt, |c| {
             crate::crypt::CRYPT[c as usize].clan == clan
         })
+    }
+
+    /// `seat`'s uncontrolled vampires of `clan`, or all of them.
+    fn uncontrolled_of(&self, seat: SeatId, clan: Option<&'static str>) -> Vec<usize> {
+        match clan {
+            Some(c) => self.uncontrolled_of_clan(seat, c),
+            None => (0..self.state.seats[seat.index()].uncontrolled.len()).collect(),
+        }
     }
 
     fn uncontrolled_of_clan(&self, seat: SeatId, clan: &'static str) -> Vec<usize> {
@@ -2310,6 +2446,9 @@ impl Engine {
                 self.interrupts.remove(0);
                 self.state.add_uncontrolled_blood(s, i as usize, n);
             }
+            (Interrupt::UncontrolledBlood { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+            }
             (Interrupt::MayRecycleCanceled { seat, card, .. }, Choice::ResolvePrinted { .. }) => {
                 self.interrupts.remove(0);
                 let s = &mut self.state.seats[seat.index()];
@@ -2325,6 +2464,35 @@ impl Engine {
             }
             (Interrupt::MayRecycleCanceled { .. }, Choice::Pass) => {
                 self.interrupts.remove(0);
+            }
+            (
+                Interrupt::NameSlotPair {
+                    seat,
+                    of,
+                    from: None,
+                },
+                Choice::Slot(i),
+            ) => {
+                self.interrupts[0] = Interrupt::NameSlotPair {
+                    seat,
+                    of,
+                    from: Some(i),
+                };
+            }
+            (
+                Interrupt::NameSlotPair {
+                    seat,
+                    of,
+                    from: Some(f),
+                },
+                Choice::Slot(i),
+            ) => {
+                self.interrupts.remove(0);
+                let named = |s: SeatId, k: u8| {
+                    (k, self.state.seats[s.index()].uncontrolled[k as usize].card)
+                };
+                let pair = (named(of, f), named(seat, i));
+                self.action.as_mut().expect("action").slot_pair = Some(pair);
             }
             (Interrupt::NameUncontrolled { seat, .. }, Choice::Slot(i)) => {
                 self.interrupts.remove(0);
@@ -2545,9 +2713,9 @@ impl Engine {
                     other => unreachable!("illegal entry choice {other:?}"),
                 }
             }
-            (Interrupt::BlockToll { minion, .. }, Choice::PayBlockToll) => {
+            (Interrupt::BlockToll { minion, n, .. }, Choice::PayBlockToll) => {
                 self.interrupts.remove(0);
-                self.pay_block_toll(minion, false);
+                self.state.burn_blood(minion, n);
             }
             (Interrupt::CancelAttempt { .. }, Choice::ChooseMinion(_)) => {
                 self.interrupts.remove(0);
@@ -2699,6 +2867,24 @@ impl Engine {
                     | MinionPurpose::LockOldest(_) => v.locked = true,
                     MinionPurpose::HostCard(c) => self.state.cards[c.index()].host = Some(m),
                     MinionPurpose::Damage(n) => self.damage_out_of_combat(m, n, false),
+                    // A vampire fed by another hunting ground this turn
+                    // still counts as one of the two.
+                    MinionPurpose::OldestHuntingGround(first) => {
+                        if !v.hunting_ground_fed {
+                            v.hunting_ground_fed = true;
+                            self.state.gain_blood(m, 1);
+                        }
+                        if first.is_none() {
+                            self.interrupts.insert(
+                                0,
+                                Interrupt::MinionOf {
+                                    seat,
+                                    of: seat,
+                                    purpose: MinionPurpose::OldestHuntingGround(Some(m)),
+                                },
+                            );
+                        }
+                    }
                     MinionPurpose::UnlockAnarch => self.state.unlock(m),
                     MinionPurpose::BurnBloodOfClan(_) => v.blood -= 1,
                     MinionPurpose::Corrupt => v.add_corruption(seat, 1),
@@ -2967,6 +3153,44 @@ impl Engine {
                     moving: Some(CardId(c)),
                     paired,
                 };
+            }
+            (Interrupt::BaseSearch { seat, minion }, choice) => {
+                self.interrupts.remove(0);
+                let sv = &mut self.state.seats[seat.index()];
+                let card = match choice {
+                    Choice::AshVampire(card) => {
+                        if let Some(k) = sv.crypt.iter().position(|&c| c == card) {
+                            sv.crypt.remove(k);
+                        } else {
+                            let k = sv
+                                .ash_crypt
+                                .iter()
+                                .position(|&c| c == card)
+                                .expect("in the ash heap");
+                            sv.ash_crypt.remove(k);
+                        }
+                        Some(card)
+                    }
+                    Choice::Slot(i) => Some(sv.uncontrolled.remove(i as usize).card),
+                    _ => None,
+                };
+                self.rng.shuffle(&mut self.state.seats[seat.index()].crypt);
+                if let Some(card) = card {
+                    self.merge(minion, card);
+                }
+            }
+            (Interrupt::PoolToVampires { seat, to: None }, Choice::ChooseMinion(m)) => {
+                self.interrupts[0] = Interrupt::PoolToVampires { seat, to: Some(m) };
+            }
+            // Paid down to 0, the mover is ousted (its turn passes).
+            (Interrupt::PoolToVampires { seat, to: Some(t) }, Choice::SetX(n)) => {
+                self.interrupts[0] = Interrupt::PoolToVampires { seat, to: None };
+                let b = self.state.minions[t.index()].blood + n;
+                self.state.set_blood(t, b);
+                self.pay_pool_for_ability(seat, n as i32);
+            }
+            (Interrupt::PoolToVampires { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
             }
             (Interrupt::CircleBlood { .. }, Choice::Pass) => {
                 self.interrupts.remove(0);

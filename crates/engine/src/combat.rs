@@ -242,6 +242,9 @@ pub struct Side {
     /// Kiss of Cathari [OBF]/[PRE]: its strike stuns the opposing minion
     /// after combat, at close range and not dodged.
     pub after_stun_rider: bool,
+    /// Oubliette [OBT]: its strike makes the opposing minion burn n blood
+    /// or life after combat, at any range, not dodged.
+    pub after_burn_rider: Option<u8>,
     /// The card in play the chosen strike comes from (a weapon).
     pub strike_source: Option<CardId>,
     /// The weapon whose strike resolved, kept until its damage is applied
@@ -476,6 +479,7 @@ impl Side {
             continue_free: false,
             after_damage_rider: None,
             after_stun_rider: false,
+            after_burn_rider: None,
             maneuvers,
             ..Self::new(self.minion, self.seat)
         };
@@ -582,6 +586,9 @@ pub struct CombatCtx {
     pub after_combat_damage: Vec<(MinionId, u8)>,
     /// Kiss of Cathari [OBF]/[PRE]: the minions stunned after combat ends.
     pub after_combat_stun: Vec<MinionId>,
+    /// Oubliette [OBT]: blood or life burned after combat ends, not damage
+    /// (LSJ 20080226).
+    pub after_combat_burn: Vec<(MinionId, u8)>,
     /// A combat the action queued (Hedonism): the action's step resumes
     /// after it.
     pub queued: bool,
@@ -1954,6 +1961,13 @@ impl Engine {
                 {
                     c.after_combat_stun.push(c.sides[1 - i].minion);
                 }
+                // Oubliette [OBT]: even at long range, not dodged (LSJ
+                // 19980526).
+                if let Some(n) = c.sides[i].after_burn_rider.take() {
+                    if !matches!(strikes[1 - i], Some(StrikeKind::Dodge)) {
+                        c.after_combat_burn.push((c.sides[1 - i].minion, n));
+                    }
+                }
                 if std::mem::take(&mut c.sides[i].continue_free)
                     && self
                         .action
@@ -2557,6 +2571,7 @@ impl Engine {
             c.after_combat.clear();
             c.after_combat_damage.clear();
             c.after_combat_stun.clear();
+            c.after_combat_burn.clear();
         }
     }
 
@@ -2905,6 +2920,16 @@ impl Engine {
         }
         // Kiss of Cathari [OBF]/[PRE]: locked again if it unlocked during
         // the combat (LSJ 20040601), and it does not unlock next time.
+        // Oubliette [OBT]: an ally with no life left is burned.
+        for (m, n) in ended.iter().flat_map(|c| c.after_combat_burn.clone()) {
+            if self.state.minions[m.index()].present() {
+                self.state.burn_blood(m, n);
+                let v = &self.state.minions[m.index()];
+                if v.is_ally() && v.blood == 0 {
+                    self.burn_minion(m);
+                }
+            }
+        }
         for m in ended.iter().flat_map(|c| c.after_combat_stun.clone()) {
             let v = &mut self.state.minions[m.index()];
             if v.present() {
@@ -3001,8 +3026,9 @@ impl Engine {
                 self.interrupts
                     .push(crate::draws::Interrupt::UncontrolledBlood {
                         seat: v.owner,
-                        clan,
+                        clan: Some(clan),
                         n,
+                        may: false,
                     });
             }
         }
@@ -3500,7 +3526,12 @@ impl Engine {
                 let gained = c.sides[1 - i].lost_to_damage;
                 self.state.gain_blood(actor, gained);
             }
-            Effect::ContinueFreeAfterCombat => c.sides[i].continue_free = true,
+            Effect::ContinueFreeAfterCombat(not) => {
+                if !self.action.as_ref().is_some_and(|a| not.contains(&a.kind)) {
+                    c.sides[i].continue_free = true;
+                }
+            }
+            Effect::BurnAfterCombat(n) => c.sides[i].after_burn_rider = Some(n),
             Effect::ContinueAfterCombat { blood, stealth } => {
                 c.sides[i].continue_rider = Some((blood, stealth));
             }
@@ -3713,7 +3744,8 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::QueueCombatWithOpponent
             | Effect::GainBloodLostByOpponent
             | Effect::ContinueAfterCombat { .. }
-            | Effect::ContinueFreeAfterCombat
+            | Effect::ContinueFreeAfterCombat(_)
+            | Effect::BurnAfterCombat(_)
             | Effect::DamageAfterCombatIfClose(_)
             | Effect::StunAfterCombatIfClose
             | Effect::PutOnOpposingKeepControl

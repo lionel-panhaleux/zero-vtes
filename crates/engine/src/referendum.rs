@@ -99,9 +99,10 @@ pub struct VoteRecord {
     pub n: u8,
     /// Canceled by an abstention (Scalpel Tongue): not tallied.
     pub canceled: bool,
-    /// The source is a priscus casting: its ballot in the prisci
-    /// sub-referendum, on the same side (rulebook "The Prisci Block").
-    pub prisci: bool,
+    /// The source's ballots in the prisci sub-referendum, on the same side
+    /// (rulebook "The Prisci Block"): a priscus casting's, and printed ones
+    /// (Gratiano's, title or not: LSJ 20040519).
+    pub ballots: u8,
 }
 
 /// A recipient of referendum points: a Methuselah, or a card in play
@@ -200,6 +201,9 @@ pub struct ReferendumCtx {
     /// Scorn of Adonis: pool burned at the tally by each Methuselah who
     /// cast against (one per Scorn).
     pub scorn: u8,
+    /// Poison Pill: the Methuselahs whose pool lost to the referendum's
+    /// effect the acting vampire's controller loses as well.
+    pub poison: Vec<SeatId>,
     pub terms: TermsState,
     pub canceled: bool,
     /// A term had no legal choice when its turn came (Parity Shift with no
@@ -335,11 +339,11 @@ impl ReferendumCtx {
                 (f, a + r.n as u32)
             }
         });
-        let ballots = live.filter(|r| r.prisci).fold((0u32, 0u32), |(f, a), r| {
+        let ballots = live.fold((0u32, 0u32), |(f, a), r| {
             if r.favor {
-                (f + 1, a)
+                (f + r.ballots as u32, a)
             } else {
-                (f, a + 1)
+                (f, a + r.ballots as u32)
             }
         });
         match ballots.0.cmp(&ballots.1) {
@@ -453,6 +457,7 @@ impl Engine {
             pre_vote: kind == RefKind::Political,
             forced_fail: false,
             scorn: 0,
+            poison: Vec::new(),
             terms: TermsState::default(),
             canceled: false,
             fizzled: false,
@@ -473,7 +478,7 @@ impl Engine {
                     favor: true,
                     n: n as u8,
                     canceled: false,
-                    prisci: false,
+                    ballots: 0,
                 });
             }
         }
@@ -487,6 +492,15 @@ impl Engine {
                     ctx.window = PollingWindow::new(Vec::new());
                 }
                 seat.sabbat_referendum_called = true;
+            }
+        }
+        // Cryptic Rider: the next referendum a vampire of theirs calls.
+        if let Some(m) = ctx.calling {
+            let seat = &mut self.state.seats[caller.index()];
+            if seat.auto_pass_next && self.state.minions[m.index()].is_vampire() {
+                seat.auto_pass_next = false;
+                ctx.auto_pass = true;
+                ctx.window = PollingWindow::new(Vec::new());
             }
         }
         // The pre-vote rotation: from the caller's left, the caller last.
@@ -907,7 +921,7 @@ impl Engine {
                 favor,
                 n: n.saturating_mul(p.rate(s)),
                 canceled: false,
-                prisci: false,
+                ballots: 0,
             });
             loss[s.index()] += n as i32;
         }
@@ -933,7 +947,7 @@ impl Engine {
                 continue;
             }
             // A priscus casts its prisci ballot even with no vote.
-            let ballot = ctx.may_vote(st, id) && st.title_of(id) == crate::crypt::Title::Priscus;
+            let ballot = ctx.may_vote(st, id) && st.ballots(id) > 0;
             if (ctx.votes_cast(st, id, true) > 0 || ballot) && !ctx.forced_against.contains(&id) {
                 options.push(Choice::CastVotes {
                     minion: id,
@@ -1240,14 +1254,17 @@ impl Engine {
             other => unreachable!("illegal polling choice {other:?}"),
         };
         // A priscus casting casts its prisci ballot too, on the same side.
-        let prisci = matches!(source, Source::Vampire(m) if self.state.title_of(m) == crate::crypt::Title::Priscus);
+        let ballots = match source {
+            Source::Vampire(m) => self.state.ballots(m),
+            _ => 0,
+        };
         ctx.records.push(VoteRecord {
             source,
             seat,
             favor,
             n,
             canceled: false,
-            prisci,
+            ballots,
         });
         ctx.window.commit();
         None
@@ -1437,8 +1454,34 @@ impl Engine {
             .expect("political action")
             .referendum_passed;
         if passed {
+            let acting = self.action.as_ref().expect("political action").acting;
+            self.state.minions[acting.index()].referendum_passed_turn = true;
             let def = ctx.def.expect("political definition");
             self.apply_referendum_effect(def.effect, &ctx);
+        }
+        // Alvaro: "after resolution of any political action, if Alvaro
+        // abstained (even in torpor), he can gain 2 blood" — no vote or
+        // ballot standing, title or not (LSJ 20010526); never worse to
+        // take: gained (rules-qa 53.5's reading).
+        for i in 0..self.state.minions.len() {
+            let m = MinionId(i as u32);
+            let v = &self.state.minions[m.index()];
+            if !v.present()
+                || ctx
+                    .records
+                    .iter()
+                    .any(|r| !r.canceled && r.source == Source::Vampire(m))
+            {
+                continue;
+            }
+            let n = self.state.printed_mod(
+                m,
+                cards::Stat::BloodIfAbstained,
+                crate::state::PrintedCtx::default(),
+            );
+            if n > 0 {
+                self.state.gain_blood(m, n as u8);
+            }
         }
         self.after_referendum(true);
     }
@@ -1547,6 +1590,11 @@ impl Engine {
                         {
                             gain[m.owner.index()] += n as i32;
                         }
+                    }
+                }
+                RefEffect::GainPerMinion(n) => {
+                    for m in st.minions.iter().filter(|m| m.present()) {
+                        gain[m.owner.index()] += n as i32;
                     }
                 }
                 RefEffect::Banish
@@ -1770,6 +1818,11 @@ impl Engine {
             }
             _ => {}
         }
+        // Poison Pill: the losses only, never offset by a gain (ANK
+        // 20180813, LSJ 20041025); any decrease counts (ANK 20180719-2).
+        for &p in &ctx.poison {
+            loss[ctx.caller.index()] += loss[p.index()];
+        }
         self.burn_pool_batch(&loss);
     }
 
@@ -1988,7 +2041,7 @@ impl Engine {
             favor,
             n,
             canceled: false,
-            prisci: false,
+            ballots: 0,
         });
     }
 
@@ -2024,6 +2077,17 @@ impl Engine {
                     Some(r) => r.n += n,
                     None => ctx.bonus.push((m, n)),
                 }
+            }
+            cards::Effect::PoisonPill => ctx.poison.push(play.seat),
+            cards::Effect::GrantVotesAll(g) => {
+                for r in ctx.records.iter_mut().filter(|r| !r.canceled) {
+                    if let Source::Vampire(m) = r.source {
+                        if g.voters.reach(&self.state, m) {
+                            r.n += g.n;
+                        }
+                    }
+                }
+                ctx.grants.push((None, g));
             }
             cards::Effect::GrantVotes(g) => {
                 // Votes gained after casting join the cast.
@@ -2202,6 +2266,8 @@ pub(crate) fn is_vote_effect(e: &cards::Effect) -> bool {
         e,
         cards::Effect::AddVotes(_)
             | cards::Effect::GrantVotes(_)
+            | cards::Effect::GrantVotesAll(_)
+            | cards::Effect::PoisonPill
             | cards::Effect::AddVotesPerReadySect(_)
             | cards::Effect::AddVotesAgainst(_)
             | cards::Effect::Abstain { .. }

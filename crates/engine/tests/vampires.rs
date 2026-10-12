@@ -2734,6 +2734,7 @@ fn the_guardian_is_not_freed_by_a_created_older_nosferatu() {
             id: CardId(childe as u32),
             clan: "Nosferatu",
             sect: zvtes::crypt::Sect::Anarch,
+            born: &zvtes::state::NEWBORN,
         },
         1,
     ));

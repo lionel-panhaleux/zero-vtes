@@ -133,6 +133,9 @@ def generate(cards):
     out.append("    pub disciplines: &'static [&'static str],")
     out.append("    pub sect: Sect,")
     out.append("    pub title: Title,")
+    out.append("    /// The title an advanced vampire holds only merged (\"[MERGED] Baron of")
+    out.append("    /// London\", Appolonius): it takes precedence over the printed one.")
+    out.append("    pub merged_title: Option<Title>,")
     out.append("    /// An advanced vampire (KRCG `adv`): the same vampire as its base")
     out.append("    /// card for contests (rulebook \"Advanced Vampires\").")
     out.append("    pub adv: bool,")
@@ -180,6 +183,8 @@ def generate(cards):
         out.append(f"        disciplines: &[{disc}],")
         out.append(f"        sect: Sect::{sect},")
         out.append(f"        title: {title},")
+        merged = re.search(r"\[MERGED\] (Prince|Baron|Archbishop) of ((?:[^:.]|\.(?=\w))+)[:.]", c["card_text"])
+        out.append(f"        merged_title: {f'Some(Title::{merged.group(1)}({rust_str(merged.group(2))}))' if merged else 'None'},")
         out.append(f"        adv: {'true' if c.get('adv') else 'false'},")
         path = f"Some({rust_str(c['path'])})" if c.get("path") else "None"
         out.append(f"        path: {path},")

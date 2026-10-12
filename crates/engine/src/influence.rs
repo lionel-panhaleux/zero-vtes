@@ -83,6 +83,13 @@ impl Engine {
         if left >= 4 && seat.pool > 0 && !seat.crypt.is_empty() {
             options.push(Choice::DrawCrypt);
         }
+        if left >= 4 && seat.pool > 0 {
+            options.extend(
+                (0..seat.uncontrolled.len())
+                    .filter(|&i| self.merge_partner(s, i).is_some())
+                    .map(|i| Choice::Merge { slot: i as u8 }),
+            );
+        }
         options.extend(self.ability_options(s, Window::AnyImpulse));
         options.extend(self.ability_options(s, Window::InfluencePhaseOwn));
         // Abilities paid in transfers: while enough are left.
@@ -280,9 +287,67 @@ impl Engine {
                 self.flow = Flow::Influence { left };
                 self.influence_burn(crate::state::CardId(*card));
             }
+            // The counters on the card coming from the uncontrolled region
+            // burn; not entering play (advanced rules 5.1.2).
+            Choice::Merge { slot } => {
+                let m = self
+                    .merge_partner(s, *slot as usize)
+                    .expect("merge partner");
+                let card = self.state.seats[s.index()]
+                    .uncontrolled
+                    .remove(*slot as usize)
+                    .card;
+                self.merge(m, card);
+                self.flow = Flow::Influence { left: left - 4 };
+                self.state.seats[s.index()].pool -= 1;
+                if self.state.seats[s.index()].pool == 0 {
+                    self.oust_and_pass(s);
+                }
+            }
             Choice::Pass => self.open_phase_rotation(Flow::Influence { left }),
             other => unreachable!("illegal influence choice {other:?}"),
         }
+    }
+}
+
+impl Engine {
+    /// The vampire `s` controls that the vampire in uncontrolled slot `i`
+    /// may merge with: the other version of its name (base or advanced),
+    /// unmerged, in torpor too.
+    pub(crate) fn merge_partner(
+        &self,
+        s: crate::ids::SeatId,
+        i: usize,
+    ) -> Option<crate::ids::MinionId> {
+        let slot = &self.state.seats[s.index()].uncontrolled[i];
+        if slot.card == crate::state::CREATED || slot.banished.is_some() {
+            return None;
+        }
+        let c = &CRYPT[slot.card as usize];
+        self.state.minions_of(s).find(|&m| {
+            let v = &self.state.minions[m.index()];
+            v.merged.is_none()
+                && v.vampire()
+                    .is_some_and(|o| o.name == c.name && o.adv != c.adv)
+        })
+    }
+
+    /// Merge `m` with crypt card `card` (rulebook "Advanced"): the advanced
+    /// card on top, the base under it; the advanced card's sect written
+    /// onto the vampire, an anarch token gone with any other sect
+    /// (advanced rules 5.1.2); its blood kept, above the new capacity
+    /// drained.
+    pub(crate) fn merge(&mut self, m: crate::ids::MinionId, card: u16) {
+        let v = &mut self.state.minions[m.index()];
+        let own = v.crypt_card().expect("a crypt vampire");
+        let (adv, base) = if CRYPT[card as usize].adv {
+            (card, own)
+        } else {
+            (own, card)
+        };
+        v.kind = crate::state::MinionKind::Vampire(adv);
+        v.merged = Some(base);
+        v.sect_override = None;
     }
 }
 

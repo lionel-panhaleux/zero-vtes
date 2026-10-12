@@ -298,6 +298,7 @@ fn a_banished_created_vampire_is_its_card() {
         id: CardId(0),
         clan: "Brujah",
         sect: Sect::Anarch,
+        born: &zvtes::state::NEWBORN,
     };
     e.state.minions.push(Minion {
         in_play: false,

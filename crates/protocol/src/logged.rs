@@ -76,6 +76,11 @@ fn key(e: &Engine, req: &DecisionRequest, choice: &Choice) -> Logged {
         Some(
             Interrupt::NameUncontrolled { seat, .. } | Interrupt::UncontrolledBlood { seat, .. },
         ) => seat,
+        // Solomon Batanea, Lázár Dobrescu (his first pick): the prey's
+        // region.
+        Some(
+            Interrupt::PreySlotToPool { of, .. } | Interrupt::NameSlotPair { of, from: None, .. },
+        ) => of,
         _ => seat,
     };
     let uncontrolled = |i: &mut u8, cards: &mut Vec<u32>| {
@@ -114,7 +119,8 @@ fn key(e: &Engine, req: &DecisionRequest, choice: &Choice) -> Logged {
         Choice::Slot(i)
         | Choice::Transfer { slot: i }
         | Choice::Withdraw { slot: i }
-        | Choice::InfluenceOut { slot: i } => uncontrolled(i, &mut cards),
+        | Choice::InfluenceOut { slot: i }
+        | Choice::Merge { slot: i } => uncontrolled(i, &mut cards),
         Choice::FindCard(k)
         | Choice::TakeFrom { card: k, .. }
         | Choice::DrawStored { stored: k, .. }

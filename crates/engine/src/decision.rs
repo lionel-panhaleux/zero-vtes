@@ -231,6 +231,12 @@ pub enum Choice {
     InfluenceOut {
         slot: u8,
     },
+    /// 4 transfers and 1 pool: merge the uncontrolled vampire with the
+    /// other version (base or advanced) the player controls (rulebook
+    /// "Advanced").
+    Merge {
+        slot: u8,
+    },
     /// Combat, choose strike: the default hand strike (rulebook "Strike
     /// Effects").
     HandStrike,

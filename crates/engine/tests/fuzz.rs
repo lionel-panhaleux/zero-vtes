@@ -328,6 +328,7 @@ fn kind_of(c: &Choice) -> &'static str {
         Choice::Withdraw { .. } => "withdraw",
         Choice::DrawCrypt => "draw_crypt",
         Choice::InfluenceOut { .. } => "influence_out",
+        Choice::Merge { .. } => "merge",
         Choice::HandStrike => "hand_strike",
         Choice::UseManeuver => "use_maneuver",
         Choice::UsePrevent => "use_prevent",
@@ -740,6 +741,16 @@ fn per_seat(e: &mut Engine, of: impl Fn(&CryptCard) -> bool, blood: u8) {
 }
 
 /// The named vampires, where absent, dealt around the table at 4 blood.
+/// Appolonius, base (`false`) or advanced (`true`): his CRYPT index.
+fn appolonius(adv: bool) -> u16 {
+    (0..zvtes::crypt::CRYPT.len() as u16)
+        .find(|&c| {
+            let v = &zvtes::crypt::CRYPT[c as usize];
+            v.name == "Appolonius" && v.adv == adv
+        })
+        .expect("Appolonius")
+}
+
 fn named(e: &mut Engine, names: &[&str]) {
     for (s, name) in names.iter().enumerate() {
         let card = find_card(name);
@@ -3156,6 +3167,138 @@ fuzz_tests! {
                     "Ági",
                 ],
             );
+        },
+        seeds: 8,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, round 9 (slice 16u): Shadow Play and
+    /// the Lasombra decks, The Embrace and the Toreador antitribu and
+    /// Ravnos decks.
+    random_games_with_twda_round_9a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Shadow Play",
+            "Shroud of Absence",
+            "Shroud of Night",
+            "Tenebrous Form",
+            "Blanket of Night",
+            "Oubliette",
+            "Shadow Body",
+            "Metro Underground",
+            "Gurchon Hall",
+            "Embrace, The",
+            "Web of Knives Recruit",
+            "Art Scam",
+            "Fetish Club Hunting Ground",
+            "Palla Grande",
+            "Gird Minions",
+            "Mozambique Allure",
+            "Sunset Strip, Hollywood",
+        ],
+        covers: &[
+            "play:Shadow Play",
+            "play:Tenebrous Form",
+            "play:Oubliette",
+            "play:Metro Underground",
+            "play:Embrace, The",
+            "play:Web of Knives Recruit",
+            "play:Palla Grande",
+            "play:Gird Minions",
+            "play:Mozambique Allure",
+            "play:Sunset Strip, Hollywood",
+            "ability:Francisco Domingo de Polonia",
+            "ability:Montano",
+            "ability:Anka, Priestess of Thorns",
+            "play:Shroud of Absence",
+            "play:Shroud of Night",
+            "play:Blanket of Night",
+            "play:Shadow Body",
+            "play:Gurchon Hall",
+            "play:Art Scam",
+            "play:Fetish Club Hunting Ground",
+            "ability:Gurchon Hall",
+            "ability:Sunset Strip, Hollywood",
+            "ability:Ayelea, The Manipulator",
+            "ability:Lázár Dobrescu",
+            "ability:Marciana Giovanni, Investigator",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Alvaro, The Scion of Angelica",
+                    "Ambrosio Luis Monçada, Plenipotentiary",
+                    "Antonio Delgado",
+                    "Francisco Domingo de Polonia",
+                    "Gratiano",
+                    "Angelica, The Canonicus",
+                    "Ayelea, The Manipulator",
+                    // A Tremere antitribu on the next seat, for Ayelea.
+                    "Ember Wright",
+                    "Marciana Giovanni, Investigator",
+                    "Montano",
+                    "Royce",
+                    "Lolita",
+                    "Jost Werner",
+                    "Zöe",
+                    "Anka, Priestess of Thorns",
+                    "Lázár Dobrescu",
+                    "Spleen, Georgio Gutterpunk",
+                    "Khalil Ravana",
+                    "Ignacio, The Black Priest",
+                ],
+            );
+        },
+        seeds: 24,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, round 9 (slice 16u): Popó's Appolonius
+    /// merge, Bollix and Flames of Insurrection, the Ravnos referendums.
+    random_games_with_twda_round_9b_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Eldest Are Kholo, The",
+            "Cryptic Rider",
+            "Autarkis Persecution",
+            "Poison Pill",
+            "Bollix",
+            "Flames of Insurrection",
+            "Legacy",
+        ],
+        covers: &[
+            "play:Autarkis Persecution",
+            "play:Bollix",
+            "play:Flames of Insurrection",
+            "play:Legacy",
+            "merge",
+            "play:Cryptic Rider",
+            "play:Poison Pill",
+            "play:Eldest Are Kholo, The",
+            "ability:Appolonius",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Ashlesha",
+                    "Sasha Miklos",
+                    "Andrei Puxon",
+                    "Richter, The Templar of Du Mont",
+                ],
+            );
+            // Appolonius: the base for seat 0, its advanced card
+            // uncontrolled beside it (a merge); the advanced card for seat
+            // 1, its base in the crypt (Legacy).
+            let (base, adv) = (appolonius(false), appolonius(true));
+            if absent(e, base) && absent(e, adv) {
+                e.add_minion(SeatId(0), base, 4, false);
+                e.state.seats[0].uncontrolled.push(zvtes::state::UncontrolledSlot {
+                    card: adv,
+                    counters: 2,
+                    banished: None,
+                });
+                let m = e.add_minion(SeatId(1), adv, 4, false);
+                e.state.minions[m.index()].sect_override = Some(zvtes::crypt::Sect::Anarch);
+                e.state.seats[1].crypt.push(base);
+            }
         },
         seeds: 8,
         ..BASE

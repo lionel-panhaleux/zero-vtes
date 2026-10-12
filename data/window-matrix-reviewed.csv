@@ -666,3 +666,27 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 101792,Skin of Steel,Combat,for,no,COMBAT_DAMAGE_PREVENTION,,,ok
 102116,Vicissitude,Master,,no,MASTER_PHASE,,,ok
 101797,Slake the Thirst,Action Modifier/Combat,san,no,COMBAT_UNTIMED;ACTION_DURING;ACTION_AFTER_RESOLUTION;ACTION_AFTER_DIABLERIE,,yes,ok
+101743,Shadow Play,Action Modifier,obt,no,ACTION_STEALTH_INTERCEPT,,,ok
+101207,Metro Underground,Master,,no,MASTER_PHASE,,,ok
+101774,Shroud of Absence,Action Modifier,dom/obt,no,ACTION_STEALTH_INTERCEPT,,,ok
+101775,Shroud of Night,Action Modifier,obt,no,ACTION_STEALTH_INTERCEPT,,,ok
+101957,Tenebrous Form,Action Modifier,obt,no,ACTION_STEALTH_INTERCEPT,,,ok
+100177,Blanket of Night,Action Modifier,obt,no,ACTION_STEALTH_INTERCEPT;ACTION_BLOCK_ATTEMPT,,,ok
+100871,Gurchon Hall,Master,,no,MASTER_PHASE,,,ok
+101334,Oubliette,Combat,obt,no,COMBAT_STRIKE_DECLARATION,,,ok
+101735,Shadow Body,Combat,obt,no,COMBAT_STRIKE_DECLARATION,continues_action,,ok
+100633,The Embrace,Action,,no,ACTION_DECLARE,token_entity,,ok
+102165,Web of Knives Recruit,Action,,no,ACTION_DECLARE,token_entity,,ok
+100099,Art Scam,Action,,no,ACTION_DECLARE,,,ok
+100724,Fetish Club Hunting Ground,Master,,no,MASTER_PHASE,,,ok
+101346,Palla Grande,Master,,no,MASTER_PHASE,,,ok
+100831,Gird Minions,Master,,no,MASTER_PHASE,,,ok
+101248,Mozambique Allure,Action,,no,ACTION_DECLARE,,,ok
+101904,"Sunset Strip, Hollywood",Master,,no,MASTER_PHASE,,,ok
+100622,The Eldest Are Kholo,Action Modifier/Reaction,,no,REFERENDUM,,,ok
+100478,Cryptic Rider,Action Modifier,,no,ACTION_AFTER_RESOLUTION,,,ok
+100115,Autarkis Persecution,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
+101406,Poison Pill,Reaction,,no,REFERENDUM,,,ok
+100232,Bollix,Combat,cel/pre/tha,no,COMBAT_DETERMINE_RANGE;COMBAT_PRESS;CARD_AS_PLAYED;COMBAT_STRIKE_DECLARATION,cancel_as_played,yes,ok
+100740,Flames of Insurrection,Master,,no,MASTER_PHASE,in_play_action,,ok
+101085,Legacy,Action,,no,ACTION_DECLARE,,,ok

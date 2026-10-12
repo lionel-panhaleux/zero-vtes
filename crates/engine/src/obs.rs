@@ -739,7 +739,9 @@ fn option(
         Choice::Transfer { slot: i } => [35, 0, slot(i), 0, 0],
         Choice::Withdraw { slot: i } => [36, 0, slot(i), 0, 0],
         Choice::DrawCrypt => [37, 0, 0, 0, 0],
-        Choice::InfluenceOut { slot: i } => [38, 0, slot(i), 0, 0],
+        // A merge shares influencing out's kind: never both on one slot
+        // (the other version controlled masks influencing it out).
+        Choice::InfluenceOut { slot: i } | Choice::Merge { slot: i } => [38, 0, slot(i), 0, 0],
         Choice::HandStrike => [39, 0, 0, 0, 0],
         Choice::UseManeuver => [40, 0, 0, 0, 0],
         Choice::UsePress => [41, 0, 0, 0, 0],

@@ -64,7 +64,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
-- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17
+- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15
 - **Ousts, Life Boon's decision point** — 45.1–45.8
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5, 66.1
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
@@ -1350,3 +1350,36 @@ Slice 16t: the sixty cards of the ten Blood Brother TWDA decks. Only the reading
 
 **68.17** Loki's Gift [PRO] "burn 1 blood from any vampire": the vampire chosen as the card is played, its action directed at that vampire's Methuselah when another's. (Test lokis_gift_hunts_and_bites.)
 
+## Batch 69 — Shadow Play, The Embrace, the Appolonius merge, legacy cards for TWDA decks, round 9: readings no ruling settles (Claude, 2026-10-12)
+
+Slice 16u: the cards of the Lasombra, Toreador antitribu and Ravnos TWDA decks and Popó's. Only the readings that no ruling or default reading settles; each is implemented and tested, for the owner to confirm or correct.
+
+**69.1** Gurchon Hall: "the two oldest ready vampires you control" — oldest by capacity (rulebook); a tie for either place is its controller's pick; one already fed by a hunting ground this turn gains nothing and still counts as one of the two (the next oldest does not step in). (Test gurchon_hall_feeds_the_two_oldest_ready_vampires.)
+
+**69.2** The Eldest Are Kholo: "each Laibon Ravnos gets +2 votes" / "each Ravnos gets +1 vote" — no "you control": every Methuselah's (unlike Power Structure's "each Lasombra you control"), read live for the rest of the referendum. Palla Grande's "Toreador antitribu get +1 bleed" likewise every Methuselah's. (Tests the_eldest_are_kholo_gives_every_laibon_ravnos_votes, palla_grande_gives_toreador_antitribu_bleed_for_three_turns.)
+
+**69.3** Ayelea: "give you control of a Tremere antitribu until the end of your next turn as a Ⓓ action" — another Methuselah's, as it is (locked, in torpor); "your next turn" is the one after the turn the action resolves in: the vampire returns at its end, as Puppet Master's. (Test ayelea_borrows_a_tremere_antitribu_until_the_end_of_her_next_turn.)
+
+**69.4** Gird Minions: the moves chosen as it resolves, as Redistribution's (68.10) — a vampire, then an amount up to its capacity (rulebook: no more blood than capacity), again until Pass; vampires in torpor too; moving the last pool counter ousts. (Test gird_minions_moves_pool_to_vampires.)
+
+**69.5** Merging (rulebook "Advanced"): in the influence phase for 4 transfers and 1 pool, the vampire in play ready or in torpor, not already merged (`Choice::Merge`, offered where influencing the other version out is not). Merged: the advanced card on top — its capacity, Disciplines and sect (an anarch token gone with another sect, advanced rules 5.1.2) —, its [MERGED] title first, else its printed title, else the base card's; the base card's text whole (Appolonius's optional press and +1 bleed beside the advanced card's). Burned, both cards go to the ash heap. Legacy finding no base version is still successful (the vampire unlocked). (Tests appolonius_merges_in_the_influence_phase, legacy_merges_an_advanced_vampire_with_its_base.)
+
+**69.6** Web of Knives Recruit: the card in the uncontrolled region is out of play and no vampire (no influence, no effect on cards in play reaches it); the counter burns as a mandatory unlock-phase effect ordered among the others; with three or more in training, the two are the player's picks; the new vampire enters ready, unlocked, its card the vampire (as Childe of the Revolution's). (Tests web_of_knives_recruit_trains_into_a_vampire, web_of_knives_recruits_train_two_at_a_time.)
+
+**69.7** Marciana Giovanni: "during an action, you can lock her" — any action, her Methuselah's or another's; the non-Sabbat vampire chosen any Methuselah's, herself included (LSJ 20100527). (Tests marciana_lets_a_vampire_burn_blood_for_intercept, marciana_locking_during_her_own_attempt_fails_it.)
+
+**69.8** Ambrosio Luis Monçada: "actions directed at him cost 1 additional pool" — the acting Methuselah's pool, paid with the action's cost as it resolves (not if it is blocked); paid down to 0, they are ousted and the action ends. (Test ambrosio_taxes_directed_actions_and_cannot_block.)
+
+**69.9** Antonio Delgado: "he can unlock during the discard phase" — that turn's discard phase, after his referendum passed. (Test antonio_delgado_unlocks_after_his_referendum_passes.)
+
+**69.10** Poison Pill: the pool its player lost to the referendum's effect (a gain offsetting none, ANK 20180813) is lost by the acting Methuselah in the same batch, ousts at once. (Test poison_pill_hands_the_loss_back_to_the_caller.)
+
+**69.11** Cryptic Rider: "only usable on a successful referendum" — after the resolution of a political action whose referendum passed (Voter Captivation's timing), not after a blood hunt; "the next referendum a vampire you control calls this turn" — the next political action of any of the player's vampires. (Test cryptic_rider_passes_the_next_referendum.)
+
+**69.12** Tenebrous Form [OBT] and Where the Veil Thins [OBL] in one action: each its toll — a minion with neither Discipline burns 2 to attempt; one already attempting pays the new card's 1 as it is played, or resigns. Owner (2026-10-12): a second copy of the same card adds its own 1 too (only reachable through another minion's play, e.g. Mask of a Thousand Faces, not in the pool). (Tests tenebrous_form_and_where_the_veil_thins_add_their_tolls, tenebrous_form_makes_an_attempt_pay_or_resign.)
+
+**69.13** Appolonius (advanced): "+1 bleed for each titled vampire controlled by the target Methuselah" — vampires in torpor count (controlled). (Test appolonius_bleeds_for_each_titled_vampire_of_his_target.)
+
+**69.14** Mozambique Allure: "Requires a Laibon or non-titled vampire" — a Laibon (titled or not) with a crypt card (LSJ 20070411-2), or a non-titled non-Laibon; becoming Laibon replaces the sect; its clans read with their V5 names (Assamite: Banu Haqim, Follower of Set: Ministry). (Test mozambique_allure_makes_a_laibon_or_draws_a_crypt_card.)
+
+**69.15** Flames of Insurrection: the offer goes to the Anarch's controller whoever controls the card (ANK 20180627-2), optional, the vampire in their uncontrolled region their pick. (Test flames_of_insurrection_feeds_the_anarchs_uncontrolled_region.)

@@ -784,11 +784,15 @@ impl Describer<'_> {
                 format!("Choose {name}")
             }
             Choice::AshVampire(card) => {
-                // Disciple of Lazarus's search takes it from the crypt.
-                let crypt = matches!(
-                    self.e.interrupt(),
-                    Some(zvtes::draws::Interrupt::CryptSearch { .. })
-                );
+                // Disciple of Lazarus's search takes it from the crypt;
+                // Legacy's from the crypt if there.
+                let crypt = match self.e.interrupt() {
+                    Some(zvtes::draws::Interrupt::CryptSearch { .. }) => true,
+                    Some(zvtes::draws::Interrupt::BaseSearch { seat, .. }) => {
+                        self.e.state.seats[seat.index()].crypt.contains(&card)
+                    }
+                    _ => false,
+                };
                 let from = if crypt { "crypt" } else { "ash_heap" };
                 o.zone = Some(ZoneRef {
                     seat: self.seat.0,
@@ -866,8 +870,10 @@ impl Describer<'_> {
                 }
                 // A priscus casts its prisci ballot too, even with no vote
                 // (rules-qa 52.9).
-                if self.e.state.title_of(minion) == zvtes::crypt::Title::Priscus {
-                    s += " and a prisci ballot";
+                match self.e.state.ballots(minion) {
+                    0 => {}
+                    1 => s += " and a prisci ballot",
+                    n => s += &format!(" and {n} prisci ballots"),
                 }
                 s
             }
@@ -970,6 +976,11 @@ impl Describer<'_> {
                 let (name, r) = self.slot(slot);
                 o.card = Some(r);
                 format!("Influence out {name}")
+            }
+            Choice::Merge { slot } => {
+                let (name, r) = self.slot(slot);
+                o.card = Some(r);
+                format!("Merge {name} (4 transfers and 1 pool)")
             }
             Choice::HandStrike => "Strike: hand strike".into(),
             Choice::UseManeuver => "Use a maneuver".into(),
@@ -1270,6 +1281,8 @@ fn ability_parts(effects: &[Effect]) -> Vec<String> {
                 Effect::BloodToTargetToStart(_) => "+blood".into(),
                 Effect::BloodPerHostage => "+1 blood per hostage".into(),
                 Effect::HuntingGroundBlood(n) => format!("+{n} blood"),
+                Effect::HuntingGroundTwoOldest => "+1 blood to the two oldest".into(),
+                Effect::HuntStealthUntilUnlock(n) => format!("+{n} stealth on hunts"),
                 Effect::HuntingGroundLife(n) => format!("+{n} life"),
                 Effect::BloodToCard(n) => format!("{n} blood to the card"),
                 Effect::CountersToUncontrolledTarget => "counters to uncontrolled".into(),
@@ -1466,6 +1479,7 @@ pub fn kind(c: &Choice) -> &'static str {
         Choice::Withdraw { .. } => "withdraw",
         Choice::DrawCrypt => "draw_crypt",
         Choice::InfluenceOut { .. } => "influence_out",
+        Choice::Merge { .. } => "merge",
         Choice::HandStrike => "hand_strike",
         Choice::UseManeuver => "use_maneuver",
         Choice::UsePress => "use_press",
