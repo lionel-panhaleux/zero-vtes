@@ -26,13 +26,11 @@ as it was played.
 | `zero-vtes-replay-2026-10-05T06-24-53-391Z.json` | `cf4a56c` or later | Malkavian, Hecata, Gangrel, **The Unnamed** | `p7-politics@1400` (network, default politics) | owner 3 VP, Malkavian 1 |
 | `zero-vtes-replay-2026-10-05T21-14-26-429Z.json` | `cf4a56c` or later | Salubri, **The Unnamed**, Nosferatu, Toreador | `p7-politics@1400` (network, default politics) | owner 4 VP, the bots 0 |
 | `zero-vtes-replay-2026-10-05T21-45-18-313Z.json` | `cf4a56c` or later | **The Unnamed**, Gangrel, Lasombra, Hecata | `p7-politics@1400` (network, default politics) | owner 4 VP, the bots 0 |
-| `zero-vtes-replay-2026-10-06T05-40-36-622Z.json` | uncommitted, after `cf4a56c` | Nosferatu, Brujah, Malkavian, **The Unnamed** | `p7-politics@1400` (network, default politics) | — (log ends at 390) |
 | `zero-vtes-replay-2026-10-06T06-18-50-630Z.json` | uncommitted, after `cf4a56c` | Brujah, **The Unnamed**, Salubri, Toreador | `p7-politics@1400` (network, default politics) | owner 4 VP, the bots 0 |
 | `zero-vtes-replay-2026-10-07T05-33-18-077Z.json` | uncommitted, after `cf4a56c` | Ravnos, **The Unnamed**, Lasombra, Malkavian | `p7-politics@1800` (network, default politics, temperature 0.5, rescue bonus) | owner 3 VP, Malkavian 1 |
 | `zero-vtes-replay-2026-10-08T20-32-01-306Z.json` | the fork's build of that day | Nosferatu, Tzimisce, Salubri, **The Unnamed** | `p7-politics@1800` (network, default politics) | owner 4 VP, the bots 0 |
 | `zero-vtes-replay-2026-10-08T20-49-30-439Z.json` | the fork's build of that day | Hecata, Malkavian, Ravnos, **The Unnamed** | `p7-politics@1800` (network, default politics) | owner 3 VP, Malkavian 1 |
 | `zero-vtes-replay-2026-10-08T21-17-05-603Z.json` | the fork's build of that day | Malkavian, Ravnos, **The Unnamed**, Toreador | `p7-politics@1800` (network, default politics) | owner 3 VP, Malkavian 1 |
-| `zero-vtes-replay-2026-10-09T21-05-23-015Z.json` | the fork's build of that day | Tremere, Salubri, **The Unnamed**, Tzimisce | `p7-politics@1800` (network, default politics) | owner 3 VP, Tremere 1 |
 | `zero-vtes-replay-2026-10-09T21-51-54-561Z.json` | the fork's build of that day | Hecata, Salubri, Toreador, **The Unnamed** | `p7-politics@1800` (network, default politics) | owner 4 VP, the bots 0 |
 | `zero-vtes-replay-2026-10-09T22-19-25-019Z.json` | the fork's build of that day | Gangrel, Tremere, Toreador, **The Unnamed** | `p7-politics@1800` (network, default politics) | owner 2 VP, Gangrel 1, Tremere 1 |
 | `zero-vtes-replay-2026-10-09T22-52-40-908Z.json` | the fork's build of that day | Hecata, Ravnos, Malkavian, **The Unnamed** | `p7-politics@1800` (network, default politics) | owner 3 VP, Ravnos 1 |
@@ -51,6 +49,10 @@ as it was played.
 | `zero-vtes-replay-2026-10-11T06-38-09-412Z.json` | the fork's build of `7fedb25` | **The Unnamed**, Banu Haqim, Ventrue, Gangrel | `p8-nudges@2600` (network, default politics) | owner 3 VP, Banu Haqim 1 |
 | `zero-vtes-replay-2026-10-11T06-58-41-552Z.json` | the fork's build of `7fedb25` | Nosferatu, Tzimisce, **The Unnamed**, Hecata | `p8-nudges@2600` (network, default politics) | owner 3 VP, Nosferatu 1 |
 | `zero-vtes-replay-2026-10-11T09-29-38-654Z.json` | the fork's build of `6425d24` | Banu Haqim, **The Unnamed**, Gangrel, Lasombra | `p8-nudges@2600` (network, default politics) | Lasombra 3 VP, owner 1 |
+| `zero-vtes-replay-2026-10-11T12-31-56-022Z.json` | the fork's build of that day | Ministry, **The Unnamed**, Toreador, Malkavian | `p8-nudges@2600` (network, default politics) | owner 3 VP, Malkavian 1 |
+| `zero-vtes-replay-2026-10-11T15-45-47-868Z.json` | the fork's build of that day | **The Unnamed**, Nosferatu, Ventrue, Lasombra | `p8-nudges@2600` (network, default politics) | owner 3 VP, Nosferatu 1 |
+| `zero-vtes-replay-2026-10-11T20-56-48-168Z.json` | the fork's build of `1307d09` | Salubri, **The Unnamed**, Tzimisce, Brujah | `p8-nudges@2600` (network, default politics) | owner 3 VP, Brujah 1 |
+| `zero-vtes-replay-2026-10-11T21-28-54-517Z.json` | the fork's build of `1307d09` | Hecata, Tzimisce, **The Unnamed**, Brujah | `p8-nudges@2600` (network, default politics) | owner 4 VP, the bots 0 |
 
 The games before 2026-10-04 12:00 were played on wasm builds of the
 working tree between commits (the engine column names the last commit
@@ -69,5 +71,8 @@ nine of 2026-10-04 (`…T05-06-55`, `…T05-34-07`, `…T06-45-40`,
 `…T22-26-33`), three of 2026-10-09 (`…T19-28-48` and `…T19-39-10`, one
 game exported twice, and `…T20-04-50`) and two of 2026-10-10
 (`…T15-48-57`, `…T16-13-44`). They and the notes on where each stops
-are in the history at `e5f8f54`. A game a future fix stops goes the same
-way.
+are in the history at `e5f8f54`. Since, `…T21-05-23` of 2026-10-09 (the
+pre-vote rotation, `3f91c59`, stops it at decision 445); the unfinished
+games are not kept (owner, 2026-10-11: "remove unfinished replays"):
+`…T05-40-36` of 2026-10-06 is gone with them. A game a future fix stops
+goes the same way.
