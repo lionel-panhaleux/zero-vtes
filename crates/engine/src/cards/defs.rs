@@ -858,13 +858,14 @@ pub static RAPTOR: CardDef = CardDef {
 /// have it fail." The stealth goes off the acting minion; the failure comes
 /// after the acting Methuselah's own as-announced effects (LSJ 20081105)
 /// and before any other (ANK 20190425); the failed action reached
-/// resolution (NRA) and was not blocked.
+/// resolution (NRA) and was not blocked. The -1 stealth waits for the
+/// blocks: not printed "as announced" (rules-qa 66.1).
 pub static SCREAMER: CardDef = CardDef {
     name: "Screamer",
     modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
     abilities: &[
         mode_of(
-            &[Window::ReactionAsAnnounced, Window::ReactionDuringAction],
+            &[Window::ReactionDuringAction],
             Actor::Controller,
             &[Requirement::ActingByPredatorOrPrey],
             &[Effect::BurnSelf, Effect::ReduceStealth(1)],
@@ -8907,7 +8908,8 @@ pub static CLUB_ILLUSION: CardDef = CardDef {
 /// "Put this card in play. During a bleed action, an Assamite you control
 /// can discard a combat card to get +1 bleed." (Banu Haqim.) Once per
 /// action per copy (ANK 20221102-2), by the bleeding minion (ANK
-/// 20220502), before resolution (ANK 20231124, LSJ 19970718).
+/// 20220502), before resolution (ANK 20231124, LSJ 19970718), not as
+/// the action is announced (rules-qa 66.1).
 pub static HAQIMS_LAW_RETRIBUTION: CardDef = CardDef {
     name: "Haqim's Law: Retribution",
     modes: &[master_in_play(&[], &[Effect::PutInPlay])],
@@ -8918,7 +8920,7 @@ pub static HAQIMS_LAW_RETRIBUTION: CardDef = CardDef {
         }),
         limit: Some(Limit::PerAction),
         ..mode_of(
-            &[Window::ActionAsAnnounced, Window::ActionDuring],
+            &[Window::ActionDuring],
             Actor::ActingMinion,
             &[
                 Requirement::IsBleed,
@@ -11120,7 +11122,8 @@ pub static PHANTASMAGORIA: CardDef = CardDef {
 /// Aranthebes into your library as a Ⓓ action." (1 pool.) The lock: any
 /// time during the action before resolution, no block attempt needed (LSJ
 /// 20020612) — on the acting minion. The action it provides requires
-/// capacity 5 or more (LSJ 20080604).
+/// capacity 5 or more (LSJ 20080604). With the blocks, not as the
+/// action is announced (rules-qa 66.1).
 pub static ARANTHEBES: CardDef = CardDef {
     name: "Aranthebes, The Immortal",
     modes: &[action_at(
@@ -11135,7 +11138,7 @@ pub static ARANTHEBES: CardDef = CardDef {
     )],
     abilities: &[
         mode_of(
-            &[Window::ReactionAsAnnounced, Window::ReactionDuringAction],
+            &[Window::ReactionDuringAction],
             Actor::Controller,
             &[Requirement::CardUnlocked, Requirement::ActingByPredator],
             &[Effect::LockSelf, Effect::ReduceStealth(1)],

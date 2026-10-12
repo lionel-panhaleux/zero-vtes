@@ -1759,7 +1759,46 @@ impl Engine {
             }
         }
         total = total.saturating_add(self.location_intercept_reach(seat, m));
+        total = total.saturating_add(self.stealth_reduction_reach(a));
         base + total as i32 + ActionCtx::intercept_mods(st, m)
+    }
+
+    /// The stealth abilities in play can still take off the action
+    /// (Screamer's burn, Aranthebes's lock), any reacting Methuselah's: as
+    /// good as intercept for the attempt — a woken Monica Giovanni blocks
+    /// a 1-stealth bleed once Screamer burns (rules-qa 66.2).
+    fn stealth_reduction_reach(&self, a: &ActionCtx) -> u8 {
+        let st = &self.state;
+        let mut used: Vec<(CardId, u8)> = Vec::new();
+        let mut total = 0u8;
+        for s in (0..st.seats.len()).map(|i| SeatId(i as u8)) {
+            if s == a.seat || st.seats[s.index()].ousted {
+                continue;
+            }
+            for c in self.ability_options(s, Window::ReactionDuringAction) {
+                let Choice::UseAbility {
+                    source: cards::AbilitySource::Card(id),
+                    ability,
+                    ..
+                } = c
+                else {
+                    continue;
+                };
+                if used.contains(&(id, ability)) {
+                    continue;
+                }
+                used.push((id, ability));
+                let Some(def) = cards::lookup(st.cards[id.0 as usize].card) else {
+                    continue;
+                };
+                for e in def.abilities[ability as usize].effects {
+                    if let Effect::ReduceStealth(n) = *e {
+                        total = total.saturating_add(n);
+                    }
+                }
+            }
+        }
+        total
     }
 
     /// An upper bound on the intercept unlocked cards in play (not on `m`)

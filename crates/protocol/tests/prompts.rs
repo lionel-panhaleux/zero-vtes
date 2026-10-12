@@ -343,3 +343,50 @@ fn anarch_converts_passes_say_what_they_do() {
     assert_eq!(texts[pass], "Gain 1 pool");
     assert!(req.options.contains(&Choice::DrawCrypt));
 }
+
+// An ally's own ability names the ally as the table shows it: its minion's
+// copy, as it has no place among the cards in play (Screamer's burn).
+#[test]
+fn an_allys_ability_names_its_copy_on_the_table() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain(|_| true, 0), 1, false);
+    e.add_minion(SeatId(0), plain(|_| true, 1), 4, false);
+    e.add_minion(SeatId(1), plain(|_| true, 2), 4, false);
+    let screamer = e.add_ally(SeatId(1), library("Screamer"));
+    let req = next(&mut e);
+    pick(
+        &mut e,
+        &req,
+        &Choice::TakeAction {
+            minion: a,
+            action: zvtes::decision::ActionKind::Bleed,
+            target: None,
+        },
+    );
+    let req = next(&mut e);
+    assert_eq!(req.window, WindowLabel::ActionBlock);
+    let view = table_view(&e, Some(req.seat), &mut Tracker::default());
+    let d = Describer {
+        e: &e,
+        seat: req.seat,
+        window: req.window,
+        view: &view,
+        names: &[],
+        narrate: false,
+        offered: &req.options,
+        about: None,
+    };
+    let i = req
+        .options
+        .iter()
+        .position(|c| matches!(c, Choice::UseAbility { .. }))
+        .expect("Screamer's burn");
+    let copy = view.seats[1]
+        .ready
+        .iter()
+        .find(|m| m.minion == screamer.0)
+        .map(|m| m.card.copy);
+    let card = d.describe(i, &req.options[i]).card.expect("a card");
+    assert!(copy.is_some());
+    assert_eq!(card.copy, copy);
+}

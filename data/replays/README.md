@@ -20,14 +20,11 @@ as it was played.
 |---|---|---|---|---|
 | `zero-vtes-replay-2026-10-04T12-09-51-567Z.json` | after `3cc7ae3`, before `601bf3c` | **Salubri (V5 Companion)**, Brujah (V5 Anarch), Ministry (V5 Anarch), Gangrel (V5 Anarch) | `p5-self@1250` (network) | owner 4 VP, the bots 0 |
 | `zero-vtes-replay-2026-10-04T13-51-13-838Z.json` | `601bf3c` | **Nosferatu (V5)**, Ministry (V5 Anarch), Toreador (V5), Salubri (V5 Companion) | `p5-self@1250` (network, default politics) | owner 2 VP, Ministry 2 |
-| `zero-vtes-replay-2026-10-04T14-37-29-282Z.json` | `601bf3c` | **Hecata (V5)**, Malkavian (V5), Toreador (V5), Ventrue (V5) | `p5-self@1250` (network, default politics) | owner 4 VP, the bots 0 |
 | `zero-vtes-replay-2026-10-04T15-55-52-662Z.json` | `601bf3c` or later | Tzimisce (V5 Companion), **Hecata (V5)**, Ministry (V5 Anarch), Toreador (V5) | `p5-self@1250` (network, default politics) | owner 3 VP, Ministry 1 |
 | `zero-vtes-replay-2026-10-04T19-47-18-904Z.json` | `65d1539` or later | Salubri, Nosferatu, **The Unnamed**, Lasombra | `p7-politics@1400` (network, default politics) | owner 3 VP, Salubri 1 |
 | `zero-vtes-replay-2026-10-05T06-24-53-391Z.json` | `cf4a56c` or later | Malkavian, Hecata, Gangrel, **The Unnamed** | `p7-politics@1400` (network, default politics) | owner 3 VP, Malkavian 1 |
 | `zero-vtes-replay-2026-10-05T21-14-26-429Z.json` | `cf4a56c` or later | Salubri, **The Unnamed**, Nosferatu, Toreador | `p7-politics@1400` (network, default politics) | owner 4 VP, the bots 0 |
 | `zero-vtes-replay-2026-10-05T21-45-18-313Z.json` | `cf4a56c` or later | **The Unnamed**, Gangrel, Lasombra, Hecata | `p7-politics@1400` (network, default politics) | owner 4 VP, the bots 0 |
-| `zero-vtes-replay-2026-10-06T06-18-50-630Z.json` | uncommitted, after `cf4a56c` | Brujah, **The Unnamed**, Salubri, Toreador | `p7-politics@1400` (network, default politics) | owner 4 VP, the bots 0 |
-| `zero-vtes-replay-2026-10-07T05-33-18-077Z.json` | uncommitted, after `cf4a56c` | Ravnos, **The Unnamed**, Lasombra, Malkavian | `p7-politics@1800` (network, default politics, temperature 0.5, rescue bonus) | owner 3 VP, Malkavian 1 |
 | `zero-vtes-replay-2026-10-08T20-32-01-306Z.json` | the fork's build of that day | Nosferatu, Tzimisce, Salubri, **The Unnamed** | `p7-politics@1800` (network, default politics) | owner 4 VP, the bots 0 |
 | `zero-vtes-replay-2026-10-08T20-49-30-439Z.json` | the fork's build of that day | Hecata, Malkavian, Ravnos, **The Unnamed** | `p7-politics@1800` (network, default politics) | owner 3 VP, Malkavian 1 |
 | `zero-vtes-replay-2026-10-08T21-17-05-603Z.json` | the fork's build of that day | Malkavian, Ravnos, **The Unnamed**, Toreador | `p7-politics@1800` (network, default politics) | owner 3 VP, Malkavian 1 |
@@ -35,8 +32,6 @@ as it was played.
 | `zero-vtes-replay-2026-10-09T22-19-25-019Z.json` | the fork's build of that day | Gangrel, Tremere, Toreador, **The Unnamed** | `p7-politics@1800` (network, default politics) | owner 2 VP, Gangrel 1, Tremere 1 |
 | `zero-vtes-replay-2026-10-09T22-52-40-908Z.json` | the fork's build of that day | Hecata, Ravnos, Malkavian, **The Unnamed** | `p7-politics@1800` (network, default politics) | owner 3 VP, Ravnos 1 |
 | `zero-vtes-replay-2026-10-09T23-20-20-474Z.json` | the fork's build of that day | **The Unnamed**, Nosferatu, Brujah, Ravnos | `p7-politics@1800` (network, default politics) | owner 4 VP, the bots 0 |
-| `zero-vtes-replay-2026-10-10T08-03-34-644Z.json` | the fork's build of that day | Tzimisce, **The Unnamed**, Ministry, Brujah | `p8-nudges@2600` (network, default politics) | owner 3 VP, Brujah 1 |
-| `zero-vtes-replay-2026-10-10T08-23-07-092Z.json` | the fork's build of that day | Gangrel, Malkavian, **The Unnamed**, Lasombra | `p8-nudges@2600` (network, default politics) | Lasombra 3 VP, Malkavian 1 |
 | `zero-vtes-replay-2026-10-10T09-00-31-909Z.json` | the fork's build of that day | Nosferatu, Tremere, Hecata, **The Unnamed** | `p8-nudges@2600` (network, default politics) | owner 3 VP, Tremere 1 |
 | `zero-vtes-replay-2026-10-10T14-28-58-609Z.json` | the fork's build of that day | Malkavian, Lasombra, **The Unnamed**, Ventrue | `p8-nudges@2600` (network, default politics) | Lasombra 3 VP, Ventrue 1 |
 | `zero-vtes-replay-2026-10-10T15-01-52-455Z.json` | the fork's build of that day | Nosferatu, Ventrue, Tzimisce, **The Unnamed** | `p8-nudges@2600` (network, default politics) | owner 3 VP, Ventrue 1 |
@@ -46,12 +41,10 @@ as it was played.
 | `zero-vtes-replay-2026-10-10T21-16-37-859Z.json` | the fork's build of that day | Hecata, Ventrue, Toreador, **The Unnamed** | `p8-nudges@2600` (network, default politics) | owner 4 VP, the bots 0 |
 | `zero-vtes-replay-2026-10-10T22-05-29-762Z.json` | the fork's build of that day | Tremere, Hecata, Ravnos, **The Unnamed** | `p8-nudges@2600` (network, default politics) | owner 3 VP, Hecata 1 |
 | `zero-vtes-replay-2026-10-10T22-26-31-637Z.json` | the fork's build of that day | Tzimisce, Brujah, Malkavian, **The Unnamed** | `p8-nudges@2600` (network, default politics) | owner 3 VP, Brujah 1 |
-| `zero-vtes-replay-2026-10-11T06-38-09-412Z.json` | the fork's build of `7fedb25` | **The Unnamed**, Banu Haqim, Ventrue, Gangrel | `p8-nudges@2600` (network, default politics) | owner 3 VP, Banu Haqim 1 |
 | `zero-vtes-replay-2026-10-11T06-58-41-552Z.json` | the fork's build of `7fedb25` | Nosferatu, Tzimisce, **The Unnamed**, Hecata | `p8-nudges@2600` (network, default politics) | owner 3 VP, Nosferatu 1 |
 | `zero-vtes-replay-2026-10-11T09-29-38-654Z.json` | the fork's build of `6425d24` | Banu Haqim, **The Unnamed**, Gangrel, Lasombra | `p8-nudges@2600` (network, default politics) | Lasombra 3 VP, owner 1 |
 | `zero-vtes-replay-2026-10-11T12-31-56-022Z.json` | the fork's build of that day | Ministry, **The Unnamed**, Toreador, Malkavian | `p8-nudges@2600` (network, default politics) | owner 3 VP, Malkavian 1 |
 | `zero-vtes-replay-2026-10-11T15-45-47-868Z.json` | the fork's build of that day | **The Unnamed**, Nosferatu, Ventrue, Lasombra | `p8-nudges@2600` (network, default politics) | owner 3 VP, Nosferatu 1 |
-| `zero-vtes-replay-2026-10-11T20-56-48-168Z.json` | the fork's build of `1307d09` | Salubri, **The Unnamed**, Tzimisce, Brujah | `p8-nudges@2600` (network, default politics) | owner 3 VP, Brujah 1 |
 | `zero-vtes-replay-2026-10-11T21-28-54-517Z.json` | the fork's build of `1307d09` | Hecata, Tzimisce, **The Unnamed**, Brujah | `p8-nudges@2600` (network, default politics) | owner 4 VP, the bots 0 |
 
 The games before 2026-10-04 12:00 were played on wasm builds of the
@@ -74,5 +67,10 @@ game exported twice, and `…T20-04-50`) and two of 2026-10-10
 are in the history at `e5f8f54`. Since, `…T21-05-23` of 2026-10-09 (the
 pre-vote rotation, `3f91c59`, stops it at decision 445); the unfinished
 games are not kept (owner, 2026-10-11: "remove unfinished replays"):
-`…T05-40-36` of 2026-10-06 is gone with them. A game a future fix stops
-goes the same way.
+`…T05-40-36` of 2026-10-06 is gone with them. The as-announced window
+kept for the effects printed so (rules-qa 66.1) stops eight more, at a
+pass or a use in a window that no longer opens: `…T14-37-29` of
+2026-10-04, `…T06-18-50` of 2026-10-06, `…T05-33-18` of 2026-10-07,
+`…T08-03-34` and `…T08-23-07` of 2026-10-10, `…T06-38-09` and
+`…T20-56-48` of 2026-10-11, and the game of 2026-10-12 06:29, never
+added. A game a future fix stops goes the same way.

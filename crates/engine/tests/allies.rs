@@ -1086,10 +1086,14 @@ fn screamer_burns_for_minus_1_stealth_on_a_predator_or_prey_action() {
     let z = e.add_minion(SeatId(1), plain("Hecata", 0), 4, false);
     let screamer = e.add_ally(SeatId(1), find_library("Screamer"));
     let id = e.state.minions[screamer.index()].ally_id().unwrap();
-    // A hunt (+1 stealth): no block possible for Z until the -1.
+    // A hunt (+1 stealth). Not as the action is announced: the card does
+    // not say so; with the blocks, where Z's attempt is offered as the -1
+    // can reach it (rules-qa 66.1, 66.2).
     pick(&mut e, action(a, ActionKind::Hunt));
-    expect(&mut e, SeatId(1), WindowLabel::ActionAsAnnounced);
+    let req = expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    assert!(req.options.contains(&Choice::DeclareBlock { minion: z }));
     pick(&mut e, ability_of(id, 0, None));
+    assert_eq!(e.action().unwrap().stealth(&e.state), 0);
     let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     assert!(req.options.contains(&Choice::DeclareBlock { minion: z }));
     assert!(!e.state.minions[screamer.index()].in_play);

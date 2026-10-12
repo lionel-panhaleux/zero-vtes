@@ -14,7 +14,7 @@ use zvtes::decision::{ActionKind, Choice, WindowLabel, Zone};
 use zvtes::game::{Contest, Engine};
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::library::LIBRARY;
-use zvtes::state::{MinionKind, HIDDEN};
+use zvtes::state::{CardId, MinionKind, HIDDEN};
 
 use crate::view::{TableView, TargetView};
 
@@ -223,7 +223,16 @@ impl Describer<'_> {
                     .chain(s.ready.iter().chain(&s.torpor).flat_map(|m| &m.cards))
             })
             .find(|p| p.card_id == c)
-            .map(|p| p.card.copy);
+            .map(|p| p.card.copy)
+            // An ally is on the table as its minion (Screamer's burn).
+            .or_else(|| {
+                self.view
+                    .seats
+                    .iter()
+                    .flat_map(|s| s.ready.iter().chain(&s.torpor))
+                    .find(|m| self.e.state.minions[m.minion as usize].ally_id() == Some(CardId(c)))
+                    .map(|m| m.card.copy)
+            });
         CardRef {
             id: Some(LIBRARY[card as usize].id),
             copy,

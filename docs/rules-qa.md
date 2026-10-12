@@ -66,7 +66,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
 - **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3
 - **Ousts, Life Boon's decision point** — 45.1–45.8
-- **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5
+- **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5, 66.1
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
 - **Periodicity ("during X" = once per X, once each …)** — 6.6, 7.4, 9.6, 10.4, 11.2, 15.1, 15.2, 16.1, 36.3, 36.4, 37.1, 38.8, 42.3, 42.9
 - **No-repeat-action, "same action"** — 1.4, 6.2, 16.6, 23.2, 25.4, 32.1
@@ -74,7 +74,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1, 57.10
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
 - **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7, 53.6, 53.8, 57.1, 57.2, 61.2
-- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3, 55.7
+- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3, 55.7, 66.2
 - **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8, 55.1, 55.2, 55.8, 57.3, 57.4, 58.2, 58.17, 58.18, 59.2, 59.17, 60.11, 61.1, 62.1, 63.4, 63.6, 63.8
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9
@@ -1287,3 +1287,9 @@ Readings no ruling settles, implemented with slice 16m; questions for the owner.
 **65.2** Neighborhood Watch Commander: any Methuselah's, after the resolution of any Methuselah's blocked or failed action whose acting minion is a vampire; ready and unlocked, it locks to inflict 1 normal damage out of combat (the vampire burns a blood, else goes to torpor); one Commander each action, any controller's.
 
 **65.3** Tabitha Fisk: as Silvian Popescu — her controller's unlock phase, once, from an archbishop of theirs with blood, she in torpor too. Tatiana Romanov: +1 bleed. Delilah Easton and Isabel de Leon print no text.
+
+## Batch 66 — Play feedback: the as-announced window, stealth a block can still reach (owner, 2026-10-12)
+
+**66.1** The as-announced window holds only the effects whose text says so ("only usable as the action is announced", "as … announces", Seduction, Warsaw Station, Yoruba Shrine, Screamer's fail): an effect usable during the action (Screamer's and Aranthebes's -1 stealth, Haqim's Law: Retribution's +1 bleed) waits for the block attempts — the reacting Methuselah's with its blocks and unlocks, the acting one's with its other modifiers (owner, from play).
+
+**66.2** A block attempt is offered when the stealth may yet be met, and stealth an ability in play can still take off (Screamer, Aranthebes) counts as much as intercept: a woken, locked Monica Giovanni attempts against a 1-stealth bleed bounced back to her Methuselah, who controls Screamer (owner, from play; refines 1.3's pruning).
