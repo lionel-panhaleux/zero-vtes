@@ -273,7 +273,7 @@ def test_imitation_and_weak_decks(tmp_path):
     assert [p.name for p, _, _ in load_replays(",".join(map(str, twice)))] == ["b.json"]
     cfg = Config(
         **small, out=str(tmp_path / "new"), league=True, opponents=str(tmp_path / "old" / "model.pt"),
-        bc=",".join([start, "data/replays/zero-vtes-replay-2026-10-09T21-05-23-015Z.json"]),
+        bc=",".join([start, "data/replays/zero-vtes-replay-2026-10-09T21-51-54-561Z.json"]),
         bc_coef=0.1, bc_holdout=2, bc_batch=32,
         weak_decks="32,5", weak_rate=0.5, starts=start, start_tables=0.3, bots_every=0, critic_warmup=0,
     )
