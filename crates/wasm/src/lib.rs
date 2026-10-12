@@ -25,6 +25,22 @@ const TEMPERATURE: f32 = 0.5;
 /// spread; with the temperature, 1.17 / 0.81 as without).
 const RESCUE_BONUS: f32 = 6.0;
 
+/// The network bots' nudges: those `p9@3400` trained with, never faded
+/// (`nudge_until` 0) — off them it plays off its training (a transfer onto
+/// a second copy of a unique: 35% of the offers instead of 4%; Z-train,
+/// 2026-10-12).
+fn nudges() -> Nudges {
+    Nudges {
+        rescue: RESCUE_BONUS,
+        bleed: 4.0,
+        idle: 3.0,
+        draw: 7.0,
+        stuck: 6.0,
+        nightmare: 4.0,
+        ..Nudges::default()
+    }
+}
+
 fn json<T: serde::Serialize>(v: &T) -> String {
     serde_json::to_string(v).expect("protocol types serialize")
 }
@@ -65,10 +81,7 @@ impl Game {
             let seed = seed.wrapping_mul(0x9e37_79b9).wrapping_add(seat as u64);
             let agent = NetAgent::new(net.clone(), seed)
                 .temperature(TEMPERATURE)
-                .nudges(Nudges {
-                    rescue: RESCUE_BONUS,
-                    ..Nudges::default()
-                });
+                .nudges(nudges());
             session.set_agent(seat, Box::new(agent));
         }
         Ok(Game { session })
