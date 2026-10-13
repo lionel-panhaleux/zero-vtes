@@ -1,0 +1,26 @@
+[package]
+name = "zvtes-api"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+# The contract between a game and its clients (docs/protocol.md): types
+# only, no engine. Servers, the wasm module and any client bind to these
+# (or to the JSON Schema generated from them, feature `schema`).
+[lib]
+name = "zvtes_api"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+schemars = { version = "1", optional = true }
+serde_json = { version = "1", optional = true }
+
+[features]
+schema = ["dep:schemars", "dep:serde_json"]
+
+[dev-dependencies]
+serde_json = "1"
+
+[[example]]
+name = "schema"
+required-features = ["schema"]
