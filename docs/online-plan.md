@@ -26,6 +26,16 @@ was built so far need not be preserved.
 6. **Contact SC's author** once the contract doc and the reworked SC PR
    exist.
 7. **Repo public** shortly before that contact.
+8. **Copies per viewer** (no information leak), cards in hidden places
+   unnumbered; face-up cards labelled `nth` ("Embrace #2"). Engine copy
+   ids underneath.
+9. **Ids are snake_case strings.**
+10. **Data first**: the platform composes its display; English text is an
+    optional rendering (`text` setting), produced by a renderer that
+    reads only `api` types.
+11. **The only human ousted ends the game** (the bots do not play on).
+12. The Opus review of 2026-10-13 (contract, plan): every recommendation
+    adopted.
 
 ## Where things stand (audit, 2026-10-13)
 
@@ -74,111 +84,145 @@ was built so far need not be preserved.
 
 ```
             api  (serde only; schemars behind a feature)
-           ↗   ↖
-engine ← host    ↖
-   ↑       ↑      ↖
-policy ────┴── server (axum, tokio, sqlx)   wasm (wasm-bindgen)
-   ↑                    both: api + host + policy
-   py (training: engine + policy; reads records through api)
+           ↗  ↑  ↖
+engine ← host   text (api + card names: the English renderer)
+   ↑      ↑ ↖  ↗
+policy ───┴─ server (axum, tokio, sqlx)   wasm (wasm-bindgen)
+   ↑          both: api + host + text + policy
+   py (training: engine + policy + host's replayer)
 ```
 
-- **`engine`** — the rules, no dependencies. `Agent: Send` (a bound, no
-  behaviour change: goldens untouched).
+- **`engine`** — the rules, no dependencies. `Agent: Send`. Card copy
+  ids (A9), behaviour-neutral.
 - **`policy`** — inference (`Arc<Net>`, one copy of the weights for every
-  game) and the **bot profiles**: style, weights, temperature, nudges, by
-  name (`p9`, `scripted:wall`…) — out of the wasm shell.
-- **`api`** (new) — the contract as types and nothing else: `Command`,
-  `Message`, `GameSpec`, `Settings`, `TableView`, `OptionView`, typed
-  `Event`, `GameRecord`, errors, `PROTOCOL_VERSION`. No engine dependency:
-  JSON Schema and TypeScript types are generated from it in CI; any client
-  (SC, a CLI, another platform) binds to the schema without Rust.
-- **`host`** (what `protocol` becomes) — engine → api: describing,
-  narration, views, copy identity, decks by KRCG id, the ergonomics layer
-  (undo, opportunities, allocations, vote orders), the game record. One
-  entrypoint, `Game::handle(seat, Command) -> Vec<(seat, Message)>`. Bots
-  are injected through an agent factory: `host` does not depend on
-  `policy`. The option texts (`describe`, `purpose`, `narrate`: the
-  owner's feedback of 2.18–2.33) move intact, guarded by
-  `tests/prompts.rs` and the session sweep.
-- **`server`** and **`wasm`** — two thin shells over the same
-  `handle(json) -> json`: the proof the contract is transport-neutral.
-- **`py`** — training only: `engine` + `policy`; human games read as
-  `GameRecord`s. `Session::engine()` / `request()` (escape hatches into
-  the engine) and `start.rs` move to `py` or go.
+  game) and the **bot profiles** (style, weights, temperature, nudges, by
+  name), implementing `host`'s `Bots` trait; the scripted styles too.
+- **`api`** — the contract as types: `In`/`Command`, `Out`/`Message`,
+  `GameSpec`, `Settings`, `TableView`, `OptionView` (`ChoiceKey` +
+  `effects`), typed `Event`, `GameRecord`, errors, `PROTOCOL_VERSION`.
+  No engine. `schema.json` and `protocol.ts` are generated from it
+  (`schema` example, `scripts/gen_ts.py`), checked in, `--check`ed.
+- **`host`** (what `protocol` becomes) — engine → api: describing options
+  as keys and effects, narration as typed events, views, per-viewer
+  copies and `nth`, decks by KRCG id and the catalog, the ergonomics
+  layer (undo, opportunities, allocations, vote orders), records and
+  their `Replayer`. One entrypoint, `Game::handle(seat, In) -> Vec<(seat,
+  Out)>`, emitting step by step; an injected clock and a step budget.
+  Bots through the `Bots` trait: no `policy` dependency.
+- **`text`** — the English renderer over `api` types and a card-name
+  table: `render(&OptionView)`, events, prompts. The owner-tuned wording
+  of `describe`/`purpose`/`narrate` re-expressed over data; their tests
+  (`tests/prompts.rs`) become its oracle, and prove the data complete.
+- **`server`** and **`wasm`** — thin shells over `handle`.
+- **`py`** — training: `engine` + `policy`; human games through `host`'s
+  `Replayer` (engine, request, chosen index, key per decision).
 
 ### Message model: push
 
-Client → game (`Command`): `join` (also the resync after a reconnect),
-`answer {decision, option}`, `allocate {decision, amounts}`,
-`vote_all {decision, favor}`, `undo`, `settings {opportunities, …}`.
+Client → host (`In`: an optional `id` + a `Command`): `join {token?,
+after?}`, `answer`, `allocate`, `vote_all`, `undo {decision}`,
+`settings` (a patch), `leave`.
 
-Game → seat (`Message`): `decision` (options, prompt, view), `update`
-(events, what bots and the seat's own answers did; no view), `over`
-(result, view), `error`.
+Host → seat (`Out`: `seq`, `reply_to?` + a `Message`): `joined`,
+`events` (one step each: a decision and what followed, its first event
+`decided` / `auto_passed` / `undone`), `decision`, `over`, `error`.
 
-`handle` runs the bots up to the next human decision and returns
-everything that happened, addressed per seat; the client paces the
-display (SC already does). No client-driven `advance()` loop. `join`
-returns the pending decision and the view. Decision numbers stay global
-(stale answers refused).
+`handle` runs the bots up to the next human decision, emitting each
+step as it goes; the client paces the display. Reconnect = `join
+{after: seq}` from a per-seat buffer, else a fresh `joined`. A settings
+change resends the pending decision.
 
 ### Contract rules
 
-- **Data first, text beside it**: every field a client branches on is a
-  stable id (`window`, `phase`, action and minion kinds, strikes,
-  markers, event kinds); English `text` accompanies it for display.
-- **Per seat**: views, events, settings, undo, redaction.
-- **Versioned**: `protocol` (semver) and `engine` (commit) in `join`'s
-  reply and in every record.
-- **Views only where read**: on `decision`, `over`, `join`; not on
-  bot steps (today ~15–30 KB on each).
+- **Data first**: stable ids, keys, effects; `text` only on request.
+- **Per seat**: views, events, settings, undo, copies, redaction.
+- **Versioned**: `protocol` (semver) and `engine` (commit) in `joined`
+  and every record; unknown ids read as `unknown`.
+- **Views where read**: on `decision`, `over`, `joined`; on every step
+  with `views: steps` (SC's projection animates each move; WebSocket
+  compression on). Events as a complete delta stream (view N + events =
+  view N+1): later, decided now as the direction.
 
 ### The game record
 
-Designed cleanly, not as a superset of today's replay: versions, spec,
-settings, bot profiles (with the weights' hash), one entry per decision
-(seat, timestamp, command, option index, a **structured choice key**
-replacing `Logged.choice`'s `Debug` string), undos kept as entries,
-result, end reason, panic. A one-shot converter brings the 30 corpus
-games over at a pinned commit; `train/assess.py` and
-`examples/replay.rs` read records; the old reader goes.
+Versions, spec (human names replaced), bot profiles (weights' hash),
+one entry per decision (seat, time, index, `ChoiceKey` with engine
+copies, by whom, the options shown when filtered), undos, settings,
+typed refusals, result and failure. Stored as entries appended (a
+`game_entries` table), not a growing JSONB rewrite. A one-shot
+converter brings the 30 corpus games over; `train/assess.py` and the
+replay example read records through `host`'s `Replayer`; the old reader
+goes. Release binaries and weights archived by tag and hash, so a record
+replays on its commit.
 
-### Copy identity in the engine (owner, 2026-10-13: yes)
+### Copies
 
-The engine numbers each card copy at the deal; `track.rs`'s zone diffing
-goes. Copy ids are still re-issued per viewer when a card leaves that
-viewer's sight (shuffled into a library, into a hidden hand), or the id
-would leak its path: the host keeps that mapping, by rule rather than by
-heuristics. Buys exact conservation and one id space across seats
-(multi-human). Costs a re-bless of goldens and perft (an intended engine
-change); self-play throughput is measured before and after.
+Engine (A9): each card copy numbered at the deal **in decklist order**
+(independent of the seed and the shuffle), carried beside the card in
+every zone (`{card, copy}`, no indirection); out of the state hash, the
+observations and the options' order. Acceptance: perft identical,
+observations bit-identical, goldens unchanged, the 30 corpus games
+replaying by index unchanged.
+
+Host: per viewer, numbered places only (the table, face-up piles, the
+viewer's own hand); hidden places unnumbered; a card coming into sight
+takes a fresh number never used before for that viewer; `nth` the
+lowest free label among visible copies of that card from that deck.
+The map is part of the host's state (snapshotted with the engine for
+undo), events translated as they happen.
 
 ## A. Architecture and contract (zero-vtes)
 
 | # | Item |
 |---|---|
-| A1 | `api` crate + `docs/protocol.md` (lifecycle, every command and message, errors, settings, a transcript) — **the owner reviews this before anything else lands** |
-| A2 | `host` crate: `protocol` re-cut over `api`; `Game::handle`; per-seat state (view, tracker, events, settings, undo) |
-| A3 | Stable ids beside text; typed events |
-| A4 | Bot profiles in `policy`; agent factory in `host`; `Agent: Send`, `Arc<Net>` |
-| A5 | Game record + structured choice key; corpus converter; `assess.py` and `examples/replay.rs` on records |
-| A6 | Panics caught per command (`catch_unwind`), the game ended and recorded with the panic |
-| A7 | `wasm` shell rewritten over `handle`; `smoke.mjs` answers by option index |
-| A8 | Schema + TS generation in CI; a schema round-trip over the session sweep |
-| A9 | Engine copy ids (above): zones hold copies, the state hash and the observation encoding follow; goldens and perft re-blessed; perft / fuzz timing and the training step rate measured before and after |
-| A10 | Redaction audit (multi-human gate, not v1): cards named from hand, `limbo`, `ActionView.card`, events per seat, the "waiting on X" tell |
+| A1 | `api` + `schema.json` + `protocol.ts` (`scripts/gen_ts.py`) + `docs/protocol.md` — done, reviewed (Opus, 2026-10-13) |
+| A1b | Thin end-to-end slice: `host::Game::handle` (join, answer, events per step, decision, over; data only, today's copies through an adapter), the `wasm` shell, `smoke.mjs` answering by index, a throwaway CLI client — done (2026-10-13): `crates/host` (`Game::handle`, `handle_json`: seq, rejoin, idempotent undo, settings resend, ousted human ends, record, panics caught, step budget, injected clock; today's session through `legacy.rs`), `tests/game.rs`; the wasm shell over `handle` and `smoke.mjs` (network bots: 14.9 ms a decision) |
+| A9 | Engine copy ids, behaviour-neutral (above) — in parallel with A1b — done (2026-10-13): `crates/engine/src/copies.rs` (`CopyId`, `Pile`, `Untracked`, `census`), dealt by `CopyCounter` in seating then decklist order; the fixture-only API behind the `fixtures` feature; fuzz checks conservation at every decision; goldens, perft and 1,000 random games' hashes unchanged; `Agent: Send` |
+| A2 | `host` whole: per-seat state, per-viewer copies and `nth`, undo by snapshots, settings, allocations, vote orders, `seq` buffer, step budget, injected clock. First test: two options of one decision never share a `ChoiceKey` |
+| A3 | Data first: option keys and `effects`, decision `source`, typed events, `Role` and `MarkerKind` completed — what `purpose.rs` and `narrate.rs` say in words |
+| A4 | `Bots` trait in `host`; profiles in `policy`; `Agent: Send`, `Arc<Net>` — `Arc<Net>` done; `Bots` trait in `host` (implemented by the shells for now) |
+| A5 | Records + `Replayer`; corpus converter; `assess.py` and the replay example on records; `py` on `host` |
+| A6 | Panics caught per command (`catch_unwind`; a panic hook for the backtrace, and for wasm where unwinding aborts) and a step budget (an engine loop): the game ends as `engine_error`, recorded |
+| A7 | `text` crate: the renderer over `api`; `tests/prompts.rs` as its oracle |
+| A8 | Contract tests over the session sweep: every message validates against `schema.json`; fixtures type-check against `protocol.ts`; no leak (no KRCG id or copy a seat could not see); keys unique; replay by index = by key; byte-identical transcripts (and protocol.md's transcript generated from one); undo restores the earlier view |
+| A10 | Redaction audit (multi-human gate, not v1): cards named from hand, `limbo`, `ActionView.card`, the "waiting on X" tell |
+
+A2–A7 in order (2026-10-13): `legacy.rs` stays the oracle, replaced piece
+by piece, each piece differential-tested against today's output over the
+session sweep; then the adapter and `crates/protocol` go.
+
+| # | Step | First test |
+|---|---|---|
+| A2a | `host::view`: `TableView` from `legal_view(viewer)` and engine copies through a per-viewer `Numbering` (fresh number on entering a numbered place from a hidden one, never reused; `nth` the lowest free among visible copies of that card from that deck); events' copies translated as each happens | over the sweep: no copy on a card in a hidden place, no wire copy reused per viewer, a card in sight keeps its number — done (2026-10-13): `host/src/view.rs` + `numbering.rs` (two passes: the copies in sight, then the numbering); `game.rs` test: the engine's view agrees with the session's at every decision (200 games, 8,658 decisions) and keeps the copy rules (13,604 copies) |
+| A2b | Undo by snapshot (`Engine: Clone` + the `Numbering` at each human decision), not replay from the deal | the view after an undo equals the view when that decision was first asked |
+| A3a | `ChoiceKey` from `Choice`, viewer-aware (wire key: viewer copies; record key: engine copies); `By::Auto` / `Order` from the engine | distinct options ⇒ distinct omniscient keys (copies alike in hand excepted) — done (2026-10-13): `host/src/describe.rs` (`key`, by a viewer's numbering or `EngineNames`); `tests/keys.rs`: no shared key over 306,528 decisions, 58 kinds; options shown keyed from the engine; records keyed by engine copies (a human's answer before it applies, each bot's as it decides through a recording wrapper — the host now makes every bot); `a_record_replays_by_key_as_by_index` (24 games) |
+| A3b | Typed events from `narrate`'s marks, per recipient | `session.rs`'s `Ends` invariants on the typed stream |
+| A7 | `text` crate over `api` + card names, built now as the completeness proof | `render(option)` = legacy text, `render(event)` = legacy event over the sweep; each miss is a missing field (A3c) |
+| A3c | `effects`, `source`, `Role`, `MarkerKind` completed until A7 matches | as A7 |
+| A2c | The rest of `Session` into `host`: opportunities filter (and `shown` in records), `allocate`, `vote_all`, catalog and deck checks (refuse counts over 255, not clamp); `py/human.rs` on `host`'s `Replayer` (A5) + the corpus converter; `crates/protocol` deleted once `tests/session.rs` and `prompts.rs` are ported or covered | the ported session sweep |
+| A8 | Contract tests | as listed above |
+
+Engine finding (A3a sweep, for the engine's owner): Helena's ability is
+offered twice, identically, in the block window (`tests/keys.rs`, seed 201
+of `HOST_SEEDS=600`): one choice listed twice, not two choices.
+
+Server polish noted on the way: `Games::len` counts ended games until
+their idle timeout (cap undercounts); `GET /record` should fall back to
+Postgres once the game's thread is gone.
+
 
 ## B. Server, logging, deploy (`crates/server`, `engine.krcg.org`)
 
 | # | Item |
 |---|---|
-| B1 | `POST /games` (spec → id + seat token), `GET /games/{id}/ws?token=` (commands in, messages out), `GET /games/{id}/record` (the player's own game), `/health`, `/version` |
-| B2 | One task per game; engine steps on a bounded blocking pool; idle TTL (abandoned games ended and recorded); reconnect = `join` |
-| B3 | Postgres `zvtes`: a `games` row (versions, spec, settings, bot profiles, client, start/end, result, end reason, panic) + the record as JSONB, written as the game goes (a crash keeps it); panics also to the journal (Loki `tag="zvtes"`); 2-year purge |
-| B4 | Corpus pull: an authenticated export → `scripts/fetch_games.py`, filtered by engine commit |
-| B5 | Limits: games per IP, concurrent cap, message size, CORS for SC's origins, WS pings; no accounts (an optional anonymous player id from the client) |
-| B6 | Weights deployed beside the binary, hash recorded per game; profiles selectable by name |
-| B7 | Deploy per server-setup: GH Actions release asset (linux x86_64) on tag; `deploy/` (pyinfra): user, `/opt/zvtes`, `/etc/zvtes`, systemd on 127.0.0.1:8040 with `MemoryMax`/`CPUQuota` (the forum shares the box), `postgres_db`, `nginx_site` (long WS read timeout); `deploy_targets.py`; OPERATIONS.md row; DNS `engine.krcg.org` → 57.129.110.107 |
+| B0 | Deploy stub early (with A1b): `/health`, `/version` on `engine.krcg.org` — DNS, TLS, WebSocket through nginx (read timeout, pings), pyinfra, the release asset |
+| B1 | `GET /version`, `GET /catalog`, `POST /games` (one human seat; no bot-only games), `GET /games/{id}/ws` (first frame `join {token}`; `Origin` checked), `GET /games/{id}/record` (`Authorization`) — done locally (`crates/server`, `tests/client.mjs` plays a game over HTTP + WebSocket) |
+| B2 | One task per game; engine steps on a bounded blocking pool; idle timeout (ended, recorded); `seq` buffer for rejoin — done: a thread per game, a live-games cap, idle timeout, `seq` buffer |
+| B3 | Postgres `zvtes`: `games` (versions, spec, bot profiles, client, start/end, result, failure) + `game_entries` appended per step; panics to the journal (Loki `tag="zvtes"`); 2-year purge — done: Postgres (`games`, `game_entries`, appended per command; checked on a scratch cluster) or JSON lines; daily purge at 730 days |
+| B4 | Corpus pull: an authenticated export → `scripts/fetch_games.py`, by engine commit |
+| B5 | Limits: games per IP, concurrent cap, frame size, spec caps (time limit, seats), commands rate (undo especially), step budget per command; WebSocket compression — done: games per address an hour, live games, time limit, commands a second, `Origin` and CORS by `ZVTES_ORIGINS` |
+| B6 | Weights beside the binary, hash recorded per game; release binaries and weights archived — done: the weights' SHA-256 in `/version` and each bot's record; archived by hash on the host |
+| B7 | Deploy per server-setup: GH Actions release asset (linux x86_64) on tag; `deploy/` (pyinfra): user, `/opt/zvtes`, `/etc/zvtes`, systemd on 127.0.0.1:8040 with `MemoryMax`/`CPUQuota` (the forum shares the box), `postgres_db`, `nginx_site` (long WS read timeout); `deploy_targets.py`; OPERATIONS.md row; DNS → 57.129.110.107 — written (`deploy/`, `.github/workflows/release.yml`, `deploy/build.sh` for a Docker build); waits on the DNS record and a GitHub repository |
 | B8 | Load test: concurrent bot-only games, native inference timed; the cap set from it |
 
 ## C. Succubus Club
@@ -217,13 +261,17 @@ Opportunities switch, undo, the game record. Recorded by the owner on
 
 `main` stays playable (today's wasm + fork) until the server and the
 re-cut SC branch replace them in one step: the corpus keeps growing.
-`crates/py` builds and trains throughout.
+`crates/py` builds and trains throughout. Work on `p6-online` in the
+worktree `../zero-vtes-p6`, rebased on `main` as the sibling sessions
+commit.
 
-1. A1 — `api` types + `docs/protocol.md`; owner review.
-2. A9 first (the engine change), then A2–A7, on a branch.
+1. A1 (done) → A1b (the thin slice) with A9 and B0 in parallel.
+2. A2–A7 (the host whole, data first, records, bots, the renderer) →
+   A8 (contract tests).
 3. B1–B6 locally → B7 (deploy) → B8.
-4. A8; C's small PRs (any time); C's re-cut branch on the live server;
-   owner games online.
+4. C's small PRs (any time); C's re-cut branch on the live server
+   (types from `protocol.ts`; the PR may opt into `text` for labels while
+   matching on data); owner games online.
 5. E (video) → repo public → D (contact, with the doc, the PR, the
    video).
 6. A10 → multi-human, later.
