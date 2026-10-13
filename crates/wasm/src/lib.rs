@@ -1,14 +1,16 @@
-//! The engine and its bots in the browser (docs/human-play.md): a `Game`
-//! speaking the protocol's JSON messages — the same a server will carry.
+//! The engine and its bots in the browser (docs/protocol.md, "Embedded"):
+//! a `Game` speaking the protocol's JSON — the same a server carries.
 //! Strings cross the boundary, not JS objects: the contract is the JSON.
 
 use std::sync::Arc;
 
 use wasm_bindgen::prelude::*;
+use zvtes_api::record::BotRecord;
+use zvtes_api::{DeckList, GameSpec};
+use zvtes_host::{Bots, Clock};
 use zvtes_policy::{Net, NetAgent, Nudges};
-use zvtes_protocol::{deck, GameSpec, Player, Session};
 
-/// The bot style the trained policy plays (`Game.withPolicy`).
+/// The bot profile the trained policy plays (`Game.withPolicy`).
 const NETWORK: &str = "network";
 
 /// The network bots' temperature (`NetAgent::temperature`): measured on
@@ -46,20 +48,57 @@ fn json<T: serde::Serialize>(v: &T) -> String {
 }
 
 #[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = Date)]
+    fn now() -> f64;
+}
+
+/// The page's clock (`Date.now`).
+struct PageClock;
+
+impl Clock for PageClock {
+    fn now(&self) -> u64 {
+        now() as u64
+    }
+}
+
+/// The `network` profile, when weights were given.
+struct NetBots(Option<Arc<Net>>);
+
+impl Bots for NetBots {
+    fn profiles(&self) -> Vec<String> {
+        self.0.iter().map(|_| NETWORK.to_string()).collect()
+    }
+
+    fn make(&self, profile: &str, seed: u32) -> Option<(Box<dyn zvtes::agent::Agent>, BotRecord)> {
+        let net = self.0.as_ref().filter(|_| profile == NETWORK)?;
+        let agent = NetAgent::new(net.clone(), seed as u64)
+            .temperature(TEMPERATURE)
+            .nudges(nudges());
+        let record = BotRecord {
+            seat: 0,
+            profile: NETWORK.into(),
+            kind: "network".into(),
+            weights: None,
+            temperature: Some(TEMPERATURE),
+            seed,
+        };
+        Some((Box::new(agent), record))
+    }
+}
+
+#[wasm_bindgen]
 pub struct Game {
-    session: Session,
+    game: zvtes_host::Game,
 }
 
 #[wasm_bindgen]
 impl Game {
-    /// A game from a `GameSpec` (JSON). Throws the `SpecError` (JSON).
+    /// A game from a `GameSpec` (JSON), its bots scripted. Throws the
+    /// `SpecError` (JSON).
     #[wasm_bindgen(constructor)]
     pub fn new(spec: &str) -> Result<Game, JsError> {
-        console_error_panic_hook::set_once();
-        let spec: GameSpec =
-            serde_json::from_str(spec).map_err(|e| JsError::new(&e.to_string()))?;
-        let session = Session::new(spec).map_err(|e| JsError::new(&json(&e)))?;
-        Ok(Game { session })
+        Self::make(spec, None)
     }
 
     /// A game whose `network` bots play the trained policy: `weights` is a
@@ -67,101 +106,50 @@ impl Game {
     /// (JSON), or what is wrong with the weights.
     #[wasm_bindgen(js_name = withPolicy)]
     pub fn with_policy(spec: &str, weights: &[u8]) -> Result<Game, JsError> {
+        let net = Net::load(weights).map_err(|e| JsError::new(&e))?;
+        Self::make(spec, Some(Arc::new(net)))
+    }
+
+    fn make(spec: &str, net: Option<Arc<Net>>) -> Result<Game, JsError> {
         console_error_panic_hook::set_once();
         let spec: GameSpec =
             serde_json::from_str(spec).map_err(|e| JsError::new(&e.to_string()))?;
-        let net = Arc::new(Net::load(weights).map_err(|e| JsError::new(&e))?);
-        let seats: Vec<usize> = (0..spec.seats.len())
-            .filter(|&i| matches!(&spec.seats[i].player, Player::Bot { style } if style == NETWORK))
-            .collect();
-        let seed = spec.seed;
-        let mut session =
-            Session::with_styles(spec, &[NETWORK]).map_err(|e| JsError::new(&json(&e)))?;
-        for seat in seats {
-            let seed = seed.wrapping_mul(0x9e37_79b9).wrapping_add(seat as u64);
-            let agent = NetAgent::new(net.clone(), seed)
-                .temperature(TEMPERATURE)
-                .nudges(nudges());
-            session.set_agent(seat, Box::new(agent));
-        }
-        Ok(Game { session })
+        let game = zvtes_host::Game::new("local".into(), spec, &NetBots(net), Box::new(PageClock))
+            .map_err(|e| JsError::new(&json(&e)))?;
+        Ok(Game { game })
     }
 
-    /// The next message (`Out`, JSON): a human decision (repeated until
-    /// answered), a bot's decision, or the game's end.
-    pub fn advance(&mut self) -> String {
-        json(&self.session.advance())
+    /// The human seat.
+    pub fn seat(&self) -> u8 {
+        self.game.human()
     }
 
-    /// Answer the pending human decision: the `Decided` message (JSON).
-    /// Throws the `AnswerError` (JSON).
-    pub fn answer(&mut self, decision: u32, index: u32) -> Result<String, JsError> {
-        self.session
-            .answer(decision as u64, index as usize)
-            .map(|o| json(&o))
-            .map_err(|e| JsError::new(&json(&e)))
+    /// A command (`In`, JSON) for the human seat: the messages answering
+    /// it (a JSON array of `Out`). The first is `{"type": "join"}`.
+    pub fn handle(&mut self, command: &str) -> String {
+        let seat = self.game.human();
+        self.game.handle_json(seat, command)
     }
 
-    /// Answer the allocation under way at once (a `decision` message's
-    /// `allocation`): `amounts` in its recipients' order. The `Decided`
-    /// messages (a JSON array), one per step the engine asked. Throws the
-    /// `AnswerError` (JSON).
-    pub fn allocate(&mut self, decision: u32, amounts: &[u8]) -> Result<String, JsError> {
-        self.session
-            .allocate(decision as u64, amounts)
-            .map(|o| json(&o))
-            .map_err(|e| JsError::new(&json(&e)))
-    }
-
-    /// Cast all the votes one way (a `decision` message's `votes`): this
-    /// one now, the others as their turn comes in this polling (`advance`
-    /// answers them). The `Decided` message (JSON). Throws the
-    /// `AnswerError` (JSON).
-    #[wasm_bindgen(js_name = voteAll)]
-    pub fn vote_all(&mut self, decision: u32, favor: bool) -> Result<String, JsError> {
-        self.session
-            .vote_all(decision as u64, favor)
-            .map(|o| json(&o))
-            .map_err(|e| JsError::new(&json(&e)))
-    }
-
-    /// Take back the previous step of the multi-step choice under way (a
-    /// `decision` message says when: `undo`); `advance` then asks it again.
-    /// Throws the `AnswerError` (JSON).
-    pub fn undo(&mut self) -> Result<(), JsError> {
-        self.session.undo().map_err(|e| JsError::new(&json(&e)))
-    }
-
-    /// Whether the human seat is asked on its opportunities (on by
-    /// default): off, a wake is offered only during its prey's or
-    /// predator's actions or one directed at it, an ability usable at any
-    /// time only where the decision pauses anyway, and a decision left
-    /// with a pass alone passes by itself (`advance` returns it decided).
-    #[wasm_bindgen(js_name = setOpportunities)]
-    pub fn set_opportunities(&mut self, on: bool) {
-        self.session.set_opportunities(on);
-    }
-
-    /// The replay (JSON): the spec and every decision.
-    pub fn replay(&self) -> String {
-        json(&self.session.replay())
+    /// The game's record (`GameRecord`, JSON).
+    pub fn record(&self) -> String {
+        json(self.game.record())
     }
 }
 
 /// The decks the engine ships (JSON: `[[name, {krcg id: copies}], …]`).
 #[wasm_bindgen]
 pub fn catalog() -> String {
-    json(&deck::catalog())
+    json(&zvtes_host::catalog())
 }
 
-/// Check a decklist (JSON `{krcg id: copies}`): `null`, or the `DeckError`
-/// (JSON).
+/// Check a decklist (JSON `{krcg id: copies}`): `null`, or the
+/// `SpecError` (JSON).
 #[wasm_bindgen(js_name = checkDeck)]
 pub fn check_deck(list: &str) -> Result<String, JsError> {
-    let list: deck::DeckList =
-        serde_json::from_str(list).map_err(|e| JsError::new(&e.to_string()))?;
-    Ok(match deck::resolve(&list) {
-        Ok(_) => "null".into(),
+    let list: DeckList = serde_json::from_str(list).map_err(|e| JsError::new(&e.to_string()))?;
+    Ok(match zvtes_host::check_deck(&list) {
+        Ok(()) => "null".into(),
         Err(e) => json(&e),
     })
 }

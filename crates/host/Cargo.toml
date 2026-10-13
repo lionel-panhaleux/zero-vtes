@@ -1,0 +1,23 @@
+[package]
+name = "zvtes-host"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+# A game behind the contract (docs/protocol.md, docs/online-plan.md):
+# commands in, messages out, per seat; bots answered inside; the record.
+# Servers and the wasm module are thin shells over `Game::handle`.
+[lib]
+name = "zvtes_host"
+
+[dependencies]
+zero-vtes-engine = { path = "../engine" }
+zvtes-api = { path = "../api" }
+serde = "1"
+serde_json = "1"
+# A1b: the describer and the views of today's session, through the
+# `legacy` adapter, until the host reads the engine itself (A2, A3).
+zvtes-protocol = { path = "../protocol" }
+
+[dev-dependencies]
+zvtes-protocol = { path = "../protocol" }
