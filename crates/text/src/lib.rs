@@ -134,6 +134,38 @@ impl<'a> Names<'a> {
                 let name = minion_name(*kind, &self.card(card));
                 self.minions.entry(c).or_insert(name);
             }
+            return;
+        }
+        // A card on the table (before a view shows it): its name, and the
+        // minion it is on.
+        if let EventKind::EntersPlay {
+            card,
+            on,
+            effect: false,
+            ..
+        }
+        | EventKind::Moves {
+            card,
+            on,
+            effect: false,
+        } = e
+        {
+            let (Some(c), Some(_)) = (card.copy, card.id) else {
+                return;
+            };
+            let name = self.card(card);
+            self.own.insert(c, name.clone());
+            match on {
+                Some(h) => {
+                    let owner = self.minion(*h);
+                    self.table.insert(c, format!("{owner}'s {name}"));
+                    self.hosts.insert(c, *h);
+                }
+                None => {
+                    self.table.insert(c, name);
+                    self.hosts.remove(&c);
+                }
+            }
         }
     }
 

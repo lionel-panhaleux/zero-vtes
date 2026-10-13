@@ -77,8 +77,9 @@ client                                  host
 **Copies.** Cards are numbered where the viewer can follow them: on the
 table (minions, cards in play and stored on them, the viewer's own
 uncontrolled vampires; another seat's face down ones are backs), in face-up piles (ash heaps, removed, limbo) and in the
-viewer's own hand. A card in a hidden place — another seat's hand, any
-library or crypt — has no number: a card back, `{}`. A card coming into
+viewer's own hand (another seat's while a card reveals it). A card in a
+hidden place — another seat's hand, any library or crypt — has no
+number: a card back, `{}`. A card coming into
 a numbered place from a hidden one takes a fresh number, never used
 before for this viewer. So a number tells nothing the card's face does
 not. Two seats may number the same card differently; records use the
@@ -302,6 +303,7 @@ heap (a marker on its minion, §6), no copy of its own.
 | `leaves_play` | `card`, `to`? (the zone it went to), `minion`? (its kind), `contested`?, `effect`? |
 | `torpor` | `minion`, `enters` |
 | `ousted` | `seat` |
+| `edge` | `seat`? (who holds the Edge now; absent: burned) |
 | `block_fails` | `minion` (its block attempt ended, the action goes on) |
 | `action_ends` | `seat`, `acting`, `action`, `outcome` (`succeeds`, `blocked`, `fails`, `fizzles`, `ousted`, `ends`), `blocker`? |
 | `referendum_ends` | `outcome` (`passes`, `fails`, `canceled`), `votes_for`, `votes_against`, `action`? (the political action), `hunted`? (a blood hunt's diablerist) |

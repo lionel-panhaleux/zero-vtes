@@ -11,10 +11,10 @@ use zvtes::game::{Engine, Step};
 use zvtes_host::describe::{key, EngineNames};
 
 fn engine(seed: u64) -> Engine {
-    let decks = zvtes_protocol::deck::catalog();
+    let decks = zvtes_host::catalog();
     let resolved: Vec<_> = (0..4)
         .map(|i| {
-            zvtes_protocol::deck::resolve(&decks[(seed as usize + i * 3) % decks.len()].1)
+            zvtes_host::deck::resolve(0, &decks[(seed as usize + i * 3) % decks.len()].1)
                 .expect("a shipped deck")
         })
         .collect();

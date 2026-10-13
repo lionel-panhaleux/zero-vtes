@@ -1,56 +1,46 @@
 //! A game's lifecycle: who may say what, numbering and resending, the
 //! bots' run between the human's decisions, the end, the record.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::sync::{Arc, Mutex};
 
 use zvtes::agent::{Agent, RandomLegal};
 use zvtes::bots::{Scripted, Style};
-use zvtes::decision::DecisionRequest;
-use zvtes::game::Engine;
+use zvtes::combat::CombatNote;
+use zvtes::decision::{Choice, DecisionRequest, Zone};
+use zvtes::library::LIBRARY;
+use zvtes::referendum::Recipient as R;
 use zvtes_api::event::{Event, EventKind};
+use zvtes_api::ids::{OptionKind, Purpose, Window};
 use zvtes_api::message::{AllocationError, EndReason, Error, Joined, Over, SeatInfo, SpecError};
-use zvtes_api::option::ChoiceKey;
+use zvtes_api::option::{Allocation, ChoiceKey, OptionView, Recipient, VoteTotals};
 use zvtes_api::record::{BotRecord, By, Entry, GameRecord, GameResult};
+use zvtes_api::view::Target;
 use zvtes_api::{Command, Decision, GameSpec, In, Message, Out, Player, Seat, Settings, TableView};
-use zvtes_protocol as old;
 
-use crate::describe::{self, EngineNames};
-use crate::legacy::{self, Ctx};
+use crate::describe::{self, EngineNames, Names};
+use crate::narrate::Fact;
 use crate::numbering::Decks;
+use crate::session::{searched, Next, Refused, Session, Taken};
 use crate::view::Viewer;
 
 /// The built-in scripted bot profiles.
 pub const BUILT_IN: [&str; 3] = ["aggro_bleed", "wall", "random"];
 
-/// The keys of the bots' decisions as they take them: by decision
-/// number, the option and its key by the engine's copies.
-type Keys = Arc<Mutex<HashMap<u64, (u32, ChoiceKey)>>>;
-
-/// A bot whose every decision is keyed as it is taken (the record names
-/// a bot's choice by what it saw, hidden cards included).
-struct Recorded {
-    agent: Box<dyn Agent>,
-    keys: Keys,
-}
-
-impl Agent for Recorded {
-    fn decide(&mut self, e: &Engine, req: &DecisionRequest) -> usize {
-        let i = self.agent.decide(e, req);
-        let key = describe::key(e, req, &req.options[i], &EngineNames);
-        self.keys
-            .lock()
-            .unwrap()
-            .insert(e.log.len() as u64, (i as u32, key));
-        i
-    }
-}
-
 /// An event to tell, or where a decision was taken among them.
 enum Told {
     Event(Box<Event>),
     Decided(u64),
+}
+
+/// A decision taken and not told yet: what its line needs (the window,
+/// what it was for, every option offered).
+struct Asked {
+    window: Window,
+    purpose: Option<Purpose>,
+    about: Option<zvtes_api::message::About>,
+    seat: Seat,
+    offered: Vec<OptionView>,
 }
 
 /// Messages kept per seat for a rejoin (`join {after}`).
@@ -86,13 +76,12 @@ pub trait Bots {
 
 pub struct Game {
     id: String,
-    session: old::Session,
+    session: Session,
     human: Seat,
     names: Vec<String>,
     /// The human seat's view: its copy numbering.
     viewer: Viewer,
     decks: Decks,
-    keys: Keys,
     settings: Settings,
     seq: u64,
     sent: VecDeque<Out>,
@@ -105,16 +94,15 @@ pub struct Game {
     backlog: VecDeque<Told>,
     /// The viewer's numbering at each decision it was asked, by number:
     /// an undo restores it, the view asked again the view first sent.
-    numberings: std::collections::BTreeMap<u64, crate::numbering::Numbering>,
+    numberings: BTreeMap<u64, crate::numbering::Numbering>,
+    /// The decisions taken and not told yet, by number (`text` only).
+    asked: HashMap<u64, Asked>,
     record: GameRecord,
     clock: Box<dyn Clock>,
     t0: u64,
     /// The names the human seat's client knows, from the messages it was
     /// sent: what the English renderer reads.
     known: zvtes_text::Names<'static>,
-    /// The legacy session's text instead of the renderer's (the oracle
-    /// comparing them, until `crates/protocol` goes: A2c).
-    legacy_text: bool,
 }
 
 impl Game {
@@ -144,12 +132,11 @@ impl Game {
             Player::Human { settings } => *settings,
             Player::Bot { .. } => unreachable!(),
         };
-        let keys: Keys = Arc::default();
-        let mut agents = Vec::new();
-        let mut installed = Vec::new();
+        let mut agents: Vec<Option<Box<dyn Agent>>> = Vec::new();
         let mut records = Vec::new();
         for (seat, s) in spec.seats.iter().enumerate() {
             let Player::Bot { profile } = &s.player else {
+                agents.push(None);
                 continue;
             };
             let bot_seed = seed.wrapping_mul(0x9e37_79b9).wrapping_add(seat as u32);
@@ -180,22 +167,16 @@ impl Game {
             };
             r.seat = seat as Seat;
             records.push(r);
-            installed.push(profile.clone());
-            agents.push((
-                seat,
-                Box::new(Recorded {
-                    agent,
-                    keys: keys.clone(),
-                }) as Box<dyn Agent>,
-            ));
+            agents.push(Some(agent));
         }
+        let decks = spec
+            .seats
+            .iter()
+            .enumerate()
+            .map(|(seat, s)| crate::deck::resolve(seat as Seat, &s.deck))
+            .collect::<Result<Vec<_>, _>>()?;
         let names = spec.seats.iter().map(|s| s.name.clone()).collect();
-        let installed: Vec<&str> = installed.iter().map(String::as_str).collect();
-        let mut session =
-            old::Session::with_styles(legacy_spec(&spec, seed)?, &installed).map_err(spec_error)?;
-        for (seat, agent) in agents {
-            session.set_agent(seat, agent);
-        }
+        let mut session = Session::new(seed as u64, spec.time_limit, decks, agents);
         session.set_opportunities(settings.opportunities);
         let mut recorded = spec.clone();
         for (i, s) in recorded.seats.iter_mut().enumerate() {
@@ -211,7 +192,6 @@ impl Game {
             names,
             viewer: Viewer::new(Some(zvtes::ids::SeatId(human))),
             decks,
-            keys,
             settings,
             seq: 0,
             sent: VecDeque::new(),
@@ -221,8 +201,8 @@ impl Game {
             last_view: None,
             backlog: VecDeque::new(),
             numberings: Default::default(),
+            asked: HashMap::new(),
             known: zvtes_text::Names::new(crate::cards::cards()),
-            legacy_text: false,
             record: GameRecord {
                 protocol: zvtes_api::PROTOCOL_VERSION.into(),
                 engine: crate::ENGINE.into(),
@@ -326,21 +306,51 @@ impl Game {
     }
 
     /// The client's names brought up to date with a message, and its
-    /// English told from the data where the text setting asks it (the
-    /// legacy line kept where the renderer has none).
+    /// English told from the data where the text setting asks it.
     fn tell(&mut self, m: &mut Message) {
-        let text = self.settings.text && !self.legacy_text;
+        let text = self.settings.text;
         let known = &mut self.known;
         match m {
             Message::Joined(j) => known.see(&j.view),
             Message::Events { events, view } => {
                 for e in events {
                     known.hear(&e.kind);
-                    if text && e.text.is_some() {
-                        if let Some(t) = zvtes_text::event(&e.kind, known) {
-                            e.text = Some(t);
-                        }
+                    if !text {
+                        continue;
                     }
+                    e.text = match &e.kind {
+                        // A decision taken: its option's line, a pass
+                        // only where it ends a phase.
+                        EventKind::Decided {
+                            decision, choice, ..
+                        } => self.asked.remove(decision).and_then(|a| {
+                            let pass = choice.key.kind == OptionKind::Pass;
+                            let ends = matches!(
+                                a.window,
+                                Window::MasterPhase
+                                    | Window::MinionPhase
+                                    | Window::InfluenceTransfers
+                                    | Window::DiscardPhase
+                            );
+                            (!pass || ends).then(|| {
+                                zvtes_text::option(
+                                    choice,
+                                    a.window,
+                                    a.purpose,
+                                    a.about.as_ref(),
+                                    a.seat,
+                                    &a.offered,
+                                    known,
+                                )
+                            })?
+                        }),
+                        EventKind::AutoPassed { decision, .. } => {
+                            self.asked.remove(decision);
+                            None
+                        }
+                        k if e.text.is_some() => zvtes_text::event(k, known),
+                        _ => None,
+                    };
                 }
                 if let Some(v) = view {
                     known.see(v);
@@ -348,34 +358,25 @@ impl Game {
             }
             Message::Decision(d) => {
                 known.see(&d.view);
-                if text && d.prompt.is_some() {
-                    if let Some(t) = zvtes_text::prompt(d, known) {
-                        d.prompt = Some(t);
-                    }
-                }
                 if text {
+                    d.prompt = zvtes_text::prompt(d, known);
                     let offered = d.options.clone();
                     for o in &mut d.options {
-                        if o.text.is_none() {
-                            continue;
-                        }
-                        let t = zvtes_text::option(o, d.window, d.purpose, d.seat, &offered, known);
-                        if let Some(t) = t {
-                            o.text = Some(t);
-                        }
+                        o.text = zvtes_text::option(
+                            o,
+                            d.window,
+                            d.purpose,
+                            d.about.as_ref(),
+                            d.seat,
+                            &offered,
+                            known,
+                        );
                     }
                 }
             }
             Message::Over(o) => known.see(&o.view),
             Message::Error(_) => {}
         }
-    }
-
-    /// The legacy session's English instead of the renderer's: for the
-    /// oracle comparing them (`tests/events.rs`).
-    #[doc(hidden)]
-    pub fn legacy_text(&mut self, on: bool) {
-        self.legacy_text = on;
     }
 
     /// The messages after `after`, if all are still kept.
@@ -401,8 +402,7 @@ impl Game {
         if let Command::Join { .. } = c {
             return self.join();
         }
-        if let Some(over) = &self.over {
-            let _ = over;
+        if self.over.is_some() {
             return vec![Message::Error(Error::Over)];
         }
         if !self.started {
@@ -414,49 +414,50 @@ impl Game {
         match c {
             Command::Join { .. } => unreachable!(),
             Command::Answer { decision, option } => {
-                let key = self.session.request().and_then(|r| {
-                    r.options
-                        .get(option as usize)
-                        .map(|c| describe::key(self.session.engine(), r, c, &EngineNames))
-                });
-                match self.session.answer(decision, option as usize) {
-                    Ok(out) => {
-                        let mut m = self.step(out, By::Human, key);
-                        m.extend(self.advance());
-                        m
-                    }
-                    Err(e) => vec![Message::Error(answer_error(e, option))],
+                if let Err(e) = self.session.check(decision, option as usize) {
+                    return vec![Message::Error(refused(e, option))];
                 }
+                let taken = self.session.human();
+                let mut m = self.take(option as usize, taken, By::Human);
+                m.extend(self.advance());
+                m
             }
             Command::Allocate { decision, amounts } => {
                 match self.session.allocate(decision, &amounts) {
-                    Ok(outs) => {
+                    Ok(picks) => {
                         let mut m = Vec::new();
-                        for o in outs {
-                            m.extend(self.step(o, By::Order, None));
+                        for (step, i) in picks.into_iter().enumerate() {
+                            let taken = if step == 0 {
+                                self.session.human()
+                            } else {
+                                Taken::Order
+                            };
+                            m.extend(self.take(i, taken, By::Order));
                         }
                         m.extend(self.advance());
                         m
                     }
-                    Err(e) => vec![Message::Error(answer_error(e, 0))],
+                    Err(e) => vec![Message::Error(refused(e, 0))],
                 }
             }
             Command::VoteAll { decision, favor } => match self.session.vote_all(decision, favor) {
-                Ok(out) => {
-                    let mut m = self.step(out, By::Order, None);
+                Ok(i) => {
+                    let taken = self.session.human();
+                    let mut m = self.take(i, taken, By::Order);
                     m.extend(self.advance());
                     m
                 }
-                Err(e) => vec![Message::Error(answer_error(e, 0))],
+                Err(e) => vec![Message::Error(refused(e, 0))],
             },
             Command::Undo { decision } => {
                 if decision != pending {
                     return vec![Message::Error(Error::Stale { expected: pending })];
                 }
                 match self.session.undo() {
-                    Ok(()) => {
+                    Ok(_) => {
                         self.backlog.clear();
-                        let at = self.session.engine().log.len() as u64;
+                        self.asked.clear();
+                        let at = self.session.decision();
                         let _ = self.numberings.split_off(&(at + 1));
                         if let Some(n) = self.numberings.get(&at) {
                             self.viewer.numbering = n.clone();
@@ -471,7 +472,7 @@ impl Game {
                         m.insert(0, self.events(vec![undone(self.human, to)], None));
                         m
                     }
-                    Err(e) => vec![Message::Error(answer_error(e, 0))],
+                    Err(e) => vec![Message::Error(refused(e, 0))],
                 }
             }
             Command::Settings(patch) => {
@@ -525,67 +526,55 @@ impl Game {
         m
     }
 
+    /// Option `i` of `req` as the viewer knows it (its copies), what it
+    /// does; a decision of another seat's told as the table may know it.
+    fn option(&self, req: &DecisionRequest, i: usize) -> OptionView {
+        let e = self.session.engine();
+        let c = &req.options[i];
+        let names = &self.viewer.numbering;
+        let mut key = describe::key(e, req, c, names);
+        if req.seat.0 != self.human {
+            narrated(&mut key, c, req.window);
+        }
+        OptionView {
+            index: i as u32,
+            key,
+            effects: describe::effects(e, req, c, names),
+            abilities: describe::abilities(e, c),
+            text: None,
+        }
+    }
+
     /// Runs the game to the human's next decision or the end.
     fn advance(&mut self) -> Vec<Message> {
         let mut m = Vec::new();
         self.pending = None;
         for _ in 0..BUDGET {
             match self.session.advance() {
-                old::Out::Decision {
-                    decision,
-                    seat,
-                    options,
-                    prompt,
-                    undo,
-                    allocation,
-                    votes,
-                    ..
-                } => {
-                    let api_view = self.view();
-                    let ctx = Ctx::new(&self.viewer, self.session.engine(), self.settings.text);
-                    let req = self.session.request().cloned();
-                    let window = self
-                        .session
-                        .request()
-                        .map_or(zvtes_api::ids::Window::Unknown, |r| {
-                            crate::ids::window(r.window)
-                        });
+                Next::Ask { shown, undo } => {
+                    let view = self.view();
+                    let req = self.session.request().expect("asked").clone();
                     let e = self.session.engine();
-                    let source = req
-                        .as_ref()
-                        .and_then(|r| describe::source(e, r, &self.viewer.numbering));
-                    let purpose = e.interrupt().map(|i| crate::ids::purpose(&i));
-                    let about = req
-                        .as_ref()
-                        .and_then(|r| describe::about(e, r, &self.viewer.numbering));
+                    let names = &self.viewer.numbering;
+                    let decision = self.session.decision();
                     let d = Decision {
                         decision,
-                        seat,
-                        window,
-                        source,
-                        purpose,
-                        about,
-                        options: options
-                            .iter()
-                            .map(|o| {
-                                let mut v = ctx.option(o);
-                                if let Some(r) = &req {
-                                    let (e, c) = (self.session.engine(), &r.options[o.index]);
-                                    let names = &self.viewer.numbering;
-                                    v.key = describe::key(e, r, c, names);
-                                    v.effects = describe::effects(e, r, c, names);
-                                    v.abilities = describe::abilities(e, c);
-                                }
-                                v
-                            })
-                            .collect(),
+                        seat: req.seat.0,
+                        window: crate::ids::window(req.window),
+                        source: describe::source(e, &req, names),
+                        purpose: e.interrupt().map(|i| crate::ids::purpose(&i)),
+                        about: describe::about(e, &req, names),
+                        options: shown.iter().map(|&i| self.option(&req, i)).collect(),
                         undo,
-                        allocation: allocation.as_ref().map(|a| ctx.allocation(a)),
-                        votes: votes.as_ref().map(legacy::votes),
-                        prompt: prompt.filter(|_| self.settings.text),
-                        view: api_view.clone(),
+                        allocation: self.allocation(&req),
+                        votes: self
+                            .session
+                            .votes(&req)
+                            .map(|(favor, against)| VoteTotals { favor, against }),
+                        prompt: None,
+                        view: view.clone(),
                     };
-                    self.last_view = Some(api_view);
+                    self.last_view = Some(view);
                     self.numberings
                         .insert(decision, self.viewer.numbering.clone());
                     if self.numberings.len() > 256 {
@@ -596,20 +585,13 @@ impl Game {
                     m.push(Message::Decision(d));
                     return m;
                 }
-                out @ old::Out::Decided { .. } => {
-                    let seat = match &out {
-                        old::Out::Decided { seat, .. } => *seat,
-                        _ => unreachable!(),
+                Next::Take { index, taken } => {
+                    let by = match taken {
+                        Taken::Bot => By::Bot,
+                        Taken::Passed => By::Auto,
+                        _ => By::Order,
                     };
-                    let by = if seat != self.human {
-                        By::Bot
-                    } else if matches!(&out, old::Out::Decided { choice, .. } if choice.kind == "pass")
-                    {
-                        By::Auto
-                    } else {
-                        By::Order
-                    };
-                    m.extend(self.step(out, by, None));
+                    m.extend(self.take(index, taken, by));
                     if self
                         .last_view
                         .as_ref()
@@ -619,7 +601,7 @@ impl Game {
                         return m;
                     }
                 }
-                old::Out::Over { vps, .. } => {
+                Next::Over => {
                     let v = self.view();
                     let standing = v.seats.iter().filter(|s| !s.ousted).count();
                     self.last_view = Some(v);
@@ -628,7 +610,6 @@ impl Game {
                     } else {
                         EndReason::TimeLimit
                     };
-                    let _ = vps;
                     m.extend(self.end(reason, None));
                     return m;
                 }
@@ -638,38 +619,74 @@ impl Game {
         m
     }
 
-    /// A decision taken: its event, its record entry.
-    /// `key`: the choice by the engine's copies, when the caller keyed it
-    /// before it was applied (a human's answer); a bot's comes from its
-    /// recorder; an order's from the session's option.
-    fn step(&mut self, out: old::Out, by: By, key: Option<ChoiceKey>) -> Vec<Message> {
-        let old::Out::Decided {
-            decision,
-            seat,
-            window,
-            choice,
-            ..
-        } = out
-        else {
-            return vec![];
-        };
-        // The choice by the numbering it was taken under; then the table
-        // after it (the numbering follows every step).
-        let option =
-            Ctx::new(&self.viewer, self.session.engine(), self.settings.text).option(&choice);
-        let api_view = self.view();
-        let window = legacy::window(&window);
-        let recorded = self.keys.lock().unwrap().remove(&decision);
-        let key = match (by, key, recorded) {
-            (_, Some(k), _) => k,
-            (By::Bot, None, Some((_, k))) => k,
-            _ => legacy::engine_key(self.session.engine(), &choice),
-        };
+    /// The allocation under way, while the decision asks its first
+    /// recipient: answered whole by `allocate`.
+    fn allocation(&self, req: &DecisionRequest) -> Option<Allocation> {
+        let a = self.session.allocation(req)?;
+        let e = self.session.engine();
+        Some(Allocation {
+            points: a.points,
+            recipients: a
+                .recipients
+                .iter()
+                .zip(&a.caps)
+                .map(|(&r, &cap)| Recipient {
+                    to: match r {
+                        R::Seat(s) => Target::Seat { seat: s.0 },
+                        R::Card(k) => Target::Card {
+                            copy: self
+                                .viewer
+                                .numbering
+                                .copy(*e.state.cards[k.index()].copy)
+                                .unwrap_or(u32::MAX),
+                        },
+                    },
+                    cap,
+                    effects: vec![],
+                })
+                .collect(),
+            min_nonzero: a.min_nonzero,
+        })
+    }
+
+    /// The pending decision's option `index` taken (`taken` for undo,
+    /// `by` for the record): its record entry, its event.
+    fn take(&mut self, index: usize, taken: Taken, by: By) -> Vec<Message> {
+        self.session.ready();
+        let req = self.session.request().expect("a decision pending").clone();
+        let decision = self.session.decision();
+        let seat = req.seat.0;
+        let window = crate::ids::window(req.window);
+        let option = self.option(&req, index);
+        let key = describe::key(
+            self.session.engine(),
+            &req,
+            &req.options[index],
+            &EngineNames,
+        );
+        if self.settings.text && by != By::Auto {
+            let e = self.session.engine();
+            self.asked.insert(
+                decision,
+                Asked {
+                    window,
+                    purpose: e.interrupt().map(|i| crate::ids::purpose(&i)),
+                    about: describe::about(e, &req, &self.viewer.numbering),
+                    seat,
+                    offered: (0..req.options.len())
+                        .map(|i| self.option(&req, i))
+                        .collect(),
+                },
+            );
+        }
+        self.session.take(index, taken);
+        // The table after it (the numbering follows every step).
+        let view = self.view();
         self.record.entries.push(Entry::Decision {
             decision,
             seat,
             at: self.at(),
-            option: option.index,
+            option: index as u32,
             choice: key,
             by,
             forced: false,
@@ -690,13 +707,13 @@ impl Game {
             }
         };
         let steps = self.settings.views == zvtes_api::spec::Views::Steps;
-        self.last_view = Some(api_view.clone());
+        self.last_view = Some(view.clone());
         let decided = Event {
             kind: event,
             text: None,
         };
         let events = self.told_with(decision, decided);
-        vec![self.events(events, steps.then_some(api_view))]
+        vec![self.events(events, steps.then_some(view))]
     }
 
     fn events(&self, events: Vec<Event>, view: Option<TableView>) -> Message {
@@ -742,26 +759,82 @@ impl Game {
     /// The table now, the numbering brought up to date; what happened
     /// since the last view named as it numbers it.
     fn view(&mut self) -> TableView {
-        let mut v = self
-            .viewer
-            .view(self.session.engine(), &self.decks, &self.names);
+        let e = self.session.engine();
+        let mut v = self.viewer.view(e, &self.decks, &self.names);
         v.viewer = Some(self.human);
+        self.searched_view(&mut v);
+        self.struck_view(&mut v);
         let told = self.session.take_told();
         let e = self.session.engine();
         for t in told {
             let told = match self.viewer.event(e, &self.decks, t.fact) {
                 Some(kind) => Told::Event(Box::new(Event {
                     kind,
-                    text: t.text.filter(|_| self.settings.text),
+                    // Filled by `tell` where a log tells it.
+                    text: (t.told && self.settings.text).then(String::new),
                 })),
                 None => match t.fact {
-                    old::narrate::Fact::Decided(n) => Told::Decided(n),
+                    Fact::Decided(n) => Told::Decided(n),
                     _ => continue,
                 },
             };
             self.backlog.push_back(told);
         }
         v
+    }
+
+    /// The library cards the human seat may take, shown to it while it
+    /// searches (owner: "reveal only the matching cards").
+    fn searched_view(&self, v: &mut TableView) {
+        let Some(req) = self.session.request() else {
+            return;
+        };
+        let found = searched(req);
+        if req.seat.0 != self.human || found.is_empty() {
+            return;
+        }
+        let library = &self.session.engine().state.seats[self.human as usize].library;
+        if let Some(s) = v.seats.iter_mut().find(|s| s.seat == self.human) {
+            for (c, &card) in s.library.iter_mut().zip(library) {
+                if found.contains(&card) {
+                    c.id = Some(LIBRARY[card as usize].id);
+                }
+            }
+        }
+    }
+
+    /// A strike spent as it resolved, kept in the combat's view until the
+    /// next pair, with the damage it dealt.
+    fn struck_view(&self, v: &mut TableView) {
+        let e = self.session.engine();
+        let (
+            Some(c),
+            Some(cv),
+            Some(CombatNote::Strikes {
+                minions,
+                round,
+                pair,
+                strikes,
+                damage,
+                ..
+            }),
+        ) = (e.combat(), v.combat.as_mut(), self.session.struck())
+        else {
+            return;
+        };
+        if c.round != round || c.pair != pair {
+            return;
+        }
+        for (side, view) in c.sides.iter().zip(&mut cv.sides) {
+            let Some(j) = minions.iter().position(|&m| m == side.minion) else {
+                continue;
+            };
+            if let (true, None, Some(k)) = (side.chosen, side.strike, strikes[j]) {
+                let mut s = crate::view::strike(k, None);
+                s.resolved = Some(damage[j]);
+                view.strike = Some(s);
+            }
+        }
     }
 
     fn end(&mut self, reason: EndReason, failure: Option<String>) -> Vec<Message> {
@@ -800,6 +873,24 @@ impl Game {
     }
 }
 
+/// Another seat's choice as the table may know it: the card a library
+/// search took, a card put under the library, a card drawn from a store,
+/// unnamed.
+fn narrated(key: &mut ChoiceKey, c: &Choice, window: zvtes::decision::WindowLabel) {
+    let hidden = match *c {
+        // A library search's: an ash heap's pick is public.
+        Choice::FindCard(_) => window == zvtes::decision::WindowLabel::LibrarySearch,
+        Choice::Bottom(_) | Choice::DrawStored { .. } => true,
+        Choice::TakeFrom { zone, .. } => zone != Zone::AshHeap,
+        _ => false,
+    };
+    if hidden {
+        if let Some(card) = key.card.as_mut() {
+            card.id = None;
+        }
+    }
+}
+
 fn undone(seat: Seat, to: u64) -> Event {
     Event {
         kind: EventKind::Undone { seat, to },
@@ -828,79 +919,30 @@ fn panic_text(p: &Box<dyn std::any::Any + Send>) -> String {
         .unwrap_or_else(|| "engine panic".into())
 }
 
-fn legacy_spec(spec: &GameSpec, seed: u32) -> Result<old::GameSpec, SpecError> {
-    Ok(old::GameSpec {
-        seed: seed as u64,
-        time_limit: spec.time_limit,
-        seats: spec
-            .seats
-            .iter()
-            .map(|s| old::SeatSpec {
-                name: s.name.clone(),
-                deck: s
-                    .deck
-                    .iter()
-                    .map(|(k, &v)| (k.clone(), v.min(u8::MAX as u32) as u8))
-                    .collect(),
-                player: match &s.player {
-                    Player::Human { .. } => old::Player::Human,
-                    Player::Bot { profile } => old::Player::Bot {
-                        style: profile.clone(),
-                    },
-                },
-            })
-            .collect(),
-    })
-}
-
-fn spec_error(e: old::SpecError) -> SpecError {
+fn refused(e: Refused, option: u32) -> Error {
     match e {
-        old::SpecError::Seats { n } => SpecError::Seats { n: n as u8 },
-        old::SpecError::Style { seat, style } => SpecError::Profile {
-            seat: seat as Seat,
-            profile: style,
-        },
-        old::SpecError::Deck { seat, reason } => deck_error(seat as Seat, reason),
-    }
-}
-
-pub(crate) fn deck_error(seat: Seat, e: old::deck::DeckError) -> SpecError {
-    match e {
-        old::deck::DeckError::Unsupported { ids } => SpecError::Unsupported { seat, cards: ids },
-        old::deck::DeckError::TooSmall { crypt, library } => SpecError::DeckSize {
-            seat,
-            crypt: crypt as u32,
-            library: library as u32,
-        },
-    }
-}
-
-fn answer_error(e: old::AnswerError, option: u32) -> Error {
-    match e {
-        old::AnswerError::Stale { expected } => Error::Stale { expected },
-        old::AnswerError::NotYours { .. } => Error::NotYourTurn,
-        old::AnswerError::Option { .. } => Error::Option { index: option },
-        old::AnswerError::Over => Error::Over,
-        old::AnswerError::NoUndo => Error::NoUndo,
-        old::AnswerError::NoAllocation => Error::Allocation {
+        Refused::Stale { expected } => Error::Stale { expected },
+        Refused::NotYours => Error::NotYourTurn,
+        Refused::Option => Error::Option { index: option },
+        Refused::Over => Error::Over,
+        Refused::NoUndo => Error::NoUndo,
+        Refused::NoAllocation => Error::Allocation {
             reason: AllocationError::None,
         },
-        old::AnswerError::Allocation { .. } => Error::Allocation {
+        Refused::Allocation => Error::Allocation {
             reason: AllocationError::Total,
         },
-        old::AnswerError::NoVotes => Error::NoVotes,
+        Refused::NoVotes => Error::NoVotes,
     }
 }
 
 #[cfg(test)]
 mod tests {
-    //! The view from the engine (`view.rs`) against the session's (the
-    //! A1b oracle), and the copy rules (docs/protocol.md §3), at every
-    //! decision of random games.
+    //! The copy rules (docs/protocol.md §3) at every decision of random
+    //! games, and records replaying by key as by index.
 
     use std::collections::{HashMap, HashSet};
 
-    use serde_json::{json, Value};
     use zvtes_api::view::{Card, TableView};
     use zvtes_api::{Command, In, Message, Player, SeatSpec, Settings};
 
@@ -946,54 +988,6 @@ mod tests {
         Game::new(format!("t{seed}"), spec, &NoBots, Box::new(SystemClock)).unwrap()
     }
 
-    fn ids(cards: &[Card]) -> Vec<Option<u32>> {
-        cards.iter().map(|c| c.id).collect()
-    }
-
-    /// What both views must agree on.
-    fn new_shape(v: &TableView) -> Value {
-        json!({
-            "turn": v.turn, "active": v.active,
-            "seats": v.seats.iter().map(|s| json!({
-                "pool": s.pool, "vp": s.vp_halves, "ousted": s.ousted, "edge": s.edge,
-                "prey": s.prey, "predator": s.predator,
-                "crypt": s.crypt.len(), "library": s.library.len(),
-                "hand": ids(&s.hand), "ash": ids(&s.ash_heap), "removed": ids(&s.removed),
-                "limbo": ids(&s.limbo),
-                "slots": s.uncontrolled.iter().map(|u| json!([u.card.id, u.counters, u.banished, ids(&u.cards)])).collect::<Vec<_>>(),
-                "minions": s.ready.iter().chain(&s.torpor).map(|m| json!([m.card.id, m.blood, m.locked, m.capacity, m.contested,
-                    m.cards.iter().map(|c| json!([c.card.id, c.locked, c.counters, ids(&c.stored)])).collect::<Vec<_>>()])).collect::<Vec<_>>(),
-                "in_play": s.in_play.iter().map(|c| json!([c.card.id, c.locked, c.counters, ids(&c.stored)])).collect::<Vec<_>>(),
-            })).collect::<Vec<_>>(),
-            "action": v.action.as_ref().map(|a| json!([a.seat, a.stealth, a.bleed, a.x, a.bleed_target, a.declined, a.card.map(|c| c.id)])),
-            "combat": v.combat.as_ref().map(|c| c.round),
-            "referendum": v.referendum.as_ref().map(|r| json!([r.caller, r.votes_for, r.votes_against, r.votes.len()])),
-        })
-    }
-
-    fn old_shape(v: &zvtes_protocol::TableView) -> Value {
-        let ids = |cards: &[zvtes_protocol::view::CardView]| -> Vec<Option<u32>> {
-            cards.iter().map(|c| c.id).collect()
-        };
-        json!({
-            "turn": v.turn, "active": v.active,
-            "seats": v.seats.iter().map(|s| json!({
-                "pool": s.pool, "vp": (s.vps * 2.0).round() as u32, "ousted": s.ousted, "edge": s.edge,
-                "prey": s.prey, "predator": s.predator,
-                "crypt": s.crypt.len(), "library": s.library.len(),
-                "hand": ids(&s.hand), "ash": ids(&s.ash_heap), "removed": ids(&s.removed),
-                "limbo": ids(&s.limbo),
-                "slots": s.uncontrolled.iter().map(|u| json!([u.card.id, u.counters, u.banished, ids(&u.cards)])).collect::<Vec<_>>(),
-                "minions": s.ready.iter().chain(&s.torpor).map(|m| json!([m.card.id, m.blood, m.locked, m.capacity, m.contested,
-                    m.cards.iter().map(|c| json!([c.card.id, c.locked, c.counters, ids(&c.stored)])).collect::<Vec<_>>()])).collect::<Vec<_>>(),
-                "in_play": s.in_play.iter().map(|c| json!([c.card.id, c.locked, c.counters, ids(&c.stored)])).collect::<Vec<_>>(),
-            })).collect::<Vec<_>>(),
-            "action": v.action.as_ref().map(|a| json!([a.seat, a.stealth, a.bleed, a.x, a.bleed_target, a.declined, a.card])),
-            "combat": v.combat.as_ref().map(|c| c.round),
-            "referendum": v.referendum.as_ref().map(|r| json!([r.caller, r.votes_for, r.votes_against, r.votes.len()])),
-        })
-    }
-
     /// Every card shown, with whether its place is hidden to the viewer.
     fn cards(v: &TableView, viewer: u8) -> Vec<(Card, bool)> {
         let mut out = Vec::new();
@@ -1001,8 +995,9 @@ mod tests {
             for c in s.crypt.iter().chain(&s.library) {
                 out.push((*c, true));
             }
+            // Another seat's hand is hidden, unless a card reveals it.
             for c in &s.hand {
-                out.push((*c, s.seat != viewer));
+                out.push((*c, s.seat != viewer && c.id.is_none()));
             }
             for c in s.ash_heap.iter().chain(&s.removed).chain(&s.limbo) {
                 out.push((*c, false));
@@ -1027,7 +1022,7 @@ mod tests {
     }
 
     #[test]
-    fn the_engine_view_agrees_with_the_session_and_keeps_the_copy_rules() {
+    fn the_views_keep_the_copy_rules() {
         let seeds: u32 = std::env::var("HOST_SEEDS").map_or(16, |s| s.parse().unwrap());
         for seed in 1..=seeds {
             let mut g = game(seed);
@@ -1095,13 +1090,6 @@ mod tests {
                 }) else {
                     break;
                 };
-                // The session's own view of this decision.
-                let old = g.session.view(Some(zvtes::ids::SeatId(human)));
-                assert_eq!(
-                    new_shape(&d.view),
-                    old_shape(&old),
-                    "seed {seed}, step {step}"
-                );
                 n += 1;
                 let pick = d.options[(seed as usize * 7 + step * 13) % d.options.len()].index;
                 outs = g.handle(
