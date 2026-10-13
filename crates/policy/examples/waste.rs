@@ -32,7 +32,7 @@
 //!   own minion (`zvtes_policy::own_nightmare`; owner, 2026-10-10: "never a good move").
 
 use std::collections::BTreeMap;
-use std::rc::Rc;
+use std::sync::Arc;
 use zvtes::agent::Agent;
 use zvtes::cards::{self, Effect};
 use zvtes::decision::{Choice, DecisionRequest, WindowLabel};
@@ -333,7 +333,7 @@ fn self_play(
     nudges: Nudges,
     counts: &mut BTreeMap<String, Counts>,
 ) {
-    let net = Rc::new(Net::load(&std::fs::read(path).expect("the policy")).expect("a policy"));
+    let net = Arc::new(Net::load(&std::fs::read(path).expect("the policy")).expect("a policy"));
     let decks: Vec<Deck> = Deck::all().take(14).collect();
     let group = format!(
         "self-play (t {temperature}, nudges rescue {} pass {} reaction {} bleed {} idle {} draw {} stuck {} nightmare {})",

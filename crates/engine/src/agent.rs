@@ -10,7 +10,7 @@ use crate::rng::Rng;
 /// but only what its seat's legal view shows (DESIGN §5): the bots'
 /// honesty is tested by answering the same request from the redacted
 /// state.
-pub trait Agent {
+pub trait Agent: Send {
     fn decide(&mut self, engine: &Engine, req: &DecisionRequest) -> usize;
 }
 

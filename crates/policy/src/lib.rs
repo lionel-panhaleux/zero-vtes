@@ -615,7 +615,7 @@ pub fn cycling(e: &Engine, req: &DecisionRequest) -> bool {
 /// training plays with (`nudges`), sharpened by a temperature under 1
 /// (`temperature`: the human-play bot).
 pub struct NetAgent {
-    net: std::rc::Rc<Net>,
+    net: std::sync::Arc<Net>,
     rng: Rng,
     temperature: f32,
     nudges: Nudges,
@@ -623,7 +623,7 @@ pub struct NetAgent {
 }
 
 impl NetAgent {
-    pub fn new(net: std::rc::Rc<Net>, seed: u64) -> NetAgent {
+    pub fn new(net: std::sync::Arc<Net>, seed: u64) -> NetAgent {
         NetAgent {
             net,
             rng: Rng::new(seed),

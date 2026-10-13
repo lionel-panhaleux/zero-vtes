@@ -2,7 +2,7 @@
 //! speaking the protocol's JSON messages — the same a server will carry.
 //! Strings cross the boundary, not JS objects: the contract is the JSON.
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 use wasm_bindgen::prelude::*;
 use zvtes_policy::{Net, NetAgent, Nudges};
@@ -70,7 +70,7 @@ impl Game {
         console_error_panic_hook::set_once();
         let spec: GameSpec =
             serde_json::from_str(spec).map_err(|e| JsError::new(&e.to_string()))?;
-        let net = Rc::new(Net::load(weights).map_err(|e| JsError::new(&e))?);
+        let net = Arc::new(Net::load(weights).map_err(|e| JsError::new(&e))?);
         let seats: Vec<usize> = (0..spec.seats.len())
             .filter(|&i| matches!(&spec.seats[i].player, Player::Bot { style } if style == NETWORK))
             .collect();
