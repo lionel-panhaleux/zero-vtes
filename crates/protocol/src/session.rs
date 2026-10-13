@@ -20,7 +20,7 @@ use zvtes::referendum::{Recipient, RefStep};
 use crate::deck::{resolve, DeckError, DeckList, Resolved};
 use crate::describe::{window_text, CardRef, Describer, OptionView};
 use crate::logged::{logged, moot, resolve as resolve_logged, Logged};
-use crate::narrate::{action_thing, combat_text, minion_name, strike_text, Mark};
+use crate::narrate::{action_thing, combat_text, minion_name, strike_text, Fact, Mark, Told};
 use crate::track::Tracker;
 use crate::view::{knowledge, learned_nothing, table_view, Knowledge, TableView};
 
@@ -308,6 +308,9 @@ pub struct Session {
     /// changed since, told with the next message.
     mark: Option<Mark>,
     events: Vec<String>,
+    /// Every fact since the host last took them (`take_told`), with the
+    /// decisions taken among them.
+    told: Vec<Told>,
     /// The card the last decision played or used, and by whom: what the
     /// seat's terms decisions that follow choose for.
     about: Option<(SeatId, String)>,
@@ -406,6 +409,7 @@ impl Session {
             struck: None,
             mark: None,
             events: Vec::new(),
+            told: Vec::new(),
             about: None,
         })
     }
@@ -484,6 +488,7 @@ impl Session {
         self.over = None;
         self.mark = None;
         self.events.clear();
+        self.told.clear();
         self.about = None;
         Ok(())
     }
@@ -753,25 +758,44 @@ impl Session {
             .as_mut()
             .map(std::mem::take)
             .unwrap_or_default();
+        let mut told = Vec::new();
         for n in &notes {
-            self.events.push(combat_text(&self.engine, n));
+            let text = combat_text(&self.engine, n);
+            told.push(Told {
+                fact: Fact::Combat(*n),
+                text: Some(text),
+            });
             if matches!(n, CombatNote::Strikes { .. }) {
                 self.struck = Some(*n);
             }
         }
-        let all = self.view(None);
-        let now = Mark::of(&self.engine, &all);
+        let now = Mark::of(&self.engine);
         if let Some(before) = &self.mark {
             let names = self.names();
-            before.draws(&now, &all, &names, &mut self.events);
-            before.attempts(&self.engine, &now, &mut self.events);
-            before.strikes(&self.engine, &now, &mut self.events);
-            before.endings(&self.engine, &now, &names, &mut self.events);
-            if ran {
-                before.changes(&self.engine, &now, &names, &mut self.events);
-            }
+            let e = &self.engine;
+            before.draws(&now, &names, &mut told);
+            before.attempts(e, &now, &mut told);
+            before.strikes(e, &now, &mut told);
+            before.endings(e, &now, &names, &mut told);
+            before.changes(e, &now, &names, ran, &mut told);
         }
+        self.events
+            .extend(told.iter().filter_map(|t| t.text.clone()));
+        self.told.extend(told);
         self.mark = Some(now);
+    }
+
+    fn decided(&mut self, decision: u64) {
+        self.told.push(Told {
+            fact: Fact::Decided(decision),
+            text: None,
+        });
+    }
+
+    /// The facts since the last call, in order, each decision taken
+    /// among them marked (`Fact::Decided`): what the host tells.
+    pub fn take_told(&mut self) -> Vec<Told> {
+        std::mem::take(&mut self.told)
     }
 
     fn describer<'a>(
@@ -981,6 +1005,7 @@ impl Session {
                 self.remember(&req, &req.options[idx]);
                 self.choices.push(logged(&self.engine, &req, idx));
                 let effects = untold_effects(&req.options[idx]);
+                self.decided(decision);
                 self.engine.choose(idx);
                 self.history.push((req.seat, req.window, Taken::Bot));
                 self.aim(had_action, &mut choice);
@@ -1034,6 +1059,7 @@ impl Session {
         self.remember(&req, &req.options[index]);
         self.choices.push(logged(&self.engine, &req, index));
         let effects = untold_effects(&req.options[index]);
+        self.decided(decision);
         self.engine.choose(index);
         let taken = if Self::searched(&req).is_empty() {
             Taken::Human(known)

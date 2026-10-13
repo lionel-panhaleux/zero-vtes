@@ -4,6 +4,7 @@
 //! server and the wasm module are thin shells over it.
 
 pub mod describe;
+mod events;
 mod game;
 pub mod ids;
 mod legacy;

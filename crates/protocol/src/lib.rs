@@ -7,7 +7,7 @@
 pub mod deck;
 pub mod describe;
 pub mod logged;
-mod narrate;
+pub mod narrate;
 mod purpose;
 pub mod session;
 pub mod start;

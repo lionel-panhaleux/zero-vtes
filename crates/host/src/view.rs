@@ -9,6 +9,7 @@ use std::cell::RefCell;
 use zvtes::actions::ActionState;
 use zvtes::cards::{AbilitySource, StrikeKind as Sk, Target as T};
 use zvtes::combat::Range as R;
+pub use zvtes::copies::minion_copy;
 use zvtes::copies::CopyId;
 use zvtes::crypt::{Title as Ti, CRYPT};
 use zvtes::decision::ActionKind as Ak;
@@ -92,19 +93,6 @@ struct Build<'a> {
     /// `None`: the first pass, collecting.
     numbering: Option<&'a Numbering>,
     seen: RefCell<Vec<Seen>>,
-}
-
-/// A minion's card copy: a vampire's or a token's own, an ally's or
-/// created vampire's card's.
-pub fn minion_copy(st: &GameState, i: usize) -> CopyId {
-    let m = &st.minions[i];
-    match m.kind {
-        Mk::Ally { id, .. }
-        | Mk::Created { id, .. }
-        | Mk::GreatBeast { id, .. }
-        | Mk::Fury { id, .. } => *st.cards[id.index()].copy,
-        _ => *m.copy,
-    }
 }
 
 impl Build<'_> {
@@ -445,13 +433,12 @@ impl Build<'_> {
         let st = self.st;
         let m = &st.minions[i];
         let id = MinionId(i as u32);
-        let (card, crypt, kind) = match m.kind {
-            Mk::Vampire(c) => (c, true, MinionKind::Vampire),
-            Mk::Ally { card, .. } => (card, false, MinionKind::Ally),
-            Mk::Created { card, .. } | Mk::GreatBeast { card, .. } | Mk::Fury { card, .. } => {
-                (card, false, MinionKind::Created)
-            }
-            Mk::Token { card, .. } => (card, false, MinionKind::Token),
+        let (card, crypt) = minion_face(m);
+        let kind = match m.kind {
+            Mk::Vampire(_) => MinionKind::Vampire,
+            Mk::Ally { .. } => MinionKind::Ally,
+            Mk::Created { .. } | Mk::GreatBeast { .. } | Mk::Fury { .. } => MinionKind::Created,
+            Mk::Token { .. } => MinionKind::Token,
         };
         let marker = |kind, n: u8| Marker {
             kind,
@@ -524,6 +511,18 @@ impl Build<'_> {
     }
 }
 
+/// A minion's face: its card, crypt or library.
+pub(crate) fn minion_face(m: &zvtes::state::Minion) -> (u16, bool) {
+    match m.kind {
+        Mk::Vampire(c) => (c, true),
+        Mk::Ally { card, .. }
+        | Mk::Created { card, .. }
+        | Mk::GreatBeast { card, .. }
+        | Mk::Fury { card, .. }
+        | Mk::Token { card, .. } => (card, false),
+    }
+}
+
 /// A library card in play shown as its own card: not an ally's or created
 /// vampire's body (the minion shows it), not an effect whose card is in
 /// the ash heap (a marker on its minion shows it).
@@ -573,7 +572,7 @@ fn title(t: Ti) -> Option<Title> {
     }
 }
 
-fn strike(k: Sk, card: Option<u32>) -> Strike {
+pub(crate) fn strike(k: Sk, card: Option<u32>) -> Strike {
     let mut s = Strike {
         kind: StrikeKind::Unknown,
         n: None,

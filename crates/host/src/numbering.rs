@@ -38,8 +38,21 @@ pub type Seen = (CopyId, u32, bool);
 
 #[derive(Clone, Debug, Default)]
 pub struct Numbering {
-    wire: HashMap<u16, (u32, u8)>,
+    /// Per engine copy in sight: its wire copy and `nth`, and its face
+    /// (KRCG id, crypt).
+    wire: HashMap<u16, Named>,
+    /// The copies the last update put out of sight, as they were named:
+    /// what the events since name them by.
+    gone: HashMap<u16, Named>,
     next: u32,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Named {
+    wire: u32,
+    nth: u8,
+    id: u32,
+    crypt: bool,
 }
 
 impl Numbering {
@@ -57,17 +70,10 @@ impl Numbering {
             .copied()
             .filter(|c| !now.contains_key(c))
             .collect();
+        self.gone.clear();
         for c in gone {
-            self.wire.remove(&c);
-        }
-        // Rebuild the labels in use from the copies still numbered.
-        let mut labels: HashMap<(u8, u32, bool), BTreeSet<u8>> = HashMap::new();
-        for (&c, &(_, nth)) in &self.wire {
-            if let Some(&(id, crypt)) = now.get(&c) {
-                labels
-                    .entry((decks.of(CopyId(c)), id, crypt))
-                    .or_default()
-                    .insert(nth);
+            if let Some(n) = self.wire.remove(&c) {
+                self.gone.insert(c, n);
             }
         }
         let mut fresh: Vec<(u16, u32, bool)> = now
@@ -78,16 +84,48 @@ impl Numbering {
         // In engine order: the same table numbers alike for every run.
         fresh.sort_unstable();
         for (c, id, crypt) in fresh {
-            let used = labels.entry((decks.of(CopyId(c)), id, crypt)).or_default();
-            let nth = (1..=u8::MAX).find(|n| !used.contains(n)).unwrap_or(u8::MAX);
-            used.insert(nth);
-            self.next += 1;
-            self.wire.insert(c, (self.next, nth));
+            self.fresh(decks, CopyId(c), id, crypt);
         }
+    }
+
+    /// A new wire copy for `c`, with the lowest `nth` no copy of its card
+    /// from its deck in sight holds.
+    fn fresh(&mut self, decks: &Decks, c: CopyId, id: u32, crypt: bool) -> Named {
+        let deck = decks.of(c);
+        let used: BTreeSet<u8> = self
+            .wire
+            .iter()
+            .filter(|(&o, n)| n.id == id && n.crypt == crypt && decks.of(CopyId(o)) == deck)
+            .map(|(_, n)| n.nth)
+            .collect();
+        let nth = (1..=u8::MAX).find(|n| !used.contains(n)).unwrap_or(u8::MAX);
+        self.next += 1;
+        let named = Named {
+            wire: self.next,
+            nth,
+            id,
+            crypt,
+        };
+        self.wire.insert(c.0, named);
+        named
+    }
+
+    /// The wire copy and label of a card an event names, a public one:
+    /// as in sight, or as it was just before going out of sight, else a
+    /// fresh one (it came and went between two views).
+    pub fn name(&mut self, decks: &Decks, c: CopyId, id: u32, crypt: bool) -> Option<(u32, u8)> {
+        if c == CopyId::NONE {
+            return None;
+        }
+        let n = match self.wire.get(&c.0).or(self.gone.get(&c.0)) {
+            Some(&n) => n,
+            None => self.fresh(decks, c, id, crypt),
+        };
+        Some((n.wire, n.nth))
     }
 
     /// The wire copy and label of a visible engine copy.
     pub fn get(&self, c: CopyId) -> Option<(u32, u8)> {
-        self.wire.get(&c.0).copied()
+        self.wire.get(&c.0).map(|n| (n.wire, n.nth))
     }
 }

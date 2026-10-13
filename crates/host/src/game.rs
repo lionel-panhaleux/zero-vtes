@@ -47,6 +47,12 @@ impl Agent for Recorded {
     }
 }
 
+/// An event to tell, or where a decision was taken among them.
+enum Told {
+    Event(Box<Event>),
+    Decided(u64),
+}
+
 /// Messages kept per seat for a rejoin (`join {after}`).
 const KEPT: usize = 4096;
 
@@ -94,6 +100,9 @@ pub struct Game {
     started: bool,
     over: Option<Over>,
     last_view: Option<TableView>,
+    /// What happened since the messages last told it, named as the view
+    /// that took it in numbered it; the decisions taken among it marked.
+    backlog: VecDeque<Told>,
     record: GameRecord,
     clock: Box<dyn Clock>,
     t0: u64,
@@ -201,6 +210,7 @@ impl Game {
             started: false,
             over: None,
             last_view: None,
+            backlog: VecDeque::new(),
             record: GameRecord {
                 protocol: zvtes_api::PROTOCOL_VERSION.into(),
                 engine: crate::ENGINE.into(),
@@ -379,6 +389,7 @@ impl Game {
                 }
                 match self.session.undo() {
                     Ok(()) => {
+                        self.backlog.clear();
                         let mut m = self.advance();
                         let to = self.pending.as_ref().map_or(pending, |d| d.decision);
                         self.record.entries.push(Entry::Undo {
@@ -496,6 +507,7 @@ impl Game {
                     };
                     self.last_view = Some(api_view);
                     self.pending = Some(d.clone());
+                    m.extend(self.flush());
                     m.push(Message::Decision(d));
                     return m;
                 }
@@ -594,24 +606,76 @@ impl Game {
         };
         let steps = self.settings.views == zvtes_api::spec::Views::Steps;
         self.last_view = Some(api_view.clone());
-        vec![self.events(
-            vec![Event {
-                kind: event,
-                text: None,
-            }],
-            steps.then_some(api_view),
-        )]
+        let decided = Event {
+            kind: event,
+            text: None,
+        };
+        let events = self.told_with(decision, decided);
+        vec![self.events(events, steps.then_some(api_view))]
     }
 
     fn events(&self, events: Vec<Event>, view: Option<TableView>) -> Message {
         Message::Events { events, view }
     }
 
+    /// The events up to the decision taken (`decided` in its place) and
+    /// what it did, up to the next decision taken.
+    fn told_with(&mut self, decision: u64, decided: Event) -> Vec<Event> {
+        let mut events = Vec::new();
+        let mut decided = Some(decided);
+        while let Some(t) = self.backlog.pop_front() {
+            match t {
+                Told::Decided(n) if n == decision && decided.is_some() => {
+                    events.extend(decided.take());
+                }
+                // The next decision's: what follows is its.
+                Told::Decided(n) if decided.is_none() => {
+                    self.backlog.push_front(Told::Decided(n));
+                    break;
+                }
+                Told::Decided(_) => {}
+                Told::Event(e) => events.push(*e),
+            }
+        }
+        events.extend(decided);
+        events
+    }
+
+    /// Everything not told yet, as one message.
+    fn flush(&mut self) -> Option<Message> {
+        let events: Vec<Event> = self
+            .backlog
+            .drain(..)
+            .filter_map(|t| match t {
+                Told::Event(e) => Some(*e),
+                Told::Decided(_) => None,
+            })
+            .collect();
+        (!events.is_empty()).then(|| self.events(events, None))
+    }
+
+    /// The table now, the numbering brought up to date; what happened
+    /// since the last view named as it numbers it.
     fn view(&mut self) -> TableView {
         let mut v = self
             .viewer
             .view(self.session.engine(), &self.decks, &self.names);
         v.viewer = Some(self.human);
+        let told = self.session.take_told();
+        let e = self.session.engine();
+        for t in told {
+            let told = match self.viewer.event(e, &self.decks, t.fact) {
+                Some(kind) => Told::Event(Box::new(Event {
+                    kind,
+                    text: t.text.filter(|_| self.settings.text),
+                })),
+                None => match t.fact {
+                    old::narrate::Fact::Decided(n) => Told::Decided(n),
+                    _ => continue,
+                },
+            };
+            self.backlog.push_back(told);
+        }
         v
     }
 
@@ -623,6 +687,7 @@ impl Game {
                 .or(self.last_view.clone()),
         };
         let view = view.unwrap_or_else(|| empty_view(self.human));
+        let told = self.flush();
         let vp_halves: Vec<u32> = view.seats.iter().map(|s| s.vp_halves).collect();
         let best = vp_halves.iter().copied().max().unwrap_or(0);
         let winner = (best >= 4 && vp_halves.iter().filter(|&&v| v == best).count() == 1)
@@ -642,7 +707,7 @@ impl Game {
             reason,
             failure,
         });
-        vec![Message::Over(over)]
+        told.into_iter().chain([Message::Over(over)]).collect()
     }
 
     fn fail(&mut self, why: String) -> Vec<Message> {

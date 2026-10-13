@@ -2,6 +2,7 @@
 //! answering at random by option index, scripted bots, every message
 //! checked against the contract's lifecycle.
 
+use zvtes_api::event::EventKind;
 use zvtes_api::message::{EndReason, Error};
 use zvtes_api::record::Entry;
 use zvtes_api::{Command, GameSpec, In, Message, Out, Player, SeatSpec, Settings, SettingsPatch};
@@ -106,6 +107,23 @@ fn check(outs: &[Out], last: &mut u64) {
     }
 }
 
+/// The decisions the messages tell taken.
+fn told(outs: &[Out]) -> usize {
+    outs.iter()
+        .filter_map(|o| match &o.message {
+            Message::Events { events, .. } => Some(events),
+            _ => None,
+        })
+        .flatten()
+        .filter(|e| {
+            matches!(
+                e.kind,
+                EventKind::Decided { .. } | EventKind::AutoPassed { .. }
+            )
+        })
+        .count()
+}
+
 fn pending(outs: &[Out]) -> Option<&zvtes_api::Decision> {
     outs.iter().rev().find_map(|o| match &o.message {
         Message::Decision(d) => Some(d),
@@ -124,7 +142,7 @@ fn games_play_to_their_end_through_handle() {
         let mut outs = g.handle(human, join());
         check(&outs, &mut last);
         assert!(matches!(outs[0].message, Message::Joined(_)));
-        let mut decided = 0;
+        let mut decided = told(&outs);
         let mut steps = 0;
         while !g.is_over() {
             steps += 1;
@@ -155,10 +173,7 @@ fn games_play_to_their_end_through_handle() {
                     Message::Error(Error::Stale { .. }) | Message::Error(Error::NotYourTurn)
                 ));
             }
-            decided += outs
-                .iter()
-                .filter(|o| matches!(o.message, Message::Events { .. }))
-                .count();
+            decided += told(&outs);
         }
         let over = outs
             .iter()
@@ -179,10 +194,9 @@ fn games_play_to_their_end_through_handle() {
             .iter()
             .filter(|e| matches!(e, Entry::Decision { .. }))
             .count();
-        assert!(
-            entries >= decided,
-            "seed {seed}: {entries} entries, {decided} steps"
-        );
+        // Every decision is told once (the first, before the human
+        // joined, too).
+        assert_eq!(entries, decided, "seed {seed}");
         assert_ne!(over.reason, EndReason::EngineError, "seed {seed}");
     }
 }

@@ -6,24 +6,142 @@
 //! referendum ended, pool and blood moved, minions and cards in and out
 //! of play, torpor. Everything told is public.
 //!
-//! An action's and a referendum's end are read at every mark — the
-//! decision itself may end them — the rest only across the engine's run,
-//! a decision's own effect being its text.
+//! Each event is a `Fact` in the engine's ids (the host names it for
+//! each viewer: `zvtes_host`), with its English line. Every change is a
+//! fact; the line is the legacy text, which tells a decision's own
+//! effects only when its option's text does not (`text: None` then).
+//!
+//! The marks read the engine alone (and `census` for copies), not a view.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use zvtes::actions::{ActionCtx, Outcome};
 use zvtes::cards::{AbilitySource, StrikeKind};
 use zvtes::combat::{CombatNote, Range};
+use zvtes::copies::{census, minion_copy, CopyId, Place};
 use zvtes::decision::ActionKind;
 use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::library::LIBRARY;
 use zvtes::referendum::RefKind;
-use zvtes::state::MinionKind;
+use zvtes::state::{CardId, MinionKind};
 
 use crate::describe::action_kind;
-use crate::view::TableView;
+
+/// What happened, in the engine's ids.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Fact {
+    /// A decision taken here (the host tells it from its answer).
+    Decided(u64),
+    Turn {
+        turn: u32,
+        active: SeatId,
+    },
+    Draw {
+        seat: SeatId,
+        n: u8,
+        crypt: bool,
+    },
+    Pool {
+        seat: SeatId,
+        delta: i32,
+        pool: i32,
+    },
+    Ousted {
+        seat: SeatId,
+    },
+    MinionEnters {
+        minion: MinionId,
+    },
+    /// Burned (to `to`), or contested.
+    MinionLeaves {
+        minion: MinionId,
+        contested: bool,
+        to: Option<Place>,
+    },
+    Torpor {
+        minion: MinionId,
+        enters: bool,
+    },
+    Blood {
+        minion: MinionId,
+        delta: i32,
+        blood: u8,
+    },
+    CardEnters {
+        card: CardId,
+        on: Option<MinionId>,
+    },
+    CardLeaves {
+        card: CardId,
+        to: Option<Place>,
+    },
+    CardMoves {
+        card: CardId,
+        on: Option<MinionId>,
+    },
+    BlockFails {
+        minion: MinionId,
+    },
+    /// A strike declared (`None`: no strike), from a card or weapon.
+    Strike {
+        minion: MinionId,
+        strike: Option<StrikeKind>,
+        source: Option<CardId>,
+    },
+    ActionEnds {
+        action: ActionFact,
+        /// `None`: ended otherwise (its acting minion gone).
+        outcome: Option<Outcome>,
+        /// Its Methuselah was ousted.
+        ousted: bool,
+        blocker: Option<MinionId>,
+    },
+    ReferendumEnds {
+        passed: bool,
+        canceled: bool,
+        votes: (u32, u32),
+        action: Option<ActionFact>,
+        /// A blood hunt's diablerist.
+        hunted: Option<MinionId>,
+    },
+    Combat(CombatNote),
+}
+
+/// An action as its end tells it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ActionFact {
+    pub seat: SeatId,
+    pub acting: MinionId,
+    pub kind: ActionKind,
+    /// The action card and its copy.
+    pub card: Option<(u16, CopyId)>,
+    /// What grants it: a card in play, another vampire.
+    pub source: Option<AbilitySource>,
+}
+
+impl ActionFact {
+    fn of(a: &ActionCtx) -> ActionFact {
+        ActionFact {
+            seat: a.seat,
+            acting: a.acting,
+            kind: a.kind,
+            card: a.card.as_ref().map(|p| (p.card, *p.copy)),
+            source: a.source.filter(|&s| s != AbilitySource::Vampire(a.acting)),
+        }
+    }
+}
+
+/// A fact and its legacy line.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Told {
+    pub fact: Fact,
+    pub text: Option<String>,
+}
+
+fn tell(out: &mut Vec<Told>, fact: Fact, text: Option<String>) {
+    out.push(Told { fact, text });
+}
 
 /// The table at a decision, as far as events tell it.
 #[derive(Clone, Debug, Default)]
@@ -38,13 +156,23 @@ pub(crate) struct Mark {
     referendum: Option<RefMark>,
     /// Game turn and active seat.
     turn: (u32, u8),
-    /// Per seat, the copies in its library and in its crypt (every card
-    /// shown): one in the hand or the uncontrolled region next is a draw.
-    library: Vec<HashSet<u32>>,
-    crypt: Vec<HashSet<u32>>,
+    /// Per seat, the copies in its library, crypt, hand and uncontrolled
+    /// region: one from the library in the hand next is a draw.
+    library: Vec<HashSet<CopyId>>,
+    crypt: Vec<HashSet<CopyId>>,
+    hand: Vec<HashSet<CopyId>>,
+    uncontrolled: Vec<HashSet<CopyId>>,
     /// The combat's strikes declared: per side, its minion and the round
     /// and pair it declared in, and what (`None`: not declared yet).
-    strikes: Vec<(MinionId, u8, u8, Option<String>)>,
+    strikes: Vec<(MinionId, u8, u8, Option<Declared>)>,
+}
+
+/// A strike declared: what, from which card, told.
+#[derive(Clone, Debug)]
+struct Declared {
+    strike: Option<StrikeKind>,
+    source: Option<CardId>,
+    text: String,
 }
 
 /// A side's declared strike, as the table sees it ("Ivory Bow: 1R
@@ -65,10 +193,7 @@ pub(crate) fn declared_strike(e: &Engine, side: &zvtes::combat::Side) -> Option<
 
 #[derive(Clone, Debug, PartialEq)]
 struct ActionMark {
-    seat: SeatId,
-    acting: MinionId,
-    kind: ActionKind,
-    card: Option<u16>,
+    fact: ActionFact,
     /// What it is, for a sentence: "Yael's Govern the Unaligned".
     label: String,
     /// The minion attempting the block or that blocked, last seen.
@@ -82,6 +207,8 @@ struct ActionMark {
 #[derive(Clone, Debug, PartialEq)]
 struct RefMark {
     label: String,
+    action: Option<ActionFact>,
+    hunted: Option<MinionId>,
     votes: (u32, u32),
     forced_fail: bool,
     canceled: bool,
@@ -165,14 +292,27 @@ pub(crate) fn combat_text(e: &Engine, note: &CombatNote) -> String {
 }
 
 impl Mark {
-    /// `all`: the table with every card shown (stable copies).
-    pub(crate) fn of(e: &Engine, all: &TableView) -> Mark {
+    pub(crate) fn of(e: &Engine) -> Mark {
         let st = &e.state;
-        let copies = |cards: &[crate::view::CardView]| cards.iter().map(|c| c.copy).collect();
+        let n = st.seats.len();
+        let mut piles = vec![vec![HashSet::new(); n]; 4];
+        for (copy, _, place) in census(e) {
+            let (s, pile) = match place {
+                Place::Zone(s, "library") => (s, 0),
+                Place::Zone(s, "crypt") => (s, 1),
+                Place::Zone(s, "hand") => (s, 2),
+                Place::Uncontrolled(s) => (s, 3),
+                _ => continue,
+            };
+            piles[pile][s as usize].insert(copy);
+        }
+        let [library, crypt, hand, uncontrolled] = <[_; 4]>::try_from(piles).expect("four piles");
         Mark {
             turn: (st.turn, st.active.0),
-            library: all.seats.iter().map(|s| copies(&s.library)).collect(),
-            crypt: all.seats.iter().map(|s| copies(&s.crypt)).collect(),
+            library,
+            crypt,
+            hand,
+            uncontrolled,
             pools: st.seats.iter().map(|s| s.pool).collect(),
             ousted: st.seats.iter().map(|s| s.ousted).collect(),
             minions: st
@@ -193,10 +333,7 @@ impl Mark {
                     _ => action_thing(e, a),
                 };
                 ActionMark {
-                    seat: a.seat,
-                    acting: a.acting,
-                    kind: a.kind,
-                    card: a.card.as_ref().map(|p| p.card),
+                    fact: ActionFact::of(a),
                     label: format!("{}'s {thing}", minion_name(e, a.acting)),
                     blocker: crate::view::blocker(a.state).or(a.blocker),
                     attempting: match a.state {
@@ -212,38 +349,54 @@ impl Mark {
                 .map(|c| {
                     c.sides
                         .iter()
-                        .map(|s| (s.minion, c.round, c.pair, declared_strike(e, s)))
+                        .map(|s| {
+                            let declared = declared_strike(e, s).map(|text| Declared {
+                                strike: s.strike,
+                                source: s.strike_source,
+                                text,
+                            });
+                            (s.minion, c.round, c.pair, declared)
+                        })
                         .collect()
                 })
                 .unwrap_or_default(),
-            referendum: e.referendum().map(|r| RefMark {
-                label: match r.kind {
-                    RefKind::BloodHunt { diablerist } => {
-                        format!("The blood hunt on {}", minion_name(e, diablerist))
-                    }
+            referendum: e.referendum().map(|r| {
+                let (label, action, hunted) = match r.kind {
+                    RefKind::BloodHunt { diablerist } => (
+                        format!("The blood hunt on {}", minion_name(e, diablerist)),
+                        None,
+                        Some(diablerist),
+                    ),
                     RefKind::Political => match e.action() {
-                        Some(a) => format!("The referendum ({})", action_thing(e, a)),
-                        None => "The referendum".into(),
+                        Some(a) => (
+                            format!("The referendum ({})", action_thing(e, a)),
+                            Some(ActionFact::of(a)),
+                            None,
+                        ),
+                        None => ("The referendum".into(), None, None),
                     },
-                },
-                votes: r.tally(),
-                forced_fail: r.forced_fail,
-                canceled: r.canceled,
+                };
+                RefMark {
+                    label,
+                    action,
+                    hunted,
+                    votes: r.tally(),
+                    forced_fail: r.forced_fail,
+                    canceled: r.canceled,
+                }
             }),
         }
     }
 
     /// The same action, still under way.
     fn same_action(a: &ActionMark, b: &ActionMark) -> bool {
-        (a.seat, a.acting, a.kind, a.card) == (b.seat, b.acting, b.kind, b.card)
+        let key = |f: &ActionFact| (f.seat, f.acting, f.kind, f.card.map(|c| c.0));
+        key(&a.fact) == key(&b.fact)
     }
 
-    /// How the action and referendum seen at `self` ended by `now`.
-    /// The strikes declared since (the acting minion's first: the
-    /// blocker chooses knowing it), each told once.
     /// A block attempt that ended with no block (short of the stealth,
     /// or given up): the action goes on.
-    pub(crate) fn attempts(&self, e: &Engine, now: &Mark, out: &mut Vec<String>) {
+    pub(crate) fn attempts(&self, e: &Engine, now: &Mark, out: &mut Vec<Told>) {
         let (Some(a), Some(b)) = (&self.action, &now.action) else {
             return;
         };
@@ -254,24 +407,34 @@ impl Mark {
             .attempting
             .filter(|&m| b.attempting != Some(m) && b.blocker != Some(m))
         {
-            out.push(format!("{} fails to block", minion_name(e, m)));
+            let text = format!("{} fails to block", minion_name(e, m));
+            tell(out, Fact::BlockFails { minion: m }, Some(text));
         }
     }
 
-    pub(crate) fn strikes(&self, e: &Engine, now: &Mark, out: &mut Vec<String>) {
-        for &(m, round, pair, ref strike) in &now.strikes {
-            let Some(strike) = strike else { continue };
+    /// The strikes declared since (the acting minion's first: the
+    /// blocker chooses knowing it), each told once.
+    pub(crate) fn strikes(&self, e: &Engine, now: &Mark, out: &mut Vec<Told>) {
+        for &(m, round, pair, ref declared) in &now.strikes {
+            let Some(d) = declared else { continue };
             let told = self
                 .strikes
                 .iter()
                 .any(|&(b, r, p, ref s)| b == m && r == round && p == pair && s.is_some());
             if !told {
-                out.push(format!("{} strikes: {strike}", minion_name(e, m)));
+                let fact = Fact::Strike {
+                    minion: m,
+                    strike: d.strike,
+                    source: d.source,
+                };
+                let text = format!("{} strikes: {}", minion_name(e, m), d.text);
+                tell(out, fact, Some(text));
             }
         }
     }
 
-    pub(crate) fn endings(&self, e: &Engine, now: &Mark, names: &[String], out: &mut Vec<String>) {
+    /// How the action and referendum seen at `self` ended by `now`.
+    pub(crate) fn endings(&self, e: &Engine, now: &Mark, names: &[String], out: &mut Vec<Told>) {
         if let Some(r) = &self.referendum {
             if now.referendum.is_none() {
                 let (f, a) = r.votes;
@@ -281,13 +444,21 @@ impl Mark {
                     .as_ref()
                     .and_then(|a| a.passed)
                     .unwrap_or(f > a && !r.forced_fail);
-                out.push(if r.canceled {
+                let text = if r.canceled {
                     format!("{} is canceled", r.label)
                 } else if passed {
                     format!("{} passes ({f}–{a})", r.label)
                 } else {
                     format!("{} fails ({f}–{a})", r.label)
-                });
+                };
+                let fact = Fact::ReferendumEnds {
+                    passed,
+                    canceled: r.canceled,
+                    votes: r.votes,
+                    action: r.action,
+                    hunted: r.hunted,
+                };
+                tell(out, fact, Some(text));
             }
         }
         if let Some(a) = &self.action {
@@ -295,10 +466,12 @@ impl Mark {
                 return;
             }
             let seat = |s: SeatId| names.get(s.index()).cloned().unwrap_or_default();
-            let ended = if e.state.seats[a.seat.index()].ousted {
-                format!("{} ends: {} is ousted", a.label, seat(a.seat))
+            let ousted = e.state.seats[a.fact.seat.index()].ousted;
+            let outcome = e.last_outcome;
+            let text = if ousted {
+                format!("{} ends: {} is ousted", a.label, seat(a.fact.seat))
             } else {
-                match e.last_outcome {
+                match outcome {
                     Some(Outcome::Successful) => format!("{} succeeds", a.label),
                     Some(Outcome::Blocked) => match a.blocker {
                         Some(m) => format!("{} is blocked by {}", a.label, minion_name(e, m)),
@@ -309,50 +482,72 @@ impl Mark {
                     None => format!("{} ends", a.label),
                 }
             };
-            out.push(ended);
+            let fact = Fact::ActionEnds {
+                action: a.fact,
+                outcome: outcome.filter(|_| !ousted),
+                ousted,
+                blocker: a.blocker.filter(|_| outcome == Some(Outcome::Blocked)),
+            };
+            tell(out, fact, Some(text));
         }
     }
 
     /// A new turn, and the cards drawn from `self` to `now` (told whatever
     /// drew them: a decision's own draws too).
-    pub(crate) fn draws(
-        &self,
-        now: &Mark,
-        all: &TableView,
-        names: &[String],
-        out: &mut Vec<String>,
-    ) {
+    pub(crate) fn draws(&self, now: &Mark, names: &[String], out: &mut Vec<Told>) {
         let seat = |s: usize| names.get(s).cloned().unwrap_or_default();
         if now.turn.0 != self.turn.0 {
-            out.push(format!(
-                "Turn {}: {}",
-                now.turn.0,
-                seat(now.turn.1 as usize)
-            ));
-        }
-        for (s, v) in all.seats.iter().enumerate() {
-            let drawn = |before: Option<&HashSet<u32>>, cards: &mut dyn Iterator<Item = u32>| {
-                before.map_or(0, |b| cards.filter(|c| b.contains(c)).count())
+            let fact = Fact::Turn {
+                turn: now.turn.0,
+                active: SeatId(now.turn.1),
             };
-            let n = drawn(self.library.get(s), &mut v.hand.iter().map(|c| c.copy));
-            if n > 0 {
-                let cards = if n == 1 { "card" } else { "cards" };
-                out.push(format!("{} draws {n} {cards}", seat(s)));
-            }
-            let n = drawn(
-                self.crypt.get(s),
-                &mut v.uncontrolled.iter().map(|u| u.card.copy),
-            );
-            if n > 0 {
-                let cards = if n == 1 { "crypt card" } else { "crypt cards" };
-                out.push(format!("{} draws {n} {cards}", seat(s)));
+            let text = format!("Turn {}: {}", now.turn.0, seat(now.turn.1 as usize));
+            tell(out, fact, Some(text));
+        }
+        let drawn = |from: &[HashSet<CopyId>], to: &[HashSet<CopyId>], s: usize| match (
+            from.get(s),
+            to.get(s),
+        ) {
+            (Some(b), Some(a)) => a.iter().filter(|c| b.contains(c)).count(),
+            _ => 0,
+        };
+        for s in 0..now.hand.len() {
+            for (crypt, n) in [
+                (false, drawn(&self.library, &now.hand, s)),
+                (true, drawn(&self.crypt, &now.uncontrolled, s)),
+            ] {
+                if n == 0 {
+                    continue;
+                }
+                let cards = match (crypt, n) {
+                    (false, 1) => "card",
+                    (false, _) => "cards",
+                    (true, 1) => "crypt card",
+                    (true, _) => "crypt cards",
+                };
+                let fact = Fact::Draw {
+                    seat: SeatId(s as u8),
+                    n: n.min(255) as u8,
+                    crypt,
+                };
+                tell(out, fact, Some(format!("{} draws {n} {cards}", seat(s))));
             }
         }
     }
 
-    /// What changed on the table from `self` to `now`.
-    pub(crate) fn changes(&self, e: &Engine, now: &Mark, names: &[String], out: &mut Vec<String>) {
+    /// What changed on the table from `self` to `now`; `told`: in the
+    /// legacy text too (across the engine's run, or a decision whose
+    /// option's text does not tell its effects).
+    pub(crate) fn changes(
+        &self,
+        e: &Engine,
+        now: &Mark,
+        names: &[String],
+        told: bool,
+        out: &mut Vec<Told>,
+    ) {
         let seat = |s: usize| names.get(s).cloned().unwrap_or_default();
+        let text = |t: String| told.then_some(t);
         let signed = |d: i32| {
             if d > 0 {
                 format!("+{d}")
@@ -360,18 +555,31 @@ impl Mark {
                 format!("−{}", -d)
             }
         };
+        // Where a card that left play went, by its copy.
+        let mut places: Option<HashMap<CopyId, Place>> = None;
+        let mut place = |c: CopyId| {
+            places
+                .get_or_insert_with(|| census(e).into_iter().map(|(c, _, p)| (c, p)).collect())
+                .get(&c)
+                .copied()
+        };
         for (s, (&before, &after)) in self.pools.iter().zip(&now.pools).enumerate() {
             if before != after && !self.ousted[s] {
-                out.push(format!(
-                    "{}: {} pool ({after})",
-                    seat(s),
-                    signed(after - before)
-                ));
+                let fact = Fact::Pool {
+                    seat: SeatId(s as u8),
+                    delta: after - before,
+                    pool: after,
+                };
+                let t = format!("{}: {} pool ({after})", seat(s), signed(after - before));
+                tell(out, fact, text(t));
             }
         }
         for (s, (&before, &after)) in self.ousted.iter().zip(&now.ousted).enumerate() {
             if after && !before {
-                out.push(format!("{} is ousted", seat(s)));
+                let fact = Fact::Ousted {
+                    seat: SeatId(s as u8),
+                };
+                tell(out, fact, text(format!("{} is ousted", seat(s))));
             }
         }
         // A Methuselah ousted takes their table along: told once.
@@ -385,56 +593,86 @@ impl Mark {
             let (present, torpor, blood) = *after;
             let Some(&(was, was_torpor, was_blood)) = self.minions.get(i) else {
                 if present {
-                    out.push(format!("{} comes into play", name()));
+                    let t = format!("{} comes into play", name());
+                    tell(out, Fact::MinionEnters { minion: m }, text(t));
                 }
                 continue;
             };
             match (was, present) {
-                (false, true) => out.push(format!("{} comes into play", name())),
+                (false, true) => {
+                    let t = format!("{} comes into play", name());
+                    tell(out, Fact::MinionEnters { minion: m }, text(t));
+                }
                 (true, false) => {
-                    let gone = if e.state.minions[i].contested {
+                    let contested = e.state.minions[i].contested;
+                    let fact = Fact::MinionLeaves {
+                        minion: m,
+                        contested,
+                        to: place(minion_copy(&e.state, i)),
+                    };
+                    let how = if contested {
                         "is contested"
                     } else {
                         "is burned"
                     };
-                    out.push(format!("{} {gone}", name()));
+                    tell(out, fact, text(format!("{} {how}", name())));
                     continue;
                 }
                 (false, false) => continue,
                 (true, true) => {}
             }
             if torpor != was_torpor && was {
-                out.push(if torpor {
+                let t = if torpor {
                     format!("{} goes to torpor", name())
                 } else {
                     format!("{} leaves torpor", name())
-                });
+                };
+                let fact = Fact::Torpor {
+                    minion: m,
+                    enters: torpor,
+                };
+                tell(out, fact, text(t));
             }
             if blood != was_blood && was {
                 let d = i32::from(blood) - i32::from(was_blood);
-                out.push(format!("{}: {} blood ({blood})", name(), signed(d)));
+                let fact = Fact::Blood {
+                    minion: m,
+                    delta: d,
+                    blood,
+                };
+                tell(
+                    out,
+                    fact,
+                    text(format!("{}: {} blood ({blood})", name(), signed(d))),
+                );
             }
         }
         for (i, after) in now.cards.iter().enumerate() {
             if gone(e.state.cards[i].controller) {
                 continue;
             }
+            let c = CardId(i as u32);
             let before = self.cards.get(i).copied().flatten();
             let on = |host: Option<MinionId>| {
                 host.map(|m| format!(" on {}", minion_name(e, m)))
                     .unwrap_or_default()
             };
+            let name = |card: u16| LIBRARY[card as usize].name;
             match (before, *after) {
-                (None, Some((card, host))) => out.push(format!(
-                    "{} comes into play{}",
-                    LIBRARY[card as usize].name,
-                    on(host)
-                )),
+                (None, Some((card, host))) => {
+                    let t = format!("{} comes into play{}", name(card), on(host));
+                    tell(out, Fact::CardEnters { card: c, on: host }, text(t));
+                }
                 (Some((card, _)), None) => {
-                    out.push(format!("{} leaves play", LIBRARY[card as usize].name))
+                    let fact = Fact::CardLeaves {
+                        card: c,
+                        to: place(*e.state.cards[i].copy),
+                    };
+                    tell(out, fact, text(format!("{} leaves play", name(card))));
                 }
                 (Some((card, from)), Some((_, to))) if from != to => {
-                    out.push(format!("{} moves{}", LIBRARY[card as usize].name, on(to)))
+                    let t = format!("{} moves{}", name(card), on(to));
+                    tell(out, Fact::CardMoves { card: c, on: to }, text(t));
                 }
                 _ => {}
             }
