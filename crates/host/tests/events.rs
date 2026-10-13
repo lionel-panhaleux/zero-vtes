@@ -2,7 +2,8 @@
 //! views it is sent: every action and referendum that ends is told
 //! ended, a combat is told begun, its strikes, then ended, and the pool,
 //! blood and torpor the events last told are the table's. Every copy an
-//! event names is numbered; English only when the settings ask.
+//! event names is numbered; English only when the settings ask, and
+//! then what `zvtes_text` renders from the event's data (A7's oracle).
 
 use std::collections::HashMap;
 
@@ -11,6 +12,25 @@ use zvtes_api::spec::Views;
 use zvtes_api::view::{Card, TableView};
 use zvtes_api::{Command, GameSpec, In, Message, Out, Player, SeatSpec, Settings};
 use zvtes_host::{Bots, Clock, Game};
+use zvtes_text::Names;
+
+/// Card names from the engine's tables.
+struct EngineCards(HashMap<u32, &'static str>);
+
+impl zvtes_text::Cards for EngineCards {
+    fn name(&self, id: u32) -> Option<&str> {
+        self.0.get(&id).copied()
+    }
+}
+
+fn cards() -> &'static EngineCards {
+    static CARDS: std::sync::OnceLock<EngineCards> = std::sync::OnceLock::new();
+    CARDS.get_or_init(|| {
+        let crypt = zvtes::crypt::CRYPT.iter().map(|c| (c.id, c.name));
+        let library = zvtes::library::LIBRARY.iter().map(|c| (c.id, c.name));
+        EngineCards(crypt.chain(library).collect())
+    })
+}
 
 struct NoBots;
 
@@ -86,7 +106,6 @@ fn game(seed: u32, settings: Settings) -> Game {
 type Under = (u8, u32, String, Option<u32>);
 
 /// What the events told since the last view.
-#[derive(Default)]
 struct Stream {
     seed: u32,
     text: bool,
@@ -101,6 +120,9 @@ struct Stream {
     torpor: HashMap<u32, bool>,
     told: usize,
     texts: usize,
+    names: Names<'static>,
+    /// The legacy lines the renderer told otherwise: (legacy, rendered).
+    misses: Vec<(String, String)>,
 }
 
 fn numbered(c: &Card) -> bool {
@@ -111,10 +133,15 @@ impl Stream {
     fn event(&mut self, e: &Event) {
         let seed = self.seed;
         self.told += 1;
+        self.names.hear(&e.kind);
         if let Some(t) = &e.text {
             assert!(self.text, "seed {seed}: text unasked: {e:?}");
             assert!(!t.is_empty(), "seed {seed}");
             self.texts += 1;
+            let rendered = zvtes_text::event(&e.kind, &self.names).unwrap_or_default();
+            if &rendered != t {
+                self.misses.push((t.clone(), rendered));
+            }
         }
         let copy = |c: u32| assert_ne!(c, u32::MAX, "seed {seed}: an unnumbered minion: {e:?}");
         match &e.kind {
@@ -194,6 +221,7 @@ impl Stream {
 
     fn view(&mut self, v: &TableView, at: &str) {
         let seed = self.seed;
+        self.names.see(v);
         let action = v.action.as_ref().map(|a| {
             let card = a.card.and_then(|c| c.id);
             (a.seat, a.acting, format!("{:?}", a.kind), card)
@@ -251,6 +279,7 @@ impl Stream {
                 }
                 Message::Decision(d) => self.view(&d.view, &format!("decision {}", d.decision)),
                 Message::Over(over) => self.view(&over.view, "over"),
+                Message::Joined(j) => self.view(&j.view, "joined"),
                 _ => {}
             }
         }
@@ -265,6 +294,7 @@ fn cmd(command: Command) -> In {
 fn the_events_tell_what_the_views_show() {
     let seeds: u32 = std::env::var("HOST_SEEDS").map_or(16, |s| s.parse().unwrap());
     let (mut told, mut texts, mut undone) = (0, 0, 0);
+    let mut misses = Vec::new();
     for seed in 1..=seeds {
         let settings = Settings {
             opportunities: seed % 3 != 0,
@@ -277,8 +307,17 @@ fn the_events_tell_what_the_views_show() {
         let mut s = Stream {
             seed,
             text: settings.text,
+            last: None,
+            action_ended: false,
+            referendum_ended: false,
             in_combat: Some(false),
-            ..Stream::default()
+            pools: HashMap::new(),
+            blood: HashMap::new(),
+            torpor: HashMap::new(),
+            told: 0,
+            texts: 0,
+            names: Names::new(cards()),
+            misses: Vec::new(),
         };
         let mut outs = g.handle(
             human,
@@ -317,6 +356,15 @@ fn the_events_tell_what_the_views_show() {
         assert!(!settings.text || s.texts > 0, "seed {seed}: no text");
         told += s.told;
         texts += s.texts;
+        misses.extend(s.misses.into_iter().map(|m| (seed, m)));
     }
+    for (seed, (legacy, rendered)) in misses.iter().take(20) {
+        eprintln!("seed {seed}: {legacy:?} rendered {rendered:?}");
+    }
+    assert!(
+        misses.is_empty(),
+        "{} events rendered otherwise",
+        misses.len()
+    );
     eprintln!("{seeds} games: {told} events ({texts} with text), {undone} undos");
 }

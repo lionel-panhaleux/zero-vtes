@@ -2,7 +2,7 @@
 
 use serde_json::{json, Value};
 use zvtes_api::event::{ActionOutcome, ActionRef};
-use zvtes_api::ids::{ActionKind, OptionKind, Phase, Window};
+use zvtes_api::ids::{ActionKind, MinionKind, OptionKind, Phase, Window};
 use zvtes_api::option::{CardRef, ChoiceKey, DisciplineLevel, Effect, EffectKind, Mode};
 use zvtes_api::view::{Card, Target};
 use zvtes_api::*;
@@ -210,7 +210,7 @@ fn events_are_tagged_by_kind() {
             },
             seat: 2,
             on: None,
-            minion: true,
+            minion: Some(MinionKind::Vampire),
             effect: false,
         },
         text: None,
@@ -220,7 +220,7 @@ fn events_are_tagged_by_kind() {
         j,
         json!({"kind": "enters_play",
                "card": {"copy": 7, "id": 200001, "crypt": true, "nth": 1}, "seat": 2,
-               "minion": true})
+               "minion": "vampire"})
     );
     assert_eq!(serde_json::from_value::<Event>(j).unwrap(), e);
     let e = Event {

@@ -2408,6 +2408,7 @@ dependencies = [
  "zero-vtes-engine",
  "zvtes-api",
  "zvtes-protocol",
+ "zvtes-text",
 ]
 
 [[package]]
@@ -2456,6 +2457,13 @@ dependencies = [
  "zvtes-api",
  "zvtes-host",
  "zvtes-policy",
+]
+
+[[package]]
+name = "zvtes-text"
+version = "0.1.0"
+dependencies = [
+ "zvtes-api",
 ]
 
 [[package]]

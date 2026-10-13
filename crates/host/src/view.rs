@@ -434,12 +434,7 @@ impl Build<'_> {
         let m = &st.minions[i];
         let id = MinionId(i as u32);
         let (card, crypt) = minion_face(m);
-        let kind = match m.kind {
-            Mk::Vampire(_) => MinionKind::Vampire,
-            Mk::Ally { .. } => MinionKind::Ally,
-            Mk::Created { .. } | Mk::GreatBeast { .. } | Mk::Fury { .. } => MinionKind::Created,
-            Mk::Token { .. } => MinionKind::Token,
-        };
+        let kind = minion_kind(m);
         let marker = |kind, n: u8| Marker {
             kind,
             seat: None,
@@ -508,6 +503,15 @@ impl Build<'_> {
                 .collect(),
             markers,
         }
+    }
+}
+
+pub(crate) fn minion_kind(m: &zvtes::state::Minion) -> MinionKind {
+    match m.kind {
+        Mk::Vampire(_) => MinionKind::Vampire,
+        Mk::Ally { .. } => MinionKind::Ally,
+        Mk::Created { .. } | Mk::GreatBeast { .. } | Mk::Fury { .. } => MinionKind::Created,
+        Mk::Token { .. } => MinionKind::Token,
     }
 }
 

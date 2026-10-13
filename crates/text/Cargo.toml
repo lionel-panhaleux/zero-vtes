@@ -1,0 +1,14 @@
+[package]
+name = "zvtes-text"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+# The contract told in English (docs/protocol.md, `text` setting): a
+# renderer over `zvtes-api` alone, card names supplied by the caller. A
+# client that composes its own text does without it.
+[lib]
+name = "zvtes_text"
+
+[dependencies]
+zvtes-api = { path = "../api" }

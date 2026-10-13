@@ -13,7 +13,7 @@ use zvtes::ids::MinionId;
 use zvtes::library::LIBRARY;
 use zvtes::state::CardId;
 use zvtes_api::event::{ActionOutcome, ActionRef, EventKind, ReferendumOutcome, StruckSide};
-use zvtes_api::ids::{Range, Zone};
+use zvtes_api::ids::{MinionKind, Range, Zone};
 use zvtes_api::view::Card;
 use zvtes_protocol::narrate::{ActionFact, Fact};
 
@@ -46,6 +46,10 @@ impl Namer<'_> {
         let st = &self.e.state;
         let (card, crypt) = minion_face(&st.minions[m.index()]);
         self.card(minion_copy(st, m.index()), card, crypt)
+    }
+
+    fn minion_kind(&self, m: MinionId) -> MinionKind {
+        crate::view::minion_kind(&self.e.state.minions[m.index()])
     }
 
     fn minion(&mut self, m: MinionId) -> u32 {
@@ -91,7 +95,7 @@ impl Namer<'_> {
                 card: self.minion_card(minion),
                 seat: st.minions[minion.index()].owner.0,
                 on: None,
-                minion: true,
+                minion: Some(self.minion_kind(minion)),
                 effect: false,
             },
             Fact::MinionLeaves {
@@ -101,7 +105,7 @@ impl Namer<'_> {
             } => EventKind::LeavesPlay {
                 card: self.minion_card(minion),
                 to: to.and_then(zone),
-                minion: true,
+                minion: Some(self.minion_kind(minion)),
                 contested,
                 effect: false,
             },
@@ -122,13 +126,13 @@ impl Namer<'_> {
                 card: self.in_play(card),
                 seat: st.cards[card.index()].controller.0,
                 on: on.map(|m| self.minion(m)),
-                minion: false,
+                minion: None,
                 effect: st.cards[card.index()].effect_only,
             },
             Fact::CardLeaves { card, to } => EventKind::LeavesPlay {
                 card: self.in_play(card),
                 to: to.and_then(zone),
-                minion: false,
+                minion: None,
                 contested: false,
                 effect: st.cards[card.index()].effect_only,
             },

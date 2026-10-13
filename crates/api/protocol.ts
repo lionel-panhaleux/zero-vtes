@@ -512,8 +512,8 @@ export type Event = {
          */
         effect?: boolean
         kind: 'enters_play'
-        /** A minion (a vampire, an ally, a token), not a card on the table. */
-        minion?: boolean
+        /** A minion, of this kind (not a card on the table). */
+        minion?: MinionKind | null
         on?: number | null
         /** Its controller. */
         seat: number
@@ -537,7 +537,7 @@ export type Event = {
          */
         effect?: boolean
         kind: 'leaves_play'
-        minion?: boolean
+        minion?: MinionKind | null
         to?: Zone | null
     }
     | {
