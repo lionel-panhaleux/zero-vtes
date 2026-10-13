@@ -803,11 +803,22 @@
       ]
     },
     "Effect": {
-      "description": "One thing an option does, to whom.",
+      "description": "One thing an option does, to whom (docs/protocol.md §7): a curated\nvocabulary — a kind, an amount, whom it applies to — not the engine's\nown effects.",
       "type": "object",
       "properties": {
+        "action": {
+          "description": "An action declared (`action`).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ActionKind"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "card": {
-          "description": "A card named (to hand, discarded).",
+          "description": "A card named (to hand, discarded, fetched).",
           "type": [
             "integer",
             "null"
@@ -816,7 +827,7 @@
           "minimum": 0
         },
         "copy": {
-          "description": "The minion or card in play it applies to.",
+          "description": "The minion or card in play it applies to, when known.",
           "type": [
             "integer",
             "null"
@@ -824,16 +835,55 @@
           "format": "uint32",
           "minimum": 0
         },
+        "cost": {
+          "description": "A cost paid to take the option, not what it does.",
+          "type": "boolean"
+        },
+        "detail": {
+          "description": "What sets it apart within its kind, a snake_case id: `this_round`,\n`guns`, `per_counter`, `then_bottom`… (docs/protocol.md §7).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "favor": {
+          "description": "Votes for (true) or against.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "kind": {
           "$ref": "#/$defs/EffectKind"
         },
         "n": {
-          "description": "Signed: gained (+) or lost (−).",
+          "description": "Signed: gained (+) or lost, spent (−); with `x`, per X.",
           "type": [
             "integer",
             "null"
           ],
           "format": "int32"
+        },
+        "on": {
+          "description": "Whom it applies to, as the option sees it: its target, the card's\nminion, the acting minion…; the seat's own when absent.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/On"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "range": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Range"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "role": {
           "description": "What a chosen minion or Methuselah becomes (`role`).",
@@ -847,7 +897,7 @@
           ]
         },
         "seat": {
-          "description": "The Methuselah it applies to (a pool, a hand).",
+          "description": "The Methuselah it applies to (a pool, a hand), when known.",
           "type": [
             "integer",
             "null"
@@ -855,6 +905,17 @@
           "format": "uint8",
           "maximum": 255,
           "minimum": 0
+        },
+        "strike": {
+          "description": "A strike (`strike`).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Strike"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "to": {
           "anyOf": [
@@ -865,6 +926,21 @@
               "type": "null"
             }
           ]
+        },
+        "when": {
+          "description": "Only if this comes to pass.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/When"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "x": {
+          "description": "The amount is the X chosen (times `n` when given).",
+          "type": "boolean"
         }
       },
       "required": [
@@ -879,20 +955,67 @@
             "pool",
             "blood",
             "counters",
+            "transfers",
             "damage",
+            "strike",
+            "strength",
+            "stealth",
+            "intercept",
+            "bleed",
+            "prevent",
+            "press",
+            "maneuver",
+            "range",
+            "end_combat",
+            "enter_combat",
             "burn",
             "lock",
             "unlock",
+            "steal",
             "draw",
             "discard",
-            "steal",
+            "search",
+            "votes",
+            "referendum",
+            "cancel",
+            "hand_size",
             "corruption"
           ]
         },
         {
-          "description": "A card moved to a zone (`to`): a hand, a library, the\nuncontrolled region.",
+          "description": "An ally's life.",
+          "type": "string",
+          "const": "life"
+        },
+        {
+          "description": "Immune to damage (`detail`: from a strike, from effects).",
+          "type": "string",
+          "const": "immune"
+        },
+        {
+          "description": "A card moved to a zone (`to`), or a minion (`detail`).",
           "type": "string",
           "const": "move"
+        },
+        {
+          "description": "The action or the referendum fails (`detail`).",
+          "type": "string",
+          "const": "fails"
+        },
+        {
+          "description": "An action declared (`action`), or one granted (`detail`).",
+          "type": "string",
+          "const": "action"
+        },
+        {
+          "description": "The action is a hunt.",
+          "type": "string",
+          "const": "hunt"
+        },
+        {
+          "description": "A cost reduced.",
+          "type": "string",
+          "const": "cost"
         },
         {
           "description": "The card or minion stays (a cost paid to keep it).",
@@ -2497,6 +2620,56 @@
         "line"
       ]
     },
+    "On": {
+      "description": "Whom an effect applies to, from the option.",
+      "oneOf": [
+        {
+          "description": "The option's target.",
+          "type": "string",
+          "const": "target"
+        },
+        {
+          "description": "The minion the card or ability is on.",
+          "type": "string",
+          "const": "host"
+        },
+        {
+          "description": "The minion playing the card or using the ability.",
+          "type": "string",
+          "const": "actor"
+        },
+        {
+          "description": "The acting minion of the action under way.",
+          "type": "string",
+          "const": "acting"
+        },
+        {
+          "description": "The minion the card chose.",
+          "type": "string",
+          "const": "chosen"
+        },
+        {
+          "description": "The card itself.",
+          "type": "string",
+          "const": "card"
+        },
+        {
+          "description": "The target uncontrolled vampire.",
+          "type": "string",
+          "const": "uncontrolled"
+        },
+        {
+          "description": "The seat's prey.",
+          "type": "string",
+          "const": "prey"
+        },
+        {
+          "description": "A value this reader does not know.",
+          "type": "string",
+          "const": "unknown"
+        }
+      ]
+    },
     "OptionKind": {
       "description": "What an option does (the engine's choice kinds).",
       "oneOf": [
@@ -2578,6 +2751,16 @@
       "description": "An option offered: its index (what an answer names), what it is, and\nwhat it does.",
       "type": "object",
       "properties": {
+        "abilities": {
+          "description": "An ability's: how many its source has (`key.ability` says which).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0
+        },
         "ability": {
           "description": "Which of a card's abilities, when it has several.",
           "type": [
@@ -4261,6 +4444,26 @@
       "required": [
         "favor",
         "against"
+      ]
+    },
+    "When": {
+      "description": "What an effect waits on.",
+      "oneOf": [
+        {
+          "description": "The action succeeds.",
+          "type": "string",
+          "const": "successful"
+        },
+        {
+          "description": "The bleed succeeds.",
+          "type": "string",
+          "const": "bleed_successful"
+        },
+        {
+          "description": "A value this reader does not know.",
+          "type": "string",
+          "const": "unknown"
+        }
       ]
     },
     "Window": {

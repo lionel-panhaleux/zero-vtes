@@ -508,6 +508,7 @@ impl Game {
                                     let names = &self.viewer.numbering;
                                     v.key = describe::key(e, r, c, names);
                                     v.effects = describe::effects(e, r, c, names);
+                                    v.abilities = describe::abilities(e, c);
                                 }
                                 v
                             })

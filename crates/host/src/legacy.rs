@@ -99,6 +99,7 @@ impl<'a> Ctx<'a> {
                 ability: None,
             },
             effects: vec![],
+            abilities: None,
             text: self.text(&o.text),
         }
     }

@@ -18,6 +18,7 @@ use zvtes_api::ids::{OptionKind, Role, Zone};
 use zvtes_api::option::{CardRef, ChoiceKey, Effect, EffectKind, ZoneRef};
 use zvtes_api::view::Target;
 
+use crate::effects::{curated, Whom};
 use crate::view::{action_kind, minion_copy, mode, snake};
 
 /// How copies are named: a viewer's numbers, or the engine's.
@@ -149,9 +150,9 @@ fn library(c: u16) -> CardRef {
     }
 }
 
-/// What taking `choice` does that its key does not say (A3c: grown
-/// kind by kind as the renderer needs it). Today: a play choosing a
-/// second vampire after its target (Toreador Grand Ball).
+/// What taking `choice` does (docs/protocol.md §7): an ability's
+/// effects, a play's mode's, each naming whom it applies to by copy; a
+/// play choosing a second vampire after its target says its role.
 pub fn effects(
     e: &Engine,
     req: &DecisionRequest,
@@ -164,43 +165,94 @@ pub fn effects(
         seat: req.seat,
         names,
     };
-    let effect = |kind| Effect {
-        kind,
-        seat: None,
-        copy: None,
-        n: None,
-        card: None,
-        to: None,
-        role: None,
-    };
-    let mut out = Vec::new();
-    if let Choice::Play {
-        card, mode, target, ..
-    } = *choice
-    {
-        let played = e.virtual_hand(req.seat)[card as usize].0;
-        let m = zvtes::cards::lookup(played).and_then(|d| d.modes.get(mode as usize));
-        if let Some(m) = m.filter(|m| matches!(m.terms, Some(Terms::OwnOfClan { .. }))) {
-            if let (true, T::Minion(t)) = (m.effects.contains(&E::LockTarget), target) {
+    let st = &e.state;
+    match *choice {
+        Choice::Play {
+            card,
+            mode,
+            actor,
+            target,
+        } => {
+            let played = e.virtual_hand(req.seat)[card as usize].0;
+            let Some(m) = zvtes::cards::lookup(played).and_then(|d| d.modes.get(mode as usize))
+            else {
+                return Vec::new();
+            };
+            let whom = Whom {
+                target: x.target(target).and_then(|t| match t {
+                    Target::Card { copy } => Some(copy),
+                    Target::Seat { .. } => None,
+                }),
+                actor: actor.map(|a| x.minion(a)),
+                ..Whom::default()
+            };
+            let mut out = curated(m.effects, whom);
+            if matches!(m.terms, Some(Terms::OwnOfClan { .. })) {
+                let unblockable = m
+                    .effects
+                    .contains(&E::Layer(Modifier::SecondChosenUnblockable));
                 out.push(Effect {
-                    copy: Some(x.minion(t)),
-                    ..effect(EffectKind::Lock)
+                    role: Some(if unblockable {
+                        Role::UnblockableNonBleed
+                    } else {
+                        Role::Chosen
+                    }),
+                    ..Effect::new(EffectKind::Role)
                 });
             }
-            let unblockable = m
-                .effects
-                .contains(&E::Layer(Modifier::SecondChosenUnblockable));
-            out.push(Effect {
-                role: Some(if unblockable {
-                    Role::UnblockableNonBleed
-                } else {
-                    Role::Chosen
-                }),
-                ..effect(EffectKind::Role)
-            });
+            out
         }
+        Choice::UseAbility {
+            source,
+            ability,
+            actor,
+            target,
+        } => {
+            let (abilities, host, card) = match source {
+                AbilitySource::Card(c) => {
+                    let k = &st.cards[c.index()];
+                    let abilities = zvtes::cards::lookup(k.card).map_or(&[][..], |d| d.abilities);
+                    (abilities, k.host.map(|m| x.minion(m)), Some(x.card(c)))
+                }
+                AbilitySource::Vampire(m) => {
+                    let v = &st.minions[m.index()];
+                    let abilities = zvtes::cards::vampire_of(v).map_or(&[][..], |d| d.abilities);
+                    (abilities, Some(x.minion(m)), None)
+                }
+            };
+            let Some(a) = abilities.get(ability as usize) else {
+                return Vec::new();
+            };
+            let whom = Whom {
+                target: x.target(target).and_then(|t| match t {
+                    Target::Card { copy } => Some(copy),
+                    Target::Seat { .. } => None,
+                }),
+                host,
+                actor: actor.map(|a| x.minion(a)),
+                card,
+            };
+            curated(a.effects, whom)
+        }
+        _ => Vec::new(),
     }
-    out
+}
+
+/// An ability's: how many its source has.
+pub fn abilities(e: &Engine, choice: &Choice) -> Option<u8> {
+    let Choice::UseAbility { source, .. } = *choice else {
+        return None;
+    };
+    let st = &e.state;
+    let n = match source {
+        AbilitySource::Card(c) => {
+            zvtes::cards::lookup(st.cards[c.index()].card).map_or(0, |d| d.abilities.len())
+        }
+        AbilitySource::Vampire(m) => {
+            zvtes::cards::vampire_of(&st.minions[m.index()]).map_or(0, |d| d.abilities.len())
+        }
+    };
+    Some(n as u8)
 }
 
 /// The card whose terms a terms decision chooses (`Decision::source`):
