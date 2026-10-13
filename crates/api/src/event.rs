@@ -109,6 +109,11 @@ pub enum EventKind {
     Ousted {
         seat: Seat,
     },
+    /// The Edge goes to `seat` (absent: burned, no one holds it).
+    Edge {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        seat: Option<Seat>,
+    },
     BlockFails {
         minion: CopyId,
     },

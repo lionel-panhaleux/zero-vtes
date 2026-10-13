@@ -1335,8 +1335,11 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
             });
         }
         // The Great Beast's Disciplines: a slot of the Discipline list.
+        // The Great Beast's Disciplines: the one this slot of the list is.
         Choice::Slot(i) if matches!(e.interrupt(), Some(Interrupt::BeastDisciplines { .. })) => {
-            k.amount = Some(i)
+            k.value = zvtes::cards::GREAT_BEAST_DISCIPLINES
+                .get(i as usize)
+                .map(|d| d.to_lowercase())
         }
         Choice::Slot(i) => k.card = Some(x.slot(i)),
         Choice::Transfer { slot }

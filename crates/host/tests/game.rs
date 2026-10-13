@@ -34,7 +34,7 @@ impl Clock for Ticks {
 }
 
 fn spec(seed: u32, human: usize, settings: Settings) -> GameSpec {
-    let decks = zvtes_protocol::deck::catalog();
+    let decks = zvtes_host::catalog();
     let styles = ["aggro_bleed", "wall", "random"];
     GameSpec {
         seed: Some(seed),
@@ -45,7 +45,7 @@ fn spec(seed: u32, human: usize, settings: Settings) -> GameSpec {
                 let (name, list) = &decks[(seed as usize + i * 3) % decks.len()];
                 SeatSpec {
                     name: name.to_string(),
-                    deck: list.iter().map(|(k, &v)| (k.clone(), v as u32)).collect(),
+                    deck: list.clone(),
                     player: if i == human {
                         Player::Human { settings }
                     } else {

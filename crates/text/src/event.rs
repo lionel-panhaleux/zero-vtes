@@ -72,6 +72,8 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
             format!("{} {how}", n.minion(*minion))
         }
         EventKind::Ousted { seat } => format!("{} is ousted", n.seat(*seat)),
+        EventKind::Edge { seat: Some(s) } => format!("{} gains the Edge", n.seat(*s)),
+        EventKind::Edge { seat: None } => "The Edge is burned".into(),
         EventKind::BlockFails { minion } => format!("{} fails to block", n.minion(*minion)),
         EventKind::ActionEnds {
             seat,

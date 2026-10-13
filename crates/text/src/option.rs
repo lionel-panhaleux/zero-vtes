@@ -3,6 +3,7 @@
 //! `None`: a kind not rendered yet (A7 ratchets kind by kind).
 
 use zvtes_api::ids::{ActionKind, OptionKind as K, Purpose, Role, Window, Zone};
+use zvtes_api::message::About;
 use zvtes_api::option::{EffectKind, Mode, On, OptionView};
 use zvtes_api::view::Target;
 
@@ -10,13 +11,14 @@ use crate::effect::{label, parts};
 use crate::event::{action_kind, strike};
 use crate::Names;
 
-/// An option offered at `window`, for `purpose` (among `offered`), to
-/// `seat`.
+/// An option offered at `window`, for `purpose` (with its particulars,
+/// `about`; among `offered`), to `seat`.
 #[allow(clippy::too_many_arguments)]
 pub fn option(
     o: &OptionView,
     window: Window,
     purpose: Option<Purpose>,
+    about: Option<&About>,
     seat: u8,
     offered: &[OptionView],
     n: &Names,
@@ -24,7 +26,7 @@ pub fn option(
     let base = base(o, window, seat, offered, n);
     match purpose {
         None => base,
-        Some(p) => asked(o, p, base, offered, n),
+        Some(p) => asked(o, p, about, base, offered, n),
     }
 }
 
@@ -45,10 +47,27 @@ fn base(
     let minion = |c: Option<u32>| n.minion_bare(c.unwrap_or(u32::MAX));
     let target = || match k.target {
         Some(Target::Seat { seat }) => n.seat(seat),
+        // A copy never shown: another seat's face down vampire.
+        Some(Target::Card { copy }) if !n.knows(copy) => "an uncontrolled vampire".into(),
         Some(Target::Card { copy }) => n.copy_bare(copy),
         None => String::new(),
     };
     let votes = |f: Option<bool>| if f == Some(true) { "for" } else { "against" };
+    // A card in play: as the table names it (`own`: without the minion
+    // it is on), else by its own name (a copy the viewer does not number).
+    let in_play = |own: bool| {
+        let c = k.card.as_ref()?;
+        Some(match c.copy {
+            Some(copy) if n.knows(copy) && own => n.own(copy),
+            Some(copy) if n.knows(copy) => n.copy_bare(copy),
+            _ => n.card_id(c.id),
+        })
+    };
+    // An uncontrolled vampire: another seat's face down is a back, unnamed.
+    let slot = || match k.target {
+        Some(Target::Card { copy }) if !n.knows(copy) => "an uncontrolled vampire".to_string(),
+        _ => target(),
+    };
     Some(match k.kind {
         K::Pass if window == Window::ActionBlock => block_pass(seat, n).into(),
         // A cost's terms: the pass reduces nothing.
@@ -74,7 +93,38 @@ fn base(
         }
         K::Pass => pass(window)?.into(),
         K::EdgePool => "Gain 1 pool (the Edge)".into(),
-        K::ResolveRider => format!("Resolve {}", n.own(k.card.as_ref()?.copy?)),
+        K::TakeFrom => {
+            let from = match k.zone.as_ref()?.zone {
+                Zone::Library => "the library",
+                Zone::Hand => "the hand",
+                _ => "the ash heap",
+            };
+            format!("Take {} from {from}", card())
+        }
+        K::TakeEquipment => format!("Take {}", in_play(true)?),
+        K::ChooseDiscipline => format!("Choose [{}]", k.value.as_deref()?),
+        K::AllocateToCard => {
+            let Some(Target::Card { copy }) = k.target else {
+                return None;
+            };
+            let burned = o.effects.iter().any(|e| e.kind == EffectKind::Burn);
+            format!(
+                "Allocate {} to {}{}",
+                k.amount?,
+                n.own(copy),
+                if burned { " (burned)" } else { "" }
+            )
+        }
+        K::BurnWeaponStrike => format!("Strike: burn {}", in_play(true)?),
+        K::BurnCorruptionToFail => format!(
+            "Burn a corruption counter from {}: its block fails",
+            minion(k.minion)
+        ),
+        K::BurnCorruptionToUnlock => format!(
+            "Burn 2 corruption counters from {} to unlock",
+            minion(k.minion)
+        ),
+        K::ResolveRider => format!("Resolve {}", in_play(true)?),
         // A card, a title or a library card contested.
         K::PayContest | K::YieldContest => {
             let what = match (&k.card, k.minion) {
@@ -90,11 +140,11 @@ fn base(
                 _ => format!("Yield {what}"),
             }
         }
-        K::BurnInPlay => format!("Burn {}", n.copy_bare(k.card.as_ref()?.copy?)),
-        K::Transfer => format!("Transfer 1 pool to {}", target()),
-        K::Withdraw => format!("Move 1 blood from {} back to pool", target()),
-        K::InfluenceOut => format!("Influence out {}", target()),
-        K::Merge => format!("Merge {} (4 transfers and 1 pool)", target()),
+        K::BurnInPlay => format!("Burn {}", in_play(false)?),
+        K::Transfer => format!("Transfer 1 pool to {}", slot()),
+        K::Withdraw => format!("Move 1 blood from {} back to pool", slot()),
+        K::InfluenceOut => format!("Influence out {}", slot()),
+        K::Merge => format!("Merge {} (4 transfers and 1 pool)", slot()),
         K::DrawCrypt => match (window, n.action()) {
             (Window::InfluenceTransfers, _) => "Draw a crypt card (4 transfers)".into(),
             // In an action: Enthrall's "burn 1 blood to draw 1 card from
@@ -225,7 +275,7 @@ fn base(
         K::ChooseMinion => format!("Choose {}", minion(k.minion)),
         K::ChooseSeat => format!("Choose {}", target()),
         K::ChooseCard => {
-            let name = n.copy_bare(k.card.as_ref()?.copy?);
+            let name = in_play(false)?;
             match o.effects.iter().any(|e| e.kind == EffectKind::Steal) {
                 // A referendum's terms: the card that changes control.
                 true => format!("Choose {name} (changes control)"),
@@ -233,11 +283,15 @@ fn base(
             }
         }
         K::ChooseCircle => format!("Choose the {} Circle", n.value(k.value.as_deref()?)),
+        // The Great Beast's Discipline.
+        K::Slot if k.card.is_none() => format!("Choose [{}] at superior", k.value.as_deref()?),
         K::Slot => {
             let c = k.card.as_ref()?;
-            let name = match c.copy {
-                Some(copy) => n.copy_bare(copy),
-                None => n.card_id(c.id),
+            let name = match (c.copy, c.id) {
+                (Some(copy), _) if n.knows(copy) => n.copy_bare(copy),
+                (_, Some(id)) => n.card_id(Some(id)),
+                // Another seat's face down: a back.
+                _ => "an uncontrolled vampire".into(),
             };
             format!("Choose {name}")
         }
@@ -326,12 +380,23 @@ fn base(
 fn asked(
     o: &OptionView,
     p: Purpose,
+    about: Option<&About>,
     base: Option<String>,
     offered: &[OptionView],
     n: &Names,
 ) -> Option<String> {
     use Purpose as P;
     let k = &o.key;
+    // The purpose's particulars (`Decision::about`): the minion, the card.
+    let whom = || Some(n.minion_bare(about?.minion?));
+    let named = || {
+        let c = about?.card.as_ref()?;
+        Some(match (c.id, c.copy) {
+            (Some(id), _) => n.card_id(Some(id)),
+            (None, Some(copy)) => n.own(copy),
+            (None, None) => return None,
+        })
+    };
     let role = |r: &str| Some(format!("{} ({r})", base.clone()?));
     let verb = |from: &str, to: &str| Some(base.clone()?.replacen(from, to, 1));
     let card = || n.card_id(k.card.as_ref().and_then(|c| c.id));
@@ -426,40 +491,69 @@ fn asked(
         (P::ChooseCircle, K::Pass) => "Keep his own circle".into(),
         (P::StoreSearch | P::DisciplineSearch, K::Pass) => "Stop searching".into(),
         (P::BlockToll, K::Pass) => "Resign the attempt".into(),
-        // What legacy says for the choice and is not told from data yet.
-        (
-            P::GiveBlood
-            | P::LockOrDiscard
-            | P::AllySearch
-            | P::MayDrawExtra
-            | P::Redraw
-            | P::EntryBurn
-            | P::EntryRemoveOrBurn
-            | P::MayPutOn
-            | P::MayAddCounter
-            | P::MayTorture
-            | P::MayGainPool
-            | P::CancelAttempt
-            | P::CorruptionOwner
-            | P::AvoidDamage
-            | P::PoolForCard
-            | P::LockForPool
-            | P::StealForCorruption
-            | P::MakeAnarch
-            | P::BecomesAnarch
-            | P::UncontrolledBlood
-            | P::LockOrPay
-            | P::BaseSearch
-            | P::PreySlotToPool
-            | P::MayRecycleCanceled
-            | P::NameAshPair
-            | P::AllyFromAsh
-            | P::MoveForBlood
-            | P::MoveCardToTitled,
-            _,
-        )
-        | (P::MinionOf | P::RemoveUncontrolled | P::RemoveFromAsh | P::AshurPicks, _)
-        | (P::ExchangeAnarch, K::Pass) => return None,
+        (P::GiveBlood, K::ChooseMinion) => role("receives 1 blood")?,
+        (P::LockOrDiscard, K::Pass) => format!("Lock {}", whom()?),
+        (P::AllySearch, K::Pass) => "Find nothing".into(),
+        (P::MayDrawExtra, K::Pass) => "Draw no more".into(),
+        (P::MayDrawExtra, K::DrawLibrary) => "Draw an additional card".into(),
+        (P::Redraw, K::Pass) => format!("Keep {}", named()?),
+        (P::Redraw, K::DrawLibrary) => {
+            format!("Put {} on the bottom and draw a new card", named()?)
+        }
+        (P::EntryBurn, K::ChooseMinion) => role("burned")?,
+        (P::MayPutOn, K::Pass) => format!("Leave {} in the ash heap", named()?),
+        (P::MayAddCounter, K::Pass) => "Add no counter".into(),
+        (P::MayAddCounter, K::ResolveRider) => format!("Add 1 counter to {}", named()?),
+        (P::MayTorture, K::Pass) => "No torture counter".into(),
+        (P::MayTorture, K::ResolveRider) => "Lock The Path of Lilith: a torture counter".into(),
+        (P::MayGainPool, K::Pass) => "Gain no pool".into(),
+        (P::MayGainPool, K::ResolvePrinted) => format!("Gain {} pool", about?.n?),
+        (P::EntryRemoveOrBurn, K::Pass) => format!("Burn {}", whom()?),
+        (P::EntryRemoveOrBurn, K::FindCard) => verb("Take ", "Remove ")?,
+        (P::EntryRemoveOrBurn, K::AshVampire) => verb("Choose ", "Remove ")?,
+        (P::CancelAttempt, K::ChooseMinion) => "Cancel the attempt".into(),
+        (P::CancelAttempt, K::Pass) => "Keep the attempt".into(),
+        (P::CorruptionOwner, K::ChooseSeat) => role("their counter burns")?,
+        (P::AvoidDamage, K::Pass) => format!("Take the {} damage", about?.m?),
+        (P::AvoidDamage, K::BurnBloodToAvoid) => {
+            format!("Burn {} blood to avoid the damage", about?.n?)
+        }
+        (P::PoolForCard, K::ResolveRider) => {
+            format!("Burn {}: gain {} pool", named()?, about?.n?)
+        }
+        (P::LockForPool, K::ResolveRider) => {
+            format!("Lock {}: gain {} pool", named()?, about?.n?)
+        }
+        (P::PoolForCard | P::LockForPool, K::Pass) => "No pool".into(),
+        (P::StealForCorruption, K::ChooseMinion) => format!("Steal {}", whom()?),
+        (P::StealForCorruption, K::Pass) => "Don't steal".into(),
+        (P::MakeAnarch, K::ResolveRider) => {
+            format!("Burn 1 blood from {}: {} becomes Anarch", named()?, whom()?)
+        }
+        (P::MakeAnarch, K::Pass) => "No Anarch".into(),
+        (P::BecomesAnarch, K::ChooseMinion) => role("becomes Anarch")?,
+        (P::UncontrolledBlood, K::Slot) => role(&format!("gets {} blood", about?.n?))?,
+        (P::LockOrPay, K::ResolveRider) => format!("Lock {}", named()?),
+        (P::LockOrPay, K::BurnPool) => format!("Burn {} pool", about?.n?),
+        (P::BaseSearch, K::AshVampire) => format!("Merge with {}", card()),
+        (P::BaseSearch, K::Slot) => "Merge with this vampire".into(),
+        (P::PreySlotToPool, K::Slot) => format!(
+            "1 blood from an uncontrolled vampire of {} to their pool",
+            n.seat(about?.seat?)
+        ),
+        (P::MayRecycleCanceled, K::ResolvePrinted) => {
+            format!("Shuffle {} into your library", named()?)
+        }
+        (P::NameAshPair, K::FindCard) => format!("Remove two {}", card()),
+        (P::AllyFromAsh, K::FindCard) => format!("Move {} to your ready region", card()),
+        (P::MoveForBlood, K::ChooseMinion) => format!(
+            "{} burns {} blood: move {} to your ready region",
+            whom()?,
+            about?.n?,
+            n.minion_bare(about?.to?)
+        ),
+        (P::MoveForBlood, K::Pass) => "Don't move it".into(),
+        (P::MoveCardToTitled, K::ChooseMinion) => role(&format!("gets {}", named()?))?,
         // The rest reads as anywhere.
         _ => base?,
     })

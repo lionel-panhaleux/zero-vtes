@@ -4,13 +4,15 @@
 //! server and the wasm module are thin shells over it.
 
 pub mod cards;
+pub mod deck;
 pub mod describe;
 mod effects;
 mod events;
 mod game;
 pub mod ids;
-mod legacy;
+pub mod narrate;
 pub mod numbering;
+pub mod session;
 pub mod view;
 
 pub use game::{Bots, Clock, Game, SystemClock, BUILT_IN};
@@ -20,24 +22,12 @@ use zvtes_api::DeckList;
 
 /// The precon decklists the engine plays: (name, list).
 pub fn catalog() -> Vec<(String, DeckList)> {
-    zvtes_protocol::deck::catalog()
-        .into_iter()
-        .map(|(name, list)| {
-            let list = list.into_iter().map(|(k, v)| (k, v as u32)).collect();
-            (name.to_string(), list)
-        })
-        .collect()
+    deck::catalog()
 }
 
 /// Whether the engine can play a decklist (as seat 0).
 pub fn check_deck(list: &DeckList) -> Result<(), SpecError> {
-    let list = list
-        .iter()
-        .map(|(k, &v)| (k.clone(), v.min(u8::MAX as u32) as u8))
-        .collect();
-    zvtes_protocol::deck::resolve(&list)
-        .map(|_| ())
-        .map_err(|e| game::deck_error(0, e))
+    deck::resolve(0, list).map(|_| ())
 }
 
 /// The engine's version: the commit this was built from.

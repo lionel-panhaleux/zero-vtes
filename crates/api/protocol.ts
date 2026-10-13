@@ -647,6 +647,10 @@ export type Event = {
         seat: number
     }
     | {
+        kind: 'edge'
+        seat?: number | null
+    }
+    | {
         kind: 'block_fails'
         minion: number
     }

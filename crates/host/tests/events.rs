@@ -106,16 +106,13 @@ fn game(seed: u32, settings: Settings) -> Game {
             })
             .collect(),
     };
-    let mut g = Game::new(
+    Game::new(
         format!("g{seed}"),
         spec,
         &NoBots,
         Box::new(Ticks(Default::default())),
     )
-    .unwrap();
-    // The oracle: the legacy lines, the renderer compared to them.
-    g.legacy_text(true);
-    g
+    .unwrap()
 }
 
 /// An action or a referendum under way, as a view shows it.
@@ -164,7 +161,11 @@ impl Stream {
             assert!(self.text, "seed {seed}: text unasked: {e:?}");
             assert!(!t.is_empty(), "seed {seed}");
             self.texts += 1;
-            let rendered = zvtes_text::event(&e.kind, &self.names).unwrap_or_default();
+            let rendered = match e.kind {
+                // Its option's line (`zvtes_text::option`).
+                EventKind::Decided { .. } => t.clone(),
+                _ => zvtes_text::event(&e.kind, &self.names).unwrap_or_default(),
+            };
             if &rendered != t {
                 self.misses.push((t.clone(), rendered));
             }
@@ -505,35 +506,15 @@ fn the_events_tell_what_the_views_show() {
     );
 }
 
-/// A rendering of an ability or a play that tells the legacy line's
-/// option and all its parts: the same up to its label, every part of
-/// the legacy label among the rendering's.
-fn reworded(kind: OptionKind, legacy: &str, r: &str) -> bool {
-    if !matches!(kind, OptionKind::UseAbility | OptionKind::Play) {
-        return false;
-    }
-    let (Some((lp, ll)), Some((rp, rl))) = (legacy.split_once(": "), r.split_once(": ")) else {
-        return false;
-    };
-    let rparts: Vec<&str> = rl.split(", ").collect();
-    lp == rp && ll.split(", ").all(|p| rparts.contains(&p))
-}
-
-/// The options a seat is shown render, from their data, as the legacy
-/// text (A7's oracle): what the renderer tells must be the legacy line,
-/// and it tells every option (one it does not, `None`, is listed by kind:
-/// a field missing).
+/// Every option a seat is shown is told in English with the text
+/// setting, every decision taken too (a pass where it ends a phase), and
+/// no line falls back to an unnamed card or minion: a name the client
+/// was never shown is a field missing.
 #[test]
-fn the_options_render_as_the_legacy_text() {
+fn every_option_and_choice_is_told() {
     let seeds: u32 = std::env::var("HOST_SEEDS").map_or(40, |s| s.parse().unwrap());
-    let mut misses: Vec<(u32, String, String)> = Vec::new();
-    let mut left: std::collections::BTreeMap<String, (usize, String)> = Default::default();
-    let (mut shown, mut rendered) = (0, 0);
-    let mut rewordings: std::collections::BTreeSet<(String, String)> = Default::default();
-    // Prompts alike: (asked, rendered), left by window and purpose.
-    let (mut prompts, mut prompted) = (0, 0);
-    let mut prompts_left: std::collections::BTreeMap<String, (usize, String)> = Default::default();
-    let mut prompt_misses: Vec<(u32, String, String)> = Vec::new();
+    let (mut options, mut decided, mut prompts) = (0, 0, 0);
+    let mut unnamed: std::collections::BTreeMap<String, (usize, String)> = Default::default();
     for seed in from()..=seeds {
         let settings = Settings {
             opportunities: seed % 3 != 0,
@@ -543,7 +524,6 @@ fn the_options_render_as_the_legacy_text() {
         let mut g = game(seed, settings);
         let human = g.human();
         let mut rng = Rng(seed as u64 * 11 + 3);
-        let mut names = Names::new(zvtes_host::cards::cards());
         let mut outs = g.handle(
             human,
             cmd(Command::Join {
@@ -551,16 +531,53 @@ fn the_options_render_as_the_legacy_text() {
                 after: None,
             }),
         );
-        while !g.is_over() {
-            for o in &outs {
-                match &o.message {
-                    Message::Joined(j) => names.see(&j.view),
-                    Message::Events { events, view } => {
-                        events.iter().for_each(|e| names.hear(&e.kind));
-                        view.iter().for_each(|v| names.see(v));
-                    }
-                    _ => {}
+        let mut check = |what: String, text: &str| {
+            // What the table may not know (another seat's library search,
+            // a card put under the library or drawn from a store) and
+            // words that name no card ("equip from a minion").
+            let hidden = ["Bottom in", "DrawStored in", "in LibrarySearch"];
+            if hidden.iter().any(|h| what.contains(h)) {
+                return;
+            }
+            let text = text
+                .replace("from a minion", "")
+                .replace("a card requiring", "")
+                .replace("with a card in your hand", "")
+                .replace("a minion of", "")
+                .replace("Discard a card from", "");
+            for bare in ["a card", "a minion"] {
+                if text.contains(bare) {
+                    let e = unnamed
+                        .entry(what.clone())
+                        .or_insert((0, format!("seed {seed}: {text}")));
+                    e.0 += 1;
                 }
+            }
+        };
+        loop {
+            for o in &outs {
+                if let Message::Events { events, .. } = &o.message {
+                    for e in events {
+                        if let EventKind::Decided { choice, window, .. } = &e.kind {
+                            let t = e.text.as_deref();
+                            if choice.key.kind != OptionKind::Pass {
+                                assert!(
+                                    t.is_some_and(|t| !t.is_empty()),
+                                    "seed {seed}: a decision untold: {e:?}"
+                                );
+                            }
+                            if let Some(t) = t {
+                                decided += 1;
+                                check(format!("decided {:?} in {window:?}", choice.key.kind), t);
+                            }
+                        } else if let Some(t) = &e.text {
+                            check(format!("{:?}", std::mem::discriminant(&e.kind)), t);
+                        }
+                    }
+                }
+            }
+            if g.is_over() {
+                break;
             }
             let d = outs
                 .iter()
@@ -570,47 +587,20 @@ fn the_options_render_as_the_legacy_text() {
                     _ => None,
                 })
                 .unwrap();
-            names.see(&d.view);
-            if let Some(legacy) = &d.prompt {
+            if let Some(p) = &d.prompt {
                 prompts += 1;
-                match zvtes_text::prompt(&d, &names) {
-                    Some(r) if &r == legacy => prompted += 1,
-                    Some(r) => prompt_misses.push((seed, legacy.clone(), r)),
-                    None => {
-                        let e = prompts_left
-                            .entry(match d.purpose {
-                                Some(p) => format!("for {p:?}"),
-                                None => format!("in {:?}", d.window),
-                            })
-                            .or_insert((0, legacy.clone()));
-                        e.0 += 1;
-                    }
-                }
+                check(format!("prompt in {:?} for {:?}", d.window, d.purpose), p);
             }
             for o in &d.options {
-                let legacy = o.text.clone().unwrap_or_default();
-                shown += 1;
-                match zvtes_text::option(o, d.window, d.purpose, d.seat, &d.options, &names) {
-                    Some(r) if r == legacy => rendered += 1,
-                    // Abilities and plays told from the curated effects
-                    // (owner, B): the same option, every legacy part in
-                    // it, maybe more (what all the source's abilities do,
-                    // when one is offered alone).
-                    Some(r) if reworded(o.key.kind, &legacy, &r) => {
-                        rendered += 1;
-                        rewordings.insert((legacy, r));
-                    }
-                    Some(r) => misses.push((seed, legacy, r)),
-                    None => {
-                        let e = left
-                            .entry(match d.purpose {
-                                Some(p) => format!("{:?} for {p:?}", o.key.kind),
-                                None => format!("{:?} in {:?}", o.key.kind, d.window),
-                            })
-                            .or_insert((0, legacy.clone()));
-                        e.0 += 1;
-                    }
-                }
+                let t = o.text.as_deref();
+                assert!(
+                    t.is_some_and(|t| !t.is_empty()),
+                    "seed {seed}: an option untold in {:?} for {:?}: {o:?}",
+                    d.window,
+                    d.purpose
+                );
+                options += 1;
+                check(format!("{:?} in {:?}", o.key.kind, d.window), t.unwrap());
             }
             let plays: Vec<_> = d
                 .options
@@ -631,110 +621,15 @@ fn the_options_render_as_the_legacy_text() {
             );
         }
     }
-    let mut left: Vec<_> = left.into_iter().collect();
-    left.sort_by_key(|(_, (n, _))| std::cmp::Reverse(*n));
-    for (kind, (n, eg)) in left.iter().take(60) {
-        eprintln!("left: {n:6} {kind} (e.g. {eg:?})");
+    let mut unnamed: Vec<_> = unnamed.into_iter().collect();
+    unnamed.sort_by_key(|(_, (n, _))| std::cmp::Reverse(*n));
+    for (what, (n, eg)) in &unnamed {
+        eprintln!("unnamed: {n:6} {what} (e.g. {eg:?})");
     }
-    for (seed, legacy, r) in misses.iter().take(25) {
-        eprintln!("seed {seed}: {legacy:?} rendered {r:?}");
-    }
-    for (legacy, r) in &rewordings {
-        eprintln!("reworded: {legacy:?} as {r:?}");
-    }
-    eprintln!(
-        "{seeds} games: {rendered} of {shown} options rendered ({} reworded)",
-        rewordings.len()
-    );
-    let mut prompts_left: Vec<_> = prompts_left.into_iter().collect();
-    prompts_left.sort_by_key(|(_, (n, _))| std::cmp::Reverse(*n));
-    for (kind, (n, eg)) in &prompts_left {
-        eprintln!("prompt left: {n:6} {kind} (e.g. {eg:?})");
-    }
-    for (seed, legacy, r) in prompt_misses.iter().take(25) {
-        eprintln!("seed {seed}: prompt {legacy:?} rendered {r:?}");
-    }
-    eprintln!("{seeds} games: {prompted} of {prompts} prompts rendered");
+    eprintln!("{seeds} games: {options} options, {decided} decisions, {prompts} prompts told");
     assert!(
-        prompt_misses.is_empty(),
-        "{} prompts rendered otherwise",
-        prompt_misses.len()
+        unnamed.is_empty(),
+        "{} kinds of lines name nothing",
+        unnamed.len()
     );
-    assert!(
-        misses.is_empty(),
-        "{} options rendered otherwise",
-        misses.len()
-    );
-    // Every option renders (A7 done): one not told is a missing field.
-    assert!(left.is_empty(), "{} options not rendered", shown - rendered);
-}
-
-/// What the host sends with the text setting: the renderer's English, the
-/// same game played twice (the legacy lines, the renderer's) told alike —
-/// every option, event and prompt, abilities and plays perhaps reworded
-/// (every legacy part told).
-#[test]
-fn the_host_sends_the_renderers_text() {
-    let seeds: u32 = std::env::var("HOST_SEEDS").map_or(20, |s| s.parse().unwrap());
-    let (mut options, mut events) = (0, 0);
-    for seed in from()..=seeds {
-        let settings = Settings {
-            opportunities: seed % 3 != 0,
-            views: Views::Decisions,
-            text: true,
-        };
-        let (mut a, mut b) = (game(seed, settings), game(seed, settings));
-        b.legacy_text(false);
-        let human = a.human();
-        let mut rng = Rng(seed as u64 * 7 + 1);
-        let join = || {
-            cmd(Command::Join {
-                token: None,
-                after: None,
-            })
-        };
-        let (mut outs_a, mut outs_b) = (a.handle(human, join()), b.handle(human, join()));
-        loop {
-            assert_eq!(outs_a.len(), outs_b.len(), "seed {seed}");
-            let mut decision = None;
-            for (x, y) in outs_a.iter().zip(&outs_b) {
-                match (&x.message, &y.message) {
-                    (Message::Events { events: ex, .. }, Message::Events { events: ey, .. }) => {
-                        for (ex, ey) in ex.iter().zip(ey) {
-                            assert_eq!(ex.kind, ey.kind, "seed {seed}");
-                            assert_eq!(ex.text, ey.text, "seed {seed}");
-                            events += ex.text.is_some() as usize;
-                        }
-                    }
-                    (Message::Decision(dx), Message::Decision(dy)) => {
-                        assert_eq!(dx.prompt, dy.prompt, "seed {seed}");
-                        for (ox, oy) in dx.options.iter().zip(&dy.options) {
-                            let (lx, ly) = (ox.text.as_deref(), oy.text.as_deref());
-                            let (Some(lx), Some(ly)) = (lx, ly) else {
-                                panic!("seed {seed}: an option without text: {ox:?}");
-                            };
-                            assert!(
-                                lx == ly || reworded(ox.key.kind, lx, ly),
-                                "seed {seed}: {lx:?} sent as {ly:?}"
-                            );
-                            options += 1;
-                        }
-                        let indices: Vec<_> = dx.options.iter().map(|o| o.index).collect();
-                        decision = Some((dx.decision, indices));
-                    }
-                    _ => {}
-                }
-            }
-            let Some((decision, indices)) = decision.filter(|_| !a.is_over()) else {
-                break;
-            };
-            let command = cmd(Command::Answer {
-                decision,
-                option: indices[rng.below(indices.len())],
-            });
-            outs_a = a.handle(human, command.clone());
-            outs_b = b.handle(human, command);
-        }
-    }
-    eprintln!("{seeds} games: {options} options and {events} events sent alike");
 }

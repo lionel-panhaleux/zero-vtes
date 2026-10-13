@@ -1,8 +1,9 @@
 //! What happened, told to one viewer (docs/protocol.md §9): the engine's
-//! facts (`zvtes_protocol::narrate`) named by the viewer's copies. Every
+//! facts (`narrate.rs`) named by the viewer's copies. Every
 //! fact is public; a card it names is shown, numbered as the viewer last
 //! saw it (`Numbering::name`).
 
+use crate::narrate::{ActionFact, Fact};
 use zvtes::actions::Outcome;
 use zvtes::cards::AbilitySource;
 use zvtes::combat::{CombatNote, Range as R};
@@ -15,7 +16,6 @@ use zvtes::state::CardId;
 use zvtes_api::event::{ActionOutcome, ActionRef, EventKind, ReferendumOutcome, StruckSide};
 use zvtes_api::ids::{MinionKind, Range, Zone};
 use zvtes_api::view::Card;
-use zvtes_protocol::narrate::{ActionFact, Fact};
 
 use crate::numbering::Decks;
 use crate::view::{action_kind, minion_face, strike, Viewer};
@@ -91,6 +91,9 @@ impl Namer<'_> {
                 pool,
             },
             Fact::Ousted { seat } => EventKind::Ousted { seat: seat.0 },
+            Fact::Edge { seat } => EventKind::Edge {
+                seat: seat.map(|s| s.0),
+            },
             Fact::MinionEnters { minion } => EventKind::EntersPlay {
                 card: self.minion_card(minion),
                 seat: st.minions[minion.index()].owner.0,
