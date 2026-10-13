@@ -2220,7 +2220,13 @@ impl Engine {
         if self.action.take().is_some() {
             self.release_action_holds();
         }
-        self.combat = None;
+        // A combat cut short with the turn (its Methuselah ousted) ends
+        // too, as told.
+        if let Some(c) = self.combat.take() {
+            self.note(crate::combat::CombatNote::Ends {
+                minions: c.sides.each_ref().map(|s| s.minion),
+            });
+        }
         self.state.combatants = None;
         self.referendum = None;
         self.state

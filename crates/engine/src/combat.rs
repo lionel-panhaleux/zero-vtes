@@ -1032,7 +1032,7 @@ impl Engine {
         }
     }
 
-    fn note(&mut self, n: CombatNote) {
+    pub(crate) fn note(&mut self, n: CombatNote) {
         if let Some(notes) = self.combat_notes.as_mut() {
             notes.push(n);
         }
