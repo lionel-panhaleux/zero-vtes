@@ -664,6 +664,14 @@ impl Game {
             &req.options[index],
             &EngineNames,
         );
+        // The options the seat was shown, when its settings hid some (F5).
+        let shown = self
+            .pending
+            .as_ref()
+            .filter(|d| {
+                by != By::Bot && d.decision == decision && d.options.len() < req.options.len()
+            })
+            .map(|d| d.options.iter().map(|o| o.index).collect());
         if self.settings.text && by != By::Auto {
             let e = self.session.engine();
             self.asked.insert(
@@ -690,7 +698,7 @@ impl Game {
             choice: key,
             by,
             forced: false,
-            shown: None,
+            shown,
         });
         let event = if by == By::Auto {
             EventKind::AutoPassed {

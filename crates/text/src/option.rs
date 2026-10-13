@@ -173,6 +173,9 @@ fn base(
             );
             if let Some(Target::Card { copy }) = k.target {
                 s += &format!(" ({})", n.minion_bare(copy));
+            } else if k.action == Some(ActionKind::Bleed) {
+                // A bleed's target: the prey.
+                s += &format!(" → {}", n.seat(n.prey(seat)?));
             }
             s
         }
@@ -827,15 +830,11 @@ fn ability_what(o: &OptionView, offered: &[OptionView], n: &Names) -> Option<Str
             format!(": {l}")
         });
     }
-    // A lone ability that is an action: which.
-    let action = o
-        .effects
-        .iter()
-        .any(|e| e.kind == EffectKind::Action && e.detail.is_none());
+    // A lone ability: what it does.
     let l = label(&o.effects, n);
-    Some(if action && !l.is_empty() {
-        format!(": {l}")
-    } else {
+    Some(if l.is_empty() {
         String::new()
+    } else {
+        format!(": {l}")
     })
 }

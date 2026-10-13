@@ -487,7 +487,7 @@ impl Build<'_> {
         MinionView {
             card: self.card(minion_copy(st, i), card, crypt),
             kind,
-            name: m.name().into(),
+            name: crate::cards::printed(m.name()),
             blood: m.blood,
             capacity: st.capacity_of(id),
             locked: m.locked,
