@@ -16,7 +16,7 @@
 //! `t:0.5+rescue:1.5`. Every seat plays the default politics, as in
 //! training.
 
-use std::rc::Rc;
+use std::sync::Arc;
 use zvtes::agent::Agent;
 use zvtes::decision::DecisionRequest;
 use zvtes::decks::Deck;
@@ -81,7 +81,7 @@ impl Variant {
 
 /// The network sampling its option, within the politics and the habits.
 struct Player {
-    net: Rc<Net>,
+    net: Arc<Net>,
     rng: Rng,
     v: Variant,
 }
@@ -136,7 +136,7 @@ impl Agent for Player {
 /// VPs (half points) of the plain half and the habit half over `deals`
 /// deals, each played twice; this thread's share (`t` of `threads`).
 fn play(path: &str, deals: u64, variant: Variant, t: u64, threads: u64) -> (u64, u64) {
-    let net = Rc::new(Net::load(&std::fs::read(path).expect("the policy")).expect("a policy"));
+    let net = Arc::new(Net::load(&std::fs::read(path).expect("the policy")).expect("a policy"));
     let decks: Vec<Deck> = Deck::all().take(14).collect();
     let (mut plain, mut other) = (0, 0);
     for game in (t..2 * deals).step_by(threads as usize) {

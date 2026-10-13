@@ -13,7 +13,7 @@
 //! <B.zvp> <games per measure>`.
 
 use std::collections::BTreeMap;
-use std::rc::Rc;
+use std::sync::Arc;
 use zvtes::agent::Agent;
 use zvtes::crypt::{ANNIVERSARY_PRECONS, PRECONS, SABBAT_PRECONS};
 use zvtes::decks::Deck;
@@ -49,7 +49,7 @@ fn table(rng: &mut Rng, decks: &[Deck], first: Option<usize>) -> (Vec<usize>, us
 /// (VPs in half points, game wins, seats) per deck index.
 type Tally = BTreeMap<usize, (u64, u64, u64)>;
 
-fn play(nets: [&Rc<Net>; 2], decks: &[Deck], picks: &[usize], at: usize, seed: u64) -> Vec<u32> {
+fn play(nets: [&Arc<Net>; 2], decks: &[Deck], picks: &[usize], at: usize, seed: u64) -> Vec<u32> {
     let seats: Vec<Deck> = picks.iter().map(|&d| decks[d]).collect();
     let mut e = Engine::with_decks(seed, &seats);
     e.time_limit = 75;
@@ -97,7 +97,7 @@ fn main() {
                 let (a, b, decks) = (&a, &b, &decks);
                 scope.spawn(move || {
                     let load = |p: &str| {
-                        Rc::new(Net::load(&std::fs::read(p).expect("a policy")).expect("a policy"))
+                        Arc::new(Net::load(&std::fs::read(p).expect("a policy")).expect("a policy"))
                     };
                     let (na, nb) = (load(a), load(b));
                     let mut rng = Rng::new(1000 + t);

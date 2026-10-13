@@ -8,7 +8,7 @@
 //! their card.
 
 use std::collections::BTreeMap;
-use std::rc::Rc;
+use std::sync::Arc;
 use zvtes::agent::Agent;
 use zvtes::cards::AbilitySource;
 use zvtes::decision::Choice;
@@ -45,7 +45,7 @@ fn main() {
     let path = args.next().expect(usage);
     let games: u64 = args.next().and_then(|n| n.parse().ok()).expect(usage);
     let filter = args.next();
-    let net = Rc::new(Net::load(&std::fs::read(path).expect("the policy")).expect("a policy"));
+    let net = Arc::new(Net::load(&std::fs::read(path).expect("the policy")).expect("a policy"));
     let decks: Vec<Deck> = Deck::all().take(14).collect();
     // (window, kinds offered) -> (decisions, picks by kind)
     let mut seen: BTreeMap<(String, String), (u64, BTreeMap<String, u64>)> = BTreeMap::new();
