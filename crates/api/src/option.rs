@@ -122,6 +122,9 @@ pub struct Effect {
     /// What a chosen minion or Methuselah becomes (`role`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
+    /// Of this clan (a snake_case clan id: the chosen Toreador).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clan: Option<String>,
     /// What sets it apart within its kind, a snake_case id: `this_round`,
     /// `guns`, `per_counter`, `then_bottom`… (docs/protocol.md §7).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -146,6 +149,7 @@ impl Effect {
             strike: None,
             range: None,
             role: None,
+            clan: None,
             detail: None,
         }
     }

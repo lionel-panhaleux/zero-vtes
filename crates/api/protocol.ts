@@ -366,6 +366,8 @@ export type Effect = {
     action?: ActionKind | null
     /** A card named (to hand, discarded, fetched). */
     card?: number | null
+    /** Of this clan (a snake_case clan id: the chosen Toreador). */
+    clan?: string | null
     /** The minion or card in play it applies to, when known. */
     copy?: number | null
     /** A cost paid to take the option, not what it does. */

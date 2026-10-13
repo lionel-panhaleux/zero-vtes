@@ -187,7 +187,7 @@ seat 2; burn 2 pool to keep card 9.)
   mode's, a cost, what a chosen Methuselah or minion gets. A curated
   vocabulary (owner, 2026-10-13), not the engine's own effects: each
   `{kind, n?, x?, on?, seat?, copy?, cost?, when?, card?, to?, action?,
-  favor?, strike?, range?, role?, detail?}`.
+  favor?, strike?, range?, role?, clan?, detail?}`.
   - `kind` (37, open): `pool`, `blood`, `life`, `counters`,
     `transfers`, `damage`, `strike`, `strength`, `stealth`,
     `intercept`, `bleed`, `prevent`, `press`, `maneuver`, `range`,
@@ -214,6 +214,11 @@ seat 2; burn 2 pool to keep card 9.)
     `lock`, `role: expelled`), what an allocation does (`pool` burned,
     or gained with the chosen's `pool` lost); `view.referendum.terms.
     pending`: who is allocated to next (the last gets the rest).
+  - A card's chosen vampire (Toreador Grand Ball's second, chosen after
+    the play): `role` with its `clan`; a play locking its target says
+    so (`lock`, `on: target`).
+  - A round's strike granted by a card (`round_strike` without a card):
+    `strike`.
   - A cost's terms: `cost` (kind) for a card's or a vampire's reduction,
     `blood` (`cost`, `on: chosen`) for a vampire paying 1 of it.
   - A `set_x` option's (the key's `amount`): what the amount does, by

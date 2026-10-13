@@ -187,7 +187,7 @@ pub fn effects(
                 ..Whom::default()
             };
             let mut out = curated(m.effects, whom);
-            if matches!(m.terms, Some(Terms::OwnOfClan { .. })) {
+            if let Some(Terms::OwnOfClan { clan, .. }) = m.terms {
                 let unblockable = m
                     .effects
                     .contains(&E::Layer(Modifier::SecondChosenUnblockable));
@@ -197,6 +197,7 @@ pub fn effects(
                     } else {
                         Role::Chosen
                     }),
+                    clan: Some(snake(clan)),
                     ..Effect::new(EffectKind::Role)
                 });
             }
@@ -235,6 +236,18 @@ pub fn effects(
             curated(a.effects, whom)
         }
         Choice::SetX(n) => amount(&x, req, n),
+        // The strike a card granted for the round (Hunger of Marduk).
+        Choice::RoundStrike { at: None } => match e.combat().map(|c| (c, c.step)) {
+            Some((c, zvtes::combat::Step::ChooseStrike(i))) => c.sides[i]
+                .round_strike
+                .map(|k| Effect {
+                    strike: Some(crate::view::strike(k, None)),
+                    ..Effect::new(EffectKind::Strike)
+                })
+                .into_iter()
+                .collect(),
+            _ => Vec::new(),
+        },
         // The votes a minion casts, with its prisci ballots (rules-qa 52.9).
         Choice::CastVotes { minion, favor } => {
             let mut out: Vec<Effect> = e
@@ -445,6 +458,32 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
                 ..Effect::new(EffectKind::Burn)
             },
         }],
+        // What the card does with its chosen vampire (Toreador Grand
+        // Ball's two, Priority Contract's).
+        (
+            Interrupt::ChooseForCard {
+                card, clan, second, ..
+            },
+            Choice::ChooseMinion(_),
+        ) => {
+            use zvtes::cards::{Effect as E, Modifier};
+            let effects = zvtes::cards::lookup(x.e.state.cards[card.index()].card)
+                .and_then(|d| d.modes.first())
+                .map_or(&[][..], |m| m.effects);
+            let has = |m: Modifier| effects.contains(&E::Layer(m));
+            let role = if second && has(Modifier::SecondChosenUnblockable) {
+                Role::UnblockableNonBleed
+            } else if !second && has(Modifier::FirstChosenDoesNotUnlock) {
+                Role::DoesNotUnlock
+            } else {
+                Role::Chosen
+            };
+            vec![Effect {
+                role: Some(role),
+                clan: clan.map(snake),
+                ..chosen(EffectKind::Role)
+            }]
+        }
         (Interrupt::DistributeFrom { .. }, Choice::Slot(_)) => {
             vec![n(1, chosen(EffectKind::Blood))]
         }
