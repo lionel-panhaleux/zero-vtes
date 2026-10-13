@@ -11,8 +11,9 @@ ssh_key = "~/.ssh/deploy"
 name = "zvtes"
 domain = "engine.krcg.org"
 port = 8040
-# the platforms whose pages may create games and open sockets
-origins = "https://succubus.club,https://www.succubus.club"
+# the platforms whose pages may create games and open sockets (and the
+# Succubus Club dev server, `npx vite … --port 5188`, against this one)
+origins = "https://succubus.club,https://www.succubus.club,http://localhost:5188,http://127.0.0.1:5188"
 # the forum shares the box: the engine's bots never take it whole
 cpu_quota = "400%"
 memory_max = "3G"
