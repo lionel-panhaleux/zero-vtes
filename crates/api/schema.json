@@ -3,6 +3,95 @@
   "title": "zvtes protocol",
   "version": "1.0.0",
   "$defs": {
+    "About": {
+      "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
+      "type": "object",
+      "properties": {
+        "cap": {
+          "description": "A capacity it depends on (the young vampires Neonate Breach spares).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0
+        },
+        "card": {
+          "description": "A card it names: in play (`copy`) or by name (`id`).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CardRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "clan": {
+          "description": "A clan, a circle (snake_case ids).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "detail": {
+          "description": "What sets it apart within its purpose, a snake_case id\n(`minion_of`: `lock`, `lock_vampires`, `corrupt`…).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "m": {
+          "description": "A second amount (the most a Methuselah burns, the damage blood\navoids).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0
+        },
+        "minion": {
+          "description": "The minion it concerns: the one blood moves from, a block\nattempt's, the one entering play.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "n": {
+          "description": "How many: still to pay, at most, to discard, damage, blood…",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0
+        },
+        "seat": {
+          "description": "The Methuselah it concerns: whose minions, ash heap, hand,\nuncontrolled region.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0
+        },
+        "to": {
+          "description": "A second minion: the one blood moves to.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        }
+      }
+    },
     "ActionKind": {
       "oneOf": [
         {
@@ -699,6 +788,17 @@
     "Decision": {
       "type": "object",
       "properties": {
+        "about": {
+          "description": "The particulars of the choice a prompt names, beyond its purpose,\nsource and options: how many, whose, which minion or card.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/About"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "allocation": {
           "anyOf": [
             {

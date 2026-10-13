@@ -15,6 +15,7 @@ use zvtes::ids::{MinionId, SeatId};
 use zvtes::library::LIBRARY;
 use zvtes::state::{CardId, MinionKind, UncontrolledSlot, CREATED};
 use zvtes_api::ids::{OptionKind, Role, Zone};
+use zvtes_api::message::About;
 use zvtes_api::option::{CardRef, ChoiceKey, Effect, EffectKind, On, ZoneRef};
 use zvtes_api::view::Target;
 
@@ -699,6 +700,20 @@ pub fn source(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<C
                 (None, None) => None,
             }
         }
+        // The terms being chosen: a play's, a cost's, an ability's.
+        W::PlayTerms if e.play_terms().or(e.cost_terms()).is_some() => {
+            let p = e.play_terms().or(e.cost_terms())?;
+            Some(CardRef {
+                id: Some(LIBRARY[p.card as usize].id),
+                copy: names.copy(*p.copy),
+                from: None,
+            })
+        }
+        W::PlayTerms if e.ability_terms().is_some() => match e.ability_terms()?.0 {
+            AbilitySource::Card(c) => Some(x.in_play(c)),
+            AbilitySource::Vampire(m) => Some(crypt(m)),
+        },
+        W::RiderTerms => e.rider_terms().map(|(c, _)| x.in_play(c)),
         W::PlayTerms => e
             .in_flight()
             .into_iter()
@@ -709,6 +724,499 @@ pub fn source(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<C
                 copy: names.copy(*p.copy),
                 from: None,
             }),
+        _ => None,
+    }
+}
+
+/// What a choice is about (`Decision::about`): the particulars its
+/// prompt names, by the effect asking it or the terms chosen.
+pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<About> {
+    use zvtes::cards::{Effect as E, Modifier, RefEffect as R, Term, Terms};
+    use zvtes::decision::WindowLabel as W;
+    use zvtes::draws::MinionPurpose as P;
+    use Interrupt as I;
+    let x = Ctx {
+        e,
+        seat: req.seat,
+        names,
+    };
+    let st = &e.state;
+    let m = |m: MinionId| Some(x.minion(m));
+    let card = |c: CardId| Some(x.in_play(c));
+    let named = |c: u16| {
+        Some(CardRef {
+            id: Some(LIBRARY[c as usize].id),
+            copy: None,
+            from: None,
+        })
+    };
+    let by_name = |name: &str| {
+        LIBRARY
+            .iter()
+            .position(|c| c.name == name)
+            .and_then(|i| named(i as u16))
+    };
+    let detail = |d: &str| Some(d.to_string());
+    let a = About::default;
+    if let Some(i) = e.interrupt() {
+        return Some(match i {
+            I::MoveCardToTitled { card: c, .. } => About {
+                card: card(c),
+                ..a()
+            },
+            I::GiveBlood { from, .. } => About {
+                minion: m(from),
+                ..a()
+            },
+            I::MoveBetween {
+                from,
+                to,
+                blood_done,
+                ..
+            } => About {
+                minion: m(from),
+                to: to.and_then(m),
+                detail: match (to, blood_done) {
+                    (None, _) => None,
+                    (Some(_), false) => detail("blood"),
+                    (Some(_), true) => detail("cards"),
+                },
+                ..a()
+            },
+            I::PayOrBurn { card: c, pool, .. } | I::LockOrPay { card: c, pool, .. } => About {
+                card: card(c),
+                n: Some(pool),
+                ..a()
+            },
+            I::BloodOrBurned {
+                minion, n, card: c, ..
+            } => About {
+                minion: m(minion),
+                n: Some(n),
+                card: c.and_then(card),
+                ..a()
+            },
+            I::StoreSearch { card: c, left, .. } => About {
+                card: card(c),
+                n: Some(left),
+                ..a()
+            },
+            I::LockOrDiscard { minion, .. }
+            | I::BlockToll { minion, .. }
+            | I::CancelAttempt { minion, .. }
+            | I::CorruptionOwner { minion, .. }
+            | I::DisciplineSearch { minion, .. }
+            | I::AllySearch { minion, .. }
+            | I::StealForCorruption { minion, .. }
+            | I::ChooseCircle { minion, .. }
+            | I::BaseSearch { minion, .. }
+            | I::MayTorture { minion, .. }
+            | I::EntryBurn { ally: minion, .. }
+            | I::EntryRemoveOrBurn { ally: minion, .. } => About {
+                minion: m(minion),
+                ..a()
+            },
+            I::Reorder { total, placed, .. } => About {
+                n: Some(total),
+                m: Some(placed),
+                ..a()
+            },
+            I::MinionOf { of, purpose, .. } => {
+                let (d, clan, c, n) = match purpose {
+                    P::Lock => ("lock", None, None, None),
+                    P::Corrupt => ("corrupt", None, None, None),
+                    P::LockVampire => ("lock_vampires", None, None, None),
+                    P::UnlockAnarch => ("unlock_anarch", None, None, None),
+                    P::BurnBloodOfClan(k) => ("burn_blood", Some(k), None, None),
+                    P::HostCard(h) => ("host_card", None, card(h), None),
+                    P::LockOldest(k) => ("lock_oldest", Some(k), None, None),
+                    P::OldestHuntingGround(_) => ("oldest_gain_blood", None, None, None),
+                    P::BurnOfCrowdedClan => ("burn_crowded_clan", None, None, None),
+                    P::Damage(d) => ("damage", None, None, Some(d)),
+                };
+                About {
+                    seat: Some(of.0),
+                    detail: detail(d),
+                    clan: clan.map(snake),
+                    card: c,
+                    n,
+                    ..a()
+                }
+            }
+            I::AvoidDamage {
+                minion,
+                blood,
+                damage,
+                ..
+            } => About {
+                minion: m(minion),
+                n: Some(blood),
+                m: Some(damage),
+                ..a()
+            },
+            I::DiscardFromHandOf { of, .. }
+            | I::PreySlotToPool { of, .. }
+            | I::NameAshPair { of, .. } => About {
+                seat: Some(of.0),
+                ..a()
+            },
+            I::NameSlotPair { of, from, .. } => About {
+                seat: Some(of.0),
+                detail: from.map(|_| "named".to_string()),
+                ..a()
+            },
+            I::DiscardChosen {
+                left, combat_only, ..
+            } => About {
+                n: Some(left),
+                detail: combat_only.then(|| "combat".to_string()),
+                ..a()
+            },
+            I::RemoveFromAsh { of, left, .. } => About {
+                seat: Some(of.0),
+                n: Some(left),
+                ..a()
+            },
+            I::MayDrawExtra { .. } => About {
+                card: by_name("Learjet"),
+                ..a()
+            },
+            I::PursuitDraw { .. } => About {
+                card: by_name("Infernal Pursuit"),
+                ..a()
+            },
+            I::PursuitDiscard { left, .. } => About {
+                card: by_name("Infernal Pursuit"),
+                n: Some(left),
+                ..a()
+            },
+            I::PurgePick { of, host, .. } => About {
+                seat: Some(of.0),
+                minion: m(host),
+                ..a()
+            },
+            I::StealUpTo { from, to, max, .. } => About {
+                minion: m(from),
+                to: m(to),
+                n: Some(max),
+                ..a()
+            },
+            I::Redraw {
+                minion, card: c, ..
+            } => About {
+                minion: m(minion),
+                card: named(c),
+                ..a()
+            },
+            I::ChooseForCard {
+                card: c,
+                clan,
+                second,
+                ..
+            } => {
+                let effects = zvtes::cards::lookup(st.cards[c.index()].card)
+                    .and_then(|d| d.modes.first())
+                    .map_or(&[][..], |m| m.effects);
+                let has = |m: Modifier| effects.contains(&E::Layer(m));
+                About {
+                    card: card(c),
+                    clan: clan.map(snake),
+                    detail: detail(if second && has(Modifier::SecondChosenUnblockable) {
+                        "unblockable_non_bleed"
+                    } else if !second && has(Modifier::FirstChosenDoesNotUnlock) {
+                        "does_not_unlock"
+                    } else {
+                        "chosen"
+                    }),
+                    ..a()
+                }
+            }
+            I::ExchangeAnarch { ash, .. } => About {
+                card: ash.and_then(named),
+                ..a()
+            },
+            I::PoolForCard { card: c, n, .. } | I::LockForPool { card: c, n, .. } => About {
+                card: card(c),
+                n: Some(n),
+                ..a()
+            },
+            I::MakeAnarch {
+                card: c, minion, ..
+            } => About {
+                card: card(c),
+                minion: m(minion),
+                ..a()
+            },
+            I::AshurPicks {
+                left, to_library, ..
+            } => About {
+                n: Some(left),
+                detail: to_library.then(|| "to_library".to_string()),
+                ..a()
+            },
+            I::AnarchConvert {
+                convert, chosen, ..
+            } => About {
+                minion: m(convert),
+                detail: chosen.map(|_| "chosen".to_string()),
+                ..a()
+            },
+            I::UncontrolledBlood { clan, n, .. } => About {
+                clan: clan.map(snake),
+                n: Some(n),
+                ..a()
+            },
+            I::CryptSearch { clan, .. } => About {
+                clan: Some(snake(clan)),
+                ..a()
+            },
+            I::DistributeFrom {
+                from, clan, left, ..
+            } => About {
+                minion: m(from),
+                clan: Some(snake(clan)),
+                n: Some(left),
+                ..a()
+            },
+            I::CircleBlood {
+                circle,
+                from,
+                to,
+                moving,
+                ..
+            } => About {
+                clan: Some(snake(circle)),
+                minion: from.and_then(m),
+                to: to.and_then(m),
+                card: moving.and_then(card),
+                ..a()
+            },
+            I::PoolToVampires { to, .. } => About {
+                to: to.and_then(m),
+                ..a()
+            },
+            I::MayRecycleCanceled { card: c, .. } => About {
+                card: named(c),
+                ..a()
+            },
+            I::MayPutOn { held, .. } => About {
+                card: named(held.card),
+                minion: m(held.minion),
+                ..a()
+            },
+            I::MayAddCounter { card: c, .. } | I::StorePreyAsh { card: c, .. } => About {
+                card: card(c),
+                ..a()
+            },
+            I::MayGainPool { minion, n, .. } => About {
+                minion: m(minion),
+                n: Some(n),
+                ..a()
+            },
+            I::MoveForBlood {
+                payer, minion, n, ..
+            } => About {
+                minion: m(payer),
+                to: m(minion),
+                n: Some(n),
+                ..a()
+            },
+            I::Replacement { .. }
+            | I::DrawUp { .. }
+            | I::Draws { .. }
+            | I::Bottom { .. }
+            | I::MarginPool { .. }
+            | I::MarginBlood { .. }
+            | I::RemoveUncontrolled { .. }
+            | I::BecomesAnarch { .. }
+            | I::AllyFromAsh { .. }
+            | I::NameUncontrolled { .. }
+            | I::BeastDisciplines { .. }
+            | I::NameOwnAshCard { .. } => return None,
+        });
+    }
+    match req.window {
+        W::PlayTerms => {
+            if let Some(p) = e.play_terms() {
+                let mode = zvtes::cards::lookup(p.card)?.modes.get(p.mode as usize)?;
+                // A second vampire chosen (Toreador Grand Ball).
+                if let Some(Terms::OwnOfClan { clan, .. }) = mode.terms {
+                    let unblockable = mode
+                        .effects
+                        .contains(&E::Layer(Modifier::SecondChosenUnblockable));
+                    return Some(About {
+                        clan: Some(snake(clan)),
+                        detail: detail(if unblockable {
+                            "second_unblockable_non_bleed"
+                        } else {
+                            "second_chosen"
+                        }),
+                        ..a()
+                    });
+                }
+                return Some(match mode.terms? {
+                    Terms::BloodRange { .. } => About {
+                        detail: detail("blood_range"),
+                        ..a()
+                    },
+                    Terms::UpToTargetBlood => About {
+                        detail: detail("up_to_target_blood"),
+                        minion: m(p.target.minion()),
+                        ..a()
+                    },
+                    Terms::XBlood | Terms::XBloodIn { .. } => About {
+                        detail: detail("x_blood"),
+                        ..a()
+                    },
+                    Terms::UpToMargin(_) => About {
+                        detail: detail("up_to_margin"),
+                        ..a()
+                    },
+                    Terms::BoonPool => About {
+                        detail: detail("boon_pool"),
+                        ..a()
+                    },
+                    Terms::BurnNamedInPlay(name) => About {
+                        detail: detail("burn_named"),
+                        card: by_name(name),
+                        ..a()
+                    },
+                    Terms::AnyAshAlly => About {
+                        detail: detail(match p.ash {
+                            None => "ash_heap_ally",
+                            Some(_) => "ally",
+                        }),
+                        ..a()
+                    },
+                    Terms::EquipFromHand { .. } => match p.named {
+                        None => About {
+                            detail: detail("equipment"),
+                            ..a()
+                        },
+                        Some(_) => About {
+                            detail: detail("equipment_cost"),
+                            minion: p.actor.and_then(m),
+                            ..a()
+                        },
+                    },
+                    Terms::EmployFromHand(_)
+                    | Terms::EmployFromHandIgnoring(_)
+                    | Terms::RecruitOrEmployFromHand => About {
+                        detail: detail("put_in_play"),
+                        ..a()
+                    },
+                    _ => return None,
+                });
+            }
+            if e.cost_terms().is_some() {
+                return Some(About {
+                    detail: detail("cost_reductions"),
+                    ..a()
+                });
+            }
+            let (_, mode, target) = e.ability_terms()?;
+            Some(match mode.terms? {
+                Terms::Discard { n, .. } => About {
+                    detail: detail("discard"),
+                    n: Some(n),
+                    ..a()
+                },
+                Terms::Count { .. } => About {
+                    detail: detail("count"),
+                    ..a()
+                },
+                Terms::XPool => About {
+                    detail: detail("x_pool"),
+                    ..a()
+                },
+                Terms::XCounters => About {
+                    detail: detail("x_counters"),
+                    ..a()
+                },
+                Terms::LifeFromTarget => About {
+                    detail: detail("life_from_target"),
+                    minion: m(target.minion()),
+                    ..a()
+                },
+                Terms::AshCard => About {
+                    detail: detail("ash_card"),
+                    ..a()
+                },
+                Terms::DirectedHandCard => About {
+                    detail: detail("hand_card"),
+                    ..a()
+                },
+                Terms::VampireToHoldTarget => About {
+                    detail: detail("hold_target"),
+                    card: match target {
+                        zvtes::cards::Target::Card(c) => card(c),
+                        _ => None,
+                    },
+                    ..a()
+                },
+                _ => return None,
+            })
+        }
+        W::RiderTerms => {
+            let (_, left) = e.rider_terms()?;
+            Some(About {
+                n: Some(left),
+                ..a()
+            })
+        }
+        W::ReferendumTerms => {
+            let r = e.referendum()?;
+            let def = r.def?;
+            let term = *def.terms.get(r.terms.term).or(def.terms.last())?;
+            let chosen = r.terms.chosen.map(|s| s.0);
+            let mut cap = None;
+            let (d, n, mm) = match (term, def.effect) {
+                (Term::ChooseSeat(_), R::BurnAllocatedChosenGains(g)) => {
+                    ("gains_pool", Some(g), None)
+                }
+                (Term::ChooseSeat(_), R::MoveAllocatedFromChosen) => ("gives_pool", None, None),
+                (Term::ChooseSeat(_), R::ChosenTakesChosenCard) => ("takes_card", None, None),
+                (Term::ChooseCard(_), R::ChosenTakesChosenCard) => {
+                    ("card_changes_control", None, None)
+                }
+                (
+                    Term::ChooseSeats { .. },
+                    R::BurnChosen {
+                        base,
+                        young_bonus,
+                        young_cap,
+                    },
+                ) => {
+                    cap = Some(young_cap);
+                    ("burn_chosen", Some(base), Some(base + young_bonus))
+                }
+                (Term::Allocate { .. }, R::BurnAllocated | R::BurnAllocatedChosenGains(_)) => {
+                    ("burn_allocated", None, None)
+                }
+                (Term::Allocate { .. }, R::MoveAllocatedFromChosen) => {
+                    ("move_allocated", None, None)
+                }
+                (Term::AllocatePerChosenWithCards { .. }, R::LockChosenBurnAllocated) => {
+                    ("lock_burn_allocated", None, None)
+                }
+                (Term::ChooseMinions { .. }, R::Banish) => ("banish", None, None),
+                (Term::ChooseMinions { max, .. }, R::Expel) => ("expel", Some(max), None),
+                (Term::ChooseMinions { .. }, R::PutOnChosen) => ("put_on_chosen", None, None),
+                (Term::ChooseMinions { .. }, R::LockChosenBurnAllocated) => {
+                    ("lock_chosen", None, None)
+                }
+                (Term::ChooseClan, R::GainPerClanVampire) => ("gain_per_clan", None, None),
+                _ => return None,
+            };
+            Some(About {
+                detail: detail(d),
+                n,
+                m: mm,
+                cap,
+                seat: chosen,
+                ..a()
+            })
+        }
         _ => None,
     }
 }
@@ -781,7 +1289,12 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
             target,
         } => {
             match source {
-                AbilitySource::Card(c) => k.card = Some(x.in_play(c)),
+                // The card, and the minion it is on (its lasting effect's,
+                // the card in the ash heap: Disarm).
+                AbilitySource::Card(c) => {
+                    k.card = Some(x.in_play(c));
+                    k.minion = e.state.cards[c.index()].host.map(|m| x.minion(m));
+                }
                 AbilitySource::Vampire(m) => k.minion = Some(x.minion(m)),
             }
             k.ability = Some(ability);

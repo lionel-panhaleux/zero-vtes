@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::event::Event;
-use crate::ids::{DecisionNo, Purpose, Seat, Window};
+use crate::ids::{CopyId, DecisionNo, Purpose, Seat, Window};
 use crate::option::{Allocation, CardRef, OptionView, VoteTotals};
 use crate::spec::Settings;
 use crate::view::TableView;
@@ -84,6 +84,10 @@ pub struct Decision {
     /// What an effect asks the choice for, when one does.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub purpose: Option<Purpose>,
+    /// The particulars of the choice a prompt names, beyond its purpose,
+    /// source and options: how many, whose, which minion or card.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub about: Option<About>,
     /// The options shown (the seat's settings may hide some: indices keep
     /// the engine's numbering).
     pub options: Vec<OptionView>,
@@ -98,6 +102,44 @@ pub struct Decision {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prompt: Option<String>,
     pub view: TableView,
+}
+
+/// What a choice is about (`Decision::about`): each field given where
+/// the purpose (or the terms) has it (docs/protocol.md §5).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct About {
+    /// How many: still to pay, at most, to discard, damage, blood…
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub n: Option<u8>,
+    /// A second amount (the most a Methuselah burns, the damage blood
+    /// avoids).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub m: Option<u8>,
+    /// A capacity it depends on (the young vampires Neonate Breach spares).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cap: Option<u8>,
+    /// The Methuselah it concerns: whose minions, ash heap, hand,
+    /// uncontrolled region.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seat: Option<Seat>,
+    /// The minion it concerns: the one blood moves from, a block
+    /// attempt's, the one entering play.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub minion: Option<CopyId>,
+    /// A second minion: the one blood moves to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to: Option<CopyId>,
+    /// A card it names: in play (`copy`) or by name (`id`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub card: Option<CardRef>,
+    /// A clan, a circle (snake_case ids).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clan: Option<String>,
+    /// What sets it apart within its purpose, a snake_case id
+    /// (`minion_of`: `lock`, `lock_vampires`, `corrupt`…).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

@@ -6,6 +6,7 @@
 mod effect;
 mod event;
 mod option;
+mod prompt;
 
 use std::collections::HashMap;
 
@@ -16,6 +17,7 @@ use zvtes_api::view::{ActionView, Card, ReferendumView, TableView};
 pub use effect::{label, part, parts};
 pub use event::{event, strike};
 pub use option::option;
+pub use prompt::prompt;
 
 /// Card names by KRCG id: the client's card database.
 pub trait Cards {
@@ -182,6 +184,11 @@ impl<'a> Names<'a> {
             Some("") => "ghoul token".into(),
             _ => name,
         }
+    }
+
+    /// Whether the table or the events showed this copy.
+    pub fn knows(&self, c: CopyId) -> bool {
+        self.minions.contains_key(&c) || self.table.contains_key(&c)
     }
 
     /// A card on the table by its own name (not the minion it is on).

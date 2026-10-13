@@ -283,11 +283,11 @@ impl Describer<'_> {
             } => format!("Discard {left} combat card(s) of your choice"),
             DiscardChosen { left, .. } => format!("Discard {left} card(s) of your choice"),
             RemoveFromAsh { of, left, .. } => format!(
-                "Remove {left} card(s) in {}'s ash heap from the game",
+                "Remove {left} card(s) in {} ash heap from the game",
                 if of == self.seat {
                     "your".into()
                 } else {
-                    self.seat_name(of)
+                    format!("{}'s", self.seat_name(of))
                 }
             ),
             DisciplineSearch { minion, .. } => format!(

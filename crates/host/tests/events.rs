@@ -15,6 +15,11 @@ use zvtes_api::{Command, GameSpec, In, Message, Out, Player, SeatSpec, Settings}
 use zvtes_host::{Bots, Clock, Game};
 use zvtes_text::Names;
 
+/// The first seed a sweep plays (`HOST_SEED_FROM`, to look at one).
+fn from() -> u32 {
+    std::env::var("HOST_SEED_FROM").map_or(1, |s| s.parse().unwrap())
+}
+
 struct NoBots;
 
 impl Bots for NoBots {
@@ -152,6 +157,9 @@ impl Stream {
         let seed = self.seed;
         self.told += 1;
         self.names.hear(&e.kind);
+        if std::env::var_os("HOST_TRACE").is_some() {
+            eprintln!("event {:?} {:?}", e.kind, e.text);
+        }
         if let Some(t) = &e.text {
             assert!(self.text, "seed {seed}: text unasked: {e:?}");
             assert!(!t.is_empty(), "seed {seed}");
@@ -356,7 +364,7 @@ fn the_events_tell_what_the_views_show() {
     let (mut told, mut texts, mut undone, mut allocated, mut voted) = (0, 0, 0, 0, 0);
     let mut reasked = 0;
     let mut misses = Vec::new();
-    for seed in 1..=seeds {
+    for seed in from()..=seeds {
         let settings = Settings {
             opportunities: seed % 3 != 0,
             views: Views::Steps,
@@ -522,7 +530,11 @@ fn the_options_render_as_the_legacy_text() {
     let mut left: std::collections::BTreeMap<String, (usize, String)> = Default::default();
     let (mut shown, mut rendered) = (0, 0);
     let mut rewordings: std::collections::BTreeSet<(String, String)> = Default::default();
-    for seed in 1..=seeds {
+    // Prompts alike: (asked, rendered), left by window and purpose.
+    let (mut prompts, mut prompted) = (0, 0);
+    let mut prompts_left: std::collections::BTreeMap<String, (usize, String)> = Default::default();
+    let mut prompt_misses: Vec<(u32, String, String)> = Vec::new();
+    for seed in from()..=seeds {
         let settings = Settings {
             opportunities: seed % 3 != 0,
             views: Views::Decisions,
@@ -559,6 +571,22 @@ fn the_options_render_as_the_legacy_text() {
                 })
                 .unwrap();
             names.see(&d.view);
+            if let Some(legacy) = &d.prompt {
+                prompts += 1;
+                match zvtes_text::prompt(&d, &names) {
+                    Some(r) if &r == legacy => prompted += 1,
+                    Some(r) => prompt_misses.push((seed, legacy.clone(), r)),
+                    None => {
+                        let e = prompts_left
+                            .entry(match d.purpose {
+                                Some(p) => format!("for {p:?}"),
+                                None => format!("in {:?}", d.window),
+                            })
+                            .or_insert((0, legacy.clone()));
+                        e.0 += 1;
+                    }
+                }
+            }
             for o in &d.options {
                 let legacy = o.text.clone().unwrap_or_default();
                 shown += 1;
@@ -618,6 +646,20 @@ fn the_options_render_as_the_legacy_text() {
         "{seeds} games: {rendered} of {shown} options rendered ({} reworded)",
         rewordings.len()
     );
+    let mut prompts_left: Vec<_> = prompts_left.into_iter().collect();
+    prompts_left.sort_by_key(|(_, (n, _))| std::cmp::Reverse(*n));
+    for (kind, (n, eg)) in &prompts_left {
+        eprintln!("prompt left: {n:6} {kind} (e.g. {eg:?})");
+    }
+    for (seed, legacy, r) in prompt_misses.iter().take(25) {
+        eprintln!("seed {seed}: prompt {legacy:?} rendered {r:?}");
+    }
+    eprintln!("{seeds} games: {prompted} of {prompts} prompts rendered");
+    assert!(
+        prompt_misses.is_empty(),
+        "{} prompts rendered otherwise",
+        prompt_misses.len()
+    );
     assert!(
         misses.is_empty(),
         "{} options rendered otherwise",
@@ -635,7 +677,7 @@ fn the_options_render_as_the_legacy_text() {
 fn the_host_sends_the_renderers_text() {
     let seeds: u32 = std::env::var("HOST_SEEDS").map_or(20, |s| s.parse().unwrap());
     let (mut options, mut events) = (0, 0);
-    for seed in 1..=seeds {
+    for seed in from()..=seeds {
         let settings = Settings {
             opportunities: seed % 3 != 0,
             views: Views::Decisions,
