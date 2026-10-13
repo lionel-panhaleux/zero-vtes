@@ -172,6 +172,7 @@ fn source_rider(st: &crate::state::GameState, source: Option<CardId>, e: Effect)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Held {
     pub card: u16,
+    pub copy: crate::copies::Untracked<crate::copies::CopyId>,
     pub seat: SeatId,
     pub mode: u8,
     pub counters: u8,
@@ -183,6 +184,7 @@ impl Held {
     pub fn from_play(play: &PlayCtx, minion: MinionId, counters: u8) -> Self {
         Held {
             card: play.card,
+            copy: play.copy,
             seat: play.seat,
             mode: play.mode,
             counters,
@@ -2675,17 +2677,20 @@ impl Engine {
         if !self.state.minions[on.index()].in_play {
             return;
         }
+        // The card itself, out of the ash heap (by its copy, else a copy
+        // of it); none there, its effect alone (rules-qa 21.1).
         let ash = &mut self.state.seats[h.seat.index()].ash;
-        let taken = ash
-            .iter()
-            .rposition(|&c| c == h.card)
-            .map(|k| ash.remove(k))
-            .is_some();
+        let k = (0..ash.len())
+            .rev()
+            .find(|&k| *h.copy != crate::copies::CopyId::NONE && ash.copy(k) == *h.copy)
+            .or_else(|| ash.iter().rposition(|&c| c == h.card));
+        let taken = k.map(|k| ash.take(k));
+        let copy = taken.map_or(crate::copies::CopyId::NONE, |t| t.1);
         let id = self.enter_play(crate::state::CardInPlay {
             by: Some(h.minion),
             counters: h.counters,
-            effect_only: !taken,
-            ..crate::state::CardInPlay::new(h.card, h.seat, Some(on), h.mode)
+            effect_only: taken.is_none(),
+            ..crate::state::CardInPlay::entering(h.card, copy, h.seat, Some(on), h.mode)
         });
         self.push_mode_layers(id);
     }
@@ -3128,7 +3133,13 @@ impl Engine {
                 {
                     let id = self.enter_play(crate::state::CardInPlay {
                         by: Some(h.minion),
-                        ..crate::state::CardInPlay::new(h.card, h.seat, Some(h.minion), h.mode)
+                        ..crate::state::CardInPlay::entering(
+                            h.card,
+                            *h.copy,
+                            h.seat,
+                            Some(h.minion),
+                            h.mode,
+                        )
                     });
                     self.push_mode_layers(id);
                     if let Some(a) = self.action.as_mut() {

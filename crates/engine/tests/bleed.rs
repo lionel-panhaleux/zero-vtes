@@ -198,7 +198,7 @@ fn intercept_from_a_failed_attempt_carries_into_a_new_one() {
         find_library("Enhanced Senses"),
         find_library("Spirit's Touch"),
     ]);
-    e.state.seats[1].library = vec![find_library("Soak"); 10];
+    e.state.seats[1].library = vec![find_library("Soak"); 10].into();
     pick(e, bleed(t.p));
     pick(e, Choice::DeclareBlock { minion: t.b });
     pick(e, play(0, 1, t.p)); // stealth 2

@@ -1,4 +1,5 @@
 use crate::cards::{self, AbilitySource, Holding, Layer, Modifier, Requirement, Scope, Stat};
+use crate::copies::{CopyCounter, CopyId, Pile, Untracked};
 use crate::crypt::{CryptCard, Sect, Title, CRYPT};
 use crate::decision::ActionKind;
 use crate::ids::{MinionId, SeatId};
@@ -244,6 +245,10 @@ pub struct Minion {
     /// (Chameleon). A merge or a control change is no entry.
     pub entered_at: u32,
     pub owner: SeatId,
+    /// Its card's copy, for a vampire or a token (a minion that is a card
+    /// in play — an ally, a created vampire — has its card's:
+    /// `GameState::minion_copy`).
+    pub copy: Untracked<CopyId>,
     pub kind: MinionKind,
     /// A vampire's blood; an ally's life (advanced rules 5.5.1: an ally
     /// has life, not blood, and never pays a blood cost).
@@ -333,6 +338,8 @@ pub struct Minion {
     /// (`MinionKind::Vampire` holds the advanced card) — its text still
     /// applies, the advanced card's in full (`cards::vampire_of`).
     pub merged: Option<u16>,
+    /// The base card's copy, when merged.
+    pub merged_copy: Untracked<CopyId>,
     /// The Great Beast's three Disciplines, superior.
     pub beast_disciplines: [Option<&'static str>; 3],
     /// The Sabbat path it follows when not the one printed on it (Black
@@ -415,6 +422,7 @@ impl Minion {
     pub fn new(owner: SeatId, kind: MinionKind, blood: u8) -> Minion {
         Minion {
             owner,
+            copy: Untracked(CopyId::NONE),
             kind,
             blood,
             locked: false,
@@ -449,6 +457,7 @@ impl Minion {
             origin: None,
             sect_override: None,
             merged: None,
+            merged_copy: Untracked(CopyId::NONE),
             beast_disciplines: [None; 3],
             path_override: None,
             no_life_gain: false,
@@ -623,6 +632,8 @@ impl Minion {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CardInPlay {
     pub card: u16,
+    /// Its copy (`copies`): the card that entered play.
+    pub copy: Untracked<CopyId>,
     /// The Methuselah who played it: where it goes when it leaves play.
     pub owner: SeatId,
     /// The Methuselah controlling it — its player until a control change
@@ -650,7 +661,7 @@ pub struct CardInPlay {
     /// Library cards on this card, out of play (Black Market Cache face
     /// up, Shilmulo Tarot face down), top last: their owner's, burned with
     /// the card (LSJ 20021128).
-    pub stored: Vec<u16>,
+    pub stored: Pile,
     /// A lingering effect of a card that went to the ash heap as it resolved
     /// (Touch of Oblivion's counters, Sculpt the Flesh [PRO]): represented
     /// here, while the card itself stays in the ash heap; burning it ends
@@ -688,11 +699,24 @@ pub struct CardInPlay {
 }
 
 impl CardInPlay {
-    /// A library card entering play under `owner`'s control, on `host` if
-    /// any, in the version of `mode`.
+    /// Test fixture: a card with no copy entering play (`entering`).
+    #[cfg(feature = "fixtures")]
     pub fn new(card: u16, owner: SeatId, host: Option<MinionId>, mode: u8) -> Self {
+        Self::entering(card, CopyId::NONE, owner, host, mode)
+    }
+
+    /// A library card (`copy`) entering play under `owner`'s control, on
+    /// `host` if any, in the version of `mode`.
+    pub fn entering(
+        card: u16,
+        copy: CopyId,
+        owner: SeatId,
+        host: Option<MinionId>,
+        mode: u8,
+    ) -> Self {
         CardInPlay {
             card,
+            copy: Untracked(copy),
             owner,
             controller: owner,
             host,
@@ -703,7 +727,7 @@ impl CardInPlay {
             contested: false,
             locked: false,
             counters: 0,
-            stored: Vec::new(),
+            stored: Pile::new(),
             effect_only: false,
             against: Default::default(),
             entered: 0,
@@ -752,6 +776,7 @@ pub const HIDDEN: u16 = u16::MAX - 1;
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct UncontrolledSlot {
     pub card: u16,
+    pub copy: Untracked<CopyId>,
     pub counters: u8,
     /// A banished vampire (Banishment): the arena entry it left, with its
     /// cards face down on it; it comes back as that entry when influenced
@@ -875,20 +900,20 @@ pub struct Seat {
     /// phase" (Sunset Strip, Hollywood): its locks this Methuselah made.
     pub hunt_stealth_unlock: u8,
     /// Remaining crypt cards (CRYPT indices), top at the end.
-    pub crypt: Vec<u16>,
+    pub crypt: Pile,
     pub uncontrolled: Vec<UncontrolledSlot>,
     /// Library (LIBRARY indices), top at the end; hand; ash heap.
-    pub library: Vec<u16>,
-    pub hand: Vec<u16>,
-    pub ash: Vec<u16>,
+    pub library: Pile,
+    pub hand: Pile,
+    pub ash: Pile,
     /// Cards of this Methuselah removed from the game (while another
     /// controlled them, or from its ash heap: Rotting Behemoth; spec §1.10:
     /// removed cards are public).
-    pub removed: Vec<u16>,
+    pub removed: Pile,
     /// Burned vampires (CRYPT indices): the ash heap's crypt cards.
-    pub ash_crypt: Vec<u16>,
+    pub ash_crypt: Pile,
     /// Vampires removed from the game (CRYPT indices).
-    pub removed_crypt: Vec<u16>,
+    pub removed_crypt: Pile,
     /// Master phase actions left in the current master phase (Anson's
     /// second one aside: `GameState::mpa_left`).
     pub mpa: u8,
@@ -995,6 +1020,8 @@ pub struct Seat {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct GameState {
     pub seats: Vec<Seat>,
+    /// The next copy number (`copies`): the dealt cards took the first.
+    pub copy_counter: Untracked<CopyCounter>,
     /// Arena: minions are never removed, only marked out of play.
     pub minions: Vec<Minion>,
     /// Arena of library cards in play.
@@ -2648,12 +2675,21 @@ impl GameState {
     /// hand card, Lenelle) need not be shown (advanced rules §1.14.2).
     pub fn legal_view(&self, viewer: SeatId) -> GameState {
         let mut v = self.clone();
-        let hide = |cards: &mut Vec<u16>| cards.iter_mut().for_each(|c| *c = HIDDEN);
+        // Hidden cards keep no copy either: a copy would tell which card
+        // it is, or where it went.
+        let hide = |cards: &mut Pile| {
+            for i in 0..cards.len() {
+                cards.set_card(i, HIDDEN);
+            }
+            cards.set_copies(CopyId::NONE);
+        };
         for (i, seat) in v.seats.iter_mut().enumerate() {
             let s = SeatId(i as u8);
             if s == viewer {
-                seat.library.sort_unstable();
-                seat.crypt.sort_unstable();
+                seat.library.sort_by_key(|c| c);
+                seat.crypt.sort_by_key(|c| c);
+                seat.library.set_copies(CopyId::NONE);
+                seat.crypt.set_copies(CopyId::NONE);
             } else {
                 hide(&mut seat.library);
                 hide(&mut seat.crypt);
@@ -2665,6 +2701,7 @@ impl GameState {
                 for slot in &mut seat.uncontrolled {
                     if slot.banished.is_none() {
                         slot.card = HIDDEN;
+                        slot.copy = Untracked(CopyId::NONE);
                     }
                 }
             }

@@ -215,6 +215,7 @@ mod tests {
         });
         e.state.seats[0].uncontrolled.push(UncontrolledSlot {
             card: CREATED,
+            copy: Default::default(),
             counters: 1,
             banished: Some(Banished {
                 minion: m,

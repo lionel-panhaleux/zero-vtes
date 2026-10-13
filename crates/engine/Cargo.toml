@@ -6,3 +6,11 @@ license = "MIT"
 
 [lib]
 name = "zvtes"
+
+[features]
+# Zones built from bare card ids (cards with no copy): test fixtures only.
+# The engine's own code always moves a card with its copy.
+fixtures = []
+
+[dev-dependencies]
+zero-vtes-engine = { path = ".", features = ["fixtures"] }

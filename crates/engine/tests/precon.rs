@@ -66,6 +66,7 @@ fn uncontrolled(e: &mut Engine, seat: u8, card: u16) -> u8 {
     let region = &mut e.state.seats[seat as usize].uncontrolled;
     region.push(UncontrolledSlot {
         card,
+        copy: Default::default(),
         counters: 0,
         banished: None,
     });
@@ -1233,7 +1234,8 @@ fn a_block_is_offered_on_the_chance_of_drawing_more_intercept() {
             vec![find_library("Enhanced Senses")]
         } else {
             vec![]
-        };
+        }
+        .into();
         pick(&mut e, action(a, ActionKind::Hunt));
         let stealth = e.action().map(|q| q.stealth(&e.state));
         assert_eq!(stealth, Some(2), "hunt and Taxicab");
@@ -1256,7 +1258,7 @@ fn a_failed_attempt_is_not_offered_again_in_the_same_situation() {
     let y = e.add_minion(SeatId(1), plain("", "aus", 2), 4, false);
     equip(&mut e, "Unlicensed Taxicab", a);
     hand(&mut e, 1, &["Enhanced Senses"]);
-    e.state.seats[1].library = vec![find_library("Enhanced Senses")];
+    e.state.seats[1].library = vec![find_library("Enhanced Senses")].into();
     pick(&mut e, action(a, ActionKind::Hunt)); // 2 stealth
     pick(&mut e, Choice::DeclareBlock { minion: x });
     pick(&mut e, Choice::Pass); // nothing played: the attempt fails
@@ -1284,7 +1286,7 @@ fn a_blocker_left_for_another_is_not_offered_again_in_the_same_situation() {
     let y = e.add_minion(SeatId(1), plain("", "aus", 2), 4, false);
     equip(&mut e, "Unlicensed Taxicab", a);
     hand(&mut e, 1, &["Enhanced Senses"]);
-    e.state.seats[1].library = vec![find_library("Enhanced Senses")];
+    e.state.seats[1].library = vec![find_library("Enhanced Senses")].into();
     pick(&mut e, action(a, ActionKind::Hunt)); // 2 stealth
     pick(&mut e, Choice::DeclareBlock { minion: x });
     pick(&mut e, Choice::DeclareBlock { minion: y }); // X's attempt fails
@@ -1951,7 +1953,7 @@ fn a_canceled_wash_is_replaced_at_once() {
     hand(&mut e, 0, &["Misdirection"]);
     hand(&mut e, 1, &["Wash"]);
     hand(&mut e, 2, &["Sudden Reversal"]);
-    e.state.seats[1].library = vec![find_library("Soak")];
+    e.state.seats[1].library = vec![find_library("Soak")].into();
     e.at_master_phase();
     pick(&mut e, play_at(0, 0, None, Target::Minion(x)));
     pick_for(&mut e, SeatId(1), master(0)); // Wash on Misdirection
@@ -4702,7 +4704,7 @@ fn shroud_of_decay_makes_the_bled_methuselah_discard_two() {
     hand(&mut e, 1, &["Deflection", "Majesty", "Soak"]);
     hand(&mut e, 1, &["Blur"; 4]);
     let villein = find_library("Villein");
-    e.state.seats[1].library = vec![villein; 3];
+    e.state.seats[1].library = vec![villein; 3].into();
     pick(&mut e, play(0, 0, a));
     let req = until(&mut e, SeatId(1), WindowLabel::ResolutionChoice);
     assert_eq!(req.options.len(), 4, "one choice per card: the Blurs alike");
@@ -5118,7 +5120,7 @@ fn revelations_discards_a_card_of_the_preys_hand() {
         &["Soak", "Majesty", "Soak", "Soak", "Soak", "Soak", "Soak"],
     );
     let villein = find_library("Villein");
-    e.state.seats[1].library = vec![villein; 5];
+    e.state.seats[1].library = vec![villein; 5].into();
     pick(&mut e, play_at(0, 0, Some(a), Target::Seat(SeatId(1))));
     let req = until(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
     let majesty = find_library("Majesty");
@@ -5278,7 +5280,7 @@ fn gate_of_acheron_grows_and_drains_the_prey() {
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.cards[gate.index()].counters, 2);
     // The prey's unlock phase: 2 counters, 1 ash card and 1 pool.
-    e.state.seats[1].ash = vec![find_library("Soak")];
+    e.state.seats[1].ash = vec![find_library("Soak")].into();
     let req = until(&mut e, SeatId(1), WindowLabel::RiderTerms);
     assert_eq!(req.options, vec![Choice::SetX(0), Choice::SetX(1)]);
     pick(&mut e, Choice::SetX(1));
@@ -5625,6 +5627,7 @@ fn a_banished_vampire_keeps_the_blood_its_discipline_card_held() {
     e.state.cards[obl.index()].in_play = false;
     e.state.seats[0].uncontrolled.push(UncontrolledSlot {
         card,
+        copy: Default::default(),
         counters: cap,
         banished: Some(zvtes::state::Banished {
             minion: a,
@@ -5662,8 +5665,9 @@ fn childe_of_the_revolution_becomes_a_vampire_that_must_hunt() {
         find_library("Potence"),
         find_library("Soak"),
         find_library("Soak"),
-    ];
-    e.state.seats[0].ash = vec![find_library("Celerity")];
+    ]
+    .into();
+    e.state.seats[0].ash = vec![find_library("Celerity")].into();
     let req = request(&mut e);
     assert!(!plays_by(&req, other).contains(&(0, 0)), "requires a baron");
     let before = e.state.minions.len();
@@ -5760,6 +5764,7 @@ fn a_banished_childe_can_be_influenced_again() {
     e.state.cards[card].in_play = false;
     e.state.seats[0].uncontrolled.push(UncontrolledSlot {
         card: zvtes::state::CREATED,
+        copy: Default::default(),
         counters: 1,
         banished: Some(zvtes::state::Banished {
             minion: childe,
@@ -5887,7 +5892,7 @@ fn wider_view_trades_transfers_for_crypt_cards_or_pool() {
     let keep = vampire(|c| c.clan == "Brujah", 0);
     let drawn = vampire(|c| c.clan == "Ventrue", 0);
     uncontrolled(&mut e, 0, keep);
-    e.state.seats[0].crypt = vec![drawn];
+    e.state.seats[0].crypt = vec![drawn].into();
     let w = location(&mut e, 0, "Wider View");
     until(&mut e, SeatId(0), WindowLabel::InfluenceTransfers);
     pick(&mut e, use_on(w, 0, None, Target::None));
@@ -5923,7 +5928,7 @@ fn family_gathering_draws_a_hecata_or_bottoms_the_card() {
     e.add_minion(SeatId(0), plain("Hecata", "", 0), 4, false);
     e.add_minion(SeatId(1), plain("", "", 1), 4, false);
     hand(&mut e, 0, &["Family Gathering", "Family Gathering"]);
-    e.state.seats[0].crypt = vec![other, hecata];
+    e.state.seats[0].crypt = vec![other, hecata].into();
     e.at_master_phase();
     pick(&mut e, play_at(0, 0, None, Target::None));
     request(&mut e);
@@ -6042,6 +6047,7 @@ fn the_rack_tracks_its_vampire_out_of_play_and_back() {
     e.state.minions[a.index()].in_play = false;
     e.state.seats[0].uncontrolled.push(UncontrolledSlot {
         card,
+        copy: Default::default(),
         counters: 2,
         banished: Some(zvtes::state::Banished {
             minion: a,
@@ -6206,7 +6212,8 @@ fn garibaldi_meucci_museum_trades_a_hand_card_for_an_anarch_card() {
         find_library("Majesty"),
         find_library("Line Brawl"),
         find_library("Reckless Agitation"),
-    ];
+    ]
+    .into();
     let g = location(&mut e, 0, "Garibaldi-Meucci Museum");
     until(&mut e, SeatId(2), WindowLabel::MinionPhase);
     let p0 = pool(&e, 0);
@@ -6704,6 +6711,7 @@ fn frontal_assault_rushes_the_prey_pays_for_losses_and_costs_at_influence() {
     // (rules-qa 28.9).
     e.state.seats[0].uncontrolled.push(UncontrolledSlot {
         card: e.state.minions[a.index()].crypt_card().unwrap(),
+        copy: Default::default(),
         counters: 0,
         banished: None,
     });
@@ -8719,7 +8727,7 @@ fn elder_intervention_blocks_a_bleed_redirected_at_you_and_waits_to_be_replaced(
     hand(&mut e, 1, &["Telepathic Misdirection"]);
     hand(&mut e, 2, &["Elder Intervention"]);
     fill_hand(&mut e, 2);
-    e.state.seats[2].library = vec![find_library("Elder Intervention"); 3];
+    e.state.seats[2].library = vec![find_library("Elder Intervention"); 3].into();
     pick(&mut e, action(a, ActionKind::Bleed));
     pick_when(&mut e, play_at(0, 1, Some(t), Target::Seat(SeatId(2))));
     pick_when(&mut e, Choice::DeclareBlock { minion: w });
@@ -9636,7 +9644,7 @@ fn aranthebes_shields_against_young_bleeds_and_shuffles_away() {
     hand(&mut e, 0, &["Aranthebes, The Immortal"]);
     fill_hand(&mut e, 0);
     // Its replacement drawn: the hand is full as the card is shuffled back.
-    e.state.seats[0].library = vec![find_library("Form of Mist")];
+    e.state.seats[0].library = vec![find_library("Form of Mist")].into();
     pick(&mut e, play(0, 0, young));
     let req = to_minion_phase(&mut e, 0);
     let id = CardId(e.state.cards.len() as u32 - 1);
@@ -9816,7 +9824,8 @@ fn split_the_veil_raises_a_wraith_or_zombie_from_the_ash_heap() {
         find_library("Bone Shambler"),
         find_library("Screamer"),
         find_library("Political Ally"),
-    ];
+    ]
+    .into();
     pick(&mut e, Choice::Pass);
     let tick = |c| use_on(c, 0, None, Target::None);
     pick_when(&mut e, tick(s1));
@@ -10071,8 +10080,8 @@ fn psychophagia_names_its_ally_at_play_and_serves_a_forced_hunt() {
     e.add_minion(SeatId(1), plain("", "", 2), 4, false);
     e.add_minion(SeatId(2), plain("", "", 3), 4, false);
     hand(&mut e, 0, &["Psychophagia"]);
-    e.state.seats[1].ash = vec![find_library("Screamer")];
-    e.state.seats[2].ash = vec![find_library("Screamer"), find_library("Bone Shambler")];
+    e.state.seats[1].ash = vec![find_library("Screamer")].into();
+    e.state.seats[2].ash = vec![find_library("Screamer"), find_library("Bone Shambler")].into();
     // No blood: the vampire must hunt — the rulebook hunt or this one.
     let req = request(&mut e);
     assert!(req.options.contains(&action(h, ActionKind::Hunt)));
@@ -10508,7 +10517,7 @@ fn fragment_of_the_book_of_nod_draws_two() {
     let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
     e.add_minion(SeatId(1), plain("", "", 1), 4, false);
     let f = location(&mut e, 1, "Fragment of the Book of Nod");
-    e.state.seats[1].library = vec![find_library("Soak")];
+    e.state.seats[1].library = vec![find_library("Soak")].into();
     pick(&mut e, action(a, ActionKind::Bleed));
     pick_when(&mut e, use_on(f, 0, None, Target::None));
     assert_eq!(e.state.seats[1].hand, vec![find_library("Soak")]);
@@ -10604,7 +10613,7 @@ fn fragment_of_the_book_of_nod_is_no_as_played_answer() {
     e.add_minion(SeatId(0), plain("", "", 1), 4, false);
     e.add_minion(SeatId(1), plain("", "", 2), 4, false);
     let f = location(&mut e, 1, "Fragment of the Book of Nod");
-    e.state.seats[1].library = vec![find_library("Soak"); 3];
+    e.state.seats[1].library = vec![find_library("Soak"); 3].into();
     hand(&mut e, 0, &["Intimidation"]);
     hand(&mut e, 1, &["Direct Intervention"]);
     pick(&mut e, play(0, 1, a));
@@ -10632,8 +10641,8 @@ fn a_burn_option_card_is_discarded_without_a_minion_to_play_it() {
         e.add_minion(SeatId(2), plain("", "", 2), 4, false);
         let sight = find_library("Sight Beyond Sight");
         assert!(zvtes::library::LIBRARY[sight as usize].burn_option);
-        e.state.seats[1].hand = vec![sight, sight];
-        e.state.seats[1].library = vec![find_library("Soak"); 2];
+        e.state.seats[1].hand = vec![sight, sight].into();
+        e.state.seats[1].library = vec![find_library("Soak"); 2].into();
         pick(&mut e, Choice::Pass);
         let found = loop {
             let req = request(&mut e);
@@ -10946,7 +10955,7 @@ fn the_mithraeum_finds_mithras_and_feeds_his_cult() {
     let c = e.add_minion(SeatId(0), plain("", "", 0), 2, false);
     e.add_minion(SeatId(1), plain("", "", 1), 4, false);
     let mithras = zvtes::state::find_card("Mithras");
-    e.state.seats[0].crypt = vec![plain("", "", 2), mithras];
+    e.state.seats[0].crypt = vec![plain("", "", 2), mithras].into();
     let m = location(&mut e, 0, "Mithraeum, London, The");
     master_on(&mut e, 0, "Mithraic Cultist", c);
     assert!(e.state.mithraic_member(c));
@@ -11418,7 +11427,7 @@ fn fleshforge_chamber_keeps_ghouls_for_the_tzimisce() {
     let ff = location(&mut e, 0, "Fleshforge Chamber");
     let ghoul = find_library("Szlachta Assistant");
     hand(&mut e, 0, &["Szlachta Assistant", "Soak"]);
-    e.state.seats[0].library = vec![find_library("Soak"); 3];
+    e.state.seats[0].library = vec![find_library("Soak"); 3].into();
     e.at_master_phase();
     pick(&mut e, use_on(ff, 0, None, Target::None));
     let req = request(&mut e);
@@ -11742,7 +11751,7 @@ fn michael_harris_searches_the_library_for_equipment_to_equip() {
     let (mh, card) = antigen(&mut e, 0, "Michael Harris, the Incinerator");
     let (magnum, candle) = (find_library(".44 Magnum"), find_library("Flaming Candle"));
     let blade = find_library("Righteous Blade");
-    e.state.seats[0].library = vec![candle, magnum, blade];
+    e.state.seats[0].library = vec![candle, magnum, blade].into();
     e.state.once_played.push(candle);
     hand(&mut e, 0, &[".44 Magnum"]);
     fill_hand(&mut e, 0);
@@ -11958,8 +11967,8 @@ fn direct_intervention_cancels_a_card_played_from_fleshforge_chamber() {
     e.add_minion(SeatId(1), plain("Ventrue", "", 0), 4, false);
     let ff = location(&mut e, 0, "Fleshforge Chamber");
     let ghoul = find_library("Szlachta Assistant");
-    e.state.cards[ff.index()].stored = vec![ghoul];
-    e.state.seats[0].library = vec![find_library("Soak"); 3];
+    e.state.cards[ff.index()].stored = vec![ghoul].into();
+    e.state.seats[0].library = vec![find_library("Soak"); 3].into();
     hand(&mut e, 1, &["Direct Intervention"]);
     fill_hand(&mut e, 0);
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
@@ -12053,7 +12062,7 @@ fn a_searched_equipment_takes_ravnos_cache_counters_once_chosen() {
     let (mh, card) = antigen(&mut e, 0, "Michael Harris, the Incinerator");
     let cache = in_play_with(&mut e, 0, "Ravnos Cache", 2);
     let magnum = find_library(".44 Magnum");
-    e.state.seats[0].library = vec![magnum];
+    e.state.seats[0].library = vec![magnum].into();
     fill_hand(&mut e, 0);
     e.state.seats[0].pool = 1;
     pick(
@@ -12596,7 +12605,7 @@ fn vast_wealth_takes_ravnos_cache_counters_for_its_find() {
     e.state.cards[wealth.index()].host = Some(t);
     let cache = in_play_with(&mut e, 0, "Ravnos Cache", 2);
     let magnum = find_library(".44 Magnum");
-    e.state.seats[0].library = vec![magnum];
+    e.state.seats[0].library = vec![magnum].into();
     fill_hand(&mut e, 0);
     e.state.seats[0].pool = 1;
     pick(
@@ -12682,7 +12691,7 @@ fn an_event_takes_a_discard_phase_action_once_a_phase_and_once_a_game() {
     // Direct Intervention cancels minion cards: no event.
     hand(&mut e, 1, &["Narrow Minds", "Direct Intervention"]);
     for s in 0..3 {
-        e.state.seats[s].library = vec![find_library("Soak"); 5];
+        e.state.seats[s].library = vec![find_library("Soak"); 5].into();
     }
     let req = until(&mut e, SeatId(0), WindowLabel::DiscardPhase);
     assert!(req.options.contains(&master(0)) && req.options.contains(&master(1)));
@@ -12740,7 +12749,7 @@ fn torpid_blood_taxes_torpor_and_waits_for_a_vampire_to_leave_it() {
     let t = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 2, true);
     let r = e.add_minion(SeatId(0), plain("Brujah", "", 0), 5, false);
     e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
-    e.state.seats[0].library = vec![find_library("Soak"); 5];
+    e.state.seats[0].library = vec![find_library("Soak"); 5].into();
     let torpid = event_in_play(&mut e, 0, "Torpid Blood", 0);
     e.state.seats[0].held.leaves_torpor = 1;
     // Leave torpor costs 3: not with 2 blood.
@@ -12835,7 +12844,7 @@ fn blood_weakens_holds_discipline_card_replacements_until_the_action_ends() {
         e.add_minion(SeatId(0), plain("Brujah", "", 0), 5, false);
         e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
         event_in_play(&mut e, 1, "Blood Weakens", 0);
-        e.state.seats[0].library = vec![find_library("Soak"); 5];
+        e.state.seats[0].library = vec![find_library("Soak"); 5].into();
         hand(&mut e, 0, &["Conditioning"]);
         if spare {
             fill_hand(&mut e, 0);
@@ -12926,7 +12935,7 @@ fn wormwood_ceils_capacity_by_its_counters() {
     let mut e = Engine::bare(3);
     let v = e.add_minion(SeatId(0), of_capacity(5, 0), 5, false);
     e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
-    e.state.seats[0].library = vec![find_library("Soak"); 5];
+    e.state.seats[0].library = vec![find_library("Soak"); 5].into();
     hand(&mut e, 0, &["Slow Withering, The"]);
     let req = until(&mut e, SeatId(0), WindowLabel::DiscardPhase);
     assert!(!req.options.contains(&master(0)), "no other Gehenna event");
@@ -12989,7 +12998,7 @@ fn the_fourth_cycle_ends_the_gehenna_events_and_the_young() {
     let small = e.add_minion(SeatId(0), of_capacity(3, 0), 2, false);
     let big = e.add_minion(SeatId(0), of_capacity(5, 0), 2, false);
     e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
-    e.state.seats[0].library = vec![find_library("Soak"); 5];
+    e.state.seats[0].library = vec![find_library("Soak"); 5].into();
     let thirst = event_in_play(&mut e, 1, "Thirst", 0);
     let torpid = event_in_play(&mut e, 1, "Torpid Blood", 0);
     hand(&mut e, 0, &["Fourth Cycle, The", "Blood Weakens"]);
@@ -13015,7 +13024,7 @@ fn the_uncoiling_burns_an_event_each_discard_phase_and_can_be_bought_off() {
     e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
     e.add_minion(SeatId(2), plain("Brujah", "", 0), 5, false);
     for s in 0..3 {
-        e.state.seats[s].library = vec![find_library("Soak"); 5];
+        e.state.seats[s].library = vec![find_library("Soak"); 5].into();
     }
     // A card in hand: seat 0's discard phase is not elided.
     hand(&mut e, 0, &["Soak"]);
@@ -13064,6 +13073,7 @@ fn wormwood_drains_an_influenced_vampire_to_its_ceiling() {
     let card = of_capacity(5, 0);
     e.state.seats[0].uncontrolled.push(UncontrolledSlot {
         card,
+        copy: Default::default(),
         counters: 5,
         banished: None,
     });
@@ -13198,7 +13208,7 @@ fn the_new_inquisition_wounds_a_prey_vampire_and_is_burned_by_the_titled() {
     assert_eq!(e.state.seats[2].held.titled_torpor, 1);
     // Seat 2's unlock phase: the prince (no blood) is sent to torpor, a
     // titled vampire: the held replacement is drawn.
-    e.state.seats[2].library = vec![find_library("Soak"); 3];
+    e.state.seats[2].library = vec![find_library("Soak"); 3].into();
     until(&mut e, SeatId(2), WindowLabel::UnlockAbilities);
     e.state.minions[p.index()].blood = 0;
     let wound = Choice::UseAbility {
@@ -13232,7 +13242,7 @@ fn nightmares_upon_nightmares_locks_small_minions_unless_their_player_discards()
         event_in_play(&mut e, 1, name, 0);
     }
     hand(&mut e, 0, &["Soak", "Soak"]);
-    e.state.seats[0].library = vec![find_library("Conditioning"); 5];
+    e.state.seats[0].library = vec![find_library("Conditioning"); 5].into();
     // `other` stays locked through its unlock phase.
     e.state.minions[other.index()].locked = true;
     e.state.minions[other.index()].skip_unlock = true;
@@ -13302,7 +13312,7 @@ fn restricted_vitae_leaves_only_the_starving_hunting() {
     let young = e.add_minion(SeatId(1), of_capacity(3, 0), 2, false);
     let rv = event_in_play(&mut e, 1, "Restricted Vitae", 0);
     e.state.seats[1].held.hunt = 1;
-    e.state.seats[1].library = vec![find_library("Soak"); 3];
+    e.state.seats[1].library = vec![find_library("Soak"); 3].into();
     let steal = Choice::UseAbility {
         source: AbilitySource::Card(rv),
         ability: 0,
@@ -13394,7 +13404,7 @@ fn fall_of_the_sabbat_needs_three_gehenna_events_and_ends_the_sabbat() {
     let s = e.add_minion(SeatId(0), plain("Brujah", "", 0), 4, false);
     e.state.minions[s.index()].sect_override = Some(Sect::Sabbat);
     e.add_minion(SeatId(1), plain("Gangrel", "", 0), 4, false);
-    e.state.seats[0].library = vec![find_library("Soak"); 5];
+    e.state.seats[0].library = vec![find_library("Soak"); 5].into();
     hand(&mut e, 0, &["Fall of the Sabbat"]);
     let t = event_in_play(&mut e, 1, "Thirst", 0);
     event_in_play(&mut e, 1, "Torpid Blood", 0);
@@ -13431,7 +13441,7 @@ fn rise_of_the_nephtali_makes_an_independent_liaison_the_younger_yielding() {
     e.add_minion(SeatId(1), plain("Gangrel", "", 0), 4, false);
     let rise = event_in_play(&mut e, 1, "Rise of the Nephtali", 0);
     e.state.seats[1].held.liaison = 1;
-    e.state.seats[1].library = vec![find_library("Soak"); 3];
+    e.state.seats[1].library = vec![find_library("Soak"); 3].into();
     let claim = |m| Choice::UseAbility {
         source: AbilitySource::Card(rise),
         ability: 0,
@@ -13490,7 +13500,7 @@ fn absimiliards_army_raises_textless_ghouls_from_the_library() {
     };
     let req = until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
     assert!(req.options.contains(&raise));
-    e.state.seats[0].library = vec![find_library("Soak"), stray, stray];
+    e.state.seats[0].library = vec![find_library("Soak"), stray, stray].into();
     fill_hand(&mut e, 0);
     let before = e.state.minions.len();
     pick(&mut e, raise);
@@ -13517,7 +13527,7 @@ fn absimiliards_army_raises_textless_ghouls_from_the_library() {
     // A second one, removed with the event.
     let req = until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
     assert!(req.options.contains(&raise));
-    e.state.seats[0].library = vec![stray];
+    e.state.seats[0].library = vec![stray].into();
     fill_hand(&mut e, 0);
     let before = e.state.minions.len();
     pick(&mut e, raise);
@@ -13538,7 +13548,7 @@ fn absimiliards_army_burns_as_a_methuselah_is_ousted() {
     e.add_minion(SeatId(3), plain("Brujah", "", 1), 4, false);
     let army = event_in_play(&mut e, 2, "Absimiliard's Army", 0);
     e.state.seats[2].held.ousted = 1;
-    e.state.seats[2].library = vec![find_library("Soak"); 3];
+    e.state.seats[2].library = vec![find_library("Soak"); 3].into();
     e.state.seats[1].pool = 1;
     pick(&mut e, action(a, ActionKind::Bleed));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
@@ -13616,7 +13626,7 @@ fn blood_weakens_holds_an_action_card_played_with_a_discipline() {
     e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", "", 0), 4, false);
     event_in_play(&mut e, 1, "Blood Weakens", 0);
-    e.state.seats[0].library = vec![find_library("Soak"); 5];
+    e.state.seats[0].library = vec![find_library("Soak"); 5].into();
     hand(&mut e, 0, &["Intimidation", "Soak"]);
     fill_hand(&mut e, 0);
     pick(&mut e, play(0, 1, a));
@@ -14118,7 +14128,7 @@ fn tension_in_the_ranks_counts_a_burned_ghoul_of_absimiliards_army_only() {
         target: Target::None,
     };
     until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
-    e.state.seats[0].library = vec![find_library("Soak"); 3];
+    e.state.seats[0].library = vec![find_library("Soak"); 3].into();
     fill_hand(&mut e, 0);
     let before = e.state.minions.len();
     pick(&mut e, raise);
@@ -14128,7 +14138,7 @@ fn tension_in_the_ranks_counts_a_burned_ghoul_of_absimiliards_army_only() {
     assert_eq!(pool(&e, 0), p0 - 1, "burned: Tension in the Ranks");
     assert_eq!(e.state.seats[0].removed.len(), 1, "and removed");
     until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
-    e.state.seats[0].library = vec![find_library("Soak"); 3];
+    e.state.seats[0].library = vec![find_library("Soak"); 3].into();
     fill_hand(&mut e, 0);
     let before = e.state.minions.len();
     pick(&mut e, raise);
@@ -14603,7 +14613,7 @@ fn a_card_held_until_after_the_action_is_replaced_after_freak_drive() {
     hand(&mut e, 1, &["Elder Intervention"]);
     fill_hand(&mut e, 1);
     let soak = find_library("Soak");
-    e.state.seats[1].library = vec![soak; 3];
+    e.state.seats[1].library = vec![soak; 3].into();
     pick(&mut e, action(a, ActionKind::Bleed));
     pick_when(&mut e, Choice::DeclareBlock { minion: z });
     pick_when(&mut e, play(1, 0, a)); // Lost in Crowds: +1 stealth
@@ -14652,7 +14662,7 @@ fn magic_of_the_smith_does_not_bar_equipping_from_hand_after() {
     e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
     let magnum = find_library(".44 Magnum");
     let soak = find_library("Soak");
-    e.state.seats[0].library = vec![soak, magnum, soak];
+    e.state.seats[0].library = vec![soak, magnum, soak].into();
     // A full hand: only the card's replacement is drawn.
     hand(&mut e, 0, &["Magic of the Smith", ".44 Magnum"]);
     hand(&mut e, 0, &["Deflection"; 5]);

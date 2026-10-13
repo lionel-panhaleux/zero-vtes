@@ -1020,8 +1020,8 @@ fn mora_moves_an_ash_heap_card_to_the_library_bottom_once_per_discard_phase() {
         find_library("Conditioning"),
         find_library("Villein"),
     );
-    e.state.seats[0].ash = vec![bonding, bonding, conditioning];
-    e.state.seats[0].library = vec![villein];
+    e.state.seats[0].ash = vec![bonding, bonding, conditioning].into();
+    e.state.seats[0].library = vec![villein].into();
     fill_hand(&mut e, 0);
     until(&mut e, SeatId(0), WindowLabel::DiscardPhase);
     pick(&mut e, vampire_ability(mora, 0));
@@ -1863,7 +1863,7 @@ fn lenelle_names_the_cards_she_exchanges_as_she_announces_the_action() {
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     let s = &e.state.seats[0];
     assert_eq!(s.ash, vec![magnum, rats]);
-    let mut held = s.hand.clone();
+    let mut held = s.hand.to_vec();
     held.sort_unstable();
     let mut want = vec![rage, rage, kevlar];
     want.sort_unstable();
@@ -3033,7 +3033,7 @@ fn regina_blake_pays_for_a_location_found_by_a_search() {
     let tzimisce = e.add_minion(SeatId(0), plain("Tzimisce", 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     let wealth = in_play(&mut e, "Vast Wealth", 0, Some(tzimisce));
-    e.state.seats[0].library = vec![find_library("Living Manse")];
+    e.state.seats[0].library = vec![find_library("Living Manse")].into();
     fill_hand(&mut e, 0);
     pick(&mut e, granted(wealth as u32, tzimisce));
     let req = until(&mut e, SeatId(0), WindowLabel::PlayTerms);
@@ -3372,7 +3372,7 @@ fn marchesa_liliana_removes_seven_ash_cards_for_bleed_once_per_action() {
     let s = &e.state.seats[0];
     assert!(s.ash.is_empty() && s.ash_crypt.is_empty());
     assert_eq!(
-        (s.removed.len(), s.removed_crypt.clone()),
+        (s.removed.len(), s.removed_crypt.to_vec()),
         (6, vec![burned])
     );
     assert_eq!(e.state.seats[1].pool, before - 3);

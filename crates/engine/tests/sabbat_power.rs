@@ -921,6 +921,7 @@ fn magnetic_authority_feeds_the_uncontrolled_sabbat_vampires() {
             .uncontrolled
             .push(zvtes::state::UncontrolledSlot {
                 card: card(name),
+                copy: Default::default(),
                 counters: 0,
                 banished: None,
             });
@@ -929,6 +930,7 @@ fn magnetic_authority_feeds_the_uncontrolled_sabbat_vampires() {
         .uncontrolled
         .push(zvtes::state::UncontrolledSlot {
             card: plain("Brujah", 2),
+            copy: Default::default(),
             counters: 0,
             banished: None,
         });
@@ -957,6 +959,7 @@ fn unholy_sacrament_feeds_an_uncontrolled_titled_sabbat_vampire() {
             .uncontrolled
             .push(zvtes::state::UncontrolledSlot {
                 card: card(name),
+                copy: Default::default(),
                 counters: 0,
                 banished: None,
             });

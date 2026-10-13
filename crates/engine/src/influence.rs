@@ -140,9 +140,10 @@ impl Engine {
             Choice::DrawCrypt => {
                 let seat = &mut self.state.seats[s.index()];
                 seat.pool -= 1;
-                let card = seat.crypt.pop().expect("draw from empty crypt");
+                let (card, copy) = seat.crypt.take_top().expect("draw from empty crypt");
                 seat.uncontrolled.push(UncontrolledSlot {
                     card,
+                    copy: crate::copies::Untracked(copy),
                     counters: 0,
                     banished: None,
                 });
@@ -180,7 +181,9 @@ impl Engine {
                     }
                     None => {
                         let capacity = CRYPT[out.card as usize].capacity;
-                        self.add_minion(s, out.card, capacity, false)
+                        let m = self.add_minion(s, out.card, capacity, false);
+                        self.state.minions[m.index()].copy = out.copy;
+                        m
                     }
                 };
                 // An Anarch entering play: counted first, the Convert's
@@ -207,9 +210,10 @@ impl Engine {
                 }
                 if entry_has(out.card, crate::cards::Effect::DrawCryptOnEntry) {
                     let st = &mut self.state.seats[s.index()];
-                    if let Some(card) = st.crypt.pop() {
+                    if let Some((card, copy)) = st.crypt.take_top() {
                         st.uncontrolled.push(crate::state::UncontrolledSlot {
                             card,
+                            copy: crate::copies::Untracked(copy),
                             counters: 0,
                             banished: None,
                         });
@@ -293,11 +297,10 @@ impl Engine {
                 let m = self
                     .merge_partner(s, *slot as usize)
                     .expect("merge partner");
-                let card = self.state.seats[s.index()]
+                let slot = self.state.seats[s.index()]
                     .uncontrolled
-                    .remove(*slot as usize)
-                    .card;
-                self.merge(m, card);
+                    .remove(*slot as usize);
+                self.merge(m, slot.card, *slot.copy);
                 self.flow = Flow::Influence { left: left - 4 };
                 self.state.seats[s.index()].pool -= 1;
                 if self.state.seats[s.index()].pool == 0 {
@@ -337,16 +340,23 @@ impl Engine {
     /// onto the vampire, an anarch token gone with any other sect
     /// (advanced rules 5.1.2); its blood kept, above the new capacity
     /// drained.
-    pub(crate) fn merge(&mut self, m: crate::ids::MinionId, card: u16) {
+    pub(crate) fn merge(
+        &mut self,
+        m: crate::ids::MinionId,
+        card: u16,
+        copy: crate::copies::CopyId,
+    ) {
         let v = &mut self.state.minions[m.index()];
-        let own = v.crypt_card().expect("a crypt vampire");
-        let (adv, base) = if CRYPT[card as usize].adv {
-            (card, own)
+        let own = (v.crypt_card().expect("a crypt vampire"), *v.copy);
+        let ((adv, adv_copy), (base, base_copy)) = if CRYPT[card as usize].adv {
+            ((card, copy), own)
         } else {
-            (own, card)
+            (own, (card, copy))
         };
         v.kind = crate::state::MinionKind::Vampire(adv);
+        v.copy = crate::copies::Untracked(adv_copy);
         v.merged = Some(base);
+        v.merged_copy = crate::copies::Untracked(base_copy);
         v.sect_override = None;
     }
 }

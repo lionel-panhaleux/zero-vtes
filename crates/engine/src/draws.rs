@@ -642,17 +642,17 @@ impl Engine {
     pub(crate) fn store_top_cards(&mut self, id: CardId, n: u8) {
         let s = self.state.card_controller(id);
         for _ in 0..n {
-            let Some(top) = self.state.seats[s.index()].library.pop() else {
+            let Some((top, copy)) = self.state.seats[s.index()].library.take_top() else {
                 break;
             };
-            self.state.cards[id.index()].stored.push(top);
+            self.state.cards[id.index()].stored.put(top, copy);
         }
     }
 
     fn draw_top(&mut self, s: SeatId) {
         let seat = &mut self.state.seats[s.index()];
-        if let Some(c) = seat.library.pop() {
-            seat.hand.push(c);
+        if let Some((c, copy)) = seat.library.take_top() {
+            seat.hand.put(c, copy);
             self.offer_redraw(s, c);
         }
     }
@@ -695,8 +695,8 @@ impl Engine {
         let id = CardId(card);
         let on = &mut self.state.cards[id.index()].stored;
         let k = on.iter().rposition(|&c| c == stored).expect("stored card");
-        on.remove(k);
-        self.state.seats[s.index()].hand.push(stored);
+        let (_, copy) = on.take(k);
+        self.state.seats[s.index()].hand.put(stored, copy);
         let def = cards::lookup(self.state.cards[id.index()].card).expect("definition");
         for r in def.riders.iter().filter(|r| r.hook == Hook::WouldDraw) {
             for e in r.effects {
@@ -717,7 +717,7 @@ impl Engine {
     /// else a unique copy enters contest now that its cards are on it
     /// (spec §1.13.2).
     fn finish_store_search(&mut self, s: SeatId, card: CardId) {
-        self.rng.shuffle(&mut self.state.seats[s.index()].library);
+        self.state.seats[s.index()].library.shuffle(&mut self.rng);
         if self.state.cards[card.index()].stored.is_empty() {
             self.burn_card_in_play(card);
         } else {
@@ -880,10 +880,8 @@ impl Engine {
                     self.interrupts.remove(0);
                     let st = &mut self.state.seats[seat.index()];
                     let k = if left > 0 { held } else { 0 };
-                    let (cards, keep): (Vec<u16>, Vec<u16>) =
-                        st.hand.iter().partition(|&&c| fits(c) && k > 0);
-                    st.hand = keep;
-                    st.ash.extend(cards);
+                    let cards = st.hand.take_unless(|c| !(fits(c) && k > 0));
+                    st.ash.put_all(cards);
                     self.replace(seat, done as usize + k, None);
                     continue;
                 }
@@ -900,11 +898,11 @@ impl Engine {
                     self.interrupts.remove(0);
                     let seat = &mut self.state.seats[of.index()];
                     let n = (left as usize).min(seat.ash.len());
-                    let removed: Vec<u16> = seat.ash.drain(..n).collect();
-                    seat.removed.extend(removed);
+                    let removed = seat.ash.take_bottom(n);
+                    seat.removed.put_all(removed);
                     let k = (left as usize - n).min(seat.ash_crypt.len());
-                    let removed: Vec<u16> = seat.ash_crypt.drain(..k).collect();
-                    seat.removed_crypt.extend(removed);
+                    let removed = seat.ash_crypt.take_bottom(k);
+                    seat.removed_crypt.put_all(removed);
                     let mut loss = vec![0; self.state.seats.len()];
                     loss[of.index()] = pool as i32;
                     self.burn_pool_batch(&loss);
@@ -959,8 +957,8 @@ impl Engine {
                     let mut drawn = 0;
                     for _ in 0..extra {
                         let st = &mut self.state.seats[seat.index()];
-                        match st.library.pop() {
-                            Some(c) => st.hand.push(c),
+                        match st.library.take_top() {
+                            Some((c, copy)) => st.hand.put(c, copy),
                             None => break,
                         }
                         drawn += 1;
@@ -984,7 +982,7 @@ impl Engine {
                         return;
                     }
                     self.interrupts.remove(0);
-                    self.rng.shuffle(&mut self.state.seats[s.index()].library);
+                    self.state.seats[s.index()].library.shuffle(&mut self.rng);
                     continue;
                 }
                 Interrupt::DisciplineSearch { minion, .. } => {
@@ -992,7 +990,7 @@ impl Engine {
                         return;
                     }
                     self.interrupts.remove(0);
-                    self.rng.shuffle(&mut self.state.seats[s.index()].library);
+                    self.state.seats[s.index()].library.shuffle(&mut self.rng);
                     continue;
                 }
                 Interrupt::CorruptionOwner { minion, .. } => {
@@ -1049,8 +1047,7 @@ impl Engine {
                 Interrupt::CryptSearch { seat, clan } => {
                     if self.crypt_of_clan(seat, clan).is_empty() {
                         self.interrupts.remove(0);
-                        let crypt = &mut self.state.seats[seat.index()].crypt;
-                        self.rng.shuffle(crypt);
+                        self.state.seats[seat.index()].crypt.shuffle(&mut self.rng);
                         continue;
                     }
                     true
@@ -1118,8 +1115,9 @@ impl Engine {
                     }
                     self.interrupts.remove(0);
                     if to_library {
-                        let library = &mut self.state.seats[seat.index()].library;
-                        self.rng.shuffle(library);
+                        self.state.seats[seat.index()]
+                            .library
+                            .shuffle(&mut self.rng);
                     }
                     continue;
                 }
@@ -1882,8 +1880,8 @@ impl Engine {
     pub(crate) fn raise_ash_ally(&mut self, s: SeatId, card: u16, locked: bool) {
         let ash = &mut self.state.seats[s.index()].ash;
         let k = ash.iter().rposition(|&c| c == card).expect("ash ally");
-        ash.remove(k);
-        let m = self.recruit_ally(s, card, 0);
+        let (_, copy) = ash.take(k);
+        let m = self.recruit_ally(s, card, copy, 0);
         self.state.minions[m.index()].recruited = false;
         self.state.minions[m.index()].locked |= locked;
     }
@@ -2150,9 +2148,10 @@ impl Engine {
         let slot = self.state.seats[seat.index()].uncontrolled.remove(i);
         if let Some(b) = slot.banished {
             for c in b.cards {
+                let copy = *self.state.cards[c.index()].copy;
                 if self.state.cards[c.index()].body.is_some() {
                     let card = self.state.cards[c.index()].card;
-                    self.state.seats[seat.index()].removed.push(card);
+                    self.state.seats[seat.index()].removed.put(card, copy);
                     continue;
                 }
                 // Out of play on it: straight to its owner's ash heap.
@@ -2160,11 +2159,13 @@ impl Engine {
                     self.state.cards[c.index()].owner,
                     self.state.cards[c.index()].card,
                 );
-                self.state.seats[owner.index()].ash.push(card);
+                self.state.seats[owner.index()].ash.put(card, copy);
             }
         }
         if slot.card != crate::state::CREATED {
-            self.state.seats[seat.index()].removed_crypt.push(slot.card);
+            self.state.seats[seat.index()]
+                .removed_crypt
+                .put(slot.card, *slot.copy);
         }
     }
 
@@ -2394,15 +2395,15 @@ impl Engine {
             ) => {
                 self.interrupts.remove(0);
                 let seat = &mut self.state.seats[s.index()];
-                let held = seat.hand.remove(i as usize);
+                let (held, held_copy) = seat.hand.take(i as usize);
                 let k = seat
                     .ash
                     .iter()
                     .position(|&c| c == card)
                     .expect("named ash card");
-                seat.ash.remove(k);
-                seat.ash.push(held);
-                seat.hand.push(card);
+                let (_, copy) = seat.ash.take(k);
+                seat.ash.put(held, held_copy);
+                seat.hand.put(card, copy);
             }
             (Interrupt::ChooseForCard { .. }, Choice::ChooseMinion(m)) => {
                 self.interrupts.remove(0);
@@ -2411,7 +2412,7 @@ impl Engine {
             (Interrupt::AshurPicks { to_library, .. }, Choice::Pass) => {
                 self.interrupts.remove(0);
                 if to_library {
-                    self.rng.shuffle(&mut self.state.seats[s.index()].library);
+                    self.state.seats[s.index()].library.shuffle(&mut self.rng);
                 }
             }
             (
@@ -2428,11 +2429,11 @@ impl Engine {
                     .iter()
                     .position(|&c| c == card)
                     .expect("in the ash heap");
-                st.ash.remove(i);
+                let (card, copy) = st.ash.take(i);
                 if to_library {
-                    st.library.push(card);
+                    st.library.put(card, copy);
                 } else {
-                    st.hand.push(card);
+                    st.hand.put(card, copy);
                 }
                 self.interrupts[0] = Interrupt::AshurPicks {
                     seat,
@@ -2464,7 +2465,8 @@ impl Engine {
                 // yet: he is entering play).
                 self.remove_minion(convert);
                 if let Some(card) = self.state.minions[convert.index()].crypt_card() {
-                    self.state.seats[seat.index()].removed_crypt.push(card);
+                    let copy = *self.state.minions[convert.index()].copy;
+                    self.state.seats[seat.index()].removed_crypt.put(card, copy);
                 }
                 self.make_anarch(m);
                 self.interrupts[0] = Interrupt::AnarchConvert {
@@ -2482,9 +2484,10 @@ impl Engine {
             (Interrupt::AnarchConvert { seat, .. }, Choice::DrawCrypt) => {
                 self.interrupts.remove(0);
                 let st = &mut self.state.seats[seat.index()];
-                if let Some(card) = st.crypt.pop() {
+                if let Some((card, copy)) = st.crypt.take_top() {
                     st.uncontrolled.push(crate::state::UncontrolledSlot {
                         card,
+                        copy: crate::copies::Untracked(copy),
                         counters: 0,
                         banished: None,
                     });
@@ -2509,10 +2512,11 @@ impl Engine {
                     .iter()
                     .rposition(|&c| c == card)
                     .expect("in the ash heap");
-                s.ash.remove(i);
-                s.library.push(card);
-                self.rng
-                    .shuffle(&mut self.state.seats[seat.index()].library);
+                let (_, copy) = s.ash.take(i);
+                s.library.put(card, copy);
+                self.state.seats[seat.index()]
+                    .library
+                    .shuffle(&mut self.rng);
             }
             (Interrupt::MayRecycleCanceled { .. }, Choice::Pass) => {
                 self.interrupts.remove(0);
@@ -2569,8 +2573,8 @@ impl Engine {
                     .iter()
                     .rposition(|&c| c == card)
                     .expect("in the prey's ash heap");
-                ash.remove(i);
-                self.state.cards[on.index()].stored.push(card);
+                let (_, copy) = ash.take(i);
+                self.state.cards[on.index()].stored.put(card, copy);
                 self.state.cards[on.index()].stored_owner = Some(prey);
                 self.state.taken_across += 1;
             }
@@ -2605,8 +2609,8 @@ impl Engine {
             }
             (Interrupt::PursuitDiscard { seat, left }, Choice::Discard(i)) => {
                 let st = &mut self.state.seats[seat.index()];
-                let card = st.hand.remove(i as usize);
-                st.ash.push(card);
+                let (card, copy) = st.hand.take(i as usize);
+                st.ash.put(card, copy);
                 self.interrupts[0] = Interrupt::PursuitDiscard {
                     seat,
                     left: left - 1,
@@ -2647,16 +2651,16 @@ impl Engine {
                         Zone::AshHeap => &mut seat.ash,
                     };
                     let k = from.iter().rposition(|&x| x == card).expect("found card");
-                    from.remove(k);
+                    let (_, copy) = from.take(k);
                     self.state.minions[minion.index()].blood -= blood;
                     // Put in play, not recruited: it may act this turn
                     // (as Raise the Dead's, LSJ 20100204).
-                    let m = self.recruit_ally(s, card, 0);
+                    let m = self.recruit_ally(s, card, copy, 0);
                     self.state.minions[m.index()].recruited = false;
                     if zone == Zone::Hand {
                         self.replace(s, 1, None);
                     }
-                    self.rng.shuffle(&mut self.state.seats[s.index()].library);
+                    self.state.seats[s.index()].library.shuffle(&mut self.rng);
                     // Its pool paid last: an oust ends the search.
                     if pool > 0 {
                         self.burn_pool_batch(&{
@@ -2666,7 +2670,7 @@ impl Engine {
                         });
                     }
                 } else {
-                    self.rng.shuffle(&mut self.state.seats[s.index()].library);
+                    self.state.seats[s.index()].library.shuffle(&mut self.rng);
                 }
             }
             (Interrupt::DisciplineSearch { minion, .. }, c) => {
@@ -2679,15 +2683,15 @@ impl Engine {
                         Zone::AshHeap => &mut seat.ash,
                     };
                     let k = from.iter().rposition(|&x| x == card).expect("found card");
-                    from.remove(k);
-                    self.put_on_minion(s, card, minion);
+                    let (_, copy) = from.take(k);
+                    self.put_on_minion(s, card, copy, minion);
                     // Out of the hand: drawn back up at once (advanced rules
                     // 6.8).
                     if zone == Zone::Hand {
                         self.replace(s, 1, None);
                     }
                 }
-                self.rng.shuffle(&mut self.state.seats[s.index()].library);
+                self.state.seats[s.index()].library.shuffle(&mut self.rng);
             }
             (Interrupt::Replacement { .. }, Choice::ResolveRider { card }) => {
                 self.interrupts.remove(0);
@@ -2715,10 +2719,10 @@ impl Engine {
             }
             (Interrupt::Bottom { left, .. }, Choice::Bottom(i)) => {
                 let seat = &mut self.state.seats[s.index()];
-                let card = seat.hand.remove(i as usize);
+                let (card, copy) = seat.hand.take(i as usize);
                 // Under the cards moved before it: the last one chosen is
                 // the bottom card (rules-qa 9.5).
-                seat.library.insert(0, card);
+                seat.library.put_at(0, card, copy);
                 self.interrupts[0] = Interrupt::Bottom {
                     seat: s,
                     left: left - 1,
@@ -2730,8 +2734,8 @@ impl Engine {
                     .iter()
                     .rposition(|&c| c == found)
                     .expect("found card in the library");
-                library.remove(k);
-                self.state.cards[card.index()].stored.push(found);
+                let (_, copy) = library.take(k);
+                self.state.cards[card.index()].stored.put(found, copy);
                 self.interrupts[0] = Interrupt::StoreSearch {
                     seat: s,
                     card,
@@ -2755,8 +2759,8 @@ impl Engine {
                             .iter()
                             .position(|&x| x == card)
                             .expect("in the ash heap");
-                        seat.ash.remove(k);
-                        seat.removed.push(card);
+                        let (_, copy) = seat.ash.take(k);
+                        seat.removed.put(card, copy);
                     }
                     Choice::AshVampire(card) => {
                         let k = seat
@@ -2764,8 +2768,8 @@ impl Engine {
                             .iter()
                             .position(|&x| x == card)
                             .expect("in the ash heap");
-                        seat.ash_crypt.remove(k);
-                        seat.removed_crypt.push(card);
+                        let (_, copy) = seat.ash_crypt.take(k);
+                        seat.removed_crypt.put(card, copy);
                     }
                     Choice::Pass => self.burn_minion(ally),
                     other => unreachable!("illegal entry choice {other:?}"),
@@ -2819,8 +2823,8 @@ impl Engine {
                 self.interrupts.remove(0);
                 let st = &mut self.state.seats[of.index()];
                 let i = st.hand.iter().position(|&c| c == card).expect("in hand");
-                st.hand.remove(i);
-                st.ash.push(card);
+                let (_, copy) = st.hand.take(i);
+                st.ash.put(card, copy);
                 self.replace(of, 1, None);
             }
             (Interrupt::AvoidDamage { minion, damage, .. }, Choice::Pass) => {
@@ -2847,8 +2851,8 @@ impl Engine {
                     .rev()
                     .find(|&k| lib[k] == card)
                     .expect("the chosen card among the top ones");
-                let c = lib.remove(from);
-                lib.insert(to, c);
+                let (c, copy) = lib.take(from);
+                lib.put_at(to, c, copy);
                 self.interrupts[0] = Interrupt::Reorder {
                     seat,
                     total,
@@ -2865,8 +2869,8 @@ impl Engine {
                 Choice::Discard(i),
             ) => {
                 let st = &mut self.state.seats[seat.index()];
-                let card = st.hand.remove(i as usize);
-                st.ash.push(card);
+                let (card, copy) = st.hand.take(i as usize);
+                st.ash.put(card, copy);
                 self.interrupts[0] = Interrupt::DiscardChosen {
                     seat,
                     left: left - 1,
@@ -2891,8 +2895,8 @@ impl Engine {
                             .iter()
                             .position(|&x| x == card)
                             .expect("in the ash heap");
-                        st.ash.remove(i);
-                        st.removed.push(card);
+                        let (_, copy) = st.ash.take(i);
+                        st.removed.put(card, copy);
                     }
                     Choice::AshVampire(card) => {
                         let i = st
@@ -2900,8 +2904,8 @@ impl Engine {
                             .iter()
                             .position(|&x| x == card)
                             .expect("in the ash heap");
-                        st.ash_crypt.remove(i);
-                        st.removed_crypt.push(card);
+                        let (_, copy) = st.ash_crypt.take(i);
+                        st.removed_crypt.put(card, copy);
                     }
                     _ => unreachable!(),
                 }
@@ -3011,11 +3015,11 @@ impl Engine {
                     .iter()
                     .rposition(|&c| c == card)
                     .expect("drawn card");
-                st.hand.remove(i);
-                st.library.insert(0, card);
+                let (card, copy) = st.hand.take(i);
+                st.library.put_at(0, card, copy);
                 // The new card is a library draw too, the use spent.
-                if let Some(c) = st.library.pop() {
-                    st.hand.push(c);
+                if let Some((c, copy)) = st.library.take_top() {
+                    st.hand.put(c, copy);
                 }
             }
             (Interrupt::Redraw { .. }, Choice::Pass) => {
@@ -3077,8 +3081,8 @@ impl Engine {
             (Interrupt::LockOrDiscard { seat, .. }, Choice::Discard(i)) => {
                 self.interrupts.remove(0);
                 let s = &mut self.state.seats[seat.index()];
-                let c = s.hand.remove(i as usize);
-                s.ash.push(c);
+                let (c, copy) = s.hand.take(i as usize);
+                s.ash.put(c, copy);
                 s.held.master += 1;
             }
             (Interrupt::LockOrPay { card, .. }, Choice::ResolveRider { .. }) => {
@@ -3108,17 +3112,18 @@ impl Engine {
                     .iter()
                     .position(|&c| c == card)
                     .expect("in the crypt");
-                st.crypt.remove(k);
+                let (card, copy) = st.crypt.take(k);
                 st.uncontrolled.push(crate::state::UncontrolledSlot {
                     card,
+                    copy: crate::copies::Untracked(copy),
                     counters: 0,
                     banished: None,
                 });
-                self.rng.shuffle(&mut self.state.seats[seat.index()].crypt);
+                self.state.seats[seat.index()].crypt.shuffle(&mut self.rng);
             }
             (Interrupt::CryptSearch { seat, .. }, Choice::Pass) => {
                 self.interrupts.remove(0);
-                self.rng.shuffle(&mut self.state.seats[seat.index()].crypt);
+                self.state.seats[seat.index()].crypt.shuffle(&mut self.rng);
             }
             (Interrupt::PreySlotToPool { of, .. }, Choice::Slot(i)) => {
                 self.interrupts.remove(0);
@@ -3229,23 +3234,25 @@ impl Engine {
                 let card = match choice {
                     Choice::AshVampire(card) => {
                         if let Some(k) = sv.crypt.iter().position(|&c| c == card) {
-                            sv.crypt.remove(k);
+                            Some(sv.crypt.take(k))
                         } else {
                             let k = sv
                                 .ash_crypt
                                 .iter()
                                 .position(|&c| c == card)
                                 .expect("in the ash heap");
-                            sv.ash_crypt.remove(k);
+                            Some(sv.ash_crypt.take(k))
                         }
-                        Some(card)
                     }
-                    Choice::Slot(i) => Some(sv.uncontrolled.remove(i as usize).card),
+                    Choice::Slot(i) => {
+                        let slot = sv.uncontrolled.remove(i as usize);
+                        Some((slot.card, *slot.copy))
+                    }
                     _ => None,
                 };
-                self.rng.shuffle(&mut self.state.seats[seat.index()].crypt);
-                if let Some(card) = card {
-                    self.merge(minion, card);
+                self.state.seats[seat.index()].crypt.shuffle(&mut self.rng);
+                if let Some((card, copy)) = card {
+                    self.merge(minion, card, copy);
                 }
             }
             (Interrupt::PoolToVampires { seat, to: None }, Choice::ChooseMinion(m)) => {

@@ -102,6 +102,7 @@ fn uncontrolled(e: &mut Engine, seat: u8, card: u16) -> u8 {
     let region = &mut e.state.seats[seat as usize].uncontrolled;
     region.push(UncontrolledSlot {
         card,
+        copy: Default::default(),
         counters: 0,
         banished: None,
     });
@@ -597,7 +598,7 @@ fn gilbert_duane_removes_his_crypts_top_card_and_makes_an_anarch() {
         let v = e.add_minion(SeatId(0), plain("Ventrue", &[], 0), 4, false);
         let w = e.add_minion(SeatId(0), plain("Ventrue", &[], 1), 4, false);
         let top = plain(if malkavian { "Malkavian" } else { "Brujah" }, &[], 0);
-        e.state.seats[0].crypt = vec![top];
+        e.state.seats[0].crypt = vec![top].into();
         let use_it = Choice::UseAbility {
             source: AbilitySource::Vampire(g),
             ability: 0,
@@ -685,7 +686,7 @@ fn ashur_tablets_third_copy_recovers_the_ash_heap() {
     in_play(&mut e, 0, "Ashur Tablets", None);
     in_play(&mut e, 1, "Ashur Tablets", None);
     let (bonding, conditioning) = (find_library("Bonding"), find_library("Conditioning"));
-    e.state.seats[0].ash = vec![bonding, bonding, conditioning];
+    e.state.seats[0].ash = vec![bonding, bonding, conditioning].into();
     hand(&mut e, 0, &["Ashur Tablets", "Ashur Tablets"]);
     e.state.seats[0].mpa = 2;
     e.at_master_phase();

@@ -7,13 +7,14 @@
 //! never gets to. Every game is pinned in `tests/golden/<test>.txt` (golden replays,
 //! DESIGN §7.3; `GOLDEN_BLESS=1` rewrites them).
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 mod common;
 
 use common::tables::{table, untwin, ALLY_SLICE, PRECON_SLICE, SLICE};
 use zvtes::agent::RandomLegal;
 use zvtes::cards::AbilitySource;
+use zvtes::copies::{census, CopyId};
 use zvtes::crypt::{CryptCard, CRYPT};
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step, TURN_LIMIT};
@@ -79,6 +80,96 @@ fn zone_totals(e: &Engine) -> Vec<usize> {
             s.library.len() + s.hand.len() + s.ash.len() + s.removed.len() + in_play + tokens
         })
         .collect()
+}
+
+/// The dealt copies (`zvtes::copies`): each copy's card and the
+/// Methuselah whose deck it came from, at the start of a game.
+fn dealt_copies(e: &Engine) -> HashMap<CopyId, (u16, usize)> {
+    use zvtes::copies::Place;
+    census(e)
+        .into_iter()
+        .map(|(copy, card, place)| {
+            let seat = match place {
+                Place::Zone(s, _) | Place::Uncontrolled(s) => s as usize,
+                Place::Card { id, .. } => e.state.cards[id as usize].owner.index(),
+                Place::Minion { id, .. } => {
+                    let m = &e.state.minions[id as usize];
+                    m.origin.or(m.temp_from).unwrap_or(m.owner).index()
+                }
+                Place::InFlight(s) => s as usize,
+            };
+            (copy, (card, seat))
+        })
+        .collect()
+}
+
+/// Copies are conserved: each in one place, still its card, and every
+/// dealt copy somewhere until its Methuselah is ousted — or the game ends
+/// (`over`: a play under way is dropped).
+fn copies_conserved(
+    e: &Engine,
+    dealt: &HashMap<CopyId, (u16, usize)>,
+    last: &mut HashMap<CopyId, zvtes::copies::Place>,
+    over: bool,
+    seed: u64,
+) {
+    let mut seen = HashMap::new();
+    for (copy, card, place) in census(e) {
+        // Every card was numbered at the start (`number_unnumbered`): a
+        // card without a copy was put in place by the engine without one.
+        assert!(
+            copy != CopyId::NONE,
+            "card {card} at {place:?} has no copy (seed {seed}, decision {})",
+            e.log.len()
+        );
+        if let Some(before) = seen.insert(copy, place) {
+            panic!(
+                "copy {copy:?} twice: {before:?} and {place:?} (seed {seed}, decision {})",
+                e.log.len()
+            );
+        }
+        if let Some(&(dealt, _)) = dealt.get(&copy) {
+            assert_eq!(
+                card,
+                dealt,
+                "copy {copy:?} changed card at {place:?} (seed {seed}, decision {})",
+                e.log.len()
+            );
+        }
+    }
+    // An ousted Methuselah's cards leave the game with them (rulebook
+    // "Ending the Game"), theirs and those they controlled.
+    let ousted_had = |place: Option<&zvtes::copies::Place>| {
+        use zvtes::copies::Place;
+        let seat = match place {
+            Some(Place::Zone(s, _) | Place::Uncontrolled(s) | Place::InFlight(s)) => *s as usize,
+            Some(Place::Minion { id, .. }) => e.state.minions[*id as usize].owner.index(),
+            Some(Place::Card { id, .. }) => e.state.card_controller(CardId(*id)).index(),
+            _ => return false,
+        };
+        e.state.seats[seat].ousted
+    };
+    for (copy, &(card, seat)) in dealt {
+        assert!(
+            over || seen.contains_key(copy) || e.state.seats[seat].ousted || ousted_had(last.get(copy)),
+            "copy {copy:?} (card {card} of seat {seat}, last at {:?}) lost (seed {seed}, decision {}); \
+             in play as {:?}",
+            last.get(copy),
+            e.log.len(),
+            e.state
+                .cards
+                .iter()
+                .enumerate()
+                .filter(|(_, c)| c.card == card)
+                .map(|(i, c)| (i, c.in_play, c.effect_only, c.copy.0, c.body, c.host, c.training))
+                .collect::<Vec<_>>()
+        );
+    }
+    // The copies gone with an ousted Methuselah keep their last place.
+    for (copy, place) in last.drain() {
+        seen.entry(copy).or_insert(place);
+    }
+    *last = seen;
 }
 
 fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
@@ -372,7 +463,12 @@ struct Played {
 
 fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> Played {
     let mut e = start(seed);
+    // Fixture tables put cards in place with no copy: numbered here, so
+    // every game follows its copies.
+    zvtes::copies::number_unnumbered(&mut e);
     let totals = zone_totals(&e);
+    let dealt = dealt_copies(&e);
+    let mut last = HashMap::new();
     let mut agent = RandomLegal::new(seed ^ 0x00c0_ffee);
     let mut chosen = HashSet::new();
     let mut trail = Trail::default();
@@ -390,6 +486,11 @@ fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> Played {
                     req.window
                 );
                 invariants(&e, &totals, seed, req.window);
+                // At every decision of the replayed seeds, every 16th of the
+                // others (the census is the fuzz's dearest check).
+                if seed.is_multiple_of(REPLAY_EVERY) || e.decisions.is_multiple_of(16) {
+                    copies_conserved(&e, &dealt, &mut last, false, seed);
+                }
                 for o in &req.options {
                     if let Choice::UseAbility {
                         source: AbilitySource::Card(card),
@@ -440,6 +541,7 @@ fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> Played {
                     e.state.living(),
                     e.state.turn
                 );
+                copies_conserved(&e, &dealt, &mut last, true, seed);
                 return Played {
                     e,
                     vps,
@@ -2410,6 +2512,7 @@ fuzz_tests! {
             for s in 0..4 {
                 e.state.seats[s].uncontrolled.push(zvtes::state::UncontrolledSlot {
                     card: convert,
+                    copy: Default::default(),
                     counters: 1,
                     banished: None,
                 });
@@ -2595,6 +2698,7 @@ fuzz_tests! {
                 .uncontrolled
                 .push(zvtes::state::UncontrolledSlot {
                     card: find_card("Jimmy Dunn"),
+                    copy: Default::default(),
                     counters: 4,
                     banished: None,
                 });
@@ -3096,6 +3200,7 @@ fuzz_tests! {
             for s in &mut e.state.seats {
                 s.uncontrolled.push(zvtes::state::UncontrolledSlot {
                     card: nb,
+                    copy: Default::default(),
                     counters: 0,
                     banished: None,
                 });
@@ -3292,6 +3397,7 @@ fuzz_tests! {
                 e.add_minion(SeatId(0), base, 4, false);
                 e.state.seats[0].uncontrolled.push(zvtes::state::UncontrolledSlot {
                     card: adv,
+                    copy: Default::default(),
                     counters: 2,
                     banished: None,
                 });

@@ -41,11 +41,11 @@ fn cards(names: &[&str]) -> Vec<u16> {
 
 /// Seat 0's library, bottom first.
 fn library(e: &mut Engine, names: &[&str]) {
-    e.state.seats[0].library = cards(names);
+    e.state.seats[0].library = cards(names).into();
 }
 
 fn hand(e: &mut Engine, names: &[&str]) {
-    e.state.seats[0].hand = cards(names);
+    e.state.seats[0].hand = cards(names).into();
 }
 
 fn sorted(mut v: Vec<u16>) -> Vec<u16> {
@@ -204,7 +204,7 @@ fn black_market_cache_finding_nothing_is_burned_at_once() {
 fn black_market_cache_is_burned_as_its_last_card_is_drawn() {
     let (mut e, _, b) = table();
     let cache = put(&mut e, "Black Market Cache", 0, None);
-    e.state.cards[cache as usize].stored = cards(&["Kevlar Vest"]);
+    e.state.cards[cache as usize].stored = cards(&["Kevlar Vest"]).into();
     e.at_master_phase();
     let mut h = vec!["Vast Wealth"];
     h.extend(["Deflection"; 6]);
@@ -235,7 +235,7 @@ fn visit_from_the_capuchin_or_a_draw_alternative_is_one_treatment_per_replacemen
     let capuchin = put(&mut e, "Visit from the Capuchin", 0, None);
     e.state.cards[capuchin as usize].counters = 2;
     let cache = put(&mut e, "Black Market Cache", 0, None);
-    e.state.cards[cache as usize].stored = cards(&["Kevlar Vest"]);
+    e.state.cards[cache as usize].stored = cards(&["Kevlar Vest"]).into();
     e.at_master_phase();
     // Hand size 9 with two counters: a full hand.
     let mut h = vec!["Vast Wealth"];
@@ -286,7 +286,7 @@ fn shilmulo_tarot_equipped_by_a_search_takes_its_cards_before_entering_contest()
     let c = &e.state.cards[tarot];
     assert_eq!((c.card, c.host), (find_library("Shilmulo Tarot"), Some(r)));
     assert_eq!(
-        sorted(c.stored.clone()),
+        sorted(c.stored.to_vec()),
         sorted(cards(&["Conditioning", "Deflection"]))
     );
     assert!(c.contested && e.state.cards[theirs as usize].contested);
@@ -302,7 +302,7 @@ fn shilmulo_tarot_equipped_by_a_search_takes_its_cards_before_entering_contest()
 fn shilmulo_tarot_offers_its_cards_only_while_a_ready_ravnos_bears_it() {
     let (mut e, r, b) = table();
     let tarot = put(&mut e, "Shilmulo Tarot", 0, Some(r));
-    e.state.cards[tarot as usize].stored = cards(&["Kevlar Vest"]);
+    e.state.cards[tarot as usize].stored = cards(&["Kevlar Vest"]).into();
     e.at_master_phase();
     e.state.seats[0].mpa = 3;
     let mut h = vec!["Vast Wealth", "Vast Wealth", "Vast Wealth"];
@@ -341,7 +341,7 @@ fn shilmulo_tarot_offers_its_cards_only_while_a_ready_ravnos_bears_it() {
 fn shilmulo_tarot_moves_the_top_card_once_each_unlock_phase() {
     let (mut e, r, _) = table();
     let tarot = put(&mut e, "Shilmulo Tarot", 0, Some(r));
-    e.state.cards[tarot as usize].stored = cards(&["Kevlar Vest", "Sport Bike"]);
+    e.state.cards[tarot as usize].stored = cards(&["Kevlar Vest", "Sport Bike"]).into();
     library(&mut e, &["Conditioning", "Deflection"]);
     // A full hand (no draw on the way round); the Edge keeps the unlock
     // window open once the Tarot is used.
@@ -367,7 +367,7 @@ fn a_shilmulo_tarot_leaving_play_burns_the_cards_on_it() {
     let y = e.add_minion(SeatId(1), of_clan("Ravnos", 1), 4, false);
     let tarot = put(&mut e, "Shilmulo Tarot", 0, Some(r));
     let theirs = put(&mut e, "Shilmulo Tarot", 1, Some(y));
-    e.state.cards[tarot as usize].stored = cards(&["Kevlar Vest", "Sport Bike"]);
+    e.state.cards[tarot as usize].stored = cards(&["Kevlar Vest", "Sport Bike"]).into();
     e.state.cards[tarot as usize].contested = true;
     e.state.cards[theirs as usize].contested = true;
     // Seat 2's turn first: seat 0's unlock phase comes before seat 1's.
@@ -378,7 +378,7 @@ fn a_shilmulo_tarot_leaving_play_burns_the_cards_on_it() {
     assert!(!e.state.cards[tarot as usize].in_play);
     assert!(e.state.cards[tarot as usize].stored.is_empty());
     assert_eq!(
-        sorted(e.state.seats[0].ash.clone()),
+        sorted(e.state.seats[0].ash.to_vec()),
         sorted(cards(&["Shilmulo Tarot", "Kevlar Vest", "Sport Bike"]))
     );
 }

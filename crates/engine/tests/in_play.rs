@@ -959,7 +959,7 @@ fn dreams_of_the_sphinx_hand_size_lock_lasts_the_turn() {
     let Table { mut e, .. } = table();
     let dreams = revolt_like_in_play(&mut e, "Dreams of the Sphinx", 0);
     hand(&mut e, 0, &["Bonding"]);
-    e.state.seats[0].library = vec![find_library("Villein"); 10];
+    e.state.seats[0].library = vec![find_library("Villein"); 10].into();
     let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
     assert_eq!(uses(&req, dreams), vec![ability(dreams, 0)]);
     pick(&mut e, ability(dreams, 0));
@@ -1041,6 +1041,7 @@ fn dreams_of_the_sphinx_blood_to_uncontrolled_and_burn_at_three_counters() {
     e.state.cards[dreams as usize].counters = 2;
     e.state.seats[0].uncontrolled.push(UncontrolledSlot {
         card: find_card("Abraham DuSable"),
+        copy: Default::default(),
         counters: 0,
         banished: None,
     });
@@ -1070,7 +1071,7 @@ fn the_barrens_discards_a_chosen_card_at_any_impulse() {
     let (mut e, a, _x, _z) = bleed_table();
     let barrens = revolt_like_in_play(&mut e, "Barrens, The", 1);
     hand(&mut e, 1, &["Villein", "Bonding"]);
-    e.state.seats[1].library = vec![find_library("Villein"); 3];
+    e.state.seats[1].library = vec![find_library("Villein"); 3].into();
     pick(&mut e, bleed(a));
     // Offered as the action is announced already (a window that elides
     // without it).
@@ -1475,7 +1476,7 @@ fn elder_library_gives_its_controller_one_more_hand_size() {
     let Table { mut e, .. } = table();
     hand(&mut e, 0, &["Elder Library"]);
     hand(&mut e, 0, &["Bonding"; 6]);
-    e.state.seats[0].library = vec![find_library("Villein"); 3];
+    e.state.seats[0].library = vec![find_library("Villein"); 3].into();
     pick(&mut e, master_play(0));
     let _ = request(&mut e);
     assert_eq!(e.state.hand_size(SeatId(0)), 8);
@@ -1496,7 +1497,7 @@ fn visit_from_the_capuchin_burns_a_counter_instead_of_each_replacement() {
     let Table { mut e, .. } = table();
     hand(&mut e, 0, &["Visit from the Capuchin"]);
     hand(&mut e, 0, &["Bonding"; 6]);
-    e.state.seats[0].library = vec![find_library("Villein"); 10];
+    e.state.seats[0].library = vec![find_library("Villein"); 10].into();
     pick(&mut e, master_play(0));
     let _ = request(&mut e);
     assert_eq!(e.state.cards[0].counters, 4);

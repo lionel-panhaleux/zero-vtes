@@ -306,6 +306,7 @@ fn a_banished_created_vampire_is_its_card() {
     });
     e.state.seats[1].uncontrolled.push(UncontrolledSlot {
         card: CREATED,
+        copy: Default::default(),
         counters: 1,
         banished: Some(Banished {
             minion: MinionId(e.state.minions.len() as u32 - 1),

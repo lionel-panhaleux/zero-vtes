@@ -36,8 +36,8 @@ fn a_position_keeps_the_table_and_shuffles_the_decks() {
     for (x, y) in a.state.seats.iter().zip(&b.state.seats) {
         assert_eq!(x.hand, y.hand);
         assert_eq!(x.pool, y.pool);
-        assert_eq!(sorted(x.library.clone()), sorted(y.library.clone()));
-        assert_eq!(sorted(x.crypt.clone()), sorted(y.crypt.clone()));
+        assert_eq!(sorted(x.library.to_vec()), sorted(y.library.to_vec()));
+        assert_eq!(sorted(x.crypt.to_vec()), sorted(y.crypt.to_vec()));
         differ |= x.library != y.library || x.crypt != y.crypt;
     }
     assert!(differ, "seeds 1 and 2 shuffle alike");

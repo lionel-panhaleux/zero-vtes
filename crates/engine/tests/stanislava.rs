@@ -151,6 +151,7 @@ fn zillahs_valley_adds_4_blood_to_a_big_uncontrolled_vampire() {
     for card in [small, big] {
         e.state.seats[0].uncontrolled.push(UncontrolledSlot {
             card,
+            copy: Default::default(),
             counters: 0,
             banished: None,
         });
@@ -572,6 +573,7 @@ fn ingrid_rossler_gives_2_transfers_if_ready_as_the_phase_starts() {
     let slot = {
         e.state.seats[0].uncontrolled.push(UncontrolledSlot {
             card: plain("Ventrue", 0),
+            copy: Default::default(),
             counters: 0,
             banished: None,
         });
@@ -585,11 +587,13 @@ fn ingrid_rossler_gives_2_transfers_if_ready_as_the_phase_starts() {
     let ingrid = find_card("Ingrid Rossler");
     e.state.seats[0].uncontrolled.push(UncontrolledSlot {
         card: plain("Ventrue", 0),
+        copy: Default::default(),
         counters: 0,
         banished: None,
     });
     e.state.seats[0].uncontrolled.push(UncontrolledSlot {
         card: ingrid,
+        copy: Default::default(),
         counters: capacity(ingrid) as u8 - 1,
         banished: None,
     });

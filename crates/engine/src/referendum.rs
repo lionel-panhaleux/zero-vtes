@@ -1245,8 +1245,8 @@ impl Engine {
             }
             Choice::BurnForVote { card, favor } => {
                 let s = &mut self.state.seats[seat.index()];
-                let c = s.hand.remove(*card as usize);
-                s.ash.push(c);
+                let (c, copy) = s.hand.take(*card as usize);
+                s.ash.put(c, copy);
                 self.replace(seat, 1, None);
                 ctx.card_voted.push(seat);
                 (Source::Card(seat), *favor, 1)
@@ -1780,8 +1780,9 @@ impl Engine {
                 let a = self.action.as_ref().expect("political action");
                 let (seat, play) = (a.seat, a.card.expect("a political action card"));
                 if self.state.minions[m.index()].present() {
-                    let id = self.enter_play(crate::state::CardInPlay::new(
+                    let id = self.enter_play(crate::state::CardInPlay::entering(
                         play.card,
+                        *play.copy,
                         seat,
                         Some(m),
                         play.mode,
@@ -1829,7 +1830,9 @@ impl Engine {
                     }
                     let id = self.enter_play(crate::state::CardInPlay {
                         against,
-                        ..crate::state::CardInPlay::new(play.card, seat, None, play.mode)
+                        ..crate::state::CardInPlay::entering(
+                            play.card, *play.copy, seat, None, play.mode,
+                        )
                     });
                     self.push_mode_layers(id);
                     self.action
@@ -1919,6 +1922,7 @@ impl Engine {
         let was_ready = v.ready();
         v.in_play = false;
         let card = v.crypt_card().unwrap_or(crate::state::CREATED);
+        let copy = *v.copy;
         let blood = v.blood;
         v.blood = 0;
         // Face down on the vampire: out of play until it returns (the cards
@@ -1935,6 +1939,7 @@ impl Engine {
             .uncontrolled
             .push(UncontrolledSlot {
                 card,
+                copy: crate::copies::Untracked(copy),
                 counters: blood,
                 banished: Some(crate::state::Banished {
                     minion: m,
@@ -2276,7 +2281,9 @@ impl Engine {
                         .from
                         .and_then(|f| self.state.cards[f.index()].stored_owner)
                         .unwrap_or(a.seat);
-                    self.state.seats[owner.index()].hand.push(card.card);
+                    self.state.seats[owner.index()]
+                        .hand
+                        .put(card.card, *card.copy);
                     a.card_returned = true;
                 }
                 // The forbidden action is the card's from hand (by name),

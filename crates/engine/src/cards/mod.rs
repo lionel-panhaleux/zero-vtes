@@ -5462,6 +5462,8 @@ pub fn vampire(card: u16) -> Option<&'static VampireDef> {
 pub struct PlayCtx {
     pub seat: SeatId,
     pub card: u16,
+    /// The card's copy (`copies`), out of every zone while it is played.
+    pub copy: crate::copies::Untracked<crate::copies::CopyId>,
     pub mode: u8,
     /// The minion playing the card (modifiers, reactions, action cards).
     pub actor: Option<MinionId>,
@@ -5517,6 +5519,7 @@ impl PlayCtx {
         PlayCtx {
             seat,
             card,
+            copy: crate::copies::Untracked(crate::copies::CopyId::NONE),
             mode,
             actor,
             target,

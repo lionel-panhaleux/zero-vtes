@@ -412,6 +412,9 @@ dependencies = [
 [[package]]
 name = "zero-vtes-engine"
 version = "0.0.1"
+dependencies = [
+ "zero-vtes-engine",
+]
 
 [[package]]
 name = "zmij"

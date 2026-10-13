@@ -321,15 +321,17 @@ pub fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
             let blood = (rng.below(3) as u8).min(CRYPT[card as usize].capacity);
             e.add_minion(seat, card, blood, true);
         }
-        e.state.seats[s as usize].crypt = pool.split_off(pool.len() - 3);
+        e.state.seats[s as usize].crypt = pool.split_off(pool.len() - 3).into();
         e.state.seats[s as usize].uncontrolled = vec![
             UncontrolledSlot {
                 card: shared,
+                copy: Default::default(),
                 counters: CRYPT[shared as usize].capacity,
                 banished: None,
             },
             UncontrolledSlot {
                 card: city[s as usize % 2],
+                copy: Default::default(),
                 counters: CRYPT[city[s as usize % 2] as usize].capacity,
                 banished: None,
             },
@@ -346,7 +348,7 @@ pub fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
         }
         let mut library = slice.clone();
         rng.shuffle(&mut library);
-        e.state.seats[s as usize].library = library;
+        e.state.seats[s as usize].library = library.into();
     }
     e.state.seats[rng.below(4)].has_edge = true;
     // Half the seeds open with a Smiling Jack already fed, so the other
@@ -355,6 +357,7 @@ pub fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
     if seed % 2 == 1 {
         e.state.cards.push(CardInPlay {
             card: find_library("Smiling Jack, The Anarch"),
+            copy: Default::default(),
             owner: SeatId(rng.below(4) as u8),
             controller: SeatId(rng.below(4) as u8),
             host: None,
@@ -365,7 +368,7 @@ pub fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
             contested: false,
             locked: false,
             counters: 2,
-            stored: Vec::new(),
+            stored: Default::default(),
             effect_only: false,
             against: Default::default(),
             entered: 0,
