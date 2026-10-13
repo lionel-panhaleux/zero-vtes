@@ -109,6 +109,12 @@ pub struct Game {
     record: GameRecord,
     clock: Box<dyn Clock>,
     t0: u64,
+    /// The names the human seat's client knows, from the messages it was
+    /// sent: what the English renderer reads.
+    known: zvtes_text::Names<'static>,
+    /// The legacy session's text instead of the renderer's (the oracle
+    /// comparing them, until `crates/protocol` goes: A2c).
+    legacy_text: bool,
 }
 
 impl Game {
@@ -215,6 +221,8 @@ impl Game {
             last_view: None,
             backlog: VecDeque::new(),
             numberings: Default::default(),
+            known: zvtes_text::Names::new(crate::cards::cards()),
+            legacy_text: false,
             record: GameRecord {
                 protocol: zvtes_api::PROTOCOL_VERSION.into(),
                 engine: crate::ENGINE.into(),
@@ -289,7 +297,8 @@ impl Game {
     fn emit(&mut self, seat: Seat, id: Option<u64>, messages: Vec<Message>) -> Vec<Out> {
         let at = self.at();
         let mut out = Vec::with_capacity(messages.len());
-        for m in messages {
+        for mut m in messages {
+            self.tell(&mut m);
             let reply_to = match &m {
                 Message::Error(e) => {
                     self.record.entries.push(Entry::Refused {
@@ -314,6 +323,54 @@ impl Game {
             out.push(o);
         }
         out
+    }
+
+    /// The client's names brought up to date with a message, and its
+    /// English told from the data where the text setting asks it (the
+    /// legacy line kept where the renderer has none).
+    fn tell(&mut self, m: &mut Message) {
+        let text = self.settings.text && !self.legacy_text;
+        let known = &mut self.known;
+        match m {
+            Message::Joined(j) => known.see(&j.view),
+            Message::Events { events, view } => {
+                for e in events {
+                    known.hear(&e.kind);
+                    if text && e.text.is_some() {
+                        if let Some(t) = zvtes_text::event(&e.kind, known) {
+                            e.text = Some(t);
+                        }
+                    }
+                }
+                if let Some(v) = view {
+                    known.see(v);
+                }
+            }
+            Message::Decision(d) => {
+                known.see(&d.view);
+                if text {
+                    let offered = d.options.clone();
+                    for o in &mut d.options {
+                        if o.text.is_none() {
+                            continue;
+                        }
+                        let t = zvtes_text::option(o, d.window, d.purpose, d.seat, &offered, known);
+                        if let Some(t) = t {
+                            o.text = Some(t);
+                        }
+                    }
+                }
+            }
+            Message::Over(o) => known.see(&o.view),
+            Message::Error(_) => {}
+        }
+    }
+
+    /// The legacy session's English instead of the renderer's: for the
+    /// oracle comparing them (`tests/events.rs`).
+    #[doc(hidden)]
+    pub fn legacy_text(&mut self, on: bool) {
+        self.legacy_text = on;
     }
 
     /// The messages after `after`, if all are still kept.

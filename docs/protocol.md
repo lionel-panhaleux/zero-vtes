@@ -260,7 +260,9 @@ their default) and changed by `settings`:
   (permessage-deflate) is on at the server.
 - `text` (default `false`): English renderings beside the data — `text`
   on options, events and strikes, a decision's `prompt` — for a client
-  that does not compose its own.
+  that does not compose its own. Options and events are told by
+  `crates/text` (`zvtes-text`) from the data sent alone, the names the
+  client was shown, as a client could tell them itself.
 
 ## 9. Events
 
