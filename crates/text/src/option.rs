@@ -7,7 +7,7 @@ use zvtes_api::option::{EffectKind, Mode, On, OptionView};
 use zvtes_api::view::Target;
 
 use crate::effect::{label, parts};
-use crate::event::action_kind;
+use crate::event::{action_kind, strike};
 use crate::Names;
 
 /// An option offered at `window`, for `purpose` (among `offered`), to
@@ -75,6 +75,21 @@ fn base(
         K::Pass => pass(window)?.into(),
         K::EdgePool => "Gain 1 pool (the Edge)".into(),
         K::ResolveRider => format!("Resolve {}", n.own(k.card.as_ref()?.copy?)),
+        // A card, a title or a library card contested.
+        K::PayContest | K::YieldContest => {
+            let what = match (&k.card, k.minion) {
+                (Some(c), _) => n.own(c.copy?),
+                (None, Some(m)) if k.value.as_deref() == Some("title") => {
+                    format!("the title of {}", n.minion_bare(m))
+                }
+                (None, Some(m)) => n.minion_bare(m),
+                (None, None) => return None,
+            };
+            match k.kind {
+                K::PayContest => format!("Pay to keep contesting {what}"),
+                _ => format!("Yield {what}"),
+            }
+        }
         K::BurnInPlay => format!("Burn {}", n.copy_bare(k.card.as_ref()?.copy?)),
         K::Transfer => format!("Transfer 1 pool to {}", target()),
         K::Withdraw => format!("Move 1 blood from {} back to pool", target()),
@@ -108,6 +123,14 @@ fn base(
         K::BurnForVote => format!("Burn {} for 1 vote {}", card(), votes(k.favor)),
         K::CastEdge => format!("Burn the Edge: 1 vote {}", votes(k.favor)),
         K::HandStrike => "Strike: hand strike".into(),
+        K::RoundStrike => match &k.card {
+            Some(c) => format!("Strike at {}", n.own(c.copy?)),
+            None => match o.effects.iter().find_map(|e| e.strike.as_ref()) {
+                Some(s) => format!("Strike: {}", strike(Some(s))),
+                None => "Strike: the round's strike".into(),
+            },
+        },
+        K::EmployFromHand => format!("Employ {}{}", card(), mode(k.mode.as_ref()?)),
         K::UseManeuver => "Use a maneuver".into(),
         K::UsePress => "Use a press".into(),
         K::UsePrevent => "Prevent 1 damage".into(),
@@ -205,8 +228,6 @@ fn base(
             let c = k.card.as_ref()?;
             format!("Draw {} from {}", n.card_id(c.id), n.own(c.from?))
         }
-        // A second vampire chosen after (Toreador Grand Ball): not told yet.
-        K::Play if o.effects.iter().any(|e| e.kind == EffectKind::Role) => return None,
         K::Play => {
             let known = k.card.as_ref().is_some_and(|c| c.id.is_some());
             let mut s = format!("Play {}", card());
@@ -219,11 +240,32 @@ fn base(
             if let Some(a) = k.actor {
                 s += &format!(" with {}", n.minion_bare(a));
             }
+            // A second vampire chosen after (Toreador Grand Ball): what
+            // happens to which (the target locked).
+            let second = o.effects.iter().find(|e| e.kind == EffectKind::Role);
+            let locks = o
+                .effects
+                .iter()
+                .any(|e| e.kind == EffectKind::Lock && e.on == Some(On::Target));
             if k.target.is_some() {
-                s += &format!(" on {}", target());
+                match second.is_some() && locks {
+                    true => s += &format!(": lock {}", target()),
+                    false => s += &format!(" on {}", target()),
+                }
             } else if known && declares(o, ActionKind::Bleed) {
                 // A bleed's target: the prey, unless a card says otherwise.
                 s += &format!(" → {}", n.seat(n.prey(seat)?));
+            }
+            if let Some(r) = second {
+                let clan = r.clan.as_deref().map_or("vampire".into(), |c| n.value(c));
+                s += &match r.role? {
+                    Role::UnblockableNonBleed => {
+                        format!(
+                            " (then choose the {clan} whose non-bleed actions cannot be blocked)"
+                        )
+                    }
+                    _ => format!(" (then choose the card's chosen {clan})"),
+                };
             }
             s
         }
@@ -311,6 +353,15 @@ fn asked(
             n.card_id(has(EffectKind::Move)?.card)
         ),
         (P::DistributeFrom, K::Slot) => role("gets 1 blood")?,
+        (P::ChooseForCard, K::ChooseMinion) => {
+            let e = has(EffectKind::Role)?;
+            let clan = e.clan.as_deref().map_or("vampire".into(), |c| n.value(c));
+            role(&match e.role? {
+                Role::UnblockableNonBleed => "non-bleed actions cannot be blocked".into(),
+                Role::DoesNotUnlock => "does not unlock as normal".into(),
+                _ => format!("the card's chosen {clan}"),
+            })?
+        }
         (P::DistributeFrom, K::Pass) => "Move no more blood".into(),
         (P::BloodOrBurned, K::BurnBloodToAvoid) => {
             let e = has(EffectKind::Blood)?;
@@ -340,7 +391,6 @@ fn asked(
         // What legacy says for the choice and is not told from data yet.
         (
             P::GiveBlood
-            | P::MoveBetween
             | P::PayOrBurn
             | P::LockOrDiscard
             | P::AllySearch
@@ -356,7 +406,6 @@ fn asked(
             | P::CorruptionOwner
             | P::AvoidDamage
             | P::DiscardFromHandOf
-            | P::ChooseForCard
             | P::PoolForCard
             | P::LockForPool
             | P::StealForCorruption
@@ -374,6 +423,7 @@ fn asked(
             _,
         )
         | (P::MinionOf | P::RemoveUncontrolled | P::RemoveFromAsh | P::AshurPicks, _)
+        | (P::MoveBetween, K::ChooseMinion | K::Pass | K::ChooseCard)
         | (P::ExchangeAnarch, K::Pass) => return None,
         // The rest reads as anywhere.
         _ => base?,

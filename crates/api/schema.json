@@ -826,6 +826,13 @@
           "format": "uint32",
           "minimum": 0
         },
+        "clan": {
+          "description": "Of this clan (a snake_case clan id: the chosen Toreador).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "copy": {
           "description": "The minion or card in play it applies to, when known.",
           "type": [
