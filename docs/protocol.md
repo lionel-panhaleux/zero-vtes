@@ -177,13 +177,30 @@ seat 2; burn 2 pool to keep card 9.)
   `amount`, `favor`, `blood`, `zone` (where a search takes from), `value`
   (a clan, Discipline or circle id), `ability`. Two options of a
   decision never share a key (copies alike in hand are one option).
-- **`effects`** — what taking it does when the key does not say: a cost,
-  what a chosen Methuselah or minion gets, an ability's effects, what a
-  pass lets happen ("let it burn", "take the 2 damage"). Each `{kind,
-  seat?, copy?, n?, card?, to?, role?}`; kinds `pool`, `blood`,
-  `counters`, `damage` (`n` signed: + gained, − lost), `burn`, `lock`,
-  `unlock`, `draw`, `discard`, `move` (`to` a zone), `steal`,
-  `corruption`, `keep`, `role` (what a chosen minion becomes, §12).
+- **`effects`** — what taking it does: an ability's effects, a play's
+  mode's, a cost, what a chosen Methuselah or minion gets. A curated
+  vocabulary (owner, 2026-10-13), not the engine's own effects: each
+  `{kind, n?, x?, on?, seat?, copy?, cost?, when?, card?, to?, action?,
+  favor?, strike?, range?, role?, detail?}`.
+  - `kind` (37, open): `pool`, `blood`, `life`, `counters`,
+    `transfers`, `damage`, `strike`, `strength`, `stealth`,
+    `intercept`, `bleed`, `prevent`, `press`, `maneuver`, `range`,
+    `end_combat`, `enter_combat`, `immune`, `burn`, `lock`, `unlock`,
+    `move`, `steal`, `draw`, `discard`, `search`, `votes`,
+    `referendum` (called), `fails`, `cancel`, `action` (declared:
+    `action`), `hunt`, `hand_size`, `cost` (reduced), `corruption`,
+    `keep`, `role` (§12).
+  - `n` signed (+ gained, − lost or spent), per X with `x`; `cost`: paid
+    to take the option; `when`: `successful`, `bleed_successful`.
+  - `on`: whom, from the option — `target`, `host` (the minion the card
+    or ability is on), `actor`, `acting`, `chosen`, `card` (the card
+    itself), `uncontrolled`, `prey`; the seat's own when absent; `copy`
+    the wire copy when known.
+  - `detail`: what sets it apart within its kind, snake_case —
+    `this_round`, `guns`, `not_guns`, `non_aggravated`, `to_pool`,
+    `from_pool`, `per_counter`, `then_bottom`, `master_phase`….
+- `abilities` — a `use_ability`'s: how many its source has (`ability`
+  in the key says which).
 - A pass's plain meaning follows from the window: `master_phase` … ends
   the phase, `action_block` declines to block, `combat_press` presses
   no further, a polling passes for now.

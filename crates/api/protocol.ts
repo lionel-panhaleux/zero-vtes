@@ -356,35 +356,85 @@ export type DisciplineLevel = {
     superior: boolean
 }
 
-/** One thing an option does, to whom. */
+/**
+ * One thing an option does, to whom (docs/protocol.md §7): a curated
+ * vocabulary — a kind, an amount, whom it applies to — not the engine's
+ * own effects.
+ */
 export type Effect = {
-    /** A card named (to hand, discarded). */
+    /** An action declared (`action`). */
+    action?: ActionKind | null
+    /** A card named (to hand, discarded, fetched). */
     card?: number | null
-    /** The minion or card in play it applies to. */
+    /** The minion or card in play it applies to, when known. */
     copy?: number | null
+    /** A cost paid to take the option, not what it does. */
+    cost?: boolean
+    /**
+     * What sets it apart within its kind, a snake_case id: `this_round`,
+     * `guns`, `per_counter`, `then_bottom`… (docs/protocol.md §7).
+     */
+    detail?: string | null
+    /** Votes for (true) or against. */
+    favor?: boolean | null
     kind: EffectKind
-    /** Signed: gained (+) or lost (−). */
+    /** Signed: gained (+) or lost, spent (−); with `x`, per X. */
     n?: number | null
+    /**
+     * Whom it applies to, as the option sees it: its target, the card's
+     * minion, the acting minion…; the seat's own when absent.
+     */
+    on?: On | null
+    range?: Range | null
     /** What a chosen minion or Methuselah becomes (`role`). */
     role?: Role | null
-    /** The Methuselah it applies to (a pool, a hand). */
+    /** The Methuselah it applies to (a pool, a hand), when known. */
     seat?: number | null
+    /** A strike (`strike`). */
+    strike?: Strike | null
     to?: Zone | null
+    /** Only if this comes to pass. */
+    when?: When | null
+    /** The amount is the X chosen (times `n` when given). */
+    x?: boolean
 }
 
 export type EffectKind = 
     | 'pool'
     | 'blood'
     | 'counters'
+    | 'transfers'
     | 'damage'
+    | 'strike'
+    | 'strength'
+    | 'stealth'
+    | 'intercept'
+    | 'bleed'
+    | 'prevent'
+    | 'press'
+    | 'maneuver'
+    | 'range'
+    | 'end_combat'
+    | 'enter_combat'
     | 'burn'
     | 'lock'
     | 'unlock'
+    | 'steal'
     | 'draw'
     | 'discard'
-    | 'steal'
+    | 'search'
+    | 'votes'
+    | 'referendum'
+    | 'cancel'
+    | 'hand_size'
     | 'corruption'
+    | 'life'
+    | 'immune'
     | 'move'
+    | 'fails'
+    | 'action'
+    | 'hunt'
+    | 'cost'
     | 'keep'
     | 'role'
     | 'unknown'
@@ -698,6 +748,18 @@ export type Mode = {
     line: number
 }
 
+/** Whom an effect applies to, from the option. */
+export type On = 
+    | 'target'
+    | 'host'
+    | 'actor'
+    | 'acting'
+    | 'chosen'
+    | 'card'
+    | 'uncontrolled'
+    | 'prey'
+    | 'unknown'
+
 /** What an option does (the engine's choice kinds). */
 export type OptionKind = 
     | 'pass'
@@ -769,6 +831,8 @@ export type OptionKind =
  * what it does.
  */
 export type OptionView = {
+    /** An ability's: how many its source has (`key.ability` says which). */
+    abilities?: number | null
     /** Which of a card's abilities, when it has several. */
     ability?: number | null
     /** The action a minion takes (`take_action`). */
@@ -1139,6 +1203,9 @@ export type VoteTotals = {
     against: number
     favor: number
 }
+
+/** What an effect waits on. */
+export type When = 'successful' | 'bleed_successful' | 'unknown'
 
 /** The window a decision is asked in. */
 export type Window = 

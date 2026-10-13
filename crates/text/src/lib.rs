@@ -3,6 +3,7 @@
 //! (`Cards`), seats and minions from the views and events it was sent
 //! (`Names`). What the host sends with the `text` setting is this.
 
+mod effect;
 mod event;
 mod option;
 
@@ -12,6 +13,7 @@ use zvtes_api::event::EventKind;
 use zvtes_api::ids::{CopyId, KrcgId, MinionKind, Seat};
 use zvtes_api::view::{Card, TableView};
 
+pub use effect::{label, part, parts};
 pub use event::{event, strike};
 pub use option::option;
 
@@ -37,6 +39,8 @@ pub struct Names<'a> {
     /// Cards on the table by copy, as the table names them: a card on a
     /// minion with it ("Luciano's Feral Hound"), an uncontrolled vampire.
     table: HashMap<CopyId, String>,
+    /// The minion each card on one is on.
+    hosts: HashMap<CopyId, CopyId>,
 }
 
 impl<'a> Names<'a> {
@@ -47,6 +51,7 @@ impl<'a> Names<'a> {
             prey: Vec::new(),
             minions: HashMap::new(),
             table: HashMap::new(),
+            hosts: HashMap::new(),
         }
     }
 
@@ -60,7 +65,14 @@ impl<'a> Names<'a> {
                 for c in &m.cards {
                     if let Some(copy) = c.card.copy {
                         let card = self.card(&c.card);
-                        self.table.insert(copy, format!("{name}'s {card}"));
+                        let owner = match m.kind {
+                            MinionKind::Token => "ghoul token".to_string(),
+                            _ => name.clone(),
+                        };
+                        self.table.insert(copy, format!("{owner}'s {card}"));
+                        if let Some(h) = m.card.copy {
+                            self.hosts.insert(copy, h);
+                        }
                     }
                 }
                 if let Some(c) = m.card.copy {
@@ -111,6 +123,11 @@ impl<'a> Names<'a> {
             .get(s as usize)
             .cloned()
             .unwrap_or_else(|| format!("Seat {}", s + 1))
+    }
+
+    /// The minion a card is on, as the last view showed.
+    pub fn host(&self, card: CopyId) -> Option<CopyId> {
+        self.hosts.get(&card).copied()
     }
 
     pub fn prey(&self, s: Seat) -> Option<Seat> {

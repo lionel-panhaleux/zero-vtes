@@ -518,6 +518,20 @@ fn the_events_tell_what_the_views_show() {
     );
 }
 
+/// A rendering of an ability or a play that tells the legacy line's
+/// option and all its parts: the same up to its label, every part of
+/// the legacy label among the rendering's.
+fn reworded(kind: OptionKind, legacy: &str, r: &str) -> bool {
+    if !matches!(kind, OptionKind::UseAbility | OptionKind::Play) {
+        return false;
+    }
+    let (Some((lp, ll)), Some((rp, rl))) = (legacy.split_once(": "), r.split_once(": ")) else {
+        return false;
+    };
+    let rparts: Vec<&str> = rl.split(", ").collect();
+    lp == rp && ll.split(", ").all(|p| rparts.contains(&p))
+}
+
 /// The options a seat is shown render, from their data, as the legacy
 /// text (A7's oracle): what the renderer tells must be the legacy line;
 /// what it does not tell yet (`None`) is counted by kind, the work left.
@@ -527,6 +541,7 @@ fn the_options_render_as_the_legacy_text() {
     let mut misses: Vec<(u32, String, String)> = Vec::new();
     let mut left: std::collections::BTreeMap<String, (usize, String)> = Default::default();
     let (mut shown, mut rendered) = (0, 0);
+    let mut rewordings: std::collections::BTreeSet<(String, String)> = Default::default();
     for seed in 1..=seeds {
         let settings = Settings {
             opportunities: seed % 3 != 0,
@@ -569,6 +584,14 @@ fn the_options_render_as_the_legacy_text() {
                 shown += 1;
                 match zvtes_text::option(o, d.window, d.purpose, d.seat, &d.options, &names) {
                     Some(r) if r == legacy => rendered += 1,
+                    // Abilities and plays told from the curated effects
+                    // (owner, B): the same option, every legacy part in
+                    // it, maybe more (what all the source's abilities do,
+                    // when one is offered alone).
+                    Some(r) if reworded(o.key.kind, &legacy, &r) => {
+                        rendered += 1;
+                        rewordings.insert((legacy, r));
+                    }
                     Some(r) => misses.push((seed, legacy, r)),
                     None => {
                         let e = left
@@ -605,7 +628,13 @@ fn the_options_render_as_the_legacy_text() {
     for (seed, legacy, r) in misses.iter().take(25) {
         eprintln!("seed {seed}: {legacy:?} rendered {r:?}");
     }
-    eprintln!("{seeds} games: {rendered} of {shown} options rendered");
+    for (legacy, r) in &rewordings {
+        eprintln!("reworded: {legacy:?} as {r:?}");
+    }
+    eprintln!(
+        "{seeds} games: {rendered} of {shown} options rendered ({} reworded)",
+        rewordings.len()
+    );
     assert!(
         misses.is_empty(),
         "{} options rendered otherwise",

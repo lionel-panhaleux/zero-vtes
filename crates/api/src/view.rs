@@ -240,7 +240,7 @@ pub struct CombatSide {
     pub presses: u8,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Strike {
     pub kind: StrikeKind,

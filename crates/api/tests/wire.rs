@@ -30,20 +30,13 @@ fn option(index: u32, key: ChoiceKey) -> OptionView {
         index,
         key,
         effects: vec![],
+        abilities: None,
         text: None,
     }
 }
 
 fn effect(kind: EffectKind) -> Effect {
-    Effect {
-        kind,
-        seat: None,
-        copy: None,
-        n: None,
-        card: None,
-        to: None,
-        role: None,
-    }
+    Effect::new(kind)
 }
 
 fn view() -> TableView {
