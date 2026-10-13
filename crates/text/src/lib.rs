@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 use zvtes_api::event::EventKind;
 use zvtes_api::ids::{CopyId, KrcgId, MinionKind, Seat};
-use zvtes_api::view::{Card, TableView};
+use zvtes_api::view::{ActionView, Card, TableView};
 
 pub use effect::{label, part, parts};
 pub use event::{event, strike};
@@ -41,6 +41,10 @@ pub struct Names<'a> {
     table: HashMap<CopyId, String>,
     /// The minion each card on one is on.
     hosts: HashMap<CopyId, CopyId>,
+    /// The seat controlling each minion, as the last view showed.
+    controllers: HashMap<CopyId, Seat>,
+    /// The action under way, as the last view showed.
+    action: Option<ActionView>,
 }
 
 impl<'a> Names<'a> {
@@ -52,6 +56,8 @@ impl<'a> Names<'a> {
             minions: HashMap::new(),
             table: HashMap::new(),
             hosts: HashMap::new(),
+            controllers: HashMap::new(),
+            action: None,
         }
     }
 
@@ -59,7 +65,8 @@ impl<'a> Names<'a> {
     pub fn see(&mut self, v: &TableView) {
         self.seats = v.seats.iter().map(|s| s.name.clone()).collect();
         self.prey = v.seats.iter().map(|s| s.prey).collect();
-        for s in &v.seats {
+        self.action = v.action.clone();
+        for (seat, s) in v.seats.iter().enumerate() {
             for m in s.ready.iter().chain(&s.torpor) {
                 let name = minion_name(m.kind, &m.name);
                 for c in &m.cards {
@@ -77,6 +84,7 @@ impl<'a> Names<'a> {
                 }
                 if let Some(c) = m.card.copy {
                     self.minions.insert(c, name);
+                    self.controllers.insert(c, seat as Seat);
                 }
             }
             for c in &s.in_play {
@@ -123,6 +131,16 @@ impl<'a> Names<'a> {
             .get(s as usize)
             .cloned()
             .unwrap_or_else(|| format!("Seat {}", s + 1))
+    }
+
+    /// The action under way, as the last view showed.
+    pub fn action(&self) -> Option<&ActionView> {
+        self.action.as_ref()
+    }
+
+    /// The seat controlling a minion, as the last view showed.
+    pub fn controller(&self, minion: CopyId) -> Option<Seat> {
+        self.controllers.get(&minion).copied()
     }
 
     /// The minion a card is on, as the last view showed.
