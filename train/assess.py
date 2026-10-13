@@ -1,8 +1,9 @@
 """What a network makes of a human game (DESIGN §11.2, human games as data:
-step 1, the diagnostic). The game is a replay exported from the Succubus
-Club fork; every decision is replayed and encoded as the network reads it.
+step 1, the diagnostic). The game is a game record (the server's, or the
+corpus's: `data/records`); every decision is replayed and encoded as the
+network reads it.
 
-`uv run python -m train.assess data/replays/<game>.json [runs/<name>/best.pt] [--top N]`
+`uv run python -m train.assess data/records/<game>.json [runs/<name>/best.pt] [--top N]`
 
 - The human's choices the policy found least likely (where its play and a
   human's part), with the option it preferred; agreement by window.
@@ -140,7 +141,7 @@ def bot_report(game, values, top):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("replay")
+    parser.add_argument("replay", help="a game record (JSON)")
     parser.add_argument("checkpoint", nargs="?", default="runs/p5-self/best.pt")
     parser.add_argument("--top", type=int, default=15)
     args = parser.parse_args()

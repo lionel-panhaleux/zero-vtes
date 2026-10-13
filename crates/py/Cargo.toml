@@ -14,7 +14,8 @@ crate-type = ["cdylib"]
 [dependencies]
 zero-vtes-engine = { path = "../engine" }
 zvtes-policy = { path = "../policy" }
-zvtes-protocol = { path = "../protocol" }
+zvtes-api = { path = "../api" }
+zvtes-host = { path = "../host" }
 pyo3 = "0.29"
 numpy = "0.29"
 rayon = "1"

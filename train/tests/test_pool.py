@@ -141,7 +141,7 @@ def test_default_politics_answer_the_terms():
     assert seen[False] > 0 and seen[True] == 0
 
 
-OWNER_GAME = "data/replays/zero-vtes-replay-2026-10-04T12-09-51-567Z.json"
+OWNER_GAME = "data/records/zero-vtes-replay-2026-10-04T12-09-51-567Z.json"
 
 
 def test_habit_seats_and_the_learners_habits():
