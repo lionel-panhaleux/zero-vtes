@@ -5,7 +5,8 @@
 //! - `ZVTES_DATABASE_URL`: Postgres; absent, records go to `ZVTES_RECORDS`
 //!   (`records/`) as JSON lines
 //! - `ZVTES_POLICY`: the `.zvp` weights of the `network` profile
-//! - `ZVTES_ORIGINS`: the WebSocket origins served, comma-separated
+//! - `ZVTES_ORIGINS`: the page origins whose browsers may open a socket,
+//!   comma-separated (a client sending no origin is let through)
 //!   (absent: any — development)
 //! - `ZVTES_MAX_GAMES` (64), `ZVTES_GAMES_PER_HOUR` per address (30),
 //!   `ZVTES_IDLE` seconds (1800), `ZVTES_TIME_LIMIT` max turns (200),
@@ -288,11 +289,11 @@ async fn socket(
     headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> Response {
-    if let Some(origins) = &app.config.origins {
-        let origin = headers
-            .get("origin")
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or("");
+    // A browser says where the page is from: only the platforms' pages
+    // may open a seat's socket. Other clients send no origin (and could
+    // send any): the seat's token is what lets them in.
+    if let (Some(origins), Some(origin)) = (&app.config.origins, headers.get("origin")) {
+        let origin = origin.to_str().unwrap_or("");
         if !origins.iter().any(|o| o == origin) {
             return StatusCode::FORBIDDEN.into_response();
         }
