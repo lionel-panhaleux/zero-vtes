@@ -41,6 +41,8 @@ pub struct Names<'a> {
     table: HashMap<CopyId, String>,
     /// The minion each card on one is on.
     hosts: HashMap<CopyId, CopyId>,
+    /// Each card on the table's own name (without the minion it is on).
+    own: HashMap<CopyId, String>,
     /// The seat controlling each minion, as the last view showed.
     controllers: HashMap<CopyId, Seat>,
     /// The action under way, as the last view showed.
@@ -56,6 +58,7 @@ impl<'a> Names<'a> {
             minions: HashMap::new(),
             table: HashMap::new(),
             hosts: HashMap::new(),
+            own: HashMap::new(),
             controllers: HashMap::new(),
             action: None,
         }
@@ -77,6 +80,7 @@ impl<'a> Names<'a> {
                             _ => name.clone(),
                         };
                         self.table.insert(copy, format!("{owner}'s {card}"));
+                        self.own.insert(copy, card.clone());
                         if let Some(h) = m.card.copy {
                             self.hosts.insert(copy, h);
                         }
@@ -90,6 +94,7 @@ impl<'a> Names<'a> {
             for c in &s.in_play {
                 if let Some(copy) = c.card.copy {
                     let card = self.card(&c.card);
+                    self.own.insert(copy, card.clone());
                     self.table.insert(copy, card);
                 }
             }
@@ -168,6 +173,11 @@ impl<'a> Names<'a> {
             Some("") => "ghoul token".into(),
             _ => name,
         }
+    }
+
+    /// A card on the table by its own name (not the minion it is on).
+    pub fn own(&self, c: CopyId) -> String {
+        self.own.get(&c).cloned().unwrap_or_else(|| self.copy(c))
     }
 
     /// A card or minion by copy as an option names it.

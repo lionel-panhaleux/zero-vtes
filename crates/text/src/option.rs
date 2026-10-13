@@ -2,7 +2,7 @@
 //! effects, the window it is offered in and the names the client knows.
 //! `None`: a kind not rendered yet (A7 ratchets kind by kind).
 
-use zvtes_api::ids::{ActionKind, OptionKind as K, Purpose, Window};
+use zvtes_api::ids::{ActionKind, OptionKind as K, Purpose, Window, Zone};
 use zvtes_api::option::{EffectKind, Mode, OptionView};
 use zvtes_api::view::Target;
 
@@ -21,6 +21,21 @@ pub fn option(
     offered: &[OptionView],
     n: &Names,
 ) -> Option<String> {
+    let base = base(o, window, seat, offered, n);
+    match purpose {
+        None => base,
+        Some(p) => asked(o, p, base, offered, n),
+    }
+}
+
+/// An option as it reads anywhere: by its kind and the window.
+fn base(
+    o: &OptionView,
+    window: Window,
+    seat: u8,
+    offered: &[OptionView],
+    n: &Names,
+) -> Option<String> {
     let k = &o.key;
     let card = || {
         k.card
@@ -34,11 +49,6 @@ pub fn option(
         None => String::new(),
     };
     let votes = |f: Option<bool>| if f == Some(true) { "for" } else { "against" };
-    let _ = offered;
-    // What an effect asks a choice for rewrites its options: not told yet.
-    if purpose.is_some() {
-        return None;
-    }
     Some(match k.kind {
         K::Pass if window == Window::ActionBlock => block_pass(seat, n).into(),
         K::Pass => pass(window)?.into(),
@@ -47,9 +57,12 @@ pub fn option(
         K::Withdraw => format!("Move 1 blood from {} back to pool", target()),
         K::InfluenceOut => format!("Influence out {}", target()),
         K::Merge => format!("Merge {} (4 transfers and 1 pool)", target()),
-        K::DrawCrypt => match window {
-            Window::InfluenceTransfers => "Draw a crypt card (4 transfers)".into(),
-            _ => return None,
+        K::DrawCrypt => match (window, n.action()) {
+            (Window::InfluenceTransfers, _) => "Draw a crypt card (4 transfers)".into(),
+            // In an action: Enthrall's "burn 1 blood to draw 1 card from
+            // your crypt".
+            (_, Some(_)) => "Burn 1 blood to draw a crypt card".into(),
+            _ => "Draw a crypt card (4 transfers)".into(),
         },
         K::Discard => format!("Discard {}", card()),
         K::Bottom => format!("Put {} on the bottom of the library", card()),
@@ -93,6 +106,33 @@ pub fn option(
         }
         K::PayRescue => format!("The rescuer pays {} blood", k.amount?),
         K::SetX => amount(o, n)?,
+        // A referendum's terms: who gets what (roles), not told yet.
+        K::ChooseSeat | K::ChooseMinion if window == Window::ReferendumTerms => return None,
+        K::ChooseMinion if window == Window::Distribution => {
+            format!("1 blood to {}", minion(k.minion))
+        }
+        K::ChooseMinion => format!("Choose {}", minion(k.minion)),
+        K::ChooseSeat => format!("Choose {}", target()),
+        K::ChooseCircle => format!("Choose the {} Circle", n.value(k.value.as_deref()?)),
+        K::Slot => {
+            let c = k.card.as_ref()?;
+            let name = match c.copy {
+                Some(copy) => n.copy_bare(copy),
+                None => n.card_id(c.id),
+            };
+            format!("Choose {name}")
+        }
+        K::AshVampire => {
+            let from = match k.zone.as_ref()?.zone {
+                Zone::Crypt => "your crypt",
+                _ => "the ash heap",
+            };
+            format!("Choose {} in {from}", card())
+        }
+        K::DrawStored => {
+            let c = k.card.as_ref()?;
+            format!("Draw {} from {}", n.card_id(c.id), n.own(c.from?))
+        }
         // A second vampire chosen after (Toreador Grand Ball): not told yet.
         K::Play if o.effects.iter().any(|e| e.kind == EffectKind::Role) => return None,
         K::Play => {
@@ -136,6 +176,135 @@ pub fn option(
             s
         }
         _ => return None,
+    })
+}
+
+/// An option for the choice an effect asks (`purpose`): its base text,
+/// said for that choice where it needs to be.
+fn asked(
+    o: &OptionView,
+    p: Purpose,
+    base: Option<String>,
+    offered: &[OptionView],
+    n: &Names,
+) -> Option<String> {
+    use Purpose as P;
+    let k = &o.key;
+    let role = |r: &str| Some(format!("{} ({r})", base.clone()?));
+    let verb = |from: &str, to: &str| Some(base.clone()?.replacen(from, to, 1));
+    let card = || n.card_id(k.card.as_ref().and_then(|c| c.id));
+    let has = |kind| o.effects.iter().find(|e| e.kind == kind);
+    // What the other options of the choice do (a pass's meaning).
+    let any = |kind| {
+        offered
+            .iter()
+            .flat_map(|o| &o.effects)
+            .find(|e| e.kind == kind)
+    };
+    Some(match (p, k.kind) {
+        (P::RemoveUncontrolled, K::Slot) => verb("Choose ", "Remove ")?,
+        (P::RemoveFromAsh, K::FindCard) => verb("Take ", "Remove ")?,
+        (P::RemoveFromAsh, K::AshVampire) => verb("Choose ", "Remove ")?,
+        (P::MinionOf, K::ChooseMinion) => {
+            let e = o.effects.first()?;
+            role(&match e.kind {
+                EffectKind::Lock => "locked".into(),
+                EffectKind::Corruption => "gets a corruption counter".into(),
+                EffectKind::Unlock => "unlocked".into(),
+                EffectKind::Blood if e.n? < 0 => "burns 1 blood".into(),
+                EffectKind::Blood => "gains 1 blood".into(),
+                EffectKind::Move => format!("gets {}", n.copy_bare(e.copy?)),
+                EffectKind::Burn => "burned".into(),
+                EffectKind::Damage => format!("takes {} damage", e.n?),
+                _ => return None,
+            })?
+        }
+        (P::MinionOf, K::Pass) => match any(EffectKind::Lock).or(any(EffectKind::Unlock)) {
+            Some(e) if e.kind == EffectKind::Lock && e.detail.is_none() => "Lock no more".into(),
+            Some(e) if e.kind == EffectKind::Unlock => "Unlock none".into(),
+            _ => "Pass".into(),
+        },
+        // Ashur Tablets: to the hand first, then into the library.
+        (P::AshurPicks, K::FindCard) => match has(EffectKind::Move)?.to? {
+            Zone::Hand => format!("{} to your hand", card()),
+            _ => format!("Shuffle {} into your library", card()),
+        },
+        (P::AshurPicks, K::Pass) => match any(EffectKind::Move).and_then(|e| e.to) {
+            Some(Zone::Hand) => "None to your hand".into(),
+            _ => "No more".into(),
+        },
+        (P::ExchangeAnarch, K::Discard) => format!(
+            "{} (for {})",
+            verb("Discard ", "Exchange ")?,
+            n.card_id(has(EffectKind::Move)?.card)
+        ),
+        (P::DistributeFrom, K::Slot) => role("gets 1 blood")?,
+        (P::DistributeFrom, K::Pass) => "Move no more blood".into(),
+        (P::BloodOrBurned, K::BurnBloodToAvoid) => {
+            let e = has(EffectKind::Blood)?;
+            format!("{} burns {} blood", n.minion_bare(e.copy?), -e.n?)
+        }
+        (P::BloodOrBurned, K::Pass) => {
+            let e = has(EffectKind::Burn)?;
+            let name = match e.card {
+                Some(c) => n.card_id(Some(c)),
+                None => n.minion_bare(e.copy?),
+            };
+            format!("Let {name} burn")
+        }
+        // Gilbert Duane: the chosen becomes Anarch, or stays; once chosen,
+        // a pass gains 1 pool.
+        (P::AnarchConvert, K::ChooseMinion) => role("becomes Anarch")?,
+        (P::AnarchConvert, K::Pass) if has(EffectKind::Pool).is_some() => "Gain 1 pool".into(),
+        (P::AnarchConvert, K::Pass) => "Keep him in play".into(),
+        (P::CryptSearch, K::AshVampire) => format!(
+            "Move {} from your crypt to your uncontrolled region",
+            card()
+        ),
+        (P::CryptSearch | P::BaseSearch, K::Pass) => "Find none".into(),
+        (P::ChooseCircle, K::Pass) => "Keep his own circle".into(),
+        (P::StoreSearch | P::DisciplineSearch, K::Pass) => "Stop searching".into(),
+        (P::BlockToll, K::Pass) => "Resign the attempt".into(),
+        // What legacy says for the choice and is not told from data yet.
+        (
+            P::GiveBlood
+            | P::MoveBetween
+            | P::PayOrBurn
+            | P::LockOrDiscard
+            | P::AllySearch
+            | P::MayDrawExtra
+            | P::Redraw
+            | P::EntryBurn
+            | P::EntryRemoveOrBurn
+            | P::MayPutOn
+            | P::MayAddCounter
+            | P::MayTorture
+            | P::MayGainPool
+            | P::CancelAttempt
+            | P::CorruptionOwner
+            | P::AvoidDamage
+            | P::DiscardFromHandOf
+            | P::ChooseForCard
+            | P::PoolForCard
+            | P::LockForPool
+            | P::StealForCorruption
+            | P::MakeAnarch
+            | P::BecomesAnarch
+            | P::UncontrolledBlood
+            | P::LockOrPay
+            | P::BaseSearch
+            | P::PreySlotToPool
+            | P::MayRecycleCanceled
+            | P::NameAshPair
+            | P::AllyFromAsh
+            | P::MoveForBlood
+            | P::MoveCardToTitled,
+            _,
+        )
+        | (P::MinionOf | P::RemoveUncontrolled | P::RemoveFromAsh | P::AshurPicks, _)
+        | (P::ExchangeAnarch, K::Pass) => return None,
+        // The rest reads as anywhere.
+        _ => base?,
     })
 }
 

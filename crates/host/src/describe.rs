@@ -235,6 +235,94 @@ pub fn effects(
             curated(a.effects, whom)
         }
         Choice::SetX(n) => amount(&x, req, n),
+        _ => e
+            .interrupt()
+            .map_or_else(Vec::new, |i| asked(&x, i, choice)),
+    }
+}
+
+/// What an option does for the choice an effect asks (`Decision::purpose`),
+/// where the purpose alone does not say: what the chosen minion gets, where
+/// a card goes, what a pass keeps or gains.
+fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
+    use zvtes::draws::MinionPurpose as P;
+    let chosen = |kind| Effect {
+        on: Some(On::Chosen),
+        ..Effect::new(kind)
+    };
+    let n = |n: i32, e: Effect| Effect { n: Some(n), ..e };
+    let library = |c: u16| Some(LIBRARY[c as usize].id);
+    match (i, *choice) {
+        (Interrupt::MinionOf { purpose, .. }, Choice::ChooseMinion(_)) => vec![match purpose {
+            P::Lock | P::LockVampire => chosen(EffectKind::Lock),
+            P::LockOldest(_) => Effect {
+                detail: Some("oldest".into()),
+                ..chosen(EffectKind::Lock)
+            },
+            P::Corrupt => n(1, chosen(EffectKind::Corruption)),
+            P::UnlockAnarch => chosen(EffectKind::Unlock),
+            P::BurnBloodOfClan(_) => n(-1, chosen(EffectKind::Blood)),
+            P::HostCard(card) => Effect {
+                copy: Some(x.card(card)),
+                card: Some(LIBRARY[x.e.state.cards[card.index()].card as usize].id),
+                ..chosen(EffectKind::Move)
+            },
+            P::BurnOfCrowdedClan => chosen(EffectKind::Burn),
+            P::OldestHuntingGround(_) => n(1, chosen(EffectKind::Blood)),
+            P::Damage(d) => n(d as i32, chosen(EffectKind::Damage)),
+        }],
+        // Ashur Tablets: to the hand, then into the library.
+        (Interrupt::AshurPicks { to_library, .. }, Choice::FindCard(c)) => vec![Effect {
+            card: library(c),
+            to: Some(if to_library {
+                Zone::Library
+            } else {
+                Zone::Hand
+            }),
+            ..Effect::new(EffectKind::Move)
+        }],
+        (Interrupt::ExchangeAnarch { ash: Some(c), .. }, Choice::Discard(_)) => vec![Effect {
+            card: library(c),
+            to: Some(Zone::Hand),
+            ..Effect::new(EffectKind::Move)
+        }],
+        (Interrupt::BloodOrBurned { minion, n: b, .. }, Choice::BurnBloodToAvoid) => {
+            vec![Effect {
+                copy: Some(x.minion(minion)),
+                cost: true,
+                ..n(-(b as i32), Effect::new(EffectKind::Blood))
+            }]
+        }
+        (Interrupt::BloodOrBurned { minion, card, .. }, Choice::Pass) => vec![match card {
+            Some(c) => Effect {
+                copy: Some(x.card(c)),
+                card: Some(LIBRARY[x.e.state.cards[c.index()].card as usize].id),
+                ..Effect::new(EffectKind::Burn)
+            },
+            None => Effect {
+                copy: Some(x.minion(minion)),
+                ..Effect::new(EffectKind::Burn)
+            },
+        }],
+        (Interrupt::DistributeFrom { .. }, Choice::Slot(_)) => {
+            vec![n(1, chosen(EffectKind::Blood))]
+        }
+        // Gilbert Duane: the chosen becomes Anarch; once chosen, a pass
+        // gains 1 pool.
+        (Interrupt::AnarchConvert { chosen: None, .. }, Choice::ChooseMinion(_)) => {
+            vec![Effect {
+                role: Some(Role::Anarch),
+                ..chosen(EffectKind::Role)
+            }]
+        }
+        (
+            Interrupt::AnarchConvert {
+                chosen: Some(_), ..
+            },
+            Choice::Pass,
+        ) => {
+            vec![n(1, Effect::new(EffectKind::Pool))]
+        }
         _ => Vec::new(),
     }
 }
@@ -537,7 +625,20 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
                 id: Some(CRYPT[c as usize].id),
                 copy: None,
                 from: None,
-            })
+            });
+            // A crypt search takes it from the crypt; Legacy's merge from
+            // the crypt if there.
+            let crypt = match e.interrupt() {
+                Some(Interrupt::CryptSearch { .. }) => true,
+                Some(Interrupt::BaseSearch { seat, .. }) => {
+                    e.state.seats[seat.index()].crypt.contains(&c)
+                }
+                _ => false,
+            };
+            k.zone = Some(ZoneRef {
+                seat: req.seat.0,
+                zone: if crypt { Zone::Crypt } else { Zone::AshHeap },
+            });
         }
         Choice::DrawStored { card, stored } => {
             k.card = Some(CardRef {

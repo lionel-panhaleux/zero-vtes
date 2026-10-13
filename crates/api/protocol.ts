@@ -1000,7 +1000,7 @@ export type ReferendumView = {
  * What a chosen minion or Methuselah becomes for the card choosing it
  * (completed with the host, A3).
  */
-export type Role = 'does_not_unlock' | 'unblockable_non_bleed' | 'chosen' | 'unknown'
+export type Role = 'does_not_unlock' | 'unblockable_non_bleed' | 'chosen' | 'anarch' | 'unknown'
 
 export type SeatInfo = {
     /** The bot profile; absent for a human. */

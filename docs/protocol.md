@@ -121,7 +121,13 @@ the decision chooses, when it is one (a play's or an action's terms, a
 referendum's): the options' `effects` say what each choice gets.
 `purpose` is what an effect asks the choice for, when one does (64 ids,
 the schema's `Purpose`: `pay_or_burn`, `store_search`…, one per kind
-of effect choice the engine asks).
+of effect choice the engine asks). The purpose says the verb
+(`remove_uncontrolled`: the slot chosen is removed); where it has
+parameters, each option's `effects` give them (`minion_of`: what the
+chosen minion gets — `lock`, `unlock`, `corruption`, `blood`, `damage`,
+`burn`, a card `move`d onto it; `ashur_picks`: `move` `to` the hand or
+the library; `blood_or_burned`: the blood paid, or what burns on a
+pass).
 
 ## 6. The view
 
