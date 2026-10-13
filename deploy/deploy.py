@@ -60,13 +60,24 @@ files.directory(name="Weights", path=f"{opt}/weights", user="root", group=name, 
 files.directory(name="Env dir", path=env_dir, user="root", group=name, mode="750")
 files.directory(name="App lib dir", path=lib_dir, user=name, group=name, mode="750")
 
+# Staged beside the running one, then renamed over it: a running binary
+# cannot be written ("Text file busy"), only replaced.
 server_binary = files.put(
     name="Server binary",
     src=str(binary(os.environ.get("RELEASE_TAG", ""))),
-    dest=f"{opt}/zvtes-server",
+    dest=f"{opt}/zvtes-server.new",
     user="root",
     group=name,
     mode="755",
+)
+server.shell(
+    name="Server binary in place",
+    commands=[
+        f"cmp -s {opt}/zvtes-server.new {opt}/zvtes-server"
+        f" || (cp -p {opt}/zvtes-server.new {opt}/zvtes-server.tmp"
+        f" && mv -f {opt}/zvtes-server.tmp {opt}/zvtes-server)"
+    ],
+    _if=server_binary.did_change,
 )
 
 # Every weights file served is kept by its hash: a record names the hash,
