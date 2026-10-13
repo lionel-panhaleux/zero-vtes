@@ -52,6 +52,8 @@ struct App {
     games: Games,
     policy: Option<Arc<Policy>>,
     store: mpsc::UnboundedSender<Put>,
+    /// Records of games no longer live.
+    records: Store,
     /// Games created per address, the last hour.
     created: Mutex<HashMap<String, Vec<Instant>>>,
 }
@@ -102,7 +104,7 @@ async fn main() {
         });
     }
     let (tx, rx) = mpsc::unbounded_channel();
-    tokio::spawn(store.run(rx));
+    tokio::spawn(store.clone().run(rx));
     let app = Arc::new(App {
         config: Config {
             origins: env("ZVTES_ORIGINS")
@@ -116,6 +118,7 @@ async fn main() {
         games: Games::default(),
         policy,
         store: tx,
+        records: store,
         created: Mutex::new(HashMap::new()),
     });
     let router = Router::new()
@@ -220,7 +223,7 @@ async fn create(
             SpecError::Humans { n: humans as u8 },
         );
     }
-    if app.games.len() >= app.config.max_games {
+    if app.games.live() >= app.config.max_games {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             "the server is full: try again later",
@@ -254,23 +257,28 @@ async fn create(
 }
 
 async fn record(State(app): State<Shared>, Path(id): Path<String>, headers: HeaderMap) -> Response {
-    let Some(h) = app.games.get(&id) else {
-        return StatusCode::NOT_FOUND.into_response();
-    };
-    let bearer = headers
+    let Some(bearer) = headers
         .get("authorization")
         .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "));
-    if bearer != Some(h.token.as_str()) {
+        .and_then(|v| v.strip_prefix("Bearer "))
+    else {
         return StatusCode::UNAUTHORIZED.into_response();
+    };
+    // A live game answers from its thread; a finished one from the store.
+    if let Some(h) = app.games.get(&id) {
+        if bearer != h.token {
+            return StatusCode::UNAUTHORIZED.into_response();
+        }
+        let (tx, rx) = oneshot::channel();
+        if h.jobs.send(Job::Record(tx)).is_ok() {
+            if let Ok(r) = rx.await {
+                return Json(r).into_response();
+            }
+        }
     }
-    let (tx, rx) = oneshot::channel();
-    if h.jobs.send(Job::Record(tx)).is_err() {
-        return StatusCode::NOT_FOUND.into_response();
-    }
-    match rx.await {
-        Ok(r) => Json(r).into_response(),
-        Err(_) => StatusCode::NOT_FOUND.into_response(),
+    match app.records.record(&id, &store::hash(bearer)).await {
+        Some(r) => Json(r).into_response(),
+        None => StatusCode::NOT_FOUND.into_response(),
     }
 }
 

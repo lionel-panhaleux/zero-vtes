@@ -57,3 +57,15 @@ const rec = await (await fetch(`${base}/games/${game}/record`, { headers: { auth
 if (!rec.result || rec.spec.seats[seat].name != 'human') throw new Error('bad record')
 console.log(`record: ${rec.entries.length} entries, bots ${rec.bots.map(b => b.profile)}`)
 ws.close()
+
+// RECORD_AFTER=s: once the game's thread is gone (an idle timeout under
+// s), the record comes from the store.
+if (process.env.RECORD_AFTER) {
+    await new Promise(r => setTimeout(r, 1000 * Number(process.env.RECORD_AFTER)))
+    const later = await fetch(`${base}/games/${game}/record`, { headers: { authorization: `Bearer ${token}` } })
+    const stored = await later.json()
+    if (stored.entries.length != rec.entries.length || !stored.result) throw new Error('stored record differs')
+    const wrong = await fetch(`${base}/games/${game}/record`, { headers: { authorization: 'Bearer nope' } })
+    if (wrong.status == 200) throw new Error('a wrong token read the record')
+    console.log(`stored record: ${stored.entries.length} entries, read back after the game ended`)
+}
