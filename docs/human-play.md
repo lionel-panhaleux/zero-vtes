@@ -1,5 +1,10 @@
 # Human play (P5) — plan and board
 
+> On `p6-online` (2026-10-13) `crates/protocol` is gone: the host plays
+> the game (`crates/host`, docs/protocol.md), the renderer tells it
+> (`crates/text`), and the corpus is game records (`data/records`). This
+> page records how the in-browser fork on `main` was built.
+
 Working document for P5: a human plays the engine and its bots through a
 [Succubus Club](https://github.com/thomasWajs/succubus-club) (SC) interface.
 Settled decisions graduate to DESIGN §8 once the experiment confirms them;
@@ -282,12 +287,12 @@ for history.
 
 ### Checks
 
-- `cargo test --profile ci -q` covers the protocol (default member);
-  `PROTOCOL_SEEDS=n` deepens `tests/session.rs`.
-- `tests/session.rs` `allocations_and_vote_orders_at_once`: every seat
-  human on the decks holding allocation cards; engine-side shapes (cards,
-  shortfall caps) in `tests/politics.rs` / `tests/precon.rs`
-  (`…allocation…_read_whole`).
+- `cargo test --profile ci -q` covers the host and the renderer (default
+  members); `HOST_SEEDS=n` deepens `crates/host/tests/events.rs` (the
+  events against the views, undo, allocations and vote orders, every
+  option and decision told), `HOST_SEED_FROM=n` starts there; engine-side
+  allocation shapes in `tests/politics.rs` / `tests/precon.rs`;
+  `crates/host/tests/records.rs` reads the corpus whole.
 - `cargo clippy -p zvtes-wasm --profile ci -- -D warnings`;
   `wasm-pack build crates/wasm --target nodejs --out-dir ../../target/wasm-node
   && node crates/wasm/tests/smoke.mjs`.

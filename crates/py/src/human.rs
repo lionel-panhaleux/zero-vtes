@@ -1,5 +1,5 @@
-//! A game exported from the Succubus Club fork ("Export replay": the
-//! spec by KRCG ids and the decision log) read back as samples: each
+//! A game record (the server's, or the corpus's: `data/records`) read
+//! back as samples: each
 //! decision's encodings for the networks, what was offered and what was
 //! chosen, and what happened in between (DESIGN §11.2, human games as
 //! data; `train/assess.py` reads them).
@@ -11,8 +11,8 @@ use pyo3::types::PyDict;
 use zvtes::crypt::CRYPT;
 use zvtes::library::LIBRARY;
 use zvtes::obs::{encode, encode_critic, Obs, OPT_F, OPT_IDS, TOK_F, TOK_IDS};
-use zvtes_protocol::describe::OptionView;
-use zvtes_protocol::{Out, Player, Replay, Session};
+use zvtes_api::record::GameRecord;
+use zvtes_host::replay::{Read, Replayer, Step};
 
 use crate::{all_decks, version};
 
@@ -58,121 +58,94 @@ fn put(py: Python<'_>, d: &Bound<'_, PyDict>, prefix: &str, o: Obs, options: boo
     Ok(())
 }
 
-/// The KRCG id of the card an option names, if any.
-fn card_of(o: &OptionView) -> Option<u32> {
-    o.card.as_ref().and_then(|c| c.id)
-}
-
-/// Replay `replay` (the fork's JSON): one dict per decision, in order —
-/// `decision`, `seat`, `turn`, `window`, `options` (texts), `cards` (the
-/// KRCG id each option names, else None), `chosen` (None for the decision
-/// the log ends on), `choice` (its text), `before` (what happened since
-/// the previous decision), the deciding seat's policy encoding (`tok_ids`,
-/// `tok_f`, `opt_ids`, `opt_f`) and critic encoding (`critic_tok_ids`,
+/// Read `record` (a game record's JSON: the server's, or the corpus's):
+/// one dict per decision, in order — `decision`, `seat`, `turn`,
+/// `window` (its id), `options` (told), `cards` (the KRCG id each option
+/// names, else None), `chosen` (None for the decision the record ends on),
+/// `choice` (its text), `before` (what happened since the previous
+/// decision), the deciding seat's policy encoding (`tok_ids`, `tok_f`,
+/// `opt_ids`, `opt_f`) and critic encoding (`critic_tok_ids`,
 /// `critic_tok_f`), both in observation version `obs`. The dict `over`
 /// (`vps`, `before`) ends a finished game; `stopped` (why) a game whose
-/// log stops replaying (a rule change since: the decisions up to it,
-/// the last unanswered). Also `names` (seats') and `humans` (the seats a
-/// human played).
+/// record stops reading (a rule change since: the decisions up to it, the
+/// last unanswered). Also `names` (seats') and `humans` (the seats a human
+/// played).
 #[pyfunction]
-#[pyo3(signature = (replay, obs=1))]
+#[pyo3(signature = (record, obs=1))]
 pub fn replay_decisions<'py>(
     py: Python<'py>,
-    replay: &str,
+    record: &str,
     obs: u8,
 ) -> PyResult<Bound<'py, PyDict>> {
     let v = version(obs)?;
-    let replay: Replay =
-        serde_json::from_str(replay).map_err(|e| PyValueError::new_err(format!("replay: {e}")))?;
-    let mut spec = replay.spec.clone();
-    let humans: Vec<usize> = (0..spec.seats.len())
-        .filter(|&s| spec.seats[s].player == Player::Human)
-        .collect();
-    let names: Vec<String> = spec.seats.iter().map(|s| s.name.clone()).collect();
-    // Every seat answered from the log: the deal depends on the seed alone.
-    for s in &mut spec.seats {
-        s.player = Player::Human;
-    }
-    let mut session = Session::new(spec).map_err(|e| PyValueError::new_err(format!("{e:?}")))?;
-    let mut reader = replay.reader();
-    session.show_all();
+    let record: GameRecord =
+        serde_json::from_str(record).map_err(|e| PyValueError::new_err(format!("record: {e}")))?;
+    let mut r = Replayer::new(&record).map_err(PyValueError::new_err)?;
     let mut samples: Vec<Bound<'py, PyDict>> = Vec::new();
     let out = PyDict::new(py);
+    let read = |py: Python<'py>, r: &Replayer, d: &Read| -> PyResult<Bound<'py, PyDict>> {
+        let x = PyDict::new(py);
+        x.set_item("decision", d.decision)?;
+        x.set_item("seat", d.seat)?;
+        x.set_item("turn", d.turn)?;
+        let window = serde_json::to_value(d.window).expect("ids serialize");
+        x.set_item("window", window.as_str().unwrap_or("unknown"))?;
+        x.set_item("before", d.before.clone())?;
+        x.set_item("options", d.options.clone())?;
+        x.set_item("cards", d.cards.clone())?;
+        let req = r.request().expect("a decision is pending");
+        put(py, &x, "", encode(r.engine(), req, v), true)?;
+        put(py, &x, "critic_", encode_critic(r.engine(), req, v), false)?;
+        Ok(x)
+    };
     loop {
-        match session.advance() {
-            Out::Decision {
-                decision,
-                seat,
-                window,
-                options,
-                events,
-                view,
-                ..
-            } => {
-                let d = PyDict::new(py);
-                d.set_item("decision", decision)?;
-                d.set_item("seat", seat)?;
-                d.set_item("turn", view.turn)?;
-                d.set_item("window", window)?;
-                d.set_item("before", events)?;
-                d.set_item(
-                    "options",
-                    options.iter().map(|o| o.text.clone()).collect::<Vec<_>>(),
-                )?;
-                d.set_item("cards", options.iter().map(card_of).collect::<Vec<_>>())?;
-                let req = session.request().expect("a decision is pending").clone();
-                put(py, &d, "", encode(session.engine(), &req, v), true)?;
-                put(
-                    py,
-                    &d,
-                    "critic_",
-                    encode_critic(session.engine(), &req, v),
-                    false,
-                )?;
-                let index = match reader.next(session.engine(), &req) {
+        match r.step() {
+            Step::Decision(d) => {
+                let x = read(py, &r, &d)?;
+                match d.chosen {
                     None => {
-                        d.set_item("chosen", py.None())?;
-                        samples.push(d);
+                        x.set_item("chosen", py.None())?;
+                        samples.push(x);
                         break;
                     }
-                    // The engine changed what the game asks: the game so
-                    // far, and why it stops.
-                    Some(Err(e)) => {
-                        d.set_item("chosen", py.None())?;
-                        samples.push(d);
-                        out.set_item(
-                            "stopped",
-                            format!("decision {decision}: the log's choice is refused: {e}"),
-                        )?;
-                        break;
-                    }
-                    Some(Ok(i)) => i,
-                };
-                d.set_item("chosen", index)?;
-                match session.answer(decision, index) {
-                    Ok(Out::Decided { choice, .. }) => d.set_item("choice", choice.text)?,
-                    Ok(_) => unreachable!("an answer is decided"),
-                    Err(e) => {
-                        return Err(PyValueError::new_err(format!(
-                            "decision {decision}: the log's option {index} is refused: {e:?}"
-                        )))
+                    Some(i) => {
+                        x.set_item("chosen", i)?;
+                        x.set_item("choice", d.options.get(i).cloned())?;
+                        samples.push(x);
+                        r.take();
                     }
                 }
-                samples.push(d);
             }
-            Out::Decided { .. } => unreachable!("every seat is answered from the log"),
-            Out::Over { vps, events, .. } => {
+            // The engine changed what the game asks: the game so far, and
+            // why it stops.
+            Step::Stopped { why, last } => {
+                let x = read(py, &r, &last)?;
+                x.set_item("chosen", py.None())?;
+                samples.push(x);
+                out.set_item("stopped", why)?;
+                break;
+            }
+            Step::Over { vp_halves, before } => {
                 let o = PyDict::new(py);
-                o.set_item("vps", vps)?;
-                o.set_item("before", events)?;
+                o.set_item(
+                    "vps",
+                    vp_halves
+                        .iter()
+                        .map(|&h| h as f32 / 2.0)
+                        .collect::<Vec<_>>(),
+                )?;
+                o.set_item("before", before)?;
                 out.set_item("over", o)?;
                 break;
             }
         }
     }
     out.set_item("decisions", samples)?;
-    out.set_item("names", names)?;
-    out.set_item("humans", humans)?;
+    out.set_item("names", r.names().to_vec())?;
+    out.set_item(
+        "humans",
+        r.humans().iter().map(|&s| s as usize).collect::<Vec<_>>(),
+    )?;
     Ok(out)
 }
 

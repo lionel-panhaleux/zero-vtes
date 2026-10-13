@@ -1,6 +1,6 @@
 //! Cards spent for nothing, and hands not built (owner, 2026-10-05: "it
 //! tends to throw away wakes, unlocks … because it cannot construct its
-//! hand properly"): the owner's games (`data/replays`, the owner's seats
+//! hand properly"): the owner's games (`data/records`, the owner's seats
 //! apart from the bots') and self-play of an exported network.
 //! `cargo run -p zvtes-policy --profile ci --example waste -- <policy.zvp>
 //! <games> [--t T] [--rescue B] [--pass B] [--reaction B] [--bleed B]
@@ -41,9 +41,9 @@ use zvtes::game::{Engine, Step};
 use zvtes::habits;
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::library::{CardType, LIBRARY};
+use zvtes_api::record::GameRecord;
+use zvtes_host::replay::Replay;
 use zvtes_policy::{Net, NetAgent, Nudges};
-use zvtes_protocol::deck::resolve;
-use zvtes_protocol::{Player, Replay};
 
 #[derive(Default, Debug)]
 struct Counts {
@@ -286,28 +286,14 @@ impl Watch {
 
 fn owner_games(paths: &[String], counts: &mut BTreeMap<String, Counts>) {
     for path in paths {
-        let replay: Replay =
-            serde_json::from_str(&std::fs::read_to_string(path).expect("a replay"))
-                .expect("a replay");
-        let lists: Vec<_> = replay
-            .spec
-            .seats
-            .iter()
-            .map(|s| resolve(&s.deck).expect("a deck"))
-            .collect();
-        let lists: Vec<_> = lists
-            .iter()
-            .map(|d| (d.crypt.as_slice(), d.library.as_slice()))
-            .collect();
-        let mut e = Engine::with_lists(replay.spec.seed, &lists);
-        if let Some(t) = replay.spec.time_limit {
-            e.time_limit = t;
-        }
-        let human: Vec<bool> = replay
-            .spec
-            .seats
-            .iter()
-            .map(|s| s.player == Player::Human)
+        let record: GameRecord =
+            serde_json::from_str(&std::fs::read_to_string(path).expect("a record"))
+                .expect("a record");
+        let replay = Replay::new(&record).expect("a record");
+        let mut e = replay.deal();
+        e.combat_notes = None;
+        let human: Vec<bool> = (0..replay.seats())
+            .map(|s| replay.humans.contains(&(s as u8)))
             .collect();
         let mut reader = replay.reader();
         let mut watch = Watch::default();

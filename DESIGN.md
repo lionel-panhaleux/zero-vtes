@@ -1546,7 +1546,7 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   the encoders the pending request), `zvtes_py.deck_cards(d)`, and
   `uv run python -m train.assess <replay.json> [checkpoint]` (the
   checkpoint's `obs` version; `*` marks a card outside its training
-  decks). The corpus: `data/replays/` (tracked, indexed in its README
+  decks). The corpus: `data/records/` (tracked, indexed in its README
   with each game's engine commit: a rule change can stop an old log
   replaying). Replays by meaning (owner, 2026-10-04: "so the replays I do
   are not useless"): beside its indices a replay logs each decision as
@@ -1568,7 +1568,7 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   the critic rated the owner's seat lowest at the start (+0.18 against
   +0.44/+0.46).
   More games (2026-10-03/04, five, all won by the owner — 3 or 4 VP, a
-  bot 1 at most; `data/replays/README.md`): the policy's favourite was
+  bot 1 at most; `data/records/README.md`): the policy's favourite was
   the owner's 37–46% of the time, lowest in the minion (13–17%),
   influence (22–38%) and discard (0–17%) phases; it still influences
   out at ~100% and gives a crypt draw no weight; one action is its
@@ -1705,9 +1705,9 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   1.15 / 0.83 (512). In the smoke run (128 games, the learner the
   frozen network itself) the learner scored 1.42 / 1.21 against habit
   seats, 0.84 / 1.08 against plain ones.
-  (2) Starts (`zvtes_protocol::start`, `GamePool(replays=)`, a queued
+  (2) Starts (`zvtes_host::start`, `GamePool(replays=)`, a queued
   table's `start`): a training table begun from a decision in the last
-  four fifths of one of the owner's games (`--starts data/replays
+  four fifths of one of the owner's games (`--starts data/records
   --start-tables`), the learner at a random seat, every library and
   crypt shuffled again from the pool's seed at the branch (from one
   position the replay's order would fix every draw: a future to
@@ -1926,7 +1926,7 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
 - **Plan for p9** (owner, 2026-10-10: "mark this down as the plan"):
   (1) imitation from the owner's replays — a small behaviour-cloning
   term in the PPO update toward the owner's choices at his seats in
-  `data/replays` (~30 games; AlphaStar's recipe: RL leads, the human
+  `data/records` (~30 games; AlphaStar's recipe: RL leads, the human
   term guides; small weight, watch overfitting; grows with every replay)
   — the lever for the skills self-play never rewards (rescues 92%,
   selective cycling, blocks after wakes); (2) permanent light nudges
@@ -1981,7 +1981,7 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   `p8-nudges@2600`, lr 1e-4, entropy coefficient 0.048 (p8's last),
   `gw_weight` 5, decks precons + anniversary + Sabbat + TWDA, owner
   starts 25%, permanent nudges rescue 6, bleed 4, idle 3 (pass and
-  reaction 0: imitation's), chores on, bc 0.02 on `data/replays` (37
+  reaction 0: imitation's), chores on, bc 0.02 on `data/records` (37
   games: 5456 choices trained, 894 held out —
   `…T08-31-11`, `…T19-47-18`, `…T20-32-01`, `…T22-52-40`), weak
   decks Salubri, Hecata, Tremere, Reign of Stanislava, Cathari, Caine,

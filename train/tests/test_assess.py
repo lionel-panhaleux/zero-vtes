@@ -1,6 +1,6 @@
-"""A replay read back as samples (`zvtes_py.replay_decisions`, the
-diagnostic's input): one per logged decision plus the one the log ends
-on, each with its options, its choice and encodings that fit them."""
+"""A game record read back as samples (`zvtes_py.replay_decisions`, the
+diagnostic's input): one per recorded decision plus the one the record
+ends on, each with its options, its choice and encodings that fit them."""
 
 import json
 
@@ -16,18 +16,28 @@ def spec(seed):
         {
             "name": f"Seat {s}",
             "deck": {str(i): n for i, n in zvtes_py.deck_cards(d)},
-            "player": {"kind": "human"} if s == 1 else {"kind": "bot", "style": "network"},
+            "player": {"type": "human"} if s == 1 else {"type": "bot", "profile": "network"},
         }
         for s, d in enumerate([0, 1, 2, 3])
     ]
     return {"seed": seed, "seats": seats}
 
 
+def record(spec, log):
+    """A record by option indices alone (its keys unknown)."""
+    entries = [
+        {"type": "decision", "decision": n, "seat": 0, "at": 0, "option": o,
+         "choice": {"kind": "unknown"}, "by": "human"}
+        for n, o in enumerate(log)
+    ]
+    return {"protocol": "1.0.0", "engine": "tests", "spec": spec, "started": 0, "entries": entries}
+
+
 def test_replay_decisions():
     rng = np.random.default_rng(7)
     log = []
     for _ in range(40):
-        game = zvtes_py.replay_decisions(json.dumps({"spec": spec(11), "log": log}), 1)
+        game = zvtes_py.replay_decisions(json.dumps(record(spec(11), log)), 1)
         decisions = game["decisions"]
         assert [d["decision"] for d in decisions] == list(range(len(log) + 1))
         assert game["humans"] == [1]
@@ -47,7 +57,7 @@ def test_replay_decisions():
 
 
 def test_log_refused():
-    bad = {"spec": spec(11), "log": [999]}
+    bad = record(spec(11), [999])
     game = zvtes_py.replay_decisions(json.dumps(bad), 1)
     assert "refused" in game["stopped"], "an impossible option index stops the game"
     assert [d["chosen"] for d in game["decisions"]] == [None] and "over" not in game

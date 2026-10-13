@@ -26,8 +26,8 @@ use zvtes::library::{CardType, LIBRARY};
 use zvtes::obs::{encode, encode_critic, Obs, Version, OPT_F, OPT_IDS, TOK_F, TOK_IDS};
 use zvtes::rng::Rng;
 use zvtes::{habits, politics};
+use zvtes_host::start::Start;
 use zvtes_policy::Nudges;
-use zvtes_protocol::start::Start;
 
 mod human;
 
@@ -461,7 +461,7 @@ fn all_decks() -> &'static [Deck] {
 /// default politics (`zvtes::politics`; DESIGN §11.2): referendum terms by
 /// rule, never offered to Python; options the rule masks left out of the
 /// request Python sees (its option indices are among those offered).
-/// `replays`: the games a queued table may `start` from (the fork's JSON,
+/// `replays`: the games a queued table may `start` from (game records,
 /// `zvtes_protocol::start`). `habits`: the habits of the `net:k+habits`
 /// seats (`zvtes::habits::Set::parse`), all by default. `chores`: network
 /// seats never decline a chore (`zvtes_policy::chores`: the Edge's pool, a

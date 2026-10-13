@@ -91,6 +91,15 @@ fn base(
         {
             "Pass".into()
         }
+        // A distribution walks the recipients: the pass skips this one.
+        K::Pass if window == Window::Distribution => match offered
+            .iter()
+            .find(|o| o.key.kind == K::ChooseMinion)
+            .and_then(|o| o.key.minion)
+        {
+            Some(m) => format!("No blood to {}", minion(Some(m))),
+            None => "Pass".into(),
+        },
         K::Pass => pass(window)?.into(),
         K::EdgePool => "Gain 1 pool (the Edge)".into(),
         K::TakeFrom => {

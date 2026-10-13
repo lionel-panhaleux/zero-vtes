@@ -12,7 +12,9 @@ mod game;
 pub mod ids;
 pub mod narrate;
 pub mod numbering;
+pub mod replay;
 pub mod session;
+pub mod start;
 pub mod view;
 
 pub use game::{Bots, Clock, Game, SystemClock, BUILT_IN};

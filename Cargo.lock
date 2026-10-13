@@ -2416,16 +2416,8 @@ version = "0.0.1"
 dependencies = [
  "serde_json",
  "zero-vtes-engine",
- "zvtes-protocol",
-]
-
-[[package]]
-name = "zvtes-protocol"
-version = "0.0.1"
-dependencies = [
- "serde",
- "serde_json",
- "zero-vtes-engine",
+ "zvtes-api",
+ "zvtes-host",
 ]
 
 [[package]]
@@ -2437,8 +2429,9 @@ dependencies = [
  "rayon",
  "serde_json",
  "zero-vtes-engine",
+ "zvtes-api",
+ "zvtes-host",
  "zvtes-policy",
- "zvtes-protocol",
 ]
 
 [[package]]

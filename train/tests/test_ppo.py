@@ -216,7 +216,7 @@ def test_habit_seats_and_starts(tmp_path):
     cfg = Config(
         **small, out=str(tmp_path / "new"), league=True,
         opponents=str(tmp_path / "old" / "model.pt"), habit_seats=0.5,
-        starts="data/replays/zero-vtes-replay-2026-10-04T12-09-51-567Z.json", start_tables=0.5,
+        starts="data/records/zero-vtes-replay-2026-10-04T12-09-51-567Z.json", start_tables=0.5,
     )
     trainer = Trainer(cfg)
     specs = [trainer.spec() for _ in range(60)]
@@ -256,8 +256,8 @@ def test_nudges_fade(tmp_path):
 def test_imitation_holds_out_named_games():
     """p10 (the plan): the games named held out, the rest trained on; a
     name matching no game refused."""
-    a = "data/replays/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
-    b = "data/replays/zero-vtes-replay-2026-10-09T21-51-54-561Z.json"
+    a = "data/records/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
+    b = "data/records/zero-vtes-replay-2026-10-09T21-51-54-561Z.json"
     replays = load_replays(",".join([a, b]))
     train, held, names = imitation(replays, 3, 8, ["2026-10-09T21-51"])
     assert names == ["zero-vtes-replay-2026-10-09T21-51-54-561Z.json"]
@@ -278,17 +278,17 @@ def test_imitation_and_weak_decks(tmp_path):
     )
     Trainer(Config(**small, out=str(tmp_path / "old"))).run()
     # Malkavian, Ravnos, Path of Caine (the owner), Toreador.
-    start = "data/replays/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
-    # The game exported twice: early (a start of its log), then whole.
+    start = "data/records/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
+    # The game recorded twice: early (a start of its decisions), then whole.
     game = json.loads(open(start).read())
-    early = {**game, "log": game["log"][:100], "choices": game["choices"][:100]}
+    early = {**game, "entries": game["entries"][:100], "result": None}
     twice = [tmp_path / "a.json", tmp_path / "b.json"]
     twice[0].write_text(json.dumps(early))
     twice[1].write_text(json.dumps(game))
     assert [p.name for p, _, _ in load_replays(",".join(map(str, twice)))] == ["b.json"]
     cfg = Config(
         **small, out=str(tmp_path / "new"), league=True, opponents=str(tmp_path / "old" / "model.pt"),
-        bc=",".join([start, "data/replays/zero-vtes-replay-2026-10-09T21-51-54-561Z.json"]),
+        bc=",".join([start, "data/records/zero-vtes-replay-2026-10-09T21-51-54-561Z.json"]),
         bc_coef=0.1, bc_holdout=2, bc_batch=32,
         weak_decks="32,5", weak_rate=0.5, starts=start, start_tables=0.3, bots_every=0, critic_warmup=0,
     )

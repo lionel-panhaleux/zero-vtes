@@ -180,7 +180,7 @@ class Config:
     nudge_from: int = 0
     nudge_until: int = 0
     # Starts (owner, 2026-10-04): the share of training tables begun from a
-    # decision of one of the games in `starts` (a directory of replays or
+    # decision of one of the games in `starts` (a directory of records or
     # comma-separated files; `zvtes_protocol::start`), the learner at a
     # random seat, the libraries and crypts shuffled again.
     starts: str = ""
@@ -189,7 +189,7 @@ class Config:
     # leads, the human term guides): each PPO minibatch adds `bc_coef` ×
     # the cross-entropy of the policy (its own logits, no nudge) on
     # `bc_batch` of the humans' choices with an alternative, from the
-    # replays in `bc` (as `starts`). Every `bc_holdout`-th game (0: none)
+    # records in `bc` (as `starts`). Every `bc_holdout`-th game (0: none)
     # is held out: its loss is logged, never trained on (overfitting).
     # `bc_held_games` (comma-separated parts of file names, the p10 plan:
     # games never trained on, for an honest held-out) holds those out
@@ -439,10 +439,10 @@ def nudges(cfg, it):
 
 
 def load_replays(spec):
-    """Replays (`--starts`, `--bc`: a directory of `.json` files or
-    comma-separated paths): (path, text, seats) each. A game exported
-    twice (the same spec, one log the other's start) is kept once, its
-    longest export."""
+    """Game records (`--starts`, `--bc`: a directory of `.json` files or
+    comma-separated paths; `data/records`): (path, text, seats) each. A
+    game kept twice (the same spec, one's decisions the other's start) is
+    kept once, its longest record."""
     if not spec:
         return []
     paths = []
@@ -451,6 +451,8 @@ def load_replays(spec):
         paths += sorted(p.glob("*.json")) if p.is_dir() else [p]
     games = [(p, p.read_text()) for p in paths]
     parsed = [json.loads(t) for _, t in games]
+    for g in parsed:
+        g["log"] = [e["option"] for e in g["entries"] if e.get("type") == "decision"]
     out = []
     for i, ((p, text), g) in enumerate(zip(games, parsed)):
         n = len(g["log"])
