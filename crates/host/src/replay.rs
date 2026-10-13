@@ -142,12 +142,20 @@ impl Reader<'_> {
         let alike: Vec<usize> = (0..req.options.len())
             .filter(|&i| describe::key(e, req, &req.options[i], &EngineNames) == d.choice)
             .collect();
+        let i = d.option as usize;
         Some(match alike.as_slice() {
+            // No key alike (a key written by an earlier engine, its fields
+            // since grown): the recorded index, if it is that kind of choice.
+            [] if i < req.options.len()
+                && describe::key(e, req, &req.options[i], &EngineNames).kind == d.choice.kind =>
+            {
+                Ok(i)
+            }
             [] => Err(format!(
                 "decision {}: seat {}'s {:?} is not offered",
                 d.decision, d.seat, d.choice.kind
             )),
-            many if many.contains(&(d.option as usize)) => Ok(d.option as usize),
+            many if many.contains(&i) => Ok(i),
             [first, ..] => Ok(*first),
         })
     }
