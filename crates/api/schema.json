@@ -728,6 +728,17 @@
             "null"
           ]
         },
+        "purpose": {
+          "description": "What an effect asks the choice for, when one does.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Purpose"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "seat": {
           "type": "integer",
           "format": "uint8",
@@ -2920,6 +2931,337 @@
             "type",
             "profile"
           ]
+        }
+      ]
+    },
+    "Purpose": {
+      "description": "What a choice an effect asks is for (the engine's interrupt): with\n`source`, what the decision chooses. Open: a later engine adds more.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "discard_chosen"
+          ]
+        },
+        {
+          "description": "`seat` moves `card` (Fear of Mekhet) to another justicar or Inner\nCircle member, any Methuselah's, in torpor included (ANK 20210109;\nrules-qa 49.4: not locked by the move); burned if there is none.",
+          "type": "string",
+          "const": "move_card_to_titled"
+        },
+        {
+          "description": "Blood Trade: 1 blood from `from` to a vampire of another\nMethuselah's, the player's choice.",
+          "type": "string",
+          "const": "give_blood"
+        },
+        {
+          "description": "Heidelberg Castle: `seat` moves from `from` to another ready\nvampire of theirs — chosen first (`to`), then the blood (any\namount, the excess to the bank: ANK 20170804), then equipment and\nretainers one at a time, each one `to` could hold (LSJ 19980831),\nuntil done.",
+          "type": "string",
+          "const": "move_between"
+        },
+        {
+          "description": "\"Burned unless its controller burns n pool\" (Conquest of Humanity):\n`seat` pays or lets `card` burn.",
+          "type": "string",
+          "const": "pay_or_burn"
+        },
+        {
+          "description": "Nightmares upon Nightmares: `minion` is locked unless its\nMethuselah discards a card (not replaced until their master phase).",
+          "type": "string",
+          "const": "lock_or_discard"
+        },
+        {
+          "description": "Society of Leopold: `minion` burns `n` blood or is burned, its\nMethuselah's choice (Pass: burned) — or `card` is burned instead\n(Robert Carter: \"Carter's employer burns 1 blood, or Carter is\nburned\").",
+          "type": "string",
+          "const": "blood_or_burned"
+        },
+        {
+          "description": "A replacement Visit from the Capuchin would take instead while a\ndraw alternative applies too: one treatment or the other (ANK\n20200905; rules-qa 9.4). `except`: the card being replaced.",
+          "type": "string",
+          "const": "replacement"
+        },
+        {
+          "description": "Draw up to hand size, each card from the library or a draw\nalternative.",
+          "type": "string",
+          "const": "draw_up"
+        },
+        {
+          "description": "Heart of Nizchetus: `left` cards still to draw, `drawn` so far; the\nsame number then goes to the bottom of the library.",
+          "type": "string",
+          "const": "draws"
+        },
+        {
+          "description": "`left` cards still to move from hand to the bottom of the library.",
+          "type": "string",
+          "const": "bottom"
+        },
+        {
+          "description": "Black Market Cache's search: up to `left` more cards to put on\n`card`.",
+          "type": "string",
+          "const": "store_search"
+        },
+        {
+          "description": "\"After this ally enters play, burn an ally or retainer you control\"\n(War Ghoul): the controller's pick among the others, the entering\nally itself if there is none (RTR 19961113).",
+          "type": "string",
+          "const": "entry_burn"
+        },
+        {
+          "description": "\"After this ally enters play, burn it unless you remove an ally or\nvampire in your ash heap from the game\" (Rotting Behemoth): the\ncontroller may decline, and the ally burns (LSJ 20030701-2).",
+          "type": "string",
+          "const": "entry_remove_or_burn"
+        },
+        {
+          "description": "A block attempt made costly as it goes on (Where the Veil Thins\n[OBL], Tenebrous Form [OBT]): its minion pays the `n` blood that\ncard adds, or resigns the attempt and pays nothing (LSJ\n20031121-2); an ally cannot burn blood.",
+          "type": "string",
+          "const": "block_toll"
+        },
+        {
+          "description": "Dawn Operation [for]: the vampire attempting to block may cancel\nits attempt (`ChooseMinion` it, or pass).",
+          "type": "string",
+          "const": "cancel_attempt"
+        },
+        {
+          "description": "Amici Noctis: `left` blood to distribute; first how much to the\npool (at most `cap`), the rest among the ready `clan` vampires.",
+          "type": "string",
+          "const": "margin_pool"
+        },
+        {
+          "description": "Amici Noctis: `left` blood for the ready `clan` vampires below\ncapacity, 1 each, offered in arena order from minion `next`: give\nor skip, a skip only while enough of them are left.",
+          "type": "string",
+          "const": "margin_blood"
+        },
+        {
+          "description": "A minion controlled by `of`, chosen as an effect resolves (Break\nthe Bonds [obf], The Platinum Protocol [pro]: \"the target is chosen\nupon resolution\", ANK 20240706): locked, if the player wants to, or\ngiven one of the player's corruption counters.",
+          "type": "string",
+          "const": "minion_of"
+        },
+        {
+          "description": "Whose corruption counter on `minion` burns, several Methuselahs'\nbeing on it (Aniel).",
+          "type": "string",
+          "const": "corruption_owner"
+        },
+        {
+          "description": "`minion` burns `blood` to be immune to `damage` unpreventable\naggravated damage, or takes it (Rutor's Hand [THA]).",
+          "type": "string",
+          "const": "avoid_damage"
+        },
+        {
+          "description": "`seat` looks at `of`'s hand and discards a card of their choice\nfrom it, which `of` replaces (Revelations [aus]).",
+          "type": "string",
+          "const": "discard_from_hand_of"
+        },
+        {
+          "description": "`seat` discards `left` more cards of their choice from hand (Shroud\nof Decay [obl]); all `done` are replaced once every discard is made\n(advanced rules §6.8.3). `seat` reorders the top `total` cards of\ntheir library (Eulogio Sánchez de los Reyes): `placed` of them\nchosen so far, from the top down; the rest still in their old order\nbelow them.",
+          "type": "string",
+          "const": "reorder"
+        },
+        {
+          "description": "`seat` removes `left` more cards of their choice from `of`'s ash\nheap from the game; then `of` burns `pool` pool (Shroud of Decay\n[OBL]; LSJ 20090710: there is no order to the ash heap) — from\ntheir own, pool 0, Marchesa Liliana's cost. Burned vampires are ash\nheap cards too (rules-qa 42.7).",
+          "type": "string",
+          "const": "remove_from_ash"
+        },
+        {
+          "description": "\"You can search your library (shuffle afterward), hand and/or ash\nheap for a Discipline master card and put it on this new vampire\"\n(Childe of the Revolution): put on, not played.",
+          "type": "string",
+          "const": "discipline_search"
+        },
+        {
+          "description": "Learjet: `seat` may draw an additional card (`DrawLibrary`), the\nhand then discarded down; or pass.",
+          "type": "string",
+          "const": "may_draw_extra"
+        },
+        {
+          "description": "Infernal Pursuit [CEL], several cards replaced at once: one\nreplacement of `seat`'s and its `extra` additional cards, then as\nmany discarded, before the next (ANK 20180925-1).",
+          "type": "string",
+          "const": "pursuit_draw"
+        },
+        {
+          "description": "Those `left` extra cards of `seat`'s discarded, not replaced.",
+          "type": "string",
+          "const": "pursuit_discard"
+        },
+        {
+          "description": "Baltimore Purge: `seat` chooses a ready vampire of `of`'s not older\nthan `host` (the purge's vampire), sent to torpor with it once\nevery Methuselah's is chosen.",
+          "type": "string",
+          "const": "purge_pick"
+        },
+        {
+          "description": "\"Steal up to n blood\" (François Villon G2): `seat` sets how much, 1\nto `max`, from `from` to `to` (`SetX`).",
+          "type": "string",
+          "const": "steal_up_to"
+        },
+        {
+          "description": "Antonio d'Erlette (`minion`): a mage ally from `seat`'s library or\nhand he could play, put in play, its cost paid (Pass: none); the\nlibrary shuffled either way.",
+          "type": "string",
+          "const": "ally_search"
+        },
+        {
+          "description": "\"Remove a crypt card in your uncontrolled region from the game\"\n(Wider View): the player's pick, the counters on it to the blood\nbank; removed cards are public (LSJ 20080314).",
+          "type": "string",
+          "const": "remove_uncontrolled"
+        },
+        {
+          "description": "\"As … its controller changes, its controller chooses a ready\nvampire they control\" (The Rack): none if they have none.",
+          "type": "string",
+          "const": "choose_for_card"
+        },
+        {
+          "description": "Garibaldi-Meucci Museum: the ash heap card requiring an Anarch,\nthen the hand card it is exchanged for.",
+          "type": "string",
+          "const": "exchange_anarch"
+        },
+        {
+          "description": "\"If the attached minion is about to leave the ready region, you can\nburn this card to gain n pool\" (Priority Contract).",
+          "type": "string",
+          "const": "pool_for_card"
+        },
+        {
+          "description": "\"You can lock this card … to gain n pool\" (The Black Throne).",
+          "type": "string",
+          "const": "lock_for_pool"
+        },
+        {
+          "description": "\"You can burn those counters to steal that minion\" (Cave of\nApples).",
+          "type": "string",
+          "const": "steal_for_corruption"
+        },
+        {
+          "description": "\"You can burn 1 blood from this card to make that vampire Anarch\"\n(Twilight Camp).",
+          "type": "string",
+          "const": "make_anarch"
+        },
+        {
+          "description": "Ashur Tablets' picks from `seat`'s ash heap: first the card to hand\n(a pass chooses none), then up to `left` more shuffled into the\nlibrary (a pass stops), `to_library` once the hand card is chosen.",
+          "type": "string",
+          "const": "ashur_picks"
+        },
+        {
+          "description": "\"A non-titled vampire you control becomes Anarch\" (Gilbert Duane):\nthe player's pick, none if they have none.",
+          "type": "string",
+          "const": "becomes_anarch"
+        },
+        {
+          "description": "Anarch Convert entering play: \"you can remove him from the game to\nmake a non-titled vampire you control Anarch\" — that vampire chosen\n(`chosen`), then \"either gain 1 pool or draw 1 card from your\ncrypt\". Before any contest (LSJ 20080526, RTR 20180303): `forced`\nwhen he came out beside a copy his Methuselah controls (no\nvoluntary self-contest); declined, his contests are staged.",
+          "type": "string",
+          "const": "anarch_convert"
+        },
+        {
+          "description": "\"Add n blood to a `clan` vampire in your uncontrolled region\"\n(Hunting the Beast [AUS]): the player's pick, none if they have\nnone. With no clan, any of them, and optional (\"may move a counter\nfrom the bank to a vampire in his or her uncontrolled region\",\nFlames of Insurrection).",
+          "type": "string",
+          "const": "uncontrolled_blood"
+        },
+        {
+          "description": "\"Lock this card or burn n pool\" (Bleeding the Vine): `ResolveRider`\nlocks it (if unlocked), `BurnPool` pays.",
+          "type": "string",
+          "const": "lock_or_pay"
+        },
+        {
+          "description": "\"Search your crypt for a `clan` vampire … move them to your\nuncontrolled region (shuffle afterward)\" (Disciple of Lazarus): a\ncrypt card (`Choice::AshVampire`, a CRYPT index), or none (Pass).",
+          "type": "string",
+          "const": "crypt_search"
+        },
+        {
+          "description": "Solomon Batanea: the slot of `of`'s uncontrolled region that gives\n1 blood to `of`'s pool (`Choice::Slot`, `of`'s region).",
+          "type": "string",
+          "const": "prey_slot_to_pool"
+        },
+        {
+          "description": "Erlik entering play: up to `left` more blood moved from `from` to\n`seat`'s uncontrolled `clan` vampires, one at a time\n(`Choice::Slot`); Pass stops. His contests are staged after (LSJ\n20080526).",
+          "type": "string",
+          "const": "distribute_from"
+        },
+        {
+          "description": "\"Move any amount of blood from the Blood Brothers in the <circle>\nto any other Blood Brothers in this circle\" (Jerry,\nRedistribution): one move at a time among `seat`'s — `from` the\nsource, `to` the destination, then the amount (`Choice::SetX`),\neach move a gain of its own (Slake the Thirst; owner, rules-qa\n68.10), one blood move a pair of them (`paired`, source and\ndestination); Pass ending the moves. With `equipment`, their\nequipment too (\"move any amount of blood and equipment\",\nRedistribution), one at a time, as many as wanted (`moving` the one\npicked).",
+          "type": "string",
+          "const": "circle_blood"
+        },
+        {
+          "description": "\"Move any number of blood counters from your pool to 1 or more\nvampires you control\" (Gird Minions): a vampire (`to`), then the\namount (`Choice::SetX`), up to its room (rulebook: no more blood\nthan capacity); Pass ends the moves.",
+          "type": "string",
+          "const": "pool_to_vampires"
+        },
+        {
+          "description": "Legacy: `minion`'s base version searched for in `seat`'s crypt\n(`Choice::AshVampire`, taken from the crypt first, then the ash\nheap), uncontrolled region (`Choice::Slot`) and ash heap, and\nmerged with it; Pass finds none. The crypt shuffled after.",
+          "type": "string",
+          "const": "base_search"
+        },
+        {
+          "description": "New Blood entering play: the circle he belongs to\n(`Choice::ChooseCircle`, among `state::circles`), or his own circle\nof one (Pass).",
+          "type": "string",
+          "const": "choose_circle"
+        },
+        {
+          "description": "\"Move a wraith or zombie ally from your ash heap to your ready\nregion\" (Split the Veil): the player's pick among the allies\nmatching one of `of`; with `named`, the pick is named for the\naction being declared, put in play as it resolves (Hel-Blá).",
+          "type": "string",
+          "const": "ally_from_ash"
+        },
+        {
+          "description": "Victor Donaldson: `card`, canceled as `seat` played it, may move\nfrom their ash heap to their library, shuffled (`ResolvePrinted`).",
+          "type": "string",
+          "const": "may_recycle_canceled"
+        },
+        {
+          "description": "Malgorzata: the vampire of `seat`'s uncontrolled region to remove,\nanother than the action's target (`Choice::Slot`).",
+          "type": "string",
+          "const": "name_uncontrolled"
+        },
+        {
+          "description": "Lázár Dobrescu: named as the action is announced (rules-qa default\nreadings) — `from`, a vampire with blood in `of`'s uncontrolled\nregion, then the one of `seat`'s that gets it (`Choice::Slot`).",
+          "type": "string",
+          "const": "name_slot_pair"
+        },
+        {
+          "description": "The Great Beast's three Disciplines, one at a time (`Choice::Slot`\ninto `GREAT_BEAST_DISCIPLINES`).",
+          "type": "string",
+          "const": "beast_disciplines"
+        },
+        {
+          "description": "The Erciyes Fragments: the library card of `seat`'s prey's ash heap\nto move onto `card`, face down (`Choice::FindCard`).",
+          "type": "string",
+          "const": "store_prey_ash"
+        },
+        {
+          "description": "The Sargon Fragment: the library card of `seat`'s ash heap the\naction declared names.",
+          "type": "string",
+          "const": "name_own_ash_card"
+        },
+        {
+          "description": "Giovanni del Georgio: the card two copies of which in `of`'s ash\nheap the action declared names (`Terms::PreyAshPair`).",
+          "type": "string",
+          "const": "name_ash_pair"
+        },
+        {
+          "description": "\"You can put this card on this vampire\" (Fever Pitch [FOR]/[PRE]):\n`ChooseMinion` it, or pass — optional, though never worse than the\nash heap: an agent may take it unasked (owner, 2026-10-08: rules-qa\n53.5).",
+          "type": "string",
+          "const": "may_put_on"
+        },
+        {
+          "description": "\"You can add 1 counter to this location\" (Cursed Abattoir):\n`ResolveRider` it, or pass — never worse to add (rules-qa 55.6).",
+          "type": "string",
+          "const": "may_add_counter"
+        },
+        {
+          "description": "The Path of Lilith: `seat` may lock `card` to put a torture counter\non `minion` (`ResolveRider`), or pass.",
+          "type": "string",
+          "const": "may_torture"
+        },
+        {
+          "description": "\"You can gain n pool\" printed on `minion` (Matasuntha): Pass, or\n`ResolvePrinted` to gain it — optional, never worse.",
+          "type": "string",
+          "const": "may_gain_pool"
+        },
+        {
+          "description": "\"This acting vampire can burn n blood to move the stolen vampire to\nyour ready region\" (Graverobbing [DOM]): `ChooseMinion` it, or\npass.",
+          "type": "string",
+          "const": "move_for_blood"
+        },
+        {
+          "description": "\"Once each turn, when you draw a card from your library, you may\nplace that card on the bottom of your library and draw a new card\"\n(Blackhorse Tanner, `minion`): `DrawLibrary` to do it with `card`,\njust drawn, or pass.",
+          "type": "string",
+          "const": "redraw"
+        },
+        {
+          "description": "A value this reader does not know.",
+          "type": "string",
+          "const": "unknown"
         }
       ]
     },

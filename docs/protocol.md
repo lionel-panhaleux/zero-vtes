@@ -111,14 +111,17 @@ A JSON object with `seq`, `reply_to`? and a `type`:
 |---|---|
 | `joined` | `protocol`, `engine` (commit), `game`, `seat`, `seats` (`name`, `bot` profile), `settings`, `idle_timeout`, `view` |
 | `events` | `events`: one step — a decision taken and what it did until the next — or the engine's run before a decision or the end (§9); `view` after a step when `views` is `steps` |
-| `decision` | `decision`, `seat`, `window`, `source`?, `options`, `undo`, `allocation`?, `votes`?, `view`; `prompt` with `text` |
+| `decision` | `decision`, `seat`, `window`, `source`?, `purpose`?, `options`, `undo`, `allocation`?, `votes`?, `view`; `prompt` with `text` |
 | `over` | `vp_halves` (per seat), `winner`? (the most VPs, at least 2, alone), `reason` (`{"type": …}`: `last_standing`, `time_limit`, `humans_ousted`, `abandoned` + `seat`, `engine_error`), `view` |
 | `error` | `error`: `stale` (+ `expected`), `not_your_turn`, `option` (+ `index`), `no_undo`, `allocation` (+ `reason`: `none`, `length`, `total`, `cap`, `min_nonzero`), `no_votes`, `over`, `not_joined`, `malformed` (+ `reason`), `rate_limited` |
 
 `window` is a stable id (`minion_phase`, `action_block`, `combat_strike`,
 … 41: the schema's `Window`). `source` is the card whose terms or effect
-the decision chooses, when it is one (a referendum's terms, a rider's
-cost): the options' `effects` say what each choice gets.
+the decision chooses, when it is one (a play's or an action's terms, a
+referendum's): the options' `effects` say what each choice gets.
+`purpose` is what an effect asks the choice for, when one does (64 ids,
+the schema's `Purpose`: `pay_or_burn`, `store_search`…, one per kind
+of effect choice the engine asks).
 
 ## 6. The view
 

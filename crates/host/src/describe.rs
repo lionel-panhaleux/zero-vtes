@@ -14,8 +14,8 @@ use zvtes::game::{Contest, Engine};
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::library::LIBRARY;
 use zvtes::state::{CardId, MinionKind, UncontrolledSlot, CREATED};
-use zvtes_api::ids::{OptionKind, Zone};
-use zvtes_api::option::{CardRef, ChoiceKey, ZoneRef};
+use zvtes_api::ids::{OptionKind, Role, Zone};
+use zvtes_api::option::{CardRef, ChoiceKey, Effect, EffectKind, ZoneRef};
 use zvtes_api::view::Target;
 
 use crate::view::{action_kind, minion_copy, mode, snake};
@@ -146,6 +146,110 @@ fn library(c: u16) -> CardRef {
         id: Some(LIBRARY[c as usize].id),
         copy: None,
         from: None,
+    }
+}
+
+/// What taking `choice` does that its key does not say (A3c: grown
+/// kind by kind as the renderer needs it). Today: a play choosing a
+/// second vampire after its target (Toreador Grand Ball).
+pub fn effects(
+    e: &Engine,
+    req: &DecisionRequest,
+    choice: &Choice,
+    names: &impl Names,
+) -> Vec<Effect> {
+    use zvtes::cards::{Effect as E, Modifier, Terms};
+    let x = Ctx {
+        e,
+        seat: req.seat,
+        names,
+    };
+    let effect = |kind| Effect {
+        kind,
+        seat: None,
+        copy: None,
+        n: None,
+        card: None,
+        to: None,
+        role: None,
+    };
+    let mut out = Vec::new();
+    if let Choice::Play {
+        card, mode, target, ..
+    } = *choice
+    {
+        let played = e.virtual_hand(req.seat)[card as usize].0;
+        let m = zvtes::cards::lookup(played).and_then(|d| d.modes.get(mode as usize));
+        if let Some(m) = m.filter(|m| matches!(m.terms, Some(Terms::OwnOfClan { .. }))) {
+            if let (true, T::Minion(t)) = (m.effects.contains(&E::LockTarget), target) {
+                out.push(Effect {
+                    copy: Some(x.minion(t)),
+                    ..effect(EffectKind::Lock)
+                });
+            }
+            let unblockable = m
+                .effects
+                .contains(&E::Layer(Modifier::SecondChosenUnblockable));
+            out.push(Effect {
+                role: Some(if unblockable {
+                    Role::UnblockableNonBleed
+                } else {
+                    Role::Chosen
+                }),
+                ..effect(EffectKind::Role)
+            });
+        }
+    }
+    out
+}
+
+/// The card whose terms a terms decision chooses (`Decision::source`):
+/// the action's card or what grants it, the card being played.
+pub fn source(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<CardRef> {
+    use zvtes::decision::WindowLabel as W;
+    let x = Ctx {
+        e,
+        seat: req.seat,
+        names,
+    };
+    let crypt = |m: MinionId| {
+        let st = &e.state;
+        let (card, crypt) = crate::view::minion_face(&st.minions[m.index()]);
+        CardRef {
+            id: Some(if crypt {
+                CRYPT[card as usize].id
+            } else {
+                LIBRARY[card as usize].id
+            }),
+            copy: Some(x.minion(m)),
+            from: None,
+        }
+    };
+    match req.window {
+        W::ReferendumTerms | W::ActionTerms => {
+            let a = e.action()?;
+            match (&a.card, a.source) {
+                (Some(p), _) => Some(CardRef {
+                    id: Some(LIBRARY[p.card as usize].id),
+                    copy: names.copy(*p.copy),
+                    from: None,
+                }),
+                (None, Some(AbilitySource::Card(c))) => Some(x.in_play(c)),
+                (None, Some(AbilitySource::Vampire(m))) => Some(crypt(m)),
+                (None, None) => None,
+            }
+        }
+        W::PlayTerms => e
+            .in_flight()
+            .into_iter()
+            .rev()
+            .find(|p| p.seat == req.seat)
+            .map(|p| CardRef {
+                id: Some(LIBRARY[p.card as usize].id),
+                copy: names.copy(*p.copy),
+                from: None,
+            }),
+        _ => None,
     }
 }
 

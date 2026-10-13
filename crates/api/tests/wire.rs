@@ -166,6 +166,7 @@ fn a_decision_reads_flat() {
             seat: 0,
             window: Window::MinionPhase,
             source: None,
+            purpose: None,
             options: vec![option(0, key(OptionKind::Pass)), shown, keep],
             undo: false,
             allocation: None,

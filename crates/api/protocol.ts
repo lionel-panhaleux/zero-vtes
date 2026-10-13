@@ -334,6 +334,8 @@ export type Decision = {
      * Methuselah who gains 1 pool"), when the seat's settings ask for text.
      */
     prompt?: string | null
+    /** What an effect asks the choice for, when one does. */
+    purpose?: Purpose | null
     seat: number
     /**
      * The card (or minion, by its card) whose terms or effect this
@@ -831,6 +833,77 @@ export type Player = {
     profile: string
     type: 'bot'
 }
+
+/**
+ * What a choice an effect asks is for (the engine's interrupt): with
+ * `source`, what the decision chooses. Open: a later engine adds more.
+ */
+export type Purpose = 
+    | 'discard_chosen'
+    | 'move_card_to_titled'
+    | 'give_blood'
+    | 'move_between'
+    | 'pay_or_burn'
+    | 'lock_or_discard'
+    | 'blood_or_burned'
+    | 'replacement'
+    | 'draw_up'
+    | 'draws'
+    | 'bottom'
+    | 'store_search'
+    | 'entry_burn'
+    | 'entry_remove_or_burn'
+    | 'block_toll'
+    | 'cancel_attempt'
+    | 'margin_pool'
+    | 'margin_blood'
+    | 'minion_of'
+    | 'corruption_owner'
+    | 'avoid_damage'
+    | 'discard_from_hand_of'
+    | 'reorder'
+    | 'remove_from_ash'
+    | 'discipline_search'
+    | 'may_draw_extra'
+    | 'pursuit_draw'
+    | 'pursuit_discard'
+    | 'purge_pick'
+    | 'steal_up_to'
+    | 'ally_search'
+    | 'remove_uncontrolled'
+    | 'choose_for_card'
+    | 'exchange_anarch'
+    | 'pool_for_card'
+    | 'lock_for_pool'
+    | 'steal_for_corruption'
+    | 'make_anarch'
+    | 'ashur_picks'
+    | 'becomes_anarch'
+    | 'anarch_convert'
+    | 'uncontrolled_blood'
+    | 'lock_or_pay'
+    | 'crypt_search'
+    | 'prey_slot_to_pool'
+    | 'distribute_from'
+    | 'circle_blood'
+    | 'pool_to_vampires'
+    | 'base_search'
+    | 'choose_circle'
+    | 'ally_from_ash'
+    | 'may_recycle_canceled'
+    | 'name_uncontrolled'
+    | 'name_slot_pair'
+    | 'beast_disciplines'
+    | 'store_prey_ash'
+    | 'name_own_ash_card'
+    | 'name_ash_pair'
+    | 'may_put_on'
+    | 'may_add_counter'
+    | 'may_torture'
+    | 'may_gain_pool'
+    | 'move_for_blood'
+    | 'redraw'
+    | 'unknown'
 
 export type Range = 'close' | 'long' | 'unknown'
 
