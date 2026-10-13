@@ -1,4 +1,5 @@
-//! Every option of every decision has its own key (docs/protocol.md §7):
+//! Every option of every decision has its own key (docs/protocol.md §7),
+//! and no choice is offered twice (docs/findings.md F1):
 //! what lets a record read by choice on a later engine. Random games on
 //! the shipped decks, every seat answered at random, keys by the engine's
 //! copies (as records name them).
@@ -29,7 +30,6 @@ fn two_options_of_a_decision_never_share_a_key() {
     let seeds: u64 = std::env::var("HOST_SEEDS").map_or(60, |s| s.parse().unwrap());
     let mut decisions = 0usize;
     let mut by_kind: HashMap<String, usize> = HashMap::new();
-    let mut twice: HashMap<String, u64> = HashMap::new();
     for seed in 1..=seeds {
         let mut e = engine(seed);
         let mut agent = RandomLegal::new(seed);
@@ -46,21 +46,12 @@ fn two_options_of_a_decision_never_share_a_key() {
                     for (i, a) in keys.iter().enumerate() {
                         *by_kind.entry(format!("{:?}", a.kind)).or_default() += 1;
                         for (j, b) in keys.iter().enumerate().skip(i + 1) {
-                            if req.options[i] == req.options[j] {
-                                // The engine offering one choice twice: not
-                                // the key's to tell apart (reported).
-                                let name = |c: &zvtes::decision::Choice| match c {
-                                    zvtes::decision::Choice::UseAbility {
-                                        source: zvtes::cards::AbilitySource::Vampire(m),
-                                        ..
-                                    } => e.state.minions[m.index()].name().to_string(),
-                                    other => format!("{other:?}"),
-                                };
-                                twice
-                                    .entry(format!("{:?} {}", req.window, name(&req.options[i])))
-                                    .or_insert(seed);
-                                continue;
-                            }
+                            assert!(
+                                req.options[i] != req.options[j],
+                                "seed {seed}, {:?}: {:?} offered twice (docs/findings.md F1)",
+                                req.window,
+                                req.options[i]
+                            );
                             assert!(
                                 a != b,
                                 "seed {seed}, {:?}: options {i} {:?} and {j} {:?} share {a:?}",
@@ -78,7 +69,4 @@ fn two_options_of_a_decision_never_share_a_key() {
     }
     assert!(decisions > 10_000, "{decisions} decisions");
     eprintln!("{decisions} decisions, {} option kinds", by_kind.len());
-    for (what, seed) in &twice {
-        eprintln!("offered twice: {what} (first at seed {seed})");
-    }
 }
