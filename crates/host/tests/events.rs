@@ -544,6 +544,7 @@ fn every_option_and_choice_is_told() {
                 .replace("a card requiring", "")
                 .replace("with a card in your hand", "")
                 .replace("a minion of", "")
+                .replace("bottom a card", "")
                 .replace("Discard a card from", "");
             for bare in ["a card", "a minion"] {
                 if text.contains(bare) {
