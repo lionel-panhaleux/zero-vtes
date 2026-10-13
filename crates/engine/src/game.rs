@@ -825,7 +825,23 @@ impl Engine {
         false
     }
 
+    /// The pending decision, an option listed twice offered once: one
+    /// card or ability reachable from two of its windows at once (Helena,
+    /// during a block attempt) is one choice (docs/findings.md F1).
     fn request(&self) -> Option<DecisionRequest> {
+        let mut req = self.raw_request()?;
+        let mut seen = Vec::with_capacity(req.options.len());
+        req.options.retain(|c| {
+            let fresh = !seen.contains(c);
+            if fresh {
+                seen.push(*c);
+            }
+            fresh
+        });
+        Some(req)
+    }
+
+    fn raw_request(&self) -> Option<DecisionRequest> {
         let st = &self.state;
         // Draws first: a hand is discarded down once its draws are done
         // (Heart of Nizchetus: "without discarding").
