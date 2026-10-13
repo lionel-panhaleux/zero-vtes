@@ -650,6 +650,7 @@ pub fn mode(card: u16, mode: u8) -> Mode {
         line: printed.unwrap_or(mode as usize) as u8,
         disciplines: vec![],
         card_type: None,
+        apart: apart(card, mode as usize),
     };
     for t in tags {
         match CARD_TYPES.iter().find(|(tag, _)| tag == t) {
@@ -661,6 +662,33 @@ pub fn mode(card: u16, mode: u8) -> Mode {
         }
     }
     out
+}
+
+/// What sets a mode apart from the other modes its printed line splits
+/// into: its effects that not all of them have ("gain 3 blood" against
+/// "gain 2 blood and unlock").
+fn apart(card: u16, mode: usize) -> Vec<zvtes_api::option::Effect> {
+    let Some(def) = zvtes::cards::lookup(card) else {
+        return Vec::new();
+    };
+    let Some(own) = def.modes.get(mode) else {
+        return Vec::new();
+    };
+    let printed = zvtes::cards::library_mode(card, mode);
+    let siblings: Vec<_> = (0..def.modes.len())
+        .filter(|&i| i != mode && zvtes::cards::library_mode(card, i) == printed)
+        .map(|i| &def.modes[i])
+        .collect();
+    if siblings.is_empty() {
+        return Vec::new();
+    }
+    let effects: Vec<_> = own
+        .effects
+        .iter()
+        .filter(|e| siblings.iter().any(|m| !m.effects.contains(e)))
+        .copied()
+        .collect();
+    crate::effects::curated(&effects, crate::effects::Whom::default())
 }
 
 pub fn phase(p: P) -> Phase {

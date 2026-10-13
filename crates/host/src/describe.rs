@@ -159,7 +159,6 @@ pub fn effects(
     choice: &Choice,
     names: &impl Names,
 ) -> Vec<Effect> {
-    use zvtes::cards::{Effect as E, Modifier, Terms};
     let x = Ctx {
         e,
         seat: req.seat,
@@ -187,22 +186,21 @@ pub fn effects(
                 ..Whom::default()
             };
             let mut out = curated(m.effects, whom);
-            if let Some(Terms::OwnOfClan { clan, .. }) = m.terms {
-                let unblockable = m
-                    .effects
-                    .contains(&E::Layer(Modifier::SecondChosenUnblockable));
-                out.push(Effect {
-                    role: Some(if unblockable {
-                        Role::UnblockableNonBleed
-                    } else {
-                        Role::Chosen
-                    }),
-                    clan: Some(snake(clan)),
-                    ..Effect::new(EffectKind::Role)
-                });
-            }
+            out.extend(second_chosen(m));
             out
         }
+        // The second vampire a play chooses (Toreador Grand Ball's).
+        Choice::ChooseMinion(_) if req.window == zvtes::decision::WindowLabel::PlayTerms => e
+            .play_terms()
+            .and_then(|p| zvtes::cards::lookup(p.card)?.modes.get(p.mode as usize))
+            .and_then(second_chosen)
+            .map(|r| Effect {
+                on: Some(On::Chosen),
+                ..r
+            })
+            .into_iter()
+            .chain(cost_payer(e, req))
+            .collect(),
         Choice::UseAbility {
             source,
             ability,
@@ -281,18 +279,6 @@ pub fn effects(
                 on,
                 favor: Some(favor),
                 ..Effect::new(EffectKind::Votes)
-            }]
-        }
-        // A cost's terms: a vampire paying 1 of the cost in blood.
-        Choice::ChooseMinion(_)
-            if req.window == zvtes::decision::WindowLabel::PlayTerms
-                && e.cost_terms().is_some() =>
-        {
-            vec![Effect {
-                n: Some(-1),
-                on: Some(On::Chosen),
-                cost: true,
-                ..Effect::new(EffectKind::Blood)
             }]
         }
         // A cost's terms: a card's counters, a vampire's own (Nergal, Jack)
@@ -395,6 +381,39 @@ fn referendum_terms(x: &Ctx<impl Names>, choice: &Choice) -> Vec<Effect> {
     }
 }
 
+/// The second vampire a play chooses, of its clan (Toreador Grand Ball):
+/// what it becomes.
+fn second_chosen(m: &zvtes::cards::ModeDef) -> Option<Effect> {
+    use zvtes::cards::{Effect as E, Modifier, Terms};
+    let Some(Terms::OwnOfClan { clan, .. }) = m.terms else {
+        return None;
+    };
+    let unblockable = m
+        .effects
+        .contains(&E::Layer(Modifier::SecondChosenUnblockable));
+    Some(Effect {
+        role: Some(if unblockable {
+            Role::UnblockableNonBleed
+        } else {
+            Role::Chosen
+        }),
+        clan: Some(snake(clan)),
+        ..Effect::new(EffectKind::Role)
+    })
+}
+
+/// A cost's terms: a vampire paying 1 of the cost in blood.
+fn cost_payer(e: &Engine, req: &DecisionRequest) -> Option<Effect> {
+    (req.window == zvtes::decision::WindowLabel::PlayTerms && e.cost_terms().is_some()).then(|| {
+        Effect {
+            n: Some(-1),
+            on: Some(On::Chosen),
+            cost: true,
+            ..Effect::new(EffectKind::Blood)
+        }
+    })
+}
+
 /// What an option does for the choice an effect asks (`Decision::purpose`),
 /// where the purpose alone does not say: what the chosen minion gets, where
 /// a card goes, what a pass keeps or gains.
@@ -484,6 +503,21 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
                 ..chosen(EffectKind::Role)
             }]
         }
+        // A card burned unless its pool is paid.
+        (Interrupt::PayOrBurn { card, .. }, Choice::Pass) => vec![Effect {
+            copy: Some(x.card(card)),
+            ..Effect::new(EffectKind::Burn)
+        }],
+        (Interrupt::PayOrBurn { card, pool, .. }, Choice::PayToCancel) => vec![
+            Effect {
+                cost: true,
+                ..n(-(pool as i32), Effect::new(EffectKind::Pool))
+            },
+            Effect {
+                copy: Some(x.card(card)),
+                ..Effect::new(EffectKind::Keep)
+            },
+        ],
         (Interrupt::DistributeFrom { .. }, Choice::Slot(_)) => {
             vec![n(1, chosen(EffectKind::Blood))]
         }

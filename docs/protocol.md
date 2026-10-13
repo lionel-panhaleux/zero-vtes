@@ -179,7 +179,9 @@ seat 2; burn 2 pool to keep card 9.)
   `actor` (the minion playing or acting), `minion` (the minion it is
   otherwise about), `target` (`{"kind":"seat","seat":n}` or
   `{"kind":"card","copy":n}`), `action`, `mode` (`index`, `line`,
-  `disciplines` with levels, `card_type` for a multi-type card),
+  `disciplines` with levels, `card_type` for a multi-type card, `apart`:
+  the effects setting it apart from the other modes its printed line
+  splits into, offered or not),
   `amount`, `favor`, `blood`, `zone` (where a search takes from), `value`
   (a clan, Discipline or circle id), `ability`. Two options of a
   decision never share a key (copies alike in hand are one option).
@@ -213,7 +215,8 @@ seat 2; burn 2 pool to keep card 9.)
     given, `steal`, `move` `to: removed` banished or the card put on it,
     `lock`, `role: expelled`), what an allocation does (`pool` burned,
     or gained with the chosen's `pool` lost); `view.referendum.terms.
-    pending`: who is allocated to next (the last gets the rest).
+    pending`: who is allocated to next (the last gets the rest; public,
+    as the terms it follows from).
   - A card's chosen vampire (Toreador Grand Ball's second, chosen after
     the play): `role` with its `clan`; a play locking its target says
     so (`lock`, `on: target`).
