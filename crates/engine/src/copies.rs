@@ -15,7 +15,7 @@ use std::ops::Deref;
 
 use crate::game::Engine;
 use crate::rng::Rng;
-use crate::state::{MinionKind, CREATED};
+use crate::state::{GameState, MinionKind, CREATED};
 
 /// Test fixture: number every card a fixture put in place without a copy
 /// (`Pile::push`, `add_minion`, slots and cards in play built by hand), so
@@ -159,6 +159,19 @@ pub fn census(e: &Engine) -> Vec<(CopyId, u16, Place)> {
         }
     }
     out
+}
+
+/// A minion's card copy: a vampire's or a token's own, an ally's or a
+/// created vampire's library card's.
+pub fn minion_copy(st: &GameState, i: usize) -> CopyId {
+    let m = &st.minions[i];
+    match m.kind {
+        MinionKind::Ally { id, .. }
+        | MinionKind::Created { id, .. }
+        | MinionKind::GreatBeast { id, .. }
+        | MinionKind::Fury { id, .. } => *st.cards[id.index()].copy,
+        _ => *m.copy,
+    }
 }
 
 /// A card copy's number; `NONE` (the default) for a card with none (a

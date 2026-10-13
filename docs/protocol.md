@@ -110,7 +110,7 @@ A JSON object with `seq`, `reply_to`? and a `type`:
 | `type` | Fields |
 |---|---|
 | `joined` | `protocol`, `engine` (commit), `game`, `seat`, `seats` (`name`, `bot` profile), `settings`, `idle_timeout`, `view` |
-| `events` | `events`: one step — a decision taken and what followed until the next, or the deal; `view` after it when `views` is `steps` |
+| `events` | `events`: one step — a decision taken and what it did until the next — or the engine's run before a decision or the end (§9); `view` after a step when `views` is `steps` |
 | `decision` | `decision`, `seat`, `window`, `source`?, `options`, `undo`, `allocation`?, `votes`?, `view`; `prompt` with `text` |
 | `over` | `vp_halves` (per seat), `winner`? (the most VPs, at least 2, alone), `reason` (`{"type": …}`: `last_standing`, `time_limit`, `humans_ousted`, `abandoned` + `seat`, `engine_error`), `view` |
 | `error` | `error`: `stale` (+ `expected`), `not_your_turn`, `option` (+ `index`), `no_undo`, `allocation` (+ `reason`: `none`, `length`, `total`, `cap`, `min_nonzero`), `no_votes`, `over`, `not_joined`, `malformed` (+ `reason`), `rate_limited` |
@@ -211,9 +211,19 @@ their default) and changed by `settings`:
 
 ## 9. Events
 
-`{"kind": …, …}` in order (`text` added with the `text` setting). An
-`events` message is one step: its first event is `decided`,
-`auto_passed` or `undone` (none for the deal).
+`{"kind": …, …}` in order (`text` added with the `text` setting). Each
+`events` message tells, in order, what happened since the last message:
+a step (`decided`, `auto_passed` or `undone` first, then what the
+decision did, up to the next decision), or the engine's run before a
+decision or the game's end is sent (no decision event: the turn, draws,
+an action resolving through windows no one could act in). Every change
+is told, a decision's own included; `text` is set on the events the
+English log tells (it leaves out what a decision's own text says).
+
+Events are public: a card they name is shown (`id`), numbered as the
+recipient knows it (§3), a card that came and went between two views
+numbered fresh. `effect`: a lasting effect whose card is in the ash
+heap (a marker on its minion, §6), no copy of its own.
 
 | `kind` | Fields |
 |---|---|
@@ -224,21 +234,27 @@ their default) and changed by `settings`:
 | `draw` | `seat`, `n`, `crypt` |
 | `pool` | `seat`, `delta`, `pool` |
 | `blood` | `minion`, `delta`, `blood` |
-| `enters_play` | `card`, `seat`, `on`? |
-| `moves` | `card`, `on`? |
-| `leaves_play` | `card`, `to`? |
+| `enters_play` | `card`, `seat` (its controller), `on`?, `minion`?, `effect`? |
+| `moves` | `card`, `on`?, `effect`? |
+| `leaves_play` | `card`, `to`? (the zone it went to), `minion`?, `contested`?, `effect`? |
 | `torpor` | `minion`, `enters` |
 | `ousted` | `seat` |
-| `block_fails` | `minion` |
-| `action_ends` | `seat`, `acting`, `outcome` (`succeeds`, `blocked`, `fails`, `fizzles`, `ends`), `blocker`? |
-| `referendum_ends` | `outcome` (`passes`, `fails`, `canceled`), `votes_for`, `votes_against` |
+| `block_fails` | `minion` (its block attempt ended, the action goes on) |
+| `action_ends` | `seat`, `acting`, `action`, `outcome` (`succeeds`, `blocked`, `fails`, `fizzles`, `ousted`, `ends`), `blocker`? |
+| `referendum_ends` | `outcome` (`passes`, `fails`, `canceled`), `votes_for`, `votes_against`, `action`? (the political action), `hunted`? (a blood hunt's diablerist) |
 | `combat_begins` | `minions` |
-| `strike_declared` | `minion`, `strike` |
-| `strikes` | `round`, `pair`, `range`, `sides` (`minion`, `strike`, `damage`) |
+| `strike_declared` | `minion`, `strike`? (none: no strike) |
+| `strikes` | `round`, `pair`, `range`, `sides` (`minion`, `strike`?, `damage`) |
 | `combat_ends` | — |
 
+`action`: `{kind, card?, source?}` — the action's kind, its card, what
+grants it (a card in play, another vampire).
+
 Events tell what happened; the view says what is. A client animating
-from events resyncs on the next view.
+from events resyncs on the next view. The host's tests hold the two
+together: an action or referendum a view shows and the next does not
+is told ended in between; a combat is told begun, its strikes, then
+ended; the last `pool`, `blood` and `torpor` told are the next view's.
 
 ## 10. Transports
 
