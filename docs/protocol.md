@@ -199,10 +199,18 @@ seat 2; burn 2 pool to keep card 9.)
   - `detail`: what sets it apart within its kind, snake_case —
     `this_round`, `guns`, `not_guns`, `non_aggravated`, `to_pool`,
     `from_pool`, `per_counter`, `then_bottom`, `master_phase`….
+  - A `set_x` option's (the key's `amount`): what the amount does, by
+    the terms asking it — `blood` (`x`: the card calls it X; `copy`:
+    the vampire it is taken from), `pool` (`on: target` given away;
+    `detail: from_blood` the referendum's margin to the pool),
+    `counters` (a cost reduced), `draw`, `discard` (and the rest in
+    `pool`); burning pool for votes: `pool` (`cost`) and `votes`.
 - `abilities` — a `use_ability`'s: how many its source has (`ability`
   in the key says which).
 - A pass's plain meaning follows from the window: `master_phase` … ends
-  the phase, `action_block` declines to block, `combat_press` presses
+  the phase, `action_block` declines to block (the defender's, while
+  its minion's attempt meets the stealth — `action.blocker`,
+  `intercept` ≥ `stealth` in the view — blocks), `combat_press` presses
   no further, a polling passes for now.
 - A client may match a user's gesture to options by their keys
   (dragging a card onto a minion: `play` options with that `card` and

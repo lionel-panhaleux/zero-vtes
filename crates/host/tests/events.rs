@@ -595,7 +595,10 @@ fn the_options_render_as_the_legacy_text() {
                     Some(r) => misses.push((seed, legacy, r)),
                     None => {
                         let e = left
-                            .entry(format!("{:?} in {:?}", o.key.kind, d.window))
+                            .entry(match d.purpose {
+                                Some(p) => format!("{:?} for {p:?}", o.key.kind),
+                                None => format!("{:?} in {:?}", o.key.kind, d.window),
+                            })
                             .or_insert((0, legacy.clone()));
                         e.0 += 1;
                     }
@@ -622,7 +625,7 @@ fn the_options_render_as_the_legacy_text() {
     }
     let mut left: Vec<_> = left.into_iter().collect();
     left.sort_by_key(|(_, (n, _))| std::cmp::Reverse(*n));
-    for (kind, (n, eg)) in left.iter().take(25) {
+    for (kind, (n, eg)) in left.iter().take(60) {
         eprintln!("left: {n:6} {kind} (e.g. {eg:?})");
     }
     for (seed, legacy, r) in misses.iter().take(25) {

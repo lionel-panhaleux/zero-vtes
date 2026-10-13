@@ -15,7 +15,7 @@ use zvtes::ids::{MinionId, SeatId};
 use zvtes::library::LIBRARY;
 use zvtes::state::{CardId, MinionKind, UncontrolledSlot, CREATED};
 use zvtes_api::ids::{OptionKind, Role, Zone};
-use zvtes_api::option::{CardRef, ChoiceKey, Effect, EffectKind, ZoneRef};
+use zvtes_api::option::{CardRef, ChoiceKey, Effect, EffectKind, On, ZoneRef};
 use zvtes_api::view::Target;
 
 use crate::effects::{curated, Whom};
@@ -234,6 +234,112 @@ pub fn effects(
             };
             curated(a.effects, whom)
         }
+        Choice::SetX(n) => amount(&x, req, n),
+        _ => Vec::new(),
+    }
+}
+
+/// What an amount chosen does (`set_x`), by the terms asking it: blood
+/// paid or moved, pool, counters, cards; `x` where the card calls it X.
+fn amount(x: &Ctx<impl Names>, req: &DecisionRequest, n: u8) -> Vec<Effect> {
+    use zvtes::cards::{Effect as E, Terms};
+    use zvtes::decision::WindowLabel as W;
+    let e = x.e;
+    let n = n as i32;
+    let of = |kind, n| Effect {
+        n: Some(n),
+        ..Effect::new(kind)
+    };
+    let per_x = |kind, n| Effect {
+        x: true,
+        ..of(kind, n)
+    };
+    match req.window {
+        W::PlayTerms => {
+            if let Some(p) = e.play_terms() {
+                let Some(terms) = zvtes::cards::lookup(p.card)
+                    .and_then(|d| d.modes.get(p.mode as usize))
+                    .and_then(|m| m.terms)
+                else {
+                    return Vec::new();
+                };
+                return match terms {
+                    Terms::BloodRange { .. } | Terms::EquipFromHand { .. } => {
+                        vec![of(EffectKind::Blood, -n)]
+                    }
+                    // "Any amount of blood" of the target vampire.
+                    Terms::UpToTargetBlood => vec![Effect {
+                        on: Some(On::Target),
+                        copy: Some(x.minion(p.target.minion())),
+                        ..of(EffectKind::Blood, -n)
+                    }],
+                    Terms::XBlood | Terms::XBloodIn { .. } => vec![per_x(EffectKind::Blood, -1)],
+                    // The referendum's margin, as blood to the pool.
+                    Terms::UpToMargin(_) => vec![Effect {
+                        detail: Some("from_blood".into()),
+                        ..of(EffectKind::Pool, n)
+                    }],
+                    Terms::BoonPool => vec![Effect {
+                        on: Some(On::Target),
+                        ..of(EffectKind::Pool, -n)
+                    }],
+                    _ => Vec::new(),
+                };
+            }
+            // A cost reduced by burning counters.
+            if e.cost_terms().is_some() {
+                return vec![Effect {
+                    cost: true,
+                    ..of(EffectKind::Counters, -n)
+                }];
+            }
+            let Some((_, mode, _)) = e.ability_terms() else {
+                return Vec::new();
+            };
+            match mode.terms {
+                Some(Terms::Count { .. }) if mode.effects.contains(&E::DrawThenBottom) => {
+                    vec![Effect {
+                        detail: Some("then_bottom".into()),
+                        ..of(EffectKind::Draw, n)
+                    }]
+                }
+                // Jake Washington: blood put on the target.
+                Some(Terms::Count { .. }) => vec![Effect {
+                    on: Some(On::Target),
+                    ..of(EffectKind::Blood, n)
+                }],
+                Some(Terms::XPool) => vec![per_x(EffectKind::Pool, -1)],
+                Some(Terms::XCounters) => vec![per_x(EffectKind::Counters, 1)],
+                // The Vozhd: blood from the target to the host.
+                Some(Terms::LifeFromTarget) => vec![Effect {
+                    on: Some(On::Host),
+                    ..of(EffectKind::Blood, n)
+                }],
+                _ => Vec::new(),
+            }
+        }
+        // Smiling Jack: cards discarded, the rest of the units in pool.
+        W::RiderTerms => {
+            let left = e.rider_terms().map_or(0, |(_, l)| l as i32);
+            vec![
+                of(EffectKind::Discard, n),
+                Effect {
+                    cost: true,
+                    ..of(EffectKind::Pool, -(left - n))
+                },
+            ]
+        }
+        // Business Pressure: pool burned for votes.
+        W::ReferendumPolling => match e.referendum().and_then(|r| r.pressure.as_ref()) {
+            Some(p) => vec![
+                Effect {
+                    cost: true,
+                    ..of(EffectKind::Pool, -n)
+                },
+                of(EffectKind::Votes, n * p.rate(x.seat) as i32),
+            ],
+            None => Vec::new(),
+        },
         _ => Vec::new(),
     }
 }

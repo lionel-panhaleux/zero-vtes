@@ -40,6 +40,7 @@ pub fn option(
         return None;
     }
     Some(match k.kind {
+        K::Pass if window == Window::ActionBlock => block_pass(seat, n).into(),
         K::Pass => pass(window)?.into(),
         K::EdgePool => "Gain 1 pool (the Edge)".into(),
         K::Transfer => format!("Transfer 1 pool to {}", target()),
@@ -91,6 +92,7 @@ pub fn option(
             format!("{} burns 1 blood for +1 intercept", minion(k.minion))
         }
         K::PayRescue => format!("The rescuer pays {} blood", k.amount?),
+        K::SetX => amount(o, n)?,
         // A second vampire chosen after (Toreador Grand Ball): not told yet.
         K::Play if o.effects.iter().any(|e| e.kind == EffectKind::Role) => return None,
         K::Play => {
@@ -137,6 +139,69 @@ pub fn option(
     })
 }
 
+/// An amount chosen (`set_x`), by what it does.
+fn amount(o: &OptionView, n: &Names) -> Option<String> {
+    let a = o.key.amount?;
+    let has = |k| o.effects.iter().find(|e| e.kind == k);
+    // Business Pressure: pool burned for votes.
+    if let Some(v) = has(EffectKind::Votes) {
+        return Some(match a {
+            0 => "Burn no pool".into(),
+            _ => format!("Burn {a} pool for {} votes", v.n?),
+        });
+    }
+    // Smiling Jack: cards, the rest in pool.
+    if has(EffectKind::Discard).is_some() {
+        return Some(format!("{a} card(s), the rest in pool"));
+    }
+    let Some(e) = o.effects.first() else {
+        return Some(format!("X = {a}"));
+    };
+    if e.x {
+        let unit = match e.kind {
+            EffectKind::Blood => "blood",
+            EffectKind::Pool => "pool",
+            EffectKind::Counters => "counters",
+            _ => return None,
+        };
+        return Some(format!("X = {a} ({a} {unit})"));
+    }
+    Some(match e.kind {
+        EffectKind::Blood => match e.copy {
+            Some(c) => format!("{a} blood from {}", n.minion_bare(c)),
+            None => format!("{a} blood"),
+        },
+        EffectKind::Pool if e.detail.as_deref() == Some("from_blood") => {
+            format!("{a} blood to your pool")
+        }
+        EffectKind::Pool => format!("Give {a} pool"),
+        EffectKind::Counters => format!("{a} counter(s)"),
+        EffectKind::Draw => format!("{a} card(s)"),
+        _ => return None,
+    })
+}
+
+/// A pass in the block window, short and explicit: the defender's pass
+/// blocks only while its minion's attempt meets the stealth; anyone
+/// else's is plain.
+fn block_pass(seat: u8, n: &Names) -> &'static str {
+    use zvtes_api::ids::ActionStep;
+    match n.action() {
+        Some(a) if a.seat != seat => match (a.step, a.blocker) {
+            (ActionStep::Attempt, Some(b)) if n.controller(b) == Some(seat) => {
+                if a.intercept.unwrap_or(0) >= a.stealth {
+                    "Pass (blocking)"
+                } else {
+                    "Pass (no block)"
+                }
+            }
+            (ActionStep::Attempt, _) => "Pass",
+            _ => "Pass (no block)",
+        },
+        _ => "Pass",
+    }
+}
+
 /// A pass, by its window; `None` where what it does depends on more.
 fn pass(w: Window) -> Option<&'static str> {
     Some(match w {
@@ -146,10 +211,9 @@ fn pass(w: Window) -> Option<&'static str> {
         Window::DiscardPhase => "End the discard phase",
         Window::CombatPress => "Pass (no press)",
         Window::ReferendumPolling | Window::BloodHuntPolling => "Pass (no vote now)",
-        // The block, a distribution: what the pass does depends on more;
-        // in terms, on the terms (a cost's: "No reduction").
-        Window::ActionBlock
-        | Window::Distribution
+        // A distribution: what the pass does depends on more; in terms, on
+        // the terms (a cost's: "No reduction").
+        Window::Distribution
         | Window::PlayTerms
         | Window::RiderTerms
         | Window::ActionTerms

@@ -719,6 +719,12 @@ impl Describer<'_> {
                 }
                 let (_, mode, _) = self.e.ability_terms()?;
                 match mode.terms? {
+                    // Jake Washington's count is blood put on the target.
+                    Terms::Count { .. }
+                        if !mode.effects.contains(&zvtes::cards::Effect::DrawThenBottom) =>
+                    {
+                        Some(format!("{n} blood"))
+                    }
                     Terms::Count { .. } => Some(format!("{n} card(s)")),
                     Terms::XPool => Some(format!("X = {n} ({n} pool)")),
                     Terms::XCounters => Some(format!("X = {n} ({n} counters)")),
