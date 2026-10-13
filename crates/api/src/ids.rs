@@ -548,6 +548,8 @@ ids!(
         UnblockableNonBleed,
         /// The card's chosen minion, for its later effects.
         Chosen,
+        /// Becomes Anarch (Gilbert Duane, Anarch Convert).
+        Anarch,
     }
 );
 

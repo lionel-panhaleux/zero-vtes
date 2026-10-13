@@ -3609,6 +3609,11 @@
           "const": "chosen"
         },
         {
+          "description": "Becomes Anarch (Gilbert Duane, Anarch Convert).",
+          "type": "string",
+          "const": "anarch"
+        },
+        {
           "description": "A value this reader does not know.",
           "type": "string",
           "const": "unknown"
