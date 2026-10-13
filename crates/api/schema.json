@@ -1518,8 +1518,15 @@
               "const": "enters_play"
             },
             "minion": {
-              "description": "A minion (a vampire, an ally, a token), not a card on the table.",
-              "type": "boolean"
+              "description": "A minion, of this kind (not a card on the table).",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/MinionKind"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "on": {
               "type": [
@@ -1591,7 +1598,14 @@
               "const": "leaves_play"
             },
             "minion": {
-              "type": "boolean"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/MinionKind"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "to": {
               "anyOf": [

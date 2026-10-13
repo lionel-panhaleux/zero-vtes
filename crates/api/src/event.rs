@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::ids::{ActionKind, CopyId, DecisionNo, Range, Seat, Window, Zone};
+use crate::ids::{ActionKind, CopyId, DecisionNo, MinionKind, Range, Seat, Window, Zone};
 use crate::option::OptionView;
 use crate::view::{Card, Strike};
 
@@ -67,9 +67,9 @@ pub enum EventKind {
         seat: Seat,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         on: Option<CopyId>,
-        /// A minion (a vampire, an ally, a token), not a card on the table.
-        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-        minion: bool,
+        /// A minion, of this kind (not a card on the table).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        minion: Option<MinionKind>,
         /// A lasting effect whose card is in the ash heap (a marker on
         /// its minion), not a card of its own: no copy.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -92,8 +92,8 @@ pub enum EventKind {
         card: Card,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         to: Option<Zone>,
-        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-        minion: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        minion: Option<MinionKind>,
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         contested: bool,
         /// A lasting effect whose card is in the ash heap (a marker on

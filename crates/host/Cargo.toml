@@ -21,3 +21,4 @@ zvtes-protocol = { path = "../protocol" }
 
 [dev-dependencies]
 zvtes-protocol = { path = "../protocol" }
+zvtes-text = { path = "../text" }

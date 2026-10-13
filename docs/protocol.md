@@ -234,9 +234,9 @@ heap (a marker on its minion, §6), no copy of its own.
 | `draw` | `seat`, `n`, `crypt` |
 | `pool` | `seat`, `delta`, `pool` |
 | `blood` | `minion`, `delta`, `blood` |
-| `enters_play` | `card`, `seat` (its controller), `on`?, `minion`?, `effect`? |
+| `enters_play` | `card`, `seat` (its controller), `on`?, `minion`? (its kind, for a minion), `effect`? |
 | `moves` | `card`, `on`?, `effect`? |
-| `leaves_play` | `card`, `to`? (the zone it went to), `minion`?, `contested`?, `effect`? |
+| `leaves_play` | `card`, `to`? (the zone it went to), `minion`? (its kind), `contested`?, `effect`? |
 | `torpor` | `minion`, `enters` |
 | `ousted` | `seat` |
 | `block_fails` | `minion` (its block attempt ended, the action goes on) |
