@@ -10,7 +10,7 @@ import torch
 
 from train.league import EXP, EXPLOITER, FROZEN, League
 from train.model import remap_vocab
-from train.ppo import Config, Trainer, eval_tables, load_replays
+from train.ppo import Config, Trainer, eval_tables, imitation, load_replays
 
 
 def test_one_iteration(tmp_path):
@@ -251,6 +251,21 @@ def test_nudges_fade(tmp_path):
     Trainer(Config(**small, out=str(tmp_path), rescue_bonus=1.5, pass_bonus=3.0)).run()
     row = json.loads(open(tmp_path / "metrics.jsonl").read().splitlines()[-1])
     assert row["nudges"] == {"rescue": 1.5, "pass": 3.0, "reaction": 0.0, "bleed": 0.0, "idle": 0.0, "draw": 0.0, "stuck": 0.0, "nightmare": 0.0} and "habits" in row
+
+
+def test_imitation_holds_out_named_games():
+    """p10 (the plan): the games named held out, the rest trained on; a
+    name matching no game refused."""
+    a = "data/replays/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
+    b = "data/replays/zero-vtes-replay-2026-10-09T21-51-54-561Z.json"
+    replays = load_replays(",".join([a, b]))
+    train, held, names = imitation(replays, 3, 8, ["2026-10-09T21-51"])
+    assert names == ["zero-vtes-replay-2026-10-09T21-51-54-561Z.json"]
+    assert train and held
+    alone, _, _ = imitation(replays[:1], 3, 8)
+    assert len(train) == len(alone)
+    with pytest.raises(ValueError, match="no replay"):
+        imitation(replays, 3, 8, ["1999-01-01"])
 
 
 def test_imitation_and_weak_decks(tmp_path):

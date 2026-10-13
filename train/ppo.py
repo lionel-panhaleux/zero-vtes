@@ -191,10 +191,14 @@ class Config:
     # `bc_batch` of the humans' choices with an alternative, from the
     # replays in `bc` (as `starts`). Every `bc_holdout`-th game (0: none)
     # is held out: its loss is logged, never trained on (overfitting).
+    # `bc_held_games` (comma-separated parts of file names, the p10 plan:
+    # games never trained on, for an honest held-out) holds those out
+    # instead.
     bc: str = ""
     bc_coef: float = 0.0
     bc_batch: int = 256
     bc_holdout: int = 8
+    bc_held_games: str = ""
     # Weak decks (deck indices, comma-separated; owner, 2026-10-10, the p9
     # plan): the learner's seat is given one of them on `weak_rate` of
     # the tables, its opponents' decks drawn as ever; in a start, the
@@ -475,14 +479,21 @@ def deck_index(seat):
 DECK_INDEX = None
 
 
-def imitation(replays, obs, holdout):
+def imitation(replays, obs, holdout, games=()):
     """The humans' choices with an alternative in `replays` (rows as the
     rollout's, the bias zero, and the option chosen): (trained, held out),
-    every `holdout`-th game held out (and their names)."""
+    every `holdout`-th game held out — or, with `games` (parts of file
+    names), those games (and their names)."""
+    for part in games:
+        if not any(part in path.name for path, _, _ in replays):
+            raise ValueError(f"no replay named like {part!r} to hold out")
     train, held, names = [], [], []
     for g, (path, text, _) in enumerate(replays):
         game = zvtes_py.replay_decisions(text, obs)
-        out = held if holdout and g % holdout == holdout - 1 else train
+        if games:
+            out = held if any(part in path.name for part in games) else train
+        else:
+            out = held if holdout and g % holdout == holdout - 1 else train
         if out is held:
             names.append(path.name)
         for d in game["decisions"]:
@@ -614,7 +625,12 @@ class Trainer:
         self.weak = [int(d) for d in cfg.weak_decks.split(",") if d.strip()]
         self.bc, self.bc_held = [], []
         if cfg.bc_coef > 0:
-            self.bc, self.bc_held, held = imitation(load_replays(cfg.bc), cfg.obs, cfg.bc_holdout)
+            self.bc, self.bc_held, held = imitation(
+                load_replays(cfg.bc),
+                cfg.obs,
+                cfg.bc_holdout,
+                [g.strip() for g in cfg.bc_held_games.split(",") if g.strip()],
+            )
             if not self.bc:
                 raise ValueError("--bc-coef needs --bc replays with human choices")
             print(json.dumps({"bc": len(self.bc), "bc_held": len(self.bc_held), "held_out": held}), flush=True)

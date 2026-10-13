@@ -2046,6 +2046,39 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   `…T15-01-52`, all three trained on before: the held-out accuracy,
   0.76 at 2801, is not comparable and no longer a held-out measure for
   this run).
+  Restarted twice more for the owner's new games and engine fixes
+  (3000 on `848e890`; 3080 on `52b6399`: Alamut's controller, the
+  pre-vote rotation). Ended at 3400 (2026-10-12), best = last: 3.54,
+  re-measured 3.57 (p8's bar 2.16). `waste` on p9@3400 (24 games, its
+  nudges): stuck transfers 4.4% (35% at 2700), own nightmares 3 of 24
+  (12%, nightmare 4 not quite enough), rescues 29%, bleeds for nothing
+  0, crypt draws 6% (the owner 11%), cycling 83% (the owner 64%), wakes
+  with no block 81%, unlocks with no action 52%. Served in the fork since
+  2026-10-12 with all six training nudges (`ff2c6e8`; previous model
+  `runs/served-prev-2026-10-12-p8at2600.zvp`).
+- **p10, prepared** (owner, 2026-10-12: prepare, not launched — the owner
+  first plays p9 and adds cards). Per deck (`examples/decks.rs` on
+  `f160de4`, p9@3400 self-play ~240 seats a deck / p9 at one seat
+  against three p8, 60 seats): the weak decks trained came up — Reign of
+  Stanislava 0.30 → 1.52, Hecata 0.46 → 1.38, Tremere 0.65 → 1.01, Path
+  of Death 0.85 → 1.14 (p8 → p9 self-play) — Salubri and Path of Caine
+  barely (0.28 → 0.62, 0.32 → 0.77); the low ones now Tzimisce 0.57 /
+  1.01, Salubri 0.62 / 0.67, Nosferatu 0.67 / 0.92 (1.47 under p8),
+  Path of Caine 0.77 / 0.78, Toreador 0.79 / 0.64, Gangrel 0.91 / 1.44
+  (Cathari 0.38, out). Weak decks for p10: 13, 12, 3, 32, 4 (Tzimisce,
+  Salubri, Nosferatu, Path of Caine, Toreador). Held out: `--bc-held-games`
+  (parts of file names) names the games instead of every 8th — the
+  owner's games p9 never trained on (`…T12-31-56`, `…T15-45-47`,
+  `…T21-28-54`, 2026-10-11). From p9@3400, opponents p8@2600 and
+  p9@3400 frozen, nightmare 6, the other nudges as p9's.
+- **p10 run** (`runs/p10`, from 2026-10-13 on `971f7d3`: round 9's
+  cards, the vocabulary remapped): as prepared, to 4000; 30 replays,
+  5974 choices trained, 1309 held out (the three above and the owner's
+  2026-10-12 `…T21-02-13`, `…T21-50-21`, none ever trained on: a true
+  held-out, 0.46 at 3401 against p9's trained-on 0.65). The bar is the
+  first evaluation (p8 and p9 as opponents, not comparable with p9's
+  3.57): 2.19 at 3420 (re-measured); 2.60 at 3520, the held-out flat
+  near 0.45 to 3600.
 
 ### 11.3 Open gaps
 
