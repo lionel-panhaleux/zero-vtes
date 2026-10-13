@@ -7,12 +7,15 @@ dependencies = ["numpy>=2", "torch>=2.9", "zvtes-py"]
 
 [dependency-groups]
 dev = ["maturin>=1.9,<2", "pytest>=8"]
+# deploy/ (pyinfra, the server-setup way): `uv run --group deploy …`
+deploy = ["server-setup", "pyinfra>=3", "jinja2>=3"]
 
 [tool.uv]
 package = false
 
 [tool.uv.sources]
 zvtes-py = { path = "crates/py" }
+server-setup = { git = "https://github.com/lionel-panhaleux/server-setup", tag = "v2.2.1" }
 
 [tool.pytest.ini_options]
 testpaths = ["train/tests"]

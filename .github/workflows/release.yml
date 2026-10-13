@@ -1,0 +1,23 @@
+name: release
+
+# A tag `v*` builds the server for frankfurt (linux x86_64, glibc of
+# Ubuntu 24.04: runs on Debian trixie) and attaches it to the release;
+# deploy/release.py fetches it (ZVTES_REPO, RELEASE_TAG).
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  server:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release -p zvtes-server
+      - run: cp target/release/zvtes-server zvtes-server-x86_64-linux
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: zvtes-server-x86_64-linux

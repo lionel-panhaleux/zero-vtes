@@ -1,0 +1,34 @@
+[Unit]
+Description={{ name }} (the zero-vtes engine served: docs/protocol.md)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ name }}
+Group={{ name }}
+WorkingDirectory={{ lib_dir }}
+EnvironmentFile={{ env_dir }}/{{ name }}.env
+ExecStart={{ opt }}/zvtes-server
+SyslogIdentifier={{ name }}
+Restart=always
+RestartSec=3
+TimeoutStopSec=15
+KillMode=mixed
+LimitNOFILE=65536
+CPUQuota={{ cpu_quota }}
+MemoryMax={{ memory_max }}
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths={{ lib_dir }}
+
+[Install]
+WantedBy=multi-user.target
