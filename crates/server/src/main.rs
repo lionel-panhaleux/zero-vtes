@@ -11,6 +11,9 @@
 //! - `ZVTES_MAX_GAMES` (64), `ZVTES_GAMES_PER_HOUR` per address (30),
 //!   `ZVTES_IDLE` seconds (1800), `ZVTES_TIME_LIMIT` max turns (200),
 //!   `ZVTES_RETENTION` days (730), `ZVTES_RATE` commands a second (20)
+//! - `ZVTES_ADMIN_SHA256`: the admin token's SHA-256 (hex), never the
+//!   token: `GET /admin/games` and `/admin/games/{id}/record` with
+//!   `Authorization: Bearer <token>` (absent: no admin routes)
 
 mod games;
 mod store;
@@ -46,6 +49,8 @@ struct Config {
     /// Commands a second per connection, at most (an undo replays the
     /// game from the deal).
     rate: usize,
+    /// The admin token's SHA-256.
+    admin: Option<String>,
 }
 
 struct App {
@@ -115,6 +120,7 @@ async fn main() {
             idle: Duration::from_secs(env_or("ZVTES_IDLE", 1800)),
             time_limit: env_or("ZVTES_TIME_LIMIT", 200),
             rate: env_or("ZVTES_RATE", 20),
+            admin: env("ZVTES_ADMIN_SHA256").map(|h| h.to_lowercase()),
         },
         games: Games::default(),
         policy,
@@ -129,6 +135,8 @@ async fn main() {
         .route("/games", post(create))
         .route("/games/{id}/ws", any(socket))
         .route("/games/{id}/record", get(record))
+        .route("/admin/games", get(admin_games))
+        .route("/admin/games/{id}/record", get(admin_record))
         .layer(cors(&app.config.origins))
         .with_state(app);
     let listener = tokio::net::TcpListener::bind(&listen)
@@ -277,7 +285,58 @@ async fn record(State(app): State<Shared>, Path(id): Path<String>, headers: Head
             }
         }
     }
-    match app.records.record(&id, &store::hash(bearer)).await {
+    match app.records.record(&id, Some(&store::hash(bearer))).await {
+        Some(r) => Json(r).into_response(),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+/// Whether the request carries the admin token.
+fn admin(app: &App, headers: &HeaderMap) -> bool {
+    let Some(want) = app.config.admin.as_deref() else {
+        return false;
+    };
+    headers
+        .get("authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .is_some_and(|t| store::hash(t) == want)
+}
+
+#[derive(serde::Deserialize)]
+struct Since {
+    /// Unix ms.
+    since: Option<u64>,
+    engine: Option<String>,
+    limit: Option<i64>,
+}
+
+/// The games recorded, oldest first (the admin's: training pulls them).
+async fn admin_games(
+    State(app): State<Shared>,
+    headers: HeaderMap,
+    axum::extract::Query(q): axum::extract::Query<Since>,
+) -> Response {
+    if !admin(&app, &headers) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    let limit = q.limit.unwrap_or(1000).clamp(1, 10_000);
+    match app.records.list(q.since, q.engine.as_deref(), limit).await {
+        Ok(games) => Json(games).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
+    }
+}
+
+/// Any game's record, as far as it went (the admin's).
+async fn admin_record(
+    State(app): State<Shared>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Response {
+    if !admin(&app, &headers) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    match app.records.record(&id, None).await {
         Some(r) => Json(r).into_response(),
         None => StatusCode::NOT_FOUND.into_response(),
     }

@@ -28,6 +28,32 @@ pub enum Put {
     End { game: String, record: GameRecord },
 }
 
+/// A game's row in the admin's list: id, engine, client, started and
+/// ended (Unix ms), result, entries.
+type SummaryRow = (
+    String,
+    String,
+    Option<String>,
+    f64,
+    Option<f64>,
+    Option<serde_json::Value>,
+    i64,
+);
+
+/// A game as the admin's list shows it.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct Summary {
+    pub id: String,
+    pub engine: String,
+    pub client: Option<String>,
+    /// Unix ms.
+    pub started: u64,
+    pub ended: Option<u64>,
+    pub result: Option<serde_json::Value>,
+    /// Its record's entries so far.
+    pub entries: u64,
+}
+
 #[derive(Clone)]
 pub enum Store {
     Postgres(PgPool),
@@ -162,8 +188,9 @@ impl Store {
         }
     }
 
-    /// A finished game's record, for the holder of its seat token.
-    pub async fn record(&self, game: &str, token_hash: &str) -> Option<GameRecord> {
+    /// A game's record (as far as it went), for the holder of its seat
+    /// token (`None`: the admin).
+    pub async fn record(&self, game: &str, token_hash: Option<&str>) -> Option<GameRecord> {
         match self {
             Store::Postgres(pool) => {
                 let row: (
@@ -178,7 +205,7 @@ impl Store {
                     "select spec, bots, protocol, engine,
                                 extract(epoch from started)::double precision * 1000,
                                 extract(epoch from ended)::double precision * 1000, result
-                         from games where id = $1 and token_hash = $2",
+                         from games where id = $1 and ($2::text is null or token_hash = $2)",
                 )
                 .bind(game)
                 .bind(token_hash)
@@ -211,7 +238,7 @@ impl Store {
                 for line in text.lines() {
                     let v: serde_json::Value = serde_json::from_str(line).ok()?;
                     match v[0].as_str()? {
-                        "start" if v[1].as_str() == Some(token_hash) => {
+                        "start" if token_hash.is_none_or(|h| v[1].as_str() == Some(h)) => {
                             record = serde_json::from_value(v[2].clone()).ok();
                         }
                         "entries" => {
@@ -228,6 +255,82 @@ impl Store {
                     }
                 }
                 record
+            }
+        }
+    }
+
+    /// The games started since `since` (Unix ms), of engine `engine`, at
+    /// most `limit`, oldest first: what the admin pulls.
+    pub async fn list(
+        &self,
+        since: Option<u64>,
+        engine: Option<&str>,
+        limit: i64,
+    ) -> Result<Vec<Summary>, String> {
+        match self {
+            Store::Postgres(pool) => {
+                let rows: Vec<SummaryRow> = sqlx::query_as(
+                    "select g.id, g.engine, g.client,
+                            extract(epoch from g.started)::double precision * 1000,
+                            extract(epoch from g.ended)::double precision * 1000, g.result,
+                            (select count(*) from game_entries e where e.game = g.id)
+                     from games g
+                     where ($1::double precision is null
+                            or g.started >= to_timestamp($1::double precision / 1000))
+                       and ($2::text is null or g.engine = $2)
+                     order by g.started limit $3",
+                )
+                .bind(since.map(|s| s as f64))
+                .bind(engine)
+                .bind(limit)
+                .fetch_all(pool)
+                .await
+                .map_err(|e| e.to_string())?;
+                Ok(rows
+                    .into_iter()
+                    .map(|r| Summary {
+                        id: r.0,
+                        engine: r.1,
+                        client: r.2,
+                        started: r.3 as u64,
+                        ended: r.4.map(|t| t as u64),
+                        result: r.5,
+                        entries: r.6 as u64,
+                    })
+                    .collect())
+            }
+            Store::Files(dir) => {
+                let mut out = Vec::new();
+                let files = std::fs::read_dir(dir).map_err(|e| e.to_string())?;
+                for f in files.flatten() {
+                    let path = f.path();
+                    let Some(id) = path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .and_then(|n| n.strip_suffix(".jsonl"))
+                    else {
+                        continue;
+                    };
+                    let Some(r) = self.record(id, None).await else {
+                        continue;
+                    };
+                    if since.is_some_and(|s| r.started < s) || engine.is_some_and(|e| e != r.engine)
+                    {
+                        continue;
+                    }
+                    out.push(Summary {
+                        id: id.into(),
+                        engine: r.engine,
+                        client: r.spec.client,
+                        started: r.started,
+                        ended: r.ended,
+                        result: r.result.map(|x| value(&x)),
+                        entries: r.entries.len() as u64,
+                    });
+                }
+                out.sort_by_key(|s| s.started);
+                out.truncate(limit.max(0) as usize);
+                Ok(out)
             }
         }
     }
