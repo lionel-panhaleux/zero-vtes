@@ -106,6 +106,7 @@ env = files.put(
                 "ZVTES_DATABASE_URL": f"postgres:///{name}?host=/var/run/postgresql",
                 "ZVTES_POLICY": f"{opt}/weights/{digest}.zvp",
                 "ZVTES_ORIGINS": d.origins,
+                "ZVTES_ADMIN_SHA256": d.admin_sha256,
             }.items()
         )
     ),

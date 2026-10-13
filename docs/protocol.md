@@ -332,6 +332,8 @@ ended; the last `pool`, `blood` and `torpor` told are the next view's.
 | `POST /games` | body: a `GameSpec` (one human seat); `{game, seat, token}`, or a `SpecError` (400) |
 | `GET /games/{game}/ws` | WebSocket: one JSON command or message per text frame; the first command is `join` with the token |
 | `GET /games/{game}/record` | the game's record (§11), `Authorization: Bearer <token>` |
+| `GET /admin/games?since=&engine=&limit=` | the games recorded, oldest first: `id`, `engine`, `client`, `started`, `ended`, `result`, `entries` (the operator's: `Authorization: Bearer <admin token>`) |
+| `GET /admin/games/{game}/record` | any game's record, as far as it went (the operator's) |
 
 No account: the token is the seat, never in a URL. The server checks
 the WebSocket's `Origin` against the platforms it serves.
