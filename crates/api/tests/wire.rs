@@ -1,7 +1,8 @@
 //! The JSON a client sees and sends, pinned.
 
 use serde_json::{json, Value};
-use zvtes_api::ids::{OptionKind, Phase, Window};
+use zvtes_api::event::{ActionOutcome, ActionRef};
+use zvtes_api::ids::{ActionKind, OptionKind, Phase, Window};
 use zvtes_api::option::{CardRef, ChoiceKey, DisciplineLevel, Effect, EffectKind, Mode};
 use zvtes_api::view::{Card, Target};
 use zvtes_api::*;
@@ -209,6 +210,8 @@ fn events_are_tagged_by_kind() {
             },
             seat: 2,
             on: None,
+            minion: true,
+            effect: false,
         },
         text: None,
     };
@@ -216,7 +219,29 @@ fn events_are_tagged_by_kind() {
     assert_eq!(
         j,
         json!({"kind": "enters_play",
-               "card": {"copy": 7, "id": 200001, "crypt": true, "nth": 1}, "seat": 2})
+               "card": {"copy": 7, "id": 200001, "crypt": true, "nth": 1}, "seat": 2,
+               "minion": true})
+    );
+    assert_eq!(serde_json::from_value::<Event>(j).unwrap(), e);
+    let e = Event {
+        kind: EventKind::ActionEnds {
+            seat: 1,
+            acting: 7,
+            action: ActionRef {
+                kind: ActionKind::Bleed,
+                card: None,
+                source: None,
+            },
+            outcome: ActionOutcome::Blocked,
+            blocker: Some(12),
+        },
+        text: None,
+    };
+    let j = serde_json::to_value(&e).unwrap();
+    assert_eq!(
+        j,
+        json!({"kind": "action_ends", "seat": 1, "acting": 7, "action": {"kind": "bleed"},
+               "outcome": "blocked", "blocker": 12})
     );
     assert_eq!(serde_json::from_value::<Event>(j).unwrap(), e);
     let e = Event {

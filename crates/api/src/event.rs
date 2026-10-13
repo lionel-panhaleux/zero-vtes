@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::ids::{CopyId, DecisionNo, Range, Seat, Window, Zone};
+use crate::ids::{ActionKind, CopyId, DecisionNo, Range, Seat, Window, Zone};
 use crate::option::OptionView;
 use crate::view::{Card, Strike};
 
@@ -63,21 +63,43 @@ pub enum EventKind {
     /// A minion or a card comes into play (on a minion, or not).
     EntersPlay {
         card: Card,
+        /// Its controller.
         seat: Seat,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         on: Option<CopyId>,
+        /// A minion (a vampire, an ally, a token), not a card on the table.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        minion: bool,
+        /// A lasting effect whose card is in the ash heap (a marker on
+        /// its minion), not a card of its own: no copy.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        effect: bool,
     },
     /// A card in play moves to another minion (or off one).
     Moves {
         card: Card,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         on: Option<CopyId>,
+        /// A lasting effect whose card is in the ash heap (a marker on
+        /// its minion), not a card of its own: no copy.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        effect: bool,
     },
-    /// A minion or a card leaves play, to a zone when public.
+    /// A minion or a card leaves play: to `to` when it went to a seat's
+    /// zone (a burned minion to its ash heap), contested (a vampire set
+    /// aside while its Methuselahs contest it).
     LeavesPlay {
         card: Card,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         to: Option<Zone>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        minion: bool,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        contested: bool,
+        /// A lasting effect whose card is in the ash heap (a marker on
+        /// its minion), not a card of its own: no copy.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        effect: bool,
     },
     Torpor {
         minion: CopyId,
@@ -93,7 +115,9 @@ pub enum EventKind {
     ActionEnds {
         seat: Seat,
         acting: CopyId,
+        action: ActionRef,
         outcome: ActionOutcome,
+        /// The minion that blocked it.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         blocker: Option<CopyId>,
     },
@@ -101,13 +125,22 @@ pub enum EventKind {
         outcome: ReferendumOutcome,
         votes_for: u32,
         votes_against: u32,
+        /// The political action it was called by.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        action: Option<ActionRef>,
+        /// A blood hunt's: the diablerist hunted.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        hunted: Option<CopyId>,
     },
     CombatBegins {
         minions: [CopyId; 2],
     },
+    /// A combatant's strike declared (the acting minion's first: the
+    /// blocker chooses knowing it); `None`: no strike.
     StrikeDeclared {
         minion: CopyId,
-        strike: Strike,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        strike: Option<Strike>,
     },
     /// A pair of strikes resolved: each side's strike and the damage it
     /// dealt before prevention.
@@ -129,23 +162,32 @@ pub struct StruckSide {
     pub damage: u8,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+/// What an action is: its kind, its card, what grants it.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "snake_case")]
-pub enum ActionOutcome {
+pub struct ActionRef {
+    pub kind: ActionKind,
+    /// The action card, for a card action.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub card: Option<Card>,
+    /// What grants the action: a card in play, or another vampire.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<Card>,
+}
+
+crate::ids::ids!(ActionOutcome {
     Succeeds,
     Blocked,
     Fails,
     Fizzles,
-    /// Ended otherwise (its acting minion gone, its Methuselah ousted).
+    /// Its Methuselah was ousted.
+    Ousted,
+    /// Ended otherwise (its acting minion gone).
     Ends,
-}
+});
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "snake_case")]
-pub enum ReferendumOutcome {
+crate::ids::ids!(ReferendumOutcome {
     Passes,
     Fails,
     Canceled,
-}
+});

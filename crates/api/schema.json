@@ -58,10 +58,54 @@
           ]
         },
         {
-          "description": "Ended otherwise (its acting minion gone, its Methuselah ousted).",
+          "description": "Its Methuselah was ousted.",
+          "type": "string",
+          "const": "ousted"
+        },
+        {
+          "description": "Ended otherwise (its acting minion gone).",
           "type": "string",
           "const": "ends"
+        },
+        {
+          "description": "A value this reader does not know.",
+          "type": "string",
+          "const": "unknown"
         }
+      ]
+    },
+    "ActionRef": {
+      "description": "What an action is: its kind, its card, what grants it.",
+      "type": "object",
+      "properties": {
+        "card": {
+          "description": "The action card, for a card action.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Card"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "source": {
+          "description": "What grants the action: a card in play, or another vampire.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Card"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind"
       ]
     },
     "ActionStep": {
@@ -1465,9 +1509,17 @@
             "card": {
               "$ref": "#/$defs/Card"
             },
+            "effect": {
+              "description": "A lasting effect whose card is in the ash heap (a marker on\nits minion), not a card of its own: no copy.",
+              "type": "boolean"
+            },
             "kind": {
               "type": "string",
               "const": "enters_play"
+            },
+            "minion": {
+              "description": "A minion (a vampire, an ally, a token), not a card on the table.",
+              "type": "boolean"
             },
             "on": {
               "type": [
@@ -1478,6 +1530,7 @@
               "minimum": 0
             },
             "seat": {
+              "description": "Its controller.",
               "type": "integer",
               "format": "uint8",
               "maximum": 255,
@@ -1496,6 +1549,10 @@
           "properties": {
             "card": {
               "$ref": "#/$defs/Card"
+            },
+            "effect": {
+              "description": "A lasting effect whose card is in the ash heap (a marker on\nits minion), not a card of its own: no copy.",
+              "type": "boolean"
             },
             "kind": {
               "type": "string",
@@ -1516,15 +1573,25 @@
           ]
         },
         {
-          "description": "A minion or a card leaves play, to a zone when public.",
+          "description": "A minion or a card leaves play: to `to` when it went to a seat's\nzone (a burned minion to its ash heap), contested (a vampire set\naside while its Methuselahs contest it).",
           "type": "object",
           "properties": {
             "card": {
               "$ref": "#/$defs/Card"
             },
+            "contested": {
+              "type": "boolean"
+            },
+            "effect": {
+              "description": "A lasting effect whose card is in the ash heap (a marker on\nits minion), not a card of its own: no copy.",
+              "type": "boolean"
+            },
             "kind": {
               "type": "string",
               "const": "leaves_play"
+            },
+            "minion": {
+              "type": "boolean"
             },
             "to": {
               "anyOf": [
@@ -1610,7 +1677,11 @@
               "format": "uint32",
               "minimum": 0
             },
+            "action": {
+              "$ref": "#/$defs/ActionRef"
+            },
             "blocker": {
+              "description": "The minion that blocked it.",
               "type": [
                 "integer",
                 "null"
@@ -1636,12 +1707,33 @@
             "kind",
             "seat",
             "acting",
+            "action",
             "outcome"
           ]
         },
         {
           "type": "object",
           "properties": {
+            "action": {
+              "description": "The political action it was called by.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ActionRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "hunted": {
+              "description": "A blood hunt's: the diablerist hunted.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0
+            },
             "kind": {
               "type": "string",
               "const": "referendum_ends"
@@ -1691,6 +1783,7 @@
           ]
         },
         {
+          "description": "A combatant's strike declared (the acting minion's first: the\nblocker chooses knowing it); `None`: no strike.",
           "type": "object",
           "properties": {
             "kind": {
@@ -1703,13 +1796,19 @@
               "minimum": 0
             },
             "strike": {
-              "$ref": "#/$defs/Strike"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Strike"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
             "kind",
-            "minion",
-            "strike"
+            "minion"
           ]
         },
         {
@@ -2854,11 +2953,20 @@
       ]
     },
     "ReferendumOutcome": {
-      "type": "string",
-      "enum": [
-        "passes",
-        "fails",
-        "canceled"
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "passes",
+            "fails",
+            "canceled"
+          ]
+        },
+        {
+          "description": "A value this reader does not know.",
+          "type": "string",
+          "const": "unknown"
+        }
       ]
     },
     "ReferendumStep": {
