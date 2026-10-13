@@ -103,6 +103,9 @@ pub struct Game {
     /// What happened since the messages last told it, named as the view
     /// that took it in numbered it; the decisions taken among it marked.
     backlog: VecDeque<Told>,
+    /// The viewer's numbering at each decision it was asked, by number:
+    /// an undo restores it, the view asked again the view first sent.
+    numberings: std::collections::BTreeMap<u64, crate::numbering::Numbering>,
     record: GameRecord,
     clock: Box<dyn Clock>,
     t0: u64,
@@ -211,6 +214,7 @@ impl Game {
             over: None,
             last_view: None,
             backlog: VecDeque::new(),
+            numberings: Default::default(),
             record: GameRecord {
                 protocol: zvtes_api::PROTOCOL_VERSION.into(),
                 engine: crate::ENGINE.into(),
@@ -390,6 +394,11 @@ impl Game {
                 match self.session.undo() {
                     Ok(()) => {
                         self.backlog.clear();
+                        let at = self.session.engine().log.len() as u64;
+                        let _ = self.numberings.split_off(&(at + 1));
+                        if let Some(n) = self.numberings.get(&at) {
+                            self.viewer.numbering = n.clone();
+                        }
                         let mut m = self.advance();
                         let to = self.pending.as_ref().map_or(pending, |d| d.decision);
                         self.record.entries.push(Entry::Undo {
@@ -510,6 +519,11 @@ impl Game {
                         view: api_view.clone(),
                     };
                     self.last_view = Some(api_view);
+                    self.numberings
+                        .insert(decision, self.viewer.numbering.clone());
+                    if self.numberings.len() > 256 {
+                        self.numberings.pop_first();
+                    }
                     self.pending = Some(d.clone());
                     m.extend(self.flush());
                     m.push(Message::Decision(d));

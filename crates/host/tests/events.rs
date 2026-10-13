@@ -153,6 +153,13 @@ struct Stream {
     told: usize,
     texts: usize,
     names: Names<'static>,
+    /// Each decision's view as first sent, and the decision an undo
+    /// asks again: its view must be the same.
+    asked: HashMap<u64, TableView>,
+    again: Option<u64>,
+    reasked: usize,
+    /// Decisions an undo went back to that were never asked.
+    unasked: Vec<u64>,
     /// The legacy lines the renderer told otherwise: (legacy, rendered).
     misses: Vec<(String, String)>,
 }
@@ -177,7 +184,8 @@ impl Stream {
         }
         let copy = |c: u32| assert_ne!(c, u32::MAX, "seed {seed}: an unnumbered minion: {e:?}");
         match &e.kind {
-            EventKind::Undone { .. } => {
+            EventKind::Undone { to, .. } => {
+                self.again = Some(*to);
                 self.last = None;
                 self.in_combat = None;
                 self.pools.clear();
@@ -312,7 +320,21 @@ impl Stream {
                         self.names.see(v);
                     }
                 }
-                Message::Decision(d) => self.view(&d.view, &format!("decision {}", d.decision)),
+                Message::Decision(d) => {
+                    if let Some(to) = self.again.take() {
+                        assert_eq!(d.decision, to, "seed {}: asked again", self.seed);
+                        let first = self.asked.get(&to);
+                        if first.is_none() {
+                            self.unasked.push(to);
+                        }
+                        if let Some(first) = first {
+                            assert_eq!(&d.view, first, "seed {}: the view asked again", self.seed);
+                            self.reasked += 1;
+                        }
+                    }
+                    self.asked.insert(d.decision, d.view.clone());
+                    self.view(&d.view, &format!("decision {}", d.decision))
+                }
                 Message::Over(over) => self.view(&over.view, "over"),
                 Message::Joined(j) => self.view(&j.view, "joined"),
                 _ => {}
@@ -353,6 +375,7 @@ fn cmd(command: Command) -> In {
 fn the_events_tell_what_the_views_show() {
     let seeds: u32 = std::env::var("HOST_SEEDS").map_or(40, |s| s.parse().unwrap());
     let (mut told, mut texts, mut undone, mut allocated, mut voted) = (0, 0, 0, 0, 0);
+    let mut reasked = 0;
     let mut misses = Vec::new();
     for seed in 1..=seeds {
         let settings = Settings {
@@ -377,6 +400,10 @@ fn the_events_tell_what_the_views_show() {
             texts: 0,
             names: Names::new(cards()),
             misses: Vec::new(),
+            asked: HashMap::new(),
+            again: None,
+            reasked: 0,
+            unasked: Vec::new(),
         };
         let mut outs = g.handle(
             human,
@@ -463,6 +490,12 @@ fn the_events_tell_what_the_views_show() {
             s.see(&outs);
         }
         assert!(!settings.text || s.texts > 0, "seed {seed}: no text");
+        reasked += s.reasked;
+        assert!(
+            s.unasked.is_empty(),
+            "seed {seed}: undone to {:?}, never asked",
+            s.unasked
+        );
         told += s.told;
         texts += s.texts;
         misses.extend(s.misses.into_iter().map(|m| (seed, m)));
@@ -477,7 +510,7 @@ fn the_events_tell_what_the_views_show() {
     );
     eprintln!(
         "{seeds} games: {told} events ({texts} with text), {undone} undos, \
-         {allocated} allocations, {voted} votes cast at once"
+         {allocated} allocations, {voted} votes cast at once, {reasked} views asked again alike"
     );
     assert!(
         allocated > 0 && voted > 0,

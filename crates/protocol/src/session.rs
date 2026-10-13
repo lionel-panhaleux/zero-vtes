@@ -311,18 +311,25 @@ pub struct Session {
     /// Every fact since the host last took them (`take_told`), with the
     /// decisions taken among them.
     told: Vec<Told>,
+    /// The engine before each of the human decisions undo may take back,
+    /// by the history's length then (`undo`: restored, not replayed).
+    /// Cleared when a bot decides; the oldest dropped past `SNAPSHOTS`.
+    snapshots: Vec<(usize, Engine)>,
     /// The card the last decision played or used, and by whom: what the
     /// seat's terms decisions that follow choose for.
     about: Option<(SeatId, String)>,
 }
 
 /// How a logged decision was taken: by a bot, by a human seat (what it
-/// knew of the cards when it was asked: `undo_depth`), or by a human seat
-/// passing on an opportunity by itself (`set_opportunities`).
+/// knew of the cards when it was asked: `undo_depth`), by a human seat
+/// passing on an opportunity by itself (`set_opportunities`), or as the
+/// rest of a command answered whole (a vote order's casts, an
+/// allocation's later steps): undone with it.
 enum Taken {
     Bot,
     Human(Knowledge),
     Passed,
+    Order,
     /// A human decision that showed it library cards (a search).
     Revealed,
 }
@@ -341,6 +348,10 @@ enum Opportunity {
 
 /// The bot styles a session builds itself.
 pub const BUILT_IN: [&str; 3] = ["aggro_bleed", "wall", "random"];
+
+/// Engines kept for undo: past this many decisions in a row, the oldest
+/// is dealt again and replayed instead.
+const SNAPSHOTS: usize = 64;
 
 impl Session {
     /// A session whose bots are all built in.
@@ -410,6 +421,7 @@ impl Session {
             mark: None,
             events: Vec::new(),
             told: Vec::new(),
+            snapshots: Vec::new(),
             about: None,
         })
     }
@@ -447,7 +459,7 @@ impl Session {
                 return None;
             }
             match taken {
-                Taken::Passed => continue,
+                Taken::Passed | Taken::Order => continue,
                 // A search showed library cards: no taking it back.
                 Taken::Revealed => return None,
                 Taken::Human(before) => {
@@ -465,21 +477,35 @@ impl Session {
     }
 
     /// Take back the seat's previous decision (`Out::Decision::undo`): the
-    /// game is dealt again and replayed to the decision before.
+    /// engine as it was before it (kept; dealt again and replayed when a
+    /// long run of decisions dropped it).
     pub fn undo(&mut self) -> Result<(), AnswerError> {
         self.step();
         let Some(k) = self.undo_depth() else {
             return Err(AnswerError::NoUndo);
         };
-        let log = &self.engine.log[..self.engine.log.len() - k];
-        let mut engine = Self::deal(&self.spec, &self.decks);
-        for &index in log {
-            match engine.run() {
-                Step::Decision(_) => engine.choose(index),
-                Step::Over(_) => unreachable!("the log replays"),
+        let at = self.history.len() - k;
+        let kept = self.snapshots.iter().position(|(n, _)| *n == at);
+        let mut engine = match kept {
+            Some(i) => {
+                let (_, e) = self.snapshots.swap_remove(i);
+                self.snapshots.truncate(i);
+                e
             }
-        }
-        // The replayed combats were told already.
+            None => {
+                self.snapshots.clear();
+                let log = &self.engine.log[..self.engine.log.len() - k];
+                let mut engine = Self::deal(&self.spec, &self.decks);
+                for &index in log {
+                    match engine.run() {
+                        Step::Decision(_) => engine.choose(index),
+                        Step::Over(_) => unreachable!("the log replays"),
+                    }
+                }
+                engine
+            }
+        };
+        // The combats since were told already.
         engine.combat_notes = Some(Vec::new());
         self.engine = engine;
         self.history.truncate(self.history.len() - k);
@@ -960,7 +986,9 @@ impl Session {
                 // The seat's standing order casts its next vote.
                 if let Some(&(_, favor)) = self.standing.iter().find(|&&(s, _)| s == req.seat) {
                     if let Some(&(i, _)) = self.casts(&req, favor).first() {
-                        return self.answer(decision, i).expect("a vote offered");
+                        let out = self.answer(decision, i).expect("a vote offered");
+                        self.history.last_mut().expect("just answered").2 = Taken::Order;
+                        return out;
                     }
                 }
                 let shown = self.shown(&req);
@@ -1008,6 +1036,7 @@ impl Session {
                 self.decided(decision);
                 self.engine.choose(idx);
                 self.history.push((req.seat, req.window, Taken::Bot));
+                self.snapshots.clear();
                 self.aim(had_action, &mut choice);
                 self.observe(effects);
                 self.pending = None;
@@ -1060,12 +1089,20 @@ impl Session {
         self.choices.push(logged(&self.engine, &req, index));
         let effects = untold_effects(&req.options[index]);
         self.decided(decision);
+        if self.snapshots.len() == SNAPSHOTS {
+            self.snapshots.remove(0);
+        }
+        self.snapshots
+            .push((self.history.len(), self.engine.clone()));
         self.engine.choose(index);
         let taken = if Self::searched(&req).is_empty() {
             Taken::Human(known)
         } else {
             Taken::Revealed
         };
+        if matches!(taken, Taken::Revealed) {
+            self.snapshots.clear();
+        }
         self.history.push((req.seat, req.window, taken));
         self.aim(had_action, &mut choice);
         self.observe(effects);
@@ -1145,9 +1182,12 @@ impl Session {
             }
         }
         let mut outs = Vec::new();
-        for i in picks {
+        for (step, i) in picks.into_iter().enumerate() {
             let decision = self.engine.log.len() as u64;
             outs.push(self.answer(decision, i).expect("checked on a copy"));
+            if step > 0 {
+                self.history.last_mut().expect("just answered").2 = Taken::Order;
+            }
         }
         Ok(outs)
     }
