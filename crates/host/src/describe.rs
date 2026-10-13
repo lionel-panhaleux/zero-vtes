@@ -235,9 +235,150 @@ pub fn effects(
             curated(a.effects, whom)
         }
         Choice::SetX(n) => amount(&x, req, n),
+        // The votes a minion casts, with its prisci ballots (rules-qa 52.9).
+        Choice::CastVotes { minion, favor } => {
+            let mut out: Vec<Effect> = e
+                .referendum()
+                .map(|r| Effect {
+                    n: Some(r.votes_cast(st, minion, favor) as i32),
+                    favor: Some(favor),
+                    ..Effect::new(EffectKind::Votes)
+                })
+                .into_iter()
+                .collect();
+            if let b @ 1.. = st.ballots(minion) {
+                out.push(Effect {
+                    n: Some(b as i32),
+                    favor: Some(favor),
+                    detail: Some("prisci_ballot".into()),
+                    ..Effect::new(EffectKind::Votes)
+                });
+            }
+            out
+        }
+        // The political action card's vote; Business Pressure's round:
+        // the pool burned times the rate.
+        Choice::CastCardVote { favor } => {
+            let (n, on) = match e.referendum().and_then(|r| r.pressure.as_ref()) {
+                Some(p) => ((p.amount.unwrap_or(0) * p.rate(req.seat)) as i32, None),
+                None => (1, Some(On::Card)),
+            };
+            vec![Effect {
+                n: Some(n),
+                on,
+                favor: Some(favor),
+                ..Effect::new(EffectKind::Votes)
+            }]
+        }
+        // A cost's terms: a vampire paying 1 of the cost in blood.
+        Choice::ChooseMinion(_)
+            if req.window == zvtes::decision::WindowLabel::PlayTerms
+                && e.cost_terms().is_some() =>
+        {
+            vec![Effect {
+                n: Some(-1),
+                on: Some(On::Chosen),
+                cost: true,
+                ..Effect::new(EffectKind::Blood)
+            }]
+        }
+        // A cost's terms: a card's counters, a vampire's own (Nergal, Jack)
+        // reducing it.
+        Choice::ResolveRider { .. } | Choice::ResolvePrinted { .. }
+            if req.window == zvtes::decision::WindowLabel::PlayTerms
+                && e.cost_terms().is_some() =>
+        {
+            vec![Effect::new(EffectKind::Cost)]
+        }
+        _ if req.window == zvtes::decision::WindowLabel::ReferendumTerms => {
+            referendum_terms(&x, choice)
+        }
         _ => e
             .interrupt()
             .map_or_else(Vec::new, |i| asked(&x, i, choice)),
+    }
+}
+
+/// What choosing does in a referendum's terms, when they choose several
+/// things of a kind: the pool a Methuselah burns, gains or gives, what a
+/// chosen minion or card gets.
+fn referendum_terms(x: &Ctx<impl Names>, choice: &Choice) -> Vec<Effect> {
+    use zvtes::cards::{RefEffect as R, Term};
+    let Some(r) = x.e.referendum() else {
+        return Vec::new();
+    };
+    let Some(def) = r.def else {
+        return Vec::new();
+    };
+    let Some(&term) = def.terms.get(r.terms.term).or(def.terms.last()) else {
+        return Vec::new();
+    };
+    let chosen = |kind| Effect {
+        on: Some(On::Chosen),
+        ..Effect::new(kind)
+    };
+    let n = |n: i32, e: Effect| Effect { n: Some(n), ..e };
+    match (*choice, term, def.effect) {
+        (Choice::ChooseSeat(_), Term::ChooseSeat(_), R::BurnAllocatedChosenGains(g)) => {
+            vec![n(g as i32, chosen(EffectKind::Pool))]
+        }
+        // The chosen gives the pool allocated to the others.
+        (Choice::ChooseSeat(_), Term::ChooseSeat(_), R::MoveAllocatedFromChosen) => {
+            vec![Effect {
+                detail: Some("allocated".into()),
+                ..chosen(EffectKind::Pool)
+            }]
+        }
+        (Choice::ChooseSeat(_), Term::ChooseSeat(_), R::ChosenTakesChosenCard) => {
+            vec![chosen(EffectKind::Steal)]
+        }
+        (Choice::ChooseCard(_), _, R::ChosenTakesChosenCard) => vec![Effect {
+            on: Some(On::Card),
+            ..Effect::new(EffectKind::Steal)
+        }],
+        (Choice::ChooseSeat(_), Term::ChooseSeats { .. }, R::BurnChosen { base, .. }) => {
+            vec![n(-(base as i32), chosen(EffectKind::Pool))]
+        }
+        (
+            Choice::AllocateTo { n: a, .. },
+            _,
+            R::BurnAllocated | R::BurnAllocatedChosenGains(_) | R::LockChosenBurnAllocated,
+        ) => vec![n(-(a as i32), Effect::new(EffectKind::Pool))],
+        // Pool moved from the chosen Methuselah to the one allocated to.
+        (Choice::AllocateTo { n: a, .. }, _, R::MoveAllocatedFromChosen) => vec![
+            n(a as i32, Effect::new(EffectKind::Pool)),
+            Effect {
+                seat: r.terms.chosen.map(|s| s.0),
+                ..n(-(a as i32), chosen(EffectKind::Pool))
+            },
+        ],
+        (Choice::AllocateToCard { n: a, .. }, _, R::LockChosenBurnAllocated) if a > 0 => {
+            vec![Effect {
+                on: Some(On::Target),
+                ..Effect::new(EffectKind::Burn)
+            }]
+        }
+        (Choice::ChooseMinion(_), _, R::Banish) => vec![Effect {
+            to: Some(Zone::Removed),
+            ..chosen(EffectKind::Move)
+        }],
+        (Choice::ChooseMinion(_), _, R::Expel) => vec![Effect {
+            role: Some(Role::Expelled),
+            ..chosen(EffectKind::Role)
+        }],
+        // The political action card put on the chosen.
+        (Choice::ChooseMinion(_), _, R::PutOnChosen) => vec![Effect {
+            card: x
+                .e
+                .action()
+                .and_then(|a| a.card.as_ref())
+                .map(|p| LIBRARY[p.card as usize].id),
+            ..chosen(EffectKind::Move)
+        }],
+        (Choice::ChooseMinion(_), _, R::LockChosenBurnAllocated) => {
+            vec![chosen(EffectKind::Lock)]
+        }
+        _ => Vec::new(),
     }
 }
 

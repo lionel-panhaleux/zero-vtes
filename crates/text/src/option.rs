@@ -2,8 +2,8 @@
 //! effects, the window it is offered in and the names the client knows.
 //! `None`: a kind not rendered yet (A7 ratchets kind by kind).
 
-use zvtes_api::ids::{ActionKind, OptionKind as K, Purpose, Window, Zone};
-use zvtes_api::option::{EffectKind, Mode, OptionView};
+use zvtes_api::ids::{ActionKind, OptionKind as K, Purpose, Role, Window, Zone};
+use zvtes_api::option::{EffectKind, Mode, On, OptionView};
 use zvtes_api::view::Target;
 
 use crate::effect::{label, parts};
@@ -51,8 +51,31 @@ fn base(
     let votes = |f: Option<bool>| if f == Some(true) { "for" } else { "against" };
     Some(match k.kind {
         K::Pass if window == Window::ActionBlock => block_pass(seat, n).into(),
+        // A cost's terms: the pass reduces nothing.
+        K::Pass
+            if window == Window::PlayTerms
+                && offered
+                    .iter()
+                    .flat_map(|o| &o.effects)
+                    .any(|e| e.cost || e.kind == EffectKind::Cost) =>
+        {
+            "No reduction".into()
+        }
+        K::Pass
+            if matches!(
+                window,
+                Window::PlayTerms
+                    | Window::RiderTerms
+                    | Window::ActionTerms
+                    | Window::ReferendumTerms
+            ) =>
+        {
+            "Pass".into()
+        }
         K::Pass => pass(window)?.into(),
         K::EdgePool => "Gain 1 pool (the Edge)".into(),
+        K::ResolveRider => format!("Resolve {}", n.own(k.card.as_ref()?.copy?)),
+        K::BurnInPlay => format!("Burn {}", n.copy_bare(k.card.as_ref()?.copy?)),
         K::Transfer => format!("Transfer 1 pool to {}", target()),
         K::Withdraw => format!("Move 1 blood from {} back to pool", target()),
         K::InfluenceOut => format!("Influence out {}", target()),
@@ -106,8 +129,57 @@ fn base(
         }
         K::PayRescue => format!("The rescuer pays {} blood", k.amount?),
         K::SetX => amount(o, n)?,
-        // A referendum's terms: who gets what (roles), not told yet.
-        K::ChooseSeat | K::ChooseMinion if window == Window::ReferendumTerms => return None,
+        // A referendum's terms: what the chosen gets, when they choose
+        // several of a kind.
+        K::ChooseSeat | K::ChooseMinion if window == Window::ReferendumTerms => {
+            let name = match k.kind {
+                K::ChooseSeat => target(),
+                _ => minion(k.minion),
+            };
+            match chosen_role(o) {
+                Some(r) => format!("Choose {name} ({r})"),
+                None => format!("Choose {name}"),
+            }
+        }
+        K::AllocateTo if window == Window::Distribution => {
+            format!("{} to your pool", k.amount?)
+        }
+        K::AllocateTo => allocate(o, n)?,
+        K::CastVotes => {
+            let mut s = format!("{}'s votes {}", minion(k.minion), votes(k.favor));
+            let cast = |prisci: bool| {
+                o.effects.iter().find(|e| {
+                    e.kind == EffectKind::Votes
+                        && (e.detail.as_deref() == Some("prisci_ballot")) == prisci
+                })
+            };
+            if let Some(v) = cast(false) {
+                s += &format!(" ({})", v.n?);
+            }
+            // A priscus casts its prisci ballot too (rules-qa 52.9).
+            match cast(true).and_then(|b| b.n) {
+                None => {}
+                Some(1) => s += " and a prisci ballot",
+                Some(b) => s += &format!(" and {b} prisci ballots"),
+            }
+            s
+        }
+        K::CastCardVote => {
+            let v = o.effects.iter().find(|e| e.kind == EffectKind::Votes)?;
+            match v.on {
+                Some(On::Card) => format!("The political action card's vote {}", votes(k.favor)),
+                // Business Pressure's round.
+                _ => format!("The {} votes {}", v.n?, votes(k.favor)),
+            }
+        }
+        K::ChooseMinion
+            if window == Window::PlayTerms
+                && o.effects
+                    .iter()
+                    .any(|e| e.cost && e.kind == EffectKind::Blood) =>
+        {
+            format!("Choose {} (pays 1 of the cost in blood)", minion(k.minion))
+        }
         K::ChooseMinion if window == Window::Distribution => {
             format!("1 blood to {}", minion(k.minion))
         }
@@ -306,6 +378,59 @@ fn asked(
         // The rest reads as anywhere.
         _ => base?,
     })
+}
+
+/// What a chosen Methuselah or minion gets in a referendum's terms.
+fn chosen_role(o: &OptionView) -> Option<String> {
+    let e = o.effects.iter().find(|e| e.on == Some(On::Chosen))?;
+    Some(match e.kind {
+        EffectKind::Pool if e.detail.as_deref() == Some("allocated") => "gives the pool".into(),
+        EffectKind::Pool if e.n? > 0 => format!("gains {} pool", e.n?),
+        EffectKind::Pool => "burns pool".into(),
+        EffectKind::Steal => "takes control of the card".into(),
+        EffectKind::Move if e.to == Some(Zone::Removed) => "banished".into(),
+        EffectKind::Move => "gets the card".into(),
+        EffectKind::Role if e.role == Some(Role::Expelled) => {
+            "no reactions, blocks or votes this turn".into()
+        }
+        EffectKind::Lock => "locked".into(),
+        _ => return None,
+    })
+}
+
+/// Points allocated to a Methuselah in a referendum's terms: what they do,
+/// and who is allocated to next (the last gets the rest).
+fn allocate(o: &OptionView, n: &Names) -> Option<String> {
+    let k = &o.key;
+    let a = k.amount?;
+    let Some(Target::Seat { seat }) = k.target else {
+        return None;
+    };
+    let pool = |chosen: bool| {
+        o.effects
+            .iter()
+            .find(|e| e.kind == EffectKind::Pool && (e.on == Some(On::Chosen)) == chosen)
+    };
+    let role = match (pool(false), pool(true)) {
+        (Some(_), Some(from)) => {
+            let who = from
+                .seat
+                .map_or_else(|| "the chosen Methuselah".into(), |s| n.seat(s));
+            format!(" (gains {a} pool from {who})")
+        }
+        (Some(_), None) => format!(" (burns {a} pool)"),
+        _ => String::new(),
+    };
+    let next: Vec<String> = n
+        .referendum()
+        .map(|r| r.terms.pending.iter().skip(1).map(|&s| n.seat(s)).collect())
+        .unwrap_or_default();
+    let rest = match next.as_slice() {
+        [] => String::new(),
+        [last] => format!(" — the rest goes to {last}"),
+        more => format!(" — then {}", more.join(", ")),
+    };
+    Some(format!("Allocate {a} to {}{role}{rest}", n.seat(seat)))
 }
 
 /// An amount chosen (`set_x`), by what it does.

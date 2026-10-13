@@ -1000,7 +1000,7 @@ export type ReferendumView = {
  * What a chosen minion or Methuselah becomes for the card choosing it
  * (completed with the host, A3).
  */
-export type Role = 'does_not_unlock' | 'unblockable_non_bleed' | 'chosen' | 'anarch' | 'unknown'
+export type Role = 'does_not_unlock' | 'unblockable_non_bleed' | 'chosen' | 'anarch' | 'expelled' | 'unknown'
 
 export type SeatInfo = {
     /** The bot profile; absent for a human. */
@@ -1159,6 +1159,11 @@ export type Terms = {
     cards?: number[]
     /** Snake_case clan id. */
     clan?: string | null
+    /**
+     * The Methuselahs points are still to be allocated to, in order: the
+     * first is allocated to now, the last gets the rest.
+     */
+    pending?: number[]
     seats?: number[]
 }
 

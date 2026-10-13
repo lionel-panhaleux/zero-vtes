@@ -550,6 +550,8 @@ ids!(
         Chosen,
         /// Becomes Anarch (Gilbert Duane, Anarch Convert).
         Anarch,
+        /// No reactions, blocks or votes this turn (Expel).
+        Expelled,
     }
 );
 

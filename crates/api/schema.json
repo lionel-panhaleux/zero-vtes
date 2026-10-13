@@ -3614,6 +3614,11 @@
           "const": "anarch"
         },
         {
+          "description": "No reactions, blocks or votes this turn (Expel).",
+          "type": "string",
+          "const": "expelled"
+        },
+        {
           "description": "A value this reader does not know.",
           "type": "string",
           "const": "unknown"
@@ -4297,6 +4302,16 @@
             "string",
             "null"
           ]
+        },
+        "pending": {
+          "description": "The Methuselahs points are still to be allocated to, in order: the\nfirst is allocated to now, the last gets the rest.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0
+          }
         },
         "seats": {
           "type": "array",
