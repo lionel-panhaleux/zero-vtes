@@ -284,8 +284,8 @@ fn a_card_held_while_in_play_counts_against_the_hand_size() {
     e.state.seats[0].held_in_play.push(id);
     let size = e.state.hand_size(SeatId(0));
     let mist = find_library("Form of Mist");
-    e.state.seats[0].hand = vec![mist; size];
-    e.state.seats[0].library = vec![find_library("AK-47"); 5];
+    e.state.seats[0].hand = vec![mist; size].into();
+    e.state.seats[0].library = vec![find_library("AK-47"); 5].into();
     // All alike: the one discard-down choice applies by itself.
     request(&mut e);
     assert_eq!(e.state.seats[0].hand.len(), size - 1);

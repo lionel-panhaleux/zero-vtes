@@ -84,8 +84,8 @@ impl Start {
         let (mut e, _) = self.read(at);
         let mut rng = Rng::new(seed);
         for s in &mut e.state.seats {
-            rng.shuffle(&mut s.library);
-            rng.shuffle(&mut s.crypt);
+            s.library.shuffle(&mut rng);
+            s.crypt.shuffle(&mut rng);
         }
         e.time_limit = time_limit.max(e.state.turn + 20);
         e

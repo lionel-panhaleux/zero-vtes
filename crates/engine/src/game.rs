@@ -6,6 +6,7 @@
 use crate::actions::ActionCtx;
 use crate::cards::{self, Hook, PlayCtx};
 use crate::combat::CombatCtx;
+use crate::copies::{CopyCounter, Untracked};
 use crate::crypt::PRECONS;
 use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use crate::decks::{expand, CardList, Deck};
@@ -305,13 +306,14 @@ impl Engine {
     pub fn new(seed: u64, n_seats: usize) -> Self {
         assert!((2..=6).contains(&n_seats));
         let mut rng = Rng::new(seed);
+        let mut copies = CopyCounter::default();
         let seats = (0..n_seats)
             .map(|_| {
                 let precon = rng.below(PRECONS.len());
-                Self::seat_from(&mut rng, &Deck::precon(precon))
+                Self::seat_from(&mut rng, &mut copies, &Deck::precon(precon))
             })
             .collect();
-        Self::from_seats(rng, seats)
+        Self::from_seats(rng, copies, seats)
     }
 
     /// A new game with these decks, one per seat in seating order: each
@@ -329,30 +331,44 @@ impl Engine {
     pub fn with_lists(seed: u64, lists: &[(CardList, CardList)]) -> Self {
         assert!((2..=6).contains(&lists.len()));
         let mut rng = Rng::new(seed);
+        let mut copies = CopyCounter::default();
         let seats = lists
             .iter()
             .map(|&(crypt, library)| {
-                Self::seat_from_lists(&mut rng, expand(crypt), expand(library))
+                Self::seat_from_lists(&mut rng, &mut copies, expand(crypt), expand(library))
             })
             .collect();
-        Self::from_seats(rng, seats)
+        Self::from_seats(rng, copies, seats)
     }
 
-    fn seat_from(rng: &mut Rng, deck: &Deck) -> Seat {
-        Self::seat_from_lists(rng, deck.crypt_cards(), deck.library_cards())
+    fn seat_from(rng: &mut Rng, copies: &mut CopyCounter, deck: &Deck) -> Seat {
+        Self::seat_from_lists(rng, copies, deck.crypt_cards(), deck.library_cards())
     }
 
-    fn seat_from_lists(rng: &mut Rng, mut crypt: Vec<u16>, mut library: Vec<u16>) -> Seat {
-        rng.shuffle(&mut crypt);
+    /// A seat dealt from its decklists: copies numbered in the lists'
+    /// order (`copies`), then crypt and library shuffled.
+    fn seat_from_lists(
+        rng: &mut Rng,
+        copies: &mut CopyCounter,
+        crypt: Vec<u16>,
+        library: Vec<u16>,
+    ) -> Seat {
+        let mut crypt = copies.number(crypt);
+        let mut library = copies.number(library);
+        crypt.shuffle(rng);
         let uncontrolled = (0..UNCONTROLLED_START)
-            .map(|_| UncontrolledSlot {
-                card: crypt.pop().expect("crypt larger than initial draw"),
-                counters: 0,
-                banished: None,
+            .map(|_| {
+                let (card, copy) = crypt.take_top().expect("crypt larger than initial draw");
+                UncontrolledSlot {
+                    card,
+                    copy: Untracked(copy),
+                    counters: 0,
+                    banished: None,
+                }
             })
             .collect();
-        rng.shuffle(&mut library);
-        let hand = library.split_off(library.len() - HAND_SIZE);
+        library.shuffle(rng);
+        let hand = library.take_from(library.len() - HAND_SIZE);
         Seat {
             pool: START_POOL,
             crypt,
@@ -363,10 +379,11 @@ impl Engine {
         }
     }
 
-    fn from_seats(rng: Rng, seats: Vec<Seat>) -> Self {
+    fn from_seats(rng: Rng, copies: CopyCounter, seats: Vec<Seat>) -> Self {
         let mut engine = Self {
             state: GameState {
                 seats,
+                copy_counter: Untracked(copies),
                 ..Default::default()
             },
             log: Vec::new(),
@@ -432,7 +449,7 @@ impl Engine {
     /// As [`Engine::add_ally`], in the version of `mode` (its superior
     /// version with 1).
     pub fn add_ally_version(&mut self, owner: SeatId, card: u16, mode: u8) -> MinionId {
-        let m = self.recruit_ally(owner, card, mode);
+        let m = self.recruit_ally(owner, card, crate::copies::CopyId::NONE, mode);
         self.state.minions[m.index()].recruited = false;
         m
     }
@@ -906,8 +923,8 @@ impl Engine {
                 unreachable!("illegal discard-down choice {choice:?}");
             };
             let seat = &mut self.state.seats[s.index()];
-            let card = seat.hand.remove(*i as usize);
-            seat.ash.push(card);
+            let (card, copy) = seat.hand.take(*i as usize);
+            seat.ash.put(card, copy);
             return;
         }
         let flow = std::mem::replace(&mut self.flow, Flow::GameOver);
@@ -1297,16 +1314,19 @@ impl Engine {
                     self.state.seats[owner.index()].uncontrolled.push(
                         crate::state::UncontrolledSlot {
                             card,
+                            copy: v.copy,
                             counters: 0,
                             banished: None,
                         },
                     );
                     self.state.seats[controller.index()].transfers_next += n as u8;
                 } else {
-                    self.state.seats[owner.index()].ash_crypt.push(card);
+                    self.state.seats[owner.index()].ash_crypt.put(card, *v.copy);
                     // Merged: both cards (rulebook "Advanced").
                     if let Some(base) = v.merged {
-                        self.state.seats[owner.index()].ash_crypt.push(base);
+                        self.state.seats[owner.index()]
+                            .ash_crypt
+                            .put(base, *v.merged_copy);
                     }
                 }
             }
@@ -1314,7 +1334,7 @@ impl Engine {
             // (LSJ 20090920).
             if let crate::state::MinionKind::Token { card, .. } = v.kind {
                 let owner = v.origin.or(v.temp_from).unwrap_or(v.owner);
-                self.state.seats[owner.index()].removed.push(card);
+                self.state.seats[owner.index()].removed.put(card, *v.copy);
             }
         }
         // The cards on it, and an ally's own card, to their owners' ash
@@ -1401,19 +1421,20 @@ impl Engine {
     /// otherwise, or with no crypt left, the card goes to their
     /// uncontrolled region and the Gem burns.
     fn soul_gem(&mut self, g: CardId, seat: SeatId, cap: u8) {
-        let drawn = self.state.seats[seat.index()].crypt.pop();
+        let drawn = self.state.seats[seat.index()].crypt.take_top();
         // A copy of a vampire already theirs: it burns as it would enter,
         // and the Gem draws again against it (RTR 20010710; 58.19).
-        if let Some(card) = drawn.filter(|&c| {
+        if let Some((card, copy)) = drawn.filter(|&(c, _)| {
             crate::crypt::CRYPT[c as usize].capacity < cap && self.state.controls_copy(seat, c)
         }) {
-            self.state.seats[seat.index()].ash_crypt.push(card);
+            self.state.seats[seat.index()].ash_crypt.put(card, copy);
             return self.soul_gem(g, seat, crate::crypt::CRYPT[card as usize].capacity);
         }
         match drawn {
-            Some(card) if crate::crypt::CRYPT[card as usize].capacity < cap => {
+            Some((card, copy)) if crate::crypt::CRYPT[card as usize].capacity < cap => {
                 let capacity = crate::crypt::CRYPT[card as usize].capacity;
                 let v = self.add_minion(seat, card, capacity, false);
+                self.state.minions[v.index()].copy = Untracked(copy);
                 self.state.cards[g.index()].host = Some(v);
                 if self.state.sect_of(v) == Some(crate::crypt::Sect::Anarch) {
                     self.anarch_arrives(seat);
@@ -1421,10 +1442,11 @@ impl Engine {
                 self.stage_contests(v);
             }
             other => {
-                if let Some(card) = other {
+                if let Some((card, copy)) = other {
                     self.state.seats[seat.index()].uncontrolled.push(
                         crate::state::UncontrolledSlot {
                             card,
+                            copy: Untracked(copy),
                             counters: 0,
                             banished: None,
                         },
@@ -1571,7 +1593,7 @@ impl Engine {
         }
         c.in_play = false;
         let removed = removed || c.removed_when_burned;
-        let (owner, card) = (c.owner, c.card);
+        let (owner, card, copy) = (c.owner, c.card, *c.copy);
         let stored = std::mem::take(&mut c.stored);
         // The Erciyes Fragments: the card on it burns to its owner's.
         let stored_to = c.stored_owner.unwrap_or(owner);
@@ -1593,13 +1615,13 @@ impl Engine {
         if !self.state.cards[id.index()].effect_only {
             let seat = &mut self.state.seats[owner.index()];
             if removed {
-                seat.removed.push(card);
+                seat.removed.put(card, copy);
             } else {
-                seat.ash.push(card);
+                seat.ash.put(card, copy);
             }
         }
         if !self.state.cards[id.index()].effect_only {
-            self.state.seats[stored_to.index()].ash.extend(stored);
+            self.state.seats[stored_to.index()].ash.put_all(stored);
         }
         self.state
             .layers
@@ -1621,7 +1643,8 @@ impl Engine {
                     let v = &mut self.state.minions[i];
                     v.in_play = false;
                     v.blood = 0;
-                    self.state.seats[owner.index()].removed.push(t);
+                    let copy = *v.copy;
+                    self.state.seats[owner.index()].removed.put(t, copy);
                     for ci in 0..self.state.cards.len() {
                         if self.state.cards[ci].host == Some(MinionId(i as u32)) {
                             self.burn_card_in_play(CardId(ci as u32));
@@ -1640,13 +1663,14 @@ impl Engine {
             return;
         }
         c.in_play = false;
-        let (owner, card) = (c.owner, c.card);
+        let (owner, card, copy) = (c.owner, c.card, *c.copy);
         let stored = std::mem::take(&mut c.stored);
         let seat = &mut self.state.seats[owner.index()];
-        seat.ash.extend(stored);
-        seat.library.push(card);
-        self.rng
-            .shuffle(&mut self.state.seats[owner.index()].library);
+        seat.ash.put_all(stored);
+        seat.library.put(card, copy);
+        self.state.seats[owner.index()]
+            .library
+            .shuffle(&mut self.rng);
         self.state
             .layers
             .retain(|l| l.scope == crate::cards::Scope::Action || l.source != id);
@@ -1777,9 +1801,10 @@ impl Engine {
                         cards::Effect::BurnHostCryptTopOut => {
                             self.burn_minion(m);
                             let seat = &mut self.state.seats[s.index()];
-                            if let Some(card) = seat.crypt.pop() {
+                            if let Some((card, copy)) = seat.crypt.take_top() {
                                 seat.uncontrolled.push(crate::state::UncontrolledSlot {
                                     card,
+                                    copy: Untracked(copy),
                                     counters: 0,
                                     banished: None,
                                 });
@@ -2105,18 +2130,18 @@ impl Engine {
                 continue;
             }
             if self.state.card_controller(id) == s {
-                let (owner, card, effect_only) = (c.owner, c.card, c.effect_only);
+                let (owner, card, copy, effect_only) = (c.owner, c.card, *c.copy, c.effect_only);
                 self.state.cards[ci].in_play = false;
                 // A lingering effect's card is already in the ash heap.
                 if owner != s && !effect_only {
-                    self.state.seats[owner.index()].removed.push(card);
+                    self.state.seats[owner.index()].removed.put(card, copy);
                 }
                 // Another Methuselah's cards on it (The Erciyes Fragments)
                 // burn to their owner's ash heap, as the cards on a
                 // removed minion (owner, 2026-09-06; rules-qa 67.1).
                 let stored = std::mem::take(&mut self.state.cards[ci].stored);
                 match self.state.cards[ci].stored_owner {
-                    Some(o) if o != s => self.state.seats[o.index()].ash.extend(stored),
+                    Some(o) if o != s => self.state.seats[o.index()].ash.put_all(stored),
                     _ => {}
                 }
                 // Absimiliard's Army: the other Methuselahs' ghouls too.
@@ -2617,7 +2642,7 @@ mod tests {
     #[test]
     fn crypt_draw_costs_four_transfers_and_one_pool() {
         let mut e = bare();
-        e.state.seats[0].crypt = vec![plain(2), find_card("Alice Chen")];
+        e.state.seats[0].crypt = vec![plain(2), find_card("Alice Chen")].into();
         e.state.turn = 4;
         pick(&mut e, Choice::Pass); // end minion phase: 4 transfers
         pick(&mut e, Choice::DrawCrypt);
@@ -2638,6 +2663,7 @@ mod tests {
         // copy cannot be moved out (no voluntary self-contest).
         e.state.seats[0].uncontrolled.push(UncontrolledSlot {
             card: plain(0),
+            copy: Default::default(),
             counters: CRYPT[plain(0) as usize].capacity,
             banished: None,
         });
@@ -2645,6 +2671,7 @@ mod tests {
         let cap = CRYPT[alice as usize].capacity;
         e.state.seats[0].uncontrolled.push(UncontrolledSlot {
             card: alice,
+            copy: Default::default(),
             counters: cap,
             banished: None,
         });
@@ -2682,6 +2709,7 @@ mod tests {
         let cap = CRYPT[alice as usize].capacity;
         e.state.seats[0].uncontrolled.push(UncontrolledSlot {
             card: alice,
+            copy: Default::default(),
             counters: cap,
             banished: None,
         });
@@ -2702,6 +2730,7 @@ mod tests {
         let mut e = bare();
         e.state.seats[1].uncontrolled.push(UncontrolledSlot {
             card: plain(1),
+            copy: Default::default(),
             counters: CRYPT[plain(1) as usize].capacity,
             banished: None,
         });

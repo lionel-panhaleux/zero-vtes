@@ -249,6 +249,7 @@ fn a_hermana_burns_two_blood_as_she_enters_play() {
                 .uncontrolled
                 .push(zvtes::state::UncontrolledSlot {
                     card: find_card(name),
+                    copy: Default::default(),
                     counters: capacity + 2,
                     banished: None,
                 });
@@ -295,11 +296,13 @@ fn hive_mind_unlocks_the_circle_or_feeds_it() {
     e.state.seats[0].uncontrolled = vec![
         zvtes::state::UncontrolledSlot {
             card: find_card("Hermana Hambrienta Menor"),
+            copy: Default::default(),
             counters: 0,
             banished: None,
         },
         zvtes::state::UncontrolledSlot {
             card: plain("Ventrue", 2),
+            copy: Default::default(),
             counters: 0,
             banished: None,
         },
@@ -376,7 +379,7 @@ fn as_announced_circle_modifiers_come_first() {
             "Deflection",
         ],
     );
-    e.state.seats[0].library = vec![find_library("Deflection")];
+    e.state.seats[0].library = vec![find_library("Deflection")].into();
     pick(&mut e, play(0, 0, a));
     let req = offering(&mut e, play(0, 0, a));
     assert_eq!(req.window, WindowLabel::ActionAsAnnounced);
@@ -817,11 +820,13 @@ fn unwholesome_bond_counts_the_circle() {
     e.state.seats[0].uncontrolled = vec![
         zvtes::state::UncontrolledSlot {
             card: find_card("Jack"),
+            copy: Default::default(),
             counters: 0,
             banished: None,
         },
         zvtes::state::UncontrolledSlot {
             card: find_card("Hermana Hambrienta Menor"),
+            copy: Default::default(),
             counters: 0,
             banished: None,
         },
@@ -856,11 +861,13 @@ fn unwholesome_bond_lets_new_blood_feed_a_circle_of_one() {
     e.state.seats[0].uncontrolled = vec![
         zvtes::state::UncontrolledSlot {
             card: nb,
+            copy: Default::default(),
             counters: 0,
             banished: None,
         },
         zvtes::state::UncontrolledSlot {
             card: nb,
+            copy: Default::default(),
             counters: 0,
             banished: None,
         },
@@ -1054,7 +1061,8 @@ fn danylo_fetches_a_location() {
         find_library("Deflection"),
         find_library("Channel 10"),
         find_library("Deflection"),
-    ];
+    ]
+    .into();
     let act = Choice::UseAbility {
         source: AbilitySource::Vampire(d),
         ability: 0,
@@ -2043,6 +2051,7 @@ fn new_blood_chooses_a_circle_or_keeps_his_own() {
             .uncontrolled
             .push(zvtes::state::UncontrolledSlot {
                 card: find_card("New Blood"),
+                copy: Default::default(),
                 counters: 4,
                 banished: None,
             });

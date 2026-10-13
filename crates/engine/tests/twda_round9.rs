@@ -787,6 +787,7 @@ fn lazar_moves_blood_between_uncontrolled_regions() {
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     let slot = |card| zvtes::state::UncontrolledSlot {
         card,
+        copy: Default::default(),
         counters: 2,
         banished: None,
     };
@@ -954,6 +955,7 @@ fn a_banished_embraced_vampire_can_be_influenced_again() {
         .uncontrolled
         .push(zvtes::state::UncontrolledSlot {
             card: zvtes::state::CREATED,
+            copy: Default::default(),
             counters: 1,
             banished: Some(zvtes::state::Banished {
                 minion: childe,
@@ -1381,6 +1383,7 @@ fn flames_of_insurrection_feeds_the_anarchs_uncontrolled_region() {
     in_play(&mut e, 1, "Flames of Insurrection", None);
     let slot = |card| zvtes::state::UncontrolledSlot {
         card,
+        copy: Default::default(),
         counters: 1,
         banished: None,
     };
@@ -1433,6 +1436,7 @@ fn appolonius_merges_in_the_influence_phase() {
         .uncontrolled
         .push(zvtes::state::UncontrolledSlot {
             card: adv,
+            copy: Default::default(),
             counters: 3,
             banished: None,
         });
@@ -1501,7 +1505,7 @@ fn legacy_merges_an_advanced_vampire_with_its_base() {
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     let d = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
-    e.state.seats[0].crypt = vec![plain("Brujah", 1), base, plain("Brujah", 2)];
+    e.state.seats[0].crypt = vec![plain("Brujah", 1), base, plain("Brujah", 2)].into();
     hand(&mut e, 0, &["Legacy"]);
     pick(&mut e, play(0, 0, ap));
     let req = until(&mut e, SeatId(0), WindowLabel::ResolutionChoice);

@@ -1141,7 +1141,7 @@ fn raptor_superior_takes_1_hand_size_from_the_opponent_while_in_combat() {
     // card).
     hand(&mut e, 1, &["Majesty"; 6]);
     hand(&mut e, 1, &["Villein"]);
-    e.state.seats[1].library = vec![find_library("Majesty"); 5];
+    e.state.seats[1].library = vec![find_library("Majesty"); 5].into();
     pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: z });
     let req = until(&mut e, SeatId(1), WindowLabel::DiscardDown);
@@ -1638,7 +1638,7 @@ fn libertas_does_not_tax_the_action_card_once_its_anarchs_block_failed() {
         .iter()
         .position(|c| c.disciplines == ["tha"])
         .unwrap() as u16;
-    e.state.seats[0].hand = vec![find_library("Far Mastery"), tha];
+    e.state.seats[0].hand = vec![find_library("Far Mastery"), tha].into();
     pick(&mut e, play_at(0, 1, abraham, Target::Minion(ally)));
     until(&mut e, SeatId(1), WindowLabel::ActionBlock);
     pick(&mut e, Choice::DeclareBlock { minion: a });
@@ -1757,8 +1757,8 @@ fn rotting_behemoth_removes_an_ally_or_vampire_from_the_ash_heap_or_burns() {
     let mut e = Engine::bare(3);
     e.add_minion(SeatId(0), plain("Hecata", 0), 4, false);
     let vamp = plain("Brujah", 0);
-    e.state.seats[0].ash = vec![find_library("Political Ally"), find_library("Majesty")];
-    e.state.seats[0].ash_crypt = vec![vamp];
+    e.state.seats[0].ash = vec![find_library("Political Ally"), find_library("Majesty")].into();
+    e.state.seats[0].ash_crypt = vec![vamp].into();
     let rb = e.add_ally(SeatId(0), find_library("Rotting Behemoth"));
     let req = expect(&mut e, SeatId(0), WindowLabel::EntryEffect);
     assert_eq!(
@@ -1778,7 +1778,7 @@ fn rotting_behemoth_removes_an_ally_or_vampire_from_the_ash_heap_or_burns() {
     // Declined: burned.
     let mut e = Engine::bare(3);
     e.add_minion(SeatId(0), plain("Hecata", 0), 4, false);
-    e.state.seats[0].ash = vec![find_library("Political Ally")];
+    e.state.seats[0].ash = vec![find_library("Political Ally")].into();
     let rb = e.add_ally(SeatId(0), find_library("Rotting Behemoth"));
     pick(&mut e, Choice::Pass);
     request(&mut e);
@@ -1810,7 +1810,7 @@ fn a_burned_vampire_goes_to_the_ash_heap() {
 fn rotting_behemoth_paying_its_last_life_for_its_rush_burns_without_combat() {
     let mut e = Engine::bare(3);
     e.add_minion(SeatId(0), plain("Hecata", 0), 4, false);
-    e.state.seats[0].ash = vec![find_library("Political Ally")];
+    e.state.seats[0].ash = vec![find_library("Political Ally")].into();
     let rb = e.add_ally(SeatId(0), find_library("Rotting Behemoth"));
     pick(&mut e, Choice::FindCard(find_library("Political Ally")));
     let id = e.state.minions[rb.index()].ally_id().unwrap();
@@ -1835,7 +1835,7 @@ fn rotting_behemoth_paying_its_last_life_for_its_rush_burns_without_combat() {
 fn rotting_behemoth_superior_burns_life_for_a_press_in_the_first_round() {
     let mut e = Engine::bare(3);
     e.add_minion(SeatId(0), plain("Hecata", 0), 4, false);
-    e.state.seats[0].ash = vec![find_library("Political Ally")];
+    e.state.seats[0].ash = vec![find_library("Political Ally")].into();
     let rb = e.add_ally_version(SeatId(0), find_library("Rotting Behemoth"), 1);
     pick(&mut e, Choice::FindCard(find_library("Political Ally")));
     let id = e.state.minions[rb.index()].ally_id().unwrap();

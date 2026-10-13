@@ -207,7 +207,7 @@ fn bums_rush_is_replaced_as_its_action_ends() {
             target: Target::Minion(x),
         },
     );
-    e.state.seats[0].library = vec![find_library("Bum's Rush"); 10];
+    e.state.seats[0].library = vec![find_library("Bum's Rush"); 10].into();
     // The blocker's Hidden Strength: a decision in the block's combat.
     hand(&mut e, 1, &["Hidden Strength"]);
     pick(&mut e, block(y));
@@ -383,7 +383,7 @@ fn lam_table(a_card: u16) -> (Engine, MinionId, MinionId) {
 fn lam_into_strikes_by_the_discipline_played() {
     let (mut e, a, x) = lam_table(anarch(&["pot"], &["for", "vic"]));
     let femur = equip(&mut e, "Femur of Toomler", a);
-    e.state.seats[0].library = vec![find_library("Lam Into"); 10];
+    e.state.seats[0].library = vec![find_library("Lam Into"); 10].into();
     pick(&mut e, bleed(a));
     pick(&mut e, block(x));
     let req = until(&mut e, SeatId(0), WindowLabel::CombatStrike);
@@ -691,6 +691,7 @@ fn convert_table() -> (Engine, MinionId) {
         .uncontrolled
         .push(zvtes::state::UncontrolledSlot {
             card: find_card("Anarch Convert"),
+            copy: Default::default(),
             counters: 1,
             banished: None,
         });
@@ -1552,6 +1553,7 @@ fn hackerspace_counts_anarchs_arriving() {
         .uncontrolled
         .push(zvtes::state::UncontrolledSlot {
             card: find_card("Anarch Convert"),
+            copy: Default::default(),
             counters: 1,
             banished: None,
         });
@@ -1709,6 +1711,7 @@ fn valkyrie_is_non_unique() {
         .uncontrolled
         .push(zvtes::state::UncontrolledSlot {
             card: find_card("Valkyrie"),
+            copy: Default::default(),
             counters: 4,
             banished: None,
         });
@@ -1771,7 +1774,7 @@ fn aksinya_daclau_redirects_a_bleed_once_each_turn() {
     let aksinya = e.add_minion(SeatId(1), find_card("Aksinya Daclau"), 4, false);
     e.add_minion(SeatId(2), plain("Ventrue", 0), 4, false);
     hand(&mut e, 1, &["Auspex", "Auspex"]);
-    e.state.seats[1].library = vec![find_library("Trap")];
+    e.state.seats[1].library = vec![find_library("Trap")].into();
     let redirect = host_ability(aksinya, 0, Target::Seat(SeatId(2)));
     pick(&mut e, bleed(a));
     let req = to_window(&mut e, SeatId(1), WindowLabel::ActionBlocksDeclined);
@@ -2013,6 +2016,7 @@ fn mary_anne_blaire_feeds_the_uncontrolled_and_weakens_the_inner_circle() {
         .uncontrolled
         .push(zvtes::state::UncontrolledSlot {
             card: plain("Ventrue", 0),
+            copy: Default::default(),
             counters: 1,
             banished: None,
         });
@@ -2445,7 +2449,7 @@ fn victor_donaldson_shuffles_a_canceled_golconda_back() {
     hand(&mut e, 0, &["Golconda: Inner Peace"]);
     fill_hand(&mut e, 0);
     // Its replacement drawn: the hand is full as the card is shuffled back.
-    e.state.seats[0].library = vec![find_library("Form of Mist")];
+    e.state.seats[0].library = vec![find_library("Form of Mist")].into();
     e.at_master_phase();
     pick(
         &mut e,
@@ -2736,6 +2740,7 @@ fn jimmy_dunn_burns_the_first_instead_of_contesting() {
         .uncontrolled
         .push(zvtes::state::UncontrolledSlot {
             card: jimmy,
+            copy: Default::default(),
             counters: 4,
             banished: None,
         });
@@ -2765,6 +2770,7 @@ fn malgorzata_feeds_one_uncontrolled_vampire_with_another() {
             .uncontrolled
             .push(zvtes::state::UncontrolledSlot {
                 card,
+                copy: Default::default(),
                 counters: 1,
                 banished: None,
             });
@@ -2807,6 +2813,7 @@ fn street_cred_feeds_a_younger_uncontrolled_vampire() {
         .uncontrolled
         .push(zvtes::state::UncontrolledSlot {
             card: young,
+            copy: Default::default(),
             counters: 1,
             banished: None,
         });
@@ -3028,7 +3035,7 @@ fn the_sargon_fragment_takes_back_a_named_card() {
     let frag = in_play(&mut e, 0, "Sargon Fragment, The", Some(v));
     assert!(e.state.has_discipline(v, "NEC"));
     let rush = find_library("Bum's Rush");
-    e.state.seats[0].ash = vec![rush, find_library("Trap")];
+    e.state.seats[0].ash = vec![rush, find_library("Trap")].into();
     pick(&mut e, use_at(frag, 0, Some(v), Target::None));
     pick_when(&mut e, Choice::FindCard(rush));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
@@ -3061,7 +3068,7 @@ fn the_soul_gem_brings_a_younger_vampire_out() {
     let v = e.add_minion(SeatId(0), big, 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
     let gem = in_play(&mut e, 0, "Soul Gem of Etrius", Some(v));
-    e.state.seats[0].crypt = vec![young];
+    e.state.seats[0].crypt = vec![young].into();
     e.burn(v);
     let host = e.state.cards[gem.index()].host.expect("on the new vampire");
     assert_eq!(e.state.minions[host.index()].crypt_card(), Some(young));
@@ -3071,7 +3078,7 @@ fn the_soul_gem_brings_a_younger_vampire_out() {
     let v = e.add_minion(SeatId(0), young, 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
     let gem = in_play(&mut e, 0, "Soul Gem of Etrius", Some(v));
-    e.state.seats[0].crypt = vec![big];
+    e.state.seats[0].crypt = vec![big].into();
     e.burn(v);
     assert!(!e.state.cards[gem.index()].in_play);
     assert_eq!(e.state.seats[0].uncontrolled[0].card, big);
@@ -3081,7 +3088,7 @@ fn the_soul_gem_brings_a_younger_vampire_out() {
     e.add_minion(SeatId(0), young, 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
     let gem = in_play(&mut e, 0, "Soul Gem of Etrius", Some(v));
-    e.state.seats[0].crypt = vec![other, young];
+    e.state.seats[0].crypt = vec![other, young].into();
     e.burn(v);
     let host = e.state.cards[gem.index()]
         .host
@@ -3114,7 +3121,7 @@ fn the_erciyes_fragments_play_a_card_from_the_preys_ash_heap() {
     let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     let frag = in_play(&mut e, 0, "Erciyes Fragments, The", None);
     let rush = find_library("Bum's Rush");
-    e.state.seats[1].ash = vec![rush];
+    e.state.seats[1].ash = vec![rush].into();
     pick(&mut e, use_at(frag, 0, None, Target::None));
     request(&mut e);
     assert_eq!(e.state.cards[frag.index()].stored, vec![rush]);
@@ -3149,7 +3156,7 @@ fn the_erciyes_fragments_card_returns_to_its_owner_when_its_controller_is_ousted
     let v = e.add_minion(SeatId(2), plain("Ventrue", 1), 4, false);
     let frag = in_play(&mut e, 0, "Erciyes Fragments, The", None);
     let rush = find_library("Bum's Rush");
-    e.state.cards[frag.index()].stored = vec![rush];
+    e.state.cards[frag.index()].stored = vec![rush].into();
     e.state.cards[frag.index()].stored_owner = Some(SeatId(1));
     e.state.seats[0].pool = 1;
     until(&mut e, SeatId(2), WindowLabel::MinionPhase);
@@ -3329,7 +3336,7 @@ fn the_soul_gem_ignores_a_removal_and_suits_the_beast() {
     let v = e.add_minion(SeatId(1), big, 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
     let gem = in_play(&mut e, 1, "Soul Gem of Etrius", Some(v));
-    e.state.seats[1].crypt = vec![plain("Ventrue", 0)];
+    e.state.seats[1].crypt = vec![plain("Ventrue", 0)].into();
     hand(&mut e, 0, &["Golconda: Inner Peace"]);
     e.at_master_phase();
     pick(
@@ -3351,7 +3358,7 @@ fn the_soul_gem_ignores_a_removal_and_suits_the_beast() {
     e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
     let gem = in_play(&mut e, 0, "Soul Gem of Etrius", Some(v));
     let beast = find_card("Beast, The Leatherface of Detroit");
-    e.state.seats[0].crypt = vec![beast];
+    e.state.seats[0].crypt = vec![beast].into();
     e.burn(v);
     let host = e.state.cards[gem.index()].host.expect("on the Beast");
     assert_eq!(e.state.minions[host.index()].crypt_card(), Some(beast));
@@ -3369,7 +3376,7 @@ fn the_sargon_fragment_action_fizzles_once_detached() {
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     let frag = in_play(&mut e, 0, "Sargon Fragment, The", Some(v));
     let rush = find_library("Bum's Rush");
-    e.state.seats[0].ash = vec![rush];
+    e.state.seats[0].ash = vec![rush].into();
     pick(&mut e, use_at(frag, 0, Some(v), Target::None));
     request(&mut e);
     e.state.cards[frag.index()].host = Some(w);
@@ -3433,7 +3440,7 @@ fn the_erciyes_fragments_card_is_not_in_hand() {
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     let x = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     let frag = in_play(&mut e, 0, "Erciyes Fragments, The", None);
-    e.state.cards[frag.index()].stored = vec![find_library(".44 Magnum")];
+    e.state.cards[frag.index()].stored = vec![find_library(".44 Magnum")].into();
     hand(&mut e, 0, &["Disguised Weapon"]);
     pick(&mut e, bleed(a));
     pick_when(&mut e, block(x));
@@ -3487,12 +3494,13 @@ fn the_capuchin_influenced_out_draws_up_at_once() {
         .uncontrolled
         .push(zvtes::state::UncontrolledSlot {
             card: find_card("Capuchin, The"),
+            copy: Default::default(),
             counters: 11,
             banished: None,
         });
     let villein = find_library("Villein");
-    e.state.seats[0].hand = vec![villein; 7];
-    e.state.seats[0].library = vec![villein; 10];
+    e.state.seats[0].hand = vec![villein; 7].into();
+    e.state.seats[0].library = vec![villein; 10].into();
     to_window(&mut e, SeatId(0), WindowLabel::InfluenceTransfers);
     assert_eq!(e.state.seats[0].hand.len(), 7);
     pick(&mut e, Choice::InfluenceOut { slot: 0 });
@@ -3512,7 +3520,7 @@ fn the_capuchin_hand_stays_at_nine_through_a_play() {
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     hand(&mut e, 0, &["Dreams of the Sphinx"]);
     fill_hand(&mut e, 0);
-    e.state.seats[0].library = vec![find_library("Villein"); 10];
+    e.state.seats[0].library = vec![find_library("Villein"); 10].into();
     assert_eq!(e.state.seats[0].hand.len(), 9);
     e.at_master_phase();
     pick(&mut e, master_play(0));

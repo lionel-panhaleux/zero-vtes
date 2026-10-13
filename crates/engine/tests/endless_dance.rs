@@ -532,7 +532,8 @@ fn reinforcements_shuffles_ash_cards_back_and_leaves_the_game() {
         find_library("Awe"),
         find_library("Loup"),
         find_library("Majesty"),
-    ];
+    ]
+    .into();
     hand(&mut e, 0, &["Reinforcements"]);
     fill_hand(&mut e, 0);
     pick(&mut e, play(0, 0, francois));

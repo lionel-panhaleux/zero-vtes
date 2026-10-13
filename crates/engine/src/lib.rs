@@ -22,6 +22,7 @@ pub mod bots;
 pub mod cards;
 pub mod combat;
 pub mod contests;
+pub mod copies;
 pub mod crypt;
 pub mod decision;
 pub mod decks;

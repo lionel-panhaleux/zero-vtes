@@ -318,6 +318,7 @@ fn anarch_converts_passes_say_what_they_do() {
         .uncontrolled
         .push(zvtes::state::UncontrolledSlot {
             card: convert,
+            copy: Default::default(),
             counters: 1,
             banished: None,
         });
@@ -439,7 +440,7 @@ fn searches_and_picks_name_the_zone_they_take_from() {
     e.add_minion(SeatId(0), plain(|c| c.clan == "Brujah", 0), 4, false);
     e.add_minion(SeatId(1), plain(|c| c.clan == "Ventrue", 0), 4, false);
     let young = crypt("Nicomedes");
-    e.state.seats[0].crypt = vec![young];
+    e.state.seats[0].crypt = vec![young].into();
     e.state.seats[0].hand.push(library("Disciple of Lazarus"));
     let play = Choice::Play {
         card: 0,
@@ -461,6 +462,7 @@ fn searches_and_picks_name_the_zone_they_take_from() {
     e.add_minion(SeatId(1), plain(|c| c.clan == "Ventrue", 0), 4, false);
     let slot = |card, counters| zvtes::state::UncontrolledSlot {
         card,
+        copy: Default::default(),
         counters,
         banished: None,
     };

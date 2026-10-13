@@ -29,8 +29,11 @@ fn is_equipment(card: u16) -> bool {
 
 /// The play context of an equipment found in the library and equipped on
 /// `acting` (its only mode).
-fn found_play(seat: SeatId, acting: MinionId, card: u16) -> PlayCtx {
-    PlayCtx::new(seat, card, 0, Some(acting), Target::Minion(acting), 0)
+fn found_play(seat: SeatId, acting: MinionId, card: u16, copy: crate::copies::CopyId) -> PlayCtx {
+    PlayCtx {
+        copy: crate::copies::Untracked(copy),
+        ..PlayCtx::new(seat, card, 0, Some(acting), Target::Minion(acting), 0)
+    }
 }
 
 /// Rulebook "Resolve Any Block Attempts": A (no attempt), B (an attempt is
@@ -1678,8 +1681,8 @@ impl Engine {
     /// Burn the top `n` cards of `s`'s library.
     pub(crate) fn burn_library_top(&mut self, s: SeatId, n: u8) {
         for _ in 0..n {
-            if let Some(c) = self.state.seats[s.index()].library.pop() {
-                self.state.seats[s.index()].ash.push(c);
+            if let Some((c, copy)) = self.state.seats[s.index()].library.take_top() {
+                self.state.seats[s.index()].ash.put(c, copy);
             }
         }
     }
@@ -2382,9 +2385,10 @@ impl Engine {
                 a.window.play();
                 self.state.burn_blood(m, n);
                 let seat = &mut self.state.seats[seat.index()];
-                if let Some(card) = seat.crypt.pop() {
+                if let Some((card, copy)) = seat.crypt.take_top() {
                     seat.uncontrolled.push(crate::state::UncontrolledSlot {
                         card,
+                        copy: crate::copies::Untracked(copy),
                         counters: 0,
                         banished: None,
                     });
@@ -4364,7 +4368,7 @@ impl Engine {
                 self.state.minions[acting.index()].blood -= blood;
                 match a.kind {
                     ActionKind::Recruit => {
-                        self.recruit_ally(seat, play.card, play.mode);
+                        self.recruit_ally(seat, play.card, *play.copy, play.mode);
                         // "Unlock this vampire if this is their first
                         // successful recruit ally action this turn"
                         // (Spectral Servitor).
@@ -4463,11 +4467,12 @@ impl Engine {
                 // once found (rules-qa 38.5).
                 let library = &self.state.seats[seat.index()].library;
                 let found = library.iter().rposition(|&c| is_equipment(c));
-                let found = found.map(|k| self.state.seats[seat.index()].library.remove(k));
-                self.rng
-                    .shuffle(&mut self.state.seats[seat.index()].library);
-                if let Some(card) = found {
-                    let ctx = found_play(seat, acting, card);
+                let found = found.map(|k| self.state.seats[seat.index()].library.take(k));
+                self.state.seats[seat.index()]
+                    .library
+                    .shuffle(&mut self.rng);
+                if let Some((card, copy)) = found {
+                    let ctx = found_play(seat, acting, card, copy);
                     if self.equip_requirements_met(acting, card)
                         && self.payable_with_potential(&ctx, true)
                     {
@@ -4484,7 +4489,7 @@ impl Engine {
                         }
                         return;
                     }
-                    self.state.seats[seat.index()].ash.push(card);
+                    self.state.seats[seat.index()].ash.put(card, copy);
                 }
             }
             ActionKind::EquipFrom => {
@@ -4918,10 +4923,10 @@ impl Engine {
                             let from_ash = s.ash.iter().position(|&c| c == ash);
                             let from_hand = s.hand.iter().position(|&c| c == held);
                             if let (Some(i), Some(j)) = (from_ash, from_hand) {
-                                s.ash.remove(i);
-                                s.hand.remove(j);
-                                s.ash.push(held);
-                                s.hand.push(ash);
+                                let (_, ash_copy) = s.ash.take(i);
+                                let (_, copy) = s.hand.take(j);
+                                s.ash.put(held, copy);
+                                s.hand.put(ash, ash_copy);
                             }
                         }
                         Effect::BloodToTarget(n) => {
@@ -5046,8 +5051,8 @@ impl Engine {
                             if let (true, Some(i)) =
                                 (on, named.and_then(|n| s.ash.iter().position(|&x| x == n)))
                             {
-                                let card = s.ash.remove(i);
-                                s.hand.push(card);
+                                let (card, copy) = s.ash.take(i);
+                                s.hand.put(card, copy);
                             }
                         }
                         // Malgorzata: both vampires still where they were
@@ -5060,7 +5065,7 @@ impl Engine {
                                 if i < slots.len() && t < slots.len() && slots[i].card == card {
                                     let s = &mut self.state.seats[seat.index()];
                                     let gone = s.uncontrolled.remove(i);
-                                    s.removed_crypt.push(gone.card);
+                                    s.removed_crypt.put(gone.card, *gone.copy);
                                     let t = if t > i { t - 1 } else { t };
                                     self.state.add_uncontrolled_blood(seat, t, n);
                                 }
@@ -5088,8 +5093,8 @@ impl Engine {
                             };
                             for _ in 0..2 {
                                 let i = ps.ash.iter().position(|&x| x == card).expect("copy");
-                                ps.ash.remove(i);
-                                ps.removed.push(card);
+                                let (_, copy) = ps.ash.take(i);
+                                ps.removed.put(card, copy);
                             }
                             let before = self.state.minions[acting.index()].blood;
                             let n = 1 + bonus + self.state.hunt_bonus(acting);
@@ -5454,11 +5459,17 @@ impl Engine {
                 && self.played_from_removing_store(play.from)
             {
                 let owner = self.played_card_owner(seat, play.from);
-                self.state.seats[owner.index()].removed.push(play.card);
+                self.state.seats[owner.index()]
+                    .removed
+                    .put(play.card, *play.copy);
             } else if cards::removed_once_played(play.card, play.mode) {
-                self.state.seats[seat.index()].removed.push(play.card);
+                self.state.seats[seat.index()]
+                    .removed
+                    .put(play.card, *play.copy);
             } else if !a.card_entered_play && !a.card_returned {
-                self.state.seats[seat.index()].ash.push(play.card);
+                self.state.seats[seat.index()]
+                    .ash
+                    .put(play.card, *play.copy);
             }
             // Canceled before resolution, the same action may be taken
             // again — not one blocked and continued before (ANK 20211015).
@@ -5605,7 +5616,13 @@ impl Engine {
     /// and its card in play, linked. A recruited ally cannot act this turn
     /// (rulebook "Recruit Ally"). A unique ally another Methuselah has is
     /// contested (rulebook "Contested Cards").
-    pub(crate) fn recruit_ally(&mut self, seat: SeatId, card: u16, mode: u8) -> MinionId {
+    pub(crate) fn recruit_ally(
+        &mut self,
+        seat: SeatId,
+        card: u16,
+        copy: crate::copies::CopyId,
+        mode: u8,
+    ) -> MinionId {
         // The version's type line: printed, or its superior mode's ("[ANI]
         // As above, but this ally has 2 life and 1 strength").
         let body = cards::lookup(card)
@@ -5629,7 +5646,7 @@ impl Engine {
         let m = MinionId(self.state.minions.len() as u32);
         let id = self.enter_play(CardInPlay {
             body: Some(m),
-            ..CardInPlay::new(card, seat, None, mode)
+            ..CardInPlay::entering(card, copy, seat, None, mode)
         });
         self.state.minions.push(crate::state::Minion {
             recruited: true,
@@ -5649,9 +5666,18 @@ impl Engine {
     /// Put the master card `card` on `m` without playing it (no cost, no
     /// requirement, nothing to cancel), its first mode's effects applying
     /// as it enters play (Childe of the Revolution's Discipline card).
-    pub(crate) fn put_on_minion(&mut self, seat: SeatId, card: u16, m: MinionId) {
+    pub(crate) fn put_on_minion(
+        &mut self,
+        seat: SeatId,
+        card: u16,
+        copy: crate::copies::CopyId,
+        m: MinionId,
+    ) {
         let def = cards::lookup(card).expect("a defined card");
-        let ctx = PlayCtx::new(seat, card, 0, None, Target::Minion(m), 0);
+        let ctx = PlayCtx {
+            copy: crate::copies::Untracked(copy),
+            ..PlayCtx::new(seat, card, 0, None, Target::Minion(m), 0)
+        };
         let mut in_play = None;
         for &e in def.modes[0].effects {
             self.apply_card_effect(e, &ctx, &mut in_play);
@@ -5702,7 +5728,7 @@ impl Engine {
         };
         let id = self.enter_play(CardInPlay {
             counters: life,
-            ..CardInPlay::new(play.card, seat, Some(acting), play.mode)
+            ..CardInPlay::entering(play.card, *play.copy, seat, Some(acting), play.mode)
         });
         let ctx = PlayCtx {
             target: Target::Minion(acting),
@@ -5775,8 +5801,13 @@ impl Engine {
             target: Target::Minion(acting),
             ..play
         };
-        let mut in_play =
-            Some(self.enter_play(CardInPlay::new(play.card, seat, Some(acting), play.mode)));
+        let mut in_play = Some(self.enter_play(CardInPlay::entering(
+            play.card,
+            *play.copy,
+            seat,
+            Some(acting),
+            play.mode,
+        )));
         for e in def.modes[play.mode as usize]
             .effects
             .iter()
@@ -5833,7 +5864,10 @@ impl Engine {
             // Payable with the reductions it could take once chosen
             // (rules-qa 38.5).
             self.equip_requirements_met(minion, c)
-                && self.payable_with_potential(&found_play(seat, minion, c), false)
+                && self.payable_with_potential(
+                    &found_play(seat, minion, c, crate::copies::CopyId::NONE),
+                    false,
+                )
         });
         let mut options = vec![Choice::Pass];
         options.extend(found.into_iter().map(Choice::FindCard));
@@ -5855,8 +5889,8 @@ impl Engine {
                     .iter()
                     .rposition(|&c| c == card)
                     .expect("found card in the library");
-                s.library.remove(k);
-                s.hand.push(card);
+                let (_, copy) = s.library.take(k);
+                s.hand.put(card, copy);
             }
             // Out of the library (shuffled afterward), then its cost: the
             // reductions announced for it first, if any apply (rules-qa
@@ -5867,10 +5901,11 @@ impl Engine {
                     .iter()
                     .rposition(|&c| c == card)
                     .expect("found card in the library");
-                library.remove(k);
-                self.rng
-                    .shuffle(&mut self.state.seats[seat.index()].library);
-                let ctx = found_play(seat, minion, card);
+                let (_, copy) = library.take(k);
+                self.state.seats[seat.index()]
+                    .library
+                    .shuffle(&mut self.rng);
+                let ctx = found_play(seat, minion, card, copy);
                 if !self.cost_choices(&ctx) {
                     self.equip_found(ctx);
                 } else {
@@ -5886,8 +5921,9 @@ impl Engine {
             Choice::Pass => {}
             other => unreachable!("illegal search choice {other:?}"),
         }
-        self.rng
-            .shuffle(&mut self.state.seats[seat.index()].library);
+        self.state.seats[seat.index()]
+            .library
+            .shuffle(&mut self.rng);
         self.after_resolution();
     }
 

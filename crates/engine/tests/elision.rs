@@ -177,7 +177,7 @@ fn public_of(e: &Engine, x: SeatId) -> (Vec<u16>, Vec<u16>, Vec<u16>) {
         .filter(|c| c.owner == x)
         .map(|c| c.card)
         .collect();
-    (s.ash.clone(), s.removed.clone(), in_play)
+    (s.ash.to_vec(), s.removed.to_vec(), in_play)
 }
 
 /// Y's options list X's hand: a look at it (Revelations [aus]).
@@ -419,7 +419,7 @@ fn game(name: &str, seed: u64, start: &dyn Fn(u64) -> Engine, stats: &mut Stats)
                 let n = e.state.seats[x.index()].hand.len();
                 for card in fillers(&e, x).into_iter().take(TRIES) {
                     let mut clone = e.clone();
-                    clone.state.seats[x.index()].hand = vec![card; n];
+                    clone.state.seats[x.index()].hand = vec![card; n].into();
                     let next = clone.run();
                     // X's window elided: the clone goes on to another
                     // request (X asked in a later window is a sample with

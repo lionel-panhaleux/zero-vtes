@@ -738,7 +738,8 @@ fn tupdogs_burn_after_their_minion_phase_and_bring_crypt_cards_out() {
         plain("Ventrue", 0),
         plain("Ventrue", 1),
         plain("Ventrue", 2),
-    ];
+    ]
+    .into();
     let before = e.state.seats[0].uncontrolled.len();
     pick(&mut e, Choice::Pass);
     let _ = request(&mut e);
@@ -1167,9 +1168,9 @@ fn veneficti_is_burnable_while_the_infernal_vampires_are_in_torpor() {
             e.add_ally(SeatId(1), find_library("Veneficti"));
         }
         let v = find_library("Veneficti");
-        e.state.seats[1].hand = vec![v];
+        e.state.seats[1].hand = vec![v].into();
         fill_hand(&mut e, 1);
-        e.state.seats[1].library = vec![find_library("Bonding"); 2];
+        e.state.seats[1].library = vec![find_library("Bonding"); 2].into();
         pick(&mut e, Choice::Pass);
         let offered = offered_before(
             &mut e,
@@ -1323,7 +1324,7 @@ fn memory_rift_is_played_as_the_action_is_announced() {
     let elisha = e.add_minion(SeatId(0), find_card("Elisha Tucker"), 5, false);
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 5, false);
-    e.state.seats[0].hand = vec![find_library("Line Brawl")];
+    e.state.seats[0].hand = vec![find_library("Line Brawl")].into();
     fill_hand(&mut e, 0);
     library(&mut e, 0, "Memory Rift", 1);
     let brawl = Choice::Play {

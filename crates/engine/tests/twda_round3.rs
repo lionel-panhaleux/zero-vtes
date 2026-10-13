@@ -1038,7 +1038,7 @@ fn infernal_pursuit_replaces_blood_weakens_cards_one_at_a_time() {
     pick_when(&mut e, play(0, 1, a));
     request(&mut e);
     assert_eq!(e.state.seats[0].library.len(), 20, "held back");
-    e.state.seats[0].hand = vec![find_library("Infernal Pursuit")];
+    e.state.seats[0].hand = vec![find_library("Infernal Pursuit")].into();
     pick_when(&mut e, play(0, 1, a));
     // Two copies (this one counting, "including when you draw to replace
     // this card"): the first replacement and its 2 extra cards, 2
@@ -1199,7 +1199,7 @@ fn concealed_weapon_does_not_reach_the_erciyes_fragments() {
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     let frag = in_play(&mut e, 0, "Erciyes Fragments, The", None);
-    e.state.cards[frag.index()].stored = vec![find_library(".44 Magnum")];
+    e.state.cards[frag.index()].stored = vec![find_library(".44 Magnum")].into();
     hand(&mut e, 0, &["Concealed Weapon"]);
     blocked_bleed(&mut e, a, z);
     never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, concealed(a));

@@ -69,7 +69,7 @@ fn ability(card: u32, ability: u8, target: Target) -> Choice {
 }
 
 fn library(e: &mut Engine, seat: u8, card: &str, n: usize) {
-    e.state.seats[seat as usize].library = vec![find_library(card); n];
+    e.state.seats[seat as usize].library = vec![find_library(card); n].into();
 }
 
 /// A card already in play (as its play would have left it, layers apart).

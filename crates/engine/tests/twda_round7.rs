@@ -342,6 +342,7 @@ fn harbinger(nth: usize) -> u16 {
 fn slot(card: u16, counters: u8) -> zvtes::state::UncontrolledSlot {
     zvtes::state::UncontrolledSlot {
         card,
+        copy: Default::default(),
         counters,
         banished: None,
     }
@@ -458,7 +459,7 @@ fn disciple_of_lazarus_feeds_or_finds_a_harbinger() {
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     let ventrue = plain("Ventrue", 1);
-    e.state.seats[0].crypt = vec![ventrue, young];
+    e.state.seats[0].crypt = vec![ventrue, young].into();
     hand(&mut e, 0, &["Disciple of Lazarus"]);
     pick(&mut e, play_at(0, 1, h, Target::None));
     let req = offering(&mut e, Choice::AshVampire(young));
@@ -497,7 +498,7 @@ fn emerald_legionnaire_raises_another_from_the_ash_heap() {
     let el = e.add_ally(SeatId(0), find_library("Emerald Legionnaire"));
     let card = body_card(&e, el);
     let legionnaire = find_library("Emerald Legionnaire");
-    e.state.seats[0].ash = vec![legionnaire];
+    e.state.seats[0].ash = vec![legionnaire].into();
     e.state.seats[0].ash.extend([find_library("Deflection"); 7]);
     let pool0 = pool(&e)[0];
     let used = next_turn_taking(&mut e, SeatId(0), |o| {
@@ -525,7 +526,7 @@ fn emerald_legionnaire_raises_another_from_the_ash_heap() {
         for _ in 0..in_play {
             e.add_ally(SeatId(0), find_library("Emerald Legionnaire"));
         }
-        e.state.seats[0].ash = vec![legionnaire];
+        e.state.seats[0].ash = vec![legionnaire].into();
         e.state.seats[0].ash.extend([find_library("Deflection"); 7]);
         let used = next_turn_taking(&mut e, SeatId(0), |o| {
             matches!(o, Choice::UseAbility { source: AbilitySource::Card(c), .. }
@@ -633,7 +634,7 @@ fn nicomedes_reshuffles_his_hand_once_a_turn() {
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     hand(&mut e, 0, &["Deflection", "Bum's Rush"]);
-    e.state.seats[0].library = vec![find_library("Bonding"); 5];
+    e.state.seats[0].library = vec![find_library("Bonding"); 5].into();
     pick(&mut e, vamp_use(n, 0));
     let req = request(&mut e);
     assert_eq!(e.state.seats[0].hand.len(), 7);
@@ -710,7 +711,7 @@ fn trochomancy_burns_the_targets_ash_heap_for_bleed() {
         let a = e.add_minion(SeatId(0), find_card("Nicomedes"), 4, false);
         e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
         e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
-        e.state.seats[1].ash = vec![find_library("Deflection"); cards];
+        e.state.seats[1].ash = vec![find_library("Deflection"); cards].into();
         hand(&mut e, 0, &["Trochomancy"]);
         pick(&mut e, bleed(a));
         if !offered {
@@ -799,7 +800,7 @@ fn le_dinh_tho_discards_from_another_hand() {
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     hand(&mut e, 1, &["Deflection", "Bum's Rush"]);
-    e.state.seats[1].library = vec![find_library("Bonding"); 3];
+    e.state.seats[1].library = vec![find_library("Bonding"); 3].into();
     let hunt = e.state.printed_mod(
         t,
         Stat::Stealth,
@@ -1477,7 +1478,7 @@ fn fake_out_is_replaced_after_combat() {
     in_play(&mut e, 1, ".44 Magnum", Some(z));
     hand(&mut e, 0, &["Fake Out"]);
     fill_hand(&mut e, 0);
-    e.state.seats[0].library = vec![find_library("Bonding"); 5];
+    e.state.seats[0].library = vec![find_library("Bonding"); 5].into();
     blocked_bleed(&mut e, a, z);
     pick_when(&mut e, play(0, 0, a));
     request(&mut e);
@@ -1556,7 +1557,7 @@ fn spiritual_guidance_plays_from_the_ash_heap() {
     in_play(&mut e, 1, ".44 Magnum", Some(z));
     hand(&mut e, 0, &["Spiritual Guidance", "Fake Out"]);
     let fake = find_library("Fake Out");
-    e.state.seats[0].ash = vec![fake];
+    e.state.seats[0].ash = vec![fake].into();
     blocked_bleed(&mut e, a, z);
     let req = until(&mut e, SeatId(0), WindowLabel::CombatDetermineRange);
     e.choose(index_of(&req, play(0, 0, a)));
@@ -1579,7 +1580,8 @@ fn spiritual_guidance_forces_a_choice_among_the_ash_heaps_plays() {
     let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 8, false);
     in_play(&mut e, 1, ".44 Magnum", Some(z));
     hand(&mut e, 0, &["Spiritual Guidance", "Trap"]);
-    e.state.seats[0].ash = vec![find_library("Weighted Walking Stick"), find_library("Trap")];
+    e.state.seats[0].ash =
+        vec![find_library("Weighted Walking Stick"), find_library("Trap")].into();
     blocked_bleed(&mut e, a, z);
     let req = until(&mut e, SeatId(0), WindowLabel::CombatBeforeRange);
     e.choose(index_of(&req, play(0, 0, a)));
@@ -1633,7 +1635,7 @@ fn sudario_refraction_brings_three_back() {
     hand(&mut e, 0, &["Sudario Refraction"]);
     let names = ["Bonding", "Conditioning", "Sudario Refraction"];
     e.state.seats[0].ash = names.iter().map(|n| find_library(n)).collect();
-    e.state.seats[0].library = vec![find_library("Deflection"); 10];
+    e.state.seats[0].library = vec![find_library("Deflection"); 10].into();
     pick(&mut e, play(0, 0, a));
     // The third name, the only one left, is taken at once.
     for n in &names[..2] {
@@ -1929,7 +1931,8 @@ fn new_blood_draws_a_crypt_card_as_he_enters() {
             vec![plain("Tremere", 0)]
         } else {
             vec![]
-        };
+        }
+        .into();
         to_window(&mut e, SeatId(0), WindowLabel::InfluenceTransfers);
         pick(&mut e, Choice::InfluenceOut { slot: 0 });
         request(&mut e);
@@ -2125,7 +2128,7 @@ fn ira_rivers_watches_politics_and_draws_on_auspex() {
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     hand(&mut e, 1, &["Quicken Sight"]);
     fill_hand(&mut e, 1);
-    e.state.seats[1].library = vec![find_library("Bonding"); 5];
+    e.state.seats[1].library = vec![find_library("Bonding"); 5].into();
     in_play(&mut e, 0, "Sport Bike", Some(a));
     let _ = a;
     e.state.minions[a.index()].blood = 4;
@@ -2405,7 +2408,8 @@ fn effective_management_moves_the_crypt_top() {
             vec![plain("Tremere", 0)]
         } else {
             vec![]
-        };
+        }
+        .into();
         hand(&mut e, 0, &["Effective Management"]);
         e.at_master_phase();
         let req = request(&mut e);
