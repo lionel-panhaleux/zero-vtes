@@ -41,6 +41,15 @@ Key facts:
   play procedures gist (shortcuts, declarations):
   https://gist.github.com/lionel-panhaleux/766eedd27ff26ae30169508ddc6bf95c
 
+Online play (P6, owner 2026-10-13): `docs/online-plan.md` — the server
+on `engine.krcg.org` is authoritative (bots server-side, every game
+logged to Postgres, kept 2 years); crates `api` (the contract: serde
+only, no engine) ← `host` (engine → api, the ergonomics layer, one
+`handle(seat, Command)` entrypoint) ← `server` / `wasm` (thin shells);
+engine copy ids from the deal; a re-cut Succubus Club PR. Its settled
+list and order of work hold until the owner changes them; `main` stays
+playable (today's wasm + fork) until the switch.
+
 State and next steps: DESIGN §11 (slice table, engine reference by mechanism,
 open gaps, what remains); history in `git log` (commit messages are detailed).
 

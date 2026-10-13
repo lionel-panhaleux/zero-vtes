@@ -230,6 +230,10 @@ table move where SC has the UI for it; no imitation of a UI SC lacks
 
 ### Slice 5 — upstream (M2)
 
+Superseded by [`docs/online-plan.md`](online-plan.md) (2026-10-13): the
+server is authoritative, the contract re-cut; the items below are kept
+for history.
+
 | # | Item | Status |
 |---|---|---|
 | 5.1 | npm publish; engine repo public | todo |
