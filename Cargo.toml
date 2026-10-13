@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/api", "crates/engine", "crates/host", "crates/policy", "crates/protocol", "crates/py", "crates/wasm"]
+members = ["crates/api", "crates/engine", "crates/host", "crates/policy", "crates/protocol", "crates/py", "crates/server", "crates/wasm"]
 # The Python module links against a Python: built by maturin only; the
 # wasm module by wasm-pack.
 default-members = ["crates/api", "crates/engine", "crates/host", "crates/policy", "crates/protocol"]

@@ -1,0 +1,25 @@
+[package]
+name = "zvtes-server"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+# The engine served (docs/protocol.md §10, docs/online-plan.md B): games
+# over HTTP + WebSocket, every game recorded. Not a default member: its
+# dependencies stay out of the engine's builds.
+[[bin]]
+name = "zvtes-server"
+path = "src/main.rs"
+
+[dependencies]
+zero-vtes-engine = { path = "../engine" }
+zvtes-api = { path = "../api" }
+zvtes-host = { path = "../host" }
+zvtes-policy = { path = "../policy" }
+axum = { version = "0.8", features = ["ws"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "net", "signal"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "json", "chrono"] }
+sha2 = "0.10"
+tower-http = { version = "0.6", features = ["cors"] }
