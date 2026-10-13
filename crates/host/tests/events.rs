@@ -15,30 +15,6 @@ use zvtes_api::{Command, GameSpec, In, Message, Out, Player, SeatSpec, Settings}
 use zvtes_host::{Bots, Clock, Game};
 use zvtes_text::Names;
 
-/// Card names and clans from the engine's tables.
-struct EngineCards(HashMap<u32, &'static str>, HashMap<String, &'static str>);
-
-impl zvtes_text::Cards for EngineCards {
-    fn name(&self, id: u32) -> Option<&str> {
-        self.0.get(&id).copied()
-    }
-    fn value(&self, id: &str) -> Option<&str> {
-        self.1.get(id).copied()
-    }
-}
-
-fn cards() -> &'static EngineCards {
-    static CARDS: std::sync::OnceLock<EngineCards> = std::sync::OnceLock::new();
-    CARDS.get_or_init(|| {
-        let crypt = zvtes::crypt::CRYPT.iter().map(|c| (c.id, c.name));
-        let library = zvtes::library::LIBRARY.iter().map(|c| (c.id, c.name));
-        let clans = zvtes::crypt::CRYPT
-            .iter()
-            .map(|c| (zvtes_host::view::snake(c.clan), c.clan));
-        EngineCards(crypt.chain(library).collect(), clans.collect())
-    })
-}
-
 struct NoBots;
 
 impl Bots for NoBots {
@@ -125,13 +101,16 @@ fn game(seed: u32, settings: Settings) -> Game {
             })
             .collect(),
     };
-    Game::new(
+    let mut g = Game::new(
         format!("g{seed}"),
         spec,
         &NoBots,
         Box::new(Ticks(Default::default())),
     )
-    .unwrap()
+    .unwrap();
+    // The oracle: the legacy lines, the renderer compared to them.
+    g.legacy_text(true);
+    g
 }
 
 /// An action or a referendum under way, as a view shows it.
@@ -398,7 +377,7 @@ fn the_events_tell_what_the_views_show() {
             torpor: HashMap::new(),
             told: 0,
             texts: 0,
-            names: Names::new(cards()),
+            names: Names::new(zvtes_host::cards::cards()),
             misses: Vec::new(),
             asked: HashMap::new(),
             again: None,
@@ -552,7 +531,7 @@ fn the_options_render_as_the_legacy_text() {
         let mut g = game(seed, settings);
         let human = g.human();
         let mut rng = Rng(seed as u64 * 11 + 3);
-        let mut names = Names::new(cards());
+        let mut names = Names::new(zvtes_host::cards::cards());
         let mut outs = g.handle(
             human,
             cmd(Command::Join {
@@ -646,4 +625,74 @@ fn the_options_render_as_the_legacy_text() {
     );
     // Every option renders (A7 done): one not told is a missing field.
     assert!(left.is_empty(), "{} options not rendered", shown - rendered);
+}
+
+/// What the host sends with the text setting: the renderer's English, the
+/// same game played twice (the legacy lines, the renderer's) told alike —
+/// every option, event and prompt, abilities and plays perhaps reworded
+/// (every legacy part told).
+#[test]
+fn the_host_sends_the_renderers_text() {
+    let seeds: u32 = std::env::var("HOST_SEEDS").map_or(20, |s| s.parse().unwrap());
+    let (mut options, mut events) = (0, 0);
+    for seed in 1..=seeds {
+        let settings = Settings {
+            opportunities: seed % 3 != 0,
+            views: Views::Decisions,
+            text: true,
+        };
+        let (mut a, mut b) = (game(seed, settings), game(seed, settings));
+        b.legacy_text(false);
+        let human = a.human();
+        let mut rng = Rng(seed as u64 * 7 + 1);
+        let join = || {
+            cmd(Command::Join {
+                token: None,
+                after: None,
+            })
+        };
+        let (mut outs_a, mut outs_b) = (a.handle(human, join()), b.handle(human, join()));
+        loop {
+            assert_eq!(outs_a.len(), outs_b.len(), "seed {seed}");
+            let mut decision = None;
+            for (x, y) in outs_a.iter().zip(&outs_b) {
+                match (&x.message, &y.message) {
+                    (Message::Events { events: ex, .. }, Message::Events { events: ey, .. }) => {
+                        for (ex, ey) in ex.iter().zip(ey) {
+                            assert_eq!(ex.kind, ey.kind, "seed {seed}");
+                            assert_eq!(ex.text, ey.text, "seed {seed}");
+                            events += ex.text.is_some() as usize;
+                        }
+                    }
+                    (Message::Decision(dx), Message::Decision(dy)) => {
+                        assert_eq!(dx.prompt, dy.prompt, "seed {seed}");
+                        for (ox, oy) in dx.options.iter().zip(&dy.options) {
+                            let (lx, ly) = (ox.text.as_deref(), oy.text.as_deref());
+                            let (Some(lx), Some(ly)) = (lx, ly) else {
+                                panic!("seed {seed}: an option without text: {ox:?}");
+                            };
+                            assert!(
+                                lx == ly || reworded(ox.key.kind, lx, ly),
+                                "seed {seed}: {lx:?} sent as {ly:?}"
+                            );
+                            options += 1;
+                        }
+                        let indices: Vec<_> = dx.options.iter().map(|o| o.index).collect();
+                        decision = Some((dx.decision, indices));
+                    }
+                    _ => {}
+                }
+            }
+            let Some((decision, indices)) = decision.filter(|_| !a.is_over()) else {
+                break;
+            };
+            let command = cmd(Command::Answer {
+                decision,
+                option: indices[rng.below(indices.len())],
+            });
+            outs_a = a.handle(human, command.clone());
+            outs_b = b.handle(human, command);
+        }
+    }
+    eprintln!("{seeds} games: {options} options and {events} events sent alike");
 }

@@ -3,6 +3,7 @@
 //! between; `Game::record` is the game as recorded. Transport-free: the
 //! server and the wasm module are thin shells over it.
 
+pub mod cards;
 pub mod describe;
 mod effects;
 mod events;
