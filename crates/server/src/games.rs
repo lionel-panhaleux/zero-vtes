@@ -3,6 +3,7 @@
 //! store as the game goes.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -30,6 +31,8 @@ pub struct Handle {
     pub token: String,
     pub seat: Seat,
     pub jobs: mpsc::Sender<Job>,
+    /// Over: kept for a rejoin or its record, no longer counted live.
+    pub over: Arc<AtomicBool>,
 }
 
 #[derive(Clone, Default)]
@@ -40,8 +43,14 @@ impl Games {
         self.0.lock().unwrap().get(id).cloned()
     }
 
-    pub fn len(&self) -> usize {
-        self.0.lock().unwrap().len()
+    /// Games under way (an ended game waiting out its idle time is not).
+    pub fn live(&self) -> usize {
+        self.0
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|h| !h.over.load(Ordering::Relaxed))
+            .count()
     }
 
     fn insert(&self, id: String, h: Handle) {
@@ -116,6 +125,9 @@ pub async fn start(
     let (jobs_tx, jobs_rx) = mpsc::channel::<Job>();
     let thread_id = id.clone();
     let registry = games.clone();
+    let over = Arc::new(AtomicBool::new(false));
+    let thread_over = over.clone();
+    let token_hash = crate::store::hash(&token);
     std::thread::Builder::new()
         .name(format!("game-{id}"))
         .spawn(move || {
@@ -129,13 +141,14 @@ pub async fn start(
             };
             let _ = store.send(Put::Start {
                 game: thread_id.clone(),
+                token_hash,
                 record: GameRecord {
                     entries: vec![],
                     ..game.record().clone()
                 },
             });
             let _ = ready_tx.send(Ok(game.human()));
-            run(&mut game, &jobs_rx, &store, idle);
+            run(&mut game, &jobs_rx, &store, idle, &thread_over);
             registry.remove(&thread_id);
         })
         .expect("a game thread");
@@ -146,6 +159,7 @@ pub async fn start(
             token: token.clone(),
             seat,
             jobs: jobs_tx,
+            over,
         },
     );
     Ok((id, seat, token))
@@ -153,7 +167,13 @@ pub async fn start(
 
 /// Serves a game's jobs until it is idle too long; then it ends (as
 /// abandoned if not over) and the thread exits.
-fn run(game: &mut Game, jobs: &mpsc::Receiver<Job>, store: &UnboundedSender<Put>, idle: Duration) {
+fn run(
+    game: &mut Game,
+    jobs: &mpsc::Receiver<Job>,
+    store: &UnboundedSender<Put>,
+    idle: Duration,
+    over: &AtomicBool,
+) {
     let mut flushed = 0;
     let mut ended = false;
     loop {
@@ -180,6 +200,7 @@ fn run(game: &mut Game, jobs: &mpsc::Receiver<Job>, store: &UnboundedSender<Put>
             }
         }
         flush(game, store, &mut flushed, &mut ended);
+        over.store(game.is_over(), Ordering::Relaxed);
     }
 }
 
