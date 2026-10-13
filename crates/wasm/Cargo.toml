@@ -3,7 +3,7 @@ name = "zvtes-wasm"
 version = "0.0.1"
 edition = "2021"
 license = "MIT"
-description = "The zero-vtes VTES engine and bots in the browser: JSON messages in and out (docs/human-play.md)"
+description = "The zero-vtes VTES engine and bots in the browser: JSON messages in and out (docs/protocol.md)"
 
 # Built by wasm-pack only (`wasm-pack build crates/wasm`), outside the
 # workspace's default members like the Python module.
@@ -12,7 +12,9 @@ name = "zvtes_wasm"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-zvtes-protocol = { path = "../protocol" }
+zero-vtes-engine = { path = "../engine" }
+zvtes-api = { path = "../api" }
+zvtes-host = { path = "../host" }
 zvtes-policy = { path = "../policy" }
 serde = "1"
 serde_json = "1"
