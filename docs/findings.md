@@ -19,3 +19,33 @@ status. Fixed items stay a while with the commit that fixed them.
 | F10 | P6 A2b (`tests/events.rs`) | An undo after `vote_all` (or an allocation answered whole) took back only the order's last cast, asking again a decision the seat was never shown | fixed: the steps a command takes by itself are undone with it (`Taken::Order`) |
 | F11 | P6 B7 (first deploy) | The server refused a WebSocket without an `Origin` (non-browser clients: `tests/client.mjs`, bots, tools), though only browsers send one and the seat token is what admits a seat | fixed: an origin sent must be a platform's; none is let through |
 | F12 | P6 B7 (redeploy) | `deploy.py` copied the new binary over the running one: "Text file busy", the redeploy failed | fixed: staged as `zvtes-server.new`, renamed into place |
+| F13 | P6 deep sweep (`tests/events.rs`, 2,000 games, seed 1045) | A combat cut short by its Methuselah's ousting was never told ended | fixed 76ac3ae: the turn's end notes it |
+| F14 | P6 A7 deep sweep | A card ability whose card shows only as a marker (Disarm) was named "a card"; a card granting an action that is a minion too (Call the Great Beast) named as the minion | fixed 2037742 |
+
+## Playtest, 2026-10-13 (Succubus Club fork, main's wasm, one game against 3 bots)
+
+The fork plays the legacy session (main); text = the renderer's now. Chrome
+ran without WebGL (Phaser's Canvas renderer): card glows, which mark choices
+and targets, could not be judged. P: the fork's UI (the SC re-cut, task C);
+E: engine or text (here).
+
+| # | Where | What | Status |
+|---|---|---|---|
+| P1 | Board | Uncontrolled vampires share the torpor row and cover its "Uncontrolled" label (only "Torpor" readable until one leaves) | todo (C) |
+| P2 | Influence | Transfers left are shown nowhere | todo (C; `view`: the transfers left?) |
+| P3 | Options | "All options" collapses after every pick: two clicks a transfer | todo (C) |
+| P4 | Discard phase | SC's own "Next Turn" button shows and does nothing; the engine's Pass ends the phase | todo (C) |
+| P5 | Influence | A card's "Influence" label looks clickable and answers "Not possible now"; dragging the vampire to the ready region is the gesture | todo (C) |
+| P6 | Influence | "+" stays enabled past a vampire's capacity (the excess drains on influencing out, a transfer wasted, no hint) | todo (C) |
+| P7 | Terms | Villein's amount titled "Choose X" (no X on the card); the prompt ("Villein: how much blood") not shown | todo (C: show `prompt`) |
+| P8 | Referendum / action panels | The panel runs over the seat's board: vote totals, "Played during the action" cut off | todo (C) |
+| P9 | Referendum | The panel names the card, not what passing does (hover needed) | todo (C) |
+| P10 | Minion phase | Lenelle's "Other Actions" took Become Anarch at once (2 blood), unconfirmed, the panel calling it "Action In Play Provided By Lenelle" | todo (C: a lone option behind a menu still shown, named by its action) |
+| P11 | Action | The card being played sits in the ready region (with a 0 counter) before it resolves | todo (C) |
+| E1 | Log | Card names in KRCG sort form in options and prompts: "Gate of Acheron, The", "Smiling Jack, The Anarch", "Rack, The" | todo (renderer: printed names) |
+| E2 | Log | Bots' passes told each time: "Pass (no block)", "Pass (Block attempts)", "Pass (Blocks declined)", "Pass (no vote now)", "Pass (As the card is played)" | todo (renderer/host: a pass told only where it does something) |
+| E3 | Log | A failed block told for Marcos Belegrad, not for Modius (Shadow Cast's +1 stealth) | todo |
+| E4 | Log | A play's cost and its card entering play told after the effect and the replacement draw (Zillah's Valley's −5 pool after the draw; Villein's blood moved before "Villein comes into play") | todo (events order) |
+| E5 | Log | Blood drained on influencing out past capacity, the Edge gained on a bleed: not told | todo (events) |
+| E6 | Log | "Bot2 — Use Modius": what the ability does not said | todo (renderer: the ability's effects) |
+| E7 | Bots | Bot3 used Wider View until its crypt was empty (8 vampires removed) | todo (bots: a policy guard or training signal) |
