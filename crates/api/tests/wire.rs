@@ -136,6 +136,7 @@ fn a_decision_reads_flat() {
             superior: false,
         }],
         card_type: None,
+        apart: vec![],
     });
     let mut keep = option(4, key(OptionKind::ResolveRider));
     keep.effects = vec![

@@ -194,6 +194,7 @@ fn mode(m: &old_d::ModeView) -> Mode {
         line: m.line,
         disciplines: vec![],
         card_type: None,
+        apart: vec![],
     };
     for t in &m.tags {
         if CARD_TYPES.contains(&t.as_str()) {

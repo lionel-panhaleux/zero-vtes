@@ -130,7 +130,10 @@ fn base(
                 None => "Strike: the round's strike".into(),
             },
         },
-        K::EmployFromHand => format!("Employ {}{}", card(), mode(k.mode.as_ref()?)),
+        K::EmployFromHand => {
+            let m = k.mode.as_ref()?;
+            format!("Employ {}{}{}", card(), mode(m), apart(m, n))
+        }
         K::UseManeuver => "Use a maneuver".into(),
         K::UsePress => "Use a press".into(),
         K::UsePrevent => "Prevent 1 damage".into(),
@@ -203,11 +206,32 @@ fn base(
         {
             format!("Choose {} (pays 1 of the cost in blood)", minion(k.minion))
         }
+        // A play's second vampire (Toreador Grand Ball's): what it becomes.
+        K::ChooseMinion
+            if window == Window::PlayTerms
+                && o.effects.iter().any(|e| e.kind == EffectKind::Role) =>
+        {
+            let r = o.effects.iter().find(|e| e.kind == EffectKind::Role)?;
+            let clan = r.clan.as_deref().map_or("vampire".into(), |c| n.value(c));
+            let role = match r.role? {
+                Role::UnblockableNonBleed => "non-bleed actions cannot be blocked".into(),
+                _ => format!("the card's chosen {clan}"),
+            };
+            format!("Choose {} ({role})", minion(k.minion))
+        }
         K::ChooseMinion if window == Window::Distribution => {
             format!("1 blood to {}", minion(k.minion))
         }
         K::ChooseMinion => format!("Choose {}", minion(k.minion)),
         K::ChooseSeat => format!("Choose {}", target()),
+        K::ChooseCard => {
+            let name = n.copy_bare(k.card.as_ref()?.copy?);
+            match o.effects.iter().any(|e| e.kind == EffectKind::Steal) {
+                // A referendum's terms: the card that changes control.
+                true => format!("Choose {name} (changes control)"),
+                false => format!("Choose {name}"),
+            }
+        }
         K::ChooseCircle => format!("Choose the {} Circle", n.value(k.value.as_deref()?)),
         K::Slot => {
             let c = k.card.as_ref()?;
@@ -233,9 +257,7 @@ fn base(
             let mut s = format!("Play {}", card());
             if let Some(m) = k.mode.as_ref().filter(|_| known) {
                 s += &mode(m);
-                if let Some(l) = split(o, offered, n) {
-                    s += &format!(" ({l})");
-                }
+                s += &apart(m, n);
             }
             if let Some(a) = k.actor {
                 s += &format!(" with {}", n.minion_bare(a));
@@ -353,6 +375,16 @@ fn asked(
             n.card_id(has(EffectKind::Move)?.card)
         ),
         (P::DistributeFrom, K::Slot) => role("gets 1 blood")?,
+        (P::DiscardFromHandOf, K::FindCard) => format!("Discard {}", card()),
+        (P::PayOrBurn, K::Pass) => format!("Let {} burn", n.own(has(EffectKind::Burn)?.copy?)),
+        (P::PayOrBurn, K::PayToCancel) => format!(
+            "Burn {} pool to keep {}",
+            -has(EffectKind::Pool)?.n?,
+            n.own(has(EffectKind::Keep)?.copy?)
+        ),
+        (P::MoveBetween, K::ChooseMinion) => role("receives")?,
+        (P::MoveBetween, K::ChooseCard) => role("moves")?,
+        (P::MoveBetween, K::Pass) => "Move nothing more".into(),
         (P::ChooseForCard, K::ChooseMinion) => {
             let e = has(EffectKind::Role)?;
             let clan = e.clan.as_deref().map_or("vampire".into(), |c| n.value(c));
@@ -391,7 +423,6 @@ fn asked(
         // What legacy says for the choice and is not told from data yet.
         (
             P::GiveBlood
-            | P::PayOrBurn
             | P::LockOrDiscard
             | P::AllySearch
             | P::MayDrawExtra
@@ -405,7 +436,6 @@ fn asked(
             | P::CancelAttempt
             | P::CorruptionOwner
             | P::AvoidDamage
-            | P::DiscardFromHandOf
             | P::PoolForCard
             | P::LockForPool
             | P::StealForCorruption
@@ -423,7 +453,6 @@ fn asked(
             _,
         )
         | (P::MinionOf | P::RemoveUncontrolled | P::RemoveFromAsh | P::AshurPicks, _)
-        | (P::MoveBetween, K::ChooseMinion | K::Pass | K::ChooseCard)
         | (P::ExchangeAnarch, K::Pass) => return None,
         // The rest reads as anywhere.
         _ => base?,
@@ -614,30 +643,13 @@ fn declares(o: &OptionView, kind: ActionKind) -> bool {
         .any(|e| e.kind == EffectKind::Action && e.detail.is_none() && e.action == Some(kind))
 }
 
-/// What sets a play's mode apart from the other modes of its printed
-/// line offered with it ("gain 3 blood" against "gain 2 blood and
-/// unlock"); `None` when none is offered or nothing does.
-fn split(o: &OptionView, offered: &[OptionView], n: &Names) -> Option<String> {
-    let (m, id) = (o.key.mode.as_ref()?, o.key.card.as_ref()?.id);
-    let siblings: Vec<&OptionView> = offered
-        .iter()
-        .filter(|s| s.key.kind == K::Play && s.key.card.as_ref().map(|c| c.id) == Some(id))
-        .filter(|s| {
-            s.key
-                .mode
-                .as_ref()
-                .is_some_and(|sm| sm.line == m.line && sm.index != m.index)
-        })
-        .collect();
-    if siblings.is_empty() {
-        return None;
+/// What sets a mode apart from the others its printed line splits into,
+/// in parentheses.
+fn apart(m: &Mode, n: &Names) -> String {
+    match label(&m.apart, n) {
+        l if l.is_empty() => String::new(),
+        l => format!(" ({l})"),
     }
-    let own = parts(&o.effects, n);
-    let apart: Vec<String> = own
-        .into_iter()
-        .filter(|p| siblings.iter().any(|s| !parts(&s.effects, n).contains(p)))
-        .collect();
-    (!apart.is_empty()).then(|| apart.join(", "))
 }
 
 /// What an ability does, after who and on what: blood moved to or from

@@ -2594,6 +2594,13 @@
       "description": "A card's mode: the printed line it is played from, at which\nDisciplines and levels, as which card type.",
       "type": "object",
       "properties": {
+        "apart": {
+          "description": "What sets it apart from the other modes its printed line splits\ninto (the card's own, offered or not): its effects not all of them\nhave. Empty for a line not split.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Effect"
+          }
+        },
         "card_type": {
           "description": "The card type it is played as, for a card of several types:\n`action`, `action_modifier`, `reaction`, `combat`, `reflex`…",
           "type": [

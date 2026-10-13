@@ -267,6 +267,11 @@ pub struct Mode {
     /// `action`, `action_modifier`, `reaction`, `combat`, `reflex`…
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub card_type: Option<String>,
+    /// What sets it apart from the other modes its printed line splits
+    /// into (the card's own, offered or not): its effects not all of them
+    /// have. Empty for a line not split.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub apart: Vec<Effect>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

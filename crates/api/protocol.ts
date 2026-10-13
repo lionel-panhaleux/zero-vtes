@@ -736,6 +736,12 @@ export type MinionView = {
  */
 export type Mode = {
     /**
+     * What sets it apart from the other modes its printed line splits
+     * into (the card's own, offered or not): its effects not all of them
+     * have. Empty for a line not split.
+     */
+    apart?: Effect[]
+    /**
      * The card type it is played as, for a card of several types:
      * `action`, `action_modifier`, `reaction`, `combat`, `reflex`…
      */

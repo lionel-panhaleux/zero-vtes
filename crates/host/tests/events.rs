@@ -533,8 +533,9 @@ fn reworded(kind: OptionKind, legacy: &str, r: &str) -> bool {
 }
 
 /// The options a seat is shown render, from their data, as the legacy
-/// text (A7's oracle): what the renderer tells must be the legacy line;
-/// what it does not tell yet (`None`) is counted by kind, the work left.
+/// text (A7's oracle): what the renderer tells must be the legacy line,
+/// and it tells every option (one it does not, `None`, is listed by kind:
+/// a field missing).
 #[test]
 fn the_options_render_as_the_legacy_text() {
     let seeds: u32 = std::env::var("HOST_SEEDS").map_or(40, |s| s.parse().unwrap());
@@ -643,4 +644,6 @@ fn the_options_render_as_the_legacy_text() {
         "{} options rendered otherwise",
         misses.len()
     );
+    // Every option renders (A7 done): one not told is a missing field.
+    assert!(left.is_empty(), "{} options not rendered", shown - rendered);
 }
