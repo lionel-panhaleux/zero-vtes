@@ -1,7 +1,8 @@
 //! The engine's enums as the contract's ids.
 
 use zvtes::decision::WindowLabel;
-use zvtes_api::ids::Window;
+use zvtes::draws::Interrupt;
+use zvtes_api::ids::{Purpose, Window};
 
 pub fn window(w: WindowLabel) -> Window {
     use WindowLabel as L;
@@ -97,3 +98,74 @@ pub const WINDOWS: [WindowLabel; 41] = {
         L::CombatEndOfRound,
     ]
 };
+
+/// What an effect's choice is for.
+pub fn purpose(i: &Interrupt) -> Purpose {
+    use Interrupt as I;
+    match i {
+        I::MoveCardToTitled { .. } => Purpose::MoveCardToTitled,
+        I::GiveBlood { .. } => Purpose::GiveBlood,
+        I::MoveBetween { .. } => Purpose::MoveBetween,
+        I::PayOrBurn { .. } => Purpose::PayOrBurn,
+        I::LockOrDiscard { .. } => Purpose::LockOrDiscard,
+        I::BloodOrBurned { .. } => Purpose::BloodOrBurned,
+        I::Replacement { .. } => Purpose::Replacement,
+        I::DrawUp { .. } => Purpose::DrawUp,
+        I::Draws { .. } => Purpose::Draws,
+        I::Bottom { .. } => Purpose::Bottom,
+        I::StoreSearch { .. } => Purpose::StoreSearch,
+        I::EntryBurn { .. } => Purpose::EntryBurn,
+        I::EntryRemoveOrBurn { .. } => Purpose::EntryRemoveOrBurn,
+        I::BlockToll { .. } => Purpose::BlockToll,
+        I::CancelAttempt { .. } => Purpose::CancelAttempt,
+        I::MarginPool { .. } => Purpose::MarginPool,
+        I::MarginBlood { .. } => Purpose::MarginBlood,
+        I::MinionOf { .. } => Purpose::MinionOf,
+        I::CorruptionOwner { .. } => Purpose::CorruptionOwner,
+        I::AvoidDamage { .. } => Purpose::AvoidDamage,
+        I::DiscardFromHandOf { .. } => Purpose::DiscardFromHandOf,
+        I::Reorder { .. } => Purpose::Reorder,
+        I::DiscardChosen { .. } => Purpose::DiscardChosen,
+        I::RemoveFromAsh { .. } => Purpose::RemoveFromAsh,
+        I::DisciplineSearch { .. } => Purpose::DisciplineSearch,
+        I::MayDrawExtra { .. } => Purpose::MayDrawExtra,
+        I::PursuitDraw { .. } => Purpose::PursuitDraw,
+        I::PursuitDiscard { .. } => Purpose::PursuitDiscard,
+        I::PurgePick { .. } => Purpose::PurgePick,
+        I::StealUpTo { .. } => Purpose::StealUpTo,
+        I::AllySearch { .. } => Purpose::AllySearch,
+        I::RemoveUncontrolled { .. } => Purpose::RemoveUncontrolled,
+        I::ChooseForCard { .. } => Purpose::ChooseForCard,
+        I::ExchangeAnarch { .. } => Purpose::ExchangeAnarch,
+        I::PoolForCard { .. } => Purpose::PoolForCard,
+        I::LockForPool { .. } => Purpose::LockForPool,
+        I::StealForCorruption { .. } => Purpose::StealForCorruption,
+        I::MakeAnarch { .. } => Purpose::MakeAnarch,
+        I::AshurPicks { .. } => Purpose::AshurPicks,
+        I::BecomesAnarch { .. } => Purpose::BecomesAnarch,
+        I::AnarchConvert { .. } => Purpose::AnarchConvert,
+        I::UncontrolledBlood { .. } => Purpose::UncontrolledBlood,
+        I::LockOrPay { .. } => Purpose::LockOrPay,
+        I::CryptSearch { .. } => Purpose::CryptSearch,
+        I::PreySlotToPool { .. } => Purpose::PreySlotToPool,
+        I::DistributeFrom { .. } => Purpose::DistributeFrom,
+        I::CircleBlood { .. } => Purpose::CircleBlood,
+        I::PoolToVampires { .. } => Purpose::PoolToVampires,
+        I::BaseSearch { .. } => Purpose::BaseSearch,
+        I::ChooseCircle { .. } => Purpose::ChooseCircle,
+        I::AllyFromAsh { .. } => Purpose::AllyFromAsh,
+        I::MayRecycleCanceled { .. } => Purpose::MayRecycleCanceled,
+        I::NameUncontrolled { .. } => Purpose::NameUncontrolled,
+        I::NameSlotPair { .. } => Purpose::NameSlotPair,
+        I::BeastDisciplines { .. } => Purpose::BeastDisciplines,
+        I::StorePreyAsh { .. } => Purpose::StorePreyAsh,
+        I::NameOwnAshCard { .. } => Purpose::NameOwnAshCard,
+        I::NameAshPair { .. } => Purpose::NameAshPair,
+        I::MayPutOn { .. } => Purpose::MayPutOn,
+        I::MayAddCounter { .. } => Purpose::MayAddCounter,
+        I::MayTorture { .. } => Purpose::MayTorture,
+        I::MayGainPool { .. } => Purpose::MayGainPool,
+        I::MoveForBlood { .. } => Purpose::MoveForBlood,
+        I::Redraw { .. } => Purpose::Redraw,
+    }
+}

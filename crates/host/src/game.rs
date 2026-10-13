@@ -479,22 +479,26 @@ impl Game {
                         .map_or(zvtes_api::ids::Window::Unknown, |r| {
                             crate::ids::window(r.window)
                         });
+                    let e = self.session.engine();
+                    let source = req
+                        .as_ref()
+                        .and_then(|r| describe::source(e, r, &self.viewer.numbering));
+                    let purpose = e.interrupt().map(|i| crate::ids::purpose(&i));
                     let d = Decision {
                         decision,
                         seat,
                         window,
-                        source: None,
+                        source,
+                        purpose,
                         options: options
                             .iter()
                             .map(|o| {
                                 let mut v = ctx.option(o);
                                 if let Some(r) = &req {
-                                    v.key = describe::key(
-                                        self.session.engine(),
-                                        r,
-                                        &r.options[o.index],
-                                        &self.viewer.numbering,
-                                    );
+                                    let (e, c) = (self.session.engine(), &r.options[o.index]);
+                                    let names = &self.viewer.numbering;
+                                    v.key = describe::key(e, r, c, names);
+                                    v.effects = describe::effects(e, r, c, names);
                                 }
                                 v
                             })

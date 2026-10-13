@@ -4,6 +4,7 @@
 //! (`Names`). What the host sends with the `text` setting is this.
 
 mod event;
+mod option;
 
 use std::collections::HashMap;
 
@@ -12,10 +13,17 @@ use zvtes_api::ids::{CopyId, KrcgId, MinionKind, Seat};
 use zvtes_api::view::{Card, TableView};
 
 pub use event::{event, strike};
+pub use option::option;
 
 /// Card names by KRCG id: the client's card database.
 pub trait Cards {
     fn name(&self, id: KrcgId) -> Option<&str>;
+    /// A clan, Discipline or circle by its snake_case id, as printed
+    /// ("gangrel_antitribu": "Gangrel antitribu"); `None`: title case.
+    fn value(&self, id: &str) -> Option<&str> {
+        let _ = id;
+        None
+    }
 }
 
 /// What a client knows of the table's names: seats, and every minion by
@@ -23,7 +31,12 @@ pub trait Cards {
 pub struct Names<'a> {
     cards: &'a dyn Cards,
     seats: Vec<String>,
+    /// Each seat's prey, as the last view showed.
+    prey: Vec<Seat>,
     minions: HashMap<CopyId, String>,
+    /// Cards on the table by copy, as the table names them: a card on a
+    /// minion with it ("Luciano's Feral Hound"), an uncontrolled vampire.
+    table: HashMap<CopyId, String>,
 }
 
 impl<'a> Names<'a> {
@@ -31,17 +44,43 @@ impl<'a> Names<'a> {
         Names {
             cards,
             seats: Vec::new(),
+            prey: Vec::new(),
             minions: HashMap::new(),
+            table: HashMap::new(),
         }
     }
 
     /// Learn the names a view shows.
     pub fn see(&mut self, v: &TableView) {
         self.seats = v.seats.iter().map(|s| s.name.clone()).collect();
-        for m in v.seats.iter().flat_map(|s| s.ready.iter().chain(&s.torpor)) {
-            if let Some(c) = m.card.copy {
+        self.prey = v.seats.iter().map(|s| s.prey).collect();
+        for s in &v.seats {
+            for m in s.ready.iter().chain(&s.torpor) {
                 let name = minion_name(m.kind, &m.name);
-                self.minions.insert(c, name);
+                for c in &m.cards {
+                    if let Some(copy) = c.card.copy {
+                        let card = self.card(&c.card);
+                        self.table.insert(copy, format!("{name}'s {card}"));
+                    }
+                }
+                if let Some(c) = m.card.copy {
+                    self.minions.insert(c, name);
+                }
+            }
+            for c in &s.in_play {
+                if let Some(copy) = c.card.copy {
+                    let card = self.card(&c.card);
+                    self.table.insert(copy, card);
+                }
+            }
+            for (i, u) in s.uncontrolled.iter().enumerate() {
+                if let Some(copy) = u.card.copy {
+                    let name = match u.card.id {
+                        Some(_) => self.card(&u.card),
+                        None => format!("uncontrolled vampire #{}", i + 1),
+                    };
+                    self.table.insert(copy, name);
+                }
             }
         }
     }
@@ -72,6 +111,52 @@ impl<'a> Names<'a> {
             .get(s as usize)
             .cloned()
             .unwrap_or_else(|| format!("Seat {}", s + 1))
+    }
+
+    pub fn prey(&self, s: Seat) -> Option<Seat> {
+        self.prey.get(s as usize).copied()
+    }
+
+    /// A card on the table or a minion, by copy, as the table names it.
+    pub fn copy(&self, c: CopyId) -> String {
+        self.minions
+            .get(&c)
+            .or(self.table.get(&c))
+            .cloned()
+            .unwrap_or_else(|| "a card".into())
+    }
+
+    /// A minion as an option names it (a token without its article).
+    pub fn minion_bare(&self, c: CopyId) -> String {
+        let name = self.minion(c);
+        match name.strip_prefix("a ghoul token") {
+            Some("") => "ghoul token".into(),
+            _ => name,
+        }
+    }
+
+    /// A card or minion by copy as an option names it.
+    pub fn copy_bare(&self, c: CopyId) -> String {
+        match self.minions.contains_key(&c) {
+            true => self.minion_bare(c),
+            false => self.copy(c),
+        }
+    }
+
+    /// A clan, a Discipline, a circle by its snake_case id, as printed.
+    pub fn value(&self, v: &str) -> String {
+        if let Some(name) = self.cards.value(v) {
+            return name.into();
+        }
+        v.split('_')
+            .map(|w| {
+                let mut c = w.chars();
+                c.next()
+                    .map(|f| f.to_uppercase().chain(c).collect::<String>())
+                    .unwrap_or_default()
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
     }
 
     pub fn minion(&self, c: CopyId) -> String {

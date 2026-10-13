@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::event::Event;
-use crate::ids::{DecisionNo, Seat, Window};
+use crate::ids::{DecisionNo, Purpose, Seat, Window};
 use crate::option::{Allocation, CardRef, OptionView, VoteTotals};
 use crate::spec::Settings;
 use crate::view::TableView;
@@ -81,6 +81,9 @@ pub struct Decision {
     /// each choice gets.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<CardRef>,
+    /// What an effect asks the choice for, when one does.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub purpose: Option<Purpose>,
     /// The options shown (the seat's settings may hide some: indices keep
     /// the engine's numbering).
     pub options: Vec<OptionView>,
