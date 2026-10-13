@@ -150,7 +150,16 @@ export type ActionKind =
     | 'red_list_hunt'
     | 'unknown'
 
-export type ActionOutcome = 'succeeds' | 'blocked' | 'fails' | 'fizzles' | 'ends'
+export type ActionOutcome = 'succeeds' | 'blocked' | 'fails' | 'fizzles' | 'ousted' | 'ends' | 'unknown'
+
+/** What an action is: its kind, its card, what grants it. */
+export type ActionRef = {
+    /** The action card, for a card action. */
+    card?: Card | null
+    kind: ActionKind
+    /** What grants the action: a card in play, or another vampire. */
+    source?: Card | null
+}
 
 /** Where an action stands. */
 export type ActionStep = 
@@ -497,18 +506,38 @@ export type Event = {
     }
     | {
         card: Card
+        /**
+         * A lasting effect whose card is in the ash heap (a marker on
+         * its minion), not a card of its own: no copy.
+         */
+        effect?: boolean
         kind: 'enters_play'
+        /** A minion (a vampire, an ally, a token), not a card on the table. */
+        minion?: boolean
         on?: number | null
+        /** Its controller. */
         seat: number
     }
     | {
         card: Card
+        /**
+         * A lasting effect whose card is in the ash heap (a marker on
+         * its minion), not a card of its own: no copy.
+         */
+        effect?: boolean
         kind: 'moves'
         on?: number | null
     }
     | {
         card: Card
+        contested?: boolean
+        /**
+         * A lasting effect whose card is in the ash heap (a marker on
+         * its minion), not a card of its own: no copy.
+         */
+        effect?: boolean
         kind: 'leaves_play'
+        minion?: boolean
         to?: Zone | null
     }
     | {
@@ -527,12 +556,18 @@ export type Event = {
     }
     | {
         acting: number
+        action: ActionRef
+        /** The minion that blocked it. */
         blocker?: number | null
         kind: 'action_ends'
         outcome: ActionOutcome
         seat: number
     }
     | {
+        /** The political action it was called by. */
+        action?: ActionRef | null
+        /** A blood hunt's: the diablerist hunted. */
+        hunted?: number | null
         kind: 'referendum_ends'
         outcome: ReferendumOutcome
         votes_against: number
@@ -545,7 +580,7 @@ export type Event = {
     | {
         kind: 'strike_declared'
         minion: number
-        strike: Strike
+        strike?: Strike | null
     }
     | {
         kind: 'strikes'
@@ -806,7 +841,7 @@ export type Recipient = {
     to: Target
 }
 
-export type ReferendumOutcome = 'passes' | 'fails' | 'canceled'
+export type ReferendumOutcome = 'passes' | 'fails' | 'canceled' | 'unknown'
 
 export type ReferendumStep = 'terms' | 'polling' | 'shortfall' | 'choose' | 'unknown'
 
