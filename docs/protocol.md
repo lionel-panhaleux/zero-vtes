@@ -111,7 +111,7 @@ A JSON object with `seq`, `reply_to`? and a `type`:
 |---|---|
 | `joined` | `protocol`, `engine` (commit), `game`, `seat`, `seats` (`name`, `bot` profile), `settings`, `idle_timeout`, `view` |
 | `events` | `events`: one step — a decision taken and what it did until the next — or the engine's run before a decision or the end (§9); `view` after a step when `views` is `steps` |
-| `decision` | `decision`, `seat`, `window`, `source`?, `purpose`?, `options`, `undo`, `allocation`?, `votes`?, `view`; `prompt` with `text` |
+| `decision` | `decision`, `seat`, `window`, `source`?, `purpose`?, `about`?, `options`, `undo`, `allocation`?, `votes`?, `view`; `prompt` with `text` |
 | `over` | `vp_halves` (per seat), `winner`? (the most VPs, at least 2, alone), `reason` (`{"type": …}`: `last_standing`, `time_limit`, `humans_ousted`, `abandoned` + `seat`, `engine_error`), `view` |
 | `error` | `error`: `stale` (+ `expected`), `not_your_turn`, `option` (+ `index`), `no_undo`, `allocation` (+ `reason`: `none`, `length`, `total`, `cap`, `min_nonzero`), `no_votes`, `over`, `not_joined`, `malformed` (+ `reason`), `rate_limited` |
 
@@ -127,7 +127,15 @@ parameters, each option's `effects` give them (`minion_of`: what the
 chosen minion gets — `lock`, `unlock`, `corruption`, `blood`, `damage`,
 `burn`, a card `move`d onto it; `ashur_picks`: `move` `to` the hand or
 the library; `blood_or_burned`: the blood paid, or what burns on a
-pass).
+pass). `about` holds the particulars a prompt names, beyond the
+purpose, the source and the options: `n` (how many: still to pay, at
+most, to discard), `m` (a second amount), `cap`, `seat` (whose
+minions, ash heap or hand), `minion` and `to` (the minions blood moves
+between, a block attempt's), `card` (named or in play), `clan` (or a
+circle), and `detail`, what sets it apart within its purpose (`minion_of`:
+`lock`, `lock_vampires`, `corrupt`…; a terms window: `blood_range`,
+`x_blood`, `discard`, `cost_reductions`, `burn_allocated`, `gains_pool`…).
+A client tells its prompt from these alone, as `zvtes-text` does.
 
 ## 6. The view
 

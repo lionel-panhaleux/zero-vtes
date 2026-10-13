@@ -348,6 +348,11 @@ impl Game {
             }
             Message::Decision(d) => {
                 known.see(&d.view);
+                if text && d.prompt.is_some() {
+                    if let Some(t) = zvtes_text::prompt(d, known) {
+                        d.prompt = Some(t);
+                    }
+                }
                 if text {
                     let offered = d.options.clone();
                     for o in &mut d.options {
@@ -550,12 +555,16 @@ impl Game {
                         .as_ref()
                         .and_then(|r| describe::source(e, r, &self.viewer.numbering));
                     let purpose = e.interrupt().map(|i| crate::ids::purpose(&i));
+                    let about = req
+                        .as_ref()
+                        .and_then(|r| describe::about(e, r, &self.viewer.numbering));
                     let d = Decision {
                         decision,
                         seat,
                         window,
                         source,
                         purpose,
+                        about,
                         options: options
                             .iter()
                             .map(|o| {

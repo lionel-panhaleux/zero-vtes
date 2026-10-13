@@ -293,9 +293,15 @@ fn base(
         }
         K::UseAbility => {
             let (name, host) = match (&k.card, k.minion) {
+                // A card the table does not show (its lasting effect's, the
+                // card in the ash heap): named by its host.
+                (Some(c), Some(m)) if !n.knows(c.copy?) => (
+                    format!("{}'s {}", n.minion_bare(m), n.card_id(c.id)),
+                    Some(m),
+                ),
                 (Some(c), _) => {
                     let copy = c.copy?;
-                    (n.copy_bare(copy), n.host(copy))
+                    (n.copy_bare(copy), n.host(copy).or(k.minion))
                 }
                 // A vampire's own: its actor named even when itself.
                 (None, Some(m)) => (n.minion_bare(m), None),

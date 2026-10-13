@@ -164,7 +164,10 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
 fn thing(a: &ActionRef, n: &Names, granted: bool) -> String {
     match (&a.card, &a.source) {
         (Some(c), _) => n.card(c),
-        (None, Some(s)) if n.is_minion(s) => n.minion(s.copy.unwrap_or(u32::MAX)),
+        // Another vampire's (its crypt card): named as the minion; a card
+        // in play, even one that is a minion too (Call the Great Beast),
+        // by its card.
+        (None, Some(s)) if s.crypt && n.is_minion(s) => n.minion(s.copy.unwrap_or(u32::MAX)),
         (None, Some(s)) if granted => format!("{} action", n.card(s)),
         (None, Some(s)) => n.card(s),
         (None, None) => action_kind(a.kind).into(),

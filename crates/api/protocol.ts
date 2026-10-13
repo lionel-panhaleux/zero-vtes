@@ -130,6 +130,43 @@ export type GameRecord = {
     started: number
 }
 
+/**
+ * What a choice is about (`Decision::about`): each field given where
+ * the purpose (or the terms) has it (docs/protocol.md §5).
+ */
+export type About = {
+    /** A capacity it depends on (the young vampires Neonate Breach spares). */
+    cap?: number | null
+    /** A card it names: in play (`copy`) or by name (`id`). */
+    card?: CardRef | null
+    /** A clan, a circle (snake_case ids). */
+    clan?: string | null
+    /**
+     * What sets it apart within its purpose, a snake_case id
+     * (`minion_of`: `lock`, `lock_vampires`, `corrupt`…).
+     */
+    detail?: string | null
+    /**
+     * A second amount (the most a Methuselah burns, the damage blood
+     * avoids).
+     */
+    m?: number | null
+    /**
+     * The minion it concerns: the one blood moves from, a block
+     * attempt's, the one entering play.
+     */
+    minion?: number | null
+    /** How many: still to pay, at most, to discard, damage, blood… */
+    n?: number | null
+    /**
+     * The Methuselah it concerns: whose minions, ash heap, hand,
+     * uncontrolled region.
+     */
+    seat?: number | null
+    /** A second minion: the one blood moves to. */
+    to?: number | null
+}
+
 export type ActionKind = 
     | 'bleed'
     | 'hunt'
@@ -322,6 +359,11 @@ export type CombatView = {
 }
 
 export type Decision = {
+    /**
+     * The particulars of the choice a prompt names, beyond its purpose,
+     * source and options: how many, whose, which minion or card.
+     */
+    about?: About | null
     allocation?: Allocation | null
     decision: number
     /**
