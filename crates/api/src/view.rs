@@ -293,6 +293,10 @@ pub struct Terms {
     pub clan: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub allocated: Vec<Allocated>,
+    /// The Methuselahs points are still to be allocated to, in order: the
+    /// first is allocated to now, the last gets the rest.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pending: Vec<Seat>,
 }
 
 /// Points allocated to a Methuselah or a card in play.

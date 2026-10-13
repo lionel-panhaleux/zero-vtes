@@ -278,6 +278,7 @@ impl Build<'_> {
                             .collect(),
                         clan: r.terms.clan.map(|c| snake(&String::from(c))),
                         allocated,
+                        pending: r.terms.pending.iter().map(|s| s.0).collect(),
                     },
                     votes: r
                         .records

@@ -205,6 +205,17 @@ seat 2; burn 2 pool to keep card 9.)
   - `detail`: what sets it apart within its kind, snake_case —
     `this_round`, `guns`, `not_guns`, `non_aggravated`, `to_pool`,
     `from_pool`, `per_counter`, `then_bottom`, `master_phase`….
+  - A vote's: `votes` (`n` cast, `favor`; `detail: prisci_ballot` the
+    ballots a priscus casts with them; `on: card` the political action
+    card's own vote).
+  - A referendum's terms: what the chosen Methuselah or minion gets
+    (`on: chosen`: `pool` gained, burned or — `detail: allocated` —
+    given, `steal`, `move` `to: removed` banished or the card put on it,
+    `lock`, `role: expelled`), what an allocation does (`pool` burned,
+    or gained with the chosen's `pool` lost); `view.referendum.terms.
+    pending`: who is allocated to next (the last gets the rest).
+  - A cost's terms: `cost` (kind) for a card's or a vampire's reduction,
+    `blood` (`cost`, `on: chosen`) for a vampire paying 1 of it.
   - A `set_x` option's (the key's `amount`): what the amount does, by
     the terms asking it — `blood` (`x`: the card calls it X; `copy`:
     the vampire it is taken from), `pool` (`on: target` given away;

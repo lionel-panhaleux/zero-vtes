@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 use zvtes_api::event::EventKind;
 use zvtes_api::ids::{CopyId, KrcgId, MinionKind, Seat};
-use zvtes_api::view::{ActionView, Card, TableView};
+use zvtes_api::view::{ActionView, Card, ReferendumView, TableView};
 
 pub use effect::{label, part, parts};
 pub use event::{event, strike};
@@ -47,6 +47,8 @@ pub struct Names<'a> {
     controllers: HashMap<CopyId, Seat>,
     /// The action under way, as the last view showed.
     action: Option<ActionView>,
+    /// The referendum under way, as the last view showed.
+    referendum: Option<ReferendumView>,
 }
 
 impl<'a> Names<'a> {
@@ -61,6 +63,7 @@ impl<'a> Names<'a> {
             own: HashMap::new(),
             controllers: HashMap::new(),
             action: None,
+            referendum: None,
         }
     }
 
@@ -69,6 +72,7 @@ impl<'a> Names<'a> {
         self.seats = v.seats.iter().map(|s| s.name.clone()).collect();
         self.prey = v.seats.iter().map(|s| s.prey).collect();
         self.action = v.action.clone();
+        self.referendum = v.referendum.clone();
         for (seat, s) in v.seats.iter().enumerate() {
             for m in s.ready.iter().chain(&s.torpor) {
                 let name = minion_name(m.kind, &m.name);
@@ -141,6 +145,11 @@ impl<'a> Names<'a> {
     /// The action under way, as the last view showed.
     pub fn action(&self) -> Option<&ActionView> {
         self.action.as_ref()
+    }
+
+    /// The referendum under way, as the last view showed.
+    pub fn referendum(&self) -> Option<&ReferendumView> {
+        self.referendum.as_ref()
     }
 
     /// The seat controlling a minion, as the last view showed.
