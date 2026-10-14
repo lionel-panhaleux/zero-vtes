@@ -6468,6 +6468,54 @@ impl Engine {
         AbilityUser { seat, host, actor }
     }
 
+    /// Would `seat` using `choice` gain nothing: an ability whose every
+    /// effect, its costs and the action carrying it aside, scales with
+    /// something that is zero now — the counters on its card (Powerbase:
+    /// Madrid's burn with none, rules-qa 73.3), the votes of a vampire that
+    /// cannot vote (Alamut's or Dead Pool's for an abstaining one, 73.4).
+    /// Still offered (a legal no-op, rules-qa 17.4): for an interface that
+    /// hides such options.
+    pub fn gains_nothing(&self, seat: SeatId, choice: &Choice) -> bool {
+        let Choice::UseAbility {
+            source,
+            ability,
+            actor,
+            target,
+        } = *choice
+        else {
+            return false;
+        };
+        let st = &self.state;
+        let mode = self.ability_mode(source, ability);
+        let voter = |m: Option<MinionId>| {
+            self.referendum
+                .as_ref()
+                .is_some_and(|r| m.is_some_and(|m| !r.may_vote(st, m)))
+        };
+        // Read only for a vote: who uses it then.
+        let user = || self.ability_user(source, ability, seat, actor).actor;
+        let target_minion = match target {
+            Target::Minion(m) => Some(m),
+            _ => None,
+        };
+        let no_counters =
+            matches!(source, AbilitySource::Card(id) if st.cards[id.index()].counters == 0);
+        let mut nil = false;
+        for e in mode.effects {
+            match e {
+                Effect::DeclareAction(_)
+                | Effect::LockSelf
+                | Effect::RemoveCounter(_)
+                | Effect::RemoveCountersX => {}
+                Effect::RemoveAllSourceCounters if no_counters => nil = true,
+                Effect::AddVotes(_) | Effect::AddVotesX if voter(user()) => nil = true,
+                Effect::TargetVotesPerCounter if voter(target_minion) => nil = true,
+                _ => return false,
+            }
+        }
+        nil
+    }
+
     /// The definition of an ability, wherever it is printed.
     fn ability_mode(&self, source: AbilitySource, ability: u8) -> &'static cards::ModeDef {
         source.mode(&self.state, ability)

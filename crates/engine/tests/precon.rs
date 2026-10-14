@@ -10822,6 +10822,43 @@ fn dead_pool_pays_votes_once_a_referendum() {
     assert_eq!(e.state.cards[dp.index()].counters, 1);
 }
 
+// Legal no-ops stay offered (rules-qa 17.4), known to gain nothing for an
+// interface hiding them (findings P15): Powerbase: Madrid's burn with no
+// counter (rules-qa 73.3), Dead Pool's votes for a vampire that cannot
+// vote (73.4) — read live, a counter or a vote making them real again.
+#[test]
+fn legal_no_ops_are_offered_and_known_to_gain_nothing() {
+    let mut e = Engine::bare(3);
+    let m = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    let madrid = location(&mut e, 1, "Powerbase: Madrid");
+    let req = request(&mut e);
+    let burn = *req
+        .options
+        .iter()
+        .find(|o| **o == use_on(madrid, 2, Some(m), Target::None))
+        .expect("the burn offered with no counter");
+    assert!(e.gains_nothing(SeatId(0), &burn));
+    e.state.cards[madrid.index()].counters = 1;
+    assert!(!e.gains_nothing(SeatId(0), &burn));
+
+    let mut e = Engine::bare(3);
+    let l = e.add_minion(SeatId(0), plain("Lasombra", "", 0), 4, false);
+    let an = e.add_minion(SeatId(0), anarch(0), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    let dp = location(&mut e, 0, "Dead Pool");
+    e.state.cards[dp.index()].counters = 2;
+    hand(&mut e, 0, &["Anarchist Uprising"]);
+    pick(&mut e, play(0, 0, an));
+    let votes = use_on(dp, 1, Some(l), Target::None);
+    offering(&mut e, votes);
+    assert!(!e.gains_nothing(SeatId(0), &votes));
+    e.state.minions[l.index()].expelled = true;
+    assert!(request(&mut e).options.contains(&votes), "still offered");
+    assert!(e.gains_nothing(SeatId(0), &votes));
+}
+
 // Alamut: "After an Assamite you control successfully bleeds a Methuselah,
 // put the pool lost by that Methuselah on this card. During the polling step
 // of a political action, you can burn X counters from this card to give a

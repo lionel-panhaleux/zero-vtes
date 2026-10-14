@@ -69,6 +69,10 @@ enum Opportunity {
     /// A denial of a block attempt (Stygian Shroud: -1 intercept, or the
     /// attempt fails), needed or not: the attempt meets the stealth.
     Denial(bool),
+    /// A legal no-op: an ability gaining nothing now (`Engine::gains_nothing`:
+    /// Powerbase: Madrid's burn with no counter, votes for a vampire that
+    /// cannot vote; owner, 2026-10-14: rules-qa 73.3, 73.4).
+    Nothing,
 }
 
 /// Why an answer is refused.
@@ -474,10 +478,14 @@ impl Session {
     }
 
     /// Whether `c` is an opportunity: a wake (in its moment or not), an
-    /// ability usable at any time (The Louvre, Paris), a block denial.
+    /// ability usable at any time (The Louvre, Paris), a block denial, a
+    /// legal no-op.
     fn opportunity(&self, req: &DecisionRequest, c: &Choice) -> Option<Opportunity> {
         let e = &self.engine;
         let st = &e.state;
+        if e.gains_nothing(req.seat, c) {
+            return Some(Opportunity::Nothing);
+        }
         match *c {
             Choice::Play { card, mode, .. } => {
                 let played = e.virtual_hand(req.seat)[card as usize].0;
@@ -535,8 +543,8 @@ impl Session {
 
     /// The options a human seat is shown: all, unless it passes on its
     /// opportunities. Then no wake out of its moment, no denial short of
-    /// the stealth, and the abilities usable at any time only where the
-    /// decision pauses anyway; all if none is left.
+    /// the stealth, no legal no-op, and the abilities usable at any time
+    /// only where the decision pauses anyway; all if none is left.
     pub(crate) fn shown(&self, req: &DecisionRequest) -> Vec<usize> {
         let all = (0..req.options.len()).collect::<Vec<_>>();
         if !self.quiet.contains(&req.seat) {
@@ -553,6 +561,7 @@ impl Session {
             .filter(|&i| {
                 kinds[i] != Some(Opportunity::Wake(false))
                     && kinds[i] != Some(Opportunity::Denial(false))
+                    && kinds[i] != Some(Opportunity::Nothing)
             })
             .collect();
         let pause = shown
@@ -702,4 +711,70 @@ fn untold_effects(c: &Choice) -> bool {
         c,
         Choice::ResolveRider { .. } | Choice::ResolvePrinted { .. } | Choice::UseAbility { .. }
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use zvtes::cards::{AbilitySource, Target};
+    use zvtes::copies::CopyId;
+    use zvtes::decks::Deck;
+    use zvtes::state::{find_library, CardId, CardInPlay};
+
+    use super::*;
+
+    /// A legal no-op is hidden with the opportunities off, shown with them
+    /// on (findings P15): Powerbase: Madrid's burn with no counter (rules-qa
+    /// 73.3), shown again once the card has a counter.
+    #[test]
+    fn a_legal_no_op_is_hidden_with_the_opportunities_off() {
+        let decks: Vec<Resolved> = (0..3)
+            .map(|i| {
+                let d = Deck::precon(i);
+                Resolved {
+                    crypt: d.crypt.to_vec(),
+                    library: d.library.to_vec(),
+                }
+            })
+            .collect();
+        let crypt = decks[0].crypt.clone();
+        let mut s = Session::new(1, None, decks, (0..3).map(|_| None).collect());
+        let mut e = Engine::bare(3);
+        let m = e.add_minion(SeatId(0), crypt[0].0, 4, false);
+        e.add_minion(SeatId(0), crypt[1].0, 4, false);
+        e.add_minion(SeatId(1), crypt[2].0, 4, false);
+        let madrid = find_library("Powerbase: Madrid");
+        e.state.cards.push(CardInPlay::entering(
+            madrid,
+            CopyId::NONE,
+            SeatId(1),
+            None,
+            0,
+        ));
+        let id = CardId(e.state.cards.len() as u32 - 1);
+        s.engine = e;
+        let Step::Decision(req) = s.engine.run() else {
+            panic!("a decision");
+        };
+        let burn = Choice::UseAbility {
+            source: AbilitySource::Card(id),
+            ability: 2,
+            actor: Some(m),
+            target: Target::None,
+        };
+        let i = req
+            .options
+            .iter()
+            .position(|o| *o == burn)
+            .expect("the burn offered");
+        assert!(
+            s.shown(&req).contains(&i),
+            "shown with the opportunities on"
+        );
+        s.set_opportunities(false);
+        let shown = s.shown(&req);
+        assert!(!shown.contains(&i), "hidden with them off");
+        assert!(shown.len() > 1, "the rest shown: {shown:?}");
+        s.engine.state.cards[id.index()].counters = 1;
+        assert!(s.shown(&req).contains(&i), "a counter to burn: shown");
+    }
 }
