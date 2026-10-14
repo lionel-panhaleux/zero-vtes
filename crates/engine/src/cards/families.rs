@@ -556,13 +556,10 @@ impl Effect {
             | E::CancelableForPool(..) => Family::Marker,
             // What the card is (`card_title`, `becomes_weapon`, `is_gun`).
             E::RepresentsTitle(..) | E::BecomesWeapon | E::BecomesGun => Family::Marker,
-            // Read on a change of control (`give_card_control`), as a host is
-            // about to leave the ready region (`about_to_leave_ready`), as the
-            // influence phase begins (`start_influence`) and as transfers are
-            // spent (`influence_apply`), by the diablerie (Regent), by the
-            // card's controller (`card_controller`: Melange [AUS]), by the
-            // servitors (`settle_servitors`), as the card would burn
-            // (`burn_minion`, a granted burn's success).
+            // Read by `give_card_control`, `about_to_leave_ready`,
+            // `start_influence`, `influence_apply`, the diablerie (Regent),
+            // `card_controller` (Melange [AUS]), `settle_servitors`, and
+            // `burn_minion` (a granted burn's success).
             E::PoolWhenHostLeaves(..)
             | E::BurnAtInfluencePerPreyReady
             | E::RechoosesOnControlChange
@@ -573,9 +570,8 @@ impl Effect {
             | E::RemovedAfterSuccessOrWithoutInfernal
             | E::StillYours => Family::Marker,
             // Read as the combat begins (Abuse of Power, Pillars Fall), as the
-            // action is declared (Fiendish Tongue's intercept) and as the bleed
-            // lands (its unlock, Enthrall's draw); by the frenzy-cancel cards
-            // (`frenzy_on`); as the action succeeds.
+            // action is declared (Fiendish Tongue), as the bleed lands
+            // (Enthrall), by `frenzy_on`, and as the action succeeds.
             E::CryptForBloodIfBleedSuccessful(..)
             | E::SectInterceptThisAction(..)
             | E::DiscardUnlockIfBleedSuccessful { .. }
@@ -697,8 +693,8 @@ mod tests {
         }
     }
 
-    // F1: an effect in a position whose interpreter does not resolve it
-    // reaches an `unreachable!` in a game; here it fails a test.
+    // An effect where its interpreter does not resolve it would reach an
+    // `unreachable!` in a game.
     #[test]
     fn every_effect_sits_where_its_family_resolves() {
         let mut w = Walk::default();
