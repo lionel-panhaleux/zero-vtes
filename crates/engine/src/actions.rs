@@ -1379,13 +1379,7 @@ impl Engine {
                                 && (!v.locked || a.woken.contains(&r))
                                 && (clans.is_empty()
                                     || v.clan().is_some_and(|c| clans.contains(&c)))
-                                && cards::has_disciplines(
-                                    st,
-                                    r,
-                                    card,
-                                    LIBRARY[card as usize].modes[cards::library_mode(card, mi)]
-                                        .tags,
-                                )
+                                && cards::has_disciplines(st, r, card, mi)
                         })
                 })
             })
@@ -1885,8 +1879,7 @@ impl Engine {
             };
             let mut per_card = 0u8;
             for (mi, mode) in def.modes.iter().enumerate() {
-                let tags = LIBRARY[card as usize].modes[cards::library_mode(card, mi)].tags;
-                if !cards::has_disciplines(st, m, card, tags) {
+                if !cards::has_disciplines(st, m, card, mi) {
                     continue;
                 }
                 if mode.requires.contains(&cards::Requirement::DirectedAtYou)
@@ -5904,10 +5897,8 @@ impl Engine {
                     .clan()
                     .is_some_and(|c| lib.clans.contains(&c)))
             && lib.path.is_none_or(|p| st.follows(m, p))
-            && lib
-                .modes
-                .first()
-                .is_some_and(|mode| cards::has_disciplines(st, m, card, mode.tags))
+            && !lib.modes.is_empty()
+            && cards::has_disciplines(st, m, card, 0)
             && st.can_hold(m, card, &[])
             // "Only one … can be played or equipped in a game" (Flaming
             // Candle).

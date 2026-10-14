@@ -997,7 +997,7 @@ impl Engine {
                     let as_vampire =
                         actor.and_then(|m| cards::plays_card_as_vampire(st, m, card, mi));
                     if let Some(m) = actor {
-                        if !cards::has_disciplines(st, m, card, tags) {
+                        if !cards::has_disciplines(st, m, card, mi) {
                             continue;
                         }
                         // One political action per minion per turn
@@ -1106,15 +1106,6 @@ impl Engine {
                                         .types
                                         .contains(&crate::library::CardType::PoliticalAction))
                             {
-                                continue;
-                            }
-                            // A card requiring a Discipline it cannot play
-                            // other than as a vampire (an action card, for
-                            // Spectral Servitor).
-                            let requires_discipline = tags.iter().any(|t| {
-                                t.len() == 3 && t.chars().all(|c| c.is_ascii_alphabetic())
-                            });
-                            if !as_vampire && requires_discipline {
                                 continue;
                             }
                         }
@@ -2240,14 +2231,7 @@ impl Engine {
                 continue;
             }
             for (mi, _) in def.modes.iter().enumerate() {
-                if (ignore && mi == 0)
-                    || cards::has_disciplines(
-                        st,
-                        m,
-                        card,
-                        lib.modes[cards::library_mode(card, mi)].tags,
-                    )
-                {
+                if (ignore && mi == 0) || cards::has_disciplines(st, m, card, mi) {
                     out.push((card, mi as u8));
                 }
             }

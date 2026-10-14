@@ -2143,6 +2143,30 @@ fn powerbase_munich_never_sees_an_ally_playing_as_a_vampire() {
     assert!(req.options.contains(&play(0, 0, servitor)), "{req:?}");
 }
 
+// Spectral Servitor "can play non-action cards requiring basic Oblivion
+// [obl] as a vampire": the Discipline check honours the whole grant
+// (rules-qa 73.6; findings L13), wherever it is read — an [obl] action
+// card (Shroud of Decay) is not met, an action modifier (Shadow Cloak) is.
+// No equipment of the pool requires a Discipline: the check is the one an
+// equipment found and equipped by an effect would pass.
+#[test]
+fn an_ally_meets_a_discipline_only_within_its_grant() {
+    let mut e = Engine::bare(3);
+    let servitor = e.add_ally(SeatId(0), find_library("Spectral Servitor"));
+    assert!(!cards::has_disciplines(
+        &e.state,
+        servitor,
+        find_library("Shroud of Decay"),
+        0
+    ));
+    assert!(cards::has_disciplines(
+        &e.state,
+        servitor,
+        find_library("Shadow Cloak"),
+        0
+    ));
+}
+
 // Phantasmagoria [PRE]: "if the attached minion is blocked, they burn 1
 // blood or life before block resolution." Blood for a vampire, life for
 // an ally, an ally with no life left burned (owner, 2026-10-14: rules-qa

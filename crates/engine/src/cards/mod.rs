@@ -5707,21 +5707,24 @@ pub fn plays_card_as_vampire(
         .filter(|g| tags.iter().any(|t| g.disciplines.contains(t)) && !(g.non_action && declares))
 }
 
-/// Does `m` meet a mode's discipline tags? Lower case needs the discipline
-/// at any level, upper case needs superior; a combo card needs every tag,
-/// any other card needs one (its text lists alternatives).
-pub fn has_disciplines(st: &GameState, m: MinionId, card: u16, tags: &[&str]) -> bool {
+/// Does `m` meet the discipline tags of mode `mi` of `card`? Lower case
+/// needs the discipline at any level, upper case needs superior; a combo
+/// card needs every tag, any other card needs one (its text lists
+/// alternatives).
+pub fn has_disciplines(st: &GameState, m: MinionId, card: u16, mi: usize) -> bool {
     // An ally has no Disciplines — but one that plays cards requiring a
     // basic Discipline "as a vampire" meets that one (The Vozhd of Juiz de
     // Fora, Spectral Servitor): at basic level only, one requirement of a
-    // card, never two at once (LSJ 20011217; ANK 20180111).
+    // card, never two at once (LSJ 20011217; ANK 20180111), within the
+    // whole grant (Spectral Servitor's "non-action": rules-qa 73.6).
     let vampire = st.minions[m.index()].is_vampire();
     let disc = if vampire {
         &[][..]
     } else {
-        st.plays_as_vampire(m).map_or(&[][..], |g| g.disciplines)
+        plays_card_as_vampire(st, m, card, mi).map_or(&[][..], |g| g.disciplines)
     };
-    let tags: Vec<&&str> = tags
+    let tags: Vec<&&str> = LIBRARY[card as usize].modes[library_mode(card, mi)]
+        .tags
         .iter()
         .filter(|t| t.len() == 3 && t.chars().all(|c| c.is_ascii_alphabetic()))
         .collect();
