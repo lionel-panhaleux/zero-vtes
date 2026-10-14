@@ -1728,22 +1728,38 @@ impl GameState {
     /// card put in play by another (Piper, Contraband; rules-qa 36.5, ANK
     /// 20210913).
     pub fn printed_cost_off(&self, m: MinionId, card: u16, mode: u8) -> CostOff {
+        self.printed_cost_off_x(m, card, mode, 0)
+    }
+
+    /// As `printed_cost_off`, an X cost chosen at `x` (The Ankara Citadel
+    /// halves it once chosen; owner, 2026-10-14: rules-qa 70.17).
+    pub fn printed_cost_off_x(&self, m: MinionId, card: u16, mode: u8, x: u8) -> CostOff {
         let ctx = PrintedCtx {
             card: Some((card, mode)),
             ..PrintedCtx::default()
         };
         let n = |stat| self.printed_mod(m, stat, ctx).max(0) as u8;
-        // The Ankara Citadel, Turkey: a printed blood cost halved (rounded
-        // down) first — the half taken off with the other reductions.
+        // The Ankara Citadel, Turkey: a blood cost halved (rounded down)
+        // first — the half taken off with the other reductions — unless the
+        // card is played as an action modifier: a dual card played as a
+        // reaction or in combat is halved, an X cost once X is chosen
+        // (owner, 2026-10-14: rules-qa 70.17).
         let lib = &LIBRARY[card as usize];
-        let half = match lib.blood_cost {
-            crate::library::Cost::Fixed(c)
-                if !lib.types.contains(&CardType::ActionModifier)
-                    && self.hosts(m, Modifier::HalvesBloodCosts) =>
-            {
-                c - c / 2
-            }
-            _ => 0,
+        let as_modifier = lib.types.contains(&CardType::ActionModifier)
+            && (lib.types.len() == 1
+                || self.acting == Some(m)
+                    && !cards::lookup(card)
+                        .and_then(|d| d.modes.get(mode as usize))
+                        .is_some_and(|md| md.windows.iter().all(|w| w.is_combat())));
+        let base = match lib.blood_cost {
+            crate::library::Cost::Fixed(c) => c,
+            crate::library::Cost::X => x,
+            crate::library::Cost::None => 0,
+        };
+        let half = if !as_modifier && self.hosts(m, Modifier::HalvesBloodCosts) {
+            base - base / 2
+        } else {
+            0
         };
         CostOff {
             pool: n(Stat::PoolCostOff),

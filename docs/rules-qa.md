@@ -1384,7 +1384,7 @@ Slice 16u: the cards of the Lasombra, Toreador antitribu and Ravnos TWDA decks a
 
 **69.15** Flames of Insurrection: the offer goes to the Anarch's controller whoever controls the card (ANK 20180627-2), optional, the vampire in their uncontrolled region their pick. (Test flames_of_insurrection_feeds_the_anarchs_uncontrolled_region.)
 
-## Batch 70 — Legacy cards for TWDA decks, round 10 (the 2025–2026 decks): readings no ruling settles (Claude, 2026-10-13)
+## Batch 70 — Legacy cards for TWDA decks, round 10 (the 2025–2026 decks): readings no ruling settles (Claude, 2026-10-13; owner, 2026-10-14: 70.1–70.4, 70.6–70.8, 70.10–70.12, 70.14–70.16, 70.19 confirmed, 70.17 corrected)
 
 **70.1** Rumors of Gehenna: the Methuselahs chosen in its terms (the caller may choose themselves) are remembered by the card in play; "two master phase actions (instead of one)" is the same second action as Anson's — neither another copy nor Anson adds a third. (Test rumors_of_gehenna_gives_the_chosen_two_master_phase_actions.)
 
@@ -1396,7 +1396,7 @@ Slice 16u: the cards of the Lasombra, Toreador antitribu and Ravnos TWDA decks a
 
 **70.5** Camarilla Threat: each copy in play adds its pool; paid as the card is discarded, a last pool ousting its Methuselah. (Test camarilla_threat_charges_a_pool_per_discard.)
 
-**70.6** Eat the Rich: "each priscus gets -1 ballot" — its prisci ballot (printed ones too) lessened by 1; "each non-priscus titled vampire gets -1 vote" — off its total votes in this referendum, never below 0; the Edge cast is worth 2 votes; "a ready titled vampire" read as it passes. (Test eat_the_rich_taxes_titles_and_doubles_the_edge.)
+**70.6** Eat the Rich: "each priscus gets -1 ballot" — its ballots in all lessened by 1 (Gratiano, a priscus with "+1 ballot", keeps one: owner, 2026-10-14); "each non-priscus titled vampire gets -1 vote" — off its total votes in this referendum, never below 0; the Edge cast is worth 2 votes; "a ready titled vampire" read as it passes. (Tests eat_the_rich_taxes_titles_and_doubles_the_edge, eat_the_rich_leaves_gratiano_one_ballot.)
 
 **70.7** Anathema: "reduced to 0 in combat" read as each combat step settles: any loss to 0 in it (damage, a cost paid in blood); a vampire back above 0 by then is not burned; the pool to the Methuselah controlling the opposing minion then. (Tests anathema_burns_a_vampire_reduced_to_zero_not_one_at_zero and the others citing its rulings.)
 
@@ -1418,7 +1418,7 @@ Slice 16u: the cards of the Lasombra, Toreador antitribu and Ravnos TWDA decks a
 
 **70.16** Drawing Out the Beast: its +1 strength is a frenzy effect like the rest (Tranquility Shield cancels it); [ANI]'s damage lands as the press step begins, before any press. (Tests drawing_out_the_beast_damages_in_the_press_step_unless_combat_ended, drawing_out_the_beast_is_not_played_against_an_ally.)
 
-**70.17** The Ankara Citadel, Turkey: "non-action modifier cards" — every card not typed action modifier (a dual Action Modifier/Reaction card is not halved); only a printed blood cost is halved (an X cost is not). (Test ankara_citadel_halves_its_bearers_non_modifier_costs.)
+**70.17** The Ankara Citadel, Turkey: "non-action modifier cards" — every card not played as an action modifier. Owner (2026-10-14): a dual Action Modifier/Reaction card played as a reaction is halved (it does not count as a modifier then), and an X cost is halved once X is chosen. A dual card played by the acting bearer outside combat is a modifier, not halved. (Tests ankara_citadel_halves_its_bearers_non_modifier_costs, ankara_citadel_halves_a_dual_card_played_as_a_reaction, ankara_citadel_halves_an_x_cost.)
 
 **70.18** Third Tradition: Progeny: "cannot perform actions this turn" — as a recruited ally; the blood moved over its capacity drains. (Test third_tradition_progeny_moves_blood_decided_at_resolution.)
 

@@ -21965,7 +21965,9 @@ pub static ZAIRE_RIVER_FERRY: CardDef = CardDef {
 /// this vampire half as much blood to play, rounded down (multiplication
 /// and division are handled first, followed by addition and subtraction)."
 /// (2 blood.) Halved before any other change (RTR 20070707), so folded in
-/// with the bearer's reductions (`GameState::printed_cost_off`).
+/// with the bearer's reductions (`GameState::printed_cost_off_x`); a dual
+/// card played as a reaction is halved, an X cost once X is chosen (owner,
+/// 2026-10-14: rules-qa 70.17).
 pub static THE_ANKARA_CITADEL: CardDef = CardDef {
     name: "Ankara Citadel, Turkey, The",
     modes: &[ModeDef {

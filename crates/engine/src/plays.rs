@@ -3045,7 +3045,7 @@ impl Engine {
         let Some(m) = ctx.actor else {
             return 0;
         };
-        let off = self.state.printed_cost_off(m, ctx.card, ctx.mode);
+        let off = self.state.printed_cost_off_x(m, ctx.card, ctx.mode, ctx.x);
         *pool = (*pool - off.pool as i32).max(0);
         if *pool > 0 {
             *pool = (*pool - off.either as i32).max(0);
@@ -5790,7 +5790,7 @@ impl Engine {
         let mut blood = cards::blood_cost(&self.state, play.card, x)
             + self.card_surcharge(actor, play.card, play.mode);
         self.state
-            .printed_cost_off(actor, play.card, play.mode)
+            .printed_cost_off_x(actor, play.card, play.mode, x)
             .apply(&mut 0, &mut blood);
         blood
     }

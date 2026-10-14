@@ -4565,7 +4565,7 @@ impl Engine {
                 let mut blood = cards::blood_cost(&self.state, play.card, x)
                     + self.card_surcharge(a.acting, play.card, play.mode);
                 self.state
-                    .printed_cost_off(a.acting, play.card, play.mode)
+                    .printed_cost_off_x(a.acting, play.card, play.mode, x)
                     .apply(&mut pool, &mut blood);
                 let once = self.once_off_amount(&play, blood);
                 blood -= once;

@@ -1510,3 +1510,85 @@ fn zaire_river_ferry_needs_a_lasombra_bearer() {
         |o| matches!(o, Choice::UseAbility { source: AbilitySource::Card(c), .. } if *c == ferry),
     );
 }
+
+// The Ankara Citadel, Turkey (owner, 2026-10-14: rules-qa 70.17): a dual
+// Action Modifier/Reaction card played as a reaction is halved — Scalpel
+// Tongue (1 blood) costs a reacting bearer 0 — but not played as an action
+// modifier by the acting bearer, who pays its 1.
+#[test]
+fn ankara_citadel_halves_a_dual_card_played_as_a_reaction() {
+    for reacting in [true, false] {
+        let mut e = game(2);
+        let a = e.add_minion(SeatId(0), prince(0), 4, false);
+        superior(&mut e, a, "pre");
+        superior(&mut e, a, "cel");
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        let r = e.add_minion(SeatId(1), prince(1), 4, false);
+        superior(&mut e, r, "pre");
+        superior(&mut e, r, "cel");
+        let (bearer, seat, voter) = if reacting { (r, 1, a) } else { (a, 0, r) };
+        in_play(&mut e, seat, "Ankara Citadel, Turkey, The", Some(bearer));
+        hand(&mut e, seat, &["Scalpel Tongue"]);
+        hand(&mut e, 0, &["Ancilla Empowerment"]);
+        let call = (e.state.seats[0].hand.len() - 1) as u8;
+        pick(&mut e, play(call, 0, a));
+        to_referendum(&mut e);
+        pick_when(&mut e, votes(voter, true));
+        pick_when(&mut e, play_at(0, 0, bearer, Target::Minion(voter)));
+        request(&mut e);
+        assert_eq!(blood(&e, bearer), if reacting { 4 } else { 4 - 1 });
+    }
+}
+
+// The Ankara Citadel, Turkey (owner, 2026-10-14: rules-qa 70.17): an X cost
+// is halved once X is chosen — Chameleon at X 3 costs its bearer 1.
+#[test]
+fn ankara_citadel_halves_an_x_cost() {
+    let mut e = game(2);
+    let b = e.add_minion(SeatId(0), big_baron(), 8, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let three = CRYPT
+        .iter()
+        .enumerate()
+        .position(|(i, c)| {
+            c.capacity == 3
+                && c.title == zvtes::crypt::Title::None
+                && c.sect != zvtes::crypt::Sect::Anarch
+                && zvtes::cards::vampire(i as u16).is_none()
+        })
+        .expect("a capacity 3") as u16;
+    let t = e.add_minion(SeatId(1), three, 3, false);
+    in_play(&mut e, 0, "Ankara Citadel, Turkey, The", Some(b));
+    hand(&mut e, 0, &["Chameleon"]);
+    request(&mut e);
+    let before = blood(&e, b);
+    pick(&mut e, play_at(0, 0, b, Target::Minion(t)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.minions[t.index()].owner, SeatId(0));
+    assert_eq!(blood(&e, b), before - 1);
+}
+
+// Eat the Rich (owner, 2026-10-14: rules-qa 70.6): "each priscus gets -1
+// ballot" — of its ballots in all: Gratiano, a priscus with "+1 ballot",
+// casts 1.
+#[test]
+fn eat_the_rich_leaves_gratiano_one_ballot() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), anarch_with("pot", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let g = e.add_minion(SeatId(1), find_card("Gratiano"), 4, false);
+    hand(&mut e, 0, &["Eat the Rich"]);
+    pick(&mut e, play(0, 0, a));
+    pick_when(&mut e, Choice::ChooseSeat(SeatId(1)));
+    pick_when(&mut e, Choice::Pass);
+    to_referendum(&mut e);
+    pick_when(&mut e, votes(g, false));
+    let r = e.referendum().expect("referendum");
+    let mine: Vec<u8> = r
+        .records
+        .iter()
+        .filter(|v| v.source == zvtes::referendum::Source::Vampire(g))
+        .map(|v| v.ballots)
+        .collect();
+    assert_eq!(mine, vec![1]);
+}
