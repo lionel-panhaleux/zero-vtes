@@ -116,6 +116,13 @@ class Config:
     # training): 2 trains on twice the decisions for the same inference
     # (~80% of the rollout's is the opponents' with 1).
     learner_seats: int = 1
+    # The share of league tables with a second learner seat across the
+    # table from the first (owner, 2026-10-14: "pairing the trainee with a
+    # copy of the trainee network cross-table"): restraint between
+    # cross-table seats, which mostly helps their neighbours until one is
+    # ousted, pays only once both sides learn it — frozen opponents never
+    # do. Kept to a share: a cross-table seat that holds back is not given.
+    partner_rate: float = 0.0
     # The share of opponent seats drawn among the bots (the rest among the
     # snapshots): the evaluation is against the bots (owner, 2026-09-29).
     bot_seats: float = 0.6
@@ -584,6 +591,8 @@ class Trainer:
         self.net_obs = []
         if cfg.opponents and not cfg.league:
             raise ValueError("--opponents needs --league true")
+        if cfg.partner_rate > 0 and not cfg.league:
+            raise ValueError("--partner-rate needs --league true")
         if cfg.habit_seats > 0 and not cfg.opponents:
             raise ValueError("--habit-seats needs --opponents (frozen seats)")
         if cfg.league:

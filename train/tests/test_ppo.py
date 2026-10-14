@@ -199,6 +199,13 @@ def test_a_v3_learner_from_a_v2_checkpoint(tmp_path):
     trainer = Trainer(cfg)
     assert trainer.net_obs == [(FROZEN, 2)] and trainer.warmup == 1
     assert all(trainer.league.spec()["seats"].count("net:0") == 2 for _ in range(20))
+    # Paired: the second learner seat across the table, at 4 and 5 seats.
+    trainer.cfg.partner_rate = 1.0
+    for n in (4, 5) * 10:
+        seats = trainer.league.spec(n)["seats"]
+        a, b = [i for i, s in enumerate(seats) if s == "net:0"]
+        assert (b - a) % n in range(2, n - 1)
+    trainer.cfg.partner_rate = 0.0
     trainer.run()
     rows = [json.loads(line) for line in open(tmp_path / "new" / "metrics.jsonl").read().splitlines()]
     assert rows[-1]["iteration"] == 3 and "vs_frozen4" in rows[-1]

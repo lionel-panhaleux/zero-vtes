@@ -4,8 +4,10 @@
 //! apart from the bots') and self-play of an exported network.
 //! `cargo run -p zvtes-policy --profile ci --example waste -- <policy.zvp>
 //! <games> [--t T] [--rescue B] [--pass B] [--reaction B] [--bleed B]
-//! [--idle B] [replay.json]...`
-//! (self-play at temperature T, with those nudges: `zvtes_policy::Nudges`). Per group:
+//! [--idle B] [--seats N] [--twda] [replay.json]...`
+//! (self-play at N seats, 4 by default, the precons or with `--twda` the
+//! TWDA decks, at temperature T, with those nudges:
+//! `zvtes_policy::Nudges`). Per group:
 //! - rescues of one's own vampire offered (minion-phase decisions) and
 //!   taken; bleeds for nothing (`zvtes_policy::empty_bleed`: Aggressive
 //!   Corpse's) offered and taken;
@@ -29,14 +31,29 @@
 //!   stays, no voluntary self-contest), of the influence decisions
 //!   offering one (owner, 2026-10-10);
 //! - nightmare counters (Week of Nightmares) moved, and those onto one's
-//!   own minion (`zvtes_policy::own_nightmare`; owner, 2026-10-10: "never a good move").
+//!   own minion (`zvtes_policy::own_nightmare`; owner, 2026-10-10: "never a good move");
+//! - cross-table play while no seat is ousted at 4 seats or more (owner,
+//!   2026-10-14: damage between cross-table seats "only benefits the
+//!   bouncing prey"), against a prey or predator and against a cross-table
+//!   seat: block attempts on the seat's bleeds with a stealth card offered,
+//!   and those answered with one; combats its minion fought, the cards it
+//!   played in them, the blood the opposing minion lost and whether it
+//!   went to torpor or burned; the pool its bleeds took from its prey and
+//!   from cross-table seats (bounced ones);
+//! - Wider View's draw-and-remove (findings E7: a bot used it until its
+//!   crypt was empty): influence decisions offering it and those taking
+//!   it, the crypt left then; the vampires removed from the uncontrolled
+//!   region (by it or another card), the blood on them, and those removed
+//!   while one with less blood stayed.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use zvtes::actions::ActionState;
 use zvtes::agent::Agent;
-use zvtes::cards::{self, Effect};
-use zvtes::decision::{Choice, DecisionRequest, WindowLabel};
+use zvtes::cards::{self, AbilitySource, Effect};
+use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::decks::Deck;
+use zvtes::draws::Interrupt;
 use zvtes::game::{Engine, Step};
 use zvtes::habits;
 use zvtes::ids::{MinionId, SeatId};
@@ -82,6 +99,60 @@ struct Counts {
     /// with a transfer or crypt draw possible, of those none made, pool
     /// summed over those, ended with a vampire ready to come out).
     influence: [(u64, u64, u64, u64, u64); 2],
+    /// Cross-table play, [against a prey or predator, a cross-table seat]
+    /// (`relation`; a bleed's pool: [its prey, a cross-table seat]).
+    stealth_offered: [u64; 2],
+    stealth_played: [u64; 2],
+    combats: [u64; 2],
+    combat_plays: [u64; 2],
+    combat_damage: [u64; 2],
+    combat_down: [u64; 2],
+    bleeds: u64,
+    bled: [i64; 2],
+    /// Wider View: offered, used, the crypt summed at those uses, uses
+    /// with under 4 crypt cards left.
+    wider_offered: u64,
+    wider_used: u64,
+    wider_crypt: u64,
+    wider_low: u64,
+    /// Uncontrolled vampires removed, their blood summed, those removed
+    /// while one with less blood stayed.
+    removed: u64,
+    removed_blood: u64,
+    removed_dearer: u64,
+}
+
+fn is_wider(e: &Engine, o: &Choice) -> bool {
+    matches!(*o, Choice::UseAbility { source: AbilitySource::Card(c), ability: 0, .. }
+        if c != zvtes::state::ASH_PLAY
+            && LIBRARY[e.state.cards[c.index()].card as usize].name == "Wider View")
+}
+
+/// `b` as `a` sees it: 0 its prey or predator, 1 cross-table; `None` once
+/// a seat is ousted, under 4 seats, or for `a` itself.
+fn relation(e: &Engine, a: SeatId, b: SeatId) -> Option<usize> {
+    let st = &e.state;
+    let n = st.seats.len();
+    if n < 4 || a == b || st.seats.iter().any(|s| s.ousted) {
+        return None;
+    }
+    let d = (b.index() + n - a.index()) % n;
+    Some((d != 1 && d != n - 1) as usize)
+}
+
+/// A combat under way: (turn, its minions), their seats, `relation`, the
+/// blood each had when first seen, the cards each side played.
+struct Fight {
+    id: (u32, MinionId, MinionId),
+    seats: [SeatId; 2],
+    rel: usize,
+    blood: [u8; 2],
+    plays: [u64; 2],
+}
+
+fn is_stealth(e: &Engine, me: SeatId, o: &Choice) -> bool {
+    matches!(*o, Choice::Play { card, mode, .. }
+        if effects(e, me, card, mode).iter().any(|f| matches!(f, Effect::AddStealth(_))))
 }
 
 fn type_of(card: u16) -> String {
@@ -102,7 +173,19 @@ struct Watch {
     unlocks: Vec<(String, MinionId, SeatId, u32)>,
     /// A transfer or crypt draw made in the current influence phase.
     spent: bool,
+    /// Each seat's group: cross-table counts go to the seat they describe.
+    groups: Vec<String>,
+    combat: Option<Fight>,
+    /// Block attempts on a bleed with stealth offered: (action, blocker,
+    /// `relation`, stealth played).
+    attempts: Vec<(ActionKey, MinionId, usize, bool)>,
+    /// The seat bleeding since the last decision, and each seat's prey (0)
+    /// or cross-table (1) standing to it and pool then.
+    bleeding: Option<(SeatId, Vec<Standing>)>,
 }
+
+/// A seat's prey (0) or cross-table (1) standing to the bleeder, and its pool.
+type Standing = (Option<usize>, i32);
 
 fn action_key(e: &Engine) -> ActionKey {
     e.action().map(|a| (e.state.turn, a.acting))
@@ -140,6 +223,130 @@ fn playable(e: &Engine, me: SeatId, card: u16) -> bool {
 }
 
 impl Watch {
+    fn new(groups: Vec<String>) -> Self {
+        Watch {
+            groups,
+            ..Watch::default()
+        }
+    }
+
+    /// What happened since the last decision: the pool a bleed took, a
+    /// combat over.
+    fn settle(&mut self, e: &Engine, counts: &mut BTreeMap<String, Counts>) {
+        let st = &e.state;
+        if let Some((x, before)) = self.bleeding.take() {
+            let c = counts.entry(self.groups[x.index()].clone()).or_default();
+            for (s, &(rel, pool)) in before.iter().enumerate() {
+                if let Some(r) = rel {
+                    c.bled[r] += (pool - st.seats[s].pool).max(0) as i64;
+                }
+            }
+        }
+        let now = e
+            .combat()
+            .map(|c| (st.turn, c.sides[0].minion, c.sides[1].minion));
+        if self.combat.as_ref().is_some_and(|f| Some(f.id) != now) {
+            let f = self.combat.take().unwrap();
+            let minions = [f.id.1, f.id.2];
+            for i in 0..2 {
+                let them = &st.minions[minions[1 - i].index()];
+                let c = counts
+                    .entry(self.groups[f.seats[i].index()].clone())
+                    .or_default();
+                c.combats[f.rel] += 1;
+                c.combat_plays[f.rel] += f.plays[i];
+                c.combat_damage[f.rel] += f.blood[1 - i].saturating_sub(them.blood) as u64;
+                c.combat_down[f.rel] += (them.in_torpor || !them.in_play) as u64;
+            }
+        }
+        if let (None, Some(id), Some(c)) = (&self.combat, now, e.combat()) {
+            let seats = [c.sides[0].seat, c.sides[1].seat];
+            if let Some(rel) = relation(e, seats[0], seats[1]) {
+                self.combat = Some(Fight {
+                    id,
+                    seats,
+                    rel,
+                    blood: [id.1, id.2].map(|m| st.minions[m.index()].blood),
+                    plays: [0; 2],
+                });
+            }
+        }
+    }
+
+    /// Cross-table play at this decision (`settle` first).
+    fn cross(
+        &mut self,
+        e: &Engine,
+        req: &DecisionRequest,
+        o: Choice,
+        counts: &mut BTreeMap<String, Counts>,
+    ) {
+        let me = req.seat;
+        let key = action_key(e);
+        if let Some(f) = &mut self.combat {
+            if let (Some(i), Choice::Play { .. }) = (f.seats.iter().position(|&s| s == me), o) {
+                f.plays[i] += 1;
+            }
+        }
+        let c = counts.entry(self.groups[me.index()].clone()).or_default();
+        if let Some(a) = e.action() {
+            if let (ActionKind::Bleed, ActionState::Attempt(b), true) =
+                (a.kind, a.state, a.seat == me)
+            {
+                let stealth = is_stealth(e, me, &o);
+                match self.attempts.iter_mut().find(|t| t.0 == key && t.1 == b) {
+                    Some(t) => {
+                        if stealth && !t.3 {
+                            t.3 = true;
+                            c.stealth_played[t.2] += 1;
+                        }
+                    }
+                    None => {
+                        let them = e.state.minions[b.index()].owner;
+                        if let (true, Some(rel)) = (
+                            req.options.iter().any(|o| is_stealth(e, me, o)),
+                            relation(e, me, them),
+                        ) {
+                            c.stealth_offered[rel] += 1;
+                            c.stealth_played[rel] += stealth as u64;
+                            self.attempts.push((key, b, rel, stealth));
+                        }
+                    }
+                }
+            }
+        }
+        let declared = match o {
+            Choice::TakeAction {
+                action: ActionKind::Bleed,
+                ..
+            } => true,
+            Choice::Play { card, mode, .. } => {
+                effects(e, me, card, mode).contains(&Effect::DeclareAction(ActionKind::Bleed))
+            }
+            _ => false,
+        };
+        let st = &e.state;
+        let bleeder = if declared {
+            if relation(e, me, st.prey(me)).is_some() {
+                c.bleeds += 1;
+            }
+            Some(me)
+        } else {
+            e.action()
+                .filter(|a| a.kind == ActionKind::Bleed)
+                .map(|a| a.seat)
+        };
+        self.bleeding = bleeder.map(|x| {
+            let before = (0..st.seats.len())
+                .map(|s| {
+                    let s = SeatId(s as u8);
+                    let rel = relation(e, x, s).filter(|&r| r == 1 || s == st.prey(x));
+                    (rel, st.seats[s.index()].pool)
+                })
+                .collect();
+            (x, before)
+        });
+    }
     /// Before `chosen` is applied: settle what this decision shows, then
     /// record what it plays.
     fn see(
@@ -153,6 +360,8 @@ impl Watch {
         let me = req.seat;
         let key = action_key(e);
         let o = req.options[chosen];
+        self.settle(e, counts);
+        self.cross(e, req, o, counts);
         // A block by a woken vampire uses its wake.
         if let Choice::DeclareBlock { minion } = o {
             self.wakes.retain(|(_, m, k)| !(*m == minion && *k == key));
@@ -201,6 +410,23 @@ impl Watch {
         if let Some(own) = zvtes_policy::own_nightmare(e, me, &o) {
             c.nightmares += 1;
             c.nightmares_own += own as u64;
+        }
+        if req.options.iter().any(|o| is_wider(e, o)) {
+            let crypt = e.state.seats[me.index()].crypt.len() as u64;
+            c.wider_offered += 1;
+            if is_wider(e, &o) {
+                c.wider_used += 1;
+                c.wider_crypt += crypt;
+                c.wider_low += (crypt < 4) as u64;
+            }
+        }
+        if let (Some(Interrupt::RemoveUncontrolled { seat }), Choice::Slot(i)) = (e.interrupt(), o)
+        {
+            let slots = &e.state.seats[seat.index()].uncontrolled;
+            let blood = slots[i as usize].counters;
+            c.removed += 1;
+            c.removed_blood += blood as u64;
+            c.removed_dearer += slots.iter().any(|s| s.counters < blood) as u64;
         }
         if req.options.iter().any(rescue) {
             c.rescue_offered += 1;
@@ -296,33 +522,47 @@ fn owner_games(paths: &[String], counts: &mut BTreeMap<String, Counts>) {
             .map(|s| replay.humans.contains(&(s as u8)))
             .collect();
         let mut reader = replay.reader();
-        let mut watch = Watch::default();
+        let groups: Vec<String> = human
+            .iter()
+            .map(|&h| {
+                if h {
+                    "owner"
+                } else {
+                    "bots in the owner's games"
+                }
+                .to_string()
+            })
+            .collect();
+        let mut watch = Watch::new(groups.clone());
         while let Step::Decision(req) = e.run() {
             let Some(Ok(i)) = reader.next(&e, &req) else {
                 break;
             };
-            let group = if human[req.seat.index()] {
-                "owner"
-            } else {
-                "bots in the owner's games"
-            };
-            watch.see(&e, &req, i, group, counts);
+            watch.see(&e, &req, i, &groups[req.seat.index()], counts);
             e.choose(i);
         }
+        watch.settle(&e, counts);
     }
 }
 
 fn self_play(
     path: &str,
     games: u64,
+    seats: u64,
+    twda: bool,
     temperature: f32,
     nudges: Nudges,
     counts: &mut BTreeMap<String, Counts>,
 ) {
     let net = Arc::new(Net::load(&std::fs::read(path).expect("the policy")).expect("a policy"));
-    let decks: Vec<Deck> = Deck::all().take(14).collect();
+    let decks: Vec<Deck> = if twda {
+        (0..zvtes::twda::TWDA.len()).map(Deck::twda).collect()
+    } else {
+        Deck::all().take(14).collect()
+    };
     let group = format!(
-        "self-play (t {temperature}, nudges rescue {} pass {} reaction {} bleed {} idle {} draw {} stuck {} nightmare {})",
+        "self-play ({seats} seats{}, t {temperature}, nudges rescue {} pass {} reaction {} bleed {} idle {} draw {} stuck {} nightmare {})",
+        if twda { ", TWDA" } else { "" },
         nudges.rescue,
         nudges.pass,
         nudges.reaction,
@@ -333,19 +573,19 @@ fn self_play(
         nudges.nightmare
     );
     for g in 0..games {
-        let seats: Vec<Deck> = (0..4)
-            .map(|i| decks[((g * 5 + i * 3) % 14) as usize])
+        let table: Vec<Deck> = (0..seats)
+            .map(|i| decks[((g * 5 + i * 3) % decks.len() as u64) as usize])
             .collect();
-        let mut e = Engine::with_decks(9000 + g, &seats);
+        let mut e = Engine::with_decks(9000 + g, &table);
         e.time_limit = 75;
-        let mut agents: Vec<NetAgent> = (0..4)
+        let mut agents: Vec<NetAgent> = (0..seats)
             .map(|s| {
                 NetAgent::new(net.clone(), g * 10 + s)
                     .temperature(temperature)
                     .nudges(nudges)
             })
             .collect();
-        let mut watch = Watch::default();
+        let mut watch = Watch::new(vec![group.clone(); seats as usize]);
         while let Step::Decision(req) = e.run() {
             let i = agents[req.seat.index()].decide(&e, &req);
             watch.see(&e, &req, i, &group, counts);
@@ -354,15 +594,17 @@ fn self_play(
                 break;
             }
         }
+        watch.settle(&e, counts);
     }
 }
 
 fn main() {
     let mut args = std::env::args().skip(1);
-    let usage = "usage: waste <policy.zvp> <games> [--t T] [--rescue B] [--pass B] [--reaction B] [--bleed B] [--idle B] [--draw B] [--stuck B] [--nightmare B] [replay]...";
+    let usage = "usage: waste <policy.zvp> <games> [--t T] [--rescue B] [--pass B] [--reaction B] [--bleed B] [--idle B] [--draw B] [--stuck B] [--nightmare B] [--seats N] [--twda] [replay]...";
     let policy = args.next().expect(usage);
     let games: u64 = args.next().and_then(|n| n.parse().ok()).expect(usage);
-    let (mut temperature, mut nudges, mut replays) = (1.0, Nudges::default(), Vec::new());
+    let (mut temperature, mut nudges, mut replays, mut seats, mut twda) =
+        (1.0, Nudges::default(), Vec::new(), 4, false);
     while let Some(a) = args.next() {
         let mut num = || {
             args.next()
@@ -379,12 +621,22 @@ fn main() {
             "--draw" => nudges.draw = num(),
             "--stuck" => nudges.stuck = num(),
             "--nightmare" => nudges.nightmare = num(),
+            "--seats" => seats = num() as u64,
+            "--twda" => twda = true,
             _ => replays.push(a),
         }
     }
     let mut counts = BTreeMap::new();
     owner_games(&replays, &mut counts);
-    self_play(&policy, games, temperature, nudges, &mut counts);
+    self_play(
+        &policy,
+        games,
+        seats,
+        twda,
+        temperature,
+        nudges,
+        &mut counts,
+    );
     let pct = |a: u64, b: u64| {
         if b == 0 {
             0.0
@@ -455,5 +707,37 @@ fn main() {
                 i.4
             );
         }
+        let per = |a: u64, b: u64| a as f64 / b.max(1) as f64;
+        println!(
+            "  no seat ousted, adjacent/cross-table: block attempts on its bleeds with stealth offered {}/{}, answered with stealth {:.0}%/{:.0}%; combats {}/{}: cards it played {:.2}/{:.2}, blood the opposing minion lost {:.2}/{:.2}, to torpor or burned {:.0}%/{:.0}%",
+            c.stealth_offered[0],
+            c.stealth_offered[1],
+            pct(c.stealth_played[0], c.stealth_offered[0]),
+            pct(c.stealth_played[1], c.stealth_offered[1]),
+            c.combats[0],
+            c.combats[1],
+            per(c.combat_plays[0], c.combats[0]),
+            per(c.combat_plays[1], c.combats[1]),
+            per(c.combat_damage[0], c.combats[0]),
+            per(c.combat_damage[1], c.combats[1]),
+            pct(c.combat_down[0], c.combats[0]),
+            pct(c.combat_down[1], c.combats[1])
+        );
+        println!(
+            "  bleeds declared, no seat ousted {}: pool taken from its prey {:.2}, from cross-table {:.2} a bleed",
+            c.bleeds,
+            c.bled[0] as f64 / c.bleeds.max(1) as f64,
+            c.bled[1] as f64 / c.bleeds.max(1) as f64
+        );
+        println!(
+            "  Wider View's draw-and-remove offered {}, used {:.0}% (crypt then {:.1}, under 4 cards {:.0}%); uncontrolled vampires removed {}: blood on them {:.2}, one with less blood kept {:.0}%",
+            c.wider_offered,
+            pct(c.wider_used, c.wider_offered),
+            per(c.wider_crypt, c.wider_used),
+            pct(c.wider_low, c.wider_used),
+            c.removed,
+            per(c.removed_blood, c.removed),
+            pct(c.removed_dearer, c.removed)
+        );
     }
 }

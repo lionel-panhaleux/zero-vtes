@@ -2116,6 +2116,28 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   day (nightmare 6 in the server's bots), the only engine since P6's
   merge (`243bf6b`: the wasm gone, bot settings in
   `crates/server/src/games.rs`).
+- **p11** (`runs/p11`; owner, 2026-10-14: launched after Z-beta's engine
+  refactor, `aa50ca0`, round 11's cards, the vocabulary remapped). Cross-table play (owner: until a seat is ousted, damage
+  between cross-table seats "only benefits the bouncing prey" — accept
+  the block, keep the combat harmless; ousting a threatening cross-table
+  seat stays right, so it should emerge, not be nudged). Measured by
+  `waste` (adjacent / cross-table, no seat ousted), p10@3840 self-play,
+  160 games at 4 / 5 seats: stealth answering a block attempt on its
+  bleed 86% / 87%, 89% / 82%; blood the opposing minion lost a combat
+  0.96 / 1.19, 0.98 / 1.18; sent to torpor or burned 11% / 19%, 12% /
+  15%; pool a bleed took from its prey / a cross-table seat 1.36 / 0.14,
+  1.39 / 0.15 — no restraint, harder on cross-table minions. The owner's
+  31 records: 2.15 / 0.09 a bleed, too few cross-table combats (11) or
+  bounced attempts (0) to read. Restraint pays only once both sides learn
+  it, which frozen opponents never do: `--partner-rate 0.5` seats a
+  second learner across the table from the first on half the league
+  tables. No weak decks (owner: p10's per-deck order now matches the
+  players' sense of relative strength). From p10@3840, opponents p9@3400
+  and p10@3840 frozen, the other settings as p10's. Wider View (findings
+  E7; `waste --twda`, TWDA decks only, 120 games): p10 takes its
+  draw-and-remove at 27% of the decisions offering it, 26% of uses under
+  4 crypt cards left (the owner 12%, none): no nudge (owner, 2026-10-14),
+  p11's snapshots measured.
 
 ### 11.3 Open gaps
 

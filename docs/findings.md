@@ -48,7 +48,7 @@ E: engine or text (here).
 | E4 | Log | A play's cost and its card entering play told after the effect and the replacement draw (Zillah's Valley's −5 pool after the draw; Villein's blood moved before "Villein comes into play") | dropped (owner, 2026-10-14: may not matter) |
 | E5 | Log | Blood drained on influencing out past capacity, the Edge gained on a bleed: not told | the Edge fixed fc2ccf4 (`edge` event); the drain dropped (minor) |
 | E6 | Log | "Bot2 — Use Modius": what the ability does not said | fixed: a lone ability says what it does; a bleed action names its target ("Bleed with X → Seat") |
-| E7 | Bots | Bot3 used Wider View until its crypt was empty (8 vampires removed) | todo (bots: a policy guard or training signal) |
+| E7 | Bots | Bot3 used Wider View until its crypt was empty (8 vampires removed) | measured (Z-train, `waste --twda`: Wider View is in TWDA decks only, 46 of 114, never in the precons): p10 self-play takes its draw-and-remove at 27% of the influence decisions offering it, 26% of uses with under 4 crypt cards left; the bots in the owner's games 42% / 30%; the owner 12% / none (17 offers). The vampires removed carry no blood (0.11, a cheaper one kept 6%): the waste is the crypt run down. Next: p11's snapshots measured; a training signal if it stays |
 
 ## Playtest, 2026-10-14 (Succubus Club fork on engine.krcg.org, game `437ff2e402d695f3`, Tzimisce vs 3 bots)
 

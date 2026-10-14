@@ -1,6 +1,7 @@
 """The league (DESIGN §5, P4). Every table is 4 or 5 seats (tournament
 tables) with `learner_seats` seats for the learner (`net:0`, 1 by
-default) and, with `exploiter`, one for the exploiter (`net:EXPLOITER`),
+default; on `partner_rate` of the tables a second one across the table
+from the first: 2 seats away, or 3 at 5 seats) and, with `exploiter`, one for the exploiter (`net:EXPLOITER`),
 a second trained network that plays only the learner's tables; the other
 seats are drawn by prioritized fictitious self-play among the scripted
 bots (`bots`), the learner's last `opponents_kept` snapshots
@@ -174,6 +175,10 @@ class League:
         if at is not None:
             order = np.concatenate([[at], order[order != at]])
         k = self.cfg.learner_seats
+        if self.cfg.partner_rate > 0 and self.rng.random() < self.cfg.partner_rate:
+            mate = (order[0] + int(self.rng.choice(range(2, n - 1)))) % n
+            order = np.concatenate([[order[0], mate], order[(order != order[0]) & (order != mate)]])
+            k = max(k, 2)
         for i in order[:k]:
             seats[i] = "net:0"
         if self.cfg.exploiter:
