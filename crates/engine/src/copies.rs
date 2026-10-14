@@ -1,14 +1,7 @@
-//! Card copies (docs/online-plan.md "Copies"): every physical card has a
-//! number, dealt at the start in decklist order (per seat in seating
-//! order, crypt then library, as the decklists list them) — independent of
-//! the seed and the shuffle — and carried with the card through every
-//! zone. A card the game would create takes the next number
-//! (`GameState::copy_counter`; none yet: a ghoul token is a library card).
-//!
-//! Copies are bookkeeping for clients (a card followed across the table)
-//! and records: they never take part in the game's identity. A `Pile`
-//! compares and hashes as its card ids alone, an `Untracked` field not at
-//! all, so the state hash, observations and options are what they were.
+//! Card copies (docs/online-plan.md "Copies"): each physical card's number,
+//! dealt in decklist order (independent of the seed) and carried through
+//! every zone. Bookkeeping for clients and records, never part of the
+//! game's identity: a `Pile` hashes its card ids alone, `Untracked` nothing.
 
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
@@ -87,11 +80,9 @@ pub enum Place {
     InFlight(u8),
 }
 
-/// Every card in the game with its copy and where it is (`NONE` for a
-/// fixture's card not numbered). Each physical card is in exactly one place: the
-/// fuzz tests check that every dealt copy stays its card and is found
-/// once, until its Methuselah is ousted (rulebook "Ending the Game": their
-/// cards are removed, out of every zone).
+/// Every card in the game with its copy and where it is (`NONE` for an
+/// unnumbered fixture card); an ousted Methuselah's cards are in none
+/// (rulebook "Ending the Game": removed from every zone).
 pub fn census(e: &Engine) -> Vec<(CopyId, u16, Place)> {
     let st = &e.state;
     let mut out = Vec::new();
@@ -161,8 +152,8 @@ pub fn census(e: &Engine) -> Vec<(CopyId, u16, Place)> {
     out
 }
 
-/// A minion's card copy: a vampire's or a token's own, an ally's or a
-/// created vampire's library card's.
+/// A minion's card copy: a vampire's or a token's own, else its card in
+/// play's (an ally, a created vampire, the Great Beast, a Fury).
 pub fn minion_copy(st: &GameState, i: usize) -> CopyId {
     let m = &st.minions[i];
     match m.kind {

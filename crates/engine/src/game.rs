@@ -22,12 +22,9 @@ use crate::state::{
 };
 use crate::window::OrderedWindow;
 
-/// Time-limit stand-in (owner, 2026-09-02): a tournament game rarely exceeds
-/// 20 full rounds, so 100 player turns is ample. Checked at the turn
-/// boundary, which stands in for the tournament rule "the game ends after the
-/// current action / at the end of the current phase". The default of
-/// `Engine::time_limit`; training tables draw their own (60–90 player
-/// turns, owner 2026-09-28: `crates/py`).
+/// Time-limit stand-in in player turns (owner, 2026-09-02: a tournament game
+/// rarely exceeds 20 rounds), checked at the turn boundary; training tables
+/// draw their own (60–90, owner 2026-09-28: `crates/py`).
 pub const TURN_LIMIT: u32 = 100;
 
 /// One contested object of the active seat, resolved during its unlock
@@ -95,9 +92,7 @@ pub(crate) enum Flow {
         resume: Box<Flow>,
     },
     /// The impulse rotation closing one of the active Methuselah's phases
-    /// (rules-qa 7.9): `resume` is the phase flow the impulse returns to
-    /// when another seat plays an effect, and names the phase to end when
-    /// everyone passes.
+    /// (rules-qa 7.9): `resume` is the phase it returns to, or ends.
     PhaseRotation {
         resume: Box<Flow>,
         window: OrderedWindow,
@@ -119,10 +114,8 @@ pub(crate) enum Flow {
     },
     /// Minion phase: offer actions for the active seat's ready minions.
     MinionPhase,
-    /// Another Methuselah's vampire takes an action in the active one's
-    /// minion phase (Enkil Cog, locked as the phase was about to end:
-    /// rules-qa 49.6): `seat` picks `minion`'s action, or lets it go. The
-    /// action over, the impulse returns to the active Methuselah's phase.
+    /// Another Methuselah's vampire acts in the active one's minion phase
+    /// (Enkil Cog, rules-qa 49.6): `seat` picks `minion`'s action or passes.
     CogAction {
         seat: SeatId,
         minion: MinionId,
@@ -212,8 +205,7 @@ pub struct Engine {
     /// Baltimore Purge's vampires chosen so far (`Interrupt::PurgePick`),
     /// sent to torpor together once every pick is made.
     pub(crate) purge_picks: Vec<MinionId>,
-    /// How the most recent action ended (tests, and after-resolution
-    /// riders to come).
+    /// How the most recent action ended (tests).
     pub last_outcome: Option<crate::actions::Outcome>,
     /// What combats did, for a narrator (`CombatNote`): `None`, the
     /// default, keeps nothing; the taker drains it.
@@ -240,11 +232,9 @@ pub struct Event {
     pub card: Option<u16>,
 }
 
-/// Whether every seat sees `c` made, and all it names: the plays and
-/// what follows them face up (actions, blocks, strikes, votes, contests,
-/// targets chosen, discards to the ash heap). Never a search, a draw, a
-/// card put under the library or taken from a hidden zone, nor a Pass
-/// (the most frequent choice, it says little).
+/// Whether every seat sees `c` made, and all it names (plays, actions,
+/// blocks, strikes, votes, targets, discards). Never a search, a draw, a
+/// hidden zone, nor a Pass (the most frequent choice, it says little).
 pub fn public_choice(c: &Choice) -> bool {
     use Choice::*;
     matches!(
@@ -318,9 +308,7 @@ impl Engine {
         Self::from_seats(rng, copies, seats)
     }
 
-    /// A new game with these decks, one per seat in seating order: each
-    /// crypt shuffled, the top four cards dealt face down to the
-    /// uncontrolled region, each library shuffled and a hand of 7 drawn
+    /// A new game with these decks, one per seat in seating order
     /// (rulebook "Setup").
     pub fn with_decks(seed: u64, decks: &[Deck]) -> Self {
         let lists: Vec<_> = decks.iter().map(|d| (d.crypt, d.library)).collect();
@@ -408,10 +396,8 @@ impl Engine {
         engine
     }
 
-    /// Test fixture: `n_seats` seats with empty crypts, uncontrolled regions,
-    /// libraries and hands, no minions, positioned at seat 0's minion phase
-    /// on turn 1. Populate with [`Engine::add_minion`] and by pushing cards
-    /// into hands.
+    /// Test fixture: `n_seats` empty seats, at seat 0's minion phase on
+    /// turn 1 (populate with [`Engine::add_minion`] and hands).
     pub fn bare(n_seats: usize) -> Self {
         Self::bare_seeded(0, n_seats)
     }
@@ -474,8 +460,6 @@ impl Engine {
         self.start_master_phase();
     }
 
-    /// Test fixture: enter the card and title contests `m` would have
-    /// entered on coming into play.
     /// `m` becomes Anarch (the Become Anarch action, Anarch Convert, Gilbert
     /// Duane, Twilight Camp): an Anarch already stays one, nothing arrives.
     pub(crate) fn make_anarch(&mut self, m: MinionId) {
@@ -498,6 +482,8 @@ impl Engine {
         }
     }
 
+    /// Test fixture: enter the card and title contests `m` would have
+    /// entered on coming into play.
     pub fn stage_contests(&mut self, m: MinionId) {
         self.enter_card_contest(m);
         self.enter_title_contest(m);
@@ -510,9 +496,7 @@ impl Engine {
     }
 
     /// The active Methuselah's current phase (rulebook "Turn Sequence"),
-    /// for clients: the outermost flow under any play, terms or impulse
-    /// rotation. An action, its combat and its referendum are the minion
-    /// phase's; the unlock-phase effects window is the unlock phase.
+    /// for clients: the outermost flow under any play, terms or rotation.
     pub fn phase(&self) -> Phase {
         fn of(flow: &Flow) -> Phase {
             match flow {
@@ -542,10 +526,8 @@ impl Engine {
         of(&self.flow)
     }
 
-    /// The cards being played and not resolved yet, outermost first: those
-    /// announced (terms, cost reductions) and those in their as-played
-    /// windows. Public (the announced plays), except a card a play names
-    /// from hand (`PlayCtx::named`), which clients must not show.
+    /// The cards being played and not resolved yet, outermost first;
+    /// public, except a card named from hand (`PlayCtx::named`).
     pub fn in_flight(&self) -> Vec<&PlayCtx> {
         fn walk<'a>(flow: &'a Flow, out: &mut Vec<&'a PlayCtx>) {
             match flow {
@@ -683,10 +665,8 @@ impl Engine {
         }
     }
 
-    /// Notes the blood gained since the last look (`GameState::set_blood`;
-    /// Slake the Thirst: "only usable after this Blood Brother gains
-    /// blood"), their window set by the next real decision
-    /// (`settle_gain_window`).
+    /// Notes the blood gained since the last look (Slake the Thirst: "only
+    /// usable after this Blood Brother gains blood").
     fn note_blood_gains(&mut self) {
         let st = &mut self.state;
         for (m, n) in std::mem::take(&mut st.gains_pending) {
@@ -695,9 +675,7 @@ impl Engine {
     }
 
     /// A gain stays usable while the real decisions stay in the window of
-    /// the first one after it (rules-qa 68.2): a real decision in another
-    /// window drops it — a play's terms and as-played window aside. Whether
-    /// the record changed.
+    /// the first one after it (rules-qa 68.2); whether the record changed.
     fn settle_gain_window(&mut self, window: WindowLabel) -> bool {
         // A play's own terms and as-played window, an effect's choices as
         // it resolves (Redistribution's moves), are the same moment.
@@ -771,10 +749,8 @@ impl Engine {
     }
 
     /// The first Methuselah, clockwise from the active one, holding more
-    /// cards than their hand size (rulebook "Drawing Cards": "whenever an
-    /// effect changes your hand size or adds or removes cards from your
-    /// hand, immediately discard down"): an Elder Library turned contested,
-    /// a hand-size bonus ending, a political action card returned to hand.
+    /// cards than their hand size (rulebook "Drawing Cards": "immediately
+    /// discard down").
     fn discard_down_seat(&self) -> Option<SeatId> {
         let st = &self.state;
         st.clockwise_from(st.active)
@@ -782,12 +758,8 @@ impl Engine {
             .find(|&s| !st.seats[s.index()].hand.is_empty() && st.hand_excess(s) > 0)
     }
 
-    /// Draw up a hand below its hand size (rulebook "Drawing Cards":
-    /// "whenever an effect changes your hand size ..., immediately draw
-    /// up"): a vampire with a hand size entering play (The Capuchin) or
-    /// leaving torpor, a condition turning true. Checked live, between
-    /// plays only — no draw, action, combat or referendum under way — so
-    /// a card played but not yet replaced is never drawn for early.
+    /// Draw up a hand below its hand size (rulebook "Drawing Cards"),
+    /// between plays only: a card not yet replaced is never drawn for early.
     /// True when a draw-up was queued as a draw choice.
     fn settle_draw_up(&mut self) -> bool {
         let quiet = self.interrupts.is_empty()
@@ -1151,14 +1123,9 @@ impl Engine {
         }
     }
 
-    /// The unlock-phase effects window (rules-qa 3.7, 6.1, 7.8): one
-    /// ordered impulse sequence over the seats clockwise from the active
-    /// one. The active Methuselah settles their mandatory effects — contest
-    /// upkeep and every pending rider (each copy of Anarch Revolt in play,
-    /// whoever controls it, spec §1.15) — in the order they choose, among
-    /// their optional ones (the Edge's pool, abilities), and cannot pass
-    /// the impulse before; then the other seats' abilities. Contests with
-    /// no rival left and forced yields settle at once (no decision).
+    /// The unlock-phase effects window (rules-qa 3.7, 6.1, 7.8): the active
+    /// Methuselah's mandatory effects in their chosen order (each copy of
+    /// Anarch Revolt, whoever controls it, spec §1.15), then the others'.
     pub(crate) fn start_unlock_effects(&mut self) {
         let s = self.state.active;
         for seat in &mut self.state.seats {
@@ -1209,10 +1176,8 @@ impl Engine {
         };
     }
 
-    /// A minion is burned: it leaves play with the cards on it burned
-    /// (spec §1.12.1, to their owners' ash heaps), an ally's card with them; "after a ready minion
-    /// is burned" riders fire if it was ready (a minion burned from torpor
-    /// or from a contest is not).
+    /// A minion is burned, the cards on it to their owners' ash heaps
+    /// (spec §1.12.1); "after a ready minion is burned" riders if it was ready.
     pub(crate) fn burn_minion(&mut self, m: MinionId) {
         // Burned by a directed action, out of combat (Predator's
         // Transformation [ABO]).
@@ -1429,12 +1394,9 @@ impl Engine {
         self.stage_contests(m);
     }
 
-    /// Soul Gem of Etrius, its vampire of capacity `cap` burned: `seat`
-    /// draws their crypt's top card — younger, it enters their ready
-    /// region with the Gem and blood to capacity (a new vampire, LSJ
-    /// 20100213; burned again, the Gem draws again, RTR 20010710);
-    /// otherwise, or with no crypt left, the card goes to their
-    /// uncontrolled region and the Gem burns.
+    /// Soul Gem of Etrius, its vampire of capacity `cap` burned: a younger
+    /// crypt top card enters ready with the Gem (a new vampire, LSJ 20100213;
+    /// burned again, the Gem draws again, RTR 20010710), else the Gem burns.
     fn soul_gem(&mut self, g: CardId, seat: SeatId, cap: u8) {
         let drawn = self.state.seats[seat.index()].crypt.take_top();
         // A copy of a vampire already theirs: it burns as it would enter,
@@ -1472,11 +1434,8 @@ impl Engine {
         }
     }
 
-    /// Minions go to torpor (combat damage): the cards on them stay; the
-    /// hosts' own riders (Guardian Angel, Fame) and "after a ready minion
-    /// is sent to torpor" riders fire at once (rules-qa 6.4).
-    /// An ally has no torpor: sent there, it is burned instead (advanced
-    /// rules 5.3.3).
+    /// Minions go to torpor, their riders (Guardian Angel, Fame) at once
+    /// (rules-qa 6.4); an ally is burned instead (advanced rules 5.3.3).
     pub(crate) fn minions_to_torpor(&mut self, ms: &[MinionId]) {
         // Who went to torpor during the combat under way (Yawp Court: out of
         // it again at once, still not ready at its end, LSJ 20090325-1).
@@ -1697,11 +1656,9 @@ impl Engine {
         };
     }
 
-    /// Frontal Assault: "During your influence phase, burn this card and
-    /// burn 1 pool for each ready minion controlled by your prey" — a
-    /// mandatory effect of the phase, resolved when its controller chooses
-    /// but before they pass (owner, 2026-09-26: rules-qa 28.9): the cards
-    /// still due.
+    /// The Frontal Assaults still due: a mandatory influence-phase effect,
+    /// resolved when its controller chooses before they pass
+    /// (owner, 2026-09-26: rules-qa 28.9).
     pub(crate) fn influence_burns_due(&self) -> Vec<CardId> {
         let s = self.state.active;
         (0..self.state.cards.len())
@@ -1909,8 +1866,7 @@ impl Engine {
         due
     }
 
-    /// End of the influence phase: on to the discard phase (one discard
-    /// phase action; events are a later slice).
+    /// End of the influence phase: on to the discard phase.
     pub(crate) fn end_influence(&mut self) {
         let s = self.state.active;
         // Legendary Vampire: the vampires in play so far entered by now.
@@ -1984,10 +1940,8 @@ impl Engine {
         self.next_turn();
     }
 
-    /// Pool reached 0 on the seat's own turn (a transfer, a crypt draw, or
-    /// contest upkeep): ousted at once, and the turn passes. False when the
-    /// oust waits on a Life Boon (`ousting`): the caller goes on as if the
-    /// pool had not run out, and the turn passes once the oust applies.
+    /// Pool reached 0 on the seat's own turn: ousted, and the turn passes.
+    /// False when the oust waits on a Life Boon (`ousting`).
     pub(crate) fn oust_and_pass(&mut self, s: SeatId) -> bool {
         self.oust(s);
         if !self.state.seats[s.index()].ousted {
@@ -2003,10 +1957,8 @@ impl Engine {
         self.oust_batch(&[s]);
     }
 
-    /// Oust these Methuselahs at once (a referendum's simultaneous pool
-    /// losses, spec §6.5.4) — unless someone may save one with a Life
-    /// Boon: then the oust waits on that decision (`ousting`), the caller
-    /// going on as if they were still in the game.
+    /// Oust these Methuselahs at once (simultaneous pool losses,
+    /// spec §6.5.4), unless a Life Boon may save one (`ousting`).
     pub(crate) fn oust_batch(&mut self, seats: &[SeatId]) {
         if self.defer_oust(seats) {
             return;
@@ -2110,12 +2062,9 @@ impl Engine {
             seat.hand.clear();
             seat.ash.clear();
         }
-        // An oust removes what the Methuselah controlled (spec §6.1.2):
-        // their minions and the cards they control — their master cards
-        // wherever they sit, the minion cards on their minions — removed,
-        // not burned (§1.10: nothing triggers). Another Methuselah's card
-        // on a removed minion is burned to its owner's ash heap (owner,
-        // 2026-09-06).
+        // What the Methuselah controlled is removed, not burned
+        // (spec §6.1.2, §1.10); another's card on a removed minion burns
+        // (owner, 2026-09-06).
         let leaving: Vec<MinionId> = self.state.minions_of(s).collect();
         self.about_to_leave_ready(&leaving);
         for m in &mut self.state.minions {
@@ -2240,18 +2189,17 @@ impl Engine {
             .filter(|&(_, d)| st.minions[d.index()].owner != s)
             .collect();
         self.state.bleed_tolls = keep;
-        // Delayed replacements ("do not replace until your next unlock
-        // phase") are drawn before unlocking (ANK 20200129).
         self.state.phase_uses.clear();
         self.state.turn_uses.clear();
         self.state.veil_superior = false;
+        // "Do not replace until your next unlock phase": drawn before
+        // unlocking (ANK 20200129).
         self.replace_held(s, Release::NextUnlockPhase, 0, None);
         // Veil the Legions lasts the turn.
         for seat in &mut self.state.seats {
             seat.veil_left = 0;
         }
         for m in &mut self.state.minions {
-            // Per-turn NRA flags reset each new turn.
             m.bled_this_turn = false;
             m.referendum_passed_turn = false;
             m.political_this_turn = false;
@@ -2262,19 +2210,18 @@ impl Engine {
             m.recruited = false;
             m.recruits_this_turn = 0;
             m.must_hunt = false;
-            // Unlock phase: the active seat's minions unlock (torpor included).
-            // Stolen Police Cruiser: "does not unlock as normal during their
-            // next unlock phase".
             if m.owner == s && m.in_play {
                 m.played_since_unlock.clear();
             }
         }
+        // Unlock phase: the active seat's minions unlock (torpor included).
         for i in 0..self.state.minions.len() {
             let id = MinionId(i as u32);
             let m = &self.state.minions[i];
             if m.owner != s || !m.in_play {
                 continue;
             }
+            // Stolen Police Cruiser: "does not unlock as normal".
             if m.skip_unlock {
                 self.state.minions[i].skip_unlock = false;
                 continue;

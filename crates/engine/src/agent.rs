@@ -14,7 +14,7 @@ pub trait Agent: Send {
     fn decide(&mut self, engine: &Engine, req: &DecisionRequest) -> usize;
 }
 
-/// Picks uniformly among the offered options — the P0 fuzzing driver.
+/// Picks uniformly among the offered options (the fuzzing driver).
 #[derive(Clone)]
 pub struct RandomLegal {
     pub rng: Rng,

@@ -1,34 +1,9 @@
 //! Default politics for the trained network's seats (owner, 2026-10-04:
-//! "the bot is too bad at setting the terms"; DESIGN §11.2). Temporary
-//! guidance to help training: the goal is to relax these automated
-//! choices later in training, once the network makes them well. Agent
-//! behaviour, not an engine mask (rules-qa 17.4 untouched): every option
-//! stays legal; a network-driven agent answers some referendum terms by
-//! rule (`terms_choice`) and is kept to sensible ones elsewhere (`mask`).
-//!
-//! Terms by rule: damage goes to the prey first, then the predator, then
-//! across the table, never to the caller (Kine Resources Contested: 3 to
-//! the prey, 1 to the predator); gains go to the caller (Parity Shift:
-//! taken from the prey, all 3 to the caller; Disputed Territory: the
-//! caller takes the location); a title goes on one's own vampire;
-//! Consanguineous Boon names the caller's clan. Terms left to the network,
-//! within bounds: Banishment and Expulsion on a neighbour's minion (which
-//! one is a judgement: the predator low on blood, the prey's blocker
-//! before a big bleed — owner), never one's own; Disputed Territory's
-//! location among the others'; Revolutionary Council's points on the prey
-//! and on the others' locations (one each), never on oneself or one's
-//! cards.
-//!
-//! Votes: the caller votes for; a Methuselah the terms touch votes by its
-//! own interest (against a burn, the loss of a minion or location, a title
-//! on an opponent's vampire; for a gain or its own title) and casts its
-//! free votes rather than passing; a seat the terms leave alone is not
-//! steered (no forced cross-table play), except that every Methuselah
-//! opposes an opponent's title (owner, 2026-10-04). Edge, burned cards and
-//! vote cards cost something: they stay the network's call, only in the
-//! right direction.
-//!
-//! Reads only public state: the referendum's terms are announced.
+//! "the bot is too bad at setting the terms"; DESIGN §11.2): some terms by
+//! rule (`terms_choice`), the rest and the votes bounded (`mask`). Temporary
+//! guidance, to be relaxed later in training. Agent behaviour, not an
+//! engine mask (rules-qa 17.4 untouched); reads only public state (the
+//! terms are announced).
 
 use crate::bots::does;
 use crate::cards::{CardFilter, RefEffect, Term};

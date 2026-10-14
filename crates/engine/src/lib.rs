@@ -1,7 +1,6 @@
-//! zero-vtes engine (DESIGN.md): decision-request engine, the two window
-//! primitives, turn/phase machine, the card-free rulebook actions on real V5
-//! crypt cards (titles, contests), library zones and card plays (P1).
-//! Replay = (seed, decision log).
+//! zero-vtes engine (DESIGN.md, docs/engine.md): a decision-request state
+//! machine enforcing the VTES rules on the V5 card pool. Replay = (seed,
+//! decision log).
 
 /// The sum of the `n` of every `$v(n)` modifier among the layers `$layers`
 /// (the others count 0).

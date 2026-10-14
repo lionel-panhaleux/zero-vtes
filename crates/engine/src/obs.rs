@@ -1,28 +1,8 @@
-//! Observations (DESIGN §5): a decision request as the policy sees it —
-//! entity tokens and option rows, from what the deciding seat's legal view
-//! shows. Every token and option has integer ids (for embeddings and
-//! pointers) and float features; widths are fixed, counts are not (the
-//! batching layer pads). Pointers are token indices + 1 (0 = none), so the
-//! policy scores options against the tokens they name (pointer-network
-//! style): a new card is a new vocabulary id, never a new output.
-//!
-//! The encoder reads only what the viewer may know: seats' public zones as
-//! sizes, the viewer's own hand, what remains of their own library and
-//! crypt (contents, never the order), every minion and card in play, the
-//! viewer's own face-down uncontrolled vampires (others' as `HIDDEN`, a
-//! banished one excepted), the action's public fields (never the card it
-//! names from hand), the combat and referendum under way. `tests/obs.rs`
-//! pins it: the encoding of the full state equals that of its legal view.
-//!
-//! Two versions ([`Version`]): a trained network keeps the one it was
-//! trained on. `V2` adds what `V1` lacks: the ash heaps' contents (public:
-//! each seat's deck as it is revealed) and the table's memory, the last
-//! public choices (`Engine::history`). `V3` (owner, 2026-10-05: lighter
-//! training) reads the same, in fewer tokens: the viewer's library and
-//! crypt as a separate list (`Obs::deck_ids`, pooled by the network, out of
-//! attention), the other Methuselahs' face-down uncontrolled vampires as
-//! their seat's count and counters, and the transfers left in the
-//! influence phase.
+//! Observations (DESIGN §5, §11.2): a decision request as the policy sees
+//! it, from the deciding seat's legal view only: entity tokens and option
+//! rows (integer ids, float features), pointers as token index + 1 (0 =
+//! none), so a new card is a new vocabulary id, never a new output.
+//! `tests/obs.rs` pins it: the full state encodes as its legal view.
 
 use crate::cards::{AbilitySource, Target};
 use crate::crypt::{Title, CRYPT};
@@ -67,14 +47,14 @@ pub enum Version {
     V1,
     /// `V1` plus the ash heaps' contents and the last public choices.
     V2,
-    /// `V2` lighter: the deck out of the tokens (`Obs::deck_ids`), the
-    /// face-down uncontrolled vampires as counts, the transfers left.
+    /// `V2` lighter (owner, 2026-10-05): the deck out of the tokens
+    /// (`Obs::deck_ids`), others' face-down vampires as counts, the
+    /// transfers left.
     V3,
 }
 
 /// The vocabulary of `ids[1]`: 0 none, then the crypt, the library, a
-/// hidden card, the windows (context token), the clans (a referendum's
-/// clan choice).
+/// hidden card, the windows, the clans, the circles, the Disciplines.
 pub const V_CRYPT: i32 = 1;
 pub const V_LIBRARY: i32 = V_CRYPT + CRYPT.len() as i32;
 pub const V_HIDDEN: i32 = V_LIBRARY + LIBRARY.len() as i32;
@@ -83,8 +63,8 @@ pub const N_WINDOWS: usize = WindowLabel::CombatEndOfRound as usize + 1;
 pub const V_CLAN: i32 = V_WINDOW + N_WINDOWS as i32;
 pub const N_ACTION_KINDS: usize = ActionKind::Ability as usize + 1;
 
-/// An action kind's one-hot slot: Become Anarch shares the granted
-/// actions' (no schema change for trained networks).
+/// An action kind's one-hot slot: Become Anarch and the Red List hunt
+/// share the granted actions' (no schema change for trained networks).
 fn action_slot(kind: ActionKind) -> usize {
     match kind {
         ActionKind::BecomeAnarch | ActionKind::RedListHunt => ActionKind::Ability as usize,
@@ -135,11 +115,9 @@ const F_BLOOD_HUNT: usize = F_POLITICAL_REF + 1;
 const F_STEALTH: usize = F_BLOOD_HUNT + 1;
 const F_BLEED_AMOUNT: usize = F_STEALTH + 1;
 const F_CALLER: usize = F_BLEED_AMOUNT + 1; // referendum caller, relative one-hot
-                                            // Slots of the context token's action one-hot, reused by the other token
-                                            // types (they never carry it): the referendum's terms on the seat, minion
-                                            // or card tokens they name (points allocated to a seat or card, a
-                                            // Methuselah, minion or card chosen); the votes cast so far on the
-                                            // referendum token.
+
+// The context token's action one-hot slots, reused on the other tokens: the
+// terms on the tokens they name, the votes so far on the referendum token.
 const F_TERM_POINTS: usize = F_ACTION;
 const F_TERM_CHOSEN: usize = F_ACTION + 1;
 const F_VOTES_FOR: usize = F_ACTION + 2;
@@ -777,8 +755,6 @@ fn option(
     (ids, f)
 }
 
-/// The encoding's shape, for the Python side (never hardcode a width):
-/// id and feature widths, vocabulary and kind counts, token types.
 /// A stable key per vocabulary id (the id is its index): `crypt:<KRCG
 /// id>`, `library:<KRCG id>`, `window:<label index>`, `clan:<name>`. A
 /// trained network's embedding rows follow their key when the pool grows
@@ -816,6 +792,8 @@ fn vocab_len() -> usize {
         + crate::state::disciplines().len()
 }
 
+/// The encoding's shape, for the Python side (never hardcode a width):
+/// id and feature widths, vocabulary and kind counts, token types.
 pub fn schema_json() -> String {
     let vocab = vocab_len();
     format!(

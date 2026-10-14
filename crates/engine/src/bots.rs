@@ -1,15 +1,8 @@
-//! Scripted reference bots (DESIGN §11.2 "Bots"): the evaluation ladder's
-//! fixed opponents and the league's scripted members (DESIGN §5). Each
-//! style scores the offered options in the windows that define it; every
-//! other option scores 0 and ties are broken at random, so a bot is
-//! "random with a spine": the difference from `RandomLegal` is exactly the
-//! heuristics below. Deck-agnostic: a style pilots any decklist.
-//!
-//! A bot reads only what its seat's legal view shows (DESIGN §5): public
-//! state, its own hand and uncontrolled region, and the action's public
-//! fields (`seat`, `kind`, `acting`, `bleed_target`, its directed seats) —
-//! never `ActionCtx::card` or `exchange`, which carry a card named from
-//! hand. `tests/bots.rs` checks it by answering from the redacted state.
+//! Scripted reference bots (DESIGN §11.2 "Bots", DESIGN §5): deck-agnostic
+//! styles scoring the options of the windows that define them, ties at
+//! random.
+//! A bot reads only its seat's legal view, never `ActionCtx::card` or
+//! `exchange` (a card named from hand); `tests/bots.rs` checks it.
 
 use crate::agent::Agent;
 use crate::cards::{self, Effect, RefEffect, Term};
@@ -34,11 +27,9 @@ pub enum Style {
 pub struct Scripted {
     pub style: Style,
     rng: Rng,
-    /// The minions this bot attempted to block with during the current
-    /// action, keyed by the action's public identity (turn, acting minion,
-    /// kind, bleed target): a failed attempt is not repeated. A redirect
-    /// changes the key, as it reopens the blocks (rulebook "Who May Attempt
-    /// to Block").
+    /// The minions that attempted to block this action (keyed by its public
+    /// identity, so a redirect reopens them: rulebook "Who May Attempt to
+    /// Block"); a failed attempt is not repeated.
     attempts: (ActionKey, Vec<MinionId>),
 }
 
