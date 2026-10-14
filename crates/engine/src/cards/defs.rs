@@ -1,14 +1,7 @@
 //! Card behavior tables — hand-authored data, one entry per implemented
 //! card, keyed by printed name against the generated static half
 //! (`library::LIBRARY`). Windows are the reviewed matrix's; effects are the
-//! primitives of `cards`. Slice 1 (master phase): Villein, Sudden Reversal.
-//! Slice 2 (the bleed): Conditioning, Consign to Oblivion, Form of the Cobra
-//! [PRO] modifier, Eyes of Argus, Deflection, Archon Investigation,
-//! Homunculus. Slice 3 (combat): Flash, Torn Signpost, Roundhouse, Body
-//! Flare, Theft of Vitae, Majesty, Side Strike, Blur, Immortal Grapple,
-//! Hidden Strength, Soak, Indomitability, Claws of the Dead, Taste of Vitae,
-//! Telepathic Tracking, Cats' Guidance, Form of Mist, Form of the Cobra
-//! [pro].
+//! primitives of `cards`.
 
 use super::vampires::{
     ability, enter_combat, printed_action, DODGE_EACH_COMBAT, MANEUVER_EACH_COMBAT,
@@ -155,8 +148,7 @@ pub static CONSIGN_TO_OBLIVION: CardDef = CardDef {
 };
 
 /// "[PRO] [ACTION MODIFIER] Only usable as the action is announced. +1
-/// stealth, even if stealth is not yet needed." (The [pro] combat strike
-/// mode waits for the combat slice.)
+/// stealth, even if stealth is not yet needed."
 pub static FORM_OF_THE_COBRA: CardDef = CardDef {
     name: "Form of the Cobra",
     modes: &[
@@ -1110,8 +1102,7 @@ pub static VISIONS_OF_GEHENNA: CardDef = CardDef {
 /// attached vampire announces an action, they move 1 blood from themselves
 /// to this acting vampire. The attached vampire can burn 4 blood during
 /// their minion phase to burn this card. Burn this card after this acting
-/// vampire leaves the ready region." (2 blood.) The card remembers the
-/// vampire that played it (`CardInPlay::by`); a target no longer the
+/// vampire leaves the ready region." (2 blood.) A target no longer the
 /// predator's by resolution makes the action fizzle (LSJ 20020725).
 pub static SLAUGHTERING_THE_HERD: CardDef = CardDef {
     name: "Slaughtering the Herd",
@@ -1371,8 +1362,7 @@ pub static SPECTRAL_SERVITOR: CardDef = CardDef {
 
 /// "Animal with 1 life. [ani] While the employer is in combat, the opposing
 /// minion's controller plays with an open hand. [ANI] As above, but Owl
-/// Companion has 2 life." An open hand is information: the legal view reads
-/// it (`GameState::hand_visible_to`).
+/// Companion has 2 life."
 pub static OWL_COMPANION: CardDef = CardDef {
     name: "Owl Companion",
     modes: &[
@@ -1999,7 +1989,7 @@ pub static FORM_OF_MIST: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Politics (slice 4) -------------------------------------------------
+// ---- Politics --------------------------------------------------------------
 
 /// A political action card's single mode: declare the political action and
 /// call `r` on success.
@@ -3375,7 +3365,7 @@ pub static DEFS: [&CardDef; 739] = [
     &THE_BITTER_AND_SWEET_STORY,
 ];
 
-// ---- Cards in play with riders and granted actions (slice 5) ------------
+// ---- Cards in play with riders and granted actions -------------------------
 
 static BURN_THIS_CARD: ReferendumDef = ReferendumDef {
     terms: &[],
@@ -3550,8 +3540,8 @@ pub static TENSION_IN_THE_RANKS: CardDef = CardDef {
 /// unlock phase, for each counter on this card, that Methuselah burns 1
 /// pool or burns 1 blood from a vampire they control. Vampires can burn
 /// this card as a Ⓓ action." Two unlock riders (the controller's, the
-/// others'); the payment is chosen unit by unit as the rider resolves
-/// (`Flow::RiderTerms`); the burn is a granted directed action.
+/// others'); the payment is chosen unit by unit as the rider resolves; the
+/// burn is a granted directed action.
 pub static SMILING_JACK: CardDef = CardDef {
     name: "Smiling Jack, The Anarch",
     modes: &[mode_of(
@@ -3675,10 +3665,9 @@ pub static THE_BARRENS: CardDef = CardDef {
 /// blood to a ready vampire you control. During your discard phase, your
 /// predator takes control of The Coven." An untimed lock ability of the
 /// controller (usable before a forced hunt, and in the prevention window
-/// before damage lands — PIB 20121031: not midway through it, which the
-/// engine's atomic damage never offers); the control change fires as the
-/// controller passes out of their discard phase (LSJ 20100723), to the
-/// predator of the controller at that time.
+/// before damage lands, not midway through it: PIB 20121031); the control
+/// change fires as the controller passes out of their discard phase (LSJ
+/// 20100723), to the predator of the controller at that time.
 pub static THE_COVEN: CardDef = CardDef {
     name: "Coven, The",
     trifle: true,
@@ -3869,7 +3858,7 @@ pub static VESSEL: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Hunting grounds (slice 5c: unique locations, library contests) -----
+// ---- Hunting grounds (unique locations, library contests) ------------------
 
 /// A hunting ground's unlock-phase pick: "a ready vampire you control [of
 /// `$filter`] can gain `$n` blood. A vampire can gain blood from only one
@@ -4018,7 +4007,7 @@ pub static CARFAX_ABBEY: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Replacement and hand size (slice 7) ----------------------------------
+// ---- Replacement and hand size ---------------------------------------------
 
 /// "Unique location. +1 hand size." A hand-size layer of its controller,
 /// suspended while the card is contested (ANK 20221028: a second copy
@@ -4040,7 +4029,7 @@ pub static ELDER_LIBRARY: CardDef = CardDef {
 /// it has no counters." Its own replacement is drawn normally, up to the
 /// new hand size; every later replacement — whatever took the card out of
 /// hand (spec §6.8.3) — burns a counter instead, the hand size shrinking
-/// with it (`Hook::WouldReplace`). A second copy of one's own is masked
+/// with it. A second copy of one's own is masked
 /// (PIB 20121031: the self-contest rule, rules-qa 7.1).
 pub static VISIT_FROM_THE_CAPUCHIN: CardDef = CardDef {
     name: "Visit from the Capuchin",
@@ -4107,7 +4096,7 @@ pub static MIRROR_WALK: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Equipment (slice 8a) ---------------------------------------------------
+// ---- Equipment -------------------------------------------------------------
 
 /// The one vehicle a minion can have (the vehicles' shared clause).
 const ONE_VEHICLE: &[Requirement] = &[Requirement::ActorWithout(Holding::Label(Label::Vehicle))];
@@ -4237,8 +4226,8 @@ pub static CODEX_OF_THE_EDENIC_GROUNDSKEEPERS: CardDef = CardDef {
 
 /// "Electronic equipment. The minion with this equipment may bleed at +1
 /// bleed as a Ⓓ action. No other equipment can increase the bleed amount
-/// of this action." A legacy card the owner added to the pool (2026-09-25).
-/// The granted bleed is a bleed (one a turn) and this copy's action; it
+/// of this action." An owner-added legacy card. The granted bleed is a
+/// bleed (one a turn) and this copy's action; it
 /// fizzles if the phone is no longer on the acting minion (RTR 19960221).
 pub static CAMERA_PHONE: CardDef = CardDef {
     name: "Camera Phone",
@@ -4262,7 +4251,7 @@ pub static CAMERA_PHONE: CardDef = CardDef {
 };
 
 /// "Electronic. The bearer gets +1 bleed. A minion can have only one Laptop
-/// Computer." A legacy card the owner added to the pool (2026-09-25).
+/// Computer." An owner-added legacy card.
 pub static LAPTOP_COMPUTER: CardDef = CardDef {
     name: "Laptop Computer",
     modes: &[mode_of(
@@ -4359,7 +4348,7 @@ pub static BOWL_OF_CONVERGENCE: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Weapons (slice 8b) -----------------------------------------------------
+// ---- Weapons ---------------------------------------------------------------
 
 /// The equip action of an equipment with nothing else on its mode.
 const EQUIP: ModeDef = mode_of(
@@ -4521,8 +4510,7 @@ pub static KALIS_FANG: CardDef = CardDef {
 /// the first round of the resulting combat to long, and their initial
 /// strike that round must be with this weapon." The range set skips the
 /// determine range step and no other effect resets it (RTR 19970630, ANK
-/// 20180720); every v1 combat arises from its block, so the blocker's
-/// first round is the one.
+/// 20180720).
 pub static SNIPER_RIFLE: CardDef = CardDef {
     name: "Sniper Rifle",
     modes: &[EQUIP],
@@ -4698,7 +4686,7 @@ pub static KEVLAR_VEST: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Library search (slice 8c) ----------------------------------------------
+// ---- Library search --------------------------------------------------------
 
 /// "+1 stealth action. [tha] Search your library for an equipment card and
 /// equip this vampire with it (requirements and cost apply as normal;
@@ -4763,7 +4751,7 @@ pub static VAST_WEALTH: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Stored cards and draw alternatives (slice 8c-ii) ----------------------
+// ---- Stored cards and draw alternatives ------------------------------------
 
 /// "Unique location. Search your library (shuffle afterward) for up to
 /// three non-unique equipment cards and put them on this location, face up
@@ -4848,7 +4836,7 @@ pub static HEART_OF_NIZCHETUS: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Precon coverage (slice 11a) --------------------------------------------
+// ---- Precon coverage -------------------------------------------------------
 
 /// "Ⓓ Bleed with +n bleed": an action card's bleed mode.
 macro_rules! bleed_action {
@@ -5546,7 +5534,7 @@ pub static MARKET_SQUARE: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Wakes and "if this vampire blocks" riders (slice 11b) -----------------
+// ---- Wakes and "if this vampire blocks" riders -----------------------------
 
 /// A wake of the reacting minion: locked, once between its unlock phases.
 macro_rules! wake {
@@ -5693,7 +5681,7 @@ pub static PRECOGNITION: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Forced block attempts and more block riders (slice 11b-ii) ------------
+// ---- Forced block attempts and more block riders ---------------------------
 
 /// "Unlocks and attempts to block, even if intercept is not yet needed":
 /// a locked reacting minion that could block (engine-checked).
@@ -5945,7 +5933,7 @@ pub static NIGHT_TERRORS: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Block attempts that fail or cost (slice 11c) ---------------------------
+// ---- Block attempts that fail or cost --------------------------------------
 
 /// An action modifier during a block attempt.
 macro_rules! on_attempt {
@@ -6027,13 +6015,13 @@ pub static FACELESS_NIGHT: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Cancellation (slice 11d) ------------------------------------------------
+// ---- Cancellation ----------------------------------------------------------
 
 /// "Out-of-turn. Cancel a minion card as it is played, and its cost is not
 /// paid. (If it was an action card, the acting minion does not lock. If it
 /// was a strike card, the minion chooses another strike.)" (1 pool.) An
-/// owner-added legacy card (2026-09-25). A canceled action card declares
-/// no action: its minion may take the same action again.
+/// owner-added legacy card. A canceled action card declares no action: its
+/// minion may take the same action again.
 pub static DIRECT_INTERVENTION: CardDef = CardDef {
     name: "Direct Intervention",
     out_of_turn: true,
@@ -6050,8 +6038,7 @@ pub static DIRECT_INTERVENTION: CardDef = CardDef {
 /// master card played by your predator or prey as it is played, and its
 /// cost is not paid. That Methuselah gets +1 master phase action
 /// immediately, or at the start of their next master phase if the canceled
-/// card is an out-of-turn master." An owner-added legacy card
-/// (2026-09-25).
+/// card is an out-of-turn master." An owner-added legacy card.
 pub static WASH: CardDef = CardDef {
     name: "Wash",
     trifle: true,
@@ -6073,7 +6060,7 @@ pub static WASH: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Titles and votes (slice 11e) ---------------------------------------
+// ---- Titles and votes ------------------------------------------------------
 
 /// "A vampire can have only one archetype."
 const NO_ARCHETYPE: Requirement = Requirement::TargetWithout(Holding::Label(Label::Archetype));
@@ -6480,8 +6467,7 @@ pub static REBEL: CardDef = CardDef {
 
 /// A location locked during the polling step for votes: its master phase
 /// play, and one ability per `effects` list. "You can lock": its
-/// controller's only (`Requirement::YouControlThisCard`; owner,
-/// 2026-09-30: rules-qa 46.3).
+/// controller's only (rules-qa 46.3).
 macro_rules! vote_location {
     ($name:ident, $printed:expr, $doc:expr, $requires:expr, [$($effects:expr),+]) => {
         #[doc = $doc]
@@ -6559,7 +6545,7 @@ vote_location!(
     ]
 );
 
-// ---- Combat staples (slice 11f) --------------------------------------------
+// ---- Combat staples --------------------------------------------------------
 
 /// "Only usable at close range. [tha] Strike: hand strike. Damage from this
 /// strike cannot be prevented by cards requiring Fortitude [for]. The
@@ -6684,7 +6670,7 @@ pub static HUNGER_OF_MARDUK: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Archetypes (slice 11g) --------------------------------------------------
+// ---- Archetypes ------------------------------------------------------------
 
 /// "Put this card on a <filter> you control. … A vampire can have only one
 /// archetype": the master phase play, then `effects`.
@@ -6824,7 +6810,7 @@ pub static SAULOTS_HEALING_TOUCH: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Combat cards (slice 11i) ----------------------------------------------
+// ---- Combat cards ----------------------------------------------------------
 
 /// "Only usable before range is determined. A vampire can play only one
 /// Bear's Skin each combat. [ani][pro] This round, this vampire gets +1
@@ -7044,7 +7030,7 @@ pub static PASS_THROUGH_SHADOW: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Combat cards with their own mechanisms (slice 11j) ---------------------
+// ---- Combat cards with their own mechanisms --------------------------------
 
 /// "[pot] Strike: hand strike at +2 damage. [POT] As above, with 1 optional
 /// maneuver, only usable to get to close range." (1 blood.) Played at the
@@ -7152,7 +7138,7 @@ pub static PACK_ALPHA: CardDef = CardDef {
 /// "[ani] Strike: dodge. [ANI] As above, with 1 additional ranged strike:
 /// burn weapon." The superior version needs a weapon to burn; its
 /// additional strike burns one of the opposing minion's weapons, at any
-/// range, unless dodged (owner, 2026-09-26: rules-qa 22.3).
+/// range, unless dodged (rules-qa 22.3).
 pub static VORACIOUS_VERMIN: CardDef = CardDef {
     name: "Voracious Vermin",
     modes: &[
@@ -7210,7 +7196,7 @@ pub static WEIGHTED_WALKING_STICK: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Action modifiers and reactions (slice 11k) ----------------------------
+// ---- Action modifiers and reactions ----------------------------------------
 
 /// "[obf] +1 stealth. [OBF] Only usable by a ready vampire other than the
 /// acting minion. The acting minion gets +1 stealth." The [OBF] vampire is
@@ -7480,7 +7466,7 @@ pub static SHADOW_CLOAK: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Cards remembering a Methuselah (slice 11l) ------------------------------
+// ---- Cards remembering a Methuselah ----------------------------------------
 
 /// "[obf] +1 stealth. [OBF] Only usable if a bleed would be successful.
 /// Instead, the bleed burns no pool, is unsuccessful, and this card is put
@@ -7542,7 +7528,7 @@ pub static SHADOW_CAST: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Corruption and multi-Discipline bleeds (slice 11m) ---------------------
+// ---- Corruption and multi-Discipline bleeds --------------------------------
 
 /// A mode of an Anarch's multi-Discipline bleed card ("Requires an Anarch.
 /// More than one Discipline can be used to play this card. Ⓓ Bleed."): one
@@ -7755,7 +7741,7 @@ pub static REVELATION_OF_THE_SERPENT: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Effect-widened block eligibility (slice 11n) ---------------------------
+// ---- Effect-widened block eligibility --------------------------------------
 
 /// "[aus] +1 intercept. [AUS] This vampire attempts to block the current
 /// action, ignoring the normal prey, predator or target restrictions for
@@ -7777,7 +7763,7 @@ pub static EAGLES_SIGHT: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Actions (slice 11o) -----------------------------------------------------
+// ---- Actions ---------------------------------------------------------------
 
 /// An action card played by a ready unlocked minion of the acting
 /// Methuselah, at a target.
@@ -7915,7 +7901,7 @@ pub static HUNTERS_MARK: CardDef = CardDef {
 
 /// "Requires an Anarch. [cel] Ⓓ Steal 1 pool from another Methuselah. [pot]
 /// Ⓓ Enter combat with a minion. [pre] Ⓓ Bleed with +1 bleed." A choice:
-/// one Discipline (owner, 2026-09-26: rules-qa 25.2).
+/// one Discipline (rules-qa 25.2).
 pub static LINE_BRAWL: CardDef = CardDef {
     name: "Line Brawl",
     modes: &[
@@ -8350,7 +8336,7 @@ pub static REVELATIONS: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Actions, wave 2 (slice 11p) ----------------------------------------------
+// ---- Actions, wave 2 -------------------------------------------------------
 
 /// "[dom][pro] [ACTION MODIFIER] +1 stealth. Allies get -1 intercept.
 /// [DOM][PRO] [COMBAT] Only usable before range is determined. This round,
@@ -8584,14 +8570,14 @@ pub static PUPPET_MASTER: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Masters (slice 11q) ---------------------------------------------------
+// ---- Masters ---------------------------------------------------------------
 
 /// "Discipline. Put this card on a vampire. This vampire gets +1 level of
 /// <Discipline> and +1 capacity. Cannot be put on a vampire with superior
 /// <Discipline>." Any Methuselah's vampire, in torpor or not; the level and
-/// capacity are read live (`GameState::discipline_level`, `capacity_of`),
-/// given nothing while the vampire is out of play (advanced rules 5.1.1),
-/// and blood above capacity drains off as the card leaves.
+/// capacity are read live, given nothing while the vampire is out of play
+/// (advanced rules 5.1.1), and blood above capacity drains off as the card
+/// leaves.
 macro_rules! discipline_master {
     ($name:ident, $printed:expr, $tag:expr) => {
         pub static $name: CardDef = CardDef {
@@ -8705,7 +8691,7 @@ influence_location!(
 /// uncontrolled region. Any minion can burn this card as a Ⓓ action;
 /// Malkavians get +1 stealth during that action." Blood from one Tremere a
 /// turn (RTR 19960221: once per master phase per copy), in torpor too:
-/// the text does not say ready (owner, 2026-09-26: rules-qa 28.6). The
+/// the text does not say ready (rules-qa 28.6). The
 /// counters go on in full, over capacity too (rules-qa 28.3).
 pub static WASSERSCHLOSS_ANIF: CardDef = CardDef {
     name: "Wasserschloss Anif, Austria",
@@ -9268,10 +9254,10 @@ pub static CHANTRY: CardDef = CardDef {
 /// one of the two. The locked Toreador does not unlock as normal. The other
 /// Toreador's non-bleed actions cannot be blocked. Minions can burn this
 /// card as a Ⓓ action; Nosferatu get -1 stealth during that action."
-/// (Toreador.) Both chosen as it is played (owner, 2026-09-26: rules-qa
-/// 28.5): the one to lock is the target, the other the terms' — it may be
-/// the second Toreador of other Grand Balls (TOM 19960528), and stays
-/// unblockable on non-bleed actions after a bleed (LSJ 19970814).
+/// (Toreador.) Both chosen as it is played (rules-qa 28.5): the one to
+/// lock is the target, the other the terms' — it may be the second
+/// Toreador of other Grand Balls (TOM 19960528), and stays unblockable on
+/// non-bleed actions after a bleed (LSJ 19970814).
 pub static TOREADOR_GRAND_BALL: CardDef = CardDef {
     name: "Toreador Grand Ball",
     modes: &[ModeDef {
@@ -9322,9 +9308,10 @@ pub static TOREADOR_GRAND_BALL: CardDef = CardDef {
 /// enter combat with the attached minion as a +1 stealth Ⓓ action. If the
 /// attached minion is about to leave the ready region, you can burn this
 /// card to gain 3 pool." (Banu Haqim.) The Assamite is chosen as it is
-/// played (owner, 2026-09-26: rules-qa 28.5); the trifle's master phase action comes even if it contests
-/// (RBK contested-cards); the pool comes as its controller is ousted too
-/// (ANK 20180129-2), and if the card goes with the minion (PIB 20150512).
+/// played (rules-qa 28.5); the trifle's master phase action comes even if
+/// it contests (RBK contested-cards); the pool comes as its controller is
+/// ousted too (ANK 20180129-2), and if the card goes with the minion (PIB
+/// 20150512).
 pub static PRIORITY_CONTRACT: CardDef = CardDef {
     name: "Priority Contract",
     trifle: true,
@@ -9723,14 +9710,14 @@ pub static WEEK_OF_NIGHTMARES: CardDef = CardDef {
     ..CARD
 };
 
-// ---- The pre-built decks' last equipment (slice 11r) ------------------------
+// ---- The pre-built decks' last equipment -----------------------------------
 
 /// "Location. While in play, this card does not count as equipment. This
 /// vampire gets +1 bleed. They can burn this card before range is
 /// determined to end combat. A vampire can have only one Living Manse."
-/// (Tzimisce; 1 blood.) Equipped as equipment, then a location
-/// (`cards::is_equipment_in_play`): no "cannot use equipment" bars its
-/// burn (rules-qa 17.4), no equipment target reaches it, and an action at
+/// (Tzimisce; 1 blood.) Equipped as equipment, then a location: no
+/// "cannot use equipment" bars its burn (rules-qa 17.4), no equipment
+/// target reaches it, and an action at
 /// it is directed at its controller (LSJ 20090324).
 pub static LIVING_MANSE: CardDef = CardDef {
     name: "Living Manse",
@@ -9808,7 +9795,7 @@ pub static SWORD_OF_THE_ARCHANGEL: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Combat cards, wave 2 (slice 11s) --------------------------------------
+// ---- Combat cards, wave 2 --------------------------------------------------
 
 /// "Only usable at close range. [tha] Strike: hand strike at +1 damage.
 /// Damage from this strike cannot be prevented by cards requiring Fortitude
@@ -10329,7 +10316,7 @@ const fn martyr(kind: TargetKind, terms: Option<Terms>, effects: &'static [Effec
     }
 }
 
-// ---- Reactions and action modifiers, wave 2 (slice 11t) --------------------
+// ---- Reactions and action modifiers, wave 2 --------------------------------
 
 /// "Only usable during a bleed action. [dom] +1 bleed (limited). [DOM] +2
 /// bleed (limited)."
@@ -10722,7 +10709,7 @@ pub static TELEPATHIC_COUNTER: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Pool actions, wave 1 (slice 11u) ---------------------------------------
+// ---- Pool actions, wave 1 --------------------------------------------------
 
 /// "[dom] Ⓓ Bleed with +1 bleed. [DOM] +1 stealth action. Add 2 blood to a
 /// younger vampire in your uncontrolled region."
@@ -11136,7 +11123,7 @@ pub static GRAVEROBBING: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Pool actions, wave 2 (slice 11v) ---------------------------------------
+// ---- Pool actions, wave 2 --------------------------------------------------
 
 /// "+1 stealth action. [ani] Put this card in play. During your unlock
 /// phase, your prey burns 1 pool. You can burn only 1 pool each turn with
@@ -11647,7 +11634,7 @@ pub static OPEN_WAR: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Pool masters, wave 1 (slice 11w) ---------------------------------------
+// ---- Pool masters, wave 1 --------------------------------------------------
 
 /// A master card put in play, then "minions can burn this card as a Ⓓ
 /// action" for those `requires` names.
@@ -12117,7 +12104,7 @@ pub static BRUJAH_DEBATE: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Pool masters, wave 2 (slice 11x) ---------------------------------------
+// ---- Pool masters, wave 2 --------------------------------------------------
 
 /// "Unique location. You can lock this card to give a minion +1 intercept.
 /// If that minion does not block the action, burn 1 pool after action
@@ -12516,7 +12503,7 @@ pub static MITHRAIC_CULTIST: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Pool masters, wave 3 (slice 11y) ---------------------------------------
+// ---- Pool masters, wave 3 --------------------------------------------------
 
 /// "Unique location. Haven. Put this card on a minion you control. This
 /// minion cannot be the target of other Methuselahs' actions. Master cards
@@ -12731,7 +12718,7 @@ pub static BRITISH_MUSEUM: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Pool masters, wave 4: cost reductions (slice 11z) ----------------------
+// ---- Pool masters, wave 4: cost reductions ---------------------------------
 
 /// "Unique location. You can lock this location to reduce the cost of an
 /// action card a vampire you control plays by 1 blood (this location is not
@@ -12895,7 +12882,7 @@ pub static FLESHFORGE_CHAMBER: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Events (slice 11ac) -----------------------------------------------------
+// ---- Events ----------------------------------------------------------------
 
 /// An event put in play with a discard phase action (rulebook "Event
 /// Cards"): once each discard phase, once each game (engine-checked).
@@ -13387,10 +13374,10 @@ pub static ABSIMILIARDS_ARMY: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Legacy cards for tournament decks (slice 16a) ------------------------
+// ---- Legacy cards for tournament decks -------------------------------------
 //
-// Owner-added legacy cards (2026-09-28) that make TWDA decks playable,
-// appended to the tables (`ADDED_CARDS` in scripts/window_matrix.py).
+// Owner-added legacy cards that make TWDA decks playable, appended to the
+// tables (`ADDED_CARDS` in scripts/window_matrix.py).
 
 /// "Unique location. Lock to get +1 hand size this turn. Lock during your
 /// influence phase to get +1 transfer." (Gangrel or Gangrel antitribu:
@@ -13741,7 +13728,7 @@ pub static POWERBASE_SAVANNAH: CardDef = CardDef {
 /// chosen cards to your hand and shuffle the others into your library."
 /// Playable with an empty ash heap (PIB 20130119); the cards chosen only
 /// as the third copy enters play (LSJ 20091030); the one to hand is shown
-/// (LSJ 20081129) — public in the engine's observation of the move.
+/// (LSJ 20081129).
 pub static ASHUR_TABLETS: CardDef = CardDef {
     name: "Ashur Tablets",
     modes: &[mode_of(
@@ -13807,8 +13794,8 @@ pub static ROTSCHRECK: CardDef = CardDef {
 /// point gained by that Methuselah instead of them, until you are being
 /// ousted or until you have gained 1 victory point from this card. Burn
 /// this card after you have gained 1 victory point from this card."
-/// Played in the decision point before an oust (`ousting`), on another
-/// Methuselah's turn; the pool given covers what they owe (RTR 19970630);
+/// Played in the decision point before an oust, on another Methuselah's
+/// turn; the pool given covers what they owe (RTR 19970630);
 /// several Boons reserve a series of VPs (RTR 19951017), half points going
 /// to the Boon player (RTR 19991206); a prey ousted with the target by the
 /// same effect scores for the Boon player, the target keeping the 6 pool
@@ -13845,9 +13832,8 @@ pub static LIFE_BOON: CardDef = CardDef {
 
 // ---- Reign of Stanislava (25th Anniversary) -------------------------------
 //
-// The deck's new cards (owner, 2026-10-06), appended to the tables
-// (`ADDED_BATCHES` in scripts/window_matrix.py); rulings in rules-qa Batch
-// 49.
+// The deck's new cards, appended to the tables (`ADDED_BATCHES` in
+// scripts/window_matrix.py); rulings in rules-qa Batch 49.
 
 /// "Add 4 blood to a vampire in your uncontrolled region with capacity 8
 /// or more."
@@ -13994,7 +13980,7 @@ pub static MONASTERY_OF_SHADOWS: CardDef = CardDef {
 /// usable after resolution of a successful action. Unlock this vampire.
 /// [CEL][FOR] +1 stealth. After action resolution, if the action was
 /// successful, this vampire can burn 1 blood to unlock." Both modes count
-/// toward the limit (`Limit::PerTurn`). After resolution, still during the
+/// toward the limit. After resolution, still during the
 /// action (LSJ 19981028; ANK 20190425); successful though the action had no
 /// effect (LSJ 20070411) or fizzled (ANK 20220218). The blood burned is an
 /// effect, not a cost: no reduction applies (ANK 20210226).
@@ -14138,8 +14124,8 @@ pub static ENKIL_COG: CardDef = CardDef {
 
 // ---- The Endless Dance (30th Anniversary) ---------------------------------
 //
-// The deck's new cards (owner, 2026-10-06), a third appended batch
-// (`ADDED_BATCHES`); readings in rules-qa Batch 51.
+// The deck's new cards, an appended batch (`ADDED_BATCHES`); readings in
+// rules-qa Batch 51.
 
 /// "Requires a titled vampire. Choose an equipment and a vampire.
 /// Successful referendum means the chosen vampire takes control of the
@@ -14442,9 +14428,9 @@ pub static BUSINESS_PRESSURE: CardDef = CardDef {
 
 // ---- Sabbat V5: Path of Power and the Inner Voice ---------------------------
 //
-// The deck's new cards (owner, 2026-10-07), a fourth appended batch
-// (`ADDED_BATCHES`); a path icon is the card's `LibraryCard::path`, a play
-// requirement read live (rules-qa 49.7); readings in rules-qa Batch 52.
+// The deck's new cards, an appended batch (`ADDED_BATCHES`); a path icon
+// is a play requirement read live (rules-qa 49.7); readings in rules-qa
+// Batch 52.
 
 /// "[pot] or [pre] Only usable if a minion attempts to block. The blocking
 /// minion gets -1 intercept. [POT] or [PRE] Only usable as the action is
@@ -15060,15 +15046,14 @@ pub static DIA_DE_LOS_MUERTOS: CardDef = CardDef {
 
 // ---- Sabbat V5: Path of Cathari ---------------------------------------------
 //
-// The deck's new cards (owner, 2026-10-07), a fifth appended batch; every
-// library card a Path of Cathari one (its icon a play requirement, rules-qa
-// 49.7), "[x] or [y]" either Discipline (rules-qa 52.1); readings in
-// rules-qa Batch 53.
+// The deck's new cards, an appended batch; every library card a Path of
+// Cathari one (its icon a play requirement, rules-qa 49.7), "[x] or [y]"
+// either Discipline (rules-qa 52.1); readings in rules-qa Batch 53.
 
 /// "[obf] or [pre] Ⓓ Bleed with +1 bleed. [OBF] or [PRE] As above, and if
 /// the bleed is successful (for 1 or more), this vampire can burn 1 blood
 /// to draw 1 card from your crypt." (Path of Cathari.) The draw offered
-/// after resolution (`Choice::DrawCrypt`), from an empty crypt none.
+/// after resolution, from an empty crypt none.
 pub static ENTHRALL: CardDef = CardDef {
     name: "Enthrall",
     modes: &[
@@ -15124,7 +15109,7 @@ pub static FEVER_PITCH: CardDef = CardDef {
 /// action, you can burn 2 counters from this card to unlock them." (Path
 /// of Cathari.) A blocked bleed is unsuccessful; both in one window, the
 /// controller's order: the unlock may take the bleed's counter first, or
-/// come before the one burned (owner, 2026-10-08: rules-qa 53.6).
+/// come before the one burned (rules-qa 53.6).
 pub static FORWARD_MOMENTUM: CardDef = CardDef {
     name: "Forward Momentum",
     modes: &[master_in_play(&[], &[Effect::PutInPlay])],
@@ -15331,10 +15316,10 @@ pub static TERRIFYING_VISAGE: CardDef = CardDef {
 
 // ---- Sabbat V5: Path of Caine -------------------------------------------------
 //
-// The deck's new cards (owner, 2026-10-07), a sixth appended batch (Abbot,
-// Depravity, Fiendish Tongue and Yawp Court legacy reprints); the Path of
-// Caine cards' icon a play requirement (rules-qa 49.7), "[x] or [y]"
-// either Discipline (rules-qa 52.1); readings in rules-qa Batch 54.
+// The deck's new cards, an appended batch (Abbot, Depravity, Fiendish
+// Tongue and Yawp Court legacy reprints); the Path of Caine cards' icon a
+// play requirement (rules-qa 49.7), "[x] or [y]" either Discipline
+// (rules-qa 52.1); readings in rules-qa Batch 54.
 
 /// "+1 stealth action. Requires a Sabbat vampire. Put this card on this
 /// Sabbat vampire and unlock them. This Sabbat vampire gets +1 intercept
@@ -15788,10 +15773,9 @@ pub static YAWP_COURT: CardDef = CardDef {
 
 // ---- Sabbat V5: Path of Death and the Soul -------------------------------------
 //
-// The deck's new cards (owner, 2026-10-07), a seventh appended batch
-// (Glancing Blow, Obedience, Target Vitals and Wall Street Night legacy
-// reprints); the path icons a play requirement (rules-qa 49.7); readings in
-// rules-qa Batch 55.
+// The deck's new cards, an appended batch (Glancing Blow, Obedience,
+// Target Vitals and Wall Street Night legacy reprints); the path icons a
+// play requirement (rules-qa 49.7); readings in rules-qa Batch 55.
 
 const WRAITH_OR_ZOMBIE_LABELS: &[crate::library::Label] =
     &[crate::library::Label::Wraith, crate::library::Label::Zombie];
@@ -16184,7 +16168,7 @@ pub static MORBIDITY: CardDef = CardDef {
 /// not against a minion taking the acting vampire's place (ANK 20171212).
 /// As a block succeeds, or against the combat the action itself begins (a
 /// rush, Deep Song: ANK 20200702), blocks declined, by an unlocked or woken
-/// vampire, a reaction (owner, 2026-10-08: rules-qa 55.7). Each version
+/// vampire, a reaction (rules-qa 55.7). Each version
 /// splits in two (`cards::library_mode`).
 pub static OBEDIENCE: CardDef = CardDef {
     name: "Obedience",
@@ -16331,7 +16315,7 @@ pub static WALL_STREET_NIGHT: CardDef = CardDef {
     ..CARD
 };
 
-// ---- TWDA unlocks: staples and steps 1-3 (slice 16j) ------------------------
+// ---- TWDA unlocks: staples and steps 1-3 -----------------------------------
 
 /// "The employer gets +1 bleed."
 const EMPLOYER_BLEED: Effect = Effect::Layer(Modifier::Bearer {
@@ -16580,7 +16564,7 @@ pub static HEIDELBERG_CASTLE: CardDef = CardDef {
     ..CARD
 };
 
-// ---- TWDA unlocks: steps 4-9 (slice 16k) ------------------------------------
+// ---- TWDA unlocks: steps 4-9 -----------------------------------------------
 
 /// "[for] Prevent 1 damage. [FOR] Maneuver, and this vampire can prevent 1
 /// damage later this round." The later prevention any time damage is
@@ -16773,8 +16757,8 @@ pub static MASK_OF_A_THOUSAND_FACES: CardDef = CardDef {
                 Window::ActionStealthIntercept,
             ],
             Actor::OtherOwnMinion,
-            // [OBF] only while stealth is needed (owner, 2026-10-09:
-            // rules-qa 58.13, the "only when needed" stealth of 3.2).
+            // [OBF] only while stealth is needed (rules-qa 58.13, the
+            // "only when needed" stealth of 3.2).
             &[
                 Requirement::ActorUnlocked,
                 Requirement::ActorVampire,
@@ -16787,7 +16771,7 @@ pub static MASK_OF_A_THOUSAND_FACES: CardDef = CardDef {
     ..CARD
 };
 
-// ---- TWDA unlocks: steps 10-15 (slice 16l) -----------------------------------
+// ---- TWDA unlocks: steps 10-15 ---------------------------------------------
 
 /// "[pro] Maneuver. [PRO] As above, and once this round, this vampire may
 /// burn 1 blood for an additional maneuver."
@@ -17013,7 +16997,7 @@ pub static CONQUER_THE_BEAST: CardDef = CardDef {
     ..CARD
 };
 
-// ---- TWDA unlocks: steps 16-20 (slice 16m) -----------------------------------
+// ---- TWDA unlocks: steps 16-20 ---------------------------------------------
 
 /// "[vic] Only usable during a bleed action. +1 bleed (limited). [VIC] +1
 /// stealth."
@@ -17475,7 +17459,7 @@ pub static UNLEASH_HELLS_FURY: CardDef = CardDef {
     ..CARD
 };
 
-// ---- TWDA unlocks, round 2: steps 1-6 (slice 16n) ----------------------------
+// ---- TWDA unlocks, round 2: steps 1-6 --------------------------------------
 
 hunting_ground!(CORPORATE_HUNTING_GROUND, "Corporate Hunting Ground");
 
@@ -18007,8 +17991,8 @@ pub static CONTAGION: CardDef = CardDef {
 /// Herald of Topheth can play cards requiring basic Daimoinon [dai], basic
 /// Potence [pot] and/or basic Presence [pre] as a vampire with capacity 5.
 /// It can enter combat with a minion as a Ⓓ action. If it has 4 or fewer
-/// life during your unlock phase, it gains 1 life." (Baali; 3 pool; owner,
-/// 2026-10-11: a demon for Veneficti.) Infernal: it does not unlock as
+/// life during your unlock phase, it gains 1 life." (Baali; 3 pool;
+/// owner-added: a demon for Veneficti.) Infernal: it does not unlock as
 /// normal, its controller may burn 1 pool to unlock it; played as a
 /// vampire, it counts as Independent (LSJ 20020503) and meets the basic
 /// Discipline without having it (LSJ 19980303); its rush at another
@@ -18036,7 +18020,7 @@ pub static HERALD_OF_TOPHETH: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Owner's list, round 3 (slice 16o) -------------------------------------
+// ---- Owner's list, round 3 -------------------------------------------------
 
 /// "[pre] Strike: dodge. [PRE] Strike: combat ends."
 pub static STAREDOWN: CardDef = CardDef {
@@ -18629,7 +18613,7 @@ pub static INFERNAL_PURSUIT: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Owner's list, round 5 (slice 16q) -------------------------------------
+// ---- Owner's list, round 5 -------------------------------------------------
 //
 // Lillian and Robert Price ("Independent.") print no text.
 
@@ -18771,7 +18755,7 @@ pub static OSSIAN: CardDef = CardDef {
 /// counters burns 1 pool. Any minion may burn this card as a Ⓓ action.
 /// Burn all torture counters when this card leaves play." The lock offered
 /// as the torpor lands (rules-qa 6.4); the counters gone once no such card
-/// is in play (`GameState::release_torture`).
+/// is in play.
 pub static PATH_OF_LILITH: CardDef = CardDef {
     name: "Path of Lilith, The",
     modes: &[master_in_play(&[], &[Effect::PutInPlay])],
@@ -18912,7 +18896,7 @@ pub static ZIP_GUN: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Owner's list, round 6 (slice 16r) -------------------------------------
+// ---- Owner's list, round 6 -------------------------------------------------
 
 /// "Mortal with 1 life. 1 strength, 0 bleed. Lock after resolution of an
 /// unsuccessful action to inflict 1 damage on the acting vampire. Only one
@@ -18962,7 +18946,7 @@ pub static PSYCHE: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Round 7: the next hundred by TWDA importance (slice 16s) ------------
+// ---- Round 7: the next hundred by TWDA importance --------------------------
 
 /// "Only usable before range is chosen. [aus] The opposing minion's
 /// controller plays with an open hand for the remainder of combat. [AUS]
@@ -19795,7 +19779,7 @@ pub static THE_BITTER_AND_SWEET_STORY: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Blood Brother circles (slice 16t) ----------------------------------------
+// ---- Blood Brother circles -------------------------------------------------
 
 /// "Trifle. Put this card on a ready Blood Brother you control. This Blood
 /// Brother gets +1 level of Sanguinus [san]." No capacity with it (as Ritual
@@ -19964,8 +19948,7 @@ pub static SHELL_GAME: CardDef = CardDef {
 /// another ready Blood Brother of the same circle. The chosen Blood Brother
 /// gains the same amount of blood. [SAN] [ACTION MODIFIER] As above, but
 /// usable as an action modifier." The gain read between decisions
-/// (`GameState::blood_gains`, rules-qa 68.2), a strike's as the strikes
-/// end; [SAN] in combat too, and
+/// (rules-qa 68.2), a strike's as the strikes end; [SAN] in combat too, and
 /// during an action after its resolution (LSJ 20100325); again on the same
 /// gain (LSJ 20100206-2); several gains, the one it answers chosen (LSJ
 /// 20100203). The chosen any Methuselah's.
@@ -20327,7 +20310,7 @@ pub static AMBUSH: CardDef = CardDef {
 /// [SAN] +X intercept, and this vampire may play cards as if he or she
 /// possessed all of the chosen Blood Brothers' Disciplines for the
 /// remainder of the action." The X chosen as it is played; all burn or
-/// none (`GameState::lent_disciplines` for [SAN]).
+/// none.
 pub static GESTALT: CardDef = CardDef {
     name: "Gestalt",
     modes: &[
@@ -20867,7 +20850,7 @@ pub static SKIN_OF_STEEL: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Shadow Play, The Embrace, the Appolonius merge (slice 16u) -------------
+// ---- Shadow Play, The Embrace, the Appolonius merge ------------------------
 
 /// "[obt] +1 stealth. [OBT] +2 stealth." (1 blood.)
 pub static SHADOW_PLAY: CardDef = CardDef {
@@ -21370,7 +21353,7 @@ pub static BOLLIX: CardDef = CardDef {
 /// in his or her uncontrolled region. Any vampire may call a referendum to
 /// burn this card as a +1 stealth political action." Whoever controls the
 /// card, the Anarch's controller; both Anarchs of a combat leaving, both
-/// controllers (ANK 20180627-2) (`Engine::flames_offers`).
+/// controllers (ANK 20180627-2).
 pub static FLAMES_OF_INSURRECTION: CardDef = CardDef {
     name: "Flames of Insurrection",
     modes: &[master_in_play(
@@ -21415,7 +21398,7 @@ pub static LEGACY: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Round 10: the 2025-2026 TWDA decks (slice 16v) --------------------------
+// ---- Round 10: the 2025-2026 TWDA decks ------------------------------------
 
 /// "Requires an Anarch. [obt] Only usable if this Anarch is blocked, before
 /// block resolution. The blocking minion burns 2 blood or life. [pot] Only
@@ -21755,9 +21738,8 @@ static RUMORS_OF_GEHENNA_REFERENDUM: ReferendumDef = ReferendumDef {
 /// this card into play. Each chosen Methuselah receives two master phase
 /// actions during his or her master phase (instead of one). Any vampire can
 /// call a referendum to burn this card as a +1 stealth political action."
-/// The chosen Methuselahs remembered by the card in play
-/// (`CardInPlay::against`); "two (instead of one)": not added to Anson's
-/// second, nor to another copy's (`GameState::mpa_left`).
+/// The chosen Methuselahs remembered by the card in play; "two (instead of
+/// one)": not added to Anson's second, nor to another copy's.
 pub static RUMORS_OF_GEHENNA: CardDef = CardDef {
     name: "Rumors of Gehenna",
     modes: &[political(
@@ -21910,7 +21892,7 @@ static ANATHEMA_REFERENDUM: ReferendumDef = ReferendumDef {
 /// 20211112), not aggravated damage burning it (LSJ 20021120), not after
 /// combat (LSJ 19980225); one Anathema resolves, the others burn with the
 /// vampire (LSJ 20021117); controlled by its host's controller (PIB
-/// 20121028). Read as each combat step settles (`Engine::settle_anathema`).
+/// 20121028). Read as each combat step settles.
 pub static ANATHEMA: CardDef = CardDef {
     name: "Anathema",
     modes: &[political(
@@ -22016,10 +21998,9 @@ pub static ZAIRE_RIVER_FERRY: CardDef = CardDef {
 /// count as equipment. Unique. Non-action modifier cards costing blood cost
 /// this vampire half as much blood to play, rounded down (multiplication
 /// and division are handled first, followed by addition and subtraction)."
-/// (2 blood.) Halved before any other change (RTR 20070707), so folded in
-/// with the bearer's reductions (`GameState::printed_cost_off_x`); a dual
-/// card played as a reaction is halved, an X cost once X is chosen (owner,
-/// 2026-10-14: rules-qa 70.17).
+/// (2 blood.) Halved before any other change (RTR 20070707); a dual card
+/// played as a reaction is halved, an X cost once X is chosen (rules-qa
+/// 70.17).
 pub static THE_ANKARA_CITADEL: CardDef = CardDef {
     name: "Ankara Citadel, Turkey, The",
     modes: &[ModeDef {
@@ -22100,8 +22081,8 @@ pub static THIRD_TRADITION_PROGENY: CardDef = CardDef {
 /// Obfuscate [obf] as a vampire." (1 pool.) Acting the turn it is recruited
 /// only in its own minion phase (ANK 20200930); as a vampire, independent
 /// (LSJ 20020503), at basic level only (ANK 20180111), the Disciplines not
-/// its own (LSJ 19980303). The removals read as each step settles
-/// (`Engine::settle_servitors`) and as its action ends.
+/// its own (LSJ 19980303). The removals read as each step settles and as
+/// its action ends.
 pub static INFERNAL_SERVITOR: CardDef = CardDef {
     name: "Infernal Servitor",
     modes: &[
@@ -22130,10 +22111,10 @@ pub static INFERNAL_SERVITOR: CardDef = CardDef {
     ..CARD
 };
 
-// ---- Round 11: the 2025-2026 TWDA decks (slice 16w) --------------------------
+// ---- Round 11: the 2025-2026 TWDA decks ------------------------------------
 //
-// The cards that bring the most 2025-2026 TWDA decks into the kept corpus
-// (owner, 2026-10-14); readings in rules-qa Batch 71.
+// The cards that bring the most 2025-2026 TWDA decks into the kept corpus;
+// readings in rules-qa Batch 71.
 
 /// "Requires an Anarch. Only usable after resolution of a successful
 /// directed action. Put this card in play. You can burn this card during
@@ -22768,8 +22749,8 @@ political!(
 /// this action, minions opposing this vampire in combat cannot play cards
 /// that require Dominate or Presence." (2 blood.) Bleed redirection
 /// included (LSJ 20010621, LSJ 20010830); in the polling step, such a
-/// reaction neither chooses it nor lowers its votes (owner, 2026-10-14:
-/// rules-qa 71.25); before the modifiers not played as the action is
+/// reaction neither chooses it nor lowers its votes (rules-qa 71.25);
+/// before the modifiers not played as the action is
 /// announced (ANK 20190425), the action card replaced first (ANK 20181208).
 pub static PERFECT_CLARITY: CardDef = CardDef {
     name: "Perfect Clarity",
@@ -22796,7 +22777,7 @@ pub static PERFECT_CLARITY: CardDef = CardDef {
 /// Methuselah is in the game). The chosen vampires enter combat. If only
 /// one is ready at the end of that combat, he or she gains 4 blood."
 /// [ANI]: both vampires its targets, the action directed at both and their
-/// controllers (owner, 2026-10-14: rules-qa 71.21) — the prey's the play's
+/// controllers (rules-qa 71.21) — the prey's the play's
 /// target, the predator's its terms' pick; the prey's goes first in that
 /// combat (LSJ 20070319); either one no longer ready as it resolves, no
 /// combat.

@@ -4,11 +4,7 @@
 //! `GameState::printed_mod`, and abilities in the card vocabulary (the
 //! actor `Host` is the vampire itself). A vampire may land with part of
 //! its text — every vampire ends with all of it (rules-qa 13.1) — the rest
-//! quoted in `incomplete`. Slice 9a: plain stat modifiers; 9b: combat
-//! abilities; 9c: abilities in referendums, actions and phases; 12a: the
-//! pool's last vampires (cost reductions, clans played as, tolls, unlock
-//! riders); 12b: the partial ones finished (action and strike-card
-//! surcharges, an ash heap cost).
+//! quoted in `incomplete`.
 
 use super::{
     bleed, mode_of, target, Actor, CardFilter, Effect, Hook, Limit, ModeDef, Per, PlaysAs, Printed,
@@ -606,8 +602,7 @@ pub static DARIUS_SHIRAZI: VampireDef = VampireDef {
 /// stealth." A card played in a strike mode (a dodge included) by the
 /// minion in combat with her, whether she acts or blocks — never her own;
 /// an ally pays in life, its last one too: it burns and the combat ends
-/// (rules-qa 41.4, 42.2; ANK 20180928-1). Read live
-/// (`Engine::combat_card_surcharge`).
+/// (rules-qa 41.4, 42.2; ANK 20180928-1). Read live.
 pub static DJENEBA: VampireDef = VampireDef {
     name: "Djeneba",
     printed: &[
@@ -1140,9 +1135,8 @@ pub static MICKEY_WHEELER: VampireDef = VampireDef {
 
 /// "Younger vampires must burn 1 blood to attempt to block Mithras or to
 /// cast votes or ballots against a referendum called by him. +2 bleed. +1
-/// strength. +2 votes." Tolls on the attempt (`Engine::block_toll`) and on
-/// votes against his political action's referendum
-/// (`Engine::vote_against_toll`), read live: a vampire of lower capacity —
+/// strength. +2 votes." Tolls on the attempt and on votes against his
+/// political action's referendum, read live: a vampire of lower capacity —
 /// never an ally, never himself; a Methuselah's ballots are not a vampire's
 /// and a blood hunt called on him is not called by him (rules-qa 41.3,
 /// 42.4). In torpor too — his leave-torpor action (LSJ 20011022).
@@ -1271,9 +1265,9 @@ pub static OLUWAFUNMILAYO: VampireDef = VampireDef {
 
 /// "Once each combat involving a vampire you control, Opikun can burn 1
 /// blood to prevent up to 2 non-aggravated damage to that vampire from the
-/// opposing minion's strike." Every damage pending at the prevention step
-/// comes from a strike in the engine today; damage from other sources must
-/// stay out of this prevention when it lands.
+/// opposing minion's strike." Damage pending at the prevention step is
+/// taken as a strike's; damage from other sources must stay out of this
+/// prevention.
 pub static OPIKUN: VampireDef = VampireDef {
     name: "Opikun",
     abilities: &[ability(
@@ -1562,9 +1556,8 @@ pub static SERAPHINA: VampireDef = VampireDef {
 };
 
 /// "Minions with 1 or more of your corruption counters must burn 1 blood or
-/// life to attempt to block Sergio": a toll on the attempt
-/// (`Engine::block_toll`), in torpor too — his leave-torpor action (LSJ
-/// 20011022).
+/// life to attempt to block Sergio": a toll on the attempt, in torpor too
+/// — his leave-torpor action (LSJ 20011022).
 pub static SERGIO_BUENO: VampireDef = VampireDef {
     name: "Sergio Bueno",
     printed: &[Printed {
@@ -1592,7 +1585,7 @@ pub static SREELEKHA: VampireDef = VampireDef {
 /// (LSJ 20011022); the starting-life cap is the ally's — not offered to an
 /// ally at its starting life —, Sri's blood above her capacity draining as
 /// usual; an ally giving its last life burns (rules-qa 41.8). Mages:
-/// Nephandus, Veneficti (slice 16n).
+/// Nephandus, Veneficti.
 pub static SRI_SANSA: VampireDef = VampireDef {
     name: "Sri Sansa",
     abilities: &[
@@ -1763,7 +1756,7 @@ pub static YEWON_ONG: VampireDef = VampireDef {
 
 /// "Independent: While Parijat is ready, minions must burn the top card of
 /// their library to attempt to block wraith or zombie allies." A toll on
-/// the attempt (`Engine::block_toll`): none possible from an empty library;
+/// the attempt: none possible from an empty library;
 /// a forced attempt pays it once its card is replaced (ANK 20260317).
 pub static PARIJAT: VampireDef = VampireDef {
     name: "Parijat, the Dark Oracle",
@@ -2283,7 +2276,7 @@ pub static SILVIAN_POPESCU: VampireDef = VampireDef {
 /// "Sabbat: During your unlock phase, an archbishop you control can move 1
 /// blood from themselves to Tabitha." As Silvian Popescu's: once each
 /// unlock phase, in torpor too (no "if ready"); an archbishop only while
-/// Sabbat (the title's rule). An owner-added legacy card (2026-10-11).
+/// Sabbat (the title's rule). An owner-added legacy card.
 pub static TABITHA_FISK: VampireDef = VampireDef {
     name: "Tabitha Fisk",
     abilities: &[ModeDef {
@@ -2306,8 +2299,7 @@ pub static TABITHA_FISK: VampireDef = VampireDef {
 };
 
 /// "Camarilla Prince of Houston: +1 bleed." Delilah Easton and Isabel de
-/// Leon ("Camarilla.") print no text. Owner-added legacy cards
-/// (2026-10-11).
+/// Leon ("Camarilla.") print no text. Owner-added legacy cards.
 pub static TATIANA_ROMANOV: VampireDef = VampireDef {
     name: "Tatiana Romanov",
     printed: &[own(Stat::Bleed, 1, &[])],
@@ -2397,7 +2389,7 @@ pub static VENCESLAVA: VampireDef = VampireDef {
     ..VAMP
 };
 
-// ---- Sabbat V5: Path of Cathari (slice 16g) ------------------------------
+// ---- Sabbat V5: Path of Cathari --------------------------------------------
 //
 // Coco Thorn, Cyan Sin, Glissando and Ximena print no text ("Sabbat.").
 
@@ -2455,8 +2447,7 @@ pub static FOTINI_KATSIKARIS: VampireDef = VampireDef {
 };
 
 /// "Sabbat: After Gostoso successfully bleeds your prey (for 1 or more),
-/// he can gain 1 blood." Once, after that bleed (owner, 2026-10-09, from
-/// play: offered again after each use).
+/// he can gain 1 blood." Once, after that bleed (owner, 2026-10-09).
 pub static GOSTOSO: VampireDef = VampireDef {
     name: "Gostoso",
     abilities: &[ModeDef {
@@ -2504,7 +2495,7 @@ pub static VERRIX: VampireDef = VampireDef {
     ..VAMP
 };
 
-// ---- Sabbat V5: Path of Caine (slice 16h) --------------------------------
+// ---- Sabbat V5: Path of Caine ----------------------------------------------
 //
 // Berenguela, Grażyna, Hekla, Lawbringer, Loyiso, Przemysław and Surapong
 // print no text ("Sabbat.", "Sabbat bishop.").
@@ -2562,7 +2553,7 @@ pub static SERHAT_GUNDE: VampireDef = VampireDef {
     ..VAMP
 };
 
-// ---- Sabbat V5: Path of Death and the Soul (slice 16i) ---------------------
+// ---- Sabbat V5: Path of Death and the Soul ---------------------------------
 //
 // Aitana, El Monseñor, Nadezhda, Yurena and Zbigniew print no text
 // ("Sabbat.").
@@ -2680,7 +2671,7 @@ pub static SAKURA: VampireDef = VampireDef {
     ..VAMP
 };
 
-// ---- TWDA unlocks: staples and steps 1-3 (slice 16j) --------------------------
+// ---- TWDA unlocks: staples and steps 1-3 -----------------------------------
 
 /// "Anarch: As the convert enters play, you can remove him from the game to
 /// make a non-titled vampire you control Anarch and either gain 1 pool or
@@ -2758,7 +2749,7 @@ pub static GABRIEL_TREMBLAY: VampireDef = VampireDef {
     ..VAMP
 };
 
-// ---- TWDA unlocks: steps 4-9 (slice 16k) -------------------------------------
+// ---- TWDA unlocks: steps 4-9 -----------------------------------------------
 //
 // Benedito, a Lanterna, Jacques Rouge and Tara print no text but their
 // title.
@@ -2808,8 +2799,8 @@ pub static VALKYRIE: VampireDef = VampireDef {
 };
 
 /// "Anarch: During your turn, you can burn the Edge to add 1 blood to an
-/// Anarch you control." Once during the controller's turn (owner,
-/// 2026-10-09: rules-qa 58.7, the "during" template 6.6); any Anarch of
+/// Anarch you control." Once during the controller's turn (rules-qa 58.7,
+/// the "during" template 6.6); any Anarch of
 /// theirs, in torpor too, capped at capacity.
 pub static THE_MEDIC: VampireDef = VampireDef {
     name: "Medic, The",
@@ -3002,7 +2993,7 @@ pub static DMITRA_ILYANOVA: VampireDef = VampireDef {
     ..VAMP
 };
 
-// ---- TWDA unlocks: steps 10-15 (slice 16l) -----------------------------------
+// ---- TWDA unlocks: steps 10-15 ---------------------------------------------
 //
 // Dr. Allan Woodstock and Graham Gottesman print no text but their sect and
 // title.
@@ -3269,7 +3260,7 @@ pub static AKSINYA_DACLAU: VampireDef = VampireDef {
     ..VAMP
 };
 
-// ---- TWDA unlocks: steps 16-20 (slice 16m) -----------------------------------
+// ---- TWDA unlocks: steps 16-20 ---------------------------------------------
 
 /// "Camarilla: Theo may enter combat with any ready minion controlled by
 /// another Methuselah as a Ⓓ action. If you control a ready prince or
@@ -3308,7 +3299,7 @@ pub static JULIET_PARR: VampireDef = VampireDef {
 /// "Camarilla Tremere Inner Circle: Mistress Fanchon can search your
 /// library for a minion card, reveal it, and move it to your hand as a +1
 /// stealth action. +2 bleed." A minion card: any library card but a master
-/// or an event (owner, 2026-10-09: rules-qa 60.3).
+/// or an event (rules-qa 60.3).
 pub static MISTRESS_FANCHON: VampireDef = VampireDef {
     name: "Mistress Fanchon",
     printed: &[own(Stat::Bleed, 2, &[])],
@@ -3459,7 +3450,7 @@ pub static GREAT_BEAST: VampireDef = VampireDef {
     ..VAMP
 };
 
-// ---- TWDA unlocks, round 2: steps 1-6 (slice 16n) ----------------------------
+// ---- TWDA unlocks, round 2: steps 1-6 --------------------------------------
 
 /// "Camarilla Brujah Inner Circle: Combat cards cost Adana 1 fewer blood.
 /// +2 bleed." A card played as a combat card, of several types or not
@@ -3809,7 +3800,7 @@ pub static TUPDOG: VampireDef = VampireDef {
     ..VAMP
 };
 
-// ---- Owner's list, round 3 (slice 16o) -------------------------------------
+// ---- Owner's list, round 3 -------------------------------------------------
 
 /// "Sabbat bishop: Lisette gets +1 intercept during diablerie actions."
 pub static LISETTE_VIZQUEL: VampireDef = VampireDef {
@@ -3829,7 +3820,7 @@ pub static WISE_FROG: VampireDef = VampireDef {
     ..VAMP
 };
 
-// ---- Owner's list, round 4 (slice 16p) ---------------------------------------
+// ---- Owner's list, round 4 -------------------------------------------------
 //
 // Gunnar ("Independent.") prints no text.
 
@@ -3859,7 +3850,7 @@ pub static JACOB_FERMOR: VampireDef = VampireDef {
     ..VAMP
 };
 
-// ---- Round 7: the next hundred by TWDA importance (slice 16s) ------------
+// ---- Round 7: the next hundred by TWDA importance --------------------------
 
 /// "Sabbat: Adonai can enter combat with any ready Camarilla vampire
 /// controlled by another Methuselah as a Ⓓ action. He gets +1 strength
@@ -4824,7 +4815,7 @@ pub static AGI: VampireDef = VampireDef {
     ..VAMP
 };
 
-// ---- Shadow Play, The Embrace, the Appolonius merge (slice 16u) -------------
+// ---- Shadow Play, The Embrace, the Appolonius merge ------------------------
 //
 // Ignacio, Mustafa Rahman, Ramiro, Carter, Lolita, Mercy, Nicholas Chang,
 // Remilliard, Ashlesha, Salbatore Bokkengro, Sasha Miklos, Sennuwy, Vedel
@@ -4833,7 +4824,7 @@ pub static AGI: VampireDef = VampireDef {
 /// "Sabbat Archbishop of Pittsburgh: After resolution of any political
 /// action, if Alvaro abstained (even in torpor), he can gain 2 blood. +1
 /// bleed." No vote or ballot standing, title or not (LSJ 20010526); read
-/// after the referendum (`Engine::resolve_political`).
+/// after the referendum.
 pub static ALVARO: VampireDef = VampireDef {
     name: "Alvaro, The Scion of Angelica",
     printed: &[
@@ -5141,7 +5132,7 @@ pub static APPOLONIUS_MERGED: VampireDef = VampireDef {
 /// definition `cards::vampire_of` reads for a merged vampire.
 pub static MERGED: [&VampireDef; 1] = [&APPOLONIUS_MERGED];
 
-// ---- Round 10: the 2025-2026 TWDA decks (slice 16v) --------------------------
+// ---- Round 10: the 2025-2026 TWDA decks ------------------------------------
 //
 // Stavros prints no text ("Sabbat priscus.").
 
@@ -5277,7 +5268,7 @@ pub static VICTORIA_ASH_G7: VampireDef = VampireDef {
     ..VAMP
 };
 
-// ---- Round 11: the 2025-2026 TWDA decks (slice 16w) --------------------------
+// ---- Round 11: the 2025-2026 TWDA decks ------------------------------------
 //
 // Nichodemus ("Camarilla."), Lachlan, Noddist ("Sabbat Archbishop of
 // Chicago.") and Jessica G2 ("Sabbat bishop.") print no text.
@@ -5371,7 +5362,7 @@ pub static GABRIELLE_DI_RIGHETTI: VampireDef = VampireDef {
 };
 
 /// "Camarilla: The controller of the minion in combat with Harold plays
-/// with an open hand." Read as the combat goes (`hand_visible_to`).
+/// with an open hand." Read as the combat goes.
 pub static HAROLD_TANNER: VampireDef = VampireDef {
     name: "Harold Tanner",
     printed: &[own(Stat::OpponentOpenHandInCombat, 1, &[])],
