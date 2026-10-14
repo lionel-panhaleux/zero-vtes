@@ -5,6 +5,7 @@
 //! Definitions live in `defs`.
 
 pub mod defs;
+pub mod slots;
 pub mod vampires;
 
 use crate::actions::{ActionCtx, ActionState};
@@ -5751,7 +5752,8 @@ pub fn has_disciplines(st: &GameState, m: MinionId, card: u16, tags: &[&str]) ->
 }
 
 /// Evaluate a target-independent requirement for `seat` playing with
-/// `actor`, given the as-played context and the current action.
+/// `actor`, given the as-played context and the current action. An arm
+/// returning `true` is read elsewhere: `Requirement::slots` names where.
 #[allow(clippy::too_many_arguments)]
 pub fn holds(
     req: Requirement,

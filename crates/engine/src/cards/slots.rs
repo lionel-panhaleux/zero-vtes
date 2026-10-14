@@ -1,0 +1,827 @@
+//! Where each requirement is read, and the requirement each ability cost
+//! implies: conventions of the definitions, checked over every definition
+//! by the tests below.
+
+use super::{Actor, Effect, Hook, ModeDef, Requirement};
+
+/// An evaluator of requirements: which positions of a definition really
+/// read a requirement depends on the evaluator the engine runs there.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Slot {
+    /// `holds`: the play's context (its seat and actor, the played card,
+    /// the action, combat or referendum underway).
+    Play,
+    /// `holds_for_host`: the host of the card in play, or the vampire
+    /// whose text it is.
+    Host,
+    /// `holds_for_card`: the card in play itself.
+    Card,
+    /// `holds_for_minion`: a minion target, a referendum term's minion
+    /// choice, a live conditional bonus (`Effect::If`).
+    MinionTarget,
+    /// `holds_for_uncontrolled`: a vampire in the uncontrolled region.
+    UncontrolledTarget,
+    /// `holds_for_seat`: a Methuselah target.
+    SeatTarget,
+    /// `holds_for_card_target`: a card in play targeted.
+    CardTarget,
+    /// `GameState::printed_holds`: a modifier printed on a vampire.
+    Printed,
+    /// `GameState::rider_holds`' own arms: a rider's card predicates.
+    Rider,
+    /// Read by name where the engine enumerates a position, not by an
+    /// evaluator: `holds` passes it as `true`.
+    Engine(Site),
+}
+
+/// The engine code reading an engine-checked requirement.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Site {
+    /// `Engine::play_options` (and `reacting_candidates`), on a card mode's
+    /// requirements.
+    PlayOptions,
+    /// `Engine::play_options`, on a card mode's minion target filter.
+    PlayTarget,
+    /// `Engine::card_target_qualifies`: any card target.
+    CardTargetQualifies,
+    /// `Engine::ability_targets_by` and `minion_target_qualifies_by`: an
+    /// in-play ability's minion target.
+    AbilityTargets,
+    /// `Engine::ability_options`, every card ability: its phase.
+    AbilityWindow,
+    /// `Engine::ability_options`, the branch of this actor (`Host` stands
+    /// for `ForOwnCombatant` too). Some hold by the branch's construction:
+    /// `YouControlThisCard` in `Controller`'s, `ActorIsHost` in `Host`'s.
+    Ability(Actor),
+    /// `Engine::vampire_ability_options`.
+    VampireAbility,
+    /// `Engine::as_played_request`: an ability in `Window::CardAsPlayed`.
+    AsPlayed,
+    /// The loop firing a card's riders at this hook.
+    CardRider(Hook),
+    /// The loop firing a vampire's printed riders at this hook.
+    VampireRider(Hook),
+}
+
+impl Requirement {
+    /// The evaluators that really read this requirement (any other one
+    /// passes it as `true`, or never sees it). A requirement belongs in a
+    /// position whose evaluators meet these; a new one is classified here
+    /// with the evaluator arm that reads it.
+    pub fn slots(self) -> &'static [Slot] {
+        use Requirement as R;
+        use Slot as S;
+        match self {
+            R::ActorNotClan(..)
+            | R::AttemptingCapacityAtLeast(..)
+            | R::AttemptingAllyOrYounger
+            | R::OwnMinionInCombat
+            | R::AnyAttemptNeedsIntercept
+            | R::StrikeNormalDamagePending
+            | R::EffectNormalDamagePending
+            | R::ActorAllyCard(..)
+            | R::ActionRequiresClanOrDiscipline(..)
+            | R::NoVampireNamedButInCrypt(..)
+            | R::DirectedAtYourReadyClan(..)
+            | R::TermsChoseYourReadyClan(..)
+            | R::PlainEquipFromHandOncePerTurn
+            | R::OwnActionCardCosts(..)
+            | R::NoOptionalActionThisTurn
+            | R::AllyInAnyAsh
+            | R::AshHasAlly(..)
+            | R::PlayedCardIsMaster
+            | R::PlayedByOtherSeat
+            | R::NotOwnTurn
+            | R::DirectedAtYou
+            | R::BleedAgainstPrey
+            | R::BleedSuccessful
+            | R::BleedAmountAtLeast(..)
+            | R::BlocksDeclined
+            | R::StealthNeeded
+            | R::InterceptNeeded
+            | R::LockedActor
+            | R::ControlsReadyTitled(..)
+            | R::ControlsReadySect(..)
+            | R::MasterPhaseActionLeft
+            | R::HandHas(..)
+            | R::PreyBurnedPool
+            | R::ControlsReadyOnPath(..)
+            | R::ActingFollowsPath(..)
+            | R::NoQueuedCombat
+            | R::ActingAllyOrYounger
+            | R::ActorNotActing
+            | R::OwnActingAllyOrYounger
+            | R::ActionRequiresPath(..)
+            | R::ActingAllyOf(..)
+            | R::BlockingYoungerActing
+            | R::FoughtByYoungerActing
+            | R::ActorAllyOf(..)
+            | R::AttemptingAllyOf(..)
+            | R::NoAimYet
+            | R::HandNotEmpty
+            | R::CryptNotEmpty
+            | R::GehennaInPlay(..)
+            | R::ActorBurnedPreyMinion
+            | R::ControlsReadyClan(..)
+            | R::OwnReadyClanWithBlood(..)
+            | R::ActingVampire
+            | R::ActingCapacityAtLeast(..)
+            | R::OthersAttemptNeedsIntercept
+            | R::ActingClan(..)
+            | R::NotFirstActionOfPhase
+            | R::AnarchHuntedYours
+            | R::AnarchCardInAshAndHand
+            | R::AnarchCombatWithYours
+            | R::PoolAtLeast(..)
+            | R::RangeClose
+            | R::RangeLong
+            | R::FirstRound
+            | R::BothCombatantsReady
+            | R::CombatWouldEnd
+            | R::DamagePending
+            | R::NonAggravatedDamagePending
+            | R::GunStrikeDamagePending
+            | R::NonGunDamagePending
+            | R::NoContinuePress
+            | R::ActorHasBlocked
+            | R::ActorTitleNotIn(..)
+            | R::ActorCapacityAtLeast(..)
+            | R::PollingStep
+            | R::AnyPollingStep
+            | R::ActorCalledReferendum
+            | R::ActorActing
+            | R::ActionSuccessful
+            | R::RescuedFromTorpor
+            | R::ActorDiablerised
+            | R::ActingOtherController
+            | R::OtherActingControlled
+            | R::OwnActing
+            | R::NoActionUnderway
+            | R::ControlsReadyVampires(..)
+            | R::ActingSectIn(..)
+            | R::DirectedHandNotEmpty
+            | R::YourAttemptNeedsIntercept
+            | R::OtherActingClan(..)
+            | R::OwnTurn
+            | R::ActorMustHunt
+            | R::DiscardPhaseActionLeft
+            | R::MasterCardPlayed
+            | R::AshNotEmpty
+            | R::ActionRequiresAnarch
+            | R::LibraryAtLeast(..)
+            | R::AshAtLeast(..)
+            | R::NoVotesCast
+            | R::CallerTitledOfSect(..)
+            | R::ReferendumPassed
+            | R::ActorNotVotingFor
+            | R::ActorWithout(..)
+            | R::PreyAshHasPair
+            | R::ActorInfernal
+            | R::UncontrolledAtLeast(..)
+            | R::OwnAshNotEmpty
+            | R::PreyAshNotEmpty
+            | R::NoGreatBeastControlled
+            | R::ManeuverToClose
+            | R::OpposingWeapon
+            | R::ActorUnlocked
+            | R::ActorMayUseEquipment
+            | R::InflictedMoreThisRound
+            | R::NotBleed
+            | R::ActingYounger
+            | R::RecruitingSubtype(..)
+            | R::OpponentWithout(..)
+            | R::PlayedCardType(..)
+            | R::PlayedNotCardType(..)
+            | R::NoCryptEmpty
+            | R::PredatorAndPreyReadyVampires
+            | R::ActionBlocked
+            | R::NoSuperiorVeilThisTurn
+            | R::StrikeDamagePending
+            | R::NoReactionPlayed
+            | R::BlockerTitleIn(..)
+            | R::BlockerOwnAnarch
+            | R::SameCircleAsActing
+            | R::SameCircleAsOwnCombatant
+            | R::OwnCombatantsOpponentReady
+            | R::BoonableBleed
+            | R::BleedAtYouUnboonedForOne
+            | R::ControlsOtherReadyUnlockedSameCircle
+            | R::ActorUnprintedCircle
+            | R::ActorGainedBlood
+            | R::NoSlaveInstead
+            | R::MaskCapable
+            | R::NoReadyBlackHand
+            | R::ControlsLockedMinion
+            | R::DirectedAtYourMinion
+            | R::DirectedAtYourAlly
+            | R::ActingByPredatorOrPrey
+            | R::ActorUnmergedAdvanced
+            | R::ActorPassedReferendumThisTurn
+            | R::OwnUncontrolledNotEmpty
+            | R::PlayedByAllyOrCapacityAtMost(..)
+            | R::OwnAshVampire
+            | R::OpposingAllyBurned
+            | R::OwnAshHas(..)
+            | R::ControlsPrinceOf(..)
+            | R::NotInCombat
+            | R::NotContinued
+            | R::NotInDamageResolution
+            | R::ActorNotBlocking
+            | R::RecruitingTzimisceGhoul
+            | R::NoBlockAttempt
+            | R::OpponentVampire
+            | R::OpponentVampireNotOlder
+            | R::OpponentNotReady
+            | R::OwnCombatantFacesAggravatedStrike
+            | R::ActingCombatantYourVampire
+            | R::ActingByPredator
+            | R::MoreThanTwoLeft
+            | R::AttemptingSectIn(..)
+            | R::AttemptingClan(..)
+            | R::ActionUnsuccessful
+            | R::NoWatchDamageThisAction
+            | R::NoCombatQueued
+            | R::AttemptingVampireWithout(..)
+            | R::PlayedCardIsMinionCard
+            | R::PlayedByPredatorOrPrey
+            | R::ActorBloodAtLeast(..)
+            | R::ActorNotSterile
+            | R::ActiveIsPrey
+            | R::ActionNotFailed
+            | R::PlayedNotOutOfTurn
+            | R::BlockerNotReady
+            | R::CombatFromBlock
+            | R::NoSlaveTookCombat
+            | R::OthersHuntingGroundsAtLeast(..)
+            | R::PreyUncontrolledHasBlood
+            | R::BleedTargetAshAtLeast(..) => &[S::Play],
+            R::HostBelowCapacity
+            | R::HostControllerPoolAtLeast(..)
+            | R::HostBloodAtLeast(..)
+            | R::HostBelowStartingLife
+            | R::HostBloodAtMost(..)
+            | R::HostInTorpor
+            | R::HostControllerActive
+            | R::OwnCombatantOtherCopy
+            | R::HostReady
+            | R::HostUnlocked => &[S::Host],
+            R::HostCombatOpposingVampireNotReady
+            | R::HostUsedDisciplines(..)
+            | R::FewerCopiesUsedThisPhase(..)
+            | R::CountersWithBleedGainAtLeast(..)
+            | R::ControllerControlsHost
+            | R::DirectedAtRemembered
+            | R::StoreEmpty
+            | R::StoreNotEmpty
+            | R::EnteredBeforeThisTurn
+            | R::EnteredBeforeThisAction
+            | R::HostNoCopyOfControllers
+            | R::CardLocked
+            | R::ActionTargetsHost
+            | R::LifeAtLeast(..)
+            | R::BoonTargetActive
+            | R::FewerCopiesThanReadyOfClan(..) => &[S::Card],
+            R::TargetCapacityAtMost(..)
+            | R::TargetAllyCard(..)
+            | R::TargetDiscipline(..)
+            | R::TargetMithraic
+            | R::TargetAnarch
+            | R::TargetSectNot(..)
+            | R::BloodAtLeast(..)
+            | R::NotHuntingGroundFed
+            | R::TargetFollowsPath(..)
+            | R::TargetAllyOf(..)
+            | R::TargetAllyNotOf(..)
+            | R::TargetOtherCopyControlled
+            | R::TargetInTorpor
+            | R::TargetRedList
+            | R::TargetNotRedList
+            | R::TargetNotBlocker
+            | R::TargetHostage
+            | R::ControlledByPrey
+            | R::NotAbstaining
+            | R::ControlledByDirectedSeat
+            | R::HasCastVotes
+            | R::TargetWithout(..)
+            | R::TargetTitleContested
+            | R::TargetClanNotIn(..)
+            | R::TargetNotSuperior(..)
+            | R::OtherThanActor
+            | R::ControlledByPredatorOrPrey
+            | R::TargetCorrupted
+            | R::TargetLacksActorSuperior
+            | R::NotGehennaImmune
+            | R::TargetLocked
+            | R::TargetVampire
+            | R::TargetEnteredSinceYourLastMinionPhase
+            | R::TargetEnteredInYourLastInfluencePhase
+            | R::TargetAllyOrCapacityAtMost(..)
+            | R::ControlledByPredator
+            | R::ControlledByActive
+            | R::TargetOtherCopy
+            | R::TargetAlly
+            | R::TargetAllyHurt
+            | R::AllyOrYounger
+            | R::TargetCombatant
+            | R::BloodAtMost(..)
+            | R::TargetDiablerieSinceYourLastTurn
+            | R::TargetSubtypeIn(..)
+            | R::TargetNotOfPredator => &[S::MinionTarget],
+            R::TargetCirclelessBloodBrother => &[S::UncontrolledTarget],
+            R::NotActingController
+            | R::NotSelf
+            | R::TargetPoolMoreThanYours
+            | R::TargetSeatOusting
+            | R::CanSaveTarget
+            | R::TargetPrey
+            | R::TargetPredatorOrPrey
+            | R::TargetAshAtLeast(..)
+            | R::PredatorsPredator => &[S::SeatTarget],
+            R::CardControlledByPrey
+            | R::TargetOnPreyMinion
+            | R::TargetOnActor
+            | R::TargetCard(..)
+            | R::TargetOnReadyMinion
+            | R::ActorMayHoldTarget
+            | R::TargetWeapon
+            | R::TargetOnVampire
+            | R::TargetOnLockedMinion
+            | R::TargetOnMinionNotOfSect(..)
+            | R::TargetOnPredatorOrPreyMinion
+            | R::TargetCardNot(..) => &[S::CardTarget],
+            R::ControlsReadyTitledOther(..)
+            | R::PredatorMoreReadyMinions
+            | R::PreyPoolAtMost(..)
+            | R::TargetSeatControlsClan(..)
+            | R::ThisVampireReady
+            | R::OpponentClan(..)
+            | R::OpponentYounger
+            | R::OpponentOlder
+            | R::OpponentAllyOrYounger
+            | R::OpponentTitled
+            | R::ActorCorruptedBySource
+            | R::PoolAtMost(..)
+            | R::ControlsLocation
+            | R::ControlsNoLocation
+            | R::ControlsVampireNamed(..)
+            | R::ControlsNoReadyOlderOfClan(..)
+            | R::ControlsNoReadyOfClan(..)
+            | R::SourceActing
+            | R::ActorClaimsTitleIn(..)
+            | R::PlayedAsReaction
+            | R::PlayedAsCombat
+            | R::NoReadyNamed(..)
+            | R::ActorSubtype(..)
+            | R::OpponentSectIn(..)
+            | R::OpponentControllerHasGehenna
+            | R::ReadyNamed(..)
+            | R::OtherNonHuntAction
+            | R::TargetSeatControlsReadyClan(..)
+            | R::TargetSeatControlsReadySect { .. }
+            | R::SourceTitleIn(..) => &[S::Printed],
+            R::ActiveControlsNonSect(..) => &[S::Rider],
+            R::ActorReady | R::BleedTargetPoolAtMost(..) => &[S::Play, S::MinionTarget],
+            R::AnyOf(..) => &[S::Play, S::MinionTarget, S::CardTarget, S::Printed],
+            R::ActorTitleIn(..) | R::ActorClan(..) => &[S::Play, S::MinionTarget, S::Printed],
+            R::ActorSectIn(..) => &[S::Play, S::MinionTarget, S::UncontrolledTarget, S::Printed],
+            R::IsBleed
+            | R::ActorVampire
+            | R::IsHunt
+            | R::RulebookHunt
+            | R::IsDiablerie
+            | R::IsRecruitOrEmploy
+            | R::HasEdge
+            | R::ActionUndirected
+            | R::NotFirstRound
+            | R::IsPolitical
+            | R::ActionDirected
+            | R::PlayedRequiresDiscipline(..)
+            | R::PlayedCard(..)
+            | R::ActorUntitled
+            | R::OpponentSubtype(..) => &[S::Play, S::Printed],
+            R::HostLocked => &[S::Host, S::Printed],
+            R::HostClan(..) | R::HostDiscipline(..) => &[S::Card, S::Host],
+            R::CountersAtLeast(..) | R::CountersAtMost(..) | R::CardMode(..) | R::BasicVersion => {
+                &[S::Card, S::Rider]
+            }
+            R::TargetNotNamed(..) | R::Controlled | R::NotControlled | R::TargetUnlocked => {
+                &[S::MinionTarget, S::CardTarget]
+            }
+            R::TargetCapacityAtLeast(..)
+            | R::SameClanAsActor
+            | R::Younger
+            | R::TargetTitleIn(..)
+            | R::TargetSameCircle
+            | R::TargetClan(..) => &[S::MinionTarget, S::UncontrolledTarget],
+            R::ActorIsChosen | R::ActorOfByCircle => {
+                &[S::Engine(Site::Ability(Actor::ActingCandidate))]
+            }
+            R::ActingIsBy | R::BleedAgainstHostController | R::ActingIsHost => {
+                &[S::Engine(Site::Ability(Actor::ActingMinion))]
+            }
+            R::CardControllersTurn => &[S::Engine(Site::Ability(Actor::ChosenController))],
+            R::TargetCapacityBelowCounters => &[S::Engine(Site::Ability(Actor::Controller))],
+            R::WeaponBurnedOpponent
+            | R::SourceHeldWhenBlocking
+            | R::HostAttempting
+            | R::HostOutOfCombat => &[S::Engine(Site::Ability(Actor::Host))],
+            R::TargetIsHost | R::TargetInCombatWithNormalDamage => {
+                &[S::Engine(Site::AbilityTargets)]
+            }
+            R::OthersMinionPhase | R::InMasterPhase => &[S::Engine(Site::AbilityWindow)],
+            R::PlayedGrappleOrAimByOpponent | R::PlayedFrenzyOnYour(..) => {
+                &[S::Engine(Site::AsPlayed)]
+            }
+            R::OncePerTurn => &[S::Engine(Site::CardRider(Hook::HostBlocks))],
+            R::OneCopyPerTurn => &[S::Engine(Site::CardRider(Hook::UnlockPhase))],
+            R::TargetOnOpposingCombatant => &[S::Engine(Site::CardTargetQualifies)],
+            R::NotPlayedThisGame
+            | R::NotPlayedThisTurn
+            | R::OnePerMethuselah
+            | R::PlayedFrenzyOnActor
+            | R::PlayedStrikeOrGrappleByOpponent
+            | R::PlayedRestrictsStrikesByOpponent
+            | R::PlayedAimFrenzyGrappleByOpponent
+            | R::CanAttemptBlockAnyone
+            | R::MayBeLocked => &[S::Engine(Site::PlayOptions)],
+            R::BlockedByOlder => &[S::Engine(Site::VampireRider(Hook::HostBlocked))],
+            R::PlayedActionCardAtYour(..) => &[S::Play, S::Engine(Site::AsPlayed)],
+            R::CardUnlocked => &[S::Card, S::Engine(Site::Ability(Actor::ActingCandidate))],
+            R::HostCombatOpponentNotReady => &[S::Card, S::Engine(Site::VampireAbility)],
+            R::SuperiorVersion => &[
+                S::Card,
+                S::Rider,
+                S::Engine(Site::CardRider(Hook::HostBlocked)),
+            ],
+            R::NotHost => &[
+                S::CardTarget,
+                S::Engine(Site::AbilityTargets),
+                S::Engine(Site::Ability(Actor::ActingCandidate)),
+            ],
+            R::YouControlThisCard => &[
+                S::Engine(Site::Ability(Actor::Controller)),
+                S::Engine(Site::Ability(Actor::ActingMinion)),
+                S::Engine(Site::Ability(Actor::AnyReadyVampire)),
+                S::Engine(Site::Ability(Actor::Methuselah)),
+                S::Engine(Site::Ability(Actor::ActingCandidate)),
+            ],
+            R::ActorIsHost => &[
+                S::Engine(Site::Ability(Actor::Host)),
+                S::Engine(Site::Ability(Actor::ActingCandidate)),
+            ],
+            R::OthersControlThisCard => &[
+                S::Engine(Site::Ability(Actor::Methuselah)),
+                S::Engine(Site::Ability(Actor::ActingCandidate)),
+            ],
+            R::OwnMinionPhase => &[
+                S::Engine(Site::AbilityWindow),
+                S::Engine(Site::VampireAbility),
+            ],
+            R::PlayedStrikeByOpponent => &[S::Engine(Site::PlayOptions), S::Engine(Site::AsPlayed)],
+            R::CanAttemptBlock => &[
+                S::Engine(Site::PlayOptions),
+                S::Engine(Site::PlayTarget),
+                S::Engine(Site::Ability(Actor::AnyReadyVampire)),
+            ],
+            R::TargetInCombatWithDamage => &[
+                S::Engine(Site::PlayTarget),
+                S::Engine(Site::CardTargetQualifies),
+                S::Engine(Site::AbilityTargets),
+            ],
+        }
+    }
+}
+
+/// The requirement an ability of `payer` paying `cost` carries, so that it
+/// is offered only when the cost is payable: a lock needs the card or the
+/// host unlocked, a blood (or life) cost that much on the minion paying it
+/// — the user or the acting minion for `AnyReadyVampire` and
+/// `ActingMinion`, the host otherwise. Abilities only: a rider is mandatory
+/// and burns what there is.
+pub fn implied_requirement(payer: Actor, cost: Effect) -> Option<Requirement> {
+    match cost {
+        Effect::LockSelf => Some(Requirement::CardUnlocked),
+        Effect::LockHost => Some(Requirement::HostUnlocked),
+        Effect::HostBurnBlood(n) | Effect::HostBurnLife(n) => Some(match payer {
+            Actor::AnyReadyVampire | Actor::ActingMinion => Requirement::ActorBloodAtLeast(n),
+            _ => Requirement::HostBloodAtLeast(n),
+        }),
+        _ => None,
+    }
+}
+
+/// The requirements `ability`'s costs imply (`implied_requirement`).
+pub fn implied_requirements(ability: &ModeDef) -> impl Iterator<Item = Requirement> + '_ {
+    ability
+        .effects
+        .iter()
+        .filter_map(|&e| implied_requirement(ability.actor, e))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::defs::DEFS;
+    use super::super::vampires::VAMPIRES;
+    use super::super::{TargetKind, Term, Window};
+    use super::*;
+
+    /// Requirements no evaluator reads where they sit, known: the card, the
+    /// requirement, why (docs/findings.md). An entry nothing matches fails
+    /// the test: drop it once its gap is closed.
+    const KNOWN_GAPS: &[(&str, Requirement, &str)] = &[
+        // `vampire_ability_options` reads neither (the card `Host` branch
+        // does): offered for another minion's attempt, or in combat.
+        (
+            "Angelica, The Canonicus",
+            Requirement::HostAttempting,
+            "findings L1",
+        ),
+        ("Cesewayo", Requirement::HostAttempting, "findings L1"),
+        ("Larry", Requirement::HostAttempting, "findings L1"),
+        (
+            "Persia, The Beautiful Statue",
+            Requirement::HostAttempting,
+            "findings L1",
+        ),
+        (
+            "Huldu, The Desecrator",
+            Requirement::HostOutOfCombat,
+            "findings L1",
+        ),
+        // `printed_holds` reads it, `holds` passes it.
+        ("Zizi", Requirement::ReadyNamed("Viri"), "findings L2"),
+        // The `ActingCandidate` branch reads the card for `CardUnlocked`
+        // only: the action is offered with no counter to burn.
+        (
+            "Powerbase: Madrid",
+            Requirement::CountersAtLeast(1),
+            "findings L3",
+        ),
+        // A target predicate in an `AnyReadyVampire` ability: an
+        // abstaining vampire burns counters for votes it cannot cast.
+        ("Alamut", Requirement::NotAbstaining, "findings L4"),
+        ("Dead Pool", Requirement::NotAbstaining, "findings L4"),
+    ];
+
+    /// The evaluators the engine runs on an in-play card ability's
+    /// requirements, by actor (`Engine::ability_options`'s branches).
+    fn card_ability_readers(ability: &ModeDef) -> Option<Vec<Slot>> {
+        use Slot::*;
+        let mut readers = match ability.actor {
+            Actor::Controller | Actor::AnyReadyVampire | Actor::Methuselah => vec![Card, Play],
+            Actor::ActingMinion | Actor::ActingCandidate | Actor::OpposingCombatant => vec![Play],
+            Actor::ChosenController => vec![],
+            Actor::Host | Actor::ForOwnCombatant => vec![Card, Host, Play],
+            _ => return None,
+        };
+        let branch = match ability.actor {
+            Actor::ForOwnCombatant => Actor::Host,
+            a => a,
+        };
+        readers.extend([Engine(Site::Ability(branch)), Engine(Site::AbilityWindow)]);
+        Some(as_played(ability, readers))
+    }
+
+    /// The evaluators the engine runs on a vampire's printed ability.
+    fn vampire_ability_readers(ability: &ModeDef) -> Vec<Slot> {
+        use Slot::*;
+        as_played(ability, vec![Host, Play, Engine(Site::VampireAbility)])
+    }
+
+    /// An ability cancelling a card as it is played is filtered again by
+    /// `Engine::as_played_request`.
+    fn as_played(ability: &ModeDef, mut readers: Vec<Slot>) -> Vec<Slot> {
+        if ability.windows.contains(&Window::CardAsPlayed) {
+            readers.push(Slot::Engine(Site::AsPlayed));
+        }
+        readers
+    }
+
+    /// The evaluators the engine runs on a card rider's requirements at
+    /// `hook`, where it was read (`None`: a hook no rider with requirements
+    /// used yet — classify its loop before adding one).
+    fn card_rider_readers(hook: Hook) -> Option<Vec<Slot>> {
+        use Slot::*;
+        Some(match hook {
+            Hook::UnlockPhase
+            | Hook::WouldDraw
+            | Hook::WouldReplace
+            | Hook::AnyReferendumPassed => vec![Rider, Host, Engine(Site::CardRider(hook))],
+            Hook::HostBlocks | Hook::HostBlocked => vec![Play, Engine(Site::CardRider(hook))],
+            Hook::OwnBleedEnds => vec![Play],
+            _ => return None,
+        })
+    }
+
+    /// As `card_rider_readers`, for a vampire's printed riders.
+    fn vampire_rider_readers(hook: Hook) -> Option<Vec<Slot>> {
+        use Slot::*;
+        Some(match hook {
+            Hook::UnlockPhase | Hook::DiscardPhase => vec![Host],
+            Hook::HostBlocked => vec![Host, Engine(Site::VampireRider(hook))],
+            Hook::ActionAnnouncedAtTarget => vec![Play],
+            _ => return None,
+        })
+    }
+
+    #[derive(Default)]
+    struct Walk {
+        /// The card, the requirement not read (none: a position not
+        /// classified), the message.
+        failures: Vec<(&'static str, Option<Requirement>, String)>,
+        checked: usize,
+    }
+
+    impl Walk {
+        fn check(&mut self, name: &'static str, at: &str, reqs: &[Requirement], readers: &[Slot]) {
+            for &r in reqs {
+                self.checked += 1;
+                if !r.slots().iter().any(|s| readers.contains(s)) {
+                    let msg = format!(
+                        "{name}: {r:?} at {at}, read by {:?}, where {readers:?} read",
+                        r.slots()
+                    );
+                    self.failures.push((name, Some(r), msg));
+                }
+                // The alternatives are read by the evaluators reading the
+                // `AnyOf` itself.
+                if let Requirement::AnyOf(alternatives) = r {
+                    let live: Vec<Slot> = readers
+                        .iter()
+                        .copied()
+                        .filter(|s| r.slots().contains(s))
+                        .collect();
+                    for alt in alternatives {
+                        self.check(name, at, alt, &live);
+                    }
+                }
+            }
+        }
+
+        fn unclassified(&mut self, name: &'static str, what: String) {
+            self.failures
+                .push((name, None, format!("{name}: {what} not classified")));
+        }
+
+        /// Conditional bonuses and referendum term choices nested in
+        /// effects: read on a minion.
+        fn effects(&mut self, name: &'static str, at: &str, effects: &[Effect]) {
+            for e in effects {
+                match *e {
+                    Effect::If { requires, then, .. } => {
+                        self.check(name, at, requires, &[Slot::MinionTarget]);
+                        self.effects(name, at, std::slice::from_ref(then));
+                    }
+                    Effect::IfBleedSuccessful(es) => self.effects(name, at, es),
+                    Effect::CallReferendum(d) => {
+                        for t in d.terms {
+                            if let Term::ChooseMinions { filter, .. }
+                            | Term::ChooseMinionsX { filter }
+                            | Term::DistributeBlood { filter, .. } = *t
+                            {
+                                self.check(name, at, filter, &[Slot::MinionTarget]);
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        /// A mode's requirements read by `readers`, its target filter by
+        /// the target kind's evaluator (and, for a minion, `minion`'s
+        /// engine checks), its nested conditions.
+        fn mode(
+            &mut self,
+            name: &'static str,
+            at: &str,
+            m: &ModeDef,
+            readers: &[Slot],
+            minion: &[Site],
+        ) {
+            self.check(name, at, m.requires, readers);
+            if let Some(t) = m.target {
+                let by: Vec<Slot> = match t.kind {
+                    TargetKind::Minion => std::iter::once(Slot::MinionTarget)
+                        .chain(minion.iter().map(|&s| Slot::Engine(s)))
+                        .collect(),
+                    TargetKind::Seat => vec![Slot::SeatTarget],
+                    TargetKind::Uncontrolled => vec![Slot::UncontrolledTarget],
+                    TargetKind::Card => {
+                        vec![Slot::CardTarget, Slot::Engine(Site::CardTargetQualifies)]
+                    }
+                };
+                self.check(name, &format!("{at}'s {:?} target", t.kind), t.filter, &by);
+            }
+            self.effects(name, at, m.effects);
+        }
+    }
+
+    // F9: a requirement in a position no evaluator there reads passes as
+    // `true` — an engine-checked arm of `holds`, an evaluator's `_ => true`
+    // — and the mask is silently permissive.
+    #[test]
+    fn every_requirement_sits_where_it_is_read() {
+        let mut w = Walk::default();
+        for d in DEFS.iter() {
+            for m in d.modes {
+                let readers = [Slot::Play, Slot::Engine(Site::PlayOptions)];
+                w.mode(d.name, "a mode", m, &readers, &[Site::PlayTarget]);
+            }
+            for (i, a) in d.abilities.iter().enumerate() {
+                let at = format!("ability {i} ({:?})", a.actor);
+                let Some(readers) = card_ability_readers(a) else {
+                    w.unclassified(d.name, at);
+                    continue;
+                };
+                let mut minion = vec![Site::AbilityTargets];
+                if a.actor == Actor::Controller {
+                    minion.push(Site::Ability(Actor::Controller));
+                }
+                w.mode(d.name, &at, a, &readers, &minion);
+            }
+            for r in d.riders {
+                let at = format!("its {:?} rider", r.hook);
+                match card_rider_readers(r.hook) {
+                    Some(readers) => w.check(d.name, &at, r.requires, &readers),
+                    None if r.requires.is_empty() => {}
+                    None => w.unclassified(d.name, at.clone()),
+                }
+                w.effects(d.name, &at, r.effects);
+            }
+        }
+        for v in VAMPIRES.iter() {
+            for (i, a) in v.abilities.iter().enumerate() {
+                let at = format!("ability {i} ({:?})", a.actor);
+                let readers = vampire_ability_readers(a);
+                w.mode(v.name, &at, a, &readers, &[Site::AbilityTargets]);
+            }
+            for r in v.riders {
+                let at = format!("its {:?} rider", r.hook);
+                match vampire_rider_readers(r.hook) {
+                    Some(readers) => w.check(v.name, &at, r.requires, &readers),
+                    None if r.requires.is_empty() => {}
+                    None => w.unclassified(v.name, at.clone()),
+                }
+                w.effects(v.name, &at, r.effects);
+            }
+            for p in v.printed {
+                w.check(v.name, "a printed modifier", p.requires, &[Slot::Printed]);
+            }
+        }
+        assert!(w.checked > 2500, "{} requirements walked", w.checked);
+        let known = |name: &str, r: Option<Requirement>| {
+            KNOWN_GAPS
+                .iter()
+                .any(|&(n, q, _)| n == name && Some(q) == r)
+        };
+        let unknown: Vec<&str> = w
+            .failures
+            .iter()
+            .filter(|(n, r, _)| !known(n, *r))
+            .map(|(_, _, msg)| msg.as_str())
+            .collect();
+        assert!(unknown.is_empty(), "{}", unknown.join("\n"));
+        for &(name, r, why) in KNOWN_GAPS {
+            assert!(
+                w.failures
+                    .iter()
+                    .any(|(n, q, _)| *n == name && *q == Some(r)),
+                "{name}'s {r:?} is read now ({why} closed?): drop it from KNOWN_GAPS"
+            );
+        }
+    }
+
+    // F8: an ability paying a cost carries the requirement the cost
+    // implies, or it is offered unpayable.
+    #[test]
+    fn every_ability_cost_carries_its_requirement() {
+        use Requirement as R;
+        let mut failures = Vec::new();
+        let mut checked = 0;
+        let abilities = DEFS
+            .iter()
+            .flat_map(|d| d.abilities.iter().map(move |a| (d.name, a)))
+            .chain(
+                VAMPIRES
+                    .iter()
+                    .flat_map(|v| v.abilities.iter().map(move |a| (v.name, a))),
+            );
+        for (name, a) in abilities {
+            for want in implied_requirements(a) {
+                checked += 1;
+                // Requiring more blood than the cost does too.
+                let met = a.requires.iter().any(|&r| match (want, r) {
+                    (R::HostBloodAtLeast(n), R::HostBloodAtLeast(m))
+                    | (R::ActorBloodAtLeast(n), R::ActorBloodAtLeast(m)) => m >= n,
+                    _ => r == want,
+                });
+                if !met {
+                    failures.push(format!("{name}: {:?} without {want:?}", a.effects));
+                }
+            }
+        }
+        assert!(checked > 100, "{checked} costs walked");
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    }
+}

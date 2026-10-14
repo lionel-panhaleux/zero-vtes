@@ -58,3 +58,18 @@ E: engine or text (here).
 | E8 | Options | Two War Ghouls' options read alike ("Use War Ghoul with War Ghoul on X" twice per target, "Use War Ghoul on <location>: burn the card, burn it" twice): which ghoul is unsaid; "with War Ghoul" redundant for an ally's own ability; "burn the card, burn it" reads oddly | fixed (text): a minion whose name another minion of the game had first is numbered, "War Ghoul (2)", for the game (not ghoul tokens; `Names::numbered`); an ability's actor that is its own card not named; War Ghoul's location burn "burn it and itself" |
 | P13 | Table | A Ravnos prey's minions showed a nightmare counter (Week of Nightmares) but not how many: markers carry no text, the fork draws the bare kind (`projection.ts`, `n` dropped) | todo (SC, after the Z-beta rebase; owner's design): counted kinds (nightmare, hostage, torture, a lasting effect's counters) as round chips, one color each, the count on them, a short name on hover ("Nightmare"); other marks (sect, expelled, contested title, disease) stay short text labels; corruption keeps SC's green counter |
 | P14 | Minion phase | Game `7708a9b5288c3399` #360: a click on War Ghoul burned it and The Barrens at once, no rush, no cancel. Adrino Manauara had no blood: the forced hunt comes first (owner 2026-09-06, rules-qa 17.2), so the ghoul's only option was its location burn, and a click on a card took its lone option | fixed (SC 120dc10): a click on a card whose lone option is a use or a play stages it, "Confirm :" with Cancel (`narrowStaging(…, confirm)`); picks stay one click; the central box's top line says who must hunt first |
+
+## Engine review lints, 2026-10-14
+
+`cards::slots` checks every definition's requirements against the
+evaluators of their position (`every_requirement_sits_where_it_is_read`);
+these gaps are its `KNOWN_GAPS`, each found by reading the code (not
+reproduced in a game). Closing one changes masks: re-bless the goldens
+it moves.
+
+| # | Where | What | Status |
+|---|---|---|---|
+| L1 | `plays.rs` `vampire_ability_options` | `HostAttempting` (Angelica, The Canonicus; Cesewayo; Larry; Persia, The Beautiful Statue) and `HostOutOfCombat` (Huldu, The Desecrator) are read by the card `Host` branch of `ability_options` only: a vampire's ability is offered for another minion's block attempt, Huldu's for her own combat ("another minion you control") | open: mirror the `Host` branch's two checks |
+| L2 | `cards/mod.rs` `holds` | Zizi's `ReadyNamed("Viri")`: read by `printed_holds` only, `holds` passes it: her ability is offered without Viri ready | open: `holds` reads `ReadyNamed` |
+| L3 | `plays.rs` `ability_options`, `ActingCandidate` | Powerbase: Madrid's `CountersAtLeast(1)` on "burn all the counters as a Ⓓ action": the branch reads the card for `CardUnlocked` only, so the action is offered with no counter | owner: enforce it, or drop the requirement (a legal no-op, rules-qa 17.4)? |
+| L4 | `plays.rs` `ability_options`, `AnyReadyVampire` | Alamut's and Dead Pool's `NotAbstaining`: a target predicate in the ability's requirements, passed by `holds`: an abstaining vampire burns counters for votes it cannot cast (`votes_of` is 0) | owner: mask it (`holds` reading it of the actor), or a legal no-op? |
