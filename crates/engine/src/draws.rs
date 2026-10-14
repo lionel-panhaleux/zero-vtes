@@ -13,7 +13,8 @@ use crate::decision::{Choice, DecisionRequest, WindowLabel, Zone};
 use crate::game::Engine;
 use crate::ids::{MinionId, SeatId};
 use crate::library::Label;
-use crate::state::{distinct, CardId};
+use crate::plays::HookAt;
+use crate::state::{distinct, CardId, CardInPlay};
 
 /// A pending choice about cards drawn, moved or stored.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -597,25 +598,25 @@ impl Engine {
         if st.seats[s.index()].library.is_empty() {
             return out;
         }
-        for (i, c) in st.cards.iter().enumerate() {
-            let id = CardId(i as u32);
-            if !c.present() || c.stored.is_empty() || st.card_controller(id) != s {
-                continue;
-            }
-            let applies = cards::lookup(c.card).is_some_and(|d| {
-                d.riders.iter().any(|r| {
-                    r.hook == Hook::WouldDraw && r.scope.applies(st, s, s) && st.rider_holds(r, id)
-                })
-            });
-            if !applies {
-                continue;
-            }
-            out.extend(distinct(&c.stored, |_| true).into_iter().map(|stored| {
-                Choice::DrawStored {
-                    card: i as u32,
-                    stored,
-                }
-            }));
+        let on = |c: &CardInPlay| !c.stored.is_empty();
+        let at = HookAt {
+            seat: Some(s),
+            ..HookAt::on(&on)
+        };
+        let mut cards: Vec<CardId> = self
+            .fired_riders(Hook::WouldDraw, &at)
+            .into_iter()
+            .map(|(id, _)| id)
+            .filter(|&id| st.card_controller(id) == s)
+            .collect();
+        cards.dedup();
+        for id in cards {
+            let stored = &st.cards[id.index()].stored;
+            out.extend(
+                distinct(stored, |_| true)
+                    .into_iter()
+                    .map(|stored| Choice::DrawStored { card: id.0, stored }),
+            );
         }
         out
     }
@@ -624,20 +625,10 @@ impl Engine {
     /// instead (Visit from the Capuchin), `except` the card being replaced
     /// ("a card other than this card").
     pub(crate) fn replacement_rider(&self, s: SeatId, except: Option<CardId>) -> Option<CardId> {
-        let st = &self.state;
-        (0..st.cards.len() as u32).map(CardId).find(|&id| {
-            let c = &st.cards[id.index()];
-            Some(id) != except
-                && c.present()
-                && st.card_controller(id) == s
-                && cards::lookup(c.card).is_some_and(|d| {
-                    d.riders.iter().any(|r| {
-                        r.hook == Hook::WouldReplace
-                            && r.scope.applies(&self.state, s, s)
-                            && st.rider_holds(r, id)
-                    })
-                })
-        })
+        self.fired_riders(Hook::WouldReplace, &HookAt::of(s))
+            .into_iter()
+            .map(|(id, _)| id)
+            .find(|&id| Some(id) != except && self.state.card_controller(id) == s)
     }
 
     /// A replacement taken by that rider instead: a counter burned, the
@@ -645,19 +636,8 @@ impl Engine {
     pub(crate) fn apply_replacement_rider(&mut self, id: CardId) {
         let def = cards::lookup(self.state.cards[id.index()].card).expect("definition");
         for r in def.riders.iter().filter(|r| r.hook == Hook::WouldReplace) {
-            for e in r.effects {
-                match *e {
-                    Effect::RemoveCounter(k) => {
-                        let c = &mut self.state.cards[id.index()];
-                        c.counters = c.counters.saturating_sub(k);
-                    }
-                    Effect::BurnSelfWithoutCounters => {
-                        if self.state.cards[id.index()].counters == 0 {
-                            self.burn_card_in_play(id);
-                        }
-                    }
-                    other => unreachable!("not a replacement rider effect: {other:?}"),
-                }
+            for &e in r.effects {
+                self.apply_rider_effect(id, e, Hook::WouldReplace);
             }
         }
     }
@@ -730,15 +710,8 @@ impl Engine {
         self.state.seats[s.index()].hand.put(stored, copy);
         let def = cards::lookup(self.state.cards[id.index()].card).expect("definition");
         for r in def.riders.iter().filter(|r| r.hook == Hook::WouldDraw) {
-            for e in r.effects {
-                match *e {
-                    Effect::BurnSelfWithoutStored => {
-                        if self.state.cards[id.index()].stored.is_empty() {
-                            self.burn_card_in_play(id);
-                        }
-                    }
-                    other => unreachable!("not a draw alternative effect: {other:?}"),
-                }
+            for &e in r.effects {
+                self.apply_rider_effect(id, e, Hook::WouldDraw);
             }
         }
     }
@@ -2117,19 +2090,20 @@ impl Engine {
 
     /// The Black Throne of `x`'s: unlocked, offered to lock for pool.
     fn contract_riders(&mut self, x: SeatId) {
-        for (id, r) in self.state.card_riders(Hook::ContractHostLeaves) {
-            let c = &self.state.cards[id.index()];
-            if !c.present() || c.locked || self.state.card_controller(id) != x {
-                continue;
-            }
-
+        let on = |c: &CardInPlay| !c.locked;
+        let at = HookAt {
+            seat: Some(x),
+            ..HookAt::on(&on)
+        };
+        for (id, r) in self.fired_riders(Hook::ContractHostLeaves, &at) {
             for e in r.effects {
-                if let crate::cards::Effect::GainPool(n) = *e {
-                    self.interrupts.push(Interrupt::LockForPool {
+                match *e {
+                    Effect::GainPool(n) => self.interrupts.push(Interrupt::LockForPool {
                         seat: x,
                         card: id,
                         n,
-                    });
+                    }),
+                    other => unreachable!("not a contract rider effect: {other:?}"),
                 }
             }
         }

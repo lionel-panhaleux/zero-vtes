@@ -57,9 +57,11 @@ pub enum Site {
     VampireAbility,
     /// `Engine::as_played_request`: an ability in `Window::CardAsPlayed`.
     AsPlayed,
-    /// The loop firing a card's riders at this hook.
+    /// The site firing a card's riders at this hook, past
+    /// `Engine::fired_riders`.
     CardRider(Hook),
-    /// The loop firing a vampire's printed riders at this hook.
+    /// The site firing a vampire's printed riders at this hook, past
+    /// `Engine::printed_riders`.
     VampireRider(Hook),
 }
 
@@ -448,11 +450,7 @@ impl Requirement {
             R::PlayedActionCardAtYour(..) => &[S::Play, S::Engine(Site::AsPlayed)],
             R::CardUnlocked => &[S::Card, S::Engine(Site::Ability(Actor::ActingCandidate))],
             R::HostCombatOpponentNotReady => &[S::Card, S::Engine(Site::VampireAbility)],
-            R::SuperiorVersion => &[
-                S::Card,
-                S::Rider,
-                S::Engine(Site::CardRider(Hook::HostBlocked)),
-            ],
+            R::SuperiorVersion => &[S::Card, S::Rider],
             R::NotHost => &[
                 S::CardTarget,
                 S::Engine(Site::AbilityTargets),
@@ -598,30 +596,32 @@ mod tests {
     }
 
     /// The evaluators the engine runs on a card rider's requirements at
-    /// `hook`, where it was read (`None`: a hook no rider with requirements
-    /// used yet — classify its loop before adding one).
+    /// `hook`: `Engine::fired_riders`' (`None`: a hook read past it — a
+    /// card's destination as it is burned, Saatet-ta).
     fn card_rider_readers(hook: Hook) -> Option<Vec<Slot>> {
         use Slot::*;
-        Some(match hook {
-            Hook::UnlockPhase
-            | Hook::WouldDraw
-            | Hook::WouldReplace
-            | Hook::AnyReferendumPassed => vec![Rider, Host, Engine(Site::CardRider(hook))],
-            Hook::HostBlocks | Hook::HostBlocked => vec![Play, Engine(Site::CardRider(hook))],
-            Hook::OwnBleedEnds => vec![Play],
-            _ => return None,
-        })
+        if hook == Hook::SelfBurned {
+            return None;
+        }
+        let mut readers = if hook.reads_action(false) {
+            vec![Play, Rider]
+        } else {
+            vec![Rider, Host]
+        };
+        readers.push(Engine(Site::CardRider(hook)));
+        Some(readers)
     }
 
-    /// As `card_rider_readers`, for a vampire's printed riders.
+    /// As `card_rider_readers`, for a vampire's printed riders:
+    /// `Engine::printed_riders`' (`None`: read on the crypt card before the
+    /// vampire is in play).
     fn vampire_rider_readers(hook: Hook) -> Option<Vec<Slot>> {
         use Slot::*;
-        Some(match hook {
-            Hook::UnlockPhase | Hook::DiscardPhase => vec![Host],
-            Hook::HostBlocked => vec![Host, Engine(Site::VampireRider(hook))],
-            Hook::ActionAnnouncedAtTarget => vec![Play],
-            _ => return None,
-        })
+        if hook == Hook::EntersPlay {
+            return None;
+        }
+        let reader = if hook.reads_action(true) { Play } else { Host };
+        Some(vec![reader, Engine(Site::VampireRider(hook))])
     }
 
     #[derive(Default)]

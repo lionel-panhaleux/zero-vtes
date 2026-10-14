@@ -3853,6 +3853,19 @@ pub enum Effect {
     /// Cursed Abattoir: a counter after a zombie of its controller's is
     /// burned (`Hook::OwnZombieBurned`).
     CounterOnZombieBurned,
+    /// Twilight Camp: offered, 1 counter burned from it to make the vampire
+    /// just put in play from its controller's uncontrolled region Anarch
+    /// (`Hook::OwnVampireInfluenced`).
+    MayMakeAnarchForCounter,
+    /// Flames of Insurrection: the controller of the Anarch whose opposing
+    /// minion left the ready region may move n blood from the bank to a
+    /// vampire in their uncontrolled region, whoever controls the card
+    /// (`Hook::CombatOpponentOfAnarchLeft`).
+    AnarchControllerMayBloodToUncontrolled(u8),
+    /// The Path of Lilith: offered, the card locked to put a torture
+    /// counter on the opposing vampire sent to torpor
+    /// (`Hook::OwnNonCamarillaSendsToTorpor`).
+    MayLockForTorture,
     /// The host ally burns n life, a cost of its own text (Gravebound
     /// Drone: "this ally can burn 1 life to …") — not a blood cost, which
     /// an ally never pays (advanced rules 5.5.1).
@@ -5027,6 +5040,21 @@ impl RiderScope {
             RiderScope::Controller => controller == active,
             RiderScope::Others => controller != active,
             RiderScope::Prey => controller != active && active == st.prey(controller),
+        }
+    }
+}
+
+impl Hook {
+    /// Whether the riders at this hook have their requirements read in the
+    /// action's context (`holds`: the acting minion, the blocker, the
+    /// action), a card's rider predicates besides; else on the card and its
+    /// host (`GameState::rider_holds`), a vampire's on it
+    /// (`holds_for_host`). `printed`: a vampire's riders.
+    pub fn reads_action(self, printed: bool) -> bool {
+        match self {
+            Hook::HostBlocks | Hook::HostBlocked | Hook::OwnBleedEnds => !printed,
+            Hook::ActionAnnouncedAtTarget => printed,
+            _ => false,
         }
     }
 }

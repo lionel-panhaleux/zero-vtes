@@ -254,23 +254,24 @@ impl Engine {
                 if self.state.title_of(m) == crate::crypt::Title::None
                     && self.state.sect_of(m) != Some(crate::crypt::Sect::Anarch)
                 {
-                    for ci in 0..self.state.cards.len() {
-                        let id = crate::state::CardId(ci as u32);
-                        let c = &self.state.cards[ci];
-                        if c.present()
-                            && c.counters > 0
-                            && self.state.card_controller(id) == s
-                            && crate::cards::lookup(c.card).is_some_and(|d| {
-                                d.riders
-                                    .iter()
-                                    .any(|r| r.hook == crate::cards::Hook::OwnVampireInfluenced)
-                            })
-                        {
-                            self.interrupts.push(crate::draws::Interrupt::MakeAnarch {
-                                seat: s,
-                                card: id,
-                                minion: m,
-                            });
+                    let hook = crate::cards::Hook::OwnVampireInfluenced;
+                    let on = |c: &crate::state::CardInPlay| c.counters > 0;
+                    let at = crate::plays::HookAt {
+                        seat: Some(s),
+                        ..crate::plays::HookAt::on(&on)
+                    };
+                    for (id, r) in self.fired_riders(hook, &at) {
+                        for e in r.effects {
+                            match *e {
+                                crate::cards::Effect::MayMakeAnarchForCounter => {
+                                    self.interrupts.push(crate::draws::Interrupt::MakeAnarch {
+                                        seat: s,
+                                        card: id,
+                                        minion: m,
+                                    })
+                                }
+                                other => unreachable!("not an influence rider effect: {other:?}"),
+                            }
                         }
                     }
                 }

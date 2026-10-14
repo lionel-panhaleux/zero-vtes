@@ -880,8 +880,13 @@ slice-11 cards by section).
   Controller, Others, Prey}`): requirements read at collection and at resolution
   (an unmet rider is not pending, its window elides); unlock riders are pending
   mandatory effects ordered by their resolver; one burn per copy;
-  `R::OneCopyPerTurn` drops the other copies once one resolves. Vampire riders
-  (`VampireDef.riders`) fire at the hook site directly.
+  `R::OneCopyPerTurn` drops the other copies once one resolves. Every hook
+  site collects through `Engine::fired_riders` (present, text not lost, on the
+  cards the hook names, scope read against the hook's seat, requirements by
+  `rider_holds` — or in the action's context at a `Hook::reads_action` hook)
+  and `Engine::printed_riders` (vampire riders, `VampireDef.riders`); each
+  site keeps its effects' order and batching, the common ones resolved by
+  `apply_rider_effect`.
 - `Hook` index: `UnlockPhase`, `MasterPhaseStart`, `DiscardPhase`,
   `HostToTorpor`, `ReadyMinionBurnedOrTorpor`, `ByLeavesReady`,
   `CombatOpponentLeftReady`, `CombatOpponentOfOwnClanLeft`, `ContractHostLeaves`,
@@ -2185,7 +2190,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (`docs/human-play.md` has the board).
 
-Definitions: 739 library, 297 vampires; 1724 Rust tests, 34 Python tests
+Definitions: 739 library, 297 vampires; 1725 Rust tests, 34 Python tests
 
 ## Outlook: deck building (post-v1)
 

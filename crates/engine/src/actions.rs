@@ -5,11 +5,13 @@
 //! the engine so that card plays resolved from the as-played stack can
 //! modify it.
 
+use crate::cards::families::Family;
 use crate::cards::{self, Effect, Hook, Limit, PlayCtx, Requirement, Scope, Stat, Target, Window};
 use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
 use crate::library::LIBRARY;
+use crate::plays::{By, HookAt};
 use crate::referendum::RefKind;
 use crate::state::{ActionId, CardId, CardInPlay};
 use crate::window::OrderedWindow;
@@ -1215,13 +1217,9 @@ impl Engine {
     /// blood from themselves to this acting vampire" (Slaughtering the Herd
     /// [DOM]): riders of the cards on the acting minion.
     fn host_announces_riders(&mut self, acting: MinionId) {
-        for (id, r) in self.state.card_riders(Hook::HostAnnouncesAction) {
-            let c = &self.state.cards[id.index()];
-            if !c.present() || c.host != Some(acting) {
-                continue;
-            }
-            let by = c.by;
-
+        let on = |c: &CardInPlay| c.host == Some(acting);
+        for (id, r) in self.fired_riders(Hook::HostAnnouncesAction, &HookAt::on(&on)) {
+            let by = self.state.cards[id.index()].by;
             for e in r.effects {
                 match *e {
                     Effect::HostBloodToBy(n) => {
@@ -1233,7 +1231,7 @@ impl Engine {
                         self.state.minions[acting.index()].blood -= moved;
                         self.state.gain_blood(to, moved);
                     }
-                    other => unreachable!("not an announce rider effect: {other:?}"),
+                    other => self.apply_rider_effect(id, other, Hook::HostAnnouncesAction),
                 }
             }
         }
@@ -1246,23 +1244,12 @@ impl Engine {
         if !v.is_vampire() || self.state.sect_of(acting) == Some(crate::crypt::Sect::Anarch) {
             return;
         }
-        for (id, r) in self.state.card_riders(Hook::NonAnarchVampireActs) {
+        for (id, r) in self.fired_riders(Hook::NonAnarchVampireActs, &HookAt::ANY) {
             if !self.state.cards[id.index()].present() {
                 continue;
             }
-            for e in r.effects {
-                match *e {
-                    Effect::RemoveCounter(n) => {
-                        let c = &mut self.state.cards[id.index()];
-                        c.counters = c.counters.saturating_sub(n);
-                    }
-                    Effect::BurnSelfWithoutCounters => {
-                        if self.state.cards[id.index()].counters == 0 {
-                            self.burn_card_in_play(id);
-                        }
-                    }
-                    other => unreachable!("not an action rider effect: {other:?}"),
-                }
+            for &e in r.effects {
+                self.apply_rider_effect(id, e, Hook::NonAnarchVampireActs);
             }
         }
     }
@@ -2956,27 +2943,11 @@ impl Engine {
             return;
         }
         let (seat, acting, successful) = (a.seat, a.acting, a.bleed_successful);
-        for (id, r) in self.state.card_riders(Hook::OwnBleedEnds) {
-            let c = &self.state.cards[id.index()];
-            if !c.present() || self.state.card_controller(id) != seat {
-                continue;
-            }
-            let holds = r.requires.iter().all(|&req| {
-                cards::holds(
-                    req,
-                    &self.state,
-                    seat,
-                    Some(acting),
-                    None,
-                    self.action.as_ref(),
-                    None,
-                    None,
-                    false,
-                )
-            });
-            if !holds {
-                continue;
-            }
+        let at = HookAt {
+            acting: Some((seat, acting)),
+            ..HookAt::of(seat)
+        };
+        for (id, r) in self.fired_riders(Hook::OwnBleedEnds, &at) {
             for e in r.effects {
                 match *e {
                     Effect::BleedOutcomeCounters => {
@@ -3602,30 +3573,12 @@ impl Engine {
         let Some(target) = a.directed_minion() else {
             return false;
         };
-        let v = &self.state.minions[target.index()];
-        let owner = v.owner;
-        let Some(def) = cards::vampire_of(v).filter(|_| v.present()) else {
+        if !self.state.minions[target.index()].present() {
             return false;
-        };
-        let effects: Vec<Effect> = def
-            .riders
-            .iter()
-            .filter(|r| {
-                r.hook == Hook::ActionAnnouncedAtTarget
-                    && r.requires.iter().all(|&req| {
-                        cards::holds(
-                            req,
-                            &self.state,
-                            owner,
-                            Some(target),
-                            None,
-                            self.action.as_ref(),
-                            None,
-                            None,
-                            false,
-                        )
-                    })
-            })
+        }
+        let effects: Vec<Effect> = self
+            .printed_riders(target, Hook::ActionAnnouncedAtTarget, None)
+            .into_iter()
             .flat_map(|r| r.effects.iter().copied())
             .collect();
         for e in effects {
@@ -3770,35 +3723,13 @@ impl Engine {
         // "The blocking minion's controller burns n pool" (Terrifying
         // Visage, Aelswith).
         let mut toll = 0;
-        for (id, r) in self.state.card_riders(Hook::HostBlocked) {
-            let c = &self.state.cards[id.index()];
-            if !c.present() || c.host != Some(acting) {
-                continue;
-            }
-
-            let holds = r.requires.iter().all(|&req| {
-                cards::holds(
-                    req,
-                    &self.state,
-                    seat,
-                    Some(acting),
-                    None,
-                    self.action.as_ref(),
-                    None,
-                    None,
-                    false,
-                )
-            });
-            if !holds {
-                continue;
-            }
-            // Its version (Phantasmagoria [PRE]).
-            if !r.requires.iter().all(|&req| match req {
-                Requirement::SuperiorVersion => c.mode > 0,
-                _ => true,
-            }) {
-                continue;
-            }
+        // Its version read on the card (Phantasmagoria [PRE]).
+        let on = |c: &CardInPlay| c.host == Some(acting);
+        let at = HookAt {
+            acting: Some((seat, acting)),
+            ..HookAt::on(&on)
+        };
+        for (id, r) in self.fired_riders(Hook::HostBlocked, &at) {
             for e in r.effects {
                 match *e {
                     Effect::BurnSelf => burns.push(id),
@@ -3814,15 +3745,12 @@ impl Engine {
         // it burn, without combat.
         let mut burn_acting = false;
         if self.state.minions[acting.index()].is_vampire() {
-            for (id, r) in self.state.card_riders(Hook::OwnVampireBlocked) {
-                if self.state.cards[id.index()].present() && self.state.card_controller(id) == seat
-                {
-                    for e in r.effects {
-                        match *e {
-                            Effect::BurnSelf => burns.push(id),
-                            Effect::BurnActingMinion => burn_acting = true,
-                            other => unreachable!("not an own-blocked rider effect: {other:?}"),
-                        }
+            for (id, r) in self.fired_riders(Hook::OwnVampireBlocked, &HookAt::of(seat)) {
+                for e in r.effects {
+                    match *e {
+                        Effect::BurnSelf => burns.push(id),
+                        Effect::BurnActingMinion => burn_acting = true,
+                        other => unreachable!("not an own-blocked rider effect: {other:?}"),
                     }
                 }
             }
@@ -3841,23 +3769,20 @@ impl Engine {
             }
         }
         // Printed on the acting vampire (Marialena).
-        if let Some(def) = cards::vampire_of(&self.state.minions[acting.index()]) {
-            for r in def.riders.iter().filter(|r| r.hook == Hook::HostBlocked) {
-                if !r.requires.iter().all(|&req| match req {
-                    // Spleen: capacity, an ally never older.
-                    Requirement::BlockedByOlder => self.state.younger_than(acting, blocker),
-                    _ => cards::holds_for_host(req, &self.state, acting),
-                }) {
-                    continue;
-                }
-                for e in r.effects {
-                    match *e {
-                        Effect::HostBurnBlood(n) => {
-                            self.state.burn_blood(acting, n);
-                        }
-                        Effect::BlockerControllerBurnsPool(n) => toll += n,
-                        other => unreachable!("not a host-blocked rider effect: {other:?}"),
+        for r in self.printed_riders(acting, Hook::HostBlocked, None) {
+            // Spleen: capacity, an ally never older.
+            if r.requires.contains(&Requirement::BlockedByOlder)
+                && !self.state.younger_than(acting, blocker)
+            {
+                continue;
+            }
+            for e in r.effects {
+                match *e {
+                    Effect::HostBurnBlood(n) => {
+                        self.state.burn_blood(acting, n);
                     }
+                    Effect::BlockerControllerBurnsPool(n) => toll += n,
+                    other => unreachable!("not a host-blocked rider effect: {other:?}"),
                 }
             }
         }
@@ -3893,17 +3818,21 @@ impl Engine {
                     // The vampire named at declaration, if still a younger
                     // one of the player's (Feast of the Soul's Secrets
                     // [DOM]; ANK 20240628-2).
-                    Effect::BloodToTarget(n) => {
-                        if let Target::Minion(t) = play.target {
-                            let v = &self.state.minions[t.index()];
-                            if v.present() && v.owner == play.seat {
-                                self.state.gain_blood(t, n);
-                            }
-                        }
+                    Effect::BloodToTarget(_)
+                        if !matches!(play.target, Target::Minion(t)
+                            if self.state.minions[t.index()].present()
+                                && self.state.minions[t.index()].owner == play.seat) =>
+                    {
                         continue;
                     }
-                    Effect::GainPool(n) => {
-                        self.state.seats[play.seat.index()].pool += n as i32;
+                    // The vampire named at declaration, if still there.
+                    Effect::BloodToUncontrolledTarget(_)
+                        if !self.uncontrolled_target_left(play) =>
+                    {
+                        continue;
+                    }
+                    e if e.family() == Family::Shared => {
+                        self.apply_shared_effect(e, play, By::Play(None));
                         continue;
                     }
                     Effect::TargetMethuselahDiscards(n) => {
@@ -3914,16 +3843,6 @@ impl Engine {
                                 done: 0,
                                 combat_only: false,
                             });
-                        continue;
-                    }
-                    Effect::BloodToUncontrolledTarget(n) => {
-                        // The vampire named at declaration, if still there.
-                        if let Target::Uncontrolled(i) = play.target {
-                            if (i as usize) < self.state.seats[play.seat.index()].uncontrolled.len()
-                            {
-                                self.state.add_uncontrolled_blood(play.seat, i as usize, n);
-                            }
-                        }
                         continue;
                     }
                     other => unreachable!("not a successful-bleed effect: {other:?}"),
@@ -3937,6 +3856,13 @@ impl Engine {
         }
     }
 
+    /// Whether the uncontrolled vampire `ctx` targets is still in its slot
+    /// (none named: not).
+    fn uncontrolled_target_left(&self, ctx: &PlayCtx) -> bool {
+        matches!(ctx.target, Target::Uncontrolled(i)
+            if (i as usize) < self.state.seats[ctx.seat.index()].uncontrolled.len())
+    }
+
     /// Riders of the cards on the acting minion remembering the Methuselah
     /// it is about to bleed successfully (Spying Mission [OBF]: "burn this
     /// card and this vampire gets +2 bleed"): all at once (ANK 20200609),
@@ -3945,18 +3871,10 @@ impl Engine {
     fn about_to_bleed_riders(&mut self, acting: MinionId, prey: SeatId) -> u8 {
         let mut burns = Vec::new();
         let mut bleed = 0;
-        for (id, r) in self.state.card_riders(Hook::HostAboutToBleedRemembered) {
-            let c = &self.state.cards[id.index()];
-            if !c.present()
-                || c.host != Some(acting)
-                || c.against != crate::ids::SeatSet::single(prey)
-                || !r
-                    .requires
-                    .iter()
-                    .all(|&req| cards::holds_for_host(req, &self.state, acting))
-            {
-                continue;
-            }
+        let on = |c: &CardInPlay| {
+            c.host == Some(acting) && c.against == crate::ids::SeatSet::single(prey)
+        };
+        for (id, r) in self.fired_riders(Hook::HostAboutToBleedRemembered, &HookAt::on(&on)) {
             for e in r.effects {
                 match *e {
                     Effect::BurnSelf => burns.push(id),
@@ -3976,43 +3894,23 @@ impl Engine {
     fn host_blocks_riders(&mut self, acting: MinionId, blocker: MinionId) {
         let seat = self.state.minions[blocker.index()].owner;
         let mut gains = Vec::new();
-        for (ci, c) in self.state.cards.iter().enumerate() {
-            if !c.present() || c.host != Some(blocker) {
+        let on = |c: &CardInPlay| c.host == Some(blocker);
+        let at = HookAt {
+            acting: Some((seat, acting)),
+            ..HookAt::on(&on)
+        };
+        for (id, r) in self.fired_riders(Hook::HostBlocks, &at) {
+            // Rider uses share the turn's ability records, past the card's
+            // abilities.
+            let def = cards::lookup(self.state.cards[id.index()].card).expect("definition");
+            let ri = def.riders.iter().position(|o| std::ptr::eq(o, r));
+            let key = cards::AbilitySource::Card(id).use_key(128 + ri.expect("its rider") as u8);
+            if r.requires.contains(&cards::Requirement::OncePerTurn)
+                && self.state.turn_uses.contains(&key)
+            {
                 continue;
             }
-            let Some(def) = cards::lookup(c.card) else {
-                continue;
-            };
-            for (ri, r) in def.riders.iter().enumerate() {
-                if r.hook != Hook::HostBlocks {
-                    continue;
-                }
-                // Rider uses share the turn's ability records, past the
-                // card's abilities.
-                let key = cards::AbilitySource::Card(CardId(ci as u32)).use_key(128 + ri as u8);
-                if r.requires.contains(&cards::Requirement::OncePerTurn)
-                    && self.state.turn_uses.contains(&key)
-                {
-                    continue;
-                }
-                let holds = r.requires.iter().all(|&req| {
-                    cards::holds(
-                        req,
-                        &self.state,
-                        seat,
-                        Some(acting),
-                        None,
-                        self.action.as_ref(),
-                        None,
-                        None,
-                        false,
-                    )
-                });
-                if !holds {
-                    continue;
-                }
-                gains.push((key, r.effects));
-            }
+            gains.push((key, r.effects));
         }
         for (key, effects) in gains {
             self.state.turn_uses.push(key);
@@ -5010,6 +4908,12 @@ impl Engine {
                     return self.fizzle(a);
                 }
                 let (target, exchange) = (a.target, a.exchange);
+                let card = match src {
+                    cards::AbilitySource::Card(c) => self.state.cards[c.index()].card,
+                    cards::AbilitySource::Vampire(_) => u16::MAX,
+                };
+                let ability = a.ability.expect("ability");
+                let ctx = PlayCtx::new(seat, card, ability, Some(acting), target, 0);
                 self.action = Some(a);
                 for e in effects {
                     match *e {
@@ -5062,18 +4966,6 @@ impl Engine {
                                 s.hand.put(ash, ash_copy);
                             }
                         }
-                        Effect::BloodToTarget(n) => {
-                            let t = target.minion();
-                            self.state.gain_blood(t, n);
-                        }
-                        Effect::BloodToTargetToStart(n) => {
-                            let t = target.minion();
-                            let b = self.state.cap_starting(
-                                t,
-                                self.state.minions[t.index()].blood.saturating_add(n),
-                            );
-                            self.state.set_blood(t, b);
-                        }
                         // The ally named as the action was declared, if still
                         // there; gone: no effect (as Psychophagia's, rules-qa
                         // 32.12).
@@ -5123,10 +5015,6 @@ impl Engine {
                                 self.state.cards[c.index()].host = Some(target.minion());
                             }
                         }
-                        Effect::BurnTargetCard => {
-                            let c = target.card();
-                            self.burn_card_in_play(c);
-                        }
                         // Rise of the Nephtali: no contest with a younger
                         // vampire — the younger one yields at once.
                         Effect::GainLiaison => {
@@ -5153,18 +5041,6 @@ impl Engine {
                                 self.gain_title(acting, t, None);
                                 self.release_held(|h| &mut h.liaison);
                             }
-                        }
-                        // Still in torpor (re-checked above): ECTU
-                        // Operative's burn.
-                        Effect::BurnTargetMinion => {
-                            let t = target.minion();
-                            self.burn_minion(t);
-                        }
-                        // Veneficti's demon ally (none in the pool).
-                        Effect::StealTargetAlly => {
-                            let t = target.minion();
-                            self.state.minions[t.index()].owner = seat;
-                            self.enter_card_contest(t);
                         }
                         // Nephandus: "to gain 1 life", over his starting
                         // life too (ANK 20171109).
@@ -5218,14 +5094,8 @@ impl Engine {
                         }
                         // Mary Anne Blaire: the vampire named, if still
                         // there.
-                        Effect::BloodToUncontrolledTarget(n) => {
-                            if let Target::Uncontrolled(i) = target {
-                                if (i as usize) < self.state.seats[seat.index()].uncontrolled.len()
-                                {
-                                    self.state.add_uncontrolled_blood(seat, i as usize, n);
-                                }
-                            }
-                        }
+                        Effect::BloodToUncontrolledTarget(_)
+                            if !self.uncontrolled_target_left(&ctx) => {}
                         // Kaymakli Fragment: drawn now, the hand discarded
                         // down as it settles.
                         Effect::DrawThenDiscardDown(n) => {
@@ -5262,18 +5132,6 @@ impl Engine {
                             if gained {
                                 self.successful_hunt_riders(acting);
                             }
-                        }
-                        // Still ready (re-checked above): Mylan Horseed's
-                        // unlock.
-                        Effect::UnlockTarget => {
-                            let t = target.minion();
-                            self.effect_unlock(t);
-                        }
-                        // Victoria Ash: a locked target stays locked (a
-                        // no-op, rules-qa 57.10).
-                        Effect::LockTarget => {
-                            let t = target.minion();
-                            self.state.minions[t.index()].locked = true;
                         }
                         // Heartrender: the target burned, the ally out of
                         // the game (rules-qa 55.4).
@@ -5391,29 +5249,6 @@ impl Engine {
                                     });
                             }
                         }
-                        // Le Dinh Tho: the look and the discard (replaced
-                        // unseen, PIB 20121031).
-                        Effect::DiscardFromTargetHand => {
-                            if let Target::Seat(t) = target {
-                                self.interrupts
-                                    .push(crate::draws::Interrupt::DiscardFromHandOf {
-                                        seat,
-                                        of: t,
-                                    });
-                            }
-                        }
-                        // Malabranca: 1 pool from the prey's, still richer as
-                        // it resolves (the target filter re-checked above).
-                        Effect::StealPoolFromTarget(n) => {
-                            let Target::Seat(t) = target else {
-                                unreachable!("a pool steal without a seat target");
-                            };
-                            let taken = (n as i32).min(self.state.seats[t.index()].pool);
-                            self.state.seats[seat.index()].pool += taken;
-                            let mut loss = vec![0; self.state.seats.len()];
-                            loss[t.index()] = taken;
-                            self.burn_pool_batch(&loss);
-                        }
                         // Ayelea: back at the end of her controller's next
                         // turn.
                         Effect::TakeControlOfTargetUntilNextTurn => {
@@ -5440,6 +5275,19 @@ impl Engine {
                                     self.state.add_uncontrolled_blood(seat, t as usize, 1);
                                 }
                             }
+                        }
+                        // The target re-checked above, as a card's: Mylan
+                        // Horseed's unlock, Victoria Ash's lock (of a locked
+                        // target, a no-op: rules-qa 57.10), ECTU Operative's
+                        // burn, Le Dinh Tho's discard (replaced unseen, PIB
+                        // 20121031), Malabranca's pool steal, Veneficti's ally.
+                        e if e.family() == Family::Shared => {
+                            self.apply_shared_effect(e, &ctx, By::Ability(src))
+                        }
+                        e @ (Effect::StealTargetAlly
+                        | Effect::StealPoolFromTarget(_)
+                        | Effect::DiscardFromTargetHand) => {
+                            self.apply_card_effect(e, &ctx, &mut None)
                         }
                         other => unreachable!("not a granted action's effect: {other:?}"),
                     }
@@ -5510,27 +5358,20 @@ impl Engine {
         // "Do not replace until a vampire successfully hunts" (Restricted
         // Vitae).
         self.release_held(|h| &mut h.hunt);
-        let on: Vec<CardId> = (0..self.state.cards.len())
-            .map(|i| CardId(i as u32))
-            .filter(|&id| {
-                let c = &self.state.cards[id.index()];
-                c.present()
-                    && c.host == Some(m)
-                    && cards::became(c.card, c.mode)
-                    && cards::lookup(c.card).is_some_and(|d| {
-                        d.riders.iter().any(|r| {
-                            r.hook == Hook::SuccessfulHunt && r.effects == [Effect::BurnSelf]
-                        })
-                    })
-            })
-            .collect();
-        for id in on {
+        let on = |c: &CardInPlay| c.host == Some(m) && cards::became(c.card, c.mode);
+        let mut burns = Vec::new();
+        for (id, r) in self.fired_riders(Hook::SuccessfulHunt, &HookAt::on(&on)) {
+            for e in r.effects {
+                match *e {
+                    Effect::BurnSelf => burns.push(id),
+                    other => unreachable!("not a hunt rider effect: {other:?}"),
+                }
+            }
+        }
+        for id in burns {
             self.burn_card_in_play(id);
         }
-        let Some(def) = cards::vampire_of(&self.state.minions[m.index()]) else {
-            return;
-        };
-        for r in def.riders.iter().filter(|r| r.hook == Hook::SuccessfulHunt) {
+        for r in self.printed_riders(m, Hook::SuccessfulHunt, None) {
             for e in r.effects {
                 match *e {
                     Effect::SkipNextUnlock => self.state.minions[m.index()].skip_unlock = true,
@@ -5683,9 +5524,10 @@ impl Engine {
             .clan()
             .filter(|_| successful)
         {
-            for (id, _) in self.state.card_riders(Hook::ClanActionSuccessful(clan)) {
-                if self.state.cards[id.index()].present() {
-                    self.burn_card_in_play(id);
+            let hook = Hook::ClanActionSuccessful(clan);
+            for (id, r) in self.fired_riders(hook, &HookAt::ANY) {
+                for &e in r.effects {
+                    self.apply_rider_effect(id, e, hook);
                 }
             }
         }

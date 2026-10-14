@@ -2261,21 +2261,29 @@ impl GameState {
     pub fn rider_holds(&self, r: &cards::Rider, id: CardId) -> bool {
         let c = &self.cards[id.index()];
         !self.text_suppressed(id)
-            && r.requires.iter().all(|&req| match req {
-                Requirement::CountersAtLeast(n) => c.counters >= n,
-                Requirement::CountersAtMost(n) => c.counters <= n,
-                Requirement::SuperiorVersion => c.mode > 0,
-                Requirement::BasicVersion => c.mode == 0,
-                Requirement::CardMode(n) => c.mode == n,
-                Requirement::OneCopyPerTurn => true,
-                Requirement::ActiveControlsNonSect(sect) => self
-                    .minions_of(self.active)
-                    .any(|m| self.minions[m.index()].is_vampire() && self.sect_of(m) != Some(sect)),
-                _ => match c.bearer() {
-                    Some(h) => cards::holds_for_host(req, self, h),
-                    None => true,
-                },
+            && r.requires.iter().all(|&req| {
+                self.rider_card_holds(req, id).unwrap_or_else(|| {
+                    c.bearer()
+                        .is_none_or(|h| cards::holds_for_host(req, self, h))
+                })
             })
+    }
+
+    /// A rider's card predicate, read on its card `id` (`None`: not one).
+    pub fn rider_card_holds(&self, req: Requirement, id: CardId) -> Option<bool> {
+        let c = &self.cards[id.index()];
+        Some(match req {
+            Requirement::CountersAtLeast(n) => c.counters >= n,
+            Requirement::CountersAtMost(n) => c.counters <= n,
+            Requirement::SuperiorVersion => c.mode > 0,
+            Requirement::BasicVersion => c.mode == 0,
+            Requirement::CardMode(n) => c.mode == n,
+            Requirement::OneCopyPerTurn => true,
+            Requirement::ActiveControlsNonSect(sect) => self
+                .minions_of(self.active)
+                .any(|m| self.minions[m.index()].is_vampire() && self.sect_of(m) != Some(sect)),
+            _ => return None,
+        })
     }
 
     /// The riders on `hook` of every card in the arena, in arena order —

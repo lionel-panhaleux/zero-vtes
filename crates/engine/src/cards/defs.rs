@@ -12443,7 +12443,7 @@ pub static TWILIGHT_CAMP: CardDef = CardDef {
         hook: Hook::OwnVampireInfluenced,
         scope: RiderScope::Controller,
         requires: &[],
-        effects: &[],
+        effects: &[Effect::MayMakeAnarchForCounter],
     }],
     ..CARD
 };
@@ -16633,7 +16633,7 @@ pub static HACKERSPACE: CardDef = CardDef {
     }],
     riders: &[Rider {
         hook: Hook::OwnAnarchArrives,
-        scope: RiderScope::Every,
+        scope: RiderScope::Controller,
         requires: &[],
         effects: &[Effect::AddCounter(1)],
     }],
@@ -18787,7 +18787,7 @@ pub static PATH_OF_LILITH: CardDef = CardDef {
             hook: Hook::OwnNonCamarillaSendsToTorpor,
             scope: RiderScope::Controller,
             requires: &[],
-            effects: &[],
+            effects: &[Effect::MayLockForTorture],
         },
     ],
     ..CARD
@@ -21389,9 +21389,9 @@ pub static FLAMES_OF_INSURRECTION: CardDef = CardDef {
     )],
     riders: &[Rider {
         hook: Hook::CombatOpponentOfAnarchLeft,
-        scope: RiderScope::Controller,
+        scope: RiderScope::Every,
         requires: &[],
-        effects: &[],
+        effects: &[Effect::AnarchControllerMayBloodToUncontrolled(1)],
     }],
     ..CARD
 };

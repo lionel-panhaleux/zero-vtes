@@ -497,6 +497,9 @@ impl Effect {
             | E::DamageBledAnarchs(..)
             | E::PreyBurnsPoolPerTorpor
             | E::CounterOnZombieBurned
+            | E::MayMakeAnarchForCounter
+            | E::AnarchControllerMayBloodToUncontrolled(..)
+            | E::MayLockForTorture
             | E::HostBurnsBloodOrBurnedThenMoves(..)
             | E::HostBurnsBloodOrIsBurned(..)
             | E::HostBurnsBloodOrThisBurns(..)
@@ -720,5 +723,48 @@ mod tests {
         }
         assert!(w.checked > 2500, "{} effects walked", w.checked);
         assert!(w.failures.is_empty(), "{}", w.failures.join("\n"));
+    }
+
+    // `resolve_ability` resolves an action effect with an action underway
+    // only, and fails loudly outside one: every ability carrying one is
+    // offered in an action's windows only.
+    #[test]
+    fn abilities_changing_the_action_are_used_in_one() {
+        use super::super::Window as W;
+        let in_action = |w: &W| {
+            matches!(
+                w,
+                W::ActionAsAnnounced
+                    | W::ReactionAsAnnounced
+                    | W::ActionDuring
+                    | W::ActionStealthIntercept
+                    | W::ActionBlockAttempt
+                    | W::ActionBlocked
+                    | W::ActionBlocksDeclined
+                    | W::ActionWouldBeSuccessful
+                    | W::ReactionDuringAction
+                    | W::ReactionUnlockAttempt
+            )
+        };
+        let abilities = DEFS
+            .iter()
+            .flat_map(|d| d.abilities.iter().map(move |a| (d.name, a)))
+            .chain(
+                VAMPIRES
+                    .iter()
+                    .flat_map(|v| v.abilities.iter().map(move |a| (v.name, a))),
+            );
+        let mut failures = Vec::new();
+        let mut checked = 0;
+        for (name, a) in abilities.filter(|(_, a)| !declares(a)) {
+            for e in a.effects.iter().filter(|e| e.family() == Family::Action) {
+                checked += 1;
+                if !a.windows.iter().all(in_action) {
+                    failures.push(format!("{name}: {e:?} in {:?}", a.windows));
+                }
+            }
+        }
+        assert!(checked > 50, "{checked} action effects walked");
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 }

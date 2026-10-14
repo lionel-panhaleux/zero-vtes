@@ -34,6 +34,49 @@ pub(crate) enum By {
     Ability(AbilitySource),
 }
 
+/// Where a hook fires (`Engine::fired_riders`).
+pub(crate) struct HookAt<'a> {
+    /// The seat a rider's scope is read against: the active Methuselah at
+    /// a phase hook, the seat the event is about at an "own" one (a
+    /// `Controller` rider: that seat's cards only); `None` at a hook its
+    /// riders' scope does not restrict.
+    pub seat: Option<SeatId>,
+    /// At a `Hook::reads_action` hook, the seat and minion its riders'
+    /// requirements are read for.
+    pub acting: Option<(SeatId, MinionId)>,
+    /// The cards the hook fires on (the host's, the cards a minion played
+    /// …).
+    pub on: &'a dyn Fn(&CardInPlay) -> bool,
+}
+
+impl HookAt<'static> {
+    /// Every card in play's riders, unscoped.
+    pub(crate) const ANY: HookAt<'static> = HookAt {
+        seat: None,
+        acting: None,
+        on: &|_| true,
+    };
+
+    /// The riders of `seat`'s cards in play (scoped to that seat).
+    pub(crate) fn of(seat: SeatId) -> HookAt<'static> {
+        HookAt {
+            seat: Some(seat),
+            ..HookAt::ANY
+        }
+    }
+}
+
+impl<'a> HookAt<'a> {
+    /// The riders of the cards `on` names, unscoped.
+    pub(crate) fn on(on: &'a dyn Fn(&CardInPlay) -> bool) -> HookAt<'a> {
+        HookAt {
+            seat: None,
+            acting: None,
+            on,
+        }
+    }
+}
+
 /// A card play between announcement and resolution: its as-played window is
 /// open (other Methuselahs may cancel it), possibly beneath a nested cancel.
 #[derive(Clone, Debug)]
@@ -239,16 +282,12 @@ impl Engine {
         for m in &mut self.state.minions {
             m.diablerie_shield = false;
         }
-        for i in 0..self.state.cards.len() {
-            let c = &self.state.cards[i];
-            if i == id.index() || !c.present() {
+        for (c, r) in self.fired_riders(Hook::GehennaPlayed, &HookAt::ANY) {
+            if c == id {
                 continue;
             }
-            let fires = cards::lookup(c.card)
-                .is_some_and(|d| d.riders.iter().any(|r| r.hook == Hook::GehennaPlayed));
-            if fires {
-                let c = &mut self.state.cards[i];
-                c.counters = c.counters.saturating_sub(1);
+            for &e in r.effects {
+                self.apply_rider_effect(c, e, Hook::GehennaPlayed);
             }
         }
         // Wormwood's ceiling, as it enters or its counters go down.
@@ -305,11 +344,10 @@ impl Engine {
     pub(crate) fn master_dues(&self) -> Vec<CardId> {
         let st = &self.state;
         let s = st.active;
-        st.card_riders(Hook::MasterPhaseStart)
+        self.fired_riders(Hook::MasterPhaseStart, &HookAt::of(s))
             .into_iter()
             .filter(|&(id, r)| {
-                st.cards[id.index()].present()
-                    && !st.seats[s.index()].master_resolved.contains(&id)
+                !st.seats[s.index()].master_resolved.contains(&id)
                     && r.effects.iter().any(|e| match *e {
                         Effect::LockOldestOfClan(clan) => st
                             .minions_of(s)
@@ -4851,26 +4889,10 @@ impl Engine {
         let s = self.state.active;
         let ms: Vec<MinionId> = self.state.minions_of(s).collect();
         for m in ms {
-            let (def, owner, present) = {
-                let v = &self.state.minions[m.index()];
-                (cards::vampire_of(v), v.owner, v.present())
-            };
-            let Some(def) = def.filter(|_| present) else {
+            if !self.state.minions[m.index()].present() {
                 continue;
-            };
-            let riders: Vec<&cards::Rider> = def
-                .riders
-                .iter()
-                .filter(|r| r.hook == Hook::DiscardPhase && r.scope.applies(&self.state, owner, s))
-                .collect();
-            for r in riders {
-                if !r
-                    .requires
-                    .iter()
-                    .all(|&req| cards::holds_for_host(req, &self.state, m))
-                {
-                    continue;
-                }
+            }
+            for r in self.printed_riders(m, Hook::DiscardPhase, Some(s)) {
                 for e in r.effects {
                     match *e {
                         Effect::LockActor => self.state.minions[m.index()].locked = true,
@@ -6060,14 +6082,10 @@ impl Engine {
     /// "Burn this card after this acting vampire leaves the ready region"
     /// (Slaughtering the Herd [DOM]): the cards `m` played that say so.
     pub(crate) fn by_left_ready(&mut self, m: MinionId) {
-        for ci in 0..self.state.cards.len() {
-            let c = &self.state.cards[ci];
-            if c.present()
-                && c.by == Some(m)
-                && cards::lookup(c.card)
-                    .is_some_and(|d| d.riders.iter().any(|r| r.hook == Hook::ByLeavesReady))
-            {
-                self.burn_card_in_play(CardId(ci as u32));
+        let on = |c: &CardInPlay| c.by == Some(m);
+        for (id, r) in self.fired_riders(Hook::ByLeavesReady, &HookAt::on(&on)) {
+            for &e in r.effects {
+                self.apply_rider_effect(id, e, Hook::ByLeavesReady);
             }
         }
     }
@@ -7611,12 +7629,12 @@ impl Engine {
                     // Bodyguard's failure, Under Siege's block attempt,
                     // Fever Pitch's failed one), +n intercept for the
                     // host's block attempt for the rest of the action
-                    // (rules-qa 15.2); none underway, nothing to change.
-                    Family::Action => {
-                        if self.action.is_some() {
-                            self.apply_action_effect(e, &ctx)
-                        }
-                    }
+                    // (rules-qa 15.2). Such abilities are offered in an
+                    // action's windows only (`cards::families`' test).
+                    Family::Action => match self.action {
+                        Some(_) => self.apply_action_effect(e, &ctx),
+                        None => unreachable!("an action effect outside an action: {e:?}"),
+                    },
                     Family::Combat => self.apply_combat_effect(e, &ctx),
                     // A referendum ability's votes and abstentions (Alexa
                     // Draper, Queen Anne, Yoruba Shrine's failure).
@@ -7651,18 +7669,10 @@ impl Engine {
     /// The unlock-phase riders printed on vampire `m` due in its
     /// controller's unlock phase, their requirements read on it now.
     pub(crate) fn printed_unlock_riders(&self, m: MinionId) -> Vec<&'static cards::Rider> {
-        let st = &self.state;
-        let v = &st.minions[m.index()];
-        cards::vampire_of(v)
-            .filter(|_| v.present())
-            .map_or(&[][..], |d| d.riders)
-            .iter()
-            .filter(|r| {
-                r.hook == Hook::UnlockPhase
-                    && r.scope.applies(st, v.owner, st.active)
-                    && r.requires.iter().all(|&q| cards::holds_for_host(q, st, m))
-            })
-            .collect()
+        if !self.state.minions[m.index()].present() {
+            return Vec::new();
+        }
+        self.printed_riders(m, Hook::UnlockPhase, Some(self.state.active))
     }
 
     /// Unlock-phase effects: an ordered window over the seats clockwise
@@ -8001,14 +8011,11 @@ impl Engine {
         let mut burn_self = false;
         let mut loss = vec![0i32; self.state.seats.len()];
         let controller = self.state.card_controller(id);
+        let at = HookAt::of(s);
         let riders: Vec<&cards::Rider> = def
             .riders
             .iter()
-            .filter(|r| {
-                r.hook == Hook::UnlockPhase
-                    && r.scope.applies(&self.state, controller, s)
-                    && self.state.rider_holds(r, id)
-            })
+            .filter(|r| r.hook == Hook::UnlockPhase && self.rider_fires(id, r, &at))
             .collect();
         let mut lifeless = None;
         for r in riders {
@@ -8271,6 +8278,126 @@ impl Engine {
         DecisionRequest::new(s, WindowLabel::RiderTerms, options)
     }
 
+    /// The riders at `hook` of the cards in play that fire, in arena order:
+    /// present, their text not lost, on the cards `at` names, their scope
+    /// read against `at.seat` and their requirements met (the card's and
+    /// its host's, or the action's at a `Hook::reads_action` hook). Read
+    /// at once: a site applying them one by one re-reads what an earlier
+    /// one can change (`present`).
+    pub(crate) fn fired_riders(&self, hook: Hook, at: &HookAt) -> Vec<(CardId, &'static Rider)> {
+        self.state
+            .card_riders(hook)
+            .into_iter()
+            .filter(|&(id, r)| self.rider_fires(id, r, at))
+            .collect()
+    }
+
+    /// `fired_riders`' test of card `id`'s rider `r`, also read as a
+    /// rider chosen earlier resolves.
+    pub(crate) fn rider_fires(&self, id: CardId, r: &Rider, at: &HookAt) -> bool {
+        let st = &self.state;
+        let c = &st.cards[id.index()];
+        if !c.present() || !(at.on)(c) {
+            return false;
+        }
+        if at
+            .seat
+            .is_some_and(|s| !r.scope.applies(st, st.card_controller(id), s))
+        {
+            return false;
+        }
+        if !r.hook.reads_action(false) {
+            return st.rider_holds(r, id);
+        }
+        let (seat, acting) = at.acting.expect("an action hook's acting minion");
+        !st.text_suppressed(id)
+            && r.requires.iter().all(|&req| {
+                st.rider_card_holds(req, id).unwrap_or(true)
+                    && cards::holds(
+                        req,
+                        st,
+                        seat,
+                        Some(acting),
+                        None,
+                        self.action.as_ref(),
+                        None,
+                        None,
+                        false,
+                    )
+            })
+    }
+
+    /// The riders at `hook` printed on vampire `m` that fire, in printed
+    /// order: their scope read against `seat`, their requirements met on
+    /// `m` (or in the action's context at a `Hook::reads_action` hook, `m`
+    /// the actor). Whether `m` must be ready, present or neither is the
+    /// site's.
+    pub(crate) fn printed_riders(
+        &self,
+        m: MinionId,
+        hook: Hook,
+        seat: Option<SeatId>,
+    ) -> Vec<&'static Rider> {
+        let st = &self.state;
+        let v = &st.minions[m.index()];
+        cards::vampire_of(v)
+            .map_or(&[][..], |d| d.riders)
+            .iter()
+            .filter(|r| {
+                r.hook == hook
+                    && seat.is_none_or(|s| r.scope.applies(st, v.owner, s))
+                    && r.requires.iter().all(|&req| {
+                        if hook.reads_action(true) {
+                            cards::holds(
+                                req,
+                                st,
+                                v.owner,
+                                Some(m),
+                                None,
+                                self.action.as_ref(),
+                                None,
+                                None,
+                                false,
+                            )
+                        } else {
+                            cards::holds_for_host(req, st, m)
+                        }
+                    })
+            })
+            .collect()
+    }
+
+    /// The rider effects resolved the same at every hook, on the rider's
+    /// card `id`; any other is not a rider effect of `hook`. A site
+    /// batching its burns (the riders of one event, at once) takes
+    /// `BurnSelf` first.
+    pub(crate) fn apply_rider_effect(&mut self, id: CardId, e: Effect, hook: Hook) {
+        match e {
+            // Unless an earlier rider of the event took it out of play.
+            Effect::BurnSelf => {
+                if self.state.cards[id.index()].present() {
+                    self.burn_card_in_play(id);
+                }
+            }
+            Effect::AddCounter(n) => self.state.cards[id.index()].counters += n,
+            Effect::RemoveCounter(n) => {
+                let c = &mut self.state.cards[id.index()];
+                c.counters = c.counters.saturating_sub(n);
+            }
+            Effect::BurnSelfWithoutCounters => {
+                if self.state.cards[id.index()].counters == 0 {
+                    self.burn_card_in_play(id);
+                }
+            }
+            Effect::BurnSelfWithoutStored => {
+                if self.state.cards[id.index()].stored.is_empty() {
+                    self.burn_card_in_play(id);
+                }
+            }
+            other => unreachable!("not a {hook:?} rider effect: {other:?}"),
+        }
+    }
+
     /// Whether a card in play carries a rider with this effect.
     fn rider_effect(&self, card: CardId, effect: Effect) -> bool {
         cards::lookup(self.state.cards[card.index()].card)
@@ -8347,30 +8474,18 @@ impl Engine {
     /// play effects (LSJ 20100723).
     fn discard_pending(&self, seat: SeatId) -> Vec<CardId> {
         let s = self.state.active;
-        let mut out = Vec::new();
-        for ci in 0..self.state.cards.len() {
-            let id = CardId(ci as u32);
-            let c = &self.state.cards[ci];
-            if !c.present() {
-                continue;
-            }
-            let Some(def) = cards::lookup(c.card) else {
-                continue;
-            };
-            let controller = self.state.card_controller(id);
-            // The Coven's control change, its predator's to take (its
-            // controller's own riders are `discard_dues`).
-            let resolver = self.state.predator(controller);
-            if def.riders.iter().any(|r| {
-                r.hook == Hook::DiscardPhase
-                    && r.effects.contains(&Effect::PredatorTakesControl)
-                    && r.scope.applies(&self.state, controller, s)
-                    && self.state.rider_holds(r, id)
-                    && resolver == seat
-            }) {
-                out.push(id);
-            }
-        }
+        // The Coven's control change, its predator's to take (its
+        // controller's own riders are `discard_dues`).
+        let mut out: Vec<CardId> = self
+            .fired_riders(Hook::DiscardPhase, &HookAt::of(s))
+            .into_iter()
+            .filter(|&(id, r)| {
+                r.effects.contains(&Effect::PredatorTakesControl)
+                    && self.state.predator(self.state.card_controller(id)) == seat
+            })
+            .map(|(id, _)| id)
+            .collect();
+        out.dedup();
         out
     }
 
@@ -8387,16 +8502,7 @@ impl Engine {
         for e in effects {
             match e {
                 Effect::PredatorTakesControl => self.predator_takes_control(id, controller),
-                Effect::RemoveCounter(n) => {
-                    let c = &mut self.state.cards[ci];
-                    c.counters = c.counters.saturating_sub(n);
-                }
-                Effect::BurnSelfWithoutCounters => {
-                    if self.state.cards[ci].counters == 0 {
-                        self.burn_card_in_play(id);
-                    }
-                }
-                other => unreachable!("not a discard-phase rider effect: {other:?}"),
+                other => self.apply_rider_effect(id, other, Hook::DiscardPhase),
             }
         }
     }
@@ -8522,46 +8628,36 @@ impl Engine {
         let mut loss = vec![0i32; self.state.seats.len()];
         for &subject in subjects {
             let controller = self.state.minions[subject.index()].owner;
-            for ci in 0..self.state.cards.len() {
-                let c = &self.state.cards[ci];
-                if !c.present() || (hook == Hook::HostToTorpor && c.host != Some(subject)) {
+            let on = |c: &CardInPlay| hook != Hook::HostToTorpor || c.host == Some(subject);
+            for (id, r) in self.fired_riders(hook, &HookAt::on(&on)) {
+                // Out of play by an earlier rider's burn.
+                if !self.state.cards[id.index()].present() {
                     continue;
                 }
-                let Some(def) = cards::lookup(c.card) else {
-                    continue;
-                };
-                let riders: Vec<&Rider> = def
-                    .riders
-                    .iter()
-                    .filter(|r| r.hook == hook && self.state.rider_holds(r, CardId(ci as u32)))
-                    .collect();
-                for r in riders {
-                    for e in r.effects {
-                        match *e {
-                            Effect::BurnSelf => self.burn_card_in_play(CardId(ci as u32)),
-                            Effect::TheirControllerBurnsPool(n) => {
-                                loss[controller.index()] += n as i32;
-                            }
-                            // A vampire of capacity n or less gone to torpor,
-                            // not burned (Carver's Meat Packing and Storage).
-                            Effect::HostageOnTorpor(n) => {
-                                let cap = self.state.capacity_of(subject);
-                                let v = &mut self.state.minions[subject.index()];
-                                if v.in_play && v.in_torpor && cap.is_some_and(|c| c <= n) {
-                                    v.hostage += 1;
-                                }
-                            }
-                            // "You gain 1 pool after a ready minion
-                            // controlled by your prey is burned or sent to
-                            // torpor" (Frontal Assault): each copy.
-                            Effect::ControllerGainsPoolIfPrey(n) => {
-                                let me = self.state.card_controller(CardId(ci as u32));
-                                if controller == self.state.prey(me) && me != controller {
-                                    self.state.seats[me.index()].pool += n as i32;
-                                }
-                            }
-                            other => unreachable!("not a leave rider effect: {other:?}"),
+                for &e in r.effects {
+                    match e {
+                        Effect::TheirControllerBurnsPool(n) => {
+                            loss[controller.index()] += n as i32;
                         }
+                        // A vampire of capacity n or less gone to torpor,
+                        // not burned (Carver's Meat Packing and Storage).
+                        Effect::HostageOnTorpor(n) => {
+                            let cap = self.state.capacity_of(subject);
+                            let v = &mut self.state.minions[subject.index()];
+                            if v.in_play && v.in_torpor && cap.is_some_and(|c| c <= n) {
+                                v.hostage += 1;
+                            }
+                        }
+                        // "You gain 1 pool after a ready minion controlled
+                        // by your prey is burned or sent to torpor"
+                        // (Frontal Assault): each copy.
+                        Effect::ControllerGainsPoolIfPrey(n) => {
+                            let me = self.state.card_controller(id);
+                            if controller == self.state.prey(me) && me != controller {
+                                self.state.seats[me.index()].pool += n as i32;
+                            }
+                        }
+                        other => self.apply_rider_effect(id, other, hook),
                     }
                 }
             }
@@ -8573,13 +8669,10 @@ impl Engine {
                     cb.side_of_minion(subject)?;
                     cb.sides.iter().map(|s| s.minion).find(|&o| o != subject)
                 });
-                let riders = opponent
-                    .and_then(|o| cards::vampire_of(&self.state.minions[o.index()]))
-                    .map_or(&[][..], |d| d.riders);
-                for r in riders
-                    .iter()
-                    .filter(|r| r.hook == Hook::CombatOpponentLeftReady)
-                {
+                let riders = opponent.map_or(Vec::new(), |o| {
+                    self.printed_riders(o, Hook::CombatOpponentLeftReady, None)
+                });
+                for r in riders {
                     for e in r.effects {
                         match *e {
                             Effect::TheirControllerBurnsPool(n) => {
@@ -8615,23 +8708,16 @@ impl Engine {
         }) else {
             return;
         };
-        let (owner, clan) = {
-            let o = &self.state.minions[opponent.index()];
-            (o.owner, o.clan())
+        let o = &self.state.minions[opponent.index()];
+        let owner = o.owner;
+        let Some(clan) = o.clan() else {
+            return;
         };
-        for ci in 0..self.state.cards.len() {
-            let id = CardId(ci as u32);
-            let c = &self.state.cards[ci];
-            if !c.present() || self.state.card_controller(id) != owner {
-                continue;
+        let hook = Hook::CombatOpponentOfOwnClanLeft(clan);
+        for (id, r) in self.fired_riders(hook, &HookAt::of(owner)) {
+            for &e in r.effects {
+                self.apply_rider_effect(id, e, hook);
             }
-            let hits = cards::lookup(c.card).map_or(0, |d| {
-                d.riders
-                    .iter()
-                    .filter(|r| matches!(r.hook, Hook::CombatOpponentOfOwnClanLeft(k) if clan == Some(k)))
-                    .count()
-            });
-            self.state.cards[ci].counters += hits as u8;
         }
     }
 
@@ -8651,26 +8737,20 @@ impl Engine {
             return;
         }
         let seat = self.state.minions[opponent.index()].owner;
-        let copies = self
-            .state
-            .cards
-            .iter()
-            .filter(|c| {
-                c.present()
-                    && cards::lookup(c.card).is_some_and(|d| {
-                        d.riders
-                            .iter()
-                            .any(|r| r.hook == Hook::CombatOpponentOfAnarchLeft)
-                    })
-            })
-            .count();
-        for _ in 0..copies {
-            self.interrupts.push(Interrupt::UncontrolledBlood {
-                seat,
-                clan: None,
-                n: 1,
-                may: true,
-            });
+        for (_, r) in self.fired_riders(Hook::CombatOpponentOfAnarchLeft, &HookAt::ANY) {
+            for e in r.effects {
+                match *e {
+                    Effect::AnarchControllerMayBloodToUncontrolled(n) => {
+                        self.interrupts.push(Interrupt::UncontrolledBlood {
+                            seat,
+                            clan: None,
+                            n,
+                            may: true,
+                        })
+                    }
+                    other => unreachable!("not an Anarch-combat rider effect: {other:?}"),
+                }
+            }
         }
     }
 
@@ -8693,23 +8773,21 @@ impl Engine {
             return;
         }
         let seat = o.owner;
-        for ci in 0..self.state.cards.len() {
-            let id = CardId(ci as u32);
-            let c = &self.state.cards[ci];
-            if c.present()
-                && !c.locked
-                && self.state.card_controller(id) == seat
-                && cards::lookup(c.card).is_some_and(|d| {
-                    d.riders
-                        .iter()
-                        .any(|r| r.hook == Hook::OwnNonCamarillaSendsToTorpor)
-                })
-            {
-                self.interrupts.push(Interrupt::MayTorture {
-                    seat,
-                    card: id,
-                    minion: subject,
-                });
+        let on = |c: &CardInPlay| !c.locked;
+        let at = HookAt {
+            seat: Some(seat),
+            ..HookAt::on(&on)
+        };
+        for (id, r) in self.fired_riders(Hook::OwnNonCamarillaSendsToTorpor, &at) {
+            for e in r.effects {
+                match *e {
+                    Effect::MayLockForTorture => self.interrupts.push(Interrupt::MayTorture {
+                        seat,
+                        card: id,
+                        minion: subject,
+                    }),
+                    other => unreachable!("not a torture rider effect: {other:?}"),
+                }
             }
         }
     }
@@ -8726,44 +8804,33 @@ impl Engine {
     ) {
         // Printed on the acting vampire (Fotini Katsikaris: "+1 hand size
         // until your next discard phase").
-        if let Some(def) = cards::vampire_of(&self.state.minions[acting.index()]) {
-            for r in def
-                .riders
-                .iter()
-                .filter(|r| r.hook == Hook::OwnBleedSuccessful)
-            {
-                for e in r.effects {
-                    match *e {
-                        Effect::HandSizeUntilDiscard(n) => {
-                            self.state.seats[seat.index()].hand_bonus_discard += n;
-                        }
-                        Effect::DamageBledAnarchs(n) => {
-                            let anarchs: Vec<MinionId> = self
-                                .state
-                                .minions_of(bled)
-                                .filter(|&m| {
-                                    self.state.minions[m.index()].is_vampire()
-                                        && self.state.sect_of(m) == Some(crate::crypt::Sect::Anarch)
-                                })
-                                .collect();
-                            for m in anarchs {
-                                if self.state.minions[m.index()].present() {
-                                    self.damage_out_of_combat(m, n, false);
-                                }
+        for r in self.printed_riders(acting, Hook::OwnBleedSuccessful, None) {
+            for e in r.effects {
+                match *e {
+                    Effect::HandSizeUntilDiscard(n) => {
+                        self.state.seats[seat.index()].hand_bonus_discard += n;
+                    }
+                    Effect::DamageBledAnarchs(n) => {
+                        let anarchs: Vec<MinionId> = self
+                            .state
+                            .minions_of(bled)
+                            .filter(|&m| {
+                                self.state.minions[m.index()].is_vampire()
+                                    && self.state.sect_of(m) == Some(crate::crypt::Sect::Anarch)
+                            })
+                            .collect();
+                        for m in anarchs {
+                            if self.state.minions[m.index()].present() {
+                                self.damage_out_of_combat(m, n, false);
                             }
                         }
-                        other => unreachable!("not an own-bleed rider effect: {other:?}"),
                     }
+                    other => unreachable!("not an own-bleed rider effect: {other:?}"),
                 }
             }
         }
         let clan = self.state.minions[acting.index()].clan();
-        for (id, r) in self.state.card_riders(Hook::OwnBleedSuccessful) {
-            let c = &self.state.cards[id.index()];
-            if !c.present() || self.state.card_controller(id) != seat {
-                continue;
-            }
-
+        for (id, r) in self.fired_riders(Hook::OwnBleedSuccessful, &HookAt::of(seat)) {
             for e in r.effects {
                 match *e {
                     Effect::CountersFromOwnBleed(k) if clan == Some(k) => {

@@ -18,6 +18,7 @@ use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, LIBRARY};
+use crate::plays::HookAt;
 use crate::state::{title_votes, ActionId, UncontrolledSlot};
 use crate::window::PollingWindow;
 
@@ -1337,16 +1338,14 @@ impl Engine {
         // "The attached vampire burns 1 blood after a referendum passes"
         // (Condemnation: Mute [DAI]): any referendum.
         if passed {
-            for (id, r) in self.state.card_riders(cards::Hook::AnyReferendumPassed) {
-                let host = self.state.cards[id.index()].bearer();
-                if self.state.cards[id.index()].present() && self.state.rider_holds(r, id) {
-                    if let Some(h) = host {
-                        for e in r.effects {
-                            match *e {
-                                cards::Effect::HostBurnBlood(n) => self.state.burn_blood(h, n),
-                                other => unreachable!("not a referendum rider effect: {other:?}"),
-                            }
-                        }
+            let hook = cards::Hook::AnyReferendumPassed;
+            let on = |c: &crate::state::CardInPlay| c.bearer().is_some();
+            for (id, r) in self.fired_riders(hook, &HookAt::on(&on)) {
+                let host = self.state.cards[id.index()].bearer().expect("its host");
+                for &e in r.effects {
+                    match e {
+                        cards::Effect::HostBurnBlood(n) => self.state.burn_blood(host, n),
+                        other => self.apply_rider_effect(id, other, hook),
                     }
                 }
             }
@@ -2118,19 +2117,16 @@ impl Engine {
         let mut loss = vec![0i32; self.state.seats.len()];
         for m in 0..self.state.minions.len() {
             let v = &self.state.minions[m];
-            let Some(def) = cards::vampire_of(v).filter(|_| v.ready()) else {
+            if !v.ready() {
                 continue;
-            };
+            }
             let s = v.owner;
             let seat = &self.state.seats[s.index()];
             if seat.ousted || seat.oust_pending {
                 continue;
             }
-            for r in def
-                .riders
-                .iter()
-                .filter(|r| r.hook == cards::Hook::PoliticalReferendumPassed)
-            {
+            let hook = cards::Hook::PoliticalReferendumPassed;
+            for r in self.printed_riders(MinionId(m as u32), hook, None) {
                 for e in r.effects {
                     match *e {
                         cards::Effect::PreyBurnsPool(n) => {
@@ -2161,11 +2157,10 @@ impl Engine {
         } else {
             cards::Hook::OwnReferendumFailed
         };
-        let v = &self.state.minions[m.index()];
-        let Some(def) = cards::vampire_of(v).filter(|_| v.ready()) else {
+        if !self.state.minions[m.index()].ready() {
             return;
-        };
-        for r in def.riders.iter().filter(|r| r.hook == hook) {
+        }
+        for r in self.printed_riders(m, hook, None) {
             for e in r.effects {
                 match *e {
                     cards::Effect::GoToTorpor => self.minions_to_torpor(&[m]),
