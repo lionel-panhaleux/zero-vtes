@@ -2236,7 +2236,12 @@ impl Engine {
             // Strength from cards in play on the minion (Saulot's
             // Avenging Fist).
             let bearer = self.action.as_ref().map_or(0, |a| {
-                st.bearer_mod(c.sides[i].minion, cards::Stat::Strength, a.kind)
+                st.bearer_mod_in(
+                    c.sides[i].minion,
+                    cards::Stat::Strength,
+                    a.kind,
+                    a.card_hunt,
+                )
             });
             (c.sides[i].strength(st.base_strength(c.sides[i].minion)) as i32
                 + action_bonus

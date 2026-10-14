@@ -102,6 +102,8 @@ pub fn title_votes(t: Title) -> u8 {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct PrintedCtx {
     pub kind: Option<ActionKind>,
+    /// The action is one a card makes a hunt (`ActionCtx::card_hunt`).
+    pub card_hunt: bool,
     pub directed: Option<bool>,
     pub opponent: Option<MinionId>,
     /// The card the modified minion plays or puts in play, and the mode
@@ -120,6 +122,14 @@ pub struct PrintedCtx {
     /// The action is granted by the modified vampire's own text (Black
     /// Annis: "other … actions").
     pub own_printed: bool,
+}
+
+impl PrintedCtx {
+    /// Is the action a hunt (`crate::actions::is_hunt`)?
+    pub fn is_hunt(&self) -> bool {
+        self.kind
+            .is_some_and(|k| crate::actions::is_hunt(k, self.card_hunt))
+    }
 }
 
 /// What a minion's printed text takes off a card's cost
@@ -1848,7 +1858,8 @@ impl GameState {
             R::ActionDirected => ctx.directed == Some(true),
             R::ActionUndirected => ctx.directed == Some(false),
             R::IsBleed => ctx.kind == Some(ActionKind::Bleed),
-            R::IsHunt => ctx.kind == Some(ActionKind::Hunt),
+            R::IsHunt => ctx.is_hunt(),
+            R::RulebookHunt => ctx.kind == Some(ActionKind::Hunt),
             R::IsDiablerie => ctx.kind == Some(ActionKind::Diablerie),
             R::IsRecruitOrEmploy => {
                 matches!(ctx.kind, Some(ActionKind::Recruit | ActionKind::Employ))
@@ -1896,9 +1907,7 @@ impl GameState {
                 })
             }),
             R::NotFirstRound => ctx.round > 1,
-            R::OtherNonHuntAction => {
-                ctx.kind.is_some_and(|k| k != ActionKind::Hunt) && !ctx.own_printed
-            }
+            R::OtherNonHuntAction => ctx.kind.is_some() && !ctx.is_hunt() && !ctx.own_printed,
             R::ReadyNamed(name) => self
                 .minions
                 .iter()
@@ -2459,7 +2468,15 @@ impl GameState {
     }
 
     pub fn bearer_mod(&self, m: MinionId, stat: Stat, kind: ActionKind) -> i32 {
-        self.bearer_mods(m, stat, kind).map(|(_, n)| n).sum()
+        self.bearer_mod_in(m, stat, kind, false)
+    }
+
+    /// As `bearer_mod`, during an action a card may make a hunt (Unlicensed
+    /// Taxicab "during hunt … actions"; rules-qa 72.4).
+    pub fn bearer_mod_in(&self, m: MinionId, stat: Stat, kind: ActionKind, card_hunt: bool) -> i32 {
+        self.bearer_mods(m, stat, kind, card_hunt)
+            .map(|(_, n)| n)
+            .sum()
     }
 
     /// Can `actor` perform an action directed at `m`? Not without one of
@@ -2529,7 +2546,7 @@ impl GameState {
         stat: Stat,
         kind: ActionKind,
     ) -> i32 {
-        self.bearer_mods(m, stat, kind)
+        self.bearer_mods(m, stat, kind, false)
             .map(|(card, n)| {
                 let equipment = cards::is_equipment_in_play(card);
                 if equipment {
@@ -2613,7 +2630,13 @@ impl GameState {
         m: MinionId,
         stat: Stat,
         kind: ActionKind,
+        card_hunt: bool,
     ) -> impl Iterator<Item = (u16, i32)> + '_ {
+        let during_reads = move |during: &[ActionKind]| {
+            during.is_empty()
+                || during.contains(&kind)
+                || crate::actions::is_hunt(kind, card_hunt) && during.contains(&ActionKind::Hunt)
+        };
         self.in_play_layers().filter_map(move |l| match l.modifier {
             Modifier::Bearer {
                 stat: s,
@@ -2622,7 +2645,7 @@ impl GameState {
                 who,
             } if s == stat
                 && self.cards[l.source.index()].bearer() == Some(m)
-                && (during.is_empty() || during.contains(&kind))
+                && during_reads(during)
                 && who.is(self, m) =>
             {
                 Some((self.cards[l.source.index()].card, n as i32))
@@ -2638,7 +2661,7 @@ impl GameState {
                 during,
             } if s == stat
                 && self.clan_stat_reaches(l.source, m, clan, own, titled)
-                && (during.is_empty() || during.contains(&kind)) =>
+                && during_reads(during) =>
             {
                 Some((self.cards[l.source.index()].card, n as i32))
             }

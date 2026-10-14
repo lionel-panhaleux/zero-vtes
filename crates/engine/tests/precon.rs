@@ -13328,7 +13328,7 @@ fn restricted_vitae_leaves_only_the_starving_hunting() {
     // The special hunt, a forced hunt too.
     pick(&mut e, steal);
     let a = e.action().expect("action");
-    assert!(a.is_hunt);
+    assert!(a.card_hunt);
     assert_eq!(a.directed_seat(&e.state), Some(SeatId(1)));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!((blood(&e, hungry), blood(&e, young)), (1, 1));

@@ -349,8 +349,9 @@ pub struct ActionCtx {
     /// A hunt that gained blood: "successfully hunts" (The Anarch Free
     /// Press; LSJ 20050720-2).
     pub hunt_gained: bool,
-    /// A granted action that is a hunt (Week of Nightmares).
-    pub is_hunt: bool,
+    /// An action a card makes a hunt (Week of Nightmares, Loki's Gift):
+    /// `is_hunt` reads it with the rulebook hunt.
+    pub card_hunt: bool,
     /// A mandatory action (a must-hunt vampire's hunt, a printed mandatory
     /// action): not one Khabar: Glory counts.
     pub mandatory: bool,
@@ -429,7 +430,19 @@ pub struct ActionCtx {
     pub corruption_unlock: u8,
 }
 
+/// Is an action of `kind` a hunt: the rulebook's, or one a card makes a
+/// hunt, "hunting" for everything reading one (LSJ 20050720-2; rules-qa
+/// 72.1).
+pub fn is_hunt(kind: ActionKind, card_hunt: bool) -> bool {
+    kind == ActionKind::Hunt || card_hunt
+}
+
 impl ActionCtx {
+    /// `is_hunt` of this action.
+    pub fn is_hunt(&self) -> bool {
+        is_hunt(self.kind, self.card_hunt)
+    }
+
     /// What an attempt by `m` would face, in public terms: the stealth,
     /// `m`'s intercept, blood and lock, the cards in play, every hand's size
     /// and its Methuselah's library and ash heap sizes (a card played or
@@ -500,8 +513,9 @@ impl ActionCtx {
                 })
                 .sum()
         });
-        // Sunset Strip, Hollywood: every Methuselah's locks, any hunter.
-        let hunts: i32 = if self.kind == ActionKind::Hunt {
+        // Sunset Strip, Hollywood: every Methuselah's locks, any hunter, a
+        // card's hunt too (rules-qa 72.3).
+        let hunts: i32 = if self.is_hunt() {
             st.seats.iter().map(|s| s.hunt_stealth_unlock as i32).sum()
         } else {
             0
@@ -510,7 +524,7 @@ impl ActionCtx {
             + for_clan
             + hunts
             + self.stealth_mods as i32
-            + st.bearer_mod(self.acting, Stat::Stealth, self.kind)
+            + st.bearer_mod_in(self.acting, Stat::Stealth, self.kind, self.card_hunt)
             + if self.requires_anarch(st) {
                 st.anarch_action_stealth(self.acting)
             } else {
@@ -736,7 +750,10 @@ impl ActionCtx {
             } else {
                 0
             };
-        own + st.bearer_mod(m, Stat::Intercept, self.kind) + against + printed + unmasking
+        own + st.bearer_mod_in(m, Stat::Intercept, self.kind, self.card_hunt)
+            + against
+            + printed
+            + unmasking
     }
 
     /// "A successful action requiring an Anarch or making this vampire
@@ -860,6 +877,7 @@ impl ActionCtx {
     ) -> crate::state::PrintedCtx {
         crate::state::PrintedCtx {
             kind: Some(self.kind),
+            card_hunt: self.card_hunt,
             directed: Some(self.directed_seat(st).is_some()),
             opponent,
             card: None,
@@ -1140,7 +1158,7 @@ impl Engine {
                 })
                 .unwrap_or_default(),
             // An action card's hunt (Psychophagia).
-            is_hunt: card.is_some_and(|p| {
+            card_hunt: card.is_some_and(|p| {
                 cards::lookup(p.card).is_some_and(|d| {
                     d.modes[p.mode as usize]
                         .effects
@@ -4853,7 +4871,7 @@ impl Engine {
                     }
                 }
                 // A hunt action card is the hunt a vampire must take.
-                if a.is_hunt {
+                if a.card_hunt {
                     self.state.minions[a.acting.index()].must_hunt = false;
                 }
                 // "Unlock them" (Khabar: Glory): after the card's effects.
@@ -5326,7 +5344,7 @@ impl Engine {
                             let t = target.minion();
                             // A hunt bonus is more blood from the target
                             // (The Hungry Coyote; RTR 20030519).
-                            let hunt = self.action.as_ref().is_some_and(|a| a.is_hunt);
+                            let hunt = self.action.as_ref().is_some_and(|a| a.card_hunt);
                             let n = n + if hunt {
                                 self.state.hunt_bonus(acting)
                             } else {
@@ -6594,11 +6612,12 @@ impl Engine {
         // political surcharge): payable with the action's own blood as it
         // is announced (rules-qa 42.1).
         options.retain(|o| {
-            let Some((m, kind)) = self.option_action(s, o) else {
+            let Some((m, kind, card_hunt)) = self.option_action(s, o) else {
                 return true;
             };
             let ctx = crate::state::PrintedCtx {
                 kind: Some(kind),
+                card_hunt,
                 directed: Some(self.directed_actor(s, o).is_some()),
                 own_printed: matches!(*o, Choice::UseAbility {
                     source: cards::AbilitySource::Vampire(v), ..
@@ -6611,17 +6630,19 @@ impl Engine {
         self.mandatory_actions(s, options)
     }
 
-    /// The minion `o` has perform an action and the action's kind, if it
-    /// is one: a rulebook action, an action card, a granted action.
-    fn option_action(&self, seat: SeatId, o: &Choice) -> Option<(MinionId, ActionKind)> {
+    /// The minion `o` has perform an action, the action's kind and whether
+    /// a card makes it a hunt, if it is one: a rulebook action, an action
+    /// card, a granted action.
+    fn option_action(&self, seat: SeatId, o: &Choice) -> Option<(MinionId, ActionKind, bool)> {
         let declared = |effects: &[Effect]| {
-            effects.iter().find_map(|e| match e {
+            let kind = effects.iter().find_map(|e| match e {
                 Effect::DeclareAction(k) => Some(*k),
                 _ => None,
-            })
+            })?;
+            Some((kind, effects.contains(&Effect::HuntAction)))
         };
         match *o {
-            Choice::TakeAction { minion, action, .. } => Some((minion, action)),
+            Choice::TakeAction { minion, action, .. } => Some((minion, action, false)),
             Choice::Play {
                 card,
                 mode,
@@ -6629,17 +6650,18 @@ impl Engine {
                 ..
             } => {
                 let lib = self.virtual_hand(seat).get(card as usize)?.0;
-                Some((
-                    m,
-                    declared(cards::lookup(lib)?.modes[mode as usize].effects)?,
-                ))
+                let (kind, hunt) = declared(cards::lookup(lib)?.modes[mode as usize].effects)?;
+                Some((m, kind, hunt))
             }
             Choice::UseAbility {
                 source,
                 ability,
                 actor: Some(m),
                 ..
-            } => Some((m, declared(source.mode(&self.state, ability).effects)?)),
+            } => {
+                let (kind, hunt) = declared(source.mode(&self.state, ability).effects)?;
+                Some((m, kind, hunt))
+            }
             _ => None,
         }
     }

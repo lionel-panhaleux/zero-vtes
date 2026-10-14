@@ -6225,8 +6225,8 @@ impl Engine {
             a.ability = Some(ability);
             a.target = target;
             a.burned_source_host = burned_host;
-            a.is_hunt = mode.effects.contains(&Effect::HuntAction);
-            if a.is_hunt {
+            a.card_hunt = mode.effects.contains(&Effect::HuntAction);
+            if a.card_hunt {
                 self.state.minions[m.index()].hunted = true;
             }
             a.mandatory |= mode.effects.contains(&Effect::MandatoryAction);

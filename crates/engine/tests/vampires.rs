@@ -3377,3 +3377,93 @@ fn marchesa_liliana_removes_seven_ash_cards_for_bleed_once_per_action() {
     );
     assert_eq!(e.state.seats[1].pool, before - 3);
 }
+
+// ---- Card hunts are hunting (rules-qa 72) -------------------------------
+
+/// Seat 0's `name` (4 blood, a second minion so the phase does not
+/// elide) against seat 1's 0-intercept Ventrue and Rinaldo Albizzi ("+1
+/// intercept"), at 10 pool each.
+fn hunter(name: &str) -> (Engine, MinionId, MinionId, MinionId) {
+    let mut e = bare();
+    for s in &mut e.state.seats {
+        s.pool = 10;
+    }
+    let m = add(&mut e, 0, name);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let zero = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let one = add(&mut e, 1, "Rinaldo Albizzi");
+    (e, m, zero, one)
+}
+
+/// `m` hunts: as the rulebook's hunt, or with the card `card` (mode 0).
+fn hunt(e: &mut Engine, m: MinionId, card: Option<&str>) {
+    match card {
+        Some(c) => {
+            hand(e, 0, &[c]);
+            pick(e, play(0, 0, m));
+        }
+        None => pick(e, action(m, ActionKind::Hunt)),
+    }
+}
+
+// [LSJ 20050720-2] a card hunt is a hunt for everything reading one
+// (rules-qa 72.1). Volo: "Volo gets -1 stealth when hunting." The rulebook
+// hunt (1 - 1) and Loki's Gift [pro] ("+1 stealth hunt action", 1 - 1):
+// 0 stealth both, the 0-intercept Ventrue is offered the block.
+#[test]
+fn volo_gets_less_stealth_on_a_card_hunt_too() {
+    for card in [None, Some("Loki's Gift")] {
+        let (mut e, volo, zero, _) = hunter("Volo");
+        hunt(&mut e, volo, card);
+        let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
+        assert!(req.options.contains(&block(zero)), "{card:?}");
+        let a = e.action().expect("action");
+        assert!(a.is_hunt());
+        assert_eq!(a.card_hunt, card.is_some());
+        assert_eq!(a.stealth(&e.state), 0, "{card:?}");
+    }
+}
+
+// Abiku: "Abiku gets +1 stealth when hunting." The rulebook hunt (1 + 1)
+// and Abactor ("+1 stealth action. Hunt at +4 hunt", 1 + 1): out of
+// Rinaldo's 1 intercept both (rules-qa 72.1).
+#[test]
+fn abiku_gets_more_stealth_on_a_card_hunt_too() {
+    for card in [None, Some("Abactor")] {
+        let (mut e, abiku, _, one) = hunter("Abiku");
+        hunt(&mut e, abiku, card);
+        never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, block(one));
+    }
+}
+
+// Zöe: "Zöe does not get the usual +1 stealth when hunting." The rulebook
+// hunt's +1: 0 stealth, the 0-intercept Ventrue may block. Abactor's hunt
+// has no usual +1, the card's +1 stealth stands (rules-qa 72.2): Rinaldo
+// may block, the Ventrue not.
+#[test]
+fn zoe_keeps_a_card_hunts_own_stealth() {
+    for (card, stealth) in [(None, 0), (Some("Abactor"), 1)] {
+        let (mut e, zoe, zero, one) = hunter("Zöe");
+        hunt(&mut e, zoe, card);
+        let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
+        assert_eq!(req.options.contains(&block(zero)), card.is_none());
+        assert!(req.options.contains(&block(one)));
+        assert_eq!(e.action().expect("action").stealth(&e.state), stealth);
+    }
+}
+
+// Black Annis: "Other non-hunt actions cost her an additional blood." Loki's
+// Gift [pro] is a hunt (rules-qa 72.5): her 4 blood and the hunt's 1, none
+// paid; a bleed costs her 1.
+#[test]
+fn black_annis_pays_nothing_more_for_a_card_hunt() {
+    let (mut e, annis, _, _) = hunter("Black Annis");
+    hunt(&mut e, annis, Some("Loki's Gift"));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, annis), 4 + 1);
+
+    let (mut e, annis, _, _) = hunter("Black Annis");
+    pick(&mut e, bleed(annis));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, annis), 4 - 1);
+}

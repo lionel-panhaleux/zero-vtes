@@ -4357,7 +4357,8 @@ pub static ANDRE_LEROUX: VampireDef = VampireDef {
 /// "Sabbat: Black Annis can enter combat with any minion controlled by your
 /// predator or prey as a Ⓓ action. Other non-hunt actions cost her an
 /// additional blood. +1 strength. +1 stealth." The blood paid with the
-/// action's cost (as Daria's, rules-qa 42.1).
+/// action's cost (as Daria's, rules-qa 42.1); a card's hunt is a hunt
+/// (rules-qa 72.5).
 pub static BLACK_ANNIS: VampireDef = VampireDef {
     name: "Black Annis",
     printed: &[
@@ -5021,11 +5022,11 @@ pub static JOST_WERNER: VampireDef = VampireDef {
 };
 
 /// "Camarilla: Zöe does not get the usual +1 stealth when hunting." The
-/// rulebook hunt's +1: a granted hunt's own stealth stays (Week of
-/// Nightmares).
+/// rulebook hunt's +1: a card's hunt has no usual +1, its own stealth
+/// stands (Loki's Gift, Week of Nightmares; rules-qa 72.2).
 pub static ZOE: VampireDef = VampireDef {
     name: "Zöe",
-    printed: &[own(Stat::Stealth, -1, &[R::IsHunt])],
+    printed: &[own(Stat::Stealth, -1, &[R::RulebookHunt])],
     ..VAMP
 };
 

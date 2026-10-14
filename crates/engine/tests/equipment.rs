@@ -92,6 +92,31 @@ fn unlicensed_taxicab_gives_stealth_during_hunt_recruit_and_employ_actions() {
     assert_eq!(e.state.minions[horst.index()].blood, 4);
 }
 
+// "+1 stealth during hunt … actions": Abactor's hunt too (rules-qa 72.4).
+// 1 + 1 stealth against Kevin's 1 intercept: no block attempt; without
+// the Taxicab, Kevin may block.
+#[test]
+fn unlicensed_taxicab_gives_stealth_during_a_card_hunt() {
+    for taxi in [false, true] {
+        let mut e = Engine::bare(3);
+        let horst = e.add_minion(SeatId(0), find_card("Horst von Brühl"), 3, false);
+        e.add_minion(SeatId(0), find_card("Alice Chen"), 3, false);
+        let kevin = e.add_minion(SeatId(1), find_card("Kevin Jackson"), 3, false);
+        if taxi {
+            equip(&mut e, "Unlicensed Taxicab", horst);
+        }
+        equip(&mut e, "Sport Bike", kevin);
+        hand(&mut e, 0, &["Abactor"]);
+        pick(&mut e, play(0, 0, horst));
+        if taxi {
+            never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, block(kevin));
+        } else {
+            let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
+            assert!(req.options.contains(&block(kevin)));
+        }
+    }
+}
+
 #[test]
 fn a_minion_can_have_only_one_vehicle() {
     let mut e = Engine::bare(3);

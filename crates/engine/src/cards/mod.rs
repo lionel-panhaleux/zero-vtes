@@ -861,8 +861,12 @@ pub enum Requirement {
     /// The acting minion is an ally, or a vampire younger than the actor
     /// (Confusion of the Eye [obf]: "a younger vampire's or an ally's bleed").
     ActingAllyOrYounger,
-    /// The current action is a hunt (Kalyani: "-1 stealth when hunting").
+    /// The current action is a hunt, a card's included (Kalyani: "-1
+    /// stealth when hunting"; LSJ 20050720-2, rules-qa 72.1).
     IsHunt,
+    /// The current action is the rulebook hunt (Zöe: "does not get the
+    /// usual +1 stealth when hunting"; rules-qa 72.2).
+    RulebookHunt,
     /// Printed-modifier predicate: the action is a diablerie (Lisette
     /// Vizquel: "+1 intercept during diablerie actions").
     IsDiablerie,
@@ -5812,7 +5816,8 @@ pub fn holds(
         Requirement::NotOwnTurn => st.active != seat,
         Requirement::DirectedAtYou => action.is_some_and(|a| a.directed_seats(st).contains(seat)),
         Requirement::IsBleed => action.is_some_and(|a| a.kind == ActionKind::Bleed),
-        Requirement::IsHunt => action.is_some_and(|a| a.kind == ActionKind::Hunt || a.is_hunt),
+        Requirement::IsHunt => action.is_some_and(|a| a.is_hunt()),
+        Requirement::RulebookHunt => action.is_some_and(|a| a.kind == ActionKind::Hunt),
         Requirement::IsDiablerie => action.is_some_and(|a| a.kind == ActionKind::Diablerie),
         Requirement::ActorNotActing => !action.is_some_and(|a| actor == Some(a.acting)),
         Requirement::OwnActingAllyOrYounger => action.is_some_and(|a| {
@@ -5986,7 +5991,7 @@ pub fn holds(
         }
         Requirement::NotFirstActionOfPhase => st.phase_actions >= 2,
         Requirement::AnarchHuntedYours => action.is_some_and(|a| {
-            (a.kind == ActionKind::Hunt || a.is_hunt)
+            a.is_hunt()
                 && a.hunt_gained
                 && a.seat == seat
                 && st.sect_of(a.acting) == Some(Sect::Anarch)

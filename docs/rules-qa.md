@@ -74,7 +74,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1, 57.10
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
 - **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7, 53.6, 53.8, 57.1, 57.2, 61.2
-- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3, 55.7, 66.2
+- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3, 55.7, 66.2, 72.1–72.4
 - **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8, 55.1, 55.2, 55.8, 57.3, 57.4, 58.2, 58.17, 58.18, 59.2, 59.17, 60.11, 61.1, 62.1, 63.4, 63.6, 63.8
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9
@@ -91,13 +91,13 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7, 54.1, 57.7
 - **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7
 - **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8
-- **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2, 53.8
+- **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2, 53.8, 72.1–72.5
 - **Master phase, master cards, out-of-turn** — 1.5, 3.3, 6.6, 7.5, 28.10, 32.3, 33.1, 33.8, 36.4, 49.6, 49.7, 50.1–50.3, 53.7, 57.8
 - **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1, 48.7, 54.2, 54.5, 58.4, 58.9, 59.3, 59.4, 60.6
 - **Discard phase, events** — 8.4, 15.2, 28.12, 33.8, 40.1–40.11, 54.5, 57.5, 57.6, 58.10
 - **Conditions read live; card-text defaults** — 4.3, 9.1, 13.2, 18.4, 19.3, 28.2, 28.6, 29.11, 32.4, 32.7, 39.5, 49.5, 49.7
 - **Corruption counters, multi-Discipline cards** — 25.1–25.6, 34.3, 35.2, 38.4, 52.1
-- **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14, 49.2, 49.3, 52.4
+- **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14, 49.2, 49.3, 52.4, 72.1, 72.2, 72.5
 - **Game end, VP, ousting** — 6.9, 18.2, 24.1, 33.2, 53.1, 58.20
 ## Batch 1 — sequencing, impulse, windows
 
@@ -1487,3 +1487,15 @@ Slice 16w: the cards that bring the most 2025–2026 TWDA decks into the kept co
 **71.26** Touch of Clarity: "a non-combat card" — a card that is not a combat card; a reacting vampire may cancel an action card as it is played, before its action is declared. (Tests touch_of_clarity_cancels_a_presence_action_card, touch_of_clarity_by_the_acting_methuselahs_other_vampire.)
 
 **71.27** Venere Carboni: once in each of his controller's unlock phases. (Test venere_carboni_leaves_torpor_for_a_blood.)
+
+## Batch 72 — Card hunts: what reads "hunting" (Claude, 2026-10-14; owner, 2026-10-14: 72.1–72.3 confirmed; 72.4, 72.5 follow from 72.1)
+
+**72.1** A card hunt (an action a card makes a hunt: Loki's Gift, Psychophagia, Abactor, Week of Nightmares' Ravnos hunt) is a hunt for everything reading one (LSJ 20050720-2): Volo's and Kalyani's "-1 stealth when hunting", Le Dinh Tho's "-1 stealth when hunting", Abiku's "+1 stealth when hunting" apply to it — Volo playing Loki's Gift [pro] ("+1 stealth hunt action") hunts at 0 stealth. (Tests volo_gets_less_stealth_on_a_card_hunt_too, abiku_gets_more_stealth_on_a_card_hunt_too.)
+
+**72.2** Zöe: "does not get the usual +1 stealth when hunting" — the usual +1 is the rulebook hunt's own; a card hunt has none to remove, its stealth is the card's: Zöe playing Loki's Gift or Abactor hunts at the card's +1. (Test zoe_keeps_a_card_hunts_own_stealth.)
+
+**72.3** Sunset Strip, Hollywood: "+1 stealth on hunt actions" applies to a card hunt (Abactor, Week of Nightmares' Ravnos hunt). (Test sunset_strip_gives_a_card_hunt_stealth.)
+
+**72.4** Unlicensed Taxicab: "+1 stealth during hunt … actions" applies to a card hunt (Abactor), as 72.1. (Test unlicensed_taxicab_gives_stealth_during_a_card_hunt.)
+
+**72.5** Black Annis: "other non-hunt actions cost her an additional blood" — a card hunt is a hunt (72.1): Loki's Gift costs her nothing more. (Test black_annis_pays_nothing_more_for_a_card_hunt.)

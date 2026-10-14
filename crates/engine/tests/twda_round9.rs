@@ -1176,6 +1176,38 @@ fn sunset_strip_gives_every_hunt_stealth_until_the_next_unlock() {
     assert_eq!(e.state.seats[0].hunt_stealth_unlock, 0);
 }
 
+// Sunset Strip's "+1 stealth on hunt actions": Abactor's hunt too (rules-qa
+// 72.3). Seat 1's Abactor at 1 + 1 stealth is out of reach of seat 0's
+// Eagle's Sight (1 intercept); without the lock, within it.
+#[test]
+fn sunset_strip_gives_a_card_hunt_stealth() {
+    for locked in [false, true] {
+        let mut e = game(2);
+        let x = e.add_minion(SeatId(0), vampire_with("aus", 0), 4, false);
+        e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+        let h = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+        let strip = in_play(&mut e, 0, "Sunset Strip, Hollywood", None);
+        hand(&mut e, 0, &["Eagle's Sight"]);
+        hand(&mut e, 1, &["Abactor"]);
+        if locked {
+            pick(&mut e, use_at(strip, 0, None, Target::None));
+        }
+        to_minion_phase(&mut e, SeatId(1));
+        pick(&mut e, play(0, 0, h));
+        if locked {
+            never_offered_until(&mut e, SeatId(1), WindowLabel::MinionPhase, block(x));
+        } else {
+            assert!(offered_before(
+                &mut e,
+                block(x),
+                SeatId(1),
+                WindowLabel::MinionPhase
+            ));
+        }
+    }
+}
+
 // ---- Referendums ----------------------------------------------------------------
 
 // Autarkis Persecution: "Successful referendum means each Methuselah gains
