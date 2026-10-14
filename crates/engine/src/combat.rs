@@ -3578,12 +3578,12 @@ impl Engine {
                 c.sides[i].held = Some(Held::from_play(play, actor, counters));
             }
             Effect::PutOnActorAfterCombat => c.after_combat.push(Held::from_play(play, actor, 0)),
-            // Wall of Filth: on the vampire now, "a vampire can have only
-            // one".
             Effect::AimExtraDamage(n) => c.sides[i].aim = n,
             // Read as the card is played (`CardAsPlayed`).
             Effect::CancelableByDiscardingCombat(_) => {}
-            // The card enters play as it resolves (`apply_card_effect`).
+            // The card enters play as it resolves (`apply_card_effect`):
+            // Wall of Filth on the vampire now, "a vampire can have only
+            // one".
             Effect::MorbidityTake(_)
             | Effect::PutOnActorNow
             | Effect::PutOnActorNowStacking

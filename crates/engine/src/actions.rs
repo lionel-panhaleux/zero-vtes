@@ -4295,14 +4295,16 @@ impl Engine {
                             d.modes[play.mode as usize]
                                 .effects
                                 .iter()
-                                .find_map(|e| match e {
-                                    Effect::TzimisceDiscardUnlockIfBleedSuccessful(n) => Some(*n),
+                                .find_map(|e| match *e {
+                                    Effect::DiscardUnlockIfBleedSuccessful { clan, blood } => {
+                                        Some((clan, blood))
+                                    }
                                     _ => None,
                                 })
                         });
                         let m = &mut self.state.minions[a.acting.index()];
-                        if let Some(n) = unlock.filter(|_| m.clan() == Some("Tzimisce")) {
-                            m.discard_unlock_for_blood = n;
+                        if let Some(u) = unlock.filter(|&(clan, _)| m.clan() == Some(clan)) {
+                            m.discard_unlock = Some(u);
                         }
                     }
                 }

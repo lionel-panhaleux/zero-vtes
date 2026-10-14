@@ -426,7 +426,7 @@ fn fiendish_tongue_bleeds_and_unlocks_a_tzimisce_later() {
     let (mut e, _, _) = table(LAWBRINGER);
     let brujah = MinionId(1);
     e.state.minions[brujah.index()].locked = true;
-    e.state.minions[brujah.index()].discard_unlock_for_blood = 1;
+    e.state.minions[brujah.index()].discard_unlock = Some(("Tzimisce", 1));
     hand(&mut e, 0, &["Abbot"]);
     never_offered_until(
         &mut e,

@@ -3756,8 +3756,12 @@ pub enum Effect {
     /// (Infernal Pursuit [CEL]): its player's, copies adding up.
     ExtraDrawPerReplacementThisCombat,
     /// Baltimore Purge's unlock-phase rider: the card burned, a vampire not
-    /// older than its host chosen per other Methuselah, all to torpor.
-    Purge,
+    /// older than its host chosen per other Methuselah, all to torpor; by
+    /// its controller instead if they control a ready vampire of
+    /// `chooser_clan`.
+    Purge {
+        chooser_clan: &'static str,
+    },
     /// "Add enough life to … retainer to reach their starting life"
     /// (Renewed Vigor [obe]): the target retainer's counters up to its
     /// version's starting life, zombie bonuses read now.
@@ -3803,8 +3807,12 @@ pub enum Effect {
     SectInterceptThisAction(Sect, i8),
     /// "If this vampire is Tzimisce and the bleed is successful, this
     /// Tzimisce can burn n blood during your next discard phase to unlock"
-    /// (Fiendish Tongue): `Choice::UnlockForBlood` there.
-    TzimisceDiscardUnlockIfBleedSuccessful(u8),
+    /// (Fiendish Tongue): `Choice::UnlockForBlood` there, the clan read
+    /// again then.
+    DiscardUnlockIfBleedSuccessful {
+        clan: &'static str,
+        blood: u8,
+    },
     /// "At the end of that combat, if only one combatant is ready, the
     /// controller of the opposing minion burns n pool" (Abuse of Power).
     OpposingBurnsPoolIfOneReadyAfterCombat(u8),
@@ -4468,15 +4476,15 @@ pub enum Effect {
     PreventGunStrikeAllowance(u8),
     /// Prevent up to n damage from sources other than gun strikes.
     PreventNonGun(u8),
-    /// Rider of a weapon's strike, had as it is chosen: 1 optional press
-    /// only usable to continue combat, once each combat per copy (Righteous
-    /// Blade; kept though the strike is dodged or does not resolve,
-    /// rules-qa 10.4).
     /// "Discard n cards at random" from the user's hand (a cost; the cards
     /// are replaced).
     DiscardAtRandom(u8),
     /// "+n strength that combat" (Kasim Bayar): added each round.
     StrengthThisCombat(u8),
+    /// Rider of a weapon's strike, had as it is chosen: 1 optional press
+    /// only usable to continue combat, once each combat per copy (Righteous
+    /// Blade; kept though the strike is dodged or does not resolve,
+    /// rules-qa 10.4).
     ContinuePressEachCombat,
     /// On success, search the library for an equipment the acting vampire
     /// can equip and equip it — requirements and cost as normal, shuffle

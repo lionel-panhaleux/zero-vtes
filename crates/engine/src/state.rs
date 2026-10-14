@@ -305,10 +305,10 @@ pub struct Minion {
     pub unlock_end_of_turn: bool,
     /// The circle New Blood chose as he entered play (`Minion::circle`).
     pub chosen_circle: Option<&'static str>,
-    /// Fiendish Tongue: the blood this Tzimisce can burn during its
-    /// controller's next discard phase to unlock (0: none); cleared at the
-    /// end of that turn.
-    pub discard_unlock_for_blood: u8,
+    /// Fiendish Tongue: the clan this vampire must still be and the blood
+    /// it can burn during its controller's next discard phase to unlock;
+    /// cleared at the end of that turn.
+    pub discard_unlock: Option<(&'static str, u8)>,
     /// Corruption counters on this minion, by the Methuselah whose they are
     /// ("your corruption counters"): kept through torpor, control changes
     /// and banishment (a banished vampire keeps everything; owner,
@@ -447,7 +447,7 @@ impl Minion {
             bleed_bonus_turn: 0,
             unlock_end_of_turn: false,
             chosen_circle: None,
-            discard_unlock_for_blood: 0,
+            discard_unlock: None,
             corruption: Vec::new(),
             diablerie_shield: false,
             diablerie_turn: None,

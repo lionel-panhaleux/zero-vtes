@@ -2002,7 +2002,7 @@ impl Engine {
         // Fiendish Tongue's unlock: that discard phase only.
         for m in &mut self.state.minions {
             if m.owner == s {
-                m.discard_unlock_for_blood = 0;
+                m.discard_unlock = None;
             }
         }
         self.next_turn();

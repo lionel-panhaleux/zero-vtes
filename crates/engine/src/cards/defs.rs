@@ -15508,7 +15508,10 @@ pub static FIENDISH_TONGUE: CardDef = CardDef {
             Effect::DeclareAction(ActionKind::Bleed),
             PLUS_ONE_BLEED,
             Effect::SectInterceptThisAction(Sect::Anarch, -1),
-            Effect::TzimisceDiscardUnlockIfBleedSuccessful(1),
+            Effect::DiscardUnlockIfBleedSuccessful {
+                clan: "Tzimisce",
+                blood: 1,
+            },
         ],
     )],
     ..CARD
@@ -18558,7 +18561,9 @@ pub static BALTIMORE_PURGE: CardDef = CardDef {
         hook: Hook::UnlockPhase,
         scope: RiderScope::Controller,
         requires: &[],
-        effects: &[Effect::Purge],
+        effects: &[Effect::Purge {
+            chooser_clan: "Lasombra",
+        }],
     }],
     ..CARD
 };

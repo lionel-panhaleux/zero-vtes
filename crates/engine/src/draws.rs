@@ -2297,11 +2297,11 @@ impl Engine {
     /// choose the vampires instead" (Baltimore Purge): one pick per other
     /// Methuselah with a candidate, clockwise from the controller, in the
     /// open; the host's capacity read as each pick is made.
-    pub(crate) fn start_purge(&mut self, host: MinionId) {
+    pub(crate) fn start_purge(&mut self, host: MinionId, chooser_clan: &str) {
         let owner = self.state.minions[host.index()].owner;
-        let lasombra = self.state.minions_of(owner).any(|m| {
+        let chooses = self.state.minions_of(owner).any(|m| {
             let v = &self.state.minions[m.index()];
-            v.ready() && v.is_vampire() && v.clan() == Some("Lasombra")
+            v.ready() && v.is_vampire() && v.clan() == Some(chooser_clan)
         });
         self.purge_picks.clear();
         let mut any = false;
@@ -2310,7 +2310,7 @@ impl Engine {
                 continue;
             }
             if !self.purge_candidates(of, host).is_empty() {
-                let seat = if lasombra { owner } else { of };
+                let seat = if chooses { owner } else { of };
                 self.interrupts
                     .push(Interrupt::PurgePick { seat, of, host });
                 any = true;

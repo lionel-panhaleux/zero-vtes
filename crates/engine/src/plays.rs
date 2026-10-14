@@ -3857,7 +3857,7 @@ impl Engine {
             | Effect::OpposingBurnsPoolIfOneReadyAfterCombat(_)
             | Effect::PutOnActorIfOpposingNotReadyAfterCombat
             | Effect::SectInterceptThisAction(..)
-            | Effect::TzimisceDiscardUnlockIfBleedSuccessful(_)
+            | Effect::DiscardUnlockIfBleedSuccessful { .. }
             | Effect::CryptForBloodIfBleedSuccessful(_) => {}
             // A marker read by the frenzy-cancel cards (`frenzy_on`).
             Effect::Frenzy => {}
@@ -4863,12 +4863,9 @@ impl Engine {
         // when the bleed succeeded (owner, 2026-10-08: rules-qa 54.5).
         for m in self.state.minions_of(s) {
             let v = &self.state.minions[m.index()];
-            if v.discard_unlock_for_blood > 0
-                && v.clan() == Some("Tzimisce")
-                && v.ready()
-                && v.locked
-                && v.blood >= v.discard_unlock_for_blood
-            {
+            if v.discard_unlock.is_some_and(|(clan, n)| {
+                v.clan() == Some(clan) && v.ready() && v.locked && v.blood >= n
+            }) {
                 options.push(Choice::UnlockForBlood { minion: m });
             }
         }
@@ -4923,7 +4920,7 @@ impl Engine {
             }
             Choice::UnlockForBlood { minion } => {
                 let v = &mut self.state.minions[minion.index()];
-                v.blood -= std::mem::take(&mut v.discard_unlock_for_blood);
+                v.blood -= v.discard_unlock.take().map_or(0, |(_, n)| n);
                 self.state.unlock(*minion);
                 self.flow = Flow::Discard;
             }
@@ -8321,10 +8318,10 @@ impl Engine {
                         self.state.gain_blood(h, n);
                     }
                     // Baltimore Purge: burned, then the picks.
-                    Effect::Purge => {
+                    Effect::Purge { chooser_clan } => {
                         let host = self.state.cards[id.index()].bearer().expect("host");
                         self.burn_card_in_play(id);
-                        self.start_purge(host);
+                        self.start_purge(host, chooser_clan);
                     }
                     // "The attached minion burns 1 blood or life" (Sculpt the
                     // Flesh [PRO]): an ally with no life left is burned.
