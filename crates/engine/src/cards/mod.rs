@@ -3110,10 +3110,7 @@ pub enum Effect {
     /// "<Clan> get +n stealth during that action" of a granted action
     /// (Wasserschloss Anif: Malkavians +1; Toreador Grand Ball: Nosferatu
     /// -1), read live on the acting minion.
-    StealthForClan {
-        clan: &'static str,
-        n: i8,
-    },
+    StealthForClan { clan: &'static str, n: i8 },
     /// "Draw 1 card from your crypt and then remove a crypt card in your
     /// uncontrolled region from the game" (Wider View): chosen as it
     /// resolves.
@@ -3190,10 +3187,7 @@ pub enum Effect {
     /// Rider effect: the Methuselah whose unlock phase it is burns `pool`
     /// unless they control a ready vampire of `sect` (Anarch Revolt; each
     /// copy in play burns on its own, spec §1.15).
-    UnlockBurnPoolUnlessReady {
-        sect: Sect,
-        pool: u8,
-    },
+    UnlockBurnPoolUnlessReady { sect: Sect, pool: u8 },
     /// Rider effect: the controller's prey burns n pool (Creeping
     /// Sabotage).
     PreyBurnsPool(u8),
@@ -3281,10 +3275,7 @@ pub enum Effect {
     PeekHand,
     /// "If this <clan>'s capacity is n or more, he or she unlocks"
     /// (SchreckNET): the acting minion, read at resolution.
-    UnlockActorIfClanCapacity {
-        clan: &'static str,
-        n: u8,
-    },
+    UnlockActorIfClanCapacity { clan: &'static str, n: u8 },
     /// Rider effect: the controller's predator takes control of this card
     /// (The Coven; spec §6.3: requirements are not re-checked, where it
     /// goes when it leaves play is still its owner's).
@@ -3302,9 +3293,7 @@ pub enum Effect {
     /// Push a layer scoped to the current action.
     ActionLayer(Modifier),
     /// Cancel the card being played; `refund`: its cost is not paid.
-    CancelPlayed {
-        refund: bool,
-    },
+    CancelPlayed { refund: bool },
     /// Declare an action of this kind with this card (action cards).
     DeclareAction(ActionKind),
     /// +n stealth for the current action.
@@ -3318,10 +3307,7 @@ pub enum Effect {
     /// increase its bleed amount (Camera Phone).
     NoOtherEquipmentBleed,
     /// +n bleed for the current bleed; `limited` binds the rulebook cap.
-    BleedMod {
-        n: u8,
-        limited: bool,
-    },
+    BleedMod { n: u8, limited: bool },
     /// The actor wakes for the rest of the action.
     Wake,
     /// Lock the actor.
@@ -3377,9 +3363,7 @@ pub enum Effect {
     /// action before block resolution (Mirror Walk [THA]).
     EndActionIfBlocked,
     /// The card (a retainer) enters play on the acting minion with this life.
-    EmployRetainer {
-        life: u8,
-    },
+    EmployRetainer { life: u8 },
     /// Burn n life from this card: a retainer's counters, an ally's own
     /// life (Crypt's Sons, Underbridge Stray) — its last life burns it. Not
     /// a blood cost: an ally pays it.
@@ -3538,10 +3522,7 @@ pub enum Effect {
     /// host burns `burn` blood if it is a master card, else it gets
     /// `stealth` stealth, and only while stealth is needed (Gathii, ANK
     /// 20231031).
-    RevealTopCard {
-        burn: u8,
-        stealth: u8,
-    },
+    RevealTopCard { burn: u8, stealth: u8 },
     /// The vampire whose text it is goes to torpor (Cedrick Calhoun).
     GoToTorpor,
     /// Lock the target minion.
@@ -3576,10 +3557,7 @@ pub enum Effect {
     NextRoundManeuver,
     /// Additional strikes this round; `limited`: one such source per
     /// combatant per round (rulebook "Additional Strikes").
-    AdditionalStrikes {
-        n: u8,
-        limited: bool,
-    },
+    AdditionalStrikes { n: u8, limited: bool },
     /// The actor gets a strength of n this combat (replaces the base).
     SetStrength(u8),
     /// The actor's hand strikes are aggravated this round.
@@ -3612,9 +3590,7 @@ pub enum Effect {
     /// Strike rider: "put this card on the opposing minion (with n
     /// counters)" as the strike lands (Sculpt the Flesh [PRO], Touch of
     /// Oblivion [obl]); the card is held until then, else discarded.
-    PutOnOpponentOnHit {
-        counters: u8,
-    },
+    PutOnOpponentOnHit { counters: u8 },
     /// "After combat ends, put this card on this vampire" (Pass Through
     /// Shadow [OBL]): held; lost if the combat continues (RTR 20020501).
     PutOnActorAfterCombat,
@@ -3651,16 +3627,12 @@ pub enum Effect {
     /// in a given round, any additional damage inflicted on this vampire in
     /// the same round is automatically prevented"; `aggravated`: aggravated
     /// damage too (Flesh of Marble [PRO]).
-    FleshOfMarble {
-        aggravated: bool,
-    },
+    FleshOfMarble { aggravated: bool },
     /// "Both combatants and each retainer on them take 1 unpreventable
     /// environmental damage before range is determined each round this
     /// combat"; `escalate`: +1 in each subsequent round (Weather Control
     /// [THA]).
-    WeatherDamage {
-        escalate: bool,
-    },
+    WeatherDamage { escalate: bool },
     /// Prevent up to n damage to the target minion or retainer in combat
     /// (Martyr's Resilience [aus][for]), from a minion out of it.
     PreventOnTarget(u8),
@@ -3682,9 +3654,7 @@ pub enum Effect {
     /// and retainer damage included (PIB 20150603-1); with `cancel`, "if a
     /// vampire is currently attempting to block, they can cancel their block
     /// attempt" ([for]).
-    DawnOperation {
-        cancel: bool,
-    },
+    DawnOperation { cancel: bool },
     /// "If this vampire does not block this action, put this card on them
     /// after action resolution" (Dogged Pursuit [ANI]): one per vampire.
     PutOnActorIfNoBlock,
@@ -3757,9 +3727,7 @@ pub enum Effect {
     /// older than its host chosen per other Methuselah, all to torpor; by
     /// its controller instead if they control a ready vampire of
     /// `chooser_clan`.
-    Purge {
-        chooser_clan: &'static str,
-    },
+    Purge { chooser_clan: &'static str },
     /// "Add enough life to … retainer to reach their starting life"
     /// (Renewed Vigor [obe]): the target retainer's counters up to its
     /// version's starting life, zombie bonuses read now.
@@ -3807,10 +3775,7 @@ pub enum Effect {
     /// Tzimisce can burn n blood during your next discard phase to unlock"
     /// (Fiendish Tongue): `Choice::UnlockForBlood` there, the clan read
     /// again then.
-    DiscardUnlockIfBleedSuccessful {
-        clan: &'static str,
-        blood: u8,
-    },
+    DiscardUnlockIfBleedSuccessful { clan: &'static str, blood: u8 },
     /// "At the end of that combat, if only one combatant is ready, the
     /// controller of the opposing minion burns n pool" (Abuse of Power).
     OpposingBurnsPoolIfOneReadyAfterCombat(u8),
@@ -3868,9 +3833,7 @@ pub enum Effect {
     TrapPresses,
     /// Conquer the Beast: as Trap, the press this vampire's — mandatory,
     /// or `optional` — and this vampire cannot use equipment this combat.
-    BeastPresses {
-        optional: bool,
-    },
+    BeastPresses { optional: bool },
     /// The ash heap ally named at play removed from the game for n life to
     /// the target zombie ally (Putrescent Sustenance).
     EatAshAllyToTarget(u8),
@@ -3957,16 +3920,10 @@ pub enum Effect {
     /// "Remove an ally in any Methuselah's ash heap from the game to gain n
     /// blood (and unlock)" (Psychophagia): the ally named as it was played
     /// (`PlayCtx::ash`), if still there.
-    EatAshAlly {
-        blood: u8,
-        unlock: bool,
-    },
+    EatAshAlly { blood: u8, unlock: bool },
     /// "If this card has `at` counters, burn it and gain `pool` pool" (Open
     /// War): its controller gains (rules-qa 32.7).
-    AtCountersBurnAndGain {
-        at: u8,
-        pool: u8,
-    },
+    AtCountersBurnAndGain { at: u8, pool: u8 },
     /// +1 master phase action this phase (The Parthenon).
     GainMasterPhaseAction,
     /// Burn X pool (X from the ability's terms), paid down to 0 ousts
@@ -3974,10 +3931,7 @@ pub enum Effect {
     PayPoolX,
     /// The Methuselah's own `per` × X votes, on one side (Oxford
     /// University, England: "+2X votes").
-    MethuselahVotesX {
-        per: u8,
-        favor: bool,
-    },
+    MethuselahVotesX { per: u8, favor: bool },
     /// The target vampire gains blood to its capacity (Giant's Blood).
     BloodToTargetFull,
     /// Remove the target vampire from the game; its controller gains pool
@@ -4028,10 +3982,7 @@ pub enum Effect {
     PayActionWithCountersX,
     /// Move n pool to this card as counters, and add m counters from the
     /// bank (Ravnos Cache).
-    PoolToCounterPlusBank {
-        pool: u8,
-        bank: u8,
-    },
+    PoolToCounterPlusBank { pool: u8, bank: u8 },
     /// Enter play with 1 counter per vampire of this clan the player
     /// controls; with none, burned (Ravnos Carnival).
     EnterWithCountersPerOwnClan(&'static str),
@@ -4075,16 +4026,11 @@ pub enum Effect {
     /// "With 1 additional <strike>" (Voracious Vermin [ANI]): an additional
     /// strike only usable for that strike (none if its object is gone);
     /// `limited`: "(limited)" (Wind Dance [THA]).
-    AdditionalStrikeOnly {
-        kind: StrikeKind,
-        limited: bool,
-    },
+    AdditionalStrikeOnly { kind: StrikeKind, limited: bool },
     /// "Burn X blood to get X additional strikes" (Lightning Reflexes
     /// [CEL]): X the play's terms; the blood is an effect, not a cost (ANK
     /// 20210226).
-    AdditionalStrikesX {
-        limited: bool,
-    },
+    AdditionalStrikesX { limited: bool },
     /// The actor burns X blood, X the play's terms (an effect, not a cost:
     /// no cost reduction reaches it, ANK 20210226).
     ActorBurnsBloodX,
@@ -4161,10 +4107,7 @@ pub enum Effect {
     /// Entry rider: "you can distribute up to n blood from him to any of
     /// your uncontrolled <clan>" (Erlik), before any contest (LSJ
     /// 20080526).
-    DistributeToUncontrolled {
-        n: u8,
-        clan: &'static str,
-    },
+    DistributeToUncontrolled { n: u8, clan: &'static str },
     /// "Remove n cards in the target Methuselah's ash heap from the game"
     /// (Trochomancy): the player's choice (LSJ 20090710), at once (PIB
     /// 20120525).
@@ -4246,24 +4189,18 @@ pub enum Effect {
     /// the opposing minion. The first round of combat, the opposing minion
     /// cannot play any strike cards" (Coordinate Attacks), with an optional
     /// maneuver the first round if `maneuver`.
-    CoordinateAttack {
-        maneuver: bool,
-    },
+    CoordinateAttack { maneuver: bool },
     /// Coagulated Entity, before its combat begins: each Blood Brother
     /// picked moves 1 blood to the acting vampire, or the action is
     /// canceled; then +X strength and +X capacity for the action, and with
     /// `prevent`, up to X damage it may prevent in that combat (X the
     /// picks).
-    CoagulateFromPicks {
-        prevent: bool,
-    },
+    CoagulateFromPicks { prevent: bool },
     /// Gestalt: each Blood Brother picked burns 1 blood, or the card has no
     /// effect; then +X intercept for the reacting vampire, and with
     /// `borrow`, it plays cards with the picked ones' Disciplines for the
     /// rest of the action (X the picks).
-    CircleIntercept {
-        borrow: bool,
-    },
+    CircleIntercept { borrow: bool },
     /// "Lock to give any minion +n intercept for the current action"
     /// (London Evening Star): the ability's target.
     TargetInterceptThisAction(i8),
@@ -4288,9 +4225,7 @@ pub enum Effect {
     /// affect this vampire for the duration of this action"; `superior`:
     /// "minions opposing this vampire in combat cannot play cards that
     /// require Dominate or Presence" (Perfect Clarity).
-    PerfectClarity {
-        superior: bool,
-    },
+    PerfectClarity { superior: bool },
     /// "The chosen vampires enter combat. If only one is ready at the end
     /// of that combat, he or she gains n blood" (Taunt the Caged Beast
     /// [ANI]): the prey's first (LSJ 20070319).
@@ -4342,9 +4277,7 @@ pub enum Effect {
     CryptTopToUncontrolled,
     /// "If he or she currently has any, they are burned" (Anachronism):
     /// the target's ranged weapons, `except` the named one.
-    BurnRangedWeaponsOnTarget {
-        except: &'static str,
-    },
+    BurnRangedWeaponsOnTarget { except: &'static str },
     /// Weapon strike rider: "Bearer takes 1 damage during strike
     /// resolution when striking with this gun, but only once each combat"
     /// (Zip Gun): environmental (LSJ 19970801), none if the strike never
@@ -4389,10 +4322,7 @@ pub enum Effect {
     /// Rider of a strike: combat ends — after combat, if the actor was
     /// blocked, it may burn `blood` to continue the action with +`stealth`
     /// as if unblocked. Lost if the combat continues (spec §4.9.2).
-    ContinueAfterCombat {
-        blood: u8,
-        stealth: u8,
-    },
+    ContinueAfterCombat { blood: u8, stealth: u8 },
     /// Rider of a strike: combat ends — after combat ends, if the range is
     /// close, n unpreventable damage on the opposing minion, unless the
     /// strike was dodged or the combat continues (Catatonic Fear [PRE]).
@@ -4513,10 +4443,7 @@ pub enum Effect {
     BloodToEachUncontrolledOfSect(Sect, u8),
     /// +(mul × X + plus) votes to the vampire playing it (Awe: "+X+1",
     /// "+2X+1"), X its blood cost.
-    AddVotesXLinear {
-        mul: u8,
-        plus: u8,
-    },
+    AddVotesXLinear { mul: u8, plus: u8 },
     /// Each non-Camarilla vampire gets -n votes in this referendum, votes
     /// already cast included; a vampire's votes stop at 0 (Camarilla
     /// Conclave; ANK 20251125).
@@ -4529,10 +4456,7 @@ pub enum Effect {
     BarNonSectVotes(Sect),
     /// Business Pressure: a round where Methuselahs burn pool for votes, one
     /// at a time — `per` votes a pool, `own` for the card's player.
-    PoolForVotesRound {
-        per: u8,
-        own: u8,
-    },
+    PoolForVotesRound { per: u8, own: u8 },
     /// The card is removed from the game once played, whatever happens to
     /// its action or referendum, canceled too (Reinforcements).
     RemovedOncePlayed,
@@ -4579,10 +4503,7 @@ pub enum Effect {
     /// Unlock rider: the active Methuselah burns `pool` unless they burn a
     /// vampire they control with capacity `cap` or more to burn this card
     /// (Antediluvian Awakening): `Interrupt::PoolOrVampire`.
-    BurnPoolUnlessBurnVampire {
-        pool: u8,
-        cap: u8,
-    },
+    BurnPoolUnlessBurnVampire { pool: u8, cap: u8 },
     /// Kaymakli Nightmares: every uncontrolled region's crypt cards to their
     /// crypts (blood to the pool, cards on them burned), shuffled, as many
     /// drawn back out; a created vampire burned instead.
@@ -4622,9 +4543,7 @@ pub enum Effect {
     /// combat — +1 strength, no maneuver to long range, no press to end
     /// combat, no equipment; with `damage`, 1 unpreventable environmental
     /// damage in each round's press step.
-    DrawOutBeast {
-        damage: bool,
-    },
+    DrawOutBeast { damage: bool },
     /// As `AshCardToHandNamed`, a vampire's own printed action, the card
     /// named matching the filter (Drozodny: "a political action card").
     AshCardOfToHand(CardFilter),
@@ -4727,19 +4646,13 @@ pub enum Effect {
     /// The user's own votes, cast at once on one side ("lock this card …
     /// to get +3 votes", Ventrue Headquarters): a vote source of their
     /// own, like the Edge.
-    MethuselahVotes {
-        n: u8,
-        favor: bool,
-    },
+    MethuselahVotes { n: u8, favor: bool },
     /// As `AddVotes`, +1 per ready vampire of this sect the player controls,
     /// counted as it resolves (Aisha az-Zahra).
     AddVotesPerReadySect(Sect),
     /// The target vampire abstains: its cast votes and ballots are
     /// canceled and it casts no more; `lock` locks it, `burn` burns blood.
-    Abstain {
-        lock: bool,
-        burn: u8,
-    },
+    Abstain { lock: bool, burn: u8 },
     /// The actor gets +n votes against the referendum (and votes against).
     AddVotesAgainst(u8),
     /// Methuselahs casting votes or ballots against burn n pool once the
@@ -4809,10 +4722,7 @@ pub enum Effect {
     /// "Remove `remove` cards in your prey's ash heap from the game to burn
     /// `pool` of their pool" (Shroud of Decay [OBL]): the cards chosen by
     /// the player as it resolves (LSJ 20090710).
-    RemovePreyAshToBurnPool {
-        remove: u8,
-        pool: u8,
-    },
+    RemovePreyAshToBurnPool { remove: u8, pool: u8 },
     /// Ability cost "remove n cards in your ash heap from the game"
     /// (Marchesa Liliana): the user's picks, one card at a time, as the
     /// ability is used (`Interrupt::RemoveFromAsh` on their own ash heap).
@@ -4826,10 +4736,7 @@ pub enum Effect {
     /// The acting minion takes `damage` unpreventable environmental
     /// aggravated damage; with `avoid_for` > 0 it can burn that much blood
     /// to be immune instead (Rutor's Hand [THA]).
-    ActorTakesAggravated {
-        damage: u8,
-        avoid_for: u8,
-    },
+    ActorTakesAggravated { damage: u8, avoid_for: u8 },
     /// "Prevent all damage from the opposing minion's strike" (Touch of
     /// Valeren [COMBAT]): the damage pending from it, on the player's
     /// minion in the combat.
@@ -4924,9 +4831,7 @@ pub enum Effect {
     WakeTarget,
     /// +X bleed for the current bleed, X the play's (Monkey Wrench);
     /// `limited` binds the rulebook cap.
-    BleedModX {
-        limited: bool,
-    },
+    BleedModX { limited: bool },
     /// `then` (a bleed or intercept bonus for the rest of the action)
     /// counts while `requires` holds of the minion `on`, read live whenever
     /// the stat is ("with an additional +1 bleed if this vampire is
