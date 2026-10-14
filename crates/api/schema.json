@@ -4347,6 +4347,16 @@
             "$ref": "#/$defs/SeatView"
           }
         },
+        "transfers": {
+          "description": "The active seat's transfers left, during its influence phase.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0
+        },
         "turn": {
           "description": "Game turn, from 1.",
           "type": "integer",

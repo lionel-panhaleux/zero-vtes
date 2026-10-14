@@ -917,6 +917,7 @@ fn empty_view(viewer: Seat) -> TableView {
         action: None,
         combat: None,
         referendum: None,
+        transfers: None,
     }
 }
 

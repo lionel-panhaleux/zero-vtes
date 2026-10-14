@@ -27,6 +27,9 @@ pub struct TableView {
     pub combat: Option<CombatView>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub referendum: Option<ReferendumView>,
+    /// The active seat's transfers left, during its influence phase.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transfers: Option<u8>,
 }
 
 /// A physical card: its copy where the viewer may follow it, its KRCG id

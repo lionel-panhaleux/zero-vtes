@@ -223,6 +223,7 @@ impl Build<'_> {
                     })
                     .collect(),
             }),
+            transfers: e.transfers_left(),
             referendum: e.referendum().map(|r| {
                 let tally = |favor: bool| {
                     r.records

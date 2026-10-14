@@ -15,6 +15,14 @@ pub fn transfers_for_turn(turn: u32) -> u8 {
 }
 
 impl Engine {
+    /// The active seat's transfers left, during its influence phase.
+    pub fn transfers_left(&self) -> Option<u8> {
+        match self.flow {
+            Flow::Influence { left } => Some(left),
+            _ => None,
+        }
+    }
+
     /// The transfers an ability use gains ("lock to get +1 transfer").
     fn transfer_gain(&self, choice: &Choice) -> u8 {
         let Choice::UseAbility {
