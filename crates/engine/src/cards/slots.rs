@@ -72,10 +72,8 @@ pub enum Site {
 }
 
 impl Requirement {
-    /// The evaluators that really read this requirement (any other one
-    /// passes it as `true`, or never sees it). A requirement belongs in a
-    /// position whose evaluators meet these; a new one is classified here
-    /// with the evaluator arm that reads it.
+    /// The evaluators that really read this requirement (any other passes
+    /// it as `true`): it belongs in a position whose evaluators meet these.
     pub fn slots(self) -> &'static [Slot] {
         use Requirement as R;
         use Slot as S;
@@ -480,12 +478,8 @@ impl Requirement {
     }
 }
 
-/// The requirement an ability of `payer` paying `cost` carries, so that it
-/// is offered only when the cost is payable: a lock needs the card or the
-/// host unlocked, a blood (or life) cost that much on the minion paying it
-/// — the user or the acting minion for `AnyReadyVampire` and
-/// `ActingMinion`, the host otherwise. Abilities only: a rider is mandatory
-/// and burns what there is.
+/// The requirement an ability of `payer` paying `cost` carries, offered
+/// only when payable (abilities only: a rider burns what there is).
 pub fn implied_requirement(payer: Actor, cost: Effect) -> Option<Requirement> {
     match cost {
         Effect::LockSelf => Some(Requirement::CardUnlocked),
@@ -518,10 +512,9 @@ mod tests {
     /// the test: drop it once its gap is closed.
     const KNOWN_GAPS: &[(&str, Requirement, &str)] = &[];
 
-    /// The evaluators `Engine::ability_gate` runs on an in-play card
-    /// ability's requirements, by actor: the card's (an `ActingCandidate`
-    /// ability's for `CardUnlocked` only), the host's when
-    /// the ability has one (`Engine::ability_user`), the play's.
+    /// The evaluators `Engine::ability_gate` runs on a card ability's
+    /// requirements, by actor: the card's (an `ActingCandidate`'s for
+    /// `CardUnlocked` only), the host's if any, the play's.
     fn card_ability_readers(ability: &ModeDef) -> Option<Vec<Slot>> {
         use Slot::*;
         let mut readers = match ability.actor {
@@ -689,9 +682,8 @@ mod tests {
         }
     }
 
-    // F9: a requirement in a position no evaluator there reads passes as
-    // `true` — an engine-checked arm of `holds`, an evaluator's `_ => true`
-    // — and the mask is silently permissive.
+    // A requirement no evaluator reads where it sits passes as `true`: the
+    // mask would be silently permissive.
     #[test]
     fn every_requirement_sits_where_it_is_read() {
         let mut w = Walk::default();
@@ -764,8 +756,8 @@ mod tests {
         }
     }
 
-    // F8: an ability paying a cost carries the requirement the cost
-    // implies, or it is offered unpayable.
+    // An ability paying a cost carries the requirement the cost implies, or
+    // it is offered unpayable.
     #[test]
     fn every_ability_cost_carries_its_requirement() {
         use Requirement as R;
