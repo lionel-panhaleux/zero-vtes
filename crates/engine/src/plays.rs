@@ -14,7 +14,7 @@ use crate::draws::Interrupt;
 use crate::game::{Engine, Flow, Pending};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, Label, LIBRARY};
-use crate::state::{distinct, ActionId, CardId, CardInPlay, OutOfTurn};
+use crate::state::{distinct, ActionId, CardId, CardInPlay, OutOfTurn, Release};
 use crate::window::OrderedWindow;
 
 /// The once-per-phase key of an in-play ability: the copy, or the copy and
@@ -136,7 +136,7 @@ impl Engine {
     pub(crate) fn replace(&mut self, s: SeatId, n: usize, except: Option<CardId>) {
         // The Meddling of Semsith: held until the minion phase ends.
         if n > 0 && self.state.in_minion_phase && self.state.meddled(s) {
-            let held = &mut self.state.seats[s.index()].held.minion_phase;
+            let held = &mut self.state.seats[s.index()].held[Release::MinionPhaseEnd];
             *held = held.saturating_add(n as u8);
             return;
         }
@@ -219,17 +219,17 @@ impl Engine {
     /// cards held back until then are replaced (Consign to Oblivion [OBL];
     /// spec §1.9.2: after all combats).
     pub(crate) fn release_action_holds(&mut self) {
-        self.release_held(|h| &mut h.action);
-        self.release_held(|h| &mut h.weakens);
+        self.release_held(Release::EndOfAction);
+        self.release_held(Release::Weakens);
     }
 
     /// Every Methuselah's cards held back until this condition are
     /// replaced ("do not replace until …"; LSJ 20080805: whether or not
     /// the card is still in play).
-    pub(crate) fn release_held(&mut self, pick: fn(&mut crate::state::Held) -> &mut u8) {
+    pub(crate) fn release_held(&mut self, at: Release) {
         for i in 0..self.state.seats.len() {
-            let n = std::mem::take(pick(&mut self.state.seats[i].held));
-            let jet = std::mem::take(pick(&mut self.state.seats[i].learjet_held)).min(n);
+            let n = std::mem::take(&mut self.state.seats[i].held[at]);
+            let jet = std::mem::take(&mut self.state.seats[i].learjet_held[at]).min(n);
             if n > 0 && !self.state.seats[i].ousted {
                 self.replace(SeatId(i as u8), n as usize, None);
                 for _ in 0..jet {
@@ -253,10 +253,10 @@ impl Engine {
     /// held before, if the hand is empty.
     fn hold_weakened(&mut self, s: SeatId, in_play: Option<CardId>) {
         if self.state.seats[s.index()].hand.is_empty() {
-            let n = std::mem::take(&mut self.state.seats[s.index()].held.weakens);
+            let n = std::mem::take(&mut self.state.seats[s.index()].held[Release::Weakens]);
             self.replace(s, 1 + n as usize, in_play);
         } else {
-            self.state.seats[s.index()].held.weakens += 1;
+            self.state.seats[s.index()].held[Release::Weakens] += 1;
         }
     }
 
@@ -300,7 +300,7 @@ impl Engine {
         let v = &mut self.state.minions[m.index()];
         if v.in_torpor {
             v.in_torpor = false;
-            self.release_held(|h| &mut h.leaves_torpor);
+            self.release_held(Release::LeavesTorpor);
         }
     }
 
@@ -311,7 +311,7 @@ impl Engine {
         // No minion phase under way (a fixture started in one).
         self.state.in_minion_phase = false;
         // Nightmares upon Nightmares' discards: replaced now.
-        let held = std::mem::take(&mut self.state.seats[s.index()].held.master);
+        let held = std::mem::take(&mut self.state.seats[s.index()].held[Release::MasterPhase]);
         if held > 0 {
             self.replace(s, held as usize, None);
         }
@@ -3266,7 +3266,7 @@ impl Engine {
             // after-resolution effect (LSJ 20001120, LSJ 20101021).
             if ctx.from.is_none() {
                 if def.delayed_replacement == Some(Until::EndOfAction) {
-                    self.state.seats[s.index()].held.action += 1;
+                    self.state.seats[s.index()].held[Release::EndOfAction] += 1;
                 } else if self.weakened_card(&ctx) {
                     self.hold_weakened(s, None);
                 } else {
@@ -3459,23 +3459,15 @@ impl Engine {
         // end-of-action deferral (spec §1.9.2: the longest delay wins).
         match def.delayed_replacement {
             _ if ctx.from.is_some() => {}
-            Some(Until::NextUnlockPhase) => self.state.seats[s.index()].held.unlock += 1,
-            Some(Until::NextDiscardPhase) => self.state.seats[s.index()].held.discard += 1,
-            Some(Until::EndOfAction) => self.state.seats[s.index()].held.action += 1,
-            Some(Until::AfterCombat) => self.state.seats[s.index()].held.combat += 1,
             // The replacement waits on the condition, not on the card: a
             // burned card still waits (LSJ 20080805).
-            Some(Until::MethuselahOusted) => self.state.seats[s.index()].held.ousted += 1,
-            Some(Until::Diablerie) => self.state.seats[s.index()].held.diablerie += 1,
-            Some(Until::TitledToTorpor) => self.state.seats[s.index()].held.titled_torpor += 1,
-            Some(Until::SuccessfulHunt) => self.state.seats[s.index()].held.hunt += 1,
-            Some(Until::LeavesTorpor) => self.state.seats[s.index()].held.leaves_torpor += 1,
-            Some(Until::Liaison) => self.state.seats[s.index()].held.liaison += 1,
-            Some(Until::LeavesPlay) => match in_play {
-                Some(id) => self.state.seats[s.index()].held_in_play.push(id),
-                None => self.replace(s, 1, None),
+            Some(u) => match (u.release(), in_play) {
+                (Some(at), _) => self.state.seats[s.index()].held[at] += 1,
+                // "As long as this card is in play".
+                (None, Some(id)) => self.state.seats[s.index()].held_in_play.push(id),
+                (None, None) => self.replace(s, 1, None),
             },
-            None if deferred => self.state.seats[s.index()].held.action += 1,
+            None if deferred => self.state.seats[s.index()].held[Release::EndOfAction] += 1,
             // Blood Weakens: a minion's card played using a Discipline
             // during an action waits for its end, or for the hand to empty.
             None if self.action.is_some() && self.weakened_card(&ctx) => {

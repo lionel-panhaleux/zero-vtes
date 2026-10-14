@@ -13,7 +13,7 @@ use crate::ids::{MinionId, SeatId};
 use crate::library::LIBRARY;
 use crate::plays::{By, HookAt};
 use crate::referendum::RefKind;
-use crate::state::{ActionId, CardId, CardInPlay};
+use crate::state::{ActionId, CardId, CardInPlay, Release};
 use crate::window::OrderedWindow;
 
 /// Does the card's first mode carry requirement `r`?
@@ -3105,7 +3105,7 @@ impl Engine {
         self.state.minions[diablerist.index()].diablerie_shield = true;
         // "Has committed diablerie since your last turn" (Carlton Van Wyk).
         self.state.minions[diablerist.index()].diablerie_turn = Some(self.state.turn);
-        self.release_held(|h| &mut h.diablerie);
+        self.release_held(Release::Diablerie);
     }
 
     /// The diablerie made: a window for the cards played on its blood
@@ -5039,7 +5039,7 @@ impl Engine {
                             };
                             if gains && self.state.minions[acting.index()].in_play {
                                 self.gain_title(acting, t, None);
-                                self.release_held(|h| &mut h.liaison);
+                                self.release_held(Release::Liaison);
                             }
                         }
                         // Nephandus: "to gain 1 life", over his starting
@@ -5357,7 +5357,7 @@ impl Engine {
     pub(crate) fn successful_hunt_riders(&mut self, m: MinionId) {
         // "Do not replace until a vampire successfully hunts" (Restricted
         // Vitae).
-        self.release_held(|h| &mut h.hunt);
+        self.release_held(Release::SuccessfulHunt);
         let on = |c: &CardInPlay| c.host == Some(m) && cards::became(c.card, c.mode);
         let mut burns = Vec::new();
         for (id, r) in self.fired_riders(Hook::SuccessfulHunt, &HookAt::on(&on)) {

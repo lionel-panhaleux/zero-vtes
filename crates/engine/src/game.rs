@@ -17,7 +17,7 @@ use crate::plays::{HookAt, PendingPlay};
 use crate::referendum::ReferendumCtx;
 use crate::rng::Rng;
 use crate::state::{
-    CardId, GameState, Minion, MinionKind, Seat, UncontrolledSlot, HAND_SIZE, START_POOL,
+    CardId, GameState, Minion, MinionKind, Release, Seat, UncontrolledSlot, HAND_SIZE, START_POOL,
     UNCONTROLLED_START,
 };
 use crate::window::OrderedWindow;
@@ -1475,7 +1475,7 @@ impl Engine {
             let v = &self.state.minions[m.index()];
             v.is_vampire() && !v.in_torpor && self.state.title_of(m) != crate::crypt::Title::None
         }) {
-            self.release_held(|h| &mut h.titled_torpor);
+            self.release_held(Release::TitledToTorpor);
         }
         let (allies, ms): (Vec<MinionId>, Vec<MinionId>) = ms
             .iter()
@@ -1754,7 +1754,7 @@ impl Engine {
                     left: if none { 0 } else { earned },
                 };
                 // The Meddling of Semsith's held replacements.
-                self.release_held(|h| &mut h.minion_phase);
+                self.release_held(Release::MinionPhaseEnd);
             }
             Flow::Influence { .. } => self.end_influence(),
             Flow::Discard => self.end_turn(),
@@ -1905,7 +1905,7 @@ impl Engine {
         self.state.seats[s.index()].influence_end = self.state.entry_clock;
         // "Do not replace until your next discard phase": replaced as the
         // phase begins, ahead of anything else in it (spec §1.9.2).
-        let held = std::mem::take(&mut self.state.seats[s.index()].held.discard);
+        let held = std::mem::take(&mut self.state.seats[s.index()].held[Release::NextDiscardPhase]);
         if held > 0 {
             self.replace(s, held as usize, None);
         }
@@ -2007,7 +2007,7 @@ impl Engine {
             self.remove_seat(s);
         }
         // "Do not replace until a Methuselah is ousted" (Absimiliard's Army).
-        self.release_held(|h| &mut h.ousted);
+        self.release_held(Release::MethuselahOusted);
         // "After a Methuselah is ousted, burn this card."
         if let Some(army) = self.state.global(crate::cards::Modifier::GhoulArmy) {
             self.burn_card_in_play(army);
@@ -2147,7 +2147,7 @@ impl Engine {
         // A minion phase cut short (its Methuselah ousted): over, its held
         // replacements due (The Meddling of Semsith).
         if std::mem::take(&mut self.state.in_minion_phase) {
-            self.release_held(|h| &mut h.minion_phase);
+            self.release_held(Release::MinionPhaseEnd);
         }
         // The end of the turn: the Red List marks lapse, Andre LeRoux's
         // bleed too, Enkidu unlocks.
@@ -2224,7 +2224,7 @@ impl Engine {
         self.state.bleed_tolls = keep;
         // Delayed replacements ("do not replace until your next unlock
         // phase") are drawn before unlocking (ANK 20200129).
-        let held = std::mem::take(&mut self.state.seats[s.index()].held.unlock);
+        let held = std::mem::take(&mut self.state.seats[s.index()].held[Release::NextUnlockPhase]);
         self.state.phase_uses.clear();
         self.state.turn_uses.clear();
         self.state.veil_superior = false;

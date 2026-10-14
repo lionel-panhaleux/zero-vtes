@@ -8,7 +8,7 @@ use zvtes::crypt::{Sect, Title, CRYPT};
 use zvtes::decision::{Choice, WindowLabel};
 use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::{find_card, find_library, CardId, CardInPlay};
+use zvtes::state::{find_card, find_library, CardId, CardInPlay, Release};
 
 mod common;
 use common::*;
@@ -213,7 +213,7 @@ fn bums_rush_is_replaced_as_its_action_ends() {
     pick(&mut e, block(y));
     until(&mut e, SeatId(1), WindowLabel::CombatPrevention);
     assert_eq!(e.state.seats[0].hand.len(), 0, "not replaced yet");
-    assert_eq!(e.state.seats[0].held.action, 1);
+    assert_eq!(e.state.seats[0].held[Release::EndOfAction], 1);
     // Replaced as the action ends: drawn up to hand size.
     to_minion_phase(&mut e, SeatId(0));
     assert_eq!(e.state.seats[0].hand.len(), 7);
@@ -398,11 +398,15 @@ fn lam_into_strikes_by_the_discipline_played() {
     }
     pick(&mut e, lam(2, a, None));
     until(&mut e, SeatId(1), WindowLabel::CombatPrevention);
-    assert_eq!(e.state.seats[0].held.combat, 1, "held until after combat");
+    assert_eq!(
+        e.state.seats[0].held[Release::AfterCombat],
+        1,
+        "held until after combat"
+    );
     pick(&mut e, Choice::Pass);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(blood(&e, x), 6 - 3);
-    assert_eq!(e.state.seats[0].held.combat, 0);
+    assert_eq!(e.state.seats[0].held[Release::AfterCombat], 0);
 }
 
 // Lam Into [for] at the maneuver [LSJ 20021028] "The optional maneuver

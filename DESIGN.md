@@ -961,10 +961,11 @@ slice-11 cards by section).
 
 **Replacement, hand size, draws, searches** (`plays.rs`, `draws.rs`)
 - Hand size is derived (`GameState::hand_size`); cards not yet replaced count
-  against it (`Seat.held`, `Until`, `Held`, `release_held`; the longest delay
-  wins, spec §1.9.2). Held-until conditions include events' ("until a Methuselah
-  is ousted", "as long as this card is in play": waiting on the condition, not
-  the card). An oversize hand discards down before any other decision.
+  against it (`Seat.held`: a `Held` count per `Release` moment,
+  `Until::release`, `release_held`; the longest delay wins, spec §1.9.2).
+  Held-until conditions include events' ("until a Methuselah is ousted",
+  "as long as this card is in play": waiting on the condition, not the
+  card). An oversize hand discards down before any other decision.
 - Every card leaving hand that the rules replace goes through `Engine::replace`,
   offered first to `Hook::WouldReplace` riders; an empty library replaces nothing
   (and nothing burns instead, rules-qa 8.3). A hand-size increase only draws up

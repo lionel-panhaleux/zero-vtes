@@ -14,7 +14,7 @@ use crate::game::Engine;
 use crate::ids::{MinionId, SeatId};
 use crate::library::Label;
 use crate::plays::HookAt;
-use crate::state::{distinct, CardId, CardInPlay};
+use crate::state::{distinct, CardId, CardInPlay, Release};
 
 /// A pending choice about cards drawn, moved or stored.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -3188,7 +3188,7 @@ impl Engine {
                 let s = &mut self.state.seats[seat.index()];
                 let (c, copy) = s.hand.take(i as usize);
                 s.ash.put(c, copy);
-                s.held.master += 1;
+                s.held[Release::MasterPhase] += 1;
             }
             (Interrupt::LockOrPay { card, .. }, Choice::ResolveRider { .. }) => {
                 self.interrupts.remove(0);

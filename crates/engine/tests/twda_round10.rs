@@ -9,7 +9,7 @@ use zvtes::crypt::CRYPT;
 use zvtes::decision::{ActionKind, Choice, WindowLabel};
 use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::{find_card, find_library, CardId, CardInPlay, PrintedCtx};
+use zvtes::state::{find_card, find_library, CardId, CardInPlay, PrintedCtx, Release};
 
 mod common;
 use common::*;
@@ -820,7 +820,7 @@ fn meddling_holds_replacements_through_the_minion_phase() {
     pick_when(&mut e, play(0, 1, y));
     let req = until(&mut e, SeatId(1), WindowLabel::MinionPhase);
     assert_eq!(e.state.seats[1].hand.len(), 6, "not replaced");
-    assert_eq!(e.state.seats[1].held.minion_phase, 1);
+    assert_eq!(e.state.seats[1].held[Release::MinionPhaseEnd], 1);
     assert_eq!(e.state.seats[1].library.len(), 3, "no draw up either");
     e.choose(index_of(&req, Choice::Pass));
     request(&mut e);
@@ -848,7 +848,7 @@ fn meddling_outlasts_a_cards_own_delay() {
     pick_when(&mut e, play(0, 0, z));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.seats[1].hand.len(), 6, "not replaced after combat");
-    assert_eq!(e.state.seats[1].held.minion_phase, 1);
+    assert_eq!(e.state.seats[1].held[Release::MinionPhaseEnd], 1);
 }
 
 // [LSJ 20021008] The Meddling of Semsith: "Stays in play and still reduces

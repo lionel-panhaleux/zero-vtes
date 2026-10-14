@@ -809,89 +809,89 @@ pub struct OutOfTurn {
     pub trifle: bool,
 }
 
-/// Cards played but not replaced yet, by the moment their replacement is
-/// drawn (spec §1.9.2).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub struct Held {
+/// The moment cards held back by a delayed replacement are replaced: the
+/// definitions' `Until` clauses (`Until::release`) and the engine's own
+/// delays (Blood Weakens, Nightmares upon Nightmares, The Meddling of
+/// Semsith).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Release {
     /// "Do not replace until your next unlock phase" (Old Friends).
-    pub unlock: u8,
+    NextUnlockPhase,
     /// "Do not replace until your next discard phase" (Mirror Walk).
-    pub discard: u8,
+    NextDiscardPhase,
     /// Replaced at the end of the current action (Consign to Oblivion
     /// [OBL]).
-    pub action: u8,
+    EndOfAction,
     /// "Do not replace until after combat" (Lam Into): as the combat ends.
-    pub combat: u8,
+    AfterCombat,
     /// Replaced at the end of the action or as the hand empties (Blood
     /// Weakens).
-    pub weakens: u8,
+    Weakens,
     /// "Until a Methuselah is ousted" (Absimiliard's Army).
-    pub ousted: u8,
+    MethuselahOusted,
     /// "Until a vampire commits diablerie" (Blood Weakens).
-    pub diablerie: u8,
+    Diablerie,
     /// "Until a titled vampire goes to torpor" (The New Inquisition).
-    pub titled_torpor: u8,
+    TitledToTorpor,
     /// "Until a vampire successfully hunts" (Restricted Vitae).
-    pub hunt: u8,
+    SuccessfulHunt,
     /// "Until a vampire moves from torpor to the ready region" (Torpid
     /// Blood).
-    pub leaves_torpor: u8,
+    LeavesTorpor,
     /// "Until a vampire becomes a liaison" (Rise of the Nephtali).
-    pub liaison: u8,
+    Liaison,
     /// Discarded to Nightmares upon Nightmares: replaced as the
     /// Methuselah's master phase begins.
-    pub master: u8,
+    MasterPhase,
     /// Not replaced during a minion phase (The Meddling of Semsith):
     /// replaced as it ends.
-    pub minion_phase: u8,
+    MinionPhaseEnd,
+}
+
+impl Release {
+    const COUNT: usize = Release::MinionPhaseEnd as usize + 1;
+}
+
+/// Cards played but not replaced yet, by the moment their replacement is
+/// drawn (spec §1.9.2).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Held([u8; Release::COUNT]);
+
+/// The counters' bytes in order, as a struct of `u8` fields hashed: the
+/// fuzz goldens' state hashes.
+impl std::hash::Hash for Held {
+    fn hash<H: std::hash::Hasher>(&self, h: &mut H) {
+        for &n in &self.0 {
+            h.write_u8(n);
+        }
+    }
+}
+
+impl std::ops::Index<Release> for Held {
+    type Output = u8;
+    fn index(&self, r: Release) -> &u8 {
+        &self.0[r as usize]
+    }
+}
+
+impl std::ops::IndexMut<Release> for Held {
+    fn index_mut(&mut self, r: Release) -> &mut u8 {
+        &mut self.0[r as usize]
+    }
 }
 
 impl Held {
-    /// Add what `after` holds over `before`, field by field: the
+    /// Add what `after` holds over `before`, moment by moment: the
     /// replacements a play just held, for a second ledger of them (Learjet's
     /// extra draws, `Seat::learjet_held`).
     pub fn add_diff(&mut self, before: Held, after: Held) {
-        macro_rules! diff {
-            ($($f:ident),*) => {$(
-                self.$f += after.$f.saturating_sub(before.$f);
-            )*};
+        for (i, n) in self.0.iter_mut().enumerate() {
+            *n += after.0[i].saturating_sub(before.0[i]);
         }
-        diff!(
-            unlock,
-            discard,
-            action,
-            combat,
-            weakens,
-            ousted,
-            diablerie,
-            titled_torpor,
-            hunt,
-            leaves_torpor,
-            liaison,
-            master,
-            minion_phase
-        );
     }
 
     pub fn total(self) -> usize {
-        [
-            self.unlock,
-            self.discard,
-            self.action,
-            self.combat,
-            self.weakens,
-            self.ousted,
-            self.diablerie,
-            self.titled_torpor,
-            self.hunt,
-            self.leaves_torpor,
-            self.liaison,
-            self.master,
-            self.minion_phase,
-        ]
-        .iter()
-        .map(|&n| n as usize)
-        .sum()
+        self.0.iter().map(|&n| n as usize).sum()
     }
 }
 

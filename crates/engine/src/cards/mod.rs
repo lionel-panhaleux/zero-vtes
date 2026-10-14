@@ -5104,6 +5104,27 @@ pub enum Until {
     Liaison,
 }
 
+impl Until {
+    /// The release moment of a card held by this clause; `LeavesPlay`
+    /// waits on the card itself (`Seat::held_in_play`).
+    pub fn release(self) -> Option<crate::state::Release> {
+        use crate::state::Release;
+        Some(match self {
+            Until::NextUnlockPhase => Release::NextUnlockPhase,
+            Until::NextDiscardPhase => Release::NextDiscardPhase,
+            Until::EndOfAction => Release::EndOfAction,
+            Until::AfterCombat => Release::AfterCombat,
+            Until::MethuselahOusted => Release::MethuselahOusted,
+            Until::Diablerie => Release::Diablerie,
+            Until::TitledToTorpor => Release::TitledToTorpor,
+            Until::SuccessfulHunt => Release::SuccessfulHunt,
+            Until::LeavesTorpor => Release::LeavesTorpor,
+            Until::Liaison => Release::Liaison,
+            Until::LeavesPlay => return None,
+        })
+    }
+}
+
 /// A mode of `actor` in `windows`: no target, terms or limit (spread
 /// `..mode_of(..)` under the fields that differ).
 pub const fn mode_of(

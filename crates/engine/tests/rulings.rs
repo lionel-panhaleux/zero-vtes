@@ -12,7 +12,7 @@ use zvtes::cards::{Layer, Modifier, Scope, Target};
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::{find_card, find_library, CardId, CardInPlay};
+use zvtes::state::{find_card, find_library, CardId, CardInPlay, Release};
 
 mod common;
 use common::*;
@@ -372,7 +372,7 @@ fn old_friends_is_replaced_before_the_unlock_effects() {
     in_play(&mut e, "Barrens, The", 0, None);
     hand(&mut e, 0, &["Bonding"; 6]);
     library(&mut e, 0, "Bonding", 3);
-    e.state.seats[0].held.unlock = 1;
+    e.state.seats[0].held[Release::NextUnlockPhase] = 1;
     let req = drive(&mut e, |e, req| {
         let own = (req.seat, req.window) == (SeatId(0), WindowLabel::UnlockAbilities)
             && e.state.active == SeatId(0);
@@ -380,7 +380,7 @@ fn old_friends_is_replaced_before_the_unlock_effects() {
     });
     assert!(!abilities(&req).is_empty());
     assert_eq!(e.state.seats[0].hand.len(), 7);
-    assert_eq!(e.state.seats[0].held.unlock, 0);
+    assert_eq!(e.state.seats[0].held[Release::NextUnlockPhase], 0);
 }
 
 // [LSJ 20061207] [LSJ 20061013] "Cards are not replaced during the 'as
@@ -549,7 +549,7 @@ fn cards_not_replaced_count_against_the_hand_size() {
     e.at_master_phase();
     let dreams = in_play(&mut e, "Dreams of the Sphinx", 0, None);
     hand(&mut e, 0, &["Bonding"; 6]);
-    e.state.seats[0].held.unlock = 1;
+    e.state.seats[0].held[Release::NextUnlockPhase] = 1;
     library(&mut e, 0, "Bonding", 5);
     pick(&mut e, ability(dreams, 0, Target::None));
     assert_eq!(e.state.seats[0].hand.len(), 8);
@@ -642,7 +642,7 @@ fn mirror_walk_superior_ends_the_blocked_action_before_block_resolution() {
     pick(&mut e, play(0, 1, a)); // [THA]: +1 stealth
     expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
     assert_eq!(e.state.seats[0].hand.len(), 6);
-    assert_eq!(e.state.seats[0].held.discard, 1);
+    assert_eq!(e.state.seats[0].held[Release::NextDiscardPhase], 1);
     pick(&mut e, play(0, 0, b)); // Eyes of Argus [aus]: +2 intercept
     let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.last_outcome, Some(Outcome::Blocked));
@@ -654,7 +654,7 @@ fn mirror_walk_superior_ends_the_blocked_action_before_block_resolution() {
     });
     assert_eq!(req.seat, SeatId(0));
     assert_eq!(e.state.seats[0].hand.len(), 7);
-    assert_eq!(e.state.seats[0].held.discard, 0);
+    assert_eq!(e.state.seats[0].held[Release::NextDiscardPhase], 0);
     assert_eq!(e.state.seats[0].library.len(), 2);
 }
 
@@ -736,7 +736,7 @@ fn wake_with_evenings_freshness_wakes_and_waits_for_the_next_unlock_phase() {
     pick(&mut e, play(0, 0, b));
     let req = expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
     assert_eq!(e.state.seats[1].hand.len(), 6);
-    assert_eq!(e.state.seats[1].held.unlock, 1);
+    assert_eq!(e.state.seats[1].held[Release::NextUnlockPhase], 1);
     assert!(req.options.contains(&block(b)));
     pick(&mut e, Choice::Pass); // woken, need not block
     let _ = drive(&mut e, |e, req| {
@@ -748,7 +748,7 @@ fn wake_with_evenings_freshness_wakes_and_waits_for_the_next_unlock_phase() {
         (!theirs).then(|| fallback(req))
     });
     assert_eq!(e.state.seats[1].hand.len(), 7);
-    assert_eq!(e.state.seats[1].held.unlock, 0);
+    assert_eq!(e.state.seats[1].held[Release::NextUnlockPhase], 0);
     assert_eq!(e.state.seats[1].library.len(), 2);
 }
 

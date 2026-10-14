@@ -11,7 +11,9 @@ use zvtes::crypt::{Sect, CRYPT};
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::{find_card, find_library, ActionId, CardId, CardInPlay, UncontrolledSlot};
+use zvtes::state::{
+    find_card, find_library, ActionId, CardId, CardInPlay, Release, UncontrolledSlot,
+};
 
 mod common;
 use common::*;
@@ -1513,7 +1515,7 @@ fn visit_from_the_capuchin_burns_a_counter_instead_of_each_replacement() {
     // phase: its replacement burns the last counter and the card.
     e.state.cards[0].counters = 1;
     e.state.seats[0].hand.truncate(7);
-    e.state.seats[0].held.unlock = 1;
+    e.state.seats[0].held[Release::NextUnlockPhase] = 1;
     to_own_window(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.cards[0].in_play);
     assert!(e.state.seats[0]

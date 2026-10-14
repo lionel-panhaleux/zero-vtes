@@ -20,7 +20,7 @@ use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{Label, LIBRARY};
-use crate::state::{CardId, GameState};
+use crate::state::{CardId, GameState, Release};
 use crate::window::OrderedWindow;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -2982,7 +2982,7 @@ impl Engine {
         }
         // "Do not replace until after combat" (Lam Into): before a new
         // combat Psyche! queued too (LSJ 20001122).
-        self.release_held(|h| &mut h.combat);
+        self.release_held(Release::AfterCombat);
         // Psyche! [CEL]: the new combat begins, still in the action, both
         // minions ready; this combat's after-combat effects are lost
         // (unlocks aside, applied as their strikes resolved: LSJ 19980109)

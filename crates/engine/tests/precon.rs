@@ -10,7 +10,7 @@ use zvtes::crypt::{Title, CRYPT};
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::{find_library, CardId, CardInPlay, UncontrolledSlot};
+use zvtes::state::{find_library, CardId, CardInPlay, Release, UncontrolledSlot};
 
 fn play_at(card: u8, mode: u8, actor: Option<MinionId>, target: Target) -> Choice {
     Choice::Play {
@@ -12710,13 +12710,17 @@ fn an_event_takes_a_discard_phase_action_once_a_phase_and_once_a_game() {
         .map(|i| CardId(i as u32))
         .expect("in play");
     assert_eq!(e.state.card_controller(id), SeatId(0));
-    assert_eq!(e.state.seats[0].held.unlock, 1, "not replaced yet");
+    assert_eq!(
+        e.state.seats[0].held[Release::NextUnlockPhase],
+        1,
+        "not replaced yet"
+    );
     // Seat 1's copy: never offered.
     let req = until(&mut e, SeatId(1), WindowLabel::DiscardPhase);
     assert!(!req.options.contains(&master(0)), "once a game");
     // Seat 0's next unlock phase: replaced first.
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert_eq!(e.state.seats[0].held.unlock, 0);
+    assert_eq!(e.state.seats[0].held[Release::NextUnlockPhase], 0);
 }
 
 // Narrow Minds: "Minion cards that change the target of a bleed action cost
@@ -12751,13 +12755,13 @@ fn torpid_blood_taxes_torpor_and_waits_for_a_vampire_to_leave_it() {
     e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
     e.state.seats[0].library = vec![find_library("Soak"); 5].into();
     let torpid = event_in_play(&mut e, 0, "Torpid Blood", 0);
-    e.state.seats[0].held.leaves_torpor = 1;
+    e.state.seats[0].held[Release::LeavesTorpor] = 1;
     // Leave torpor costs 3: not with 2 blood.
     let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!req.options.contains(&action(t, ActionKind::LeaveTorpor)));
     // Burned, its replacement still waits.
     e.burn_card(torpid);
-    assert_eq!(e.state.seats[0].held.leaves_torpor, 1);
+    assert_eq!(e.state.seats[0].held[Release::LeavesTorpor], 1);
     let torpid = event_in_play(&mut e, 0, "Torpid Blood", 0);
     let _ = torpid;
     // Rescuing it costs 2, or 3 if it is older than the rescuer.
@@ -12775,7 +12779,7 @@ fn torpid_blood_taxes_torpor_and_waits_for_a_vampire_to_leave_it() {
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(blood(&e, r), 5 - cost);
     assert!(!e.state.minions[t.index()].in_torpor);
-    assert_eq!(e.state.seats[0].held.leaves_torpor, 0, "replaced");
+    assert_eq!(e.state.seats[0].held[Release::LeavesTorpor], 0, "replaced");
 }
 
 // Rescue: who pays the 2 blood is chosen as the action is announced, the
@@ -12851,7 +12855,7 @@ fn blood_weakens_holds_discipline_card_replacements_until_the_action_ends() {
         } else {
             // The rest held until the next unlock phase (Old Friends):
             // Conditioning is the only card in hand.
-            e.state.seats[0].held.unlock = 6;
+            e.state.seats[0].held[Release::NextUnlockPhase] = 6;
         }
         pick(&mut e, action(a, ActionKind::Bleed));
         pick(&mut e, play(0, 0, a));
@@ -12864,10 +12868,11 @@ fn blood_weakens_holds_discipline_card_replacements_until_the_action_ends() {
         } else {
             assert_eq!(hand_now, 1, "drawn at once");
         }
-        assert_eq!(e.state.seats[0].held.weakens, u8::from(spare));
+        assert_eq!(e.state.seats[0].held[Release::Weakens], u8::from(spare));
         until(&mut e, SeatId(0), WindowLabel::MinionPhase);
         assert_eq!(
-            e.state.seats[0].held.weakens, 0,
+            e.state.seats[0].held[Release::Weakens],
+            0,
             "replaced as the action ends"
         );
         assert_eq!(e.state.hand_load(SeatId(0)), e.state.hand_size(SeatId(0)));
@@ -13030,7 +13035,7 @@ fn the_uncoiling_burns_an_event_each_discard_phase_and_can_be_bought_off() {
     hand(&mut e, 0, &["Soak"]);
     let u = event_in_play(&mut e, 0, "Uncoiling, The", 0);
     let torpid = event_in_play(&mut e, 1, "Torpid Blood", 0);
-    e.state.seats[1].held.leaves_torpor = 1;
+    e.state.seats[1].held[Release::LeavesTorpor] = 1;
     let minds = event_in_play(&mut e, 2, "Narrow Minds", 0);
     // Due in seat 0's discard phase: ordered among its other effects, no
     // passing before it (rules-qa 40.5).
@@ -13044,7 +13049,11 @@ fn the_uncoiling_burns_an_event_each_discard_phase_and_can_be_bought_off() {
         .filter(|c| !e.state.cards[c.index()].in_play)
         .count();
     assert_eq!(burned, 1, "one of them, at random");
-    assert_eq!(e.state.seats[1].held.leaves_torpor, 1, "still waiting");
+    assert_eq!(
+        e.state.seats[1].held[Release::LeavesTorpor],
+        1,
+        "still waiting"
+    );
     // Seat 1's discard phase: 1 pool (one other event) and its action.
     let buy = Choice::UseAbility {
         source: AbilitySource::Card(u),
@@ -13186,7 +13195,7 @@ fn the_new_inquisition_wounds_a_prey_vampire_and_is_burned_by_the_titled() {
     let y = e.add_minion(SeatId(1), plain("Gangrel", "", 0), 1, false);
     e.add_minion(SeatId(2), plain("Brujah", "", 0), 4, false);
     let inq = event_in_play(&mut e, 2, "New Inquisition, The", 0);
-    e.state.seats[2].held.titled_torpor = 1;
+    e.state.seats[2].held[Release::TitledToTorpor] = 1;
     let burn = |m| Choice::UseAbility {
         source: AbilitySource::Card(inq),
         ability: 1,
@@ -13205,7 +13214,7 @@ fn the_new_inquisition_wounds_a_prey_vampire_and_is_burned_by_the_titled() {
     };
     pick_when(&mut e, wound);
     assert_eq!(blood(&e, y), 0, "1 damage, 1 blood burned");
-    assert_eq!(e.state.seats[2].held.titled_torpor, 1);
+    assert_eq!(e.state.seats[2].held[Release::TitledToTorpor], 1);
     // Seat 2's unlock phase: the prince (no blood) is sent to torpor, a
     // titled vampire: the held replacement is drawn.
     e.state.seats[2].library = vec![find_library("Soak"); 3].into();
@@ -13219,7 +13228,11 @@ fn the_new_inquisition_wounds_a_prey_vampire_and_is_burned_by_the_titled() {
     };
     pick(&mut e, wound);
     assert!(e.state.minions[p.index()].in_torpor);
-    assert_eq!(e.state.seats[2].held.titled_torpor, 0, "replaced");
+    assert_eq!(
+        e.state.seats[2].held[Release::TitledToTorpor],
+        0,
+        "replaced"
+    );
 }
 
 // Nightmares upon Nightmares: "During each Methuselah's unlock phase, for
@@ -13261,10 +13274,10 @@ fn nightmares_upon_nightmares_locks_small_minions_unless_their_player_discards()
         .collect();
     assert_eq!(locked, vec![false, true, false, false]);
     assert_eq!(e.state.seats[0].hand.len(), before - 1, "not replaced yet");
-    assert_eq!(e.state.seats[0].held.master, 1);
+    assert_eq!(e.state.seats[0].held[Release::MasterPhase], 1);
     // The master phase: replaced.
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert_eq!(e.state.seats[0].held.master, 0);
+    assert_eq!(e.state.seats[0].held[Release::MasterPhase], 0);
 }
 
 // Recalled to the Founder: "During each Methuselah's unlock phase, if that
@@ -13311,7 +13324,7 @@ fn restricted_vitae_leaves_only_the_starving_hunting() {
     let hungry = e.add_minion(SeatId(0), crypt("Abraham Mellon"), 0, false);
     let young = e.add_minion(SeatId(1), of_capacity(3, 0), 2, false);
     let rv = event_in_play(&mut e, 1, "Restricted Vitae", 0);
-    e.state.seats[1].held.hunt = 1;
+    e.state.seats[1].held[Release::SuccessfulHunt] = 1;
     e.state.seats[1].library = vec![find_library("Soak"); 3].into();
     let steal = Choice::UseAbility {
         source: AbilitySource::Card(rv),
@@ -13332,7 +13345,11 @@ fn restricted_vitae_leaves_only_the_starving_hunting() {
     assert_eq!(a.directed_seat(&e.state), Some(SeatId(1)));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!((blood(&e, hungry), blood(&e, young)), (1, 1));
-    assert_eq!(e.state.seats[1].held.hunt, 0, "a successful hunt: replaced");
+    assert_eq!(
+        e.state.seats[1].held[Release::SuccessfulHunt],
+        0,
+        "a successful hunt: replaced"
+    );
     // Once a turn: unlocked, starving again, it cannot take it twice.
     let m = &mut e.state.minions[hungry.index()];
     m.locked = false;
@@ -13440,7 +13457,7 @@ fn rise_of_the_nephtali_makes_an_independent_liaison_the_younger_yielding() {
     e.state.minions[cam.index()].sect_override = Some(Sect::Camarilla);
     e.add_minion(SeatId(1), plain("Gangrel", "", 0), 4, false);
     let rise = event_in_play(&mut e, 1, "Rise of the Nephtali", 0);
-    e.state.seats[1].held.liaison = 1;
+    e.state.seats[1].held[Release::Liaison] = 1;
     e.state.seats[1].library = vec![find_library("Soak"); 3].into();
     let claim = |m| Choice::UseAbility {
         source: AbilitySource::Card(rise),
@@ -13458,7 +13475,7 @@ fn rise_of_the_nephtali_makes_an_independent_liaison_the_younger_yielding() {
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.title_of(young), liaison);
     assert_eq!(e.state.title_votes_of(young), 4);
-    assert_eq!(e.state.seats[1].held.liaison, 0, "replaced");
+    assert_eq!(e.state.seats[1].held[Release::Liaison], 0, "replaced");
     // The older one claims it: the younger yields at once.
     pick(&mut e, claim(old));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
@@ -13547,14 +13564,18 @@ fn absimiliards_army_burns_as_a_methuselah_is_ousted() {
     e.add_minion(SeatId(2), plain("Brujah", "", 0), 4, false);
     e.add_minion(SeatId(3), plain("Brujah", "", 1), 4, false);
     let army = event_in_play(&mut e, 2, "Absimiliard's Army", 0);
-    e.state.seats[2].held.ousted = 1;
+    e.state.seats[2].held[Release::MethuselahOusted] = 1;
     e.state.seats[2].library = vec![find_library("Soak"); 3].into();
     e.state.seats[1].pool = 1;
     pick(&mut e, action(a, ActionKind::Bleed));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(e.state.seats[1].ousted);
     assert!(!e.state.cards[army.index()].in_play, "burned");
-    assert_eq!(e.state.seats[2].held.ousted, 0, "replaced");
+    assert_eq!(
+        e.state.seats[2].held[Release::MethuselahOusted],
+        0,
+        "replaced"
+    );
 }
 
 // Absimiliard's Army: "After … this event leaves play, remove that ally
@@ -13632,9 +13653,13 @@ fn blood_weakens_holds_an_action_card_played_with_a_discipline() {
     pick(&mut e, play(0, 1, a));
     request(&mut e);
     assert_eq!(e.state.seats[0].hand.len(), 6, "not replaced yet");
-    assert_eq!(e.state.seats[0].held.weakens, 1);
+    assert_eq!(e.state.seats[0].held[Release::Weakens], 1);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert_eq!(e.state.seats[0].held.weakens, 0, "replaced as it ends");
+    assert_eq!(
+        e.state.seats[0].held[Release::Weakens],
+        0,
+        "replaced as it ends"
+    );
 }
 
 // ---- Rulings re-triage: riders of a second block --------------------------
