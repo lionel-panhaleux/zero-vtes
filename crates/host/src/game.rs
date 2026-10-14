@@ -1185,4 +1185,92 @@ mod tests {
             assert!(n > 0, "seed {seed}");
         }
     }
+
+    /// Opportunities turned off while a decision is shown: it stays the
+    /// seat's, as shown, never passed by itself (the client answering it
+    /// would be refused as stale); later decisions follow the setting.
+    #[test]
+    fn a_settings_change_never_takes_the_decision_shown() {
+        use zvtes_api::event::EventKind;
+        use zvtes_api::spec::SettingsPatch;
+        let mut kept = 0;
+        for seed in 1..=24u32 {
+            let mut g = game(seed);
+            let human = g.human();
+            let cmd = |command| In { id: None, command };
+            let mut outs = g.handle(
+                human,
+                cmd(Command::Join {
+                    token: None,
+                    after: None,
+                }),
+            );
+            let mut on = true;
+            for step in 0..3000usize {
+                let Some(d) = outs.iter().rev().find_map(|o| match &o.message {
+                    Message::Decision(d) => Some(d.clone()),
+                    _ => None,
+                }) else {
+                    break;
+                };
+                // Off at most decisions, on again now and then
+                if on != (step % 4 == 3) {
+                    on = step % 4 == 3;
+                    outs = g.handle(
+                        human,
+                        cmd(Command::Settings(SettingsPatch {
+                            opportunities: Some(on),
+                            ..Default::default()
+                        })),
+                    );
+                    for o in &outs {
+                        if let Message::Events { events, .. } = &o.message {
+                            for e in events {
+                                if let EventKind::Decided { decision, .. }
+                                | EventKind::AutoPassed { decision, .. } = &e.kind
+                                {
+                                    assert_ne!(
+                                        *decision, d.decision,
+                                        "seed {seed}: decision {} taken by a settings change",
+                                        d.decision
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    let again = outs.iter().rev().find_map(|o| match &o.message {
+                        Message::Decision(d) => Some(d.clone()),
+                        _ => None,
+                    });
+                    let again = again.expect("the decision shown again");
+                    assert_eq!(again.decision, d.decision, "seed {seed}");
+                    let indices = |d: &zvtes_api::Decision| -> Vec<u32> {
+                        d.options.iter().map(|o| o.index).collect()
+                    };
+                    assert_eq!(indices(&again), indices(&d), "seed {seed}: options changed");
+                    let req = g.session.request().expect("pending").clone();
+                    let shown = g.session.shown(&req);
+                    if !on && shown.len() == 1 && d.options.len() > 1 {
+                        kept += 1;
+                    }
+                }
+                let pick = d.options[(seed as usize * 11 + step * 7) % d.options.len()].index;
+                outs = g.handle(
+                    human,
+                    cmd(Command::Answer {
+                        decision: d.decision,
+                        option: pick,
+                    }),
+                );
+                assert!(
+                    !outs.iter().any(|o| matches!(o.message, Message::Error(_))),
+                    "seed {seed}: answer to {} refused",
+                    d.decision
+                );
+            }
+        }
+        // Decisions an earlier server passed by themselves once shown
+        assert!(kept > 0, "no decision left with a lone pass by the setting");
+        eprintln!("{kept} decisions shown kept through the opportunities turned off");
+    }
 }

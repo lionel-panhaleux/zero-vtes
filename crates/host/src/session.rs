@@ -97,6 +97,10 @@ pub struct Session {
     standing: Vec<(SeatId, bool)>,
     /// Human seats passing on their opportunities (`set_opportunities`).
     quiet: Vec<SeatId>,
+    /// The decision a human seat was asked, and the options it was shown:
+    /// asked again as it was until taken (a settings change applies from
+    /// the next decision, never passing one already shown).
+    asked: Option<(u64, Vec<usize>)>,
     /// The last pair of strikes resolved: what each side struck with once
     /// the strikes are spent (the view's `resolved`).
     struck: Option<CombatNote>,
@@ -148,6 +152,7 @@ impl Session {
             over: None,
             standing: Vec::new(),
             quiet: Vec::new(),
+            asked: None,
             struck: None,
             mark: None,
             told: Vec::new(),
@@ -278,6 +283,14 @@ impl Session {
                         };
                     }
                 }
+                if let Some((d, shown)) = &self.asked {
+                    if *d == self.decision() {
+                        return Next::Ask {
+                            shown: shown.clone(),
+                            undo: self.undo_depth().is_some(),
+                        };
+                    }
+                }
                 let shown = self.shown(&req);
                 // Only a pass left: the seat passes on the opportunity.
                 if shown.len() < req.options.len()
@@ -289,6 +302,7 @@ impl Session {
                         taken: Taken::Passed,
                     };
                 }
+                self.asked = Some((self.decision(), shown.clone()));
                 Next::Ask {
                     shown,
                     undo: self.undo_depth().is_some(),
@@ -336,6 +350,7 @@ impl Session {
     /// Apply option `index` of the pending decision, taken as `taken`.
     pub fn take(&mut self, index: usize, taken: Taken) {
         let req = self.pending.take().expect("a decision pending");
+        self.asked = None;
         let decision = self.decision();
         self.told.push(Told {
             fact: Fact::Decided(decision),
@@ -425,6 +440,7 @@ impl Session {
         let Some(k) = self.undo_depth() else {
             return Err(Refused::NoUndo);
         };
+        self.asked = None;
         let at = self.history.len() - k;
         let kept = self.snapshots.iter().position(|(n, _)| *n == at);
         let mut engine = match kept {
@@ -521,7 +537,7 @@ impl Session {
     /// opportunities. Then no wake out of its moment, no denial short of
     /// the stealth, and the abilities usable at any time only where the
     /// decision pauses anyway; all if none is left.
-    fn shown(&self, req: &DecisionRequest) -> Vec<usize> {
+    pub(crate) fn shown(&self, req: &DecisionRequest) -> Vec<usize> {
         let all = (0..req.options.len()).collect::<Vec<_>>();
         if !self.quiet.contains(&req.seat) {
             return all;
