@@ -5,6 +5,7 @@ engine, Batches 1–54. Each item is the settled rule, stated as fact; the
 question framing, engine mechanics, test names and confirmations are dropped
 deliberately: the code and its tests are the reference for how a rule is
 implemented, and they point back here through `rules-qa N.M` comments.
+Settled readings by mechanism: `docs/rules-digest.md`.
 
 Conventions:
 - **N.M** numbers are stable and cited by code as `rules-qa N.M` — never

@@ -257,7 +257,8 @@ hazards, docs/engine-review-2026-10-14.md §3):
    at declaration; a card played by another card is still played; costs
    payable even if the payer burns; caps read narrowly; card text
    addresses its controller, 32.7; Ⓓ only indicative, 20.1). The design
-   satisfies each ruling.
+   satisfies each ruling. Read `docs/rules-digest.md`'s sections for the
+   card's mechanisms first.
 2. **Find an existing primitive** before adding a variant. Search
    `Effect` by family: the arms of `Effect::family` in `cards/families.rs`
    list every variant of a family together; grep a sibling card's

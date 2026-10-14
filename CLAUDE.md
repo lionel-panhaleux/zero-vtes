@@ -21,6 +21,7 @@ Key facts:
   KRCG library/API), one line per item, with a topical index; code cites items
   as `rules-qa N.M` (never renumber). New questions go in a new batch at the
   end — check it before assuming sequencing semantics.
+- `docs/rules-digest.md`: rules-qa's settled readings by mechanism, cited.
 - `data/window-matrix-reviewed.csv`: authoritative per-card window/flag matrix
   (hand-reviewed, owner-arbitrated in rules-qa Batch 2).
   `scripts/window_matrix.py --check` verifies the generator still reproduces
