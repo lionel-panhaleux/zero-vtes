@@ -490,7 +490,7 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 - Multi-Discipline cards: the generator gives one mode per non-empty set of their
   Disciplines (`Label::MultiDiscipline`); a mode's tags are all required, as on a
   combo card. A definition may split a printed "or" into modes, mapped back by
-  `cards::library_mode`. Surcharges read the Disciplines used
+  its `CardDef::lines` (`cards::library_mode`). Surcharges read the Disciplines used
   (`played_disciplines`).
 - Cards played from a location (Fleshforge Chamber: `virtual_hand`,
   `PlayCtx::from`) are not replaced; `Engine::playable_card` reads a play's card.

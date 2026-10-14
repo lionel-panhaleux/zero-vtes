@@ -94,34 +94,6 @@ const CARD_NAMES_ALLOWED: &[(&str, &str, &str)] = &[
     ),
 ];
 
-/// Pending: the printed line each mode belongs to, kept by card name in
-/// `cards/mod.rs`; to move into the definitions (then delete this list).
-const PENDING: &[&str] = &[
-    "Revelation of the Serpent",
-    "Power of One",
-    "Subversion",
-    "Putrescent Sustenance",
-    "Feast of the Soul's Secrets",
-    "Obedience",
-    "Anticipation",
-    "Lam Into",
-    "I am Legion",
-    "Renewed Vigor",
-    "Predator's Transformation",
-    "Martyr's Resilience",
-    "Psychophagia",
-    "Enhanced Coagulant",
-    "Disciple of Lazarus",
-    "Confusion",
-    "Shadow Boxing",
-    "Slake the Thirst",
-    "Unwholesome Bond",
-    "Brick by Brick",
-    "Touch of Clarity",
-    "Groundfighting",
-    "Big Game",
-];
-
 #[test]
 fn no_card_name_in_engine_code() {
     let names: HashSet<&str> = LIBRARY
@@ -139,8 +111,7 @@ fn no_card_name_in_engine_code() {
             seen.insert((file.clone(), lit.clone()));
             let allowed = CARD_NAMES_ALLOWED
                 .iter()
-                .any(|(f, n, _)| *f == file && *n == lit)
-                || (file == "cards/mod.rs" && PENDING.contains(&lit.as_str()));
+                .any(|(f, n, _)| *f == file && *n == lit);
             if !allowed {
                 found.push(format!("{file}:{line}: \"{lit}\""));
             }
@@ -150,12 +121,6 @@ fn no_card_name_in_engine_code() {
         .iter()
         .filter(|(f, n, _)| !seen.contains(&(f.to_string(), n.to_string())))
         .map(|(f, n, _)| format!("{f}: \"{n}\""))
-        .chain(
-            PENDING
-                .iter()
-                .filter(|n| !seen.contains(&("cards/mod.rs".to_string(), n.to_string())))
-                .map(|n| format!("cards/mod.rs: \"{n}\" (pending)")),
-        )
         .collect();
     assert!(
         found.is_empty(),

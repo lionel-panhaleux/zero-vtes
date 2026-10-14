@@ -4566,6 +4566,7 @@ pub static RIGHTEOUS_BLADE: CardDef = CardDef {
 /// card, no weapon (ANK 20220818): its second mode, never played.
 pub static ENHANCED_COAGULANT: CardDef = CardDef {
     name: "Enhanced Coagulant",
+    lines: &[0, 0],
     modes: &[
         EQUIP,
         mode_of(
@@ -7703,11 +7704,12 @@ const LIMITED_BLEED: Effect = bleed(1, true);
 /// stealth and +1 bleed (limited). [PRE][PRO] As above, and if the bleed is
 /// successful, this vampire can burn 2 of your corruption counters from a
 /// minion controlled by the target Methuselah to unlock." Each printed mode
-/// splits in two (`cards::library_mode`): the bleed alone, or with the
+/// splits in two (`lines`): the bleed alone, or with the
 /// stealth — only when stealth is needed. Not usable to unlock if the
 /// target is ousted by the bleed (ANK 20220210).
 pub static REVELATION_OF_THE_SERPENT: CardDef = CardDef {
     name: "Revelation of the Serpent",
+    lines: &[0, 0, 1, 1],
     modes: &[
         mode_of(
             &[Window::ActionDuring],
@@ -7795,9 +7797,10 @@ const COMBAT_TARGET: Option<TargetSpec> = target(
 /// successful (for 1 or more), add 2 blood to a younger vampire you control
 /// or in your uncontrolled region." (1 blood; Salubri.) The vampire is
 /// chosen when the card is played (ANK 20240628-2): [DOM] splits by where
-/// it is (`cards::library_mode`).
+/// it is (`lines`).
 pub static FEAST_OF_THE_SOULS_SECRETS: CardDef = CardDef {
     name: "Feast of the Soul's Secrets",
+    lines: &[0, 1, 1],
     modes: &[
         action_at(
             &[],
@@ -9992,6 +9995,7 @@ pub static WIND_DANCE: CardDef = CardDef {
 /// [AUS] is an effect (ANK 20210226).
 pub static ANTICIPATION: CardDef = CardDef {
     name: "Anticipation",
+    lines: &[0, 0, 1],
     modes: &[
         combat(
             &[Window::CombatStrikeDeclaration],
@@ -10283,6 +10287,7 @@ pub static CONTRABAND: CardDef = CardDef {
 /// the kind of target: a minion, or a retainer.
 pub static MARTYRS_RESILIENCE: CardDef = CardDef {
     name: "Martyr's Resilience",
+    lines: &[0, 0, 1, 1],
     modes: &[
         martyr(TargetKind::Minion, None, &[Effect::PreventOnTarget(1)]),
         martyr(TargetKind::Card, None, &[Effect::PreventOnTarget(1)]),
@@ -11490,6 +11495,7 @@ pub static SPLIT_THE_VEIL: CardDef = CardDef {
 /// special hunt a turn (NRA).
 pub static PSYCHOPHAGIA: CardDef = CardDef {
     name: "Psychophagia",
+    lines: &[0, 0],
     modes: &[
         ModeDef {
             terms: Some(Terms::AnyAshAlly),
@@ -15249,10 +15255,11 @@ pub static SEEDS_OF_TERROR: CardDef = CardDef {
 
 /// "[cel] or [pre] +1 stealth. [CEL] or [PRE] +1 bleed (limited), or +1
 /// stealth and +1 bleed (limited)." (Path of Cathari.) The superior mode
-/// splits in two (`cards::library_mode`), with the stealth only when
+/// splits in two (`lines`), with the stealth only when
 /// needed; the bleed only on a bleed.
 pub static SUBVERSION: CardDef = CardDef {
     name: "Subversion",
+    lines: &[0, 1, 1],
     modes: &[
         stealth(&[Effect::AddStealth(1)]),
         modifier(&[Requirement::IsBleed], &[LIMITED_BLEED]),
@@ -16169,9 +16176,10 @@ pub static MORBIDITY: CardDef = CardDef {
 /// As a block succeeds, or against the combat the action itself begins (a
 /// rush, Deep Song: ANK 20200702), blocks declined, by an unlocked or woken
 /// vampire, a reaction (rules-qa 55.7). Each version
-/// splits in two (`cards::library_mode`).
+/// splits in two (`lines`).
 pub static OBEDIENCE: CardDef = CardDef {
     name: "Obedience",
+    lines: &[0, 1, 0, 1],
     modes: &[
         mode_of(
             &[Window::ActionBlocked],
@@ -16204,10 +16212,11 @@ pub static OBEDIENCE: CardDef = CardDef {
 /// "+1 stealth action. [obl] or [tha] Remove an ally in an ash heap from the
 /// game to gain 2 blood or to add 2 life to a zombie ally you control. [OBL]
 /// or [THA] As above, but for 3 blood or life." (Path of Death and the
-/// Soul.) Each version splits in two (`cards::library_mode`); the ally named
-/// as it is played (rules-qa 32.12).
+/// Soul.) Each version splits in two (`lines`), for blood or for a
+/// zombie ally's life; the ally named as it is played (rules-qa 32.12).
 pub static PUTRESCENT_SUSTENANCE: CardDef = CardDef {
     name: "Putrescent Sustenance",
+    lines: &[0, 0, 1, 1],
     modes: &[
         ModeDef {
             terms: Some(Terms::AnyAshAlly),
@@ -16423,6 +16432,7 @@ const LAM_INTO_WEAPON: Option<TargetSpec> = target(
 /// (RTR 19960221); a range already set first has priority (PIB 20120214).
 pub static LAM_INTO: CardDef = CardDef {
     name: "Lam Into",
+    lines: &[0, 0, 1, 1, 2, 2],
     delayed_replacement: Some(Until::AfterCombat),
     modes: &[
         combat(
@@ -17217,6 +17227,8 @@ const I_AM_LEGION_CANCEL: &[Requirement] = &[
 /// canceled card still played, its cost paid (ANK 20260216).
 pub static I_AM_LEGION: CardDef = CardDef {
     name: "I am Legion",
+    // [DAI][OBF]: the cancel and the pool, or either.
+    lines: &[0, 1, 2, 2],
     modes: &[
         stealth(&[Effect::AddStealth(1)]),
         mode_of(
@@ -18469,6 +18481,7 @@ pub static ILLUSORY_RESOURCES: CardDef = CardDef {
 /// [OBE].
 pub static RENEWED_VIGOR: CardDef = CardDef {
     name: "Renewed Vigor",
+    lines: &[0, 1, 2, 2, 3],
     modes: &[
         action_at(
             &[Requirement::ActorWithout(Holding::Named("Renewed Vigor"))],
@@ -18790,6 +18803,7 @@ pub static PATH_OF_LILITH: CardDef = CardDef {
 /// reflex, the stealth, [ABO] in combat, [ABO] after an action.
 pub static PREDATORS_TRANSFORMATION: CardDef = CardDef {
     name: "Predator's Transformation",
+    lines: &[0, 1, 2, 2],
     modes: &[
         mode_of(
             &[Window::CardAsPlayed],
@@ -19140,6 +19154,7 @@ pub static BREATH_OF_THANATOS: CardDef = CardDef {
 /// (ANK 20240628-2), or the search, made as it resolves.
 pub static DISCIPLE_OF_LAZARUS: CardDef = CardDef {
     name: "Disciple of Lazarus",
+    lines: &[0, 0],
     modes: &[
         uncontrolled_blood!(
             &[
@@ -19237,10 +19252,11 @@ pub static COMA: CardDef = CardDef {
 
 /// "Only usable during a bleed action. [dem] +1 bleed (limited). [DEM] +1
 /// stealth and +1 bleed (limited)." ([DEM]: during a bleed only, ANK
-/// 20171023.) The superior mode splits in two (`cards::library_mode`, as
+/// 20171023.) The superior mode splits in two (`lines`, as
 /// Subversion's): any time in the bleed, or as stealth is needed.
 pub static CONFUSION: CardDef = CardDef {
     name: "Confusion",
+    lines: &[0, 1, 1],
     modes: &[
         modifier(&[Requirement::IsBleed], &[bleed(1, true)]),
         modifier(
@@ -19579,12 +19595,13 @@ pub static JACKIE_THERMAN: CardDef = CardDef {
 /// press, only usable to continue combat. [OBF][POT] [ACTION MODIFIER] Only
 /// usable after a combat resulting from a block. Not usable if the blocking
 /// minion is ready. This vampire burns 1 blood to continue the action as if
-/// unblocked." The basic version splits in two (`cards::library_mode`); the
+/// unblocked." The basic version splits in two (`lines`); the
 /// superior one after combat, ordered among the after-combat effects (ANK
 /// 20230314), not by a slave that took the combat (ANK 20200114), its blood
 /// an effect (ANK 20210226).
 pub static SHADOW_BOXING: CardDef = CardDef {
     name: "Shadow Boxing",
+    lines: &[0, 0, 1],
     modes: &[
         combat(
             &[Window::CombatDetermineRange],
@@ -19954,6 +19971,8 @@ pub static SHELL_GAME: CardDef = CardDef {
 /// 20100203). The chosen any Methuselah's.
 pub static SLAKE_THE_THIRST: CardDef = CardDef {
     name: "Slake the Thirst",
+    // [SAN]: as the combat card, or as an action modifier.
+    lines: &[0, 1, 1],
     modes: &[
         ModeDef {
             target: SLAKE_TARGET,
@@ -20244,6 +20263,8 @@ const COORDINATE_REQUIRES: &[Requirement] = &[
 /// circle of one (rules-qa 68.7).
 pub static UNWHOLESOME_BOND: CardDef = CardDef {
     name: "Unwholesome Bond",
+    // [SAN]: the circle's, or New Blood's circle of one.
+    lines: &[0, 1, 1],
     modes: &[
         action_at(
             &[],
@@ -21405,13 +21426,14 @@ pub static LEGACY: CardDef = CardDef {
 /// usable during a bleed action. +1 bleed that does not count against the
 /// limit. [pre] Only usable during a bleed action. +1 bleed (limited), or
 /// +1 stealth and +1 bleed (limited)." (1 blood.) [pre] splits in two
-/// (`cards::library_mode`): the bleed alone, or with the stealth — when
+/// (`lines`): the bleed alone, or with the stealth — when
 /// stealth is needed (ANK 20171023, RTR 19941109: during a bleed only).
 /// [pot]'s unlimited bleed goes with a limited one, before or after (LSJ
 /// 20100218, RTR 20180511-2); played, it requires the Discipline used
 /// (LSJ 20011204-3, PIB 20130704).
 pub static POWER_OF_ONE: CardDef = CardDef {
     name: "Power of One",
+    lines: &[0, 1, 2, 2],
     modes: &[
         mode_of(
             &[Window::ActionBlocked],
@@ -22175,10 +22197,11 @@ pub static RAKING_TALONS: CardDef = CardDef {
 /// [VIS] Only usable before range is determined. This vampire sets the
 /// range for this round." (1 blood.) Played at the maneuver, the [vis]
 /// strike commits the round's initial strike (LSJ 20021028); [VIS] for
-/// close or long range (`cards::library_mode`), another effect setting
+/// close or long range (`lines`), another effect setting
 /// the range first keeping it (RTR 19970630, PIB 20120214).
 pub static BRICK_BY_BRICK: CardDef = CardDef {
     name: "Brick by Brick",
+    lines: &[0, 1, 2, 2],
     modes: &[
         combat(&[Window::CombatDetermineRange], &[], &[Effect::Maneuver]),
         combat(
@@ -22311,11 +22334,12 @@ pub static THE_ART_OF_PAIN: CardDef = CardDef {
 /// vampire. [DEM] As above, but do not lock this vampire." (1 blood.) As a
 /// reaction, or as an action modifier by another minion of the acting
 /// Methuselah (LSJ 20090425, LSJ 19990425): each version splits in two
-/// (`cards::library_mode`). A card requiring one of them as played (PIB
+/// (`lines`). A card requiring one of them as played (PIB
 /// 20130704); any action card too — a political action, a recruit (ANK
 /// 20200813-2) — the action then not taken (rulebook "Cancel a card").
 pub static TOUCH_OF_CLARITY: CardDef = CardDef {
     name: "Touch of Clarity",
+    lines: &[0, 0, 1, 1],
     modes: &[
         mode_of(
             &[Window::CardAsPlayed],
@@ -22524,7 +22548,7 @@ pub static DEER_RIFLE: CardDef = CardDef {
 /// "Requires a ready anarch. Do not replace until after combat. Maneuver or
 /// press or burn 1 blood to cancel a combat card played by the opposing
 /// minion that would restrict this anarch's choice of strikes this round
-/// as it is played." One card, two plays (`cards::library_mode`). The
+/// as it is played." One card, two plays (`lines`). The
 /// cancel: the canceled card's cost still paid (ANK 20260216), its "do not
 /// replace" canceled with it (LSJ 20080630); the blood not reduced by cost
 /// reductions, and needed to play it (ANK 20210226); played at once, in
@@ -22532,6 +22556,7 @@ pub static DEER_RIFLE: CardDef = CardDef {
 /// LSJ 20050224-2 (`Engine::restricts_strikes_of`).
 pub static GROUNDFIGHTING: CardDef = CardDef {
     name: "Groundfighting",
+    lines: &[0, 0],
     delayed_replacement: Some(Until::AfterCombat),
     modes: &[
         combat(
@@ -22651,9 +22676,10 @@ pub static FORTSCHRITT_LIBRARY: CardDef = CardDef {
 /// minion" the target, "this minion" the acting one (ANK 20180518);
 /// replaced as the action ends, after its combats and after-resolution
 /// effects (LSJ 20001120, LSJ 20101021). Split by the target
-/// (`cards::library_mode`): Red List is printed.
+/// (`lines`): Red List is printed.
 pub static BIG_GAME: CardDef = CardDef {
     name: "Big Game",
+    lines: &[0, 0],
     delayed_replacement: Some(Until::EndOfAction),
     modes: &[
         action_at(

@@ -4576,6 +4576,7 @@ pub const CARD: CardDef = CardDef {
     abilities: &[],
     riders: &[],
     cheaper_for: None,
+    lines: &[],
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -4596,6 +4597,9 @@ pub struct CardDef {
     pub riders: &'static [Rider],
     /// A clan's blood cost reduction (Mental Maze).
     pub cheaper_for: Option<(&'static str, u8)>,
+    /// The printed line (`LIBRARY` mode) of each mode, where the definition
+    /// splits a printed choice; empty: the same index.
+    pub lines: &'static [u8],
 }
 
 /// An ally matching one of `of` (any, if empty): the allies an ash heap
@@ -4714,58 +4718,10 @@ pub fn plain_equipment(card: u16) -> bool {
 }
 
 /// The library mode (printed Discipline level, windows) of definition mode
-/// `mi`: the same index, unless the definition splits a printed choice
-/// (Revelation of the Serpent: the stealth only when stealth is needed).
+/// `mi`: its `CardDef::lines` entry, else the same index.
 pub fn library_mode(card: u16, mi: usize) -> usize {
-    match LIBRARY[card as usize].name {
-        "Revelation of the Serpent" => [0, 0, 1, 1][mi],
-        // [pre]: the bleed alone, or with the stealth.
-        "Power of One" => [0, 1, 2, 2][mi],
-        // [CEL] or [PRE]: the bleed alone, or with the stealth.
-        "Subversion" => [0, 1, 1][mi],
-        // Each version for blood, or for a zombie ally's life.
-        "Putrescent Sustenance" => [0, 0, 1, 1][mi],
-        // [DOM]: a younger vampire you control, or one in your uncontrolled
-        // region — one target, of either kind.
-        "Feast of the Soul's Secrets" => [0, 1, 1][mi],
-        // Each version against a block, or against the combat the action
-        // itself begins (rules-qa 55.7).
-        "Obedience" => [0, 1, 0, 1][mi],
-        // [aus]: a hand strike, or a melee weapon's strike.
-        "Anticipation" => [0, 0, 1][mi],
-        // Each Discipline: a hand strike, or a melee weapon's strike.
-        "Lam Into" => [0, 0, 1, 1, 2, 2][mi],
-        // [DAI][OBF]: the cancel and the pool, or either.
-        "I am Legion" => [0, 1, 2, 2][mi],
-        // [obe]'s life: an ally, or a retainer (a card target).
-        "Renewed Vigor" => [0, 1, 2, 2, 3][mi],
-        // [ABO]: in combat, or after a directed action.
-        "Predator's Transformation" => [0, 1, 2, 2][mi],
-        // Each version on a minion or on a retainer.
-        "Martyr's Resilience" => [0, 0, 1, 1][mi],
-        // "To gain 3 blood or to gain 2 blood and unlock".
-        "Psychophagia" => [0, 0][mi],
-        // The card it becomes, never played.
-        "Enhanced Coagulant" => [0, 0][mi],
-        // The blood, or the search.
-        "Disciple of Lazarus" => [0, 0][mi],
-        // [DEM]: in the bleed, or as stealth is needed.
-        "Confusion" => [0, 1, 1][mi],
-        // [obf][pot]: the maneuver to close, or the press to continue.
-        "Shadow Boxing" => [0, 0, 1][mi],
-        // [SAN]: as the combat card, or as an action modifier.
-        "Slake the Thirst" => [0, 1, 1][mi],
-        // [SAN]: the circle's, or New Blood's circle of one (LSJ 20050927).
-        "Unwholesome Bond" => [0, 1, 1][mi],
-        // [VIS]: the range set close, or long.
-        "Brick by Brick" => [0, 1, 2, 2][mi],
-        // Each version as a reaction, or as an action modifier by another
-        // minion of the acting Methuselah (LSJ 20090425).
-        "Touch of Clarity" => [0, 0, 1, 1][mi],
-        // The maneuver or press, or the cancel.
-        "Groundfighting" => [0, 0][mi],
-        // Against a Red List minion, or another.
-        "Big Game" => [0, 0][mi],
+    match lookup(card) {
+        Some(d) if !d.lines.is_empty() => d.lines[mi] as usize,
         _ => mi,
     }
 }
