@@ -639,6 +639,28 @@ impl Engine {
         out
     }
 
+    /// The vampire under Perfect Clarity a play of `card` (mode `mode`) by
+    /// `actor` does not affect: a reaction card requiring Dominate or
+    /// Presence, the actor not that vampire (whose own card is a modifier).
+    pub(crate) fn clarity_shielded(
+        &self,
+        card: u16,
+        mode: usize,
+        actor: Option<MinionId>,
+    ) -> Option<MinionId> {
+        let (v, _) = self.action.as_ref()?.clarity?;
+        let lib = LIBRARY.get(card as usize)?;
+        if actor == Some(v) || !lib.types.contains(&CardType::Reaction) {
+            return None;
+        }
+        lib.modes
+            .get(cards::library_mode(card, mode))?
+            .tags
+            .iter()
+            .any(|t| t.eq_ignore_ascii_case("dom") || t.eq_ignore_ascii_case("pre"))
+            .then_some(v)
+    }
+
     /// Every legal play of a card from `seat`'s hand in any of `windows`,
     /// enumerated from the definitions: mode windows, actor, discipline
     /// tags, requirements, target filter, costs through layers, limits,
@@ -773,8 +795,10 @@ impl Engine {
                     // Perfect Clarity: no reaction requiring Dominate or
                     // Presence this action — it would not affect the vampire
                     // (bleed redirection included, LSJ 20010621) — but the
-                    // polling step's own votes; with [THA], none of those
-                    // cards from its opponent in combat.
+                    // polling step's own votes, none of them choosing the
+                    // vampire (owner, 2026-10-14: rules-qa 71.25); with
+                    // [THA], none of those cards from its opponent in combat.
+                    let shielded = self.clarity_shielded(card, mi, actor);
                     if let Some((v, superior)) = action.and_then(|a| a.clarity) {
                         let dom_pre = tags.iter().any(|t| {
                             t.eq_ignore_ascii_case("dom") || t.eq_ignore_ascii_case("pre")
@@ -1253,6 +1277,7 @@ impl Engine {
                                 .map(|i| MinionId(i as u32))
                                 .filter(|&id| {
                                     st.minions[id.index()].present()
+                                        && shielded != Some(id)
                                         // "Cannot be the target of directed
                                         // actions requiring Dominate or
                                         // Presence" (Aggressive Corpse).

@@ -79,7 +79,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9
 - **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6, 54.3, 54.4, 54.7, 55.7, 56.2, 58.6
-- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8, 52.2, 52.3, 52.5, 52.7, 52.9, 52.10, 54.1, 58.8, 58.14, 58.15, 58.16, 59.7, 59.9, 59.18, 59.19, 60.2, 60.14, 60.16, 73.4
+- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8, 52.2, 52.3, 52.5, 52.7, 52.9, 52.10, 54.1, 58.8, 58.14, 58.15, 58.16, 59.7, 59.9, 59.18, 59.19, 60.2, 60.14, 60.16, 71.25, 73.4
 - **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4, 52.5, 52.6, 52.9, 58.3, 58.11, 59.13, 59.14, 60.1
 - **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1, 57.9, 58.5, 58.19, 59.13, 60.1, 60.9, 60.20
 - **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7, 55.4, 55.6
@@ -1254,7 +1254,7 @@ Readings no ruling settles, implemented with slice 16m; questions for the owner.
 
 **63.17** Seen while testing: an action card's "+1 stealth if this vampire is Ravnos" (Baltimore Purge) is read as the action is announced and skipped at resolution (it crashed the resolution); Focus the Blood's discount was offered but not taken on a combat card's blood cost (now taken, the card burned as the cost is paid); Renewed Vigor's "add enough life to reach their starting life" overflowed its counter.
 
-## Batch 64 — Legacy cards for TWDA decks, rounds 4–5 (the Gangrel decks), implemented readings (2026-10-11)
+## Batch 64 — Legacy cards for TWDA decks, rounds 4–5 (the Gangrel decks), implemented readings (2026-10-11; owner, 2026-10-14: 64.7, 64.8 confirmed)
 
 **64.1** Ariadne: her "+1 hunt" adds to every hunt of hers, non-standard ones too (RTR 20030519); no blood hunt is ever called on her (her diablerie, an Abactor). Jacob Fermor: "werewolves you control" are allies of the Werewolf subtype (Renegade Garou, Ossian), +1 bleed while Jacob is ready (in torpor: none), read live; his press once each combat. Gunnar, Lillian and Robert Price print no text.
 
@@ -1268,9 +1268,9 @@ Readings no ruling settles, implemented with slice 16m; questions for the owner.
 
 **64.6** Ossian: his rush at any vampire, any Methuselah's; the freeze read as cards are played: a vampire opposing him that played a card requiring Auspex in the current action (any action, LSJ 20050201; the Discipline the card was played with) uses no maneuver nor strike for the rest of the first round — from the combat's start, or from that card on mid-round (an Auspex strike played first stands: ANK 20210614); a range set by an effect stays open, a Sniper Rifle's (a strike commitment) not (LSJ 20100827). His life: the blood the opposing vampire lost to damage that round, at the end of the round, after the presses, the round ended early too (RTR 20030519), over his starting life (ANK 20171109). "Red List" is a bare trait.
 
-**64.7** The Path of Lilith: offered as the torpor lands — the opposing vampire sent to torpor in combat (not burned), the vampire opposing it non-Camarilla and the card's controller's, the card unlocked; its controller's unlock phase: each Methuselah controlling a vampire with a torture counter (ready or in torpor), its controller included, burns 1 pool. Every torture counter goes once no Path of Lilith is in play (one held by another Methuselah keeps them all: none other in the pool). _open_
+**64.7** The Path of Lilith: offered as the torpor lands — the opposing vampire sent to torpor in combat (not burned), the vampire opposing it non-Camarilla and the card's controller's, the card unlocked; its controller's unlock phase: each Methuselah controlling a vampire with a torture counter (ready or in torpor), its controller included, burns 1 pool. Every torture counter goes once no Path of Lilith is in play (one held by another Methuselah keeps them all: none other in the pool).
 
-**64.8** Predator's Transformation: the reflex by the vampire the frenzy card is played on (rules-qa 28.11), locked or not, its cost still paid (ANK 20260216); [abo] +1 stealth as the action is announced, even if not needed; [ABO] at the end of the round in which this vampire's combat burned a minion of its controller's prey, or after the resolution of its directed action that burned one out of combat (ANK 20220507), once per action. That a locked vampire may play a reflex is a reading. _open_
+**64.8** Predator's Transformation: the reflex by the vampire the frenzy card is played on (rules-qa 28.11), locked or not, its cost still paid (ANK 20260216); [abo] +1 stealth as the action is announced, even if not needed; [ABO] at the end of the round in which this vampire's combat burned a minion of its controller's prey, or after the resolution of its directed action that burned one out of combat (ANK 20220507), once per action. That a locked vampire may play a reflex is a reading, confirmed by the owner (2026-10-14).
 
 **64.9** Read the Winds: replaced after the action (Blood Weakens' rules aside); [ani][aus] keeps its vampire unlocked after a successful block; [ANI][AUS] prints no "as above": its vampire locks as usual; the usual blocking restrictions apply (ANK 20180623, LSJ 20010714-2).
 
@@ -1430,7 +1430,7 @@ Slice 16u: the cards of the Lasombra, Toreador antitribu and Ravnos TWDA decks a
 
 **70.22** Ian Carfax: his unlock is offered only while he is locked, after a combat he was in whose opposing minion is not ready. (Test ian_carfax_unlocks_after_a_combat_his_opponent_left.)
 
-## Batch 71 — Legacy cards for TWDA decks, round 11 (the 2025–2026 decks entering the corpus): readings no ruling settles (Claude, 2026-10-14; owner, 2026-10-14: 71.1–71.20, 71.22–71.27 confirmed, 71.21 corrected)
+## Batch 71 — Legacy cards for TWDA decks, round 11 (the 2025–2026 decks entering the corpus): readings no ruling settles (Claude, 2026-10-14; owner, 2026-10-14: 71.1–71.20, 71.22–71.27 confirmed, 71.21 corrected, 71.25's open part ruled)
 
 Slice 16w: the cards that bring the most 2025–2026 TWDA decks into the kept corpus. Only the readings that no ruling or default reading settles; each is implemented and tested, for the owner to confirm or correct.
 
@@ -1482,13 +1482,13 @@ Slice 16w: the cards that bring the most 2025–2026 TWDA decks into the kept co
 
 **71.24** Nergal (advanced): "reaction cards cost +1 blood" — any played by another minion while he acts (a dual card only as a reaction, PIB 20150924-2); his stealth burn repeatable, when needed. (Tests nergal_advanced_taxes_reactions_while_he_acts, nergal_advanced_burns_blood_for_stealth_when_needed.)
 
-**71.25** Perfect Clarity: "do not affect this vampire" — no reaction requiring Dominate or Presence may be played during the action (each would affect it: LSJ 20010621), except in a referendum's polling step; [THA]: the minion opposing it in any combat of the action. _open_: Scalpel Tongue choosing another vampire, Absolute Tyranny's −1 vote. (Tests perfect_clarity_shields_a_bleed_from_deflection, perfect_clarity_superior_bars_presence_from_its_opponent.)
+**71.25** Perfect Clarity: "do not affect this vampire" — no reaction requiring Dominate or Presence may be played during the action (each would affect it: LSJ 20010621), except in a referendum's polling step; [THA]: the minion opposing it in any combat of the action. Owner (2026-10-14): in the polling step, a reaction card requiring Dominate or Presence played by another vampire does not affect it either — Scalpel Tongue may not choose it (another vampire who cast votes still), and Absolute Tyranny's [POT][PRE] −1 vote does not apply to it (it applies to the others); the vampire's own dual card is an action modifier, not shielded. The owner notes no scenario plays Scalpel Tongue before Perfect Clarity (the one only in the polling step, the other as the action is announced): nothing already chosen is undone. (Tests perfect_clarity_shields_a_bleed_from_deflection, perfect_clarity_superior_bars_presence_from_its_opponent, perfect_clarity_keeps_scalpel_tongue_off_its_vampire, perfect_clarity_spares_its_vampire_absolute_tyrannys_minus_one.)
 
 **71.26** Touch of Clarity: "a non-combat card" — a card that is not a combat card; a reacting vampire may cancel an action card as it is played, before its action is declared. (Tests touch_of_clarity_cancels_a_presence_action_card, touch_of_clarity_by_the_acting_methuselahs_other_vampire.)
 
 **71.27** Venere Carboni: once in each of his controller's unlock phases. (Test venere_carboni_leaves_torpor_for_a_blood.)
 
-## Batch 72 — Card hunts: what reads "hunting" (Claude, 2026-10-14; owner, 2026-10-14: 72.1–72.3 confirmed; 72.4, 72.5 follow from 72.1)
+## Batch 72 — Card hunts: what reads "hunting" (Claude, 2026-10-14; owner, 2026-10-14: 72.1–72.5 confirmed)
 
 **72.1** A card hunt (an action a card makes a hunt: Loki's Gift, Psychophagia, Abactor, Week of Nightmares' Ravnos hunt) is a hunt for everything reading one (LSJ 20050720-2): Volo's and Kalyani's "-1 stealth when hunting", Le Dinh Tho's "-1 stealth when hunting", Abiku's "+1 stealth when hunting" apply to it — Volo playing Loki's Gift [pro] ("+1 stealth hunt action") hunts at 0 stealth. (Tests volo_gets_less_stealth_on_a_card_hunt_too, abiku_gets_more_stealth_on_a_card_hunt_too.)
 

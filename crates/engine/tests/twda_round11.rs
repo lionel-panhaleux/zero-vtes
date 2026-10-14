@@ -1441,6 +1441,88 @@ fn perfect_clarity_superior_bars_presence_from_its_opponent() {
     }
 }
 
+/// A political action by a titled Thaumaturgy vampire of seat 0's,
+/// Perfect Clarity on it if `clarity`, its votes cast in favor and those of
+/// another titled vampire of seat 0's against; `reactor` (seat 1's,
+/// superior in `sup`) holding `card`, at its polling decision.
+fn clarity_referendum(
+    clarity: bool,
+    reactor: u16,
+    sup: &[&'static str],
+    card: &str,
+) -> (Engine, [MinionId; 3]) {
+    let mut e = game(3);
+    let titled = |tha: bool| {
+        quiet_where(move |c| c.title != Title::None && c.disciplines.contains(&"tha") == tha)
+    };
+    let a = e.add_minion(SeatId(0), titled(true), 4, false);
+    let b = e.add_minion(SeatId(0), titled(false), 4, false);
+    let r = e.add_minion(SeatId(1), reactor, 4, false);
+    for &d in sup {
+        superior(&mut e, r, d);
+    }
+    e.add_minion(SeatId(2), plain("Toreador", 0), 4, false);
+    hand(&mut e, 0, &["Political Stranglehold", "Perfect Clarity"]);
+    hand(&mut e, 1, &[card]);
+    pick(&mut e, play(0, 0, a));
+    if clarity {
+        pick_when(&mut e, play(0, 0, a));
+    }
+    to_referendum(&mut e);
+    pick_when(&mut e, votes(a, true));
+    pick_when(&mut e, votes(b, false));
+    until(&mut e, SeatId(1), WindowLabel::ReferendumPolling);
+    (e, [a, b, r])
+}
+
+// Perfect Clarity in the polling step: a reaction card requiring Presence
+// may be played, but does not affect this vampire (owner, 2026-10-14:
+// rules-qa 71.25) — Scalpel Tongue may not choose it, another vampire who
+// cast votes still.
+#[test]
+fn perfect_clarity_keeps_scalpel_tongue_off_its_vampire() {
+    for clarity in [false, true] {
+        let reactor =
+            quiet_where(|c| c.disciplines.contains(&"cel") && c.disciplines.contains(&"pre"));
+        let (mut e, [a, b, s]) = clarity_referendum(clarity, reactor, &[], "Scalpel Tongue");
+        let req = request(&mut e);
+        let on = |m| plays(&req).contains(&play_at(0, 0, s, Target::Minion(m)));
+        assert_eq!(on(a), !clarity);
+        assert!(on(b));
+    }
+}
+
+// Perfect Clarity in the polling step: Absolute Tyranny's [POT][PRE] "-1
+// vote", from a reacting vampire, does not reach this vampire (owner,
+// 2026-10-14: rules-qa 71.25); it reaches the others.
+#[test]
+fn perfect_clarity_spares_its_vampire_absolute_tyrannys_minus_one() {
+    for clarity in [false, true] {
+        let reactor = quiet_where(|c| {
+            c.path == Some("Power and the Inner Voice")
+                && ["pot", "pre"]
+                    .iter()
+                    .all(|d| c.disciplines.iter().any(|x| x.eq_ignore_ascii_case(d)))
+        });
+        let (mut e, [a, b, x]) =
+            clarity_referendum(clarity, reactor, &["pot", "pre"], "Absolute Tyranny");
+        let (before, cast) = {
+            let r = e.referendum().expect("referendum");
+            (
+                [r.votes_of(&e.state, a), r.votes_of(&e.state, b)],
+                r.tally(),
+            )
+        };
+        pick(&mut e, play(0, 1, x));
+        request(&mut e);
+        let r = e.referendum().expect("referendum");
+        let spared = u8::from(!clarity);
+        assert_eq!(r.votes_of(&e.state, a), before[0] - spared);
+        assert_eq!(r.votes_of(&e.state, b), before[1] - 1);
+        assert_eq!(r.tally(), (cast.0 - spared as u32, cast.1 - 1));
+    }
+}
+
 // Legal Manipulations: "[pre] Ⓓ Bleed with +2 bleed. [PRE] As above, and
 // gain 1 pool if the bleed is successful (for 1 or more)."
 #[test]

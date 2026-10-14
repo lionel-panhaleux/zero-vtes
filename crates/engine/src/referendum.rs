@@ -184,8 +184,9 @@ pub struct ReferendumCtx {
     /// Only vampires of this sect vote (Fall of the Camarilla's ban,
     /// Private Audience, Cardinal Benediction).
     pub only_sect: Option<Sect>,
-    /// Votes each non-Camarilla vampire loses (Camarilla Conclave).
-    pub penalties: Vec<(cards::Penalized, u8)>,
+    /// Votes each non-Camarilla vampire loses (Camarilla Conclave), but
+    /// the vampire a reaction does not affect (Perfect Clarity).
+    pub penalties: Vec<(cards::Penalized, u8, Option<MinionId>)>,
     /// Business Pressure's round under way: the polling step waits on it.
     pub pressure: Option<Pressure>,
     /// Passes automatically, the polling step skipped (Día de los Muertos):
@@ -269,8 +270,8 @@ impl ReferendumCtx {
         let conclave: i32 = self
             .penalties
             .iter()
-            .filter(|(p, _)| p.reaches(st, m))
-            .map(|&(_, n)| n as i32)
+            .filter(|&&(p, _, spared)| p.reaches(st, m) && spared != Some(m))
+            .map(|&(_, n, _)| n as i32)
             .sum();
         ((title_votes(title) as i32 - penalty).max(0)
             + st.clan_votes(m)
@@ -2323,11 +2324,14 @@ impl Engine {
                     }
                     _ => unreachable!(),
                 };
-                ctx.penalties.push((who, n));
+                // Not on the vampire under Perfect Clarity, from a
+                // reaction (owner, 2026-10-14: rules-qa 71.25).
+                let spared = self.clarity_shielded(play.card, play.mode as usize, play.actor);
+                ctx.penalties.push((who, n, spared));
                 // Votes, not ballots (advanced rules §3.7.6.1).
                 for r in ctx.records.iter_mut().filter(|r| !r.canceled) {
                     if let Source::Vampire(m) = r.source {
-                        if who.reaches(&self.state, m) {
+                        if who.reaches(&self.state, m) && spared != Some(m) {
                             r.n = r.n.saturating_sub(n);
                         }
                     }

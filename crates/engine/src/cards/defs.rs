@@ -22767,9 +22767,10 @@ political!(
 /// the duration of this action. [THA] As above, and for the remainder of
 /// this action, minions opposing this vampire in combat cannot play cards
 /// that require Dominate or Presence." (2 blood.) Bleed redirection
-/// included (LSJ 20010621, LSJ 20010830); before the modifiers not played
-/// as the action is announced (ANK 20190425), the action card replaced
-/// first (ANK 20181208).
+/// included (LSJ 20010621, LSJ 20010830); in the polling step, such a
+/// reaction neither chooses it nor lowers its votes (owner, 2026-10-14:
+/// rules-qa 71.25); before the modifiers not played as the action is
+/// announced (ANK 20190425), the action card replaced first (ANK 20181208).
 pub static PERFECT_CLARITY: CardDef = CardDef {
     name: "Perfect Clarity",
     modes: &[
