@@ -76,10 +76,8 @@ impl Engine {
             if left >= 2 && slot.counters > 0 {
                 options.push(Choice::Withdraw { slot: i });
             }
-            // No voluntary self-contest: a second copy of a vampire you
-            // already have in play cannot be moved out — but Anarch
-            // Convert, removed as he enters play before any contest (the
-            // copy in play is a vampire he can make Anarch).
+            // No voluntary self-contest, but Anarch Convert: he leaves as
+            // he enters, before any contest.
             if slot.counters >= capacity
                 && (slot.card == crate::state::CREATED
                     || !st.controls_copy(s, slot.card)
@@ -173,13 +171,11 @@ impl Engine {
                     .remove(*slot as usize);
                 let forced =
                     out.card != crate::state::CREATED && self.state.controls_copy(s, out.card);
-                // Counters become blood; excess over capacity drains off —
-                // a returning vampire's capacity counting the cards on it
-                // again (advanced rules 5.1.1).
+                // Excess over capacity drains, a returning vampire's
+                // capacity counting its cards (advanced rules 5.1.1).
                 let m = match out.banished.map(|b| (b.minion, b.cards)) {
-                    // A banished vampire returns as the entry it left — its
-                    // history (titles lost, contests) and the cards on it,
-                    // face up and unlocked (rules-qa 5.7; LSJ 20060213).
+                    // A banished vampire returns as it left, its cards
+                    // with it, unlocked (rules-qa 5.7; LSJ 20060213).
                     Some((m, on)) => {
                         let v = &mut self.state.minions[m.index()];
                         v.in_play = true;
@@ -330,9 +326,8 @@ impl Engine {
 }
 
 impl Engine {
-    /// The vampire `s` controls that the vampire in uncontrolled slot `i`
-    /// may merge with: the other version of its name (base or advanced),
-    /// unmerged, in torpor too.
+    /// The vampire `s` controls that uncontrolled slot `i` may merge with:
+    /// the other version of its name, unmerged, in torpor too.
     pub(crate) fn merge_partner(
         &self,
         s: crate::ids::SeatId,
@@ -352,10 +347,7 @@ impl Engine {
     }
 
     /// Merge `m` with crypt card `card` (rulebook "Advanced"): the advanced
-    /// card on top, the base under it; the advanced card's sect written
-    /// onto the vampire, an anarch token gone with any other sect
-    /// (advanced rules 5.1.2); its blood kept, above the new capacity
-    /// drained.
+    /// card on top, its sect taking over any other (advanced rules 5.1.2).
     pub(crate) fn merge(
         &mut self,
         m: crate::ids::MinionId,
@@ -417,9 +409,7 @@ fn entry_burn(card: u16) -> Option<u8> {
         })
 }
 
-/// A vampire's "as he enters play during your influence phase …" (New
-/// Blood: choose a circle, draw 1 card from your crypt): `effect` among its
-/// entry riders.
+/// Does `effect` figure among the vampire's entry riders (New Blood)?
 fn entry_has(card: u16, effect: crate::cards::Effect) -> bool {
     card != crate::state::CREATED
         && crate::cards::vampire(card).is_some_and(|d| {

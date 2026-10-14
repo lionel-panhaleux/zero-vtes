@@ -1,9 +1,6 @@
-//! Actions: announcement, the as-announced window, the block loop (rulebook
-//! states A/B/C, rules-qa 1.3), redirects, block resolution (combat, or the
-//! blocker's diablerie on a leave-torpor), the after-combat window with the
-//! Form of Mist continuation, and resolution. The action context lives on
-//! the engine so that card plays resolved from the as-played stack can
-//! modify it.
+//! Actions: announcement, the block loop (rulebook states A/B/C, rules-qa
+//! 1.3), block resolution, the after-combat window and resolution. The
+//! action context lives on the engine so card plays resolving can modify it.
 
 use crate::cards::families::Family;
 use crate::cards::{self, Effect, Hook, Limit, PlayCtx, Requirement, Scope, Stat, Target, Window};
@@ -38,13 +35,9 @@ fn found_play(seat: SeatId, acting: MinionId, card: u16, copy: crate::copies::Co
     }
 }
 
-/// Rulebook "Resolve Any Block Attempts": A (no attempt), B (an attempt is
-/// ongoing), C (blocks declined by all); plus the as-announced window that
-/// precedes them (spec §2.2).
-/// How an action ended (owner, 2026-09-04): blocked; failed (Archon
-/// Investigation: "not successful"); successful; or *fizzled* — successful
-/// (not blocked, so after-resolution effects such as Freak Drive apply) but
-/// without effect, because its cost could not be paid at resolution.
+/// How an action ended (owner, 2026-09-04): *fizzled* is successful but
+/// without effect, its cost unpayable at resolution; failed: Archon
+/// Investigation's "not successful".
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Outcome {
     Blocked,
@@ -53,6 +46,9 @@ pub enum Outcome {
     Fizzled,
 }
 
+/// Rulebook "Resolve Any Block Attempts": `Open` A (no attempt), `Attempt`
+/// B, `Declined` C (declined by all); after the as-announced window (spec
+/// §2.2).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ActionState {
     #[default]
@@ -60,33 +56,28 @@ pub enum ActionState {
     Open,
     Attempt(MinionId),
     Declined,
-    /// A bleed of 1 or more whose blocks were declined, before it resolves:
-    /// the cards played "if a bleed would be successful" (Spying Mission
-    /// [OBF]), after every other modifier and reaction; only cards of that
-    /// timing follow one (LSJ 19980105, LSJ 20110502), a canceled one
-    /// included (LSJ 20050607), and none once the action has failed.
+    /// A bleed of 1+ unblocked, before it resolves: "if a bleed would be
+    /// successful" cards (Spying Mission [OBF]), last; only such cards
+    /// follow one, canceled or not (LSJ 19980105, 20110502, 20050607);
+    /// none once the action failed.
     WouldSucceed,
     /// Blocked, before block resolution: effects the acting Methuselah uses
     /// "if blocked" (Crypt's Sons continuing as if unblocked); then the
     /// combat (or, on a leave-torpor, the diablerie offer).
     Blocked(MinionId),
-    /// After the block's combat(s) (rules-qa 2.1): unlock reactions of the
-    /// blocker, the acting minion's continuation, then the action ends
-    /// blocked or re-enters the block loop.
+    /// After the block's combat(s) (rules-qa 2.1): unlocks, the acting
+    /// minion's continuation, then blocked or back to the block loop.
     AfterCombat,
-    /// After resolution of a successful action (for a political action,
-    /// after its referendum: spec §3.7.5.1): Voter Captivation, Freak
-    /// Drive.
+    /// After the action's resolution, whatever its outcome (a political
+    /// action's after its referendum, spec §3.7.5.1): Freak Drive.
     AfterResolution,
     /// A diablerie made (by `.0` on `.1`), before its blood hunt: the cards
     /// played on its blood (Slake the Thirst [SAN], ANK 20201228).
     AfterDiablerie(MinionId, MinionId),
 }
 
-/// A bonus for the rest of the action under a condition read live on a
-/// minion, whenever the stat is read ("with an additional +1 intercept if
-/// the acting minion is titled", Protection Racket: a change of sect or
-/// title during the action gains or loses it, ANK 20190416).
+/// A bonus for the rest of the action whose condition is read live on a
+/// minion (Protection Racket, ANK 20190416).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Conditional {
     /// Bleed (the action's) or Intercept (of `to`).
@@ -279,17 +270,13 @@ pub struct ActionCtx {
     /// Blood only every minion burns to attempt to block this action
     /// (Seeds of Terror): an ally cannot pay it.
     pub block_toll_blood: u8,
-    /// A combat queued by a play (Hedonism [for]/[pre]): (its vampire, the
-    /// minion that attempted to block) — begun after block resolution (the
-    /// block's combat) or after a successful action's effects, still part
-    /// of its resolution; dropped if the action ends first (advanced rules
-    /// 4.9.3; rules-qa 53.3).
+    /// A combat queued by a play (Hedonism): (its vampire, the attempting
+    /// minion), begun after block resolution or the action's effects, lost
+    /// if the action ends first (advanced rules 4.9.3; rules-qa 53.3).
     pub queued_combat: Option<(MinionId, MinionId)>,
-    /// Forward Momentum's counter after the bleed (+1 successful, -1
-    /// otherwise), pending in the after-resolution window — the same window
-    /// as its unlock, in the controller's order (owner, 2026-10-08:
-    /// rules-qa 53.6): a gain taken by the unlock first, a loss after it;
-    /// whatever is left applies as the action ends.
+    /// Forward Momentum's counter after the bleed (+1 successful, -1 not),
+    /// pending in the after-resolution window beside its unlock, in the
+    /// controller's order (rules-qa 53.6); applied as the action ends.
     pub momentum: Vec<(CardId, bool)>,
     /// The queued combat began after the action's effects: its end goes on
     /// to the after-resolution window (rules-qa 53.3).
@@ -445,12 +432,9 @@ impl ActionCtx {
         is_hunt(self.kind, self.card_hunt)
     }
 
-    /// What an attempt by `m` would face, in public terms: the stealth,
-    /// `m`'s intercept, blood and lock, the cards in play, every hand's size
-    /// and its Methuselah's library and ash heap sizes (a card played or
-    /// drawn changes them; the hand itself is hidden, and what the engine
-    /// keeps must not depend on it: `tests/elision.rs`). The same again
-    /// after a failed attempt, a new one would fail alike (rules-qa 48.6).
+    /// A hash of what an attempt by `m` would face, in public terms only
+    /// (hands hidden: `tests/elision.rs`); unchanged after a failed attempt,
+    /// a new one would fail alike (rules-qa 48.6).
     pub fn attempt_print(&self, st: &crate::state::GameState, m: MinionId) -> u64 {
         use std::hash::{Hash, Hasher};
         let seat = &st.seats[st.minions[m.index()].owner.index()];
@@ -476,16 +460,11 @@ impl ActionCtx {
     }
 
     /// The action's stealth, the acting minion's cards in play included
-    /// (Unlicensed Taxicab, Codex of the Edenic Groundskeepers). Not
-    /// floored: stealth may be negative (LSJ 20021211, "a minion with zero
-    /// or negative stealth"; rules-qa 48.1).
+    /// (Unlicensed Taxicab). Not floored: it may be negative (LSJ 20021211;
+    /// rules-qa 48.1).
     pub fn stealth(&self, st: &crate::state::GameState) -> i32 {
-        // A granted action's stealth for a clan, read live on the acting
-        // minion (Wasserschloss Anif: "Malkavians get +1 stealth during
-        // that action").
-        // An action card's too (Baltimore Purge: "if this vampire is Ravnos,
-        // this is a +1 stealth action"); a titled vampire's (Powerbase:
-        // Barranquilla).
+        // Stealth for a clan or a title, read live on the acting minion
+        // (Wasserschloss Anif, Baltimore Purge, Powerbase: Barranquilla).
         let mode = match (self.card, self.source, self.ability) {
             (Some(p), _, _) => cards::lookup(p.card).and_then(|d| d.modes.get(p.mode as usize)),
             (None, Some(src), Some(ab)) => Some(src.mode(st, ab)),
@@ -607,11 +586,9 @@ impl ActionCtx {
         n.saturating_sub(self.bleed_reduce)
     }
 
-    /// Effective intercept of minion `m`'s attempt: the accumulated
-    /// intercept folded through the action's intercept layers (Perfect
-    /// Paragon [PRE]: younger vampires and allies get -1). Not floored: a
-    /// 0-intercept blocker given -1 (Form of the Bat [pro]) cannot block
-    /// a 0-stealth action (rules-qa 48.1).
+    /// Effective intercept of minion `m`'s attempt (Perfect Paragon [PRE]
+    /// among the layers). Not floored: at -1 it cannot block a 0-stealth
+    /// action (Form of the Bat [pro], rules-qa 48.1).
     pub fn intercept_of(&self, st: &crate::state::GameState, m: MinionId) -> i32 {
         // Unleash Hell's Fury: "+2 intercept during that attempt".
         let fury = if matches!(
@@ -684,9 +661,8 @@ impl ActionCtx {
     }
 
     /// Intercept from cards in play keyed to the action: on `m` (Guardian
-    /// Angel: +1 during bleed actions directed at its controller; Sport
-    /// Bike), and on the acting minion against `m` (Stolen Police Cruiser:
-    /// younger vampires get -1 intercept against its bearer).
+    /// Angel, Sport Bike), and on the acting minion against `m` (Stolen
+    /// Police Cruiser).
     pub fn host_intercept(&self, st: &crate::state::GameState, m: MinionId) -> i32 {
         let owner = st.minions[m.index()].owner;
         let bleed_at_owner = self.kind == ActionKind::Bleed && self.bleed_target == Some(owner);
@@ -761,14 +737,11 @@ impl ActionCtx {
             + unmasking
     }
 
-    /// "A successful action requiring an Anarch or making this vampire
-    /// Anarch" (CrimethInc.): the rulebook action to become Anarch (rules-qa
-    /// 58.1); an action card requiring an Anarch or a baron (LSJ 20080603)
-    /// or making a vampire Anarch, a recruit, employ or equip of a card
-    /// requiring one included (owner, rules-qa 62.21) — not a card another
-    /// card fetches or plays as part of the action, whose requirements are
-    /// not the action's (LSJ 20100725, ANK 20180817); an action a card in
-    /// play grants Anarchs only (Open War).
+    /// "An action requiring an Anarch or making this vampire Anarch"
+    /// (CrimethInc.): becoming Anarch (rules-qa 58.1); an action card
+    /// requiring an Anarch or baron or making one (LSJ 20080603), recruit,
+    /// employ and equip included (rules-qa 62.21), not a card fetched by it
+    /// (LSJ 20100725, ANK 20180817); an action granted Anarchs only.
     pub fn requires_anarch(&self, st: &crate::state::GameState) -> bool {
         use crate::library::Label;
         if self.kind == ActionKind::BecomeAnarch {
@@ -859,10 +832,8 @@ impl ActionCtx {
         }
     }
 
-    /// The action's second target, if any: Taunt the Caged Beast [ANI]
-    /// targets the prey's vampire (`target`) and the predator's (its terms'
-    /// pick) — directed at both and their controllers (owner, 2026-10-14:
-    /// rules-qa 71.21).
+    /// The action's second target, if any: Taunt the Caged Beast [ANI]'s
+    /// predator's vampire, the action directed at both (rules-qa 71.21).
     pub fn second_target(&self) -> Option<MinionId> {
         second_target_of(self.card.as_ref())
     }
@@ -1274,13 +1245,8 @@ impl Engine {
         order
     }
 
-    /// Seats entitled to attempt a block (rulebook "Who May Attempt to
-    /// Block"): the target of a directed action; prey and predator of an
-    /// undirected one.
-    /// A Methuselah controlling a vampire that "may attempt to block a
-    /// vampire controlled by another Methuselah, ignoring the normal prey,
-    /// predator or target restrictions" (Anneke) is one too, for that
-    /// vampire only (`block_candidates_locked`).
+    /// Seats entitled to attempt a block: `normal_blockers`, and those of
+    /// a vampire blocking anyone (Anneke), for her only.
     fn eligible_blockers(&self, a: &ActionCtx) -> Vec<SeatId> {
         let mut v = self.normal_blockers(a);
         if self.state.minions[a.acting.index()].is_vampire() {
@@ -1297,8 +1263,8 @@ impl Engine {
         v
     }
 
-    /// The seats the rulebook lets block: the target of a directed action;
-    /// prey and predator of an undirected one.
+    /// The seats the rulebook lets block ("Who May Attempt to Block"): the
+    /// target of a directed action; prey and predator of an undirected one.
     fn normal_blockers(&self, a: &ActionCtx) -> Vec<SeatId> {
         match self.directed_target(a) {
             Some(t) => std::iter::once(t)
@@ -1337,23 +1303,17 @@ impl Engine {
             .collect()
     }
 
-    /// `m` of an eligible `seat` may block by the who-may-block rule: any
-    /// of a seat the rulebook lets block; of another, a vampire printing
-    /// "may attempt to block … ignoring the normal prey, predator or target
-    /// restrictions" (Anneke) — her other restrictions standing (RTR
+    /// `m` of an eligible `seat` may block by the who-may-block rule, or
+    /// blocks anyone (Anneke), her other restrictions standing (RTR
     /// 20020501).
     fn may_block_from(&self, a: &ActionCtx, seat: SeatId, m: MinionId) -> bool {
         self.normal_blockers(a).contains(&seat)
             || self.state.minions[a.acting.index()].is_vampire() && self.blocks_anyone(m)
     }
 
-    /// Could a Methuselah other than the acting one reduce the action's
-    /// stealth to 0 with a card one of their reacting minions could play
-    /// (Night Terrors), as `seat` weighs an attempt? Their own hand is
-    /// read; another's is hidden from them, so for another only whether
-    /// they hold a card and one of their minions could play such a card of
-    /// the pool: the attempts offered must not depend on a hand the
-    /// decider cannot see (DESIGN §4.3; `tests/elision.rs` found this).
+    /// Could a Methuselah other than the acting one strip the stealth to 0
+    /// (Night Terrors), as `seat` sees it? Another's hand is hidden from
+    /// `seat`: any card held counts (DESIGN §4.3).
     fn stealth_strippable(&self, a: &ActionCtx, seat: SeatId) -> bool {
         static STRIPS: std::sync::OnceLock<Vec<u16>> = std::sync::OnceLock::new();
         let strips = STRIPS.get_or_init(|| {
@@ -1396,11 +1356,9 @@ impl Engine {
         })
     }
 
-    /// Can `m` of `seat` attempt to block the current action, its lock
-    /// aside ("unlocks and attempts to block"): the normal prey, predator
-    /// and target restrictions apply (ANK 20180623), and a minion that
-    /// cannot block cannot (LSJ 20010714-2), nor one that cannot pay the
-    /// attempt's toll; one already attempting may (ANK 20181122-2).
+    /// Can `m` of `seat` attempt to block, its lock aside ("unlocks and
+    /// attempts to block")? The normal restrictions apply (ANK 20180623;
+    /// LSJ 20010714-2), the toll too; one attempting may (ANK 20181122-2).
     pub(crate) fn can_attempt_block(&self, seat: SeatId, m: MinionId) -> bool {
         let Some(a) = self.action.as_ref() else {
             return false;
@@ -1432,12 +1390,9 @@ impl Engine {
         }
     }
 
-    /// Could `m`, of `seat`, attempt to block the action now, whoever may
-    /// normally block it (Eagle's Sight [AUS])? Not the acting
-    /// Methuselah's own minion; not a Methuselah who declined; a block
-    /// candidate, unlocked (no unlock here). One attempt: back in state A
-    /// after it fails, its Methuselah is no more eligible than before
-    /// (LSJ 20030227).
+    /// Could `m`, of `seat`, attempt to block now, whoever may normally
+    /// block (Eagle's Sight [AUS])? Unlocked, not the acting Methuselah's,
+    /// no decliner; one attempt only (LSJ 20030227).
     pub(crate) fn can_attempt_block_anyone(&self, seat: SeatId, m: MinionId) -> bool {
         let Some(a) = self.action.as_ref() else {
             return false;
@@ -1450,11 +1405,9 @@ impl Engine {
             && self.block_toll(a, m).is_some()
     }
 
-    /// `to` takes control of `m` until the end of their turn (Puppet Master
-    /// [DOM]). A block attempt it was making fails, not barred: its new
-    /// controller may attempt again if eligible (LSJ 20080326, PIB
-    /// 20150501); a combat it is in ends, damage still pending resolving
-    /// first (LSJ 20020618). The cards on it go with it.
+    /// `to` takes control of `m` (Puppet Master [DOM]), its cards with it:
+    /// its block attempt fails, not barred (LSJ 20080326, PIB 20150501); a
+    /// combat it is in ends, pending damage first (LSJ 20020618).
     pub(crate) fn take_control(&mut self, m: MinionId, to: SeatId) {
         let from = self.state.minions[m.index()].owner;
         if from == to {
@@ -1524,12 +1477,9 @@ impl Engine {
         v.corruption_of(seat) >= need
     }
 
-    /// What `m` pays to attempt to block this action, if it can: blood
-    /// without Oblivion under Where the Veil Thins, without Obtenebration
-    /// under Tenebrous Form (none for an ally: it
-    /// cannot), a library card against a wraith or zombie ally while a
-    /// Parijat is ready (none from an empty library: ANK 20260317), blood
-    /// or life printed on the acting vampire (Sergio Bueno).
+    /// What `m` pays to attempt to block, (blood, library cards), if it
+    /// can: Where the Veil Thins (an ally cannot), Parijat's card (none
+    /// from an empty library: ANK 20260317), Sergio Bueno's printed toll.
     pub(crate) fn block_toll(&self, a: &ActionCtx, m: MinionId) -> Option<(u8, u8)> {
         let st = &self.state;
         let v = &st.minions[m.index()];
@@ -1616,11 +1566,8 @@ impl Engine {
         }
     }
 
-    /// The attempting minion resigns its attempt: back to A, where it may
-    /// attempt again (LSJ 20031121-2).
-    /// A card action's cost after its reductions: the "blood or pool" ones
-    /// off whichever the card costs, the blood-only ones, then counters
-    /// (Ravnos Carnival: blood; Ravnos Cache: either) — with what each
+    /// A card action's cost after its reductions: "blood or pool", blood
+    /// only, then counters (Ravnos Carnival, Ravnos Cache), with what each
     /// counter source covers.
     pub(crate) fn reduced_cost_with(
         &self,
@@ -1693,9 +1640,8 @@ impl Engine {
         }
     }
 
-    /// The cost reductions announced with an action card: The Line and The
-    /// Shard locked now (still unlocked, the Edge still held), the
-    /// counters recorded to be spent as the cost is paid.
+    /// The cost reductions announced with an action card, taken now
+    /// (`take_discounts`), the counters spent as the cost is paid.
     pub(crate) fn apply_announced_discounts(&mut self, play: &PlayCtx) {
         let (either, blood, counters) = self.take_discounts(play);
         let a = self.action.as_mut().expect("action");
@@ -1705,10 +1651,9 @@ impl Engine {
         a.blood_payer = play.blood_payer;
     }
 
-    /// The reductions picked for `ctx`'s card, taken: The Line, The Shard
-    /// (the Edge still held) and Ravnos Cache locked, still unlocked. What
-    /// they take off — "blood or pool", blood only — and the counters to
-    /// spend as the cost is paid.
+    /// The reductions picked for `ctx`'s card, taken (The Line, The Shard
+    /// with the Edge, Ravnos Cache locked): ("blood or pool", blood only,
+    /// counters to spend as the cost is paid).
     pub(crate) fn take_discounts(&mut self, ctx: &PlayCtx) -> (u8, u8, Vec<(CardId, u8)>) {
         let (mut either, mut blood, mut counters) = (0, 0, Vec::new());
         let mut burned = Vec::new();
@@ -1756,6 +1701,8 @@ impl Engine {
         (either, blood, counters)
     }
 
+    /// The attempting minion resigns its attempt: back to A, where it may
+    /// attempt again (LSJ 20031121-2).
     pub(crate) fn resign_attempt(&mut self) {
         let a = self.action.as_mut().expect("action context");
         a.state = ActionState::Open;
@@ -1844,13 +1791,9 @@ impl Engine {
             .collect()
     }
 
-    /// Intercept reachability (DESIGN §4.3 elision, owner-approved
-    /// 2026-09-02, P1 form): an attempt whose intercept can never reach the
-    /// action's stealth — nothing in the controller's hand this minion could
-    /// play adds enough, and no intercept card to play whose replacement
-    /// draw could bring more (rules-qa 48.5) — is pruned rather than
-    /// offered. The closure-time
-    /// comparison in `action_advance` is the actual semantics.
+    /// An upper bound on the intercept `m`'s attempt could reach (DESIGN
+    /// §4.3; rules-qa 48.5): an attempt that cannot meet the stealth is not
+    /// offered. `action_advance`'s closure comparison is the rule.
     fn intercept_reachable(&self, a: &ActionCtx, seat: SeatId, m: MinionId) -> i32 {
         let st = &self.state;
         // A Methuselah other than the acting one who could strip the
@@ -1859,10 +1802,8 @@ impl Engine {
         if self.stealth_strippable(a, seat) {
             return i32::MAX;
         }
-        // Intercept gained earlier in the action counts (rules-qa 15.2).
-        // Conditional intercept counts whether or not its condition holds
-        // now: it may by closure (optimistic, never pruning a reachable
-        // attempt).
+        // Intercept gained earlier counts (rules-qa 15.2); conditional
+        // intercept too, its condition may hold by closure.
         let conditional: i32 = a
             .conditional
             .iter()
@@ -1967,10 +1908,8 @@ impl Engine {
         base + total as i32 + ActionCtx::intercept_mods(st, m)
     }
 
-    /// The stealth abilities in play can still take off the action
-    /// (Screamer's burn, Aranthebes's lock), any reacting Methuselah's: as
-    /// good as intercept for the attempt — a woken Monica Giovanni blocks
-    /// a 1-stealth bleed once Screamer burns (rules-qa 66.2).
+    /// The stealth any reacting Methuselah's abilities in play can still
+    /// take off (Screamer, Aranthebes): as good as intercept (rules-qa 66.2).
     fn stealth_reduction_reach(&self, a: &ActionCtx) -> u8 {
         let st = &self.state;
         let mut used: Vec<(CardId, u8)> = Vec::new();
@@ -2006,10 +1945,8 @@ impl Engine {
     }
 
     /// An upper bound on the intercept unlocked cards in play (not on `m`)
-    /// can give `m`'s attempt: its own Methuselah's (Market Square, Channel
-    /// 10) or another's, paying for it (KRCG News Radio) — third-party help
-    /// counted, never pruning an attempt it could make succeed (DESIGN
-    /// §11, rules-qa 1.3).
+    /// can give `m`'s attempt, any Methuselah's (Market Square, KRCG News
+    /// Radio; rules-qa 1.3).
     fn location_intercept_reach(&self, seat: SeatId, m: MinionId) -> u8 {
         let st = &self.state;
         let v = &st.minions[m.index()];
@@ -2210,8 +2147,6 @@ impl Engine {
             ActionState::AfterCombat => vec![Window::ActionAfterCombat],
             ActionState::AfterResolution => vec![Window::ActionAfterResolution],
             ActionState::AfterDiablerie(..) => vec![Window::ActionAfterDiablerie],
-            // The acting Methuselah's "if blocked" cards (Change of Target)
-            // and the blocker's "about to enter combat" ones (Obedience).
             // Continued as if unblocked (Crypt's Sons): no combat to react
             // to (ANK 20210131).
             ActionState::Blocked(_) if a.continued => vec![],
@@ -2299,11 +2234,9 @@ impl Engine {
                 options.push(Choice::BurnCorruptionToFail { minion: m });
             }
         }
-        // Revelation of the Serpent [PRE][PRO]: after a successful bleed, the
-        // acting vampire unlocks for counters on a minion of the bled
-        // Methuselah — none left if it was ousted (ANK 20220210). An
-        // unlocked vampire can unlock, to no effect (owner, 2026-09-26:
-        // rules-qa 25.5), as can one under "cannot unlock".
+        // Revelation of the Serpent [PRE][PRO]: none if the bled Methuselah
+        // was ousted (ANK 20220210); an unlocked vampire may, to no effect
+        // (rules-qa 25.5), as may one under "cannot unlock".
         if a.state == ActionState::AfterResolution
             && seat == a.seat
             && a.corruption_unlock > 0
@@ -2317,8 +2250,6 @@ impl Engine {
                 }
             }
         }
-        // Truth in Darkness [OBL]: the blocker's unlock for blood, after
-        // block resolution.
         // Paths in Two Worlds [OBL]: after a successful action.
         if a.state == ActionState::AfterResolution
             && matches!(a.outcome, Some(Outcome::Successful | Outcome::Fizzled))
@@ -2369,6 +2300,8 @@ impl Engine {
                 }
             }
         }
+        // Truth in Darkness [OBL]: the blocker's unlock for blood, after
+        // block resolution.
         if a.state == ActionState::AfterCombat {
             for &(m, n) in &a.after_block_unlocks {
                 let v = &self.state.minions[m.index()];
@@ -2544,9 +2477,7 @@ impl Engine {
                 self.flow = Flow::Action;
             }
             Choice::ContinueAction => {
-                // Form of Mist [PRO]: the rider's blood is a burn, not a card
-                // cost (rulings); +1 stealth "even if not yet needed" is a
-                // plain bonus here, no play to gate.
+                // Form of Mist [PRO]: the blood is a burn, not a card cost.
                 let (blood, stealth) = a.continuation.take().expect("continuation");
                 a.stealth_mods += stealth;
                 a.continued = true;
@@ -2580,11 +2511,8 @@ impl Engine {
         }
     }
 
-    /// The action window closed on consecutive passes: state transition
-    /// (rulebook A.4, B.4, C.3; spec §2.2 for the as-announced window).
     /// The acting minion left play before the action resolved (an ally
-    /// paying its last life for a modifier, ANK 20180928-1): nothing more
-    /// can happen in it.
+    /// paying its last life for a modifier, ANK 20180928-1).
     fn acting_gone(&self, a: &ActionCtx) -> bool {
         !self.state.minions[a.acting.index()].in_play
             && matches!(
@@ -2598,6 +2526,8 @@ impl Engine {
             )
     }
 
+    /// The action window closed on consecutive passes: the state transition
+    /// (rulebook A.4, B.4, C.3; spec §2.2).
     pub(crate) fn action_advance(&mut self) {
         // Its acting minion gone, the action fails.
         if self.acting_gone(self.action.as_ref().expect("action context")) {
@@ -2610,9 +2540,8 @@ impl Engine {
         {
             return;
         }
-        // A combat queued in it (Hedonism) begins once the block's own
-        // combat is over — block resolution — or the combat the
-        // resolution began (owner, 2026-10-08: rules-qa 53.3).
+        // A combat queued (Hedonism) begins once the block's combat or the
+        // one the resolution began is over (rules-qa 53.3).
         if self.action.as_ref().expect("action context").state == ActionState::AfterCombat
             && self.begin_queued_combat()
         {
@@ -2632,19 +2561,16 @@ impl Engine {
                 self.flow = Flow::Action;
             }
             ActionState::Attempt(blocker) => {
-                // Locked during its attempt (Visions of Zapathasura
-                // [OBF][PRE]), a minion that did not wake fails it (LSJ
-                // 20010702, RTR 19941006).
-                // One that left play during it (47th Street Royals burned
-                // for its bleed reduction) fails it too.
+                // Locked during its attempt without waking (Visions of
+                // Zapathasura; LSJ 20010702, RTR 19941006), or gone (47th
+                // Street Royals), a minion fails it.
                 let locked_out = !self.state.minions[blocker.index()].present()
                     || self.state.minions[blocker.index()].locked && !a.woken.contains(&blocker);
                 if !locked_out && a.intercept_of(&self.state, blocker) >= a.stealth(&self.state) {
                     self.blocked(blocker);
                 } else {
-                    // The attempt fails: back to A, where the same Methuselah
-                    // may attempt again (rulebook B.4, "if one attempt to
-                    // block fails, another can be made").
+                    // The attempt fails: back to A, another may be made
+                    // (rulebook B.4).
                     if a.lock_failed {
                         a.failed_blockers.push(blocker);
                     }
@@ -2655,15 +2581,13 @@ impl Engine {
                     self.flow = Flow::Action;
                 }
             }
-            // Obedience against the combat the resolution would begin: the
-            // action ends unsuccessfully before it resolves, no combat
-            // (owner, 2026-10-08: rules-qa 55.7, the window 56.2); it
-            // reached resolution, so NRA holds (LSJ 20070709).
             // Canceled before resolution (The Kiss of Ra): no outcome, no
             // NRA mark, no after-resolution window.
             ActionState::Declined if a.canceled => {
                 self.end_action();
             }
+            // Obedience against the resolution's combat: failed, no combat
+            // (rules-qa 55.7, 56.2); NRA holds (LSJ 20070709).
             ActionState::Declined if a.ended_early => {
                 a.outcome = Some(Outcome::Failed);
                 let (acting, kind) = (a.acting, a.kind);
@@ -2702,9 +2626,8 @@ impl Engine {
                     // A combat the resolution began: the action succeeded.
                     self.after_resolution();
                 } else if a.continued || std::mem::take(&mut a.continue_free) {
-                    // Continue as if unblocked (rules-qa 3.4): back to A with
-                    // the action's context kept — modifiers, reactions and
-                    // the declines stand; only the attempt state resets.
+                    // Continue as if unblocked (rules-qa 3.4): back to A,
+                    // modifiers, reactions and declines standing.
                     a.continued = false;
                     a.state = ActionState::Open;
                     a.fresh_window();
@@ -2726,10 +2649,9 @@ impl Engine {
             ActionState::AfterDiablerie(diablerist, victim) => {
                 self.end_action_into_blood_hunt(diablerist, victim);
             }
-            // Change of Target: the action ends, unsuccessfully, before block
-            // resolution — no combat, no diablerie (LSJ 20050105-2); the
-            // blocker is not locked, the card being played before it is
-            // (LSJ 19980224, RTR 19991206).
+            // Change of Target: failed before block resolution, no combat
+            // nor diablerie (LSJ 20050105-2), the blocker not locked (LSJ
+            // 19980224, RTR 19991206).
             ActionState::Blocked(blocker) if a.ended_early => {
                 if a.blocker_was_unlocked {
                     self.state.minions[blocker.index()].locked = false;
@@ -2824,20 +2746,13 @@ impl Engine {
         self.after_resolution();
     }
 
-    /// The action reached resolution — successful, fizzled, failed or
-    /// blocked (after its combat), or ended before block resolution (Change
-    /// of Target, Mirror Walk): open the after-resolution window over the
-    /// action's order (elided when nothing can be played). Every action
-    /// that reached resolution has one (owner, 2026-09-26: Daring the
-    /// Dawn's damage, ANK 20220331); an ended action takes no more cards
-    /// in it (RTR 20180719), a failed one does (ANK 20221205).
+    /// The action reached resolution, whatever its outcome: open the
+    /// after-resolution window (ANK 20220331); an ended action takes no
+    /// more cards there (RTR 20180719), a failed one does (ANK 20221205).
     pub(crate) fn after_resolution(&mut self) {
-        // A combat queued before resolution (Hedonism), the action
-        // successful: it begins after the action's effects, still part of
-        // its resolution ("Queue a combat", Sabbat V5 rules; owner,
-        // 2026-10-08: rules-qa 53.3); the action resumes here after it.
-        // An action failing or ending early loses it (LSJ 20090826); a
-        // fizzled one is successful (rules-qa 56.1).
+        // A queued combat (Hedonism) begins after a successful action's
+        // effects (rules-qa 53.3), fizzled included (56.1); lost otherwise
+        // (LSJ 20090826).
         let successful = self
             .action
             .as_ref()
@@ -2908,12 +2823,8 @@ impl Engine {
         self.flow = Flow::Action;
     }
 
-    /// The combat ended: open the after-combat window over the action's
-    /// order (rules-qa 2.1: once, after all combats of the block).
-    /// The combat queued in the action (Hedonism) begins, if both its
-    /// minions are still ready — a vampire in torpor enters no combat
-    /// (advanced rules 4.9.3): true if it did. The action's step resumes
-    /// as it ends (`resume_after_queued_combat`).
+    /// The combat queued in the action (Hedonism) begins if both its
+    /// minions are still ready (advanced rules 4.9.3): true if it did.
     pub(crate) fn begin_queued_combat(&mut self) -> bool {
         let Some((x, y)) = self.action.as_mut().and_then(|a| a.queued_combat.take()) else {
             return false;
@@ -2927,10 +2838,8 @@ impl Engine {
         true
     }
 
-    /// A bleed of the controller's minion is over, before its
-    /// after-resolution window (Forward Momentum: +1 counter if it was
-    /// successful, else -1 — a blocked bleed included, rules-qa 53.6),
-    /// pending in that window (`ActionCtx::momentum`).
+    /// A bleed is over, before its after-resolution window: Forward
+    /// Momentum's counter, a blocked bleed included (rules-qa 53.6).
     fn bleed_ends_riders(&mut self) {
         let Some(a) = self.action.as_ref() else {
             return;
@@ -2982,12 +2891,10 @@ impl Engine {
         true
     }
 
-    /// Yawp Court's combat over: the acting vampire still ready at its end
-    /// (`ready_at_end`, not out of a torpor it went to, LSJ 20090325-1), the
-    /// Sabbat vampire takes 2 environmental damage (RTR 19970630); the
-    /// acting vampire not ready now — a Rötschreck's torpor after the combat
-    /// included (LSJ 20080821) — the action ends with no referendum (LSJ
-    /// 20060902), else it goes on to its referendum (rules-qa 54.1).
+    /// Yawp Court's combat over: the acting vampire ready at its end (LSJ
+    /// 20090325-1), the Sabbat vampire takes 2 environmental damage (RTR
+    /// 19970630); not ready now (LSJ 20080821), no referendum (LSJ
+    /// 20060902), else on to it (rules-qa 54.1).
     pub(crate) fn after_yawp_combat(&mut self, sabbat: MinionId, ready_at_end: bool) {
         let acting = self.action.as_ref().expect("action context").acting;
         if ready_at_end && self.state.minions[sabbat.index()].present() {
@@ -3016,6 +2923,8 @@ impl Engine {
         self.flow = Flow::Action;
     }
 
+    /// The combat ended: open the after-combat window (rules-qa 2.1: once,
+    /// after all combats of the block).
     pub(crate) fn after_combat(&mut self) {
         let a = self.action.as_mut().expect("action context");
         a.state = ActionState::AfterCombat;
@@ -3054,10 +2963,9 @@ impl Engine {
         }
     }
 
-    /// Rulebook "Diablerie" steps 1–3 as a single unit: blood to the
-    /// diablerist (excess drains), victim burned. Equipment and the
-    /// advanced rule 4 (a Discipline for an elder victim) need cards —
-    /// later.
+    /// Rulebook "Diablerie" steps 1–3: blood to the diablerist, victim
+    /// burned. TODO: the equipment taken, and advanced rule 4 (a Discipline
+    /// for an elder victim).
     fn diablerise(&mut self, diablerist: MinionId, victim: MinionId) {
         let taken = self.state.minions[victim.index()].blood;
         // Regent: to a Sabbat diablerist, before the victim burns (and the
@@ -3113,9 +3021,8 @@ impl Engine {
         self.flow = Flow::Action;
     }
 
-    /// The action ends and the blood hunt referendum follows immediately;
-    /// rotation starts at the diablerist's controller, clockwise (DESIGN
-    /// §4.2 — a modeling call, owner-approved 2026-09-02).
+    /// The blood hunt referendum, from the diablerist's controller clockwise
+    /// (DESIGN §4.2).
     fn end_action_into_blood_hunt(&mut self, diablerist: MinionId, victim: MinionId) {
         // The blood hunt is part of the action (spec §3.7.8.1): the action
         // ends after it, through its after-resolution window (rules-qa 5.8).
@@ -3606,11 +3513,9 @@ impl Engine {
         }
     }
 
-    /// Forced Awakening: those that did not block after playing it burn
-    /// their blood as the action begins to resolve (LSJ 19990421) — at its
-    /// resolution, or as another minion's block, which is the action's
-    /// resolution (owner, 2026-09-26: rules-qa 30.2) — once; blocks before
-    /// the card do not count (ANK 20230319).
+    /// Forced Awakening: those that did not block since it was played burn
+    /// their blood as the action resolves, another's block included (LSJ
+    /// 19990421; rules-qa 30.2; ANK 20230319).
     fn awakening_burns(&mut self, blocker: Option<MinionId>) {
         let a = self.action.as_mut().expect("action context");
         let entries = std::mem::take(&mut a.burn_if_no_block);
@@ -3630,10 +3535,8 @@ impl Engine {
     /// Block resolution: the blocker locks; combat, except a blocked
     /// leave-torpor (no combat; the blocker may diablerise).
     fn blocked(&mut self, blocker: MinionId) {
-        // Unleash Hell's Fury: the acting minion takes 1 unpreventable
-        // environmental aggravated damage, the card burns — before any
-        // other effect, even if the action is ended (ANK 20210627, LSJ
-        // 20100301); not locked, no combat.
+        // Unleash Hell's Fury: its damage and burn before any other effect,
+        // even if the action is ended (ANK 20210627, LSJ 20100301).
         if let crate::state::MinionKind::Fury { id, .. } = self.state.minions[blocker.index()].kind
         {
             let (acting, kind) = {
@@ -3859,11 +3762,9 @@ impl Engine {
             if (i as usize) < self.state.seats[ctx.seat.index()].uncontrolled.len())
     }
 
-    /// Riders of the cards on the acting minion remembering the Methuselah
-    /// it is about to bleed successfully (Spying Mission [OBF]: "burn this
-    /// card and this vampire gets +2 bleed"): all at once (ANK 20200609),
-    /// after every modifier and reaction (LSJ 19980105). Returns the bleed
-    /// they add.
+    /// Riders of the cards on the acting minion remembering the prey it is
+    /// about to bleed (Spying Mission [OBF]), all at once, last (ANK
+    /// 20200609, LSJ 19980105): the bleed they add.
     fn about_to_bleed_riders(&mut self, acting: MinionId, prey: SeatId) -> u8 {
         let mut burns = Vec::new();
         let mut bleed = 0;
@@ -4018,10 +3919,8 @@ impl Engine {
         let mut a = self.action.take().expect("action context");
         let seat = a.seat;
         a.outcome = Some(Outcome::Successful);
-        // "Directed actions cost her +1 blood" (Daria; Marcellus's
-        // political surcharge): the action's cost, paid first as it
-        // resolves; unpayable by then, the action fizzles (rules-qa 3.6,
-        // 42.1, 42.6).
+        // Daria's, Marcellus's surcharge: paid first; unpayable by then, the
+        // action fizzles (rules-qa 3.6, 42.1, 42.6).
         let toll = self.action_toll(a.acting, a.printed_ctx(&self.state, None));
         if toll > 0 {
             if self.state.minions[a.acting.index()].blood < toll {
@@ -4031,10 +3930,8 @@ impl Engine {
             }
             self.state.minions[a.acting.index()].blood -= toll;
         }
-        // Ambrosio Luis Monçada: "actions directed at him cost 1 additional
-        // pool", paid with the cost; one of his own Methuselah's is not
-        // directed (LSJ 20030214-2). Paid down to 0, the acting Methuselah
-        // is ousted and the action ends.
+        // Ambrosio Luis Monçada: paid with the cost; his own Methuselah's
+        // action is not directed (LSJ 20030214-2).
         if a.directed_seat(&self.state).is_some() {
             if let Some(t) = a.directed_minion() {
                 let n = self.state.printed_mod(
@@ -4061,9 +3958,8 @@ impl Engine {
                     return self.fizzle(a);
                 }
                 // A bleed granted by a card on the acting minion (Codex of
-                // the Edenic Groundskeepers): it fizzles if the card is no
-                // longer on the acting minion (RTR 19960221) or its blood
-                // cost is unpayable by now (rules-qa 3.6).
+                // the Edenic Groundskeepers) fizzles once it left (RTR
+                // 19960221) or unpayable (rules-qa 3.6).
                 if let Some(src) = a.source {
                     let (_, cost) = self.granted_cost(&a);
                     // A vampire's own printed bleed has no card to lose.
@@ -4201,10 +4097,8 @@ impl Engine {
                             .contains(&Effect::TargetLocksReadyUnlocked)
                     })
                 }) {
-                    // Propaganda [PRE]: "the target Methuselah locks a ready
-                    // unlocked minion they control" — the one named as the
-                    // card was played (owner, 2026-09-26: rules-qa 31.2),
-                    // whatever the bleed's amount.
+                    // Propaganda [PRE]: the minion named as the card was
+                    // played, whatever the amount (rules-qa 31.2).
                     if let Some(Target::Minion(t)) = a.card.map(|p| p.target) {
                         let v = &mut self.state.minions[t.index()];
                         if v.present() {
@@ -4244,9 +4138,8 @@ impl Engine {
                 }
             }
             ActionKind::BecomeAnarch => {
-                // The cost at resolution (a blocked action pays nothing);
-                // unpayable by then, or no longer an untitled non-Anarch
-                // vampire, it fizzles (rules-qa 3.6).
+                // Unpayable by now, or no longer eligible: it fizzles
+                // (rules-qa 3.6).
                 let acting = a.acting;
                 let cost = self.state.become_anarch_cost(acting);
                 if self.state.minions[acting.index()].blood < cost
@@ -4259,10 +4152,7 @@ impl Engine {
                 }
             }
             ActionKind::LeaveTorpor => {
-                // Cost is paid at resolution only (a blocked action pays
-                // nothing); blood spent during the action can leave it
-                // unpayable, in which case the action fizzles (rules-qa
-                // 3.6): successful, no effect.
+                // Unpayable by now: it fizzles (rules-qa 3.6).
                 let acting = a.acting;
                 // Torpid Blood: +1.
                 let cost = 2 + self.state.torpid_surcharge(None, acting);
@@ -4280,17 +4170,11 @@ impl Engine {
                 }
             }
             ActionKind::Rescue => {
-                // The 2-blood cost is paid at resolution; blood spent during
-                // the action (an as-announced modifier) can leave it
-                // unpayable, in which case the action fizzles (rules-qa
-                // 3.6): successful, no effect.
+                // Unpayable by now: it fizzles (rules-qa 3.6).
                 let acting = self.state.minions[a.acting.index()].blood;
                 let target = a.torpor_target.expect("target");
-                // The target no longer in play: the rescuer pays what it can
-                // and the action fizzles (ANK 20220218: a fizzled action's
-                // cost is paid; owner, 2026-09-26: rules-qa 28.7). Out of
-                // torpor but in play, it pays as normal and fizzles too
-                // (`rescue_apply`).
+                // The target gone: paid as far as it goes, it fizzles (ANK
+                // 20220218; rules-qa 28.7); out of torpor, `rescue_apply`.
                 if !self.state.minions[target.index()].present() {
                     let v = &mut self.state.minions[a.acting.index()];
                     v.blood -= v.blood.min(2);
@@ -4334,9 +4218,8 @@ impl Engine {
                 return;
             }
             ActionKind::Employ | ActionKind::Recruit => {
-                // Cost is paid at resolution (spec §1.7.1); unpayable by
-                // then, the action fizzles (rules-qa 3.6) and the card is
-                // discarded; paid down to 0 pool, the Methuselah is ousted.
+                // Paid at resolution (spec §1.7.1); unpayable, it fizzles
+                // (rules-qa 3.6).
                 let play = a.card.expect("action card");
                 let acting = a.acting;
                 let mut pool =
@@ -4356,8 +4239,6 @@ impl Engine {
                     let d = self.state.recruit_discount(acting);
                     crate::plays::reduce(&mut pool, &mut blood, d);
                 }
-                // The reductions: "by n blood or pool" off the card's cost in
-                // whichever it has; blood-only ones; counters.
                 let (pool, blood, used) = self.reduced_cost_with(&a, pool, blood);
                 if self.state.seats[seat.index()].pool < pool
                     || self.state.minions[acting.index()].blood < blood
@@ -4407,11 +4288,8 @@ impl Engine {
                 }
             }
             ActionKind::Equip => {
-                // Rulebook "Equip": the card goes on the acting minion, its
-                // cost paid now (spec §1.7.1). Unpayable by then, or no
-                // longer holdable ("a minion can have only one vehicle"),
-                // the action fizzles (rules-qa 3.6) and the card is
-                // discarded; paid down to 0 pool, the Methuselah is ousted.
+                // Paid now (spec §1.7.1); unpayable, or no longer holdable
+                // (one vehicle), it fizzles (rules-qa 3.6).
                 let play = a.card.expect("equipment card");
                 let acting = a.acting;
                 let mut pool =
@@ -4455,12 +4333,10 @@ impl Engine {
                 }
             }
             ActionKind::EquipFound => {
-                // Vast Wealth: fizzles if the card left the acting minion
-                // (as the Codex's bleed). Working down from the top, the
-                // first equipment is equipped as normal — or burned without
-                // cost if it cannot be placed or its blood paid (TOM
+                // Vast Wealth: fizzles once the card left. The first
+                // equipment from the top is equipped, else burned (TOM
                 // 19950407, rules-qa 9.3), its pool paid even if that ousts
-                // (RTR 19941109); the library is shuffled afterward.
+                // (RTR 19941109).
                 let src = a.source.expect("source").card();
                 let acting = a.acting;
                 let c = &self.state.cards[src.index()];
@@ -4510,9 +4386,8 @@ impl Engine {
                 }
             }
             ActionKind::Card => {
-                // The card's effects resolve now; its cost (X read now,
-                // spec §1.7.1) unpayable by resolution fizzles (rules-qa
-                // 3.6).
+                // Its cost, X read now (spec §1.7.1); unpayable, it fizzles
+                // (rules-qa 3.6).
                 let play = a.card.expect("action card");
                 let def = cards::lookup(play.card).expect("definition");
                 let mode = &def.modes[play.mode as usize];
@@ -4534,8 +4409,7 @@ impl Engine {
                 self.spend_once_cost_off(&play, once);
                 self.spend_counters(&used);
                 self.state.minions[a.acting.index()].blood -= cost;
-                // Its pool cost too (Biothaumaturgic Experiment): paid down
-                // to 0, the acting Methuselah is ousted and the turn passes.
+                // Its pool cost too (Biothaumaturgic Experiment).
                 self.state.seats[seat.index()].pool -= pool;
                 if pool > 0 && self.state.seats[seat.index()].pool == 0 {
                     self.action = Some(a);
@@ -4700,9 +4574,8 @@ impl Engine {
                         }
                     }
                 }
-                // "Enter combat with a minion": both still ready, the
-                // combat the resolution; the action succeeds after it
-                // (rules-qa 17.3).
+                // "Enter combat with a minion": the combat is the
+                // resolution, the action successful after it (rules-qa 17.3).
                 if target_ok && mode.effects.contains(&Effect::EnterCombatWithTarget) {
                     let t = ctx.target.minion();
                     if self.state.minions[a.acting.index()].ready() {
@@ -4769,11 +4642,9 @@ impl Engine {
                 if let Some(id) = in_play {
                     self.enter_library_contest(id);
                 }
-                // Abactor: "a referendum is called to call a blood hunt on
-                // this vampire (independent of the action, just as if they
-                // had committed diablerie)" — after a hunt that gained blood
-                // (LSJ 20090411), part of the action's resolution (LSJ
-                // 20100112); no diablerie (LSJ 20090724).
+                // Abactor's blood hunt: after a hunt that gained blood (LSJ
+                // 20090411), inside the resolution (LSJ 20100112), no
+                // diablerie (LSJ 20090724).
                 if mode.effects.contains(&Effect::BloodHuntIfHuntGained)
                     && a.hunt_gained
                     && self.state.minions[a.acting.index()].present()
@@ -4786,11 +4657,8 @@ impl Engine {
                 }
             }
             ActionKind::BurnCard => {
-                // The granted action's pool cost is paid at resolution
-                // ("as a Ⓓ action that costs 1 pool"); unpayable by then
-                // it fizzles (rules-qa 3.6); paid down to 0, the acting
-                // Methuselah is ousted and the turn passes.
-                // "As a Ⓓ action that costs 1 blood" (Powerbase: Munich).
+                // The granted action's printed cost (Powerbase: Munich's
+                // blood), paid now; unpayable, it fizzles (rules-qa 3.6).
                 let (cost, blood) = self.granted_cost(&a);
                 let src = a.source.expect("source").card();
                 if self.state.seats[seat.index()].pool < cost as i32
@@ -4838,10 +4706,9 @@ impl Engine {
                 }
             }
             ActionKind::Ability => {
-                // The printed cost is paid at resolution; unpayable by then,
-                // the action fizzles (rules-qa 3.6). Paid, a target that no
-                // longer qualifies leaves it successful with no effect
-                // (spec §3.4.1, Nathaniel Bordruff ANK 20210124).
+                // Unpayable, it fizzles (rules-qa 3.6); paid, a target no
+                // longer qualifying leaves it without effect (spec §3.4.1,
+                // ANK 20210124).
                 let effects = self.granted_effects(&a);
                 let (blood, pool) = effects.iter().fold((0u8, 0u8), |(b, p), e| match e {
                     // An ally's action "that costs 1 life" (Rotting
@@ -5141,8 +5008,6 @@ impl Engine {
                                 self.remove_ally_from_game(acting);
                             }
                         }
-                        // Michael Harris: the equipment is chosen now that
-                        // the action succeeded (as Magic of the Smith).
                         // Eulogio: the top cards reordered, then unlocked.
                         Effect::ReorderTopThenUnlock(n) => {
                             self.effect_unlock(acting);
@@ -5156,6 +5021,8 @@ impl Engine {
                                 });
                             }
                         }
+                        // Michael Harris: the equipment is chosen now that
+                        // the action succeeded (as Magic of the Smith).
                         Effect::SearchEquip => {
                             self.flow = Flow::LibrarySearch {
                                 minion: acting,
@@ -5272,11 +5139,9 @@ impl Engine {
                                 }
                             }
                         }
-                        // The target re-checked above, as a card's: Mylan
-                        // Horseed's unlock, Victoria Ash's lock (of a locked
-                        // target, a no-op: rules-qa 57.10), ECTU Operative's
-                        // burn, Le Dinh Tho's discard (replaced unseen, PIB
-                        // 20121031), Malabranca's pool steal, Veneficti's ally.
+                        // The target re-checked above, as a card's (Mylan
+                        // Horseed, Victoria Ash: a locked target's lock a
+                        // no-op, rules-qa 57.10; Le Dinh Tho, PIB 20121031).
                         e if e.family() == Family::Shared => {
                             self.apply_shared_effect(e, &ctx, By::Ability(src))
                         }
@@ -5292,12 +5157,10 @@ impl Engine {
                 return;
             }
             ActionKind::Political => {
-                // Rulebook "The Referendum": the cost is paid and the
-                // referendum called — only if the acting minion is still
-                // ready (spec §3.7.5.1); NRA on resolution (rules-qa 1.4).
-                // The referendum and cost come from the political action
-                // card, or from the card in play granting the action (no
-                // card-play cost, spec §1.5).
+                // Rulebook "The Referendum": the cost paid, the referendum
+                // called if the acting minion is still ready (spec
+                // §3.7.5.1); NRA on resolution (rules-qa 1.4). A granted
+                // one has no card-play cost (spec §1.5).
                 let (mode, cost) = match (a.card, a.source) {
                     (Some(play), _) => {
                         let def = cards::lookup(play.card).expect("definition");
@@ -5347,8 +5210,7 @@ impl Engine {
     }
 
     /// Riders of a vampire that successfully hunted (Adisa), and of the
-    /// cards that became another on it ("after this vampire successfully
-    /// hunts, burn this card", Enhanced Coagulant — not while it is still
+    /// cards that became another on it (Enhanced Coagulant, not as
     /// equipment).
     pub(crate) fn successful_hunt_riders(&mut self, m: MinionId) {
         // "Do not replace until a vampire successfully hunts" (Restricted
@@ -5505,10 +5367,8 @@ impl Engine {
             let id = ActionId::Rulebook(a.kind, a.torpor_target.or(a.giver));
             self.state.minions[acting.index()].acted.push(id);
         }
-        // Damage after action resolution (Daring the Dawn) not yet taken in
-        // the after-resolution window: an action ending without passing
-        // through it (a torpor-block diablerie's blood hunt ousting the
-        // acting Methuselah) still reached resolution (ANK 20220331).
+        // Daring the Dawn's damage not taken in the after-resolution window
+        // (an action ending past it still reached resolution, ANK 20220331).
         let damage = a.damage_after;
         if damage > 0 && a.outcome.is_some() && self.state.minions[acting.index()].present() {
             self.damage_out_of_combat(acting, damage, true);
@@ -5626,8 +5486,7 @@ impl Engine {
     }
 
     /// As the rescue is announced: the part of its cost the acting vampire
-    /// pays (rules-qa 48.8) — the splits the blood allows now, or every
-    /// split if none does (the action would fizzle unless blood comes).
+    /// pays (rules-qa 48.8), the splits the blood allows now, else all.
     pub(crate) fn rescue_request(&self) -> DecisionRequest {
         let a = self.action.as_ref().expect("action context");
         let st = &self.state;
@@ -5672,13 +5531,9 @@ impl Engine {
         self.after_resolution();
     }
 
-    /// Put an equipment card from outside play on `acting`, its cost paid:
-    /// its mode's own effects apply, and a unique enters contest.
     /// An ally enters play in `seat`'s ready region, unlocked, with its
-    /// printed life from the blood bank (rulebook "Ally cards"): a minion
-    /// and its card in play, linked. A recruited ally cannot act this turn
-    /// (rulebook "Recruit Ally"). A unique ally another Methuselah has is
-    /// contested (rulebook "Contested Cards").
+    /// printed life (rulebook "Ally cards"): a minion and its card in play,
+    /// linked; it cannot act this turn (rulebook "Recruit Ally").
     pub(crate) fn recruit_ally(
         &mut self,
         seat: SeatId,
@@ -5747,12 +5602,9 @@ impl Engine {
         }
     }
 
-    /// A retainer enters play on the acting minion with the life its
-    /// version has (rulebook "Employ Retainer"), its layers giving the
-    /// employer what its text says.
-    /// `outside_action`: employed by an effect, not an employ action (Pack
-    /// Alpha): its "if the action to employ this retainer is successful"
-    /// riders have no action to follow (Feral Hound).
+    /// A retainer enters play on the acting minion with its version's life
+    /// (rulebook "Employ Retainer"). `outside_action`: employed by an effect
+    /// (Pack Alpha), no employ action's riders (Feral Hound).
     pub(crate) fn put_retainer(
         &mut self,
         seat: SeatId,
@@ -5851,6 +5703,8 @@ impl Engine {
         }
     }
 
+    /// Put an equipment card from outside play on `acting`, its cost paid:
+    /// its mode's own effects apply, and a unique enters contest.
     pub(crate) fn put_equipment(&mut self, seat: SeatId, acting: MinionId, play: PlayCtx) {
         let def = cards::lookup(play.card).expect("definition");
         // "Only one … can be played or equipped in a game" (Flaming
@@ -5884,9 +5738,8 @@ impl Engine {
     }
 
     /// Could minion `m` equip with library card `card` as a card play would
-    /// — clan and discipline requirements, "a minion can have only one", no
-    /// unique copy already in play under its controller (rules-qa 7.1)?
-    /// Cards without a definition cannot be put in play by the engine yet.
+    /// (requirements, "only one", no unique copy already its controller's:
+    /// rules-qa 7.1)? Not without a definition.
     pub(crate) fn equip_requirements_met(&self, m: MinionId, card: u16) -> bool {
         let st = &self.state;
         let lib = &LIBRARY[card as usize];
@@ -5906,10 +5759,9 @@ impl Engine {
                 && st.once_played.contains(&card))
     }
 
-    /// The search of a successful Magic of the Smith: every equipment in
-    /// the library the vampire can equip and pay for (a pool cost down to 0
-    /// included; no unpayable blood cost, rules-qa 9.3), by card, or none.
-    /// A search for a card to move to hand offers every card of its kind.
+    /// The search of a successful Magic of the Smith: every equipment the
+    /// vampire can equip and pay for (rules-qa 9.3), by card, or none; a
+    /// search to hand, every card of its kind.
     pub(crate) fn search_request(
         &self,
         minion: MinionId,
@@ -5989,9 +5841,7 @@ impl Engine {
     }
 
     /// A searched or found equipment (Magic of the Smith, Michael Harris,
-    /// Vast Wealth) paid and equipped: British Museum's reduction, then the
-    /// announced ones (The Shard, The Line, Ravnos Cache); paid down to 0
-    /// pool, the Methuselah is ousted and the turn passes.
+    /// Vast Wealth) paid, British Museum's reduction first, and equipped.
     pub(crate) fn equip_found(&mut self, ctx: PlayCtx) {
         let (seat, card) = (ctx.seat, ctx.card);
         let minion = ctx.actor.expect("equipping minion");
@@ -6099,11 +5949,6 @@ impl Engine {
         }
     }
 
-    /// Rulebook "Minion Phase": a ready unlocked vampire with no blood must
-    /// hunt, and no non-mandatory action may be taken while any such hunt is
-    /// pending — so the phase cannot even end. An ally performs no hunt,
-    /// rescue or diablerie ("any ready vampire"), and one recruited this
-    /// turn takes no action at all (rulebook "Recruit Ally").
     /// `seat` burned pool: during an action, the acting Methuselah's prey
     /// burning some is remembered (Věnceslava).
     pub(crate) fn note_pool_burned(&mut self, seat: SeatId) {
@@ -6122,6 +5967,10 @@ impl Engine {
         self.action.as_ref().map_or(self.state.active, |a| a.seat)
     }
 
+    /// Rulebook "Minion Phase": the active Methuselah's actions. A vampire
+    /// with no blood must hunt, the phase not ending before; an ally takes
+    /// no hunt, rescue or diablerie, nor any action the turn it is
+    /// recruited (rulebook "Recruit Ally").
     pub(crate) fn minion_phase_options(&self) -> Vec<Choice> {
         self.action_options(self.state.active, None)
     }
@@ -6156,10 +6005,8 @@ impl Engine {
             })
             .collect();
         // A vampire that does not hunt as normal must take the hunt it can
-        // (Week of Nightmares' special hunt); with none, it is frozen: no
-        // action at all (owner, 2026-09-26: rules-qa 28.8). So is one a
-        // card forbade the same hunt this turn (Change of Target): stuck,
-        // it cannot act (LSJ 19980112).
+        // (Week of Nightmares), else takes no action (rules-qa 28.8); so
+        // does one a card forbade the hunt (Change of Target, LSJ 19980112).
         let (unusual, starving): (Vec<MinionId>, Vec<MinionId>) =
             starving.into_iter().partition(|&m| {
                 st.cannot_hunt(m)
@@ -6220,11 +6067,9 @@ impl Engine {
             })
             .collect();
         if !starving.is_empty() || !special.is_empty() {
-            // The forced hunt — after any untimed ability the Methuselah
-            // wants first (The Coven's blood spares the hunt; owner,
-            // 2026-09-06).
-            // Beside it, any other mandatory action: the acting Methuselah
-            // chooses their order (rules-qa 17.2).
+            // The forced hunt, after any untimed ability first (The Coven's
+            // blood spares it; owner, 2026-09-06), beside any other
+            // mandatory action in the player's order (rules-qa 17.2).
             let mut options: Vec<Choice> = starving
                 .into_iter()
                 .map(|minion| Choice::TakeAction {
@@ -6491,11 +6336,9 @@ impl Engine {
         }
     }
 
-    /// The minion `o` has perform a directed action, if it does: a bleed; a
-    /// rescue or diablerie of another Methuselah's vampire; an action card
-    /// or a granted action aimed at another Methuselah, their minion or
-    /// card, or a card in play's "burn / steal this card" of another's
-    /// (rules-qa 17.2, 17.4). A political action is undirected.
+    /// The minion `o` has perform a directed action, if it does: a bleed, or
+    /// an action at another Methuselah or what they control (rules-qa 17.2,
+    /// 17.4); a political action is undirected.
     fn directed_actor(&self, seat: SeatId, o: &Choice) -> Option<MinionId> {
         let st = &self.state;
         let at_other = |t: Target| match t {
@@ -6555,9 +6398,8 @@ impl Engine {
     }
 
     /// Mandatory printed actions (spec §3.9, Elen Kamjian): while one is
-    /// attached and not yet taken this turn, it is the only action on
-    /// offer (untimed abilities aside) and the phase cannot end; a vampire
-    /// that cannot take it (it bled already) is stuck and takes no action.
+    /// due, the only action on offer, the phase not ending; a vampire that
+    /// cannot take it is stuck.
     fn mandatory_actions(&self, s: SeatId, mut options: Vec<Choice>) -> Vec<Choice> {
         let (mut forced, stuck) = self.mandatory_split(s, &options);
         if !forced.is_empty() {

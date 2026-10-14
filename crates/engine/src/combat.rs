@@ -1,19 +1,6 @@
-//! Combat (rulebook "Combat"; spec §4). A combat is part of the action that
-//! produced it — `Engine::action` stays alive and its layers stay in force
-//! (spec §4.1.2). Each ordered step is a window over the two combatant
-//! seats, the acting minion's controller first, with impulse-reset
-//! (rules-qa 1.2); strike choice and damage prevention are single-seat
-//! offers. The steps of a round (rulebook "Combat Sequence"):
-//!
-//! before range → determine range (alternating maneuvers) → before strikes
-//! → choose strikes (acting first) → before resolution (spec §4.3.2) →
-//! resolve (combat ends first, else simultaneous; steal before mend) →
-//! prevention (acting side first, spec §4.5.4) → damage applied at once →
-//! additional strikes → press (alternating) → end of round, shared with the
-//! would-end replacement point (spec §4.9.1).
-//!
-//! A combatant no longer ready ends the round at once, but the end-of-round
-//! window still opens (rulebook step 7).
+//! Combat (rulebook "Combat"; spec §4): `CombatCtx`, its round steps and
+//! damage. A combat is part of its action (spec §4.1.2); each step is a
+//! window over the combatants, the acting side first (rules-qa 1.2).
 
 use crate::cards::{self, Effect, PlayCtx, StrikeKind, Window};
 use crate::decision::{Choice, DecisionRequest, WindowLabel};
@@ -67,22 +54,18 @@ pub enum Step {
     BeforeResolution,
     /// Side `i` prevents the damage pending on it.
     Prevent(usize),
-    /// A prevention of `n` covers only part of mixed damage on side `side`:
-    /// the preventer (`by`) chooses how many aggravated points it covers
-    /// (spec §4.5.2; owner 2026-09-04: one may prefer torpor with blood
-    /// intact), then the step goes `back` to side k's prevention, or (None)
-    /// to the others' prevention window.
+    /// A prevention of `n` covering part of mixed damage on `side`: `by`
+    /// picks the aggravated points it covers (spec §4.5.2; owner
+    /// 2026-09-04), then `back` to that side's prevention, None the others'.
     Allocate {
         side: usize,
         n: u8,
         by: SeatId,
         back: Option<usize>,
     },
-    /// Points just prevented on side `side` could have been strike damage
-    /// or other damage (environmental, a retainer's): the preventer `by`
-    /// picks how many were from the opposing strikes — aggravated in
-    /// `lo_a..=hi_a`, normal in `lo_n..=hi_n` — which Disarm reads (owner,
-    /// 2026-09-26: rules-qa 29.3). Then `back`, as for `Allocate`.
+    /// Points just prevented on `side`: `by` picks how many were strike
+    /// damage, in `lo_a..=hi_a` / `lo_n..=hi_n` (Disarm reads it; rules-qa
+    /// 29.3). Then `back`, as for `Allocate`.
     AllocateSource {
         side: usize,
         lo_a: u8,
@@ -92,9 +75,8 @@ pub enum Step {
         by: SeatId,
         back: Option<usize>,
     },
-    /// After both sides' prevention, every Methuselah in turn, clockwise
-    /// from the acting one, may prevent with a minion out of the combat
-    /// (Martyr's Resilience; ANK 20181101).
+    /// Prevention by minions out of the combat, each Methuselah from the
+    /// acting one (Martyr's Resilience; ANK 20181101).
     OthersPrevent,
     AdditionalStrikes,
     Press,
@@ -125,9 +107,8 @@ impl Damage {
         }
     }
 
-    /// Prevent up to `n` points, aggravated first when allowed. Returns
-    /// what was prevented. Mixed damage with a partial prevention goes
-    /// through `Step::Allocate` instead (rules-qa 4.2).
+    /// Prevent up to `n` points, aggravated first when allowed; returns
+    /// what was prevented (a partial cover is `Step::Allocate`, rules-qa 4.2).
     fn prevent(&mut self, n: u8, aggravated_ok: bool) -> u8 {
         let mut left = n;
         if aggravated_ok {
@@ -165,11 +146,9 @@ fn source_rider(st: &crate::state::GameState, source: Option<CardId>, e: Effect)
     })
 }
 
-/// A combat card's delayed effect "put this card on …": on the opposing
-/// minion as its strike lands, or on its minion after combat. The card went
-/// to the ash heap as it resolved and stays there (only action cards wait in
-/// limbo); the effect applies whether the card is there or not, represented
-/// in play as an effect-only card (owner, 2026-09-26: rules-qa 21.1).
+/// A combat card's delayed "put this card on …" (as its strike lands, after
+/// combat): taken back from the ash heap, else an effect-only card in play
+/// (rules-qa 21.1, 47.1; `Engine::place_held`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Held {
     pub card: u16,
@@ -716,11 +695,9 @@ impl CombatCtx {
         self.window = OrderedWindow::new(self.order());
     }
 
-    /// Play windows open at the current step. `COMBAT_UNTIMED` cards are
-    /// playable at any impulse before the resolution they affect (rules-qa
-    /// 2.2); additional strike cards only once the first pair is over, both
-    /// combatants still ready (rules-qa 47.2, revising 4.4), and again
-    /// after each additional pair (48.2).
+    /// Play windows open at the current step: untimed cards before the
+    /// resolution they affect (rules-qa 2.2); additional strikes after each
+    /// pair, both combatants ready (rules-qa 47.2, 48.2).
     fn windows(&self) -> Vec<Window> {
         match self.step {
             Step::BeforeRange => vec![Window::CombatBeforeRange, Window::CombatUntimed],
@@ -792,7 +769,6 @@ impl CombatCtx {
             || self.sides[side].no_strike_round == Some(self.round)
     }
 
-    /// A press now: none to continue under a frenzy (Terror Frenzy [ani]).
     /// A press now would end the combat and the side's minion cannot press
     /// to end it (Don Michael Antonio Giovanni).
     pub(crate) fn end_press_barred(&self, st: &GameState, side: usize) -> bool {
@@ -804,17 +780,17 @@ impl CombatCtx {
             ) > 0
     }
 
+    /// A press now: none to continue under a frenzy (Terror Frenzy [ani]).
     pub(crate) fn may_press(&self, side: usize) -> bool {
         !(self.sides[side].no_continue_press && !self.press_continue)
             && !(self.sides[side].no_end_press && self.press_continue)
             && !self.sides[side].no_press_round
     }
 
-    /// Effect-derived legality at the current step: no two maneuvers or
-    /// presses in a row by the same minion, one limited additional-strike
-    /// source per round, only hand strikes under a grapple, one strike
-    /// commitment a round (rulebook "Determine Range": no second strike
-    /// card or weapon to maneuver again), a range not set twice.
+    /// Can `mode` be played by `side` at this step (no two maneuvers or
+    /// presses in a row, one limited additional strike, hand strikes under
+    /// a grapple, one strike commitment a round: rulebook "Determine
+    /// Range")?
     pub(crate) fn allows(&self, st: &GameState, mode: &cards::ModeDef, side: usize) -> bool {
         self.allows_from(st, mode, side, None)
     }
@@ -1067,12 +1043,9 @@ impl Engine {
         }
     }
 
-    /// The strike choice among `options`, none without a strike to choose:
-    /// with the abilities usable at any impulse, and the retainer targets
-    /// of side `retainers`'s ranged strikes.
     /// The aims `seat` may play on the strike its minion just chose (Target
-    /// Vitals): in the strike phase, a strike committed at the maneuver
-    /// included (LSJ 20080409; rules-qa 55.8).
+    /// Vitals), a strike committed at the maneuver included (LSJ 20080409;
+    /// rules-qa 55.8).
     fn aim_options(&self, seat: SeatId, windows: &[Window]) -> Vec<Choice> {
         let hand = self.virtual_hand(seat);
         self.play_options(seat, windows, None)
@@ -1086,6 +1059,8 @@ impl Engine {
             .collect()
     }
 
+    /// The strike choice among `options` (none without one), with the
+    /// any-impulse abilities and side `retainers`'s retainer targets.
     fn strike_request(
         &self,
         seat: SeatId,
@@ -1611,11 +1586,9 @@ impl Engine {
         }
     }
 
-    /// The press step opens: each Trap and Conquer the Beast with a counter
-    /// burns one. A Trap's press to continue applies first, no combatant's
-    /// (ANK 20200525-1; a second one adds nothing, a press to continue
-    /// standing); Conquer's is its vampire's, mandatory at [ani] or
-    /// optional at [ANI], gone with the round.
+    /// The press step opens: each Trap and Conquer the Beast burns a counter
+    /// for its press — Trap's to continue, no combatant's, first (ANK
+    /// 20200525-1); Conquer's its vampire's, mandatory at [ani].
     fn trap_presses(&mut self) {
         let both = self
             .combat
@@ -1865,13 +1838,10 @@ impl Engine {
         }
     }
 
-    /// Flesh of Marble: "if a damage is successfully inflicted on this
-    /// vampire in a given round, any additional damage inflicted on this
-    /// vampire in the same round is automatically prevented. Aggravated
-    /// damage cannot be prevented this way" ([PRO]: it can) — applied as the
-    /// damage is about to land, after other prevention. With both kinds
-    /// pending, the superior's one point let through is its controller's
-    /// pick (LSJ 20021001): true while that choice is asked.
+    /// Flesh of Marble: past a round's first damage, the rest is prevented
+    /// (aggravated too at [PRO]), after other prevention; the superior's one
+    /// point let through is its controller's pick (LSJ 20021001): true
+    /// while that is asked.
     fn marble_clamp(&mut self) -> bool {
         let c = self.combat.as_mut().expect("combat context");
         for i in 0..2 {
@@ -1945,16 +1915,9 @@ impl Engine {
         }
     }
 
-    /// Weather Control's damage this round, as the before-range step ends
-    /// (ANK 20170930: both minions play their before-range effects first):
-    /// each combatant and each retainer on them takes it, unpreventable,
-    /// environmental — even if the combat is ending (LSJ 19971110, ANK
-    /// 20190725). True when the flow moved on (`apply_damage`).
     /// Anathema: a combatant carrying one whose blood went from some to 0
-    /// since last seen, in this combat, is burned, the opposing minion's
-    /// Methuselah gaining its capacity in pool — any loss (RTR 19980623);
-    /// one burned by aggravated damage is gone already (LSJ 20021120); the
-    /// other Anathemas burn with it (LSJ 20021117).
+    /// in this combat is burned, the opposing Methuselah gaining its
+    /// capacity in pool (RTR 19980623; LSJ 20021120, 20021117).
     pub(crate) fn settle_anathema(&mut self) {
         let Some(c) = self.combat.as_ref() else {
             return;
@@ -2017,6 +1980,10 @@ impl Engine {
         self.apply_damage()
     }
 
+    /// Weather Control's damage, as the before-range step ends (ANK
+    /// 20170930): unpreventable, environmental, on each combatant and its
+    /// retainers, even if the combat is ending (LSJ 19971110, ANK
+    /// 20190725). True when the flow moved on.
     pub(crate) fn weather_damage(&mut self) -> bool {
         let c = self.combat.as_mut().expect("combat context");
         let n: u8 = c
@@ -2141,11 +2108,9 @@ impl Engine {
             self.discard_held(false);
             return;
         }
-        // First strike (rulebook "First Strike"): resolved before a normal
-        // strike, after a strike: combat ends; a dodge still protects from
-        // it; both with first strike resolve together, as normal. The
-        // pool's only first strike burns an equipment or retainer
-        // (Donnybrook [obf]): a weapon burned so loses its strike, below.
+        // First strike (rulebook "First Strike"), a dodge still protecting;
+        // the pool's only one (Donnybrook [obf]) burns equipment, so a
+        // weapon burned loses its strike, below.
         let mut strikes = strikes;
         let first: Vec<usize> = (0..2)
             .filter(|&i| c.sides[i].first_strike && strikes[i].is_some())
@@ -2198,12 +2163,9 @@ impl Engine {
                 _ => strikes[i],
             }
         });
-        // A vampire striking "with first strike" (Elimelech): its strike
-        // resolves first and alone; the opposing one (not a dodge, which
-        // still protects at once) waits for that damage to land
-        // (`held_strike`, rulebook "First Strike").
-        // Read with the opposing minion ("in combat with a younger
-        // vampire", Wise Frog).
+        // A vampire striking "with first strike" (Elimelech, Wise Frog's
+        // read with the opponent): the opposing non-dodge strike waits for
+        // its damage (`held_strike`, rulebook "First Strike").
         let printed_first: [bool; 2] = std::array::from_fn(|i| {
             st.printed_mod(
                 c.sides[i].minion,
@@ -2632,8 +2594,6 @@ impl Engine {
         for (i, &n) in steals.iter().enumerate() {
             self.state.gain_blood(c.sides[i].minion, n);
         }
-        // A retainer burns life for damage (aggravated alike, rulebook
-        // "Damage Resolution"), and life stolen from it becomes blood.
         // Damage to a retainer waits for prevention (Martyr's Resilience);
         // life stolen from it moves at once, becoming blood.
         let mut lifeless = Vec::new();
@@ -2703,16 +2663,14 @@ impl Engine {
         self.push_mode_layers(w);
     }
 
-    /// The card goes on minion `on`, if still in play: out of the ash heap
-    /// it went to as it resolved ("put this card on …", rules-qa 47.1, the
-    /// rule for every such card). Only if the card has left the ash heap
-    /// since, an effect-only stand-in carries its counters and layers.
     /// `h` may go on its minion: still there, with no card of its name.
     pub(crate) fn may_put_held(&self, h: Held) -> bool {
         self.state.minions[h.minion.index()].present()
             && !self.state.holds_its_name(h.minion, h.card)
     }
 
+    /// The card goes on minion `on`, if still in play, out of the ash heap
+    /// (rules-qa 47.1); gone from there, an effect-only stand-in.
     pub(crate) fn place_held(&mut self, h: Held, on: MinionId) {
         if !self.state.minions[on.index()].in_play {
             return;
@@ -2752,11 +2710,8 @@ impl Engine {
     }
 
     /// Damage applied at once to both sides after prevention (rulebook
-    /// "Damage Resolution"): blood burned, torpor, or burned outright.
-    /// Returns true when the flow moved on: a torpor rider (Fame) ousted a
-    /// combatant's Methuselah mid-combat — the game ended, the active
-    /// Methuselah's turn passed, or the opponent left the game and the
-    /// combat ended at once (DESIGN §10).
+    /// "Damage Resolution"). True when the flow moved on: a rider (Fame)
+    /// ousted a Methuselah (`combat_ousts`).
     pub(crate) fn apply_damage(&mut self) -> bool {
         // Retainers burn life for the damage left on them (aggravated alike,
         // rulebook "Damage Resolution"); gone or moved by now, no effect.
@@ -2876,10 +2831,8 @@ impl Engine {
         false
     }
 
-    /// After an effect in combat that may have ousted a Methuselah: true
-    /// when the flow moved on — the game ended, the active Methuselah's
-    /// turn passed, or a combatant's Methuselah left the game and the
-    /// combat ended at once (DESIGN §10).
+    /// After a combat effect that may have ousted a Methuselah: true when
+    /// the game ended, the turn passed, or the combat ended (DESIGN §10).
     pub(crate) fn combat_ousts(&mut self) -> bool {
         if self.state.living() <= 1 {
             self.combat = None;
@@ -2897,10 +2850,8 @@ impl Engine {
             .iter()
             .any(|s| self.state.seats[s.seat.index()].ousted)
         {
-            // The opponent's Methuselah ousted: their minion left the
-            // game with them, so the combat ends at once (no
-            // end-of-round window) and the blocked action goes on
-            // without them.
+            // A combatant's Methuselah ousted: the combat ends at once, no
+            // end-of-round window; the action goes on without them.
             let st = &self.state;
             let a = self.action.as_mut().expect("action context");
             a.order.retain(|s| !st.seats[s.index()].ousted);
@@ -2944,9 +2895,8 @@ impl Engine {
     }
 
     /// "End a combat" outside strike resolution (Saulot's Guiding Wisdom):
-    /// no strike resolves, damage prevention cannot be played, the round
-    /// is over and its end-of-round window opens (advanced rules §4.7.2,
-    /// §4.9: ending combat does not close that window).
+    /// no strike resolves nor prevention, the end-of-round window still
+    /// opens (advanced rules §4.7.2, §4.9).
     pub(crate) fn end_combat_now(&mut self) {
         // Ended before range is determined: Weather Control's damage still
         // lands (LSJ 19971110, ANK 20190725).
@@ -2970,9 +2920,8 @@ impl Engine {
         c.fresh_window(Step::EndOfRound);
     }
 
-    /// Combat over: back to the action's after-combat window — after
-    /// which a combat the action's resolution began leads to the
-    /// after-resolution window (rules-qa 17.3).
+    /// Combat over: back to the action's after-combat window (a combat
+    /// begun at resolution then to after resolution, rules-qa 17.3).
     fn end_combat(&mut self) {
         let ended = self.combat.take();
         // Yawp Court reads the acting vampire as the combat ends, before a
@@ -2989,12 +2938,9 @@ impl Engine {
         // "Do not replace until after combat" (Lam Into): before a new
         // combat Psyche! queued too (LSJ 20001122).
         self.release_held(Release::AfterCombat);
-        // Psyche! [CEL]: the new combat begins, still in the action, both
-        // minions ready; this combat's after-combat effects are lost
-        // (unlocks aside, applied as their strikes resolved: LSJ 19980109)
-        // — Torrent's continuation, a continuation as if unblocked
-        // included (RTR 20020501); the new combat ends as this one would
-        // have.
+        // Psyche! [CEL]: the new combat, both minions ready; this one's
+        // after-combat effects lost, continuations included (RTR 20020501),
+        // not its unlocks (LSJ 19980109).
         if let Some(c) = ended.as_ref().filter(|c| c.psyche) {
             let [x, y] = c.sides.each_ref().map(|s| s.minion);
             let ready = |m: MinionId| self.state.minions[m.index()].ready();
