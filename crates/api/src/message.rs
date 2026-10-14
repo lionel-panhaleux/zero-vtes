@@ -223,7 +223,7 @@ pub enum AllocationError {
     MinNonzero,
 }
 
-/// Why a game spec is refused (`POST /games`, a wasm game's creation).
+/// Why a game spec is refused (`POST /games`).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(tag = "error", rename_all = "snake_case")]

@@ -6,7 +6,7 @@ license = "MIT"
 
 # A game behind the contract (docs/protocol.md, docs/online-plan.md):
 # commands in, messages out, per seat; bots answered inside; the record.
-# Servers and the wasm module are thin shells over `Game::handle`.
+# The server is a thin shell over `Game::handle`.
 [lib]
 name = "zvtes_host"
 

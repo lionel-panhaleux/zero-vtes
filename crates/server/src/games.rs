@@ -69,9 +69,32 @@ pub struct Policy {
     pub hash: String,
 }
 
-/// A network profile: its temperature (the wasm module's measured
-/// settings, `crates/wasm`; profiles move to `policy` with A4).
+/// A network profile: its temperature (`NetAgent::temperature`; profiles
+/// move to `policy` with A4). 0.5 measured on `p7-politics@1400`
+/// (`crates/policy/examples/strength.rs`, 512 games): 1.16 VP a seat
+/// against 0.82 sampling as training does (0.3: 1.18 / 0.80; 0.7: 1.06 /
+/// 0.92) — the network's favourites more often, a card it rates low played
+/// less "for the sake of it".
 const PROFILES: [(&str, f32); 1] = [("network", 0.5)];
+
+/// The network bots' nudges: those the served weights trained with, never
+/// faded (`nudge_until` 0) — off them it plays off its training (a transfer
+/// onto a second copy of a unique: 35% of the offers instead of 4%;
+/// Z-train, 2026-10-12). The rescue bonus (owner, 2026-10-05: rescuing
+/// one's own vampire encouraged, not forced): +6 takes 7% of the rescues
+/// offered at temperature 1 (0% without), at no measured cost (512 games:
+/// 0.94 / 1.05 VP a seat, within the control's spread). Nightmare 6: p10's.
+fn nudges() -> Nudges {
+    Nudges {
+        rescue: 6.0,
+        bleed: 4.0,
+        idle: 3.0,
+        draw: 7.0,
+        stuck: 6.0,
+        nightmare: 6.0,
+        ..Nudges::default()
+    }
+}
 
 pub struct ServerBots(pub Option<Arc<Policy>>);
 
@@ -88,15 +111,7 @@ impl Bots for ServerBots {
         let &(name, temperature) = PROFILES.iter().find(|(n, _)| *n == profile)?;
         let agent = NetAgent::new(p.net.clone(), seed as u64)
             .temperature(temperature)
-            .nudges(Nudges {
-                rescue: 6.0,
-                bleed: 4.0,
-                idle: 3.0,
-                draw: 7.0,
-                stuck: 6.0,
-                nightmare: 6.0,
-                ..Nudges::default()
-            });
+            .nudges(nudges());
         Some((
             Box::new(agent),
             BotRecord {

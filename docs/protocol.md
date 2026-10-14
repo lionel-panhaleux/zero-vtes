@@ -2,7 +2,7 @@
 
 How a client plays a game of *Vampire: The Eternal Struggle* on the
 zero-vtes engine: a rules-enforcing engine with bots, served at
-`https://engine.krcg.org` or embedded in a page (wasm). The client shows
+`https://engine.krcg.org`. The client shows
 the table and turns its user's moves into answers; the engine decides
 what is legal, runs the bots and says what happened.
 
@@ -62,7 +62,6 @@ client                                  host
 - The game ends when one Methuselah is left, at the time limit, when the
   human is ousted (the bots do not play on), when the human leaves, or
   after the idle timeout (`joined.idle_timeout`).
-- Embedded (wasm), the same JSON goes through function calls (§10).
 
 ## 3. Identities
 
@@ -337,11 +336,6 @@ ended; the last `pool`, `blood` and `torpor` told are the next view's.
 
 No account: the token is the seat, never in a URL. The server checks
 the WebSocket's `Origin` against the platforms it serves.
-
-**Embedded** (`zvtes-wasm`, npm): `new Game(specJson, weights?)` (throws
-a `SpecError`); `game.handle(commandJson) → messagesJson` (an array);
-`game.record()`; `catalog()`; `checkDeck(deckJson)` (`null` or a
-`SpecError`). The same messages; the page runs the bots.
 
 ## 11. Records
 

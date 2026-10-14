@@ -1,9 +1,14 @@
 # Human play (P5) — plan and board
 
-> On `p6-online` (2026-10-13) `crates/protocol` is gone: the host plays
-> the game (`crates/host`, docs/protocol.md), the renderer tells it
-> (`crates/text`), and the corpus is game records (`data/records`). This
-> page records how the in-browser fork on `main` was built.
+> History. On `p6-online` (2026-10-13) `crates/protocol` is gone: the
+> host plays the game (`crates/host`, docs/protocol.md), the renderer
+> tells it (`crates/text`), and the corpus is game records
+> (`data/records`). Since 2026-10-14 the fork plays on the server
+> (`crates/server`, `engine.krcg.org`; docs/online-plan.md) and the wasm
+> module is gone (owner: the in-browser engine will not be used again).
+> This page records how the first, in-browser fork was built; its owner
+> rulings and findings still hold. "Checks" and "Running the fork" below
+> are current.
 
 Working document for P5: a human plays the engine and its bots through a
 [Succubus Club](https://github.com/thomasWajs/succubus-club) (SC) interface.
@@ -277,13 +282,11 @@ for history.
 - Bots: `Player::Bot {style}`: `aggro_bleed`, `wall`, `random` built in; any
   other style is installed by the host (`Session::set_agent`) — the network
   policy's entry point (slice 3).
-- Dev tools: `cargo run -p zvtes-protocol --example narrate -- [seed] [n]`
-  prints a game as the human reads it. A game exported from the fork
-  ("Export replay") reads back with `cargo run -p zvtes-protocol --profile ci
-  --example replay -- <replay.json> [--options] [--table N]...`: every
-  decision of every seat, its choice and the events, every card shown;
-  `--options` lists each decision's options, `--table N` prints the table
-  (pools, minions, blood, cards, hands) before decision N.
+- Dev tools: a game record (the fork's "Export Replay", the server's
+  `/games/{id}/record`, `data/records`) reads back with `cargo run -p
+  zvtes-host --profile ci --example replay -- <record.json> [--options]`:
+  every decision of every seat, its choice and the events; `--options`
+  lists each decision's options.
 
 ### Checks
 
@@ -293,41 +296,39 @@ for history.
   option and decision told), `HOST_SEED_FROM=n` starts there; engine-side
   allocation shapes in `tests/politics.rs` / `tests/precon.rs`;
   `crates/host/tests/records.rs` reads the corpus whole.
-- `cargo clippy -p zvtes-wasm --profile ci -- -D warnings`;
-  `wasm-pack build crates/wasm --target nodejs --out-dir ../../target/wasm-node
-  && node crates/wasm/tests/smoke.mjs`.
+- `cargo clippy -p zvtes-server --all-targets --profile ci -- -D
+  warnings` (not a default member); `scripts/check_ts.sh` (a game typed
+  against `protocol.ts`); with a server running, `node
+  crates/server/tests/client.mjs <url>` plays a game over HTTP and
+  WebSocket, `node crates/server/tests/load.mjs <url> <n>` n at once.
 
-## Running the fork (slice 2)
+## Running the fork
+
+The fork plays on `https://engine.krcg.org` (the server's network bots:
+temperature 0.5 and the nudges their weights trained with,
+`crates/server/src/games.rs`):
 
 ```
-wasm-pack build crates/wasm --target web          # in zero-vtes: crates/wasm/pkg
-cd ../succubus-club && npm install                # once; links zvtes-wasm
+cd ../succubus-club && npm install                # once
 npx vite --config vite/config.dev.mjs --port 5188 # then http://localhost:5188
 ```
 
-Network bots: `uv run python -m train.export runs/<name>/best.pt
-../succubus-club/public/assets/zvtes-policy.zvp` (without the file the bots
-are the scripted ones). `node crates/wasm/tests/smoke.mjs` plays a game
-against them too when `target/policy.zvp` exists. A network trained on
-observation V2 (DESIGN §11.2) exports with an `obs 2` header line, which
-a wasm built before 2026-10-03 refuses: rebuild the wasm first, then
-swap the file.
-They play at temperature 0.5 with a rescue bonus of +6
-(`crates/wasm/src/lib.rs`, `NetAgent::temperature` / `nudges`;
-DESIGN §11.2): their favourite options more often than training samples
-them, and their own vampires rescued from torpor more often.
+`VITE_ENGINE_SERVER=http://localhost:8040` plays on a local server
+instead (`ZVTES_POLICY=target/policy.zvp cargo run -p zvtes-server
+--release`; its configuration: `crates/server/src/main.rs`).
 
-Pick a deck (Preconstructed → Fifth Edition …: the engine refuses a deck with
-cards outside its pool, naming them), then "Play against Bots (rules engine)".
+Pick a deck (Preconstructed → Fifth Edition …: the server refuses a deck with
+cards outside its pool, the fork names them), then "Play against Bots (rules engine)".
 Dev flags: `VITE_FAST_TRACK_ENGINE_GAME=1` starts a game at once;
 `VITE_ENGINE_AUTOPLAY=1` plays your seat at random with the consistency check.
 The fork's own checks: `npx vue-tsc --noEmit`, `npx eslint .`,
 `npx prettier --check .`.
 
-What the fork changes in SC: `src/client/engine/` (new), `store/engine.ts`,
-`EngineDecisionPanel.vue`, and small hooks in `types/state.ts` (`GameType`),
-`state/gameMutations.ts` (the gate), `state/setup.ts` (stop on reset),
-`gateway/savedGames.ts`, `GameRightColumn.vue`, `MainMenu.vue`, Vite config.
+What the fork changes in SC: `src/client/engine/` (new: `host.ts` the
+server client, `api.ts` copied from `crates/api/protocol.ts`),
+`store/engine.ts`, `central/Engine*.vue`, and hooks in `types/state.ts`
+(`GameType`), `state/gameMutations.ts` (the gate), `state/setup.ts` (stop
+on reset), `gateway/savedGames.ts`, the table's objects, `MainMenu.vue`.
 
 ## Open questions (owner)
 

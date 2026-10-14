@@ -5,7 +5,7 @@ edition = "2021"
 license = "MIT"
 
 # The trained policy's inference, by hand (docs/human-play.md slice 3): no
-# dependency, so the bot runs wherever the engine does (wasm, a server).
+# dependency, so the bot runs wherever the engine does (a server).
 # Mirrors `train/model.py`'s `Policy.forward` — keep them in step
 # (`train/tests/test_export.py` compares the two).
 [lib]

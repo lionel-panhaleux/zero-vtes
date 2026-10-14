@@ -15,8 +15,9 @@ was built so far need not be preserved.
 1. **The server is authoritative** for online games: the game runs on
    our server, bots included; the browser is a client. Logging is a side
    effect, hidden information stays hidden, one engine version serves
-   everyone and every game names its commit. `crates/wasm` stays for
-   offline play and as a second client of the same contract.
+   everyone and every game names its commit. (`crates/wasm` was to stay
+   for offline play; owner, 2026-10-14: removed, the server is the only
+   host — Succubus Club's in-browser engine went with it.)
 2. **v1 = one human + bots** per game; the API is per seat from day one
    (multi-human additive, gated on a redaction audit).
 3. **Domain**: `engine.krcg.org`.
@@ -87,8 +88,8 @@ was built so far need not be preserved.
            ↗  ↑  ↖
 engine ← host   text (api + card names: the English renderer)
    ↑      ↑ ↖  ↗
-policy ───┴─ server (axum, tokio, sqlx)   wasm (wasm-bindgen)
-   ↑          both: api + host + text + policy
+policy ───┴─ server (axum, tokio, sqlx: api + host + text + policy)
+   ↑
    py (training: engine + policy + host's replayer)
 ```
 
@@ -113,7 +114,7 @@ policy ───┴─ server (axum, tokio, sqlx)   wasm (wasm-bindgen)
   table: `render(&OptionView)`, events, prompts. The owner-tuned wording
   of `describe`/`purpose`/`narrate` re-expressed over data; their tests
   (`tests/prompts.rs`) become its oracle, and prove the data complete.
-- **`server`** and **`wasm`** — thin shells over `handle`.
+- **`server`** — a thin shell over `handle`.
 - **`py`** — training: `engine` + `policy`; human games through `host`'s
   `Replayer` (engine, request, chosen index, key per decision).
 
@@ -259,8 +260,9 @@ Opportunities switch, undo, the game record. Recorded by the owner on
 
 ## Order
 
-`main` stays playable (today's wasm + fork) until the server and the
-re-cut SC branch replace them in one step: the corpus keeps growing.
+The fork plays on the server since 2026-10-14 (the wasm module and the
+fork's in-browser host removed, owner); `main` takes `p6-online` when
+the owner merges it: the corpus keeps growing.
 `crates/py` builds and trains throughout. Work on `p6-online` in the
 worktree `../zero-vtes-p6`, rebased on `main` as the sibling sessions
 commit.
