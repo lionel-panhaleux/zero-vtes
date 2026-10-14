@@ -18,18 +18,13 @@ pub struct Ordered;
 #[derive(Clone, Debug, Default)]
 pub struct Polling;
 
-/// Ordered window (rulebook Sequencing; DESIGN §4.2). Offers rotate through
-/// `order`, index 0 being the acting Methuselah. Any play returns the impulse
-/// to the acting Methuselah and voids every prior pass (rules-qa 1.2,
-/// impulse-reset); the window closes only when all seats pass consecutively.
+/// Ordered window (rulebook Sequencing; DESIGN §4.2): a play returns the
+/// impulse to the acting Methuselah and voids every pass (rules-qa 1.2).
 pub type OrderedWindow = Rotation<Ordered>;
 
-/// Unordered commitment window (polling; DESIGN §4.2). No priority holder and
-/// no impulse reset: commitments are irrevocable, a pass does not forfeit
-/// later rotations, and closure requires a full rotation of consecutive
-/// passes — so every commitment reopens a response opportunity for every
-/// other seat before tally (rules-qa 1.1: sources commit independently,
-/// possibly on different rotations).
+/// Polling window (DESIGN §4.2): irrevocable commitments, no impulse reset,
+/// a pass forfeiting nothing; closing on a full rotation of passes, each
+/// commitment reopens every seat's response (rules-qa 1.1).
 pub type PollingWindow = Rotation<Polling>;
 
 impl<K> Rotation<K> {

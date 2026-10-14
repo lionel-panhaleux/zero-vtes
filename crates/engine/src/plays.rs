@@ -1,8 +1,7 @@
-//! Card plays from hand: option enumeration from the definitions (no card
-//! code decides legality), the master phase and the discard phase as offer
-//! windows, numeric terms at announcement (rules-qa 3.5), the as-played
-//! window with a cancel stack (spec §1.8), resolution with costs folded
-//! through layers, replacement draws, and in-play abilities.
+//! Card plays from hand (offers enumerated from the definitions), the
+//! master and discard phases, terms at announcement (rules-qa 3.5), the
+//! as-played cancel stack (spec §1.8), resolution, replacement draws and
+//! in-play abilities.
 
 use crate::cards::families::Family;
 use crate::cards::{
@@ -114,10 +113,9 @@ pub(crate) enum By {
 
 /// Where a hook fires (`Engine::fired_riders`).
 pub(crate) struct HookAt<'a> {
-    /// The seat a rider's scope is read against: the active Methuselah at
-    /// a phase hook, the seat the event is about at an "own" one (a
-    /// `Controller` rider: that seat's cards only); `None` at a hook its
-    /// riders' scope does not restrict.
+    /// The seat a rider's scope is read against: the active Methuselah at a
+    /// phase hook, the event's seat at an "own" one; `None` where the scope
+    /// does not restrict.
     pub seat: Option<SeatId>,
     /// At a `Hook::reads_action` hook, the seat and minion its riders'
     /// requirements are read for.
@@ -200,17 +198,8 @@ impl Engine {
         }
     }
 
-    /// `n` cards that left the seat's hand are replaced now (rulebook
-    /// "Drawing Cards"; spec §6.8.3: every replacement, whatever took the
-    /// card out of hand). Each replacement is first offered to the
-    /// `WouldReplace` riders of the cards the seat controls, `except` the
-    /// card being replaced itself ("a card other than this card"): Visit
-    /// from the Capuchin burns a counter instead, its hand size shrinking
-    /// with it. With an empty library nothing is replaced, so nothing is
-    /// replaced instead (rules-qa 8.3). Beside a draw alternative (Black
-    /// Market Cache, Shilmulo Tarot) the player picks one treatment per
-    /// replacement (ANK 20200905; rules-qa 9.4), queued in order. The hand
-    /// is then drawn up.
+    /// Replace `n` cards that left `s`'s hand, `except` this card's own
+    /// rider (spec §6.8.3; rules-qa 8.3, 9.4; ANK 20200905).
     pub(crate) fn replace(&mut self, s: SeatId, n: usize, except: Option<CardId>) {
         // The Meddling of Semsith: held until the minion phase ends.
         if n > 0 && self.state.in_minion_phase && self.state.meddled(s) {
@@ -234,12 +223,9 @@ impl Engine {
         }
         let drawing = !self.state.seats[s.index()].library.is_empty()
             && self.replacement_rider(s, except).is_none();
-        // Infernal Pursuit [CEL]: with each card replaced, k more drawn —
-        // as many as the library has (LSJ 20060620) — then discarded down
-        // to hand size (the engine's discard-down); several replaced at
-        // once (Blood Weakens' held ones, released by an empty hand), one
-        // at a time, its extras discarded before the next (ANK
-        // 20180925-1).
+        // Infernal Pursuit [CEL]: k more drawn per card replaced, as many
+        // as the library has (LSJ 20060620), then discarded down; several
+        // replaced at once go one at a time (ANK 20180925-1).
         let k = self.state.seats[s.index()]
             .timed
             .total(TimedStat::ExtraDraws) as u8;
@@ -318,12 +304,10 @@ impl Engine {
         }
     }
 
-    /// Seat `s`'s replacements held until `at` drawn now, with `also` more
-    /// (the play releasing them), then Learjet's extra draw for each one
-    /// its bearer played: "each time you draw to replace", when the delayed
-    /// replacement is drawn (PIB 20110718). Every release of held cards
-    /// comes here. Held again by The Meddling of Semsith, the extra draws
-    /// wait with them (rules-qa 73.1).
+    /// Seat `s`'s replacements held until `at`, plus `also`, drawn now;
+    /// then Learjet's extra draw for each one its bearer played (PIB
+    /// 20110718), waiting with them if the Meddling holds them again
+    /// (rules-qa 73.1).
     pub(crate) fn replace_held(
         &mut self,
         s: SeatId,
@@ -441,12 +425,9 @@ impl Engine {
         self.flow = Flow::MasterPhase;
     }
 
-    /// The mandatory master-phase effects due now for the active Methuselah,
-    /// read live: "During each Methuselah's master phase, that Methuselah
-    /// locks one of the oldest Brujah they control (if any)" (Brujah
-    /// Debate), per copy — one played during this master phase applies in
-    /// it, ordered among the phase's effects (rules-qa 33.1) — while there
-    /// is a Brujah to lock, less those resolved this phase.
+    /// The master-phase locks due now for the active Methuselah (Brujah
+    /// Debate, per copy, read live; one played this phase applies in it,
+    /// rules-qa 33.1), less those resolved this phase.
     pub(crate) fn master_dues(&self) -> Vec<CardId> {
         let st = &self.state;
         let s = st.active;
@@ -470,10 +451,8 @@ impl Engine {
         let st = &self.state;
         match mode.actor {
             Actor::Methuselah => vec![None],
-            // Rulebook "Combat": the only minion cards playable during
-            // combat are combat cards — modifiers and reactions (wakes in a
-            // strike card's as-played window included) get no window there
-            // (spec §4.1.3).
+            // Only combat cards during combat: no modifiers or reactions,
+            // wakes included (rulebook "Combat"; spec §4.1.3).
             Actor::ActingMinion => match &self.action {
                 Some(a) if a.seat == seat && self.combat.is_none() => vec![Some(a.acting)],
                 _ => vec![],
@@ -529,9 +508,6 @@ impl Engine {
                     .collect(),
                 _ => vec![],
             },
-            // The player's minion in the combat; ready, except in the
-            // end-of-round window (Taste of Vitae's "not usable by a vampire
-            // being burned or going to torpor" is the card's own clause).
             // A ready vampire of the player's, out of the combat its
             // Methuselah's minion is in.
             Actor::OwnOutOfCombat => match &self.combat {
@@ -558,6 +534,10 @@ impl Engine {
                     .collect(),
                 None => vec![],
             },
+            // The player's minion in the combat; ready, except in the
+            // end-of-round window (Taste of Vitae's "not usable by a
+            // vampire being burned or going to torpor" is the card's own
+            // clause).
             Actor::Combatant => match &self.combat {
                 Some(c) => c
                     .side_of(seat)
@@ -662,9 +642,7 @@ impl Engine {
     }
 
     /// Every legal play of a card from `seat`'s hand in any of `windows`,
-    /// enumerated from the definitions: mode windows, actor, discipline
-    /// tags, requirements, target filter, costs through layers, limits,
-    /// out-of-turn availability.
+    /// enumerated from the definitions.
     pub(crate) fn play_options(
         &self,
         seat: SeatId,
@@ -717,11 +695,10 @@ impl Engine {
                 if !mode.windows.iter().any(|w| windows.contains(w)) {
                     continue;
                 }
-                // The rulebook's one limited bleed increase per action. A
-                // conditional one counts only while its condition holds:
-                // playable when it would not (Foreshadowing Destruction
-                // against 10 or more pool, PIB 20110817). Bleed modifiers
-                // are the acting minion's: its condition is read on it.
+                // The rulebook's one limited bleed increase per action; a
+                // conditional one counts only while its condition holds,
+                // read on the acting minion (Foreshadowing Destruction, PIB
+                // 20110817).
                 if let Some(a) = action.filter(|a| a.limited_used(st)) {
                     let counts = mode.effects.iter().any(|e| match e {
                         Effect::BleedMod { limited: true, .. }
@@ -780,8 +757,6 @@ impl Engine {
                     if st.barred_this_turn.contains(&card) {
                         continue;
                     }
-                    // Concoction of Vitality: no Discipline card for the
-                    // acting vampire this action.
                     // Approximation of Loyalty [PRE]: no more action
                     // modifiers on this action.
                     if action.is_some_and(|a| a.no_more_modifiers && a.seat == seat)
@@ -792,12 +767,10 @@ impl Engine {
                     {
                         continue;
                     }
-                    // Perfect Clarity: no reaction requiring Dominate or
-                    // Presence this action — it would not affect the vampire
-                    // (bleed redirection included, LSJ 20010621) — but the
-                    // polling step's own votes, none of them choosing the
-                    // vampire (owner, 2026-10-14: rules-qa 71.25); with
-                    // [THA], none of those cards from its opponent in combat.
+                    // Perfect Clarity: no Dominate or Presence reaction
+                    // this action, bleed redirection included (LSJ
+                    // 20010621), but the polling step's own votes (rules-qa
+                    // 71.25); with [THA], none from its combat opponent.
                     let shielded = self.clarity_shielded(card, mi, actor);
                     if let Some((v, superior)) = action.and_then(|a| a.clarity) {
                         let dom_pre = tags.iter().any(|t| {
@@ -818,6 +791,8 @@ impl Engine {
                             continue;
                         }
                     }
+                    // Concoction of Vitality: no Discipline card for the
+                    // acting vampire this action.
                     if action.is_some_and(|a| a.no_discipline_cards && a.seat == seat)
                         && LIBRARY[card as usize].modes.iter().any(|lm| {
                             lm.tags
@@ -949,8 +924,8 @@ impl Engine {
                         continue;
                     }
                     // Clan requirement: the playing minion's clan, or (a
-                    // Methuselah's card) a ready vampire of the clan — or
-                    // playing as one (Abraham Mellon, Lady Scarlett
+                    // Methuselah's card) a ready vampire of the clan, or
+                    // one playing as it (Abraham Mellon, Lady Scarlett
                     // Churchill).
                     if !clans.is_empty() {
                         let ok = match actor {
@@ -1001,9 +976,9 @@ impl Engine {
                             continue;
                         }
                         // One political action per minion per turn
-                        // (rulebook "Political Action"); a political action
-                        // canceled by Delaying Tactics cannot be performed
-                        // again this turn by the seat's minions.
+                        // (rulebook "Political Action"); one Delaying
+                        // Tactics canceled is not taken again this turn by
+                        // the seat's minions.
                         if mode.effects.contains(&Effect::DeclareAction(
                             crate::decision::ActionKind::Political,
                         )) && (st.minions[m.index()].political_this_turn
@@ -1085,12 +1060,11 @@ impl Engine {
                         if st.ranged_barred(m, card) {
                             continue;
                         }
-                        // An ally has life, not blood: it never pays a
-                        // blood cost (advanced rules 5.5.1), and only
-                        // vampires play political action cards (rulebook
-                        // "Political action cards") — unless it plays this
-                        // card "as a vampire", its life paying (rulebook
-                        // "Allies"), action cards excepted where printed.
+                        // An ally never pays a blood cost (advanced rules
+                        // 5.5.1) nor plays political action cards (rulebook
+                        // "Political action cards"), unless it plays the
+                        // card "as a vampire" (rulebook "Allies"), action
+                        // cards excepted where printed.
                         if st.minions[m.index()].is_ally() {
                             let lib = &LIBRARY[card as usize];
                             let as_vampire = as_vampire.is_some();
@@ -1137,12 +1111,10 @@ impl Engine {
                                 | Limit::TwicePerCombat,
                             ) => false,
                         };
-                        // Rulebook "Action Modifier" / "Reaction": a minion
-                        // cannot play the same action modifier, or the same
-                        // reaction, more than once in an action — by name,
-                        // whatever the level (owner, 2026-09-30: rules-qa
-                        // 46.1); a canceled one counted (advanced rules
-                        // §1.8.3). Combat cards have their own limits.
+                        // Rulebook "Action Modifier" / "Reaction": once per
+                        // minion per action, by name whatever the level
+                        // (rules-qa 46.1), a canceled one counted (advanced
+                        // rules §1.8.3).
                         let once = combat.is_none()
                             && once_per_action(card)
                             && action.is_some_and(|a| hit(&a.played));
@@ -1496,10 +1468,9 @@ impl Engine {
         }
     }
 
-    /// Announce a play: the card leaves the hand (temporarily out of play,
-    /// rulebook "Playing Cards"), out-of-turn accounting is charged even if
-    /// it is later canceled, terms are chosen, then the as-played window
-    /// opens. `resume` is where the flow returns once the play settles.
+    /// Announce a play (rulebook "Playing Cards"): out-of-turn accounting
+    /// charged even if canceled, terms, then the as-played window; the flow
+    /// returns to `resume` once it settles.
     pub(crate) fn announce_play(
         &mut self,
         s: SeatId,
@@ -1641,9 +1612,8 @@ impl Engine {
         match def.modes[mode as usize].terms {
             Some(Terms::CopiesControlled) => self.open_as_played(ctx, resume),
             Some(_) => {
-                // Terms are chosen before the as-played window opens; a
-                // nested play (inside another as-played window) keeps that
-                // window's stack as its resume point.
+                // A nested play keeps the outer as-played window's stack as
+                // its resume point.
                 let resume = match std::mem::replace(&mut self.flow, Flow::GameOver) {
                     outer @ Flow::AsPlayed { .. } => outer,
                     _ => resume,
@@ -1810,12 +1780,10 @@ impl Engine {
         out
     }
 
-    /// The vampires whose blood may pay 1 of `ctx`'s card's cost, none
-    /// picked yet, while it costs something: "each time you play a location
-    /// card, you can use up to 1 of Regina's blood", in torpor too (LSJ
-    /// 20011022), a locquipment played as equipment included (LSJ
-    /// 20080107) — one another card puts in play too, which is still played
-    /// (a search, Contraband: rules-qa 41.13).
+    /// The vampires whose blood may pay 1 of `ctx`'s card's cost (Regina
+    /// Blake): a location, in torpor too (LSJ 20011022), a locquipment as
+    /// equipment (LSJ 20080107), one another card puts in play (rules-qa
+    /// 41.13).
     pub(crate) fn blood_payers(&self, ctx: &PlayCtx) -> Vec<MinionId> {
         let st = &self.state;
         // A card playing another (Piper, Contraband): the one it names.
@@ -2128,12 +2096,6 @@ impl Engine {
         }
     }
 
-    /// The `label` retainers in `seat`'s hand minion `m` could employ now,
-    /// by card and mode: its requirements met (clan, Disciplines, no unique
-    /// copy under its controller) and its cost affordable (Pack Alpha).
-    /// With `ignore`, no clan or Discipline requirement: the basic version
-    /// always, another as the vampire's Disciplines allow (Biothaumaturgic
-    /// Experiment; LSJ 20080803).
     /// Equipment cards in `seat`'s hand minion `m` could be equipped with
     /// now (Angel's Gift, Contraband): matching `filter`, requirements met,
     /// cost payable — its pool cost partly in blood with `blood_share`.
@@ -2191,6 +2153,11 @@ impl Engine {
         (pool - st.seats[seat.index()].pool).max(0) as u8
     }
 
+    /// The `label` retainers in `seat`'s hand minion `m` could employ now,
+    /// by card and mode, requirements met and cost affordable (Pack Alpha);
+    /// with `ignore`, no clan or Discipline requirement: the basic version
+    /// always, another as its Disciplines allow (Biothaumaturgic
+    /// Experiment; LSJ 20080803).
     pub(crate) fn employable_from_hand(
         &self,
         seat: SeatId,
@@ -2262,9 +2229,8 @@ impl Engine {
                     .collect()
             }
             // X may exceed what is needed but never the actor's blood
-            // (Hidden Strength rulings).
-            // A fixed blood cost besides ("burn X blood", Lightning
-            // Reflexes [CEL]) is paid first.
+            // (Hidden Strength rulings); a fixed blood cost besides
+            // (Lightning Reflexes [CEL]) is paid first.
             Some(Terms::XBlood) => {
                 let blood = self.state.minions[ctx.actor.expect("actor").index()].blood;
                 let fixed = cards::blood_cost(&self.state, ctx.card, 0);
@@ -2329,7 +2295,6 @@ impl Engine {
                 .into_iter()
                 .map(|(card, mode)| Choice::EmployFromHand { card, mode })
                 .collect(),
-            // The ash heap, then the ally in it (Psychophagia).
             Some(Terms::TargetCapacity) => {
                 let t = ctx.target.minion();
                 vec![Choice::SetX(self.state.capacity_of(t).unwrap_or(0))]
@@ -2340,6 +2305,7 @@ impl Engine {
                     .map(Choice::AshVampire)
                     .collect()
             }
+            // The ash heap, then the ally in it (Psychophagia).
             Some(Terms::AnyAshAlly) => match ctx.ash {
                 None => self
                     .ash_ally_heaps()
@@ -2821,10 +2787,9 @@ impl Engine {
         self.burn_card_in_play(card);
     }
 
-    /// Is the card being played a frenzy card played on a vampire of `clan`
-    /// that `seat` controls (Meditative Grove)? Its mode is a frenzy one
-    /// (Deep Song [ANI]), or the card is labeled Frenzy; the vampire is its
-    /// target, or its player for a card played on itself.
+    /// Is the card being played a frenzy card (a frenzy mode, Deep Song
+    /// [ANI], or the Frenzy label) on a vampire of `clan` that `seat`
+    /// controls, its target or its player (Meditative Grove)?
     fn played_frenzy_on(&self, seat: SeatId, clan: &str, ctx: &PlayCtx) -> bool {
         self.frenzy_on(ctx.card, ctx.mode, ctx.actor, ctx.target)
             .is_some_and(|m| {
@@ -3046,11 +3011,6 @@ impl Engine {
         host.is_some_and(|h| self.strike_card_against(h, ctx))
     }
 
-    /// The card played (`ctx`) is a strike card — played at strike
-    /// declaration or at the maneuver (Slam) — of the minion in combat
-    /// with `m` (Anticipation [AUS]).
-    /// The card played (`ctx`) is a grapple card of the minion opposing
-    /// `m` in its combat.
     /// `ctx` plays an aim, frenzy or grapple card for the minion opposing
     /// `m` in combat (Bollix [pre]).
     pub(crate) fn aim_frenzy_grapple_against(&self, m: MinionId, ctx: &PlayCtx) -> bool {
@@ -3073,13 +3033,10 @@ impl Engine {
                     .any(|l| labels.contains(l)))
     }
 
-    /// `ctx` plays a card, for the minion opposing `m` in combat, that
-    /// would restrict `m`'s choice of strikes (Groundfighting): only hand
-    /// strikes left (Immortal Grapple), or no equipment while `m` has a
-    /// weapon (Drawing Out the Beast; LSJ 20050221). Not range, not
-    /// "cannot be dodged", not one removing strikes or the additional ones,
-    /// not one destroying or stealing equipment, not one restricting
-    /// Disciplines (LSJ 20050221).
+    /// `ctx` plays, for `m`'s combat opponent, a card restricting `m`'s
+    /// strikes (Groundfighting): hand strikes only (Immortal Grapple), or
+    /// no equipment while `m` is armed (Drawing Out the Beast); not range,
+    /// dodges, strike counts, equipment or Disciplines (LSJ 20050221).
     pub(crate) fn restricts_strikes_of(&self, m: MinionId, ctx: &PlayCtx) -> bool {
         let Some(cb) = self.combat.as_ref() else {
             return false;
@@ -3102,6 +3059,8 @@ impl Engine {
             })
     }
 
+    /// The card played (`ctx`) is a grapple card of the minion opposing `m`
+    /// in its combat.
     pub(crate) fn grapple_card_against(&self, m: MinionId, ctx: &PlayCtx) -> bool {
         let Some(cb) = self.combat.as_ref() else {
             return false;
@@ -3113,6 +3072,9 @@ impl Engine {
             && ctx.actor == Some(cb.sides[1 - i].minion)
     }
 
+    /// The card played (`ctx`) is a strike card (at strike declaration or
+    /// the maneuver, Slam) of the minion in combat with `m` (Anticipation
+    /// [AUS]).
     pub(crate) fn strike_card_against(&self, m: MinionId, ctx: &PlayCtx) -> bool {
         let Some(cb) = self.combat.as_ref() else {
             return false;
@@ -3157,13 +3119,11 @@ impl Engine {
         }
     }
 
-    /// A canceled card was still played (spec §1.8.3): it goes to the ash
-    /// heap and is replaced normally (§1.9.3) — not one played from a
-    /// Fleshforge Chamber (rules-qa 37.1); with "its cost is not paid"
-    /// nothing was paid, since costs are paid at resolution (§1.7.1). A
-    /// cancel whose cost "is still paid" (Meditative Grove) has a non-action
-    /// card's cost paid now, its surcharges included (ANK 20260216); an
-    /// action card's is paid at its action's resolution, which never comes.
+    /// A canceled card was still played (spec §1.8.3): to the ash heap and
+    /// replaced (§1.9.3), not from a Fleshforge Chamber (rules-qa 37.1).
+    /// Costs are paid at resolution (§1.7.1): only a "still paid" cancel
+    /// (Meditative Grove) pays a non-action card's now, surcharges included
+    /// (ANK 20260216).
     fn settle_canceled(&mut self, ctx: PlayCtx, cost_paid: bool) {
         let action_card = cards::lookup(ctx.card).is_some_and(|d| {
             d.modes[ctx.mode as usize]
@@ -3382,11 +3342,10 @@ impl Engine {
         {
             let actor = ctx.actor.expect("acting minion");
             // Not from the hand (Fleshforge Chamber): nothing to replace.
-            // Blood Weakens: an action card played using a Discipline waits
-            // for its action's end (LSJ 20080809; rules-qa 40.4).
-            // "Do not replace until after this action" (Bum's Rush): with
-            // the action's held cards, as it ends — after every combat and
-            // after-resolution effect (LSJ 20001120, LSJ 20101021).
+            // Blood Weakens holds a Discipline action card until its action
+            // ends (LSJ 20080809; rules-qa 40.4); Bum's Rush's "after this
+            // action" too, after every combat and after-resolution effect
+            // (LSJ 20001120, LSJ 20101021).
             if ctx.from.is_none() {
                 if def.delayed_replacement == Some(Until::EndOfAction) {
                     self.state.seats[s.index()].held[Release::EndOfAction] += 1;
@@ -3677,15 +3636,11 @@ impl Engine {
         CardId(self.state.cards.len() as u32 - 1)
     }
 
-    /// "Put this card on … / in play" as the card resolves: the card
-    /// itself enters play, never the ash heap nor an effect-only stand-in
-    /// (rules-qa 47.1; a card already in the ash heap goes through
-    /// `place_held`, rules-qa 21.1). `card` is its entry (host, playing
-    /// minion, remembered Methuselahs); with `one_per_vampire` ("a vampire
-    /// can have only one", checked as it resolves: a legal no-op, rules-qa
-    /// 17.4) not a second of its name on its host. A title card's vampire
-    /// gains the title it represents — once a unique one's card contest is
-    /// over (rules-qa 19.1).
+    /// "Put this card on … / in play" as the card resolves: the card itself
+    /// enters play (rules-qa 47.1; from the ash heap: `place_held`,
+    /// rules-qa 21.1); with `one_per_vampire`, not a second of its name on
+    /// its host (a legal no-op, rules-qa 17.4); a title card gives its
+    /// title, a unique one's once its contest is over (rules-qa 19.1).
     pub(crate) fn place_now(
         &mut self,
         card: CardInPlay,
@@ -4291,9 +4246,6 @@ impl Engine {
                     }
                 }
             }
-            // The named retainer from hand, if still there and affordable:
-            // its cost paid, requirements as normal, not an action (Pack
-            // Alpha [ani]); a card played from hand is replaced.
             // Still in hand, still allowed and payable: equipped, not an
             // action (LSJ 20080815).
             Effect::EquipNamed => {
@@ -4334,6 +4286,9 @@ impl Engine {
                     self.replace(s, 1, None);
                 }
             }
+            // The named retainer from hand, if still there and affordable:
+            // its cost paid, requirements as normal, not an action (Pack
+            // Alpha [ani]); a card played from hand is replaced.
             Effect::EmployNamed => {
                 let (Some((card, mode)), Some(m)) = (ctx.named, ctx.actor) else {
                     unreachable!("an employ without its named card");
@@ -4376,9 +4331,8 @@ impl Engine {
                     }
                     self.replace(s, 1, None);
                     // Paid down to 0 on one's own turn (Piper): ousted, the
-                    // turn passed with it. Out of turn (Pack Alpha in a
-                    // combat on another's turn) the play's resolution
-                    // ousts them and the turn goes on (`resolve_play`).
+                    // turn passed with it; out of turn, `resolve_play`
+                    // ousts them and the turn goes on.
                     if pool > 0 && self.state.seats[s.index()].pool == 0 && s == self.state.active {
                         self.oust_and_pass(s);
                     }
@@ -5041,11 +4995,8 @@ impl Engine {
                 options.extend(self.play_options(s, &[Window::DiscardPhase], None));
             }
         }
-        // "During your discard phase" abilities (Mora, the Death Seer), and
-        // those spending a discard phase action (Ayse Dhanial).
-        // Fiendish Tongue: "burn 1 blood during your next discard phase to
-        // unlock" — "this Tzimisce": the clan read again there, as it was
-        // when the bleed succeeded (owner, 2026-10-08: rules-qa 54.5).
+        // Fiendish Tongue: "this Tzimisce", the clan read again in the
+        // discard phase (rules-qa 54.5).
         for m in self.state.minions_of(s) {
             let v = &self.state.minions[m.index()];
             if v.discard_unlock.is_some_and(|(clan, n)| {
@@ -5054,6 +5005,8 @@ impl Engine {
                 options.push(Choice::UnlockForBlood { minion: m });
             }
         }
+        // "During your discard phase" abilities (Mora, the Death Seer), and
+        // those spending a discard phase action (Ayse Dhanial).
         options.extend(self.ability_options(s, Window::DiscardPhase));
         options.extend(self.ability_options(s, Window::DiscardPhaseAction));
         options.extend(self.ability_options(s, Window::AnyImpulse));
@@ -5193,13 +5146,10 @@ impl Engine {
         }
     }
 
-    /// In-play abilities usable in `window` by `seat`: host abilities of
-    /// the seat's cards in play, and granted actions of any card in play
-    /// ("Vampires can call a referendum …"), declared by the seat's ready
-    /// unlocked minions like a card action (one political action per
-    /// minion per turn; a Delaying Tactics ban is by card name). Each
-    /// actor's branch finds the ability's candidate users; `ability_gate`
-    /// checks every one of them alike.
+    /// In-play abilities `seat` may use in `window`: host abilities of its
+    /// cards and granted actions of any card in play ("Vampires can call a
+    /// referendum …"); each actor branch finds the candidate users,
+    /// `ability_gate` checks them.
     pub(crate) fn ability_options(&self, seat: SeatId, window: Window) -> Vec<Choice> {
         let st = &self.state;
         let mut out = Vec::new();
@@ -5388,11 +5338,9 @@ impl Engine {
     }
 
     /// The checks every in-play ability passes, a card's or a vampire's,
-    /// whoever its actor (the candidate `user` a branch of
-    /// `ability_options` found, or none): used by the seat asking, in its
-    /// phase, within its limits, at a cost it can pay, a granted action
-    /// one its actor may take, every requirement read by the evaluators of
-    /// its position (`cards::slots`). The ability's user, if so.
+    /// for the candidate `user`: its phase, its limits, a payable cost, a
+    /// granted action its actor may take, every requirement
+    /// (`cards::slots`). Returns the ability's user.
     fn ability_gate(
         &self,
         seat: SeatId,
@@ -5575,8 +5523,7 @@ impl Engine {
         let st = &self.state;
         let engine = match (r, source) {
             // "… you control can …" (Alamut, Dead Pool, The Gate of
-            // Acheron): the card's controller's only (owner replay: a bot
-            // used the owner's Alamut).
+            // Acheron): the card's controller's only.
             (R::YouControlThisCard, AbilitySource::Card(id)) => st.card_controller(id) == seat,
             // "… controlled by another Methuselah can …" (The Rack, The
             // Uncoiling).
@@ -5987,14 +5934,9 @@ impl Engine {
         }
     }
 
-    /// Blood a card requiring one of some Disciplines costs `actor` more
-    /// while a minion bearing the surcharge is acting, attempting to block
-    /// or in combat — not the bearer itself (Libertas). A failed block
-    /// attempt no longer counts (LSJ 20080818).
     /// "This combat, combat cards cost the opposing vampire +1 blood"
-    /// (Terror Frenzy [ANI]): `actor`'s combat cards in its combat. Plus
-    /// the opposing combatant's printed toll on `actor`'s strike cards,
-    /// read live (`strike_card_toll`).
+    /// (Terror Frenzy [ANI]) on `actor`'s combat cards, plus the opposing
+    /// combatant's printed toll on its strike cards (`strike_card_toll`).
     pub(crate) fn combat_card_surcharge(&self, actor: MinionId, card: u16, mode: u8) -> u8 {
         if !LIBRARY[card as usize].types.contains(&CardType::Combat) {
             return 0;
@@ -6108,6 +6050,10 @@ impl Engine {
                 .max(0) as u8
     }
 
+    /// Blood a card requiring one of some Disciplines costs `actor` more
+    /// while a minion bearing the surcharge is acting, attempting to block
+    /// or in combat, not the bearer itself (Libertas); a failed block
+    /// attempt no longer counts (LSJ 20080818).
     pub(crate) fn discipline_surcharge(&self, actor: MinionId, card: u16, mode: u8) -> u8 {
         let st = &self.state;
         // The Disciplines the card is played using (rules-qa 38.4).
@@ -6405,11 +6351,10 @@ impl Engine {
         )
     }
 
-    /// Who uses an ability of `source`, `seat` the Methuselah asked (or
-    /// who chose it) and `user` the minion using it when the ability does
-    /// not say (any ready vampire, the bearer's opponent, a granted
-    /// action's candidate): read alike as it is offered, as its terms are
-    /// chosen and as it resolves.
+    /// Who uses an ability of `source`: `seat` the Methuselah asked, `user`
+    /// the minion using it where the ability does not say (any ready
+    /// vampire, the bearer's opponent, a granted action's candidate); read
+    /// alike when offered, at terms and at resolution.
     pub(crate) fn ability_user(
         &self,
         source: AbilitySource,
@@ -6468,13 +6413,10 @@ impl Engine {
         AbilityUser { seat, host, actor }
     }
 
-    /// Would `seat` using `choice` gain nothing: an ability whose every
-    /// effect, its costs and the action carrying it aside, scales with
-    /// something that is zero now — the counters on its card (Powerbase:
-    /// Madrid's burn with none, rules-qa 73.3), the votes of a vampire that
-    /// cannot vote (Alamut's or Dead Pool's for an abstaining one, 73.4).
-    /// Still offered (a legal no-op, rules-qa 17.4): for an interface that
-    /// hides such options.
+    /// Would `seat` using `choice` gain nothing, every effect (costs aside)
+    /// scaling with something zero now (Powerbase: Madrid's counters,
+    /// rules-qa 73.3; an abstaining vampire's votes, 73.4)? Still offered
+    /// (rules-qa 17.4): for an interface hiding such options.
     pub fn gains_nothing(&self, seat: SeatId, choice: &Choice) -> bool {
         let Choice::UseAbility {
             source,
@@ -6896,10 +6838,9 @@ impl Engine {
                     });
                 }
                 // An ability's pool cost ("lock this location and burn 1
-                // pool"): paid down to 0, its user is ousted.
-                // Paid down to 0: its user is ousted, nothing more resolves
-                // (Michael Harris's range, its combat gone). The active
-                // Methuselah's oust passed the turn: the flow moved on.
+                // pool"), paid down to 0: its user is ousted, nothing more
+                // resolves (Michael Harris's range, its combat gone); the
+                // active Methuselah's oust passed the turn.
                 Effect::PayPool(n) => {
                     let active = self.state.active;
                     self.pay_pool_for_ability(ctx.seat, n as i32);
@@ -6984,11 +6925,9 @@ impl Engine {
                         self.banish(t, owner);
                     }
                 }
-                // "Lock after resolution of a successful bleed against you to
-                // enter combat with the acting minion" (The Guardian): both
-                // still ready, the acting minion acting first.
-                // Yawp Court: the chosen Sabbat vampire into combat with the
-                // acting vampire, which acts first, before the referendum.
+                // Yawp Court: the chosen Sabbat vampire into combat with
+                // the acting vampire, which acts first, before the
+                // referendum.
                 Effect::YawpCourtCombat => {
                     let m = actor.expect("the Sabbat vampire");
                     // The action's cost first (LSJ 20080201), then the
@@ -7021,6 +6960,9 @@ impl Engine {
                         }
                     }
                 }
+                // "Lock after resolution of a successful bleed against you
+                // to enter combat with the acting minion" (The Guardian):
+                // both still ready, the acting minion acting first.
                 Effect::EnterCombatWithActing => {
                     let h = host.expect("host");
                     if let Some(acting) = self.action.as_ref().map(|a| a.acting) {
@@ -7739,14 +7681,12 @@ impl Engine {
                 e => match e.family() {
                     Family::Shared => self.apply_shared_effect(e, &ctx, By::Ability(source)),
                     // An action modifier printed on a vampire (Larissa
-                    // Moreira's bleed, Daria's stealth, Aksinya Daclau's
-                    // redirection), a card in play's effect on the action
-                    // (47th Street Royals' bleed reduction, Szlachta
-                    // Bodyguard's failure, Under Siege's block attempt,
-                    // Fever Pitch's failed one), +n intercept for the
-                    // host's block attempt for the rest of the action
-                    // (rules-qa 15.2). Such abilities are offered in an
-                    // action's windows only (`cards::families`' test).
+                    // Moreira, Daria, Aksinya Daclau) or a card in play's
+                    // effect on the action (47th Street Royals, Szlachta
+                    // Bodyguard, Under Siege, Fever Pitch), +n intercept
+                    // for the rest of the action (rules-qa 15.2); offered
+                    // in an action's windows only (`cards::families`'
+                    // test).
                     Family::Action => match self.action {
                         Some(_) => self.apply_action_effect(e, &ctx),
                         None => unreachable!("an action effect outside an action: {e:?}"),
@@ -7791,11 +7731,10 @@ impl Engine {
         self.printed_riders(m, Hook::UnlockPhase, Some(self.state.active))
     }
 
-    /// Unlock-phase effects: an ordered window over the seats clockwise
-    /// from the active one. The active Methuselah orders their pending
-    /// mandatory riders (Anarch Revolt) among their own optional abilities
-    /// and must resolve them all before passing the impulse (rules-qa
-    /// 6.1); other Methuselahs then use theirs (Homunculus).
+    /// Unlock-phase effects: an ordered window clockwise from the active
+    /// seat; its Methuselah resolves every pending mandatory rider (Anarch
+    /// Revolt), ordered among their optional abilities, before passing
+    /// (rules-qa 6.1); then the others use theirs (Homunculus).
     pub(crate) fn abilities_request(
         &self,
         window: &OrderedWindow,
@@ -7855,11 +7794,10 @@ impl Engine {
         ))
     }
 
-    /// Rulebook (advanced) "Burn option": a Methuselah who controls no
-    /// minion meeting the card's requirements may discard it during any
-    /// Methuselah's unlock phase and replace it — one such discard each
-    /// unlock phase; a unique card's copy in play changes nothing (LSJ
-    /// 20100203-2).
+    /// Rulebook (advanced) "Burn option": a Methuselah with no minion
+    /// meeting the card's requirements may discard and replace it in any
+    /// unlock phase, once each; a unique card's copy in play changes
+    /// nothing (LSJ 20100203-2).
     fn burn_option_discards(&self, seat: SeatId) -> Vec<Choice> {
         let st = &self.state;
         if st.seats[seat.index()].burn_option_used {
@@ -8070,10 +8008,6 @@ impl Engine {
         };
     }
 
-    /// Resolve a card in play's "during their unlock phase" rider on the
-    /// active Methuselah's turn, then set the flow: `resume`, a choice
-    /// window the rider needs (Smiling Jack's payments), or the next turn
-    /// when the active Methuselah is ousted (or the game over).
     /// A training counter burned from `id` (Web of Knives Recruit); the
     /// last one, it moves to the ready region as the vampire it becomes,
     /// its card that vampire — no action put it in play (LSJ 20060616-2).
@@ -8113,6 +8047,10 @@ impl Engine {
         self.state.cards[id.index()].body = Some(m);
     }
 
+    /// Resolve a card in play's unlock-phase rider on the active
+    /// Methuselah's turn, then set the flow: `resume`, a choice window the
+    /// rider needs (Smiling Jack's payments), or the next turn if the
+    /// active Methuselah is ousted (or the game over).
     fn resolve_unlock_rider(&mut self, id: CardId, resume: Flow) {
         let s = self.state.active;
         let c = &self.state.cards[id.index()];
@@ -8394,11 +8332,9 @@ impl Engine {
     }
 
     /// The riders at `hook` of the cards in play that fire, in arena order:
-    /// present, their text not lost, on the cards `at` names, their scope
-    /// read against `at.seat` and their requirements met (the card's and
-    /// its host's, or the action's at a `Hook::reads_action` hook). Read
-    /// at once: a site applying them one by one re-reads what an earlier
-    /// one can change (`present`).
+    /// present, text not lost, on the cards `at` names, scope read against
+    /// `at.seat`, requirements met (the action's at a `Hook::reads_action`
+    /// hook). A site applying them one by one re-checks `present`.
     pub(crate) fn fired_riders(&self, hook: Hook, at: &HookAt) -> Vec<(CardId, &'static Rider)> {
         self.state
             .card_riders(hook)
@@ -8443,10 +8379,9 @@ impl Engine {
     }
 
     /// The riders at `hook` printed on vampire `m` that fire, in printed
-    /// order: their scope read against `seat`, their requirements met on
-    /// `m` (or in the action's context at a `Hook::reads_action` hook, `m`
-    /// the actor). Whether `m` must be ready, present or neither is the
-    /// site's.
+    /// order: scope read against `seat`, requirements met on `m` (at a
+    /// `Hook::reads_action` hook, in the action's context, `m` the actor);
+    /// whether `m` must be ready or present is the site's.
     pub(crate) fn printed_riders(
         &self,
         m: MinionId,
@@ -8728,10 +8663,9 @@ impl Engine {
     }
 
     /// Riders of `hook` fired for each minion of `subjects` that left the
-    /// ready region: a host's own riders (`HostToTorpor`: the cards on it)
-    /// or every card in play's (`ReadyMinionBurnedOrTorpor`). Pool losses
-    /// are batched and applied at once — a Methuselah at 0 is ousted here,
-    /// wherever it happened; the caller tears the combat or action down.
+    /// ready region: a host's own (`HostToTorpor`) or every card in play's
+    /// (`ReadyMinionBurnedOrTorpor`). Pool losses are batched, a Methuselah
+    /// at 0 ousted here; the caller tears the combat or action down.
     pub(crate) fn leave_riders(&mut self, hook: Hook, subjects: &[MinionId]) {
         if hook == Hook::ReadyMinionBurnedOrTorpor {
             for &m in subjects {

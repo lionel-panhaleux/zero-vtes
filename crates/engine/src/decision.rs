@@ -17,8 +17,8 @@ pub enum ActionKind {
     /// undirected; the cost paid at resolution).
     Employ,
     /// Recruit an ally from hand (rulebook "Recruit Ally": +1 stealth,
-    /// undirected; the cost paid at resolution; the ally cannot act the
-    /// turn it is recruited).
+    /// undirected, cost at resolution; the ally does not act the turn it is
+    /// recruited).
     Recruit,
     /// Call a referendum with a political action card (rulebook "Political
     /// Action": +1 stealth, undirected; one per minion per turn).
@@ -36,26 +36,24 @@ pub enum ActionKind {
     /// stealth, undirected; the cost paid at resolution).
     Equip,
     /// Equip with equipment taken from another minion the Methuselah
-    /// controls (rulebook "Equip": free, the equipment announced with the
-    /// action; not a card play, so no requirement is checked).
+    /// controls (rulebook "Equip": free, announced with the action; not a
+    /// card play, no requirement checked).
     EquipFrom,
-    /// Equip with the first equipment found in the library, working down
-    /// from the top (Vast Wealth): an equip action granted by a card in
-    /// play, undirected, its stealth the card's own; the search happens
-    /// only on success (TOM 19951107).
+    /// Equip with the first equipment found in the library from the top
+    /// (Vast Wealth): granted by a card in play, undirected, its stealth
+    /// the card's; the search only on success (TOM 19951107).
     EquipFound,
-    /// An action granted by an ability (a vampire's printed action: "Sakhar
-    /// can search your library … as a +1 stealth action"), its effects
-    /// resolving on success; directed when its announced target is
-    /// another Methuselah's.
+    /// An action granted by an ability ("Sakhar can search your library …
+    /// as a +1 stealth action"), resolving on success; directed when its
+    /// target is another Methuselah's.
     Ability,
     /// Rulebook "Become Anarch" (advanced rules): a ready untitled
-    /// non-Anarch vampire, +1 stealth, undirected; 2 blood, 1 if its
-    /// Methuselah controls another ready Anarch, paid at resolution.
+    /// non-Anarch vampire, +1 stealth, undirected; 2 blood, 1 with another
+    /// ready Anarch, paid at resolution.
     BecomeAnarch,
-    /// Rulebook "Red List": enter combat with a Red List minion the
-    /// Methuselah marked this turn (`target`), +1 stealth, directed, 1
-    /// blood paid at resolution; once each turn per vampire.
+    /// Rulebook "Red List": enter combat with a Red List minion marked this
+    /// turn (`target`), +1 stealth, directed, 1 blood at resolution; once
+    /// each turn per vampire.
     RedListHunt,
 }
 
@@ -65,12 +63,12 @@ pub enum ActionKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Choice {
     Pass,
-    /// The Edge's unlock-phase pool: "if you have the Edge, you may gain 1
-    /// pool" (the Edge is kept; the name is historical).
+    /// Unlock phase: "if you have the Edge, you may gain 1 pool" (the Edge
+    /// is kept; the name is historical).
     BurnEdge,
-    /// Unlock-phase contest upkeep of this contested object: pay 1 pool
-    /// (card) or 1 blood (title) — a mandatory decision, ordered among the
-    /// active Methuselah's unlock effects (rules-qa 7.8).
+    /// Unlock-phase contest upkeep: pay 1 pool (card) or 1 blood (title),
+    /// mandatory, ordered among the active Methuselah's unlock effects
+    /// (rules-qa 7.8).
     PayContest(Contest),
     /// Unlock-phase contest: yield — the card is burned / the title is lost.
     YieldContest(Contest),
@@ -83,9 +81,7 @@ pub enum Choice {
         target: Target,
     },
     /// Use an ability: where it is printed (a card in play, or a vampire's
-    /// own text), ability index, and the minion using it when the ability
-    /// is a granted action (a card in play's "can call a referendum … as a
-    /// political action").
+    /// text), its index, and the minion using it for a granted action.
     UseAbility {
         source: crate::cards::AbilitySource,
         ability: u8,
@@ -332,10 +328,9 @@ pub enum Zone {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum WindowLabel {
     /// The unlock-phase effects window (rules-qa 3.7, 6.1, 7.8): the active
-    /// Methuselah orders their mandatory effects (contest upkeep, riders)
-    /// and optional ones (the Edge's pool, abilities) and must settle the
-    /// mandatory ones before the impulse leaves them; then every seat's
-    /// unlock-phase abilities in rotation.
+    /// Methuselah settles their mandatory effects, ordered among their
+    /// optional ones, before the impulse leaves; then every seat's
+    /// abilities in rotation.
     UnlockAbilities,
     MasterPhase,
     /// Terms of a play or of an in-play ability, chosen as it is announced
@@ -344,10 +339,10 @@ pub enum WindowLabel {
     /// The choices a mandatory rider needs as it resolves (Smiling Jack:
     /// pool or blood, one unit at a time).
     RiderTerms,
-    /// The end of one of the active Methuselah's phases (master, minion,
-    /// influence, discard): the impulse goes round the other seats for
-    /// their untimed effects and mandatory ones (The Coven's transfer),
-    /// returning to the active player after each (rules-qa 7.9).
+    /// The end of one of the active Methuselah's phases: the impulse goes
+    /// round the other seats for their untimed and mandatory effects (The
+    /// Coven's transfer), back to the active player after each (rules-qa
+    /// 7.9).
     PhaseImpulse,
     /// The as-played window of a card: cancels (and wakes, during an action)
     /// only (rules-qa 2.4).
@@ -358,9 +353,9 @@ pub enum WindowLabel {
     /// The block loop (rulebook states A and B): attempts, modifiers,
     /// reactions.
     ActionBlock,
-    /// After resolution of an action that reached it — successful, failed,
-    /// blocked or ended (Voter Captivation, Freak Drive); for a political
-    /// action, after the referendum.
+    /// After resolution of an action that reached it, whatever its outcome
+    /// (Voter Captivation, Freak Drive); for a political action, after the
+    /// referendum.
     ActionAfterResolution,
     /// A bleed would be successful: the cards played "instead" of its pool
     /// loss (Spying Mission [OBF]), after every other modifier and reaction.
@@ -399,9 +394,9 @@ pub enum WindowLabel {
     /// Terms of a rulebook action, chosen as it is announced: the equipment
     /// an equip action takes from another minion.
     ActionTerms,
-    /// A library search at an action's or a card's resolution (Magic of
-    /// the Smith, Black Market Cache): the card chosen, or none; the library
-    /// is shuffled afterward.
+    /// A library search at an action's or a card's resolution (Magic of the
+    /// Smith, Black Market Cache): a card or none, the library shuffled
+    /// after.
     LibrarySearch,
     /// The cards an exchange action names as it is announced (Lenelle: the
     /// library card in the ash heap, then the card from hand).
