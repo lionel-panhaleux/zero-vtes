@@ -94,7 +94,7 @@ impl Bots for ServerBots {
                 idle: 3.0,
                 draw: 7.0,
                 stuck: 6.0,
-                nightmare: 4.0,
+                nightmare: 6.0,
                 ..Nudges::default()
             });
         Some((
