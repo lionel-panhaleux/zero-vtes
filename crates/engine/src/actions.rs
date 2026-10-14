@@ -3263,12 +3263,6 @@ impl Engine {
             }
             Effect::StrengthThisAction(n) => a.strength_bonus += n,
             Effect::AggravatedHandsThisAction => a.aggravated_hands = true,
-            // No capacity: allies only.
-            Effect::AlliesIntercept(n) => self.state.layers.push(cards::Layer {
-                scope: Scope::Action,
-                modifier: cards::Modifier::InterceptMod { younger_than: 0, n },
-                source: crate::state::CardId(u32::MAX),
-            }),
             Effect::BlockToll(n) => a.block_toll_extra += n,
             Effect::BlockTollBlood(n) => a.block_toll_blood += n,
             Effect::UnlockActingForActorBlood(n) => {
@@ -3313,31 +3307,12 @@ impl Engine {
                 let h = crate::combat::Held::from_play(play, play.actor.expect("actor"), 0);
                 a.put_if_bleed_successful.push(h);
             }
-            // "Minions get -1 intercept" (Unthinkable Humiliation [POT]):
-            // every minion, this action.
             // Hospital Food: "the anarch gains an additional blood" — a
             // hunt bonus of this action (rules-qa 63.12).
             Effect::HuntBonusThisAction(n) => {
                 self.state.layers.push(cards::Layer {
                     scope: Scope::Action,
                     modifier: cards::Modifier::ActionHunt(n),
-                    source: crate::state::CardId(u32::MAX),
-                });
-            }
-            Effect::CorruptedIntercept(n) => {
-                self.state.layers.push(cards::Layer {
-                    scope: Scope::Action,
-                    modifier: cards::Modifier::CorruptedInterceptMod(n),
-                    source: crate::state::CardId(u32::MAX),
-                });
-            }
-            Effect::MinionsIntercept(n) => {
-                self.state.layers.push(cards::Layer {
-                    scope: Scope::Action,
-                    modifier: cards::Modifier::InterceptMod {
-                        younger_than: u8::MAX,
-                        n,
-                    },
                     source: crate::state::CardId(u32::MAX),
                 });
             }
@@ -3422,9 +3397,6 @@ impl Engine {
             Effect::ReduceStealthToZero => {
                 let s = a.stealth(&self.state).max(0) as u8;
                 a.stealth_reduce = a.stealth_reduce.saturating_add(s);
-            }
-            Effect::BurnActorBlood(n) => {
-                self.state.burn_blood(play.actor.expect("actor"), n);
             }
             Effect::TargetAttemptsBlock(n) => {
                 let t = play.target.minion();

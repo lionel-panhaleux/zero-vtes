@@ -6936,7 +6936,7 @@ pub static ROLLING_WITH_THE_PUNCHES: CardDef = CardDef {
                 Requirement::StrikeDamagePending,
             ],
             &[
-                Effect::ActorBurnsBlood(1),
+                Effect::BurnActorBlood(1),
                 Effect::PreventOpposingStrikesThisRound,
             ],
         ),
@@ -8360,7 +8360,13 @@ pub static REVELATIONS: CardDef = CardDef {
 pub static OBEDIENT_FLESH: CardDef = CardDef {
     name: "Obedient Flesh",
     modes: &[
-        stealth(&[Effect::AddStealth(1), Effect::AlliesIntercept(-1)]),
+        stealth(&[
+            Effect::AddStealth(1),
+            Effect::ActionLayer(Modifier::InterceptMod {
+                younger_than: 0,
+                n: -1,
+            }),
+        ]),
         ModeDef {
             limit: Some(Limit::PerRound),
             ..mode_of(
@@ -10026,7 +10032,7 @@ pub static ANTICIPATION: CardDef = CardDef {
                 Requirement::ActorBloodAtLeast(1),
             ],
             &[
-                Effect::ActorBurnsBlood(1),
+                Effect::BurnActorBlood(1),
                 Effect::CancelPlayed { refund: true },
             ],
         ),
@@ -14246,7 +14252,7 @@ pub static CHARISMATIC_AURA: CardDef = CardDef {
                     Requirement::ActorBloodAtLeast(1),
                 ],
                 &[
-                    Effect::ActorBurnsBlood(1),
+                    Effect::BurnActorBlood(1),
                     Effect::CancelPlayed { refund: true },
                 ],
             )
@@ -14946,7 +14952,16 @@ pub static UNTHINKABLE_HUMILIATION: CardDef = CardDef {
     name: "Unthinkable Humiliation",
     modes: &[
         modifier(&[], &[Effect::BlockToll(1)]),
-        modifier(&[], &[Effect::BlockToll(1), Effect::MinionsIntercept(-1)]),
+        modifier(
+            &[],
+            &[
+                Effect::BlockToll(1),
+                Effect::ActionLayer(Modifier::InterceptMod {
+                    younger_than: u8::MAX,
+                    n: -1,
+                }),
+            ],
+        ),
     ],
     ..CARD
 };
@@ -17700,7 +17715,10 @@ pub static SENSE_THE_SIN: CardDef = CardDef {
         ),
         modifier(
             &[Requirement::IsBleed],
-            &[bleed(2, true), Effect::CorruptedIntercept(-1)],
+            &[
+                bleed(2, true),
+                Effect::ActionLayer(Modifier::CorruptedInterceptMod(-1)),
+            ],
         ),
     ],
     ..CARD
@@ -18087,7 +18105,7 @@ pub static PRETERNATURAL_EVASION: CardDef = CardDef {
             &[Window::CombatStrikeDeclaration],
             &[Requirement::ActorVampire, Requirement::ActorBloodAtLeast(1)],
             &[
-                Effect::ActorBurnsBlood(1),
+                Effect::BurnActorBlood(1),
                 Effect::Strike(StrikeKind::CombatEnds { unlock: false }),
             ],
         ),
@@ -22548,7 +22566,7 @@ pub static GROUNDFIGHTING: CardDef = CardDef {
                 Requirement::PlayedRestrictsStrikesByOpponent,
             ],
             &[
-                Effect::ActorBurnsBlood(1),
+                Effect::BurnActorBlood(1),
                 Effect::CancelPlayed { refund: false },
             ],
         ),

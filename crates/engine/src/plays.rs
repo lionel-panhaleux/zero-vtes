@@ -3569,6 +3569,7 @@ impl Engine {
                     }
                 }
             }
+            Effect::BurnActorBlood(n) => self.state.burn_blood(ctx.actor.expect("actor"), n),
             // Hive Mind [san]: the acting Blood Brother and the target, at
             // its action's resolution (no action context then); during an
             // action, the action's own rule ("does not unlock", Daring the

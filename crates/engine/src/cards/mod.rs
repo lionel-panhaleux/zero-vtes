@@ -2750,7 +2750,9 @@ pub enum Modifier {
     /// Reaction cards cost this much more blood (or life) this action.
     ReactionBloodCost(i8),
     /// Minions younger than this capacity (allies included) get this
-    /// intercept modifier this action (Perfect Paragon [PRE]).
+    /// intercept modifier this action (Perfect Paragon [PRE]): 0 for allies
+    /// only (Obedient Flesh), `u8::MAX` for every minion (Unthinkable
+    /// Humiliation).
     InterceptMod { younger_than: u8, n: i8 },
     /// The bearer "cannot be the target of a directed action performed by
     /// an ally or a vampire with capacity n or less" (Veneficti).
@@ -3558,9 +3560,6 @@ pub enum Effect {
     /// Bank an optional maneuver for this round ("this round, this vampire
     /// gets 1 optional maneuver", Obedient Flesh [DOM][PRO]).
     OptionalManeuver,
-    /// Allies get n intercept for the rest of the action (Obedient Flesh
-    /// [dom][pro]: "allies get -1 intercept").
-    AlliesIntercept(i8),
     /// Pay a counter's worth of the prey's unlock rider: 1 pool, or a library
     /// card at random from their ash heap removed from the game, for each
     /// counter on this card (The Gate of Acheron): announced as a count.
@@ -3623,9 +3622,6 @@ pub enum Effect {
     /// "Gains 1 optional press" usable this round only (Form of the Wolf
     /// [PRO]; TOM 19960521).
     PressThisRound,
-    /// "Burn n blood" as the card's effect, not its cost (Rolling with the
-    /// Punches [FOR]; ANK 20210226).
-    ActorBurnsBlood(u8),
     /// "Prevent all damage from the opposing minion's strikes this round"
     /// (Rolling with the Punches [FOR]).
     PreventOpposingStrikesThisRound,
@@ -3733,9 +3729,6 @@ pub enum Effect {
     /// the top card of their crypt moves to their uncontrolled region
     /// (Tupdog; `Hook::MinionPhaseEnd`).
     BurnHostCryptTopOut,
-    /// "Minions with any corruption counters get -1 intercept" this action
-    /// (Sense the Sin [DAI]).
-    CorruptedIntercept(i8),
     /// Strike rider: "any effect which would make damage from this strike
     /// aggravated leaves the damage normal instead" (Psychic Assault).
     NeverAggravatedStrike,
@@ -4506,9 +4499,6 @@ pub enum Effect {
     /// Minions burn n blood or life to attempt to block this action
     /// (Unthinkable Humiliation).
     BlockToll(u8),
-    /// Every minion gets n intercept this action (Unthinkable Humiliation
-    /// [POT][PRE]: -1).
-    MinionsIntercept(i8),
     /// "If a Sabbat vampire diablerizes this vampire, move this card to the
     /// diablerist (before the blood hunt is called)" (Regent): a marker the
     /// diablerie reads.
@@ -4880,7 +4870,8 @@ pub enum Effect {
     /// 20010814-2): "if this vampire blocks …".
     IfBlocks(BlockRider),
     /// The actor burns n blood as an effect, not a cost (Second Tradition:
-    /// Domain: "this vampire burns 1 blood to unlock"; ANK 20210226).
+    /// Domain: "this vampire burns 1 blood to unlock"; Rolling with the
+    /// Punches [FOR]; ANK 20210226), in an action, a combat or neither.
     BurnActorBlood(u8),
     /// The target minion unlocks, attempts to block and gets +n intercept
     /// for the rest of the action (Organized Resistance: "unlock a locked

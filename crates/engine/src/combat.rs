@@ -3596,9 +3596,6 @@ impl Engine {
                 c.sides[i].round_prevents += n;
             }
             Effect::PressThisRound => c.sides[i].presses += 1,
-            Effect::ActorBurnsBlood(n) => {
-                self.state.burn_blood(actor, n);
-            }
             Effect::PreventOpposingStrikesThisRound | Effect::PreventStrikeDamage => {
                 let s = &mut c.sides[i];
                 let d = std::mem::take(&mut s.strike_damage);
@@ -3949,7 +3946,6 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::PreventThisRound(_)
             | Effect::PreventEachRound(_)
             | Effect::PressThisRound
-            | Effect::ActorBurnsBlood(_)
             | Effect::PreventOpposingStrikesThisRound
             | Effect::PreventStrikeDamage
             | Effect::PreventStrike(_)
