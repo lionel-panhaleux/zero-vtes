@@ -49,3 +49,10 @@ E: engine or text (here).
 | E5 | Log | Blood drained on influencing out past capacity, the Edge gained on a bleed: not told | the Edge fixed fc2ccf4 (`edge` event); the drain dropped (minor) |
 | E6 | Log | "Bot2 — Use Modius": what the ability does not said | fixed: a lone ability says what it does; a bleed action names its target ("Bleed with X → Seat") |
 | E7 | Bots | Bot3 used Wider View until its crypt was empty (8 vampires removed) | todo (bots: a policy guard or training signal) |
+
+## Playtest, 2026-10-14 (Succubus Club fork on engine.krcg.org, game `437ff2e402d695f3`, Tzimisce vs 3 bots)
+
+| # | Where | What | Status |
+|---|---|---|---|
+| P12 | Minion phase | War Ghoul's rush hard to declare (owner), worse with a Mob Connections in play: the menu's "Card In Play" holds the rush (actor: the ghoul), its location burn (no actor) and Mob Connections' burn; after "Which card ?" the staging asked by actor, "Your Methuselah" standing for the location burn, the ghoul glowing "staged" not "candidate" — the Methuselah button led to the locations, never the rush targets | fix proposed (SC, not applied while the owner plays): an "ability" step before the actor step (`stagingStep`, by `option.ability`); a staged card that is a choice glows as a candidate |
+| E8 | Options | Two War Ghouls' options read alike ("Use War Ghoul with War Ghoul on X" twice per target, "Use War Ghoul on <location>: burn the card, burn it" twice): which ghoul is unsaid; "with War Ghoul" redundant for an ally's own ability; "burn the card, burn it" reads oddly | todo (text) |
