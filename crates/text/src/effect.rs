@@ -100,6 +100,7 @@ pub fn part(e: &Effect, names: &Names) -> Option<String> {
             (_, Some(On::Target)) if n < 0 => format!("target burns {a}"),
             _ => format!("+{n} life"),
         },
+        K::Steal if d == Some("pool") => format!("take {n} pool"),
         K::Steal => format!("steal {n} blood"),
         K::Burn => match (on, d) {
             (Some(On::Card), _) => "burn it".into(),
@@ -156,6 +157,7 @@ pub fn part(e: &Effect, names: &Names) -> Option<String> {
             Some("leaves_torpor") => "the target leaves torpor".into(),
             Some("give") => "give to prey".into(),
             Some("from_ash_heap") => "take from prey's ash heap".into(),
+            Some("political_from_ash_heap") => "a political action card to hand".into(),
             _ => format!("fetch {}", names.card_id(e.card)),
         },
         K::Votes => match d {

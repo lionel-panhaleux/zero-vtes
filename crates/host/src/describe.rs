@@ -788,6 +788,14 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 n: Some(pool),
                 ..a()
             },
+            I::PoolOrVampire {
+                card: c, pool, cap, ..
+            } => About {
+                card: card(c),
+                n: Some(pool),
+                cap: Some(cap),
+                ..a()
+            },
             I::BloodOrBurned {
                 minion, n, card: c, ..
             } => About {
@@ -895,7 +903,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 minion: m(host),
                 ..a()
             },
-            I::StealUpTo { from, to, max, .. } => About {
+            I::StealUpTo { from, to, max, .. } | I::MoveBloodUpTo { from, to, max, .. } => About {
                 minion: m(from),
                 to: m(to),
                 n: Some(max),

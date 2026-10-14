@@ -189,6 +189,8 @@ ids!(StrikeKind {
     /// A strike whose effect is its card's text.
     CardEffect,
     BurnWeapon,
+    /// The opponent's weapon named with the strike moves to the striker.
+    StealWeapon,
     BurnEquipment,
     RangedBurnEquipment,
     Corrupt,
@@ -401,6 +403,10 @@ ids!(
         /// "Steal up to n blood" (François Villon G2): `seat` sets how much, 1
         /// to `max`, from `from` to `to` (`SetX`).
         StealUpTo,
+        /// "Move up to n blood from the acting vampire to this new vampire"
+        /// (Third Tradition: Progeny): `seat` sets how much, 0 to `max` of
+        /// what `minion` has, to `to` (`SetX`).
+        MoveBloodUpTo,
         /// Antonio d'Erlette (`minion`): a mage ally from `seat`'s library or
         /// hand he could play, put in play, its cost paid (Pass: none); the
         /// library shuffled either way.
@@ -449,6 +455,11 @@ ids!(
         /// "Lock this card or burn n pool" (Bleeding the Vine): `ResolveRider`
         /// locks it (if unlocked), `BurnPool` pays.
         LockOrPay,
+        /// "Burns n pool unless they burn a vampire they control with
+        /// capacity `cap` or more to burn this card" (Antediluvian
+        /// Awakening): `BurnPool` pays, `ChooseMinion` burns that vampire and
+        /// the card.
+        PoolOrVampire,
         /// "Search your crypt for a `clan` vampire … move them to your
         /// uncontrolled region (shuffle afterward)" (Disciple of Lazarus): a
         /// crypt card (`Choice::AshVampire`, a CRYPT index), or none (Pass).

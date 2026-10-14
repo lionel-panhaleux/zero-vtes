@@ -216,6 +216,7 @@ pub fn strike(s: Option<&Strike>) -> String {
         StrikeKind::Torpor => "torpor".into(),
         StrikeKind::CardEffect | StrikeKind::Unknown => "strike".into(),
         StrikeKind::BurnWeapon => "burn weapon".into(),
+        StrikeKind::StealWeapon => "steal weapon".into(),
         StrikeKind::BurnEquipment => "burn equipment".into(),
         StrikeKind::RangedBurnEquipment => "burn equipment, ranged".into(),
         StrikeKind::Corrupt => "corruption counter".into(),

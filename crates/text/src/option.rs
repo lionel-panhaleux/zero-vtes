@@ -547,6 +547,8 @@ fn asked(
         (P::UncontrolledBlood, K::Slot) => role(&format!("gets {} blood", about?.n?))?,
         (P::LockOrPay, K::ResolveRider) => format!("Lock {}", named()?),
         (P::LockOrPay, K::BurnPool) => format!("Burn {} pool", about?.n?),
+        (P::PoolOrVampire, K::BurnPool) => format!("Burn {} pool", about?.n?),
+        (P::PoolOrVampire, K::ChooseMinion) => role("is burned")?,
         (P::BaseSearch, K::AshVampire) => format!("Merge with {}", card()),
         (P::BaseSearch, K::Slot) => "Merge with this vampire".into(),
         (P::PreySlotToPool, K::Slot) => format!(

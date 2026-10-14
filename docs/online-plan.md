@@ -261,11 +261,11 @@ Opportunities switch, undo, the game record. Recorded by the owner on
 ## Order
 
 The fork plays on the server since 2026-10-14 (the wasm module and the
-fork's in-browser host removed, owner); `main` takes `p6-online` when
-the owner merges it: the corpus keeps growing.
-`crates/py` builds and trains throughout. Work on `p6-online` in the
-worktree `../zero-vtes-p6`, rebased on `main` as the sibling sessions
-commit.
+fork's in-browser host removed, owner); `p6-online` merged into `main`
+the same day (rebased; its earlier tip tagged
+`p6-online-pre-rebase-2026-10-14`, the commits the server's first records
+name). Work continues on `main`; `crates/py` builds and trains
+throughout.
 
 1. A1 (done) → A1b (the thin slice) with A9 and B0 in parallel.
 2. A2–A7 (the host whole, data first, records, bots, the renderer) →

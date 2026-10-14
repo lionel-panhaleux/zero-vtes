@@ -3408,6 +3408,11 @@
           "const": "steal_up_to"
         },
         {
+          "description": "\"Move up to n blood from the acting vampire to this new vampire\"\n(Third Tradition: Progeny): `seat` sets how much, 0 to `max` of\nwhat `minion` has, to `to` (`SetX`).",
+          "type": "string",
+          "const": "move_blood_up_to"
+        },
+        {
           "description": "Antonio d'Erlette (`minion`): a mage ally from `seat`'s library or\nhand he could play, put in play, its cost paid (Pass: none); the\nlibrary shuffled either way.",
           "type": "string",
           "const": "ally_search"
@@ -3471,6 +3476,11 @@
           "description": "\"Lock this card or burn n pool\" (Bleeding the Vine): `ResolveRider`\nlocks it (if unlocked), `BurnPool` pays.",
           "type": "string",
           "const": "lock_or_pay"
+        },
+        {
+          "description": "\"Burns n pool unless they burn a vampire they control with\ncapacity `cap` or more to burn this card\" (Antediluvian\nAwakening): `BurnPool` pays, `ChooseMinion` burns that vampire and\nthe card.",
+          "type": "string",
+          "const": "pool_or_vampire"
         },
         {
           "description": "\"Search your crypt for a `clan` vampire … move them to your\nuncontrolled region (shuffle afterward)\" (Disciple of Lazarus): a\ncrypt card (`Choice::AshVampire`, a CRYPT index), or none (Pass).",
@@ -4255,6 +4265,11 @@
           "description": "A strike whose effect is its card's text.",
           "type": "string",
           "const": "card_effect"
+        },
+        {
+          "description": "The opponent's weapon named with the strike moves to the striker.",
+          "type": "string",
+          "const": "steal_weapon"
         },
         {
           "description": "A value this reader does not know.",

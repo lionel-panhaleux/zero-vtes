@@ -190,7 +190,7 @@ fn drozodny_names_the_political_card_as_he_declares() {
         find_library("Ancilla Empowerment"),
         find_library("Conceal"),
     );
-    e.state.seats[0].ash = vec![krc, conceal, anc];
+    e.state.seats[0].ash = vec![krc, conceal, anc].into();
     pick(&mut e, printed(d, 0, Target::None));
     let req = expect(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
     let mut want = vec![Choice::FindCard(krc), Choice::FindCard(anc)];
@@ -551,7 +551,7 @@ fn redeem_the_lost_soul_gains_half_a_burned_vampires_capacity() {
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     let seven = CRYPT.iter().position(|c| c.capacity == 7).expect("a 7") as u16;
     let four = CRYPT.iter().position(|c| c.capacity == 4).expect("a 4") as u16;
-    e.state.seats[0].ash_crypt = vec![four, seven];
+    e.state.seats[0].ash_crypt = vec![four, seven].into();
     hand(&mut e, 0, &["Redeem the Lost Soul"]);
     e.at_master_phase();
     pick(&mut e, master_play(0));
@@ -814,7 +814,7 @@ fn meddling_holds_replacements_through_the_minion_phase() {
     assert_eq!(e.state.hand_size(SeatId(0)), 6);
     hand(&mut e, 1, &["Power of One"]);
     fill_hand(&mut e, 1);
-    e.state.seats[1].library = vec![find_library("Conceal"); 3];
+    e.state.seats[1].library = vec![find_library("Conceal"); 3].into();
     to_minion_phase(&mut e, SeatId(1));
     pick(&mut e, bleed(y));
     pick_when(&mut e, play(0, 1, y));
@@ -842,7 +842,7 @@ fn meddling_outlasts_a_cards_own_delay() {
     meddling(&mut e, 0, 1);
     hand(&mut e, 1, &["Fake Out"]);
     fill_hand(&mut e, 1);
-    e.state.seats[1].library = vec![find_library("Conceal"); 3];
+    e.state.seats[1].library = vec![find_library("Conceal"); 3].into();
     pick(&mut e, bleed(a));
     pick_when(&mut e, block(z));
     pick_when(&mut e, play(0, 0, z));
@@ -1193,6 +1193,7 @@ fn kaymakli_nightmares_reshuffles_every_uncontrolled_crypt_card() {
         .uncontrolled
         .push(zvtes::state::UncontrolledSlot {
             card: zvtes::state::CREATED,
+            copy: Default::default(),
             counters: 1,
             banished: Some(zvtes::state::Banished {
                 minion: n,
@@ -1200,12 +1201,13 @@ fn kaymakli_nightmares_reshuffles_every_uncontrolled_crypt_card() {
             }),
         });
     let crypt: Vec<u16> = (10..15).collect();
-    e.state.seats[1].crypt = crypt[2..].to_vec();
+    e.state.seats[1].crypt = crypt[2..].to_vec().into();
     for (k, c) in [(2u8, crypt[0]), (1, crypt[1])] {
         e.state.seats[1]
             .uncontrolled
             .push(zvtes::state::UncontrolledSlot {
                 card: c,
+                copy: Default::default(),
                 counters: k,
                 banished: None,
             });
@@ -1480,7 +1482,7 @@ fn soul_gem_works_under_drawing_out_the_beast() {
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 1, false);
     in_play(&mut e, 1, "Soul Gem of Etrius", Some(z));
-    e.state.seats[1].crypt = vec![plain("Ventrue", 3)];
+    e.state.seats[1].crypt = vec![plain("Ventrue", 3)].into();
     hand(&mut e, 0, &["Drawing Out the Beast", "Wolf Claws"]);
     pick(&mut e, bleed(h));
     pick_when(&mut e, block(z));

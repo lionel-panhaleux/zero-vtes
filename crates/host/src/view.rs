@@ -618,6 +618,7 @@ pub(crate) fn strike(k: Sk, card: Option<u32>) -> Strike {
         Sk::Torpor { .. } => StrikeKind::Torpor,
         Sk::CardEffect => StrikeKind::CardEffect,
         Sk::BurnWeapon => StrikeKind::BurnWeapon,
+        Sk::StealWeapon => StrikeKind::StealWeapon,
         Sk::BurnEquipment => StrikeKind::BurnEquipment,
         Sk::RangedBurnEquipment => {
             s.ranged = true;

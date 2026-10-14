@@ -204,6 +204,11 @@ impl Prompt<'_> {
                 self.seat()?,
                 self.minion()?
             ),
+            P::MoveBloodUpTo => format!(
+                "How much blood does {} move to {}?",
+                self.minion()?,
+                self.to()?
+            ),
             P::StealUpTo => format!(
                 "How much blood does {} steal from {}?",
                 self.to()?,
@@ -258,6 +263,12 @@ impl Prompt<'_> {
             },
             P::BecomesAnarch => "Choose a non-titled vampire of yours to become Anarch".into(),
             P::LockOrPay => format!("Lock {} or burn {} pool", self.card()?, a.n?),
+            P::PoolOrVampire => format!(
+                "Burn {} pool, or burn a vampire of yours with capacity {} or more to burn {}",
+                a.n?,
+                a.cap?,
+                self.card()?
+            ),
             P::CryptSearch => format!(
                 "Choose a {} in your crypt to move to your uncontrolled region",
                 self.clan()?

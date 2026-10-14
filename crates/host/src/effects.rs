@@ -107,6 +107,11 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::TargetBloodToHost(v) => push(detail(on(n(K::Blood, i(v)), On::Host), "from_target")),
         E::StealBloodToHostX => push(detail(x(on(n(K::Blood, 1), On::Host)), "from_target")),
         E::StealBloodFromTarget(v) => push(on(n(K::Steal, i(v)), On::Target)),
+        E::StealPoolFromTarget(v) => push(detail(on(n(K::Steal, i(v)), On::Target), "pool")),
+        E::AshCardOfToHand(_) => push(Effect {
+            to: Some(zvtes_api::ids::Zone::Hand),
+            ..detail(of(K::Move), "political_from_ash_heap")
+        }),
         E::BloodToActing(v) => push(on(n(K::Blood, i(v)), On::Acting)),
         E::BloodToChosen(v) | E::HuntingGroundBlood(v) => push(on(n(K::Blood, i(v)), On::Chosen)),
         E::BloodToTargetToStart(_) => push(detail(on(of(K::Blood), On::Target), "to_start")),
