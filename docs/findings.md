@@ -31,17 +31,17 @@ E: engine or text (here).
 
 | # | Where | What | Status |
 |---|---|---|---|
-| P1 | Board | Uncontrolled vampires share the torpor row and cover its "Uncontrolled" label (only "Torpor" readable until one leaves) | todo (C) |
-| P2 | Influence | Transfers left are shown nowhere | todo (C; `view`: the transfers left?) |
-| P3 | Options | "All options" collapses after every pick: two clicks a transfer | todo (C) |
-| P4 | Discard phase | SC's own "Next Turn" button shows and does nothing; the engine's Pass ends the phase | todo (C) |
-| P5 | Influence | A card's "Influence" label looks clickable and answers "Not possible now"; dragging the vampire to the ready region is the gesture | todo (C) |
-| P6 | Influence | "+" stays enabled past a vampire's capacity (the excess drains on influencing out, a transfer wasted, no hint) | todo (C) |
-| P7 | Terms | Villein's amount titled "Choose X" (no X on the card); the prompt ("Villein: how much blood") not shown | todo (C: show `prompt`) |
+| P1 | Board | Uncontrolled vampires share the torpor row and cover its "Uncontrolled" label (only "Torpor" readable until one leaves) | fixed (SC): the name raised over the cards |
+| P2 | Influence | Transfers left are shown nowhere | fixed: `TableView.transfers` (4f57122), the header tells it |
+| P3 | Options | "All options" collapses after every pick: two clicks a transfer | fixed (SC): open through a window |
+| P4 | Discard phase | SC's own "Next Turn" button shows and does nothing; the engine's Pass ends the phase | fixed (SC): hidden with the rules engine |
+| P5 | Influence | A card's "Influence" label looks clickable and answers "Not possible now"; dragging the vampire to the ready region is the gesture | fixed (SC): it brings the vampire out when no transfer is left |
+| P6 | Influence | "+" stays enabled past a vampire's capacity (the excess drains on influencing out, a transfer wasted, no hint) | fixed (SC): a notice past capacity (the transfer stays legal) |
+| P7 | Terms | Villein's amount titled "Choose X" (no X on the card); the prompt ("Villein: how much blood") not shown | fixed (SC): the prompt shown |
 | P8 | Referendum / action panels | The panel runs over the seat's board: vote totals, "Played during the action" cut off | todo (C) |
-| P9 | Referendum | The panel names the card, not what passing does (hover needed) | todo (C) |
-| P10 | Minion phase | Lenelle's "Other Actions" took Become Anarch at once (2 blood), unconfirmed, the panel calling it "Action In Play Provided By Lenelle" | todo (C: a lone option behind a menu still shown, named by its action) |
-| P11 | Action | The card being played sits in the ready region (with a 0 counter) before it resolves | todo (C) |
+| P9 | Referendum | The panel names the card, not what passing does (hover needed) | fixed (SC): the card's text in the panel |
+| P10 | Minion phase | Lenelle's "Other Actions" took Become Anarch at once (2 blood), unconfirmed, the panel calling it "Action In Play Provided By Lenelle" | fixed (SC): a lone option named by its text |
+| P11 | Action | The card being played sits in the ready region (with a 0 counter) before it resolves | fixed (SC): faded, no counter |
 | E1 | Log | Card names in KRCG sort form in options and prompts: "Gate of Acheron, The", "Smiling Jack, The Anarch", "Rack, The" | fixed: printed names (a trailing ", The" first: `host::cards::printed`), in the views' minion names too |
 | E2 | Log | Bots' passes told each time: "Pass (no block)", "Pass (Block attempts)", "Pass (Blocks declined)", "Pass (no vote now)", "Pass (As the card is played)" | fixed fc2ccf4: a pass told only where it ends a phase |
 | E3 | Log | A failed block told for Marcos Belegrad, not for Modius (Shadow Cast's +1 stealth) | fixed fc2ccf4: told when the action ends in the same run |
