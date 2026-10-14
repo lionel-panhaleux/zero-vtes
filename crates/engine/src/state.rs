@@ -2346,6 +2346,15 @@ impl GameState {
             .any(|c| c.in_play && c.host == Some(m) && holding_matches(c.card, h))
     }
 
+    /// "A vampire can have only one" `card` (Wall of Filth, Pillars Fall,
+    /// a delayed "put this card on …"): one of its name on minion `m`.
+    pub fn holds_its_name(&self, m: MinionId, card: u16) -> bool {
+        self.holds_a(
+            m,
+            Holding::Named(crate::library::LIBRARY[card as usize].name),
+        )
+    }
+
     /// Could minion `m` take equipment `card` as well — none of the card's
     /// "a minion can have only one X" limits reached by what it has or by
     /// the cards `with` it takes in the same action?

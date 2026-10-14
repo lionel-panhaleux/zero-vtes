@@ -18,7 +18,7 @@ use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, LIBRARY};
-use crate::plays::HookAt;
+use crate::plays::{HookAt, ModeLayers};
 use crate::state::{title_votes, ActionId, Expiry, TimedStat, UncontrolledSlot};
 use crate::window::PollingWindow;
 
@@ -1872,21 +1872,21 @@ impl Engine {
                 let a = self.action.as_ref().expect("political action");
                 let (seat, play) = (a.seat, a.card.expect("a political action card"));
                 if self.state.minions[m.index()].present() {
-                    let id = self.enter_play(crate::state::CardInPlay::entering(
-                        play.card,
-                        *play.copy,
-                        seat,
-                        Some(m),
-                        play.mode,
-                    ));
                     self.action
                         .as_mut()
                         .expect("political action")
                         .card_entered_play = true;
-                    self.push_mode_layers(id);
-                    if let Some(t) = cards::card_title(play.card) {
-                        self.gain_title(m, t, Some(id));
-                    }
+                    self.place_now(
+                        crate::state::CardInPlay::entering(
+                            play.card,
+                            *play.copy,
+                            seat,
+                            Some(m),
+                            play.mode,
+                        ),
+                        ModeLayers::Push,
+                        false,
+                    );
                 }
             }
             // Locked, burned and pool lost at once; the chosen Anarchs
@@ -1920,13 +1920,16 @@ impl Engine {
                     for &s in ctx.terms.seats.iter().chain(ctx.terms.chosen.iter()) {
                         against.0 |= crate::ids::SeatSet::single(s).0;
                     }
-                    let id = self.enter_play(crate::state::CardInPlay {
-                        against,
-                        ..crate::state::CardInPlay::entering(
-                            play.card, *play.copy, seat, None, play.mode,
-                        )
-                    });
-                    self.push_mode_layers(id);
+                    self.place_now(
+                        crate::state::CardInPlay {
+                            against,
+                            ..crate::state::CardInPlay::entering(
+                                play.card, *play.copy, seat, None, play.mode,
+                            )
+                        },
+                        ModeLayers::Push,
+                        false,
+                    );
                     self.action
                         .as_mut()
                         .expect("political action")

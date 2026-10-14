@@ -20,6 +20,7 @@ use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{Label, LIBRARY};
+use crate::plays::ModeLayers;
 use crate::state::{CardId, Expiry, GameState, Release, TimedStat};
 use crate::window::OrderedWindow;
 
@@ -2702,9 +2703,8 @@ impl Engine {
     /// since, an effect-only stand-in carries its counters and layers.
     /// `h` may go on its minion: still there, with no card of its name.
     pub(crate) fn may_put_held(&self, h: Held) -> bool {
-        let name = LIBRARY[h.card as usize].name;
         self.state.minions[h.minion.index()].present()
-            && !self.state.holds_a(h.minion, cards::Holding::Named(name))
+            && !self.state.holds_its_name(h.minion, h.card)
     }
 
     pub(crate) fn place_held(&mut self, h: Held, on: MinionId) {
@@ -3167,25 +3167,27 @@ impl Engine {
             // action card enters play rather than the ash heap.
             if let Some(h) = c.put_if_opposing_down {
                 let opposing = c.sides.iter().map(|s| s.minion).find(|&m| m != h.minion);
-                let name = LIBRARY[h.card as usize].name;
-                if opposing.is_some_and(|o| !self.state.minions[o.index()].ready())
-                    && self.state.minions[h.minion.index()].ready()
-                    && !self.state.holds_a(h.minion, cards::Holding::Named(name))
-                {
-                    let id = self.enter_play(crate::state::CardInPlay {
-                        by: Some(h.minion),
-                        ..crate::state::CardInPlay::entering(
-                            h.card,
-                            *h.copy,
-                            h.seat,
-                            Some(h.minion),
-                            h.mode,
-                        )
-                    });
-                    self.push_mode_layers(id);
-                    if let Some(a) = self.action.as_mut() {
-                        a.card_entered_play = true;
-                    }
+                let placed = (opposing.is_some_and(|o| !self.state.minions[o.index()].ready())
+                    && self.state.minions[h.minion.index()].ready())
+                .then(|| {
+                    self.place_now(
+                        crate::state::CardInPlay {
+                            by: Some(h.minion),
+                            ..crate::state::CardInPlay::entering(
+                                h.card,
+                                *h.copy,
+                                h.seat,
+                                Some(h.minion),
+                                h.mode,
+                            )
+                        },
+                        ModeLayers::Push,
+                        true,
+                    )
+                })
+                .flatten();
+                if let (Some(_), Some(a)) = (placed, self.action.as_mut()) {
+                    a.card_entered_play = true;
                 }
             }
         }

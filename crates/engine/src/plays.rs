@@ -92,6 +92,20 @@ fn declared_kind(ability: &cards::ModeDef) -> Option<ActionKind> {
     })
 }
 
+/// How a card put in play as it resolves (`Engine::place_now`) gets its
+/// mode's layers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ModeLayers {
+    /// From the mode's own `Effect::Layer`s, which follow the placement in
+    /// the effects the play resolves (every definition: none comes first).
+    FromEffects,
+    /// All at once with the placement: no effect loop runs the mode's
+    /// layers (a referendum's card, Pillars Fall after combat). Wall of
+    /// Filth's family pushes them too beside the loop: Focus the Blood's
+    /// and Inner Essence's layer is in play twice (findings L10).
+    Push,
+}
+
 /// Who resolves a shared effect (`Engine::apply_shared_effect`): a card
 /// played, with the card it put in play if any, or an in-play ability.
 #[derive(Clone, Copy, Debug)]
@@ -3622,6 +3636,42 @@ impl Engine {
         CardId(self.state.cards.len() as u32 - 1)
     }
 
+    /// "Put this card on … / in play" as the card resolves: the card
+    /// itself enters play, never the ash heap nor an effect-only stand-in
+    /// (rules-qa 47.1; a card already in the ash heap goes through
+    /// `place_held`, rules-qa 21.1). `card` is its entry (host, playing
+    /// minion, remembered Methuselahs); with `one_per_vampire` ("a vampire
+    /// can have only one", checked as it resolves: a legal no-op, rules-qa
+    /// 17.4) not a second of its name on its host. A title card's vampire
+    /// gains the title it represents — once a unique one's card contest is
+    /// over (rules-qa 19.1).
+    pub(crate) fn place_now(
+        &mut self,
+        card: CardInPlay,
+        layers: ModeLayers,
+        one_per_vampire: bool,
+    ) -> Option<CardId> {
+        if one_per_vampire
+            && card
+                .host
+                .is_some_and(|h| self.state.holds_its_name(h, card.card))
+        {
+            return None;
+        }
+        let (c, host) = (card.card, card.host);
+        let id = self.enter_play(card);
+        if layers == ModeLayers::Push {
+            self.push_mode_layers(id);
+        }
+        if let (Some(t), Some(h)) = (cards::card_title(c), host) {
+            let unique = LIBRARY[c as usize].labels.contains(&Label::Unique);
+            if !unique || self.state.library_rivals(id).is_empty() {
+                self.gain_title(h, t, Some(id));
+            }
+        }
+        Some(id)
+    }
+
     /// One effect of a card resolving (a play, or an action card on
     /// success): its own (`Family::Play`: entering play, blood moves,
     /// layers), the others passed to their family's interpreter.
@@ -4062,16 +4112,26 @@ impl Engine {
             // — one of its name a vampire, a second one to the ash heap.
             Effect::PutOnActorNow | Effect::PutOnActorNowStacking => {
                 let actor = ctx.actor.expect("a combatant");
-                let name = LIBRARY[ctx.card as usize].name;
-                if self.state.minions[actor.index()].in_play
-                    && (effect == Effect::PutOnActorNowStacking
-                        || !self.state.holds_a(actor, cards::Holding::Named(name)))
-                {
-                    let id = self.enter_play(CardInPlay {
-                        by: Some(actor),
-                        ..CardInPlay::entering(ctx.card, *ctx.copy, s, Some(actor), ctx.mode)
-                    });
-                    self.push_mode_layers(id);
+                let placed = self.state.minions[actor.index()]
+                    .in_play
+                    .then(|| {
+                        self.place_now(
+                            CardInPlay {
+                                by: Some(actor),
+                                ..CardInPlay::entering(
+                                    ctx.card,
+                                    *ctx.copy,
+                                    s,
+                                    Some(actor),
+                                    ctx.mode,
+                                )
+                            },
+                            ModeLayers::Push,
+                            effect == Effect::PutOnActorNow,
+                        )
+                    })
+                    .flatten();
+                if let Some(id) = placed {
                     *in_play = Some(id);
                     // Inner Essence: for this combat only.
                     let ends = cards::lookup(ctx.card).is_some_and(|d| {
@@ -4148,21 +4208,19 @@ impl Engine {
                         .map_or(Default::default(), |a| a.directed_seats(&self.state)),
                     _ => Default::default(),
                 };
-                *in_play = Some(self.enter_play(CardInPlay {
-                    by: ctx.actor,
-                    discipline: ctx.discipline,
-                    against,
-                    ..CardInPlay::entering(ctx.card, *ctx.copy, s, host, ctx.mode)
-                }));
-                // A title card: its vampire gains the title it represents —
-                // once a unique one's card contest is over (rules-qa 19.1).
-                if let (Some(t), Some(h), Some(id)) = (cards::card_title(ctx.card), host, *in_play)
-                {
-                    let unique = LIBRARY[ctx.card as usize].labels.contains(&Label::Unique);
-                    if !unique || self.state.library_rivals(id).is_empty() {
-                        self.gain_title(h, t, Some(id));
-                    }
-                }
+                // "A vampire can have only one" is a requirement of these
+                // modes (`ActorWithout`, `TargetWithout`: Heart of the City,
+                // Secure Haven), masked as the card is played.
+                *in_play = self.place_now(
+                    CardInPlay {
+                        by: ctx.actor,
+                        discipline: ctx.discipline,
+                        against,
+                        ..CardInPlay::entering(ctx.card, *ctx.copy, s, host, ctx.mode)
+                    },
+                    ModeLayers::FromEffects,
+                    false,
+                );
             }
             // An action card's steal, on success: nothing if the target left
             // play meanwhile (PIB 20121031: still successful, and paid).

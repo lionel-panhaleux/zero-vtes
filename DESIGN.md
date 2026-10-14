@@ -896,7 +896,11 @@ slice-11 cards by section).
   `SuccessfulHunt`, `OwnVampireInfluenced`, `PreyOusted`, `GehennaPlayed`.
 - Entry: `enter_play` is the single entry point (contest checked by the caller
   after entry effects); `apply_entry_effects` (a retainer's layers on its
-  employer, an ally's on itself); `push_mode_layers`.
+  employer, an ally's on itself); `push_mode_layers`. "Put this card on … /
+  in play": `place_now` as the card resolves (the card itself; its layers
+  from the mode's `Effect::Layer`s or pushed, `ModeLayers`; "only one" of
+  its name; a title card's title), `place_held` once it is in the ash heap
+  (rules-qa 21.1, 47.1).
 - A card that becomes another (`cards::became`): its windowless mode only.
   Living Manse is equipment to equip and a location in play
   (`cards::is_equipment_in_play`; out of `equipment_on`).
