@@ -47,12 +47,18 @@ pub enum Site {
     /// `Engine::ability_targets_by` and `minion_target_qualifies_by`: an
     /// in-play ability's minion target.
     AbilityTargets,
-    /// `Engine::ability_options`, every card ability: its phase.
+    /// `Engine::ability_gate`, every in-play ability: its phase.
     AbilityWindow,
-    /// `Engine::ability_options`, the branch of this actor (`Host` stands
-    /// for `ForOwnCombatant` too). Some hold by the branch's construction:
-    /// `YouControlThisCard` in `Controller`'s, `ActorIsHost` in `Host`'s.
-    Ability(Actor),
+    /// `Engine::ability_holds`, every in-play ability: a requirement read
+    /// by name.
+    AbilityGate,
+    /// `Engine::ability_holds`, a card's ability only: a requirement on
+    /// the card in play read by name (its controller, bearer, chosen
+    /// vampire), and an `ActingCandidate` ability's `CardUnlocked`.
+    AbilityGateCard,
+    /// `Engine::ability_options`, an `Actor::Controller` ability's minion
+    /// target.
+    ControllerTarget,
     /// `Engine::vampire_ability_options`.
     VampireAbility,
     /// `Engine::as_played_request`: an ability in `Window::CardAsPlayed`.
@@ -415,18 +421,20 @@ impl Requirement {
             | R::TargetTitleIn(..)
             | R::TargetSameCircle
             | R::TargetClan(..) => &[S::MinionTarget, S::UncontrolledTarget],
-            R::ActorIsChosen | R::ActorOfByCircle => {
-                &[S::Engine(Site::Ability(Actor::ActingCandidate))]
-            }
-            R::ActingIsBy | R::BleedAgainstHostController | R::ActingIsHost => {
-                &[S::Engine(Site::Ability(Actor::ActingMinion))]
-            }
-            R::CardControllersTurn => &[S::Engine(Site::Ability(Actor::ChosenController))],
-            R::TargetCapacityBelowCounters => &[S::Engine(Site::Ability(Actor::Controller))],
-            R::WeaponBurnedOpponent
+            R::ActorIsChosen
+            | R::ActorOfByCircle
+            | R::ActingIsBy
+            | R::BleedAgainstHostController
+            | R::ActingIsHost
+            | R::ActorIsHost
+            | R::CardControllersTurn
+            | R::YouControlThisCard
+            | R::OthersControlThisCard
+            | R::WeaponBurnedOpponent
             | R::SourceHeldWhenBlocking
             | R::HostAttempting
-            | R::HostOutOfCombat => &[S::Engine(Site::Ability(Actor::Host))],
+            | R::HostOutOfCombat => &[S::Engine(Site::AbilityGateCard)],
+            R::TargetCapacityBelowCounters => &[S::Engine(Site::ControllerTarget)],
             R::TargetIsHost | R::TargetInCombatWithNormalDamage => {
                 &[S::Engine(Site::AbilityTargets)]
             }
@@ -448,38 +456,20 @@ impl Requirement {
             | R::MayBeLocked => &[S::Engine(Site::PlayOptions)],
             R::BlockedByOlder => &[S::Engine(Site::VampireRider(Hook::HostBlocked))],
             R::PlayedActionCardAtYour(..) => &[S::Play, S::Engine(Site::AsPlayed)],
-            R::CardUnlocked => &[S::Card, S::Engine(Site::Ability(Actor::ActingCandidate))],
+            R::CardUnlocked => &[S::Card, S::Engine(Site::AbilityGateCard)],
             R::HostCombatOpponentNotReady => &[S::Card, S::Engine(Site::VampireAbility)],
             R::SuperiorVersion => &[S::Card, S::Rider],
             R::NotHost => &[
                 S::CardTarget,
                 S::Engine(Site::AbilityTargets),
-                S::Engine(Site::Ability(Actor::ActingCandidate)),
+                S::Engine(Site::AbilityGateCard),
             ],
-            R::YouControlThisCard => &[
-                S::Engine(Site::Ability(Actor::Controller)),
-                S::Engine(Site::Ability(Actor::ActingMinion)),
-                S::Engine(Site::Ability(Actor::AnyReadyVampire)),
-                S::Engine(Site::Ability(Actor::Methuselah)),
-                S::Engine(Site::Ability(Actor::ActingCandidate)),
-            ],
-            R::ActorIsHost => &[
-                S::Engine(Site::Ability(Actor::Host)),
-                S::Engine(Site::Ability(Actor::ActingCandidate)),
-            ],
-            R::OthersControlThisCard => &[
-                S::Engine(Site::Ability(Actor::Methuselah)),
-                S::Engine(Site::Ability(Actor::ActingCandidate)),
-            ],
-            R::OwnMinionPhase => &[
-                S::Engine(Site::AbilityWindow),
-                S::Engine(Site::VampireAbility),
-            ],
+            R::OwnMinionPhase => &[S::Engine(Site::AbilityWindow)],
             R::PlayedStrikeByOpponent => &[S::Engine(Site::PlayOptions), S::Engine(Site::AsPlayed)],
             R::CanAttemptBlock => &[
                 S::Engine(Site::PlayOptions),
                 S::Engine(Site::PlayTarget),
-                S::Engine(Site::Ability(Actor::AnyReadyVampire)),
+                S::Engine(Site::AbilityGate),
             ],
             R::TargetInCombatWithDamage => &[
                 S::Engine(Site::PlayTarget),
@@ -527,7 +517,7 @@ mod tests {
     /// requirement, why (docs/findings.md). An entry nothing matches fails
     /// the test: drop it once its gap is closed.
     const KNOWN_GAPS: &[(&str, Requirement, &str)] = &[
-        // `vampire_ability_options` reads neither (the card `Host` branch
+        // `ability_holds` reads neither for a vampire (for a card it
         // does): offered for another minion's attempt, or in combat.
         (
             "Angelica, The Canonicus",
@@ -548,8 +538,9 @@ mod tests {
         ),
         // `printed_holds` reads it, `holds` passes it.
         ("Zizi", Requirement::ReadyNamed("Viri"), "findings L2"),
-        // The `ActingCandidate` branch reads the card for `CardUnlocked`
-        // only: the action is offered with no counter to burn.
+        // `ability_holds` reads an `ActingCandidate` ability's card for
+        // `CardUnlocked` only: the action is offered with no counter to
+        // burn.
         (
             "Powerbase: Madrid",
             Requirement::CountersAtLeast(1),
@@ -561,29 +552,44 @@ mod tests {
         ("Dead Pool", Requirement::NotAbstaining, "findings L4"),
     ];
 
-    /// The evaluators the engine runs on an in-play card ability's
-    /// requirements, by actor (`Engine::ability_options`'s branches).
+    /// The evaluators `Engine::ability_gate` runs on an in-play card
+    /// ability's requirements, by actor: the card's (an `ActingCandidate`
+    /// ability's for `CardUnlocked` only, findings L3), the host's when
+    /// the ability has one (`Engine::ability_user`), the play's.
     fn card_ability_readers(ability: &ModeDef) -> Option<Vec<Slot>> {
         use Slot::*;
         let mut readers = match ability.actor {
-            Actor::Controller | Actor::AnyReadyVampire | Actor::Methuselah => vec![Card, Play],
-            Actor::ActingMinion | Actor::ActingCandidate | Actor::OpposingCombatant => vec![Play],
-            Actor::ChosenController => vec![],
-            Actor::Host | Actor::ForOwnCombatant => vec![Card, Host, Play],
+            Actor::Controller | Actor::Methuselah | Actor::ChosenController => vec![Card, Play],
+            Actor::AnyReadyVampire
+            | Actor::OpposingCombatant
+            | Actor::ActingMinion
+            | Actor::Host
+            | Actor::ForOwnCombatant => vec![Card, Host, Play],
+            Actor::ActingCandidate => vec![Host, Play],
             _ => return None,
         };
-        let branch = match ability.actor {
-            Actor::ForOwnCombatant => Actor::Host,
-            a => a,
-        };
-        readers.extend([Engine(Site::Ability(branch)), Engine(Site::AbilityWindow)]);
+        readers.extend(GATE);
         Some(as_played(ability, readers))
     }
+
+    /// The engine sites reading every in-play card ability.
+    const GATE: [Slot; 3] = [
+        Slot::Engine(Site::AbilityWindow),
+        Slot::Engine(Site::AbilityGate),
+        Slot::Engine(Site::AbilityGateCard),
+    ];
 
     /// The evaluators the engine runs on a vampire's printed ability.
     fn vampire_ability_readers(ability: &ModeDef) -> Vec<Slot> {
         use Slot::*;
-        as_played(ability, vec![Host, Play, Engine(Site::VampireAbility)])
+        let readers = vec![
+            Host,
+            Play,
+            Engine(Site::AbilityWindow),
+            Engine(Site::AbilityGate),
+            Engine(Site::VampireAbility),
+        ];
+        as_played(ability, readers)
     }
 
     /// An ability cancelling a card as it is played is filtered again by
@@ -736,7 +742,7 @@ mod tests {
                 };
                 let mut minion = vec![Site::AbilityTargets];
                 if a.actor == Actor::Controller {
-                    minion.push(Site::Ability(Actor::Controller));
+                    minion.push(Site::ControllerTarget);
                 }
                 w.mode(d.name, &at, a, &readers, &minion);
             }

@@ -2510,7 +2510,12 @@ impl AbilitySource {
 
     /// The definition of ability `ability`, wherever it is printed.
     pub fn mode(self, st: &crate::state::GameState, ability: u8) -> &'static ModeDef {
-        let abilities = match self {
+        &self.abilities(st)[ability as usize]
+    }
+
+    /// The abilities printed where this one is.
+    pub fn abilities(self, st: &crate::state::GameState) -> &'static [ModeDef] {
+        match self {
             AbilitySource::Card(c) => {
                 lookup(st.cards[c.index()].card)
                     .expect("definition")
@@ -2521,8 +2526,7 @@ impl AbilitySource {
                     .expect("vampire definition")
                     .abilities
             }
-        };
-        &abilities[ability as usize]
+        }
     }
 }
 
