@@ -1,9 +1,9 @@
 //! The server's HTTP surface as OpenAPI 3.1 (`crates/api/openapi.json`,
 //! served at `/openapi.json` and read by the reference at `/docs`): the
 //! routes of `docs/protocol.md` §10 but the operator's, the WebSocket as
-//! a route whose frames are the `In` and `Out` models, and the intro
-//! (`openapi-intro.md`). The models are the JSON Schema's `$defs`
-//! (OpenAPI 3.1 schemas are JSON Schema 2020-12).
+//! a route whose frames are the `In` and `Out` models, and
+//! `docs/protocol.md` as the intro. The models are the JSON Schema's
+//! `$defs` (OpenAPI 3.1 schemas are JSON Schema 2020-12).
 
 use serde_json::{json, Value};
 
@@ -184,6 +184,20 @@ fn record() -> Value {
     })
 }
 
+/// `docs/protocol.md` as the reference's intro: without its title (the
+/// reference's own) and its maintainers' note.
+fn intro() -> &'static str {
+    let doc = include_str!("../../../docs/protocol.md");
+    let doc = doc
+        .split_once('\n')
+        .map_or(doc, |(_, rest)| rest)
+        .trim_start();
+    match doc.strip_prefix("<!--").and_then(|d| d.split_once("-->")) {
+        Some((_, rest)) => rest.trim_start(),
+        None => doc,
+    }
+}
+
 /// The OpenAPI document, pretty JSON, stable across runs.
 pub fn json() -> String {
     let schemas = Value::Object(crate::schema::defs());
@@ -199,7 +213,7 @@ pub fn json() -> String {
         "info": {
             "title": "zero-vtes engine",
             "version": crate::PROTOCOL_VERSION,
-            "description": include_str!("../openapi-intro.md"),
+            "description": intro(),
         },
         "servers": [{"url": "https://engine.krcg.org"}],
         "tags": [

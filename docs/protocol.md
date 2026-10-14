@@ -1,18 +1,27 @@
 # The zvtes protocol
 
+<!-- The one protocol document. The server shows it as the intro of its
+API reference (https://engine.krcg.org/docs: `crates/api/openapi.json`,
+generated with this file as `info.description`, its title line dropped):
+write for outside readers. The reference is `crates/api` (Rust);
+`schema.json` (JSON Schema 2020-12), `openapi.json` (OpenAPI 3.1) and
+`protocol.ts` (TypeScript) are generated from it, the version is
+`PROTOCOL_VERSION`. Code cites sections as `docs/protocol.md §N`: keep
+the numbers. -->
+
 How a client plays a game of *Vampire: The Eternal Struggle* on the
 zero-vtes engine: a rules-enforcing engine with bots, served at
 `https://engine.krcg.org`. The client shows
 the table and turns its user's moves into answers; the engine decides
-what is legal, runs the bots and says what happened.
+what is legal, runs the bots and says what happened. No account: a game
+is created by one request and played over one WebSocket. Every game is
+recorded, anonymously, and kept two years to train and test the engine
+(§11).
 
-Version **1.0.0** (`PROTOCOL_VERSION`). Sources: `crates/api` (Rust, the
-reference); `crates/api/schema.json` (JSON Schema 2020-12, generated);
-`crates/api/protocol.ts` (TypeScript types, generated from the schema);
-`crates/api/openapi.json` (OpenAPI 3.1: the routes below, the schema's
-types as models, `crates/api/openapi-intro.md` as its intro, a short
-take on this document for outside readers: keep the two in step),
-shown at `https://engine.krcg.org/docs`.
+Version **1.0.0**. The types: the models of the
+[API reference](https://engine.krcg.org/docs), also as
+[JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
+[TypeScript](https://engine.krcg.org/protocol.ts).
 
 ## 1. Model
 
@@ -61,9 +70,58 @@ client                                  host
   events (an `answer` as an `events` message starting with `decided`).
   A refused command changes nothing and is answered by an `error`
   carrying the command's `id` as `reply_to`.
+- Commands are limited per connection (a few dozen a second): over it,
+  a command is refused with `rate_limited` (unnumbered: `seq` 0, no
+  `reply_to`). It was not taken: send it again a moment later. A client
+  answering at once, with no user in the loop, meets it.
 - The game ends when one Methuselah is left, at the time limit, when the
   human is ousted (the bots do not play on), when the human leaves, or
   after the idle timeout (`joined.idle_timeout`).
+
+### A minimal client
+
+Python, with the `websockets` package: it plays the first option of
+every decision against three scripted bots.
+
+```python
+import asyncio, json, urllib.request
+import websockets
+
+SERVER = "engine.krcg.org"
+
+def get(path):
+    return json.load(urllib.request.urlopen(f"https://{SERVER}{path}"))
+
+async def main():
+    decks = dict(get("/catalog"))
+    deck = decks["Toreador (Fifth Edition)"]
+    seats = [{"name": "Me", "deck": deck, "player": {"type": "human"}}] + [
+        {"name": f"Bot {i}", "deck": deck, "player": {"type": "bot", "profile": "wall"}}
+        for i in range(1, 4)
+    ]
+    body = json.dumps({"seats": seats, "client": "my-client 0.1"}).encode()
+    request = urllib.request.Request(
+        f"https://{SERVER}/games", body, {"Content-Type": "application/json"}
+    )
+    game = json.load(urllib.request.urlopen(request))
+    async with websockets.connect(f"wss://{SERVER}/games/{game['game']}/ws") as ws:
+        await ws.send(json.dumps({"type": "join", "token": game["token"]}))
+        answer = None
+        async for frame in ws:
+            message = json.loads(frame)
+            if message["type"] == "decision":
+                option = message["options"][0]["index"]
+                answer = {"type": "answer", "decision": message["decision"], "option": option}
+                await ws.send(json.dumps(answer))
+            elif message["type"] == "error" and message["error"] == "rate_limited":
+                await asyncio.sleep(1)  # not taken: send it again
+                await ws.send(json.dumps(answer))
+            elif message["type"] == "over":
+                print(message["reason"], message["vp_halves"])
+                break
+
+asyncio.run(main())
+```
 
 ## 3. Identities
 
@@ -137,7 +195,8 @@ between, a block attempt's), `card` (named or in play), `clan` (or a
 circle), and `detail`, what sets it apart within its purpose (`minion_of`:
 `lock`, `lock_vampires`, `corrupt`…; a terms window: `blood_range`,
 `x_blood`, `discard`, `cost_reductions`, `burn_allocated`, `gains_pool`…).
-A client tells its prompt from these alone, as `zvtes-text` does.
+A client tells its prompt from these alone, as the server's English
+rendering (the `text` setting) does.
 
 ## 6. The view
 
@@ -197,7 +256,7 @@ seat 2; burn 2 pool to keep card 9.)
   decision never share a key (copies alike in hand are one option).
 - **`effects`** — what taking it does: an ability's effects, a play's
   mode's, a cost, what a chosen Methuselah or minion gets. A curated
-  vocabulary (owner, 2026-10-13), not the engine's own effects: each
+  vocabulary, not the engine's own effects: each
   `{kind, n?, x?, on?, seat?, copy?, cost?, when?, card?, to?, action?,
   favor?, strike?, range?, role?, clan?, detail?}`.
   - `kind` (37, open): `pool`, `blood`, `life`, `counters`,
@@ -270,9 +329,9 @@ their default) and changed by `settings`:
   (permessage-deflate) is on at the server.
 - `text` (default `false`): English renderings beside the data — `text`
   on options, events and strikes, a decision's `prompt` — for a client
-  that does not compose its own. Options and events are told by
-  `crates/text` (`zvtes-text`) from the data sent alone, the names the
-  client was shown, as a client could tell them itself.
+  that does not compose its own. Options and events are told from the
+data sent alone, the names the client was shown, as a client could
+tell them itself.
 
 ## 9. Events
 
@@ -328,8 +387,8 @@ ended; the last `pool`, `blood` and `torpor` told are the next view's.
 
 | | |
 |---|---|
-| `GET /docs` | this protocol for outside readers: the API reference (Scalar, reading `/openapi.json`; its test requests are reads only) |
-| `GET /openapi.json`, `/schema.json`, `/protocol.ts` | the contract, as generated in `crates/api` |
+| `GET /docs` | the API reference: this document, the routes and the types (its test requests are reads only) |
+| `GET /openapi.json`, `/schema.json`, `/protocol.ts` | the API reference's document, and the types as JSON Schema and TypeScript |
 | `GET /version` | protocol, engine commit, bot profiles offered, limits (seats, time limit, idle timeout) |
 | `GET /catalog` | the precon decklists the engine plays |
 | `POST /games` | body: a `GameSpec` (one human seat); `{game, seat, token}`, or a `SpecError` (400) |
@@ -365,9 +424,8 @@ Snake_case ids from sets the protocol does not close:
   an independent title's name.
 
 Closed sets (`Window`, `OptionKind`, `EffectKind`, `Role`, `MarkerKind`,
-`Zone`…) are listed in the schema; a value a later host adds reads as
-`unknown` in the Rust types, and a TypeScript client should treat an
-unknown string alike.
+`Zone`…) are listed in the schema; a client should read a value a later
+host adds as unknown.
 
 ## 13. In and out of scope
 
