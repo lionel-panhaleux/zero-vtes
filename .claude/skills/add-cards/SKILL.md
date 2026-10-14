@@ -16,7 +16,8 @@ only on readings likely to be wrong. Read first: CLAUDE.md (owner rules),
 policy), `docs/rules-digest.md` (settled readings by mechanism; its
 "Default readings" and "What counts as X" sections always). Work in a
 worktree on a round branch (`../zero-vtes-rN`, branch `roundN`), never in
-the shared checkout; keep a progress file in the job's tmp (done, todo,
+the shared checkout (regenerated tables there get built into the training
+session's extension at its next `uv sync`); keep a progress file in the job's tmp (done, todo,
 readings, commit checklist): a round outlives one context window.
 
 ## 1. Choose the round
@@ -26,10 +27,18 @@ The owner's metric (2026-10-14): recent (2025+) TWDA decks entering the
 (monkeypatch `g.table_ids`); greedy over each recent deck's missing set,
 maximizing net recent-kept gain per new card; check the ceiling first (more
 cards can displace kept decks: `VERSIONS`, `SAME_CRYPT`, `SAME_LIBRARY`).
-Present steps (bundle → kept, recent kept) and let the owner pick the cut.
+Present steps (bundle → kept, recent kept) with the cost per recent deck at
+each step (round 11 ~2 cards a deck, round 12 ~5–6: diminishing returns are
+the owner's cut signal), and let the owner pick the cut.
 Count cards by id, never by splitting names on commas. Then add the round
 to `ADDED_BATCHES` in `scripts/window_matrix.py` (the owner's words in a
-comment) and regenerate `crypt.rs`, `library.rs`, `twda.rs`.
+comment) and regenerate `crypt.rs`, `library.rs`, `twda.rs`; check the
+kept count equals the simulation's. Append the new library cards' draft
+rows to `data/window-matrix-reviewed.csv` and review them against analog
+rows: when a draft is wrong, fix the generator's pattern, not the row
+(`--check` at 0 divergences). Regenerate the ledger
+(`scripts/rulings_v5.py vtes.json > data/rulings-v5.csv`). Both CSVs are
+CRLF: the csv module with `lineterminator="\r\n"`, or byte-wise.
 
 ## 2. Research each card, in this order
 
@@ -57,16 +66,21 @@ comment) and regenerate `crypt.rs`, `library.rs`, `twda.rs`.
   ids/describe, text prompt/option, regenerate schema/openapi/protocol.ts,
   and tell the training session before merging (the observation encoder's
   fixed id tables).
-- Vampires end with ALL their text; "put this card on …" enters the card
-  itself (`place_now`); card data in definitions; conditions read live.
+- Vampires end with ALL their text; text-only traits (blood cursed, Black
+  Hand, scarce, titles, votes) are generated crypt data and need only a
+  comment. A `VampireDef` with `group: None` binds every group of the name:
+  check the crypt for other groups first (Lucinde G3 vs G7).
+- "Put this card on …" enters the card itself (`place_now`); its test
+  asserts the card in play is not `effect_only` and the ash heap lacks it
+  (the recurring miss). Card data in definitions; conditions read live.
 
 ## 4. Grade every reading (the owner reviews only red)
 
 For each card, two independent reads:
 
 - **Yours**, as designed and tested.
-- **A second reader**: a fresh subagent that never sees the code or your
-  design. Give it the card text, its KRCG rulings, its advanced-rules
+- **A second reader**: a fresh subagent (one per ~6–10 cards) that never
+  sees the code, your design or your readings. Give it the card text, its KRCG rulings, its advanced-rules
   entry, the digest's "Default readings" and "What counts as X" sections,
   and these rules stated outright: card text addresses its controller
   (32.7); Ⓓ is only indicative (20.1): an action that picks another
@@ -86,7 +100,7 @@ For each card, two independent reads:
   8. Combinations: two copies, a dual-type card, the effect played by
      another card, the card on an ally or a non-vampire.
 
-Then grade each reading:
+Diff the two reads yourself, item by item, then grade each reading:
 
 - **Green**: settled by a KRCG ruling, a rules-qa item, or a default
   reading alone. Recorded, not asked.
@@ -124,7 +138,13 @@ All CLAUDE.md checks green (including `cargo test -p zvtes-policy`, the
 py side, generators, window matrix, ledger, DESIGN count line); the
 `engine-review` skill on the round's diff; findings logged
 (`docs/findings.md`); the cards board updated (`docs/boards/cards.md`).
-Commit on the owner's word; then ask the red items.
+Ask the red items with the commit request, before committing: a "no"
+lands in the same commit. Then rebase the round branch on `main`
+(regenerate `crypt.rs`/`library.rs`/`twda.rs` on conflict, never
+hand-merge them), merge on the owner's word, and tell the training session
+the vocabulary deltas (library n→m, vampires, kept decks) and any new
+encoder id. The round's rules-qa batch takes the next number on `main` when
+written; tell the other sessions.
 
 ## 7. Learn from every correction
 
