@@ -1910,9 +1910,8 @@ impl Engine {
         self.state.seats[s.index()].influence_end = self.state.entry_clock;
         // "Do not replace until your next discard phase": replaced as the
         // phase begins, ahead of anything else in it (spec §1.9.2).
-        let held = std::mem::take(&mut self.state.seats[s.index()].held[Release::NextDiscardPhase]);
-        if held > 0 {
-            self.replace(s, held as usize, None);
+        if self.state.seats[s.index()].held[Release::NextDiscardPhase] > 0 {
+            self.replace_held(s, Release::NextDiscardPhase, 0, None);
         }
         // The Uncoiling's and Dragonbound's effects: due again this phase.
         self.state.seats[s.index()].discard_resolved.clear();
@@ -2234,11 +2233,10 @@ impl Engine {
         self.state.bleed_tolls = keep;
         // Delayed replacements ("do not replace until your next unlock
         // phase") are drawn before unlocking (ANK 20200129).
-        let held = std::mem::take(&mut self.state.seats[s.index()].held[Release::NextUnlockPhase]);
         self.state.phase_uses.clear();
         self.state.turn_uses.clear();
         self.state.veil_superior = false;
-        self.replace(s, held as usize, None);
+        self.replace_held(s, Release::NextUnlockPhase, 0, None);
         // Veil the Legions lasts the turn.
         for seat in &mut self.state.seats {
             seat.veil_left = 0;

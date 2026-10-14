@@ -310,13 +310,41 @@ impl Engine {
     /// the card is still in play).
     pub(crate) fn release_held(&mut self, at: Release) {
         for i in 0..self.state.seats.len() {
-            let n = std::mem::take(&mut self.state.seats[i].held[at]);
-            let jet = std::mem::take(&mut self.state.seats[i].learjet_held[at]).min(n);
-            if n > 0 && !self.state.seats[i].ousted {
-                self.replace(SeatId(i as u8), n as usize, None);
-                for _ in 0..jet {
-                    self.offer_extra_draw(SeatId(i as u8));
-                }
+            let seat = &mut self.state.seats[i];
+            if seat.held[at] > 0 && !seat.ousted {
+                self.replace_held(SeatId(i as u8), at, 0, None);
+            } else {
+                seat.held[at] = 0;
+                seat.learjet_held[at] = 0;
+            }
+        }
+    }
+
+    /// Seat `s`'s replacements held until `at` drawn now, with `also` more
+    /// (the play releasing them), then Learjet's extra draw for each one
+    /// its bearer played: "each time you draw to replace", when the delayed
+    /// replacement is drawn (PIB 20110718). Every release of held cards
+    /// comes here. Held again by The Meddling of Semsith, the extra draws
+    /// wait with them (rules-qa 73.1).
+    pub(crate) fn replace_held(
+        &mut self,
+        s: SeatId,
+        at: Release,
+        also: usize,
+        except: Option<CardId>,
+    ) {
+        let seat = &mut self.state.seats[s.index()];
+        let n = std::mem::take(&mut seat.held[at]);
+        let jet = std::mem::take(&mut seat.learjet_held[at]).min(n);
+        let meddled = seat.held[Release::MinionPhaseEnd];
+        self.replace(s, n as usize + also, except);
+        let seat = &mut self.state.seats[s.index()];
+        if seat.held[Release::MinionPhaseEnd] > meddled {
+            let later = &mut seat.learjet_held[Release::MinionPhaseEnd];
+            *later = (*later + jet).min(seat.held[Release::MinionPhaseEnd]);
+        } else {
+            for _ in 0..jet {
+                self.offer_extra_draw(s);
             }
         }
     }
@@ -335,8 +363,7 @@ impl Engine {
     /// held before, if the hand is empty.
     fn hold_weakened(&mut self, s: SeatId, in_play: Option<CardId>) {
         if self.state.seats[s.index()].hand.is_empty() {
-            let n = std::mem::take(&mut self.state.seats[s.index()].held[Release::Weakens]);
-            self.replace(s, 1 + n as usize, in_play);
+            self.replace_held(s, Release::Weakens, 1, in_play);
         } else {
             self.state.seats[s.index()].held[Release::Weakens] += 1;
         }
@@ -393,9 +420,8 @@ impl Engine {
         // No minion phase under way (a fixture started in one).
         self.state.in_minion_phase = false;
         // Nightmares upon Nightmares' discards: replaced now.
-        let held = std::mem::take(&mut self.state.seats[s.index()].held[Release::MasterPhase]);
-        if held > 0 {
-            self.replace(s, held as usize, None);
+        if self.state.seats[s.index()].held[Release::MasterPhase] > 0 {
+            self.replace_held(s, Release::MasterPhase, 0, None);
         }
         let seat = &mut self.state.seats[s.index()];
         seat.mpa = 1;

@@ -84,7 +84,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1, 57.9, 58.5, 58.19, 59.13, 60.1, 60.9, 60.20
 - **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7, 55.4, 55.6
 - **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6, 54.1, 58.12, 59.5, 60.5, 60.7
-- **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5
+- **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5, 73.1, 73.2
 - **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6, 46.4, 47.1
 - **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7
 - **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6
@@ -1499,3 +1499,9 @@ Slice 16w: the cards that bring the most 2025–2026 TWDA decks into the kept co
 **72.4** Unlicensed Taxicab: "+1 stealth during hunt … actions" applies to a card hunt (Abactor), as 72.1. (Test unlicensed_taxicab_gives_stealth_during_a_card_hunt.)
 
 **72.5** Black Annis: "other non-hunt actions cost her an additional blood" — a card hunt is a hunt (72.1): Loki's Gift costs her nothing more. (Test black_annis_pays_nothing_more_for_a_card_hunt.)
+
+## Batch 73 — Learjet's extra draw: readings no ruling settles (Claude, 2026-10-14)
+
+**73.1** _open_ Learjet: the extra draw comes with every delayed replacement of a card the bearer played as the acting minion, whatever releases it (PIB 20110718 generalized): at the next unlock phase (Old Friends), at the next discard phase (Mirror Walk), as Blood Weakens' held replacements are drawn when the hand empties, at the end of the action; a replacement The Meddling of Semsith holds again during the minion phase brings its extra draw at the minion phase's end, with it. Read: the draw is keyed to the replacement, so it is offered even if Learjet or its bearer left play meanwhile. (Tests learjet_offers_its_extra_card_with_a_replacement_held_until_the_unlock_phase, learjet_offers_its_extra_card_with_a_replacement_held_until_the_discard_phase, learjet_offers_the_extra_cards_of_replacements_drawn_as_the_hand_empties, learjet_extra_card_waits_with_a_replacement_held_again_by_the_meddling.)
+
+**73.2** _open_ Learjet: the action card its bearer plays to take an action brings no extra draw today — the card is replaced as the action is declared, before the bearer is acting (63.10: "while acting in the action"). Is the action card itself "a card this minion played as an acting minion"? (findings L12)

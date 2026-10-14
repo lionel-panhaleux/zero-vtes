@@ -989,7 +989,8 @@ slice-11 cards by section).
   it in play, not recruited.
 - Extra draws on replacement: Learjet's (`Modifier::ExtraDrawOnReplace`,
   `Interrupt::MayDrawExtra` after the replacement, `Seat::learjet_held`
-  for one Blood Weakens holds back) and Infernal Pursuit's
+  for a delayed one, offered by `Engine::replace_held` at every release,
+  rules-qa 73.1) and Infernal Pursuit's
   (`Seat::timed`'s `TimedStat::ExtraDraws`, ending with the combat; read in
   `Engine::replace`; several cards replaced at once go one at a time,
   `Interrupt::PursuitDraw` then `PursuitDiscard`, rules-qa 63.11).
@@ -2197,7 +2198,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (`docs/human-play.md` has the board).
 
-Definitions: 739 library, 297 vampires; 1732 Rust tests, 34 Python tests
+Definitions: 739 library, 297 vampires; 1736 Rust tests, 34 Python tests
 
 ## Outlook: deck building (post-v1)
 

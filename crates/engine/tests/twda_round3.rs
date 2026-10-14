@@ -8,7 +8,7 @@
 use zvtes::actions::Outcome;
 use zvtes::cards::{self, AbilitySource, Effect, Layer, Scope, Target};
 use zvtes::crypt::CRYPT;
-use zvtes::decision::{ActionKind, Choice, WindowLabel};
+use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::state::{find_card, find_library, CardId, CardInPlay};
@@ -1101,6 +1101,145 @@ fn learjet_offers_an_extra_card_after_the_replacement() {
             }
         }
     }
+}
+
+/// Seat 0's optional extra draws offered on the way, each declined, until
+/// `stop` holds of a decision.
+fn extra_draws_until(e: &mut Engine, stop: impl Fn(&Engine, &DecisionRequest) -> bool) -> usize {
+    let mut n = 0;
+    for _ in 0..500 {
+        let req = request(e);
+        if stop(e, &req) {
+            return n;
+        }
+        if req.seat == SeatId(0) && req.options == [Choice::Pass, Choice::DrawLibrary] {
+            n += 1;
+            e.choose(index_of(&req, Choice::Pass));
+        } else {
+            e.choose(fallback(&req));
+        }
+    }
+    panic!("never stopped");
+}
+
+/// Seat 0's minion phase, in its own turn.
+fn minion_phase(e: &Engine, req: &DecisionRequest) -> bool {
+    (req.seat, req.window) == (SeatId(0), WindowLabel::MinionPhase) && e.state.active == SeatId(0)
+}
+
+/// Learjet on seat 0's vampire with `disc`, a second minion keeping the
+/// minion phase open, seat 1's vampire: the bearer and that vampire.
+fn learjet_game(disc: &'static str) -> (Engine, MinionId, MinionId) {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), plain("Brujah", 2), 4, false);
+    superior(&mut e, a, disc);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    in_play(&mut e, 0, "Learjet", Some(a));
+    (e, a, z)
+}
+
+// [PIB 20110718] "the additional card is drawn when the replacement is
+// drawn", whatever the delay: Old Friends' at seat 0's next unlock phase.
+#[test]
+fn learjet_offers_its_extra_card_with_a_replacement_held_until_the_unlock_phase() {
+    let (mut e, a, _) = learjet_game("obf");
+    stacked(&mut e, &["Old Friends"], 4);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, play(0, 0, a));
+    assert_eq!(
+        extra_draws_until(&mut e, minion_phase),
+        0,
+        "not replaced yet"
+    );
+    let turn = e.state.turn;
+    let n = extra_draws_until(&mut e, |e, req| e.state.turn > turn && minion_phase(e, req));
+    assert_eq!(
+        n, 1,
+        "with the replacement, as seat 0's unlock phase begins"
+    );
+    assert_eq!(e.state.seats[0].learjet_held.total(), 0);
+}
+
+// Mirror Walk's replacement at seat 0's next discard phase, the extra card
+// with it.
+#[test]
+fn learjet_offers_its_extra_card_with_a_replacement_held_until_the_discard_phase() {
+    let (mut e, a, z) = learjet_game("tha");
+    stacked(&mut e, &["Mirror Walk"], 4);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, block(z));
+    pick_when(&mut e, play(0, 0, a));
+    assert_eq!(
+        extra_draws_until(&mut e, minion_phase),
+        0,
+        "not replaced yet"
+    );
+    let turn = e.state.turn;
+    let n = extra_draws_until(&mut e, |e, _| e.state.turn > turn);
+    assert_eq!(
+        n, 1,
+        "with the replacement, as seat 0's discard phase begins"
+    );
+    assert_eq!(e.state.seats[0].learjet_held.total(), 0);
+}
+
+// Blood Weakens: Conditioning's replacement held until the action ends or
+// the hand empties; Cloak the Gathering empties it, both replaced then,
+// each with its extra card.
+#[test]
+fn learjet_offers_the_extra_cards_of_replacements_drawn_as_the_hand_empties() {
+    let (mut e, a, z) = learjet_game("dom");
+    superior(&mut e, a, "obf");
+    in_play(&mut e, 1, "Blood Weakens", None);
+    // A hand size of 2: the two cards.
+    e.state.layers.push(Layer {
+        scope: Scope::InPlay,
+        modifier: zvtes::cards::Modifier::HandSize(-5),
+        source: card_in_play(&e, "Learjet"),
+    });
+    hand(&mut e, 0, &["Conditioning", "Cloak the Gathering"]);
+    e.state.seats[0].library.clear();
+    library(&mut e, 0, "Bonding", 10);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, play(0, 0, a)); // Conditioning, held
+    request(&mut e);
+    assert_eq!(e.state.seats[0].hand.len(), 1);
+    assert_eq!(e.state.seats[0].learjet_held.total(), 1);
+    pick_when(&mut e, block(z));
+    pick_when(&mut e, play(0, 0, a)); // Cloak the Gathering, the hand empty
+    request(&mut e);
+    assert_eq!(
+        e.state.seats[0].hand.len(),
+        2,
+        "both replaced as the hand empties"
+    );
+    assert_eq!(e.state.seats[0].held.total(), 0);
+    assert_eq!(extra_draws_until(&mut e, minion_phase), 2);
+    assert_eq!(e.state.seats[0].learjet_held.total(), 0);
+}
+
+// The Meddling of Semsith holds the replacements Blood Weakens releases at
+// the action's end until the minion phase ends: the extra card waits with
+// them.
+#[test]
+fn learjet_extra_card_waits_with_a_replacement_held_again_by_the_meddling() {
+    let (mut e, a, _) = learjet_game("dom");
+    in_play(&mut e, 1, "Blood Weakens", None);
+    let meddling = in_play(&mut e, 1, "Meddling of Semsith, The", None);
+    e.state.cards[meddling.index()].against = zvtes::ids::SeatSet::single(SeatId(0));
+    stacked(&mut e, &["Conditioning"], 4);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, play(0, 0, a));
+    assert_eq!(
+        extra_draws_until(&mut e, minion_phase),
+        0,
+        "not replaced yet"
+    );
+    let turn = e.state.turn;
+    let n = extra_draws_until(&mut e, |e, _| e.state.turn > turn);
+    assert_eq!(n, 1, "as the minion phase ends");
+    assert_eq!(e.state.seats[0].learjet_held.total(), 0);
 }
 
 // ---- Concealed Weapon --------------------------------------------------------------
