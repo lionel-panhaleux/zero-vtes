@@ -2096,7 +2096,10 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   1.19): the weak list moves the decks round, not up. Lowest now Cathari
   0.45 / 0.27, Path of Death 0.65 / 0.97, Salubri 0.68 / 0.40. Served
   in the fork since 2026-10-14 (nightmare 6 in the wasm nudges; p9's
-  model `runs/p9-imitation/best.zvp`); engine.krcg.org still on p9.
+  model `runs/p9-imitation/best.zvp`); engine.krcg.org on p10 the same
+  day (nightmare 6 in the server's bots), the only engine since P6's
+  merge (`243bf6b`: the wasm gone, bot settings in
+  `crates/server/src/games.rs`).
 
 ### 11.3 Open gaps
 
