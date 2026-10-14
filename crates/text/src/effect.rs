@@ -37,6 +37,13 @@ pub fn parts(effects: &[Effect], n: &Names) -> Vec<String> {
         out.extend(part(&effects[i], n));
         i += 1;
     }
+    // The card targeted and the card itself (War Ghoul's location burn).
+    if let Some(j) = out.iter().position(|p| p == "burn the card") {
+        if let Some(k) = out.iter().position(|p| p == "burn it") {
+            out[j] = "burn it and itself".into();
+            out.remove(k);
+        }
+    }
     out
 }
 

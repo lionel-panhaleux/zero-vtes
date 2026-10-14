@@ -38,6 +38,9 @@ pub struct Names<'a> {
     /// Each seat's prey, as the last view showed.
     prey: Vec<Seat>,
     minions: HashMap<CopyId, String>,
+    /// Each minion's name before numbering: a second minion of a name
+    /// (two War Ghouls) is told apart, "War Ghoul (2)", for the game.
+    bases: HashMap<CopyId, String>,
     /// Cards on the table by copy, as the table names them: a card on a
     /// minion with it ("Luciano's Feral Hound"), an uncontrolled vampire.
     table: HashMap<CopyId, String>,
@@ -60,6 +63,7 @@ impl<'a> Names<'a> {
             seats: Vec::new(),
             prey: Vec::new(),
             minions: HashMap::new(),
+            bases: HashMap::new(),
             table: HashMap::new(),
             hosts: HashMap::new(),
             own: HashMap::new(),
@@ -77,7 +81,10 @@ impl<'a> Names<'a> {
         self.referendum = v.referendum.clone();
         for (seat, s) in v.seats.iter().enumerate() {
             for m in s.ready.iter().chain(&s.torpor) {
-                let name = minion_name(m.kind, &m.name);
+                let name = match m.card.copy {
+                    Some(c) => self.numbered(c, minion_name(m.kind, &m.name)),
+                    None => minion_name(m.kind, &m.name),
+                };
                 for c in &m.cards {
                     if let Some(copy) = c.card.copy {
                         let card = self.card(&c.card);
@@ -93,7 +100,6 @@ impl<'a> Names<'a> {
                     }
                 }
                 if let Some(c) = m.card.copy {
-                    self.minions.insert(c, name);
                     self.controllers.insert(c, seat as Seat);
                 }
             }
@@ -131,8 +137,10 @@ impl<'a> Names<'a> {
         } = e
         {
             if let Some(c) = card.copy {
-                let name = minion_name(*kind, &self.card(card));
-                self.minions.entry(c).or_insert(name);
+                if !self.minions.contains_key(&c) {
+                    let name = minion_name(*kind, &self.card(card));
+                    self.numbered(c, name);
+                }
             }
             return;
         }
@@ -167,6 +175,29 @@ impl<'a> Names<'a> {
                 }
             }
         }
+    }
+
+    /// A minion's name as told, numbered when another minion of the game
+    /// had it first (ghoul tokens are all "a ghoul token"); kept once given.
+    fn numbered(&mut self, c: CopyId, base: String) -> String {
+        if self.bases.get(&c) == Some(&base) {
+            if let Some(name) = self.minions.get(&c) {
+                return name.clone();
+            }
+        }
+        let before = self
+            .bases
+            .iter()
+            .filter(|(o, b)| **o != c && **b == base)
+            .count();
+        let name = match before {
+            0 => base.clone(),
+            _ if base == "a ghoul token" => base.clone(),
+            k => format!("{base} ({})", k + 1),
+        };
+        self.bases.insert(c, base);
+        self.minions.insert(c, name.clone());
+        name
     }
 
     pub fn seat(&self, s: Seat) -> String {

@@ -374,7 +374,9 @@ fn base(
                 (None, None) => return None,
             };
             let mut s = format!("Use {name}");
-            if let Some(a) = k.actor.filter(|&a| Some(a) != host) {
+            // Not the card's own minion (an ally's ability: War Ghoul's rush).
+            let own = k.card.as_ref().and_then(|c| c.copy);
+            if let Some(a) = k.actor.filter(|&a| Some(a) != host && Some(a) != own) {
                 s += &format!(" with {}", n.minion_bare(a));
             }
             if k.target.is_some() {
