@@ -86,6 +86,12 @@ detailed).
 
 ## Working lessons
 
+- Engine work: `docs/engine.md` is the engine guide (dispatch, what is
+  enforced, adding a card, comment policy, the reference by mechanism):
+  read §2–5 before changing the engine, and keep it current. Before every
+  commit touching `crates/engine/src` (except the generated `crypt.rs`,
+  `library.rs`, `twda.rs`), run the `engine-review` skill
+  (`.claude/skills/engine-review`) on the diff and act on its findings.
 - Checks before calling work done: `cargo fmt --check`; `cargo clippy
   --all-targets --profile ci -- -D warnings`; `cargo test --profile ci -q` (the
   `ci` profile: release speed plus debug assertions and overflow checks,

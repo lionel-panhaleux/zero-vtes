@@ -196,6 +196,9 @@ tables; `limit_slot` matches every `Limit`.
   (`tests/vampires.rs`): no `incomplete` left (rules-qa 13.1);
 - `no_in_play_effect_requires_a_justicar` (`tests/twda_unlocks.rs`);
 - `legal_no_ops_are_offered_and_known_to_gain_nothing` (`tests/precon.rs`).
+- `no_card_name_in_engine_code` (`tests/lint.rs`): no card name as a string
+  in hand-written engine code outside the definitions; each exception in
+  `CARD_NAMES_ALLOWED` carries its reason, a stale one fails.
 
 **Enforced by play.** The fuzz fixtures (`tests/fuzz.rs`: invariants,
 conservation of copies, replay of every 4th seed, each fixture's `covers`

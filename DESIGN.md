@@ -520,7 +520,7 @@ Recorded so nobody mistakes them for oversights:
    without the ousted seat; a directed action whose target left is not continued
    (Form of Mist masked). Two seats left ends the game.
 
-## 11. Phasing and engine reference
+## 11. Phasing
 
 ### 11.1 Phases and slices
 
