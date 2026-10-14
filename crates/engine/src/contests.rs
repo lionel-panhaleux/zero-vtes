@@ -1,7 +1,6 @@
 //! Card and title contests (rulebook "Contested Cards" / "Contested
-//! Titles"): entry on influence-out, upkeep in the owner's unlock phase
-//! (DESIGN §4.4 factoring: each Methuselah settles their own side, in arena
-//! order).
+//! Titles"): entry, and upkeep in each owner's unlock phase (DESIGN §4.4:
+//! each Methuselah settles their own side, in arena order).
 
 use crate::decision::Choice;
 use crate::game::{Contest, Engine};
@@ -46,10 +45,9 @@ impl Engine {
         items
     }
 
-    /// The upkeep decision for one contested object: none when no rival is
-    /// left (it returns for free), a forced yield for a title on a torpid
-    /// or empty vampire, else pay or yield. Paying is always offered for a
-    /// card: a living Methuselah has pool, and paying down to 0 is legal.
+    /// The upkeep choices for one contested object: none without a rival,
+    /// a forced yield for a title on a torpid or empty vampire, else pay or
+    /// yield (a card's payment always: paying down to 0 is legal).
     pub(crate) fn contest_choices(&self, item: Contest) -> Vec<Choice> {
         let st = &self.state;
         match item {
@@ -216,9 +214,8 @@ impl Engine {
         }
     }
 
-    /// Vampire `m` loses the title it claims (yielded, stolen, or replaced):
-    /// its title card is burned, a title gained without a card is gone,
-    /// or else its printed title is lost for the rest of the game.
+    /// Vampire `m` loses the title it claims: its card burned, else a
+    /// granted title gone, else its printed title lost for the game.
     pub(crate) fn lose_title(&mut self, m: MinionId) {
         if let Some((id, _)) = self.state.title_card_on(m) {
             self.state.cards[id.index()].contested = false;
@@ -237,9 +234,8 @@ impl Engine {
         self.lose_title(m);
     }
 
-    /// `thief` steals the title `from` holds (Valerius): `from` loses it
-    /// — a card representing it is burned — and `thief` gains the title
-    /// itself (rules-qa 19.6).
+    /// `thief` steals the title `from` holds, its card burned (Valerius,
+    /// rules-qa 19.6).
     pub(crate) fn steal_title(&mut self, thief: MinionId, from: MinionId) {
         let title = self.state.title_of(from);
         if title == crate::crypt::Title::None {
@@ -249,12 +245,8 @@ impl Engine {
         self.gain_title(thief, title, None);
     }
 
-    /// Vampire `m` gains `title` (rulebook "Vampiric Sects": a vampire
-    /// has one title; one with a title that gains another loses the
-    /// first, and yields a contested one): with `card`, a title card put
-    /// on it; else a title gained without a card (Valerius's steal). The
-    /// printed title, if still held, is lost with it. A rival claimant
-    /// contests it.
+    /// Vampire `m` gains `title`, from `card` or without one (Valerius),
+    /// losing any title it had (rulebook "Vampiric Sects": one title).
     pub(crate) fn gain_title(
         &mut self,
         m: MinionId,
