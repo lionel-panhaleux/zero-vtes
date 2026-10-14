@@ -132,7 +132,8 @@ Examples: `host_announces_riders` `actions.rs:1156`, `host_blocked_riders`
   referendum ones). I checked every rider on those hooks: all have
   `requires: &[]` today. So this is a hazard, not a defect: the first rider
   with a requirement on one of those hooks fires unconditionally, against
-  DESIGN §11.2 ("requirements read at collection and at resolution").
+  DESIGN §11.2 ("requirements read at collection and at resolution"; now
+  docs/engine.md §6.11).
 - **`Rider.scope`.** `RiderScope::applies` is called at 7 sites. Elsewhere
   the scope is hard-coded by the hook's name (`own_bleed_riders` enforces
   `card_controller == seat`; the "Own…" hooks generally). Today every
@@ -207,8 +208,8 @@ a batch).
   `Scope::Action` whatever the source, `state.rs:3114`). No other code
   reads these three variants: a grep over the engine, `host` and `text`
   finds only their interpreter arms (`actions.rs:3194`, `3254`, `3261`).
-  So no reach computation (`intercept_reachable`, DESIGN §11.2) depends on
-  the variant names; it reads the layers. Goldens should not move. **Size:** 3 variants, 3 definitions, one interpreter.
+  So no reach computation (`intercept_reachable`, DESIGN §11.2, now
+  docs/engine.md §6.6) depends on the variant names; it reads the layers. Goldens should not move. **Size:** 3 variants, 3 definitions, one interpreter.
 - **Looks alike, keep apart: `UnlockActor` vs `UnlockActing`.** The actor
   playing or using a card need not be the acting minion. Yoruba Shrine is a
   location whose ability unlocks the acting minion, while Hive Mind unlocks

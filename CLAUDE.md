@@ -56,8 +56,10 @@ Findings (owner, 2026-10-13): an issue met on the way (an engine bug, a
 choice offered twice, a rough edge) is fixed on the spot when small, or
 listed in `docs/findings.md` to address next — never left untracked.
 
-State and next steps: DESIGN §11 (slice table, engine reference by mechanism,
-open gaps, what remains); history in `git log` (commit messages are detailed).
+State and next steps: DESIGN §11 (slice table, open gaps, what remains; §11.2
+the policy side and the training runs); the engine guide and its reference by
+mechanism: `docs/engine.md`; history in `git log` (commit messages are
+detailed).
 
 ## Owner rules
 
