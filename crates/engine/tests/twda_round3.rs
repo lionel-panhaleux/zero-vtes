@@ -902,6 +902,11 @@ fn focus_the_blood_banks_a_blood_and_a_discount() {
     request(&mut e);
     let focus = card_in_play(&e, "Focus the Blood");
     assert_eq!(e.state.cards[focus.index()].host, Some(a));
+    assert_eq!(
+        e.state.layers.iter().filter(|l| l.source == focus).count(),
+        1,
+        "its cost-source layer, once (findings L10)"
+    );
     assert_eq!(blood(&e, a), 4);
     let req = request(&mut e);
     assert!(!req.options.contains(&play(0, 0, a)), "one each combat");

@@ -100,9 +100,7 @@ pub(crate) enum ModeLayers {
     /// the effects the play resolves (every definition: none comes first).
     FromEffects,
     /// All at once with the placement: no effect loop runs the mode's
-    /// layers (a referendum's card, Pillars Fall after combat). Wall of
-    /// Filth's family pushes them too beside the loop: Focus the Blood's
-    /// and Inner Essence's layer is in play twice (findings L10).
+    /// layers (a referendum's card, Pillars Fall after combat).
     Push,
 }
 
@@ -3478,18 +3476,18 @@ impl Engine {
         let mut in_play: Option<CardId> = None;
         let mut search = None;
         // A card whose delayed effect is represented in play takes its
-        // layers then (the card itself goes to the ash heap now).
+        // layers then (the card itself goes to the ash heap now); Disarm,
+        // its opposing vampire burned, none.
         let held = mode.effects.iter().any(|e| {
             matches!(
                 e,
-                Effect::PutOnOpponentOnHit { .. }
-                    | Effect::PutOnActorAfterCombat
-                    | Effect::PutOnOpponent
+                Effect::PutOnOpponentOnHit { .. } | Effect::PutOnActorAfterCombat
             )
         });
+        let on_opponent = mode.effects.contains(&Effect::PutOnOpponent);
         for effect in mode.effects.iter().filter(|_| !payer_burned) {
             match *effect {
-                Effect::Layer(_) if held => {}
+                Effect::Layer(_) if held || on_opponent && in_play.is_none() => {}
                 // Once the card is replaced (rules-qa 12.4).
                 Effect::SearchStore(n) => search = Some(n),
                 Effect::CancelPlayed { refund } => {
@@ -4152,7 +4150,7 @@ impl Engine {
                                     ctx.mode,
                                 )
                             },
-                            ModeLayers::Push,
+                            ModeLayers::FromEffects,
                             effect == Effect::PutOnActorNow,
                         )
                     })
@@ -4214,6 +4212,24 @@ impl Engine {
                     .morbidity
                     .push((id, opposing));
                 *in_play = Some(id);
+            }
+            // Disarm: on the opposing vampire as it resolves, the card
+            // itself (rules-qa 47.1); "only one" masked as it is played
+            // (`OpponentWithout`). The opposing vampire burned, nothing.
+            Effect::PutOnOpponent => {
+                let actor = ctx.actor.expect("a combatant");
+                let c = self.combat.as_ref().expect("combat");
+                let on = c.sides[1 - c.side_of_minion(actor).expect("a combatant")].minion;
+                if self.state.minions[on.index()].in_play {
+                    *in_play = self.place_now(
+                        CardInPlay {
+                            by: Some(actor),
+                            ..CardInPlay::entering(ctx.card, *ctx.copy, s, Some(on), ctx.mode)
+                        },
+                        ModeLayers::FromEffects,
+                        false,
+                    );
+                }
             }
             Effect::PutOnTarget
             | Effect::PutInPlay

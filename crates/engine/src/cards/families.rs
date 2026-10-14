@@ -64,6 +64,7 @@ impl Effect {
             | E::CountersFromTargetCapacity
             | E::RetainerToStartingLife
             | E::PutOnActorNowStacking
+            | E::PutOnOpponent
             | E::BurnLibraryTop(..)
             | E::PutOnActorNow
             | E::MorbidityTake(..)
@@ -376,7 +377,6 @@ impl Effect {
             | E::HandStrikeDamageThisCombat(..)
             | E::HandSizeThisCombat(..)
             | E::AimExtraDamage(..)
-            | E::PutOnOpponent
             | E::OpponentToTorpor
             | E::AdditionalStrikeOnly { .. }
             | E::AdditionalStrikesX { .. }

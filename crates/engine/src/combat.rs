@@ -3552,10 +3552,6 @@ impl Engine {
                 s.marble = Some(aggravated || s.marble == Some(true));
             }
             Effect::WeatherDamage { escalate } => c.weather.push((c.round, escalate)),
-            Effect::PutOnOpponent => {
-                let on = c.sides[1 - i].minion;
-                self.place_held(Held::from_play(play, actor, 0), on);
-            }
             // At once, where it lands: the flow may move on (an oust).
             Effect::OpponentToTorpor => {
                 let o = &mut c.sides[1 - i];

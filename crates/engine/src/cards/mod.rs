@@ -4036,8 +4036,8 @@ pub enum Effect {
     /// any)" (Brujah Debate): their pick among the ties; a locked one may
     /// be picked (LSJ 20010508).
     LockOldestOfClan(&'static str),
-    /// Put this card on the opposing minion now (Disarm): its layers apply
-    /// while it is there, the card itself in the ash heap (rules-qa 21.1).
+    /// Put this card on the opposing minion now (Disarm): the card itself,
+    /// its layers while it is there (rules-qa 47.1).
     PutOnOpponent,
     /// Send the opposing vampire to torpor (Disarm).
     OpponentToTorpor,

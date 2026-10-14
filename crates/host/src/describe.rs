@@ -1310,7 +1310,7 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
         } => {
             match source {
                 // The card, and the minion it is on (its lasting effect's,
-                // the card in the ash heap: Disarm).
+                // the card in the ash heap).
                 AbilitySource::Card(c) => {
                     k.card = Some(x.in_play(c));
                     k.minion = e.state.cards[c.index()].host.map(|m| x.minion(m));

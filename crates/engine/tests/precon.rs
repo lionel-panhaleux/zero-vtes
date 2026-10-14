@@ -8013,7 +8013,7 @@ fn disarm_sends_the_weaker_striker_to_torpor_with_less_strength() {
     assert!(e.state.minions[z.index()].in_torpor);
     assert!(on(&e, z).iter().any(|&(c, _)| c == disarm));
     assert_eq!(e.state.bearer_mod(z, Stat::Strength, ActionKind::Bleed), -1);
-    // Burned for 3 blood.
+    // The card itself, out of the ash heap (rules-qa 47.1).
     let d = CardId(
         e.state
             .cards
@@ -8021,11 +8021,15 @@ fn disarm_sends_the_weaker_striker_to_torpor_with_less_strength() {
             .position(|c| c.in_play && c.card == disarm)
             .unwrap() as u32,
     );
+    assert!(!e.state.cards[d.index()].effect_only);
+    assert!(!e.state.seats[0].ash.contains(&disarm));
+    // Burned for 3 blood.
     e.state.minions[z.index()].blood = 3;
     until(&mut e, SeatId(1), WindowLabel::MinionPhase);
     pick(&mut e, use_on(d, 0, None, Target::None));
     request(&mut e);
     assert!(!e.state.cards[d.index()].in_play);
+    assert!(e.state.seats[0].ash.contains(&disarm));
     assert_eq!(blood(&e, z), 0);
     // Environmental damage does not count.
     let mut e = Engine::bare(3);
