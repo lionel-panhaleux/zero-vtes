@@ -168,18 +168,27 @@ Club and other clients the platforms board's. A finding lands in
 `docs/findings.md`, then as an item on the board of the line that fixes
 it.
 
-## Owner decisions open
+## Owner decisions
 
-1. How testers reach engine games for the beta (P1).
-2. When the repository goes public (E11).
-3. Whether the Imbued and banned cards are in "every card" (C23).
-4. Where elision lives (E25).
-5. The guidance rule's border cases (E13), stops (E19), the "waiting on
-   X" tell (E14) and spectators (E15).
-6. The early survival shaping (T15) and strength levels for players
-   (T16).
-7. Other platforms (P20); the fork's target prompt (P12); the texture
-   check in a browser (P14).
+Answered 2026-10-14:
+
+1. Testers reach engine games through SC once Thomas ships #285; if he
+   does not move swiftly enough, our own SC on krcg, or a platform made
+   for the engine (always engine games, no free play) (P1).
+2. The repository is public: github.com/lionel-panhaleux/zero-vtes, MIT
+   (E11).
+3. The Imbued are in "every card"; the banned cards are not (C23).
+4. The engine offers every legal play, even one not worth considering
+   (E25: the block reachability pruning, to confirm).
+5. Guidance border cases, stops, the "waiting on X" tell, spectators:
+   a later step (E13, E14, E15, E19).
+6. Survival shaping and strength levels: later, on the training side
+   (T15, T16).
+7. Other platforms: JOL (VTES Online) and Elysium (P20).
+8. The daily harvest runs from a pilot session (T3).
+
+Still open: E25's proposal; the fork's target prompt (P12); the texture
+check in a browser (P14).
 
 ## Carried over
 

@@ -14,7 +14,7 @@ beyond generated traits), library 739 of 2,364; 2 crypt and 18 library
 cards banned. 440 TWDA decks fully in the pool, 114 kept (slice 16w).
 C4 makes these numbers a report.
 
-Status: `todo` · `doing` · `blocked:<what>` · `done`. Order: wrong
+Status: `todo` · `doing` · `blocked:<what>` · `later` · `done`. Order: wrong
 behaviour in cards already defined first (beta games meet them), then
 what makes the loop run without the owner (B), then the owner-review
 backlog a batch at a time, then the long tail.
@@ -43,7 +43,7 @@ backlog a batch at a time, then the long tail.
 | C20 | Tests for cards covered by fuzz or code paths only: Rapid Change [PRO], Wolf Claws [PRO], Rötschreck's range check, Powerbase: Savannah with Deep Song's target, Saatet-ta's stealth and intercept locks, Carlton Van Wyk's strike and dodge | DESIGN §11.3 known edges, legacy additions | todo |
 | C21 | Hard cards (owner): Outside the Hourglass and Rewind Time with Shalmath (the next step of the TWDA ranking; the Lasombra and Ravnos G2 vampires of that note came in with round 9, 16u); a sterile baron to close a test loop | DESIGN §11.3 owner suggestions; CLAUDE.md owner rules | todo |
 | C22 | Inert clauses, live once a round adds their tenant: Blood Trade's boons, The Fourth Cycle's conviction cards, self-damaging weapons, Black Forest Base's changeling, Brunhilde's and Danielle Diron's [MERGED] text, Veneficti's demon, Tupdog's Visceratika; My Kin Against the World's Laibon clause checked now (Laibon in the pool since 16s) | DESIGN §11.3 inert clauses | blocked:no pool tenant |
-| C23 | Imbued (20 crypt cards) and their library (14 Powers, 3 Convictions): in or out of "every card" (the owner), then a round with the mechanism | objective B; pool count | blocked:owner |
+| C23 | The Imbued in "every card" (owner, 2026-10-14: the Imbued yes, the banned cards no): the 20 Imbued and their library (14 Powers, 3 Convictions), a round with the mechanism (conviction, the Imbued's actions) | objective B; pool count | todo |
 | C24 | Advanced-rules and KRCG-rulings corrections, listed for `../vtes-advanced-rules` and vtes-rulings (no engine change): K11 (the "during X" template), K12 (§4.3.5 vs §2.4.1), K13 (Thirst), K19 (Annabelle, upstream #11), K28 (a gun's maneuver, §4.3.1 vs §4.10.1), K34 (a dangling reference) | rules-digest §23; the judge track (roadmap) | todo |
 
 ## Round log

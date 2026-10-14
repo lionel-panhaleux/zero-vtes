@@ -9,13 +9,13 @@ first fork was built; its "Checks" and "Running the fork" are current).
 Platforms read the protocol only: a platform inferring what the protocol
 could say is an engine-board item.
 
-Status: `todo` · `doing` · `blocked:<what>` · `done`. Order: what the
+Status: `todo` · `doing` · `blocked:<what>` · `later` · `done`. Order: what the
 community beta needs from Succubus Club first, then Thomas's PRs and the
 proposal, then the fork's remaining interface items, then other platforms.
 
 | # | Item | Why / source | Status |
 |---|---|---|---|
-| P1 | How beta players reach engine games: today only the owner's vite on :5188 serves the fork; either the fork is deployed (where, by whom) or the beta waits on #285 upstream | beta (roadmap) | blocked:owner |
+| P1 | How beta players reach engine games (owner, 2026-10-14): first, Thomas gets the chance to ship SC with #285 merged so SC plays against the bots; if he does not move swiftly enough, we deploy our own SC on krcg, or build a platform made for the engine (always engine games, no free-play mode) | beta (roadmap) | blocked:Thomas (#285) |
 | P2 | Rejoin checked on a local server: a refresh or a dropped socket mid-game rejoins (`join {after: seq}`, `RemoteEngineHost`'s resync); sc.md's "an engine game has no resume" corrected, or the gap filed on the engine board | beta; online-plan C (resync on reconnect); human-play 5.7 | todo |
 | P3 | A "report a problem" entry in engine games: text tied to the game and the decision (E2), and the community channel the notice names | beta (feedback intake) | blocked:E2 |
 | P4 | The engine mode's notice checked in #285 and the fork: recorded two years, anonymous (as `docs/protocol.md` says), where to send feedback | online-plan C; settled 5 | todo |
@@ -34,4 +34,4 @@ proposal, then the fork's remaining interface items, then other platforms.
 | P17 | Guidance audit of the fork's engine mode against E13's rule: no reminder of what the engine leaves to the player | objective C; sc-change rule 7 | blocked:E13 |
 | P18 | The remaining option placements (choose_seat, searches, per-vampire votes and SC's own referendum widget) checked against the interface review; closed or kept | human-play 2.10 | todo |
 | P19 | Several humans at an SC engine table, bots in the free seats (after E15) | objective B; online-plan order 6 | blocked:E15 |
-| P20 | Other platforms: the candidates (JOL out of scope since 2026-09-29, DESIGN §8) and what each needs of the API (E12) | objective C | blocked:owner |
+| P20 | Other platforms (owner, 2026-10-14): JOL (VTES Online) and Elysium (https://elysium.cards, https://github.com/dtagent2000/VTES-Elysium): how each runs games, what each needs of the API (E12), what plugging the engine in would take | objective C | todo |
