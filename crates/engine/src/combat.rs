@@ -1387,9 +1387,9 @@ impl Engine {
             return;
         }
         let c = self.combat.as_mut().expect("combat context");
-        // The seat acting on this choice, and whether the play goes through
-        // the as-played stack (announced after the borrow ends).
-        let play = match (c.step, choice) {
+        // The seat playing a card through the as-played stack or using an
+        // ability (announced or used after the borrow ends).
+        let acting = match (c.step, choice) {
             (Step::ChooseStrike(i), Choice::StrikeCombatEnds) => {
                 c.sides[i].set_strike(Some(StrikeKind::CombatEnds { unlock: false }));
                 c.sides[i].chosen = true;
@@ -1503,10 +1503,13 @@ impl Engine {
             }
             (Step::Prevent(i), Choice::Play { .. }) => Some(c.sides[i].seat),
             // An ability is not a card play: no as-played window.
-            (Step::Prevent(_) | Step::ChooseStrike(_), Choice::UseAbility { .. }) => None,
+            (Step::Prevent(i) | Step::ChooseStrike(i), Choice::UseAbility { .. }) => {
+                Some(c.sides[i].seat)
+            }
             (_, Choice::UseAbility { .. }) => {
+                let seat = c.window.current().expect("impulse holder");
                 c.window.play();
-                None
+                Some(seat)
             }
             (_, Choice::Pass) => {
                 c.window.pass();
@@ -1590,18 +1593,21 @@ impl Engine {
                 actor,
                 target,
             },
-        ) = (play, choice)
+        ) = (acting, choice)
         {
             self.announce_play(seat, *card, *mode, *actor, *target, Flow::Combat);
         }
-        if let Choice::UseAbility {
-            source,
-            ability,
-            actor,
-            target,
-        } = choice
+        if let (
+            Some(seat),
+            Choice::UseAbility {
+                source,
+                ability,
+                actor,
+                target,
+            },
+        ) = (acting, choice)
         {
-            self.use_ability(*source, *ability, *actor, *target, Flow::Combat);
+            self.use_ability(seat, *source, *ability, *actor, *target, Flow::Combat);
         }
     }
 

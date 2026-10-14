@@ -2581,7 +2581,7 @@ impl Engine {
                 // returns to the acting Methuselah.
                 a.window.play();
                 self.flow = Flow::Action;
-                self.use_ability(*source, *ability, *actor, *target, Flow::Action);
+                self.use_ability(seat, *source, *ability, *actor, *target, Flow::Action);
             }
             other => unreachable!("illegal action choice {other:?}"),
         }

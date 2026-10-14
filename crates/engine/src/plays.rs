@@ -1472,7 +1472,8 @@ impl Engine {
                 actor,
                 target,
             } => {
-                if !self.use_ability(*source, *ability, *actor, *target, Flow::MasterPhase) {
+                let s = self.state.active;
+                if !self.use_ability(s, *source, *ability, *actor, *target, Flow::MasterPhase) {
                     self.flow = Flow::MasterPhase;
                 }
             }
@@ -2913,6 +2914,7 @@ impl Engine {
                 target,
             } => {
                 let top = stack.last_mut().expect("as-played stack");
+                let seat = top.window.current().expect("as-played impulse holder");
                 top.window.play();
                 // "Cancel a card as it is played": the play below is
                 // canceled, settled as the window closes.
@@ -2946,7 +2948,7 @@ impl Engine {
                     }
                 }
                 let flow = Flow::AsPlayed { stack, resume };
-                if !self.use_ability(*source, *ability, *actor, *target, flow.clone()) {
+                if !self.use_ability(seat, *source, *ability, *actor, *target, flow.clone()) {
                     self.flow = flow;
                 }
             }
@@ -5146,7 +5148,7 @@ impl Engine {
                 actor,
                 target,
             } => {
-                if !self.use_ability(*source, *ability, *actor, *target, Flow::Discard) {
+                if !self.use_ability(s, *source, *ability, *actor, *target, Flow::Discard) {
                     self.flow = Flow::Discard;
                 }
             }
@@ -5417,7 +5419,7 @@ impl Engine {
     ) -> Option<AbilityUser> {
         let st = &self.state;
         let ability = self.ability_mode(source, ai);
-        let u = self.ability_user(source, ai, user);
+        let u = self.ability_user(source, ai, seat, user);
         let card = match source {
             AbilitySource::Card(id) => Some(id),
             AbilitySource::Vampire(_) => None,
@@ -6224,12 +6226,13 @@ impl Engine {
             && !v.acted.iter().any(|a| a.same(id))
     }
 
-    /// Use an in-play ability. Returns true when the flow moved on: a
-    /// granted action was declared, or the user paid themselves out
-    /// (`PoolToHostBlood` at 1 pool: ousted, the turn passed) — callers
-    /// must not restore their flow then.
+    /// Use an in-play ability, `seat` the one that chose to. Returns true
+    /// when the flow moved on: a granted action was declared, or the user
+    /// paid themselves out (`PoolToHostBlood` at 1 pool: ousted, the turn
+    /// passed) — callers must not restore their flow then.
     pub(crate) fn use_ability(
         &mut self,
+        seat: SeatId,
         source: AbilitySource,
         ability: u8,
         actor: Option<MinionId>,
@@ -6393,13 +6396,14 @@ impl Engine {
                 source,
                 ability,
                 target,
+                seat,
                 user: actor,
                 picked: Vec::new(),
                 resume: Box::new(resume),
             };
             return true;
         }
-        self.resolve_ability(source, ability, target, 0, actor)
+        self.resolve_ability(source, ability, target, 0, seat, actor)
     }
 
     /// Is stealth needed on the action `m` performs (rules-qa 3.2)?
@@ -6417,14 +6421,16 @@ impl Engine {
         )
     }
 
-    /// Who uses an ability of `source`, `user` the minion using it when
-    /// the ability does not say (any ready vampire, the bearer's opponent,
-    /// a granted action's candidate): read alike as it is offered, as its
-    /// terms are chosen and as it resolves.
+    /// Who uses an ability of `source`, `seat` the Methuselah asked (or
+    /// who chose it) and `user` the minion using it when the ability does
+    /// not say (any ready vampire, the bearer's opponent, a granted
+    /// action's candidate): read alike as it is offered, as its terms are
+    /// chosen and as it resolves.
     pub(crate) fn ability_user(
         &self,
         source: AbilitySource,
         ability: u8,
+        seat: SeatId,
         user: Option<MinionId>,
     ) -> AbilityUser {
         let st = &self.state;
@@ -6452,16 +6458,9 @@ impl Engine {
                         let acting = self.action.as_ref().expect("action").acting;
                         (owner(acting), Some(acting))
                     }
-                    // "Methuselahs can …": the card's controller for a "you
-                    // control" ability (Ventrue Headquarters, in any
-                    // Methuselah's referendum), the others in their own
-                    // turn.
-                    Actor::Methuselah
-                        if mode.requires.contains(&Requirement::YouControlThisCard) =>
-                    {
-                        (st.card_controller(id), None)
-                    }
-                    Actor::Methuselah => (st.active, None),
+                    // "Methuselahs can …": the one asked, its requirements
+                    // read for them (Ventrue Headquarters: "you control").
+                    Actor::Methuselah => (seat, None),
                     // The minion declaring the action it grants.
                     Actor::ActingCandidate => (owner(user.expect("the actor")), c.bearer()),
                     // Unhosted (Dance of the Dead): its controller's.
@@ -6497,10 +6496,11 @@ impl Engine {
         source: AbilitySource,
         ability: u8,
         target: Target,
+        seat: SeatId,
         user: Option<MinionId>,
         picked: &[u8],
     ) -> DecisionRequest {
-        let seat = self.ability_user(source, ability, user).seat;
+        let seat = self.ability_user(source, ability, seat, user).seat;
         let options = match self.ability_mode(source, ability).terms {
             Some(Terms::Discard { of, .. } | Terms::DiscardAny { of }) => {
                 let any = matches!(
@@ -6581,6 +6581,7 @@ impl Engine {
         source: AbilitySource,
         ability: u8,
         target: Target,
+        seat: SeatId,
         user: Option<MinionId>,
         mut picked: Vec<u8>,
         resume: Box<Flow>,
@@ -6597,29 +6598,32 @@ impl Engine {
                 source,
                 ability,
                 target,
+                seat,
                 user,
                 picked,
                 resume,
             };
             return;
         }
-        self.ability_discards_done(source, ability, target, user, picked, resume);
+        self.ability_discards_done(source, ability, target, seat, user, picked, resume);
     }
 
     /// The discards picked for an ability's terms paid; then it resolves —
     /// X the number discarded for "discard X" (Angelica).
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn ability_discards_done(
         &mut self,
         source: AbilitySource,
         ability: u8,
         target: Target,
+        seat: SeatId,
         user: Option<MinionId>,
         mut picked: Vec<u8>,
         resume: Box<Flow>,
     ) {
         // The cost: discards to the ash heap, replaced as any card leaving
         // the hand — or the cards put on the card (Fleshforge Chamber).
-        let seat = self.ability_user(source, ability, user).seat;
+        let seat = self.ability_user(source, ability, seat, user).seat;
         picked.sort_unstable_by(|a, b| b.cmp(a));
         let discarded = picked.len();
         // The cards' sameness, read by the effect (Babalawo Alafin).
@@ -6648,7 +6652,7 @@ impl Engine {
             Some(Terms::DiscardAny { .. }) => discarded as u8,
             _ => same as u8,
         };
-        self.resolve_ability(source, ability, target, x, user);
+        self.resolve_ability(source, ability, target, x, seat, user);
     }
 
     /// The vampires of `seat` the target card could move onto: another than
@@ -6668,36 +6672,40 @@ impl Engine {
 
     /// The vampire chosen by an ability's terms (`VampireToHoldTarget`):
     /// the target card moves onto it; then the ability resolves.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn ability_minion_apply(
         &mut self,
         source: AbilitySource,
         ability: u8,
         target: Target,
+        seat: SeatId,
         user: Option<MinionId>,
         resume: Flow,
         m: MinionId,
     ) {
         self.state.cards[target.card().index()].host = Some(m);
         self.flow = resume;
-        self.resolve_ability(source, ability, target, 0, user);
+        self.resolve_ability(source, ability, target, 0, seat, user);
     }
 
     /// The card chosen by name for an ability's terms: from the ash heap to
     /// the bottom of the library (Mora, the Death Seer), or discarded from
     /// the hand of the Methuselah the action is directed at and replaced
     /// (Richard de Worde); then the ability resolves.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn ability_card_apply(
         &mut self,
         source: AbilitySource,
         ability: u8,
         target: Target,
+        seat: SeatId,
         user: Option<MinionId>,
         resume: Flow,
         card: u16,
     ) {
         match self.ability_mode(source, ability).terms {
             Some(Terms::AshCard) => {
-                let seat = self.ability_user(source, ability, user).seat;
+                let seat = self.ability_user(source, ability, seat, user).seat;
                 let s = &mut self.state.seats[seat.index()];
                 let i = s
                     .ash
@@ -6726,22 +6734,24 @@ impl Engine {
             other => unreachable!("no card terms: {other:?}"),
         }
         self.flow = resume;
-        self.resolve_ability(source, ability, target, 0, user);
+        self.resolve_ability(source, ability, target, 0, seat, user);
     }
 
     /// The number chosen for an ability's count terms (Heart of
     /// Nizchetus): the ability resolves with it.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn ability_count_apply(
         &mut self,
         source: AbilitySource,
         ability: u8,
         target: Target,
+        seat: SeatId,
         user: Option<MinionId>,
         resume: Flow,
         x: u8,
     ) {
         self.flow = resume;
-        self.resolve_ability(source, ability, target, x, user);
+        self.resolve_ability(source, ability, target, x, seat, user);
     }
 
     /// Resolve an in-play ability's effects (its terms, if any, chosen:
@@ -6753,10 +6763,11 @@ impl Engine {
         ability: u8,
         target: Target,
         x: u8,
+        seat: SeatId,
         user: Option<MinionId>,
     ) -> bool {
         let mode = self.ability_mode(source, ability);
-        let AbilityUser { seat, host, actor } = self.ability_user(source, ability, user);
+        let AbilityUser { seat, host, actor } = self.ability_user(source, ability, seat, user);
         // A vampire's own text has no library card (`u16::MAX`: no effect
         // of a vampire reads it).
         let card = match source {
@@ -7907,13 +7918,14 @@ impl Engine {
                 actor,
                 target,
             } => {
+                let seat = window.current().expect("impulse holder");
                 window.play();
                 let resume = Flow::Abilities {
                     window: window.clone(),
                     pending: pending.clone(),
                     edge_taken,
                 };
-                if self.use_ability(*source, *ability, *actor, *target, resume) {
+                if self.use_ability(seat, *source, *ability, *actor, *target, resume) {
                     return; // ousted (the turn has passed) or terms pending
                 }
             }
@@ -8672,9 +8684,10 @@ impl Engine {
             } => {
                 // An effect: the impulse returns to the active Methuselah,
                 // back in their phase.
+                let seat = window.current().expect("impulse holder");
                 let phase = *resume;
                 self.flow = phase.clone();
-                if !self.use_ability(*source, *ability, *actor, *target, phase.clone()) {
+                if !self.use_ability(seat, *source, *ability, *actor, *target, phase.clone()) {
                     self.flow = phase;
                 }
             }
@@ -9012,8 +9025,29 @@ mod tests {
             .iter()
             .position(|a| a.actor == Actor::AnyReadyVampire)
             .expect("its vampire ability") as u8;
-        let u = e.ability_user(source, ai, Some(m));
+        let u = e.ability_user(source, ai, SeatId(1), Some(m));
         assert_eq!(u.seat, SeatId(1));
         assert_eq!((u.host, u.actor), (Some(m), Some(m)));
+    }
+
+    // L9: a "Methuselahs can …" ability is the asked seat's, its
+    // requirements read for them — not the active Methuselah's. Judgment:
+    // Camarilla Segregation prints none: asked of a seat out of its turn,
+    // the gate lets it through for that seat.
+    #[test]
+    fn methuselah_ability_is_used_by_the_seat_asked() {
+        let mut e = Engine::bare(3);
+        let card = find_library("Judgment: Camarilla Segregation");
+        e.state
+            .cards
+            .push(CardInPlay::new(card, SeatId(0), None, 0));
+        let source = AbilitySource::Card(CardId(e.state.cards.len() as u32 - 1));
+        assert_eq!(e.state.active, SeatId(0));
+        for seat in [SeatId(1), SeatId(2)] {
+            let u = e
+                .ability_gate(seat, Window::MasterPhase, source, 0, None)
+                .expect("usable by the seat asked");
+            assert_eq!((u.seat, u.host, u.actor), (seat, None, None));
+        }
     }
 }

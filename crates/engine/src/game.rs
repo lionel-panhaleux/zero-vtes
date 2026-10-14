@@ -87,6 +87,8 @@ pub(crate) enum Flow {
         ability: u8,
         /// The target chosen with the use (Alicia Cortez).
         target: crate::cards::Target,
+        /// The seat that chose to use it.
+        seat: SeatId,
         /// The minion using it, if any (Alamut's vampire).
         user: Option<MinionId>,
         picked: Vec<u8>,
@@ -877,9 +879,10 @@ impl Engine {
                 ability,
                 picked,
                 target,
+                seat,
                 user,
                 ..
-            } => Some(self.ability_terms_request(*source, *ability, *target, *user, picked)),
+            } => Some(self.ability_terms_request(*source, *ability, *target, *seat, *user, picked)),
             Flow::RiderTerms { card, left, .. } => Some(self.rider_terms_request(*card, *left)),
             Flow::ActionTerms {
                 minion,
@@ -988,7 +991,7 @@ impl Engine {
                 },
             ) => {
                 let back = Flow::CogAction { seat, minion };
-                if !self.use_ability(*source, *ability, *actor, *target, back.clone()) {
+                if !self.use_ability(seat, *source, *ability, *actor, *target, back.clone()) {
                     self.flow = back;
                 }
             }
@@ -1041,7 +1044,8 @@ impl Engine {
             ) => {
                 // A granted action opens its action; an untimed ability
                 // (The Coven) leaves the minion phase where it was.
-                if !self.use_ability(*source, *ability, *actor, *target, Flow::MinionPhase) {
+                let s = self.state.active;
+                if !self.use_ability(s, *source, *ability, *actor, *target, Flow::MinionPhase) {
                     self.flow = Flow::MinionPhase;
                 }
             }
@@ -1062,58 +1066,63 @@ impl Engine {
                     source,
                     ability,
                     target,
+                    seat,
                     user,
                     picked,
                     resume,
                     ..
                 },
                 Choice::Discard(i),
-            ) => self.ability_terms_apply(source, ability, target, user, picked, resume, *i),
+            ) => self.ability_terms_apply(source, ability, target, seat, user, picked, resume, *i),
             (
                 Flow::AbilityTerms {
                     source,
                     ability,
                     target,
+                    seat,
                     user,
                     picked,
                     resume,
                     ..
                 },
                 Choice::Pass,
-            ) => self.ability_discards_done(source, ability, target, user, picked, resume),
+            ) => self.ability_discards_done(source, ability, target, seat, user, picked, resume),
             (
                 Flow::AbilityTerms {
                     source,
                     ability,
                     target,
+                    seat,
                     user,
                     resume,
                     ..
                 },
                 Choice::SetX(x),
-            ) => self.ability_count_apply(source, ability, target, user, *resume, *x),
+            ) => self.ability_count_apply(source, ability, target, seat, user, *resume, *x),
             (
                 Flow::AbilityTerms {
                     source,
                     ability,
                     target,
+                    seat,
                     user,
                     resume,
                     ..
                 },
                 Choice::FindCard(card),
-            ) => self.ability_card_apply(source, ability, target, user, *resume, *card),
+            ) => self.ability_card_apply(source, ability, target, seat, user, *resume, *card),
             (
                 Flow::AbilityTerms {
                     source,
                     ability,
                     target,
+                    seat,
                     user,
                     resume,
                     ..
                 },
                 Choice::ChooseMinion(m),
-            ) => self.ability_minion_apply(source, ability, target, user, *resume, *m),
+            ) => self.ability_minion_apply(source, ability, target, seat, user, *resume, *m),
             (Flow::RiderTerms { card, left, resume }, c) => {
                 self.rider_terms_apply(card, left, resume, c)
             }

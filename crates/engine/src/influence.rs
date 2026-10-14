@@ -126,7 +126,14 @@ impl Engine {
                 target,
             } => {
                 let left = left - self.transfer_cost(choice) + self.transfer_gain(choice);
-                if !self.use_ability(*source, *ability, *actor, *target, Flow::Influence { left }) {
+                if !self.use_ability(
+                    s,
+                    *source,
+                    *ability,
+                    *actor,
+                    *target,
+                    Flow::Influence { left },
+                ) {
                     self.flow = Flow::Influence { left };
                 }
             }

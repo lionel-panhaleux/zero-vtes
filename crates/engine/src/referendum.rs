@@ -1106,10 +1106,11 @@ impl Engine {
                 {
                     // An untimed ability is a commitment of the rotation
                     // like a card play.
+                    let seat = ctx.window.current().expect("commit on closed window");
                     ctx.window.commit();
                     self.referendum = Some(ctx);
                     self.flow = Flow::Referendum;
-                    self.use_ability(*source, *ability, *actor, *target, Flow::Referendum);
+                    self.use_ability(seat, *source, *ability, *actor, *target, Flow::Referendum);
                     return;
                 }
                 if let Some(play) = self.polling_apply(&mut ctx, choice) {
