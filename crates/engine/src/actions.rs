@@ -2963,9 +2963,8 @@ impl Engine {
         }
     }
 
-    /// Rulebook "Diablerie" steps 1–3: blood to the diablerist, victim
-    /// burned. TODO: the equipment taken, and advanced rule 4 (a Discipline
-    /// for an elder victim).
+    /// Rulebook "Diablerie" steps 1 and 3: blood to the diablerist, victim
+    /// burned.
     fn diablerise(&mut self, diablerist: MinionId, victim: MinionId) {
         let taken = self.state.minions[victim.index()].blood;
         // Regent: to a Sabbat diablerist, before the victim burns (and the
