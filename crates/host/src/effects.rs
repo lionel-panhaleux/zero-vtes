@@ -238,7 +238,7 @@ mod tests {
     use zvtes::cards::families::Family;
     use zvtes::cards::vampires::VAMPIRES;
 
-    // Informational (engine review F1): the effects of the definitions'
+    // Informational: the effects of the definitions'
     // modes and abilities no curated effect tells, by family (a marker is
     // read by name, nothing to tell). See them with `cargo test -p
     // zvtes-host unmapped -- --nocapture`.

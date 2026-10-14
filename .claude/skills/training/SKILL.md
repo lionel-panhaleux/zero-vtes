@@ -25,7 +25,9 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    cross-table, Wider View; the owner's records are the reference group)
    and `examples/decks.rs` (per-deck strength). The owner decides the deck
    mix, nudges and what to try. Write a "pN, prepared" note in DESIGN §11.2
-   first: why, baseline numbers, settings. New code gets a pytest in
+   first: why, baseline numbers, settings. §11.2 is the run record, a
+   standing page: once the run ends its note becomes one entry (the
+   command, the numbers, what it settled), the preparation folded in. New code gets a pytest in
    `train/tests/` and the checks (`uv run pytest -q`, py clippy, fmt,
    clippy). Measures compare like with like only from a clean build: `waste`
    and `decks.rs` compile from the working tree, so run them in the run's
@@ -51,8 +53,8 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
 4. **Evaluate**: `uv run python -m train.export runs/pN/best.pt
    runs/pN/best.zvp`; `waste` against the baseline; `decks.rs` per deck and
    pN against three pPREV. A "pN run" note in DESIGN §11.2 with the numbers.
-5. **Serve** (the owner's call): redeploy engine.krcg.org with
-   `ZVTES_WEIGHTS` explicit; name the served weights by their sha prefix in
+5. **Serve** (the owner's call): Z-main redeploys engine.krcg.org with
+   `ZVTES_WEIGHTS` explicit (CLAUDE.md "Sessions": only Z-main deploys); name the served weights by their sha prefix in
    the DESIGN note (the server records the weights' SHA-256 per game); keep
    the previous weights as `runs/served-prev-<date>-<run>.zvp`; bot nudges
    live in `crates/server/src/games.rs`.
@@ -96,13 +98,10 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
   recorded positions (`--starts`). Weakness mining: a recurring bad choice
   becomes a `waste` counter first, a nudge only if it persists and the owner
   agrees (the owner prefers emergent fixes).
-- **To build** (training board): weighting the owner's games up in `--bc`
-  (today every human seat weighs the same, no per-player filter); an
-  evaluation set of "positions where a human beat the bot", never trained
-  on.
 
 ## Rules
 
 - Commit only on the owner's word; weights never in a commit.
 - Served weights: named by sha prefix, previous ones kept (see Serve).
-- Log findings in `docs/findings.md` (bots: `E`-rows) and the training board.
+- Findings (a bot's weakness, a harvest surprise) go through `intake`,
+  onto the training board.

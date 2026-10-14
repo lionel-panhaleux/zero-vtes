@@ -508,8 +508,8 @@ mod tests {
     use super::*;
 
     /// Requirements no evaluator reads where they sit, known: the card, the
-    /// requirement, why (docs/findings.md). An entry nothing matches fails
-    /// the test: drop it once its gap is closed.
+    /// requirement, why. An entry nothing matches fails the test: drop it
+    /// once its gap is closed.
     const KNOWN_GAPS: &[(&str, Requirement, &str)] = &[];
 
     /// The evaluators `Engine::ability_gate` runs on a card ability's

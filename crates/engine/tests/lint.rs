@@ -130,3 +130,56 @@ fn no_card_name_in_engine_code() {
     );
     assert!(stale.is_empty(), "stale entries:\n{}", stale.join("\n"));
 }
+
+/// No to-do markers in the repository's code: work found on the way is
+/// done now or goes on a board through the `intake` skill (CLAUDE.md
+/// "Harness"). The markers are spelled in pieces so this file passes.
+#[test]
+fn no_todo_in_code() {
+    let repo = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+    let mut dirs: Vec<std::path::PathBuf> = ["crates", "scripts", "train", "deploy"]
+        .iter()
+        .map(|d| std::path::Path::new(repo).join(d))
+        .collect();
+    let markers = [
+        concat!("TO", "DO"),
+        concat!("FIX", "ME"),
+        concat!("X", "XX"),
+    ];
+    let mut found = Vec::new();
+    while let Some(dir) = dirs.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries {
+            let path = entry.unwrap().path();
+            let name = path.file_name().unwrap().to_string_lossy().to_string();
+            if path.is_dir() {
+                if !["target", "node_modules", "build", "__pycache__"].contains(&name.as_str())
+                    && !name.starts_with('.')
+                {
+                    dirs.push(path);
+                }
+                continue;
+            }
+            let code = [".rs", ".py", ".ts", ".mjs", ".sh"];
+            if !code.iter().any(|ext| name.ends_with(ext)) {
+                continue;
+            }
+            let Ok(src) = std::fs::read_to_string(&path) else {
+                continue;
+            };
+            for (n, line) in src.lines().enumerate() {
+                let words = line.split(|c: char| !c.is_ascii_alphanumeric());
+                if words.into_iter().any(|w| markers.contains(&w)) {
+                    found.push(format!("{}:{}", path.display(), n + 1));
+                }
+            }
+        }
+    }
+    assert!(
+        found.is_empty(),
+        "to-do markers in code:\n{}",
+        found.join("\n")
+    );
+}

@@ -133,7 +133,7 @@ mod tests {
         );
     }
 
-    /// A count past what the engine holds is refused, not clamped (F4).
+    /// A count past what the engine holds is refused, not clamped.
     #[test]
     fn a_count_past_255_is_refused() {
         let mut list = list_of(&Deck::precon(0));

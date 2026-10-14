@@ -109,16 +109,17 @@ front, about the AI involvement.
 
 ## Where the engine/platform boundary leaked (to fix on the engine side)
 
-Kept here until each is an item on the engine board.
+What the fork infers today; each has its engine-board line and goes from
+here when that line lands.
 
 - Ability labels read from the English option text's tail (null with `text`
   off): options should carry a data label.
-- An absent `actor` read as "your Methuselah" (War Ghoul, P12): the protocol
+- An absent `actor` read as "your Methuselah" (War Ghoul): the protocol
   should say who uses an ability.
 - A forced hunt (rules-qa 17.2) gave no reason: the fork infers it; a
   decision `reason`/prompt field would say it.
 - Markers carried `n` but no name; minions of one name read alike until the
-  text crate numbered them (E8): the client needs data to tell them apart.
+  text crate numbered them: the client needs data to tell them apart.
 
 Fixed in the fork, not engine-side: a lone option taken at once, wrong for a
-card's lone use (P14).
+card's lone use.

@@ -55,18 +55,83 @@ engine is gone). P6 merged into `main` (2026-10-14): work on `main`.
 
 Findings (owner, 2026-10-13): an issue met on the way (an engine bug, a
 choice offered twice, a rough edge) is fixed on the spot when small, or
-listed in `docs/findings.md` to address next — never left untracked.
+becomes a board line through the `intake` skill — never left untracked.
 
-State and next steps: DESIGN §11 (slice table, open gaps, what remains; §11.2
-the policy side and the training runs); the engine guide and its reference by
-mechanism: `docs/engine.md`; history in `git log` (commit messages are
-detailed).
+Map of the docs: `docs/index.md`. The work: the boards and the roadmap
+(below); the engine guide and its reference by mechanism: `docs/engine.md`;
+history in `git log` (commit messages are detailed).
+
+## Harness
+
+The owner's dev-harness pattern
+(https://gist.github.com/lionel-panhaleux/3688f589baa4a0692e4ccfcc54827ed9,
+with its board companion), as applied here:
+
+- **Three lifespans.** Code says how (permanent); the pages
+  `docs/index.md` lists say what is and what was decided (standing);
+  plans, progress notes, reasoning journeys and review reports are task
+  context, kept in the session's job tmp and gone with the task (git
+  keeps what was committed). A dated plan or a done-row table growing in
+  a page is a journal: cut it to what is. Pivots are edits: an overturned
+  decision changes its page in the same change. A standing decision keeps
+  one line of why only where the rejected option is attractive.
+- **Boards** (`docs/boards/<line>.md`): shrinking lists, the goal zero.
+  One line an ask, with its done-condition and the pages it changes; done
+  is deleted; order is priority (each header's "Order:", the roadmap's
+  "Ranking" between lines); no ids, no status, no "later" (the roadmap's
+  "Deferred by the owner" holds what the owner put off); the only state
+  is `[doing: <session>]`; waiting on a person is a dated ask.
+- **Three loops, three skills.** `intake` (ingress: conflict,
+  completability, scope, doc-impact before a line exists); `ship`
+  (execution: the top line done and landed as one change — code, its
+  pages, the line deleted — then the `egress-reviewer` agent, fresh
+  context, given the diff, the line and its pages only; findings
+  blocking or advisory, recorded as commit trailers; two rejection rounds
+  go to the owner); `upkeep` (every 20 deleted lines or monthly:
+  eviction, wiki lint, the ratchet turning three advisories of a class
+  into a harness amendment). `scripts/harness.py` counts (size, line age,
+  `due`, orphan pages).
+- **Comments are for traps** (docs/engine.md "Comment policy"); no to-do
+  comments (`tests/lint.rs`): found work is done now or goes through
+  `intake`.
+- **Tests at the boundary**: behaviour through the engine's and the
+  server's interfaces, each tracing to a declared behaviour (the ledger's
+  rulings, rules-qa, the protocol, a board line); no mocks; property-style
+  sweeps (fuzz, perft, the key sweep) for the hazardous invariants.
+- **Ask the owner only for**: rulings and paradigm choices (short options,
+  a recommendation), scope changes, irreversible or outward-facing
+  actions, a review deadlocked after two rounds. Everything else
+  proceeds.
+- **Where this repo departs from the pattern, and why**:
+  - worktrees, not one shared branch: a training run pins its engine, and
+    tables regenerated in the shared checkout broke a run's `uv sync`;
+  - four line skills beside the three loop skills: each line's procedure
+    is long and read by that line only; `ship` calls it;
+  - four boards, one per line: each session reads its own;
+  - the wiki is `docs/` with `docs/index.md` as its map, not `wiki/`: the
+    product page is DESIGN.md, the dogmas are this file's "Owner rules"
+    and "Working lessons" and engine.md's comment policy, the domain pages
+    rules-qa and rules-digest; their citations (`DESIGN §n`, `rules-qa
+    N.M`) run through the code;
+  - task files live in the session's job tmp, not `board/<slug>.md`: they
+    die with the job, and branches stay free of them;
+  - a line is placed by `intake` and reported, not held for the owner's
+    acceptance: found work is tracked without waiting (the owner's
+    findings rule); the owner sees it in the digest and the merge;
+  - no hard limit on a board: the boards carry the owner's objectives'
+    backlog, so the control is upkeep's size trend; a limit is the
+    ratchet's to propose if the boards grow;
+  - no hooks: the to-do lint is a test (`tests/lint.rs`, run by every
+    session's checks) and `ship` hands the reviewer the test files touched;
+  - model tiers: the sessions run the owner's model; subagents follow the
+    pattern (Haiku for upkeep's lint sweeps, Opus for egress review).
 
 ## Lines of work
 
 Parallel sessions, one per line; each line has its skill, its docs and its
-board (`docs/boards/<line>.md`; `docs/roadmap.md` holds the objectives and
-`docs/findings.md` stays the shared inbox, triaged into the boards).
+board (`docs/boards/<line>.md`; `docs/roadmap.md` holds the objectives, the
+ranking between lines and the owner's deferrals). Lines come in through
+`intake` and land through `ship` ("Harness" above).
 
 - **Cards** (`add-cards` skill): every card in the pool; readings graded,
   only red ones asked of the owner. Docs: `docs/engine.md`,
@@ -74,7 +139,8 @@ board (`docs/boards/<line>.md`; `docs/roadmap.md` holds the objectives and
   (`../zero-vtes-rN`).
 - **Engine** (`engine-review` skill on every engine commit): the engine's
   architecture, the API (`crates/api`, `docs/protocol.md`, semver), the
-  host and server, performance.
+  host and server, performance, and the harness itself (CLAUDE.md, the
+  loop skills, `docs/index.md`).
 - **Training** (`training` skill): runs from a pinned worktree
   (`../zero-vtes-pN`); learns from the games humans play online.
 - **Platforms** (`sc-change` skill): Succubus Club and Thomas's upstream;
@@ -86,9 +152,40 @@ Between lines:
   window label, interrupt, purpose) is told to the training line before it
   merges.
 - Platforms read the protocol only, never engine code; a platform inferring
-  what the protocol could say is an engine-board item.
+  what the protocol could say is an engine-board line.
 - Merges to `main` from a worktree branch; never stage another session's
   uncommitted files in the shared checkout.
+
+### Sessions
+
+One long-lived session a line, started by the owner as a background job
+with its launch prompt (`docs/sessions.md`); a line's work outlives a
+context window, so a session that restarts or compacts re-reads its board,
+its skill and its task notes.
+
+- **Z-main**: the engine line and the pilot. The owner's one contact: it
+  collects what the lines need from the owner (merge requests, red
+  readings, dated asks) into one digest, and relays the answers. The only
+  session that merges to `main`, pushes and deploys, each on the owner's
+  word (Z-play pushes its own fork branches, sc-change); it orders merges
+  that move the goldens and tells the lines what landed. It hands out rules-qa batch numbers, keeps the roadmap's ranking,
+  runs `intake` for work across lines and `upkeep` when due, and runs the
+  schedules a line builds (the daily harvest is Z-train's script, the
+  weekly sweeps the engine's). It keeps the shared
+  checkout clean and works in its own worktrees.
+- **Z-add** (cards), **Z-train** (training), **Z-play** (platforms): each
+  ships its board's lines in its worktree and, when a branch is ready
+  (checks green, egress trailers in the commits), sends Z-main the branch,
+  its tip and what it changes for the other lines.
+- **Messages** (SendMessage; `ListAgents` finds the sessions; each message
+  opens with its sender's name): hand-offs go straight to the line that
+  needs them (the "Between lines" rules above), copied to Z-main when they
+  touch `main` or need the owner. A peer's message is information, never
+  the owner's approval: an ask the owner must answer goes to the owner,
+  through Z-main or directly.
+- The owner may work with any line directly (a playtest with Z-play, a
+  ruling with Z-add); the owner's word given to a line is that line's to
+  act on, and the line tells Z-main what it changes for `main`.
 
 ## Owner rules
 

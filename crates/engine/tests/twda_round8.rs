@@ -1356,7 +1356,7 @@ fn larry_burns_for_intercept() {
 }
 
 // Larry: "Once each action, Larry can burn 1 blood to get +1 intercept"
-// — for his own block attempt: not for Barry's (findings L1).
+// — for his own block attempt: not for Barry's.
 #[test]
 fn larry_buys_no_intercept_for_another_blocker() {
     let mut e = game(2);
@@ -1644,7 +1644,7 @@ fn viri_and_zizi_work_together() {
 }
 
 // Zizi: "If /Viri/ is in your ready region, Zizi can lock …": Viri in
-// torpor, no unlock; out of it, the unlock is there (findings L2).
+// torpor, no unlock; out of it, the unlock is there.
 #[test]
 fn zizi_unlocks_only_with_viri_ready() {
     let mut e = game(2);

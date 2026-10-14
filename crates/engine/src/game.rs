@@ -797,7 +797,7 @@ impl Engine {
 
     /// The pending decision, an option listed twice offered once: one
     /// card or ability reachable from two of its windows at once (Helena,
-    /// during a block attempt) is one choice (docs/findings.md F1).
+    /// during a block attempt) is one choice.
     fn request(&self) -> Option<DecisionRequest> {
         let mut req = self.raw_request()?;
         let mut seen = Vec::with_capacity(req.options.len());

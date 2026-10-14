@@ -2145,7 +2145,7 @@ fn powerbase_munich_never_sees_an_ally_playing_as_a_vampire() {
 
 // Spectral Servitor "can play non-action cards requiring basic Oblivion
 // [obl] as a vampire": the Discipline check honours the whole grant
-// (rules-qa 73.6; findings L13), wherever it is read — an [obl] action
+// (rules-qa 73.6), wherever it is read — an [obl] action
 // card (Shroud of Decay) is not met, an action modifier (Shadow Cloak) is.
 // No equipment of the pool requires a Discipline: the check is the one an
 // equipment found and equipped by an effect would pass.

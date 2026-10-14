@@ -40,8 +40,8 @@
 //!   played in them, the blood the opposing minion lost and whether it
 //!   went to torpor or burned; the pool its bleeds took from its prey and
 //!   from cross-table seats (bounced ones);
-//! - Wider View's draw-and-remove (findings E7: a bot used it until its
-//!   crypt was empty): influence decisions offering it and those taking
+//! - Wider View's draw-and-remove (a bot used it until its crypt was
+//!   empty): influence decisions offering it and those taking
 //!   it, the crypt left then; the vampires removed from the uncontrolled
 //!   region (by it or another card), the blood on them, and those removed
 //!   while one with less blood stayed.

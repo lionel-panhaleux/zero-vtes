@@ -10823,7 +10823,7 @@ fn dead_pool_pays_votes_once_a_referendum() {
 }
 
 // Legal no-ops stay offered (rules-qa 17.4), known to gain nothing for an
-// interface hiding them (findings P15): Powerbase: Madrid's burn with no
+// interface hiding them: Powerbase: Madrid's burn with no
 // counter (rules-qa 73.3), Dead Pool's votes for a vampire that cannot
 // vote (73.4) — read live, a counter or a vote making them real again.
 #[test]

@@ -1,5 +1,5 @@
 //! Every option of every decision has its own key (docs/protocol.md §7),
-//! and no choice is offered twice (docs/findings.md F1):
+//! and no choice is offered twice (one card reachable from two windows):
 //! what lets a record read by choice on a later engine. Random games on
 //! the shipped decks, every seat answered at random, keys by the engine's
 //! copies (as records name them).
@@ -48,7 +48,7 @@ fn two_options_of_a_decision_never_share_a_key() {
                         for (j, b) in keys.iter().enumerate().skip(i + 1) {
                             assert!(
                                 req.options[i] != req.options[j],
-                                "seed {seed}, {:?}: {:?} offered twice (docs/findings.md F1)",
+                                "seed {seed}, {:?}: {:?} offered twice",
                                 req.window,
                                 req.options[i]
                             );

@@ -320,8 +320,7 @@ fn huldu_shields_another_minion_in_combat() {
     assert_eq!(blood(&e, huldu), 3);
 }
 
-// Huldu: "another minion" of hers in combat — not her own combat
-// (findings L1).
+// Huldu: "another minion" of hers in combat — not her own combat.
 #[test]
 fn huldu_does_not_shield_herself() {
     let mut e = game(3);

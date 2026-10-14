@@ -136,21 +136,25 @@ hashes (a trajectory change there is a behaviour change to explain).
 
 All CLAUDE.md checks green (including `cargo test -p zvtes-policy`, the
 py side, generators, window matrix, ledger, DESIGN count line); the
-`engine-review` skill on the round's diff; findings logged
-(`docs/findings.md`); the cards board updated (`docs/boards/cards.md`).
+`engine-review` skill on the round's diff (the `ship` skill's egress);
+anything found taken through `intake`; the round's line deleted from the
+cards board (`docs/boards/cards.md`).
 Ask the red items with the commit request, before committing: a "no"
 lands in the same commit. Then rebase the round branch on `main`
 (regenerate `crypt.rs`/`library.rs`/`twda.rs` on conflict, never
-hand-merge them), merge on the owner's word, and tell the training session
-the vocabulary deltas (library n→m, vampires, kept decks) and any new
-encoder id. The round's rules-qa batch takes the next number on `main` when
-written; tell the other sessions.
+hand-merge them), send Z-main the branch for the merge on the owner's
+word, and tell the training session the vocabulary deltas (library n→m,
+vampires, kept decks) and any new encoder id. The round's rules-qa batch
+number comes from Z-main, asked before the batch is written (CLAUDE.md
+"Sessions").
 
 ## 7. Learn from every correction
 
 When the owner corrects a reading (or a game shows one wrong), find the
 root cause and make it impossible to repeat: a new default reading or
 "What counts as X" entry in the digest, a new question for the second
-reader here, or a new grading trigger. Record the round's numbers on the
-cards board: readings, red asked, corrected, corrections missed by the
-grading (green/amber found wrong later).
+reader here, or a new grading trigger. Record the round's numbers as its
+commit's `Grading:` trailer (readings, red asked, corrected), and a
+correction the grading missed (a green or amber reading found wrong later)
+as a `Grading-missed:` trailer on the fix (the `ship` skill's format): the
+`upkeep` ratchet counts them.

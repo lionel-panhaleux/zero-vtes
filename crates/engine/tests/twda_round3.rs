@@ -905,7 +905,7 @@ fn focus_the_blood_banks_a_blood_and_a_discount() {
     assert_eq!(
         e.state.layers.iter().filter(|l| l.source == focus).count(),
         1,
-        "its cost-source layer, once (findings L10)"
+        "its cost-source layer, once"
     );
     assert_eq!(blood(&e, a), 4);
     let req = request(&mut e);

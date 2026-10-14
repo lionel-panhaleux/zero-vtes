@@ -723,7 +723,7 @@ mod tests {
     use super::*;
 
     /// A legal no-op is hidden with the opportunities off, shown with them
-    /// on (findings P15): Powerbase: Madrid's burn with no counter (rules-qa
+    /// on: Powerbase: Madrid's burn with no counter (rules-qa
     /// 73.3), shown again once the card has a counter.
     #[test]
     fn a_legal_no_op_is_hidden_with_the_opportunities_off() {

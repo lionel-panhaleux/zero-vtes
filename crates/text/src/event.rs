@@ -272,7 +272,7 @@ mod tests {
     }
 
     // A lasting effect whose card is in the ash heap (`effect`) is told as
-    // the card's effect, never as the card coming into play (findings F8).
+    // the card's effect, never as the card coming into play.
     #[test]
     fn a_lasting_effect_is_told_as_an_effect() {
         let cards = Two;

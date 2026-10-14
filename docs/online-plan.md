@@ -1,7 +1,6 @@
 # Online play — plan (P6, 2026-10-13)
 
-> Open items moved to docs/boards/engine.md and docs/boards/platforms.md
-> (2026-10-14; the mapping: docs/roadmap.md "Carried over").
+> Open items are lines of docs/boards/engine.md and docs/boards/platforms.md.
 
 The engine and its bots served online, so other players' games grow the
 testing vector without anyone exporting a replay. Five workstreams: the

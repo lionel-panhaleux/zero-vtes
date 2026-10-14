@@ -468,8 +468,8 @@ M3 (0.17 M on the later midgame/5).
   interrupt-and-rewind (log truncation + resimulation), preemptive impulse
   requests ("stops"), pace defaults — the play-procedures document is the spec.
 - Bot service: engine + ONNX-exported policy, CPU-friendly.
-- **Human play (P5)**: plan, board and findings in
-  [`docs/human-play.md`](docs/human-play.md). Settled (owner, 2026-09-29): the
+- **Human play (P5)**: how the first fork was built, in
+  [`docs/human-play.md`](docs/human-play.md) (its open items on the boards). Settled (owner, 2026-09-29): the
   contract is JSON messages (`TableView` with stable card copies, option
   descriptors, decks by KRCG id), first spoken in-process by a wasm module
   inside a Succubus Club fork's engine game type; JOL out of scope. Since
@@ -1589,8 +1589,8 @@ training runs.
   second learner across the table from the first on half the league
   tables. No weak decks (owner: p10's per-deck order now matches the
   players' sense of relative strength). From p10@3840, opponents p9@3400
-  and p10@3840 frozen, the other settings as p10's. Wider View (findings
-  E7; `waste --twda`, TWDA decks only, 120 games): p10 takes its
+  and p10@3840 frozen, the other settings as p10's. Wider View
+  (`waste --twda`, TWDA decks only, 120 games): p10 takes its
   draw-and-remove at 27% of the decisions offering it, 26% of uses under
   4 crypt cards left (the owner 12%, none): no nudge (owner, 2026-10-14),
   p11's snapshots measured.
@@ -1674,9 +1674,9 @@ Still true today; "(verify)" marks items inferred from older notes.
   sampling, the exploiter built (slice 15); remaining: evaluation vs humans
   (with the protocol server).
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
-  (`docs/human-play.md` has the board).
+  (its open items on the boards).
 
-Definitions: 739 library, 297 vampires; 1748 Rust tests, 35 Python tests
+Definitions: 739 library, 297 vampires; 1749 Rust tests, 35 Python tests
 
 ## Outlook: deck building (post-v1)
 

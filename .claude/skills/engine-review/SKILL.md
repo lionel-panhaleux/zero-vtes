@@ -30,17 +30,19 @@ first commit if the work is committed at the end.
 1. Make the change complete first: code, tests, ledger, rules-qa, and the
    CLAUDE.md checks green. The review reads a finished diff.
 2. Launch a fresh reviewer: the Agent tool, `model: opus`, `effort: high`,
-   general-purpose, with the prompt below and the diff's range (e.g.
+   general-purpose (or the `egress-reviewer` agent, given this checklist
+   too: the `ship` skill's step 4), with the prompt below and the diff's range (e.g.
    `git diff main` in the worktree, or `HEAD~n..HEAD`). The author must not
    review its own diff in its own context: a fresh reader sees what the
    author's context hides.
 3. Act on the report: fix each "do" finding (then re-run the checks), decide
-   each "consider" (fix, or say why not in the commit message), and log in
-   `docs/findings.md` anything real left for later (CLAUDE.md: findings are
-   never left untracked). A reading the rules don't settle goes to a new
-   rules-qa batch.
-4. Mention the review in the commit message ("engine review: clean" or what
-   it changed).
+   each "consider" (fix, or say why not in the commit message), and take
+   anything real left for later through the `intake` skill (CLAUDE.md:
+   findings are never left untracked). A reading the rules don't settle
+   goes to a new rules-qa batch.
+4. Record the review in the commit's trailers (the `ship` skill's format):
+   `Egress: clean` or `Egress: <n> blocking fixed`, one
+   `Advisory: <class>: …` per "consider" left as is.
 
 ## Reviewer prompt
 

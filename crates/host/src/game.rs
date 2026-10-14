@@ -664,7 +664,7 @@ impl Game {
             &req.options[index],
             &EngineNames,
         );
-        // The options the seat was shown, when its settings hid some (F5).
+        // The options the seat was shown, when its settings hid some.
         let shown = self
             .pending
             .as_ref()

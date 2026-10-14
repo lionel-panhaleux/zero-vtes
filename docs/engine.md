@@ -215,7 +215,7 @@ data/rulings-v5.csv` (every ledger row on an implemented card backed:
 generators' `--check` (`gen_crypt.py`, `gen_library.py`, `gen_twda.py`).
 
 **Still convention** (what the refactor left of the review's recurring
-hazards, docs/engine-review-2026-10-14.md §3):
+hazards, from the engine review of 2026-10-14):
 
 - A `Rider`-family effect, or a shared one at a new hook: the families test
   checks its position, not that the hook's site handles it; a site not
@@ -238,7 +238,8 @@ hazards, docs/engine-review-2026-10-14.md §3):
   the card is played (`ActorWithout`, `TargetWithout`), a legal no-op as it
   resolves (`holds_its_name`).
 - The `Interrupt` pay-or-suffer family (`PayOrBurn`, `BloodOrBurned`,
-  `LockOrPay`, …) is one request/apply pair each (review F11, left).
+  `LockOrPay`, …) is one request/apply pair each: factored only once a
+  round brings several more, keeping the `Choice` values.
 - `host/src/effects.rs` maps an effect for clients only where curated;
   `unmapped_effects_by_family` lists the rest, informational.
 - Card-name literals in engine code: three sites with a reason (Mithraic,
@@ -296,7 +297,7 @@ hazards, docs/engine-review-2026-10-14.md §3):
    `{:#?}` dump of `DEFS`/`VAMPIRES` for a refactor.
 8. **Unsettled readings**: a reading no ruling settles is implemented and
    recorded as a question in a new rules-qa batch; an issue met on the way
-   is fixed when small or listed in `docs/findings.md`.
+   is fixed when small or goes through the `intake` skill.
 9. **Elsewhere**: a player-visible effect may need a line in
    `crates/host/src/effects.rs`; a new `Choice` kind needs its obs slot
    (§6.21); the checks of CLAUDE.md "Working lessons" before calling it

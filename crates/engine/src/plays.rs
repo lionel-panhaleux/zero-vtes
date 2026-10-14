@@ -8972,7 +8972,7 @@ mod tests {
     use super::*;
     use crate::state::{find_card, find_library};
 
-    // F6: the offer, the terms and the resolution read one user. Carver's
+    // The offer, the terms and the resolution read one user. Carver's
     // Meat Packing and Storage: "any Methuselah's vampire", no "you
     // control": the user is the controller of the vampire using it, not
     // the card's.
@@ -8996,7 +8996,7 @@ mod tests {
         assert_eq!((u.host, u.actor), (Some(m), Some(m)));
     }
 
-    // L9: a "Methuselahs can …" ability is the asked seat's, its
+    // A "Methuselahs can …" ability is the asked seat's, its
     // requirements read for them — not the active Methuselah's. Judgment:
     // Camarilla Segregation prints none: asked of a seat out of its turn,
     // the gate lets it through for that seat.
