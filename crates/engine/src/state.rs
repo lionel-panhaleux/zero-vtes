@@ -1859,6 +1859,14 @@ impl GameState {
 
     /// A printed-modifier predicate, read on the vampire whose text it is
     /// (`source`), the modified minion (`actor`) and the opposing minion.
+    /// Is a vampire of this name ready, any Methuselah's (unique: a crypt
+    /// card — not a created vampire, rules-qa 41.5)?
+    pub fn ready_named(&self, name: &str) -> bool {
+        self.minions
+            .iter()
+            .any(|o| o.ready() && o.is_vampire() && o.name() == name)
+    }
+
     fn printed_holds(
         &self,
         r: Requirement,
@@ -1949,10 +1957,7 @@ impl GameState {
             }),
             R::NotFirstRound => ctx.round > 1,
             R::OtherNonHuntAction => ctx.kind.is_some() && !ctx.is_hunt() && !ctx.own_printed,
-            R::ReadyNamed(name) => self
-                .minions
-                .iter()
-                .any(|o| o.ready() && o.is_vampire() && o.name() == name),
+            R::ReadyNamed(name) => self.ready_named(name),
             R::IsPolitical => ctx.kind == Some(ActionKind::Political),
             R::OpponentClan(c) => opp.and_then(|o| o.clan()) == Some(c),
             // "In combat with a werewolf" (Mark Decker): an ally of the
@@ -2004,10 +2009,7 @@ impl GameState {
             }),
             // Unique: a crypt card — not a created vampire (Childe of the
             // Revolution, Waters of Duat; rules-qa 41.5).
-            R::NoReadyNamed(name) => !self
-                .minions
-                .iter()
-                .any(|o| o.ready() && o.is_vampire() && o.name() == name),
+            R::NoReadyNamed(name) => !self.ready_named(name),
             R::ControlsNoReadyOlderOfClan(clan) => !self.minions_of(src.owner).any(|o| {
                 let w = &self.minions[o.index()];
                 matches!(w.kind, MinionKind::Vampire(_))

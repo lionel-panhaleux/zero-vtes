@@ -1023,3 +1023,40 @@ fn locked_minion_wakes_to_react_during_polling() {
         vec![find_library("Ancilla Empowerment")]
     );
 }
+
+// Ventrue Headquarters: "During the polling step of any referendum, you
+// can lock this card to get 3 votes" — used in another Methuselah's
+// referendum (the blood hunt seat 0's diablerie calls), the votes are its
+// controller's, seat 1's.
+#[test]
+fn ventrue_headquarters_votes_for_its_controller_in_anothers_referendum() {
+    let mut e = Engine::bare(3);
+    let alexa = e.add_minion(SeatId(0), find_card("Alexa Draper"), 5, false);
+    e.add_minion(SeatId(0), find_card("Braden White"), 4, false);
+    let victim = e.add_minion(SeatId(1), find_card("Abraham DuSable"), 2, true);
+    e.add_minion(SeatId(1), find_card("Kevin Jackson"), 5, false);
+    e.add_minion(SeatId(2), find_card("Lenny Burkhead"), 4, false);
+    e.state.cards.push(CardInPlay::new(
+        find_library("Ventrue Headquarters"),
+        SeatId(1),
+        None,
+        0,
+    ));
+    let hq = e.state.cards.len() as u32 - 1;
+    pick(
+        &mut e,
+        Choice::TakeAction {
+            minion: alexa,
+            action: zvtes::decision::ActionKind::Diablerie,
+            target: Some(victim),
+        },
+    );
+    pick_when(&mut e, ability(hq, 0));
+    let r = e.referendum().expect("the blood hunt");
+    let record = r
+        .records
+        .iter()
+        .find(|v| v.source == zvtes::referendum::Source::InPlay(zvtes::state::CardId(hq)))
+        .expect("its votes");
+    assert_eq!((record.seat, record.n), (SeatId(1), 3));
+}

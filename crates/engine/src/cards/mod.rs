@@ -1704,8 +1704,8 @@ pub enum Requirement {
     /// Printed: the opposing minion's controller controls a Gehenna card
     /// (Céleste Lamontagne).
     OpponentControllerHasGehenna,
-    /// Printed: a vampire of this name is ready, any Methuselah's (Rurik
-    /// Rakoczy: "while /Ludmijla Rakoczy/ is ready").
+    /// A vampire of this name is ready, any Methuselah's (Rurik Rakoczy:
+    /// "while /Ludmijla Rakoczy/ is ready"; Zizi's ability).
     ReadyNamed(&'static str),
     /// The actor is not sterile ("requires a non-sterile baron", Childe of
     /// the Revolution; rulebook "Traits").
@@ -6637,7 +6637,6 @@ pub fn holds(
         | Requirement::OpponentClan(_)
         | Requirement::OpponentSectIn(_)
         | Requirement::OpponentControllerHasGehenna
-        | Requirement::ReadyNamed(_)
         | Requirement::TargetSeatControlsReadyClan(_)
         | Requirement::TargetSeatControlsReadySect { .. }
         | Requirement::SourceTitleIn(_)
@@ -6660,6 +6659,8 @@ pub fn holds(
         // An actor with no title (Powerbase: Barranquilla's untitled
         // burner); the printed predicate's reading too.
         Requirement::OwnUncontrolledNotEmpty => !st.seats[seat.index()].uncontrolled.is_empty(),
+        // "If /Viri/ is in your ready region" (Zizi's ability).
+        Requirement::ReadyNamed(name) => st.ready_named(name),
         Requirement::ActorPassedReferendumThisTurn => {
             actor.is_some_and(|m| st.minions[m.index()].referendum_passed_turn)
         }

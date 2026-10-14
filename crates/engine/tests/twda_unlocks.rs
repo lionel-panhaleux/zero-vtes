@@ -1607,6 +1607,19 @@ fn benjamin_rose_calls_for_a_hand_size_for_good() {
     assert_eq!(e.state.hand_size(SeatId(0)), 8);
 }
 
+// Benjamin Rose's printed political action is a political action: none
+// for him after another this turn (rulebook "Political Action").
+#[test]
+fn benjamin_rose_takes_one_political_action_a_turn() {
+    let mut e = game(2);
+    let benjamin = e.add_minion(SeatId(0), find_card("Benjamin Rose"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    assert!(request(&mut e).options.contains(&printed(benjamin)));
+    e.state.minions[benjamin.index()].political_this_turn = true;
+    assert!(!request(&mut e).options.contains(&printed(benjamin)));
+}
+
 // Dmitra Ilyanova: "can call a referendum to distribute 4 blood from the
 // blood bank among one or more ready vampires as a +1 stealth political
 // action": 3 to her ally-to-be, 1 to herself, picked as the terms; passed,

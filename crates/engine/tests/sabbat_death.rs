@@ -320,6 +320,24 @@ fn huldu_shields_another_minion_in_combat() {
     assert_eq!(blood(&e, huldu), 3);
 }
 
+// Huldu: "another minion" of hers in combat — not her own combat
+// (findings L1).
+#[test]
+fn huldu_does_not_shield_herself() {
+    let mut e = game(3);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let huldu = e.add_minion(SeatId(0), card(HULDU), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Brujah", 1), 4, false);
+    bleed_blocked(&mut e, huldu, z);
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        vampire_ability(huldu, 0),
+    );
+    assert!(blood(&e, huldu) < 4, "the hand strike landed");
+}
+
 // Sakura: on her turn, after a successful action requiring the Path of
 // Death and the Soul (Putrescent Sustenance), 1 blood to unlock.
 #[test]

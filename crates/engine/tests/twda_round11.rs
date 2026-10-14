@@ -1340,6 +1340,25 @@ fn kaymakli_fragment_is_stolen_by_a_strike() {
     assert_eq!(e.state.cards[id.index()].host, Some(z));
 }
 
+// Kaymakli Fragment's "strike: steal this equipment" is not a hand
+// strike: none under Immortal Grapple ("strikes that are not hand strikes
+// cannot be used this round").
+#[test]
+fn kaymakli_fragment_is_not_stolen_under_immortal_grapple() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), vampire_with("pot", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let id = in_play(&mut e, 0, "Kaymakli Fragment", Some(a));
+    hand(&mut e, 0, &["Immortal Grapple"]);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, block(z));
+    pick_when(&mut e, play(0, 0, a));
+    let steal = use_at(id, 2, Some(z), Target::Card(id));
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, steal);
+    assert_eq!(e.state.cards[id.index()].host, Some(a));
+}
+
 /// Pass until `m` is offered a card play, and take the first one.
 fn pick_play_by(e: &mut Engine, m: MinionId) {
     for _ in 0..200 {

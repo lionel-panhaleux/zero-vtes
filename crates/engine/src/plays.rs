@@ -5291,8 +5291,7 @@ impl Engine {
             AbilitySource::Card(id) => Some(id),
             AbilitySource::Vampire(_) => None,
         };
-        // "Methuselahs can …": any Methuselah, in their own window.
-        if u.seat != seat && ability.actor != Actor::Methuselah {
+        if u.seat != seat {
             return None;
         }
         // Its phase ("during your minion phase", Lord Tremere).
@@ -5400,7 +5399,7 @@ impl Engine {
             .zip(u.actor)
             .and_then(|(cb, m)| cb.side_of_minion(m).map(|i| (cb, i)))
         {
-            if ability.actor != Actor::OpposingCombatant && !cb.allows_from(st, ability, i, card) {
+            if !cb.allows_from(st, ability, i, card) {
                 return None;
             }
         }
@@ -5413,30 +5412,28 @@ impl Engine {
             if !self.may_take_granted(seat, m, kind, action) {
                 return None;
             }
-            if let Some(id) = card {
-                // One political action per minion per turn (rulebook
-                // "Political Action"); not one Delaying Tactics canceled.
-                if kind == ActionKind::Political
-                    && (st.minions[m.index()].political_this_turn
-                        || st.seats[seat.index()].forbidden_political.contains(&action))
-                {
-                    return None;
-                }
-                // No action a Gehenna event provides for Karen (LSJ
-                // 20100121).
-                if LIBRARY[st.cards[id.index()].card as usize]
+            // One political action per minion per turn (rulebook
+            // "Political Action"); not one Delaying Tactics canceled.
+            if kind == ActionKind::Political
+                && (st.minions[m.index()].political_this_turn
+                    || st.seats[seat.index()].forbidden_political.contains(&action))
+            {
+                return None;
+            }
+            // No action a Gehenna event provides for Karen (LSJ 20100121).
+            if card.is_some_and(|id| {
+                LIBRARY[st.cards[id.index()].card as usize]
                     .labels
                     .contains(&Label::Gehenna)
-                    && st.gehenna_immune(m)
-                {
-                    return None;
-                }
-                if ability.effects.iter().any(|e| match e {
-                    Effect::CallReferendum(r) => !r.feasible(st, seat, m),
-                    _ => false,
-                }) {
-                    return None;
-                }
+            }) && st.gehenna_immune(m)
+            {
+                return None;
+            }
+            if ability.effects.iter().any(|e| match e {
+                Effect::CallReferendum(r) => !r.feasible(st, seat, m),
+                _ => false,
+            }) {
+                return None;
             }
         }
         ability
@@ -5460,7 +5457,6 @@ impl Engine {
         use Requirement as R;
         let st = &self.state;
         let engine = match (r, source) {
-            (_, AbilitySource::Vampire(_)) => true,
             // "… you control can …" (Alamut, Dead Pool, The Gate of
             // Acheron): the card's controller's only (owner replay: a bot
             // used the owner's Alamut).
@@ -5510,11 +5506,13 @@ impl Engine {
                 .combat
                 .as_ref()
                 .is_some_and(|cb| cb.held_at_block.contains(&id)),
-            (R::HostAttempting, AbilitySource::Card(_)) => self.action.as_ref().is_some_and(|a| {
+            // The host's own block attempt (Larry, Angelica); a combat it
+            // is not in (Huldu, Saulot's Guiding Wisdom: "another minion").
+            (R::HostAttempting, _) => self.action.as_ref().is_some_and(|a| {
                 u.host
                     .is_some_and(|h| a.state == crate::actions::ActionState::Attempt(h))
             }),
-            (R::HostOutOfCombat, AbilitySource::Card(_)) => self
+            (R::HostOutOfCombat, _) => self
                 .combat
                 .as_ref()
                 .is_none_or(|cb| u.host.is_none_or(|h| cb.side_of_minion(h).is_none())),
@@ -6322,6 +6320,15 @@ impl Engine {
                     Actor::ActingMinion => {
                         let acting = self.action.as_ref().expect("action").acting;
                         (owner(acting), Some(acting))
+                    }
+                    // "Methuselahs can …": the card's controller for a "you
+                    // control" ability (Ventrue Headquarters, in any
+                    // Methuselah's referendum), the others in their own
+                    // turn.
+                    Actor::Methuselah
+                        if mode.requires.contains(&Requirement::YouControlThisCard) =>
+                    {
+                        (st.card_controller(id), None)
                     }
                     Actor::Methuselah => (st.active, None),
                     // The minion declaring the action it grants.

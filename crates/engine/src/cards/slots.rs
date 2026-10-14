@@ -382,7 +382,6 @@ impl Requirement {
             | R::ActorSubtype(..)
             | R::OpponentSectIn(..)
             | R::OpponentControllerHasGehenna
-            | R::ReadyNamed(..)
             | R::OtherNonHuntAction
             | R::TargetSeatControlsReadyClan(..)
             | R::TargetSeatControlsReadySect { .. }
@@ -406,7 +405,8 @@ impl Requirement {
             | R::PlayedRequiresDiscipline(..)
             | R::PlayedCard(..)
             | R::ActorUntitled
-            | R::OpponentSubtype(..) => &[S::Play, S::Printed],
+            | R::OpponentSubtype(..)
+            | R::ReadyNamed(..) => &[S::Play, S::Printed],
             R::HostLocked => &[S::Host, S::Printed],
             R::HostClan(..) | R::HostDiscipline(..) => &[S::Card, S::Host],
             R::CountersAtLeast(..) | R::CountersAtMost(..) | R::CardMode(..) | R::BasicVersion => {
@@ -431,9 +431,7 @@ impl Requirement {
             | R::YouControlThisCard
             | R::OthersControlThisCard
             | R::WeaponBurnedOpponent
-            | R::SourceHeldWhenBlocking
-            | R::HostAttempting
-            | R::HostOutOfCombat => &[S::Engine(Site::AbilityGateCard)],
+            | R::SourceHeldWhenBlocking => &[S::Engine(Site::AbilityGateCard)],
             R::TargetCapacityBelowCounters => &[S::Engine(Site::ControllerTarget)],
             R::TargetIsHost | R::TargetInCombatWithNormalDamage => {
                 &[S::Engine(Site::AbilityTargets)]
@@ -466,6 +464,7 @@ impl Requirement {
             ],
             R::OwnMinionPhase => &[S::Engine(Site::AbilityWindow)],
             R::PlayedStrikeByOpponent => &[S::Engine(Site::PlayOptions), S::Engine(Site::AsPlayed)],
+            R::HostAttempting | R::HostOutOfCombat => &[S::Engine(Site::AbilityGate)],
             R::CanAttemptBlock => &[
                 S::Engine(Site::PlayOptions),
                 S::Engine(Site::PlayTarget),
@@ -517,27 +516,6 @@ mod tests {
     /// requirement, why (docs/findings.md). An entry nothing matches fails
     /// the test: drop it once its gap is closed.
     const KNOWN_GAPS: &[(&str, Requirement, &str)] = &[
-        // `ability_holds` reads neither for a vampire (for a card it
-        // does): offered for another minion's attempt, or in combat.
-        (
-            "Angelica, The Canonicus",
-            Requirement::HostAttempting,
-            "findings L1",
-        ),
-        ("Cesewayo", Requirement::HostAttempting, "findings L1"),
-        ("Larry", Requirement::HostAttempting, "findings L1"),
-        (
-            "Persia, The Beautiful Statue",
-            Requirement::HostAttempting,
-            "findings L1",
-        ),
-        (
-            "Huldu, The Desecrator",
-            Requirement::HostOutOfCombat,
-            "findings L1",
-        ),
-        // `printed_holds` reads it, `holds` passes it.
-        ("Zizi", Requirement::ReadyNamed("Viri"), "findings L2"),
         // `ability_holds` reads an `ActingCandidate` ability's card for
         // `CardUnlocked` only: the action is offered with no counter to
         // burn.

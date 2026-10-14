@@ -1355,6 +1355,29 @@ fn larry_burns_for_intercept() {
     assert_eq!(blood(&e, larry), 3);
 }
 
+// Larry: "Once each action, Larry can burn 1 blood to get +1 intercept"
+// — for his own block attempt: not for Barry's (findings L1).
+#[test]
+fn larry_buys_no_intercept_for_another_blocker() {
+    let mut e = game(2);
+    let larry = chicago(&mut e, 0, "Larry", 4);
+    let barry = chicago(&mut e, 0, "Barry", 4);
+    let z = hermana(&mut e, 1, 4);
+    hermana(&mut e, 1, 4);
+    hand(&mut e, 1, &["Zillah's Tears"]);
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    pick(&mut e, play(0, 0, z));
+    pick_when(&mut e, block(barry));
+    let burn = Choice::UseAbility {
+        source: AbilitySource::Vampire(larry),
+        ability: 0,
+        actor: None,
+        target: Target::None,
+    };
+    never_offered_until(&mut e, SeatId(1), WindowLabel::MinionPhase, burn);
+    assert_eq!(blood(&e, larry), 4);
+}
+
 // Terry: "Once each combat, Terry can burn 1 blood to get a press."
 // [PIB 20150121] "Her ability to get a press can only be used during the
 // press step": blocked, she presses for a second round with a blood.
@@ -1618,6 +1641,27 @@ fn viri_and_zizi_work_together() {
     blocked_bleed(&mut e, viri, z);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(before - blood(&e, z), 2);
+}
+
+// Zizi: "If /Viri/ is in your ready region, Zizi can lock …": Viri in
+// torpor, no unlock; out of it, the unlock is there (findings L2).
+#[test]
+fn zizi_unlocks_only_with_viri_ready() {
+    let mut e = game(2);
+    let viri = e.add_minion(SeatId(0), find_card("Viri"), 3, true);
+    let zizi = budapest(&mut e, 0, "Zizi", 3);
+    let dorka = budapest(&mut e, 0, "Dorka", 3);
+    e.state.minions[dorka.index()].locked = true;
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let wake = Choice::UseAbility {
+        source: AbilitySource::Vampire(zizi),
+        ability: 0,
+        actor: None,
+        target: Target::Minion(dorka),
+    };
+    assert!(!request(&mut e).options.contains(&wake));
+    e.state.minions[viri.index()].in_torpor = false;
+    assert!(request(&mut e).options.contains(&wake));
 }
 
 // Ági: "Cards requiring Sanguinus [san] cost Ági 1 fewer blood." Her Hive
