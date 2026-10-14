@@ -643,8 +643,8 @@ slice-11 cards by section).
   transfers); `GameState::transfer_bonus`.
 - Discard: one discard phase action (`Stat::DiscardPhaseActions` read as the
   phase begins, `Seat::granted_dpa`); `Hook::DiscardPhase` riders fire as the
-  impulse leaves the active Methuselah. `Seat.hand_bonus` clears at the end of
-  the turn.
+  impulse leaves the active Methuselah. The end-of-turn hand size
+  (`Seat::timed`, `Expiry::EndOfTurn`) ends at the end of the turn.
 - "During X, do Y" abilities are once per that phase per copy (`phase_uses`,
   rules-qa 6.6); an ability spending a resource with no "during" clause
   (`DiscardPhaseAction`, `Transfers`) is limited only by the resource.
@@ -965,7 +965,9 @@ slice-11 cards by section).
   `Until::release`, `release_held`; the longest delay wins, spec §1.9.2).
   Held-until conditions include events' ("until a Methuselah is ousted",
   "as long as this card is in play": waiting on the condition, not the
-  card). An oversize hand discards down before any other decision.
+  card). "+n hand size until …" is a timed modifier (`Seat::timed`: an
+  amount per `TimedStat` until an `Expiry`, each swept where it ends). An
+  oversize hand discards down before any other decision.
 - Every card leaving hand that the rules replace goes through `Engine::replace`,
   offered first to `Hook::WouldReplace` riders; an empty library replaces nothing
   (and nothing burns instead, rules-qa 8.3). A hand-size increase only draws up
@@ -984,7 +986,7 @@ slice-11 cards by section).
 - Extra draws on replacement: Learjet's (`Modifier::ExtraDrawOnReplace`,
   `Interrupt::MayDrawExtra` after the replacement, `Seat::learjet_held`
   for one Blood Weakens holds back) and Infernal Pursuit's
-  (`Seat::combat_extra_draws`, reset as the combat ends; read in
+  (`Seat::timed`'s `TimedStat::ExtraDraws`, ending with the combat; read in
   `Engine::replace`; several cards replaced at once go one at a time,
   `Interrupt::PursuitDraw` then `PursuitDiscard`, rules-qa 63.11).
 - Psyche! [CEL] queues a combat as one would end (`CombatCtx::psyche`):

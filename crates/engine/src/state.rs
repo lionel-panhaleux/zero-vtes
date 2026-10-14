@@ -895,6 +895,65 @@ impl Held {
     }
 }
 
+/// A seat's number that a timed modifier raises or lowers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum TimedStat {
+    /// Hand size, over or under the rulebook's 7 (Dreams of the Sphinx,
+    /// Fotini Katsikaris, Benjamin Rose, Juliet Parr, Babalawo Alafin, Rage
+    /// of Apedemak).
+    HandSize,
+    /// Stealth of every vampire's hunt actions (Sunset Strip, Hollywood:
+    /// this Methuselah's locks of it).
+    HuntStealth,
+    /// Cards drawn besides each replacement, then discarded down to hand
+    /// size (Infernal Pursuit [CEL]).
+    ExtraDraws,
+}
+
+/// When a timed modifier ends: each is swept from its seat at one point of
+/// the turn (`Timed::expire`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Expiry {
+    /// The end of their turn (the end of their discard phase).
+    EndOfTurn,
+    /// As their next discard phase begins.
+    DiscardPhase,
+    /// Their next unlock phase.
+    UnlockPhase,
+    /// The end of the combat under way.
+    Combat,
+    /// The rest of the game.
+    Never,
+}
+
+/// A seat's timed modifiers: the amount added to each stat until each
+/// expiry.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub struct Timed([[i8; Expiry::Never as usize + 1]; TimedStat::ExtraDraws as usize + 1]);
+
+impl Timed {
+    pub fn add(&mut self, stat: TimedStat, until: Expiry, n: i8) {
+        self.0[stat as usize][until as usize] += n;
+    }
+
+    /// What `stat` gets until `until`.
+    pub fn of(&self, stat: TimedStat, until: Expiry) -> i8 {
+        self.0[stat as usize][until as usize]
+    }
+
+    /// What `stat` gets, every expiry together.
+    pub fn total(&self, stat: TimedStat) -> i32 {
+        self.0[stat as usize].iter().map(|&n| n as i32).sum()
+    }
+
+    /// The modifiers lasting until `until` end.
+    pub fn expire(&mut self, until: Expiry) {
+        for row in &mut self.0 {
+            row[until as usize] = 0;
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Seat {
     pub pool: i32,
@@ -906,9 +965,6 @@ pub struct Seat {
     /// Web of Knives Recruits whose training counter burned this unlock
     /// phase ("no more than two … each unlock phase").
     pub training_burned: u8,
-    /// "Give all vampires +1 stealth on hunt actions until your next unlock
-    /// phase" (Sunset Strip, Hollywood): its locks this Methuselah made.
-    pub hunt_stealth_unlock: u8,
     /// Remaining crypt cards (CRYPT indices), top at the end.
     pub crypt: Pile,
     pub uncontrolled: Vec<UncontrolledSlot>,
@@ -929,32 +985,17 @@ pub struct Seat {
     pub mpa: u8,
     /// Anson's second master phase action was spent this master phase.
     pub second_mpa_spent: bool,
-    /// Hand size above the rulebook's 7 until the end of the turn (Dreams
-    /// of the Sphinx).
-    pub hand_bonus: u8,
-    /// Hand size above 7 until their next discard phase begins (Fotini
-    /// Katsikaris; rules-qa 53.4).
-    pub hand_bonus_discard: u8,
-    /// Hand size above 7 for the rest of the game (Benjamin Rose).
-    pub hand_bonus_game: u8,
-    /// Hand size above 7 until their next unlock phase (Juliet Parr).
-    pub hand_bonus_unlock: u8,
-    /// Hand size below 7 until their next unlock phase (Babalawo Alafin).
-    pub hand_malus_unlock: u8,
+    /// "+n … until …": hand size, hunt stealth, extra draws.
+    pub timed: Timed,
     /// Spiritual Guidance resolved: their next decision may play a combat
     /// card from the ash heap (`ASH_PLAY` in the virtual hand).
     pub ash_combat_play: bool,
     /// Transfers added at the start of their next influence phase (The
     /// Capuchin burned).
     pub transfers_next: u8,
-    /// Hand size above 7 for the combat under way (Rage of Apedemak).
-    pub combat_hand_bonus: u8,
     /// Plays with an open hand for the combat under way (Aura Reading
     /// [aus], played by the opposing minion).
     pub combat_open_hand: bool,
-    /// Infernal Pursuit [CEL]: extra cards drawn with each replacement for
-    /// the rest of the combat (then discarded down to hand size).
-    pub combat_extra_draws: u8,
     /// One additional master phase action from trifles per master phase.
     pub trifle_used: bool,
     /// Día de los Muertos this turn: the first referendum a Sabbat vampire
@@ -2162,14 +2203,7 @@ impl GameState {
             .map(|(_, p)| p.n as i32)
             .sum();
         let seat = &self.seats[s.index()];
-        let mut size = HAND_SIZE as i32
-            + seat.hand_bonus as i32
-            + seat.hand_bonus_discard as i32
-            + seat.hand_bonus_game as i32
-            + seat.hand_bonus_unlock as i32
-            - seat.hand_malus_unlock as i32
-            + seat.combat_hand_bonus as i32
-            + printed;
+        let mut size = HAND_SIZE as i32 + seat.timed.total(TimedStat::HandSize) + printed;
         // "While the employer is in combat, the opposing minion's
         // controller gets -1 hand size" (Raptor [ANI]).
         if let Some(pair) = self.combatants {

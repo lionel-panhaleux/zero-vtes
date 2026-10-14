@@ -13,7 +13,7 @@ use crate::ids::{MinionId, SeatId};
 use crate::library::LIBRARY;
 use crate::plays::{By, HookAt};
 use crate::referendum::RefKind;
-use crate::state::{ActionId, CardId, CardInPlay, Release};
+use crate::state::{ActionId, CardId, CardInPlay, Release, TimedStat};
 use crate::window::OrderedWindow;
 
 /// Does the card's first mode carry requirement `r`?
@@ -518,7 +518,10 @@ impl ActionCtx {
         // Sunset Strip, Hollywood: every Methuselah's locks, any hunter, a
         // card's hunt too (rules-qa 72.3).
         let hunts: i32 = if self.is_hunt() {
-            st.seats.iter().map(|s| s.hunt_stealth_unlock as i32).sum()
+            st.seats
+                .iter()
+                .map(|s| s.timed.total(TimedStat::HuntStealth))
+                .sum()
         } else {
             0
         };

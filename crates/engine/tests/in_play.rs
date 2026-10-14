@@ -12,7 +12,8 @@ use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::state::{
-    find_card, find_library, ActionId, CardId, CardInPlay, Release, UncontrolledSlot,
+    find_card, find_library, ActionId, CardId, CardInPlay, Expiry, Release, TimedStat,
+    UncontrolledSlot,
 };
 
 mod common;
@@ -980,7 +981,12 @@ fn dreams_of_the_sphinx_hand_size_lock_lasts_the_turn() {
         e.choose(0);
     };
     assert_eq!(req.seat, SeatId(0));
-    assert_eq!(e.state.seats[0].hand_bonus, 0);
+    assert_eq!(
+        e.state.seats[0]
+            .timed
+            .of(TimedStat::HandSize, Expiry::EndOfTurn),
+        0
+    );
     assert_eq!(e.state.active, SeatId(1));
     // A Villein first (one choice per card: Bonding, then the Villeins),
     // so the second discard is still a choice.

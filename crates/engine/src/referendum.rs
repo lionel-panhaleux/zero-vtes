@@ -19,7 +19,7 @@ use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, LIBRARY};
 use crate::plays::HookAt;
-use crate::state::{title_votes, ActionId, UncontrolledSlot};
+use crate::state::{title_votes, ActionId, Expiry, TimedStat, UncontrolledSlot};
 use crate::window::PollingWindow;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1805,7 +1805,11 @@ impl Engine {
                 }
             }
             RefEffect::CallerHandSizeForGame(n) => {
-                self.state.seats[ctx.caller.index()].hand_bonus_game += n;
+                self.state.seats[ctx.caller.index()].timed.add(
+                    TimedStat::HandSize,
+                    Expiry::Never,
+                    n as i8,
+                );
             }
             // The pool was burned with the batch, the Edge read the same.
             RefEffect::BurnEdgeToUntitle(_) => {
@@ -2165,7 +2169,11 @@ impl Engine {
                 match *e {
                     cards::Effect::GoToTorpor => self.minions_to_torpor(&[m]),
                     cards::Effect::HandSizeUntilUnlock(n) => {
-                        self.state.seats[seat.index()].hand_bonus_unlock += n;
+                        self.state.seats[seat.index()].timed.add(
+                            TimedStat::HandSize,
+                            Expiry::UnlockPhase,
+                            n as i8,
+                        );
                     }
                     other => unreachable!("not a referendum rider effect: {other:?}"),
                 }

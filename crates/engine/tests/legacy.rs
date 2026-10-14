@@ -8,7 +8,9 @@ use zvtes::crypt::{CryptCard, Sect, Title, CRYPT};
 use zvtes::decision::{Choice, WindowLabel};
 use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::{find_card, find_library, CardId, CardInPlay, UncontrolledSlot};
+use zvtes::state::{
+    find_card, find_library, CardId, CardInPlay, Expiry, TimedStat, UncontrolledSlot,
+};
 
 mod common;
 use common::*;
@@ -157,7 +159,12 @@ fn ennoias_theater_locks_for_a_transfer_or_a_hand_size() {
     e.add_minion(SeatId(0), plain("Brujah", &[], 0), 4, false);
     let theater = in_play(&mut e, 0, "Ennoia's Theater", None);
     pick(&mut e, ability(theater.0, 0));
-    assert_eq!(e.state.seats[0].hand_bonus, 1);
+    assert_eq!(
+        e.state.seats[0]
+            .timed
+            .of(TimedStat::HandSize, Expiry::EndOfTurn),
+        1
+    );
     assert!(e.state.cards[theater.index()].locked);
 }
 

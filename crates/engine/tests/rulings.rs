@@ -12,7 +12,7 @@ use zvtes::cards::{Layer, Modifier, Scope, Target};
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::{find_card, find_library, CardId, CardInPlay, Release};
+use zvtes::state::{find_card, find_library, CardId, CardInPlay, Expiry, Release, TimedStat};
 
 mod common;
 use common::*;
@@ -285,7 +285,12 @@ fn dreams_of_the_sphinx_bonus_lasts_through_the_discard_phase() {
     let req = drive(&mut e, |e, req| {
         if req.window == WindowLabel::DiscardPhase && req.seat == SeatId(0) {
             // Still 9 cards and the bonus in force during the phase.
-            assert_eq!(e.state.seats[0].hand_bonus, 2);
+            assert_eq!(
+                e.state.seats[0]
+                    .timed
+                    .of(TimedStat::HandSize, Expiry::EndOfTurn),
+                2
+            );
             discard_phase = true;
         }
         (req.window != WindowLabel::DiscardDown).then(|| fallback(req))
@@ -293,7 +298,12 @@ fn dreams_of_the_sphinx_bonus_lasts_through_the_discard_phase() {
     assert!(discard_phase);
     assert_eq!(req.seat, SeatId(0));
     assert_eq!(e.state.active, SeatId(1));
-    assert_eq!(e.state.seats[0].hand_bonus, 0);
+    assert_eq!(
+        e.state.seats[0]
+            .timed
+            .of(TimedStat::HandSize, Expiry::EndOfTurn),
+        0
+    );
     pick(&mut e, Choice::Discard(0));
     pick(&mut e, Choice::Discard(0));
     to_minion_phase(&mut e, SeatId(1));

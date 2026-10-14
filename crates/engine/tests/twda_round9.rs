@@ -9,7 +9,7 @@ use zvtes::cards::{AbilitySource, Target};
 use zvtes::decision::{ActionKind, Choice, WindowLabel};
 use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::{find_card, find_library, CardId, CardInPlay};
+use zvtes::state::{find_card, find_library, CardId, CardInPlay, Expiry, TimedStat};
 
 mod common;
 use common::*;
@@ -1167,13 +1167,23 @@ fn sunset_strip_gives_every_hunt_stealth_until_the_next_unlock() {
     let strip = in_play(&mut e, 0, "Sunset Strip, Hollywood", None);
     hand(&mut e, 0, &["Eagle's Sight"]);
     pick(&mut e, use_at(strip, 0, None, Target::None));
-    assert_eq!(e.state.seats[0].hunt_stealth_unlock, 1);
+    assert_eq!(
+        e.state.seats[0]
+            .timed
+            .of(TimedStat::HuntStealth, Expiry::UnlockPhase),
+        1
+    );
     to_minion_phase(&mut e, SeatId(1));
     pick(&mut e, action(h, ActionKind::Hunt));
     never_offered_until(&mut e, SeatId(1), WindowLabel::MinionPhase, block(x));
     assert_eq!(blood(&e, h), 4 + 1);
     to_minion_phase(&mut e, SeatId(0));
-    assert_eq!(e.state.seats[0].hunt_stealth_unlock, 0);
+    assert_eq!(
+        e.state.seats[0]
+            .timed
+            .of(TimedStat::HuntStealth, Expiry::UnlockPhase),
+        0
+    );
 }
 
 // Sunset Strip's "+1 stealth on hunt actions": Abactor's hunt too (rules-qa

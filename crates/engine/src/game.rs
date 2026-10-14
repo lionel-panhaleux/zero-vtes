@@ -17,8 +17,8 @@ use crate::plays::{HookAt, PendingPlay};
 use crate::referendum::ReferendumCtx;
 use crate::rng::Rng;
 use crate::state::{
-    CardId, GameState, Minion, MinionKind, Release, Seat, UncontrolledSlot, HAND_SIZE, START_POOL,
-    UNCONTROLLED_START,
+    CardId, Expiry, GameState, Minion, MinionKind, Release, Seat, UncontrolledSlot, HAND_SIZE,
+    START_POOL, UNCONTROLLED_START,
 };
 use crate::window::OrderedWindow;
 
@@ -1915,8 +1915,11 @@ impl Engine {
         self.state.seats[s.index()].dpa = (1 + printed).max(0) as u8;
         self.state.seats[s.index()].granted_dpa = 0;
         self.state.seats[s.index()].event_played = false;
-        // Fotini Katsikaris's bonus ends as the discard phase begins.
-        self.state.seats[s.index()].hand_bonus_discard = 0;
+        // Fotini Katsikaris's bonus ends as the discard phase begins
+        // (rules-qa 53.4).
+        self.state.seats[s.index()]
+            .timed
+            .expire(Expiry::DiscardPhase);
         // "Unlock this vampire during the next discard phase" (Feral Hound).
         for i in 0..self.state.minions.len() {
             if std::mem::take(&mut self.state.minions[i].unlock_at_discard) {
@@ -1957,7 +1960,8 @@ impl Engine {
                 self.state.minions[i].owner = back;
             }
         }
-        self.state.seats[s.index()].hand_bonus = 0;
+        // Dreams of the Sphinx's hand size (LSJ 20100812).
+        self.state.seats[s.index()].timed.expire(Expiry::EndOfTurn);
         // Fiendish Tongue's unlock: that discard phase only.
         for m in &mut self.state.minions {
             if m.owner == s {
@@ -2208,11 +2212,12 @@ impl Engine {
             seat.auto_pass_next = false;
             seat.sabbat_referendum_called = false;
         }
-        // Juliet Parr's hand size lasts until this unlock phase.
-        self.state.seats[s.index()].hand_bonus_unlock = 0;
+        // Juliet Parr's and Babalawo Alafin's hand sizes, Sunset Strip's
+        // hunt stealth last until this unlock phase.
+        self.state.seats[s.index()]
+            .timed
+            .expire(Expiry::UnlockPhase);
         self.state.seats[s.index()].training_burned = 0;
-        self.state.seats[s.index()].hunt_stealth_unlock = 0;
-        self.state.seats[s.index()].hand_malus_unlock = 0;
         // Donatello Giovanni's marks last until his controller's unlock.
         let st = &self.state;
         let keep: Vec<(MinionId, MinionId)> = st

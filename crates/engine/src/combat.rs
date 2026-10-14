@@ -20,7 +20,7 @@ use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{Label, LIBRARY};
-use crate::state::{CardId, GameState, Release};
+use crate::state::{CardId, Expiry, GameState, Release, TimedStat};
 use crate::window::OrderedWindow;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -3134,10 +3134,10 @@ impl Engine {
             }
         }
         // Rage of Apedemak's hand size ends with the combat: the excess
-        // discarded at once.
+        // discarded at once. Infernal Pursuit's draws, Aura Reading's open
+        // hand end too.
         for s in ended.iter().flat_map(|c| c.sides.iter().map(|s| s.seat)) {
-            self.state.seats[s.index()].combat_hand_bonus = 0;
-            self.state.seats[s.index()].combat_extra_draws = 0;
+            self.state.seats[s.index()].timed.expire(Expiry::Combat);
             self.state.seats[s.index()].combat_open_hand = false;
         }
         // Abuse of Power: one combatant ready, the other not — the
@@ -3663,14 +3663,20 @@ impl Engine {
             Effect::HandStrikeDamageThisCombat(n) => c.sides[i].hand_damage_bonus += n,
             Effect::ExtraDrawPerReplacementThisCombat => {
                 let seat = c.sides[i].seat;
-                self.state.seats[seat.index()].combat_extra_draws += 1;
+                self.state.seats[seat.index()]
+                    .timed
+                    .add(TimedStat::ExtraDraws, Expiry::Combat, 1);
             }
             Effect::AdditionalStrikesEachRound(n) => c.sides[i].strikes_each_round += n,
             Effect::CloseSelfDamage(n) => c.sides[i].close_self_damage = n,
             Effect::ContinuePressThisRound => c.sides[i].continue_presses += 1,
             Effect::HandSizeThisCombat(n) => {
                 let seat = c.sides[i].seat;
-                self.state.seats[seat.index()].combat_hand_bonus += n;
+                self.state.seats[seat.index()].timed.add(
+                    TimedStat::HandSize,
+                    Expiry::Combat,
+                    n as i8,
+                );
             }
             // Played at once if one can be (`ash_play_due`).
             Effect::PlayCombatFromAsh => {

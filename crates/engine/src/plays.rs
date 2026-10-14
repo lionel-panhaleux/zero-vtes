@@ -14,7 +14,7 @@ use crate::draws::Interrupt;
 use crate::game::{Engine, Flow, Pending};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, Label, LIBRARY};
-use crate::state::{distinct, ActionId, CardId, CardInPlay, OutOfTurn, Release};
+use crate::state::{distinct, ActionId, CardId, CardInPlay, Expiry, OutOfTurn, Release, TimedStat};
 use crate::window::OrderedWindow;
 
 /// The once-per-phase key of an in-play ability: the copy, or the copy and
@@ -162,7 +162,9 @@ impl Engine {
         // once (Blood Weakens' held ones, released by an empty hand), one
         // at a time, its extras discarded before the next (ANK
         // 20180925-1).
-        let k = self.state.seats[s.index()].combat_extra_draws;
+        let k = self.state.seats[s.index()]
+            .timed
+            .total(TimedStat::ExtraDraws) as u8;
         if drawing && k > 0 && self.combat.is_some() && n > 1 {
             for _ in 0..n {
                 self.interrupts
@@ -6709,7 +6711,11 @@ impl Engine {
                 Effect::BurnSelf => self.burn_card_in_play(source.card()),
                 Effect::LockSelf => self.lock_card(source.card()),
                 Effect::HuntStealthUntilUnlock(n) => {
-                    self.state.seats[seat.index()].hunt_stealth_unlock += n;
+                    self.state.seats[seat.index()].timed.add(
+                        TimedStat::HuntStealth,
+                        Expiry::UnlockPhase,
+                        n as i8,
+                    );
                 }
                 Effect::AddCounter(n) => self.state.cards[source.card().index()].counters += n,
                 Effect::BurnSelfAtCounters(n) => {
@@ -6935,7 +6941,11 @@ impl Engine {
                     }
                 }
                 Effect::HandSizeBonusUntilEndOfTurn(n) => {
-                    self.state.seats[ctx.seat.index()].hand_bonus += n;
+                    self.state.seats[ctx.seat.index()].timed.add(
+                        TimedStat::HandSize,
+                        Expiry::EndOfTurn,
+                        n as i8,
+                    );
                     self.draw_up(ctx.seat);
                 }
                 Effect::TargetBurnLife(n) => {
@@ -7161,7 +7171,11 @@ impl Engine {
                         for i in 0..self.state.seats.len() {
                             let seat = &mut self.state.seats[i];
                             if i != ctx.seat.index() && !seat.ousted {
-                                seat.hand_malus_unlock += n;
+                                seat.timed.add(
+                                    TimedStat::HandSize,
+                                    Expiry::UnlockPhase,
+                                    -(n as i8),
+                                );
                             }
                         }
                     }
@@ -8800,7 +8814,11 @@ impl Engine {
             for e in r.effects {
                 match *e {
                     Effect::HandSizeUntilDiscard(n) => {
-                        self.state.seats[seat.index()].hand_bonus_discard += n;
+                        self.state.seats[seat.index()].timed.add(
+                            TimedStat::HandSize,
+                            Expiry::DiscardPhase,
+                            n as i8,
+                        );
                     }
                     Effect::DamageBledAnarchs(n) => {
                         let anarchs: Vec<MinionId> = self
