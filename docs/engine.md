@@ -303,7 +303,7 @@ hazards, docs/engine-review-2026-10-14.md §3):
 
 ## 5. Comment policy
 
-The owner's policy (2026-10-14; a full pass applies it next). Code
+The owner's policy (2026-10-14, applied to the engine in one pass). Code
 comments are limited to:
 
 - (a) the card's printed text on its definition (every vampire ends with
@@ -388,7 +388,7 @@ abilities, costs, riders' collector, `apply_card_effect`), `actions.rs`
 `influence.rs`, `draws.rs` (`Interrupt`, draws, searches), `ousting.rs`
 (the oust decision point), `state.rs` (`GameState`, `Minion`,
 `CardInPlay`, `Seat`, `Held`, `Timed`, live stat reads, `legal_view`),
-`copies.rs` (copy identities and their census), `obs.rs` (observations),
+`copies.rs` (copy identities and their census, §6.22), `obs.rs` (observations),
 `decks.rs` and `twda.rs` (decklists), `agent.rs` and `bots.rs` (policies),
 `politics.rs` and `habits.rs` (agent behaviour around a network, not
 engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
@@ -432,10 +432,29 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   controls unlock in their unlock phase. Substitutions: `Minion.skip_unlock`,
   `Modifier::CounterInsteadOfUnlock`, `HostDoesNotUnlock`. The rulebook burn
   option is a discard in any unlock phase (`Seat::burn_option_used`).
+- Unlock-phase effects (`start_unlock_effects`, `Flow::Abilities`): one
+  ordered impulse sequence clockwise from the active Methuselah, who settles
+  their mandatory effects (contest upkeep, every pending rider) in the order
+  they choose, among their optional ones (the Edge's pool, abilities), and
+  cannot pass before; then the other seats' abilities. A contest with no
+  rival left is released and a forced yield settles at once: neither is a
+  decision.
+- Phase rotation (`Flow::PhaseRotation`, rules-qa 7.9): `resume` is the
+  phase flow the impulse returns to when another seat plays an effect, and
+  the phase to end when everyone passes. After the Enkil Cog's action
+  (`Flow::CogAction`, rules-qa 49.6) the impulse returns to the active
+  Methuselah's minion phase. `Engine::phase` (for clients) is the outermost
+  flow under any play, terms or rotation: an action, its combat and
+  referendum belong to the minion phase, the unlock-phase effects to the
+  unlock phase.
+- Mandatory phase effects: `Seat::master_resolved` / `discard_resolved` list
+  the cards whose effect resolved this phase; the rest in play are due
+  (`Engine::master_dues`, `discard_dues`).
 - Master phase: out-of-turn masters are accounted against the next master phase
   (rules-qa 3.3); a canceled master gives its player a master phase action back
   when Wash says so (`Seat.mpa_next`). Abilities paid with a master phase action
-  are not once-per-phase.
+  are not once-per-phase. `GameState::mpa_left` adds Rumors of Gehenna's
+  "two (instead of one)" neither to Anson's second nor to another copy's.
 - Minion phase: `Engine::mandatory_actions` — a mandatory action (printed,
   Puppet Master's take) is the only offer and the phase cannot end before it; a
   minion unable to take it declares nothing (spec §3.9). Several mandatory
@@ -445,7 +464,9 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   `Window::InfluencePhaseOwn` (once per phase), `Window::Transfers` (paid in
   transfers); `GameState::transfer_bonus`.
 - Discard: one discard phase action (`Stat::DiscardPhaseActions` read as the
-  phase begins, `Seat::granted_dpa`); `Hook::DiscardPhase` riders fire as the
+  phase begins, `Seat::granted_dpa`: Powerbase: Los Angeles's, used to
+  discard a card requiring an Anarch or making a vampire Anarch, lets its
+  user unlock a ready Anarch); `Hook::DiscardPhase` riders fire as the
   impulse leaves the active Methuselah. The end-of-turn hand size
   (`Seat::timed`, `Expiry::EndOfTurn`) ends at the end of the turn.
 - "During X, do Y" abilities are once per that phase per copy (`phase_uses`,
@@ -524,7 +545,28 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   copy and ability (LSJ 20100909), `Printed(vampire, ability)`, `Rulebook(kind,
   target)` (Change of Target's ban); `Effect::SameActionAs` unifies two printed
   actions. Recorded at resolution (`mark_resolved`); a failed bleed or political
-  action counts. Delaying Tactics bans by `ActionId`.
+  action counts. Delaying Tactics bans by `ActionId`. `Printed` keeps the
+  vampire so a record the seat holds (`Seat::forbidden_political`) still
+  names it.
+- **Queued combat** (Hedonism: `ActionCtx::queued_combat`,
+  `begin_queued_combat`, `resume_after_queued_combat`): it begins once the
+  block's own combat is over (block resolution), or after a successful
+  action's effects, still part of its resolution (Sabbat V5 rules "Queue a
+  combat"; rules-qa 53.3; a fizzled action counts as successful, 56.1);
+  begun after the effects, its end goes on to the after-resolution window
+  (`queued_at_resolution`). Both minions must still be ready (advanced rules
+  4.9.3); an action failing or ending first loses it (LSJ 20090826).
+  Psyche!'s queue is the combat's (§6.7).
+- **Forward Momentum** (`ActionCtx::momentum`, `bleed_ends_riders`,
+  `finish_action`): +1 counter after a successful bleed, −1 otherwise (a
+  blocked bleed included), pending in the after-resolution window beside
+  its unlock, in the controller's order (rules-qa 53.6): a gain can be
+  taken by the unlock first, a loss after it; the rest applies as the
+  action ends.
+- **Diablerie's blood hunt** (`end_action_into_blood_hunt`): part of the
+  action (spec §3.7.8.1), which ends after it through its after-resolution
+  window (rules-qa 5.8); the referendum's rotation starts at the
+  diablerist's controller, clockwise (DESIGN §4.2).
 - **Live conditions** (owner, 2026-09-25): an effect's conditions are evaluated
   throughout, never snapshotted (`Effect::If` → `ActionCtx.conditional`); a
   limited bleed increase counts against the limit only while its condition holds.
@@ -562,9 +604,19 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   (`stealth_strippable`): the blocker's own Methuselah by a playable card in
   hand, another by holding any card while one of their minions could play a
   stealth strip of the pool (Night Terrors) — their hand is hidden from the
-  blocker (DESIGN §4.3; reading it leaked, found by `tests/elision.rs`). Any
-  new third-party intercept/stealth-strip card must be counted here, or
-  pruning hides a live attempt.
+  blocker (DESIGN §4.3; reading it leaked, found by `tests/elision.rs`). An
+  intercept card in hand also counts its replacement draw (rules-qa 48.5: one
+  to play and a library may yet meet any stealth); conditional intercept
+  counts whether or not its condition holds now. The rule itself is the
+  closure comparison in `action_advance`. Any new third-party
+  intercept/stealth-strip card must be counted here, or pruning hides a live
+  attempt.
+- **Failed attempts** (`ActionCtx::attempt_print`, `failed_alike`,
+  `failed_attempts`, rules-qa 48.6): a minion that failed an attempt is not
+  offered the same attempt again until what it faces changes, in public
+  terms (a hash: the stealth; its intercept, blood and lock; the count of
+  cards in play; every hand's size; its Methuselah's library and ash heap
+  sizes). Hands themselves are never read (`tests/elision.rs`).
 - The engine has legal unbounded repeats here (block re-attempts, DESIGN
   §11.3): cap decisions in any exploratory driver.
 
@@ -572,6 +624,16 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 
 `combat.rs`: `CombatCtx`, `Side`, `Step`, `Damage`, `Held`.
 
+- Round steps (rulebook "Combat Sequence"): before range → determine range
+  (alternating maneuvers) → before strikes → strike choice (acting first) →
+  before resolution (spec §4.3.2) → resolution (combat ends first, else
+  simultaneous; steal before mend) → prevention (acting side first, spec
+  §4.5.4) → damage at once → additional strikes → press (alternating) → end
+  of round, shared with the would-end replacement point (spec §4.9.1). Each
+  ordered step is a two-seat window with impulse reset (rules-qa 1.2);
+  strike choice and prevention are single-seat offers. A combatant no longer
+  ready ends the round at once, the end-of-round window still opening
+  (rulebook step 7).
 - Only combat cards are played during combat — no modifiers, reactions or wakes
   (spec §4.1.3). A combat is part of its action: `Engine::action` and its layers
   stay in force.
@@ -587,16 +649,21 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   prevention covers (`Step::AllocateSource`); applied at once, normal then
   aggravated (the rulebook's examples are unit tests). Environmental damage lands
   in the normal strike resolution. Unpreventable damage (`Side::unpreventable`)
-  stays out of `pending`.
+  stays out of `pending`. A damage resolution is atomic, no window opening
+  midway (PIB 20121031): an untimed lock ability (The Coven) is offered in
+  the prevention window, before damage lands. Anathema's "blood reduced to 0
+  in combat" is read as each step settles (`Engine::settle_anathema`).
 - Combat ends: `Effect::EndCombat` goes to the end-of-round window; no new round
   once a combatant left the ready region; mid-combat ousts DESIGN §10.8.
 - "Put this card on …" in combat: a card that says so as it resolves goes
   on its minion itself through `place_now` (Disarm on the opposing vampire,
   Wall of Filth, Focus the Blood: `ModeLayers::FromEffects`). A placement
-  after the card reached the ash heap (on a hit, after combat) is an
-  effect-only card in play (`place_held`, `CardInPlay.effect_only`), lost if
-  the strike misses, combat ends first, or combat continues (rules-qa 21.1,
-  47.1). Only action cards wait in limbo.
+  after the card reached the ash heap (on a hit, after combat: `Held`)
+  takes the card itself back out of the ash heap into play (`place_held`:
+  by its copy, else a copy of its name); only with none left there is it an
+  effect-only card in play (`CardInPlay.effect_only`) carrying the counters
+  and layers. Lost if the strike misses, combat ends first, or combat
+  continues (rules-qa 21.1, 47.1). Only action cards wait in limbo.
 - Per-combat/round/action ability uses key on the card copy: a card's abilities
   share one use (rules-qa 38.8).
 - Frenzy: `Effect::Frenzy` marks the frenzy mode; `Engine::frenzy_on` names the
@@ -629,6 +696,9 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   combat's after-combat effects and begins the new one with the same
   routing flags (`at_resolution`, `after_resolution`, `queued`, `yawp`),
   no `held_at_block` (rules-qa 65.1).
+- Flames of Insurrection's offers come as a minion opposing an Anarch leaves
+  the ready region, to both controllers when both Anarchs leave
+  (`Engine::flames_offers`).
 
 ### 6.8 Referendums
 
@@ -642,7 +712,9 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   more for than against, ties fail; Scorn first.
 - Votes are read live (`votes_of`, `clan_votes`, `calling_votes`, `host_votes`);
   grants (`ReferendumCtx.grants`) add to casts already made. An ousted
-  Methuselah casts nothing.
+  Methuselah casts nothing. Mithras's toll on votes against his political
+  action is `Engine::vote_against_toll` (beside `block_toll`); Alvaro's "if
+  he abstained" gain is read after the referendum (`resolve_political`).
 - A canceled referendum returns the card, discarding down at once. Political
   action: +1 stealth, cost at resolution, no referendum if the acting minion is
   no longer ready.
@@ -678,7 +750,11 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   `discipline_level`, `has_discipline`, `Minion::clan`, `GameState::sect_of`
   (`SectFallen` over `underlying_sect`, `sect_override`); printed data only via
   `printed_*`. Blood gain caps through `gain_blood`; excess drains as the engine
-  settles; out-of-play counters are kept.
+  settles; out-of-play counters are kept. Gestalt [SAN]'s borrowed
+  Disciplines last the action (`GameState::lent_disciplines`, read by
+  `discipline_level`). Blood gains are noted between decisions
+  (`GameState::blood_gains`, `Engine::note_blood_gains`), a strike's as the
+  strikes end (Slake the Thirst, rules-qa 68.2).
 - **Allies**: a minion and a card in play at once (`CardInPlay.body`, not
   `host`, so never "a card on a minion"; `CardInPlay::bearer()` = host or body).
   No clan, sect, Disciplines, title, capacity or votes; neither younger nor older
@@ -693,6 +769,10 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   Duat): 1-capacity, sire's clan, printed or sire's sect, no Discipline or title;
   their card is the body. **Tokens** (`MinionKind::Token`: Absimiliard's Army):
   no card in play, name or label; removed without burning when the Army leaves.
+  `MinionKind::Fury` (Unleash Hell's Fury) is out of play but for its own
+  block attempts (`Engine::fury_tokens`). Infernal Servitor's removals (no
+  infernal vampire controlled; after a successful action) are read as each
+  step settles (`Engine::settle_servitors`) and as its action ends.
 - Leaving play has one path each: `burn_minion` (cards on it to owners' ash
   heaps; "ready minion burned" riders only if it was ready) and
   `minions_to_torpor`, both through `leave_riders` batching pool losses. Burned
@@ -700,11 +780,18 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   even under stolen control).
 - Control: permanent steal (`StealTargetVampire`), temporary
   (`Minion.temp_from`, `Engine::take_control`: returns at the end of the taker's
-  turn, removed if its Methuselah was ousted). Banishment (`Engine::banish`)
-  returns the vampire as the arena entry it left, cards included
-  (`UncontrolledSlot.banished`).
+  turn, removed if its Methuselah was ousted). Banishment (`Engine::banish`:
+  Banishment, Pit of Contemplation) keeps the vampire's blood as counters in
+  the uncontrolled region, the cards in play on it (not those burned from
+  it; a created vampire's own card included) face down with it, out of play
+  until it returns as the arena entry it left (`UncontrolledSlot.banished`,
+  rules-qa 25.1).
 - Per-minion markers: `corruption` (per Methuselah; kept through torpor, control
-  change, banishment; cleared when burned/removed), `hostage`, `nightmare`,
+  change, banishment; cleared when burned/removed), `hostage` (Carver's Meat
+  Packing and Storage: while any, no move to the ready region nor
+  diablerie), `torture` (The Path of Lilith: its controller burns 1 pool each
+  unlock phase while any of their vampires has one; released once no such
+  card is in play, `GameState::release_torture`), `nightmare`,
   `diablerie_shield`, `must_hunt`, `played_since_unlock` (wake limits),
   `unlock_at_discard`.
 - Slaves (rulebook "Slave", Tupdog): the directed-action bar is printed
@@ -734,7 +821,12 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   resolution (`rider_fires` again as a chosen rider resolves; an unmet rider
   is not pending, its window elides); unlock riders are pending mandatory
   effects ordered by their resolver (DESIGN §10.7); one burn per copy;
-  `R::OneCopyPerTurn` drops the other copies once one resolves. Every hook
+  `R::OneCopyPerTurn` drops the other copies once one resolves. An unlock
+  rider paid unit by unit as it resolves (Smiling Jack: pool or a vampire's
+  blood, per counter) runs through `Flow::RiderTerms`.
+  `GameState::card_riders` lists every arena card's riders on a hook, in
+  play or not, in arena order (one per hook, but for `Hook::UnlockPhase`).
+  Every hook
   site collects through `Engine::fired_riders` and `Engine::printed_riders`
   (§2). `HookAt::seat` is the active Methuselah at a phase hook, the seat
   of an "own" event, none at a host-anchored hook; `Hook::reads_action`
@@ -777,7 +869,11 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   (rules-qa 13.1; none left); fixtures wanting a plain vampire pin one by name.
 - Printed predicates read `PrintedCtx`: the action, the opposing minion
   (the blocker for a block toll, the calling vampire for a vote toll) and
-  the card played (`PrintedCtx::card`, `R::PlayedCard`). Printed cost
+  the card played (`PrintedCtx::card`, `R::PlayedCard`). The
+  printed-modifier ones (the `Requirement` variants from `ThisVampireReady`
+  on) read three minions: the vampire whose text it is, the modified
+  minion (the actor), and the opposing one (the acting minion for a block
+  attempt, the opposing combatant in combat). Printed cost
   reductions (`GameState::printed_cost_off`: pool, blood, "blood or pool")
   apply wherever the minion pays a card's cost, a card another puts in play
   included — it is still played (Piper, Contraband, a search; rules-qa
@@ -841,8 +937,11 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   is a timed modifier (`Seat::timed`, swept where it ends). An oversize
   hand discards down before any other decision.
 - Every card leaving hand that the rules replace goes through `Engine::replace`,
-  offered first to `Hook::WouldReplace` riders; an empty library replaces nothing
-  (and nothing burns instead, rules-qa 8.3). A hand-size increase only draws up
+  offered first to `Hook::WouldReplace` riders, except the card being replaced
+  itself ("a card other than this card"), then the hand drawn up; an empty
+  library replaces nothing (and nothing burns instead, rules-qa 8.3). Visit
+  from the Capuchin burns a counter instead of drawing, the hand size
+  shrinking with it. A hand-size increase only draws up
   (`draw_up`). The Meddling of Semsith holds replacements made during a
   minion phase until it ends (`Release::MinionPhaseEnd`).
 - Draw alternatives (`Hook::WouldDraw`): a choice per card drawn (rules-qa 9.4);
@@ -855,7 +954,9 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 - Every library draw goes through `Engine::offer_redraw` (Blackhorse
   Tanner's `Interrupt::Redraw`, once each turn); `Interrupt::AllySearch`
   (Antonio d'Erlette) searches library and hand for a mage ally and puts
-  it in play, not recruited.
+  it in play, not recruited. A crypt draw a card gives (Enthrall [OBF]) is
+  offered after its resolution as `Choice::DrawCrypt`, none from an empty
+  crypt.
 - Extra draws on replacement: Learjet's (`Modifier::ExtraDrawOnReplace`,
   `Interrupt::MayDrawExtra` after the replacement, `Seat::learjet_held`
   for a delayed one, offered by `Engine::replace_held` at every release,
@@ -889,6 +990,11 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   payment beside The Shard). Concealed Weapon's "cannot cost 3 or more
   pool" reads the cost as modified in play, not the announced reductions
   or another payer (`equippable_from_hand`).
+- The Ankara Citadel (`GameState::printed_cost_off_x`): the blood cost is
+  halved (rounded down) before any other change ("multiplication and
+  division first", RTR 20070707), the half taken off with the bearer's
+  other reductions; a dual Action Modifier card is halved when played as a
+  reaction or in combat, an X cost once X is chosen (rules-qa 70.17).
 
 ### 6.16 Events
 
@@ -1023,10 +1129,29 @@ Slice 16a; `defs.rs` section "Legacy cards for tournament decks",
 What a card change touches; the encoding, the bots and the training runs
 are in DESIGN §11.2.
 
-- `GameState::legal_view(viewer)` hides what the seat may not see (the doc
-  on it lists each zone); a card named from hand as a play or an action is
-  announced (`PlayCtx::named`, `ActionCtx::exchange`, `ActionCtx::card`)
-  but never shown: an observation or a bot never reads it.
+- `GameState::legal_view(viewer)` hides what the seat may not see: a hidden
+  identity is replaced by `HIDDEN` in place, every zone keeping its size and
+  every counter, blood, pool and flag kept; a hidden card keeps no copy (it
+  would tell which card it is, or where it went).
+  - Hidden from all: libraries and crypts (a search shuffles afterward), the
+    cards Heart of Nizchetus puts at the bottom included (remembering them
+    is the policy's business). The viewer's own keep their contents, sorted
+    (a Methuselah knows their decklist and sees every card leave or enter).
+  - Hands, but an open one (Owl Companion [ani], Harold Tanner, Revelations
+    [AUS]: `PreyOpenHand`, `OpponentOpenHandInCombat`, a seat's
+    `combat_open_hand`), read through `GameState::hand_visible_to`.
+  - Public: ash heaps (`ash`, `ash_crypt`), removed cards, minions and cards
+    in play (a contested card turned face down keeps its identity), pool,
+    blood, counters, `held` (a count); a banished vampire's uncontrolled
+    slot (it left play in view of all), every slot's counters; face-up
+    stored cards (Black Market Cache, Fleshforge Chamber), Shilmulo Tarot's
+    face-down ones (`Effect::StoreTopCards`) to its controller only. The
+    RNG is not in the state.
+  - The action, combat and referendum contexts and the as-played stack are
+    public, except a card named from hand (`PlayCtx::named`, Pack Alpha;
+    `ActionCtx::exchange`'s hand card, Lenelle; `ActionCtx::card`):
+    announced but never shown, so an observation or a bot never reads it,
+    and an observation adding these contexts must redact it.
 - A new `Choice` kind or a new option shape needs its observation slot
   (`obs.rs`: option ids and `OPT_F` features); a new rulebook-like choice
   usually shares an existing kind's slot (`Choice::UnlockInfernal` in
@@ -1039,3 +1164,21 @@ are in DESIGN §11.2.
 - `tests/obs.rs` (the encoding of the full state equals that of the
   seat's legal view; every pointer names a token) and `tests/bots.rs` (bot
   decisions answered again from `legal_view`) guard all three.
+
+### 6.22 Card copies
+
+`copies.rs`: `CopyId`, `CopyCounter`, `census`.
+
+- Every physical card has a copy number, dealt at the start in decklist
+  order (per seat in seating order, crypt then library, as listed),
+  independent of the seed and the shuffle, and carried with the card through
+  every zone (`Pile` moves a card with its copy). A card the game would
+  create takes the next number (`GameState::copy_counter`,
+  `CopyCounter::deal`; none yet: a ghoul token is a library card).
+- Copies serve clients (a card followed across the table) and records; they
+  never take part in the game's identity: `Pile` compares and hashes as its
+  card ids alone, `Untracked` fields not at all, so the state hash,
+  observations and options do not see them.
+- `census` lists every card with its copy and place; the fuzz tests check
+  each dealt copy stays its card and is found exactly once, until its
+  Methuselah is ousted (their cards are removed from every zone).
