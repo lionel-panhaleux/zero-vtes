@@ -115,6 +115,9 @@ zero-vtes                                       ../succubus-club (fork)
 
 ## Board
 
+> Open items moved to docs/boards/engine.md and docs/boards/platforms.md
+> (2026-10-14; the mapping: docs/roadmap.md "Carried over").
+
 Status: `todo` · `doing` · `done` · `blocked(<why>)`. Ordered by slice.
 
 ### Slice 1 — protocol (zero-vtes; DESIGN slice 17a)
