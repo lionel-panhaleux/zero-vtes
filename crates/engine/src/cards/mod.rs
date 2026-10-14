@@ -1705,8 +1705,12 @@ pub enum Requirement {
     /// (Céleste Lamontagne).
     OpponentControllerHasGehenna,
     /// A vampire of this name is ready, any Methuselah's (Rurik Rakoczy:
-    /// "while /Ludmijla Rakoczy/ is ready"; Zizi's ability).
+    /// "while /Ludmijla Rakoczy/ is ready").
     ReadyNamed(&'static str),
+    /// A vampire of this name is in the Methuselah's ready region, the
+    /// controller's ("your", owner: rules-qa 73.7): Viri's "while /Zizi/
+    /// is in your ready region", Zizi's ability.
+    OwnReadyNamed(&'static str),
     /// The actor is not sterile ("requires a non-sterile baron", Childe of
     /// the Revolution; rulebook "Traits").
     ActorNotSterile,
@@ -3449,8 +3453,14 @@ pub enum Effect {
     /// "Unlock this vampire during the next discard phase" (Feral Hound
     /// [ani], on the employ action's success).
     UnlockActorAtDiscard,
-    /// Burn n blood from the host of this card in play (an ability's cost:
-    /// Bowl of Convergence [AUS]).
+    /// The host of this card in play burns n blood: blood for a vampire,
+    /// life for an ally, an ally left with no life burned (owner, rules-qa
+    /// 73.5; `GameState::burn_blood_or_life`). A rider's "blood or life"
+    /// (Phantasmagoria, Sculpt the Flesh), a vampire's "burns 1 blood"
+    /// (Marialena, Condemnation: Mute); as an ability's cost (Bowl of
+    /// Convergence [AUS]) a blood cost, which an ally never pays (advanced
+    /// rules 5.5.1, `ability_gate`): an ally's own "burn n life" is
+    /// `HostBurnLife`.
     HostBurnBlood(u8),
     /// An ally's action "that costs n life" (Rotting Behemoth): paid at
     /// resolution like a blood cost, but not one — an ally pays it.
@@ -3872,7 +3882,7 @@ pub enum Effect {
     MayLockForTorture,
     /// The host ally burns n life, a cost of its own text (Gravebound
     /// Drone: "this ally can burn 1 life to …") — not a blood cost, which
-    /// an ally never pays (advanced rules 5.5.1).
+    /// an ally never pays (advanced rules 5.5.1); paid as `HostBurnBlood`.
     HostBurnLife(u8),
     /// The target minion burns n blood or life, an ally its last too
     /// (Gravebound Drone [OBL]: "burn 1 life from another copy").
@@ -5671,6 +5681,32 @@ impl PlayCtx {
     }
 }
 
+/// The grant `m`, an ally, plays mode `mi` of `card` with "as a
+/// vampire", if it does: a card requiring one of the grant's Disciplines,
+/// none declaring an action (an action card, an ally to recruit, a
+/// retainer to employ, equipment) where the grant says "non-action". Only
+/// the card it so plays sees it as a vampire: never an ability, a
+/// powerbase or another card observing it (owner: rules-qa 73.6).
+pub fn plays_card_as_vampire(
+    st: &GameState,
+    m: MinionId,
+    card: u16,
+    mi: usize,
+) -> Option<AsVampire> {
+    if !st.minions[m.index()].is_ally() {
+        return None;
+    }
+    let tags = LIBRARY[card as usize].modes[library_mode(card, mi)].tags;
+    let declares = lookup(card).is_some_and(|d| {
+        d.modes[mi]
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::DeclareAction(_)))
+    });
+    st.plays_as_vampire(m)
+        .filter(|g| tags.iter().any(|t| g.disciplines.contains(t)) && !(g.non_action && declares))
+}
+
 /// Does `m` meet a mode's discipline tags? Lower case needs the discipline
 /// at any level, upper case needs superior; a combo card needs every tag,
 /// any other card needs one (its text lists alternatives).
@@ -6178,18 +6214,14 @@ pub fn holds(
             let t = st.title_of(m);
             !classes.iter().any(|c| c.matches(t))
         }),
-        // An ally playing a card "as a vampire" counts as independent (LSJ
-        // 20020503), with its granted capacity (1 unless printed; rulebook
-        // "Allies").
-        Requirement::ActorSectIn(sects) => actor.is_some_and(|m| match st.sect_of(m) {
-            Some(s) => sects.contains(&s),
-            None => st.plays_as_vampire(m).is_some() && sects.contains(&Sect::Independent),
-        }),
-        Requirement::ActorCapacityAtLeast(n) => actor.is_some_and(|m| {
-            st.capacity_of(m)
-                .or(st.plays_as_vampire(m).map(|g| g.capacity))
-                .is_some_and(|c| c >= n)
-        }),
+        // An ally playing a card "as a vampire" is read so by that card
+        // only (`plays_card_as_vampire`, the play's listing).
+        Requirement::ActorSectIn(sects) => {
+            actor.is_some_and(|m| st.sect_of(m).is_some_and(|s| sects.contains(&s)))
+        }
+        Requirement::ActorCapacityAtLeast(n) => {
+            actor.is_some_and(|m| st.capacity_of(m).is_some_and(|c| c >= n))
+        }
         Requirement::IsPolitical => action.is_some_and(|a| a.kind == ActionKind::Political),
         Requirement::PollingStep => political.is_some_and(|r| r.step == RefStep::Polling),
         Requirement::AnyPollingStep => referendum.is_some_and(|r| r.step == RefStep::Polling),
@@ -6659,8 +6691,9 @@ pub fn holds(
         // An actor with no title (Powerbase: Barranquilla's untitled
         // burner); the printed predicate's reading too.
         Requirement::OwnUncontrolledNotEmpty => !st.seats[seat.index()].uncontrolled.is_empty(),
+        Requirement::ReadyNamed(name) => st.ready_named(name, None),
         // "If /Viri/ is in your ready region" (Zizi's ability).
-        Requirement::ReadyNamed(name) => st.ready_named(name),
+        Requirement::OwnReadyNamed(name) => st.ready_named(name, Some(seat)),
         Requirement::ActorPassedReferendumThisTurn => {
             actor.is_some_and(|m| st.minions[m.index()].referendum_passed_turn)
         }

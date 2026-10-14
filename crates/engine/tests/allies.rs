@@ -7,7 +7,7 @@
 //! decision exists.
 
 use zvtes::cards::{self, AbilitySource, Effect, Layer, Scope, Stat, Target};
-use zvtes::crypt::{Title, CRYPT};
+use zvtes::crypt::{Sect, Title, CRYPT};
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
@@ -2102,6 +2102,81 @@ fn spectral_servitor_paying_its_last_life_for_a_modifier_burns_and_the_action_fa
     assert!(!e.state.minions[servitor.index()].in_play);
     assert_eq!(e.state.seats[1].pool, pool, "no bleed");
     assert_ne!(e.last_outcome, Some(zvtes::actions::Outcome::Successful));
+}
+
+// Powerbase: Munich: "Independent vampires can burn this location as a Ⓓ
+// action that costs 1 blood." An ally playing cards as a vampire is seen
+// as one only by the card it plays (owner, 2026-10-14: rules-qa 73.6): the
+// powerbase never offers Spectral Servitor its burn, an Independent
+// vampire has it; the Servitor still plays Consign to Oblivion [obl] as a
+// vampire.
+#[test]
+fn powerbase_munich_never_sees_an_ally_playing_as_a_vampire() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("Hecata", 0), 4, false);
+    let ind = (0..CRYPT.len() as u16)
+        .find(|&c| {
+            let v = &CRYPT[c as usize];
+            v.sect == Sect::Independent && v.title == Title::None && cards::vampire(c).is_none()
+        })
+        .expect("a plain Independent vampire");
+    let ind = e.add_minion(SeatId(0), ind, 4, false);
+    let servitor = e.add_ally(SeatId(0), find_library("Spectral Servitor"));
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let card = find_library("Powerbase: Munich");
+    e.state
+        .cards
+        .push(CardInPlay::new(card, SeatId(1), None, 0));
+    let pm = CardId(e.state.cards.len() as u32 - 1);
+    hand(&mut e, 0, &["Consign to Oblivion"]);
+    let burn = |m| Choice::UseAbility {
+        source: AbilitySource::Card(pm),
+        ability: 2,
+        actor: Some(m),
+        target: Target::None,
+    };
+    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(req.options.contains(&burn(ind)));
+    assert!(!req.options.contains(&burn(servitor)), "{req:?}");
+    pick(&mut e, action(servitor, ActionKind::Bleed));
+    let req = expect(&mut e, SeatId(0), WindowLabel::ActionAsAnnounced);
+    assert!(req.options.contains(&play(0, 0, servitor)), "{req:?}");
+}
+
+// Phantasmagoria [PRE]: "if the attached minion is blocked, they burn 1
+// blood or life before block resolution." Blood for a vampire, life for
+// an ally, an ally with no life left burned (owner, 2026-10-14: rules-qa
+// 73.5): Political Ally's only life, no combat; a vampire's blood, then
+// the hand strikes.
+#[test]
+fn a_blocked_host_burns_blood_or_its_last_life() {
+    for ally in [false, true] {
+        let mut e = Engine::bare(3);
+        let v = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        let acting = if ally {
+            e.add_ally(SeatId(0), find_library("Political Ally"))
+        } else {
+            v
+        };
+        e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+        let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        e.state.cards.push(CardInPlay::new(
+            find_library("Phantasmagoria"),
+            SeatId(1),
+            Some(acting),
+            1,
+        ));
+        pick(&mut e, action(acting, ActionKind::Bleed));
+        pick(&mut e, Choice::DeclareBlock { minion: z });
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        if ally {
+            assert!(!e.state.minions[acting.index()].in_play, "burned");
+            assert_eq!(e.state.minions[z.index()].blood, 4, "no combat");
+        } else {
+            assert_eq!(e.state.minions[v.index()].blood, 4 - 1 - 1);
+            assert_eq!(e.state.minions[z.index()].blood, 3);
+        }
+    }
 }
 
 // [LSJ 19980303] "While a minion has an effect that allows them to play

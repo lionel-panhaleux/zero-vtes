@@ -3765,9 +3765,7 @@ impl Engine {
             self.burn_minion(acting);
         }
         for n in bleeds {
-            let v = &mut self.state.minions[acting.index()];
-            v.blood -= n.min(v.blood);
-            if v.is_ally() && v.blood == 0 {
+            if self.state.burn_blood_or_life(acting, n) {
                 self.burn_minion(acting);
             }
         }
@@ -3782,7 +3780,9 @@ impl Engine {
             for e in r.effects {
                 match *e {
                     Effect::HostBurnBlood(n) => {
-                        self.state.burn_blood(acting, n);
+                        if self.state.burn_blood_or_life(acting, n) {
+                            self.burn_minion(acting);
+                        }
                     }
                     Effect::BlockerControllerBurnsPool(n) => toll += n,
                     other => unreachable!("not a host-blocked rider effect: {other:?}"),

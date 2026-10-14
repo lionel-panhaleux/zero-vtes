@@ -406,7 +406,8 @@ impl Requirement {
             | R::PlayedCard(..)
             | R::ActorUntitled
             | R::OpponentSubtype(..)
-            | R::ReadyNamed(..) => &[S::Play, S::Printed],
+            | R::ReadyNamed(..)
+            | R::OwnReadyNamed(..) => &[S::Play, S::Printed],
             R::HostLocked => &[S::Host, S::Printed],
             R::HostClan(..) | R::HostDiscipline(..) => &[S::Card, S::Host],
             R::CountersAtLeast(..) | R::CountersAtMost(..) | R::CardMode(..) | R::BasicVersion => {
@@ -515,24 +516,11 @@ mod tests {
     /// Requirements no evaluator reads where they sit, known: the card, the
     /// requirement, why (docs/findings.md). An entry nothing matches fails
     /// the test: drop it once its gap is closed.
-    const KNOWN_GAPS: &[(&str, Requirement, &str)] = &[
-        // `ability_holds` reads an `ActingCandidate` ability's card for
-        // `CardUnlocked` only: the action is offered with no counter to
-        // burn.
-        (
-            "Powerbase: Madrid",
-            Requirement::CountersAtLeast(1),
-            "findings L3",
-        ),
-        // A target predicate in an `AnyReadyVampire` ability: an
-        // abstaining vampire burns counters for votes it cannot cast.
-        ("Alamut", Requirement::NotAbstaining, "findings L4"),
-        ("Dead Pool", Requirement::NotAbstaining, "findings L4"),
-    ];
+    const KNOWN_GAPS: &[(&str, Requirement, &str)] = &[];
 
     /// The evaluators `Engine::ability_gate` runs on an in-play card
     /// ability's requirements, by actor: the card's (an `ActingCandidate`
-    /// ability's for `CardUnlocked` only, findings L3), the host's when
+    /// ability's for `CardUnlocked` only), the host's when
     /// the ability has one (`Engine::ability_user`), the play's.
     fn card_ability_readers(ability: &ModeDef) -> Option<Vec<Slot>> {
         use Slot::*;

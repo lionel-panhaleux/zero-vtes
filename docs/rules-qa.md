@@ -70,7 +70,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
 - **Periodicity ("during X" = once per X, once each …)** — 6.6, 7.4, 9.6, 10.4, 11.2, 15.1, 15.2, 16.1, 36.3, 36.4, 37.1, 38.8, 42.3, 42.9
 - **No-repeat-action, "same action"** — 1.4, 6.2, 16.6, 23.2, 25.4, 32.1
-- **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1, 55.3, 55.4, 55.5, 56.1, 58.1, 58.13
+- **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1, 55.3, 55.4, 55.5, 56.1, 58.1, 58.13, 73.3, 73.4
 - **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1, 57.10
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
 - **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7, 53.6, 53.8, 57.1, 57.2, 61.2
@@ -79,7 +79,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9
 - **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6, 54.3, 54.4, 54.7, 55.7, 56.2, 58.6
-- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8, 52.2, 52.3, 52.5, 52.7, 52.9, 52.10, 54.1, 58.8, 58.14, 58.15, 58.16, 59.7, 59.9, 59.18, 59.19, 60.2, 60.14, 60.16
+- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8, 52.2, 52.3, 52.5, 52.7, 52.9, 52.10, 54.1, 58.8, 58.14, 58.15, 58.16, 59.7, 59.9, 59.18, 59.19, 60.2, 60.14, 60.16, 73.4
 - **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4, 52.5, 52.6, 52.9, 58.3, 58.11, 59.13, 59.14, 60.1
 - **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1, 57.9, 58.5, 58.19, 59.13, 60.1, 60.9, 60.20
 - **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7, 55.4, 55.6
@@ -87,17 +87,17 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5, 73.1, 73.2
 - **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6, 46.4, 47.1
 - **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7
-- **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6
-- **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7, 54.1, 57.7
-- **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7
+- **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6, 73.5, 73.6
+- **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7, 54.1, 57.7, 73.3, 73.6
+- **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7, 73.5
 - **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8
 - **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2, 53.8, 72.1–72.5
 - **Master phase, master cards, out-of-turn** — 1.5, 3.3, 6.6, 7.5, 28.10, 32.3, 33.1, 33.8, 36.4, 49.6, 49.7, 50.1–50.3, 53.7, 57.8
 - **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1, 48.7, 54.2, 54.5, 58.4, 58.9, 59.3, 59.4, 60.6
 - **Discard phase, events** — 8.4, 15.2, 28.12, 33.8, 40.1–40.11, 54.5, 57.5, 57.6, 58.10
-- **Conditions read live; card-text defaults** — 4.3, 9.1, 13.2, 18.4, 19.3, 28.2, 28.6, 29.11, 32.4, 32.7, 39.5, 49.5, 49.7
+- **Conditions read live; card-text defaults** — 4.3, 9.1, 13.2, 18.4, 19.3, 28.2, 28.6, 29.11, 32.4, 32.7, 39.5, 49.5, 49.7, 73.7
 - **Corruption counters, multi-Discipline cards** — 25.1–25.6, 34.3, 35.2, 38.4, 52.1
-- **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14, 49.2, 49.3, 52.4, 72.1, 72.2, 72.5
+- **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14, 49.2, 49.3, 52.4, 72.1, 72.2, 72.5, 73.5, 73.7
 - **Game end, VP, ousting** — 6.9, 18.2, 24.1, 33.2, 53.1, 58.20
 ## Batch 1 — sequencing, impulse, windows
 
@@ -1500,8 +1500,18 @@ Slice 16w: the cards that bring the most 2025–2026 TWDA decks into the kept co
 
 **72.5** Black Annis: "other non-hunt actions cost her an additional blood" — a card hunt is a hunt (72.1): Loki's Gift costs her nothing more. (Test black_annis_pays_nothing_more_for_a_card_hunt.)
 
-## Batch 73 — Learjet's extra draw: readings no ruling settles (Claude, 2026-10-14)
+## Batch 73 — Learjet's extra draw, then the engine review's lints: readings no ruling settles (Claude, 2026-10-14; owner, 2026-10-14: 73.1 confirmed, 73.2 answered, 73.3–73.7 ruled)
 
-**73.1** _open_ Learjet: the extra draw comes with every delayed replacement of a card the bearer played as the acting minion, whatever releases it (PIB 20110718 generalized): at the next unlock phase (Old Friends), at the next discard phase (Mirror Walk), as Blood Weakens' held replacements are drawn when the hand empties, at the end of the action; a replacement The Meddling of Semsith holds again during the minion phase brings its extra draw at the minion phase's end, with it. Read: the draw is keyed to the replacement, so it is offered even if Learjet or its bearer left play meanwhile. (Tests learjet_offers_its_extra_card_with_a_replacement_held_until_the_unlock_phase, learjet_offers_its_extra_card_with_a_replacement_held_until_the_discard_phase, learjet_offers_the_extra_cards_of_replacements_drawn_as_the_hand_empties, learjet_extra_card_waits_with_a_replacement_held_again_by_the_meddling.)
+**73.1** Learjet: the extra draw comes with every delayed replacement of a card the bearer played as the acting minion, whatever releases it (PIB 20110718 generalized): at the next unlock phase (Old Friends), at the next discard phase (Mirror Walk), as Blood Weakens' held replacements are drawn when the hand empties, at the end of the action; a replacement The Meddling of Semsith holds again during the minion phase brings its extra draw at the minion phase's end, with it. Read: the draw is keyed to the replacement, so it is offered even if Learjet or its bearer left play meanwhile. (Tests learjet_offers_its_extra_card_with_a_replacement_held_until_the_unlock_phase, learjet_offers_its_extra_card_with_a_replacement_held_until_the_discard_phase, learjet_offers_the_extra_cards_of_replacements_drawn_as_the_hand_empties, learjet_extra_card_waits_with_a_replacement_held_again_by_the_meddling.)
 
-**73.2** _open_ Learjet: the action card its bearer plays to take an action brings no extra draw today — the card is replaced as the action is declared, before the bearer is acting (63.10: "while acting in the action"). Is the action card itself "a card this minion played as an acting minion"? (findings L12)
+**73.2** Learjet: the action card its bearer plays to take an action brings no extra draw. Owner (2026-10-14): "no, you don't redraw on the action card itself: … replacing the action card is not done during the action, but before." (Test learjet_offers_no_extra_card_for_the_action_card_itself; findings L12.)
+
+**73.3** Powerbase: Madrid: "Vampires controlled by other Methuselahs can burn all the counters from this card as a Ⓓ action" — offered with no counter. Owner (2026-10-14): "legal no-op. On the interface side, maybe hide when opportunities are off. But engine side it's legal" (17.4, 25.5; findings L3, P15).
+
+**73.4** Alamut, Dead Pool: a vampire abstaining from the referendum can still burn counters for votes it cannot cast. Owner (2026-10-14): "legal no-op, same thing" (73.3; findings L4).
+
+**73.5** "Burn n blood or life" on a card's host (Phantasmagoria [PRE], Sculpt the Flesh [PRO]) and a vampire's "burns 1 blood" (Marialena, Spleen, Condemnation: Mute [DAI]) are one effect: blood for a vampire, life for an ally. Owner (2026-10-14): "An ally at zero life is always burned (it needs at least one life to stay alive). The other 3 ride on a vampire so can only burn blood (vampires don't have life). … I think you could use a single "HostBurnsBloodOrLife" for all." As an in-play card's ability cost, "burn 1 blood" stays a blood cost an ally never pays (advanced rules 5.5.1). (Test a_blocked_host_burns_blood_or_its_last_life; findings L7.)
+
+**73.6** An ally playing cards "as a vampire" (Spectral Servitor, Herald of Topheth, The Vozhd of Juiz de Fora, Infernal Servitor) is an Independent vampire of its granted capacity for the card it so plays only. Owner (2026-10-14): "No, it cannot be offered to an ally like Spectral Servitor: it is seen as a vampire only when playing [obl] cards, and only by the card it plays - the powerbase never sees it as a vampire." Powerbase: Munich's burn ("Independent vampires can burn this location") is never the Servitor's. (Test powerbase_munich_never_sees_an_ally_playing_as_a_vampire; findings L8.)
+
+**73.7** Zizi: "if /Viri/ is in your ready region"; Viri: "while /Zizi/ is in your ready region" — the controller's ready region, not any Methuselah's. Owner (2026-10-14): "no, "your" means the controller's ready region (card text "you" always addresses the controller), not any methuselah's" (32.7). Rurik Rakoczy's "while /Ludmijla Rakoczy/ is ready" and Valkyrie's "unless Brunhilde is ready" name no region: any Methuselah's. (Test zizi_needs_viri_in_her_own_ready_region; findings L2.)

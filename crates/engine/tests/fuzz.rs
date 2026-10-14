@@ -3257,18 +3257,20 @@ fuzz_tests! {
             "ability:Zizi",
         ],
         setup: |e, _| {
+            // Zizi and Viri on one seat (`named` deals the names round
+            // the table): "in your ready region" (rules-qa 73.7).
             named(
                 e,
                 &[
                     "Barry",
                     "Jerry",
                     "Larry",
-                    "Terry",
+                    "Zizi",
                     "Tom",
                     "Dorka",
                     "Gabi",
                     "Viri",
-                    "Zizi",
+                    "Terry",
                     "Ági",
                 ],
             );

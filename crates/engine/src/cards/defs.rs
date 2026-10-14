@@ -12243,7 +12243,8 @@ pub static DABBLER: CardDef = CardDef {
 /// this card. During a bleed action or the polling step of any referendum,
 /// a Lasombra you control can burn 1 counter from this card to get +2 bleed
 /// or +2 votes." (Lasombra.) The bleed only during the bleed action before
-/// resolution (ANK 20231124, LSJ 19970718).
+/// resolution (ANK 20231124, LSJ 19970718). An abstaining Lasombra can
+/// burn a counter for votes it cannot cast, a legal no-op (rules-qa 73.4).
 pub static DEAD_POOL: CardDef = CardDef {
     name: "Dead Pool",
     modes: &[master_in_play(&[], &[Effect::PutInPlay])],
@@ -12273,7 +12274,6 @@ pub static DEAD_POOL: CardDef = CardDef {
                 &[
                     Requirement::AnyPollingStep,
                     Requirement::ActorClan("Lasombra"),
-                    Requirement::NotAbstaining,
                     Requirement::CountersAtLeast(1),
                     Requirement::YouControlThisCard,
                 ],
@@ -12294,6 +12294,7 @@ pub static DEAD_POOL: CardDef = CardDef {
 /// Methuselah, put the pool lost by that Methuselah on this card. During
 /// the polling step of a political action, you can burn X counters from
 /// this card to give a vampire you control +X votes." (1 pool; Banu Haqim.)
+/// An abstaining vampire can take them, a legal no-op (rules-qa 73.4).
 pub static ALAMUT: CardDef = CardDef {
     name: "Alamut",
     modes: &[LOCATION],
@@ -12306,7 +12307,6 @@ pub static ALAMUT: CardDef = CardDef {
             Actor::AnyReadyVampire,
             &[
                 Requirement::PollingStep,
-                Requirement::NotAbstaining,
                 Requirement::CountersAtLeast(1),
                 Requirement::YouControlThisCard,
             ],
@@ -14894,7 +14894,8 @@ pub static PRIVILEGED_POSITION: CardDef = CardDef {
 /// vote for each counter on this card. Vampires controlled by other
 /// Methuselahs can burn all the counters from this card as a Ⓓ action." (1
 /// pool.) Any titled Sabbat vampire, its controller's to cast (rules-qa
-/// 52.7).
+/// 52.7). The burn is offered with no counter, a legal no-op (rules-qa
+/// 73.3).
 pub static POWERBASE_MADRID: CardDef = CardDef {
     name: "Powerbase: Madrid",
     modes: &[LOCATION],
@@ -14931,7 +14932,6 @@ pub static POWERBASE_MADRID: CardDef = CardDef {
             &[
                 Requirement::ActorVampire,
                 Requirement::OthersControlThisCard,
-                Requirement::CountersAtLeast(1),
             ],
             &[
                 Effect::DeclareAction(ActionKind::Ability),

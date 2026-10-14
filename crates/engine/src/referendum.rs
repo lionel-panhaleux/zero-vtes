@@ -1344,7 +1344,11 @@ impl Engine {
                 let host = self.state.cards[id.index()].bearer().expect("its host");
                 for &e in r.effects {
                     match e {
-                        cards::Effect::HostBurnBlood(n) => self.state.burn_blood(host, n),
+                        cards::Effect::HostBurnBlood(n) => {
+                            if self.state.burn_blood_or_life(host, n) {
+                                self.burn_minion(host);
+                            }
+                        }
                         other => self.apply_rider_effect(id, other, hook),
                     }
                 }

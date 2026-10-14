@@ -966,6 +966,12 @@ impl Engine {
                             continue;
                         }
                     }
+                    // An ally playing this card "as a vampire" (Spectral
+                    // Servitor): the card's own requirements see an
+                    // Independent vampire of the grant's capacity (LSJ
+                    // 20020503; rulebook "Allies").
+                    let as_vampire =
+                        actor.and_then(|m| cards::plays_card_as_vampire(st, m, card, mi));
                     if let Some(m) = actor {
                         if !cards::has_disciplines(st, m, card, tags) {
                             continue;
@@ -1063,17 +1069,7 @@ impl Engine {
                         // "Allies"), action cards excepted where printed.
                         if st.minions[m.index()].is_ally() {
                             let lib = &LIBRARY[card as usize];
-                            // "Non-action cards": none declaring an action
-                            // (an action card, an ally to recruit, a
-                            // retainer to employ, equipment).
-                            let declares = mode
-                                .effects
-                                .iter()
-                                .any(|e| matches!(e, Effect::DeclareAction(_)));
-                            let as_vampire = st.plays_as_vampire(m).is_some_and(|g| {
-                                tags.iter().any(|t| g.disciplines.contains(t))
-                                    && !(g.non_action && declares)
-                            });
+                            let as_vampire = as_vampire.is_some();
                             // Djeneba's toll is a minion's "blood or life":
                             // an ally pays it in life (rules-qa 42.2).
                             let toll = self.strike_card_toll(m, card, mi as u8);
@@ -1191,6 +1187,13 @@ impl Engine {
                     if !mode.requires.iter().all(|&r| {
                         (as_justicar
                             && matches!(r, Requirement::ActorSectIn(ss) if ss.contains(&crate::crypt::Sect::Camarilla)))
+                            || as_vampire.is_some_and(|g| match r {
+                                Requirement::ActorSectIn(ss) => {
+                                    ss.contains(&crate::crypt::Sect::Independent)
+                                }
+                                Requirement::ActorCapacityAtLeast(n) => g.capacity >= n,
+                                _ => false,
+                            })
                             || cards::holds(
                                 r,
                                 st,
@@ -1940,10 +1943,13 @@ impl Engine {
             + u8::from(ctx.locker.is_some());
         let blood = cards::blood_cost(st, ctx.card, ctx.x);
         let pool = cards::pool_cost(st, ctx.seat, ctx.card, ctx.target);
-        // An ally has no blood to pay with, unless playing "as a vampire".
+        // An ally has no blood to pay with, unless playing this card "as a
+        // vampire".
         let have_blood = ctx.actor.map_or(u8::MAX, |m| {
             let v = &st.minions[m.index()];
-            if v.is_ally() && st.plays_as_vampire(m).is_none() {
+            if v.is_ally()
+                && cards::plays_card_as_vampire(st, m, ctx.card, ctx.mode as usize).is_none()
+            {
                 0
             } else {
                 v.blood
@@ -5627,7 +5633,7 @@ impl Engine {
             _ => true,
         };
         // An `ActingCandidate` ability reads its card for `CardUnlocked`
-        // only (findings L3).
+        // only.
         let card = match source {
             AbilitySource::Card(_) if actor == Actor::ActingCandidate && r != R::CardUnlocked => {
                 None
@@ -7044,10 +7050,7 @@ impl Engine {
                 }
                 Effect::HostBurnBlood(n) | Effect::HostBurnLife(n) => {
                     let host = host.expect("host");
-                    let h = &mut self.state.minions[host.index()];
-                    h.blood -= n.min(h.blood);
-                    // An ally with no life left is burned.
-                    if h.is_ally() && h.blood == 0 && h.in_play {
+                    if self.state.burn_blood_or_life(host, n) {
                         self.burn_minion(host);
                     }
                 }
@@ -8232,9 +8235,7 @@ impl Engine {
                     // Flesh [PRO]): an ally with no life left is burned.
                     Effect::HostBurnBlood(n) => {
                         let host = self.state.cards[id.index()].bearer().expect("host");
-                        let h = &mut self.state.minions[host.index()];
-                        h.blood -= n.min(h.blood);
-                        if h.is_ally() && h.blood == 0 {
+                        if self.state.burn_blood_or_life(host, n) {
                             lifeless = Some(host);
                         }
                     }

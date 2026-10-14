@@ -4,7 +4,7 @@
 //! option are elided, so the scripts only stop where a real decision
 //! exists.
 
-use zvtes::cards::{AbilitySource, Target};
+use zvtes::cards::{self, AbilitySource, Target};
 use zvtes::decision::{ActionKind, Choice, WindowLabel};
 use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
@@ -1662,6 +1662,29 @@ fn zizi_unlocks_only_with_viri_ready() {
     assert!(!request(&mut e).options.contains(&wake));
     e.state.minions[viri.index()].in_torpor = false;
     assert!(request(&mut e).options.contains(&wake));
+}
+
+// "Your ready region" is Zizi's controller's (owner, 2026-10-14: rules-qa
+// 73.7): a ready Viri of another Methuselah's unlocks nothing, nor does
+// that Zizi give the other Viri +1 strength.
+#[test]
+fn zizi_needs_viri_in_her_own_ready_region() {
+    let mut e = game(2);
+    let zizi = budapest(&mut e, 0, "Zizi", 3);
+    let dorka = budapest(&mut e, 0, "Dorka", 3);
+    e.state.minions[dorka.index()].locked = true;
+    let viri = e.add_minion(SeatId(1), find_card("Viri"), 3, false);
+    let wake = Choice::UseAbility {
+        source: AbilitySource::Vampire(zizi),
+        ability: 0,
+        actor: None,
+        target: Target::Minion(dorka),
+    };
+    never_offered_until(&mut e, SeatId(1), WindowLabel::MinionPhase, wake);
+    let strength = e
+        .state
+        .printed_mod(viri, cards::Stat::Strength, Default::default());
+    assert_eq!(strength, 0, "Zizi not in Viri's ready region");
 }
 
 // Ági: "Cards requiring Sanguinus [san] cost Ági 1 fewer blood." Her Hive

@@ -1521,6 +1521,16 @@ impl GameState {
         v.blood -= n.min(v.blood);
     }
 
+    /// `Effect::HostBurnBlood`: `m` burns up to `n` blood, life for an
+    /// ally; true when `m` is an ally in play left with no life, which the
+    /// caller burns (it needs one to stay alive: owner, rules-qa 73.5).
+    #[must_use]
+    pub fn burn_blood_or_life(&mut self, m: MinionId, n: u8) -> bool {
+        self.burn_blood(m, n);
+        let v = &self.minions[m.index()];
+        v.is_ally() && v.blood == 0 && v.in_play
+    }
+
     /// Blood above capacity drains off from every vampire in play,
     /// however the capacity went (a Discipline master card burned, or out
     /// of play with its ousted player; advanced rules 5.1.1). Out of play,
@@ -1857,16 +1867,17 @@ impl GameState {
         }
     }
 
-    /// A printed-modifier predicate, read on the vampire whose text it is
-    /// (`source`), the modified minion (`actor`) and the opposing minion.
-    /// Is a vampire of this name ready, any Methuselah's (unique: a crypt
-    /// card — not a created vampire, rules-qa 41.5)?
-    pub fn ready_named(&self, name: &str) -> bool {
-        self.minions
-            .iter()
-            .any(|o| o.ready() && o.is_vampire() && o.name() == name)
+    /// Is a vampire of this name ready (unique: a crypt card — not a
+    /// created vampire, rules-qa 41.5), `of` this Methuselah's ("in your
+    /// ready region") or any Methuselah's?
+    pub fn ready_named(&self, name: &str, of: Option<SeatId>) -> bool {
+        self.minions.iter().any(|o| {
+            o.ready() && o.is_vampire() && o.name() == name && of.is_none_or(|s| o.owner == s)
+        })
     }
 
+    /// A printed-modifier predicate, read on the vampire whose text it is
+    /// (`source`), the modified minion (`actor`) and the opposing minion.
     fn printed_holds(
         &self,
         r: Requirement,
@@ -1957,7 +1968,8 @@ impl GameState {
             }),
             R::NotFirstRound => ctx.round > 1,
             R::OtherNonHuntAction => ctx.kind.is_some() && !ctx.is_hunt() && !ctx.own_printed,
-            R::ReadyNamed(name) => self.ready_named(name),
+            R::ReadyNamed(name) => self.ready_named(name, None),
+            R::OwnReadyNamed(name) => self.ready_named(name, Some(src.owner)),
             R::IsPolitical => ctx.kind == Some(ActionKind::Political),
             R::OpponentClan(c) => opp.and_then(|o| o.clan()) == Some(c),
             // "In combat with a werewolf" (Mark Decker): an ally of the
@@ -2009,7 +2021,7 @@ impl GameState {
             }),
             // Unique: a crypt card — not a created vampire (Childe of the
             // Revolution, Waters of Duat; rules-qa 41.5).
-            R::NoReadyNamed(name) => !self.ready_named(name),
+            R::NoReadyNamed(name) => !self.ready_named(name, None),
             R::ControlsNoReadyOlderOfClan(clan) => !self.minions_of(src.owner).any(|o| {
                 let w = &self.minions[o.index()];
                 matches!(w.kind, MinionKind::Vampire(_))

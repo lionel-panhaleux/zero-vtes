@@ -1144,6 +1144,19 @@ fn learjet_game(disc: &'static str) -> (Engine, MinionId, MinionId) {
     (e, a, z)
 }
 
+// The action card the bearer plays to take its action is replaced before
+// the action, not during it: no extra card (owner, 2026-10-14: rules-qa
+// 73.2). Govern the Unaligned's bleed, the hand drawn back to 7.
+#[test]
+fn learjet_offers_no_extra_card_for_the_action_card_itself() {
+    let (mut e, a, _) = learjet_game("dom");
+    stacked(&mut e, &["Govern the Unaligned"], 4);
+    pick(&mut e, play(0, 0, a));
+    assert_eq!(extra_draws_until(&mut e, minion_phase), 0);
+    assert_eq!(e.state.seats[0].hand.len(), 7, "the replacement drawn");
+    assert_eq!(e.state.seats[0].learjet_held.total(), 0);
+}
+
 // [PIB 20110718] "the additional card is drawn when the replacement is
 // drawn", whatever the delay: Old Friends' at seat 0's next unlock phase.
 #[test]

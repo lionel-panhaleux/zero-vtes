@@ -4787,7 +4787,7 @@ pub static GABI: VampireDef = VampireDef {
 /// Budapest circle. Sterile."
 pub static VIRI: VampireDef = VampireDef {
     name: "Viri",
-    printed: &[own(Stat::Strength, 1, &[R::ReadyNamed("Zizi")])],
+    printed: &[own(Stat::Strength, 1, &[R::OwnReadyNamed("Zizi")])],
     ..VAMP
 };
 
@@ -4805,7 +4805,7 @@ pub static ZIZI: VampireDef = VampireDef {
         ..mode_of(
             &[Window::AnyImpulse],
             Actor::Host,
-            &[R::HostReady, R::HostUnlocked, R::ReadyNamed("Viri")],
+            &[R::HostReady, R::HostUnlocked, R::OwnReadyNamed("Viri")],
             &[Effect::LockHost, Effect::UnlockTarget],
         )
     }],
