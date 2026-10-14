@@ -714,3 +714,27 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 100060,Anathema,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
 100071,"The Ankara Citadel, Turkey",Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
 101169,Marked Path,Action Modifier,obf,no,ACTION_AFTER_RESOLUTION,,,corrected
+101206,Mesu Bedshet,Action,,no,ACTION_DECLARE,,,ok
+101053,Kindred Segregation,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
+101091,Legendary Vampire,Master,,no,MASTER_PHASE,in_play_action,,ok
+101496,Propaganda of the Deed,Action Modifier,,no,ACTION_AFTER_RESOLUTION,,,ok
+100516,Deer Rifle,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+100861,Groundfighting,Combat,,no,CARD_AS_PLAYED;COMBAT_DETERMINE_RANGE;COMBAT_PRESS,delayed_replacement;cancel_as_played,yes,ok
+101863,The Status Perfectus,Action,,no,ACTION_DECLARE,,,ok
+101396,Petra Resonance,Action,,no,ACTION_DECLARE,,,ok
+102136,Waiting Game,Event,,no,DISCARD_PHASE,,,ok
+101201,Mental Maze,Reaction,obf,no,ACTION_BLOCKED,,,ok
+101136,Maabara,Master,,no,MASTER_PHASE,in_play_action,,ok
+100053,"Anarch Manifesto, An",Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+100790,Free States Rant,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
+101538,Raking Talons,Combat,,no,COMBAT_BEFORE_RANGE,,,ok
+100252,Brick by Brick,Combat,vis/tha,no,COMBAT_DETERMINE_RANGE;COMBAT_STRIKE_DECLARATION;COMBAT_BEFORE_RANGE,maneuver_rider,yes,ok
+100775,Fortschritt Library,Master,,no,MASTER_PHASE,,,ok
+101296,Nose of the Hound,Action,spi/aus,no,ACTION_DECLARE,,,ok
+101947,Taunt the Caged Beast,Action,ani,no,ACTION_DECLARE,,,ok
+100159,Big Game,Action,,no,ACTION_DECLARE,delayed_replacement,,ok
+101035,Kaymakli Fragment,Equipment,,no,ACTION_DECLARE_EQUIP,in_play_action,,ok
+101386,Perfect Clarity,Action Modifier,tha,no,ACTION_AS_ANNOUNCED,,,ok
+101089,Legal Manipulations,Action,pre,no,ACTION_DECLARE,,,ok
+101998,Touch of Clarity,Action Modifier/Reaction,dem,no,CARD_AS_PLAYED,cancel_as_played,,ok
+100098,The Art of Pain,Master,,no,MASTER_PHASE,,,ok

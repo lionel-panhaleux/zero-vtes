@@ -788,6 +788,15 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 n: Some(pool),
                 ..a()
             },
+            I::LibraryToHand { .. } => a(),
+            I::BloodOrCamarilla { minion, .. } => About {
+                minion: m(minion),
+                ..a()
+            },
+            I::PoolOrNoTransfers { pool, .. } => About {
+                n: Some(pool),
+                ..a()
+            },
             I::PoolOrVampire {
                 card: c, pool, cap, ..
             } => About {
@@ -1012,7 +1021,10 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 minion: m(held.minion),
                 ..a()
             },
-            I::MayAddCounter { card: c, .. } | I::StorePreyAsh { card: c, .. } => About {
+            I::MayAddCounter { card: c, .. }
+            | I::StorePreyAsh { card: c, .. }
+            | I::StoreOwnAsh { card: c, .. }
+            | I::StoredToLibraryTop { card: c, .. } => About {
                 card: card(c),
                 ..a()
             },

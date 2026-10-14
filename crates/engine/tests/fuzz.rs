@@ -3517,4 +3517,134 @@ fuzz_tests! {
         seeds: 16,
         ..BASE
     };
+    /// Legacy cards for TWDA decks, round 11 (slice 16w): the minion cards
+    /// — Groundfighting, The Status Perfectus, Kaymakli Fragment, Taunt the
+    /// Caged Beast, Perfect Clarity, Touch of Clarity — and the round's
+    /// vampires.
+    random_games_with_twda_round_11a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Mesu Bedshet",
+            "Groundfighting",
+            "Deer Rifle",
+            "Raking Talons",
+            "Brick by Brick",
+            "Nose of the Hound",
+            "Taunt the Caged Beast",
+            "Big Game",
+            "Mental Maze",
+            "Perfect Clarity",
+            "Legal Manipulations",
+            "Touch of Clarity",
+            "Anarch Manifesto, An",
+            "Kaymakli Fragment",
+            "Petra Resonance",
+            "Status Perfectus, The",
+            // Something for Groundfighting to cancel.
+            "Immortal Grapple",
+        ],
+        covers: &[
+            "play:Mesu Bedshet",
+            "play:Groundfighting",
+            "play:Deer Rifle",
+            "play:Raking Talons",
+            "play:Brick by Brick",
+            "play:Nose of the Hound",
+            "play:Taunt the Caged Beast",
+            "play:Big Game",
+            "play:Mental Maze",
+            "play:Perfect Clarity",
+            "play:Legal Manipulations",
+            "play:Touch of Clarity",
+            "play:Anarch Manifesto, An",
+            "play:Kaymakli Fragment",
+            "play:Petra Resonance",
+            "play:Status Perfectus, The",
+            "ability:Deer Rifle",
+            "ability:Kaymakli Fragment",
+            "ability:Status Perfectus, The",
+            "ability:Gustaphe Brunnelle",
+            "ability:Venere Carboni",
+            "ability:Josef von Bauren",
+            "ability:Gabrielle di Righetti",
+            "ability:Giotto Verducci",
+            "ability:Nergal",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Gustaphe Brunnelle",
+                    "Josef von Bauren",
+                    "Gabrielle di Righetti",
+                    "Harold Tanner",
+                    "Giotto Verducci",
+                    "Leandro",
+                    "Venere Carboni",
+                    "Alabástrom",
+                    "Midget",
+                    "Enkidu, The Noah",
+                    "Nichodemus",
+                    "Lachlan, Noddist",
+                ],
+            );
+            let adv = CRYPT
+                .iter()
+                .position(|c| c.name == "Nergal" && c.adv)
+                .expect("Nergal (ADV)") as u16;
+            if absent(e, adv) {
+                e.add_minion(SeatId(2), adv, 4, false);
+            }
+            per_seat(e, |c| c.sect == zvtes::crypt::Sect::Anarch, 4);
+            // Venere Carboni in torpor, to leave it in his unlock phase.
+            let venere = find_card("Venere Carboni");
+            for m in &mut e.state.minions {
+                if m.crypt_card() == Some(venere) {
+                    m.in_torpor = true;
+                }
+            }
+        },
+        seeds: 16,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, round 11 (slice 16w): the masters, the
+    /// referendums and the event — Kindred Segregation, Free States Rant,
+    /// Legendary Vampire, Propaganda of the Deed, Waiting Game, Maabara.
+    random_games_with_twda_round_11b_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Kindred Segregation",
+            "Free States Rant",
+            "Legendary Vampire",
+            "Propaganda of the Deed",
+            "Waiting Game",
+            "Maabara",
+            "Fortschritt Library",
+            "Art of Pain, The",
+            // Allies for Kindred Segregation and Waiting Game, a Gehenna
+            // event for Fortschritt Library.
+            "Political Ally",
+            "Gravebound Drone",
+            "Blood Weakens",
+        ],
+        covers: &[
+            "play:Kindred Segregation",
+            "play:Free States Rant",
+            "play:Legendary Vampire",
+            "play:Propaganda of the Deed",
+            "play:Waiting Game",
+            "play:Maabara",
+            "play:Fortschritt Library",
+            "play:Art of Pain, The",
+            "ability:Maabara",
+            "ability:Propaganda of the Deed",
+        ],
+        setup: |e, _| {
+            named(e, &["Leandro", "Venere Carboni", "Jessica", "Giotto Verducci"]);
+            per_seat(e, |c| c.sect == zvtes::crypt::Sect::Anarch, 4);
+            per_seat(e, |c| c.clan == "Toreador antitribu", 4);
+            // Maabara is a Harbinger of Skulls card.
+            per_seat(e, |c| c.clan == "Harbinger of Skulls", 4);
+        },
+        seeds: 40,
+        ..BASE
+    };
 }

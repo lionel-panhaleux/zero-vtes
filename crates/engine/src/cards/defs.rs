@@ -2633,7 +2633,31 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     ..CARD
 };
 
-pub static DEFS: [&CardDef; 715] = [
+pub static DEFS: [&CardDef; 739] = [
+    &TAUNT_THE_CAGED_BEAST,
+    &PETRA_RESONANCE,
+    &WAITING_GAME,
+    &MAABARA,
+    &KAYMAKLI_FRAGMENT,
+    &FORTSCHRITT_LIBRARY,
+    &BIG_GAME,
+    &AN_ANARCH_MANIFESTO,
+    &FREE_STATES_RANT,
+    &PERFECT_CLARITY,
+    &MESU_BEDSHET,
+    &KINDRED_SEGREGATION,
+    &LEGENDARY_VAMPIRE,
+    &DEER_RIFLE,
+    &GROUNDFIGHTING,
+    &THE_STATUS_PERFECTUS,
+    &PROPAGANDA_OF_THE_DEED,
+    &RAKING_TALONS,
+    &BRICK_BY_BRICK,
+    &NOSE_OF_THE_HOUND,
+    &LEGAL_MANIPULATIONS,
+    &THE_ART_OF_PAIN,
+    &TOUCH_OF_CLARITY,
+    &MENTAL_MAZE,
     &ZAIRE_RIVER_FERRY,
     &THE_ANKARA_CITADEL,
     &CHAMELEON,
@@ -8767,7 +8791,12 @@ pub static FAMILY_GATHERING: CardDef = CardDef {
         &[Window::MasterPhase],
         Actor::Methuselah,
         &[Requirement::CryptNotEmpty],
-        &[Effect::RevealCryptTop("Hecata")],
+        &[Effect::RevealCryptTop {
+            clan: "Hecata",
+            blood: 1,
+            if_younger: false,
+            shuffle: false,
+        }],
     )],
     ..CARD
 };
@@ -22074,6 +22103,835 @@ pub static INFERNAL_SERVITOR: CardDef = CardDef {
                 })),
             ])
         },
+    ],
+    ..CARD
+};
+
+// ---- Round 11: the 2025-2026 TWDA decks (slice 16w) --------------------------
+//
+// The cards that bring the most 2025-2026 TWDA decks into the kept corpus
+// (owner, 2026-10-14); readings in rules-qa Batch 71.
+
+/// "Requires an Anarch. Only usable after resolution of a successful
+/// directed action. Put this card in play. You can burn this card during
+/// the polling step of a political action to get +2 votes." The votes the
+/// Methuselah's, for or against.
+pub static PROPAGANDA_OF_THE_DEED: CardDef = CardDef {
+    name: "Propaganda of the Deed",
+    modes: &[mode_of(
+        &[Window::ActionAfterResolution],
+        Actor::ActingMinion,
+        &[
+            ANARCH,
+            Requirement::ActionSuccessful,
+            Requirement::ActionDirected,
+        ],
+        &[Effect::PutInPlay],
+    )],
+    abilities: &[
+        mode_of(
+            &[Window::Referendum],
+            Actor::Controller,
+            &[Requirement::PollingStep],
+            &[
+                Effect::BurnSelf,
+                Effect::MethuselahVotes { n: 2, favor: true },
+            ],
+        ),
+        mode_of(
+            &[Window::Referendum],
+            Actor::Controller,
+            &[Requirement::PollingStep],
+            &[
+                Effect::BurnSelf,
+                Effect::MethuselahVotes { n: 2, favor: false },
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Only usable before range is determined. For the remainder of combat,
+/// damage from this Gargoyle's hand strikes is aggravated. A vampire may
+/// play only one Raking Talons each combat."
+pub static RAKING_TALONS: CardDef = CardDef {
+    name: "Raking Talons",
+    modes: &[ModeDef {
+        limit: Some(Limit::PerCombat),
+        ..combat(
+            &[Window::CombatBeforeRange],
+            &[],
+            &[Effect::AggravatedHandsThisCombat],
+        )
+    }],
+    ..CARD
+};
+
+/// "[tha] Maneuver. [vis] Strike: 2R damage, with 1 optional maneuver.
+/// [VIS] Only usable before range is determined. This vampire sets the
+/// range for this round." (1 blood.) Played at the maneuver, the [vis]
+/// strike commits the round's initial strike (LSJ 20021028); [VIS] for
+/// close or long range (`cards::library_mode`), another effect setting
+/// the range first keeping it (RTR 19970630, PIB 20120214).
+pub static BRICK_BY_BRICK: CardDef = CardDef {
+    name: "Brick by Brick",
+    modes: &[
+        combat(&[Window::CombatDetermineRange], &[], &[Effect::Maneuver]),
+        combat(
+            &[
+                Window::CombatStrikeDeclaration,
+                Window::CombatDetermineRange,
+            ],
+            &[],
+            &[Effect::CommittedStrike(StrikeKind::Damage {
+                n: 2,
+                ranged: true,
+                aggravated: false,
+            })],
+        ),
+        combat(
+            &[Window::CombatBeforeRange],
+            &[],
+            &[Effect::SetRange(Range::Close)],
+        ),
+        combat(
+            &[Window::CombatBeforeRange],
+            &[],
+            &[Effect::SetRange(Range::Long)],
+        ),
+    ],
+    ..CARD
+};
+
+/// "+1 stealth action. [aus] Ⓓ Enter combat with a ready locked minion
+/// controlled by another Methuselah. This acting minion gets an optional
+/// maneuver in that combat. [spi] As [aus] above, with an additional
+/// optional maneuver during that combat. [SPI] As [spi] above, but enter
+/// combat with any ready minion controlled by another Methuselah." A target
+/// unlocked by resolution: the action fizzles (ANK 20210124, LSJ 20070411,
+/// LSJ 20090514); the card counts as requiring the Discipline used (LSJ
+/// 20011204-3).
+pub static NOSE_OF_THE_HOUND: CardDef = CardDef {
+    name: "Nose of the Hound",
+    modes: &[
+        action_at(
+            &[],
+            LOCKED_COMBAT_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::EnterCombatWithTarget,
+                Effect::InResultingCombat(BlockRider::Maneuver),
+            ],
+        ),
+        action_at(
+            &[],
+            LOCKED_COMBAT_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::EnterCombatWithTarget,
+                Effect::InResultingCombat(BlockRider::Maneuver),
+                Effect::InResultingCombat(BlockRider::Maneuver),
+            ],
+        ),
+        action_at(
+            &[],
+            COMBAT_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::EnterCombatWithTarget,
+                Effect::InResultingCombat(BlockRider::Maneuver),
+                Effect::InResultingCombat(BlockRider::Maneuver),
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "[pre] Ⓓ Bleed with +2 bleed. [PRE] As above, and gain 1 pool if the
+/// bleed is successful (for 1 or more)." (1 blood.)
+pub static LEGAL_MANIPULATIONS: CardDef = CardDef {
+    name: "Legal Manipulations",
+    modes: &[
+        bleed_action!(2),
+        action_at(
+            &[],
+            None,
+            &[
+                Effect::DeclareAction(ActionKind::Bleed),
+                bleed(2, false),
+                Effect::IfBleedSuccessful(&[Effect::GainPool(1)]),
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Unique master. Put this card on a ready Toreador antitribu. This
+/// vampire gets +2 strength." (2 pool.) A vampire you control (rules-qa
+/// 32.7).
+pub static THE_ART_OF_PAIN: CardDef = CardDef {
+    name: "Art of Pain, The",
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::Controlled,
+                Requirement::ActorReady,
+                Requirement::TargetClan("Toreador antitribu"),
+            ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutOnTarget,
+                Effect::Layer(Modifier::Bearer {
+                    stat: Stat::Strength,
+                    n: 2,
+                    during: &[],
+                    who: Bearer::Any,
+                }),
+            ],
+        )
+    }],
+    ..CARD
+};
+
+/// "Usable by a ready unlocked vampire other than the acting minion. [dem]
+/// Cancel a non-combat card requiring Dementation [dem], Dominate [dom] or
+/// Presence [pre] as it is played, and its cost is not paid. Lock this
+/// vampire. [DEM] As above, but do not lock this vampire." (1 blood.) As a
+/// reaction, or as an action modifier by another minion of the acting
+/// Methuselah (LSJ 20090425, LSJ 19990425): each version splits in two
+/// (`cards::library_mode`). A card requiring one of them as played (PIB
+/// 20130704); any action card too — a political action, a recruit (ANK
+/// 20200813-2) — the action then not taken (rulebook "Cancel a card").
+pub static TOUCH_OF_CLARITY: CardDef = CardDef {
+    name: "Touch of Clarity",
+    modes: &[
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::ReactingMinion,
+            TOUCH_OF_CLARITY_PLAYED,
+            &[Effect::CancelPlayed { refund: true }, Effect::LockActor],
+        ),
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::OtherOwnMinion,
+            TOUCH_OF_CLARITY_OWN,
+            &[Effect::CancelPlayed { refund: true }, Effect::LockActor],
+        ),
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::ReactingMinion,
+            TOUCH_OF_CLARITY_PLAYED,
+            &[Effect::CancelPlayed { refund: true }],
+        ),
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::OtherOwnMinion,
+            TOUCH_OF_CLARITY_OWN,
+            &[Effect::CancelPlayed { refund: true }],
+        ),
+    ],
+    ..CARD
+};
+
+const TOUCH_OF_CLARITY_PLAYED: &[Requirement] = &[
+    Requirement::ActorUnlocked,
+    Requirement::ActorVampire,
+    Requirement::PlayedNotCardType(CardType::Combat),
+    Requirement::AnyOf(&[
+        &[Requirement::PlayedRequiresDiscipline("dem")],
+        &[Requirement::PlayedRequiresDiscipline("dom")],
+        &[Requirement::PlayedRequiresDiscipline("pre")],
+    ]),
+];
+
+const TOUCH_OF_CLARITY_OWN: &[Requirement] = &[
+    Requirement::ActorUnlocked,
+    Requirement::ActorVampire,
+    Requirement::PlayedNotCardType(CardType::Combat),
+    Requirement::AnyOf(&[
+        &[Requirement::PlayedRequiresDiscipline("dem")],
+        &[Requirement::PlayedRequiresDiscipline("dom")],
+        &[Requirement::PlayedRequiresDiscipline("pre")],
+    ]),
+];
+
+/// "Only usable if this vampire blocks an ally or younger vampire, before
+/// block resolution. [obf] Lock this vampire and end the action. This card
+/// costs Followers of Set 1 fewer blood. [OBF] As above, but do not lock
+/// this vampire." (1 blood.) The block made, the action ends unsuccessfully
+/// at once, nothing more played (RTR 20180719, ANK 20200207), the acting
+/// minion left locked (no unlock printed); the blocker locked ([obf]) or as
+/// it was before the block ([OBF]). Against the minion that was acting as
+/// the block was made (ANK 20171212).
+pub static MENTAL_MAZE: CardDef = CardDef {
+    name: "Mental Maze",
+    cheaper_for: Some(("Ministry", 1)),
+    modes: &[
+        mode_of(
+            &[Window::ActionBlocked],
+            Actor::ReactingMinion,
+            &[
+                Requirement::MayBeLocked,
+                Requirement::ActorHasBlocked,
+                Requirement::ActingAllyOrYounger,
+            ],
+            &[Effect::LockBlocker, Effect::EndBlockedActionLocked],
+        ),
+        mode_of(
+            &[Window::ActionBlocked],
+            Actor::ReactingMinion,
+            &[
+                Requirement::MayBeLocked,
+                Requirement::ActorHasBlocked,
+                Requirement::ActingAllyOrYounger,
+            ],
+            &[Effect::EndBlockedActionLocked],
+        ),
+    ],
+    ..CARD
+};
+
+/// "+1 stealth action. Reveal the top card of your crypt. If it is a
+/// Follower of Set, draw it and add 2 blood to it if it is younger.
+/// Otherwise, shuffle it back into your crypt." (1 blood; Ministry.) Not
+/// with an empty crypt (RTR 20000501, LSJ 20070411-2); drawn to the
+/// uncontrolled region, younger than the acting vampire.
+pub static MESU_BEDSHET: CardDef = CardDef {
+    name: "Mesu Bedshet",
+    modes: &[action_at(
+        &[Requirement::CryptNotEmpty],
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::RevealCryptTop {
+                clan: "Ministry",
+                blood: 2,
+                if_younger: true,
+                shuffle: true,
+            },
+        ],
+    )],
+    ..CARD
+};
+
+static KINDRED_SEGREGATION_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[],
+    effect: RefEffect::BurnAlliesUnlessKept,
+    grants: &[],
+    non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
+    only_sect: None,
+};
+political!(
+    KINDRED_SEGREGATION,
+    "Kindred Segregation",
+    "\"Successful referendum means that all allies are burned. Any Methuselah \
+     can keep an ally or allies he or she controls by repaying their pool \
+     cost to recruit.\" Callable with no ally in play (RTR 20010711).",
+    &[],
+    KINDRED_SEGREGATION_REFERENDUM
+);
+
+/// "Unique. Put this card on a vampire with capacity 7 or more who entered
+/// your ready region during your last influence phase. This vampire gets +2
+/// bleed and +2 votes. Any vampire can call a referendum to burn this card
+/// as a +1 stealth political action." (2 pool.) Not on one merged then,
+/// merging not entering play (LSJ 20030519-2); its votes bonus votes
+/// (Leadership Vacuum's count: ANK 20211009, LSJ 20040518-2).
+pub static LEGENDARY_VAMPIRE: CardDef = CardDef {
+    name: "Legendary Vampire",
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::Controlled,
+                Requirement::TargetVampire,
+                Requirement::TargetCapacityAtLeast(7),
+                Requirement::TargetEnteredInYourLastInfluencePhase,
+            ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutOnTarget,
+                Effect::Layer(Modifier::Bearer {
+                    stat: Stat::Bleed,
+                    n: 2,
+                    during: &[],
+                    who: Bearer::Any,
+                }),
+                Effect::Layer(Modifier::Bearer {
+                    stat: Stat::Votes,
+                    n: 2,
+                    during: &[],
+                    who: Bearer::Any,
+                }),
+            ],
+        )
+    }],
+    abilities: &[mode_of(
+        &[Window::ActionDeclarePolitical],
+        Actor::ActingCandidate,
+        &[Requirement::ActorVampire],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::AddStealth(1),
+            Effect::CallReferendum(&BURN_THIS_CARD),
+        ],
+    )],
+    ..CARD
+};
+
+/// "Weapon: gun. 1R damage each strike, with two optional maneuvers each
+/// combat." (2 pool.) Each maneuver chooses the gun's strike (LSJ
+/// 20021028), as .44 Magnum's.
+pub static DEER_RIFLE: CardDef = CardDef {
+    name: "Deer Rifle",
+    modes: &[EQUIP],
+    abilities: &[
+        weapon_strike(
+            &[],
+            &[Effect::Strike(StrikeKind::Damage {
+                n: 1,
+                ranged: true,
+                aggravated: false,
+            })],
+        ),
+        ModeDef {
+            limit: Some(Limit::TwicePerCombat),
+            ..GUN_MANEUVER
+        },
+    ],
+    ..CARD
+};
+
+/// "Requires a ready anarch. Do not replace until after combat. Maneuver or
+/// press or burn 1 blood to cancel a combat card played by the opposing
+/// minion that would restrict this anarch's choice of strikes this round
+/// as it is played." One card, two plays (`cards::library_mode`). The
+/// cancel: the canceled card's cost still paid (ANK 20260216), its "do not
+/// replace" canceled with it (LSJ 20080630); the blood not reduced by cost
+/// reductions, and needed to play it (ANK 20210226); played at once, in
+/// the as-played window (LSJ 20061207). What it cancels: LSJ 20050221,
+/// LSJ 20050224-2 (`Engine::restricts_strikes_of`).
+pub static GROUNDFIGHTING: CardDef = CardDef {
+    name: "Groundfighting",
+    delayed_replacement: Some(Until::AfterCombat),
+    modes: &[
+        combat(
+            &[Window::CombatDetermineRange, Window::CombatPress],
+            &[ANARCH],
+            &[Effect::Maneuver, Effect::Press],
+        ),
+        combat(
+            &[Window::CardAsPlayed],
+            &[
+                ANARCH,
+                Requirement::ActorBloodAtLeast(1),
+                Requirement::PlayedRestrictsStrikesByOpponent,
+            ],
+            &[
+                Effect::ActorBurnsBlood(1),
+                Effect::CancelPlayed { refund: false },
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "+1 stealth action. Requires a ready anarch. Unique. Put this card in
+/// play. During your master phase, you may move 1 blood from a ready
+/// anarch you control to another ready anarch. When a blocking anarch has
+/// just completed combat with an acting minion, you may lock this card and
+/// a ready unlocked anarch you control other than the blocking anarch.
+/// That anarch enters combat with the acting minion. The acting minion
+/// cannot use any strikes in the first round of that combat." The other
+/// anarch the player's too, the blocking anarch theirs (rules-qa 32.7);
+/// once each master phase (rules-qa 6.6). The acting minion can neither
+/// strike nor use a strike's maneuver then (LSJ 20001126), additional
+/// strikes gained uselessly (LSJ 19970814-2).
+pub static THE_STATUS_PERFECTUS: CardDef = CardDef {
+    name: "Status Perfectus, The",
+    modes: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::ActingCandidate,
+        &[ANARCH],
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutInPlay,
+        ],
+    )],
+    abilities: &[
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[
+                    Requirement::Controlled,
+                    Requirement::TargetAnarch,
+                    Requirement::ActorReady,
+                    Requirement::BloodAtLeast(1),
+                ],
+            ),
+            ..mode_of(
+                &[Window::MasterPhase],
+                Actor::Controller,
+                &[],
+                &[Effect::GiveBloodToOwnAnarch],
+            )
+        },
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[
+                    Requirement::Controlled,
+                    Requirement::TargetAnarch,
+                    Requirement::ActorReady,
+                    Requirement::TargetUnlocked,
+                    Requirement::TargetNotBlocker,
+                ],
+            ),
+            ..mode_of(
+                &[Window::ActionAfterCombat],
+                Actor::Controller,
+                &[
+                    Requirement::CardUnlocked,
+                    Requirement::CombatFromBlock,
+                    Requirement::BlockerOwnAnarch,
+                ],
+                &[
+                    Effect::LockSelf,
+                    Effect::LockTarget,
+                    Effect::TargetEntersCombatWithActing,
+                ],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "Master. Search your library for a Gehenna event card. Show it to all
+/// players and add it to your hand. Discard down to your hand size
+/// afterward. Only one Fortschritt Library may be played per game." The
+/// library shuffled afterward (rulebook "Search").
+pub static FORTSCHRITT_LIBRARY: CardDef = CardDef {
+    name: "Fortschritt Library",
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[Requirement::NotPlayedThisGame],
+        &[Effect::SearchLibraryToHand(CardFilter::Labeled(
+            CardType::Event,
+            Label::Gehenna,
+        ))],
+    )],
+    ..CARD
+};
+
+/// "Do not replace until after this action. Ⓓ Enter combat with a ready
+/// minion controlled by another Methuselah. If that minion is a Red List
+/// minion, this minion gets an optional maneuver or press in that combat
+/// and unlocks at the end of the action if he or she is still ready." "That
+/// minion" the target, "this minion" the acting one (ANK 20180518);
+/// replaced as the action ends, after its combats and after-resolution
+/// effects (LSJ 20001120, LSJ 20101021). Split by the target
+/// (`cards::library_mode`): Red List is printed.
+pub static BIG_GAME: CardDef = CardDef {
+    name: "Big Game",
+    delayed_replacement: Some(Until::EndOfAction),
+    modes: &[
+        action_at(
+            &[],
+            target(
+                TargetKind::Minion,
+                &[
+                    Requirement::NotControlled,
+                    Requirement::ActorReady,
+                    Requirement::TargetNotRedList,
+                ],
+            ),
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::EnterCombatWithTarget,
+            ],
+        ),
+        action_at(
+            &[],
+            target(
+                TargetKind::Minion,
+                &[
+                    Requirement::NotControlled,
+                    Requirement::ActorReady,
+                    Requirement::TargetRedList,
+                ],
+            ),
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::EnterCombatWithTarget,
+                Effect::InResultingCombat(BlockRider::ManeuverOrPress),
+                Effect::UnlockAtEndIfReady,
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Equipment. The anarch with this equipment gets +1 stealth on actions
+/// that require an anarch. Titled non-Anarch vampires get +1 strength in
+/// combat with this minion. A minion may have only one Anarch Manifesto."
+/// Read live on the bearer: a minion that is not Anarch gets no stealth
+/// (Grey Thorne, Vivienne Géroux: ANK 20230417).
+pub static AN_ANARCH_MANIFESTO: CardDef = CardDef {
+    name: "Anarch Manifesto, An",
+    modes: &[mode_of(
+        &[Window::ActionDeclareEquip],
+        Actor::ActingCandidate,
+        &[Requirement::ActorWithout(Holding::Named(
+            "Anarch Manifesto, An",
+        ))],
+        &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::Layer(Modifier::StealthOnAnarchActions(1)),
+            Effect::Layer(Modifier::TitledNonAnarchStrengthVsBearer(1)),
+        ],
+    )],
+    ..CARD
+};
+
+static FREE_STATES_RANT_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::DistributeBlood {
+        points: Points::HalfActorCapacity,
+        per_max: 3,
+        filter: &[Requirement::TargetVampire, Requirement::ActorReady],
+    }],
+    effect: RefEffect::BurnBloodPerPick,
+    grants: &[],
+    non_anarch_titles_minus: false,
+    titled_minus: true,
+    edge_bonus: 1,
+    only_sect: None,
+};
+political!(
+    FREE_STATES_RANT,
+    "Free States Rant",
+    "\"Requires an Independent or Anarch vampire. Allocate X points among one \
+     or more ready vampires, where X is half the capacity of the acting \
+     vampire (rounded up). No more than 3 points can be allocated to each \
+     vampire. Successful referendum means each vampire burns 1 blood for each \
+     point allocated. In this referendum, non-priscus titles are worth 1 less \
+     vote each, priscus title is worth 1 less ballot, and burning the Edge is \
+     worth 1 additional vote.\" Not playable without targets to take all X \
+     points (LSJ 20010810, LSJ 20100129); the priscus sub-referendum's votes \\
+     untouched (ANK 20180307-1); the blood burned in torpor too.",
+    &[Requirement::ActorSectIn(&[Sect::Independent, Sect::Anarch])],
+    FREE_STATES_RANT_REFERENDUM
+);
+
+/// "Only usable when the action is announced. [tha] Reaction cards that
+/// require Dominate [dom] or Presence [pre] do not affect this vampire for
+/// the duration of this action. [THA] As above, and for the remainder of
+/// this action, minions opposing this vampire in combat cannot play cards
+/// that require Dominate or Presence." (2 blood.) Bleed redirection
+/// included (LSJ 20010621, LSJ 20010830); before the modifiers not played
+/// as the action is announced (ANK 20190425), the action card replaced
+/// first (ANK 20181208).
+pub static PERFECT_CLARITY: CardDef = CardDef {
+    name: "Perfect Clarity",
+    modes: &[
+        mode_of(
+            &[Window::ActionAsAnnounced],
+            Actor::ActingMinion,
+            &[],
+            &[Effect::PerfectClarity { superior: false }],
+        ),
+        mode_of(
+            &[Window::ActionAsAnnounced],
+            Actor::ActingMinion,
+            &[],
+            &[Effect::PerfectClarity { superior: true }],
+        ),
+    ],
+    ..CARD
+};
+
+/// "[ani] Ⓓ Enter combat with any vampire, with an optional maneuver in
+/// that combat. [ANI] Choose a ready vampire controlled by your predator
+/// and another controlled by your prey (not usable when only one other
+/// Methuselah is in the game). The chosen vampires enter combat. If only
+/// one is ready at the end of that combat, he or she gains 4 blood."
+/// [ANI]: both vampires its targets, the action directed at both and their
+/// controllers (owner, 2026-10-14: rules-qa 71.21) — the prey's the play's
+/// target, the predator's its terms' pick; the prey's goes first in that
+/// combat (LSJ 20070319); either one no longer ready as it resolves, no
+/// combat.
+pub static TAUNT_THE_CAGED_BEAST: CardDef = CardDef {
+    name: "Taunt the Caged Beast",
+    modes: &[
+        action_at(
+            &[],
+            VAMPIRE_COMBAT_TARGET,
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::EnterCombatWithTarget,
+                Effect::InResultingCombat(BlockRider::Maneuver),
+            ],
+        ),
+        ModeDef {
+            terms: Some(Terms::TauntPair),
+            ..action_at(
+                &[Requirement::PredatorAndPreyReadyVampires],
+                target(
+                    TargetKind::Minion,
+                    &[
+                        Requirement::ControlledByPrey,
+                        Requirement::TargetVampire,
+                        Requirement::ActorReady,
+                    ],
+                ),
+                &[
+                    Effect::DeclareAction(ActionKind::Card),
+                    Effect::TauntCombat(4),
+                ],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "+1 stealth action. Not usable if any Methuselah's crypt is empty. Each
+/// Methuselah reveals the top card of his or her crypt. If there is a tie
+/// for highest or lowest cost among the revealed cards, every Methuselah
+/// burns 1 pool. Otherwise, the Methuselah revealing the highest cost
+/// steals 3 pool from the Methuselah revealing the lowest cost. All
+/// Methuselahs shuffle their crypts afterward." (Malkavian.) Not with an
+/// empty crypt (RTR 20000501, LSJ 20070411-2); a vampire's cost its
+/// capacity.
+pub static PETRA_RESONANCE: CardDef = CardDef {
+    name: "Petra Resonance",
+    modes: &[action_at(
+        &[Requirement::NoCryptEmpty],
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PetraResonance,
+        ],
+    )],
+    ..CARD
+};
+
+/// "Transient. Put this card in play with 10 counters. Whenever a
+/// non-Anarch vampire takes an action, burn a counter from this card. Burn
+/// this card when it has no counters. During your unlock phase, each
+/// anarch burns 1 blood or becomes Camarilla, and each ally burns 1 life."
+/// An action canceled after it was played still counts as taken, one
+/// canceled as it is played (Direct Intervention) not (ANK 20210124);
+/// every Methuselah's anarchs and allies.
+pub static WAITING_GAME: CardDef = CardDef {
+    name: "Waiting Game",
+    modes: &[event(
+        &[],
+        &[Effect::PutInPlay, Effect::EnterWithCounters(10)],
+    )],
+    riders: &[
+        Rider {
+            hook: Hook::NonAnarchVampireActs,
+            scope: RiderScope::Every,
+            requires: &[],
+            effects: &[Effect::RemoveCounter(1), Effect::BurnSelfWithoutCounters],
+        },
+        Rider {
+            hook: Hook::UnlockPhase,
+            scope: RiderScope::Controller,
+            requires: &[],
+            effects: &[Effect::AnarchsBloodOrCamarillaAlliesBurn],
+        },
+    ],
+    ..CARD
+};
+
+/// "Master: unique location. You may lock this location to move a library
+/// card from your ash heap to this location, face down. You may use a
+/// master phase action to move a card from this location to the top of
+/// your library. Any vampire may burn this location as a Ⓓ action."
+/// (Harbinger of Skulls.) Locked at any impulse, as the Fragments; the card
+/// picked seen by all (ANK 20200523).
+pub static MAABARA: CardDef = CardDef {
+    name: "Maabara",
+    modes: &[LOCATION],
+    abilities: &[
+        mode_of(
+            &[Window::AnyImpulse],
+            Actor::Controller,
+            &[Requirement::CardUnlocked, Requirement::AshNotEmpty],
+            &[Effect::LockSelf, Effect::StoreFromOwnAsh],
+        ),
+        mode_of(
+            &[Window::MasterPhase],
+            Actor::Controller,
+            &[Requirement::StoreNotEmpty],
+            &[Effect::SpendMasterPhaseAction, Effect::StoredToLibraryTop],
+        ),
+        burn_this_by(&[Requirement::ActorVampire]),
+    ],
+    ..CARD
+};
+
+/// "Unique. This Sabbat vampire can draw 5 cards as an action (discard down
+/// afterward). This infernal minion can add 3 blood to a vampire in your
+/// uncontrolled region as a +1 stealth action. An opposing minion can
+/// strike: steal this equipment." The bearer's sect and nature read as it
+/// acts — the card makes it neither (PIB 20150809); each action once a
+/// turn, apart (LSJ 20100909); the Fragment gone by resolution, no effect
+/// (RTR 19960221). The steal at close range, unless dodged, if still on
+/// the opposing minion, as Fast Hands'.
+pub static KAYMAKLI_FRAGMENT: CardDef = CardDef {
+    name: "Kaymakli Fragment",
+    modes: &[EQUIP],
+    abilities: &[
+        ModeDef {
+            requires: &[
+                Requirement::ActorIsHost,
+                Requirement::ActorVampire,
+                Requirement::ActorSectIn(&[Sect::Sabbat]),
+            ],
+            ..printed_action(
+                None,
+                &[
+                    Effect::DeclareAction(ActionKind::Ability),
+                    Effect::DrawThenDiscardDown(5),
+                ],
+            )
+        },
+        ModeDef {
+            requires: &[Requirement::ActorIsHost, Requirement::ActorInfernal],
+            ..printed_action(
+                target(TargetKind::Uncontrolled, &[]),
+                &[
+                    Effect::DeclareAction(ActionKind::Ability),
+                    Effect::AddStealth(1),
+                    Effect::BloodToUncontrolledTarget(3),
+                ],
+            )
+        },
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::OpposingCombatant,
+            &[],
+            &[Effect::Strike(StrikeKind::StealWeapon)],
+        ),
     ],
     ..CARD
 };

@@ -1771,7 +1771,15 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 289] = [
+pub static VAMPIRES: [&VampireDef; 297] = [
+    &JOSEF_VON_BAUREN,
+    &GABRIELLE_DI_RIGHETTI,
+    &HAROLD_TANNER,
+    &GIOTTO_VERDUCCI,
+    &LEANDRO,
+    &GUSTAPHE_BRUNNELLE,
+    &VENERE_CARBONI,
+    &NERGAL_ADV,
     &ANNABELLE_TRIABELL,
     &GENEVIEVE,
     &DARK_SELINA,
@@ -2961,7 +2969,8 @@ pub static BENJAMIN_ROSE: VampireDef = VampireDef {
 
 static DMITRA_REFERENDUM: ReferendumDef = ReferendumDef {
     terms: &[Term::DistributeBlood {
-        points: 4,
+        points: crate::cards::Points::Fixed(4),
+        per_max: 0,
         filter: &[R::TargetVampire, R::ActorReady],
     }],
     effect: RefEffect::BloodToChosenEach,
@@ -5263,6 +5272,153 @@ pub static VICTORIA_ASH_G7: VampireDef = VampireDef {
             ],
             &[bleed(1, false)],
         )
+    }],
+    ..VAMP
+};
+
+// ---- Round 11: the 2025-2026 TWDA decks (slice 16w) --------------------------
+//
+// Nichodemus ("Camarilla."), Lachlan, Noddist ("Sabbat Archbishop of
+// Chicago.") and Jessica G2 ("Sabbat bishop.") print no text.
+
+/// "Camarilla primogen: Gustaphe can enter combat with a minion controlled
+/// by your predator or prey as a Ⓓ action."
+pub static GUSTAPHE_BRUNNELLE: VampireDef = VampireDef {
+    name: "Gustaphe Brunnelle",
+    abilities: &[enter_combat(&[
+        R::ControlledByPredatorOrPrey,
+        R::ActorReady,
+    ])],
+    ..VAMP
+};
+
+/// "Sabbat priscus: If Venere is in torpor during your unlock phase, he
+/// may burn 1 blood to move to your ready region."
+pub static VENERE_CARBONI: VampireDef = VampireDef {
+    name: "Venere Carboni",
+    abilities: &[mode_of(
+        &[Window::UnlockPhaseOwn],
+        Actor::Host,
+        &[R::HostInTorpor, R::HostBloodAtLeast(1)],
+        &[Effect::HostBurnBlood(1), Effect::HostLeavesTorpor],
+    )],
+    ..VAMP
+};
+
+/// "Independent: While Nergal is acting, reaction cards cost +1 blood.
+/// During an action, he can burn 1 blood to get +1 stealth. Infernal."
+/// (Advanced.) A card of two types costs more only played as a reaction
+/// (PIB 20150924-2). The stealth when needed, as often as he burns.
+pub static NERGAL_ADV: VampireDef = VampireDef {
+    name: "Nergal",
+    adv: true,
+    printed: &[Printed {
+        stat: Stat::BloodCostMore,
+        n: 1,
+        to: PrintedTo::Others,
+        per: Per::One,
+        requires: &[R::PlayedAsReaction, R::SourceActing],
+    }],
+    abilities: &[mode_of(
+        &[Window::ActionDuring],
+        Actor::Host,
+        &[R::HostBloodAtLeast(1), R::ActorActing, R::StealthNeeded],
+        &[Effect::HostBurnBlood(1), Effect::AddStealth(1)],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla Nosferatu Inner Circle: You can use a discard phase action to
+/// discard 1 card at random from your predator or prey's hand. +1 bleed. +1
+/// stealth." Each discard phase action a use (ANK 20190725); the hand
+/// drawn back up. In torpor too (no "if ready").
+pub static JOSEF_VON_BAUREN: VampireDef = VampireDef {
+    name: "Josef von Bauren",
+    printed: &[own(Stat::Bleed, 1, &[]), own(Stat::Stealth, 1, &[])],
+    abilities: &[ModeDef {
+        target: Some(TargetSpec {
+            kind: TargetKind::Seat,
+            filter: &[R::TargetPredatorOrPrey],
+        }),
+        ..mode_of(
+            &[Window::DiscardPhaseAction],
+            Actor::Host,
+            &[R::DiscardPhaseActionLeft],
+            &[
+                Effect::SpendDiscardPhaseAction,
+                Effect::TargetSeatDiscardsAtRandom(1),
+            ],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Camarilla Tremere Justicar: Gabrielle can steal 2 blood or life
+/// (becoming blood) from a ready minion as a +1 stealth Ⓓ action." An ally
+/// left with no life burns; undirected on her own Methuselah's minion.
+pub static GABRIELLE_DI_RIGHETTI: VampireDef = VampireDef {
+    name: "Gabrielle di Righetti",
+    abilities: &[printed_action(
+        target(TargetKind::Minion, &[R::ActorReady]),
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::AddStealth(1),
+            Effect::StealBloodFromTarget(2),
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla: The controller of the minion in combat with Harold plays
+/// with an open hand." Read as the combat goes (`hand_visible_to`).
+pub static HAROLD_TANNER: VampireDef = VampireDef {
+    name: "Harold Tanner",
+    printed: &[own(Stat::OpponentOpenHandInCombat, 1, &[])],
+    ..VAMP
+};
+
+/// "Independent: During another Methuselah's discard phase, you can discard
+/// one card (draw up afterward). Vampires must burn 1 blood to attempt to
+/// block Giotto. Infernal." The discard in that phase's rotation, once; the
+/// toll an ally does not pay; in torpor too (LSJ 20011022).
+pub static GIOTTO_VERDUCCI: VampireDef = VampireDef {
+    name: "Giotto Verducci",
+    printed: &[Printed {
+        stat: Stat::BlockToll,
+        n: 1,
+        to: PrintedTo::Opponent,
+        per: Per::One,
+        requires: &[R::ActorVampire],
+    }],
+    abilities: &[ModeDef {
+        terms: Some(Terms::Discard {
+            n: 1,
+            of: CardFilter::Any,
+        }),
+        ..mode_of(
+            &[Window::OthersDiscardPhase],
+            Actor::Host,
+            &[R::HandHas(CardFilter::Any, 1)],
+            &[],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Camarilla Malkavian Inner Circle: During each other Methuselah's unlock
+/// phase, if Leandro is ready, that Methuselah chooses either to burn 1
+/// pool or to lose all transfers during his or her next influence phase.
+/// +2 bleed." A mandatory choice, no default (LSJ 20021210-1); with no
+/// transfers, other effects adding blood to uncontrolled vampires stay
+/// usable (LSJ 20100527).
+pub static LEANDRO: VampireDef = VampireDef {
+    name: "Leandro",
+    printed: &[own(Stat::Bleed, 2, &[])],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Others,
+        requires: &[R::HostReady],
+        effects: &[Effect::BurnPoolOrNoTransfers(1)],
     }],
     ..VAMP
 };

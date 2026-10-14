@@ -583,6 +583,12 @@ impl Engine {
         match p {
             Points::Fixed(n) | Points::PoolOfChosen(n) => n,
             Points::Methuselahs => self.state.living() as u8,
+            Points::HalfActorCapacity => self
+                .action
+                .as_ref()
+                .and_then(|a| self.state.capacity_of(a.acting))
+                .unwrap_or(0)
+                .div_ceil(2),
         }
     }
 
@@ -683,9 +689,16 @@ impl Engine {
             .filter(|&m| {
                 st.minions[m.index()].present()
                     // A distribution picks a vampire again as often as
-                    // wished.
-                    && (matches!(ctx.current_term(), Some(cards::Term::DistributeBlood { .. }))
-                        || !ctx.terms.minions.contains(&m))
+                    // wished, or up to its cap.
+                    && match ctx.current_term() {
+                        Some(cards::Term::DistributeBlood { per_max, .. }) => {
+                            per_max == 0
+                                || (ctx.terms.minions.iter().filter(|&&k| k == m).count()
+                                    as u8)
+                                    < per_max
+                        }
+                        _ => !ctx.terms.minions.contains(&m),
+                    }
                     && filter.iter().all(|&r| {
                         cards::holds_for_minion(
                             r,
@@ -1118,11 +1131,18 @@ impl Engine {
                 }
             }
             RefStep::Choose => {
-                let seat = ctx.terms.pending.remove(0);
+                // Kindred Segregation: allies kept one by one, until a pass.
+                let keeps = ctx
+                    .def
+                    .is_some_and(|d| d.effect == RefEffect::BurnAlliesUnlessKept);
+                let seat = ctx.terms.pending[0];
                 match *choice {
                     Choice::ChooseMinion(m) => ctx.terms.picks.push((seat, m)),
                     Choice::Pass => {}
                     _ => unreachable!("illegal vampire choice {choice:?}"),
+                }
+                if !keeps || *choice == Choice::Pass {
+                    ctx.terms.pending.remove(0);
                 }
                 if ctx.terms.pending.is_empty() {
                     self.resolve_political(ctx);
@@ -1164,7 +1184,7 @@ impl Engine {
             }
             (Term::DistributeBlood { points, .. }, Choice::ChooseMinion(m)) => {
                 ctx.terms.minions.push(*m);
-                ctx.terms.minions.len() as u8 >= points
+                ctx.terms.minions.len() as u8 >= self.points_of(points)
             }
             (Term::ChooseClan, Choice::ChooseClan(c)) => {
                 ctx.terms.clan = Some(c);
@@ -1420,13 +1440,20 @@ impl Engine {
                         return;
                     }
                 }
-                if passed && def.effect.chooses_vampires() {
+                let keeps = def.effect == RefEffect::BurnAlliesUnlessKept;
+                if passed && (def.effect.chooses_vampires() || keeps) {
                     ctx.step = RefStep::Choose;
                     ctx.terms.pending = self
                         .state
                         .clockwise_from(ctx.caller)
                         .into_iter()
-                        .filter(|&s| !self.ready_vampires_of(s).is_empty())
+                        .filter(|&s| {
+                            if keeps {
+                                !self.allies_of(s).is_empty()
+                            } else {
+                                !self.ready_vampires_of(s).is_empty()
+                            }
+                        })
                         .collect();
                     if !ctx.terms.pending.is_empty() {
                         self.referendum = Some(ctx);
@@ -1451,15 +1478,67 @@ impl Engine {
             .collect()
     }
 
+    /// The allies `s` controls, arena order (Kindred Segregation's
+    /// choice).
+    fn allies_of(&self, s: SeatId) -> Vec<MinionId> {
+        self.state
+            .minions_of(s)
+            .filter(|&m| self.state.minions[m.index()].is_ally())
+            .collect()
+    }
+
+    /// An ally's pool cost to recruit (Kindred Segregation): its card's
+    /// pool cost — 0 for a blood cost, or an ally with no card (RTR
+    /// 20010711, LSJ 20060409).
+    pub(crate) fn ally_pool_cost(&self, m: MinionId) -> i32 {
+        match self.state.minions[m.index()]
+            .kind
+            .ally_card()
+            .map(|c| crate::library::LIBRARY[c as usize].pool_cost)
+        {
+            Some(crate::library::Cost::Fixed(n)) => n as i32,
+            _ => 0,
+        }
+    }
+
+    /// The pool `s` has committed to keep allies so far (Kindred
+    /// Segregation), paid as the referendum resolves.
+    fn kept_cost(&self, ctx: &ReferendumCtx, s: SeatId) -> i32 {
+        ctx.terms
+            .picks
+            .iter()
+            .filter(|(p, _)| *p == s)
+            .map(|&(_, m)| self.ally_pool_cost(m))
+            .sum()
+    }
+
     fn choose_request(&self, ctx: &ReferendumCtx) -> DecisionRequest {
         let seat = ctx.terms.pending[0];
-        let options = std::iter::once(Choice::Pass)
-            .chain(
-                self.ready_vampires_of(seat)
-                    .into_iter()
-                    .map(Choice::ChooseMinion),
-            )
-            .collect();
+        let options = if ctx
+            .def
+            .is_some_and(|d| d.effect == RefEffect::BurnAlliesUnlessKept)
+        {
+            // Each ally kept in turn, while the pool covers its cost (down
+            // to 0: the cost ousts).
+            let left = self.state.seats[seat.index()].pool - self.kept_cost(ctx, seat);
+            std::iter::once(Choice::Pass)
+                .chain(
+                    self.allies_of(seat)
+                        .into_iter()
+                        .filter(|m| !ctx.terms.picks.iter().any(|(_, k)| k == m))
+                        .filter(|&m| self.ally_pool_cost(m) <= left)
+                        .map(Choice::ChooseMinion),
+                )
+                .collect()
+        } else {
+            std::iter::once(Choice::Pass)
+                .chain(
+                    self.ready_vampires_of(seat)
+                        .into_iter()
+                        .map(Choice::ChooseMinion),
+                )
+                .collect()
+        };
         DecisionRequest::new(seat, WindowLabel::ReferendumTerms, options)
     }
 
@@ -1616,6 +1695,8 @@ impl Engine {
                 RefEffect::Banish
                 | RefEffect::Expel
                 | RefEffect::BurnSource
+                | RefEffect::BurnAlliesUnlessKept
+                | RefEffect::BurnBloodPerPick
                 | RefEffect::PutOnChosen
                 | RefEffect::PutInPlay
                 | RefEffect::ChosenTakesChosenCard
@@ -1708,6 +1789,14 @@ impl Engine {
                 let m = ctx.terms.minions[0];
                 let to = self.state.minions[m.index()].owner;
                 self.banish(m, to);
+            }
+            // Free States Rant: in torpor too, as it passes.
+            RefEffect::BurnBloodPerPick => {
+                for &m in &ctx.terms.minions {
+                    if self.state.minions[m.index()].present() {
+                        self.state.burn_blood(m, 1);
+                    }
+                }
             }
             RefEffect::BloodToChosenEach => {
                 for &m in &ctx.terms.minions {
@@ -1849,6 +1938,24 @@ impl Engine {
                     && self.state.card_controller(c) != to
                 {
                     self.give_location(c, to);
+                }
+            }
+            // The kept allies' costs paid, then every other ally burned —
+            // in torpor too, any Methuselah's.
+            // Paid as a batch, the ousts with the referendum's (an acting
+            // Methuselah's last pool among them).
+            RefEffect::BurnAlliesUnlessKept => {
+                let mut cost = vec![0i32; self.state.seats.len()];
+                for s in self.state.clockwise_from(ctx.caller) {
+                    cost[s.index()] = self.kept_cost(ctx, s);
+                }
+                self.burn_pool_batch(&cost);
+                for i in 0..self.state.minions.len() {
+                    let m = MinionId(i as u32);
+                    let v = &self.state.minions[i];
+                    if v.present() && v.is_ally() && !ctx.terms.picks.iter().any(|&(_, k)| k == m) {
+                        self.burn_minion(m);
+                    }
                 }
             }
             RefEffect::BurnSource => {

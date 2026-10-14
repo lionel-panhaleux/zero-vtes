@@ -3483,6 +3483,31 @@
           "const": "pool_or_vampire"
         },
         {
+          "description": "\"That Methuselah chooses either to burn n pool or to lose all\ntransfers during his or her next influence phase\" (Leandro):\n`BurnPool` burns, `Pass` loses the transfers.",
+          "type": "string",
+          "const": "pool_or_no_transfers"
+        },
+        {
+          "description": "\"Each anarch burns 1 blood or becomes Camarilla\" (Waiting Game):\n`BurnBloodToAvoid` burns, `Pass` makes it Camarilla.",
+          "type": "string",
+          "const": "blood_or_camarilla"
+        },
+        {
+          "description": "Maabara: a library card of one's ash heap onto the location\n(`FindCard`).",
+          "type": "string",
+          "const": "store_own_ash"
+        },
+        {
+          "description": "Maabara: a card on the location to the top of one's library\n(`FindCard`).",
+          "type": "string",
+          "const": "stored_to_library_top"
+        },
+        {
+          "description": "\"Search your library for a <filter> card … add it to your hand\"\n(Fortschritt Library): a library card (`FindCard`), or none\n(Pass).",
+          "type": "string",
+          "const": "library_to_hand"
+        },
+        {
           "description": "\"Search your crypt for a `clan` vampire … move them to your\nuncontrolled region (shuffle afterward)\" (Disciple of Lazarus): a\ncrypt card (`Choice::AshVampire`, a CRYPT index), or none (Pass).",
           "type": "string",
           "const": "crypt_search"

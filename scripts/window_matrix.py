@@ -703,6 +703,46 @@ ADDED_BATCHES = [
         101169: "Marked Path",
         201619: "Victoria Ash (G7)",
     },
+    # Round 11 (slice 16w): the cards that bring the most 2025-2026 TWDA
+    # decks into the kept corpus (owner, 2026-10-14: "we focus on recent
+    # TWDA entries that add to our corpus").
+    {
+        101206: "Mesu Bedshet",
+        101053: "Kindred Segregation",
+        101091: "Legendary Vampire",
+        101496: "Propaganda of the Deed",
+        100516: "Deer Rifle",
+        100861: "Groundfighting",
+        101863: "The Status Perfectus",
+        200720: "Josef von Bauren (G4)",
+        101396: "Petra Resonance",
+        102136: "Waiting Game",
+        101201: "Mental Maze",
+        101136: "Maabara",
+        200489: "Gabrielle di Righetti (G5)",
+        100053: "An Anarch Manifesto",
+        100790: "Free States Rant",
+        101538: "Raking Talons",
+        100252: "Brick by Brick",
+        100775: "Fortschritt Library",
+        200571: "Harold Tanner (G4)",
+        200549: "Gustaphe Brunnelle (G4)",
+        201054: "Nichodemus (G5)",
+        101296: "Nose of the Hound",
+        101947: "Taunt the Caged Beast",
+        100159: "Big Game",
+        200520: "Giotto Verducci (G2)",
+        200826: "Leandro (G2)",
+        101035: "Kaymakli Fragment",
+        201049: "Nergal (G5 ADV)",
+        101386: "Perfect Clarity",
+        101089: "Legal Manipulations",
+        101998: "Touch of Clarity",
+        100098: "The Art of Pain",
+        201435: "Venere Carboni (G3)",
+        200802: "Lachlan, Noddist (G2)",
+        200699: "Jessica (G2)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -837,6 +877,9 @@ RIDERS = [
     r"can (also )?strike(, ranged)?:[^.]*",                          # granted strike ability
     r"(can|could) prevent \d[^.]*",                       # granted prevention
     r"can burn this card to prevent[^.]*",                # granted prevention (Wall of Filth)
+    # A card in play burned for votes (Propaganda of the Deed): no play
+    # window.
+    r"can burn this card during the polling step[^.]*",
     r"but to prevent \d[^.]*",                            # its [PRO] "as above, but to prevent 2"
     r"to get \+\d intercept",                             # granted intercept ability
     r"skip the determine range step",
@@ -949,6 +992,9 @@ REACTION_TIMING = [
     # 2026-10-08: rules-qa 55.7).
     (r"about to enter combat with", "ACTION_BLOCKED"),
     (r"about to enter combat with", "ACTION_BLOCKS_DECLINED"),
+    # "Only usable if this vampire blocks an ally or younger vampire,
+    # before block resolution" (Mental Maze): the block made.
+    (r"if this \w+ blocks [^.]{0,40}?before block resolution", "ACTION_BLOCKED"),
     # An out-of-turn master triggered by the opposing strike (Rötschreck).
     (r"attempts to inflict aggravated damage", "COMBAT_BEFORE_RESOLUTION"),
     # An out-of-turn master saving a Methuselah from an oust (Life Boon).
@@ -962,7 +1008,10 @@ REACTION_DEFAULT = "REACTION_DURING_ACTION"
 
 # Cancel-as-played as the card's *own* play (not a rider letting the opponent
 # cancel "this card", not an in-play lock ability): opens CARD_AS_PLAYED.
-CANCEL_AS_PLAYED = r"cancel (?!this card)[^.]{0,80}?as it is (being )?played"
+# "Cancel a combat card played by the opposing minion that would restrict
+# this anarch's choice of strikes this round as it is played"
+# (Groundfighting): the clause runs long.
+CANCEL_AS_PLAYED = r"cancel (?!this card)[^.]{0,120}?as it is (being )?played"
 
 FLAGS = [
     (r"do not replace", "delayed_replacement"),
@@ -974,7 +1023,7 @@ FLAGS = [
     (r"at random", "randomness"),
     (r"becomes an? \d-capacity|becomes an? [^.]{0,30}?\bally\b|ally[^.]*to (your|the) ready region",
      "token_entity"),
-    (r"cancel [^.]{0,80}?as it is (being )?played", "cancel_as_played"),
+    (r"cancel [^.]{0,120}?as it is (being )?played", "cancel_as_played"),
     (r"change the target of the bleed", "bounce"),
     (r"would (draw|replace) a card[^.]*instead", "draw_replacement"),
     (r"play cards from this (location|card) as if from (your )?hand", "alt_hand_source"),
@@ -1128,9 +1177,16 @@ def modes_for(card):
             mts = ["Combat" if combat else "Action Modifier"]
         else:
             mts = mode_types
-        if re.search(CANCEL_AS_PLAYED, raw_text, re.I) and not re.search(r"lock this", raw_text, re.I):
+        # Not an in-play lock ability ("Lock this card to cancel …"); a lock
+        # paid as the play goes on is fine (Touch of Clarity: "… as it is
+        # played … Lock this vampire").
+        cancels = re.search(CANCEL_AS_PLAYED, raw_text, re.I) and \
+            not re.search(r"lock this [^.]{0,40}?to cancel", raw_text, re.I)
+        if cancels:
             mwins.append("CARD_AS_PLAYED")
-        else:
+        # "Maneuver or press or burn 1 blood to cancel … as it is played"
+        # (Groundfighting): the alternatives keep their own timings.
+        if not cancels or re.search(r"\b(maneuver|press) or [^.]*\bcancel\b", raw_text, re.I):
             # "As above, and/or …" (I am Legion [DAI][OBF]): the added
             # effect alone is a play of its own, timed by its text.
             either = as_above and re.search(r"\band/or\b", mtext, re.I)

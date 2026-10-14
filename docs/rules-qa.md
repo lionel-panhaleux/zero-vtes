@@ -64,7 +64,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
-- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22
+- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27
 - **Ousts, Life Boon's decision point** — 45.1–45.8
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5, 66.1
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
@@ -1429,3 +1429,61 @@ Slice 16u: the cards of the Lasombra, Toreador antitribu and Ravnos TWDA decks a
 **70.21** Malabranca: "if your prey has more pool than you" read as the action is announced and again as it resolves (it fizzles otherwise). (Test malabranca_takes_a_pool_from_a_richer_prey.)
 
 **70.22** Ian Carfax: his unlock is offered only while he is locked, after a combat he was in whose opposing minion is not ready. (Test ian_carfax_unlocks_after_a_combat_his_opponent_left.)
+
+## Batch 71 — Legacy cards for TWDA decks, round 11 (the 2025–2026 decks entering the corpus): readings no ruling settles (Claude, 2026-10-14; owner, 2026-10-14: 71.1–71.20, 71.22–71.27 confirmed, 71.21 corrected)
+
+Slice 16w: the cards that bring the most 2025–2026 TWDA decks into the kept corpus. Only the readings that no ruling or default reading settles; each is implemented and tested, for the owner to confirm or correct.
+
+**71.1** Mesu Bedshet: "if it is younger" — younger than the acting vampire; "draw it" to the uncontrolled region, with or without the 2 blood; another clan's card shuffled back with the whole crypt. (Test mesu_bedshet_draws_a_follower_of_set_with_blood_if_younger.)
+
+**71.2** Kindred Segregation: each Methuselah in turn, clockwise from the caller, keeps allies one at a time until they pass; a keep may cost a last pool (it ousts); the kept allies' costs are paid, then every other ally burns, in torpor too; an ally with no card (a token) costs 0. (Tests kindred_segregation_keeps_allies_for_their_pool_cost, kindred_segregation_is_callable_without_allies.)
+
+**71.3** Legendary Vampire: "entered your ready region during your last influence phase" — entered play between the end of the player's last minion phase and the end of their last influence phase (moved out of the uncontrolled region, or put in play then); a merged vampire keeps its entry (LSJ 20030519-2). (Test legendary_vampire_goes_on_a_vampire_from_the_last_influence_phase.)
+
+**71.4** Propaganda of the Deed: the +2 votes are its controller's own, cast for or against, in any political action's polling step; the directed action any of the Anarch's. (Test propaganda_of_the_deed_enters_play_then_burns_for_two_votes.)
+
+**71.5** Deer Rifle: two maneuvers each combat per copy; the second commits the strike to the same gun again. (Test deer_rifle_maneuvers_twice_a_combat.)
+
+**71.6** Groundfighting: "a combat card … that would restrict this anarch's choice of strikes this round" — in the pool, a grapple leaving only hand strikes (Immortal Grapple) and Drawing Out the Beast against an armed anarch (LSJ 20050221); the canceled card's cost is paid (Groundfighting does not say otherwise); its maneuver, press and cancel are three plays of one card. (Tests groundfighting_cancels_a_grapple_for_a_blood, groundfighting_cancels_an_equipment_bar_only_with_a_weapon, groundfighting_does_not_cancel_a_weapon_steal, groundfighting_does_not_cancel_a_range_setting.)
+
+**71.7** The Status Perfectus: "a blocking anarch" is the player's (32.7), and so is "another ready anarch" of the master phase move (once each master phase); the second combat begins as the first ends, the acting minion acting first, then back to the after-resolution window. (Tests status_perfectus_moves_a_blood_between_anarchs_in_the_master_phase, status_perfectus_sends_a_second_anarch_the_acting_minion_cannot_strike.)
+
+**71.8** Josef von Bauren: in torpor too (no "if ready"); the Methuselah discarding draws back up. (Test josef_von_bauren_discards_at_random_per_discard_phase_action.)
+
+**71.9** Petra Resonance: a vampire's cost is its capacity; the steal takes what the lowest has, up to 3 (an oust at 0); a crypt emptied since it was played reveals nothing. (Test petra_resonance_steals_for_the_highest_or_taxes_a_tie.)
+
+**71.10** Waiting Game: a counter as a non-Anarch vampire's action is announced, any Methuselah's — an action card canceled as it is played is no action (ANK 20210124); "during your unlock phase" its controller's; "each anarch", "each ally" every Methuselah's, each anarch's controller choosing; one with no blood becomes Camarilla, its title kept; an ally at 0 life burns. (Tests waiting_game_counts_down_non_anarch_actions, waiting_game_bleeds_anarchs_or_makes_them_camarilla, waiting_game_does_not_count_an_action_card_canceled_as_played.)
+
+**71.11** Mental Maze: "Followers of Set" is the Ministry (the clan's V5 name), the reacting vampire's clan; the acting minion stays locked (no unlock printed, unlike Obedience); [OBF]'s blocker is as it was before the block. (Tests mental_maze_ends_the_action_its_blocker_locked_or_not, mental_maze_is_not_played_against_an_older_vampire.)
+
+**71.12** Maabara: locked at any impulse (as The Erciyes Fragments), several cards may be on it; the burn is an action directed at its controller; cards on it go to the ash heap with it. (Test maabara_keeps_an_ash_card_for_the_library_top.)
+
+**71.13** Gabrielle di Righetti: "a ready minion" — any Methuselah's, undirected on her own; an ally robbed of its last life burns. (Test gabrielle_steals_an_allys_last_life_and_burns_it.)
+
+**71.14** An Anarch Manifesto: "actions that require an anarch" — an action card or granted action requiring an Anarch (as CrimethInc.'s); stealth only while its bearer is Anarch; the strength to a titled non-Anarch vampire in combat with the bearer, read live. (Tests anarch_manifesto_stealths_actions_requiring_an_anarch, anarch_manifesto_strengthens_titled_non_anarch_foes, anarch_manifesto_gives_an_ally_nothing.)
+
+**71.15** Free States Rant: X read as the terms are chosen; "ready vampires" anyone's, the caller's included; the blood burned in torpor too as it passes. (Tests free_states_rant_allocates_half_capacity_three_at_most_each, free_states_rant_needs_room_for_every_point.)
+
+**71.16** Fortschritt Library: the library shuffled after the search; "only one … per game" anyone's. (Test fortschritt_library_finds_a_gehenna_event_once_a_game.)
+
+**71.17** Harold Tanner: the hand of the controller of the minion in combat with him is open to every Methuselah for that combat. (Test harold_tanner_opens_his_opponents_hand_in_combat.)
+
+**71.18** Giotto Verducci: "during another Methuselah's discard phase" — in that phase's rotation, after its Methuselah passes; once in each such phase; the card replaced at once. (Tests giotto_discards_in_others_discard_phases_and_tolls_vampire_blockers, giotto_tolls_vampire_blockers_only.)
+
+**71.19** Leandro: the choice is the unlocking Methuselah's, both offered (a pool burn may oust); "lose all transfers" — none in the next influence phase, bonus transfers included. (Tests leandro_makes_others_burn_a_pool_or_lose_their_transfers, leandro_leaves_other_blood_for_the_uncontrolled.)
+
+**71.20** Nose of the Hound: [spi] "an additional optional maneuver" — two in that combat; [SPI] any ready minion. (Test nose_of_the_hound_needs_a_locked_minion_below_superior_spiritus.)
+
+**71.21** Taunt the Caged Beast [ANI]: both vampires chosen as it is played, the prey's then the predator's; no combat if either is no longer ready as it resolves; the 4 blood up to capacity. Owner (2026-10-14): it targets both vampires — directed at them and their controllers, both of whom may block (`ActionCtx::second_target`, `directed_seats`). (Tests taunt_the_caged_beast_pits_prey_against_predator, taunt_the_caged_beast_needs_a_predator_besides_the_prey.)
+
+**71.22** Big Game: "unlocks at the end of the action" — as it ends, after all its combats, if still ready; a blocked action does not unlock it (the card's effects are its resolution's); Red List read on the printed card. (Test big_game_unlocks_after_a_red_list_hunt.)
+
+**71.23** Kaymakli Fragment: "an opposing minion can strike: steal this equipment" — the strike of the minion in combat with its bearer, at close range, dodgeable, as Fast Hands' steal. (Test kaymakli_fragment_is_stolen_by_a_strike.)
+
+**71.24** Nergal (advanced): "reaction cards cost +1 blood" — any played by another minion while he acts (a dual card only as a reaction, PIB 20150924-2); his stealth burn repeatable, when needed. (Tests nergal_advanced_taxes_reactions_while_he_acts, nergal_advanced_burns_blood_for_stealth_when_needed.)
+
+**71.25** Perfect Clarity: "do not affect this vampire" — no reaction requiring Dominate or Presence may be played during the action (each would affect it: LSJ 20010621), except in a referendum's polling step; [THA]: the minion opposing it in any combat of the action. _open_: Scalpel Tongue choosing another vampire, Absolute Tyranny's −1 vote. (Tests perfect_clarity_shields_a_bleed_from_deflection, perfect_clarity_superior_bars_presence_from_its_opponent.)
+
+**71.26** Touch of Clarity: "a non-combat card" — a card that is not a combat card; a reacting vampire may cancel an action card as it is played, before its action is declared. (Tests touch_of_clarity_cancels_a_presence_action_card, touch_of_clarity_by_the_acting_methuselahs_other_vampire.)
+
+**71.27** Venere Carboni: once in each of his controller's unlock phases. (Test venere_carboni_leaves_torpor_for_a_blood.)

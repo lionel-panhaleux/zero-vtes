@@ -287,6 +287,9 @@ pub struct Side {
     pub no_combat_ends_combat: bool,
     /// No maneuver nor strike this round (Ossian's Auspex-playing foe).
     pub frozen_round: Option<u8>,
+    /// No strike this round, nor a strike's maneuver (The Status
+    /// Perfectus: the acting minion, the first round; LSJ 20001126).
+    pub no_strike_round: Option<u8>,
     /// Strength this side can gain for the combat before range is
     /// determined in the first round (Show of Force): `Choice::GainStrength`.
     pub strength_option: u8,
@@ -468,6 +471,7 @@ impl Side {
             no_combat_ends_round: self.no_combat_ends_round,
             no_combat_ends_combat: self.no_combat_ends_combat,
             frozen_round: self.frozen_round,
+            no_strike_round: self.no_strike_round,
             no_equipment: self.no_equipment,
             no_close_maneuver: self.no_close_maneuver,
             no_continue_press: self.no_continue_press,
@@ -621,6 +625,9 @@ pub struct CombatCtx {
     /// Abuse of Power: at the end of the combat, if only one combatant is
     /// ready, the controller of the other burns n pool.
     pub one_ready_burn: Option<u8>,
+    /// Taunt the Caged Beast [ANI]: at the end of the combat, if only one
+    /// combatant is ready, it gains n blood.
+    pub one_ready_gains: Option<u8>,
     /// Pillars Fall: the card put on the acting vampire at the end of the
     /// combat if the opposing vampire is not ready.
     pub put_if_opposing_down: Option<Held>,
@@ -777,6 +784,13 @@ impl CombatCtx {
         self.sides[side].frozen_round == Some(self.round)
     }
 
+    /// Side `side` cannot strike this round: neither combatant (One With
+    /// the Land [PRO]), or this side (The Status Perfectus).
+    pub(crate) fn strikes_barred(&self, side: usize) -> bool {
+        self.no_strikes_round == Some(self.round)
+            || self.sides[side].no_strike_round == Some(self.round)
+    }
+
     /// A press now: none to continue under a frenzy (Terror Frenzy [ani]).
     /// A press now would end the combat and the side's minion cannot press
     /// to end it (Don Michael Antonio Giovanni).
@@ -801,6 +815,18 @@ impl CombatCtx {
     /// commitment a round (rulebook "Determine Range": no second strike
     /// card or weapon to maneuver again), a range not set twice.
     pub(crate) fn allows(&self, st: &GameState, mode: &cards::ModeDef, side: usize) -> bool {
+        self.allows_from(st, mode, side, None)
+    }
+
+    /// `allows`, for an ability of card `from`: the strike already committed
+    /// to that card commits again (Deer Rifle's second maneuver).
+    pub(crate) fn allows_from(
+        &self,
+        st: &GameState,
+        mode: &cards::ModeDef,
+        side: usize,
+        from: Option<CardId>,
+    ) -> bool {
         // "Minions in combat with the employer cannot strike: combat ends"
         // (Dog Pack; Faruq Abd al-Qadir for minions with his Methuselah's
         // corruption counters).
@@ -837,7 +863,9 @@ impl CombatCtx {
             // Nor the maneuver of a strike that cannot be used (LSJ
             // 20001126).
             Effect::CommitStrike => {
-                self.sides[side].committed.is_none() && self.no_strikes_round != Some(self.round)
+                let committed = self.sides[side].committed;
+                (committed.is_none() || committed == from && from.is_some())
+                    && !self.strikes_barred(side)
             }
             Effect::SetRange(_) => !self.range_set,
             // A strike card played at the maneuver: a maneuver in turn, one
@@ -847,7 +875,7 @@ impl CombatCtx {
                     && self.may_maneuver(side)
                     && self.sides[side].committed.is_none()
                     && self.sides[side].committed_card.is_none()
-                    && self.no_strikes_round != Some(self.round)
+                    && !self.strikes_barred(side)
                     && (!self.only_hand_strikes || matches!(k, StrikeKind::Hand { .. }))
             }
             // The weapon's strike is not a hand strike (rules-qa 55.8).
@@ -856,7 +884,7 @@ impl CombatCtx {
                     && self.may_maneuver(side)
                     && self.sides[side].committed.is_none()
                     && self.sides[side].committed_card.is_none()
-                    && self.no_strikes_round != Some(self.round)
+                    && !self.strikes_barred(side)
                     && !self.only_hand_strikes
             }
             Effect::CommittedWeaponStrikePlus(_) => !self.only_hand_strikes,
@@ -2215,6 +2243,7 @@ impl Engine {
                 + c.sides[i].strength_mods as i32
                 + c.sides[i].frenzy_strength as i32
                 + bearer
+                + st.strength_against(c.sides[i].minion, c.sides[1 - i].minion)
                 + st.printed_mod(c.sides[i].minion, cards::Stat::Strength, ctx))
             .max(0) as u8
                 + c.sides[i].strength_round
@@ -3121,6 +3150,13 @@ impl Engine {
                     self.burn_pool_batch(&loss);
                 }
             }
+            if let Some(n) = c.one_ready_gains {
+                let ready = |m: MinionId| self.state.minions[m.index()].ready();
+                let [a, b] = [c.sides[0].minion, c.sides[1].minion];
+                if ready(a) != ready(b) {
+                    self.state.gain_blood(if ready(a) { a } else { b }, n);
+                }
+            }
             // Pillars Fall: "if the opposing vampire is not ready, you can
             // put this card on this acting vampire" — one per vampire; the
             // action card enters play rather than the ash heap.
@@ -3747,7 +3783,7 @@ impl CombatCtx {
         let round = self.round;
         for s in &mut self.sides {
             s.set_strike(None);
-            if barred || s.frozen_round == Some(round) {
+            if barred || s.frozen_round == Some(round) || s.no_strike_round == Some(round) {
                 // The pair's additional strike is spent, unused.
                 if self.pair > 0 {
                     s.additional = s.additional.saturating_sub(1);

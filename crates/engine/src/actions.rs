@@ -359,6 +359,14 @@ pub struct ActionCtx {
     /// any referendum, the clan read then (LSJ 20090216), with or without
     /// the card in play (ANK 20250120).
     pub unlock_if_successful: Option<&'static str>,
+    /// "Unlocks at the end of the action if he or she is still ready" (Big
+    /// Game, against a Red List minion).
+    pub unlock_at_end: bool,
+    /// Perfect Clarity on this vampire (with [THA]): reaction cards
+    /// requiring Dominate or Presence do not affect it this action; with
+    /// [THA], minions opposing it in combat cannot play cards requiring
+    /// them.
+    pub clarity: Option<(MinionId, bool)>,
     /// Minions whose block may still unlock them for blood after its
     /// combat (Truth in Darkness [OBL]), with the blood.
     pub after_block_unlocks: Vec<(MinionId, u8)>,
@@ -503,6 +511,11 @@ impl ActionCtx {
             + hunts
             + self.stealth_mods as i32
             + st.bearer_mod(self.acting, Stat::Stealth, self.kind)
+            + if self.requires_anarch(st) {
+                st.anarch_action_stealth(self.acting)
+            } else {
+                0
+            }
             + st.printed_mod(self.acting, Stat::Stealth, self.printed_ctx(st, None))
             - self.stealth_reduce as i32
     }
@@ -674,7 +687,7 @@ impl ActionCtx {
             .filter_map(|l| match l.modifier {
                 cards::Modifier::HostInterceptOnBleedAtYou(n) if bleed_at_owner => Some(n as i32),
                 cards::Modifier::HostInterceptDirectedAtYou(n)
-                    if self.directed_seat(st) == Some(owner) =>
+                    if self.directed_seats(st).contains(owner) =>
                 {
                     Some(n as i32)
                 }
@@ -812,11 +825,31 @@ impl ActionCtx {
         }
     }
 
-    /// The Methuselahs the action is directed at (at most one yet: every
-    /// directed action here names a single Methuselah).
+    /// The Methuselahs the action is directed at: one, or two for an
+    /// action with a second target (Taunt the Caged Beast [ANI]).
     pub fn directed_seats(&self, st: &crate::state::GameState) -> crate::ids::SeatSet {
-        self.directed_seat(st)
-            .map_or(crate::ids::SeatSet::EMPTY, crate::ids::SeatSet::single)
+        let set = self
+            .directed_seat(st)
+            .map_or(crate::ids::SeatSet::EMPTY, crate::ids::SeatSet::single);
+        match self.second_directed_seat(st) {
+            Some(s) => set.with(s),
+            None => set,
+        }
+    }
+
+    /// The action's second target, if any: Taunt the Caged Beast [ANI]
+    /// targets the prey's vampire (`target`) and the predator's (its terms'
+    /// pick) — directed at both and their controllers (owner, 2026-10-14:
+    /// rules-qa 71.21).
+    pub fn second_target(&self) -> Option<MinionId> {
+        second_target_of(self.card.as_ref())
+    }
+
+    /// The Methuselah the second target makes the action directed at too.
+    pub fn second_directed_seat(&self, st: &crate::state::GameState) -> Option<SeatId> {
+        self.second_target()
+            .map(|m| st.minions[m.index()].owner)
+            .filter(|&s| s != self.seat)
     }
 
     /// What a printed modifier reads of this action (`GameState::printed_mod`).
@@ -1027,7 +1060,16 @@ impl Engine {
                 }
             }
         };
-        let order = self.action_order(seat, directed_seat);
+        let mut order = self.action_order(seat, directed_seat);
+        // A second target's Methuselah next (Taunt the Caged Beast [ANI]).
+        if let Some(s) = second_target_of(card.as_ref())
+            .map(|m| self.state.minions[m.index()].owner)
+            .filter(|&s| s != seat)
+        {
+            order.retain(|&o| o != s);
+            let at = order.len().min(2);
+            order.insert(at, s);
+        }
         self.action = Some(ActionCtx {
             seat,
             acting: minion,
@@ -1143,6 +1185,7 @@ impl Engine {
         }
         self.flow = Flow::Action;
         self.host_announces_riders(minion);
+        self.non_anarch_acts_riders(minion);
         // Who pays the rescue's blood: chosen as it is announced, paid as
         // it resolves (rules-qa 48.8, 3.6).
         if kind == ActionKind::Rescue {
@@ -1173,6 +1216,34 @@ impl Engine {
                         self.state.gain_blood(to, moved);
                     }
                     other => unreachable!("not an announce rider effect: {other:?}"),
+                }
+            }
+        }
+    }
+
+    /// Waiting Game: a counter burned for a non-Anarch vampire's action;
+    /// none left, the card burns.
+    fn non_anarch_acts_riders(&mut self, acting: MinionId) {
+        let v = &self.state.minions[acting.index()];
+        if !v.is_vampire() || self.state.sect_of(acting) == Some(crate::crypt::Sect::Anarch) {
+            return;
+        }
+        for (id, r) in self.state.card_riders(Hook::NonAnarchVampireActs) {
+            if !self.state.cards[id.index()].present() {
+                continue;
+            }
+            for e in r.effects {
+                match *e {
+                    Effect::RemoveCounter(n) => {
+                        let c = &mut self.state.cards[id.index()];
+                        c.counters = c.counters.saturating_sub(n);
+                    }
+                    Effect::BurnSelfWithoutCounters => {
+                        if self.state.cards[id.index()].counters == 0 {
+                            self.burn_card_in_play(id);
+                        }
+                    }
+                    other => unreachable!("not an action rider effect: {other:?}"),
                 }
             }
         }
@@ -1222,7 +1293,9 @@ impl Engine {
     /// prey and predator of an undirected one.
     fn normal_blockers(&self, a: &ActionCtx) -> Vec<SeatId> {
         match self.directed_target(a) {
-            Some(t) => vec![t],
+            Some(t) => std::iter::once(t)
+                .chain(a.second_directed_seat(&self.state))
+                .collect(),
             None => {
                 let mut v = vec![self.state.prey(a.seat), self.state.predator(a.seat)];
                 v.dedup();
@@ -1755,7 +1828,7 @@ impl Engine {
     /// for every attempt, LSJ 20100210).
     fn fury_tokens(&self, a: &ActionCtx, seat: SeatId) -> Vec<MinionId> {
         let st = &self.state;
-        if a.directed_seat(st) != Some(seat) {
+        if !a.directed_seats(st).contains(seat) {
             return Vec::new();
         }
         (0..st.minions.len())
@@ -1809,7 +1882,7 @@ impl Engine {
                     continue;
                 }
                 if mode.requires.contains(&cards::Requirement::DirectedAtYou)
-                    && a.directed_seat(st) != Some(seat)
+                    && !a.directed_seats(st).contains(seat)
                 {
                     continue;
                 }
@@ -3435,6 +3508,9 @@ impl Engine {
                 }
             }
             Effect::NoDisciplineCardsThisAction => a.no_discipline_cards = true,
+            Effect::PerfectClarity { superior } => {
+                a.clarity = Some((play.actor.expect("the acting vampire"), superior));
+            }
             Effect::LockPicks => {
                 for m in play.picks.iter().flatten() {
                     self.state.minions[m.index()].locked = true;
@@ -4667,9 +4743,14 @@ impl Engine {
                                 | Effect::HuntAt(_)
                                 | Effect::BloodHuntIfHuntGained
                                 | Effect::CoagulateFromPicks { .. }
+                                | Effect::UnlockAtEndIfReady
+                                | Effect::TauntCombat(_)
                         )
                 }) {
                     self.apply_card_effect(*e, &ctx, &mut in_play);
+                }
+                if target_ok && mode.effects.contains(&Effect::UnlockAtEndIfReady) {
+                    a.unlock_at_end = true;
                 }
                 // Coagulated Entity: the chosen move 1 blood each before the
                 // combat, or the action is canceled (rules-qa 68.6).
@@ -4725,6 +4806,24 @@ impl Engine {
                         self.next_turn();
                     }
                     return;
+                }
+                // Taunt the Caged Beast [ANI]: the chosen vampires, both
+                // still ready, the prey's first (LSJ 20070319).
+                if let Some(n) = mode.effects.iter().find_map(|e| match e {
+                    Effect::TauntCombat(n) => Some(*n),
+                    _ => None,
+                }) {
+                    if let (true, Target::Minion(p), Some(q)) =
+                        (target_ok, ctx.target, ctx.picks[0])
+                    {
+                        let ready = |m: MinionId| self.state.minions[m.index()].ready();
+                        if ready(p) && ready(q) {
+                            self.action = Some(a);
+                            self.start_combat_at_resolution(p, q);
+                            self.combat.as_mut().expect("combat").one_ready_gains = Some(n);
+                            return;
+                        }
+                    }
                 }
                 // "Enter combat with a minion": both still ready, the
                 // combat the resolution; the action succeeds after it
@@ -5146,6 +5245,17 @@ impl Engine {
                                 }
                             }
                         }
+                        // Kaymakli Fragment: drawn now, the hand discarded
+                        // down as it settles.
+                        Effect::DrawThenDiscardDown(n) => {
+                            for _ in 0..n {
+                                let s = &mut self.state.seats[seat.index()];
+                                if let Some((c, copy)) = s.library.take_top() {
+                                    s.hand.put(c, copy);
+                                    self.offer_redraw(seat, c);
+                                }
+                            }
+                        }
                         Effect::PreyAshPairHunt(bonus) => {
                             let prey = self.state.prey(seat);
                             let named = self.action.as_ref().and_then(|a| a.ash_named);
@@ -5263,6 +5373,12 @@ impl Engine {
                             if hunt && taken > 0 {
                                 self.action.as_mut().expect("action").hunt_gained = true;
                                 self.successful_hunt_riders(acting);
+                            }
+                            // An ally's life taken as blood (Gabrielle di
+                            // Righetti): none left, it burns.
+                            let v = &self.state.minions[t.index()];
+                            if v.present() && v.is_ally() && v.blood == 0 {
+                                self.burn_minion(t);
                             }
                         }
                         // François Villon (G2): how much, chosen now.
@@ -5621,6 +5737,13 @@ impl Engine {
 
     pub(crate) fn end_action(&mut self) {
         self.finish_action();
+        // Big Game: after all its combats, if still ready.
+        if let Some(a) = self.action.as_ref().filter(|a| a.unlock_at_end) {
+            let m = a.acting;
+            if self.state.minions[m.index()].ready() {
+                self.state.unlock(m);
+            }
+        }
         // Infernal Servitor: "after it performs a successful action" (a
         // fizzled action is successful, rules-qa 56.1).
         if let Some(a) = self.action.as_ref() {
@@ -6678,4 +6801,14 @@ impl Engine {
         }
         (forced, stuck)
     }
+}
+
+/// Taunt the Caged Beast [ANI]'s second target: the predator's vampire its
+/// terms picked (`Terms::TauntPair`).
+fn second_target_of(card: Option<&PlayCtx>) -> Option<MinionId> {
+    let p = card?;
+    let terms = cards::lookup(p.card)?.modes.get(p.mode as usize)?.terms;
+    (terms == Some(cards::Terms::TauntPair))
+        .then_some(p.picks[0])
+        .flatten()
 }

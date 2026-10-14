@@ -32,6 +32,10 @@ impl SeatSet {
         self.0 & (1 << s.0) != 0
     }
 
+    pub fn with(self, s: SeatId) -> SeatSet {
+        SeatSet(self.0 | (1 << s.0))
+    }
+
     pub fn without(self, s: SeatId) -> SeatSet {
         SeatSet(self.0 & !(1 << s.0))
     }

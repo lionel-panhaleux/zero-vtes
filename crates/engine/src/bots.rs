@@ -357,6 +357,21 @@ fn referendum_terms(e: &Engine, req: &DecisionRequest, o: &Choice) -> i32 {
     // Ancient Influence, Reins of Power: the biggest ready vampire.
     if r.step == crate::referendum::RefStep::Choose {
         return match *o {
+            // Kindred Segregation: an ally kept while its cost leaves pool.
+            Choice::ChooseMinion(m) if st.minions[m.index()].is_ally() => {
+                let committed: i32 = r
+                    .terms
+                    .picks
+                    .iter()
+                    .filter(|(s, _)| *s == me)
+                    .map(|&(_, k)| e.ally_pool_cost(k))
+                    .sum();
+                if e.ally_pool_cost(m) < st.seats[me.index()].pool - committed {
+                    0
+                } else {
+                    -2
+                }
+            }
             Choice::ChooseMinion(m) => st.capacity_of(m).map_or(0, i32::from),
             _ => -1,
         };

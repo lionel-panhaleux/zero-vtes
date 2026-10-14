@@ -1768,12 +1768,14 @@ impl Engine {
                 self.minion_phase_end_riders();
                 // "During your influence phase" abilities: once per phase.
                 self.state.phase_uses.clear();
+                let a = self.state.active;
+                let earned = transfers_for_turn(self.state.turn)
+                    + self.state.transfer_bonus(a)
+                    + std::mem::take(&mut self.state.seats[a.index()].transfers_next);
+                // Leandro: all of them lost, this phase.
+                let none = std::mem::take(&mut self.state.seats[a.index()].no_transfers_next);
                 self.flow = Flow::Influence {
-                    left: transfers_for_turn(self.state.turn)
-                        + self.state.transfer_bonus(self.state.active)
-                        + std::mem::take(
-                            &mut self.state.seats[self.state.active.index()].transfers_next,
-                        ),
+                    left: if none { 0 } else { earned },
                 };
                 // The Meddling of Semsith's held replacements.
                 self.release_held(|h| &mut h.minion_phase);
@@ -1938,6 +1940,10 @@ impl Engine {
     /// phase action; events are a later slice).
     pub(crate) fn end_influence(&mut self) {
         let s = self.state.active;
+        // Legendary Vampire: the vampires in play so far entered by now.
+        self.state.settle_entries();
+        self.state.entry_clock += 1;
+        self.state.seats[s.index()].influence_end = self.state.entry_clock;
         // "Do not replace until your next discard phase": replaced as the
         // phase begins, ahead of anything else in it (spec §1.9.2).
         let held = std::mem::take(&mut self.state.seats[s.index()].held.discard);
@@ -2461,7 +2467,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 472);
+        assert_eq!(CRYPT.len(), 483);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

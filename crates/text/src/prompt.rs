@@ -263,6 +263,12 @@ impl Prompt<'_> {
             },
             P::BecomesAnarch => "Choose a non-titled vampire of yours to become Anarch".into(),
             P::LockOrPay => format!("Lock {} or burn {} pool", self.card()?, a.n?),
+            P::LibraryToHand => "Choose a card in your library to put in your hand".into(),
+            P::BloodOrCamarilla => format!("{} burns 1 blood or becomes Camarilla", self.minion()?),
+            P::PoolOrNoTransfers => format!(
+                "Burn {} pool, or lose all transfers in your next influence phase",
+                a.n?
+            ),
             P::PoolOrVampire => format!(
                 "Burn {} pool, or burn a vampire of yours with capacity {} or more to burn {}",
                 a.n?,
@@ -335,6 +341,14 @@ impl Prompt<'_> {
                 "Choose the library card of your prey's ash heap to move onto the Fragments".into()
             }
             P::NameOwnAshCard => "Name the library card in your ash heap to take back".into(),
+            P::StoreOwnAsh => format!(
+                "Choose the library card of your ash heap to move onto {}",
+                self.card()?
+            ),
+            P::StoredToLibraryTop => format!(
+                "Choose the card on {} to put on top of your library",
+                self.card()?
+            ),
             P::NameUncontrolled => {
                 "Choose the vampire in your uncontrolled region to remove from the game".into()
             }

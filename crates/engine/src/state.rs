@@ -984,6 +984,11 @@ pub struct Seat {
     /// `GameState::entry_clock` as this Methuselah's last minion phase
     /// ended (Chameleon).
     pub minion_phase_end: u32,
+    /// No transfers in this Methuselah's next influence phase (Leandro).
+    pub no_transfers_next: bool,
+    /// `GameState::entry_clock` as this Methuselah's last influence phase
+    /// ended — it began at `minion_phase_end` (Legendary Vampire).
+    pub influence_end: u32,
     /// Cards played but not replaced yet: they count against the hand
     /// size until then (rulebook "Drawing Cards"; spec §6.8.1).
     pub held: Held,
@@ -1788,9 +1793,14 @@ impl GameState {
         } else {
             0
         };
+        // "This card costs Followers of Set 1 fewer blood" (Mental Maze).
+        let clan_off = cards::lookup(card)
+            .and_then(|d| d.cheaper_for)
+            .filter(|(clan, _)| self.minions[m.index()].clan() == Some(*clan))
+            .map_or(0, |(_, n)| n);
         CostOff {
             pool: n(Stat::PoolCostOff),
-            blood: n(Stat::BloodCostOff) + half,
+            blood: n(Stat::BloodCostOff) + half + clan_off,
             either: n(Stat::CostOff),
             blood_extra: (-self.printed_mod(m, Stat::BloodCostOff, ctx)).max(0) as u8,
         }
@@ -1813,6 +1823,7 @@ impl GameState {
             R::ThisVampireReady => src.ready(),
             // "While Annabelle is locked" (in torpor too, LSJ 20011022).
             R::HostLocked => src.locked,
+            R::SourceActing => self.acting == Some(source),
             R::ActorClaimsTitleIn(classes) => {
                 let t = self.claimed_title(actor);
                 classes.iter().any(|c| c.matches(t))
@@ -2562,6 +2573,39 @@ impl GameState {
             .sum()
     }
 
+    /// An Anarch Manifesto on Anarch `m`: its stealth on an action that
+    /// requires an Anarch.
+    pub fn anarch_action_stealth(&self, m: MinionId) -> i32 {
+        if self.sect_of(m) != Some(crate::crypt::Sect::Anarch) {
+            return 0;
+        }
+        self.borne(m)
+            .map(|l| match l.modifier {
+                Modifier::StealthOnAnarchActions(n) => n as i32,
+                _ => 0,
+            })
+            .sum()
+    }
+
+    /// Strength `m` gets in combat with `foe` from the cards `foe` bears
+    /// (An Anarch Manifesto: "titled non-Anarch vampires get +1 strength in
+    /// combat with this minion"), read live.
+    pub fn strength_against(&self, m: MinionId, foe: MinionId) -> i32 {
+        let v = &self.minions[m.index()];
+        if !v.is_vampire()
+            || self.title_of(m) == crate::crypt::Title::None
+            || self.sect_of(m) == Some(crate::crypt::Sect::Anarch)
+        {
+            return 0;
+        }
+        self.borne(foe)
+            .map(|l| match l.modifier {
+                Modifier::TitledNonAnarchStrengthVsBearer(n) => n as i32,
+                _ => 0,
+            })
+            .sum()
+    }
+
     /// The bearer modifiers of the cards in play on minion `m` for `stat`
     /// during its action of `kind`, with the card each comes from.
     fn bearer_mods(
@@ -2723,7 +2767,8 @@ impl GameState {
 
     /// Whether `viewer` sees `seat`'s hand: their own, or an open hand — the
     /// prey of a Revelations [AUS]'s controller, or `seat`'s minion in
-    /// combat with the employer of an Owl Companion. The legal view
+    /// combat with the employer of an Owl Companion, or with Harold Tanner.
+    /// The legal view
     /// (`legal_view`) reads it.
     pub fn hand_visible_to(&self, seat: SeatId, viewer: SeatId) -> bool {
         viewer == seat
@@ -2736,7 +2781,12 @@ impl GameState {
             || self.combatants.is_some_and(|pair| {
                 (0..2).any(|i| {
                     self.minions[pair[1 - i].index()].owner == seat
-                        && self.hosts(pair[i], Modifier::OpponentOpenHandInCombat)
+                        && (self.hosts(pair[i], Modifier::OpponentOpenHandInCombat)
+                            || self.printed_mod(
+                                pair[i],
+                                Stat::OpponentOpenHandInCombat,
+                                PrintedCtx::default(),
+                            ) > 0)
                 })
             })
     }

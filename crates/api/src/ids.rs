@@ -460,6 +460,23 @@ ids!(
         /// Awakening): `BurnPool` pays, `ChooseMinion` burns that vampire and
         /// the card.
         PoolOrVampire,
+        /// "That Methuselah chooses either to burn n pool or to lose all
+        /// transfers during his or her next influence phase" (Leandro):
+        /// `BurnPool` burns, `Pass` loses the transfers.
+        PoolOrNoTransfers,
+        /// "Each anarch burns 1 blood or becomes Camarilla" (Waiting Game):
+        /// `BurnBloodToAvoid` burns, `Pass` makes it Camarilla.
+        BloodOrCamarilla,
+        /// Maabara: a library card of one's ash heap onto the location
+        /// (`FindCard`).
+        StoreOwnAsh,
+        /// Maabara: a card on the location to the top of one's library
+        /// (`FindCard`).
+        StoredToLibraryTop,
+        /// "Search your library for a <filter> card … add it to your hand"
+        /// (Fortschritt Library): a library card (`FindCard`), or none
+        /// (Pass).
+        LibraryToHand,
         /// "Search your crypt for a `clan` vampire … move them to your
         /// uncontrolled region (shuffle afterward)" (Disciple of Lazarus): a
         /// crypt card (`Choice::AshVampire`, a CRYPT index), or none (Pass).
