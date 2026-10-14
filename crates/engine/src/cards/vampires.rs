@@ -4712,7 +4712,7 @@ pub static JERRY: VampireDef = VampireDef {
         &[Window::MasterPhase],
         Actor::Host,
         &[],
-        &[Effect::CircleBloodMoves],
+        &[Effect::CircleBloodMoves { equipment: false }],
     )],
     ..VAMP
 };

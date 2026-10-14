@@ -596,7 +596,9 @@ turn structure, ousts), `window.rs` (primitives), `decision.rs` (`Choice`,
 `state.rs` (`GameState`, `Minion`, `CardInPlay`, `Seat`, live stat reads),
 `decks.rs` (decklists), `agent.rs` and `bots.rs` (policies),
 `cards/mod.rs` (the vocabulary: `Window`, `Actor`, `Requirement`, `Terms`,
-`Effect`, `Modifier`, `Hook`, `Limit`, `CardDef`, `VampireDef`), `cards/defs.rs`
+`Effect`, `Modifier`, `Hook`, `Limit`, `CardDef`, `VampireDef`),
+`cards/families.rs` (`Effect::family`: the interpreter resolving each effect,
+which `apply_card_effect` and `resolve_ability` dispatch on), `cards/defs.rs`
 and `cards/vampires.rs` (definitions), `crypt.rs`/`library.rs` (generated).
 Tests: one file per family under `crates/engine/tests/` (`precon.rs` holds the
 slice-11 cards by section).
@@ -2183,7 +2185,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (`docs/human-play.md` has the board).
 
-Definitions: 739 library, 297 vampires; 1722 Rust tests, 34 Python tests
+Definitions: 739 library, 297 vampires; 1724 Rust tests, 34 Python tests
 
 ## Outlook: deck building (post-v1)
 

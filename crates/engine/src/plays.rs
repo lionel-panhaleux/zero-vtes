@@ -4,17 +4,16 @@
 //! window with a cancel stack (spec §1.8), resolution with costs folded
 //! through layers, replacement draws, and in-play abilities.
 
+use crate::cards::families::Family;
 use crate::cards::{
     self, AbilitySource, Actor, Effect, Hook, Layer, Limit, PlayCtx, Requirement, Rider, Scope,
     Target, TargetKind, TargetSpec, Terms, Until, Window,
 };
-use crate::combat::is_combat_effect;
 use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use crate::draws::Interrupt;
 use crate::game::{Engine, Flow, Pending};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, Label, LIBRARY};
-use crate::referendum::is_vote_effect;
 use crate::state::{distinct, ActionId, CardId, CardInPlay, OutOfTurn};
 use crate::window::OrderedWindow;
 
@@ -25,6 +24,14 @@ fn phase_key(source: AbilitySource, ability: u8, limit: Option<Limit>) -> (Abili
         Some(Limit::PerPhaseEach) => (source, ability),
         _ => (source, 0),
     }
+}
+
+/// Who resolves a shared effect (`Engine::apply_shared_effect`): a card
+/// played, with the card it put in play if any, or an in-play ability.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum By {
+    Play(Option<CardId>),
+    Ability(AbilitySource),
 }
 
 /// A card play between announcement and resolution: its as-played window is
@@ -3518,8 +3525,8 @@ impl Engine {
     }
 
     /// One effect of a card resolving (a play, or an action card on
-    /// success): entering play, blood moves, layers, and the combat, vote
-    /// and action effects of the contexts that exist.
+    /// success): its own (`Family::Play`: entering play, blood moves,
+    /// layers), the others passed to their family's interpreter.
     pub(crate) fn apply_card_effect(
         &mut self,
         effect: Effect,
@@ -3528,19 +3535,6 @@ impl Engine {
     ) {
         let s = ctx.seat;
         match effect {
-            // The target of a master card (Life in the City) or the
-            // vampire in the uncontrolled region an action card chose
-            // (Govern the Unaligned [DOM]); re-checked at resolution.
-            Effect::BloodToTarget(n) => {
-                let t = ctx.target.minion();
-                self.state.gain_blood(t, n);
-            }
-            Effect::BloodToUncontrolledTarget(n) => {
-                let Target::Uncontrolled(i) = ctx.target else {
-                    unreachable!("blood to the uncontrolled region without a slot");
-                };
-                self.state.add_uncontrolled_blood(s, i as usize, n);
-            }
             Effect::GainPerUnlockedCircleMember => {
                 let m = ctx.actor.expect("actor");
                 let x = (0..self.state.minions.len())
@@ -3555,7 +3549,9 @@ impl Engine {
             Effect::BloodToUncontrolledCircle => {
                 let circle = ctx.actor.and_then(|m| {
                     let v = &self.state.minions[m.index()];
-                    (v.clan() == Some("Blood Brother")).then(|| v.circle()).flatten()
+                    (v.clan() == Some("Blood Brother"))
+                        .then(|| v.circle())
+                        .flatten()
                 });
                 if let Some(circle) = circle {
                     for i in 0..self.state.seats[s.index()].uncontrolled.len() {
@@ -3570,22 +3566,6 @@ impl Engine {
                 }
             }
             Effect::BurnActorBlood(n) => self.state.burn_blood(ctx.actor.expect("actor"), n),
-            // Hive Mind [san]: the acting Blood Brother and the target, at
-            // its action's resolution (no action context then); during an
-            // action, the action's own rule ("does not unlock", Daring the
-            // Dawn) applies (`apply_action_effect`).
-            Effect::UnlockActor if self.action.is_none() => {
-                self.state.unlock(ctx.actor.expect("actor"))
-            }
-            // Loki's Gift [PRO]: "burn 1 blood from any vampire".
-            Effect::TargetBurnsBlood(n) => {
-                if let Target::Minion(t) = ctx.target {
-                    self.state.burn_blood(t, n);
-                }
-            }
-            // Read as cancels are played (`Engine::cancel_shield`); read
-            // with `PutOnActorNow` (Inner Essence).
-            Effect::CancelShield | Effect::BurnAtCombatEnd => {}
             // Tribute to the Master: each ready vampire's, none needed
             // (ANK 20210717).
             Effect::OwnReadyVampiresBloodToPool => {
@@ -3602,33 +3582,12 @@ impl Engine {
                     self.state.seats[s.index()].pool += 1;
                 }
             }
-            // Redistribution: the acting vampire's circle.
-            Effect::CircleBloodMoves => {
-                if let Some(c) = ctx.actor.and_then(|m| self.state.minions[m.index()].circle()) {
-                    self.interrupts.push(Interrupt::CircleBlood {
-                        seat: s,
-                        circle: c,
-                        from: None,
-                        to: None,
-                        equipment: true,
-                        moving: None,
-                        paired: [None; 12],
-                    });
-                }
-            }
             // Major Boon: in play now, remembering the bled Methuselah.
             Effect::TakeBleedForTarget => {
                 if let (Some(a), Some(id)) = (self.action.as_mut(), *in_play) {
                     if let Some(t) = a.bleed_target {
                         a.bleed_payer = Some((s, Some(id)));
                         self.state.cards[id.index()].against = crate::ids::SeatSet::single(t);
-                    }
-                }
-            }
-            Effect::UnlockTarget => {
-                if let Target::Minion(t) = ctx.target {
-                    if self.state.minions[t.index()].ready() {
-                        self.effect_unlock(t);
                     }
                 }
             }
@@ -3689,16 +3648,6 @@ impl Engine {
             Effect::AutoPassFirstSabbatReferendum => {
                 self.state.seats[s.index()].auto_pass_pending = true;
             }
-            // Renewed Vigor [obe]: a vampire out of torpor (the card action
-            // re-checked its target).
-            Effect::TargetLeavesTorpor => {
-                if let Target::Minion(t) = ctx.target {
-                    if self.state.minions[t.index()].present() && self.state.minions[t.index()].in_torpor
-                    {
-                        self.leave_torpor(t);
-                    }
-                }
-            }
             Effect::RetainerToStartingLife => {
                 if let Target::Card(c) = ctx.target {
                     if self.state.cards[c.index()].present() {
@@ -3727,23 +3676,15 @@ impl Engine {
                     }
                 }
             }
-            // A played combat card ending the combat before range (Alpha
-            // Glint [ANI][FOR]).
-            Effect::EndCombat if self.combat.is_some() => self.end_combat_now(),
             // Liquidation: "burn 7 cards from the top of your library to
             // gain 3 pool".
             Effect::BurnLibraryTop(n) => self.burn_library_top(s, n),
-            Effect::GainPool(n) => self.state.seats[s.index()].pool += n as i32,
             Effect::BloodToEachUncontrolledOfSect(sect, n) => {
                 for i in 0..self.state.seats[s.index()].uncontrolled.len() {
                     if self.state.slot_sect(s, i) == sect {
                         self.state.add_uncontrolled_blood(s, i, n);
                     }
                 }
-            }
-            Effect::LockTarget => {
-                let t = ctx.target.minion();
-                self.state.minions[t.index()].locked = true;
             }
             Effect::FuryEnters => {
                 // A token whose card has left play is taken again (no leak
@@ -3784,8 +3725,7 @@ impl Engine {
             }
             Effect::CountersFromActorCapacity => {
                 if let (Some(id), Some(a)) = (*in_play, ctx.actor) {
-                    self.state.cards[id.index()].counters =
-                        self.state.capacity_of(a).unwrap_or(0);
+                    self.state.cards[id.index()].counters = self.state.capacity_of(a).unwrap_or(0);
                 }
             }
             Effect::GreatBeastAtEleven => {
@@ -3812,12 +3752,6 @@ impl Engine {
                     }
                 }
             }
-            // "Your prey burns n pool" (Predator's Transformation [ABO]).
-            Effect::PreyBurnsPool(n) => {
-                let mut loss = vec![0i32; self.state.seats.len()];
-                loss[self.state.prey(ctx.seat).index()] = n as i32;
-                self.burn_pool_batch(&loss);
-            }
             Effect::BurnRangedWeaponsOnTarget { except } => {
                 if let Target::Minion(t) = ctx.target {
                     let ranged: Vec<CardId> = (0..self.state.cards.len())
@@ -3840,28 +3774,6 @@ impl Engine {
                 let t = ctx.target.minion();
                 self.state.minions[t.index()].disease = true;
             }
-            // Out of an action (Piper's Anarch, in the master phase).
-            Effect::LockActor if self.action.is_none() => {
-                self.state.minions[ctx.actor.expect("actor").index()].locked = true;
-            }
-            // Read on a change of control (`give_card_control`), as a host
-            // is about to leave the ready region (`about_to_leave_ready`),
-            // as the influence phase begins (`start_influence`).
-            Effect::RechoosesOnControlChange
-            | Effect::PoolWhenHostLeaves(_)
-            | Effect::BurnAtInfluencePerPreyReady
-            // Read by the diablerie (Regent).
-            | Effect::MovesToSabbatDiablerist
-            // Read as the combat begins (Abuse of Power, Pillars Fall), as
-            // the action is declared (Fiendish Tongue's intercept) and as
-            // the bleed lands (its unlock, Enthrall's draw).
-            | Effect::OpposingBurnsPoolIfOneReadyAfterCombat(_)
-            | Effect::PutOnActorIfOpposingNotReadyAfterCombat
-            | Effect::SectInterceptThisAction(..)
-            | Effect::DiscardUnlockIfBleedSuccessful { .. }
-            | Effect::CryptForBloodIfBleedSuccessful(_) => {}
-            // A marker read by the frenzy-cancel cards (`frenzy_on`).
-            Effect::Frenzy => {}
             // Chosen as the card was played (rules-qa 28.5).
             Effect::ChooseSecondOfClan(_) => {
                 if let Some(id) = *in_play {
@@ -3983,10 +3895,7 @@ impl Engine {
                 self.state.cards[id.index()].body = Some(m);
                 if master_search {
                     self.interrupts
-                        .push(crate::draws::Interrupt::DisciplineSearch {
-                            seat: s,
-                            minion: m,
-                        });
+                        .push(crate::draws::Interrupt::DisciplineSearch { seat: s, minion: m });
                 }
             }
             Effect::RotschreckEndsCombat => {
@@ -4255,10 +4164,7 @@ impl Engine {
                     // turn passed with it. Out of turn (Pack Alpha in a
                     // combat on another's turn) the play's resolution
                     // ousts them and the turn goes on (`resolve_play`).
-                    if pool > 0
-                        && self.state.seats[s.index()].pool == 0
-                        && s == self.state.active
-                    {
+                    if pool > 0 && self.state.seats[s.index()].pool == 0 && s == self.state.active {
                         self.oust_and_pass(s);
                     }
                 }
@@ -4313,10 +4219,6 @@ impl Engine {
                     self.burn_card_in_play(id);
                 }
             }
-            Effect::StoreTopCards(n) => {
-                let id = in_play.expect("cards stored on a card that entered play");
-                self.store_top_cards(id, n);
-            }
             Effect::MoveBloodTargetToPoolX => {
                 let t = ctx.target.minion();
                 let moved = ctx.x.min(self.state.minions[t.index()].blood);
@@ -4331,18 +4233,6 @@ impl Engine {
                     source,
                 });
             }
-            // Announcement-time effects: read where the action is declared.
-            Effect::DeclareAction(_)
-            | Effect::EmployRetainer { .. }
-            | Effect::CallReferendum(_)
-            | Effect::RepresentsTitle(_)
-            | Effect::CancelPlayed { .. }
-            | Effect::BecomesWeapon
-            | Effect::BecomesGun
-            | Effect::TitledCannotBlock
-            | Effect::TargetLocksReadyUnlocked
-            | Effect::PlayableFromStore(_)
-            | Effect::StoredRemovedWhenBurned => {}
             // Kaymakli Nightmares: each Methuselah's crypt cards in the
             // uncontrolled region back to the crypt, their blood to the pool,
             // the cards on them burned; a created vampire burned instead (LSJ
@@ -4419,14 +4309,8 @@ impl Engine {
                 }
             }
             Effect::SearchLibraryToHand(filter) => {
-                self.interrupts.push(Interrupt::LibraryToHand { seat: s, filter });
-            }
-            // Vulnerability: the vampire still in play (re-checked).
-            Effect::BurnTargetMinion => {
-                let t = ctx.target.minion();
-                if self.state.minions[t.index()].in_play {
-                    self.burn_minion(t);
-                }
+                self.interrupts
+                    .push(Interrupt::LibraryToHand { seat: s, filter });
             }
             // Chameleon: the stolen vampire becomes Anarch.
             Effect::TargetBecomesAnarch => {
@@ -4448,8 +4332,6 @@ impl Engine {
                     });
                 }
             }
-            // A marker (`Engine::settle_servitors`).
-            Effect::RemovedAfterSuccessOrWithoutInfernal => {}
             // Redeem the Lost Soul: the vampire still in the ash heap.
             Effect::RedeemAshVampire => {
                 let seat = &mut self.state.seats[s.index()];
@@ -4461,14 +4343,6 @@ impl Engine {
                     seat.removed_crypt.put(card, copy);
                     let cap = crate::crypt::CRYPT[card as usize].capacity;
                     seat.pool += (cap / 2) as i32;
-                }
-            }
-            // "This vampire gains n blood" (Restoration).
-            Effect::BloodToActing(n) => {
-                if let Some(a) = ctx.actor {
-                    if self.state.minions[a.index()].present() {
-                        self.state.gain_blood(a, n);
-                    }
                 }
             }
             // "Steal 1 blood or life from a minion" (Tier of Souls): an ally
@@ -4498,9 +4372,17 @@ impl Engine {
                 let (Some((from, card)), Some(acting)) = (ctx.ash, ctx.actor) else {
                     unreachable!("an ash ally named at play");
                 };
-                let hunt = cards::lookup(ctx.card)
-                    .is_some_and(|d| d.modes[ctx.mode as usize].effects.contains(&Effect::HuntAction));
-                let blood = blood + if hunt { self.state.hunt_bonus(acting) } else { 0 };
+                let hunt = cards::lookup(ctx.card).is_some_and(|d| {
+                    d.modes[ctx.mode as usize]
+                        .effects
+                        .contains(&Effect::HuntAction)
+                });
+                let blood = blood
+                    + if hunt {
+                        self.state.hunt_bonus(acting)
+                    } else {
+                        0
+                    };
                 let seat = &mut self.state.seats[from.index()];
                 if let Some(k) = seat.ash.iter().rposition(|&c| c == card) {
                     let (_, copy) = seat.ash.take(k);
@@ -4585,7 +4467,6 @@ impl Engine {
                 self.state.minions[a.index()].blood -= n;
                 self.state.add_uncontrolled_blood(s, i as usize, n);
             }
-            Effect::CancelableForPoolByTargetController(_) => {}
             Effect::Stun => {
                 let t = ctx.target.minion();
                 let v = &mut self.state.minions[t.index()];
@@ -4649,15 +4530,6 @@ impl Engine {
                     });
                 }
             }
-            // The target card, if still in play (Pack Alpha [ANI]: the
-            // animal retainer burned).
-            Effect::BurnTargetCard => {
-                if let Target::Card(c) = ctx.target {
-                    if self.state.cards[c.index()].in_play {
-                        self.burn_card_in_play(c);
-                    }
-                }
-            }
             // Read before the card burns (Rewilding: "burn a location and
             // burn 2 pool from its controller").
             Effect::TargetControllerBurnsPool(n) => {
@@ -4666,17 +4538,6 @@ impl Engine {
                     let mut loss = vec![0; self.state.seats.len()];
                     loss[controller.index()] = n as i32;
                     self.burn_pool_batch(&loss);
-                }
-            }
-            // "Add 3 blood or life to a minion, not to exceed their starting
-            // life" (Touch of Valeren [ACTION]).
-            Effect::BloodToTargetToStart(n) => {
-                if let Target::Minion(t) = ctx.target {
-                    // Renewed Vigor's "enough … to reach" passes u8::MAX.
-                    let b = self
-                        .state
-                        .cap_starting(t, self.state.minions[t.index()].blood.saturating_add(n));
-                    self.state.set_blood(t, b);
                 }
             }
             Effect::DiscardFromTargetHand => {
@@ -4734,52 +4595,6 @@ impl Engine {
                     self.burn_card_in_play(id);
                 }
             }
-            Effect::HostBurnBloodToUnlock
-            | Effect::HostBloodToPool(_)
-            | Effect::PoolToHostBlood(_)
-            | Effect::HuntingGroundBlood(_)
-            | Effect::UnlockBurnPoolUnlessReady { .. }
-            | Effect::BurnPool(_)
-            | Effect::PoolToCounter(_)
-            | Effect::PoolOrBloodPerCounter
-            | Effect::PoolOrRandomCardsPerCounter
-            | Effect::PayPool(_)
-            | Effect::TheirControllerBurnsPool(_)
-            | Effect::SpendMasterPhaseAction
-            | Effect::LockSelf
-            | Effect::AddCounter(_)
-            | Effect::BurnSelfAtCounters(_)
-            | Effect::RemoveCounter(_)
-            | Effect::BurnSelfWithoutCounters
-            | Effect::HandSizeBonusUntilEndOfTurn(_)
-            | Effect::PredatorTakesControl
-            | Effect::BurnSelf
-            | Effect::BurnSource
-            | Effect::PayBlood(_)
-            | Effect::BleedIfTargetHasNoReadyUnlocked(_)
-            | Effect::LockHostSkipNextUnlock(_)
-            | Effect::HostBurnBlood(_)
-            | Effect::HostBurnLife(_)
-            | Effect::CommitStrike
-            | Effect::AdditionalStrikeWithSource
-            | Effect::UnpreventableStrike
-            | Effect::BecomesOnOpponent
-            | Effect::PreventGunStrikeAllowance(_)
-            | Effect::ContinuePressEachCombat
-            | Effect::SearchEquip
-            | Effect::SearchToHand(_)
-            | Effect::MandatoryAction
-            | Effect::EnterCombatWithTarget
-            | Effect::SkipNextUnlock
-            | Effect::ExchangeHandForAsh
-            | Effect::EquipFirstFound
-            | Effect::BurnSelfWithoutStored
-            | Effect::DrawThenBottom
-            | Effect::CountersPerDamage
-            | Effect::AggravatedAgainstClan(_)
-            | Effect::SearchStore(_) => {
-                unreachable!("ability or rider effect in a play")
-            }
             // A bonus whose condition is read live for the rest of the
             // action.
             Effect::If { on, requires, then } => {
@@ -4817,16 +4632,170 @@ impl Engine {
                     limited,
                 });
             }
-            e if is_combat_effect(&e) => self.apply_combat_effect(e, ctx),
-            // A mode shared between a bleed and the polling step
-            // (Protected District) carries both effects; the one
-            // without a context does nothing.
-            e if is_vote_effect(&e) => {
-                if self.referendum.is_some() {
-                    self.apply_vote_effect(e, ctx)
+            e => match e.family() {
+                Family::Shared => self.apply_shared_effect(e, ctx, By::Play(*in_play)),
+                Family::Action => self.apply_action_effect(e, ctx),
+                Family::Combat => self.apply_combat_effect(e, ctx),
+                // A mode shared between a bleed and the polling step
+                // (Protected District) carries both effects; the one
+                // without a context does nothing.
+                Family::Vote => {
+                    if self.referendum.is_some() {
+                        self.apply_vote_effect(e, ctx)
+                    }
+                }
+                Family::Marker => {}
+                Family::Play => unreachable!("a play effect without its arm: {e:?}"),
+                f @ (Family::Ability | Family::Success | Family::Entry | Family::Rider) => {
+                    unreachable!("{f:?} effect in a play: {e:?}")
+                }
+            },
+        }
+    }
+
+    /// One effect resolved the same from a play and from an in-play ability
+    /// (`Family::Shared`): `ctx` is the play's or the ability's, whose actor
+    /// is its host (or the user's combatant).
+    pub(crate) fn apply_shared_effect(&mut self, effect: Effect, ctx: &PlayCtx, by: By) {
+        match effect {
+            // The target of a master card (Life in the City) or the
+            // vampire in the uncontrolled region an action card chose
+            // (Govern the Unaligned [DOM]); re-checked at resolution.
+            Effect::BloodToTarget(n) => {
+                let t = ctx.target.minion();
+                self.state.gain_blood(t, n);
+            }
+            Effect::BloodToUncontrolledTarget(n) => {
+                let Target::Uncontrolled(i) = ctx.target else {
+                    unreachable!("blood to the uncontrolled region without a slot");
+                };
+                self.state.add_uncontrolled_blood(ctx.seat, i as usize, n);
+            }
+            // "Add 3 blood or life to a minion, not to exceed their starting
+            // life" (Touch of Valeren [ACTION]); "add enough life to …
+            // reach their starting life" (Mobile HQ): up to it, no further.
+            Effect::BloodToTargetToStart(n) => {
+                if let Target::Minion(t) = ctx.target {
+                    let v = &self.state.minions[t.index()];
+                    if v.present() {
+                        // Renewed Vigor's "enough … to reach" passes u8::MAX.
+                        let b = self.state.cap_starting(t, v.blood.saturating_add(n));
+                        self.state.set_blood(t, b);
+                    }
                 }
             }
-            action_effect => self.apply_action_effect(action_effect, ctx),
+            // "This vampire gains n blood": the minion playing the card
+            // (Restoration); an ability's actor is its host, not the acting
+            // minion it helps.
+            Effect::BloodToActing(n) => {
+                let to = match by {
+                    By::Play(_) => ctx.actor,
+                    By::Ability(_) => self.action.as_ref().map(|a| a.acting),
+                };
+                if let Some(a) = to {
+                    if self.state.minions[a.index()].present() {
+                        self.state.gain_blood(a, n);
+                    }
+                }
+            }
+            // Loki's Gift [PRO]: "burn 1 blood from any vampire".
+            Effect::TargetBurnsBlood(n) => {
+                if let Target::Minion(t) = ctx.target {
+                    self.state.burn_blood(t, n);
+                }
+            }
+            // Vulnerability: the vampire still in play (re-checked).
+            Effect::BurnTargetMinion => {
+                if let Target::Minion(t) = ctx.target {
+                    if self.state.minions[t.index()].in_play {
+                        self.burn_minion(t);
+                    }
+                }
+            }
+            // The target card, if still in play (Pack Alpha [ANI]: the
+            // animal retainer burned; War Ghoul's location).
+            Effect::BurnTargetCard => {
+                if let Target::Card(c) = ctx.target {
+                    if self.state.cards[c.index()].in_play {
+                        self.burn_card_in_play(c);
+                    }
+                }
+            }
+            // Renewed Vigor [obe]: a vampire out of torpor (the card action
+            // re-checked its target).
+            Effect::TargetLeavesTorpor => {
+                if let Target::Minion(t) = ctx.target {
+                    if self.state.minions[t.index()].present() {
+                        self.leave_torpor(t);
+                    }
+                }
+            }
+            Effect::LockTarget => {
+                if let Target::Minion(t) = ctx.target {
+                    self.state.minions[t.index()].locked = true;
+                }
+            }
+            // The target's filter decides whether it must be ready: an
+            // action card's is re-checked as it succeeds (Hive Mind's), an
+            // ability's met as it is used (Zizi and Metro Underground
+            // unlock a locked vampire, ready or not).
+            Effect::UnlockTarget => {
+                if let Target::Minion(t) = ctx.target {
+                    self.effect_unlock(t);
+                }
+            }
+            // In an action or out of one (Piper's Anarch in the master
+            // phase, Daria's lock).
+            Effect::LockActor => {
+                self.state.minions[ctx.actor.expect("actor").index()].locked = true;
+            }
+            // Hive Mind [san]: the acting Blood Brother, at its action's
+            // resolution; during an action, the action's own rule ("does
+            // not unlock", Daring the Dawn) applies (Kalinda's unlock).
+            Effect::UnlockActor => self.effect_unlock(ctx.actor.expect("actor")),
+            // A played combat card ending the combat before range (Alpha
+            // Glint [ANI][FOR]).
+            Effect::EndCombat => {
+                if self.combat.is_some() {
+                    self.end_combat_now();
+                }
+            }
+            Effect::GainPool(n) => self.state.seats[ctx.seat.index()].pool += n as i32,
+            // "Your prey burns n pool" (Predator's Transformation [ABO]);
+            // "burn 1 pool from your prey" (Privileged Position).
+            Effect::PreyBurnsPool(n) => {
+                let mut loss = vec![0i32; self.state.seats.len()];
+                loss[self.state.prey(ctx.seat).index()] = n as i32;
+                self.burn_pool_batch(&loss);
+            }
+            // Redistribution: the acting vampire's circle; Jerry: his
+            // circle's blood moved among his Methuselah's.
+            Effect::CircleBloodMoves { equipment } => {
+                if let Some(c) = ctx
+                    .actor
+                    .and_then(|m| self.state.minions[m.index()].circle())
+                {
+                    self.interrupts.push(Interrupt::CircleBlood {
+                        seat: ctx.seat,
+                        circle: c,
+                        from: None,
+                        to: None,
+                        equipment,
+                        moving: None,
+                        paired: [None; 12],
+                    });
+                }
+            }
+            // On the card that entered play, or on the ability's (Shilmulo
+            // Tarot, on equip and in its unlock ability).
+            Effect::StoreTopCards(n) => {
+                let id = match by {
+                    By::Play(in_play) => in_play.expect("cards stored on a card that entered play"),
+                    By::Ability(source) => source.card(),
+                };
+                self.store_top_cards(id, n);
+            }
+            other => unreachable!("not a shared effect: {other:?}"),
         }
     }
 
@@ -6738,10 +6707,6 @@ impl Engine {
                         self.burn_card_in_play(source.card());
                     }
                 }
-                Effect::GainPool(n) => self.state.seats[ctx.seat.index()].pool += n as i32,
-                // Spent from the influence phase's as it is used
-                // (`influence_apply`).
-                Effect::SpendTransfers(_) | Effect::GainTransfers(_) => {}
                 Effect::SlaveTakesCombat => {
                     if let (AbilitySource::Vampire(m), Some(a)) = (source, self.action.as_mut()) {
                         a.slave = Some(m);
@@ -6785,16 +6750,10 @@ impl Engine {
                         self.state.minions[t.index()].hostage = 0;
                     }
                 }
-                Effect::TargetLeavesTorpor => {
-                    if let Target::Minion(t) = target {
-                        if self.state.minions[t.index()].present() {
-                            self.leave_torpor(t);
-                        }
-                    }
-                }
                 Effect::HostLeavesTorpor => {
                     if let Some(h) = host {
-                        if self.state.minions[h.index()].present() && self.state.minions[h.index()].in_torpor
+                        if self.state.minions[h.index()].present()
+                            && self.state.minions[h.index()].in_torpor
                         {
                             self.leave_torpor(h);
                         }
@@ -6806,13 +6765,6 @@ impl Engine {
                         of: ctx.seat,
                         purpose: crate::draws::MinionPurpose::BurnBloodOfClan(clan),
                     });
-                }
-                Effect::BloodToActing(n) => {
-                    if let Some(a) = self.action.as_ref().map(|a| a.acting) {
-                        if self.state.minions[a.index()].present() {
-                            self.state.gain_blood(a, n);
-                        }
-                    }
                 }
                 // An ability's pool cost ("lock this location and burn 1
                 // pool"): paid down to 0, its user is ousted.
@@ -6903,20 +6855,6 @@ impl Engine {
                         self.banish(t, owner);
                     }
                 }
-                Effect::BloodToTarget(n) => {
-                    let t = target.minion();
-                    self.state.gain_blood(t, n);
-                }
-                // "Add enough life to … reach their starting life" (Mobile
-                // HQ): up to it, no further.
-                Effect::BloodToTargetToStart(n) => {
-                    let t = target.minion();
-                    let v = &self.state.minions[t.index()];
-                    if v.present() {
-                        let b = self.state.cap_starting(t, v.blood.saturating_add(n));
-                        self.state.set_blood(t, b);
-                    }
-                }
                 // "Lock after resolution of a successful bleed against you to
                 // enter combat with the acting minion" (The Guardian): both
                 // still ready, the acting minion acting first.
@@ -6989,12 +6927,6 @@ impl Engine {
                 Effect::HandSizeBonusUntilEndOfTurn(n) => {
                     self.state.seats[ctx.seat.index()].hand_bonus += n;
                     self.draw_up(ctx.seat);
-                }
-                Effect::BloodToUncontrolledTarget(n) => {
-                    let Target::Uncontrolled(i) = target else {
-                        unreachable!("blood to the uncontrolled region without a slot");
-                    };
-                    self.state.add_uncontrolled_blood(ctx.seat, i as usize, n);
                 }
                 Effect::TargetBurnLife(n) => {
                     let t = target.minion();
@@ -7098,23 +7030,9 @@ impl Engine {
                         }
                     }
                 }
-                // +n intercept for the host's block attempt, for the rest of
-                // the action (rules-qa 15.2).
-                Effect::AddIntercept(n) => {
-                    if let Some(a) = self.action.as_mut() {
-                        a.intercept_given.push((actor.expect("actor"), n as i8));
-                    }
-                }
                 Effect::AddInterceptX => {
                     if let Some(a) = self.action.as_mut() {
                         a.intercept_given.push((actor.expect("actor"), x as i8));
-                    }
-                }
-                Effect::AttemptingIntercept(n) => {
-                    if let Some(a) = self.action.as_mut() {
-                        if let crate::actions::ActionState::Attempt(m) = a.state {
-                            a.intercept_given.push((m, n));
-                        }
                     }
                 }
                 Effect::TargetInterceptThisAction(n) => {
@@ -7122,39 +7040,11 @@ impl Engine {
                         a.intercept_given.push((t, n));
                     }
                 }
-                // An action modifier printed on a vampire (Larissa Moreira's
-                // bleed, Daria's stealth).
-                // A card in play's effect on the action (47th Street
-                // Royals' bleed reduction, Szlachta Bodyguard's failure,
-                // Under Siege's block attempt, Fever Pitch's failed one).
-                Effect::AttemptBlock
-                | Effect::AttemptFails
-                | Effect::AddStealth(_)
-                | Effect::BleedMod { .. }
-                | Effect::ReduceBleed(_)
-                | Effect::VampiresCannotBlock
-                | Effect::NoDisciplineCardsThisAction
-                // Aksinya Daclau's redirection.
-                | Effect::RedirectBleed
-                | Effect::HuntBonusThisAction(_)
-                | Effect::ActionFails => self.apply_action_effect(*e, &ctx),
-                Effect::FailReferendum => self.apply_vote_effect(*e, &ctx),
-                // In an action or out of one (Daria's lock, Kalinda's unlock).
-                Effect::LockActor => {
-                    self.state.minions[actor.expect("actor").index()].locked = true;
-                }
                 Effect::LockHost => {
                     self.state.minions[host.expect("host").index()].locked = true;
                 }
-                Effect::EndCombat => self.end_combat_now(),
-                Effect::UnlockActor => self.effect_unlock(actor.expect("actor")),
                 Effect::UnlockHost => self.effect_unlock(host.expect("host")),
                 Effect::BurnEdge => self.state.seats[ctx.seat.index()].has_edge = false,
-                Effect::UnlockTarget => {
-                    if let Target::Minion(m) = ctx.target {
-                        self.effect_unlock(m);
-                    }
-                }
                 Effect::ToggleLockTarget => {
                     if let Target::Minion(m) = ctx.target {
                         if self.state.minions[m.index()].locked {
@@ -7177,11 +7067,6 @@ impl Engine {
                         self.state.burn_blood(h, burn);
                     } else if top.is_some() && self.stealth_needed(ctx.seat, h) {
                         self.apply_action_effect(Effect::AddStealth(stealth), &ctx);
-                    }
-                }
-                Effect::LockTarget => {
-                    if let Target::Minion(m) = ctx.target {
-                        self.state.minions[m.index()].locked = true;
                     }
                 }
                 Effect::BurnOwnLife(n) => {
@@ -7216,16 +7101,6 @@ impl Engine {
                 Effect::UnlockSelf => self.unlock_card(source.card()),
                 Effect::ReduceActionCost(n) => {
                     self.action.as_mut().expect("action context").cost_reduction += n;
-                }
-                Effect::TargetBurnsBlood(n) => {
-                    if let Target::Minion(m) = target {
-                        self.state.burn_blood(m, n);
-                    }
-                }
-                // Marked on the play as the ability was used.
-                Effect::CancelPlayed { .. } | Effect::CanceledGetsMasterAction => {}
-                Effect::ContinueUnblocked => {
-                    self.action.as_mut().expect("action context").continued = true;
                 }
                 Effect::HostAsIfUnlockedForAuspex => {
                     if let (Some(h), Some(a)) = (host, self.action.as_mut()) {
@@ -7300,7 +7175,9 @@ impl Engine {
                     let hand = std::mem::take(&mut seat.hand);
                     let n = hand.len();
                     seat.library.put_all(hand);
-                    self.state.seats[ctx.seat.index()].library.shuffle(&mut self.rng);
+                    self.state.seats[ctx.seat.index()]
+                        .library
+                        .shuffle(&mut self.rng);
                     self.replace(ctx.seat, n, None);
                 }
                 Effect::TargetBurnsForInterceptThisAction => {
@@ -7323,12 +7200,6 @@ impl Engine {
                             let to = self.state.minions[h.index()].owner;
                             self.give_card_control(source.card(), to);
                         }
-                    }
-                }
-                // An untimed burn of a card in play (War Ghoul's location).
-                Effect::BurnTargetCard => {
-                    if let Target::Card(c) = ctx.target {
-                        self.burn_card_in_play(c);
                     }
                 }
                 Effect::ActingControllerDiscardsAtRandom => {
@@ -7354,8 +7225,6 @@ impl Engine {
                 Effect::AddHostBlood(n) => {
                     self.state.gain_blood(host.expect("host"), n);
                 }
-                // Moved as its terms were chosen (`ability_ash_apply`).
-                Effect::AshCardToLibraryBottom => {}
                 // A strike from a card in play (a weapon, Treasured
                 // Samadji's dodge) remembers its card: unavailable when the
                 // strike resolves, it has no effect (spec §4.10.4).
@@ -7377,13 +7246,6 @@ impl Engine {
                     let i = cb.side_of_minion(host.expect("host")).expect("combatant");
                     cb.sides[i].committed = Some(source.card());
                 }
-                // Read when the strike resolves.
-                Effect::AdditionalStrikeWithSource
-                | Effect::CountersPerDamage
-                | Effect::AggravatedAgainstClan(_)
-                | Effect::BearerDamageOncePerCombat
-                | Effect::UnpreventableStrike
-                | Effect::BecomesOnOpponent => {}
                 // One point a use; the first use opens the combat's
                 // allowance (rules-qa 10.3).
                 Effect::PreventGunStrikeAllowance(n) => {
@@ -7414,7 +7276,6 @@ impl Engine {
                         cb.sides[i].continue_presses += 1;
                     }
                 }
-                Effect::StoreTopCards(n) => self.store_top_cards(source.card(), n),
                 // A cost: cards discarded at random from the user's hand,
                 // then replaced (Phaibun).
                 Effect::DiscardAtRandom(n) => {
@@ -7455,28 +7316,6 @@ impl Engine {
                     let c = &mut self.state.cards[source.card().index()];
                     c.counters -= n.min(c.counters);
                 }
-                // "Burn 1 pool from your prey" (Privileged Position).
-                Effect::PreyBurnsPool(n) => {
-                    let mut loss = vec![0i32; self.state.seats.len()];
-                    loss[self.state.prey(ctx.seat).index()] = n as i32;
-                    self.burn_pool_batch(&loss);
-                }
-                // "+1 vote for each counter on this card" (Powerbase:
-                // Madrid), to its target.
-                // Jerry: his circle's blood moved among his Methuselah's.
-                Effect::CircleBloodMoves => {
-                    if let Some(c) = host.and_then(|h| self.state.minions[h.index()].circle()) {
-                        self.interrupts.push(Interrupt::CircleBlood {
-                            seat: ctx.seat,
-                            circle: c,
-                            from: None,
-                            to: None,
-                            equipment: false,
-                            moving: None,
-                            paired: [None; 12],
-                        });
-                    }
-                }
                 // Major Boon burned: the Methuselah it remembers pays.
                 Effect::BleedToRemembered => {
                     let against = self.state.cards[source.card().index()].against;
@@ -7496,6 +7335,8 @@ impl Engine {
                         self.apply_vote_effect(Effect::AddVotes(n), &play);
                     }
                 }
+                // "+1 vote for each counter on this card" (Powerbase:
+                // Madrid), to its target.
                 Effect::TargetVotesPerCounter => {
                     if let Target::Minion(t) = target {
                         let n = self.state.cards[source.card().index()].counters;
@@ -7587,7 +7428,6 @@ impl Engine {
                         self.burn_card_in_play(source.card());
                     }
                 }
-                Effect::StorePickedFromHand => {}
                 // The Erciyes Fragments: the card named next.
                 Effect::StoreFromPreyAsh => self.interrupts.push(Interrupt::StorePreyAsh {
                     seat: ctx.seat,
@@ -7597,12 +7437,10 @@ impl Engine {
                     seat: ctx.seat,
                     card: source.card(),
                 }),
-                Effect::StoredToLibraryTop => {
-                    self.interrupts.push(Interrupt::StoredToLibraryTop {
-                        seat: ctx.seat,
-                        card: source.card(),
-                    })
-                }
+                Effect::StoredToLibraryTop => self.interrupts.push(Interrupt::StoredToLibraryTop {
+                    seat: ctx.seat,
+                    card: source.card(),
+                }),
                 Effect::RemoveCountersX => {
                     let c = &mut self.state.cards[source.card().index()];
                     c.counters -= ctx.x.min(c.counters);
@@ -7650,15 +7488,16 @@ impl Engine {
                             counters: 0,
                             banished: None,
                         });
-                        self.state.seats[ctx.seat.index()].crypt.shuffle(&mut self.rng);
+                        self.state.seats[ctx.seat.index()]
+                            .crypt
+                            .shuffle(&mut self.rng);
                     }
-                }
-                Effect::TargetBurnsBloodForIntercept | Effect::PoolIfAttemptingDoesNotBlock => {
-                    self.apply_action_effect(*e, &ctx)
                 }
                 Effect::PayPoolX => self.pay_pool_for_ability(ctx.seat, ctx.x as i32),
                 Effect::GhoulFromLibraryTop(body) => {
-                    if let Some((card, copy)) = self.state.seats[ctx.seat.index()].library.take_top() {
+                    if let Some((card, copy)) =
+                        self.state.seats[ctx.seat.index()].library.take_top()
+                    {
                         self.state.minions.push(crate::state::Minion {
                             copy: crate::copies::Untracked(copy),
                             ..crate::state::Minion::new(
@@ -7748,13 +7587,6 @@ impl Engine {
                         }
                     }
                 }
-                Effect::BurnTargetMinion => {
-                    if let Target::Minion(t) = target {
-                        if self.state.minions[t.index()].in_play {
-                            self.burn_minion(t);
-                        }
-                    }
-                }
                 // Scourge of the Enochians: to the predator at once (ANK
                 // 20200508-1).
                 Effect::PredatorTakesControl => {
@@ -7770,11 +7602,31 @@ impl Engine {
                     left: n,
                     pool: 0,
                 }),
-                e if is_combat_effect(&e) => self.apply_combat_effect(e, &ctx),
-                // A referendum ability's votes and abstentions (Alexa Draper,
-                // Queen Anne).
-                e if is_vote_effect(&e) => self.apply_vote_effect(e, &ctx),
-                other => unreachable!("not an ability effect: {other:?}"),
+                e => match e.family() {
+                    Family::Shared => self.apply_shared_effect(e, &ctx, By::Ability(source)),
+                    // An action modifier printed on a vampire (Larissa
+                    // Moreira's bleed, Daria's stealth, Aksinya Daclau's
+                    // redirection), a card in play's effect on the action
+                    // (47th Street Royals' bleed reduction, Szlachta
+                    // Bodyguard's failure, Under Siege's block attempt,
+                    // Fever Pitch's failed one), +n intercept for the
+                    // host's block attempt for the rest of the action
+                    // (rules-qa 15.2); none underway, nothing to change.
+                    Family::Action => {
+                        if self.action.is_some() {
+                            self.apply_action_effect(e, &ctx)
+                        }
+                    }
+                    Family::Combat => self.apply_combat_effect(e, &ctx),
+                    // A referendum ability's votes and abstentions (Alexa
+                    // Draper, Queen Anne, Yoruba Shrine's failure).
+                    Family::Vote => self.apply_vote_effect(e, &ctx),
+                    Family::Marker => {}
+                    Family::Ability => unreachable!("an ability effect without its arm: {e:?}"),
+                    f @ (Family::Play | Family::Success | Family::Entry | Family::Rider) => {
+                        unreachable!("{f:?} effect in an ability: {e:?}")
+                    }
+                },
             }
         }
         moved || self.state.seats[ctx.seat.index()].ousted

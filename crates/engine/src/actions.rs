@@ -3286,7 +3286,6 @@ impl Engine {
             Effect::UnlockActingForActorBlood(n) => {
                 a.unlock_paid_by.push((play.actor.expect("actor"), n));
             }
-            Effect::SectInterceptThisAction(sect, n) => a.sect_intercept.push((sect, n)),
             Effect::StrikeTollIfBlocks(n) => {
                 a.strike_toll_if_blocks
                     .push((play.actor.expect("actor"), n));
@@ -3410,7 +3409,6 @@ impl Engine {
                 }
             }
             Effect::LockFailedBlockers => a.lock_failed = true,
-            Effect::CancelableForPool(_) | Effect::CancelableForBlockerBlood(_) => {}
             // Negative stealth is left unchanged (LSJ 20021211).
             Effect::ReduceStealthToZero => {
                 let s = a.stealth(&self.state).max(0) as u8;
@@ -3561,13 +3559,6 @@ impl Engine {
                     m.skip_unlock = true;
                 }
             }
-            Effect::LockActor => {
-                self.state.minions[play.actor.expect("actor").index()].locked = true;
-            }
-            Effect::UnlockActor if a.no_unlock => {}
-            Effect::UnlockActor => {
-                self.state.unlock(play.actor.expect("actor"));
-            }
             Effect::RedirectBleed => {
                 let cards::Target::Seat(t) = play.target else {
                     unreachable!("redirect without a seat target");
@@ -3591,8 +3582,6 @@ impl Engine {
                 });
             }
             Effect::DeferReactionReplacement => a.defer_reaction_replacement = true,
-            // A marker of the card placed later (Melange [AUS]).
-            Effect::StillYours => {}
             Effect::EndActionIfBlocked => a.end_on_block = true,
             other => unreachable!("not an action effect: {other:?}"),
         }

@@ -2415,27 +2415,3 @@ impl Engine {
         self.referendum = Some(ctx);
     }
 }
-
-pub(crate) fn is_vote_effect(e: &cards::Effect) -> bool {
-    matches!(
-        e,
-        cards::Effect::AddVotes(_)
-            | cards::Effect::GrantVotes(_)
-            | cards::Effect::GrantVotesAll(_)
-            | cards::Effect::PoisonPill
-            | cards::Effect::AddVotesPerReadySect(_)
-            | cards::Effect::AddVotesAgainst(_)
-            | cards::Effect::Abstain { .. }
-            | cards::Effect::TallyPenaltyAgainst(_)
-            | cards::Effect::BarNonCamarillaVotes
-            | cards::Effect::NonCamarillaVotesMinus(_)
-            | cards::Effect::NotPathVotesMinus(..)
-            | cards::Effect::BarNonSectVotes(_)
-            | cards::Effect::PoolForVotesRound { .. }
-            | cards::Effect::AddVotesXLinear { .. }
-            | cards::Effect::FailReferendum
-            | cards::Effect::ActingAbstains
-            | cards::Effect::FailIfTitleRequired
-            | cards::Effect::CancelReferendum { .. }
-    )
-}

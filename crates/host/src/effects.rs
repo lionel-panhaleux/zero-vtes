@@ -229,3 +229,48 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         _ => {}
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::{BTreeMap, BTreeSet};
+    use zvtes::cards::defs::DEFS;
+    use zvtes::cards::families::Family;
+    use zvtes::cards::vampires::VAMPIRES;
+
+    // Informational (engine review F1): the effects of the definitions'
+    // modes and abilities no curated effect tells, by family (a marker is
+    // read by name, nothing to tell). See them with `cargo test -p
+    // zvtes-host unmapped -- --nocapture`.
+    #[test]
+    fn unmapped_effects_by_family() {
+        let mut unmapped: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        let modes = DEFS
+            .iter()
+            .flat_map(|d| d.modes.iter().chain(d.abilities))
+            .chain(VAMPIRES.iter().flat_map(|v| v.abilities.iter()));
+        let mut told = 0;
+        for m in modes {
+            for &e in m.effects {
+                if e.family() == Family::Marker {
+                    continue;
+                }
+                if curated(&[e], Whom::default()).is_empty() {
+                    let name = format!("{e:?}");
+                    let name = name.split(['(', ' ', '{']).next().unwrap_or_default();
+                    unmapped
+                        .entry(format!("{:?}", e.family()))
+                        .or_default()
+                        .insert(name.to_string());
+                } else {
+                    told += 1;
+                }
+            }
+        }
+        assert!(told > 0);
+        for (family, effects) in &unmapped {
+            let list: Vec<&str> = effects.iter().map(String::as_str).collect();
+            println!("{family} ({}): {}", effects.len(), list.join(", "));
+        }
+    }
+}

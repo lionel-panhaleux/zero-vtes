@@ -20604,7 +20604,7 @@ pub static REDISTRIBUTION: CardDef = CardDef {
                 Effect::DeclareAction(ActionKind::Card),
                 Effect::AddStealth(1),
                 Effect::BloodToActing(1),
-                Effect::CircleBloodMoves,
+                Effect::CircleBloodMoves { equipment: true },
             ],
         ),
         action_at(
@@ -20615,7 +20615,7 @@ pub static REDISTRIBUTION: CardDef = CardDef {
                 Effect::AddStealth(1),
                 Effect::BloodToActing(1),
                 Effect::UnlockActor,
-                Effect::CircleBloodMoves,
+                Effect::CircleBloodMoves { equipment: true },
             ],
         ),
     ],

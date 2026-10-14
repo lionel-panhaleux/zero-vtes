@@ -5,6 +5,7 @@
 //! Definitions live in `defs`.
 
 pub mod defs;
+pub mod families;
 pub mod slots;
 pub mod vampires;
 
@@ -4213,8 +4214,10 @@ pub enum Effect {
     BloodToUncontrolledCircle,
     /// "Move any amount of blood … among the Blood Brothers in this circle"
     /// (Jerry, Redistribution): `Interrupt::CircleBlood` for the actor's
-    /// (the host's) circle, its controller's Blood Brothers.
-    CircleBloodMoves,
+    /// (the host's) circle, its controller's Blood Brothers; equipment
+    /// moves too when the card says so (Redistribution: "blood and
+    /// equipment").
+    CircleBloodMoves { equipment: bool },
     /// "If you control the <target card>, this is a +n stealth action"
     /// (Rampage): read with the action's stealth.
     StealthIfOwnTargetCard(u8),

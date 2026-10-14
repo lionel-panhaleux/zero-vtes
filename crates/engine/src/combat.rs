@@ -3584,16 +3584,6 @@ impl Engine {
             }
             Effect::PutOnActorAfterCombat => c.after_combat.push(Held::from_play(play, actor, 0)),
             Effect::AimExtraDamage(n) => c.sides[i].aim = n,
-            // Read as the card is played (`CardAsPlayed`).
-            Effect::CancelableByDiscardingCombat(_) => {}
-            // The card enters play as it resolves (`apply_card_effect`):
-            // Wall of Filth on the vampire now, "a vampire can have only
-            // one".
-            Effect::MorbidityTake(_)
-            | Effect::PutOnActorNow
-            | Effect::PutOnActorNowStacking
-            | Effect::TrapPresses
-            | Effect::BeastPresses { .. } => {}
             Effect::StrengthThisRound(n) => c.sides[i].strength_round += n,
             Effect::PreventThisRound(n) => c.sides[i].round_prevents += n,
             Effect::PreventEachRound(n) => {
@@ -3886,97 +3876,6 @@ impl CombatCtx {
             self.press_toll = Some(i);
         }
     }
-}
-
-pub(crate) fn is_combat_effect(e: &Effect) -> bool {
-    matches!(
-        e,
-        Effect::Strike(_)
-            | Effect::Maneuver
-            | Effect::Press
-            | Effect::OptionalPress
-            | Effect::AdditionalStrikesEachRound(_)
-            | Effect::CloseSelfDamage(_)
-            | Effect::ContinuePressThisRound
-            | Effect::CoordinateAttack { .. }
-            | Effect::OptionalManeuver
-            | Effect::NextRoundManeuver
-            | Effect::AdditionalStrikes { .. }
-            | Effect::SetStrength(_)
-            | Effect::AggravatedHands
-            | Effect::AggravatedHandsThisCombat
-            | Effect::FortitudeProofStrike
-            | Effect::CommittedStrike(_)
-            | Effect::AdditionalStrikeOnly { .. }
-            | Effect::OptionalCloseManeuver
-            | Effect::CloseManeuverForBlood(_)
-            | Effect::ManeuverForBlood(_)
-            | Effect::HandStrikeDamageThisCombat(_)
-            | Effect::HandSizeThisCombat(_)
-            | Effect::OpponentOpenHandThisCombat
-            | Effect::PlayCombatFromAsh
-            | Effect::PreventOnTarget(_)
-            | Effect::PreventOnTargetXPlus(_)
-            | Effect::PreventNonAggravatedOnTarget(_)
-            | Effect::OpposingRestraint
-            | Effect::DrawOutBeast { .. }
-            | Effect::OrgyOfBlood
-            | Effect::OpposingCombatCardsCost(_)
-            | Effect::FrenzyShield
-            | Effect::FleshOfMarble { .. }
-            | Effect::WeatherDamage { .. }
-            | Effect::PutOnOpponent
-            | Effect::OpponentToTorpor
-            | Effect::AdditionalStrikesX { .. }
-            | Effect::ActorBurnsBloodX
-            | Effect::WeaponStrikePlus(_)
-            | Effect::CommittedWeaponStrikePlus(_)
-            | Effect::UndodgeableStrike
-            | Effect::NeverAggravatedStrike
-            | Effect::UnpreventableIfBlackHand
-            | Effect::AggravatedStrike
-            | Effect::FirstStrike
-            | Effect::OpposingControllerBurnsPool(_)
-            | Effect::PutOnOpponentOnHit { .. }
-            | Effect::PutOnActorAfterCombat
-            | Effect::PutOnActorNow
-            | Effect::PutOnActorNowStacking
-            | Effect::ExtraDrawPerReplacementThisCombat
-            | Effect::AimExtraDamage(_)
-            | Effect::CancelableByDiscardingCombat(_)
-            | Effect::MorbidityTake(_)
-            | Effect::TrapPresses
-            | Effect::BeastPresses { .. }
-            | Effect::StrengthThisRound(_)
-            | Effect::PreventThisRound(_)
-            | Effect::PreventEachRound(_)
-            | Effect::PressThisRound
-            | Effect::PreventOpposingStrikesThisRound
-            | Effect::PreventStrikeDamage
-            | Effect::PreventStrike(_)
-            | Effect::NullifyOpposingWeapons
-            | Effect::EnvironmentalDamage(_)
-            | Effect::RoundStrike(_)
-            | Effect::Prevent(_)
-            | Effect::PreventXPlus(_)
-            | Effect::PreventNonAggravated(_)
-            | Effect::OnlyHandStrikes
-            | Effect::NextRoundClose
-            | Effect::NewRound
-            | Effect::QueueCombatWithOpponent
-            | Effect::GainBloodLostByOpponent
-            | Effect::ContinueAfterCombat { .. }
-            | Effect::ContinueFreeAfterCombat(_)
-            | Effect::BurnAfterCombat(_)
-            | Effect::DamageAfterCombatIfClose(_)
-            | Effect::StunAfterCombatIfClose
-            | Effect::PutOnOpposingKeepControl
-            | Effect::SetRange(_)
-            | Effect::ImmuneStrikeNonAggravated
-            | Effect::ImmuneEffectNonAggravated
-            | Effect::PreventNonGun(_)
-            | Effect::StrengthThisCombat(_)
-    )
 }
 
 /// A melee weapon's strike for side `i`: its own strike and riders at +n
