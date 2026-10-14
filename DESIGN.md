@@ -2079,7 +2079,22 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   held-out, 0.46 at 3401 against p9's trained-on 0.65). The bar is the
   first evaluation (p8 and p9 as opponents, not comparable with p9's
   3.57): 2.19 at 3420 (re-measured); 2.60 at 3520, the held-out flat
-  near 0.45 to 3600.
+  near 0.45 to 3600. Ended at 4000 (2026-10-14): best 3840, re-measured
+  2.84; win shares against p8 0.53 → 0.59, against p9 0.47 → 0.53; the
+  held-out stayed 0.43–0.49 (0.48 at 4000). `waste` on p10@3840 (24
+  games, its nudges): own nightmares 0 of 19 (nightmare 6), stuck
+  transfers 4.9%, rescues 33%, crypt draws 10% (the owner 11%), cycling
+  82% (a playable card cycled while an unplayable stays 37%, p9 50%),
+  wakes with no block 81%, unlocks with no action 50%. Per deck
+  (`decks.rs` on `991b540`, p10 self-play / at one seat against three
+  p9): the five trained weak came up — Nosferatu 0.67 → 1.03, Toreador
+  0.79 → 1.03, Tzimisce 0.57 → 0.80, Path of Caine 0.77 → 0.83, Salubri
+  0.62 → 0.68 — and the ones dropped from the list fell back (Path of
+  Death 1.14 → 0.65, Tremere 1.01 → 0.86, Reign of Stanislava 1.52 →
+  1.19): the weak list moves the decks round, not up. Lowest now Cathari
+  0.45 / 0.27, Path of Death 0.65 / 0.97, Salubri 0.68 / 0.40. Served
+  in the fork since 2026-10-14 (nightmare 6 in the wasm nudges; p9's
+  model `runs/p9-imitation/best.zvp`); engine.krcg.org still on p9.
 
 ### 11.3 Open gaps
 

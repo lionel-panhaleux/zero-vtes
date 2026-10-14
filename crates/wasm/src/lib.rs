@@ -25,7 +25,8 @@ const TEMPERATURE: f32 = 0.5;
 /// spread; with the temperature, 1.17 / 0.81 as without).
 const RESCUE_BONUS: f32 = 6.0;
 
-/// The network bots' nudges: those `p9@3400` trained with, never faded
+/// The network bots' nudges: those `p10@3840` trained with (p9's, nightmare
+/// 4 → 6), never faded
 /// (`nudge_until` 0) — off them it plays off its training (a transfer onto
 /// a second copy of a unique: 35% of the offers instead of 4%; Z-train,
 /// 2026-10-12).
@@ -36,7 +37,7 @@ fn nudges() -> Nudges {
         idle: 3.0,
         draw: 7.0,
         stuck: 6.0,
-        nightmare: 4.0,
+        nightmare: 6.0,
         ..Nudges::default()
     }
 }
