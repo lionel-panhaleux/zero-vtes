@@ -1,12 +1,7 @@
-//! Cards stored on cards and the draws they change (slice 8c-ii): draw
-//! alternatives ("if you would draw a card from your library, you can draw
-//! one of those cards instead": Black Market Cache, Shilmulo Tarot), a
-//! replacement's treatment beside Visit from the Capuchin, Heart of
-//! Nizchetus' draws and bottom move, Black Market Cache's search.
-//!
-//! These choices interrupt whatever drew the cards, as a discard-down does:
-//! `Engine::interrupts` is served, in order, before any other decision. A
-//! Methuselah with no draw alternative and nothing queued draws at once.
+//! Interrupts: choices owed by one player in the middle of a resolution,
+//! served in order before any other decision (engine.md §6.2), among them
+//! draws, draw alternatives (Black Market Cache, Shilmulo Tarot),
+//! replacement treatments (Visit from the Capuchin) and searches (§6.14).
 
 use crate::cards::{self, CardFilter, Effect, Hook};
 use crate::decision::{Choice, DecisionRequest, WindowLabel, Zone};
@@ -19,9 +14,8 @@ use crate::state::{distinct, CardId, CardInPlay, Release};
 /// A pending choice about cards drawn, moved or stored.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Interrupt {
-    /// `seat` moves `card` (Fear of Mekhet) to another justicar or Inner
-    /// Circle member, any Methuselah's, in torpor included (ANK 20210109;
-    /// rules-qa 49.4: not locked by the move); burned if there is none.
+    /// Fear of Mekhet moves to another justicar or Inner Circle member, in
+    /// torpor too, else burns (ANK 20210109; rules-qa 49.4: not locked).
     MoveCardToTitled { seat: SeatId, card: CardId },
     /// Blood Trade: 1 blood from `from` to a vampire of another
     /// Methuselah's, the player's choice; with `anarchs`, to another ready
@@ -31,10 +25,8 @@ pub enum Interrupt {
         from: MinionId,
         anarchs: bool,
     },
-    /// Heidelberg Castle: `seat` moves from `from` to another ready vampire
-    /// of theirs — chosen first (`to`), then the blood (any amount, the
-    /// excess to the bank: ANK 20170804), then equipment and retainers one
-    /// at a time, each one `to` could hold (LSJ 19980831), until done.
+    /// Heidelberg Castle: `to` first, then blood (excess to the bank, ANK
+    /// 20170804), then equipment and retainers `to` can hold (LSJ 19980831).
     MoveBetween {
         seat: SeatId,
         from: MinionId,
@@ -48,31 +40,26 @@ pub enum Interrupt {
         card: CardId,
         pool: u8,
     },
-    /// Nightmares upon Nightmares: `minion` is locked unless its
-    /// Methuselah discards a card (not replaced until their master
-    /// phase).
+    /// Nightmares upon Nightmares: `minion` locks unless its Methuselah
+    /// discards (not replaced until their master phase).
     LockOrDiscard { seat: SeatId, minion: MinionId },
-    /// Society of Leopold: `minion` burns `n` blood or is burned, its
-    /// Methuselah's choice (Pass: burned) — or `card` is burned instead
-    /// (Robert Carter: "Carter's employer burns 1 blood, or Carter is
-    /// burned").
     /// Maabara: a library card of `seat`'s ash heap moved onto `card`.
     StoreOwnAsh { seat: SeatId, card: CardId },
     /// Maabara: a card on `card` moved to the top of `seat`'s library.
     StoredToLibraryTop { seat: SeatId, card: CardId },
-    /// "Each anarch burns 1 blood or becomes Camarilla" (Waiting Game): its
-    /// controller's choice — `BurnBloodToAvoid` burns, `Pass` makes it
-    /// Camarilla (the only way with no blood).
+    /// Waiting Game: an anarch burns 1 blood (`BurnBloodToAvoid`) or
+    /// becomes Camarilla (`Pass`, the only way with no blood).
     BloodOrCamarilla { seat: SeatId, minion: MinionId },
+    /// Society of Leopold: `minion` burns `n` blood or is burned (Pass); or
+    /// `card` burns instead (Robert Carter: "or Carter is burned").
     BloodOrBurned {
         seat: SeatId,
         minion: MinionId,
         n: u8,
         card: Option<CardId>,
     },
-    /// A replacement Visit from the Capuchin would take instead while a
-    /// draw alternative applies too: one treatment or the other (ANK
-    /// 20200905; rules-qa 9.4). `except`: the card being replaced.
+    /// Visit from the Capuchin's replacement beside a draw alternative: one
+    /// or the other (ANK 20200905; rules-qa 9.4); `except` the card replaced.
     Replacement {
         seat: SeatId,
         except: Option<CardId>,
@@ -85,31 +72,27 @@ pub enum Interrupt {
     Draws { seat: SeatId, left: u8, drawn: u8 },
     /// `left` cards still to move from hand to the bottom of the library.
     Bottom { seat: SeatId, left: u8 },
-    /// Black Market Cache's search: up to `left` more cards to put on
-    /// `card`.
+    /// Black Market Cache's search: up to `left` more cards onto `card`.
     StoreSearch {
         seat: SeatId,
         card: CardId,
         left: u8,
     },
-    /// "After this ally enters play, burn an ally or retainer you control"
-    /// (War Ghoul): the controller's pick among the others, the entering
-    /// ally itself if there is none (RTR 19961113).
+    /// War Ghoul's entry burn: another ally or retainer, else itself (RTR
+    /// 19961113).
     EntryBurn {
         seat: SeatId,
         ally: crate::ids::MinionId,
     },
-    /// "After this ally enters play, burn it unless you remove an ally or
-    /// vampire in your ash heap from the game" (Rotting Behemoth): the
-    /// controller may decline, and the ally burns (LSJ 20030701-2).
+    /// Rotting Behemoth: remove an ally or vampire from the ash heap, or
+    /// decline and it burns (LSJ 20030701-2).
     EntryRemoveOrBurn {
         seat: SeatId,
         ally: crate::ids::MinionId,
     },
-    /// A block attempt made costly as it goes on (Where the Veil Thins
-    /// [OBL], Tenebrous Form [OBT]): its minion pays the `n` blood that
-    /// card adds, or resigns the attempt and pays nothing (LSJ 20031121-2);
-    /// an ally cannot burn blood.
+    /// A toll landing on a block attempt under way (Where the Veil Thins
+    /// [OBL], Tenebrous Form [OBT]): pay `n` blood or resign (LSJ
+    /// 20031121-2); an ally cannot burn blood.
     BlockToll {
         seat: SeatId,
         minion: crate::ids::MinionId,
@@ -121,27 +104,24 @@ pub enum Interrupt {
         seat: SeatId,
         minion: crate::ids::MinionId,
     },
-    /// Amici Noctis: `left` blood to distribute; first how much to the
-    /// pool (at most `cap`), the rest among the ready `clan` vampires.
+    /// Amici Noctis: of `left` blood, how much to the pool (at most `cap`);
+    /// the rest to the ready `clan` vampires.
     MarginPool {
         seat: SeatId,
         left: u8,
         cap: u8,
         clan: &'static str,
     },
-    /// Amici Noctis: `left` blood for the ready `clan` vampires below
-    /// capacity, 1 each, offered in arena order from minion `next`: give or
-    /// skip, a skip only while enough of them are left.
+    /// Amici Noctis: 1 blood each to the ready `clan` vampires below
+    /// capacity, from minion `next`; a skip only while enough are left.
     MarginBlood {
         seat: SeatId,
         left: u8,
         next: u32,
         clan: &'static str,
     },
-    /// A minion controlled by `of`, chosen as an effect resolves (Break the
-    /// Bonds [obf], The Platinum Protocol [pro]: "the target is chosen upon
-    /// resolution", ANK 20240706): locked, if the player wants to, or given
-    /// one of the player's corruption counters.
+    /// A minion of `of`'s chosen at resolution, for `purpose` (Break the
+    /// Bonds [obf], The Platinum Protocol [pro]; ANK 20240706).
     MinionOf {
         seat: SeatId,
         of: SeatId,
@@ -161,16 +141,14 @@ pub enum Interrupt {
         blood: u8,
         damage: u8,
     },
-    /// `seat` looks at `of`'s hand and discards a card of their choice from
-    /// it, which `of` replaces (Revelations [aus]).
+    /// Revelations [aus]: `seat` discards a card from `of`'s hand, which `of`
+    /// replaces.
     DiscardFromHandOf { seat: SeatId, of: SeatId },
-    /// `seat` discards `left` more cards of their choice from hand (Shroud
-    /// of Decay [obl]); all `done` are replaced once every discard is made
-    /// (advanced rules §6.8.3).
-    /// `seat` reorders the top `total` cards of their library (Eulogio
-    /// Sánchez de los Reyes): `placed` of them chosen so far, from the top
-    /// down; the rest still in their old order below them.
+    /// Eulogio Sánchez de los Reyes: the top `total` library cards
+    /// reordered, `placed` chosen so far from the top down.
     Reorder { seat: SeatId, total: u8, placed: u8 },
+    /// Shroud of Decay [obl]: `left` more discards from hand; the `done`
+    /// replaced once all are made (advanced rules §6.8.3).
     DiscardChosen {
         seat: SeatId,
         left: u8,
@@ -179,20 +157,17 @@ pub enum Interrupt {
         /// cards").
         combat_only: bool,
     },
-    /// `seat` removes `left` more cards of their choice from `of`'s ash
-    /// heap from the game; then `of` burns `pool` pool (Shroud of Decay
-    /// [OBL]; LSJ 20090710: there is no order to the ash heap) — from their
-    /// own, pool 0, Marchesa Liliana's cost. Burned vampires are ash heap
-    /// cards too (rules-qa 42.7).
+    /// `left` more cards removed from `of`'s ash heap, then `of` burns `pool`
+    /// (Shroud of Decay [OBL], LSJ 20090710: no order to the ash heap;
+    /// Marchesa Liliana's own, pool 0). Burned vampires count (rules-qa 42.7).
     RemoveFromAsh {
         seat: SeatId,
         of: SeatId,
         left: u8,
         pool: u8,
     },
-    /// "You can search your library (shuffle afterward), hand and/or ash
-    /// heap for a Discipline master card and put it on this new vampire"
-    /// (Childe of the Revolution): put on, not played.
+    /// Childe of the Revolution: a Discipline master from library, hand or
+    /// ash heap put on the new vampire, not played.
     DisciplineSearch {
         seat: SeatId,
         minion: crate::ids::MinionId,
@@ -200,50 +175,43 @@ pub enum Interrupt {
     /// Learjet: `seat` may draw an additional card (`DrawLibrary`), the
     /// hand then discarded down; or pass.
     MayDrawExtra { seat: SeatId },
-    /// Infernal Pursuit [CEL], several cards replaced at once: one
-    /// replacement of `seat`'s and its `extra` additional cards, then as
-    /// many discarded, before the next (ANK 20180925-1).
+    /// Infernal Pursuit [CEL]: one replacement and its `extra` draws, then
+    /// as many discards, before the next (ANK 20180925-1).
     PursuitDraw { seat: SeatId, extra: u8 },
     /// Those `left` extra cards of `seat`'s discarded, not replaced.
     PursuitDiscard { seat: SeatId, left: u8 },
-    /// Baltimore Purge: `seat` chooses a ready vampire of `of`'s not older
-    /// than `host` (the purge's vampire), sent to torpor with it once every
-    /// Methuselah's is chosen.
+    /// Baltimore Purge: a ready vampire of `of`'s not older than `host`, sent
+    /// to torpor with it once every Methuselah's is chosen.
     PurgePick {
         seat: SeatId,
         of: SeatId,
         host: MinionId,
     },
-    /// "Move up to n blood from the acting vampire to this new vampire"
-    /// (Third Tradition: Progeny): `seat` sets how much, 0 to `max` of what
-    /// `from` has (`SetX`).
+    /// Third Tradition: Progeny: 0 to `max` blood from `from` to `to`
+    /// (`SetX`).
     MoveBloodUpTo {
         seat: SeatId,
         from: MinionId,
         to: MinionId,
         max: u8,
     },
-    /// "Steal up to n blood" (François Villon G2): `seat` sets how much,
-    /// 1 to `max`, from `from` to `to` (`SetX`).
+    /// François Villon G2's "steal up to n blood": 1 to `max` (`SetX`).
     StealUpTo {
         seat: SeatId,
         from: MinionId,
         to: MinionId,
         max: u8,
     },
-    /// Antonio d'Erlette (`minion`): a mage ally from `seat`'s library or
-    /// hand he could play, put in play, its cost paid (Pass: none); the
-    /// library shuffled either way.
+    /// Antonio d'Erlette: a mage ally he could play, from library or hand,
+    /// put in play paid (Pass: none); the library shuffled.
     AllySearch {
         seat: SeatId,
         minion: crate::ids::MinionId,
     },
-    /// "Remove a crypt card in your uncontrolled region from the game"
-    /// (Wider View): the player's pick, the counters on it to the blood
+    /// Wider View: an uncontrolled crypt card removed, its counters to the
     /// bank; removed cards are public (LSJ 20080314).
     RemoveUncontrolled { seat: SeatId },
-    /// "As … its controller changes, its controller chooses a ready vampire
-    /// they control" (The Rack): none if they have none.
+    /// The Rack: a ready vampire of the new controller's, if any.
     ChooseForCard {
         seat: SeatId,
         card: CardId,
@@ -272,94 +240,73 @@ pub enum Interrupt {
         card: CardId,
         minion: crate::ids::MinionId,
     },
-    /// Ashur Tablets' picks from `seat`'s ash heap: first the card to hand
-    /// (a pass chooses none), then up to `left` more shuffled into the
-    /// library (a pass stops), `to_library` once the hand card is chosen.
+    /// Ashur Tablets: the ash heap card to hand, then (`to_library`) up to
+    /// `left` more shuffled into the library; a pass skips or stops.
     AshurPicks {
         seat: SeatId,
         left: u8,
         to_library: bool,
     },
-    /// "A non-titled vampire you control becomes Anarch" (Gilbert Duane):
-    /// the player's pick, none if they have none.
+    /// Gilbert Duane: a non-titled vampire of the player's becomes Anarch.
     BecomesAnarch { seat: SeatId },
-    /// Anarch Convert entering play: "you can remove him from the game to
-    /// make a non-titled vampire you control Anarch" — that vampire chosen
-    /// (`chosen`), then "either gain 1 pool or draw 1 card from your
-    /// crypt". Before any contest (LSJ 20080526, RTR 20180303): `forced`
-    /// when he came out beside a copy his Methuselah controls (no voluntary
-    /// self-contest); declined, his contests are staged.
+    /// Anarch Convert's entry: the vampire made Anarch, then 1 pool or a
+    /// crypt draw; before any contest (LSJ 20080526, RTR 20180303), `forced`
+    /// beside a copy his Methuselah controls (no voluntary self-contest).
     AnarchConvert {
         seat: SeatId,
         convert: crate::ids::MinionId,
         forced: bool,
         chosen: Option<crate::ids::MinionId>,
     },
-    /// "Add n blood to a `clan` vampire in your uncontrolled region"
-    /// (Hunting the Beast [AUS]): the player's pick, none if they have none.
-    /// With no clan, any of them, and optional ("may move a counter from
-    /// the bank to a vampire in his or her uncontrolled region", Flames of
-    /// Insurrection).
+    /// `n` blood to an uncontrolled `clan` vampire (Hunting the Beast
+    /// [AUS]); no clan and optional with `may` (Flames of Insurrection).
     UncontrolledBlood {
         seat: SeatId,
         clan: Option<&'static str>,
         n: u8,
         may: bool,
     },
-    /// "Burns 1 pool unless they burn a vampire they control with capacity
-    /// 4 or more to burn this card" (Antediluvian Awakening): `BurnPool`
-    /// pays, `ChooseMinion` burns that vampire and the card.
+    /// Antediluvian Awakening: `BurnPool` pays, `ChooseMinion` burns a
+    /// capacity `cap`+ vampire and the card.
     PoolOrVampire {
         seat: SeatId,
         card: CardId,
         pool: u8,
         cap: u8,
     },
-    /// "Search your library for a <filter> card. Show it to all players and
-    /// add it to your hand" (Fortschritt Library): a library card
-    /// (`Choice::FindCard`), or none (Pass); the library shuffled
-    /// afterward, the hand discarded down as it settles.
+    /// Fortschritt Library: a `filter` card searched to hand (`FindCard`) or
+    /// none (Pass); the library shuffled.
     LibraryToHand {
         seat: SeatId,
         filter: crate::cards::CardFilter,
     },
-    /// "That Methuselah chooses either to burn n pool or to lose all
-    /// transfers during his or her next influence phase" (Leandro):
-    /// `BurnPool` burns, `Pass` loses the transfers — no default (LSJ
-    /// 20021210-1).
+    /// Leandro: `BurnPool` burns, `Pass` loses the next influence phase's
+    /// transfers; no default (LSJ 20021210-1).
     PoolOrNoTransfers { seat: SeatId, pool: u8 },
-    /// "Lock this card or burn n pool" (Bleeding the Vine): `ResolveRider`
-    /// locks it (if unlocked), `BurnPool` pays.
+    /// Bleeding the Vine: `ResolveRider` locks it (if unlocked), `BurnPool`
+    /// pays.
     LockOrPay {
         seat: SeatId,
         card: CardId,
         pool: u8,
     },
-    /// "Search your crypt for a `clan` vampire … move them to your
-    /// uncontrolled region (shuffle afterward)" (Disciple of Lazarus): a
-    /// crypt card (`Choice::AshVampire`, a CRYPT index), or none (Pass).
+    /// Disciple of Lazarus: a `clan` crypt card to the uncontrolled region
+    /// (`AshVampire`, a CRYPT index) or none (Pass).
     CryptSearch { seat: SeatId, clan: &'static str },
     /// Solomon Batanea: the slot of `of`'s uncontrolled region that gives 1
     /// blood to `of`'s pool (`Choice::Slot`, `of`'s region).
     PreySlotToPool { seat: SeatId, of: SeatId },
-    /// Erlik entering play: up to `left` more blood moved from `from` to
-    /// `seat`'s uncontrolled `clan` vampires, one at a time (`Choice::Slot`);
-    /// Pass stops. His contests are staged after (LSJ 20080526).
+    /// Erlik's entry: up to `left` more blood from `from` to uncontrolled
+    /// `clan` vampires (`Slot`); contests staged after (LSJ 20080526).
     DistributeFrom {
         seat: SeatId,
         from: MinionId,
         clan: &'static str,
         left: u8,
     },
-    /// "Move any amount of blood from the Blood Brothers in the <circle> to
-    /// any other Blood Brothers in this circle" (Jerry, Redistribution):
-    /// one move at a time among `seat`'s — `from` the source, `to` the
-    /// destination, then the amount (`Choice::SetX`), each move a gain of
-    /// its own (Slake the Thirst; owner, rules-qa 68.10), one blood move a
-    /// pair of them (`paired`, source and destination); Pass ending the
-    /// moves. With `equipment`, their equipment too ("move any amount of
-    /// blood and equipment", Redistribution), one at a time, as many as
-    /// wanted (`moving` the one picked).
+    /// Blood (and with `equipment`, equipment) moved among a circle's Blood
+    /// Brothers (Jerry, Redistribution): `from`, `to`, then the amount; each
+    /// move a gain of its own (rules-qa 68.10), one per pair (`paired`).
     CircleBlood {
         seat: SeatId,
         circle: &'static str,
@@ -369,30 +316,23 @@ pub enum Interrupt {
         moving: Option<CardId>,
         paired: [Option<(MinionId, MinionId)>; 12],
     },
-    /// "Move any number of blood counters from your pool to 1 or more
-    /// vampires you control" (Gird Minions): a vampire (`to`), then the
-    /// amount (`Choice::SetX`), up to its room (rulebook: no more blood
-    /// than capacity); Pass ends the moves.
+    /// Gird Minions: pool to vampires, `to` then the amount (`SetX`) up to
+    /// capacity (rulebook); Pass ends.
     PoolToVampires {
         seat: SeatId,
         to: Option<crate::ids::MinionId>,
     },
-    /// Legacy: `minion`'s base version searched for in `seat`'s crypt
-    /// (`Choice::AshVampire`, taken from the crypt first, then the ash
-    /// heap), uncontrolled region (`Choice::Slot`) and ash heap, and merged
-    /// with it; Pass finds none. The crypt shuffled after.
+    /// Merging an advanced vampire: its base searched in crypt and ash heap
+    /// (`AshVampire`) or uncontrolled region (`Slot`); the crypt shuffled.
     BaseSearch {
         seat: SeatId,
         minion: crate::ids::MinionId,
     },
-    /// New Blood entering play: the circle he belongs to
-    /// (`Choice::ChooseCircle`, among `state::circles`), or his own circle
-    /// of one (Pass).
+    /// New Blood's entry: his circle (`ChooseCircle`), or one of his own
+    /// (Pass).
     ChooseCircle { seat: SeatId, minion: MinionId },
-    /// "Move a wraith or zombie ally from your ash heap to your ready
-    /// region" (Split the Veil): the player's pick among the allies
-    /// matching one of `of`; with `named`, the pick is named for the
-    /// action being declared, put in play as it resolves (Hel-Blá).
+    /// An ally matching `of` from the ash heap to play (Split the Veil);
+    /// `named` at declaration, put in play at resolution (Hel-Blá).
     AllyFromAsh {
         seat: SeatId,
         of: &'static [crate::cards::CardFilter],
@@ -408,9 +348,8 @@ pub enum Interrupt {
     /// Malgorzata: the vampire of `seat`'s uncontrolled region to remove,
     /// another than the action's target (`Choice::Slot`).
     NameUncontrolled { seat: SeatId, target: u8 },
-    /// Lázár Dobrescu: named as the action is announced (rules-qa default
-    /// readings) — `from`, a vampire with blood in `of`'s uncontrolled
-    /// region, then the one of `seat`'s that gets it (`Choice::Slot`).
+    /// Lázár Dobrescu, named at announcement (rules-qa default readings):
+    /// `from` in `of`'s uncontrolled region, then `seat`'s receiver.
     NameSlotPair {
         seat: SeatId,
         of: SeatId,
@@ -422,9 +361,8 @@ pub enum Interrupt {
     /// The Erciyes Fragments: the library card of `seat`'s prey's ash heap
     /// to move onto `card`, face down (`Choice::FindCard`).
     StorePreyAsh { seat: SeatId, card: CardId },
-    /// The Sargon Fragment: the library card of `seat`'s ash heap the
-    /// action declared names, among those matching `of` (Drozodny: a
-    /// political action card).
+    /// The Sargon Fragment: the ash heap card matching `of` the action
+    /// names (Drozodny: a political action card).
     NameOwnAshCard {
         seat: SeatId,
         of: crate::cards::CardFilter,
@@ -432,10 +370,8 @@ pub enum Interrupt {
     /// Giovanni del Georgio: the card two copies of which in `of`'s ash
     /// heap the action declared names (`Terms::PreyAshPair`).
     NameAshPair { seat: SeatId, of: SeatId },
-    /// "You can put this card on this vampire" (Fever Pitch [FOR]/[PRE]):
-    /// `ChooseMinion` it, or pass — optional, though never worse than the
-    /// ash heap: an agent may take it unasked (owner, 2026-10-08: rules-qa
-    /// 53.5).
+    /// Fever Pitch [FOR]/[PRE]'s optional placement: `ChooseMinion` or pass
+    /// (owner, 2026-10-08: rules-qa 53.5).
     MayPutOn {
         seat: SeatId,
         held: crate::combat::Held,
@@ -450,25 +386,22 @@ pub enum Interrupt {
         card: CardId,
         minion: MinionId,
     },
-    /// "You can gain n pool" printed on `minion` (Matasuntha): Pass, or
-    /// `ResolvePrinted` to gain it — optional, never worse.
+    /// Matasuntha's optional "gain n pool": `ResolvePrinted` or Pass.
     MayGainPool {
         seat: SeatId,
         minion: crate::ids::MinionId,
         n: u8,
     },
-    /// "This acting vampire can burn n blood to move the stolen vampire to
-    /// your ready region" (Graverobbing [DOM]): `ChooseMinion` it, or pass.
+    /// Graverobbing [DOM]: `payer` burns `n` blood to ready the stolen
+    /// vampire (`ChooseMinion`), or pass.
     MoveForBlood {
         seat: SeatId,
         payer: crate::ids::MinionId,
         minion: crate::ids::MinionId,
         n: u8,
     },
-    /// "Once each turn, when you draw a card from your library, you may
-    /// place that card on the bottom of your library and draw a new card"
-    /// (Blackhorse Tanner, `minion`): `DrawLibrary` to do it with `card`,
-    /// just drawn, or pass.
+    /// Blackhorse Tanner: `card`, just drawn, to the library bottom and a
+    /// new draw (`DrawLibrary`), or pass.
     Redraw {
         seat: SeatId,
         minion: crate::ids::MinionId,
@@ -491,9 +424,8 @@ pub enum MinionPurpose {
     /// A ready vampire of the clan the user controls, with blood, burns 1
     /// (Chantry's cost): mandatory.
     BurnBloodOfClan(&'static str),
-    /// A location on a minion, stolen, moves onto one of the new
-    /// controller's able to hold it (Dominate Kine [DOM]; RTR 19960112):
-    /// mandatory.
+    /// A stolen location on a minion moves onto one of the new controller's
+    /// (Dominate Kine [DOM]; RTR 19960112): mandatory.
     HostCard(CardId),
     /// One of the oldest vampires of the clan (Brujah Debate): mandatory,
     /// locked or not (LSJ 20010508).
@@ -504,9 +436,8 @@ pub enum MinionPurpose {
     /// A ready minion of the chooser's, which takes n unpreventable damage
     /// (Gnaeus Aemilius Augustinus): mandatory.
     Damage(u8),
-    /// One of the two oldest ready vampires of the chooser's, other than
-    /// the one already picked, gains 1 blood (Gurchon Hall): mandatory; a
-    /// tie for oldest is the chooser's pick (rules-qa 69.1).
+    /// Gurchon Hall: one of the two oldest ready vampires gains 1 blood,
+    /// mandatory; a tie is the chooser's (rules-qa 69.1).
     OldestHuntingGround(Option<crate::ids::MinionId>),
 }
 
@@ -668,11 +599,8 @@ impl Engine {
         }
     }
 
-    /// The vampire of `s`'s whose "once each turn, when you draw a card from
-    /// your library, you may place that card on the bottom … and draw a new
-    /// card" is unspent this turn (Blackhorse Tanner): in torpor too (a
-    /// printed ability with no "if ready"), each Methuselah's turn (ANK
-    /// 20180719-4).
+    /// `s`'s vampire with an unspent once-each-turn redraw (Blackhorse
+    /// Tanner): in torpor too, each Methuselah's turn (ANK 20180719-4).
     fn redrawer(&self, s: SeatId) -> Option<MinionId> {
         let st = &self.state;
         st.minions_of(s).find(|&m| {
@@ -1854,8 +1782,6 @@ impl Engine {
         Some(DecisionRequest::new(s, window, options))
     }
 
-    /// The ready vampires a `ChooseForCard` may pick: its seat's, of its
-    /// clan, other than the first chosen for a second choice.
     /// The vampires `card` may move to (`Interrupt::MoveCardToTitled`):
     /// every other justicar or Inner Circle member in play, arena order.
     pub(crate) fn titled_hosts(&self, card: CardId) -> Vec<crate::ids::MinionId> {
@@ -1969,7 +1895,6 @@ impl Engine {
             .collect()
     }
 
-    /// The slots of `seat`'s uncontrolled region holding a `clan` vampire.
     /// The distinct crypt cards of `clan` in `seat`'s crypt (Disciple of
     /// Lazarus's search).
     fn crypt_of_clan(&self, seat: SeatId, clan: &'static str) -> Vec<u16> {
@@ -1986,14 +1911,13 @@ impl Engine {
         }
     }
 
+    /// The slots of `seat`'s uncontrolled region holding a `clan` vampire.
     fn uncontrolled_of_clan(&self, seat: SeatId, clan: &'static str) -> Vec<usize> {
         (0..self.state.seats[seat.index()].uncontrolled.len())
             .filter(|&i| self.state.slot_vampire(seat, i).1 == clan)
             .collect()
     }
 
-    /// The non-titled vampires `seat` controls, in torpor too (Gilbert
-    /// Duane: an Anarch one a legal no-op pick).
     /// The vampires Anarch Convert can make Anarch: non-titled ones of
     /// `seat`'s, already Anarch included (PIB 20121031), not himself.
     fn converts(&self, seat: SeatId, convert: crate::ids::MinionId) -> Vec<crate::ids::MinionId> {
@@ -2003,6 +1927,8 @@ impl Engine {
             .collect()
     }
 
+    /// The non-titled vampires `seat` controls, in torpor too (Gilbert
+    /// Duane: an Anarch one a legal no-op pick).
     fn untitled_vampires(&self, seat: SeatId) -> Vec<crate::ids::MinionId> {
         let st = &self.state;
         st.minions_of(seat)
@@ -2012,6 +1938,8 @@ impl Engine {
             .collect()
     }
 
+    /// The ready vampires a `ChooseForCard` may pick: its seat's, of its
+    /// clan, other than the first chosen for a second choice.
     fn choosable(&self, front: Interrupt) -> Vec<crate::ids::MinionId> {
         let Interrupt::ChooseForCard {
             seat,
@@ -2050,9 +1978,8 @@ impl Engine {
         }
     }
 
-    /// Minions about to leave the ready region (burned, to torpor, out of
-    /// play, removed with their ousted Methuselah): the cards on them that
-    /// pay for it offer their pool (Priority Contract).
+    /// Minions about to leave the ready region: the cards on them that pay
+    /// for it offer their pool (Priority Contract).
     pub(crate) fn about_to_leave_ready(&mut self, ms: &[crate::ids::MinionId]) {
         for &m in ms {
             if !self.state.minions[m.index()].ready() {
@@ -2109,9 +2036,6 @@ impl Engine {
         }
     }
 
-    /// `seat` takes control of the card in play `card` (stolen, given): a
-    /// card that chooses on a change of control has its new controller
-    /// choose (The Rack).
     /// Vampires of other Methuselahs a vampire of `seat`'s may give blood
     /// to (Blood Trade).
     fn blood_recipients(&self, seat: SeatId, from: MinionId, anarchs: bool) -> Vec<MinionId> {
@@ -2176,9 +2100,8 @@ impl Engine {
     }
 
     /// A location changing controller (Dominate Kine [DOM], Disputed
-    /// Territory): one on a minion goes on a ready minion of the new
-    /// controller, their choice — burned if none can hold it (LSJ
-    /// 19990928; rules-qa 39.4).
+    /// Territory): one on a minion moves to a new controller's minion that
+    /// can hold it, else burns (LSJ 19990928; rules-qa 39.4).
     pub(crate) fn give_location(&mut self, card: CardId, seat: SeatId) {
         self.give_card_control(card, seat);
         if self.state.cards[card.index()].host.is_none() {
@@ -2198,6 +2121,8 @@ impl Engine {
         }
     }
 
+    /// `seat` takes control of `card` in play; a card that chooses on a
+    /// change of control has its new controller choose (The Rack).
     pub(crate) fn give_card_control(&mut self, card: CardId, seat: SeatId) {
         self.state.cards[card.index()].controller = seat;
         let rechooses = cards::lookup(self.state.cards[card.index()].card).is_some_and(|d| {
@@ -2215,10 +2140,8 @@ impl Engine {
         }
     }
 
-    /// Remove `seat`'s uncontrolled vampire `i` from the game: its crypt
-    /// card to the removed cards, its counters to the blood bank; a
-    /// banished one leaves with the cards on it, burned (a created one's
-    /// own card removed with it).
+    /// Remove `seat`'s uncontrolled vampire `i` from the game, its counters
+    /// to the bank; a banished one's cards burn with it.
     pub(crate) fn remove_uncontrolled(&mut self, seat: SeatId, i: usize) {
         let slot = self.state.seats[seat.index()].uncontrolled.remove(i);
         if let Some(b) = slot.banished {
@@ -2266,11 +2189,8 @@ impl Engine {
         out
     }
 
-    /// "Each other Methuselah chooses a ready vampire they control who is
-    /// not older than this vampire; if you control a ready Lasombra, you
-    /// choose the vampires instead" (Baltimore Purge): one pick per other
-    /// Methuselah with a candidate, clockwise from the controller, in the
-    /// open; the host's capacity read as each pick is made.
+    /// Baltimore Purge: one pick per other Methuselah with a candidate (the
+    /// controller's with a ready `chooser_clan`), clockwise, in the open.
     pub(crate) fn start_purge(&mut self, host: MinionId, chooser_clan: &str) {
         let owner = self.state.minions[host.index()].owner;
         let chooses = self.state.minions_of(owner).any(|m| {
@@ -2327,10 +2247,8 @@ impl Engine {
         }
     }
 
-    /// The mage allies `s` could put in play for Antonio d'Erlette
-    /// (`m`), by zone and card: one he could play — its clan requirement
-    /// met — whose cost is payable after reductions (LSJ 20090920-2), not a
-    /// unique one `s` already has in play.
+    /// The mage allies Antonio d'Erlette (`m`) could play, by zone and card:
+    /// payable after reductions (LSJ 20090920-2), no unique already in play.
     fn mage_allies(&self, s: SeatId, m: MinionId) -> Vec<Choice> {
         let st = &self.state;
         let seat = &st.seats[s.index()];
@@ -3456,9 +3374,8 @@ impl Engine {
             .collect()
     }
 
-    /// The pool amounts Amici Noctis may give: at most its cap, and at
-    /// least what the vampires cannot take (all of it distributed where it
-    /// fits).
+    /// The pool amounts Amici Noctis may give: at most its cap, at least
+    /// what the vampires cannot take.
     fn margin_pool_range(&self, front: Interrupt) -> Vec<u8> {
         let Interrupt::MarginPool { left, cap, .. } = front else {
             unreachable!("not the pool step");

@@ -1,30 +1,8 @@
-//! Punishing habits for an opponent seat in training (owner, 2026-10-04:
-//! "opponents that punish", from the owner's games: the network never
-//! rescues, diablerizes or burns an opponent's card, and taps out every
-//! turn). A frozen network keeps its own play and, by rule, also does what
-//! makes those habits costly for the learner: a vampire left in torpor is
-//! diablerized, a seat tapped out is bled with no blocker in the way. As
-//! strong as the network it rides (DESIGN §11.2: training opponents must be
-//! good ones), not a scripted bot. Agent behaviour like `politics`, not an
-//! engine mask (rules-qa 17.4 untouched): every option stays legal.
-//!
-//! By rule, in the minion phase (`choice`), the first that applies:
-//! - rescue one's own vampire from torpor, by a minion with at least 2
-//!   blood (the rescue's cost, split);
-//! - burn another Methuselah's card as the Ⓓ action that card grants
-//!   (Creeping Sabotage, The Gate of Acheron, Toreador Grand Ball);
-//! - diablerize another Methuselah's vampire in torpor.
-//!
-//! Kept home (`mask`): once some of a seat's minions have acted this
-//! turn, its last ready unlocked minion takes no action but a hunt or a
-//! rescue: a blocker for the predator's turn.
-//!
-//! Each habit can be switched off (`Set`): forced, most of them cost the
-//! network strength (DESIGN §11.2, `examples/strength.rs` in
-//! `crates/policy`): a forced burn, diablerie or minion kept home, about
-//! 0.3 VP a seat; a forced rescue, nothing measurable.
-//!
-//! Reads only public state.
+//! Punishing habits for a frozen opponent seat in training
+//! (owner, 2026-10-04: "opponents that punish"; DESIGN §11.2): the network
+//! plays, and by rule rescues, burns another's card, diablerizes, and keeps
+//! a blocker home. Agent behaviour, not an engine mask (rules-qa 17.4
+//! untouched); reads only public state.
 
 use crate::cards::{AbilitySource, Effect};
 use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
@@ -131,8 +109,8 @@ pub fn habit(e: &Engine, me: SeatId, o: &Choice) -> Option<Habit> {
     }
 }
 
-/// The option the habits take, if one applies (`None`: the network
-/// chooses, within `mask`).
+/// The option the habits take in the minion phase, the first that applies:
+/// rescue, burn, diablerie (`None`: the network chooses, within `mask`).
 pub fn choice(e: &Engine, req: &DecisionRequest, set: Set) -> Option<usize> {
     if req.window != WindowLabel::MinionPhase {
         return None;
@@ -154,9 +132,9 @@ pub fn choice(e: &Engine, req: &DecisionRequest, set: Set) -> Option<usize> {
         .or_else(|| find(Habit::Diablerie, &ok))
 }
 
-/// The options the habits leave to the network in the minion phase: all
-/// but the actions of the last ready unlocked minion once another has
-/// acted (`None`: no opinion).
+/// The options the habits leave to the network in the minion phase: once
+/// another minion acted, the last ready unlocked one only hunts or rescues
+/// (`None`: no opinion).
 pub fn mask(e: &Engine, req: &DecisionRequest, set: Set) -> Option<Vec<bool>> {
     if !set.home || req.window != WindowLabel::MinionPhase {
         return None;

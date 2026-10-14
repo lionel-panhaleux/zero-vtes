@@ -1,18 +1,5 @@
-//! The decision point before an oust (slice 16b): a Methuselah whose pool
-//! runs out is not ousted at once while another Methuselah could save them
-//! with Life Boon, an out-of-turn master card ("give pool to a Methuselah
-//! with no pool to keep them in the game"). The oust waits (`Ousting`,
-//! served before the flow) while each Methuselah holding a Boon, clockwise
-//! from the active one, may play it through the normal play machinery
-//! (as-played window and cancels included); whoever is not saved is then
-//! ousted as one batch, and what the oust interrupts is settled as its
-//! callers would have (`after_deferred_oust`). With no Boon in any
-//! eligible hand the oust applies at once, as before (window elision).
-//!
-//! Life Boon's in-play text: the Boon player steals 1 pool in each of the
-//! target's unlock phases, and gains the victory points the target gains
-//! (`Engine::gain_half_vps`), a half point at a time, until 1 VP or until
-//! the Boon player is being ousted.
+//! The decision point before an oust (docs/engine.md §6.17): an oust waits
+//! while a Methuselah holding Life Boon could still save the batch.
 
 use crate::cards::Window;
 use crate::decision::{Choice, DecisionRequest, WindowLabel};
@@ -63,9 +50,8 @@ fn in_flight(flow: &Flow, card: u16, seat: SeatId) -> bool {
 }
 
 impl Engine {
-    /// Should the oust of `seats` wait on a Life Boon? True when it now
-    /// waits: a Methuselah other than the active one, not in the batch,
-    /// holds one (a pending oust takes new seats into its batch).
+    /// Should the oust of `seats` wait on a Life Boon (one held outside the
+    /// batch, not by the active Methuselah)? A pending oust takes them in.
     pub(crate) fn defer_oust(&mut self, seats: &[SeatId]) -> bool {
         if let Some(o) = self.ousting.as_mut() {
             for &s in seats {
@@ -113,9 +99,8 @@ impl Engine {
             .collect()
     }
 
-    /// Before any decision: a Boon play finished (resolved or canceled)
-    /// ends its wait; the saved leave the batch; with no one left to ask,
-    /// the rest are ousted.
+    /// Before any decision: end a finished Boon play's wait, drop the
+    /// saved, and oust the rest once no one is left to ask.
     pub(crate) fn settle_ousting(&mut self) {
         let Some(o) = self.ousting.as_ref() else {
             return;
@@ -179,10 +164,8 @@ impl Engine {
         }
     }
 
-    /// What an oust that waited interrupts, settled as its callers would
-    /// have: the game over, the active Methuselah's turn passing, a
-    /// combatant's Methuselah gone ending the combat, an action going on
-    /// without them.
+    /// Settle what a deferred oust interrupts, as its callers would have:
+    /// game over, combat, the turn passing, the action's order.
     fn after_deferred_oust(&mut self) {
         if matches!(self.flow, Flow::GameOver) {
             return;
@@ -202,8 +185,7 @@ impl Engine {
     }
 
     /// Life Boon resolving: `x` pool from its player to the Methuselah it
-    /// saves (still about to be ousted), who stays in the game; the card in
-    /// play remembers them.
+    /// saves, if still about to be ousted; the card remembers them.
     pub(crate) fn give_boon_pool(&mut self, seat: SeatId, target: SeatId, x: u8, card: CardId) {
         if !self.state.seats[target.index()].oust_pending {
             return;
@@ -215,10 +197,8 @@ impl Engine {
         self.state.cards[card.index()].against = crate::ids::SeatSet::single(target);
     }
 
-    /// `seat` gains `n` half victory points — or the players of the Life
-    /// Boons on them, oldest first, each until it has given 1 VP (then
-    /// burned); a Boon player already ousted gets none (a Boon on one's
-    /// predator gives nothing as one is ousted: the Boon left with them).
+    /// `seat` gains `n` half VPs, or its Life Boons' players do, oldest
+    /// first, each until 1 VP (then burned); an ousted Boon player gets none.
     pub(crate) fn gain_half_vps(&mut self, seat: SeatId, n: u32) {
         let boon = life_boon();
         let mut left = n;

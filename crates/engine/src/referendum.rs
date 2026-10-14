@@ -1,15 +1,8 @@
-//! Referendums (rulebook "The Referendum"): terms chosen stepwise by the
-//! caller once the action succeeds (rules-qa 3.5), then the polling step —
-//! votes and ballots as irrevocable commitments on the polling primitive
-//! (sources per rules-qa 1.1: each ready vampire with votes, the Edge, one
-//! political action card per Methuselah), card plays interleaved as
-//! commitments of the same rotation (DESIGN §4.2) — then the tally: more
-//! votes for than against passes, ties fail. The blood hunt is the
-//! restricted case: no cards, no terms (rulebook "The Blood Hunt").
-//!
-//! The context lives on the engine beside the action so that plays resolved
-//! from the as-played stack can modify it (vote bonuses, abstentions,
-//! cancellation).
+//! Referendums (rulebook "The Referendum"): terms (rules-qa 3.5), polling
+//! (vote sources per rules-qa 1.1; card plays as commitments, DESIGN §4.2),
+//! tally. The blood hunt has no cards and no terms
+//! (rulebook "The Blood Hunt"). The context sits on the engine so plays
+//! resolved from the as-played stack can modify it.
 
 use crate::actions::Outcome;
 use crate::cards::{self, Points, RefEffect, ReferendumDef, Term, Window};
@@ -180,9 +173,8 @@ pub struct ReferendumCtx {
     pub forced_against: Vec<MinionId>,
     /// Methuselahs who used their one political-action-card vote.
     pub card_voted: Vec<SeatId>,
-    /// Closed Session: non-Camarilla vampires cast nothing.
-    /// Only vampires of this sect vote (Fall of the Camarilla's ban,
-    /// Private Audience, Cardinal Benediction).
+    /// Only vampires of this sect vote (Closed Session, Fall of the
+    /// Camarilla's ban, Private Audience, Cardinal Benediction).
     pub only_sect: Option<Sect>,
     /// Votes each non-Camarilla vampire loses (Camarilla Conclave), but
     /// the vampire a reaction does not affect (Perfect Clarity).
@@ -337,10 +329,9 @@ impl ReferendumCtx {
         self.records.iter().any(|r| r.source == source)
     }
 
-    /// (for, against) over the standing records.
-    /// Votes for and against, the prisci block's 3 votes to the side with
-    /// more prisci ballots, none on a tie (rulebook "The Prisci Block";
-    /// rules-qa 52.9).
+    /// (for, against) over the standing records, the prisci block's 3 votes
+    /// to the side with more prisci ballots, none on a tie
+    /// (rulebook "The Prisci Block"; rules-qa 52.9).
     pub fn tally(&self) -> (u32, u32) {
         let live = self.records.iter().filter(|r| !r.canceled);
         let (mut f, mut a) = live.clone().fold((0, 0), |(f, a), r| {
@@ -594,10 +585,8 @@ impl Engine {
         }
     }
 
-    /// The allocation of points under way, whole (read-only: a client shows
-    /// every recipient at once; the decisions still ask one at a time):
-    /// the terms' `Allocate` or `AllocatePerChosenWithCards`, or a
-    /// shortfall's re-allocation. `None` outside those steps.
+    /// The point allocation under way, whole (for a client; the decisions
+    /// still ask one recipient at a time); `None` outside those steps.
     pub fn allocation(&self) -> Option<Allocation> {
         let ctx = self.referendum.as_ref()?;
         if ctx.fizzled || ctx.canceled {
@@ -668,9 +657,8 @@ impl Engine {
             return None;
         }
         if ctx.canceled {
-            // The returned political action card may leave the acting
-            // Methuselah over hand size: "discard down afterward" — the
-            // engine's discard-down, asked before any other decision.
+            // The returned card may put the hand over size: the engine's
+            // discard-down comes first ("discard down afterward").
             return None;
         }
         match ctx.step {
@@ -965,8 +953,6 @@ impl Engine {
         }
         let mut options = vec![Choice::Pass];
         for id in st.minions_of(seat) {
-            // Torpor vampires must abstain; locked ready ones may vote;
-            // contested titles carry no votes.
             if ctx.spent(Source::Vampire(id)) {
                 continue;
             }
@@ -991,11 +977,9 @@ impl Engine {
             options.push(Choice::CastEdge { favor: true });
             options.push(Choice::CastEdge { favor: false });
         }
-        // Rulebook "Gaining Votes": the calling card's 1 vote for the acting
-        // Methuselah, or a political action card burned from hand; at most
-        // 1 vote from political action cards per Methuselah — the calling
-        // card is the acting Methuselah's (rules-qa 5.4): they burn no
-        // other (owner, 2026-09-30: rules-qa 46.2).
+        // One political-action-card vote per Methuselah (rulebook "Gaining
+        // Votes"); the calling card is the acting one's (rules-qa 5.4): they
+        // burn no other (owner, 2026-09-30: rules-qa 46.2).
         if !ctx.card_voted.contains(&seat) {
             // A referendum granted by a card in play has no calling card.
             let card_called = self.action.as_ref().is_some_and(|a| a.card.is_some());
@@ -1383,10 +1367,8 @@ impl Engine {
                     }
                     self.burn_pool_batch(&loss);
                 }
-                // Hartmut Stover: the vampires that cast votes against burn
-                // blood once results are tallied — not a cost: one without
-                // blood burns none; Methuselah ballots cost nothing
-                // (rules-qa 49.2).
+                // Hartmut Stover: not a cost (no blood, none burned), and
+                // Methuselah ballots burn nothing (rules-qa 49.2).
                 if let Some(c) = ctx.calling {
                     let n = self
                         .state
@@ -1559,10 +1541,8 @@ impl Engine {
             let def = ctx.def.expect("political definition");
             self.apply_referendum_effect(def.effect, &ctx);
         }
-        // Alvaro: "after resolution of any political action, if Alvaro
-        // abstained (even in torpor), he can gain 2 blood" — no vote or
-        // ballot standing, title or not (LSJ 20010526); never worse to
-        // take: gained (rules-qa 53.5's reading).
+        // Alvaro "abstained": no vote or ballot standing, title or not
+        // (LSJ 20010526); never worse to take, so gained (rules-qa 53.5).
         for i in 0..self.state.minions.len() {
             let m = MinionId(i as u32);
             let v = &self.state.minions[m.index()];
@@ -1952,10 +1932,8 @@ impl Engine {
                     self.give_location(c, to);
                 }
             }
-            // The kept allies' costs paid, then every other ally burned —
-            // in torpor too, any Methuselah's.
-            // Paid as a batch, the ousts with the referendum's (an acting
-            // Methuselah's last pool among them).
+            // Kept allies paid for as a batch (ousts with the referendum's),
+            // then every other ally burned, in torpor too.
             RefEffect::BurnAlliesUnlessKept => {
                 let mut cost = vec![0i32; self.state.seats.len()];
                 for s in self.state.clockwise_from(ctx.caller) {
@@ -2031,10 +2009,8 @@ impl Engine {
         }
     }
 
-    /// A vampire moved to `to`'s uncontrolled region (Banishment, Pit of
-    /// Contemplation): its blood kept as counters, the cards on it leaving
-    /// play with it, face down, until it returns — everything it had
-    /// stays with it (rules-qa 25.1).
+    /// Move a vampire to `to`'s uncontrolled region (Banishment, Pit of
+    /// Contemplation), keeping its blood and cards (rules-qa 25.1).
     pub(crate) fn banish(&mut self, m: MinionId, to: SeatId) {
         self.about_to_leave_ready(&[m]);
         let v = &mut self.state.minions[m.index()];
@@ -2044,9 +2020,8 @@ impl Engine {
         let copy = *v.copy;
         let blood = v.blood;
         v.blood = 0;
-        // Face down on the vampire: out of play until it returns (the cards
-        // in play on it, not those burned from it) — a created vampire's
-        // own card too.
+        // The cards on it go out of play until it returns, a created
+        // vampire's own card too.
         let mut on = Vec::new();
         for (ci, c) in self.state.cards.iter_mut().enumerate() {
             if c.in_play && (c.host == Some(m) || c.body == Some(m)) {
@@ -2071,13 +2046,8 @@ impl Engine {
         }
     }
 
-    /// The referendum concluded (passed, failed or canceled; `riders`: the
-    /// failed-or-canceled riders apply — not to a fizzled one): the action
-    /// resumes at its after-resolution window — unless the acting
-    /// Methuselah was ousted (the turn passes) or the game ended.
-    /// The acting Methuselah was ousted during their action: the action
-    /// ends; on their turn the turn passes, else (Enkil Cog's action in
-    /// another's phase) the active Methuselah's phase goes on.
+    /// The acting Methuselah was ousted during their action: on their turn
+    /// the turn passes, else (Enkil Cog) the active one's phase goes on.
     fn acting_seat_ousted(&mut self) {
         let seat = self.action.take().expect("action").seat;
         self.referendum = None;
@@ -2090,6 +2060,8 @@ impl Engine {
         }
     }
 
+    /// The referendum concluded: on to the action's after-resolution window
+    /// (`riders`: the failed-or-canceled riders apply, not if fizzled).
     fn after_referendum(&mut self, riders: bool) {
         if self.state.living() <= 1 {
             self.action = None;
@@ -2117,11 +2089,9 @@ impl Engine {
         self.after_resolution();
     }
 
-    /// "If Lutz is ready, your prey burns 1 pool after the referendum of a
-    /// political action passes": any Methuselah's political action, after
-    /// all the referendum's effects — its ousts and pool gains included —,
-    /// not for a controller ousted by them (ANK 20220808); the prey read
-    /// then, live (a new one if the referendum ousted the old).
+    /// Lutz: his controller's prey burns 1 pool after any political
+    /// referendum passes, after all its effects, not for a controller they
+    /// ousted (ANK 20220808); the prey read then.
     fn political_passed_riders(&mut self) {
         let a = self.action.as_ref().expect("action");
         if a.kind != crate::decision::ActionKind::Political || !a.referendum_passed {
