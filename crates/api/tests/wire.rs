@@ -50,6 +50,7 @@ fn view() -> TableView {
         action: None,
         combat: None,
         referendum: None,
+        transfers: None,
     }
 }
 
