@@ -61,6 +61,34 @@ the policy side and the training runs); the engine guide and its reference by
 mechanism: `docs/engine.md`; history in `git log` (commit messages are
 detailed).
 
+## Lines of work
+
+Parallel sessions, one per line; each line has its skill, its docs and its
+board (`docs/boards/<line>.md`; `docs/roadmap.md` holds the objectives and
+`docs/findings.md` stays the shared inbox, triaged into the boards).
+
+- **Cards** (`add-cards` skill): every card in the pool; readings graded,
+  only red ones asked of the owner. Docs: `docs/engine.md`,
+  `docs/rules-digest.md`, `docs/rules-qa.md`. Works in a round worktree
+  (`../zero-vtes-rN`).
+- **Engine** (`engine-review` skill on every engine commit): the engine's
+  architecture, the API (`crates/api`, `docs/protocol.md`, semver), the
+  host and server, performance.
+- **Training** (`training` skill): runs from a pinned worktree
+  (`../zero-vtes-pN`); learns from the games humans play online.
+- **Platforms** (`sc-change` skill): Succubus Club and Thomas's upstream;
+  `docs/platforms/sc.md` is the log.
+
+Between lines:
+- Card work never waits on training; training takes the engine at the start
+  of a run. A change to the observation's id tables (a new `Choice` kind,
+  window label, interrupt, purpose) is told to the training line before it
+  merges.
+- Platforms read the protocol only, never engine code; a platform inferring
+  what the protocol could say is an engine-board item.
+- Merges to `main` from a worktree branch; never stage another session's
+  uncommitted files in the shared checkout.
+
 ## Owner rules
 
 - Commit only when the owner says so (often mid-turn).
