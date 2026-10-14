@@ -239,6 +239,10 @@ impl MinionKind {
 /// NRA special cap (rules-qa 1.4).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Minion {
+    /// `GameState::entry_clock` as it last entered play (0 until stamped,
+    /// and once out of play): "entered play since your last minion phase"
+    /// (Chameleon). A merge or a control change is no entry.
+    pub entered_at: u32,
     pub owner: SeatId,
     pub kind: MinionKind,
     /// A vampire's blood; an ally's life (advanced rules 5.5.1: an ally
@@ -452,6 +456,7 @@ impl Minion {
             hostage: 0,
             torture: 0,
             nightmare: 0,
+            entered_at: 0,
         }
     }
 
@@ -801,6 +806,9 @@ pub struct Held {
     /// Discarded to Nightmares upon Nightmares: replaced as the
     /// Methuselah's master phase begins.
     pub master: u8,
+    /// Not replaced during a minion phase (The Meddling of Semsith):
+    /// replaced as it ends.
+    pub minion_phase: u8,
 }
 
 impl Held {
@@ -825,7 +833,8 @@ impl Held {
             hunt,
             leaves_torpor,
             liaison,
-            master
+            master,
+            minion_phase
         );
     }
 
@@ -843,6 +852,7 @@ impl Held {
             self.leaves_torpor,
             self.liaison,
             self.master,
+            self.minion_phase,
         ]
         .iter()
         .map(|&n| n as usize)
@@ -946,6 +956,9 @@ pub struct Seat {
     /// the one before it: "since your last turn" (Carlton Van Wyk).
     pub this_turn: u32,
     pub previous_turn: u32,
+    /// `GameState::entry_clock` as this Methuselah's last minion phase
+    /// ended (Chameleon).
+    pub minion_phase_end: u32,
     /// Cards played but not replaced yet: they count against the hand
     /// size until then (rulebook "Drawing Cards"; spec §6.8.1).
     pub held: Held,
@@ -1005,6 +1018,14 @@ pub struct GameState {
     /// usable during the first action in a minion phase"); one canceled as
     /// its card was played never was (LSJ 20100505).
     pub phase_actions: u8,
+    /// The active Methuselah's minion phase is under way (The Meddling of
+    /// Semsith: "during any Methuselah's minion phase"), set from its start
+    /// to its end, whatever the flow handles meanwhile.
+    pub in_minion_phase: bool,
+    /// A clock ticking with each minion entering play and each minion
+    /// phase ending, ordering the two (Chameleon: "entered play since your
+    /// last minion phase").
+    pub entry_clock: u32,
     /// A non-mandatory action was performed this turn (Khabar: Glory).
     pub optional_action: bool,
     /// Cards played this game that "can be played only once in a game"
@@ -1712,9 +1733,21 @@ impl GameState {
             ..PrintedCtx::default()
         };
         let n = |stat| self.printed_mod(m, stat, ctx).max(0) as u8;
+        // The Ankara Citadel, Turkey: a printed blood cost halved (rounded
+        // down) first — the half taken off with the other reductions.
+        let lib = &LIBRARY[card as usize];
+        let half = match lib.blood_cost {
+            crate::library::Cost::Fixed(c)
+                if !lib.types.contains(&CardType::ActionModifier)
+                    && self.hosts(m, Modifier::HalvesBloodCosts) =>
+            {
+                c - c / 2
+            }
+            _ => 0,
+        };
         CostOff {
             pool: n(Stat::PoolCostOff),
-            blood: n(Stat::BloodCostOff),
+            blood: n(Stat::BloodCostOff) + half,
             either: n(Stat::CostOff),
             blood_extra: (-self.printed_mod(m, Stat::BloodCostOff, ctx)).max(0) as u8,
         }
@@ -1735,6 +1768,8 @@ impl GameState {
         let opp = ctx.opponent.map(|o| &self.minions[o.index()]);
         match r {
             R::ThisVampireReady => src.ready(),
+            // "While Annabelle is locked" (in torpor too, LSJ 20011022).
+            R::HostLocked => src.locked,
             R::ActorClaimsTitleIn(classes) => {
                 let t = self.claimed_title(actor);
                 classes.iter().any(|c| c.matches(t))
@@ -1957,13 +1992,64 @@ impl GameState {
     /// the second one while a vampire of theirs printing "two master phase
     /// actions (instead of one)" is ready (Anson) and it is unspent — read
     /// live (rules-qa 62.5).
+    /// A Methuselah chosen by a Rumors of Gehenna in play gets the same
+    /// second one, not a third (both "instead of one").
     pub fn mpa_left(&self, s: SeatId) -> u8 {
         let seat = &self.seats[s.index()];
+        let rumors = self.in_play_layers().any(|l| {
+            l.modifier == Modifier::TwoMasterPhaseActionsForChosen
+                && self.cards[l.source.index()].against.contains(s)
+        });
         let two = !seat.second_mpa_spent
-            && self.minions_of(s).any(|m| {
-                self.printed_mod(m, Stat::TwoMasterPhaseActions, PrintedCtx::default()) > 0
-            });
+            && (rumors
+                || self.minions_of(s).any(|m| {
+                    self.printed_mod(m, Stat::TwoMasterPhaseActions, PrintedCtx::default()) > 0
+                }));
         seat.mpa + u8::from(two)
+    }
+
+    /// Stamp the minions that entered play since the last settle, and
+    /// clear those out of play (`Minion::entered_at`).
+    pub fn settle_entries(&mut self) {
+        for i in 0..self.minions.len() {
+            let v = &self.minions[i];
+            if !v.in_play {
+                self.minions[i].entered_at = 0;
+            } else if v.entered_at == 0 {
+                self.entry_clock += 1;
+                self.minions[i].entered_at = self.entry_clock;
+            }
+        }
+    }
+
+    /// The pool a discard phase action to discard a card costs, over its
+    /// action: 1 for each Camarilla Threat in play, anyone's.
+    pub fn discard_toll(&self) -> u8 {
+        self.in_play_layers()
+            .map(|l| match l.modifier {
+                Modifier::DiscardActionCostsPool(n) => n,
+                _ => 0,
+            })
+            .sum()
+    }
+
+    /// `s` is the Methuselah a Meddling of Semsith in play chose: no
+    /// replacement during any minion phase.
+    pub fn meddled(&self, s: SeatId) -> bool {
+        self.in_play_layers().any(|l| {
+            l.modifier == Modifier::NoReplaceInMinionPhaseForChosen
+                && self.cards[l.source.index()].against.contains(s)
+        })
+    }
+
+    /// The most pool `s` burns to a bleed (Protected Resources), if capped.
+    pub fn bleed_burn_cap(&self, s: SeatId) -> Option<u8> {
+        self.controlled_layers(s)
+            .filter_map(|l| match l.modifier {
+                Modifier::BleedBurnCap(n) => Some(n),
+                _ => None,
+            })
+            .min()
     }
 
     /// Spend a master phase action of `s`: the ordinary ones first, Anson's

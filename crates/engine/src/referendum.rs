@@ -242,6 +242,14 @@ impl ReferendumCtx {
             crate::cards::Stat::Votes,
             crate::state::PrintedCtx::default(),
         );
+        // "Each non-priscus titled vampire gets -1 vote" (Eat the Rich).
+        let rich = i32::from(
+            self.def.is_some_and(|d| d.titled_minus)
+                && !matches!(
+                    st.title_of(m),
+                    crate::crypt::Title::None | crate::crypt::Title::Priscus
+                ),
+        );
         // "Non-Anarch titles are worth -1 vote" (Fee Stake: Boston); a
         // title card's "+1 vote during referendums they call".
         let title = st.title_of(m);
@@ -270,7 +278,8 @@ impl ReferendumCtx {
             + granted as i32
             + printed
             + calling
-            - conclave)
+            - conclave
+            - rich)
             .max(0) as u8
     }
 
@@ -1224,9 +1233,11 @@ impl Engine {
                     ctx.votes_cast(&self.state, *minion, *favor),
                 )
             }
+            // "Burning the Edge is worth 1 additional vote" (Eat the Rich).
             Choice::CastEdge { favor } => {
                 self.state.seats[seat.index()].has_edge = false;
-                (Source::Edge(seat), *favor, 1)
+                let bonus = ctx.def.map_or(0, |d| d.edge_bonus);
+                (Source::Edge(seat), *favor, 1 + bonus)
             }
             Choice::CastCardVote { favor } => {
                 ctx.card_voted.push(seat);
@@ -1254,8 +1265,13 @@ impl Engine {
             other => unreachable!("illegal polling choice {other:?}"),
         };
         // A priscus casting casts its prisci ballot too, on the same side.
+        // "Each priscus gets -1 ballot" (Eat the Rich).
         let ballots = match source {
-            Source::Vampire(m) => self.state.ballots(m),
+            Source::Vampire(m) => {
+                let priscus = self.state.title_of(m) == crate::crypt::Title::Priscus;
+                let minus = u8::from(ctx.def.is_some_and(|d| d.titled_minus) && priscus);
+                self.state.ballots(m).saturating_sub(minus)
+            }
             _ => 0,
         };
         ctx.records.push(VoteRecord {
@@ -1625,6 +1641,18 @@ impl Engine {
                         loss[s.index()] += n as i32;
                     }
                 }
+                RefEffect::BurnChosenPlusIfTitled { base, bonus } => {
+                    for &s in &ctx.terms.seats {
+                        loss[s.index()] += base as i32;
+                        if st.minions_of(s).any(|m| {
+                            st.minions[m.index()].is_vampire()
+                                && st.minions[m.index()].ready()
+                                && st.title_of(m) != crate::crypt::Title::None
+                        }) {
+                            loss[s.index()] += bonus as i32;
+                        }
+                    }
+                }
                 RefEffect::BurnChosenPlusIfBig { base, bonus, cap } => {
                     for &s in &ctx.terms.seats {
                         loss[s.index()] += base as i32;
@@ -1785,11 +1813,24 @@ impl Engine {
             RefEffect::PutInPlay => {
                 let a = self.action.as_ref().expect("political action");
                 let (seat, play) = (a.seat, a.card.expect("a political action card"));
-                // "A Methuselah can have only one": not a second.
-                if !self.state.controls_card_copy(seat, play.card) {
-                    let id = self.enter_play(crate::state::CardInPlay::new(
-                        play.card, seat, None, play.mode,
-                    ));
+                // "A Methuselah can have only one" (Raising the
+                // Portcullis): not a second.
+                let one = cards::lookup(play.card).is_some_and(|d| {
+                    d.modes[play.mode as usize]
+                        .requires
+                        .contains(&cards::Requirement::OnePerMethuselah)
+                });
+                if !(one && self.state.controls_card_copy(seat, play.card)) {
+                    // The Methuselahs its terms chose, remembered (Rumors of
+                    // Gehenna, The Meddling of Semsith).
+                    let mut against = crate::ids::SeatSet::EMPTY;
+                    for &s in ctx.terms.seats.iter().chain(ctx.terms.chosen.iter()) {
+                        against.0 |= crate::ids::SeatSet::single(s).0;
+                    }
+                    let id = self.enter_play(crate::state::CardInPlay {
+                        against,
+                        ..crate::state::CardInPlay::new(play.card, seat, None, play.mode)
+                    });
                     self.push_mode_layers(id);
                     self.action
                         .as_mut()

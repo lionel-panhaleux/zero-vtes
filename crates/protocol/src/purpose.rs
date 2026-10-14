@@ -306,6 +306,11 @@ impl Describer<'_> {
                 self.seat_name(of),
                 self.named(host)
             ),
+            MoveBloodUpTo { from, to, .. } => format!(
+                "How much blood does {} move to {}?",
+                self.named(from),
+                self.named(to)
+            ),
             StealUpTo { from, to, .. } => format!(
                 "How much blood does {} steal from {}?",
                 self.named(to),
@@ -365,6 +370,13 @@ impl Describer<'_> {
             BecomesAnarch { .. } => "Choose a non-titled vampire of yours to become Anarch".into(),
             LockOrPay { card, pool, .. } => format!(
                 "Lock {} or burn {pool} pool",
+                self.card_name(card)
+            ),
+            PoolOrVampire {
+                card, pool, cap, ..
+            } => format!(
+                "Burn {pool} pool, or burn a vampire of yours with capacity {cap} or more \
+                 to burn {}",
                 self.card_name(card)
             ),
             CryptSearch { clan, .. } => {
@@ -633,6 +645,8 @@ impl Describer<'_> {
                     Some(format!("Lock {}", self.card_name(card)))
                 }
                 (LockOrPay { pool, .. }, Choice::BurnPool) => Some(format!("Burn {pool} pool")),
+                (PoolOrVampire { pool, .. }, Choice::BurnPool) => Some(format!("Burn {pool} pool")),
+                (PoolOrVampire { .. }, Choice::ChooseMinion(_)) => role("is burned".into()),
                 (CryptSearch { .. }, Choice::AshVampire(card)) => Some(format!(
                     "Move {} from your crypt to your uncontrolled region",
                     zvtes::crypt::CRYPT[card as usize].name

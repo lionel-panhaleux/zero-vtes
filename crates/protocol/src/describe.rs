@@ -1282,6 +1282,8 @@ fn ability_parts(effects: &[Effect]) -> Vec<String> {
                 Effect::BloodPerHostage => "+1 blood per hostage".into(),
                 Effect::HuntingGroundBlood(n) => format!("+{n} blood"),
                 Effect::HuntingGroundTwoOldest => "+1 blood to the two oldest".into(),
+                Effect::AshCardOfToHand(_) => "a political action card to hand".into(),
+                Effect::StealPoolFromTarget(n) => format!("take {n} pool"),
                 Effect::HuntStealthUntilUnlock(n) => format!("+{n} stealth on hunts"),
                 Effect::HuntingGroundLife(n) => format!("+{n} life"),
                 Effect::BloodToCard(n) => format!("{n} blood to the card"),

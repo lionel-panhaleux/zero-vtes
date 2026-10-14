@@ -1771,7 +1771,15 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 281] = [
+pub static VAMPIRES: [&VampireDef; 289] = [
+    &ANNABELLE_TRIABELL,
+    &GENEVIEVE,
+    &DARK_SELINA,
+    &DROZODNY,
+    &HARDESTADT,
+    &MALABRANCA,
+    &IAN_CARFAX,
+    &VICTORIA_ASH_G7,
     &ALVARO,
     &AMBROSIO,
     &ANTONIO_DELGADO,
@@ -2926,6 +2934,8 @@ static BENJAMIN_ROSE_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::CallerHandSizeForGame(1),
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 
@@ -2957,6 +2967,8 @@ static DMITRA_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::BloodToChosenEach,
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 
@@ -3587,6 +3599,7 @@ pub static THE_UNNAMED: VampireDef = VampireDef {
 /// rules-qa 57.10).
 pub static VICTORIA_ASH: VampireDef = VampireDef {
     name: "Victoria Ash",
+    group: Some(2),
     abilities: &[printed_action(
         target(
             TargetKind::Minion,
@@ -5117,3 +5130,139 @@ pub static APPOLONIUS_MERGED: VampireDef = VampireDef {
 /// advanced card's in full, its [MERGED] clauses with them — the
 /// definition `cards::vampire_of` reads for a merged vampire.
 pub static MERGED: [&VampireDef; 1] = [&APPOLONIUS_MERGED];
+
+// ---- Round 10: the 2025-2026 TWDA decks (slice 16v) --------------------------
+//
+// Stavros prints no text ("Sabbat priscus.").
+
+/// "Camarilla primogen: While Annabelle is locked, other Toreador you
+/// control get +1 stealth." In torpor too (LSJ 20011022): a locked
+/// Annabelle in torpor still gives it.
+pub static ANNABELLE_TRIABELL: VampireDef = VampireDef {
+    name: "Annabelle Triabell",
+    group: Some(6),
+    printed: &[Printed {
+        stat: Stat::Stealth,
+        n: 1,
+        to: PrintedTo::OthersControlled,
+        per: Per::One,
+        requires: &[R::HostLocked, R::ActorClan("Toreador")],
+    }],
+    ..VAMP
+};
+
+/// "Sabbat priscus: Genevieve gets one additional vote during each political
+/// action." Cast with her ballot, on the same side (LSJ 20051113-2): her
+/// votes and ballot go in one cast.
+pub static GENEVIEVE: VampireDef = VampireDef {
+    name: "Genevieve",
+    printed: &[own(Stat::Votes, 1, &[])],
+    ..VAMP
+};
+
+/// "Sabbat cardinal: Selina gets +1 stealth during political actions."
+pub static DARK_SELINA: VampireDef = VampireDef {
+    name: "Dark Selina",
+    printed: &[own(Stat::Stealth, 1, &[R::IsPolitical])],
+    ..VAMP
+};
+
+/// "Sabbat bishop: Drozodny can move a political action card from your ash
+/// heap to your hand as a +1 stealth action (discard down afterward)." The
+/// card named as the action is declared (LSJ 20010627); a copy still there
+/// moves on success.
+pub static DROZODNY: VampireDef = VampireDef {
+    name: "Drozodny",
+    abilities: &[ModeDef {
+        requires: &[R::OwnAshHas(CardFilter::Type(CardType::PoliticalAction))],
+        ..printed_action(
+            None,
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::AshCardOfToHand(CardFilter::Type(CardType::PoliticalAction)),
+            ],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Camarilla Ventrue Inner Circle: Any vampire contesting Hardestadt's
+/// title must yield during their unlock phase. +1 bleed. +2 strength." Not
+/// Hardestadt himself (Rafael de Corazon's shape).
+pub static HARDESTADT: VampireDef = VampireDef {
+    name: "Hardestadt",
+    printed: &[
+        own(Stat::RivalsYieldTitle, 1, &[]),
+        own(Stat::Bleed, 1, &[]),
+        own(Stat::Strength, 2, &[]),
+    ],
+    ..VAMP
+};
+
+/// "Sabbat Archbishop of Rome: If your prey has more pool than you,
+/// Malabranca may move 1 counter from your prey's pool to yours as a +1
+/// stealth Ⓓ action." The condition read as the action is declared and
+/// again as it resolves (a target filter).
+pub static MALABRANCA: VampireDef = VampireDef {
+    name: "Malabranca",
+    abilities: &[printed_action(
+        Some(TargetSpec {
+            kind: TargetKind::Seat,
+            filter: &[R::TargetPrey, R::NotSelf, R::TargetPoolMoreThanYours],
+        }),
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::AddStealth(1),
+            Effect::StealPoolFromTarget(1),
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla Tremere Justicar: Once each turn after a combat involving Ian
+/// ends, he can unlock if the opposing minion is not ready. +1 intercept."
+/// Monster's shape, without its blood: after the combat, among the
+/// after-combat effects; "each turn": each player's (ANK 20180719-4).
+pub static IAN_CARFAX: VampireDef = VampireDef {
+    name: "Ian Carfax",
+    printed: &[own(Stat::Intercept, 1, &[])],
+    abilities: &[ability(
+        &[Window::ActionAfterCombat],
+        Actor::Host,
+        &[R::HostCombatOpponentNotReady, R::HostLocked],
+        Limit::PerTurn,
+        &[Effect::UnlockActor],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla: While Victoria is ready, you can discard 1 card during a
+/// bleed action to give an acting Assamite +1 bleed. +1 bleed." Before
+/// the bleed resolves (ANK 20231124, LSJ 19970718); an acting Banu Haqim
+/// (the clan's V5 name), any Methuselah's — the text names no controller;
+/// once each action (rules-qa 6.6, Larissa Moreira's shape).
+pub static VICTORIA_ASH_G7: VampireDef = VampireDef {
+    name: "Victoria Ash",
+    group: Some(7),
+    printed: &[own(Stat::Bleed, 1, &[])],
+    abilities: &[ModeDef {
+        terms: Some(Terms::Discard {
+            n: 1,
+            of: CardFilter::Any,
+        }),
+        limit: Some(Limit::PerAction),
+        ..mode_of(
+            &[Window::ActionDuring, Window::ReactionDuringAction],
+            Actor::Host,
+            &[
+                R::HostReady,
+                R::IsBleed,
+                R::ActingClan("Banu Haqim"),
+                R::HandHas(CardFilter::Any, 1),
+            ],
+            &[bleed(1, false)],
+        )
+    }],
+    ..VAMP
+};

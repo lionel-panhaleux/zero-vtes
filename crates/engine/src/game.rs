@@ -408,6 +408,7 @@ impl Engine {
             seat.hand.clear();
         }
         e.flow = Flow::MinionPhase;
+        e.state.in_minion_phase = true;
         e
     }
 
@@ -626,6 +627,9 @@ impl Engine {
         loop {
             self.rest_fury_tokens();
             self.pay_press_toll();
+            self.settle_anathema();
+            self.state.settle_entries();
+            self.settle_servitors();
             self.settle_interrupts();
             if self.interrupts.is_empty() {
                 self.settle_ousting();
@@ -1710,9 +1714,16 @@ impl Engine {
             Flow::MasterPhase => {
                 self.state.phase_actions = 0;
                 self.state.optional_action = false;
+                self.state.in_minion_phase = true;
                 self.flow = Flow::MinionPhase
             }
             Flow::MinionPhase => {
+                self.state.in_minion_phase = false;
+                // Chameleon: the minions in play so far entered before it.
+                self.state.settle_entries();
+                self.state.entry_clock += 1;
+                let a = self.state.active;
+                self.state.seats[a.index()].minion_phase_end = self.state.entry_clock;
                 self.thirst();
                 self.minion_phase_end_riders();
                 // "During your influence phase" abilities: once per phase.
@@ -1723,7 +1734,9 @@ impl Engine {
                         + std::mem::take(
                             &mut self.state.seats[self.state.active.index()].transfers_next,
                         ),
-                }
+                };
+                // The Meddling of Semsith's held replacements.
+                self.release_held(|h| &mut h.minion_phase);
             }
             Flow::Influence { .. } => self.end_influence(),
             Flow::Discard => self.end_turn(),
@@ -2135,6 +2148,11 @@ impl Engine {
     }
 
     pub(crate) fn next_turn(&mut self) {
+        // A minion phase cut short (its Methuselah ousted): over, its held
+        // replacements due (The Meddling of Semsith).
+        if std::mem::take(&mut self.state.in_minion_phase) {
+            self.release_held(|h| &mut h.minion_phase);
+        }
         // The end of the turn: the Red List marks lapse, Andre LeRoux's
         // bleed too, Enkidu unlocks.
         self.state.red_list_marks.clear();
@@ -2396,7 +2414,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 463);
+        assert_eq!(CRYPT.len(), 472);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

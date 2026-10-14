@@ -84,6 +84,12 @@ impl Engine {
     /// replacement (ANK 20200905; rules-qa 9.4), queued in order. The hand
     /// is then drawn up.
     pub(crate) fn replace(&mut self, s: SeatId, n: usize, except: Option<CardId>) {
+        // The Meddling of Semsith: held until the minion phase ends.
+        if n > 0 && self.state.in_minion_phase && self.state.meddled(s) {
+            let held = &mut self.state.seats[s.index()].held.minion_phase;
+            *held = held.saturating_add(n as u8);
+            return;
+        }
         for _ in 0..n {
             if self.state.seats[s.index()].library.is_empty() {
                 break;
@@ -256,6 +262,8 @@ impl Engine {
     /// "Master Phase"; out-of-turn accounting per rules-qa 3.3).
     pub(crate) fn start_master_phase(&mut self) {
         let s = self.state.active;
+        // No minion phase under way (a fixture started in one).
+        self.state.in_minion_phase = false;
         // Nightmares upon Nightmares' discards: replaced now.
         let held = std::mem::take(&mut self.state.seats[s.index()].held.master);
         if held > 0 {
@@ -580,6 +588,16 @@ impl Engine {
                     }
                     // Concoction of Vitality: no Discipline card for the
                     // acting vampire this action.
+                    // Approximation of Loyalty [PRE]: no more action
+                    // modifiers on this action.
+                    if action.is_some_and(|a| a.no_more_modifiers && a.seat == seat)
+                        && LIBRARY[card as usize]
+                            .types
+                            .contains(&CardType::ActionModifier)
+                        && matches!(mode.actor, Actor::ActingMinion | Actor::OtherOwnMinion)
+                    {
+                        continue;
+                    }
                     if action.is_some_and(|a| a.no_discipline_cards && a.seat == seat)
                         && LIBRARY[card as usize].modes.iter().any(|lm| {
                             lm.tags
@@ -2090,6 +2108,16 @@ impl Engine {
                 .map(|(card, mode)| Choice::EmployFromHand { card, mode })
                 .collect(),
             // The ash heap, then the ally in it (Psychophagia).
+            Some(Terms::TargetCapacity) => {
+                let t = ctx.target.minion();
+                vec![Choice::SetX(self.state.capacity_of(t).unwrap_or(0))]
+            }
+            Some(Terms::OwnAshVampire) => {
+                crate::state::distinct(&self.state.seats[ctx.seat.index()].ash_crypt, |_| true)
+                    .into_iter()
+                    .map(Choice::AshVampire)
+                    .collect()
+            }
             Some(Terms::AnyAshAlly) => match ctx.ash {
                 None => self
                     .ash_ally_heaps()
@@ -2315,6 +2343,8 @@ impl Engine {
                 let (s, _) = ctx.ash.expect("the ash heap chosen");
                 ctx.ash = Some((s, *card));
             }
+            // Redeem the Lost Soul: the burned vampire, by crypt card.
+            Choice::AshVampire(card) => ctx.ash = Some((ctx.seat, *card)),
             Choice::Pass => ctx.burn = None,
             other => unreachable!("illegal terms choice {other:?}"),
         }
@@ -3800,6 +3830,7 @@ impl Engine {
             Effect::BecomesVampire {
                 sect: printed,
                 master_search,
+                must_hunt,
             } => {
                 let sect = printed
                     .or_else(|| ctx.actor.and_then(|a| self.state.sect_of(a)))
@@ -3811,7 +3842,10 @@ impl Engine {
                     .expect("an acting vampire");
                 let m = MinionId(self.state.minions.len() as u32);
                 self.state.minions.push(crate::state::Minion {
-                    must_hunt: true,
+                    must_hunt,
+                    // "Cannot perform actions this turn" (Third Tradition:
+                    // Progeny), as a recruited ally.
+                    recruited: !must_hunt,
                     ..crate::state::Minion::new(
                         s,
                         crate::state::MinionKind::Created {
@@ -4181,6 +4215,85 @@ impl Engine {
             | Effect::TargetLocksReadyUnlocked
             | Effect::PlayableFromStore(_)
             | Effect::StoredRemovedWhenBurned => {}
+            // Kaymakli Nightmares: each Methuselah's crypt cards in the
+            // uncontrolled region back to the crypt, their blood to the pool,
+            // the cards on them burned; a created vampire burned instead (LSJ
+            // 20041201-2), not counted; the crypt shuffled, as many drawn
+            // out.
+            Effect::KaymakliNightmares => {
+                for t in self.state.clockwise_from(s) {
+                    let slots = std::mem::take(&mut self.state.seats[t.index()].uncontrolled);
+                    let mut n = 0;
+                    for slot in slots {
+                        self.state.seats[t.index()].pool += slot.counters as i32;
+                        if let Some(b) = slot.banished {
+                            for c in b.cards {
+                                let (owner, card) =
+                                    (self.state.cards[c.index()].owner, self.state.cards[c.index()].card);
+                                self.state.seats[owner.index()].ash.push(card);
+                            }
+                        }
+                        if slot.card != crate::state::CREATED {
+                            self.state.seats[t.index()].crypt.push(slot.card);
+                            n += 1;
+                        }
+                    }
+                    self.rng.shuffle(&mut self.state.seats[t.index()].crypt);
+                    for _ in 0..n {
+                        let seat = &mut self.state.seats[t.index()];
+                        let Some(card) = seat.crypt.pop() else {
+                            break;
+                        };
+                        seat.uncontrolled.push(crate::state::UncontrolledSlot {
+                            card,
+                            counters: 0,
+                            banished: None,
+                        });
+                    }
+                }
+            }
+            // Vulnerability: the vampire still in play (re-checked).
+            Effect::BurnTargetMinion => {
+                let t = ctx.target.minion();
+                if self.state.minions[t.index()].in_play {
+                    self.burn_minion(t);
+                }
+            }
+            // Chameleon: the stolen vampire becomes Anarch.
+            Effect::TargetBecomesAnarch => {
+                let t = ctx.target.minion();
+                if self.state.minions[t.index()].present() {
+                    self.make_anarch(t);
+                }
+            }
+            // Third Tradition: Progeny: up to n of the acting vampire's
+            // blood to the new vampire, decided now (PIB 20150418).
+            Effect::ActingBloodToNewUpTo(n) => {
+                let to = in_play.and_then(|id| self.state.cards[id.index()].body);
+                if let (Some(from), Some(to)) = (ctx.actor, to) {
+                    self.interrupts.push(Interrupt::MoveBloodUpTo {
+                        seat: s,
+                        from,
+                        to,
+                        max: n,
+                    });
+                }
+            }
+            // A marker (`Engine::settle_servitors`).
+            Effect::RemovedAfterSuccessOrWithoutInfernal => {}
+            // Redeem the Lost Soul: the vampire still in the ash heap.
+            Effect::RedeemAshVampire => {
+                let seat = &mut self.state.seats[s.index()];
+                if let Some(i) = ctx
+                    .ash
+                    .and_then(|(_, card)| seat.ash_crypt.iter().position(|&c| c == card))
+                {
+                    let card = seat.ash_crypt.remove(i);
+                    seat.removed_crypt.push(card);
+                    let cap = crate::crypt::CRYPT[card as usize].capacity;
+                    seat.pool += (cap / 2) as i32;
+                }
+            }
             // "This vampire gains n blood" (Restoration).
             Effect::BloodToActing(n) => {
                 if let Some(a) = ctx.actor {
@@ -4661,6 +4774,14 @@ impl Engine {
                 }
                 seat.dpa -= 1;
                 self.replace(s, 1, None);
+                // Camarilla Threat: the additional pool, a last one ousting.
+                let toll = self.state.discard_toll();
+                if toll > 0 {
+                    self.pay_pool_for_ability(s, toll as i32);
+                    if self.state.seats[s.index()].ousted {
+                        return;
+                    }
+                }
                 if unlock {
                     self.interrupts.push(Interrupt::MinionOf {
                         seat: s,
@@ -5559,6 +5680,24 @@ impl Engine {
                         continue;
                     }
                 }
+                // "After a combat involving <him> ends … if the opposing
+                // minion is not ready" (Ian Carfax): the combat just over.
+                if ability
+                    .requires
+                    .contains(&Requirement::HostCombatOpponentNotReady)
+                    && !self
+                        .action
+                        .as_ref()
+                        .and_then(|a| a.last_combat)
+                        .is_some_and(|pair| {
+                            pair.contains(&m)
+                                && pair
+                                    .iter()
+                                    .any(|&o| o != m && !st.minions[o.index()].ready())
+                        })
+                {
+                    continue;
+                }
                 // Host predicates read the vampire; the others its minion in
                 // combat.
                 let ok = ability.requires.iter().all(|&r| {
@@ -5911,11 +6050,16 @@ impl Engine {
             if mode.effects.contains(&Effect::ExchangeHandForAsh) {
                 self.flow = Flow::Exchange { ash: None };
             }
-            // The Sargon Fragment: the card named with the announcement (LSJ
-            // 20010627).
-            if mode.effects.contains(&Effect::AshCardToHandNamed) {
+            // The Sargon Fragment, Drozodny: the card named with the
+            // announcement (LSJ 20010627).
+            let of = mode.effects.iter().find_map(|e| match e {
+                Effect::AshCardToHandNamed => Some(crate::cards::CardFilter::Any),
+                Effect::AshCardOfToHand(of) => Some(*of),
+                _ => None,
+            });
+            if let Some(of) = of {
                 let seat = self.state.minions[m.index()].owner;
-                self.interrupts.push(Interrupt::NameOwnAshCard { seat });
+                self.interrupts.push(Interrupt::NameOwnAshCard { seat, of });
             }
             // Malgorzata: the vampire to remove named with the announcement.
             if let (true, Target::Uncontrolled(t)) = (
@@ -7822,6 +7966,16 @@ impl Engine {
                     // Servitor).
                     Effect::BurnSelf => burn_self = true,
                     Effect::BurnSelfUnlessPool(_) => per_counter = true,
+                    // Antediluvian Awakening: the active Methuselah's pool,
+                    // or one of their vampires to burn it.
+                    Effect::BurnPoolUnlessBurnVampire { pool, cap } => {
+                        self.interrupts.push(Interrupt::PoolOrVampire {
+                            seat: s,
+                            card: id,
+                            pool,
+                            cap,
+                        });
+                    }
                     // Bleeding the Vine: its controller locks it or burns
                     // the pool.
                     Effect::LockOrBurnPool(n) => {

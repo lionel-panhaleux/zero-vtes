@@ -363,6 +363,15 @@ pub struct Side {
     pub no_close_maneuver: bool,
     pub no_continue_press: bool,
     pub frenzy_no_equipment: bool,
+    /// Drawing Out the Beast on this vampire: no maneuver to long range, no
+    /// press to end combat, +n strength, and n unpreventable environmental
+    /// damage in each round's press step ([ANI]) — frenzy effects.
+    pub no_long_maneuver: bool,
+    pub no_end_press: bool,
+    pub frenzy_strength: u8,
+    pub press_damage: u8,
+    /// This minion cannot maneuver this combat (Ni Dieu ni Maître [ani]).
+    pub no_maneuver: bool,
     pub combat_card_surcharge: u8,
     pub frenzy_immune: bool,
     /// Flesh of Marble this combat: `Some(aggravated too)`.
@@ -461,6 +470,11 @@ impl Side {
             no_close_maneuver: self.no_close_maneuver,
             no_continue_press: self.no_continue_press,
             frenzy_no_equipment: self.frenzy_no_equipment,
+            no_long_maneuver: self.no_long_maneuver,
+            no_end_press: self.no_end_press,
+            frenzy_strength: self.frenzy_strength,
+            press_damage: self.press_damage,
+            no_maneuver: self.no_maneuver,
             combat_card_surcharge: self.combat_card_surcharge,
             hand_damage_bonus: self.hand_damage_bonus,
             strike_card_toll: self.strike_card_toll,
@@ -505,6 +519,9 @@ pub struct CombatCtx {
     /// Minions burned in this combat: (the minion burning them, their
     /// controller) — Predator's Transformation [ABO].
     pub burned_minions: Vec<(MinionId, SeatId)>,
+    /// Each combatant's blood as last seen (Anathema: "reduced to 0 in
+    /// combat" — a loss, not entering at 0; `Engine::settle_anathema`).
+    pub anathema_seen: [u8; 2],
     pub round: u8,
     /// Strike pair within the round; 0 is the normal pair.
     pub pair: u8,
@@ -746,7 +763,11 @@ impl CombatCtx {
     /// A maneuver now: none to close range under a frenzy (Terror Frenzy
     /// [ani]).
     pub(crate) fn may_maneuver(&self, side: usize) -> bool {
-        !(self.sides[side].no_close_maneuver && self.range == Range::Long) && !self.frozen(side)
+        let s = &self.sides[side];
+        !(s.no_close_maneuver && self.range == Range::Long)
+            && !(s.no_long_maneuver && self.range == Range::Close)
+            && !s.no_maneuver
+            && !self.frozen(side)
     }
 
     /// Side `side` can use no maneuver nor strike this round (Ossian).
@@ -768,6 +789,7 @@ impl CombatCtx {
 
     pub(crate) fn may_press(&self, side: usize) -> bool {
         !(self.sides[side].no_continue_press && !self.press_continue)
+            && !(self.sides[side].no_end_press && self.press_continue)
             && !self.sides[side].no_press_round
     }
 
@@ -963,8 +985,13 @@ impl Engine {
         } else {
             st.equipment_on(opposing)
         };
+        let anathema_seen = [
+            self.state.minions[acting.index()].blood,
+            self.state.minions[opposing.index()].blood,
+        ];
         self.combat = Some(CombatCtx {
             sides,
+            anathema_seen,
             round: 1,
             step: Step::BeforeRange,
             window: OrderedWindow::new(order),
@@ -1667,8 +1694,19 @@ impl Engine {
                 if c.sides.iter().any(|s| s.additional > 0) {
                     c.begin_pair();
                 } else {
-                    c.fresh_window(Step::Press);
-                    self.trap_presses();
+                    // Drawing Out the Beast [ANI]: its damage as the press
+                    // step begins (environmental, RTR 19970630; none in a
+                    // round the combat ended early, LSJ 20010312).
+                    if self.press_step_damage() {
+                        return;
+                    }
+                    let c = self.combat.as_mut().expect("combat context");
+                    if c.round_over {
+                        c.fresh_window(Step::EndOfRound);
+                    } else {
+                        c.fresh_window(Step::Press);
+                        self.trap_presses();
+                    }
                 }
             }
             // The end of round follows the press step whether a press
@@ -1875,6 +1913,73 @@ impl Engine {
     /// each combatant and each retainer on them takes it, unpreventable,
     /// environmental — even if the combat is ending (LSJ 19971110, ANK
     /// 20190725). True when the flow moved on (`apply_damage`).
+    /// Anathema: a combatant carrying one whose blood went from some to 0
+    /// since last seen, in this combat, is burned, the opposing minion's
+    /// Methuselah gaining its capacity in pool — any loss (RTR 19980623);
+    /// one burned by aggravated damage is gone already (LSJ 20021120); the
+    /// other Anathemas burn with it (LSJ 20021117).
+    pub(crate) fn settle_anathema(&mut self) {
+        let Some(c) = self.combat.as_ref() else {
+            return;
+        };
+        let st = &self.state;
+        let mut fired = None;
+        for i in 0..2 {
+            let m = c.sides[i].minion;
+            let v = &st.minions[m.index()];
+            if fired.is_none()
+                && c.anathema_seen[i] > 0
+                && v.blood == 0
+                && v.present()
+                && v.is_vampire()
+                && st.hosts(m, cards::Modifier::Anathema)
+            {
+                fired = Some(i);
+            }
+        }
+        let seen = std::array::from_fn(|i| st.minions[c.sides[i].minion.index()].blood);
+        let c = self.combat.as_mut().expect("combat context");
+        c.anathema_seen = seen;
+        let Some(i) = fired else {
+            return;
+        };
+        let (m, opp) = (c.sides[i].minion, c.sides[1 - i].minion);
+        let gainer = self.state.minions[opp.index()].owner;
+        let cap = self.state.capacity_of(m).unwrap_or(0);
+        self.burn_minion(m);
+        if !self.state.seats[gainer.index()].ousted {
+            self.state.seats[gainer.index()].pool += cap as i32;
+        }
+        if let Some(c) = self.combat.as_mut() {
+            if !c.both_ready(&self.state) {
+                c.round_over = true;
+            }
+        }
+    }
+
+    /// Fast Hands: the weapon moves to the striker, if it can hold it (a
+    /// steal, not an equip: no requirement or cost).
+    fn steal_weapon(&mut self, w: CardId, to: MinionId) {
+        let card = self.state.cards[w.index()].card;
+        if self.state.minions[to.index()].present() && self.state.can_hold(to, card, &[]) {
+            self.state.cards[w.index()].host = Some(to);
+        }
+    }
+
+    /// Drawing Out the Beast [ANI]: 1 unpreventable environmental damage
+    /// on each vampire it was played against, as the press step begins.
+    /// True when the flow moved on (an oust).
+    fn press_step_damage(&mut self) -> bool {
+        let c = self.combat.as_mut().expect("combat context");
+        if c.sides.iter().all(|s| s.press_damage == 0) {
+            return false;
+        }
+        for s in &mut c.sides {
+            s.unpreventable += s.press_damage;
+        }
+        self.apply_damage()
+    }
+
     pub(crate) fn weather_damage(&mut self) -> bool {
         let c = self.combat.as_mut().expect("combat context");
         let n: u8 = c
@@ -2011,9 +2116,14 @@ impl Engine {
         if let [i] = first[..] {
             debug_assert!(matches!(
                 strikes[i],
-                Some(StrikeKind::BurnEquipment | StrikeKind::RangedBurnEquipment)
+                Some(
+                    StrikeKind::BurnEquipment
+                        | StrikeKind::RangedBurnEquipment
+                        | StrikeKind::StealWeapon
+                )
             ));
             let ranged = strikes[i] == Some(StrikeKind::RangedBurnEquipment);
+            let steal = strikes[i] == Some(StrikeKind::StealWeapon);
             let j = 1 - i;
             let dodged = strikes[j] == Some(StrikeKind::Dodge)
                 && !self.state.undodgeable(c.sides[i].minion)
@@ -2027,7 +2137,12 @@ impl Engine {
             });
             strikes[i] = None;
             if let Some(w) = burned {
-                self.burn_card_in_play(w);
+                if steal {
+                    let to = self.combat.as_ref().expect("combat context").sides[i].minion;
+                    self.steal_weapon(w, to);
+                } else {
+                    self.burn_card_in_play(w);
+                }
             }
         }
         let c = self.combat.as_mut().expect("combat context");
@@ -2096,6 +2211,7 @@ impl Engine {
             (c.sides[i].strength(st.base_strength(c.sides[i].minion)) as i32
                 + action_bonus
                 + c.sides[i].strength_mods as i32
+                + c.sides[i].frenzy_strength as i32
                 + bearer
                 + st.printed_mod(c.sides[i].minion, cards::Stat::Strength, ctx))
             .max(0) as u8
@@ -2173,7 +2289,7 @@ impl Engine {
                         | StrikeKind::Corrupt,
                     ) => close,
                     Some(StrikeKind::BurnWeapon | StrikeKind::RangedBurnEquipment) => true,
-                    Some(StrikeKind::BurnEquipment) => close,
+                    Some(StrikeKind::BurnEquipment | StrikeKind::StealWeapon) => close,
                     Some(StrikeKind::Dodge | StrikeKind::CombatEnds { .. }) | None => false,
                 }
         });
@@ -2241,6 +2357,8 @@ impl Engine {
         // Coma [DEM]: the vampires that do not unlock as normal next.
         let mut comatose: Vec<MinionId> = Vec::new();
         let mut burn_weapons: Vec<CardId> = Vec::new();
+        // Fast Hands: (weapon, striker) to move as the strikes land.
+        let mut steal_weapons: Vec<(CardId, MinionId)> = Vec::new();
         // Weapons losing counters per damage inflicted (Weighted Walking
         // Stick): the card and the points.
         let mut counter_hits: Vec<(CardId, u8)> = Vec::new();
@@ -2427,6 +2545,16 @@ impl Engine {
                         }
                     }
                 }
+                StrikeKind::StealWeapon => {
+                    if !dodged && close {
+                        if let Some(w) = c.sides[i].strike_weapon {
+                            let wc = &st.cards[w.index()];
+                            if wc.present() && wc.host == Some(c.sides[j].minion) {
+                                steal_weapons.push((w, c.sides[i].minion));
+                            }
+                        }
+                    }
+                }
                 StrikeKind::Dodge | StrikeKind::CombatEnds { .. } | StrikeKind::CardEffect => {}
             }
         }
@@ -2495,6 +2623,9 @@ impl Engine {
         }
         for w in burn_weapons {
             self.burn_card_in_play(w);
+        }
+        for (w, to) in steal_weapons {
+            self.steal_weapon(w, to);
         }
         for (w, n) in counter_hits {
             let card = &mut self.state.cards[w.index()];
@@ -3245,7 +3376,9 @@ impl Engine {
                 // or the equipment a burn-equipment strike names.
                 match (k, play.target) {
                     (
-                        StrikeKind::BurnEquipment | StrikeKind::RangedBurnEquipment,
+                        StrikeKind::BurnEquipment
+                        | StrikeKind::RangedBurnEquipment
+                        | StrikeKind::StealWeapon,
                         cards::Target::Card(w),
                     ) => {
                         s.strike_at = None;
@@ -3296,6 +3429,41 @@ impl Engine {
             Effect::WeaponStrikePlus(n) | Effect::CommittedWeaponStrikePlus(n) => {
                 weapon_strike(&self.state, c, i, play.target.card(), n);
             }
+            // Orgy of Blood: the burned ally's recruit cost, to each
+            // vampire of the player's in play (in torpor too).
+            Effect::OrgyOfBlood => {
+                let x = self.state.minions[c.sides[1 - i].minion.index()]
+                    .kind
+                    .ally_card()
+                    .map_or(0, |card| {
+                        let lib = &LIBRARY[card as usize];
+                        match (lib.pool_cost, lib.blood_cost) {
+                            (crate::library::Cost::Fixed(n), _)
+                            | (_, crate::library::Cost::Fixed(n)) => n,
+                            _ => 0,
+                        }
+                    });
+                let mine: Vec<MinionId> = self
+                    .state
+                    .minions_of(play.seat)
+                    .filter(|&m| self.state.minions[m.index()].is_vampire())
+                    .collect();
+                for m in mine {
+                    self.state.gain_blood(m, x);
+                }
+            }
+            // Drawing Out the Beast: a frenzy card on the opposing vampire,
+            // unless immune (Tranquility Shield).
+            Effect::DrawOutBeast { damage } => {
+                let o = &mut c.sides[1 - i];
+                if !o.frenzy_immune {
+                    o.frenzy_strength += 1;
+                    o.no_long_maneuver = true;
+                    o.no_end_press = true;
+                    o.frenzy_no_equipment = true;
+                    o.press_damage += u8::from(damage);
+                }
+            }
             // A frenzy card on the opposing minion, unless immune (Tranquility
             // Shield).
             Effect::OpposingRestraint => {
@@ -3320,6 +3488,10 @@ impl Engine {
                 s.no_continue_press = false;
                 s.frenzy_no_equipment = false;
                 s.combat_card_surcharge = 0;
+                s.no_long_maneuver = false;
+                s.no_end_press = false;
+                s.frenzy_strength = 0;
+                s.press_damage = 0;
             }
             Effect::FleshOfMarble { aggravated } => {
                 let s = &mut c.sides[i];
@@ -3698,6 +3870,8 @@ pub(crate) fn is_combat_effect(e: &Effect) -> bool {
             | Effect::PreventOnTargetXPlus(_)
             | Effect::PreventNonAggravatedOnTarget(_)
             | Effect::OpposingRestraint
+            | Effect::DrawOutBeast { .. }
+            | Effect::OrgyOfBlood
             | Effect::OpposingCombatCardsCost(_)
             | Effect::FrenzyShield
             | Effect::FleshOfMarble { .. }

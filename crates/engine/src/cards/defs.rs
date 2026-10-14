@@ -2031,6 +2031,8 @@ static KRC_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::BurnAllocated,
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -2053,6 +2055,8 @@ static CONSERVATIVE_AGITATION_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::BurnAllocated,
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -2070,6 +2074,8 @@ static PER_MINION_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::BurnPerMinion { locked_only: false },
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -2094,6 +2100,8 @@ static PER_LOCKED_MINION_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::BurnPerMinion { locked_only: true },
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -2118,6 +2126,8 @@ static NEONATE_BREACH_REFERENDUM: ReferendumDef = ReferendumDef {
     },
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -2198,6 +2208,8 @@ static RECKLESS_AGITATION_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::BurnAllocated,
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -2226,6 +2238,8 @@ static IRON_FIST_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::BurnAllocatedChosenGains(1),
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -2255,6 +2269,8 @@ static PARITY_SHIFT_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::MoveAllocatedFromChosen,
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -2277,6 +2293,8 @@ static CONSANGUINEOUS_BOON_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::GainPerClanVampire,
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -2293,6 +2311,8 @@ static ANARCH_SALON_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::AnarchSalon,
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -2314,6 +2334,8 @@ static BANISHMENT_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::Banish,
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -2337,6 +2359,8 @@ static EXPULSION_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::Expel,
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -2609,7 +2633,31 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     ..CARD
 };
 
-pub static DEFS: [&CardDef; 691] = [
+pub static DEFS: [&CardDef; 715] = [
+    &ZAIRE_RIVER_FERRY,
+    &THE_ANKARA_CITADEL,
+    &CHAMELEON,
+    &THIRD_TRADITION_PROGENY,
+    &INFERNAL_SERVITOR,
+    &RUMORS_OF_GEHENNA,
+    &CAMARILLA_THREAT,
+    &THE_MEDDLING_OF_SEMSITH,
+    &EAT_THE_RICH,
+    &ANATHEMA,
+    &PROTECTED_RESOURCES,
+    &ANTEDILUVIAN_AWAKENING,
+    &KAYMAKLI_NIGHTMARES,
+    &POWER_OF_ONE,
+    &ADHOCRACY,
+    &NI_DIEU_NI_MAITRE,
+    &MARKED_PATH,
+    &VULNERABILITY,
+    &REDEEM_THE_LOST_SOUL,
+    &HORRIFIC_COUNTENANCE,
+    &FAST_HANDS,
+    &ORGY_OF_BLOOD,
+    &DRAWING_OUT_THE_BEAST,
+    &APPROXIMATION_OF_LOYALTY,
     &LEGACY,
     &FLAMES_OF_INSURRECTION,
     &BOLLIX,
@@ -3310,6 +3358,8 @@ static BURN_THIS_CARD: ReferendumDef = ReferendumDef {
     effect: RefEffect::BurnSource,
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 
@@ -6022,6 +6072,8 @@ static TOREADOR_JUSTICAR_REFERENDUM: ReferendumDef = ReferendumDef {
         n: 1,
     }],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 
@@ -6076,6 +6128,8 @@ static MALKAVIAN_JUSTICAR_REFERENDUM: ReferendumDef = ReferendumDef {
         n: 1,
     }],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 
@@ -6109,6 +6163,8 @@ static ARCHON_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::PutOnChosen,
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 
@@ -6175,6 +6231,8 @@ static RAISING_THE_PORTCULLIS_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::PutInPlay,
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 
@@ -6215,6 +6273,8 @@ static DISPUTED_TERRITORY_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::ChosenTakesChosenCard,
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 
@@ -6253,6 +6313,8 @@ static REVOLUTIONARY_COUNCIL_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::LockChosenBurnAllocated,
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 
@@ -8555,6 +8617,7 @@ pub static CHILDE_OF_THE_REVOLUTION: CardDef = CardDef {
             Effect::BecomesVampire {
                 sect: Some(Sect::Anarch),
                 master_search: true,
+                must_hunt: true,
             },
         ],
     )],
@@ -11266,6 +11329,8 @@ static FEE_STAKE_BURN: ReferendumDef = ReferendumDef {
     effect: RefEffect::BurnSource,
     grants: &[],
     non_anarch_titles_minus: true,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 
@@ -11349,6 +11414,7 @@ pub static WATERS_OF_DUAT: CardDef = CardDef {
             Effect::BecomesVampire {
                 sect: None,
                 master_search: true,
+                must_hunt: true,
             },
         ],
     )],
@@ -13772,6 +13838,8 @@ static POLITICAL_STRANGLEHOLD_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::GainPerVampireCapacityAtLeast { cap: 8, n: 3 },
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -13791,6 +13859,8 @@ static ANCIENT_INFLUENCE_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::GainChosenCapacityBurn(5),
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -13815,6 +13885,8 @@ static REINS_OF_POWER_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::GainBurnPredatorsChosenCapacity(6),
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -13840,6 +13912,8 @@ static PERMANENT_VACATION_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::RemoveChosen,
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -14049,6 +14123,8 @@ static CONFISCATION_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::ChosenVampireTakesChosenCard,
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -14071,6 +14147,8 @@ static REINFORCEMENTS_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::ChosenShuffleFromAsh(3),
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 /// "Requires a titled vampire. Choose one or more Methuselahs. Successful
@@ -14398,6 +14476,8 @@ static BLACK_FOREST_BASE_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::CallerGainsPool(2),
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 
@@ -14441,6 +14521,8 @@ static WAR_OF_AGES_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::PutInPlay,
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 
@@ -14504,6 +14586,8 @@ static EMPIRES_FALL_REFERENDUM: ReferendumDef = ReferendumDef {
     },
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -14609,6 +14693,8 @@ static CARDINAL_BENEDICTION_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::PutOnChosen,
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: Some(Sect::Sabbat),
 };
 
@@ -14892,6 +14978,8 @@ static COLD_WAR_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::ChosenBurnsPoolCardBurned(3),
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -16518,6 +16606,8 @@ static PATSY_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::BurnEdgeToUntitle(2),
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -16795,6 +16885,8 @@ static JUSTICAR_RETRIBUTION_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::BurnVampiresBleedAtLeast(3),
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -17132,6 +17224,8 @@ static MY_KIN_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::UnlockCallerAndChosen,
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 
@@ -20888,6 +20982,7 @@ pub static THE_EMBRACE: CardDef = CardDef {
             Effect::BecomesVampire {
                 sect: None,
                 master_search: false,
+                must_hunt: true,
             },
         ],
     )],
@@ -21149,6 +21244,8 @@ static AUTARKIS_PERSECUTION_REFERENDUM: ReferendumDef = ReferendumDef {
     effect: RefEffect::GainPerMinion(1),
     grants: &[],
     non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
     only_sect: None,
 };
 political!(
@@ -21263,5 +21360,718 @@ pub static LEGACY: CardDef = CardDef {
             Effect::MergeWithBase,
         ],
     )],
+    ..CARD
+};
+
+// ---- Round 10: the 2025-2026 TWDA decks (slice 16v) --------------------------
+
+/// "Requires an Anarch. [obt] Only usable if this Anarch is blocked, before
+/// block resolution. The blocking minion burns 2 blood or life. [pot] Only
+/// usable during a bleed action. +1 bleed that does not count against the
+/// limit. [pre] Only usable during a bleed action. +1 bleed (limited), or
+/// +1 stealth and +1 bleed (limited)." (1 blood.) [pre] splits in two
+/// (`cards::library_mode`): the bleed alone, or with the stealth — when
+/// stealth is needed (ANK 20171023, RTR 19941109: during a bleed only).
+/// [pot]'s unlimited bleed goes with a limited one, before or after (LSJ
+/// 20100218, RTR 20180511-2); played, it requires the Discipline used
+/// (LSJ 20011204-3, PIB 20130704).
+pub static POWER_OF_ONE: CardDef = CardDef {
+    name: "Power of One",
+    modes: &[
+        mode_of(
+            &[Window::ActionBlocked],
+            Actor::ActingMinion,
+            &[ANARCH],
+            &[Effect::BlockerBurnsBloodOrLife(2)],
+        ),
+        modifier(&[ANARCH, Requirement::IsBleed], &[bleed(1, false)]),
+        modifier(&[ANARCH, Requirement::IsBleed], &[LIMITED_BLEED]),
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::ActingMinion,
+            &[ANARCH, Requirement::IsBleed, Requirement::StealthNeeded],
+            &[Effect::AddStealth(1), LIMITED_BLEED],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Requires an Anarch. [ani] Only usable during a bleed action. +1 bleed
+/// (limited). [chi] Only usable during the polling step of a political
+/// action. This Anarch gets +3 votes. [pot] If this Anarch is blocked, they
+/// get +1 strength during the resulting combat." [chi]: no polling step in
+/// a referendum passing automatically, so not then (PIB 20150105, LSJ
+/// 19980107); played, it requires the Discipline used (LSJ 20011204-3, PIB
+/// 20130704).
+pub static ADHOCRACY: CardDef = CardDef {
+    name: "Adhocracy",
+    modes: &[
+        modifier(&[ANARCH, Requirement::IsBleed], &[LIMITED_BLEED]),
+        mode_of(
+            &[Window::Referendum],
+            Actor::ActingMinion,
+            &[ANARCH, Requirement::PollingStep],
+            &[Effect::AddVotes(3)],
+        ),
+        modifier(&[ANARCH], &[Effect::IfBlocks(BlockRider::Strength(1))]),
+    ],
+    ..CARD
+};
+
+const NI_DIEU_ANI: Effect = Effect::IfBlocks(BlockRider::OpponentNoManeuver);
+const NI_DIEU_FOR: Effect = Effect::VampireBlockToll(1);
+const NI_DIEU_VIC: Effect = Effect::IfBlocks(BlockRider::Strength(1));
+
+const fn ni_dieu(effects: &'static [Effect]) -> ModeDef {
+    mode_of(
+        &[Window::ActionAsAnnounced],
+        Actor::ActingMinion,
+        &[ANARCH],
+        effects,
+    )
+}
+
+/// "Requires an Anarch. Only usable as the action is announced. More than
+/// one Discipline can be used to play this card. [ani] If this action is
+/// blocked, the opposing minion cannot maneuver during the resulting
+/// combat. [for] Vampires must burn 1 blood to attempt to block this
+/// action. [vic] If this action is blocked, this Anarch gets +1 strength
+/// during the resulting combat." Modes: [ani], [for], [vic], then each
+/// larger set (LSJ 20011204-3, PIB 20130704); before the modifiers not
+/// played as the action is announced (ANK 20190425), the action card
+/// replaced first (ANK 20181208). [for]: vampires only — an ally attempts
+/// for free.
+pub static NI_DIEU_NI_MAITRE: CardDef = CardDef {
+    name: "Ni Dieu ni Maître",
+    modes: &[
+        ni_dieu(&[NI_DIEU_ANI]),
+        ni_dieu(&[NI_DIEU_FOR]),
+        ni_dieu(&[NI_DIEU_VIC]),
+        ni_dieu(&[NI_DIEU_ANI, NI_DIEU_FOR]),
+        ni_dieu(&[NI_DIEU_ANI, NI_DIEU_VIC]),
+        ni_dieu(&[NI_DIEU_FOR, NI_DIEU_VIC]),
+        ni_dieu(&[NI_DIEU_ANI, NI_DIEU_FOR, NI_DIEU_VIC]),
+    ],
+    ..CARD
+};
+
+/// "Only usable after a successful directed action. [obf] Put this card on
+/// the acting vampire. During an action directed at the same Methuselah
+/// (or same set of Methuselahs), this vampire may burn this card to get +1
+/// stealth. [OBF] As above, but for +2 stealth." Shadow Cast [OBL]'s shape:
+/// after resolution, after any combat, still during the action (PIB
+/// 20150915, LSJ 19981028, ANK 20190425); the vampire's controller is not
+/// part of the set remembered (LSJ 20100527).
+pub static MARKED_PATH: CardDef = CardDef {
+    name: "Marked Path",
+    modes: &[
+        mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::ActingMinion,
+            &[Requirement::ActionSuccessful, Requirement::ActionDirected],
+            &[Effect::PutOnActorRemembering],
+        ),
+        mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::ActingMinion,
+            &[Requirement::ActionSuccessful, Requirement::ActionDirected],
+            &[Effect::PutOnActorRemembering],
+        ),
+    ],
+    abilities: &[
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::Host,
+            &[
+                Requirement::BasicVersion,
+                Requirement::ActorActing,
+                Requirement::StealthNeeded,
+                Requirement::DirectedAtRemembered,
+            ],
+            &[Effect::BurnSelf, Effect::AddStealth(1)],
+        ),
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::Host,
+            &[
+                Requirement::SuperiorVersion,
+                Requirement::ActorActing,
+                Requirement::StealthNeeded,
+                Requirement::DirectedAtRemembered,
+            ],
+            &[Effect::BurnSelf, Effect::AddStealth(2)],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Master. Burn a vampire in torpor." (1 pool.) Any Methuselah's, the
+/// player's own too.
+pub static VULNERABILITY: CardDef = CardDef {
+    name: "Vulnerability",
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[Requirement::TargetVampire, Requirement::TargetInTorpor],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[Effect::BurnTargetMinion],
+        )
+    }],
+    ..CARD
+};
+
+/// "Master. Choose a vampire in your ash heap. Gain X pool, where X is half
+/// of the capacity of that vampire (round down). Remove that vampire from
+/// the game." Chosen as the card is played (rules-qa default readings): a
+/// burned crypt card — a created vampire is no vampire in the ash heap
+/// (LSJ 20020115).
+pub static REDEEM_THE_LOST_SOUL: CardDef = CardDef {
+    name: "Redeem the Lost Soul",
+    modes: &[ModeDef {
+        terms: Some(Terms::OwnAshVampire),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[Requirement::OwnAshVampire],
+            &[Effect::RedeemAshVampire],
+        )
+    }],
+    ..CARD
+};
+
+/// "Only usable when this vampire is blocked. [pro] Unlock the blocking
+/// minion. This action is not blocked, and it is now unblockable." (4
+/// blood.) Crypt's Sons' continuation, no one able to attempt again.
+pub static HORRIFIC_COUNTENANCE: CardDef = CardDef {
+    name: "Horrific Countenance",
+    modes: &[mode_of(
+        &[Window::ActionBlocked],
+        Actor::ActingMinion,
+        &[Requirement::NotContinued],
+        &[
+            Effect::UnlockBlocker,
+            Effect::Unblockable,
+            Effect::ContinueUnblocked,
+        ],
+    )],
+    ..CARD
+};
+
+const FAST_HANDS_WEAPON: Option<TargetSpec> = target(
+    TargetKind::Card,
+    &[
+        Requirement::TargetCard(CardFilter::Type(CardType::Equipment)),
+        Requirement::TargetWeapon,
+        Requirement::TargetOnOpposingCombatant,
+    ],
+);
+
+/// "[cel] Strike: steal weapon. [CEL] Strike: steal weapon with first
+/// strike." (1 blood.) Not with no weapon to steal (RTR 19980928): the
+/// weapon named with the strike; at close range (rules-qa 21.1), unless
+/// dodged, it moves to this vampire if still on the opposing minion and
+/// this vampire can hold it. With first strike, a strike with that weapon
+/// has no effect once it is gone (spec §4.10.4).
+pub static FAST_HANDS: CardDef = CardDef {
+    name: "Fast Hands",
+    modes: &[
+        ModeDef {
+            target: FAST_HANDS_WEAPON,
+            ..combat(
+                &[Window::CombatStrikeDeclaration],
+                &[Requirement::OpposingWeapon],
+                &[Effect::Strike(StrikeKind::StealWeapon)],
+            )
+        },
+        ModeDef {
+            target: FAST_HANDS_WEAPON,
+            ..combat(
+                &[Window::CombatStrikeDeclaration],
+                &[Requirement::OpposingWeapon],
+                &[Effect::Strike(StrikeKind::StealWeapon), Effect::FirstStrike],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "Only usable if the opposing ally is being burned. Each vampire you
+/// control gains X blood, where X is the cost to recruit the ally." By a
+/// vampire going to torpor or about to be burned too (LSJ 20100721): the
+/// end-of-round window of the round the ally burned in; X its card's pool
+/// or blood cost; vampires in torpor gain too, up to capacity.
+pub static ORGY_OF_BLOOD: CardDef = CardDef {
+    name: "Orgy of Blood",
+    modes: &[combat(
+        &[Window::CombatEndOfRound],
+        &[Requirement::OpposingAllyBurned],
+        &[Effect::OrgyOfBlood],
+    )],
+    ..CARD
+};
+
+/// "Only usable before range is determined on the first round. Frenzy.
+/// [ani] During this combat, opposing vampire gets +1 strength, but he or
+/// she cannot use maneuvers to maneuver to long range, cannot use presses
+/// to end combat and cannot use equipment. A vampire may play only one
+/// Drawing Out the Beast each combat. [ANI] As above, and the opposing
+/// vampire takes 1 unpreventable damage during the press step each round."
+/// Not against an ally (PIB 20121028); the press-step damage environmental
+/// (RTR 19970630), not in a round the combat ended early (LSJ 20010312,
+/// LSJ 20001027); a frenzy card (Tranquility Shield cancels it).
+pub static DRAWING_OUT_THE_BEAST: CardDef = CardDef {
+    name: "Drawing Out the Beast",
+    modes: &[
+        ModeDef {
+            limit: Some(Limit::PerCombat),
+            ..combat(
+                &[Window::CombatBeforeRange],
+                &[Requirement::FirstRound, Requirement::OpponentVampire],
+                &[Effect::Frenzy, Effect::DrawOutBeast { damage: false }],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::PerCombat),
+            ..combat(
+                &[Window::CombatBeforeRange],
+                &[Requirement::FirstRound, Requirement::OpponentVampire],
+                &[Effect::Frenzy, Effect::DrawOutBeast { damage: true }],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "Requires a vampire with capacity 7 or more. [pre] Only usable as the
+/// action is announced. Choose a vampire with capacity 6 or less or an
+/// ally. That minion cannot block this action. [PRE] Cancel a reaction card
+/// played by a vampire with capacity 6 or less or an ally as it is played
+/// (no cost is paid). No more action modifiers can be played on this
+/// action." [pre]: before the modifiers not played as announced (ANK
+/// 20190425), the action card replaced first (ANK 20181208). [PRE]: the
+/// cancel rules (LSJ 20061207, LSJ 20080630, ANK 20190104, LSJ 20030224).
+pub static APPROXIMATION_OF_LOYALTY: CardDef = CardDef {
+    name: "Approximation of Loyalty",
+    modes: &[
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[Requirement::TargetAllyOrCapacityAtMost(6)],
+            ),
+            ..mode_of(
+                &[Window::ActionAsAnnounced],
+                Actor::ActingMinion,
+                &[Requirement::ActorCapacityAtLeast(7)],
+                &[Effect::TargetCannotBlock],
+            )
+        },
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::ActingMinion,
+            &[
+                Requirement::ActorCapacityAtLeast(7),
+                Requirement::PlayedCardType(CardType::Reaction),
+                Requirement::PlayedByAllyOrCapacityAtMost(6),
+            ],
+            &[
+                Effect::CancelPlayed { refund: true },
+                Effect::NoMoreModifiers,
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+static RUMORS_OF_GEHENNA_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseSeats {
+        min: 1,
+        max: u8::MAX,
+    }],
+    effect: RefEffect::PutInPlay,
+    grants: &[],
+    non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
+    only_sect: None,
+};
+
+/// "Choose one or more Methuselahs. If this referendum is successful, put
+/// this card into play. Each chosen Methuselah receives two master phase
+/// actions during his or her master phase (instead of one). Any vampire can
+/// call a referendum to burn this card as a +1 stealth political action."
+/// The chosen Methuselahs remembered by the card in play
+/// (`CardInPlay::against`); "two (instead of one)": not added to Anson's
+/// second, nor to another copy's (`GameState::mpa_left`).
+pub static RUMORS_OF_GEHENNA: CardDef = CardDef {
+    name: "Rumors of Gehenna",
+    modes: &[political(
+        &[],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&RUMORS_OF_GEHENNA_REFERENDUM),
+            Effect::Layer(Modifier::TwoMasterPhaseActionsForChosen),
+        ],
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionDeclarePolitical],
+        Actor::ActingCandidate,
+        &[Requirement::ActorVampire],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::AddStealth(1),
+            Effect::CallReferendum(&BURN_THIS_CARD),
+        ],
+    )],
+    ..CARD
+};
+
+static PUT_IN_PLAY_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[],
+    effect: RefEffect::PutInPlay,
+    grants: &[],
+    non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
+    only_sect: None,
+};
+
+/// "If this referendum is successful, put this card in play. Each
+/// Methuselah must pay an additional pool to use a discard phase action to
+/// discard a card. Any vampire may call a referendum to burn this card as a
+/// +1 stealth political action." Each copy its pool; paid as the card is
+/// discarded, a last pool ousting.
+pub static CAMARILLA_THREAT: CardDef = CardDef {
+    name: "Camarilla Threat",
+    modes: &[political(
+        &[],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&PUT_IN_PLAY_REFERENDUM),
+            Effect::Layer(Modifier::DiscardActionCostsPool(1)),
+        ],
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionDeclarePolitical],
+        Actor::ActingCandidate,
+        &[Requirement::ActorVampire],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::AddStealth(1),
+            Effect::CallReferendum(&BURN_THIS_CARD),
+        ],
+    )],
+    ..CARD
+};
+
+static MEDDLING_OF_SEMSITH_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseSeat(SeatFilter::Other)],
+    effect: RefEffect::PutInPlay,
+    grants: &[],
+    non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
+    only_sect: None,
+};
+
+/// "Choose another Methuselah. Successful referendum means this card is put
+/// in play. You get -1 hand size. The chosen Methuselah does not replace
+/// cards during any Methuselah's minion phase. Vampires can call a
+/// referendum to burn this card as a +1 stealth political action." The
+/// cards held are replaced as the minion phase ends — the longest delay
+/// winning over a card's own (LSJ 20070320-1) — and count against the hand
+/// size meanwhile (ANK 20180318, ANK 20231229). The chosen Methuselah
+/// ousted, it stays and still shrinks the hand; its player ousted, it
+/// leaves with them (LSJ 20021008).
+pub static THE_MEDDLING_OF_SEMSITH: CardDef = CardDef {
+    name: "Meddling of Semsith, The",
+    modes: &[political(
+        &[],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&MEDDLING_OF_SEMSITH_REFERENDUM),
+            Effect::Layer(Modifier::HandSize(-1)),
+            Effect::Layer(Modifier::NoReplaceInMinionPhaseForChosen),
+        ],
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionDeclarePolitical],
+        Actor::ActingCandidate,
+        &[Requirement::ActorVampire],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::AddStealth(1),
+            Effect::CallReferendum(&BURN_THIS_CARD),
+        ],
+    )],
+    ..CARD
+};
+
+static EAT_THE_RICH_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseSeats {
+        min: 1,
+        max: u8::MAX,
+    }],
+    effect: RefEffect::BurnChosenPlusIfTitled { base: 1, bonus: 3 },
+    grants: &[],
+    non_anarch_titles_minus: false,
+    titled_minus: true,
+    edge_bonus: 1,
+    only_sect: None,
+};
+political!(
+    EAT_THE_RICH,
+    "Eat the Rich",
+    "\"Requires an Anarch. Choose one or more Methuselahs. Successful \
+     referendum means each chosen Methuselah burns 1 pool, plus 3 additional \
+     pool if they control a ready titled vampire. In this referendum, each \
+     priscus gets -1 ballot, each non-priscus titled vampire gets -1 vote, \
+     and burning the Edge is worth 1 additional vote.\" The titles read as \
+     the votes and ballots are cast, the ready titled vampire as it passes.",
+    &[ANARCH],
+    EAT_THE_RICH_REFERENDUM
+);
+
+static ANATHEMA_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseMinions {
+        filter: &[Requirement::TargetVampire, Requirement::ActorReady],
+        min: 1,
+        max: 1,
+    }],
+    effect: RefEffect::PutOnChosen,
+    grants: &[],
+    non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
+    only_sect: None,
+};
+
+/// "Requires a prince or justicar. Choose a ready vampire. Successful
+/// referendum means this card is put on the chosen vampire. If the attached
+/// vampire's blood is reduced to 0 in combat, the attached vampire is
+/// burned and the Methuselah controlling the opposing minion gains pool
+/// equal to the attached vampire's capacity." Any loss in combat (RTR
+/// 19980623), none entering it at 0; not diablerie (LSJ 20021122-2, ANK
+/// 20211112), not aggravated damage burning it (LSJ 20021120), not after
+/// combat (LSJ 19980225); one Anathema resolves, the others burn with the
+/// vampire (LSJ 20021117); controlled by its host's controller (PIB
+/// 20121028). Read as each combat step settles (`Engine::settle_anathema`).
+pub static ANATHEMA: CardDef = CardDef {
+    name: "Anathema",
+    modes: &[political(
+        &[PRINCE_OR_JUSTICAR],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&ANATHEMA_REFERENDUM),
+            Effect::Layer(Modifier::Anathema),
+        ],
+    )],
+    ..CARD
+};
+
+/// "Put this card in play. If you would burn more than 2 pool to a bleed,
+/// you burn 2 pool instead. After a minion you control successfully bleeds,
+/// burn this card." (2 pool.) After every bleed modifier (TOM 19960413): the
+/// bleed amount unchanged, only the pool burned capped (LSJ 20030211); a
+/// bleed for 0 is not successful and keeps it (LSJ 20030701-1).
+pub static PROTECTED_RESOURCES: CardDef = CardDef {
+    name: "Protected Resources",
+    modes: &[master_in_play(
+        &[],
+        &[Effect::PutInPlay, Effect::Layer(Modifier::BleedBurnCap(2))],
+    )],
+    ..CARD
+};
+
+/// "Unique. Put this card in play. During each Methuselah's unlock phase,
+/// that Methuselah burns 1 pool unless they burn a vampire they control
+/// with capacity 4 or more to burn this card." The active Methuselah's
+/// choice as the rider resolves, in torpor or not.
+pub static ANTEDILUVIAN_AWAKENING: CardDef = CardDef {
+    name: "Antediluvian Awakening",
+    modes: &[master_in_play(&[], &[Effect::PutInPlay])],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::BurnPoolUnlessBurnVampire { pool: 1, cap: 4 }],
+    }],
+    ..CARD
+};
+
+/// "Master. All Methuselahs move any crypt cards in their uncontrolled
+/// regions to their crypts. Any blood counters on them are moved to the
+/// Methuselah's pool, and any cards on them are burned. Each Methuselah
+/// shuffles his or her crypt and then moves as many cards from his or her
+/// crypt to his or her uncontrolled region as he or she shuffled in. Only
+/// one Kaymakli Nightmares may be played per game." All of them (LSJ
+/// 20080229); a created vampire is no crypt card — it would go to the
+/// crypt, so it is burned instead (LSJ 20041201-2) and not counted.
+pub static KAYMAKLI_NIGHTMARES: CardDef = CardDef {
+    name: "Kaymakli Nightmares",
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[Requirement::NotPlayedThisGame],
+        &[Effect::KaymakliNightmares],
+    )],
+    ..CARD
+};
+
+/// "While in play, this equipment card represents a location and does not
+/// count as equipment. Haven. Unique. Lock as an action directed at this
+/// Lasombra is announced to have that action fail. Lock to give this
+/// Lasombra +1 stealth. A vampire can have only one haven." (2 blood.) The
+/// failure after the acting Methuselah's own as-announced effects (LSJ
+/// 20081105), before the other modifiers and reactions (ANK 20190425); the
+/// failed action reached resolution (NRA; ANK 20211015, RTR 20180719), was
+/// not blocked (LSJ 20070219), and takes its after-resolution cards (ANK
+/// 20221205). A location once in play (LSJ 20080114); the only haven in
+/// the pool, and unique.
+pub static ZAIRE_RIVER_FERRY: CardDef = CardDef {
+    name: "Zaire River Ferry",
+    modes: &[EQUIP],
+    abilities: &[
+        mode_of(
+            &[Window::ReactionAsAnnounced],
+            Actor::Controller,
+            &[
+                Requirement::CardUnlocked,
+                Requirement::ActionTargetsHost,
+                Requirement::HostClan("Lasombra"),
+            ],
+            &[Effect::LockSelf, Effect::ActionFails],
+        ),
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::Host,
+            &[
+                Requirement::CardUnlocked,
+                Requirement::ActorActing,
+                Requirement::StealthNeeded,
+                Requirement::HostClan("Lasombra"),
+            ],
+            &[Effect::LockSelf, Effect::AddStealth(1)],
+        ),
+    ],
+    ..CARD
+};
+
+/// "While in play, this equipment card represents a location and does not
+/// count as equipment. Unique. Non-action modifier cards costing blood cost
+/// this vampire half as much blood to play, rounded down (multiplication
+/// and division are handled first, followed by addition and subtraction)."
+/// (2 blood.) Halved before any other change (RTR 20070707), so folded in
+/// with the bearer's reductions (`GameState::printed_cost_off`).
+pub static THE_ANKARA_CITADEL: CardDef = CardDef {
+    name: "Ankara Citadel, Turkey, The",
+    modes: &[ModeDef {
+        effects: &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::Layer(Modifier::HalvesBloodCosts),
+        ],
+        ..EQUIP
+    }],
+    ..CARD
+};
+
+/// "+1 stealth action. Requires a baron. Ⓓ Take control of a younger
+/// vampire with capacity of X who entered play since your last minion
+/// phase. That vampire becomes Anarch." (X blood.) Requiring a baron, it
+/// requires an Anarch (LSJ 20080603, LSJ 20050128); one of the player's own
+/// to make it Anarch (LSJ 20080803-2); not a vampire that merged — merging
+/// is not entering play (PIB 20150728). X is the target's capacity.
+pub static CHAMELEON: CardDef = CardDef {
+    name: "Chameleon",
+    modes: &[ModeDef {
+        terms: Some(Terms::TargetCapacity),
+        ..action_at(
+            &[BARON],
+            target(
+                TargetKind::Minion,
+                &[
+                    Requirement::TargetVampire,
+                    Requirement::Younger,
+                    Requirement::TargetEnteredSinceYourLastMinionPhase,
+                ],
+            ),
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::StealTargetVampire,
+                Effect::TargetBecomesAnarch,
+            ],
+        )
+    }],
+    ..CARD
+};
+
+/// "+1 stealth action. Requires a non-sterile prince or justicar. Put this
+/// card in play. It becomes a 1-capacity (non-unique) Camarilla vampire of
+/// the same clan as the acting vampire and cannot perform actions this
+/// turn. You can search your library (shuffle afterward), hand and/or ash
+/// heap for a Discipline master card and put it on this new vampire. Move
+/// up to 2 blood from the acting vampire to this new vampire." (1 blood.)
+/// The blood decided as it resolves (PIB 20150418); no vampire in the ash
+/// heap (LSJ 20020115); moved to the uncontrolled region, it stays a
+/// vampire (RTR 19990712); going to the crypt, it burns (LSJ 20041201-2).
+pub static THIRD_TRADITION_PROGENY: CardDef = CardDef {
+    name: "Third Tradition: Progeny",
+    modes: &[action_at(
+        &[PRINCE_OR_JUSTICAR, Requirement::ActorNotSterile],
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutInPlay,
+            Effect::BecomesVampire {
+                sect: Some(Sect::Camarilla),
+                master_search: true,
+                must_hunt: false,
+            },
+            Effect::ActingBloodToNewUpTo(2),
+        ],
+    )],
+    ..CARD
+};
+
+/// "Unique demon with 2 life. 1 strength, 3 bleed. Requires an infernal
+/// vampire. [dai] Infernal Servitor can perform actions the turn it is
+/// recruited. Remove it from the game if you control no infernal vampires,
+/// or after it performs a successful action. [DAI] As above, and Infernal
+/// Servitor can play cards requiring basic Daimoinon [dai] and/or basic
+/// Obfuscate [obf] as a vampire." (1 pool.) Acting the turn it is recruited
+/// only in its own minion phase (ANK 20200930); as a vampire, independent
+/// (LSJ 20020503), at basic level only (ANK 20180111), the Disciplines not
+/// its own (LSJ 19980303). The removals read as each step settles
+/// (`Engine::settle_servitors`) and as its action ends.
+pub static INFERNAL_SERVITOR: CardDef = CardDef {
+    name: "Infernal Servitor",
+    modes: &[
+        ModeDef {
+            requires: &[Requirement::ActorInfernal],
+            ..recruit(&[
+                Effect::DeclareAction(ActionKind::Recruit),
+                Effect::ActsWhenRecruited,
+                Effect::RemovedAfterSuccessOrWithoutInfernal,
+            ])
+        },
+        ModeDef {
+            requires: &[Requirement::ActorInfernal],
+            ..recruit(&[
+                Effect::DeclareAction(ActionKind::Recruit),
+                Effect::ActsWhenRecruited,
+                Effect::RemovedAfterSuccessOrWithoutInfernal,
+                Effect::Layer(Modifier::PlaysAsVampire(AsVampire {
+                    disciplines: &["dai", "obf"],
+                    capacity: 1,
+                    non_action: false,
+                })),
+            ])
+        },
+    ],
     ..CARD
 };

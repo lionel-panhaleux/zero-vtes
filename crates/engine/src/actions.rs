@@ -171,6 +171,14 @@ pub struct ActionCtx {
     pub reaction_played: bool,
     /// "Vampires cannot block this action" (Daring the Dawn).
     pub vampires_cannot_block: bool,
+    /// "Vampires must burn n blood to attempt to block this action" (Ni Dieu
+    /// ni Maître [for]): allies attempt for free.
+    pub vampire_block_toll: u8,
+    /// "It is now unblockable" (Horrific Countenance).
+    pub unblockable: bool,
+    /// "No more action modifiers can be played on this action"
+    /// (Approximation of Loyalty [PRE]).
+    pub no_more_modifiers: bool,
     /// "Titled vampires cannot block this action" (Propaganda).
     pub titled_cannot_block: bool,
     /// Aggravated damage the acting vampire takes after resolution, if the
@@ -1465,7 +1473,8 @@ impl Engine {
                 },
             )
             .max(0) as u8;
-        let blood = veil + printed + a.block_toll_extra + a.block_toll_blood;
+        let vampire_toll = if v.is_ally() { 0 } else { a.vampire_block_toll };
+        let blood = veil + printed + a.block_toll_extra + a.block_toll_blood + vampire_toll;
         if (veil > 0 || a.block_toll_blood > 0) && v.is_ally() || v.blood < blood {
             return None;
         }
@@ -1730,6 +1739,7 @@ impl Engine {
                         && v.is_vampire()
                         && st.capacity_of(*m).is_some_and(|c| (c as i32) <= small))
                     && !(a.vampires_cannot_block && !v.is_ally())
+                    && !a.unblockable
                     && !(a.titled_cannot_block
                         && !v.is_ally()
                         && st.title_of(*m) != crate::crypt::Title::None)
@@ -2706,6 +2716,7 @@ impl Engine {
                 }
                 cards::BlockRider::Press => c.sides[i].combat_presses += 1,
                 cards::BlockRider::ManeuverOrPress => c.sides[i].maneuver_or_press += 1,
+                cards::BlockRider::OpponentNoManeuver => c.sides[1 - i].no_maneuver = true,
                 cards::BlockRider::PreventFirstRound(n) => c.sides[i].round_prevents += n,
                 cards::BlockRider::PreventInCombat(n) => c.sides[i].combat_prevents += n,
                 cards::BlockRider::NoStrikesFirstRound => c.no_strikes_round = Some(1),
@@ -3112,6 +3123,28 @@ impl Engine {
             Effect::ReduceBleed(n) => a.bleed_reduce += n,
             Effect::AlliesCannotBlock => a.allies_cannot_block = true,
             Effect::VampiresCannotBlock => a.vampires_cannot_block = true,
+            Effect::VampireBlockToll(n) => a.vampire_block_toll += n,
+            Effect::Unblockable => a.unblockable = true,
+            Effect::NoMoreModifiers => a.no_more_modifiers = true,
+            Effect::ContinueUnblocked => a.continued = true,
+            Effect::UnlockBlocker => {
+                if let Some(&b) = a.blocked_by.last() {
+                    self.state.unlock(b);
+                }
+            }
+            // Power of One [obt]: what it has, before block resolution; an
+            // ally's last life burns it.
+            Effect::BlockerBurnsBloodOrLife(n) => {
+                if let Some(&b) = a.blocked_by.last() {
+                    let v = &mut self.state.minions[b.index()];
+                    v.blood -= n.min(v.blood);
+                    if v.is_ally() && v.blood == 0 {
+                        self.action = Some(a);
+                        self.burn_minion(b);
+                        a = self.action.take().expect("action");
+                    }
+                }
+            }
             Effect::DamageAfterResolution(n) => a.damage_after += n,
             Effect::PoolIfSuccessful(n) => a.pool_if_successful += n,
             Effect::TargetCannotBlock => {
@@ -4119,8 +4152,14 @@ impl Engine {
                         self.burn_card_in_play(boon);
                     }
                 }
-                let lost = amount.min(self.state.seats[payer.index()].pool.max(0) as u8);
-                self.state.seats[payer.index()].pool -= amount as i32;
+                // Protected Resources: the pool burned capped, the bleed
+                // amount untouched (LSJ 20030211).
+                let burned = self
+                    .state
+                    .bleed_burn_cap(payer)
+                    .map_or(amount, |cap| amount.min(cap));
+                let lost = burned.min(self.state.seats[payer.index()].pool.max(0) as u8);
+                self.state.seats[payer.index()].pool -= burned as i32;
                 // The context is out of `self.action` here: Věnceslava's
                 // memory is set on it directly — the bleed's target the
                 // acting Methuselah's prey, not a deflected one.
@@ -4138,6 +4177,20 @@ impl Engine {
                         s.has_edge = false;
                     }
                     self.state.seats[seat.index()].has_edge = true;
+                    // "After a minion you control successfully bleeds, burn
+                    // this card" (Protected Resources); not for a bleed of
+                    // 0 (LSJ 20030701-1).
+                    let spent: Vec<crate::state::CardId> = self
+                        .state
+                        .controlled_layers(seat)
+                        .filter(|l| matches!(l.modifier, cards::Modifier::BleedBurnCap(_)))
+                        .map(|l| l.source)
+                        .collect();
+                    for c in spent {
+                        if self.state.cards[c.index()].present() {
+                            self.burn_card_in_play(c);
+                        }
+                    }
                     // The action card's "if the bleed is successful" effects,
                     // their minions chosen now — none left of an ousted prey.
                     if let Some(play) = a.card {
@@ -5050,6 +5103,18 @@ impl Engine {
                                 s.hand.push(card);
                             }
                         }
+                        // Drozodny: a copy of the named card still in the
+                        // ash heap (discard down afterward: the hand settles
+                        // once the action is over).
+                        Effect::AshCardOfToHand(_) => {
+                            let named = self.action.as_ref().and_then(|a| a.ash_named);
+                            let s = &mut self.state.seats[seat.index()];
+                            if let Some(i) = named.and_then(|n| s.ash.iter().position(|&x| x == n))
+                            {
+                                let card = s.ash.remove(i);
+                                s.hand.push(card);
+                            }
+                        }
                         // Malgorzata: both vampires still where they were
                         // named.
                         Effect::RemoveUncontrolledForBlood(n) => {
@@ -5234,6 +5299,18 @@ impl Engine {
                                         of: t,
                                     });
                             }
+                        }
+                        // Malabranca: 1 pool from the prey's, still richer as
+                        // it resolves (the target filter re-checked above).
+                        Effect::StealPoolFromTarget(n) => {
+                            let Target::Seat(t) = target else {
+                                unreachable!("a pool steal without a seat target");
+                            };
+                            let taken = (n as i32).min(self.state.seats[t.index()].pool);
+                            self.state.seats[seat.index()].pool += taken;
+                            let mut loss = vec![0; self.state.seats.len()];
+                            loss[t.index()] = taken;
+                            self.burn_pool_batch(&loss);
                         }
                         // Ayelea: back at the end of her controller's next
                         // turn.
@@ -5533,6 +5610,15 @@ impl Engine {
 
     pub(crate) fn end_action(&mut self) {
         self.finish_action();
+        // Infernal Servitor: "after it performs a successful action" (a
+        // fizzled action is successful, rules-qa 56.1).
+        if let Some(a) = self.action.as_ref() {
+            let m = a.acting;
+            let successful = matches!(a.outcome, Some(Outcome::Successful | Outcome::Fizzled));
+            if successful && self.state.minions[m.index()].present() && self.servitor(m) {
+                self.remove_ally_from_game(m);
+            }
+        }
         self.last_outcome = self.action.as_ref().and_then(|a| a.outcome);
         self.action = None;
         // Back to the acting seat's minion phase, unless the action ended the
@@ -5541,6 +5627,41 @@ impl Engine {
             self.flow = Flow::MinionPhase;
         } else {
             self.flow = Flow::GameOver;
+        }
+    }
+
+    /// `m` is an ally whose card is removed after its successful action or
+    /// without an infernal vampire of its controller's (Infernal Servitor).
+    pub(crate) fn servitor(&self, m: MinionId) -> bool {
+        let st = &self.state;
+        st.minions[m.index()].kind.ally_card().is_some_and(|card| {
+            cards::lookup(card).is_some_and(|d| {
+                d.modes.iter().any(|md| {
+                    md.effects
+                        .contains(&Effect::RemovedAfterSuccessOrWithoutInfernal)
+                })
+            })
+        })
+    }
+
+    /// Infernal Servitor: removed from the game once its controller
+    /// controls no infernal vampire.
+    pub(crate) fn settle_servitors(&mut self) {
+        let st = &self.state;
+        let gone: Vec<MinionId> = (0..st.minions.len())
+            .map(|i| MinionId(i as u32))
+            .filter(|&m| {
+                let v = &st.minions[m.index()];
+                v.present()
+                    && v.is_ally()
+                    && self.servitor(m)
+                    && !st
+                        .minions_of(v.owner)
+                        .any(|o| st.minions[o.index()].is_vampire() && st.is_infernal(o))
+            })
+            .collect();
+        for m in gone {
+            self.remove_ally_from_game(m);
         }
     }
 

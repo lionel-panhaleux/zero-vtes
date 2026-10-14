@@ -64,7 +64,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
-- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15
+- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22
 - **Ousts, Life Boon's decision point** — 45.1–45.8
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5, 66.1
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
@@ -1383,3 +1383,49 @@ Slice 16u: the cards of the Lasombra, Toreador antitribu and Ravnos TWDA decks a
 **69.14** Mozambique Allure: "Requires a Laibon or non-titled vampire" — a Laibon (titled or not) with a crypt card (LSJ 20070411-2), or a non-titled non-Laibon; becoming Laibon replaces the sect; its clans read with their V5 names (Assamite: Banu Haqim, Follower of Set: Ministry). (Test mozambique_allure_makes_a_laibon_or_draws_a_crypt_card.)
 
 **69.15** Flames of Insurrection: the offer goes to the Anarch's controller whoever controls the card (ANK 20180627-2), optional, the vampire in their uncontrolled region their pick. (Test flames_of_insurrection_feeds_the_anarchs_uncontrolled_region.)
+
+## Batch 70 — Legacy cards for TWDA decks, round 10 (the 2025–2026 decks): readings no ruling settles (Claude, 2026-10-13)
+
+**70.1** Rumors of Gehenna: the Methuselahs chosen in its terms (the caller may choose themselves) are remembered by the card in play; "two master phase actions (instead of one)" is the same second action as Anson's — neither another copy nor Anson adds a third. (Test rumors_of_gehenna_gives_the_chosen_two_master_phase_actions.)
+
+**70.2** Victoria Ash (G7): "give an acting Assamite +1 bleed" — an acting Banu Haqim (the clan's V5 name), any Methuselah's, the text naming no controller; her Methuselah discards; once each action (rules-qa 6.6), before the bleed resolves (ANK 20231124). (Test victoria_ash_gives_an_acting_banu_haqim_bleed_before_resolution.)
+
+**70.3** Chameleon: "who entered play since your last minion phase" — since the end of the player's previous minion phase: entries of their current minion phase count; X is the target's capacity, paid in blood; the target ready or in torpor. (Tests chameleon_steals_a_vampire_that_entered_not_one_that_merged, chameleon_makes_ones_own_vampire_anarch.)
+
+**70.4** The Meddling of Semsith: "does not replace cards during any Methuselah's minion phase" — the replacements are held and drawn as that minion phase ends (or the turn ends early), counting against the hand size meanwhile (ANK 20180318); the card leaving play mid-phase does not release them before the phase's end. (Tests meddling_holds_replacements_through_the_minion_phase, meddling_outlasts_a_cards_own_delay.)
+
+**70.5** Camarilla Threat: each copy in play adds its pool; paid as the card is discarded, a last pool ousting its Methuselah. (Test camarilla_threat_charges_a_pool_per_discard.)
+
+**70.6** Eat the Rich: "each priscus gets -1 ballot" — its prisci ballot (printed ones too) lessened by 1; "each non-priscus titled vampire gets -1 vote" — off its total votes in this referendum, never below 0; the Edge cast is worth 2 votes; "a ready titled vampire" read as it passes. (Test eat_the_rich_taxes_titles_and_doubles_the_edge.)
+
+**70.7** Anathema: "reduced to 0 in combat" read as each combat step settles: any loss to 0 in it (damage, a cost paid in blood); a vampire back above 0 by then is not burned; the pool to the Methuselah controlling the opposing minion then. (Tests anathema_burns_a_vampire_reduced_to_zero_not_one_at_zero and the others citing its rulings.)
+
+**70.8** Protected Resources: copies do not lower the cap below 2; "after a minion you control successfully bleeds" — any minion of its controller's, an ally too, every copy they control burning; the cap is on whoever burns pool for the bleed (Major Boon's payer included). (Tests protected_resources_caps_the_pool_burned_not_the_bleed, protected_resources_burns_after_its_controllers_successful_bleed.)
+
+**70.9** Antediluvian Awakening: the vampire burned may be in torpor; burning it burns the card; chosen as the unlock rider resolves, the pool due anyway if the card is gone by then. (Test antediluvian_awakening_costs_a_pool_or_a_vampire.)
+
+**70.10** Kaymakli Nightmares: a created vampire in an uncontrolled region (banished) is burned, its counters still to the pool and not counted for the draw; a Web of Knives Recruit in training is no crypt card and stays; "only one … per game": anyone's, a canceled play counting. (Test kaymakli_nightmares_reshuffles_every_uncontrolled_crypt_card.)
+
+**70.11** Fast Hands: "steal weapon" — the weapon named with the strike moves to the striker as it lands (a steal: no requirement or cost), not if the striker cannot have it; with first strike, a strike with that weapon resolves no more. (Test fast_hands_steals_a_weapon_and_needs_one.)
+
+**70.12** Ni Dieu ni Maître: [for] "vampires must burn 1 blood" — vampires only, an ally attempts for free; [ani] "cannot maneuver" — no maneuver at all, granted ones included, for the resulting combat. (Tests ni_dieu_ni_maitre_tolls_vampires_not_allies, ni_dieu_ni_maitre_ani_vic_bars_maneuvers_and_strengthens.)
+
+**70.13** Horrific Countenance: "it is now unblockable" — for the rest of the action, no minion may attempt to block it. (Test horrific_countenance_unblocks_the_action_for_good.)
+
+**70.14** Approximation of Loyalty: [pre] any Methuselah's ally or vampire of capacity 6 or less; [PRE] "no more action modifiers" — no card played as an action modifier by the acting Methuselah's minions for the rest of the action. (Tests approximation_of_loyalty_bars_a_small_blocker, approximation_of_loyalty_cancels_a_small_reaction_and_closes_modifiers.)
+
+**70.15** Orgy of Blood: X is the ally card's printed pool or blood cost; "each vampire you control" — in torpor too, up to capacity; played in the end-of-round window of the round the ally burned. (Test orgy_of_blood_by_a_vampire_going_to_torpor.)
+
+**70.16** Drawing Out the Beast: its +1 strength is a frenzy effect like the rest (Tranquility Shield cancels it); [ANI]'s damage lands as the press step begins, before any press. (Tests drawing_out_the_beast_damages_in_the_press_step_unless_combat_ended, drawing_out_the_beast_is_not_played_against_an_ally.)
+
+**70.17** The Ankara Citadel, Turkey: "non-action modifier cards" — every card not typed action modifier (a dual Action Modifier/Reaction card is not halved); only a printed blood cost is halved (an X cost is not). (Test ankara_citadel_halves_its_bearers_non_modifier_costs.)
+
+**70.18** Third Tradition: Progeny: "cannot perform actions this turn" — as a recruited ally; the blood moved over its capacity drains. (Test third_tradition_progeny_moves_blood_decided_at_resolution.)
+
+**70.19** Infernal Servitor: "if you control no infernal vampires" — one in torpor counts; read as each step settles; "after it performs a successful action" — a fizzled action counts (rules-qa 56.1), removed as the action ends. (Test infernal_servitor_leaves_after_success_or_without_an_infernal.)
+
+**70.20** Zaire River Ferry: "this Lasombra" — the bearer must be Lasombra for either ability (rules-qa 9.1); "a vampire can have only one haven": the only haven in the pool, and unique. (Tests zaire_river_ferry_fails_an_action_at_its_lasombra, zaire_river_ferry_gives_its_lasombra_stealth, zaire_river_ferry_needs_a_lasombra_bearer.)
+
+**70.21** Malabranca: "if your prey has more pool than you" read as the action is announced and again as it resolves (it fizzles otherwise). (Test malabranca_takes_a_pool_from_a_richer_prey.)
+
+**70.22** Ian Carfax: his unlock is offered only while he is locked, after a combat he was in whose opposing minion is not ready. (Test ian_carfax_unlocks_after_a_combat_his_opponent_left.)

@@ -664,6 +664,45 @@ ADDED_BATCHES = [
         101085: "Legacy",
         201187: "Richter, The Templar of Du Mont (G2)",
     },
+    # Round 10 (slice 16v): the 2025-2026 TWDA decks the version cap keeps
+    # (Summon the Abyss, Juliet's Dream, Arika, Cardinal Cougars, The Evil
+    # Marko Experience, Turbo Unnamed, Lutz goes Meddling, ...) (owner,
+    # 2026-10-13).
+    {
+        102203: "Zaire River Ferry",
+        101663: "Rumors of Gehenna",
+        101036: "Kaymakli Nightmares",
+        201693: "Annabelle Triabell (G6)",
+        101500: "Protected Resources",
+        100605: "Eat the Rich",
+        101330: "Orgy of Blood",
+        100320: "Chameleon",
+        101429: "Power of One",
+        200501: "Genevieve (G2)",
+        200321: "Dark Selina (G5)",
+        101973: "Third Tradition: Progeny",
+        100585: "Drawing Out the Beast",
+        101282: "Ni Dieu ni Maître",
+        100022: "Adhocracy",
+        101192: "The Meddling of Semsith",
+        201313: "Stavros (G4)",
+        200389: "Drozodny (G5)",
+        100285: "Camarilla Threat",
+        200568: "Hardestadt (G4)",
+        200900: "Malabranca (G4)",
+        100936: "Horrific Countenance",
+        100078: "Approximation of Loyalty",
+        100073: "Antediluvian Awakening",
+        101577: "Redeem the Lost Soul",
+        100981: "Infernal Servitor",
+        102134: "Vulnerability",
+        100704: "Fast Hands",
+        100060: "Anathema",
+        201697: "Ian Carfax (G7)",
+        100071: "The Ankara Citadel, Turkey",
+        101169: "Marked Path",
+        201619: "Victoria Ash (G7)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -834,6 +873,9 @@ COMBAT_TIMING = [
     # "Only usable when this vampire burns a minion … in combat"
     # (Predator's Transformation [ABO]): after the round's damage.
     (r"when this vampire burns a minion", "COMBAT_END_OF_ROUND"),
+    # "Only usable if the opposing ally is being burned" (Orgy of Blood):
+    # the round's damage done, the ally burning.
+    (r"opposing ally is being burned", "COMBAT_END_OF_ROUND"),
 ]
 COMBAT_DEFAULT = "COMBAT_UNTIMED"   # rules-qa 2.2: no printed step
 
@@ -863,11 +905,17 @@ MODIFIER_TIMING = [
     # "… burns a minion … as a Ⓓ action" (Predator's Transformation [ABO]).
     (r"when this vampire burns a minion", "ACTION_AFTER_RESOLUTION"),
     (r"if (this|the acting) minion is blocked", "ACTION_BLOCKED"),
+    # "Only usable if this Anarch is blocked, before block resolution"
+    # (Power of One [obt]); "Only usable when this vampire is blocked"
+    # (Horrific Countenance).
+    (r"only usable (if|when) this \w+ is blocked", "ACTION_BLOCKED"),
     # "Only usable after a combat resulting from a block" (Shadow Boxing
     # [OBF][POT]).
     (r"after a combat resulting from a block", "ACTION_AFTER_COMBAT"),
     (r"would be successful", "ACTION_WOULD_BE_SUCCESSFUL"),
     (r"only usable after (the )?(action )?resol", "ACTION_AFTER_RESOLUTION"),
+    # "Only usable after a successful directed action" (Marked Path).
+    (r"only usable after a successful (directed )?action", "ACTION_AFTER_RESOLUTION"),
     # "Only usable on a successful referendum" (Cryptic Rider): after the
     # political action's resolution, its referendum passed.
     (r"only usable on a successful referendum", "ACTION_AFTER_RESOLUTION"),

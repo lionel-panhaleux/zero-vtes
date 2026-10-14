@@ -3303,4 +3303,112 @@ fuzz_tests! {
         seeds: 8,
         ..BASE
     };
+    /// Legacy cards for TWDA decks, round 10 (slice 16v): the Anarch
+    /// modifiers, combat cards, Chameleon, Progeny, the locations and the
+    /// round's vampires.
+    random_games_with_twda_round_10a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Power of One",
+            "Adhocracy",
+            "Ni Dieu ni Maître",
+            "Marked Path",
+            "Horrific Countenance",
+            "Fast Hands",
+            "Orgy of Blood",
+            "Drawing Out the Beast",
+            "Approximation of Loyalty",
+            "Chameleon",
+            "Third Tradition: Progeny",
+            "Zaire River Ferry",
+            "Ankara Citadel, Turkey, The",
+            "Infernal Servitor",
+            // A weapon for Fast Hands, an ally for Orgy of Blood.
+            ".44 Magnum",
+            "Political Ally",
+        ],
+        covers: &[
+            "play:Power of One",
+            "play:Adhocracy",
+            "play:Ni Dieu ni Maître",
+            "play:Marked Path",
+            "play:Fast Hands",
+            "play:Drawing Out the Beast",
+            "play:Approximation of Loyalty",
+            "play:Chameleon",
+            "play:Third Tradition: Progeny",
+            "play:Zaire River Ferry",
+            "play:Ankara Citadel, Turkey, The",
+            "play:Infernal Servitor",
+            "ability:Zaire River Ferry",
+            "ability:Marked Path",
+            "ability:Ian Carfax",
+            "ability:Malabranca",
+            "ability:Victoria Ash",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Annabelle Triabell",
+                    "Dark Selina",
+                    "Drozodny",
+                    "Hardestadt",
+                    "Malabranca",
+                    "Ian Carfax",
+                    "Genevieve",
+                    "Stavros",
+                    "Arishat",
+                ],
+            );
+            // Victoria Ash (G7) beside a Banu Haqim.
+            let v = CRYPT
+                .iter()
+                .position(|c| c.name == "Victoria Ash" && c.group == 7)
+                .expect("Victoria Ash G7") as u16;
+            if absent(e, v) {
+                e.add_minion(SeatId(1), v, 4, false);
+            }
+            per_seat(e, |c| c.clan == "Banu Haqim", 4);
+        },
+        seeds: 56,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, round 10 (slice 16v): the referendums
+    /// and masters — Rumors of Gehenna, Eat the Rich, Anathema, The
+    /// Meddling of Semsith, Kaymakli Nightmares.
+    random_games_with_twda_round_10b_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Rumors of Gehenna",
+            "Eat the Rich",
+            "Anathema",
+            "Meddling of Semsith, The",
+            "Camarilla Threat",
+            "Protected Resources",
+            "Antediluvian Awakening",
+            "Kaymakli Nightmares",
+            "Redeem the Lost Soul",
+            "Vulnerability",
+        ],
+        covers: &[
+            "play:Rumors of Gehenna",
+            "play:Eat the Rich",
+            "play:Anathema",
+            "play:Meddling of Semsith, The",
+            "play:Camarilla Threat",
+            "play:Protected Resources",
+            "play:Antediluvian Awakening",
+            "play:Kaymakli Nightmares",
+            "play:Redeem the Lost Soul",
+            "play:Vulnerability",
+            "ability:Drozodny",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &["Genevieve", "Dark Selina", "Hardestadt", "Annabelle Triabell", "Drozodny"],
+            );
+        },
+        seeds: 16,
+        ..BASE
+    };
 }
