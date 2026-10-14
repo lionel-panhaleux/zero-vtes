@@ -1,7 +1,7 @@
 name: ci
 
 # CLAUDE.md's checks: the default members (engine, policy, api, host,
-# protocol) and the shells that build without Python (server, wasm).
+# text) and the server, which builds without Python.
 on:
   push:
     branches: [main]
@@ -17,7 +17,7 @@ jobs:
           components: rustfmt, clippy
       - run: cargo fmt --all --check
       - run: cargo clippy --all-targets --profile ci -- -D warnings
-      - run: cargo clippy -p zvtes-server -p zvtes-wasm --all-targets --profile ci -- -D warnings
+      - run: cargo clippy -p zvtes-server --all-targets --profile ci -- -D warnings
       - run: cargo test --profile ci
       - run: cargo test -p zvtes-api --features schema --profile ci
       - run: python3 scripts/gen_ts.py --check crates/api/protocol.ts

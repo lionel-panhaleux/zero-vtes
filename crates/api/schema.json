@@ -4010,7 +4010,7 @@
     },
     "SpecError": {
       "title": "SpecError",
-      "description": "Why a game spec is refused (`POST /games`, a wasm game's creation).",
+      "description": "Why a game spec is refused (`POST /games`).",
       "oneOf": [
         {
           "type": "object",

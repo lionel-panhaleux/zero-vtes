@@ -469,10 +469,12 @@ M3 (0.17 M on the later midgame/5).
 - Bot service: engine + ONNX-exported policy, CPU-friendly.
 - **Human play (P5)**: plan, board and findings in
   [`docs/human-play.md`](docs/human-play.md). Settled (owner, 2026-09-29): the
-  contract is JSON messages (`crates/protocol`: `TableView` with stable card
-  copies, option descriptors, decks by KRCG id, `Session`), spoken in-process
-  by a wasm module (`crates/wasm`) inside a Succubus Club fork's engine game
-  type first, by a server later; JOL out of scope.
+  contract is JSON messages (`TableView` with stable card copies, option
+  descriptors, decks by KRCG id), first spoken in-process by a wasm module
+  inside a Succubus Club fork's engine game type; JOL out of scope. Since
+  P6 (`docs/online-plan.md`) the contract is `crates/api`, served by
+  `crates/server` on `engine.krcg.org`, the fork's only engine (the wasm
+  module removed, owner 2026-10-14).
 
 ## 9. Performance targets
 
@@ -1746,7 +1748,7 @@ tournament decks", `tests/legacy.rs`; rules-qa Batch 44)
   games 0 of 36.
   (2) A decisive network bot: `NetAgent::temperature` divides the
   logits before sampling; the human-play bots play at 0.5 with the
-  rescue bonus (`crates/wasm`). Measured (512 games each, against the
+  rescue bonus (then `crates/wasm`, now the server's `games.rs`). Measured (512 games each, against the
   network sampling as trained): 0.7 1.06 / 0.92, 0.5 1.16 / 0.82, 0.3
   1.18 / 0.80, 0.5 with +6 1.17 / 0.81. Training still samples at 1.
   (3) Waste (`crates/policy/examples/waste.rs`: the owner's games,

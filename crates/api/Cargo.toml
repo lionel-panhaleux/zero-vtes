@@ -5,7 +5,7 @@ edition = "2021"
 license = "MIT"
 
 # The contract between a game and its clients (docs/protocol.md): types
-# only, no engine. Servers, the wasm module and any client bind to these
+# only, no engine. The server and any client bind to these
 # (or to the JSON Schema generated from them, feature `schema`).
 [lib]
 name = "zvtes_api"
