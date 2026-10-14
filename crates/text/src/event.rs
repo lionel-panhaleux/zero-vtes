@@ -41,6 +41,14 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
             delta,
             blood,
         } => format!("{}: {} blood ({blood})", n.minion(*minion), signed(*delta)),
+        // A lasting effect whose card is in the ash heap: told as the
+        // card's effect, never as the card in play.
+        EventKind::EntersPlay {
+            card,
+            on: host,
+            effect: true,
+            ..
+        } => format!("{}'s effect begins{}", n.card(card), on(host)),
         EventKind::EntersPlay {
             card,
             on: host,
@@ -50,9 +58,20 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
             (Some(_), Some(c)) => format!("{} comes into play", n.minion(c)),
             _ => format!("{} comes into play{}", n.card(card), on(host)),
         },
+        EventKind::Moves {
+            card,
+            on: host,
+            effect: true,
+        } => {
+            let to = host.map(|m| format!(" to {}", n.minion(m)));
+            format!("{}'s effect moves{}", n.card(card), to.unwrap_or_default())
+        }
         EventKind::Moves { card, on: host, .. } => {
             format!("{} moves{}", n.card(card), on(host))
         }
+        EventKind::LeavesPlay {
+            card, effect: true, ..
+        } => format!("{}'s effect ends", n.card(card)),
         EventKind::LeavesPlay {
             card,
             minion,
@@ -220,5 +239,90 @@ pub fn strike(s: Option<&Strike>) -> String {
         StrikeKind::BurnEquipment => "burn equipment".into(),
         StrikeKind::RangedBurnEquipment => "burn equipment, ranged".into(),
         StrikeKind::Corrupt => "corruption counter".into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use zvtes_api::event::EventKind;
+    use zvtes_api::ids::{KrcgId, MinionKind};
+    use zvtes_api::view::Card;
+
+    use crate::{Cards, Names};
+
+    struct Two;
+
+    impl Cards for Two {
+        fn name(&self, id: KrcgId) -> Option<&str> {
+            match id {
+                1 => Some("Lucian"),
+                2 => Some("Torn Signpost"),
+                _ => None,
+            }
+        }
+    }
+
+    fn card(id: KrcgId, copy: Option<u32>) -> Card {
+        Card {
+            copy,
+            id: Some(id),
+            crypt: false,
+            nth: None,
+        }
+    }
+
+    // A lasting effect whose card is in the ash heap (`effect`) is told as
+    // the card's effect, never as the card coming into play (findings F8).
+    #[test]
+    fn a_lasting_effect_is_told_as_an_effect() {
+        let cards = Two;
+        let mut n = Names::new(&cards);
+        n.hear(&EventKind::EntersPlay {
+            card: card(1, Some(7)),
+            seat: 0,
+            on: None,
+            minion: Some(MinionKind::Vampire),
+            effect: false,
+        });
+        let told = |e: EventKind| super::event(&e, &n).expect("told");
+        assert_eq!(
+            told(EventKind::EntersPlay {
+                card: card(2, None),
+                seat: 1,
+                on: Some(7),
+                minion: None,
+                effect: true,
+            }),
+            "Torn Signpost's effect begins on Lucian"
+        );
+        assert_eq!(
+            told(EventKind::Moves {
+                card: card(2, None),
+                on: Some(7),
+                effect: true,
+            }),
+            "Torn Signpost's effect moves to Lucian"
+        );
+        assert_eq!(
+            told(EventKind::LeavesPlay {
+                card: card(2, None),
+                to: None,
+                minion: None,
+                contested: false,
+                effect: true,
+            }),
+            "Torn Signpost's effect ends"
+        );
+        // The card itself, in play.
+        assert_eq!(
+            told(EventKind::EntersPlay {
+                card: card(2, Some(9)),
+                seat: 1,
+                on: Some(7),
+                minion: None,
+                effect: false,
+            }),
+            "Torn Signpost comes into play on Lucian"
+        );
     }
 }
