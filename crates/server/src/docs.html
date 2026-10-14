@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>zero-vtes engine: API reference</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Scalar has no per-operation switch for its test requests: the
+         button is hidden but on reads, and the client sends reads only
+         (a write would create a recorded game). -->
+    <style>
+      .show-api-client-button:not([method="get" i]),
+      .generate-sdk-button {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.74.0/dist/browser/standalone.js"
+      integrity="sha384-VXnKAz61Xwc3tbw1P+KKrUP7YbcsSl1Ik4is5UnogJyw9XEYZ5Ay/T1i0zPYtSZH"
+      crossorigin="anonymous"
+    ></script>
+    <script>
+      const readsOnly = (input, init) => {
+        const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
+        if (method !== "GET" && method !== "HEAD") {
+          return Promise.resolve(
+            new Response("Not sent from this page: it would create a recorded game.", {
+              status: 405,
+              headers: { "Content-Type": "text/plain" },
+            }),
+          );
+        }
+        return fetch(input, init);
+      };
+      Scalar.createApiReference("#app", {
+        url: "/openapi.json",
+        customFetch: readsOnly,
+        defaultOpenAllTags: true,
+        agent: { disabled: true },
+        mcp: { disabled: true },
+        showDeveloperTools: "never",
+      });
+    </script>
+  </body>
+</html>

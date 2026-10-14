@@ -16,6 +16,8 @@ pub mod command;
 pub mod event;
 pub mod ids;
 pub mod message;
+#[cfg(feature = "schema")]
+pub mod openapi;
 pub mod option;
 pub mod record;
 pub mod spec;
@@ -47,6 +49,13 @@ pub mod schema {
             "title": "zvtes protocol",
             "version": crate::PROTOCOL_VERSION,
         });
+        root.insert("$defs".into(), serde_json::Value::Object(defs()));
+        serde_json::to_string_pretty(&root).unwrap()
+    }
+
+    /// Every type a client meets, by name: commands, messages, the game
+    /// spec, the game record and what they hold.
+    pub fn defs() -> serde_json::Map<String, serde_json::Value> {
         let parts = [
             ("In", schema_for!(crate::In)),
             ("Out", schema_for!(crate::Out)),
@@ -67,7 +76,6 @@ pub mod schema {
             }
             defs.insert(name.into(), v);
         }
-        root.insert("$defs".into(), serde_json::Value::Object(defs));
-        serde_json::to_string_pretty(&root).unwrap()
+        defs
     }
 }

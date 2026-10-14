@@ -11,3 +11,13 @@ fn the_checked_in_schema_is_current() {
          --example schema > crates/api/schema.json"
     );
 }
+
+#[test]
+fn the_checked_in_openapi_is_current() {
+    let file = include_str!("../openapi.json");
+    assert!(
+        file.trim_end() == zvtes_api::openapi::json(),
+        "crates/api/openapi.json is stale: cargo run -p zvtes-api --features schema \
+         --example schema openapi > crates/api/openapi.json"
+    );
+}

@@ -8,9 +8,11 @@ what is legal, runs the bots and says what happened.
 
 Version **1.0.0** (`PROTOCOL_VERSION`). Sources: `crates/api` (Rust, the
 reference); `crates/api/schema.json` (JSON Schema 2020-12, generated);
-`crates/api/protocol.ts` (TypeScript types, generated from the schema).
-Status: draft — the host implementing it is being built
-(`docs/online-plan.md`).
+`crates/api/protocol.ts` (TypeScript types, generated from the schema);
+`crates/api/openapi.json` (OpenAPI 3.1: the routes below, the schema's
+types as models, `crates/api/openapi-intro.md` as its intro, a short
+take on this document for outside readers: keep the two in step),
+shown at `https://engine.krcg.org/docs`.
 
 ## 1. Model
 
@@ -326,6 +328,8 @@ ended; the last `pool`, `blood` and `torpor` told are the next view's.
 
 | | |
 |---|---|
+| `GET /docs` | this protocol for outside readers: the API reference (Scalar, reading `/openapi.json`; its test requests are reads only) |
+| `GET /openapi.json`, `/schema.json`, `/protocol.ts` | the contract, as generated in `crates/api` |
 | `GET /version` | protocol, engine commit, bot profiles offered, limits (seats, time limit, idle timeout) |
 | `GET /catalog` | the precon decklists the engine plays |
 | `POST /games` | body: a `GameSpec` (one human seat); `{game, seat, token}`, or a `SpecError` (400) |

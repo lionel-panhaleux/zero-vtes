@@ -101,8 +101,9 @@ policy ───┴─ server (axum, tokio, sqlx: api + host + text + policy)
 - **`api`** — the contract as types: `In`/`Command`, `Out`/`Message`,
   `GameSpec`, `Settings`, `TableView`, `OptionView` (`ChoiceKey` +
   `effects`), typed `Event`, `GameRecord`, errors, `PROTOCOL_VERSION`.
-  No engine. `schema.json` and `protocol.ts` are generated from it
-  (`schema` example, `scripts/gen_ts.py`), checked in, `--check`ed.
+  No engine. `schema.json`, `openapi.json` and `protocol.ts` are
+  generated from it (`schema` example, `scripts/gen_ts.py`), checked in,
+  `--check`ed; the server shows them at `/docs`.
 - **`host`** (what `protocol` becomes) — engine → api: describing options
   as keys and effects, narration as typed events, views, per-viewer
   copies and `nth`, decks by KRCG id and the catalog, the ergonomics

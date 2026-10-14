@@ -1,0 +1,5181 @@
+{
+  "components": {
+    "schemas": {
+      "About": {
+        "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
+        "properties": {
+          "cap": {
+            "description": "A capacity it depends on (the young vampires Neonate Breach spares).",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A card it names: in play (`copy`) or by name (`id`)."
+          },
+          "clan": {
+            "description": "A clan, a circle (snake_case ids).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "detail": {
+            "description": "What sets it apart within its purpose, a snake_case id\n(`minion_of`: `lock`, `lock_vampires`, `corrupt`…).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "m": {
+            "description": "A second amount (the most a Methuselah burns, the damage blood\navoids).",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "minion": {
+            "description": "The minion it concerns: the one blood moves from, a block\nattempt's, the one entering play.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "n": {
+            "description": "How many: still to pay, at most, to discard, damage, blood…",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "seat": {
+            "description": "The Methuselah it concerns: whose minions, ash heap, hand,\nuncontrolled region.",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "to": {
+            "description": "A second minion: the one blood moves to.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "ActionKind": {
+        "oneOf": [
+          {
+            "enum": [
+              "bleed",
+              "hunt",
+              "leave_torpor",
+              "rescue",
+              "diablerie",
+              "employ",
+              "recruit",
+              "political",
+              "burn_card",
+              "steal_card",
+              "equip",
+              "equip_from",
+              "equip_found",
+              "become_anarch"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "card",
+            "description": "An action card's action (not one of the kinds above).",
+            "type": "string"
+          },
+          {
+            "const": "ability",
+            "description": "An action granted by a card in play or a vampire's ability.",
+            "type": "string"
+          },
+          {
+            "const": "red_list_hunt",
+            "description": "Enter combat with a Red List minion.",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "A value this reader does not know.",
+            "type": "string"
+          }
+        ]
+      },
+      "ActionOutcome": {
+        "oneOf": [
+          {
+            "enum": [
+              "succeeds",
+              "blocked",
+              "fails",
+              "fizzles"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ousted",
+            "description": "Its Methuselah was ousted.",
+            "type": "string"
+          },
+          {
+            "const": "ends",
+            "description": "Ended otherwise (its acting minion gone).",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "A value this reader does not know.",
+            "type": "string"
+          }
+        ]
+      },
+      "ActionRef": {
+        "description": "What an action is: its kind, its card, what grants it.",
+        "properties": {
+          "card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Card"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The action card, for a card action."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ActionKind"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Card"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What grants the action: a card in play, or another vampire."
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "ActionStep": {
+        "description": "Where an action stands.",
+        "oneOf": [
+          {
+            "enum": [
+              "announced",
+              "would_succeed",
+              "blocked",
+              "after_combat",
+              "resolved"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "open",
+            "description": "Blocks may be attempted.",
+            "type": "string"
+          },
+          {
+            "const": "attempt",
+            "description": "A block is being attempted.",
+            "type": "string"
+          },
+          {
+            "const": "declined",
+            "description": "Blocks declined by all.",
+            "type": "string"
+          },
+          {
+            "const": "diablerie",
+            "description": "A diablerie after the action (the diablerist's choices).",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "A value this reader does not know.",
+            "type": "string"
+          }
+        ]
+      },
+      "ActionView": {
+        "properties": {
+          "acting": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "bleed": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "bleed_target": {
+            "description": "The Methuselah bled, for a bleed.",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "blocker": {
+            "description": "The minion attempting the block, or that blocked, and its intercept.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Card"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The action card, for a card action."
+          },
+          "declined": {
+            "description": "The Methuselahs who declined to block.",
+            "items": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "intercept": {
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ActionKind"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Mode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Its mode (Disciplines, level) and X."
+          },
+          "seat": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "source": {
+            "description": "The card in play granting the action (a location's, an equipment's).",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "stealth": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "step": {
+            "$ref": "#/components/schemas/ActionStep"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Target"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "x": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "seat",
+          "acting",
+          "kind",
+          "step",
+          "stealth"
+        ],
+        "type": "object"
+      },
+      "Allocated": {
+        "description": "Points allocated to a Methuselah or a card in play.",
+        "properties": {
+          "points": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "to": {
+            "$ref": "#/components/schemas/Target"
+          }
+        },
+        "required": [
+          "to",
+          "points"
+        ],
+        "type": "object"
+      },
+      "Allocation": {
+        "description": "An allocation of points under way, answered whole with\n`Command::Allocate`: all `points` given, at most `cap` to a recipient,\nat least `min_nonzero` recipients given some.",
+        "properties": {
+          "min_nonzero": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "points": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "recipients": {
+            "description": "In the order `amounts` lists them.",
+            "items": {
+              "$ref": "#/components/schemas/Recipient"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "points",
+          "recipients",
+          "min_nonzero"
+        ],
+        "type": "object"
+      },
+      "AllocationError": {
+        "oneOf": [
+          {
+            "const": "none",
+            "description": "No allocation under way.",
+            "type": "string"
+          },
+          {
+            "const": "length",
+            "description": "Not one amount per recipient.",
+            "type": "string"
+          },
+          {
+            "const": "total",
+            "description": "The amounts do not add up to the points.",
+            "type": "string"
+          },
+          {
+            "const": "cap",
+            "description": "A recipient over its cap.",
+            "type": "string"
+          },
+          {
+            "const": "min_nonzero",
+            "description": "Fewer recipients given points than required.",
+            "type": "string"
+          }
+        ]
+      },
+      "BotRecord": {
+        "properties": {
+          "kind": {
+            "description": "\"network\" or a scripted style.",
+            "type": "string"
+          },
+          "profile": {
+            "type": "string"
+          },
+          "seat": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "seed": {
+            "description": "Its sampling seed: replaying uses the recorded options, the seed\nre-simulates the bot.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "temperature": {
+            "format": "float",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "weights": {
+            "description": "The weights' SHA-256, for a network.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "seat",
+          "profile",
+          "kind",
+          "seed"
+        ],
+        "type": "object"
+      },
+      "By": {
+        "oneOf": [
+          {
+            "enum": [
+              "human",
+              "bot"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "order",
+            "description": "A standing order (`vote_all`) or an allocation answered whole.",
+            "type": "string"
+          },
+          {
+            "const": "auto",
+            "description": "A lone pass, the seat's settings hiding the rest.",
+            "type": "string"
+          }
+        ]
+      },
+      "Card": {
+        "description": "A physical card: its copy where the viewer may follow it, its KRCG id\nwhere the viewer sees its face. A card in another seat's hand, a\nlibrary or a crypt has neither (a card back).",
+        "properties": {
+          "copy": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "crypt": {
+            "description": "A crypt card (else a library card), hidden or not.",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "nth": {
+            "description": "Its label among the copies of the same card from the same deck the\nviewer sees (1, 2…: \"Embrace #2\"): the lowest number no other\nvisible copy holds, given as it comes into sight. With `id` only.",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "CardRef": {
+        "description": "A card an option names: its KRCG id when the viewer may know it, its\ncopy when it is one physical card (on the table; not a card in hand,\nwhere copies alike are one option).",
+        "properties": {
+          "copy": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "from": {
+            "description": "Played from cards stored on this card in play, not from the hand.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "id": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "ChoiceKey": {
+        "description": "What identifies an option: two options of one decision never share a\nkey (copies alike in hand are one option). A record keeps each answer\nby its key, with the engine's copy numbers: a later engine finds the\nsame option whatever its index or however it describes it.",
+        "properties": {
+          "ability": {
+            "description": "Which of a card's abilities, when it has several.",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActionKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The action a minion takes (`take_action`)."
+          },
+          "actor": {
+            "description": "The minion playing the card, using the ability, taking the action.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "amount": {
+            "description": "An amount: blood, pool, votes, X, points.",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "blood": {
+            "description": "The blood an ability moves onto (+) or off (−) the vampire it is on.",
+            "format": "int8",
+            "maximum": 127,
+            "minimum": -128,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The card played, used, taken, discarded or named."
+          },
+          "favor": {
+            "description": "For or against a referendum.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/OptionKind"
+          },
+          "minion": {
+            "description": "The minion the option is about otherwise (blocker, voter, payer,\nthe vampire an ability is on).",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Mode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The mode a card is played in (`play`)."
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Target"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value": {
+            "description": "A clan, a Discipline, a circle chosen: its snake_case id.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "zone": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ZoneRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where a card chosen by name comes from (a search)."
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "CombatSide": {
+        "properties": {
+          "maneuvers": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "minion": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "presses": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "strike": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Strike"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Its strike once declared (the blocker chooses knowing the acting\nminion's), kept shown once resolved until the next pair."
+          }
+        },
+        "required": [
+          "minion",
+          "maneuvers",
+          "presses"
+        ],
+        "type": "object"
+      },
+      "CombatView": {
+        "properties": {
+          "minions": {
+            "description": "The acting minion first.",
+            "items": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Range"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "round": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "sides": {
+            "description": "Each side, the acting minion's first.",
+            "items": {
+              "$ref": "#/components/schemas/CombatSide"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "minions",
+          "round",
+          "sides"
+        ],
+        "type": "object"
+      },
+      "Decision": {
+        "properties": {
+          "about": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/About"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The particulars of the choice a prompt names, beyond its purpose,\nsource and options: how many, whose, which minion or card."
+          },
+          "allocation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Allocation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "options": {
+            "description": "The options shown (the seat's settings may hide some: indices keep\nthe engine's numbering).",
+            "items": {
+              "$ref": "#/components/schemas/OptionView"
+            },
+            "type": "array"
+          },
+          "prompt": {
+            "description": "What is chosen, in English (\"Camarilla's Iron Fist: choose the\nMethuselah who gains 1 pool\"), when the seat's settings ask for text.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "purpose": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Purpose"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What an effect asks the choice for, when one does."
+          },
+          "seat": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The card (or minion, by its card) whose terms or effect this\ndecision chooses, when it is one: the options' `effects` say what\neach choice gets."
+          },
+          "undo": {
+            "description": "`Command::Undo` would take back the seat's previous decision.",
+            "type": "boolean"
+          },
+          "view": {
+            "$ref": "#/components/schemas/TableView"
+          },
+          "votes": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VoteTotals"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "window": {
+            "$ref": "#/components/schemas/Window"
+          }
+        },
+        "required": [
+          "decision",
+          "seat",
+          "window",
+          "options",
+          "undo",
+          "view"
+        ],
+        "type": "object"
+      },
+      "DisciplineLevel": {
+        "properties": {
+          "discipline": {
+            "description": "The KRCG abbreviation, lowercase: `dom`, `aus`…",
+            "type": "string"
+          },
+          "superior": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "discipline",
+          "superior"
+        ],
+        "type": "object"
+      },
+      "Effect": {
+        "description": "One thing an option does, to whom (docs/protocol.md §7): a curated\nvocabulary — a kind, an amount, whom it applies to — not the engine's\nown effects.",
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActionKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An action declared (`action`)."
+          },
+          "card": {
+            "description": "A card named (to hand, discarded, fetched).",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "clan": {
+            "description": "Of this clan (a snake_case clan id: the chosen Toreador).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "copy": {
+            "description": "The minion or card in play it applies to, when known.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "cost": {
+            "description": "A cost paid to take the option, not what it does.",
+            "type": "boolean"
+          },
+          "detail": {
+            "description": "What sets it apart within its kind, a snake_case id: `this_round`,\n`guns`, `per_counter`, `then_bottom`… (docs/protocol.md §7).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "favor": {
+            "description": "Votes for (true) or against.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/EffectKind"
+          },
+          "n": {
+            "description": "Signed: gained (+) or lost, spent (−); with `x`, per X.",
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "on": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/On"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whom it applies to, as the option sees it: its target, the card's\nminion, the acting minion…; the seat's own when absent."
+          },
+          "range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Range"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Role"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What a chosen minion or Methuselah becomes (`role`)."
+          },
+          "seat": {
+            "description": "The Methuselah it applies to (a pool, a hand), when known.",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "strike": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Strike"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A strike (`strike`)."
+          },
+          "to": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Zone"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "when": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/When"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only if this comes to pass."
+          },
+          "x": {
+            "description": "The amount is the X chosen (times `n` when given).",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "EffectKind": {
+        "oneOf": [
+          {
+            "enum": [
+              "pool",
+              "blood",
+              "counters",
+              "transfers",
+              "damage",
+              "strike",
+              "strength",
+              "stealth",
+              "intercept",
+              "bleed",
+              "prevent",
+              "press",
+              "maneuver",
+              "range",
+              "end_combat",
+              "enter_combat",
+              "burn",
+              "lock",
+              "unlock",
+              "steal",
+              "draw",
+              "discard",
+              "search",
+              "votes",
+              "referendum",
+              "cancel",
+              "hand_size",
+              "corruption"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "life",
+            "description": "An ally's life.",
+            "type": "string"
+          },
+          {
+            "const": "immune",
+            "description": "Immune to damage (`detail`: from a strike, from effects).",
+            "type": "string"
+          },
+          {
+            "const": "move",
+            "description": "A card moved to a zone (`to`), or a minion (`detail`).",
+            "type": "string"
+          },
+          {
+            "const": "fails",
+            "description": "The action or the referendum fails (`detail`).",
+            "type": "string"
+          },
+          {
+            "const": "action",
+            "description": "An action declared (`action`), or one granted (`detail`).",
+            "type": "string"
+          },
+          {
+            "const": "hunt",
+            "description": "The action is a hunt.",
+            "type": "string"
+          },
+          {
+            "const": "cost",
+            "description": "A cost reduced.",
+            "type": "string"
+          },
+          {
+            "const": "keep",
+            "description": "The card or minion stays (a cost paid to keep it).",
+            "type": "string"
+          },
+          {
+            "const": "role",
+            "description": "What a chosen minion or Methuselah becomes for the card (`role`).",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "A value this reader does not know.",
+            "type": "string"
+          }
+        ]
+      },
+      "EndReason": {
+        "oneOf": [
+          {
+            "description": "One Methuselah left (or none).",
+            "properties": {
+              "type": {
+                "const": "last_standing",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "type": {
+                "const": "time_limit",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The last human seat was ousted: the bots do not play on (victory\npoints as they stand).",
+            "properties": {
+              "type": {
+                "const": "humans_ousted",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A seat left (`Command::Leave`) or went idle too long.",
+            "properties": {
+              "seat": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "type": {
+                "const": "abandoned",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "seat"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The engine failed (or ran out of steps); the game is recorded with\nthe failure.",
+            "properties": {
+              "type": {
+                "const": "engine_error",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "Entry": {
+        "oneOf": [
+          {
+            "description": "A decision answered (by a human, a bot, a standing order or a lone\npass).",
+            "properties": {
+              "at": {
+                "description": "Milliseconds since the start, when the host received the\nanswer (a human's think time includes the client's pacing).",
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "by": {
+                "$ref": "#/components/schemas/By"
+              },
+              "choice": {
+                "$ref": "#/components/schemas/ChoiceKey"
+              },
+              "decision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "forced": {
+                "description": "Every option offered was this choice.",
+                "type": "boolean"
+              },
+              "option": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "seat": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "shown": {
+                "description": "The options the seat was shown, when its settings hid some.",
+                "items": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": [
+                  "array",
+                  "null"
+                ]
+              },
+              "type": {
+                "const": "decision",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "decision",
+              "seat",
+              "at",
+              "option",
+              "choice",
+              "by"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The seat took back its decisions from `to` on: the game continues\nfrom `to`, decision numbers repeat from there, and a reader drops\nthe decision entries it takes back.",
+            "properties": {
+              "at": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "seat": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "to": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "type": {
+                "const": "undo",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "seat",
+              "at",
+              "to"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "at": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "seat": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "settings": {
+                "$ref": "#/components/schemas/Settings"
+              },
+              "type": {
+                "const": "settings",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "seat",
+              "at",
+              "settings"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A command refused.",
+            "properties": {
+              "at": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "error": {
+                "$ref": "#/components/schemas/Error"
+              },
+              "seat": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "type": {
+                "const": "refused",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "seat",
+              "at",
+              "error"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "Error": {
+        "oneOf": [
+          {
+            "description": "Not the pending decision (answered already, or a stale client).",
+            "properties": {
+              "error": {
+                "const": "stale",
+                "type": "string"
+              },
+              "expected": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "error",
+              "expected"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The pending decision is another seat's, or none is pending.",
+            "properties": {
+              "error": {
+                "const": "not_your_turn",
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "No option with that index.",
+            "properties": {
+              "error": {
+                "const": "option",
+                "type": "string"
+              },
+              "index": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "error",
+              "index"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Nothing to take back.",
+            "properties": {
+              "error": {
+                "const": "no_undo",
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "No allocation under way, or amounts it does not allow.",
+            "properties": {
+              "error": {
+                "const": "allocation",
+                "type": "string"
+              },
+              "reason": {
+                "$ref": "#/components/schemas/AllocationError"
+              }
+            },
+            "required": [
+              "error",
+              "reason"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "No vote to cast that way.",
+            "properties": {
+              "error": {
+                "const": "no_votes",
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "error": {
+                "const": "over",
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "`join` first, with a valid token.",
+            "properties": {
+              "error": {
+                "const": "not_joined",
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Not valid JSON, or not a command.",
+            "properties": {
+              "error": {
+                "const": "malformed",
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error",
+              "reason"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Too many commands: slow down.",
+            "properties": {
+              "error": {
+                "const": "rate_limited",
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "Event": {
+        "oneOf": [
+          {
+            "description": "A decision taken, by any seat, as the recipient may know it.",
+            "properties": {
+              "choice": {
+                "$ref": "#/components/schemas/OptionView"
+              },
+              "decision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "kind": {
+                "const": "decided",
+                "type": "string"
+              },
+              "seat": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "window": {
+                "$ref": "#/components/schemas/Window"
+              }
+            },
+            "required": [
+              "kind",
+              "decision",
+              "seat",
+              "window",
+              "choice"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A decision passed by itself (the seat's settings left only a pass).",
+            "properties": {
+              "decision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "kind": {
+                "const": "auto_passed",
+                "type": "string"
+              },
+              "seat": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "window": {
+                "$ref": "#/components/schemas/Window"
+              }
+            },
+            "required": [
+              "kind",
+              "decision",
+              "seat",
+              "window"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The seat took back its decisions from `to` on: the client drops\nwhat it showed since (the next view is the table at `to`).",
+            "properties": {
+              "kind": {
+                "const": "undone",
+                "type": "string"
+              },
+              "seat": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "to": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "seat",
+              "to"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "active": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "kind": {
+                "const": "turn",
+                "type": "string"
+              },
+              "turn": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "turn",
+              "active"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "crypt": {
+                "type": "boolean"
+              },
+              "kind": {
+                "const": "draw",
+                "type": "string"
+              },
+              "n": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "seat": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "seat",
+              "n",
+              "crypt"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "delta": {
+                "format": "int32",
+                "type": "integer"
+              },
+              "kind": {
+                "const": "pool",
+                "type": "string"
+              },
+              "pool": {
+                "format": "int32",
+                "type": "integer"
+              },
+              "seat": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "seat",
+              "delta",
+              "pool"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "blood": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "delta": {
+                "format": "int32",
+                "type": "integer"
+              },
+              "kind": {
+                "const": "blood",
+                "type": "string"
+              },
+              "minion": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "minion",
+              "delta",
+              "blood"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A minion or a card comes into play (on a minion, or not).",
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/Card"
+              },
+              "effect": {
+                "description": "A lasting effect whose card is in the ash heap (a marker on\nits minion), not a card of its own: no copy.",
+                "type": "boolean"
+              },
+              "kind": {
+                "const": "enters_play",
+                "type": "string"
+              },
+              "minion": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/MinionKind"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "A minion, of this kind (not a card on the table)."
+              },
+              "on": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "seat": {
+                "description": "Its controller.",
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "card",
+              "seat"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A card in play moves to another minion (or off one).",
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/Card"
+              },
+              "effect": {
+                "description": "A lasting effect whose card is in the ash heap (a marker on\nits minion), not a card of its own: no copy.",
+                "type": "boolean"
+              },
+              "kind": {
+                "const": "moves",
+                "type": "string"
+              },
+              "on": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "card"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A minion or a card leaves play: to `to` when it went to a seat's\nzone (a burned minion to its ash heap), contested (a vampire set\naside while its Methuselahs contest it).",
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/Card"
+              },
+              "contested": {
+                "type": "boolean"
+              },
+              "effect": {
+                "description": "A lasting effect whose card is in the ash heap (a marker on\nits minion), not a card of its own: no copy.",
+                "type": "boolean"
+              },
+              "kind": {
+                "const": "leaves_play",
+                "type": "string"
+              },
+              "minion": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/MinionKind"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "to": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Zone"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "card"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "enters": {
+                "description": "Goes to torpor (true) or leaves it.",
+                "type": "boolean"
+              },
+              "kind": {
+                "const": "torpor",
+                "type": "string"
+              },
+              "minion": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "minion",
+              "enters"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "ousted",
+                "type": "string"
+              },
+              "seat": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "seat"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The Edge goes to `seat` (absent: burned, no one holds it).",
+            "properties": {
+              "kind": {
+                "const": "edge",
+                "type": "string"
+              },
+              "seat": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "block_fails",
+                "type": "string"
+              },
+              "minion": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "minion"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "acting": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "action": {
+                "$ref": "#/components/schemas/ActionRef"
+              },
+              "blocker": {
+                "description": "The minion that blocked it.",
+                "format": "uint32",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "kind": {
+                "const": "action_ends",
+                "type": "string"
+              },
+              "outcome": {
+                "$ref": "#/components/schemas/ActionOutcome"
+              },
+              "seat": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "seat",
+              "acting",
+              "action",
+              "outcome"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "action": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ActionRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The political action it was called by."
+              },
+              "hunted": {
+                "description": "A blood hunt's: the diablerist hunted.",
+                "format": "uint32",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "kind": {
+                "const": "referendum_ends",
+                "type": "string"
+              },
+              "outcome": {
+                "$ref": "#/components/schemas/ReferendumOutcome"
+              },
+              "votes_against": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "votes_for": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "outcome",
+              "votes_for",
+              "votes_against"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "combat_begins",
+                "type": "string"
+              },
+              "minions": {
+                "items": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+              }
+            },
+            "required": [
+              "kind",
+              "minions"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A combatant's strike declared (the acting minion's first: the\nblocker chooses knowing it); `None`: no strike.",
+            "properties": {
+              "kind": {
+                "const": "strike_declared",
+                "type": "string"
+              },
+              "minion": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "strike": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Strike"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "minion"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A pair of strikes resolved: each side's strike and the damage it\ndealt before prevention.",
+            "properties": {
+              "kind": {
+                "const": "strikes",
+                "type": "string"
+              },
+              "pair": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "range": {
+                "$ref": "#/components/schemas/Range"
+              },
+              "round": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "sides": {
+                "items": {
+                  "$ref": "#/components/schemas/StruckSide"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "kind",
+              "round",
+              "pair",
+              "range",
+              "sides"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "combat_ends",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ],
+        "properties": {
+          "text": {
+            "description": "The event told in English, when the seat's settings ask for text.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "GameRecord": {
+        "properties": {
+          "bots": {
+            "description": "Per bot seat, the profile resolved.",
+            "items": {
+              "$ref": "#/components/schemas/BotRecord"
+            },
+            "type": "array"
+          },
+          "ended": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "engine": {
+            "description": "The engine's commit.",
+            "type": "string"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/Entry"
+            },
+            "type": "array"
+          },
+          "protocol": {
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GameResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "spec": {
+            "$ref": "#/components/schemas/GameSpec",
+            "description": "The spec as played: the seed always set, human seats' names\nreplaced by \"human\"."
+          },
+          "started": {
+            "description": "Unix milliseconds.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "protocol",
+          "engine",
+          "spec",
+          "started",
+          "entries"
+        ],
+        "title": "GameRecord",
+        "type": "object"
+      },
+      "GameResult": {
+        "properties": {
+          "failure": {
+            "description": "The engine's failure, when it failed: message, location, backtrace.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "$ref": "#/components/schemas/EndReason"
+          },
+          "vp_halves": {
+            "items": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "winner": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "vp_halves",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "GameSpec": {
+        "properties": {
+          "client": {
+            "description": "The client's self-description (\"succubus-club 1.4\"), recorded.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "seats": {
+            "description": "In seating order: 2 to 6.",
+            "items": {
+              "$ref": "#/components/schemas/SeatSpec"
+            },
+            "type": "array"
+          },
+          "seed": {
+            "description": "The deal's seed; the host picks one when absent (and records it).\n32 bits: exact as a JSON number in every language.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "time_limit": {
+            "description": "In player turns; the engine's default when absent.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "seats"
+        ],
+        "type": "object"
+      },
+      "In": {
+        "description": "A command as sent: an optional client id, echoed by an `error` it\ncauses.",
+        "oneOf": [
+          {
+            "description": "Take the seat (the first frame on a connection: the seat's token,\non a server), or take it again after a disconnection: `after` the\nlast message's `seq` received, the host resends what followed;\notherwise `joined`, then the pending decision if it is the seat's.",
+            "properties": {
+              "after": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "token": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "type": {
+                "const": "join",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Take an option of the pending decision, by its `index`.",
+            "properties": {
+              "decision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "option": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "type": {
+                "const": "answer",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "decision",
+              "option"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Answer an allocation under way whole: one amount per recipient, in\nthe decision's `allocation.recipients` order.",
+            "properties": {
+              "amounts": {
+                "items": {
+                  "format": "uint8",
+                  "maximum": 255,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "decision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "type": {
+                "const": "allocate",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "decision",
+              "amounts"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Cast all the votes the decision's `votes` counts one way; a\nstanding order for the rest of the polling (each vampire's turn\nto cast is answered by it).",
+            "properties": {
+              "decision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "favor": {
+                "type": "boolean"
+              },
+              "type": {
+                "const": "vote_all",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "decision",
+              "favor"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Take back the seat's last decision, from the pending `decision`\n(whose `undo` says it can: nothing decided since, nothing hidden\nrevealed). Named so a command sent twice undoes once.",
+            "properties": {
+              "decision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "type": {
+                "const": "undo",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "decision"
+            ],
+            "type": "object"
+          },
+          {
+            "$ref": "#/components/schemas/SettingsPatch",
+            "description": "Change some of the seat's settings; the pending decision is sent\nagain under them.",
+            "properties": {
+              "type": {
+                "const": "settings",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Leave the game: it ends, recorded as abandoned by the seat.",
+            "properties": {
+              "type": {
+                "const": "leave",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          }
+        ],
+        "properties": {
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "title": "In",
+        "type": "object"
+      },
+      "InPlayView": {
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/Card"
+          },
+          "contested": {
+            "type": "boolean"
+          },
+          "controller": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "counters": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "stored": {
+            "description": "Cards stored on it (face down ones hidden to others), top last.",
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "card",
+          "controller",
+          "locked"
+        ],
+        "type": "object"
+      },
+      "Joined": {
+        "description": "The answer to `join`.",
+        "properties": {
+          "engine": {
+            "description": "The engine's version: its commit.",
+            "type": "string"
+          },
+          "game": {
+            "type": "string"
+          },
+          "idle_timeout": {
+            "description": "Seconds without a command before the game ends as abandoned.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "protocol": {
+            "description": "`PROTOCOL_VERSION` of the host.",
+            "type": "string"
+          },
+          "seat": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "seats": {
+            "items": {
+              "$ref": "#/components/schemas/SeatInfo"
+            },
+            "type": "array"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/Settings"
+          },
+          "view": {
+            "$ref": "#/components/schemas/TableView"
+          }
+        },
+        "required": [
+          "protocol",
+          "engine",
+          "game",
+          "seat",
+          "seats",
+          "settings",
+          "view"
+        ],
+        "type": "object"
+      },
+      "Marker": {
+        "description": "Public state on a minion beyond blood and cards: counters, marks,\neffects lasting a while.",
+        "properties": {
+          "card": {
+            "description": "The card it comes from.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MarkerKind"
+          },
+          "n": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "seat": {
+            "description": "The Methuselah it belongs to (corruption counters).",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "text": {
+            "description": "English, when the seat's settings ask for text.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "MarkerKind": {
+        "description": "Public state on a minion beyond blood and cards (completed with\nthe host, A3).",
+        "oneOf": [
+          {
+            "enum": [
+              "hostage",
+              "nightmare",
+              "torture",
+              "disease",
+              "title_contested",
+              "expelled"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "corruption",
+            "description": "Corruption counters (`seat`: whose, `n`).",
+            "type": "string"
+          },
+          {
+            "const": "effect",
+            "description": "A card's lasting effect on it (`card` says which, `n` its\ncounters).",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "A value this reader does not know.",
+            "type": "string"
+          }
+        ]
+      },
+      "MinionKind": {
+        "oneOf": [
+          {
+            "enum": [
+              "vampire",
+              "ally",
+              "token"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "created",
+            "description": "A library card as a vampire.",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "A value this reader does not know.",
+            "type": "string"
+          }
+        ]
+      },
+      "MinionView": {
+        "description": "A minion: named by its card's copy everywhere (options, events).",
+        "properties": {
+          "blood": {
+            "description": "Blood (a vampire) or life (an ally).",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "capacity": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "card": {
+            "$ref": "#/components/schemas/Card"
+          },
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/InPlayView"
+            },
+            "type": "array"
+          },
+          "contested": {
+            "type": "boolean"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MinionKind"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "markers": {
+            "items": {
+              "$ref": "#/components/schemas/Marker"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner": {
+            "description": "The Methuselah whose ash heap it goes to, when not its controller.",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "title": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Title"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "card",
+          "kind",
+          "name",
+          "blood",
+          "locked",
+          "cards"
+        ],
+        "type": "object"
+      },
+      "Mode": {
+        "description": "A card's mode: the printed line it is played from, at which\nDisciplines and levels, as which card type.",
+        "properties": {
+          "apart": {
+            "description": "What sets it apart from the other modes its printed line splits\ninto (the card's own, offered or not): its effects not all of them\nhave. Empty for a line not split.",
+            "items": {
+              "$ref": "#/components/schemas/Effect"
+            },
+            "type": "array"
+          },
+          "card_type": {
+            "description": "The card type it is played as, for a card of several types:\n`action`, `action_modifier`, `reaction`, `combat`, `reflex`…",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "disciplines": {
+            "description": "Empty for a card without Discipline requirement.",
+            "items": {
+              "$ref": "#/components/schemas/DisciplineLevel"
+            },
+            "type": "array"
+          },
+          "index": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "line": {
+            "description": "The printed line (one line may split into several modes, told\napart by the option's `effects`).",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "index",
+          "line"
+        ],
+        "type": "object"
+      },
+      "On": {
+        "description": "Whom an effect applies to, from the option.",
+        "oneOf": [
+          {
+            "const": "target",
+            "description": "The option's target.",
+            "type": "string"
+          },
+          {
+            "const": "host",
+            "description": "The minion the card or ability is on.",
+            "type": "string"
+          },
+          {
+            "const": "actor",
+            "description": "The minion playing the card or using the ability.",
+            "type": "string"
+          },
+          {
+            "const": "acting",
+            "description": "The acting minion of the action under way.",
+            "type": "string"
+          },
+          {
+            "const": "chosen",
+            "description": "The minion the card chose.",
+            "type": "string"
+          },
+          {
+            "const": "card",
+            "description": "The card itself.",
+            "type": "string"
+          },
+          {
+            "const": "uncontrolled",
+            "description": "The target uncontrolled vampire.",
+            "type": "string"
+          },
+          {
+            "const": "prey",
+            "description": "The seat's prey.",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "A value this reader does not know.",
+            "type": "string"
+          }
+        ]
+      },
+      "OptionKind": {
+        "description": "What an option does (the engine's choice kinds).",
+        "oneOf": [
+          {
+            "enum": [
+              "pass",
+              "edge_pool",
+              "pay_contest",
+              "yield_contest",
+              "play",
+              "use_ability",
+              "resolve_rider",
+              "resolve_printed",
+              "burn_in_play",
+              "burn_pool",
+              "burn_blood_from",
+              "set_x",
+              "discard",
+              "find_card",
+              "take_from",
+              "slot",
+              "ash_vampire",
+              "draw_library",
+              "draw_stored",
+              "bottom",
+              "take_equipment",
+              "take_action",
+              "declare_block",
+              "pay_rescue",
+              "cast_votes",
+              "cast_edge",
+              "cast_card_vote",
+              "burn_for_vote",
+              "allocate_to",
+              "choose_seat",
+              "choose_minion",
+              "choose_clan",
+              "choose_circle",
+              "choose_discipline",
+              "choose_card",
+              "allocate_to_card",
+              "transfer",
+              "withdraw",
+              "draw_crypt",
+              "influence_out",
+              "merge",
+              "hand_strike",
+              "use_maneuver",
+              "use_press",
+              "use_prevent",
+              "pay_block_toll",
+              "pay_to_cancel",
+              "strike_combat_ends",
+              "round_strike",
+              "take_damage_after_resolution",
+              "committed_strike",
+              "burn_weapon_strike",
+              "employ_from_hand",
+              "burn_blood_for_intercept",
+              "unlock_for_blood",
+              "unlock_infernal",
+              "continue_action",
+              "gain_strength",
+              "burn_blood_to_avoid",
+              "burn_corruption_to_fail",
+              "burn_corruption_to_unlock",
+              "diablerise"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "A value this reader does not know.",
+            "type": "string"
+          }
+        ]
+      },
+      "OptionView": {
+        "description": "An option offered: its index (what an answer names), what it is, and\nwhat it does.",
+        "properties": {
+          "abilities": {
+            "description": "An ability's: how many its source has (`key.ability` says which).",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "ability": {
+            "description": "Which of a card's abilities, when it has several.",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActionKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The action a minion takes (`take_action`)."
+          },
+          "actor": {
+            "description": "The minion playing the card, using the ability, taking the action.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "amount": {
+            "description": "An amount: blood, pool, votes, X, points.",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "blood": {
+            "description": "The blood an ability moves onto (+) or off (−) the vampire it is on.",
+            "format": "int8",
+            "maximum": 127,
+            "minimum": -128,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The card played, used, taken, discarded or named."
+          },
+          "effects": {
+            "description": "What taking it does when its key does not say: a cost, what a\nchosen Methuselah or minion gets, an ability's effects, what a\npass lets happen.",
+            "items": {
+              "$ref": "#/components/schemas/Effect"
+            },
+            "type": "array"
+          },
+          "favor": {
+            "description": "For or against a referendum.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "index": {
+            "description": "The engine's index: stable while the decision is pending, even when\nthe seat's settings hide other options.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/OptionKind"
+          },
+          "minion": {
+            "description": "The minion the option is about otherwise (blocker, voter, payer,\nthe vampire an ability is on).",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Mode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The mode a card is played in (`play`)."
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Target"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "text": {
+            "description": "The option in English, when the seat's settings ask for text.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "value": {
+            "description": "A clan, a Discipline, a circle chosen: its snake_case id.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "zone": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ZoneRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where a card chosen by name comes from (a search)."
+          }
+        },
+        "required": [
+          "index",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "Out": {
+        "description": "A message as sent: numbered per seat from 1, so a client rejoining\n`after` the last it received gets the rest.",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/Joined",
+            "properties": {
+              "type": {
+                "const": "joined",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "What one step of the game did, in order: a decision taken (its\nfirst event: `decided`, `auto_passed` or `undone`) and what\nfollowed until the next decision; or, once, the deal. With the\ntable after it when the seat's settings ask views on every step.",
+            "properties": {
+              "events": {
+                "items": {
+                  "$ref": "#/components/schemas/Event"
+                },
+                "type": "array"
+              },
+              "type": {
+                "const": "events",
+                "type": "string"
+              },
+              "view": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/TableView"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "events"
+            ],
+            "type": "object"
+          },
+          {
+            "$ref": "#/components/schemas/Decision",
+            "description": "The seat must decide; sent again on `join` and after a settings\nchange while pending.",
+            "properties": {
+              "type": {
+                "const": "decision",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "$ref": "#/components/schemas/Over",
+            "properties": {
+              "type": {
+                "const": "over",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "$ref": "#/components/schemas/Error",
+            "description": "A command refused; the game is unchanged.",
+            "properties": {
+              "type": {
+                "const": "error",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          }
+        ],
+        "properties": {
+          "reply_to": {
+            "description": "The client id of the command it answers (an `error`).",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "seq": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seq"
+        ],
+        "title": "Out",
+        "type": "object"
+      },
+      "Over": {
+        "properties": {
+          "reason": {
+            "$ref": "#/components/schemas/EndReason"
+          },
+          "view": {
+            "$ref": "#/components/schemas/TableView"
+          },
+          "vp_halves": {
+            "description": "Per seat, in halves of a victory point.",
+            "items": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "winner": {
+            "description": "The game's winner: the most victory points, at least 2 of them,\nalone.",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "vp_halves",
+          "reason",
+          "view"
+        ],
+        "type": "object"
+      },
+      "Phase": {
+        "description": "The active Methuselah's phase.",
+        "oneOf": [
+          {
+            "enum": [
+              "unlock",
+              "master",
+              "minion",
+              "influence",
+              "discard"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "over",
+            "description": "The game is over.",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "A value this reader does not know.",
+            "type": "string"
+          }
+        ]
+      },
+      "Player": {
+        "oneOf": [
+          {
+            "properties": {
+              "settings": {
+                "$ref": "#/components/schemas/Settings",
+                "default": {
+                  "opportunities": true,
+                  "text": false,
+                  "views": "decisions"
+                }
+              },
+              "type": {
+                "const": "human",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A bot, by profile name: one the host offers (`/version` lists\nthem): a network policy at a temperature, or a scripted style.",
+            "properties": {
+              "profile": {
+                "type": "string"
+              },
+              "type": {
+                "const": "bot",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "profile"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "Purpose": {
+        "description": "What a choice an effect asks is for (the engine's interrupt): with\n`source`, what the decision chooses. Open: a later engine adds more.",
+        "oneOf": [
+          {
+            "enum": [
+              "discard_chosen"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "move_card_to_titled",
+            "description": "`seat` moves `card` (Fear of Mekhet) to another justicar or Inner\nCircle member, any Methuselah's, in torpor included (ANK 20210109;\nrules-qa 49.4: not locked by the move); burned if there is none.",
+            "type": "string"
+          },
+          {
+            "const": "give_blood",
+            "description": "Blood Trade: 1 blood from `from` to a vampire of another\nMethuselah's, the player's choice.",
+            "type": "string"
+          },
+          {
+            "const": "move_between",
+            "description": "Heidelberg Castle: `seat` moves from `from` to another ready\nvampire of theirs — chosen first (`to`), then the blood (any\namount, the excess to the bank: ANK 20170804), then equipment and\nretainers one at a time, each one `to` could hold (LSJ 19980831),\nuntil done.",
+            "type": "string"
+          },
+          {
+            "const": "pay_or_burn",
+            "description": "\"Burned unless its controller burns n pool\" (Conquest of Humanity):\n`seat` pays or lets `card` burn.",
+            "type": "string"
+          },
+          {
+            "const": "lock_or_discard",
+            "description": "Nightmares upon Nightmares: `minion` is locked unless its\nMethuselah discards a card (not replaced until their master phase).",
+            "type": "string"
+          },
+          {
+            "const": "blood_or_burned",
+            "description": "Society of Leopold: `minion` burns `n` blood or is burned, its\nMethuselah's choice (Pass: burned) — or `card` is burned instead\n(Robert Carter: \"Carter's employer burns 1 blood, or Carter is\nburned\").",
+            "type": "string"
+          },
+          {
+            "const": "replacement",
+            "description": "A replacement Visit from the Capuchin would take instead while a\ndraw alternative applies too: one treatment or the other (ANK\n20200905; rules-qa 9.4). `except`: the card being replaced.",
+            "type": "string"
+          },
+          {
+            "const": "draw_up",
+            "description": "Draw up to hand size, each card from the library or a draw\nalternative.",
+            "type": "string"
+          },
+          {
+            "const": "draws",
+            "description": "Heart of Nizchetus: `left` cards still to draw, `drawn` so far; the\nsame number then goes to the bottom of the library.",
+            "type": "string"
+          },
+          {
+            "const": "bottom",
+            "description": "`left` cards still to move from hand to the bottom of the library.",
+            "type": "string"
+          },
+          {
+            "const": "store_search",
+            "description": "Black Market Cache's search: up to `left` more cards to put on\n`card`.",
+            "type": "string"
+          },
+          {
+            "const": "entry_burn",
+            "description": "\"After this ally enters play, burn an ally or retainer you control\"\n(War Ghoul): the controller's pick among the others, the entering\nally itself if there is none (RTR 19961113).",
+            "type": "string"
+          },
+          {
+            "const": "entry_remove_or_burn",
+            "description": "\"After this ally enters play, burn it unless you remove an ally or\nvampire in your ash heap from the game\" (Rotting Behemoth): the\ncontroller may decline, and the ally burns (LSJ 20030701-2).",
+            "type": "string"
+          },
+          {
+            "const": "block_toll",
+            "description": "A block attempt made costly as it goes on (Where the Veil Thins\n[OBL], Tenebrous Form [OBT]): its minion pays the `n` blood that\ncard adds, or resigns the attempt and pays nothing (LSJ\n20031121-2); an ally cannot burn blood.",
+            "type": "string"
+          },
+          {
+            "const": "cancel_attempt",
+            "description": "Dawn Operation [for]: the vampire attempting to block may cancel\nits attempt (`ChooseMinion` it, or pass).",
+            "type": "string"
+          },
+          {
+            "const": "margin_pool",
+            "description": "Amici Noctis: `left` blood to distribute; first how much to the\npool (at most `cap`), the rest among the ready `clan` vampires.",
+            "type": "string"
+          },
+          {
+            "const": "margin_blood",
+            "description": "Amici Noctis: `left` blood for the ready `clan` vampires below\ncapacity, 1 each, offered in arena order from minion `next`: give\nor skip, a skip only while enough of them are left.",
+            "type": "string"
+          },
+          {
+            "const": "minion_of",
+            "description": "A minion controlled by `of`, chosen as an effect resolves (Break\nthe Bonds [obf], The Platinum Protocol [pro]: \"the target is chosen\nupon resolution\", ANK 20240706): locked, if the player wants to, or\ngiven one of the player's corruption counters.",
+            "type": "string"
+          },
+          {
+            "const": "corruption_owner",
+            "description": "Whose corruption counter on `minion` burns, several Methuselahs'\nbeing on it (Aniel).",
+            "type": "string"
+          },
+          {
+            "const": "avoid_damage",
+            "description": "`minion` burns `blood` to be immune to `damage` unpreventable\naggravated damage, or takes it (Rutor's Hand [THA]).",
+            "type": "string"
+          },
+          {
+            "const": "discard_from_hand_of",
+            "description": "`seat` looks at `of`'s hand and discards a card of their choice\nfrom it, which `of` replaces (Revelations [aus]).",
+            "type": "string"
+          },
+          {
+            "const": "reorder",
+            "description": "`seat` discards `left` more cards of their choice from hand (Shroud\nof Decay [obl]); all `done` are replaced once every discard is made\n(advanced rules §6.8.3). `seat` reorders the top `total` cards of\ntheir library (Eulogio Sánchez de los Reyes): `placed` of them\nchosen so far, from the top down; the rest still in their old order\nbelow them.",
+            "type": "string"
+          },
+          {
+            "const": "remove_from_ash",
+            "description": "`seat` removes `left` more cards of their choice from `of`'s ash\nheap from the game; then `of` burns `pool` pool (Shroud of Decay\n[OBL]; LSJ 20090710: there is no order to the ash heap) — from\ntheir own, pool 0, Marchesa Liliana's cost. Burned vampires are ash\nheap cards too (rules-qa 42.7).",
+            "type": "string"
+          },
+          {
+            "const": "discipline_search",
+            "description": "\"You can search your library (shuffle afterward), hand and/or ash\nheap for a Discipline master card and put it on this new vampire\"\n(Childe of the Revolution): put on, not played.",
+            "type": "string"
+          },
+          {
+            "const": "may_draw_extra",
+            "description": "Learjet: `seat` may draw an additional card (`DrawLibrary`), the\nhand then discarded down; or pass.",
+            "type": "string"
+          },
+          {
+            "const": "pursuit_draw",
+            "description": "Infernal Pursuit [CEL], several cards replaced at once: one\nreplacement of `seat`'s and its `extra` additional cards, then as\nmany discarded, before the next (ANK 20180925-1).",
+            "type": "string"
+          },
+          {
+            "const": "pursuit_discard",
+            "description": "Those `left` extra cards of `seat`'s discarded, not replaced.",
+            "type": "string"
+          },
+          {
+            "const": "purge_pick",
+            "description": "Baltimore Purge: `seat` chooses a ready vampire of `of`'s not older\nthan `host` (the purge's vampire), sent to torpor with it once\nevery Methuselah's is chosen.",
+            "type": "string"
+          },
+          {
+            "const": "steal_up_to",
+            "description": "\"Steal up to n blood\" (François Villon G2): `seat` sets how much, 1\nto `max`, from `from` to `to` (`SetX`).",
+            "type": "string"
+          },
+          {
+            "const": "move_blood_up_to",
+            "description": "\"Move up to n blood from the acting vampire to this new vampire\"\n(Third Tradition: Progeny): `seat` sets how much, 0 to `max` of\nwhat `minion` has, to `to` (`SetX`).",
+            "type": "string"
+          },
+          {
+            "const": "ally_search",
+            "description": "Antonio d'Erlette (`minion`): a mage ally from `seat`'s library or\nhand he could play, put in play, its cost paid (Pass: none); the\nlibrary shuffled either way.",
+            "type": "string"
+          },
+          {
+            "const": "remove_uncontrolled",
+            "description": "\"Remove a crypt card in your uncontrolled region from the game\"\n(Wider View): the player's pick, the counters on it to the blood\nbank; removed cards are public (LSJ 20080314).",
+            "type": "string"
+          },
+          {
+            "const": "choose_for_card",
+            "description": "\"As … its controller changes, its controller chooses a ready\nvampire they control\" (The Rack): none if they have none.",
+            "type": "string"
+          },
+          {
+            "const": "exchange_anarch",
+            "description": "Garibaldi-Meucci Museum: the ash heap card requiring an Anarch,\nthen the hand card it is exchanged for.",
+            "type": "string"
+          },
+          {
+            "const": "pool_for_card",
+            "description": "\"If the attached minion is about to leave the ready region, you can\nburn this card to gain n pool\" (Priority Contract).",
+            "type": "string"
+          },
+          {
+            "const": "lock_for_pool",
+            "description": "\"You can lock this card … to gain n pool\" (The Black Throne).",
+            "type": "string"
+          },
+          {
+            "const": "steal_for_corruption",
+            "description": "\"You can burn those counters to steal that minion\" (Cave of\nApples).",
+            "type": "string"
+          },
+          {
+            "const": "make_anarch",
+            "description": "\"You can burn 1 blood from this card to make that vampire Anarch\"\n(Twilight Camp).",
+            "type": "string"
+          },
+          {
+            "const": "ashur_picks",
+            "description": "Ashur Tablets' picks from `seat`'s ash heap: first the card to hand\n(a pass chooses none), then up to `left` more shuffled into the\nlibrary (a pass stops), `to_library` once the hand card is chosen.",
+            "type": "string"
+          },
+          {
+            "const": "becomes_anarch",
+            "description": "\"A non-titled vampire you control becomes Anarch\" (Gilbert Duane):\nthe player's pick, none if they have none.",
+            "type": "string"
+          },
+          {
+            "const": "anarch_convert",
+            "description": "Anarch Convert entering play: \"you can remove him from the game to\nmake a non-titled vampire you control Anarch\" — that vampire chosen\n(`chosen`), then \"either gain 1 pool or draw 1 card from your\ncrypt\". Before any contest (LSJ 20080526, RTR 20180303): `forced`\nwhen he came out beside a copy his Methuselah controls (no\nvoluntary self-contest); declined, his contests are staged.",
+            "type": "string"
+          },
+          {
+            "const": "uncontrolled_blood",
+            "description": "\"Add n blood to a `clan` vampire in your uncontrolled region\"\n(Hunting the Beast [AUS]): the player's pick, none if they have\nnone. With no clan, any of them, and optional (\"may move a counter\nfrom the bank to a vampire in his or her uncontrolled region\",\nFlames of Insurrection).",
+            "type": "string"
+          },
+          {
+            "const": "lock_or_pay",
+            "description": "\"Lock this card or burn n pool\" (Bleeding the Vine): `ResolveRider`\nlocks it (if unlocked), `BurnPool` pays.",
+            "type": "string"
+          },
+          {
+            "const": "pool_or_vampire",
+            "description": "\"Burns n pool unless they burn a vampire they control with\ncapacity `cap` or more to burn this card\" (Antediluvian\nAwakening): `BurnPool` pays, `ChooseMinion` burns that vampire and\nthe card.",
+            "type": "string"
+          },
+          {
+            "const": "crypt_search",
+            "description": "\"Search your crypt for a `clan` vampire … move them to your\nuncontrolled region (shuffle afterward)\" (Disciple of Lazarus): a\ncrypt card (`Choice::AshVampire`, a CRYPT index), or none (Pass).",
+            "type": "string"
+          },
+          {
+            "const": "prey_slot_to_pool",
+            "description": "Solomon Batanea: the slot of `of`'s uncontrolled region that gives\n1 blood to `of`'s pool (`Choice::Slot`, `of`'s region).",
+            "type": "string"
+          },
+          {
+            "const": "distribute_from",
+            "description": "Erlik entering play: up to `left` more blood moved from `from` to\n`seat`'s uncontrolled `clan` vampires, one at a time\n(`Choice::Slot`); Pass stops. His contests are staged after (LSJ\n20080526).",
+            "type": "string"
+          },
+          {
+            "const": "circle_blood",
+            "description": "\"Move any amount of blood from the Blood Brothers in the <circle>\nto any other Blood Brothers in this circle\" (Jerry,\nRedistribution): one move at a time among `seat`'s — `from` the\nsource, `to` the destination, then the amount (`Choice::SetX`),\neach move a gain of its own (Slake the Thirst; owner, rules-qa\n68.10), one blood move a pair of them (`paired`, source and\ndestination); Pass ending the moves. With `equipment`, their\nequipment too (\"move any amount of blood and equipment\",\nRedistribution), one at a time, as many as wanted (`moving` the one\npicked).",
+            "type": "string"
+          },
+          {
+            "const": "pool_to_vampires",
+            "description": "\"Move any number of blood counters from your pool to 1 or more\nvampires you control\" (Gird Minions): a vampire (`to`), then the\namount (`Choice::SetX`), up to its room (rulebook: no more blood\nthan capacity); Pass ends the moves.",
+            "type": "string"
+          },
+          {
+            "const": "base_search",
+            "description": "Legacy: `minion`'s base version searched for in `seat`'s crypt\n(`Choice::AshVampire`, taken from the crypt first, then the ash\nheap), uncontrolled region (`Choice::Slot`) and ash heap, and\nmerged with it; Pass finds none. The crypt shuffled after.",
+            "type": "string"
+          },
+          {
+            "const": "choose_circle",
+            "description": "New Blood entering play: the circle he belongs to\n(`Choice::ChooseCircle`, among `state::circles`), or his own circle\nof one (Pass).",
+            "type": "string"
+          },
+          {
+            "const": "ally_from_ash",
+            "description": "\"Move a wraith or zombie ally from your ash heap to your ready\nregion\" (Split the Veil): the player's pick among the allies\nmatching one of `of`; with `named`, the pick is named for the\naction being declared, put in play as it resolves (Hel-Blá).",
+            "type": "string"
+          },
+          {
+            "const": "may_recycle_canceled",
+            "description": "Victor Donaldson: `card`, canceled as `seat` played it, may move\nfrom their ash heap to their library, shuffled (`ResolvePrinted`).",
+            "type": "string"
+          },
+          {
+            "const": "name_uncontrolled",
+            "description": "Malgorzata: the vampire of `seat`'s uncontrolled region to remove,\nanother than the action's target (`Choice::Slot`).",
+            "type": "string"
+          },
+          {
+            "const": "name_slot_pair",
+            "description": "Lázár Dobrescu: named as the action is announced (rules-qa default\nreadings) — `from`, a vampire with blood in `of`'s uncontrolled\nregion, then the one of `seat`'s that gets it (`Choice::Slot`).",
+            "type": "string"
+          },
+          {
+            "const": "beast_disciplines",
+            "description": "The Great Beast's three Disciplines, one at a time (`Choice::Slot`\ninto `GREAT_BEAST_DISCIPLINES`).",
+            "type": "string"
+          },
+          {
+            "const": "store_prey_ash",
+            "description": "The Erciyes Fragments: the library card of `seat`'s prey's ash heap\nto move onto `card`, face down (`Choice::FindCard`).",
+            "type": "string"
+          },
+          {
+            "const": "name_own_ash_card",
+            "description": "The Sargon Fragment: the library card of `seat`'s ash heap the\naction declared names.",
+            "type": "string"
+          },
+          {
+            "const": "name_ash_pair",
+            "description": "Giovanni del Georgio: the card two copies of which in `of`'s ash\nheap the action declared names (`Terms::PreyAshPair`).",
+            "type": "string"
+          },
+          {
+            "const": "may_put_on",
+            "description": "\"You can put this card on this vampire\" (Fever Pitch [FOR]/[PRE]):\n`ChooseMinion` it, or pass — optional, though never worse than the\nash heap: an agent may take it unasked (owner, 2026-10-08: rules-qa\n53.5).",
+            "type": "string"
+          },
+          {
+            "const": "may_add_counter",
+            "description": "\"You can add 1 counter to this location\" (Cursed Abattoir):\n`ResolveRider` it, or pass — never worse to add (rules-qa 55.6).",
+            "type": "string"
+          },
+          {
+            "const": "may_torture",
+            "description": "The Path of Lilith: `seat` may lock `card` to put a torture counter\non `minion` (`ResolveRider`), or pass.",
+            "type": "string"
+          },
+          {
+            "const": "may_gain_pool",
+            "description": "\"You can gain n pool\" printed on `minion` (Matasuntha): Pass, or\n`ResolvePrinted` to gain it — optional, never worse.",
+            "type": "string"
+          },
+          {
+            "const": "move_for_blood",
+            "description": "\"This acting vampire can burn n blood to move the stolen vampire to\nyour ready region\" (Graverobbing [DOM]): `ChooseMinion` it, or\npass.",
+            "type": "string"
+          },
+          {
+            "const": "redraw",
+            "description": "\"Once each turn, when you draw a card from your library, you may\nplace that card on the bottom of your library and draw a new card\"\n(Blackhorse Tanner, `minion`): `DrawLibrary` to do it with `card`,\njust drawn, or pass.",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "A value this reader does not know.",
+            "type": "string"
+          }
+        ]
+      },
+      "Range": {
+        "oneOf": [
+          {
+            "enum": [
+              "close",
+              "long"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "A value this reader does not know.",
+            "type": "string"
+          }
+        ]
+      },
+      "Recipient": {
+        "properties": {
+          "cap": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "effects": {
+            "description": "What one point does to it (\"burns 1 pool\": `pool`, `n` −1).",
+            "items": {
+              "$ref": "#/components/schemas/Effect"
+            },
+            "type": "array"
+          },
+          "to": {
+            "$ref": "#/components/schemas/Target"
+          }
+        },
+        "required": [
+          "to"
+        ],
+        "type": "object"
+      },
+      "ReferendumOutcome": {
+        "oneOf": [
+          {
+            "enum": [
+              "passes",
+              "fails",
+              "canceled"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "A value this reader does not know.",
+            "type": "string"
+          }
+        ]
+      },
+      "ReferendumStep": {
+        "oneOf": [
+          {
+            "enum": [
+              "terms",
+              "polling",
+              "shortfall"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "choose",
+            "description": "A choice the passed referendum's effect asks.",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "A value this reader does not know.",
+            "type": "string"
+          }
+        ]
+      },
+      "ReferendumView": {
+        "properties": {
+          "caller": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "calling": {
+            "description": "The calling minion, if any (a blood hunt's has none).",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "card": {
+            "description": "The political card (or what calls it).",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "step": {
+            "$ref": "#/components/schemas/ReferendumStep"
+          },
+          "terms": {
+            "$ref": "#/components/schemas/Terms"
+          },
+          "votes": {
+            "description": "Every vote cast so far, in order.",
+            "items": {
+              "$ref": "#/components/schemas/Vote"
+            },
+            "type": "array"
+          },
+          "votes_against": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "votes_for": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "caller",
+          "step",
+          "votes_for",
+          "votes_against",
+          "terms",
+          "votes"
+        ],
+        "type": "object"
+      },
+      "Role": {
+        "description": "What a chosen minion or Methuselah becomes for the card choosing it\n(completed with the host, A3).",
+        "oneOf": [
+          {
+            "const": "does_not_unlock",
+            "description": "Does not unlock as normal (Toreador Grand Ball's first).",
+            "type": "string"
+          },
+          {
+            "const": "unblockable_non_bleed",
+            "description": "Its non-bleed actions cannot be blocked (the Grand Ball's second).",
+            "type": "string"
+          },
+          {
+            "const": "chosen",
+            "description": "The card's chosen minion, for its later effects.",
+            "type": "string"
+          },
+          {
+            "const": "anarch",
+            "description": "Becomes Anarch (Gilbert Duane, Anarch Convert).",
+            "type": "string"
+          },
+          {
+            "const": "expelled",
+            "description": "No reactions, blocks or votes this turn (Expel).",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "A value this reader does not know.",
+            "type": "string"
+          }
+        ]
+      },
+      "SeatInfo": {
+        "properties": {
+          "bot": {
+            "description": "The bot profile; absent for a human.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "SeatSpec": {
+        "properties": {
+          "deck": {
+            "additionalProperties": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "name": {
+            "description": "Shown to the table; a human seat's is not recorded (records say\n\"human\").",
+            "type": "string"
+          },
+          "player": {
+            "$ref": "#/components/schemas/Player"
+          }
+        },
+        "required": [
+          "name",
+          "deck",
+          "player"
+        ],
+        "type": "object"
+      },
+      "SeatView": {
+        "properties": {
+          "ash_heap": {
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            },
+            "type": "array"
+          },
+          "crypt": {
+            "description": "Top last.",
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            },
+            "type": "array"
+          },
+          "edge": {
+            "type": "boolean"
+          },
+          "hand": {
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            },
+            "type": "array"
+          },
+          "in_play": {
+            "description": "Cards in play the seat controls on no minion.",
+            "items": {
+              "$ref": "#/components/schemas/InPlayView"
+            },
+            "type": "array"
+          },
+          "library": {
+            "description": "Top last.",
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            },
+            "type": "array"
+          },
+          "limbo": {
+            "description": "Cards the seat is playing, not resolved yet.",
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ousted": {
+            "type": "boolean"
+          },
+          "pool": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "predator": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "prey": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "ready": {
+            "items": {
+              "$ref": "#/components/schemas/MinionView"
+            },
+            "type": "array"
+          },
+          "removed": {
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            },
+            "type": "array"
+          },
+          "seat": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "torpor": {
+            "items": {
+              "$ref": "#/components/schemas/MinionView"
+            },
+            "type": "array"
+          },
+          "uncontrolled": {
+            "items": {
+              "$ref": "#/components/schemas/SlotView"
+            },
+            "type": "array"
+          },
+          "vp_halves": {
+            "description": "Victory points, in halves of a point (a survivor at the time limit\nscores 1 half).",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seat",
+          "name",
+          "pool",
+          "vp_halves",
+          "ousted",
+          "edge",
+          "prey",
+          "predator",
+          "crypt",
+          "library",
+          "hand",
+          "ash_heap",
+          "removed",
+          "uncontrolled",
+          "ready",
+          "torpor",
+          "in_play",
+          "limbo"
+        ],
+        "type": "object"
+      },
+      "Settings": {
+        "description": "A human seat's preferences (fields left out take their default);\nchanged during the game by `Command::Settings`.",
+        "properties": {
+          "opportunities": {
+            "default": true,
+            "description": "Asked about every opportunity (true), or only in its moment\n(false): a wake outside an action that concerns the seat, a block\ndenial short of the action's stealth, an any-time ability where\nnothing else is on offer are passed over; a decision left with a\npass alone passes by itself.",
+            "type": "boolean"
+          },
+          "text": {
+            "default": false,
+            "description": "English renderings beside the data (`text` on options, events,\nmarkers, strikes; a decision's `prompt`): for a client that does\nnot compose its own.",
+            "type": "boolean"
+          },
+          "views": {
+            "$ref": "#/components/schemas/Views",
+            "default": "decisions",
+            "description": "Table views sent on every step (bots' included: a client\nanimating each move) or only with the seat's decisions and the\ngame's end."
+          }
+        },
+        "type": "object"
+      },
+      "SettingsPatch": {
+        "description": "Some settings to change; the others stay.",
+        "properties": {
+          "opportunities": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "text": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "views": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Views"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "SlotView": {
+        "properties": {
+          "banished": {
+            "description": "A banished vampire, waiting to be influenced out again.",
+            "type": "boolean"
+          },
+          "card": {
+            "$ref": "#/components/schemas/Card"
+          },
+          "cards": {
+            "description": "The cards it carries there, out of play until it returns.",
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            },
+            "type": "array"
+          },
+          "counters": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "card",
+          "counters"
+        ],
+        "type": "object"
+      },
+      "SpecError": {
+        "description": "Why a game spec is refused (`POST /games`).",
+        "oneOf": [
+          {
+            "properties": {
+              "error": {
+                "const": "seats",
+                "type": "string"
+              },
+              "n": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "error",
+              "n"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Cards outside the engine's pool, by KRCG id.",
+            "properties": {
+              "cards": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "error": {
+                "const": "unsupported",
+                "type": "string"
+              },
+              "seat": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "error",
+              "seat",
+              "cards"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A crypt under 12 cards or a library under 60 (or over 90).",
+            "properties": {
+              "crypt": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "error": {
+                "const": "deck_size",
+                "type": "string"
+              },
+              "library": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "seat": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "error",
+              "seat",
+              "crypt",
+              "library"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A card id that is no card.",
+            "properties": {
+              "error": {
+                "const": "unknown_card",
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "seat": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "error",
+              "seat",
+              "id"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A bot profile the host does not offer.",
+            "properties": {
+              "error": {
+                "const": "profile",
+                "type": "string"
+              },
+              "profile": {
+                "type": "string"
+              },
+              "seat": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "error",
+              "seat",
+              "profile"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Version 1 hosts one human seat per game, and no bot-only game.",
+            "properties": {
+              "error": {
+                "const": "humans",
+                "type": "string"
+              },
+              "n": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "error",
+              "n"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A time limit over the host's.",
+            "properties": {
+              "error": {
+                "const": "time_limit",
+                "type": "string"
+              },
+              "max": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "error",
+              "max"
+            ],
+            "type": "object"
+          }
+        ],
+        "title": "SpecError"
+      },
+      "Strike": {
+        "properties": {
+          "aggravated": {
+            "type": "boolean"
+          },
+          "card": {
+            "description": "The card it comes from (a weapon, a strike card).",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/StrikeKind"
+          },
+          "n": {
+            "description": "Damage or blood stolen.",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "ranged": {
+            "type": "boolean"
+          },
+          "resolved": {
+            "description": "Resolved this pair: the damage it dealt.",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "text": {
+            "description": "English, when the seat's settings ask for text.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "StrikeKind": {
+        "oneOf": [
+          {
+            "enum": [
+              "hand",
+              "melee",
+              "dodge",
+              "combat_ends",
+              "damage",
+              "steal_blood",
+              "torpor_or_burn",
+              "torpor",
+              "burn_weapon",
+              "burn_equipment",
+              "ranged_burn_equipment",
+              "corrupt"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "card_effect",
+            "description": "A strike whose effect is its card's text.",
+            "type": "string"
+          },
+          {
+            "const": "steal_weapon",
+            "description": "The opponent's weapon named with the strike moves to the striker.",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "A value this reader does not know.",
+            "type": "string"
+          }
+        ]
+      },
+      "StruckSide": {
+        "properties": {
+          "damage": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "minion": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "strike": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Strike"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "minion",
+          "damage"
+        ],
+        "type": "object"
+      },
+      "TableView": {
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActionView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "active": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "combat": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CombatView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decision": {
+            "description": "The next decision's number.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/Phase"
+          },
+          "referendum": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReferendumView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seats": {
+            "items": {
+              "$ref": "#/components/schemas/SeatView"
+            },
+            "type": "array"
+          },
+          "transfers": {
+            "description": "The active seat's transfers left, during its influence phase.",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "turn": {
+            "description": "Game turn, from 1.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "viewer": {
+            "description": "The viewing seat; absent: every card shown (records, tests).",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "decision",
+          "turn",
+          "active",
+          "phase",
+          "seats"
+        ],
+        "type": "object"
+      },
+      "Target": {
+        "description": "What an action or an option is aimed at: a Methuselah, or a card on\nthe table (a minion, an uncontrolled vampire, a card in play).",
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "const": "seat",
+                "type": "string"
+              },
+              "seat": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "seat"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "copy": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "kind": {
+                "const": "card",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "copy"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "Terms": {
+        "description": "A referendum's terms chosen so far.",
+        "properties": {
+          "allocated": {
+            "items": {
+              "$ref": "#/components/schemas/Allocated"
+            },
+            "type": "array"
+          },
+          "cards": {
+            "items": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "clan": {
+            "description": "Snake_case clan id.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pending": {
+            "description": "The Methuselahs points are still to be allocated to, in order: the\nfirst is allocated to now, the last gets the rest.",
+            "items": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "seats": {
+            "items": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "Title": {
+        "description": "A vampire's title.",
+        "properties": {
+          "id": {
+            "description": "`primogen`, `prince`, `baron`, `justicar`, `inner_circle`,\n`archbishop`, `bishop`, `cardinal`, `priscus`, `regent`, `magaji`,\n`independent` (named in `of`), `votes` (a title by its votes only).",
+            "type": "string"
+          },
+          "of": {
+            "description": "The city (a prince, a baron, an archbishop), the clan (a justicar,\nthe Inner Circle) or an independent title's name.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "votes": {
+            "description": "Its votes, when the title says them (`independent`, `votes`).",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "Views": {
+        "enum": [
+          "decisions",
+          "steps"
+        ],
+        "type": "string"
+      },
+      "Vote": {
+        "properties": {
+          "canceled": {
+            "description": "An abstention: not tallied.",
+            "type": "boolean"
+          },
+          "copy": {
+            "description": "The minion or card in play casting it.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "favor": {
+            "type": "boolean"
+          },
+          "n": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "seat": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "source": {
+            "$ref": "#/components/schemas/VoteSource"
+          }
+        },
+        "required": [
+          "seat",
+          "source",
+          "favor",
+          "n"
+        ],
+        "type": "object"
+      },
+      "VoteSource": {
+        "description": "Where votes come from.",
+        "oneOf": [
+          {
+            "enum": [
+              "edge"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "vampire",
+            "description": "A vampire casting its votes.",
+            "type": "string"
+          },
+          {
+            "const": "printed",
+            "description": "Votes printed on a minion that does not cast them itself.",
+            "type": "string"
+          },
+          {
+            "const": "card",
+            "description": "A political action card's vote.",
+            "type": "string"
+          },
+          {
+            "const": "in_play",
+            "description": "A card in play's votes.",
+            "type": "string"
+          },
+          {
+            "const": "pool",
+            "description": "Pool burned for votes.",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "A value this reader does not know.",
+            "type": "string"
+          }
+        ]
+      },
+      "VoteTotals": {
+        "description": "The votes the seat can cast now each way, all at once with\n`Command::VoteAll` (its vampires' and its calling card's).",
+        "properties": {
+          "against": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "favor": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "favor",
+          "against"
+        ],
+        "type": "object"
+      },
+      "When": {
+        "description": "What an effect waits on.",
+        "oneOf": [
+          {
+            "const": "successful",
+            "description": "The action succeeds.",
+            "type": "string"
+          },
+          {
+            "const": "bleed_successful",
+            "description": "The bleed succeeds.",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "A value this reader does not know.",
+            "type": "string"
+          }
+        ]
+      },
+      "Window": {
+        "description": "The window a decision is asked in.",
+        "oneOf": [
+          {
+            "enum": [
+              "unlock_abilities",
+              "master_phase",
+              "minion_phase",
+              "action_as_announced",
+              "action_after_resolution",
+              "action_would_be_successful",
+              "action_blocks_declined",
+              "action_blocked",
+              "action_after_combat",
+              "torpor_block",
+              "rescue_cost",
+              "entry_effect",
+              "block_toll",
+              "distribution",
+              "blood_hunt_polling",
+              "referendum_terms",
+              "referendum_polling",
+              "discard_down",
+              "action_terms",
+              "library_search",
+              "action_exchange",
+              "draw",
+              "bottom_cards",
+              "influence_transfers",
+              "discard_phase",
+              "combat_before_range",
+              "combat_determine_range",
+              "combat_before_strikes",
+              "combat_strike",
+              "combat_before_resolution",
+              "combat_prevention",
+              "combat_prevention_allocation",
+              "combat_additional_strikes",
+              "combat_press",
+              "combat_end_of_round"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "play_terms",
+            "description": "Terms of a play or an in-play ability, chosen as it is announced.",
+            "type": "string"
+          },
+          {
+            "const": "rider_terms",
+            "description": "Choices a mandatory rider needs as it resolves.",
+            "type": "string"
+          },
+          {
+            "const": "phase_impulse",
+            "description": "The end of one of the active Methuselah's phases: the other\nseats' untimed effects.",
+            "type": "string"
+          },
+          {
+            "const": "card_as_played",
+            "description": "A card's as-played window: cancels (and wakes, in an action).",
+            "type": "string"
+          },
+          {
+            "const": "action_block",
+            "description": "Block attempts, modifiers, reactions.",
+            "type": "string"
+          },
+          {
+            "const": "resolution_choice",
+            "description": "A choice made as an effect resolves.",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "A value this reader does not know.",
+            "type": "string"
+          }
+        ]
+      },
+      "Zone": {
+        "description": "A seat's zone.",
+        "oneOf": [
+          {
+            "enum": [
+              "crypt",
+              "library",
+              "hand",
+              "ash_heap",
+              "removed",
+              "uncontrolled",
+              "ready",
+              "torpor"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "in_play",
+            "description": "In play on no minion.",
+            "type": "string"
+          },
+          {
+            "const": "limbo",
+            "description": "A card being played, not resolved yet.",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "A value this reader does not know.",
+            "type": "string"
+          }
+        ]
+      },
+      "ZoneRef": {
+        "properties": {
+          "seat": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "zone": {
+            "$ref": "#/components/schemas/Zone"
+          }
+        },
+        "required": [
+          "seat",
+          "zone"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "seat": {
+        "description": "The seat's token, from `POST /games`.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Play *Vampire: The Eternal Struggle* against bots on **zero-vtes**, a\nrules-enforcing engine for the V5 card pool. The engine decides what is\nlegal, runs the bots and tells what happened; a client shows the table\nand turns its user's moves into answers. No account: a game is created\nby one request and played over one WebSocket.\n\nEvery game is recorded, anonymously (human names are replaced), and\nkept two years, to train and test the engine.\n\n## How a game goes\n\n1. `POST /games` with a game spec: 2 to 6 seats in seating order, one\n   human and the rest bots (`GET /version` lists the bot profiles), each\n   with a deck (`GET /catalog` lists the decks the engine plays). The\n   answer is `{game, seat, token}`.\n2. Open the WebSocket `wss://engine.krcg.org/games/{game}/ws` and send\n   `join` with the token as the first frame. Every frame is one JSON\n   object.\n3. The host plays the bots and sends what happened as `events`; when it\n   is the human's turn to choose it sends a `decision`: every legal\n   move, each an option with an `index`. The client answers with\n   `answer`, naming the decision and the option. Nothing else changes\n   the game.\n4. The game ends with an `over` message: when one Methuselah is left, at\n   the time limit, when the human is ousted or leaves, or after the\n   idle timeout.\n\n```\nclient                                    host\n  POST /games {spec}              ───▶\n                     ◀───  {\"game\": \"…\", \"seat\": 0, \"token\": \"…\"}\n  WS /games/{game}/ws             ───▶\n  {\"type\": \"join\", \"token\": \"…\"}  ───▶\n                     ◀───  {\"seq\": 1, \"type\": \"joined\", …, \"view\": {…}}\n                     ◀───  {\"seq\": 2, \"type\": \"events\", \"events\": [the deal]}\n                     ◀───  {\"seq\": 3, \"type\": \"events\", …}   a bot's decision\n                     ◀───  {\"seq\": 4, \"type\": \"decision\", \"decision\": 7, \"options\": […], …}\n  {\"type\": \"answer\", \"decision\": 7, \"option\": 3} ───▶\n                     ◀───  {\"seq\": 5, \"type\": \"events\", \"events\": [{\"kind\": \"decided\", …}, …]}\n  …\n                     ◀───  {\"seq\": 90, \"type\": \"over\", \"vp_halves\": […], \"winner\": 2, …}\n```\n\nA decision, as sent:\n\n```json\n{\"seq\": 5, \"type\": \"decision\", \"decision\": 12, \"seat\": 0,\n \"window\": \"minion_phase\", \"undo\": false,\n \"options\": [\n   {\"index\": 0, \"kind\": \"pass\"},\n   {\"index\": 3, \"kind\": \"play\", \"card\": {\"id\": 100845}, \"actor\": 41,\n    \"target\": {\"kind\": \"seat\", \"seat\": 1},\n    \"mode\": {\"index\": 0, \"line\": 0,\n             \"disciplines\": [{\"discipline\": \"dom\", \"superior\": false}]}},\n   {\"index\": 4, \"kind\": \"resolve_rider\",\n    \"effects\": [{\"kind\": \"pool\", \"seat\": 0, \"n\": -2}, {\"kind\": \"keep\", \"copy\": 9}]}],\n \"view\": {\"viewer\": 0, \"decision\": 12, \"turn\": 2, \"active\": 0,\n          \"phase\": \"minion\", \"seats\": […]}}\n```\n\n(Pass; play Govern the Unaligned at basic Dominate with minion 41,\nbleeding seat 1; or burn 2 pool to keep card 9.)\n\n## A minimal client\n\nPython, with the `websockets` package: it plays the first option of every\ndecision.\n\n```python\nimport asyncio, json, urllib.request\nimport websockets\n\nSERVER = \"engine.krcg.org\"\n\ndef get(path):\n    return json.load(urllib.request.urlopen(f\"https://{SERVER}{path}\"))\n\nasync def main():\n    decks = dict(get(\"/catalog\"))\n    deck = decks[\"Toreador (Fifth Edition)\"]\n    seats = [{\"name\": \"Me\", \"deck\": deck, \"player\": {\"type\": \"human\"}}] + [\n        {\"name\": f\"Bot {i}\", \"deck\": deck, \"player\": {\"type\": \"bot\", \"profile\": \"wall\"}}\n        for i in range(1, 4)\n    ]\n    body = json.dumps({\"seats\": seats, \"client\": \"my-client 0.1\"}).encode()\n    request = urllib.request.Request(\n        f\"https://{SERVER}/games\", body, {\"Content-Type\": \"application/json\"}\n    )\n    game = json.load(urllib.request.urlopen(request))\n    async with websockets.connect(f\"wss://{SERVER}/games/{game['game']}/ws\") as ws:\n        await ws.send(json.dumps({\"type\": \"join\", \"token\": game[\"token\"]}))\n        answer = None\n        async for frame in ws:\n            message = json.loads(frame)\n            if message[\"type\"] == \"decision\":\n                option = message[\"options\"][0][\"index\"]\n                answer = {\"type\": \"answer\", \"decision\": message[\"decision\"], \"option\": option}\n                await ws.send(json.dumps(answer))\n            elif message[\"type\"] == \"error\" and message[\"error\"] == \"rate_limited\":\n                await asyncio.sleep(1)  # not taken: send it again\n                await ws.send(json.dumps(answer))\n            elif message[\"type\"] == \"over\":\n                print(message[\"reason\"], message[\"vp_halves\"])\n                break\n\nasyncio.run(main())\n```\n\n## Identities\n\n| What | Type | Notes |\n|---|---|---|\n| Seat | integer from 0 | seating order; a seat's prey is the next seat |\n| Card | integer | the [KRCG](https://static.krcg.org/data/vtes.json) card id; a deck lists ids as strings (JSON object keys) |\n| Copy | integer | one physical card as the viewer follows it; a minion is its card's copy |\n| Decision | integer | decisions taken so far, all seats; an answer names it |\n| Option | integer | the option's `index` in the pending decision |\n\n**Copies.** Cards are numbered where the viewer can follow them: on the\ntable, in face-up piles (ash heaps, removed, limbo) and in the viewer's\nown hand. A card in a hidden place (another seat's hand, any library or\ncrypt) has no number: a card back, `{}`. A card coming into sight takes\na fresh number, so a number tells nothing its face does not. Two seats\nmay number the same card differently. A visible card also carries\n`nth`, its label among the copies of that card from the same deck\n(\"Embrace #2\").\n\n## Commands\n\nSent by the client, tagged by `type`, with an optional client `id` that\nan `error` echoes as `reply_to` (the `In` model).\n\n| `type` | Fields | Effect |\n|---|---|---|\n| `join` | `token`, `after`? | take the seat (the first frame); `after`: resend the messages after that `seq`, on a reconnection |\n| `answer` | `decision`, `option` | take an option |\n| `allocate` | `decision`, `amounts` | answer a points allocation whole (one amount per `allocation.recipients`) |\n| `vote_all` | `decision`, `favor` | cast all the votes `votes` counts one way |\n| `undo` | `decision` | take back the seat's previous decision, when the pending decision says `undo: true` |\n| `settings` | `opportunities`?, `views`?, `text`? | change some settings (below); the pending decision is sent again |\n| `leave` | | end the game, recorded as abandoned |\n\nA command accepted has no reply of its own: its effect comes as events.\nA refused command changes nothing and is answered by an `error`.\n\n## Messages\n\nSent by the host (the `Out` model), each with `seq` (numbered per seat\nfrom 1), `reply_to`? and a `type`:\n\n| `type` | What |\n|---|---|\n| `joined` | the protocol version, the engine commit, the game, the seat, the seats' names and bot profiles, the settings, the idle timeout, the view |\n| `events` | what happened since the last message: one decision taken and what it did up to the next, or the engine's run before a decision (the turn, draws) |\n| `decision` | the pending decision: `decision`, `seat`, `window`, `options`, `undo`, the view, and what the choice is about (`source`, `purpose`, `about`, `allocation`, `votes`) |\n| `over` | the victory points (`vp_halves`, per seat), the `winner` if any, the `reason`, the view |\n| `error` | why a command was refused (`stale`, `not_your_turn`, `option`, `no_undo`, `allocation`, `no_votes`, `over`, `not_joined`, `malformed`, `rate_limited`) |\n\n## Options\n\nAn option is a whole move. Its **key** says what it is: `kind` (`pass`,\n`play`, `use_ability`, `take_action`, `declare_block`, `cast_votes`,\n`transfer`…), and as it applies, the `card`, the `actor` (the minion\nplaying or acting), the `minion` it is otherwise about, the `target` (a\nseat or a card), the `action`, the `mode` (with its Disciplines),\nan `amount`… Two options of a decision never share a key. Its\n**effects** say what taking it does (`pool`, `blood`, `bleed`,\n`strike`, `lock`, `move`…: the `Effect` model). A client may match a\nuser's gesture to options by their keys (dragging a card onto a minion:\nthe `play` options with that `card` and `actor` or `target`) and ask\nonly about what still differs.\n\n`window` (`minion_phase`, `action_block`, `combat_strike`…) is where in\nthe turn the decision is asked; a pass's meaning follows from it (in\n`action_block`, declining to block).\n\n## The view\n\nA `TableView`: the table as the seat sees it, a snapshot to compare\nwith the previous one. The turn, the active seat, the phase; per seat\nthe pool, the victory points, the Edge, the zones (crypt, library,\nhand, ash heap, removed, limbo), the uncontrolled vampires, the ready\nand torpid minions with their blood, cards and markers, the cards in\nplay; the action, combat or referendum under way.\n\n## Events\n\nEach `events` message lists in order what happened (`decided`,\n`turn`, `draw`, `pool`, `blood`, `enters_play`, `moves`,\n`leaves_play`, `torpor`, `ousted`, `edge`, `action_ends`,\n`referendum_ends`, `combat_begins`, `strikes`, `combat_ends`…: the\n`Event` model). Events are public: a card they name is shown. Events\ntell what happened, the view says what is: a client animating from\nevents resyncs on the next view.\n\n## Settings\n\nPer human seat, in the spec (`player.settings`) and changed by the\n`settings` command:\n\n- `opportunities` (default `true`): `false` hides the options that\n  interrupt play out of their moment; a decision left with a pass alone\n  then passes by itself.\n- `views` (default `decisions`): `steps` adds the view to every\n  `events` message, for a client animating each move.\n- `text` (default `false`): English renderings beside the data (`text`\n  on options and events, a decision's `prompt`), for a client that does\n  not compose its own.\n\n## Limits\n\nOne human per game; 2 to 6 seats; a time limit in turns and an idle\ntimeout (`GET /version` gives them); a number of games per hour and\ncommands per second per connection. Over a limit, `POST /games` answers\n429, and a command gets an `error` `rate_limited`: it was not taken,\nsend it again a moment later.\n\n## Types\n\nThe wire types are the models below, also served as\n[JSON Schema](/schema.json) (2020-12) and as\n[TypeScript](/protocol.ts). Closed sets (`Window`, `OptionKind`,\n`EffectKind`…) may grow: a value a later version adds should be read as\nunknown, and a field a client does not know ignored.\n\n## Versioning\n\n`protocol` (in `/version` and `joined`) is semver: a new field or id is\na minor version, a removed or renamed field or a changed meaning a\nmajor one. `engine` is the commit: rules fixes ship without a protocol\nchange.\n",
+    "title": "zero-vtes engine",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/catalog": {
+      "get": {
+        "description": "The decklists the engine plays (the V5 preconstructed decks and tournament-winning decks within its card pool), as `[name, deck]` pairs: a deck goes as is in a seat of `POST /games`.",
+        "operationId": "catalog",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": [
+                    [
+                      "Toreador (Fifth Edition)",
+                      {
+                        "100031": 2,
+                        "201538": 2,
+                        "201540": 1
+                      }
+                    ]
+                  ],
+                  "items": {
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "prefixItems": [
+                      {
+                        "description": "The deck's name.",
+                        "type": "string"
+                      },
+                      {
+                        "additionalProperties": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "description": "KRCG card id (a string) → copies.",
+                        "type": "object"
+                      }
+                    ],
+                    "type": "array"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The decks, by name."
+          }
+        },
+        "summary": "The decks",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/games": {
+      "post": {
+        "description": "Deals a game: 2 to 6 seats in seating order, one human, the others bots (a profile from `GET /version`), each with a deck (from `GET /catalog`, or any deck within the engine's pool: 12 crypt cards at least, 60 to 90 library cards). The answer's token is the human seat's: send it in `join` on the game's WebSocket. Not tried from this page: each call creates a recorded game.",
+        "operationId": "createGame",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "client": "my-client 0.1",
+                "seats": [
+                  {
+                    "deck": {
+                      "100031": 2,
+                      "201538": 2
+                    },
+                    "name": "Me",
+                    "player": {
+                      "settings": {
+                        "text": true
+                      },
+                      "type": "human"
+                    }
+                  },
+                  {
+                    "deck": {
+                      "100031": 2,
+                      "201538": 2
+                    },
+                    "name": "Bot 1",
+                    "player": {
+                      "profile": "network",
+                      "type": "bot"
+                    }
+                  },
+                  {
+                    "deck": {
+                      "100031": 2,
+                      "201538": 2
+                    },
+                    "name": "Bot 2",
+                    "player": {
+                      "profile": "wall",
+                      "type": "bot"
+                    }
+                  }
+                ]
+              },
+              "schema": {
+                "$ref": "#/components/schemas/GameSpec"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "game": {
+                      "description": "The game's id.",
+                      "type": "string"
+                    },
+                    "seat": {
+                      "description": "The human's seat.",
+                      "type": "integer"
+                    },
+                    "token": {
+                      "description": "The human seat's token: keep it, never in a URL.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "game",
+                    "seat",
+                    "token"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The game is dealt."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpecError"
+                }
+              }
+            },
+            "description": "The spec is refused: a deck, a profile, the seats, the time limit."
+          },
+          "429": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Too many games from this address this hour."
+          },
+          "503": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The server is full: try again later."
+          }
+        },
+        "summary": "Create a game",
+        "tags": [
+          "Games"
+        ]
+      }
+    },
+    "/games/{game}/record": {
+      "get": {
+        "description": "The game as recorded: the spec with its seed, the bot profiles, every decision answered, the result. A live game's record goes as far as the game went. Authorized by the seat's token.",
+        "operationId": "gameRecord",
+        "parameters": [
+          {
+            "description": "The game's id, from `POST /games`.",
+            "in": "path",
+            "name": "game",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameRecord"
+                }
+              }
+            },
+            "description": "The record."
+          },
+          "401": {
+            "description": "No token, or not this game's."
+          },
+          "404": {
+            "description": "No such game."
+          }
+        },
+        "security": [
+          {
+            "seat": []
+          }
+        ],
+        "summary": "A game's record",
+        "tags": [
+          "Games"
+        ]
+      }
+    },
+    "/games/{game}/ws": {
+      "get": {
+        "description": "Upgrade to a WebSocket (`wss://`). One JSON object per text frame: the client sends commands (the `In` model), the host sends messages (the `Out` model). The first command is `join` with the token from `POST /games`; after a disconnection, `join` again with `after`, the last `seq` received, and the host sends what followed. A browser page must come from an origin the server serves (403 otherwise); other clients send no `Origin`.",
+        "operationId": "play",
+        "parameters": [
+          {
+            "description": "The game's id, from `POST /games`.",
+            "in": "path",
+            "name": "game",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "101": {
+            "description": "Switching protocols: the game's socket. Frames: `In` (client → host), `Out` (host → client)."
+          },
+          "403": {
+            "description": "A browser page from an origin the server does not serve."
+          },
+          "404": {
+            "description": "No live game with this id."
+          }
+        },
+        "summary": "Play (WebSocket)",
+        "tags": [
+          "Games"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "`ok`."
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/version": {
+      "get": {
+        "description": "The protocol version, the engine commit, the bot profiles a seat may name (`network` is the trained policy; `aggro_bleed`, `wall` and `random` are scripted) and the server's limits.",
+        "operationId": "version",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "engine": "243bf6b8c1d2",
+                    "limits": {
+                      "games_per_hour": 30,
+                      "humans": 1,
+                      "idle_timeout": 1800,
+                      "seats": [
+                        2,
+                        6
+                      ],
+                      "time_limit": 200
+                    },
+                    "profiles": [
+                      "aggro_bleed",
+                      "wall",
+                      "random",
+                      "network"
+                    ],
+                    "protocol": "1.0.0",
+                    "weights": "7aaa9528fbf8f036e58013060bdb5d9a27d0375d3fb066bfc585fd0d6998e442"
+                  },
+                  "properties": {
+                    "engine": {
+                      "description": "The engine's commit.",
+                      "type": "string"
+                    },
+                    "limits": {
+                      "properties": {
+                        "games_per_hour": {
+                          "description": "Games an address may create per hour.",
+                          "type": "integer"
+                        },
+                        "humans": {
+                          "description": "Human seats per game.",
+                          "type": "integer"
+                        },
+                        "idle_timeout": {
+                          "description": "Seconds without a command before a game ends.",
+                          "type": "integer"
+                        },
+                        "seats": {
+                          "description": "The fewest and the most seats.",
+                          "items": {
+                            "type": "integer"
+                          },
+                          "type": "array"
+                        },
+                        "time_limit": {
+                          "description": "The longest time limit, in player turns.",
+                          "type": "integer"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "profiles": {
+                      "description": "The bot profiles offered.",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "protocol": {
+                      "description": "The protocol version (semver).",
+                      "type": "string"
+                    },
+                    "weights": {
+                      "description": "The SHA-256 of the `network` profile's weights.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "protocol",
+                    "engine",
+                    "profiles",
+                    "limits"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The server's versions and limits."
+          }
+        },
+        "summary": "Versions, bots and limits",
+        "tags": [
+          "Server"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://engine.krcg.org"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Create a game, play it, read its record.",
+      "name": "Games"
+    },
+    {
+      "description": "What the server offers.",
+      "name": "Server"
+    }
+  ]
+}

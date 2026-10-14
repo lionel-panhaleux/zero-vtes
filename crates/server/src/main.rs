@@ -26,7 +26,7 @@ use std::time::{Duration, Instant};
 use axum::extract::ws::{Message as Ws, WebSocket, WebSocketUpgrade};
 use axum::extract::{ConnectInfo, Path, State};
 use axum::http::{header, HeaderMap, HeaderValue, Method, StatusCode};
-use axum::response::{IntoResponse, Response};
+use axum::response::{Html, IntoResponse, Redirect, Response};
 use axum::routing::{any, get, post};
 use axum::{Json, Router};
 use serde_json::json;
@@ -129,6 +129,20 @@ async fn main() {
         created: Mutex::new(HashMap::new()),
     });
     let router = Router::new()
+        .route("/", get(|| async { Redirect::to("/docs") }))
+        .route("/docs", get(|| async { Html(DOCS) }))
+        .route(
+            "/openapi.json",
+            get(|| async { served("application/json", OPENAPI) }),
+        )
+        .route(
+            "/schema.json",
+            get(|| async { served("application/json", SCHEMA) }),
+        )
+        .route(
+            "/protocol.ts",
+            get(|| async { served("text/plain; charset=utf-8", PROTOCOL_TS) }),
+        )
         .route("/health", get(|| async { "ok" }))
         .route("/version", get(version))
         .route("/catalog", get(|| async { Json(zvtes_host::catalog()) }))
@@ -156,6 +170,17 @@ async fn main() {
     })
     .await
     .expect("the server");
+}
+
+/// The API reference (Scalar, reading `/openapi.json`) and the contract
+/// it shows, as generated in `crates/api`.
+const DOCS: &str = include_str!("docs.html");
+const OPENAPI: &str = include_str!("../../api/openapi.json");
+const SCHEMA: &str = include_str!("../../api/schema.json");
+const PROTOCOL_TS: &str = include_str!("../../api/protocol.ts");
+
+fn served(kind: &'static str, body: &'static str) -> Response {
+    ([(header::CONTENT_TYPE, kind)], body).into_response()
 }
 
 /// The HTTP endpoints, for the platforms served (any origin in
