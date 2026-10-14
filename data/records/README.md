@@ -16,9 +16,11 @@ A record is read back by key: a decision takes the option that is the
 recorded choice, whatever its index, so a game keeps reading when the
 engine changes the options it offers. A change in the rules the game met
 still stops it (the engine asks a decision the game never had, or no
-longer offers what was chosen). Each game names the engine commit its
-wasm was built from below — check out that commit to read it as it was
-played.
+longer offers what was chosen) — but for the block windows offering only
+attempts that cannot reach the stealth, which an engine before rules-qa
+73.8 skipped: a record reading further past them is read so
+(`Replay::elided`). Each game names the engine commit its wasm was built
+from below — check out that commit to read it as it was played.
 
 | File (`.json`) | Engine | Seats (in order; the human's in bold) | Bots | Result |
 |---|---|---|---|---|

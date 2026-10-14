@@ -571,8 +571,8 @@ fn jack_locks_for_a_cheaper_location() {
 
 // Mark: "Mark gets +1 intercept when attempting to block a bleed action."
 // Seat 1's bleed at seat 0: his intercept is 1; seat 1's Zillah's Tears (a
-// +1 stealth undirected action): his 0 intercept cannot reach it — the
-// attempt is never offered.
+// +1 stealth undirected action): his 0 intercept cannot reach it (the
+// attempt offered all the same, rules-qa 73.8).
 #[test]
 fn mark_intercepts_bleeds() {
     for bleeding in [true, false] {
@@ -591,7 +591,9 @@ fn mark_intercepts_bleeds() {
             assert_eq!(i, 1);
         } else {
             pick(&mut e, play(0, 0, z));
-            never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, block(mark));
+            let req = until(&mut e, SeatId(0), WindowLabel::ActionBlock);
+            assert!(req.options.contains(&block(mark)));
+            assert!(!e.block_can_reach(SeatId(0), mark));
         }
     }
 }
@@ -1079,7 +1081,8 @@ fn danylo_fetches_a_location() {
 
 // Gavrylo: "Allies and younger vampires get -1 intercept against Gavrylo."
 // His bleed (no stealth): an older blocker may attempt to block it; a
-// younger one's -1 intercept cannot reach it — never offered.
+// younger one's -1 intercept cannot reach it (offered all the same,
+// rules-qa 73.8).
 #[test]
 fn gavrylo_dulls_younger_blockers() {
     for younger in [true, false] {
@@ -1100,12 +1103,9 @@ fn gavrylo_dulls_younger_blockers() {
             .expect("a vampire");
         let z = e.add_minion(SeatId(1), card, 2, false);
         pick(&mut e, bleed(g));
-        if younger {
-            never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, block(z));
-        } else {
-            let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
-            assert!(req.options.contains(&block(z)));
-        }
+        let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
+        assert!(req.options.contains(&block(z)));
+        assert_eq!(e.block_can_reach(SeatId(1), z), !younger);
     }
 }
 
@@ -1133,8 +1133,8 @@ fn pavlo_feeds_the_kiev_circle() {
 }
 
 // Volo: "Volo gets -1 stealth when hunting." A hunt (the rulebook's +1
-// stealth): Kyrylo's cannot be blocked by a vampire with no intercept —
-// never offered; Volo's, at 0 stealth, can.
+// stealth): Kyrylo's is out of the reach of a vampire with no intercept;
+// Volo's, at 0 stealth, is not.
 #[test]
 fn volo_hunts_with_less_stealth() {
     for volo in [true, false] {
@@ -1143,12 +1143,9 @@ fn volo_hunts_with_less_stealth() {
         let k = kiev(&mut e, 0, "Kyrylo", 2);
         let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
         pick(&mut e, action(if volo { v } else { k }, ActionKind::Hunt));
-        if volo {
-            let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
-            assert!(req.options.contains(&block(z)));
-        } else {
-            never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, block(z));
-        }
+        let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
+        assert!(req.options.contains(&block(z)));
+        assert_eq!(e.block_can_reach(SeatId(1), z), volo);
     }
 }
 
@@ -1978,7 +1975,7 @@ fn nra_pac_unlocks_equippers() {
     };
     hand(&mut e, 0, &["Monocle of Clarity"]);
     pick(&mut e, play(0, 0, viri));
-    request(&mut e);
+    decline_futile(&mut e);
     assert!(e.state.minions[viri.index()].unlock_end_of_turn);
     e.state.cards[pac.index()].in_play = false;
     until(&mut e, SeatId(1), WindowLabel::MinionPhase);

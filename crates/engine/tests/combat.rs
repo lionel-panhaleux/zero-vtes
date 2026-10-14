@@ -358,7 +358,7 @@ fn continuation_keeps_declines() {
     pick(&mut e, play(0, 0, z));
     // Back in the block loop at stealth 2: the prey's decline stands (X
     // could reach 2 intercept, so a reset would offer the attempt), Z's
-    // attempt is pruned (1 reachable) — the hunt resolves.
+    // attempt cannot reach it (1 reachable), declined — the hunt resolves.
     loop {
         let req = request(&mut e);
         if e.last_outcome.is_some() {
@@ -369,6 +369,9 @@ fn continuation_keeps_declines() {
             "the prey got a new attempt: {:?}",
             req.options
         );
+        if req.options.contains(&block(z)) {
+            assert!(!e.block_can_reach(req.seat, z));
+        }
         pick(&mut e, Choice::Pass);
     }
     assert!(!e.state.minions[z.index()].locked);

@@ -1791,9 +1791,31 @@ impl Engine {
             .collect()
     }
 
-    /// An upper bound on the intercept `m`'s attempt could reach (DESIGN
-    /// §4.3; rules-qa 48.5): an attempt that cannot meet the stealth is not
-    /// offered. `action_advance`'s closure comparison is the rule.
+    /// Could `m`'s block attempt, made by `seat`, still meet the action's
+    /// stealth, as `seat` sees it (rules-qa 48.5, 66.2)? Every attempt is
+    /// offered all the same (73.8): for an interface hiding futile ones.
+    /// True with no action under way.
+    pub fn block_can_reach(&self, seat: SeatId, m: MinionId) -> bool {
+        self.action
+            .as_ref()
+            .is_none_or(|a| self.intercept_reachable(a, seat, m) >= a.stealth(&self.state))
+    }
+
+    /// Is `req` a block window offering, beside its pass, only attempts
+    /// that cannot reach the stealth: the window elided before rules-qa
+    /// 73.8?
+    pub fn futile_blocks(&self, req: &DecisionRequest) -> bool {
+        req.window == WindowLabel::ActionBlock
+            && req.options.contains(&Choice::Pass)
+            && req.options.iter().all(|o| match *o {
+                Choice::Pass => true,
+                Choice::DeclareBlock { minion } => !self.block_can_reach(req.seat, minion),
+                _ => false,
+            })
+    }
+
+    /// An upper bound on the intercept `m`'s attempt could reach (rules-qa
+    /// 48.5). `action_advance`'s closure comparison is the rule.
     fn intercept_reachable(&self, a: &ActionCtx, seat: SeatId, m: MinionId) -> i32 {
         let st = &self.state;
         // A Methuselah other than the acting one who could strip the
@@ -2168,10 +2190,9 @@ impl Engine {
             && self.eligible_blockers(a).contains(&seat)
             && !a.declined.contains(&seat)
         {
+            // Every legal attempt, a futile one included (rules-qa 73.8).
             for m in self.block_candidates(a, seat) {
-                if self.intercept_reachable(a, seat, m) >= a.stealth(&self.state)
-                    && !a.failed_alike(&self.state, m)
-                {
+                if !a.failed_alike(&self.state, m) {
                     options.push(Choice::DeclareBlock { minion: m });
                 }
             }
@@ -2187,10 +2208,7 @@ impl Engine {
                 && self.eligible_blockers(a).contains(&seat)
             {
                 for m in self.block_candidates(a, seat) {
-                    if m != x
-                        && self.intercept_reachable(a, seat, m) >= a.stealth(&self.state)
-                        && !a.failed_alike(&self.state, m)
-                    {
+                    if m != x && !a.failed_alike(&self.state, m) {
                         options.push(Choice::DeclareBlock { minion: m });
                     }
                 }

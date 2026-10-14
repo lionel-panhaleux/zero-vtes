@@ -11,7 +11,7 @@
 //! pool's seed; hands, the uncontrolled region and the table stay as they
 //! are.
 
-use zvtes::game::{Engine, Step};
+use zvtes::game::Engine;
 use zvtes::rng::Rng;
 use zvtes_api::record::GameRecord;
 
@@ -48,20 +48,7 @@ impl Start {
     /// The game replayed to decision `at` (or as far as it reads), and the
     /// decisions read.
     fn read(&self, at: usize) -> (Engine, usize) {
-        let mut e = self.replay.deal();
-        // Combats are not told here.
-        e.combat_notes = None;
-        let mut reader = self.replay.reader();
-        let mut n = 0;
-        while n < at {
-            let Step::Decision(req) = e.run() else { break };
-            match reader.next(&e, &req) {
-                Some(Ok(i)) => e.choose(i),
-                _ => break,
-            }
-            n += 1;
-        }
-        (e, n)
+        self.replay.read(at)
     }
 
     /// A position: the game at decision `at` (under `readable`), its

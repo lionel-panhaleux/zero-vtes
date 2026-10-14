@@ -3,12 +3,13 @@
 //! engine's copies), so a record keeps reading when the engine changes the
 //! options it offers or their order; it stops where the rules changed (the
 //! engine asks a decision the game never had, or no longer offers what was
-//! chosen). `Replay` reads at the engine's level (training starts, tools);
-//! `Replayer` tells it too, as a seat seeing everything would read it
-//! (human games as data: `zvtes_py`).
+//! chosen) — but for the block windows an earlier engine elided
+//! (`Replay::elided`). `Replay` reads at the engine's level (training
+//! starts, tools); `Replayer` tells it too, as a seat seeing everything
+//! would read it (human games as data: `zvtes_py`).
 
-use zvtes::decision::DecisionRequest;
-use zvtes::game::Engine;
+use zvtes::decision::{Choice, DecisionRequest};
+use zvtes::game::{self, Engine};
 use zvtes_api::ids::Window;
 use zvtes_api::option::{ChoiceKey, OptionView};
 use zvtes_api::record::{By, Entry, GameRecord};
@@ -40,6 +41,10 @@ pub struct Replay {
     /// Seat names (the human's as recorded) and the seats a human played.
     pub names: Vec<String>,
     pub humans: Vec<Seat>,
+    /// Played on an engine before rules-qa 73.8, which elided the block
+    /// windows offering only attempts that cannot reach the stealth: read
+    /// past them (`Replay::elided`), as the record reads further so.
+    elides: bool,
 }
 
 impl Replay {
@@ -75,7 +80,7 @@ impl Replay {
                 Entry::Settings { .. } | Entry::Refused { .. } => {}
             }
         }
-        Ok(Replay {
+        let mut replay = Replay {
             seed: seed as u64,
             time_limit: spec.time_limit,
             decks,
@@ -85,12 +90,52 @@ impl Replay {
                 .filter(|&i| matches!(spec.seats[i].player, Player::Human { .. }))
                 .map(|i| i as Seat)
                 .collect(),
-        })
+            elides: false,
+        };
+        let plain = replay.read(usize::MAX).1;
+        replay.elides = true;
+        replay.elides = replay.read(usize::MAX).1 > plain;
+        Ok(replay)
+    }
+
+    /// The game replayed to decision `at` (or as far as it reads), and the
+    /// decisions read.
+    pub fn read(&self, at: usize) -> (Engine, usize) {
+        let mut e = self.deal();
+        // Combats are not told here.
+        e.combat_notes = None;
+        let mut reader = self.reader();
+        let mut n = 0;
+        while n < at {
+            let game::Step::Decision(req) = e.run() else {
+                break;
+            };
+            if let Some(pass) = self.elided(&e, &req) {
+                e.choose(pass);
+                continue;
+            }
+            match reader.next(&e, &req) {
+                Some(Ok(i)) => e.choose(i),
+                _ => break,
+            }
+            n += 1;
+        }
+        (e, n)
     }
 
     /// The game as dealt.
     pub fn deal(&self) -> Engine {
         deal(self.seed, self.time_limit, &self.decks)
+    }
+
+    /// The Pass of a block window offering only attempts that cannot reach
+    /// the stealth, in a record from an engine that elided it (`elides`):
+    /// taken without reading a recorded decision.
+    pub fn elided(&self, e: &Engine, req: &DecisionRequest) -> Option<usize> {
+        if !self.elides || !e.futile_blocks(req) {
+            return None;
+        }
+        req.options.iter().position(|o| *o == Choice::Pass)
     }
 
     /// The record's decisions read in order.
@@ -138,6 +183,13 @@ impl Reader<'_> {
                     req.options.len()
                 ))
             });
+        }
+        // A keyed record names its seat.
+        if d.seat != req.seat.0 {
+            return Some(Err(format!(
+                "decision {}: seat {} asked, the record's is seat {}'s",
+                d.decision, req.seat.0, d.seat
+            )));
         }
         let alike: Vec<usize> = (0..req.options.len())
             .filter(|&i| describe::key(e, req, &req.options[i], &EngineNames) == d.choice)
@@ -260,14 +312,21 @@ impl Replayer {
 
     /// The next decision (answer it with `take`), or the end.
     pub fn step(&mut self) -> Step {
-        let shown = match self.session.advance() {
-            Next::Over => {
-                let before = self.told();
-                let vp_halves = self.session.over().unwrap_or_default().to_vec();
-                return Step::Over { vp_halves, before };
+        let shown = loop {
+            let shown = match self.session.advance() {
+                Next::Over => {
+                    let before = self.told();
+                    let vp_halves = self.session.over().unwrap_or_default().to_vec();
+                    return Step::Over { vp_halves, before };
+                }
+                Next::Ask { shown, .. } => shown,
+                Next::Take { .. } => unreachable!("every seat is read from the record"),
+            };
+            let req = self.session.request().expect("asked");
+            match self.replay.elided(self.session.engine(), req) {
+                Some(pass) => self.session.take(pass, Taken::Passed),
+                None => break shown,
             }
-            Next::Ask { shown, .. } => shown,
-            Next::Take { .. } => unreachable!("every seat is read from the record"),
         };
         let before = self.told();
         let req = self.session.request().expect("asked").clone();

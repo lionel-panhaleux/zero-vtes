@@ -27,9 +27,14 @@ pub fn request(e: &mut Engine) -> DecisionRequest {
     }
 }
 
-/// The pending decision, asserted to be `seat`'s `window`.
+/// The pending decision, asserted to be `seat`'s `window`; a window of
+/// futile blocks only on the way is declined.
 pub fn expect(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-    let req = request(e);
+    let mut req = request(e);
+    while (req.seat, req.window) != (seat, window) && e.futile_blocks(&req) {
+        e.choose(index_of(&req, Choice::Pass));
+        req = request(e);
+    }
     assert_eq!((req.seat, req.window), (seat, window), "{:?}", req.options);
     req
 }
@@ -46,9 +51,14 @@ pub fn index_of(req: &DecisionRequest, want: Choice) -> usize {
         })
 }
 
-/// Answer the pending decision with `want`, which must be offered.
+/// Answer the pending decision with `want`, which must be offered; a
+/// window of futile blocks only on the way is declined.
 pub fn pick(e: &mut Engine, want: Choice) {
-    let req = request(e);
+    let mut req = request(e);
+    while !req.options.contains(&want) && e.futile_blocks(&req) {
+        e.choose(index_of(&req, Choice::Pass));
+        req = request(e);
+    }
     e.choose(index_of(&req, want));
 }
 
@@ -168,6 +178,41 @@ pub fn never_offered_until(e: &mut Engine, seat: SeatId, window: WindowLabel, ch
     never_offered_where(e, seat, window, |o| *o == choice);
 }
 
+/// Declines the pending windows of futile blocks only
+/// (`Engine::futile_blocks`);
+/// how many.
+pub fn decline_futile(e: &mut Engine) -> usize {
+    let mut n = 0;
+    loop {
+        let req = request(e);
+        if !e.futile_blocks(&req) {
+            return n;
+        }
+        e.choose(index_of(&req, Choice::Pass));
+        n += 1;
+    }
+}
+
+/// Pass (or hand strike) until `seat`'s `window`, asserting `m`'s block
+/// attempt is offered on the way (rules-qa 73.8) and, wherever offered,
+/// cannot reach the stealth.
+pub fn never_reaching_until(e: &mut Engine, seat: SeatId, window: WindowLabel, m: MinionId) {
+    let mut offered = false;
+    loop {
+        let req = request(e);
+        if req.options.contains(&Choice::DeclareBlock { minion: m }) {
+            assert!(!e.block_can_reach(req.seat, m), "{m:?} can reach");
+            offered = true;
+        }
+        if (req.seat, req.window) == (seat, window) {
+            assert!(offered, "{m:?}'s attempt never offered");
+            return;
+        }
+        let i = fallback(&req);
+        e.choose(i);
+    }
+}
+
 /// Pass (or hand strike) until a referendum is under way.
 pub fn to_referendum(e: &mut Engine) {
     for _ in 0..200 {
@@ -180,8 +225,10 @@ pub fn to_referendum(e: &mut Engine) {
     panic!("no referendum called");
 }
 
-/// Everyone passes the polling step until it closes.
+/// Everyone passes the polling step until it closes (futile blocks of
+/// the political action declined first).
 pub fn close_polling(e: &mut Engine) {
+    decline_futile(e);
     loop {
         match e.run() {
             Step::Decision(req)

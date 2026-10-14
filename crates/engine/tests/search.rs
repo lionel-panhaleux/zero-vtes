@@ -159,7 +159,7 @@ fn vast_wealth_pays_a_pool_cost_that_ousts() {
     library(&mut e, &["Assault Rifle"]);
     e.state.seats[0].pool = 3;
     pick(&mut e, granted(wealth, t));
-    request(&mut e);
+    decline_futile(&mut e);
     assert!(e.state.seats[0].ousted);
 }
 

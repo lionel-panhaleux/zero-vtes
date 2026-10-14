@@ -10,35 +10,35 @@ midgame/5 depth 4: 3899 leaves
   DiscardPhase 106 nodes 742 options
   InfluenceTransfers 449 nodes 3515 options
   MasterPhase 98 nodes 294 options
-action depth 7: 3716 leaves
+action depth 7: 2598 leaves
   ActionAfterCombat 14 nodes 28 options
   ActionAsAnnounced 2 nodes 6 options
-  ActionBlock 332 nodes 731 options
-  ActionBlocksDeclined 33 nodes 99 options
-  DiscardPhase 599 nodes 2435 options
-  MinionPhase 698 nodes 2094 options
-combat depth 7: 1879 leaves
-  ActionBlock 57 nodes 132 options
+  ActionBlock 432 nodes 919 options
+  ActionBlocksDeclined 32 nodes 96 options
+  DiscardPhase 346 nodes 1424 options
+  MinionPhase 475 nodes 1425 options
+combat depth 7: 1459 leaves
+  ActionBlock 130 nodes 296 options
   CombatBeforeRange 10 nodes 30 options
   CombatBeforeStrikes 9 nodes 27 options
   CombatDetermineRange 39 nodes 114 options
   CombatPress 54 nodes 108 options
   CombatStrike 55 nodes 165 options
-  DiscardPhase 137 nodes 481 options
-  MinionPhase 290 nodes 1472 options
-referendum depth 6: 6480 leaves
-  MinionPhase 312 nodes 1848 options
-  ReferendumPolling 1284 nodes 6216 options
-  ReferendumTerms 5 nodes 16 options
-masters depth 6: 8565 leaves
+  DiscardPhase 127 nodes 455 options
+  MinionPhase 191 nodes 878 options
+referendum depth 6: 1032 leaves
+  ActionBlock 12 nodes 25 options
+  ReferendumPolling 240 nodes 1104 options
+  ReferendumTerms 70 nodes 224 options
+masters depth 6: 4675 leaves
   ActionAsAnnounced 5 nodes 10 options
-  ActionBlock 441 nodes 882 options
+  ActionBlock 1148 nodes 2320 options
   CardAsPlayed 167 nodes 334 options
-  CombatDetermineRange 127 nodes 254 options
-  CombatPress 70 nodes 140 options
-  DiscardPhase 736 nodes 2972 options
+  CombatDetermineRange 78 nodes 156 options
+  CombatPress 64 nodes 128 options
+  DiscardPhase 162 nodes 688 options
   InfluenceTransfers 1 nodes 2 options
   MasterPhase 52 nodes 249 options
-  MinionPhase 1738 nodes 7018 options
+  MinionPhase 727 nodes 3151 options
   PlayTerms 10 nodes 40 options
   UnlockAbilities 5 nodes 15 options

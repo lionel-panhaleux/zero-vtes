@@ -1120,6 +1120,7 @@ mod tests {
     fn a_record_replays_by_key_as_by_index() {
         use crate::describe::{key, EngineNames};
         use zvtes::game::Step;
+        let mut futile = 0;
         for seed in 1..=24u32 {
             let mut g = game(seed);
             let human = g.human();
@@ -1173,6 +1174,7 @@ mod tests {
                     }
                 };
                 assert_eq!(e.log.len() as u64, *decision, "seed {seed}");
+                futile += usize::from(e.futile_blocks(&req));
                 let matching: Vec<usize> = (0..req.options.len())
                     .filter(|&i| key(&e, &req, &req.options[i], &EngineNames) == *choice)
                     .collect();
@@ -1184,7 +1186,12 @@ mod tests {
                 n += 1;
             }
             assert!(n > 0, "seed {seed}");
+            // A record of this engine reads whole, its futile block
+            // windows as recorded (rules-qa 73.8).
+            let replay = crate::replay::Replay::new(g.record()).unwrap();
+            assert_eq!(replay.read(usize::MAX).1, n, "seed {seed}");
         }
+        assert!(futile > 0, "no futile block window met");
     }
 
     /// Opportunities turned off while a decision is shown: it stays the

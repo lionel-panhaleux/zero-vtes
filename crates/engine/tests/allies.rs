@@ -39,10 +39,11 @@ fn recruit_ally_is_a_plus_one_stealth_undirected_action_paid_at_resolution() {
     hand(&mut e, 0, &["Political Ally"]);
     let pool = e.state.seats[0].pool;
     pick(&mut e, play(0, 0, v));
-    // +1 stealth against no intercept: nobody may block; the ally is in
-    // play before the next decision.
+    // +1 stealth against no intercept: no attempt can reach it (offered
+    // all the same, rules-qa 73.8); declined, the ally is in play before
+    // the next decision.
+    assert!(decline_futile(&mut e) > 0);
     let req = request(&mut e);
-    assert_ne!(req.window, WindowLabel::ActionBlock, "{req:?}");
     assert_eq!(
         e.state.seats[0].pool,
         pool - 2,
@@ -88,6 +89,7 @@ fn a_unique_ally_another_methuselah_controls_is_contested_and_ones_own_copy_bars
     let theirs = e.add_ally(SeatId(1), find_library("Political Ally"));
     hand(&mut e, 0, &["Political Ally", "Political Ally"]);
     pick(&mut e, play(0, 0, v));
+    decline_futile(&mut e);
     let req = request(&mut e);
     let mine = MinionId(e.state.minions.len() as u32 - 1);
     for m in [mine, theirs] {

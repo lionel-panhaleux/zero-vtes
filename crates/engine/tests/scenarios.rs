@@ -101,6 +101,7 @@ fn nra_one_bleed_per_turn_hunt_repeatable() {
         .options
         .contains(&act(MinionId(0), ActionKind::Hunt, None)));
     pick(&mut e, act(MinionId(0), ActionKind::Hunt, None));
+    decline_futile(&mut e);
     e.state.minions[0].locked = false;
     let req = request(&mut e);
     assert!(req

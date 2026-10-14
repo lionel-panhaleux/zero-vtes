@@ -215,6 +215,7 @@ fn femur_of_toomler_taken_by_a_non_tzimisce_strikes_strength_plus_one_aggravated
     let req = expect(e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!req.options.contains(&play(0, 0, t.a)));
     pick(e, take_from(t.a, t.b));
+    decline_futile(e);
     // Seat 0's next turn: A unlocked, bearing the Femur.
     pick(e, Choice::Pass);
     until(e, SeatId(0), WindowLabel::MinionPhase);

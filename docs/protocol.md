@@ -325,8 +325,9 @@ their default) and changed by `settings`:
   action's stealth, an any-time ability where nothing else is on offer,
   an ability that would gain nothing now (legal all the same: burning the
   counters of a card that has none, votes for a vampire that cannot
-  vote). A decision left with a pass alone passes by itself
-  (`auto_passed`).
+  vote), a block attempt that cannot reach the action's stealth (every
+  legal attempt is offered: with no intercept to gain, it fails). A
+  decision left with a pass alone passes by itself (`auto_passed`).
 - `views` (default `decisions`): `steps` adds the view to every `events`
   message — a client animating each move. Larger: compression
   (permessage-deflate) is on at the server.
@@ -413,7 +414,9 @@ the options shown when settings hid some — undos (decision numbers then
 repeat from `to`: a reader drops what they take back), settings
 changes, refused commands, the result and any engine failure. A record
 replays by index on its engine commit, and reads by key on a later
-engine. Kept two years, to train and test the engine; anonymous.
+engine (a record from before every block attempt was offered reads past
+the block windows its engine skipped). Kept two years, to train and test
+the engine; anonymous.
 
 ## 12. Open sets
 

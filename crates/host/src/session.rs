@@ -73,6 +73,9 @@ enum Opportunity {
     /// Powerbase: Madrid's burn with no counter, votes for a vampire that
     /// cannot vote; owner, 2026-10-14: rules-qa 73.3, 73.4).
     Nothing,
+    /// A block attempt that cannot reach the action's stealth
+    /// (`Engine::block_can_reach`; rules-qa 48.5, 66.2, 73.8).
+    Futile,
 }
 
 /// Why an answer is refused.
@@ -479,7 +482,7 @@ impl Session {
 
     /// Whether `c` is an opportunity: a wake (in its moment or not), an
     /// ability usable at any time (The Louvre, Paris), a block denial, a
-    /// legal no-op.
+    /// legal no-op, a futile block attempt.
     fn opportunity(&self, req: &DecisionRequest, c: &Choice) -> Option<Opportunity> {
         let e = &self.engine;
         let st = &e.state;
@@ -519,6 +522,9 @@ impl Session {
                 }
                 self.denial(mode.effects)
             }
+            Choice::DeclareBlock { minion } if !e.block_can_reach(req.seat, minion) => {
+                Some(Opportunity::Futile)
+            }
             _ => None,
         }
     }
@@ -543,8 +549,9 @@ impl Session {
 
     /// The options a human seat is shown: all, unless it passes on its
     /// opportunities. Then no wake out of its moment, no denial short of
-    /// the stealth, no legal no-op, and the abilities usable at any time
-    /// only where the decision pauses anyway; all if none is left.
+    /// the stealth, no legal no-op, no block attempt short of it, and the
+    /// abilities usable at any time only where the decision pauses anyway;
+    /// all if none is left.
     pub(crate) fn shown(&self, req: &DecisionRequest) -> Vec<usize> {
         let all = (0..req.options.len()).collect::<Vec<_>>();
         if !self.quiet.contains(&req.seat) {
@@ -562,6 +569,7 @@ impl Session {
                 kinds[i] != Some(Opportunity::Wake(false))
                     && kinds[i] != Some(Opportunity::Denial(false))
                     && kinds[i] != Some(Opportunity::Nothing)
+                    && kinds[i] != Some(Opportunity::Futile)
             })
             .collect();
         let pause = shown
@@ -717,16 +725,14 @@ fn untold_effects(c: &Choice) -> bool {
 mod tests {
     use zvtes::cards::{AbilitySource, Target};
     use zvtes::copies::CopyId;
+    use zvtes::decision::ActionKind;
     use zvtes::decks::Deck;
-    use zvtes::state::{find_library, CardId, CardInPlay};
+    use zvtes::state::{find_card, find_library, CardId, CardInPlay};
 
     use super::*;
 
-    /// A legal no-op is hidden with the opportunities off, shown with them
-    /// on: Powerbase: Madrid's burn with no counter (rules-qa
-    /// 73.3), shown again once the card has a counter.
-    #[test]
-    fn a_legal_no_op_is_hidden_with_the_opportunities_off() {
+    /// A session over three precon decks, its engine to be replaced.
+    fn session() -> (Session, Vec<(u16, u8)>) {
         let decks: Vec<Resolved> = (0..3)
             .map(|i| {
                 let d = Deck::precon(i);
@@ -737,7 +743,16 @@ mod tests {
             })
             .collect();
         let crypt = decks[0].crypt.clone();
-        let mut s = Session::new(1, None, decks, (0..3).map(|_| None).collect());
+        let s = Session::new(1, None, decks, (0..3).map(|_| None).collect());
+        (s, crypt)
+    }
+
+    /// A legal no-op is hidden with the opportunities off, shown with them
+    /// on: Powerbase: Madrid's burn with no counter (rules-qa
+    /// 73.3), shown again once the card has a counter.
+    #[test]
+    fn a_legal_no_op_is_hidden_with_the_opportunities_off() {
+        let (mut s, crypt) = session();
         let mut e = Engine::bare(3);
         let m = e.add_minion(SeatId(0), crypt[0].0, 4, false);
         e.add_minion(SeatId(0), crypt[1].0, 4, false);
@@ -776,5 +791,56 @@ mod tests {
         assert!(shown.len() > 1, "the rest shown: {shown:?}");
         s.engine.state.cards[id.index()].counters = 1;
         assert!(s.shown(&req).contains(&i), "a counter to burn: shown");
+    }
+
+    /// A block attempt that cannot reach the stealth is offered (rules-qa
+    /// 73.8), hidden with the opportunities off: a hunt (+1 stealth)
+    /// against a 0-intercept vampire whose Methuselah holds no card; shown
+    /// again once an intercept card is in hand, a library to draw from
+    /// (48.5).
+    #[test]
+    fn a_futile_block_attempt_is_hidden_with_the_opportunities_off() {
+        let (mut s, _) = session();
+        let mut e = Engine::bare(3);
+        let h = e.add_minion(SeatId(0), find_card("Madison"), 4, false);
+        e.add_minion(SeatId(0), find_card("Crystal Lynn"), 4, false);
+        let z = e.add_minion(SeatId(1), find_card("Donny Kowalczyk"), 4, false);
+        s.engine = e;
+        let Step::Decision(req) = s.engine.run() else {
+            panic!("a decision");
+        };
+        let hunt = Choice::TakeAction {
+            minion: h,
+            action: ActionKind::Hunt,
+            target: None,
+        };
+        let i = req.options.iter().position(|o| *o == hunt).expect("hunt");
+        s.engine.choose(i);
+        let Step::Decision(req) = s.engine.run() else {
+            panic!("a decision");
+        };
+        assert_eq!(req.window, WindowLabel::ActionBlock);
+        let block = Choice::DeclareBlock { minion: z };
+        let i = req
+            .options
+            .iter()
+            .position(|o| *o == block)
+            .expect("the attempt offered");
+        assert!(!s.engine.block_can_reach(req.seat, z));
+        assert!(
+            s.shown(&req).contains(&i),
+            "shown with the opportunities on"
+        );
+        s.set_opportunities(false);
+        let shown = s.shown(&req);
+        assert!(!shown.contains(&i), "hidden with them off");
+        assert_eq!(
+            shown.iter().map(|&j| req.options[j]).collect::<Vec<_>>(),
+            [Choice::Pass]
+        );
+        let senses = find_library("Enhanced Senses");
+        s.engine.state.seats[1].hand.put(senses, CopyId::NONE);
+        s.engine.state.seats[1].library.put(senses, CopyId::NONE);
+        assert!(s.shown(&req).contains(&i), "it may reach: shown");
     }
 }

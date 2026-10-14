@@ -185,8 +185,10 @@ pass from every other seat (no hidden-hand information leaks) — tested by
 `tests/elision.rs` (a hand-swap counterfactual, §7.2). A forced move (a lone
 option that is not a pass) has no counterfactual: its elision is the shared
 `apply` itself. Elision is what makes self-play viable (only live choices reach the
-network; credit assignment shortens accordingly). Block attempts that cannot
-succeed are pruned the same way (docs/engine.md §6.6 Block loop).
+network; credit assignment shortens accordingly). Every legal block attempt
+is offered, one that cannot reach the stealth included (owner, rules-qa
+73.8: every legal play); the host hides those with the opportunities off
+(docs/engine.md §6.6 Block loop).
 
 The human-facing shortcut protocol of the play procedures (binding shortcuts,
 interrupt-and-rewind, "stops") is a client-layer concern on top of the decision
@@ -1676,7 +1678,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 739 library, 297 vampires; 1749 Rust tests, 35 Python tests
+Definitions: 739 library, 297 vampires; 1751 Rust tests, 35 Python tests
 
 ## Outlook: deck building (post-v1)
 

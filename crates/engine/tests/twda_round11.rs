@@ -967,7 +967,7 @@ fn maabara_keeps_an_ash_card_for_the_library_top() {
 // actions that require an anarch. Titled non-Anarch vampires get +1
 // strength in combat with this minion." Against Ian Carfax (+1 intercept):
 // Constant Revolution (requiring an Anarch, +1 stealth) goes at 2 stealth,
-// unblockable by him; a bleed at none, blocked.
+// out of his reach; a bleed at none, within it.
 #[test]
 fn anarch_manifesto_stealths_actions_requiring_an_anarch() {
     for revolution in [true, false] {
@@ -978,8 +978,8 @@ fn anarch_manifesto_stealths_actions_requiring_an_anarch() {
         in_play(&mut e, 0, "Anarch Manifesto, An", Some(a));
         hand(&mut e, 0, &["Constant Revolution"]);
         pick(&mut e, if revolution { play(0, 0, a) } else { bleed(a) });
-        let blocked = offered_before(&mut e, block(ian), SeatId(0), WindowLabel::MinionPhase);
-        assert_eq!(blocked, !revolution);
+        let req = offering(&mut e, block(ian));
+        assert_eq!(e.block_can_reach(req.seat, ian), !revolution);
     }
 }
 

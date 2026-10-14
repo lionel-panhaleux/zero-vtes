@@ -899,9 +899,9 @@ fn ruins_of_ceoris_gives_a_maneuver_or_a_press() {
 // [LSJ 20081120-2] [LSJ 20100121] Karen Suadela: "Her immunity does not
 // extend to other things affected by events: Allies still benefit from The
 // Unmasking intercept when trying to block her." Against a plain vampire's
-// +1 stealth political action, Nephandus (no intercept of his own) may
-// block only with The Unmasking in play; against Karen's, Gehenna-immune,
-// he still has its +1 intercept.
+// +1 stealth political action, Nephandus (no intercept of his own) can
+// reach the stealth only with The Unmasking in play; against Karen's,
+// Gehenna-immune, he still has its +1 intercept.
 #[test]
 fn the_unmasking_gives_allies_intercept_against_vampires() {
     for (karen, unmasking) in [(false, false), (false, true), (true, true)] {
@@ -927,9 +927,8 @@ fn the_unmasking_gives_allies_intercept_against_vampires() {
             "karen {karen}"
         );
         if !karen {
-            let blocks =
-                offered_before(&mut e, block(neph), SeatId(0), WindowLabel::ReferendumTerms);
-            assert_eq!(blocks, unmasking);
+            let req = offering(&mut e, block(neph));
+            assert_eq!(e.block_can_reach(req.seat, neph), unmasking);
         }
     }
 }
@@ -1499,7 +1498,7 @@ fn ansons_second_master_phase_action_is_read_live() {
 
 // Powerbase: Barranquilla's titled stealth, read live on the acting
 // vampire: Victoria Ash's burn (+1 stealth) is out of seat 0's reach; an
-// untitled vampire's is blocked.
+// untitled vampire's is within it.
 #[test]
 fn powerbase_barranquilla_burn_has_stealth_for_a_titled_vampire() {
     for titled in [true, false] {
@@ -1515,8 +1514,8 @@ fn powerbase_barranquilla_burn_has_stealth_for_a_titled_vampire() {
         let pb = in_play(&mut e, 0, "Powerbase: Barranquilla", None);
         e.state.cards[pb.index()].counters = 3;
         pick_when(&mut e, use_at(pb, 1, Some(v), Target::None));
-        let blocks = offered_before(&mut e, block(b), SeatId(1), WindowLabel::MinionPhase);
-        assert_eq!(blocks, !titled, "titled {titled}");
+        let req = offering(&mut e, block(b));
+        assert_eq!(e.block_can_reach(req.seat, b), !titled, "titled {titled}");
     }
 }
 

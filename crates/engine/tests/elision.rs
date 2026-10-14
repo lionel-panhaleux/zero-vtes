@@ -121,9 +121,8 @@ fn fillers(e: &Engine, x: SeatId) -> Vec<u16> {
     cards
 }
 
-/// Filler cards tried per sample: X's own options may still read one (a
-/// card's intercept counted toward a block's reach, an ability discarding
-/// a card), and X is then asked again.
+/// Filler cards tried per sample: X's own options may still read one (an
+/// ability discarding a card), and X is then asked again.
 const TRIES: usize = 4;
 
 /// Coverage key of a sampled request: its window, whose turn or action it

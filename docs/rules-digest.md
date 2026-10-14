@@ -166,8 +166,9 @@ The few fixed amounts are the card's words (Night Terrors' fixed -X, RTR
 **D14. Legal no-op plays stay offered.** A play that does nothing is legal
 and offered (cycling a card is a real purpose): a hand strike at long range,
 a dodge with no strike to dodge, an unlock of an unlocked vampire, a steal
-from an empty vampire, X = 0, a counter burn for votes one cannot cast (4.3,
-17.4, 25.5, 57.10, 63.15, 68.5, 73.3, 73.4). Only what a rule or the card
+from an empty vampire, X = 0, a counter burn for votes one cannot cast, a
+block attempt that cannot reach the stealth (4.3, 17.4, 25.5, 57.10, 63.15,
+68.5, 73.3, 73.4, 73.8). Only what a rule or the card
 forbids is barred: prevention with no damage to prevent, stealth or
 intercept not needed (3.2, advanced rules §1.6.5, §3.2.1, §4.5.1), a card
 naming an object there is none of (advanced rules §1.6.5: Lenelle with an
@@ -1550,9 +1551,11 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
 - Under Siege: offered to each ready Sabbat vampire of its controller that
   could attempt to block, locked or not, the one already attempting
   included; once each action; +1 intercept for the action (52.8).
-- An attempt is offered while the stealth may yet be met: intercept cards
-  in hand or drawable, stealth an ability in play can still take off
-  (Screamer, Aranthebes) (48.5, 66.2, §22).
+- Every legal attempt is offered, one that cannot reach the stealth
+  included (73.8). Whether it may yet reach it — intercept cards in hand or
+  drawable, stealth an ability in play can still take off (Screamer,
+  Aranthebes) — is the host's reading, hiding the others with the
+  opportunities off (48.5, 66.2, §22).
 
 ### 9.5 Block tolls
 
@@ -3538,13 +3541,15 @@ rules-qa items, or parts of them, that record how the engine models play
 rather than a rule; listed so the index reaches them. The rule half of a
 mixed item is stated in its section.
 
-- Offer pruning, not rules (each repeat or offer is legal): a block attempt
-  is offered while an intercept card is in hand or may be drawn (48.5), or
-  stealth an ability in play can still take off (66.2); a failed attempt is
-  not offered again while nothing changed, nor swapped back after a change
-  of blocker (48.6: "an engine reading, not a rule"); an ability whose only
-  effect unlocks its own unlocked minion is not offered (48.7, an exception
-  to D14 — advanced rules §5.2.4 holds the unlock legal).
+- Offer pruning, not rules (each repeat or offer is legal): a failed
+  attempt is not offered again while nothing changed, nor swapped back
+  after a change of blocker (48.6: "an engine reading, not a rule"); an
+  ability whose only effect unlocks its own unlocked minion is not offered
+  (48.7, an exception to D14 — advanced rules §5.2.4 holds the unlock
+  legal). A block attempt is offered whether or not it can reach the
+  stealth (73.8); the host hides one that cannot with the opportunities
+  off — an intercept card in hand or drawable (48.5), stealth an ability in
+  play can still take off (66.2), counting as reach.
 - Vocabulary of the window primitives: block attempt pending vs blocked
   before resolution, the as-played cancel sub-window (2.3); strike riders and
   DESIGN §4.4 (2.5); the window-matrix generator's readings of "when …
@@ -3627,7 +3632,8 @@ rules-qa batch.
   §5.2.4 holds such unlocks legal.
 - **K10** Superseded within rules-qa (the digest states the later): 4.4 →
   47.2; 21.1 → 46.4 → 47.1; 33.1 → 60.22; 38.3 → 38.8; 31.4 → 39.4; 67.6 →
-  68.1; 41.8 → 62.31; 44.11 removed (replaced by Batch 45); 28.13 records
+  68.1; 41.8 → 62.31; 48.5, 66.2 → 73.8 (the engine's offer; the host's
+  filter keeps their reading); 44.11 removed (replaced by Batch 45); 28.13 records
   advanced rules §6.4.1 fixed to agree with §6.2.4.
 
 ### 23.3 rules-qa vs the advanced rules
@@ -3935,7 +3941,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 594 items, Batches 1–73 (44.11 was removed, replaced by Batch
+readings). 595 items, Batches 1–73 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here.
@@ -4065,7 +4071,7 @@ the section stating it, then its entry here.
   §2,§16.5,§23.2
 - **47** — 47.1 §2,§16.5,§23.2; 47.2 §2,§12.9,§12.15,§23.2,§23.3
 - **48** — 48.1 §2,§9.3; 48.2 §2,§12.9,§12.15,§24.1; 48.3
-  §9.4,§9.6,§23.3,§24.1; 48.4 §5.2,§12.3; 48.5 §9.4,§22; 48.6 §22; 48.7
+  §9.4,§9.6,§23.3,§24.1; 48.4 §5.2,§12.3; 48.5 §9.4,§22,§23.2; 48.6 §22; 48.7
   §2,§14.1,§22,§23.2; 48.8 §2,§8.3,§11.6,§24.1
 - **49** — 49.1 §13.1; 49.2 §13,§13.4,§23.3; 49.3 §4.6,§12.13,§14.8; 49.4
   §14.3,§16.4,§23.3; 49.5 §2,§3.11,§4.1,§11.2,§16.1; 49.6 §5.1,§6.3,§24.1;
@@ -4143,7 +4149,7 @@ the section stating it, then its entry here.
   64.11 §4.5,§22,§24.1; 64.12 §13.3,§13.5,§23.5
 - **65** — 65.1 §12.12,§12.15,§23.4,§24.1; 65.2 §10.4,§12.7; 65.3
   §6.1,§15.2,§24.1
-- **66** — 66.1 §2,§5.2,§9.2; 66.2 §9.4,§22
+- **66** — 66.1 §2,§5.2,§9.2; 66.2 §9.4,§22,§23.2
 - **67** — 67.1 §3.9,§7.1,§17.1,§21.1,§22; 67.2 §14.5,§24.1; 67.3
   §11.1,§24.1; 67.4 §7.1; 67.5 §3.14,§8.3,§8.6,§11.8,§14.10,§22,§24.1; 67.6
   §14.10,§22,§23.2; 67.7 §3.14,§3.18,§8.1,§24.1
@@ -4180,4 +4186,4 @@ the section stating it, then its entry here.
   §2,§3.1,§11.2
 - **73** — 73.1 §16.3,§19.2; 73.2 §16.3,§19.2; 73.3 §2,§8.6,§16.1; 73.4
   §2,§13.2; 73.5 §3.14,§14.3,§14.5; 73.6 §2,§3.6,§14.5,§16.1,§23.5; 73.7
-  §2,§3.10,§3.11,§4.1,§15.2
+  §2,§3.10,§3.11,§4.1,§15.2; 73.8 §2,§9.4,§22,§23.2

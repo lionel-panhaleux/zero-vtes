@@ -368,7 +368,7 @@ fn homunculus_version_is_fixed_by_the_employ_level() {
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.cards[0].counters, 1);
     pick(&mut e, play(0, 1, q)); // [PRO]
-    let _ = request(&mut e);
+    decline_futile(&mut e);
     assert_eq!(e.state.cards[1].counters, 2);
     assert_eq!(e.state.cards[0].counters, 1);
 }
@@ -1174,6 +1174,7 @@ fn delaying_tactics_at(script: impl FnOnce(&mut Engine, MinionId, MinionId)) {
     hand(&mut t.e, 0, &["Ancilla Empowerment"]);
     hand(&mut t.e, 1, &["Delaying Tactics"]);
     pick(&mut t.e, play(0, 0, t.alexa));
+    decline_futile(&mut t.e);
     let (alexa, kevin, bret) = (t.alexa, t.kevin, t.bret);
     script(&mut t.e, alexa, kevin);
     pick(&mut t.e, play(0, 0, bret));

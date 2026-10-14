@@ -68,7 +68,8 @@ fn referendum_terms_before_votes() {
     let Table { mut e, alexa, .. } = table();
     hand(&mut e, 0, &["Kine Resources Contested"]);
     pick(&mut e, play(0, 0, alexa));
-    // +1 stealth, nothing to intercept with: the block loop elides.
+    // +1 stealth, nothing to intercept with: no attempt can reach it
+    // (declined).
     let req = expect(&mut e, SeatId(0), WindowLabel::ReferendumTerms);
     assert_eq!(
         req.options,
@@ -859,7 +860,8 @@ fn party_out_of_bounds_reduces_a_bleed() {
 }
 
 // Perfect Paragon [PRE]: younger vampires get -1 intercept for the rest of
-// the action — an attempt that can no longer reach the stealth is pruned.
+// the action — an attempt that can no longer reach the stealth (offered all
+// the same, rules-qa 73.8).
 // Rulings: [LSJ 20020612].
 #[test]
 fn perfect_paragon_penalizes_younger_intercept() {
@@ -875,9 +877,10 @@ fn perfect_paragon_penalizes_younger_intercept() {
     pick(&mut e, play(0, 1, alexa));
     // Seat 1: Trung's +1 intercept minus 1 can no longer reach +1 stealth.
     let req = request(&mut e);
-    assert!(!req
+    assert!(req
         .options
         .contains(&Choice::DeclareBlock { minion: trung }));
+    assert!(!e.block_can_reach(SeatId(1), trung));
 }
 
 // Voter Captivation after a passed referendum: 1 blood per vote of the

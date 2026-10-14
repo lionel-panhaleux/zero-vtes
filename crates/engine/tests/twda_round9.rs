@@ -1175,7 +1175,7 @@ fn sunset_strip_gives_every_hunt_stealth_until_the_next_unlock() {
     );
     to_minion_phase(&mut e, SeatId(1));
     pick(&mut e, action(h, ActionKind::Hunt));
-    never_offered_until(&mut e, SeatId(1), WindowLabel::MinionPhase, block(x));
+    never_reaching_until(&mut e, SeatId(1), WindowLabel::MinionPhase, x);
     assert_eq!(blood(&e, h), 4 + 1);
     to_minion_phase(&mut e, SeatId(0));
     assert_eq!(
@@ -1205,16 +1205,8 @@ fn sunset_strip_gives_a_card_hunt_stealth() {
         }
         to_minion_phase(&mut e, SeatId(1));
         pick(&mut e, play(0, 0, h));
-        if locked {
-            never_offered_until(&mut e, SeatId(1), WindowLabel::MinionPhase, block(x));
-        } else {
-            assert!(offered_before(
-                &mut e,
-                block(x),
-                SeatId(1),
-                WindowLabel::MinionPhase
-            ));
-        }
+        let req = offering(&mut e, block(x));
+        assert_eq!(e.block_can_reach(req.seat, x), !locked);
     }
 }
 

@@ -2314,6 +2314,20 @@ mod tests {
         req
     }
 
+    /// Declines the block windows offering only attempts that cannot reach
+    /// the stealth (offered all the same, rules-qa 73.8); how many.
+    fn decline_futile(e: &mut Engine) -> usize {
+        let mut n = 0;
+        loop {
+            let req = request(e);
+            if !e.futile_blocks(&req) {
+                return n;
+            }
+            e.choose(0);
+            n += 1;
+        }
+    }
+
     // A blocked rush continued as if unblocked (Form of Mist's shape, set
     // directly: no rush vampire has Protean) reaches its resolution and
     // enters combat with its target; the unblocked combat's after-combat
@@ -2412,15 +2426,15 @@ mod tests {
     }
 
     #[test]
-    fn hunt_has_stealth_so_its_block_window_elides() {
+    fn hunt_has_stealth_so_its_block_attempts_cannot_reach() {
         let mut e = bare();
         e.state.minions[0].blood = 3;
-        let logged = e.log.len();
         pick(&mut e, act(MinionId(0), ActionKind::Hunt));
-        // No seat is ever asked: the +1 stealth action resolves at once and
-        // control returns to seat 0's minion phase.
+        // +1 stealth: the attempts are offered, none can reach it (rules-qa
+        // 73.8); declined, the hunt resolves.
+        assert_eq!(e.action().unwrap().stealth(&e.state), 1);
+        assert!(decline_futile(&mut e) > 0);
         expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-        assert_eq!(e.log.len(), logged + 1);
         assert_eq!(e.state.minions[0].blood, 4);
     }
 
@@ -2432,11 +2446,12 @@ mod tests {
         let req = request(&mut e);
         assert!(req.options.contains(&act(t, ActionKind::LeaveTorpor)));
         assert!(!req.options.contains(&act(poor, ActionKind::LeaveTorpor))); // cannot pay
-        let logged = e.log.len();
         pick(&mut e, act(t, ActionKind::LeaveTorpor));
-        // +1 stealth: no block window; the cost is paid at resolution.
+        // +1 stealth: no attempt can reach it; the cost is paid at
+        // resolution.
+        assert_eq!(e.action().unwrap().stealth(&e.state), 1);
+        assert!(decline_futile(&mut e) > 0);
         expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-        assert_eq!(e.log.len(), logged + 1);
         let m = &e.state.minions[t.index()];
         assert!((!m.in_torpor, m.blood, m.locked) == (true, 1, true));
     }
@@ -2456,10 +2471,12 @@ mod tests {
             ]
         );
         pick(&mut e, act(MinionId(1), ActionKind::Hunt));
-        // One left: a single mandatory option is elided, not offered.
+        // One left: a single mandatory option is elided, not offered; the
+        // futile attempts on both hunts declined (rules-qa 73.8).
         let logged = e.log.len();
+        let declined = decline_futile(&mut e);
         let req = request(&mut e);
-        assert_eq!(e.log.len(), logged);
+        assert_eq!(e.log.len(), logged + declined);
         assert_eq!(e.state.minions[0].blood, 1);
         assert!(e.state.minions[0].locked);
         assert!(req.options.contains(&Choice::Pass));
@@ -2511,9 +2528,14 @@ mod tests {
                 target: Some(t),
             },
         );
-        // +1 stealth, no block window; only split 1/1 is payable → elided.
-        // The rescued vampire comes out ready at 0 blood, so its mandatory
-        // hunt is elided too, straight away.
+        // Only split 1/1 is payable → elided; +1 stealth, no attempt can
+        // reach it. The rescued vampire comes out ready at 0 blood, so its
+        // mandatory hunt is elided too, straight away.
+        let logged = e.log.len();
+        request(&mut e);
+        assert_eq!(e.log.len(), logged);
+        assert_eq!(e.action().unwrap().stealth(&e.state), 1);
+        decline_futile(&mut e);
         let logged = e.log.len();
         expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
         assert_eq!(e.log.len(), logged);
@@ -2775,6 +2797,7 @@ mod tests {
         // Seat 0's minion phase: mandatory hunts for the two starving
         // vampires; take Horst's first.
         pick(&mut e, act(horst, ActionKind::Hunt));
+        decline_futile(&mut e);
         pick(&mut e, Choice::Pass);
         // Seat 1's unlock: Aline in torpor must yield (elided).
         let logged = e.log.len();

@@ -1210,17 +1210,18 @@ fn form_of_the_bat_fails_a_zero_intercept_block_of_a_zero_stealth_action() {
     pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: z });
     pick_when(&mut e, play(0, 0, a));
-    // The attempt fails at -1 against 0; no re-attempt can reach 0: the
-    // rest of the action elides.
+    // The attempt fails at -1 against 0; the same attempt is not offered
+    // again (rules-qa 48.6): the rest of the action elides.
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(pool(&e, 1), 29, "not blocked: the bleed for 1 succeeds");
     assert_eq!(blood(&e, a), 5, "no combat");
 }
 
-// An attempt is offered whenever the blocker holds an intercept card and
-// its Methuselah has a library (rules-qa 48.5): Enhanced Senses' +1 is
-// short of a Taxicab hunt's 2 stealth, but its replacement may be another.
-// With no library to draw from, the attempt stays pruned.
+// An attempt can reach the stealth whenever the blocker holds an intercept
+// card and its Methuselah has a library (rules-qa 48.5): Enhanced Senses'
+// +1 is short of a Taxicab hunt's 2 stealth, but its replacement may be
+// another. With no library to draw from, it cannot; offered either way
+// (73.8).
 #[test]
 fn a_block_is_offered_on_the_chance_of_drawing_more_intercept() {
     for library in [true, false] {
@@ -1242,7 +1243,8 @@ fn a_block_is_offered_on_the_chance_of_drawing_more_intercept() {
         let offered = request(&mut e)
             .options
             .contains(&Choice::DeclareBlock { minion: x });
-        assert_eq!(offered, library, "library: {library}");
+        assert!(offered, "library: {library}");
+        assert_eq!(e.block_can_reach(SeatId(1), x), library);
     }
 }
 
@@ -1497,7 +1499,7 @@ fn with_both(a: &'static str, b: &'static str, nth: usize) -> u16 {
 // [ANK 20200607] Night Terrors, a reaction targeting another player:
 // "Other Methuselahs must declare block attempts (or not) and pass the
 // impulse to you as normal." A hunt (+1 stealth) across a 4-seat table:
-// the prey's vampire, no intercept in hand, is offered the attempt only
+// the prey's vampire, no intercept in hand, can reach the stealth only
 // because a third party holds Night Terrors (rules-qa 1.2) — and blocks
 // once it is played.
 #[test]
@@ -1514,13 +1516,9 @@ fn night_terrors_from_a_third_party_strips_stealth_for_the_attempt() {
         pick(&mut e, action(a, ActionKind::Hunt));
         let block = Choice::DeclareBlock { minion: z };
         let req = request(&mut e);
-        assert_eq!(req.options.contains(&block), third_party, "{req:?}");
+        assert!(req.options.contains(&block), "{req:?}");
+        assert_eq!(e.block_can_reach(SeatId(1), z), third_party);
         if !third_party {
-            // Nothing to decide: the action went through.
-            assert_eq!(
-                (req.seat, req.window),
-                (SeatId(0), WindowLabel::MinionPhase)
-            );
             continue;
         }
         e.choose(req.options.iter().position(|o| *o == block).unwrap());
@@ -3521,10 +3519,10 @@ fn veil_the_legions_superior_gives_the_next_actions_stealth() {
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(blood(&e, o), 4);
     // The next action: +1 stealth, beyond the reach of an attempt with no
-    // intercept (pruned).
+    // intercept.
     e.state.minions[z.index()].locked = false;
     pick(&mut e, action(c, ActionKind::Bleed));
-    never_offered(&mut e, &Choice::DeclareBlock { minion: z });
+    never_reaching_until(&mut e, SeatId(0), WindowLabel::MinionPhase, z);
     assert_eq!(pool(&e, 1), 28, "both bleeds went through");
 }
 
@@ -5714,7 +5712,7 @@ fn a_burned_childe_is_a_library_card_in_the_ash_heap() {
     hand(&mut e, 0, &["Childe of the Revolution"]);
     let before = e.state.minions.len();
     pick(&mut e, play(0, 0, b));
-    request(&mut e);
+    decline_futile(&mut e);
     let childe = MinionId(before as u32);
     assert!(e.state.card_rivals(childe).is_empty());
     // Sent to torpor; the next Methuselah's vampire diablerizes it.
@@ -5750,7 +5748,7 @@ fn a_banished_childe_can_be_influenced_again() {
     hand(&mut e, 0, &["Childe of the Revolution"]);
     let before = e.state.minions.len();
     pick(&mut e, play(0, 0, b));
-    request(&mut e);
+    decline_futile(&mut e);
     let childe = MinionId(before as u32);
     let card = e
         .state
@@ -7120,7 +7118,7 @@ fn fortune_teller_shop_gives_a_ravnos_stealth_only() {
 // intercept. You can lock this card and burn 1 pool to give a minion
 // controlled by another Methuselah +1 intercept." [ANK 20200607]
 // Sequencing: the other Methuselahs declare their attempts, then the
-// impulse comes. The attempt it could make succeed is offered, not pruned.
+// impulse comes. The attempt it could make succeed can reach the stealth.
 #[test]
 fn krcg_news_radio_pays_for_another_methuselahs_intercept() {
     for with_radio in [false, true] {
@@ -7137,7 +7135,7 @@ fn krcg_news_radio_pays_for_another_methuselahs_intercept() {
         pick(&mut e, play(0, 0, a)); // a +1 stealth political action
         let block = Choice::DeclareBlock { minion: z };
         if !with_radio {
-            never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, block);
+            never_reaching_until(&mut e, SeatId(0), WindowLabel::MinionPhase, z);
             continue;
         }
         let radio = CardId(0);
@@ -7334,6 +7332,7 @@ fn a_starving_ravnos_must_steal_once() {
     e.state.cards[week.index()].counters = 10;
     // Its one theft is its only option: taken at once, before anything
     // else.
+    decline_futile(&mut e);
     let req = request(&mut e);
     assert_eq!((blood(&e, r), blood(&e, v1)), (1, 2));
     assert!(e.state.minions[b.index()].acted.is_empty());
@@ -10282,12 +10281,15 @@ fn kumpania_and_sight_beyond_sight_give_intercept() {
             assert!(e.state.cards[k.index()].locked);
         } else {
             // Kumpania cannot reach the young Ravnos: its attempt, needing
-            // intercept it cannot get, is not offered.
+            // intercept it cannot get, cannot reach the stealth (offered
+            // all the same, rules-qa 73.8).
             let req = request(&mut e);
             assert!(req.options.contains(&Choice::DeclareBlock { minion: r }));
-            assert!(!req
+            assert!(req
                 .options
                 .contains(&Choice::DeclareBlock { minion: small }));
+            assert!(e.block_can_reach(SeatId(1), r));
+            assert!(!e.block_can_reach(SeatId(1), small));
         }
     }
 }
@@ -14576,7 +14578,7 @@ fn veil_the_legions_skips_an_action_card_canceled_as_played() {
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.minions[c.index()].locked, "no action");
     pick(&mut e, action(c, ActionKind::Bleed));
-    never_offered(&mut e, &Choice::DeclareBlock { minion: z });
+    never_reaching_until(&mut e, SeatId(0), WindowLabel::MinionPhase, z);
     assert_eq!(pool(&e, 1), 30 - 1 - 1 - 1, "two bleeds, and its pool");
 }
 
@@ -14889,7 +14891,7 @@ fn second_tradition_blocks_a_hunt_into_combat() {
 // Martina Srnankova: "+1 intercept during bleed actions" — not during
 // Govern the Unaligned [DOM]'s action (+1 stealth, blood to an
 // uncontrolled vampire: a card action, not a bleed): with no intercept
-// against its stealth she is not offered a block; during its [dom] bleed
+// against its stealth her block cannot reach it; during its [dom] bleed
 // she gets +1.
 #[test]
 fn martina_gets_no_intercept_against_a_superior_govern() {
@@ -14911,7 +14913,7 @@ fn martina_gets_no_intercept_against_a_superior_govern() {
                 &mut e,
                 play_at(0, 1, Some(g), Target::Uncontrolled(younger)),
             );
-            never_offered_until(&mut e, SeatId(1), WindowLabel::MinionPhase, block);
+            never_reaching_until(&mut e, SeatId(1), WindowLabel::MinionPhase, martina);
             assert_eq!(e.state.seats[0].uncontrolled[younger as usize].counters, 3);
         }
     }

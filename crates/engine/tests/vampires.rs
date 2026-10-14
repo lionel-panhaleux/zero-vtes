@@ -80,7 +80,8 @@ fn hesha_ruhadze_bleeds_one_more_per_uncontested_unique_equipment() {
 }
 
 // A hunt is +1 stealth: Rinaldo Albizzi's +1 intercept makes his block
-// attempt reachable, while a vampire with no intercept is not offered one.
+// attempt reachable, while a vampire with no intercept cannot reach it
+// (offered all the same, rules-qa 73.8).
 #[test]
 fn a_printed_intercept_bonus_opens_a_block_on_an_undirected_action() {
     let mut e = bare();
@@ -92,9 +93,11 @@ fn a_printed_intercept_bonus_opens_a_block_on_an_undirected_action() {
     assert!(req
         .options
         .contains(&Choice::DeclareBlock { minion: rinaldo }));
-    assert!(!req
+    assert!(req
         .options
         .contains(&Choice::DeclareBlock { minion: other }));
+    assert!(e.block_can_reach(SeatId(1), rinaldo));
+    assert!(!e.block_can_reach(SeatId(1), other));
 }
 
 // Ariane's "-1 stealth during undirected actions": her hunt has no
@@ -3432,21 +3435,22 @@ fn abiku_gets_more_stealth_on_a_card_hunt_too() {
     for card in [None, Some("Abactor")] {
         let (mut e, abiku, _, one) = hunter("Abiku");
         hunt(&mut e, abiku, card);
-        never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, block(one));
+        never_reaching_until(&mut e, SeatId(0), WindowLabel::MinionPhase, one);
     }
 }
 
 // Zöe: "Zöe does not get the usual +1 stealth when hunting." The rulebook
 // hunt's +1: 0 stealth, the 0-intercept Ventrue may block. Abactor's hunt
 // has no usual +1, the card's +1 stealth stands (rules-qa 72.2): Rinaldo
-// may block, the Ventrue not.
+// may block, the Ventrue's attempt cannot reach it.
 #[test]
 fn zoe_keeps_a_card_hunts_own_stealth() {
     for (card, stealth) in [(None, 0), (Some("Abactor"), 1)] {
         let (mut e, zoe, zero, one) = hunter("Zöe");
         hunt(&mut e, zoe, card);
         let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
-        assert_eq!(req.options.contains(&block(zero)), card.is_none());
+        assert!(req.options.contains(&block(zero)));
+        assert_eq!(e.block_can_reach(SeatId(1), zero), card.is_none());
         assert!(req.options.contains(&block(one)));
         assert_eq!(e.action().expect("action").stealth(&e.state), stealth);
     }

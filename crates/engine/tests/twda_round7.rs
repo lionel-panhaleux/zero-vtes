@@ -2388,7 +2388,7 @@ fn eddie_gaines_naps_after_a_hunt() {
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     // Bloodless, he must hunt: the hunt is taken at once.
-    request(&mut e);
+    decline_futile(&mut e);
     assert_eq!(blood(&e, ed), 1, "hunted");
     until(&mut e, SeatId(1), WindowLabel::MinionPhase);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);

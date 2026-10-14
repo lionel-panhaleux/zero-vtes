@@ -6,9 +6,10 @@
 //! ability (Homunculus). Windows with a single option are elided, so the
 //! scripts below only stop where a real decision exists.
 
+use zvtes::actions::Outcome;
 use zvtes::cards::AbilitySource;
 use zvtes::cards::Target;
-use zvtes::decision::{Choice, WindowLabel};
+use zvtes::decision::{ActionKind, Choice, WindowLabel};
 use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::state::CardId;
@@ -63,8 +64,8 @@ fn table() -> Table {
 // rules-qa 3.2 — stealth only when needed: Earth Control is masked with no
 // attempt pending and offered once an attempt has intercept ≥ stealth. A
 // failed attempt goes back to A (rulebook B.4); with no intercept in hand a
-// new attempt is pruned as unreachable and the seat's pass is the final
-// decline.
+// new attempt cannot reach the stealth, offered all the same (rules-qa
+// 73.8), and the seat's pass is the final decline.
 #[test]
 fn stealth_only_when_needed() {
     let mut t = table();
@@ -85,14 +86,54 @@ fn stealth_only_when_needed() {
     // Impulse back to seat 0: 0 intercept ≥ 0 stealth, stealth is needed.
     let req = expect(e, SeatId(0), WindowLabel::ActionBlock);
     assert_eq!(plays(&req), vec![play(0, 0, t.p), play(0, 1, t.p)]);
-    pick(e, play(0, 1, t.p)); // +2 stealth, 1 blood
-                              // Every remaining window elides: the attempt fails at closure, back to
-                              // A, seat 1's new attempt is pruned (nothing reaches 2 intercept), C,
-                              // resolution.
+    // +2 stealth, 1 blood. The attempt fails at closure, back to A: C's
+    // attempt cannot reach 2 intercept, B's is not offered again (rules-qa
+    // 48.6).
+    pick(e, play(0, 1, t.p));
+    let req = expect(e, SeatId(1), WindowLabel::ActionBlock);
+    assert_eq!(
+        req.options,
+        vec![Choice::Pass, Choice::DeclareBlock { minion: t.c }]
+    );
+    assert!(!e.block_can_reach(SeatId(1), t.c));
+    pick(e, Choice::Pass);
     expect(e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.seats[1].pool, 29);
     assert_eq!(e.state.minions[t.p.index()].blood, 5);
     assert!(e.state.seats[0].has_edge);
+}
+
+// rules-qa 73.8 — every legal block attempt is offered, a futile one
+// included: against a hunt (+1 stealth), a 0-intercept vampire whose
+// Methuselah holds no card. Its attempt cannot reach the stealth, is made,
+// fails as every Methuselah passes, is not offered again (48.6), and the
+// hunt succeeds.
+#[test]
+fn a_futile_block_attempt_is_offered_and_fails() {
+    let mut e = Engine::bare(3);
+    let h = e.add_minion(SeatId(0), plain("Brujah", 0), 2, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    pick(&mut e, action(h, ActionKind::Hunt));
+    let req = request(&mut e);
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(1), WindowLabel::ActionBlock)
+    );
+    assert_eq!(req.options, vec![Choice::Pass, block(z)]);
+    assert_eq!(e.action().unwrap().stealth(&e.state), 1);
+    assert!(!e.block_can_reach(SeatId(1), z));
+    e.choose(1);
+    // Nobody can add intercept: the attempt fails at closure, the hunt
+    // goes on and nothing else is asked.
+    let req = request(&mut e);
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(0), WindowLabel::MinionPhase)
+    );
+    assert_eq!(e.last_outcome, Some(Outcome::Successful));
+    assert_eq!(blood(&e, h), 3);
+    assert!(!e.state.minions[z.index()].locked);
 }
 
 // Bonding [DOM] is "+1 stealth and +1 bleed": the stealth is the effect's,
@@ -113,7 +154,8 @@ fn bonding_superior_needs_the_stealth_to_be_needed() {
     let req = expect(e, SeatId(0), WindowLabel::ActionBlock);
     assert_eq!(plays(&req), vec![play(0, 0, t.a), play(0, 1, t.a)]);
     pick(e, play(0, 1, t.a));
-    // Stealth 1, bleed 2; the attempt fails, nothing reaches 1 intercept.
+    // Stealth 1, bleed 2; the attempt fails, no other can reach 1
+    // intercept (declined).
     expect(e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.seats[1].pool, 28);
 }
@@ -495,8 +537,8 @@ fn homunculus_employ_then_unlock_ability_and_nra_by_card_name() {
     let employ = |card, mode| play(card, mode, t.p);
     assert_eq!(plays(&req), vec![employ(0, 0), employ(0, 1)]);
     pick(e, employ(0, 1));
-    // +1 stealth, undirected, no intercept anywhere: every window elides;
-    // the retainer enters play with 2 life.
+    // +1 stealth, undirected, no intercept anywhere: no attempt can reach
+    // it (declined); the retainer enters play with 2 life.
     expect(e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.cards.len(), 1);
     assert_eq!(

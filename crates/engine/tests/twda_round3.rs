@@ -121,6 +121,7 @@ fn hunt(m: MinionId) -> Choice {
 
 /// Pass every blood hunt polling decision (Tara's votes kept: it fails).
 fn decline_blood_hunt(e: &mut Engine) {
+    decline_futile(e);
     while request(e).window == WindowLabel::BloodHuntPolling {
         pick(e, Choice::Pass);
     }
@@ -514,7 +515,7 @@ fn renewed_vigor_fizzles_on_a_target_out_of_torpor() {
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     hand(&mut e, 0, &["Renewed Vigor"]);
     pick(&mut e, play_at(0, 1, a, Target::Minion(t)));
-    request(&mut e);
+    decline_futile(&mut e);
     e.state.minions[t.index()].in_torpor = false;
     e.state.minions[t.index()].locked = true;
     to_minion_phase(&mut e, SeatId(0));

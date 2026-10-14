@@ -434,13 +434,15 @@ fn guardian_angel_intercept_on_bleeds_at_its_controller_and_prevention() {
 
 // Guardian Angel gives no intercept outside bleed actions directed at its
 // controller: against a hunt (undirected, +1 stealth) the host cannot reach
-// 1 intercept, so no attempt is even offered (reachability) and the hunt
-// resolves.
+// 1 intercept, so its attempt cannot succeed (offered all the same,
+// rules-qa 73.8) and the hunt resolves.
 #[test]
 fn guardian_angel_gives_nothing_outside_bleeds_at_its_controller() {
     let (mut e, a, x, _z) = bleed_table();
     guardian_angel_on(&mut e, 1, x);
     pick(&mut e, action(a, ActionKind::Hunt));
+    let req = offering(&mut e, block(x));
+    assert!(!e.block_can_reach(req.seat, x));
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.last_outcome, Some(Outcome::Successful));
     assert_eq!(blood(&e, a), 7);
@@ -1304,7 +1306,8 @@ fn vampire_of_sect(sect: Sect, nth: usize) -> u16 {
 // Constant Revolution: "+1 stealth action. Requires an Anarch. Unique. Put
 // this card in play with 1 counter. During your unlock phase, add 1
 // counter to this card." — offered to an Anarch only, enters with a
-// counter (blocks pruned by the stealth), one more each own unlock phase.
+// counter (blocks out of the stealth's reach), one more each own unlock
+// phase.
 #[test]
 fn constant_revolution_needs_an_anarch_and_counts_up() {
     let (mut e, a, _x, _z) = bleed_table();
@@ -1372,7 +1375,7 @@ fn constant_revolution_burn_action_costs_1_pool() {
     );
 }
 
-// Creeping Sabotage: "+1 stealth action" (blocks pruned with no intercept),
+// Creeping Sabotage: "+1 stealth action" (blocks out of reach with no intercept),
 // "X is the number of copies you control" read when the cost is paid (the
 // second copy costs 1), "Put this card in play" (no host, not discarded),
 // and "during your unlock phase, your prey burns 1 pool" per copy, as the
@@ -1773,6 +1776,7 @@ fn alamut_gives_votes_to_its_controllers_vampires_only() {
     to_minion_phase(&mut e, SeatId(0));
     hand(&mut e, 0, &["Anarchist Uprising"]);
     pick(&mut e, play(0, 0, caller));
+    decline_futile(&mut e);
     let (mut own, mut polled_other) = (false, false);
     for _ in 0..40 {
         let r = request(&mut e);

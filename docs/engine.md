@@ -247,8 +247,12 @@ hazards, from the engine review of 2026-10-14):
   name or printed number belongs in `cards/defs.rs`.
 - Conditions are read live, never snapshotted (§6.5, live conditions): no
   test can see a snapshot that nothing changes yet.
-- Third-party intercept and stealth strips must be counted by block
-  pruning (§6.6), or pruning hides a live attempt.
+- Third-party intercept and stealth strips must be counted by
+  `block_can_reach` (§6.6), or the host's opportunities filter hides a live
+  attempt (the engine offers it). It also stands for the pruning of the
+  engines before rules-qa 73.8 when a record of theirs is read
+  (`Engine::futile_blocks`, `Replay::elided`): a change to it moves which
+  windows such a record reads past, and only `data/records` checks it.
 
 ## 4. Adding a card
 
@@ -285,8 +289,13 @@ hazards, from the engine review of 2026-10-14):
    round's file for TWDA rounds); `tests/common` helpers
    (`CardInPlay::new`, `never_offered_until` to prove a non-offer, `plain`
    for a vanilla vampire). Window elision affects naive tests (CLAUDE.md
-   "Working lessons"). A test in `tests/rulings.rs` backs a ledger row;
-   regressions go elsewhere.
+   "Working lessons"). Futile block attempts are offered (rules-qa 73.8):
+   `pick` and `expect` decline a block window offering only attempts that
+   cannot reach the stealth on their way (`futile_blocks`; the window the
+   engine elided before), `request` returns it; `decline_futile` passes
+   them, `never_reaching_until` proves an attempt cannot reach the stealth.
+   A test in `tests/rulings.rs` backs a ledger row; regressions go
+   elsewhere.
 6. **Ledger**: each of the card's rows in `data/rulings-v5.csv` (CRLF)
    gets `test:<fn>`, `blocked:<gap>` or `n/a:<reason>`; run the `--check`.
 7. **Fuzz**: add the card to a fixture's `slice` and a `covers` key
@@ -598,20 +607,25 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   toll lands pays or resigns (`Interrupt::BlockToll`). A forced attempt
   (`can_attempt_block[_anyone]`, `AttemptBlock`, `TargetAttemptsBlock`) needs
   the toll payable (rules-qa 42.8).
-- **Reachability pruning** (`intercept_reachable`): an attempt that cannot reach
-  the stealth is not offered. It counts the blocker's own and printed intercept,
-  intercept abilities of cards on it, other cards in play
-  (`location_intercept_reach`: Market Square, KRCG News Radio, The Rumor Mill),
-  and stops pruning while a non-acting Methuselah could strip the stealth
-  (`stealth_strippable`): the blocker's own Methuselah by a playable card in
-  hand, another by holding any card while one of their minions could play a
-  stealth strip of the pool (Night Terrors) — their hand is hidden from the
-  blocker (DESIGN §4.3; reading it leaked, found by `tests/elision.rs`). An
+- **Every legal attempt offered** (rules-qa 73.8): one that cannot reach the
+  stealth too. **Reachability** is a query, `Engine::block_can_reach(seat, m)`
+  (`intercept_reachable`), read by the host's opportunities filter (it hides a
+  futile attempt with them off, `crates/host` `Opportunity::Futile`) and by
+  the record reader (`Replay::elided`: a record from an engine before 73.8
+  never had the futile-only block windows, elided then); never a mask. It
+  counts the blocker's own and printed intercept, intercept abilities of cards
+  on it, other cards in play (`location_intercept_reach`: Market Square, KRCG
+  News Radio, The Rumor Mill), stealth abilities in play can take off
+  (`stealth_reduction_reach`, rules-qa 66.2), and answers yes while a
+  non-acting Methuselah could strip the stealth (`stealth_strippable`): the
+  blocker's own Methuselah by a playable card in hand, another by holding any
+  card while one of their minions could play a stealth strip of the pool
+  (Night Terrors) — their hand is hidden from the blocker (DESIGN §4.3). An
   intercept card in hand also counts its replacement draw (rules-qa 48.5: one
   to play and a library may yet meet any stealth); conditional intercept
   counts whether or not its condition holds now. The rule itself is the
   closure comparison in `action_advance`. Any new third-party
-  intercept/stealth-strip card must be counted here, or pruning hides a live
+  intercept/stealth-strip card must be counted here, or the host hides a live
   attempt.
 - **Failed attempts** (`ActionCtx::attempt_print`, `failed_alike`,
   `failed_attempts`, rules-qa 48.6): a minion that failed an attempt is not

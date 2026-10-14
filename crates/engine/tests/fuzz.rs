@@ -1853,7 +1853,7 @@ fuzz_tests! {
             "ability:WMRH Talk Radio",
         ],
         untwin: true,
-        seeds: 200,
+        seeds: 300,
         ..BASE
     };
     /// Slice 11y: the pool's masters, wave 3.
@@ -2703,7 +2703,7 @@ fuzz_tests! {
                     banished: None,
                 });
         },
-        seeds: 160,
+        seeds: 300,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 2 (slice 16n): Nephandus and
@@ -3025,7 +3025,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 30,
+        seeds: 152,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 7 (slice 16s), steps 6–11: the
@@ -3478,7 +3478,7 @@ fuzz_tests! {
             }
             per_seat(e, |c| c.clan == "Banu Haqim", 4);
         },
-        seeds: 56,
+        seeds: 186,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 10 (slice 16v): the referendums

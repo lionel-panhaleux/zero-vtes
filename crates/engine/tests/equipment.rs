@@ -86,15 +86,15 @@ fn unlicensed_taxicab_gives_stealth_during_hunt_recruit_and_employ_actions() {
         0
     );
     pick(&mut e, action(horst, ActionKind::Hunt));
-    // +2 stealth against 1 intercept: no block attempt is offered.
-    let req = request(&mut e);
-    assert_ne!(req.window, WindowLabel::ActionBlock, "{req:?}");
+    // +2 stealth against 1 intercept: no block attempt can reach it.
+    assert!(decline_futile(&mut e) > 0);
+    request(&mut e);
     assert_eq!(e.state.minions[horst.index()].blood, 4);
 }
 
 // "+1 stealth during hunt … actions": Abactor's hunt too (rules-qa 72.4).
-// 1 + 1 stealth against Kevin's 1 intercept: no block attempt; without
-// the Taxicab, Kevin may block.
+// 1 + 1 stealth against Kevin's 1 intercept: his attempt cannot reach it;
+// without the Taxicab, it can.
 #[test]
 fn unlicensed_taxicab_gives_stealth_during_a_card_hunt() {
     for taxi in [false, true] {
@@ -108,12 +108,9 @@ fn unlicensed_taxicab_gives_stealth_during_a_card_hunt() {
         equip(&mut e, "Sport Bike", kevin);
         hand(&mut e, 0, &["Abactor"]);
         pick(&mut e, play(0, 0, horst));
-        if taxi {
-            never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, block(kevin));
-        } else {
-            let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
-            assert!(req.options.contains(&block(kevin)));
-        }
+        let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
+        assert!(req.options.contains(&block(kevin)));
+        assert_eq!(e.block_can_reach(SeatId(1), kevin), !taxi);
     }
 }
 
@@ -168,8 +165,7 @@ fn equip_from_another_minion_counts_each_equipments_own_stealth() {
     pick(&mut e, Choice::TakeEquipment { card: taxi });
     pick(&mut e, Choice::TakeEquipment { card: codex });
     // +1 stealth, +1 for the Taxicab: the bike's intercept falls short.
-    let req = request(&mut e);
-    assert_ne!(req.window, WindowLabel::ActionBlock, "{req:?}");
+    assert!(decline_futile(&mut e) > 0);
     assert_eq!(host_of(&e, taxi), Some(horst));
     assert_eq!(host_of(&e, codex), Some(horst));
     assert_eq!(e.state.seats[0].pool, pool, "free");
@@ -315,7 +311,8 @@ fn stolen_police_cruiser_anarch_bleeds_one_more_and_younger_vampires_intercept_l
     assert_eq!(e.state.seats[1].pool, pool - 2);
 
     // Horst (capacity 6) is younger than Aline (7), Kevin is not: on a
-    // Sport Bike each, only Kevin meets the hunt's +1 stealth.
+    // Sport Bike each, only Kevin meets the hunt's +1 stealth (Horst's
+    // attempt offered all the same, rules-qa 73.8).
     let mut e = Engine::bare(3);
     let aline = e.add_minion(SeatId(0), find_card("Aline Gädeke"), 3, false);
     let horst = e.add_minion(SeatId(1), find_card("Horst von Brühl"), 3, false);
@@ -328,9 +325,11 @@ fn stolen_police_cruiser_anarch_bleeds_one_more_and_younger_vampires_intercept_l
     assert!(req
         .options
         .contains(&Choice::DeclareBlock { minion: kevin }));
-    assert!(!req
+    assert!(req
         .options
         .contains(&Choice::DeclareBlock { minion: horst }));
+    assert!(e.block_can_reach(SeatId(1), kevin));
+    assert!(!e.block_can_reach(SeatId(1), horst));
 }
 
 #[test]
