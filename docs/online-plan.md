@@ -227,6 +227,22 @@ Postgres once the game's thread is gone.
 | B7 | Deploy per server-setup: GH Actions release asset (linux x86_64) on tag; `deploy/` (pyinfra): user, `/opt/zvtes`, `/etc/zvtes`, systemd on 127.0.0.1:8040 with `MemoryMax`/`CPUQuota` (the forum shares the box), `postgres_db`, `nginx_site` (its 60 s read timeout: the server pings every 30 s); `deploy_targets.py`; OPERATIONS.md row; DNS → 57.129.110.107 — done (2026-10-13): live on https://engine.krcg.org from `deploy/build.sh` (Docker) + pyinfra; Postgres, TLS, the network bots; `tests/client.mjs` plays a full game there and reads the stored record back; F11, F12 met on the way. Releases from GitHub once the repository is public |
 | B8 | Load test: concurrent bot-only games, native inference timed; the cap set from it — done (2026-10-14): `crates/server/tests/load.mjs` (n games at once, network bots, a human answering at random as fast as messages come; the server allows no bot-only game). Release build on the owner's laptop: 1 game 1.7 s; 8 at once 6.7 s; 32 at once 15.1 s; 64 at once 17.8 s (26,862 messages, 2,525 human decisions), peak 235 MB (≈3.5 MB a game), none refused. A real player takes minutes a game: the default cap (64 live games) stays, well under frankfurt's `MemoryMax=3G` / `CPUQuota=400%` |
 
+The pull and the report (B4): `python3 scripts/fetch_games.py --finished`
+pulls into `data/server-records/` (ignored) from the cursor
+`data/server-records/.since` (the newest game's start + 1, held back to a
+game still going, a day at most; `--since` overrides it, an `--engine`
+pull leaves it); `python3 scripts/games_report.py [dir]` then writes
+`<dir>/reports/<date>.md` (the games first read that day, each listed:
+client, engine, weights, bots, decks in seat order by catalog name, VPs,
+winner, turns, end, decisions) and `<dir>/reports/total.md` (by engine,
+weights and table size; human win rate and VP a seat by bot profile and
+weights; the decks humans win with and the bot decks that lose; the
+notable human games with their replay command). It counts the finished
+games with a human seat apart from the abandoned, short, test-script
+(`client.mjs`, `load.mjs`) and failed ones; the turns come from replaying
+each record once (`--no-turns` skips it), cached in
+`<dir>/reports/index.json`.
+
 ## C. Succubus Club
 
 Fresh branch off upstream `master`, re-cut (not rebased) from the fork.

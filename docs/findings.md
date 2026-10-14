@@ -21,6 +21,8 @@ status. Fixed items stay a while with the commit that fixed them.
 | F12 | P6 B7 (redeploy) | `deploy.py` copied the new binary over the running one: "Text file busy", the redeploy failed | fixed: staged as `zvtes-server.new`, renamed into place |
 | F13 | P6 deep sweep (`tests/events.rs`, 2,000 games, seed 1045) | A combat cut short by its Methuselah's ousting was never told ended | fixed 76ac3ae: the turn's end notes it |
 | F14 | P6 A7 deep sweep | A card ability whose card shows only as a marker (Disarm) was named "a card"; a card granting an action that is a minion too (Call the Great Beast) named as the minion | fixed 2037742 |
+| F15 | P6 B4 (`scripts/games_report.py`) | A record does not say which nudges its network bots played (`BotRecord`: profile, weights, temperature only; the nudges are `crates/server/src/games.rs`'s at the time), nor its turn count (the report replays each record to read it) | open |
+| F16 | P6 B4 (`fetch_games.py` cursor) | Games never ended in Postgres (a redeploy mid-game, likely: the idle timeout would have ended them) are listed by `/admin/games` as still going for ever: six on 2026-10-14, 0 to 134 entries, the oldest of 2026-10-13 17:07; the cursor holds back a day at most for them | open |
 
 ## Playtest, 2026-10-13 (Succubus Club fork, main's wasm, one game against 3 bots)
 
