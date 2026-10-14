@@ -27,11 +27,17 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    mix, nudges and what to try. Write a "pN, prepared" note in DESIGN §11.2
    first: why, baseline numbers, settings. New code gets a pytest in
    `train/tests/` and the checks (`uv run pytest -q`, py clippy, fmt,
-   clippy).
+   clippy). Measures compare like with like only from a clean build: `waste`
+   and `decks.rs` compile from the working tree, so run them in the run's
+   worktree (or another at a commit), never in the shared checkout. `waste`
+   takes record paths (`data/records/*.json`), needs `--twda` for Wider View
+   (in no precon) and `--seats 5` for 5-seat cross-table numbers.
 2. **Launch** from a dedicated worktree at the launch commit
-   (`git worktree add ../zero-vtes-pN <sha>`, `uv sync
-   --reinstall-package zvtes-py` there): `uv run` rebuilds from whatever is
-   on disk, and other sessions leave edits in the shared checkout. `nohup uv
+   (`git worktree add ../zero-vtes-pN <sha>`, `uv sync` there: a fresh
+   `.venv` builds the extension at that commit; `--reinstall-package
+   zvtes-py` is for a long-lived checkout whose engine changed): `uv run`
+   rebuilds from whatever is on disk, and other sessions leave edits in the
+   shared checkout. `nohup uv
    run python -m train.ppo --league true --resume <abs>/runs/pPREV/best.pt
    --opponents <prev bests> --out <abs>/runs/pN … > <abs>/runs/pN.log 2>&1
    &` with absolute paths into the main checkout's `runs/` (ignored).
@@ -39,14 +45,17 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    `truncated` ~0; `kl`, `clipfrac`, `entropy`; `bc_val_acc`; habits and
    nudges counts. Evaluation every 20 iterations (VPs + 5×wins at 4 and 5
    seats against the frozen opponents; `best.pt` moves only on a beaten
-   re-measure). After a crash: `--resume runs/pN/model.pt`.
+   re-measure). After a crash: `--resume runs/pN/model.pt` restarts at the
+   last evaluation + 1 (`model.pt` is saved at evaluations only: up to 19
+   iterations lost). Machine sleep stalls a run, it doesn't crash it.
 4. **Evaluate**: `uv run python -m train.export runs/pN/best.pt
    runs/pN/best.zvp`; `waste` against the baseline; `decks.rs` per deck and
    pN against three pPREV. A "pN run" note in DESIGN §11.2 with the numbers.
 5. **Serve** (the owner's call): redeploy engine.krcg.org with
-   `ZVTES_WEIGHTS` explicit; keep the previous weights as
-   `runs/served-prev-<date>-<run>.zvp`; bot nudges live in
-   `crates/server/src/games.rs`.
+   `ZVTES_WEIGHTS` explicit; name the served weights by their sha prefix in
+   the DESIGN note (the server records the weights' SHA-256 per game); keep
+   the previous weights as `runs/served-prev-<date>-<run>.zvp`; bot nudges
+   live in `crates/server/src/games.rs`.
 
 ## Taking a new engine
 
@@ -63,8 +72,9 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
 
 ## Learning from human games
 
-- **Harvest** (scheduled): `scripts/fetch_games.py --finished` pulls
-  finished games from the admin API into `data/server-records/` (ignored),
+- **Harvest** (scheduled): `scripts/fetch_games.py --finished` pulls the
+  finished games since its cursor (`data/server-records/.since`) from the
+  admin API into `data/server-records/` (ignored), one `<game id>.json` each,
   then `scripts/games_report.py` writes the report
   (`data/server-records/reports/<date>.md`): games by engine and weights;
   human win rate and VP per seat by bot profile and weights (small samples
@@ -76,15 +86,23 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
   fixture and a training input) by an explicit step: the owner's games,
   games the owner flags, human wins worth learning from. Check what a
   stranger's record holds before committing it.
-- **Use**: imitation (`--bc`, the owner's games weighted up; held-out games
-  named, never every Nth); starts from recorded positions (`--starts`);
-  an evaluation set of "positions where a human beat the bot", never
-  trained on; weakness mining: a recurring bad choice becomes a `waste`
-  counter first, a nudge only if it persists and the owner agrees (the owner
-  prefers emergent fixes).
+- **Use**: train on `data/records` (curated) plus an explicit list or a
+  filtered copy of harvested games, never the raw `data/server-records`
+  directory (`--bc`/`--starts` read every `*.json` there: bot-only,
+  abandoned and short games as starts, every stranger's seats as imitation
+  targets). Imitation (`--bc`): held-out games named with
+  `--bc-held-games` (it matches parts of file names: game ids for harvested
+  files, timestamps in `data/records`), never every Nth. Starts from
+  recorded positions (`--starts`). Weakness mining: a recurring bad choice
+  becomes a `waste` counter first, a nudge only if it persists and the owner
+  agrees (the owner prefers emergent fixes).
+- **To build** (training board): weighting the owner's games up in `--bc`
+  (today every human seat weighs the same, no per-player filter); an
+  evaluation set of "positions where a human beat the bot", never trained
+  on.
 
 ## Rules
 
 - Commit only on the owner's word; weights never in a commit.
-- Record every served network's sha (the server records it per game).
+- Served weights: named by sha prefix, previous ones kept (see Serve).
 - Log findings in `docs/findings.md` (bots: `E`-rows) and the training board.
