@@ -33,6 +33,8 @@ whenever something reaches us from Thomas or a PR moves.
   parentheses `( like this )` and French typography (` :`); `card.markers`
   are players' free strings, the only numeric counters `greenCounter` /
   `orangeCounter`; per-mutation log lines through `History.addGameMutation`.
+- **Told up front**: the owner warned Thomas in person about the AI
+  involvement in #282–#285 (2026-10-14).
 - **Unknown yet**: how he reviews, what he thinks of the engine game type.
   Record his first reactions to #282–#285 here.
 
@@ -69,8 +71,9 @@ tracks `fork/engine-game`.
 
 All 9 upstream commits carry `Co-Authored-By: Claude` trailers. #282–#284's
 bodies are 12–36 words, unmarked; #285's is ~300 words ending "Generated
-with Claude Code": reworking it, withdrawing it or adding a note from the
-owner is the owner's call (raised 2026-10-14).
+with Claude Code". The owner's decision (2026-10-14): all four stay as
+they are, waiting for Thomas's take; the owner told Thomas in person, up
+front, about the AI involvement.
 
 ## Recipes
 
