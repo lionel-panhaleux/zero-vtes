@@ -75,8 +75,9 @@ Grading-missed: <round> <rules-qa item>: <one line>  (a reading graded green/amb
 "test-weakened", "card-data-in-engine"), reused across commits so three
 of a kind can be counted. Then the usual attribution trailers.
 
-The branch reaches `main` through Z-main, who merges on the owner's word
-(CLAUDE.md "Sessions"): send it the branch, its tip and what it changes
+The branch reaches `main` through Z-main, who merges a line's request
+without asking the owner again (CLAUDE.md "Sessions"; the commit itself
+was on the owner's word): send it the branch, its tip and what it changes
 for the other lines, and tell those lines yourself ("Between lines").
 Z-main, after a merge: `python3 scripts/harness.py due`, and `upkeep`
 when it is due.

@@ -164,10 +164,14 @@ context window, so a session that restarts or compacts re-reads its board,
 its skill and its task notes.
 
 - **Z-main**: the engine line and the pilot. The owner's one contact: it
-  collects what the lines need from the owner (merge requests, red
-  readings, dated asks) into one digest, and relays the answers. The only
-  session that merges to `main`, pushes and deploys, each on the owner's
-  word (Z-play pushes its own fork branches, sc-change); it orders merges
+  collects what the lines need from the owner (red readings, dated asks,
+  pushes, deploys) into one digest, and relays the answers. The only
+  session that merges to `main`, pushes and deploys. A line's merge
+  request is trusted (owner, 2026-10-15): Z-main merges it without asking
+  the owner again, once it fast-forwards onto `main` (or rebases cleanly)
+  and carries its checks and `Egress:` trailers, and reports the merge in
+  the digest. Pushes and deploys stay on the owner's word (Z-play pushes
+  its own fork branches, sc-change). It orders merges
   that move the goldens and tells the lines what landed. It hands out rules-qa batch numbers, keeps the roadmap's ranking,
   runs `intake` for work across lines and `upkeep` when due, and runs the
   schedules a line builds (the daily harvest is Z-train's script, the

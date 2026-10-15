@@ -142,8 +142,8 @@ cards board (`docs/boards/cards.md`).
 Ask the red items with the commit request, before committing: a "no"
 lands in the same commit. Then rebase the round branch on `main`
 (regenerate `crypt.rs`/`library.rs`/`twda.rs` on conflict, never
-hand-merge them), send Z-main the branch for the merge on the owner's
-word, and tell the training session the vocabulary deltas (library n→m,
+hand-merge them), send Z-main the branch to merge (CLAUDE.md "Sessions": the
+commit is on the owner's word, the merge then needs no second ask), and tell the training session the vocabulary deltas (library n→m,
 vampires, kept decks) and any new encoder id. The round's rules-qa batch
 number comes from Z-main, asked before the batch is written (CLAUDE.md
 "Sessions").

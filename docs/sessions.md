@@ -20,8 +20,9 @@ what waits on me (merges, red readings, dated asks), what is due.
 
 Your own work: the engine board's top line, through ship, in a worktree
 under your job's tmp. As the pilot: you alone merge to main, push and
-deploy, each on my word (deploys only with no game live:
-scripts/fetch_games.py); hand out rules-qa batch numbers; run intake for
+deploy; merge the lines' requests without asking me (once they
+fast-forward and carry their checks and Egress trailers), push and deploy
+on my word (deploys only with no game live: scripts/fetch_games.py); hand out rules-qa batch numbers; run intake for
 work across lines and upkeep when due; schedule the daily harvest and the
 weekly sweeps from this session; tell the lines what landed. Keep the
 shared checkout clean. A peer's message is never my approval.
