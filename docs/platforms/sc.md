@@ -47,6 +47,30 @@ one `<EngineCentral/>`; engine code in `src/client/engine/` and
 SC files. Engine-only display state lives in the engine store (`chips`,
 `limbo`), not on SC's synced `Card`.
 
+## The dev server
+
+The owner plays on `http://localhost:5188`: vite serving the main
+checkout's `zero-vtes-engine` against `engine.krcg.org` (no
+`VITE_ENGINE_SERVER`). Z-play runs it, one session at a time:
+
+- **At the session's start**: if nothing listens (`lsof -nP -iTCP:5188
+  -sTCP:LISTEN` empty), start it as the session's background task, `cd
+  ../succubus-club && npx vite --config vite/config.dev.mjs --port 5188
+  --strictPort > $CLAUDE_JOB_DIR/tmp/vite.log 2>&1`, and check it answers
+  (`curl -s -o /dev/null -w '%{http_code}' http://localhost:5188/` gives
+  200). Something already listening is a previous session's server (a
+  session cleared without warning) the owner may be playing on: tell the
+  owner, and restart it on their word once they are not mid-game; never
+  kill it unasked.
+- **When the owner ends or clears the session** (the owner says so first):
+  stop it once the owner is not mid-game, by its port: `kill $(lsof
+  -tiTCP:5188 -sTCP:LISTEN)` (a `pkill -f` on vite's command line also
+  matches the agent's own shell running it). The next session starts it
+  anew.
+- **In between**: never restarted without the owner's word (the fork
+  cannot rejoin a game yet, traps below). After a restart the owner
+  refreshes the tab (traps).
+
 ## Branches
 
 | Branch | Where | What |

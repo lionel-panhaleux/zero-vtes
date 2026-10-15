@@ -55,9 +55,11 @@ branches, PRs, recipes, traps) and update it as you learn.
 2. Fix on a worktree of `zero-vtes-engine`; checks: `npx vue-tsc --noEmit`,
    `npx eslint`, `npx prettier --check` (SC has no test suite). Agents
    don't start vite as a check (AGENTS.md); the owner's own dev server on
-   :5188 is the owner's loop, restarted only on their word. A visual check,
-   when the owner asks for one, runs against a LOCAL engine server (test
-   games on engine.krcg.org pollute the recorded corpus).
+   :5188 is the owner's loop, run by Z-play from its session's start to
+   its end (sc.md "The dev server"), restarted in between only on their
+   word. A visual check, when the owner asks for one, runs against a LOCAL
+   engine server (test games on engine.krcg.org pollute the recorded
+   corpus).
 3. Fast-forward `zero-vtes-engine` (rule 4); tell the owner what to look at.
 4. Upstream: fold into the `engine-game` re-cut (sc.md recipe) or a
    carve-out branch from `origin/master`; vue-tsc at every commit; show the

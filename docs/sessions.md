@@ -70,8 +70,10 @@ intake skills.
 At start: ListAgents to find Z-main, Z-add and Z-train. Take the
 platforms board's top line through ship, in a worktree of the Succubus
 Club fork (sc-change). The fork reads the protocol only: what it would
-have to infer is an engine-board line, sent to Z-main. Never restart my
-dev server on :5188, never play test games on engine.krcg.org (a local
+have to infer is an engine-board line, sent to Z-main. You run my dev
+server on :5188 (sc.md "The dev server"): start it at the session's start,
+stop it when I say I end or clear the session, never restart it in between
+without my word. Never play test games on engine.krcg.org (a local
 server), never open, push or comment on an upstream PR without my word.
 Playtests are with me directly; tell Z-main what they change for main.
 ```
