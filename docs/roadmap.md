@@ -31,9 +31,8 @@ What it still needs:
    whether to chase Thomas).
 2. **The best bot served**: p11 finished, measured and served if it beats
    p10 (training: p11 to its end; p11's two questions measured).
-3. **Games that survive the server**: a refresh rejoins as a dropped
-   socket does (platforms: Resume after a page refresh); later, a game
-   rebuilt after a restart (engine: A game survives a restart).
+3. **Games that survive the server**: a game rebuilt after a restart
+   (engine: A game survives a restart).
 4. **Complete records** (engine: Records complete).
 5. **The loop on testers' games**: the harvest scheduled and its report
    read, promotion to `data/records`, the human win rate as the measure

@@ -68,8 +68,8 @@ checkout's `zero-vtes-engine` against `engine.krcg.org` (no
   matches the agent's own shell running it). The next session starts it
   anew.
 - **In between**: never restarted without the owner's word (a reload
-  loses the fork's game, traps below). After a restart the owner
-  refreshes the tab (traps).
+  joins the fork's game again but loses its log, traps below). After a
+  restart the owner refreshes the tab (traps).
 
 ## Branches
 
@@ -124,14 +124,22 @@ front, about the AI involvement.
   pushed with `git push fork <branch>` lands on the fork's `master`. Push
   with an explicit refspec (`git push fork <b>:refs/heads/<b>`) and check
   `git config branch.<b>.merge` first.
-- The owner may be mid-game on :5188: never edit the served checkout then
-  (vite reloads the page, and the fork keeps the seat token in memory
-  only, so a reload loses the game; a dropped socket alone is joined again,
+- The owner may be mid-game on :5188: never edit the served checkout
+  then (vite reloads the page: the game is joined again, its seat kept
+  for the tab in `sessionStorage`, `host.ts` `resume`, but the log
+  before the reload is lost; a dropped socket alone is joined again,
   `host.ts` `rejoin`, for a minute, or until the server answers 404: the
-  game gone, which a server older than `server-restart-ended` answers 400,
-  so a redeploy shows a minute of retries). Work in a worktree under the
-  job's tmp; fast-forward the checkout only when the admin API shows no
-  live game (or the owner says so).
+  game gone). Work in a worktree under the job's tmp; fast-forward the
+  checkout only when the admin API shows no live game (or the owner says
+  so).
+- A refresh joins with a plain `join` (no `after`): the server answers
+  `joined` (seats, the view) and the pending decision, and the table is
+  built from that view as from any other (the projection creates the
+  cards it has not seen). The seat is forgotten when the game ends, when
+  the user leaves it (`close`) and when the server answers 404 (an
+  `EngineGone` alert on the menu, as for an `over` refusal); a server out
+  of reach, or a socket dropped before `joined`, keeps it, so a later
+  refresh tries again.
 - After a vite restart the owner's tab can ask for long-deleted modules
   (EnginePassButton.vue, deleted 3 days earlier): a refresh fixes it.
 
