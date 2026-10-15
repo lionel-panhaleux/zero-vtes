@@ -48,7 +48,7 @@ What it still needs:
    (cards); diablerie's equipment (engine).
 8. **What players asked for**: the cards their refused decks named,
    counted (engine: Demand for cards counted), to steer the next rounds
-   (cards: Round choice as a script).
+   (cards: Round 13).
 
 Not needed for the beta but in the same order: the repository open to
 outsiders (engine), the demo video and the proposal to Thomas (platforms).
@@ -118,8 +118,8 @@ protocol versioned with a changelog and a schema-diff check.
 
 ## Deferred by the owner
 
-Put off on 2026-10-14 ("a later step"), not on any board; the owner
-brings each back:
+Put off by the owner (2026-10-14: "a later step", unless dated otherwise),
+not on any board; the owner brings each back:
 
 - Guidance vs advantage written down: protocol §8 gains the rule (the host
   may hide what play leaves out of its moment and help a player act; never
@@ -137,6 +137,10 @@ brings each back:
 - Training: the early survival shaping of DESIGN §5 (kept, tried or
   dropped) and strength levels players pick (named server profiles), to
   discuss on the training side.
+- New-set intake (cards): the recipe for a set KRCG publishes (regenerate,
+  list the new ids, window-matrix drafts, a round of them) as a step of
+  add-cards §1; off the cards board until KRCG announces a set, its
+  done-condition needing a real release (2026-10-15).
 
 ## Later tracks
 

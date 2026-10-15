@@ -8,22 +8,27 @@ Docs: `docs/engine.md` (§2–5, the reference by mechanism),
 (`../zero-vtes-rN`). This board holds the card definitions, their readings
 and the ledger; a rulebook mechanism no card carries is on the engine board.
 
-Pool (KRCG `vtes.json` of 2026-06-30): crypt 498 of 1,785 in the engine
-(1,765 vampires + 20 Imbued), library 760 of 2,364; 2 crypt and 18 library
-cards banned and out of scope (owner, 2026-10-14). The coverage report
-line makes these numbers a script's.
+Pool (`scripts/coverage.py`, KRCG `vtes.json` of 2026-06-30; 2 crypt and
+18 library cards banned, out of scope, owner 2026-10-14): crypt 498 of
+1,783 (27.9%), library 760 of 2,346 (32.4%); the Imbued, Powers and
+Convictions 0; 33 of 109 sets complete. TWDA decks in the pool 457 of
+4,538, kept 120; recent (2025+) 229 of 476 in the pool, kept 77. Demand:
+none counted yet (the engine board's "Demand for cards counted").
 
 A shrinking list (CLAUDE.md "Harness"): one line an ask, its done-condition
 and the docs it changes; done is deleted; order is priority; the only
-state is `[doing: <session>]`. Order: wrong behaviour in cards already
-defined first (beta games meet them), then what makes the loop run without
-the owner (objective B), then the owner-review backlog a batch at a time,
-then the long tail.
+state is `[doing: <session>]`. Order (owner, 2026-10-15: "you're supposed
+to add cards"): wrong behaviour in cards already defined first (beta games
+meet them), then a round of cards, then one review line before the next
+round; the cleanup lines ride with the rounds that meet their cards (the
+ship skill's scope rule). Rounds go set by set when the decks' metric
+stops paying (owner, 2026-10-15: "fine with switching to a set-by-set mode
+when you feel it's best").
 
-- **Coverage report**: a script over `vtes.json` and the generated tables printing cards defined vs the full pool by set and type, TWDA decks in the pool and kept, and the ids players asked for (the engine board's "Demand for cards counted"). Done when add-cards §1 runs it and this header quotes its output. Docs: add-cards §1, this header.
-- **Round choice as a script**: add-cards §1's greedy simulation (today a monkeypatched `g.table_ids` each round) printing the steps table (bundle → kept, recent kept, cost per deck), the ceiling check and the players' demand; the owner only picks the cut. Done when add-cards §1 calls the script instead of describing the patch. Docs: add-cards §1.
-- **New-set intake**: when KRCG publishes a set, the recipe (regenerate, list the new ids, window-matrix drafts, a round of them) as a step of add-cards §1. Done when the step is in add-cards §1 and has been tried on a release. Docs: add-cards §1.
+- **Round 13** [doing: Z-add]: the owner's cut among (a) the 2019–2024 products completed, set by set (Thirtieth Anniversary 6, Twenty-Fifth Anniversary 9, First Blood 24, Sabbat Preconstructed 27: 66 cards; every V5 product is complete) and (b) the TWDA greedy steps (recent kept 77 → 78 for 7 cards, 81 for ~25, 84 for ~50); add-cards §1's greedy simulation (today a monkeypatched `g.table_ids`) becomes a script printing both, the ceiling check and the demand, the owner only picking the cut. Done when the round is on `main` with its `Grading:` trailer and add-cards §1 calls the script. Docs: rules-qa Batch 76, rules-digest, DESIGN §11 (slice row, count line), engine.md for a new mechanism, add-cards §1.
 - **Owner-review backlog 1/5, Batch 62** (26 readings: 62.2, 62.3, 62.6–62.12, 62.14–62.20, 62.22–62.29, 62.31, 62.32): graded per add-cards §4 (a blind second reader), green and amber recorded, red asked as scenarios. Done when each reading is stated settled in rules-qa or asked. Docs: rules-qa, rules-digest §24.1.
+- **The Imbued** (owner, 2026-10-14: in "every card"): the 20 Imbued and their library (14 Powers, 3 Convictions), a round with the mechanism (conviction, the Imbued's actions). Done when the round is on `main`. Docs: engine.md (a new mechanism), as a round.
+- **Hard cards** (owner): Outside the Hourglass and Rewind Time with Shalmath; a sterile baron to close a test loop. Done when they are in a round on `main`. Docs: as a round.
 - **Owner-review backlog 2/5, Batches 64, 65, 67** (16: 64.1–64.6, 64.9–64.11, 65.1–65.3, 67.2, 67.3, 67.5, 67.7), as 1/5. Done and docs as 1/5.
 - **Owner-review backlog 3/5, Batch 68** (14: 68.3–68.9, 68.11–68.17), as 1/5. Done and docs as 1/5.
 - **Owner-review backlog 4/5, Batch 69** (14: 69.1–69.11, 69.13–69.15), as 1/5. Done and docs as 1/5.
@@ -38,6 +43,4 @@ then the long tail.
 - **The cheap latent edges fixed now**: `ImmuneToDirectedActions` in `ability_targets`; `Effect::PoolToHostBlood` ousting a non-active seat; a cancelling ability's mark after its terms; directed actions naming several Methuselahs (`ActionCtx::directed_seats`, Shadow Cast). Done when each is fixed with a test or stays in DESIGN §11.3 as waiting for a pool card. Docs: DESIGN §11.3.
 - **Tests for cards covered by fuzz or code paths only**: Rapid Change [PRO], Wolf Claws [PRO], Rötschreck's range check, Powerbase: Savannah with Deep Song's target, Saatet-ta's stealth and intercept locks, Carlton Van Wyk's strike and dodge. Done when each has a test and DESIGN §11.3's legacy-additions list is empty. Docs: DESIGN §11.3.
 - **My Kin Against the World's Laibon clause checked**, Laibon being in the pool since 16s. Done when a test plays the clause. Docs: DESIGN §11.3 (inert clauses).
-- **Hard cards** (owner): Outside the Hourglass and Rewind Time with Shalmath; a sterile baron to close a test loop. Done when they are in a round on `main`. Docs: as a round.
-- **The Imbued** (owner, 2026-10-14: in "every card"): the 20 Imbued and their library (14 Powers, 3 Convictions), a round with the mechanism (conviction, the Imbued's actions). Done when the round is on `main`. Docs: engine.md (a new mechanism), as a round.
 - **Advanced-rules and KRCG-rulings corrections**, listed for `../vtes-advanced-rules` and vtes-rulings (no engine change): K11 (the "during X" template), K12 (§4.3.5 vs §2.4.1), K13 (Thirst), K19 (Annabelle, upstream #11), K28 (a gun's maneuver, §4.3.1 vs §4.10.1), K34 (a dangling reference). Done when the owner has the list to file upstream. Docs: rules-digest §23.

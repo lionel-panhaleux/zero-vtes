@@ -22,6 +22,12 @@ readings, commit checklist): a round outlives one context window.
 
 ## 1. Choose the round
 
+Start from `python3 scripts/coverage.py <vtes.json> --twda <twda.json>
+[--demand <counts.json>]`: the pool's coverage by type (and by set with
+`--sets`), the TWDA decks in the pool and kept, and the ids players asked
+for most (the server's `/admin/unsupported` counts, once served). Its
+summary goes in the cards board's header at the round's end.
+
 The owner's metric (2026-10-14): recent (2025+) TWDA decks entering the
 *kept* corpus. Simulate `scripts/gen_twda.py` with candidate cards appended
 (monkeypatch `g.table_ids`); greedy over each recent deck's missing set,
