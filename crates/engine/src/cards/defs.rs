@@ -10208,10 +10208,11 @@ pub static DISARM: CardDef = CardDef {
     ..CARD
 };
 
-const DISARM_REQUIRES: [Requirement; 5] = [
+const DISARM_REQUIRES: [Requirement; 6] = [
     Requirement::RangeClose,
     Requirement::ActorReady,
     Requirement::OpponentVampire,
+    Requirement::OpponentPresent,
     Requirement::InflictedMoreThisRound,
     Requirement::OpponentWithout(Holding::Named("Disarm")),
 ];
@@ -13499,9 +13500,9 @@ pub static DONNYBROOK: CardDef = CardDef {
 /// minion is not. The opposing minion's controller burns 2 pool." Each
 /// mode is its Discipline: once per combat each, per Anarch. [cel] may
 /// come before or after a limited additional strike (LSJ 20001206). The
-/// opposing minion is not ready once the round's damage sent it to torpor:
-/// [obt] is played in the end-of-round window that still opens (rules-qa
-/// 44.1).
+/// opposing minion is not ready once the round's damage sent it to torpor
+/// or burned it: [obt] is played in the end-of-round window that still
+/// opens (rules-qa 44.1, 75.3).
 pub static HELL_FOR_LEATHER: CardDef = CardDef {
     name: "Hell-for-Leather",
     modes: &[
@@ -23553,6 +23554,7 @@ pub static PULLED_FANGS: CardDef = CardDef {
             Requirement::RangeClose,
             Requirement::ActorReady,
             Requirement::OpponentVampire,
+            Requirement::OpponentPresent,
             Requirement::InflictedMoreThisRound,
             Requirement::OpponentWithout(Holding::Named("Pulled Fangs")),
         ],

@@ -2375,7 +2375,12 @@ round (rulebook "Combat").
 - Hell-for-Leather [obt] ("only usable if this Anarch is ready and the
   opposing minion is not"): in the end-of-round window, the round's damage
   applied — the only point a combat leaves the opposing minion not ready
-  with combat cards still playable; once per combat, per Anarch (44.1).
+  (sent to torpor or burned) with combat cards still playable; once per
+  combat, per Anarch (44.1, 75.3).
+- Against an opposing minion the round burned: a card put on it (Disarm,
+  Pulled Fangs) is not offered, no target left (75.1); one reading what the
+  round did and targeting elsewhere is (Taste of Vitae, LSJ 20031201-2;
+  Street Cred, 75.2), and so is Hell-for-Leather [obt] (44.1).
 - Orgy of Blood: X is the ally card's printed pool or blood cost; "each
   vampire you control" in torpor too, up to capacity; played in the
   end-of-round window of the round the ally burned (70.15).

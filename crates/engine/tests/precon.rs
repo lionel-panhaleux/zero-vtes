@@ -14651,6 +14651,28 @@ fn taste_of_vitae_is_played_when_the_opponent_was_burned() {
     assert!(taste, "Taste of Vitae offered");
 }
 
+// Disarm: "Put this card on the opposing vampire and send them to torpor":
+// once the round's damage burned them, no vampire is left to put it on and
+// it is not offered (rules-qa 75.1); sent to torpor instead, they still are
+// one (RTR 20030519).
+#[test]
+fn disarm_is_not_offered_against_a_burned_vampire() {
+    for (blood, offered) in [(0, false), (5, true)] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), crypt("Gnaeus Aemilius Augustinus"), 6, false);
+        e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+        let z = e.add_minion(SeatId(1), plain("", "", 1), blood, false);
+        hand(&mut e, 0, &["Torn Signpost", "Wolf Claws", "Disarm"]);
+        bleed_blocked(&mut e, a, z);
+        pick_when(&mut e, play(0, 1, a)); // Torn Signpost [POT]: strength 3
+        pick_when(&mut e, play(0, 0, a)); // Wolf Claws [pro]: aggravated hands
+        let disarm = offered_before(&mut e, play(0, 0, a), SeatId(0), WindowLabel::MinionPhase);
+        let m = &e.state.minions[z.index()];
+        assert_eq!((m.in_play, m.in_torpor), (offered, offered), "{blood}");
+        assert_eq!(disarm, offered, "{blood}");
+    }
+}
+
 // [PIB 20130303] Torn Signpost: "Sets base strength." Heroic Might's +1
 // strength still adds to it: 2 + 1.
 #[test]

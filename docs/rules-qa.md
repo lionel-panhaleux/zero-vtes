@@ -72,11 +72,11 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Periodicity ("during X" = once per X, once each …)** — 6.6, 7.4, 9.6, 10.4, 11.2, 15.1, 15.2, 16.1, 36.3, 36.4, 37.1, 38.8, 42.3, 42.9
 - **No-repeat-action, "same action"** — 1.4, 6.2, 16.6, 23.2, 25.4, 32.1
 - **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1, 55.3, 55.4, 55.5, 56.1, 58.1, 58.13, 73.3, 73.4
-- **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1, 57.10
+- **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1, 57.10, 75.1
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
 - **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7, 53.6, 53.8, 57.1, 57.2, 61.2
 - **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3, 55.7, 66.2, 72.1–72.4, 73.8
-- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8, 55.1, 55.2, 55.8, 57.3, 57.4, 58.2, 58.17, 58.18, 59.2, 59.17, 60.11, 61.1, 62.1, 63.4, 63.6, 63.8
+- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8, 55.1, 55.2, 55.8, 57.3, 57.4, 58.2, 58.17, 58.18, 59.2, 59.17, 60.11, 61.1, 62.1, 63.4, 63.6, 63.8, 75.1–75.3
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9
 - **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6, 54.3, 54.4, 54.7, 55.7, 56.2, 58.6
@@ -1547,4 +1547,14 @@ Slice 16x. Graded per the add-cards skill: a blind second reader per nine cards,
 
 **74.12** Tainted Spring: the animal brought in keeps the bonus while in play — an ally +1 strength, a damage-dealing retainer +1 damage of its kind (close-only stays close-only), a retainer dealing none nothing; [ANI] +1 starting life. Clandestine Contract: The Black Throne pays for it as for any contract. (Tests tainted_spring_superior_strengthens_a_recruited_animal_ally, tainted_spring_adds_to_a_retainers_damage, clandestine_contract_feeds_the_black_throne.)
 
-**74.13** Pulled Fangs played after a round ended early with the opposing vampire sent to torpor (RTR 20030519 allows the play): the card goes on him and its 1 damage lands on him in torpor — owner (2026-10-15): "if it goes to torpor from aggravated damage, it could matter. In that case Pulled Fang's damage must land on them even in torpor": a vampire sent to torpor by aggravated damage keeps his blood and mends it; a vampire in torpor is wounded (rulebook "Wounded"), so unmended normal damage leaves him as he is and aggravated burns. (Tests pulled_fangs_lands_on_a_vampire_sent_to_torpor, pulled_fangs_damage_misses_a_burned_vampire.)
+**74.13** Pulled Fangs played after a round ended early with the opposing vampire sent to torpor (RTR 20030519 allows the play): the card goes on him and its 1 damage lands on him in torpor — owner (2026-10-15): "if it goes to torpor from aggravated damage, it could matter. In that case Pulled Fang's damage must land on them even in torpor": a vampire sent to torpor by aggravated damage keeps his blood and mends it; a vampire in torpor is wounded (rulebook "Wounded"), so unmended normal damage leaves him as he is and aggravated burns. (Tests pulled_fangs_lands_on_a_vampire_sent_to_torpor, pulled_fangs_is_not_offered_against_a_burned_vampire.)
+
+## Batch 75 — End-of-round cards against a burned opponent: readings graded (Claude, 2026-10-15; owner, 2026-10-15: 75.2 confirmed)
+
+The end-of-round window opens though the round's damage burned the opposing minion (RTR 20030519). Graded per the add-cards skill, a blind second reader on the cards' text; where the reads disagreed (75.3) a ruling settles it.
+
+**75.1** Disarm, Pulled Fangs: a card "put on the opposing vampire" is not offered at the end of a round whose damage burned that vampire: no vampire is left to put it on (17.4: a play without its target is masked); one sent to torpor is still there (RTR 20030519, 74.13). `Requirement::OpponentPresent`. Green (17.4; both reads agree). (Tests disarm_is_not_offered_against_a_burned_vampire, pulled_fangs_is_not_offered_against_a_burned_vampire, every_card_put_on_the_opponent_needs_it_present.)
+
+**75.2** Street Cred, Taste of Vitae: what they read is what the round did (damage inflicted, blood lost), and their target is not the opponent: offered when the opponent burned. Taste of Vitae green (LSJ 20031201-2); Street Cred amber, on that precedent, both reads agreeing; confirmed (owner, 2026-10-15: "yes"). (Tests taste_of_vitae_is_played_when_the_opponent_was_burned, street_cred_is_played_when_the_opposing_minion_burned.)
+
+**75.3** Hell-for-Leather [obt]: "Only usable if this Anarch is ready and the opposing minion is not. The opposing minion's controller burns 2 pool", the opposing minion burned this round: played, its controller burns 2 pool — settled by 44.1 (owner-confirmed: "sent to torpor or burned"). Green. The blind second reader read it unplayable (a burned minion not "not ready", no controller); 44.1 stands. (Test hell_for_leather_obt_burns_pool_against_a_burned_minion.)

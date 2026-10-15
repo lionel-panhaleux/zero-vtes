@@ -2852,6 +2852,49 @@ fn street_cred_feeds_a_younger_uncontrolled_vampire() {
     assert_eq!(e.state.seats[1].uncontrolled[0].counters, 2);
 }
 
+// Street Cred against a minion the round burned: its condition is what this
+// vampire inflicted, its target its own uncontrolled vampire; still offered
+// (rules-qa 75.2, as Taste of Vitae, LSJ 20031201-2), the round ended early
+// [RTR 20030519].
+#[test]
+fn street_cred_is_played_when_the_opposing_minion_burned() {
+    let mut e = game(2);
+    let a = e.add_ally(SeatId(0), find_library("Bone Shambler"));
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let z = e.add_minion(SeatId(1), vampire_with("POT", 0), 6, false);
+    let cap = CRYPT[e.state.minions[z.index()].crypt_card().unwrap() as usize].capacity;
+    let young = CRYPT
+        .iter()
+        .enumerate()
+        .position(|(i, c)| c.capacity < cap && cards::vampire(i as u16).is_none())
+        .expect("a younger vampire") as u16;
+    e.state.seats[1]
+        .uncontrolled
+        .push(zvtes::state::UncontrolledSlot {
+            card: young,
+            copy: Default::default(),
+            counters: 1,
+            banished: None,
+        });
+    let gun = in_play(&mut e, 1, ".44 Magnum", Some(z));
+    hand(&mut e, 1, &["Street Cred"]);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, block(z));
+    pick_when(&mut e, use_at(gun, 0, None, Target::None));
+    pick_when(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: Some(z),
+            target: Target::Uncontrolled(0),
+        },
+    );
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[a.index()].in_play, "burned");
+    assert_eq!(e.state.seats[1].uncontrolled[0].counters, 2);
+}
+
 // Erebus Mask: "The Harbinger of Skulls with this equipment gets +1
 // stealth": The Capuchin's bleed is a +1 stealth action.
 #[test]

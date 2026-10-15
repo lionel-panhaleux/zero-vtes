@@ -3573,20 +3573,18 @@ impl Engine {
             Effect::WeatherDamage { escalate } => c.weather.push((c.round, escalate)),
             // Pulled Fangs: not strike damage, offered to prevention before
             // it lands, the end of the round then resumed (rules-qa 74.1);
-            // on a vampire sent to torpor this round too (74.13), never on
-            // one burned.
+            // on a vampire sent to torpor this round too (74.13); one
+            // burned is no target (`Requirement::OpponentPresent`).
             Effect::DamageOpponentNow(n) => {
                 let (from, to) = (c.sides[i].minion, c.sides[1 - i].minion);
-                if self.state.minions[to.index()].present() {
-                    let n = n.saturating_sub(self.state.damage_reduction(to, from));
-                    if n > 0 {
-                        let o = &mut c.sides[1 - i];
-                        o.pending.normal += n;
-                        o.preventing = true;
-                        c.others_prevented = false;
-                        c.end_of_round_damage = true;
-                        c.step = Step::Prevent(1 - i);
-                    }
+                let n = n.saturating_sub(self.state.damage_reduction(to, from));
+                if n > 0 {
+                    let o = &mut c.sides[1 - i];
+                    o.pending.normal += n;
+                    o.preventing = true;
+                    c.others_prevented = false;
+                    c.end_of_round_damage = true;
+                    c.step = Step::Prevent(1 - i);
                 }
             }
             // At once, where it lands: the flow may move on (an oust).

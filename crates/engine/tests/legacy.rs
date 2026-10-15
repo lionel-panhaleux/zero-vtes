@@ -364,6 +364,28 @@ fn hell_for_leather_dodges_strikes_again_and_burns_pool_once_each_discipline() {
     assert_eq!(pool(&e, 1), 30 - 2);
 }
 
+// Hell-for-Leather [obt]: "Only usable if this Anarch is ready and the
+// opposing minion is not": a blocking ally burned by the round's hand strike
+// is not ready (rules-qa 44.1, "sent to torpor or burned"; 75.3), its
+// controller burns 2 pool.
+#[test]
+fn hell_for_leather_obt_burns_pool_against_a_burned_minion() {
+    let mut e = Engine::bare(2);
+    e.state.turn = 4;
+    let a = e.add_minion(SeatId(0), find_card("Alicia Cortez"), 4, false);
+    e.state.minions[a.index()].sect_override = Some(Sect::Anarch);
+    e.add_minion(SeatId(0), plain("Brujah", &[], 0), 4, false);
+    let z = e.add_ally(SeatId(1), find_library("Bone Shambler"));
+    e.add_minion(SeatId(1), plain("Ventrue", &[], 0), 4, false);
+    hand(&mut e, 0, &["Hell-for-Leather"]);
+    pick(&mut e, bleed(a));
+    pick(&mut e, block(z));
+    pick_when(&mut e, play_at(0, 2, Some(a), Target::None));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[z.index()].in_play, "burned");
+    assert_eq!(pool(&e, 1), 30 - 2);
+}
+
 fn has(c: &CryptCard, tag: &str) -> bool {
     c.disciplines.iter().any(|d| d.eq_ignore_ascii_case(tag))
 }

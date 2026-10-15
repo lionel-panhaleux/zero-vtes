@@ -1460,6 +1460,9 @@ pub enum Requirement {
     /// The actor's opposing combatant is not ready (Hell-for-Leather
     /// [obt]).
     OpponentNotReady,
+    /// The actor's opposing combatant is still in play, not burned
+    /// (Disarm, Pulled Fangs: a card put on it; rules-qa 75.1).
+    OpponentPresent,
     /// The target Methuselah is about to be ousted, waiting on a Life
     /// Boon (`Seat::oust_pending`).
     TargetSeatOusting,
@@ -6070,6 +6073,9 @@ pub fn holds(
         Requirement::OpponentNotReady => combat
             .zip(side)
             .is_some_and(|(c, i)| !st.minions[c.sides[1 - i].minion.index()].ready()),
+        Requirement::OpponentPresent => combat
+            .zip(side)
+            .is_some_and(|(c, i)| st.minions[c.sides[1 - i].minion.index()].present()),
         Requirement::ActorNotVotingFor => {
             political.zip(actor).is_some_and(|(r, m)| !r.voting_for(m))
         }

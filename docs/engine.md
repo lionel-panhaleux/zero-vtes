@@ -201,6 +201,8 @@ tables; `limit_slot` matches every `Limit`.
   `KNOWN_GAPS` is empty (an entry nothing matches fails as stale);
 - `every_ability_cost_carries_its_requirement` (same file): every ability
   cost carries its `implied_requirement`;
+- `every_card_put_on_the_opponent_needs_it_present` (same file): a mode
+  with `PutOnOpponent` carries `OpponentPresent` (rules-qa 75.1);
 - `every_card_is_defined_and_its_modes_match_the_reviewed_windows`
   (`tests/plays.rs`): every library card defined, every vampire definition
   resolving to its crypt card, the modes' windows equal to
@@ -669,7 +671,8 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   ordered step is a two-seat window with impulse reset (rules-qa 1.2);
   strike choice and prevention are single-seat offers. A combatant no longer
   ready ends the round at once, the end-of-round window still opening
-  (rulebook step 7).
+  (rulebook step 7). A card there put on the opposing minion carries
+  `Requirement::OpponentPresent`: a burned one is no target (rules-qa 75.1).
 - Only combat cards are played during combat — no modifiers, reactions or wakes
   (spec §4.1.3). A combat is part of its action: `Engine::action` and its layers
   stay in force.
@@ -756,7 +759,7 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 - Damage in the end-of-round window (Pulled Fangs' `DamageOpponentNow`):
   pending, a prevention step, then the window again
   (`CombatCtx::end_of_round_damage`); on a vampire sent to torpor that
-  round too (wounded, above), never on one burned.
+  round too (wounded, above); one burned is no target (`OpponentPresent`).
 - The Book of Going Forth by Night: `Engine::burn_minion` first offers an
   ally opposing a bearer of `Modifier::HostStealsOpposingAllyOnBurn` to
   `book_takes_ally` (stolen, locked, 1 life; the round over, no press).

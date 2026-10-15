@@ -240,6 +240,7 @@ impl Requirement {
             | R::OpponentVampire
             | R::OpponentVampireNotOlder
             | R::OpponentNotReady
+            | R::OpponentPresent
             | R::OwnCombatantFacesAggravatedStrike
             | R::ActingCombatantYourVampire
             | R::ActingByPredator
@@ -793,5 +794,28 @@ mod tests {
         }
         assert!(checked > 100, "{checked} costs walked");
         assert!(failures.is_empty(), "{}", failures.join("\n"));
+    }
+
+    /// A card put on the opposing minion needs it there: no target once it
+    /// burned (rules-qa 75.1).
+    #[test]
+    fn every_card_put_on_the_opponent_needs_it_present() {
+        let mut checked = 0;
+        for d in DEFS.iter() {
+            for m in d
+                .modes
+                .iter()
+                .filter(|m| m.effects.contains(&Effect::PutOnOpponent))
+            {
+                checked += 1;
+                assert!(
+                    m.requires.contains(&Requirement::OpponentPresent),
+                    "{}: {:?} without OpponentPresent",
+                    d.name,
+                    m.effects
+                );
+            }
+        }
+        assert!(checked >= 3, "{checked} modes walked");
     }
 }

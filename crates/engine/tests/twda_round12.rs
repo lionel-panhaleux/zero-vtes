@@ -1593,11 +1593,11 @@ fn pulled_fangs_damage_may_be_prevented() {
     assert_eq!(blood(&e, z), 4 - 3, "the 1 prevented");
 }
 
-// Pulled Fangs after Body Flare burned the opposing vampire: its 1 damage
-// lands on no one (rules-qa 74.13 lets in a vampire in torpor only), and the
-// burned vampire is not sent to torpor.
+// Pulled Fangs after Body Flare burned the opposing vampire: no vampire is
+// left to put it on, it is not offered (rules-qa 75.1); the burned vampire
+// is not sent to torpor.
 #[test]
-fn pulled_fangs_damage_misses_a_burned_vampire() {
+fn pulled_fangs_is_not_offered_against_a_burned_vampire() {
     let mut e = game(2);
     let a = e.add_minion(SeatId(0), vampire_with("PRO", 1), 6, false);
     e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
@@ -1607,8 +1607,7 @@ fn pulled_fangs_damage_misses_a_burned_vampire() {
     pick(&mut e, bleed(a));
     pick_when(&mut e, block(z));
     pick_when(&mut e, play(0, 0, a));
-    pick_when(&mut e, play(0, 0, a));
-    request(&mut e);
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, play(0, 0, a));
     let m = &e.state.minions[z.index()];
     assert!(!m.in_play && !m.in_torpor, "burned, not in torpor");
 }
