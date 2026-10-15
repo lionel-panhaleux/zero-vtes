@@ -179,7 +179,10 @@ vampire text is not layered: `GameState::printed_mod` reads it live
 ## 3. Enforced and conventional
 
 **Enforced by the compiler.** `Effect::family` and `Requirement::slots`
-are exhaustive; `Release`, `TimedStat`, `Expiry` are enums indexing their
+are exhaustive; `Effect::prevents` is classified in `family`'s own match
+(the one prevention class, never a list by hand; the host's
+`every_prevention_is_told` fails for one it has no arm for);
+`Release`, `TimedStat`, `Expiry` are enums indexing their
 tables; `limit_slot` matches every `Limit`.
 
 **Enforced by tests over every definition** (unit tests in the engine's

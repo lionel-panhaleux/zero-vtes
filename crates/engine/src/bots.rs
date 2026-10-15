@@ -88,6 +88,7 @@ pub(crate) fn does(card: u16, mode: u8) -> Does {
         return d;
     };
     for e in m.effects {
+        d.prevent |= e.prevents();
         match e {
             Effect::BleedMod { .. } | Effect::BleedModX { .. } => d.bleed = true,
             Effect::AddStealth(_) => d.stealth = true,
@@ -101,12 +102,6 @@ pub(crate) fn does(card: u16, mode: u8) -> Does {
             | Effect::AdditionalStrikes { .. }
             | Effect::AdditionalStrikesX { .. }
             | Effect::AdditionalStrikeOnly { .. } => d.strike = true,
-            Effect::Prevent(_)
-            | Effect::PreventXPlus(_)
-            | Effect::PreventNonAggravated(_)
-            | Effect::PreventStrike { .. }
-            | Effect::PreventThisRound(_)
-            | Effect::PreventEachRound(_) => d.prevent = true,
             Effect::AddVotes(_) | Effect::AddVotesX => {
                 d.votes_for = true;
                 d.votes_against = true;

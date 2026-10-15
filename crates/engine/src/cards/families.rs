@@ -39,6 +39,18 @@ pub enum Family {
 impl Effect {
     /// The interpreter resolving this effect.
     pub fn family(self) -> Family {
+        self.class().0
+    }
+
+    /// Does this effect prevent damage? The one prevention class: read it,
+    /// never list preventions by hand.
+    pub fn prevents(self) -> bool {
+        self.class().1
+    }
+
+    /// The family and whether it prevents, classified together so a new
+    /// effect is classified where it is routed.
+    fn class(self) -> (Family, bool) {
         use Effect as E;
         match self {
             E::ChooseSecondOfClan(..)
@@ -119,7 +131,7 @@ impl Effect {
             | E::PutOnActor
             | E::PutOnActorRemembering
             | E::BurnActorBlood(..)
-            | E::If { .. } => Family::Play,
+            | E::If { .. } => (Family::Play, false),
             E::TargetLeavesTorpor
             | E::BloodToActing(..)
             | E::PreyBurnsPool(..)
@@ -140,7 +152,7 @@ impl Effect {
             | E::HandSizeUntilUnlock(..)
             | E::ActorLasting(..)
             | E::TargetBecomesSect(..)
-            | E::ActorBecomesBlackHand => Family::Shared,
+            | E::ActorBecomesBlackHand => (Family::Shared, false),
             E::CounterToTarget(..)
             | E::BloodPerHostage
             | E::BurnTargetHostages
@@ -249,7 +261,6 @@ impl Effect {
             | E::BurnUnlessControllerPays(..)
             | E::DamageTarget(..)
             | E::PayPoolPerOtherEvent
-            | E::PreventGunStrikeAllowance(..)
             | E::DiscardAtRandom(..)
             | E::ContinuePressEachCombat
             | E::TargetVotesPerCounter
@@ -259,7 +270,7 @@ impl Effect {
             | E::MethuselahVotes { .. }
             | E::TakeControlOfHost
             | E::RemoveOwnAshCards(..)
-            | E::UnlockHost => Family::Ability,
+            | E::UnlockHost => (Family::Ability, false),
             E::TakeOverAction
             | E::AnimalBoostIfSuccessful { .. }
             | E::ActionLayer(..)
@@ -341,7 +352,7 @@ impl Effect {
             | E::AllySkipsNextUnlock
             | E::WakeTarget
             | E::BleedModX { .. }
-            | E::YoungerIntercept(..) => Family::Action,
+            | E::YoungerIntercept(..) => (Family::Action, false),
             E::Strike(..)
             | E::Maneuver
             | E::Press
@@ -363,19 +374,12 @@ impl Effect {
             | E::StrengthThisRound(..)
             | E::StrengthThisRoundVotes
             | E::CombatEndsAfterStrike
-            | E::PreventThisRound(..)
-            | E::PreventEachRound(..)
             | E::PressThisRound
-            | E::PreventOpposingStrikesThisRound
             | E::CommittedStrike(..)
             | E::OpposingRestraint
             | E::OpposingCombatCardsCost(..)
             | E::FrenzyShield
-            | E::FleshOfMarble { .. }
             | E::WeatherDamage { .. }
-            | E::PreventOnTarget(..)
-            | E::PreventOnTargetXPlus(..)
-            | E::PreventNonAggravatedOnTarget(..)
             | E::OptionalCloseManeuver
             | E::NeverAggravatedStrike
             | E::UnpreventableIfBlackHand
@@ -401,9 +405,6 @@ impl Effect {
             | E::CloseSelfDamage(..)
             | E::CoordinateAttack { .. }
             | E::RoundStrike(..)
-            | E::Prevent(..)
-            | E::PreventXPlus(..)
-            | E::PreventNonAggravated(..)
             | E::OnlyHandStrikes
             | E::NextRoundClose
             | E::NewRound
@@ -416,13 +417,25 @@ impl Effect {
             | E::SetRange(..)
             | E::ImmuneStrikeNonAggravated
             | E::ImmuneEffectNonAggravated
-            | E::PreventNonGun(..)
             | E::StrengthThisCombat(..)
             | E::OrgyOfBlood
             | E::DrawOutBeast { .. }
-            | E::OpposingControllerBurnsPool(..)
+            | E::OpposingControllerBurnsPool(..) => (Family::Combat, false),
+            E::Prevent(..)
+            | E::PreventXPlus(..)
+            | E::PreventNonAggravated(..)
+            | E::PreventThisRound(..)
+            | E::PreventEachRound(..)
+            | E::PreventOpposingStrikesThisRound
+            | E::PreventOnTarget(..)
+            | E::PreventOnTargetXPlus(..)
+            | E::PreventNonAggravatedOnTarget(..)
+            | E::PreventNonGun(..)
             | E::PreventStrikeDamage
-            | E::PreventStrike { .. } => Family::Combat,
+            | E::PreventStrike { .. }
+            | E::FleshOfMarble { .. } => (Family::Combat, true),
+            E::PreventGunStrikeAllowance(..) => (Family::Ability, true),
+            E::CoagulateFromPicks { prevent } => (Family::Success, prevent),
             E::ActingAbstains
             | E::FailIfTitleRequired
             | E::FailReferendum
@@ -440,7 +453,7 @@ impl Effect {
             | E::AddVotesAgainst(..)
             | E::TallyPenaltyAgainst(..)
             | E::BarNonCamarillaVotes
-            | E::CancelReferendum { .. } => Family::Vote,
+            | E::CancelReferendum { .. } => (Family::Vote, false),
             E::UnlockAtEndIfReady
             | E::BurnSource
             | E::StealTargetTitle
@@ -456,7 +469,6 @@ impl Effect {
             | E::ReorderTopThenUnlock(..)
             | E::AllyFromAshLocked(..)
             | E::CorruptTargetMayStealAtCapacity
-            | E::CoagulateFromPicks { .. }
             | E::TauntCombat(..)
             | E::GainLiaison
             | E::SearchEquip
@@ -477,14 +489,14 @@ impl Effect {
             | E::BurnCorruptionFromTarget
             | E::IfBleedSuccessful(..)
             | E::LockMinionOfTarget
-            | E::CorruptMinionOfTarget => Family::Success,
+            | E::CorruptMinionOfTarget => (Family::Success, false),
             E::CannotGainLife
             | E::ActsWhenRecruited
             | E::UnlockRecruiterOnFirst
             | E::Version(..)
             | E::EntryBurnAllyOrRetainer
             | E::UnlockActorAtDiscard
-            | E::EntryRemoveFromAshOrBurn => Family::Entry,
+            | E::EntryRemoveFromAshOrBurn => (Family::Entry, false),
             E::HostageOnTorpor(..)
             | E::ControllerGainsPoolIfPrey(..)
             | E::UnlockBurnPoolUnlessReady { .. }
@@ -530,7 +542,7 @@ impl Effect {
             | E::SoulGemDraw
             | E::BurnPoolUnlessBurnVampire { .. }
             | E::SkipNextUnlock
-            | E::BurnSelfWithoutStored => Family::Rider,
+            | E::BurnSelfWithoutStored => (Family::Rider, false),
             // Read where the action is declared or offered: its kind, its
             // cost, its stealth, its bleed (`declare_action`, `stealth`,
             // `bleed_amount`).
@@ -547,7 +559,7 @@ impl Effect {
             | E::TakeAnyAction
             | E::MandatoryAction
             | E::CallReferendum(..)
-            | E::SameActionAs(..) => Family::Marker,
+            | E::SameActionAs(..) => (Family::Marker, false),
             // Read as the card is played: what cancels it, what it cancels,
             // where it is played from (`as_played_request`, `resolve_play`,
             // `cancel_shield`, `virtual_hand`).
@@ -562,9 +574,9 @@ impl Effect {
             | E::CancelableForBlockerBlood(..)
             | E::SearchStore(..)
             | E::CanceledGetsMasterAction
-            | E::CancelableForPool(..) => Family::Marker,
+            | E::CancelableForPool(..) => (Family::Marker, false),
             // What the card is (`card_title`, `becomes_weapon`, `is_gun`).
-            E::RepresentsTitle(..) | E::BecomesWeapon | E::BecomesGun => Family::Marker,
+            E::RepresentsTitle(..) | E::BecomesWeapon | E::BecomesGun => (Family::Marker, false),
             // Read by `give_card_control`, `about_to_leave_ready`,
             // `start_influence`, `influence_apply`, the diablerie (Regent),
             // `card_controller` (Melange [AUS]), `settle_servitors`, and
@@ -577,7 +589,7 @@ impl Effect {
             | E::ShuffleSourceIntoLibrary
             | E::MovesToSabbatDiablerist
             | E::RemovedAfterSuccessOrWithoutInfernal
-            | E::StillYours => Family::Marker,
+            | E::StillYours => (Family::Marker, false),
             // Read as the combat begins (Abuse of Power, Pillars Fall), as the
             // action is declared (Fiendish Tongue), as the bleed lands
             // (Enthrall), by `frenzy_on`, and as the action succeeds.
@@ -587,7 +599,7 @@ impl Effect {
             | E::OpposingBurnsPoolIfOneReadyAfterCombat(..)
             | E::PutOnActorIfOpposingNotReadyAfterCombat
             | E::TargetLocksReadyUnlocked
-            | E::Frenzy => Family::Marker,
+            | E::Frenzy => (Family::Marker, false),
             // Read when the strike resolves (`resolve_strikes`), with
             // `PutOnActorNow` (Inner Essence).
             E::AggravatedAgainstClan(..)
@@ -596,10 +608,10 @@ impl Effect {
             | E::CountersPerDamage
             | E::AdditionalStrikeWithSource
             | E::UnpreventableStrike
-            | E::BecomesOnOpponent => Family::Marker,
+            | E::BecomesOnOpponent => (Family::Marker, false),
             // Done as the ability's terms were chosen (`ability_ash_apply`,
             // `ability_discards_done`).
-            E::AshCardToLibraryBottom | E::StorePickedFromHand => Family::Marker,
+            E::AshCardToLibraryBottom | E::StorePickedFromHand => (Family::Marker, false),
         }
     }
 }

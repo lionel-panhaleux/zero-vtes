@@ -156,6 +156,15 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::PreventGunStrikeAllowance(v) => push(detail(n(K::Prevent, i(v)), "guns")),
         E::PreventNonGun(v) => push(detail(n(K::Prevent, i(v)), "not_guns")),
         E::PreventNonAggravated(v) => push(detail(n(K::Prevent, i(v)), "non_aggravated")),
+        E::PreventXPlus(v) => push(detail(n(K::Prevent, i(v)), "x_plus")),
+        E::PreventThisRound(v) => push(detail(n(K::Prevent, i(v)), "this_round")),
+        E::PreventEachRound(v) => push(detail(n(K::Prevent, i(v)), "each_round")),
+        E::PreventOnTarget(v) => push(on(n(K::Prevent, i(v)), On::Target)),
+        E::PreventOnTargetXPlus(v) => push(on(detail(n(K::Prevent, i(v)), "x_plus"), On::Target)),
+        E::PreventNonAggravatedOnTarget(v) => push(on(
+            detail(n(K::Prevent, i(v)), "non_aggravated"),
+            On::Target,
+        )),
         E::PreventStrikeDamage | E::PreventOpposingStrikesThisRound => {
             push(detail(of(K::Prevent), "strike_all"))
         }
@@ -237,6 +246,15 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::CountersToUncontrolledTarget => push(on(of(K::Counters), On::Uncontrolled)),
         E::ReduceActionBlood(v) => push(detail(n(K::Cost, -i(v)), "blood")),
         E::ReduceActionCost(v) => push(n(K::Cost, -i(v))),
+        E::CoagulateFromPicks { prevent: true } => push(x(of(K::Prevent))),
+        E::FleshOfMarble { aggravated } => push(detail(
+            of(K::Prevent),
+            if aggravated {
+                "beyond_first"
+            } else {
+                "beyond_first_non_aggravated"
+            },
+        )),
         _ => {}
     }
 }
@@ -248,6 +266,28 @@ mod tests {
     use zvtes::cards::defs::DEFS;
     use zvtes::cards::families::Family;
     use zvtes::cards::vampires::VAMPIRES;
+
+    // Every prevention of the definitions is told as one (`Effect::prevents`,
+    // the classification the bots and the Fortitude-proof mask read too).
+    #[test]
+    fn every_prevention_is_told() {
+        let modes = DEFS
+            .iter()
+            .flat_map(|d| d.modes.iter().chain(d.abilities))
+            .chain(VAMPIRES.iter().flat_map(|v| v.abilities.iter()));
+        let mut seen = 0;
+        for m in modes {
+            for &e in m.effects.iter().filter(|e| e.prevents()) {
+                seen += 1;
+                let told = curated(&[e], Whom::default());
+                assert!(
+                    told.iter().any(|t| t.kind == K::Prevent),
+                    "{e:?} not told as a prevention: {told:?}"
+                );
+            }
+        }
+        assert!(seen > 20, "{seen}");
+    }
 
     // Informational: the effects of the definitions'
     // modes and abilities no curated effect tells, by family (a marker is

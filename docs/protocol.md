@@ -281,7 +281,8 @@ seat 2; burn 2 pool to keep card 9.)
   - `detail`: what sets it apart within its kind, snake_case —
     `this_round`, `guns`, `not_guns`, `non_aggravated`, `strike` (of
     the opposing strike's damage only), `strike_non_aggravated`,
-    `strike_all`, `to_pool`,
+    `strike_all`, `x_plus` (X + `n`), `each_round`, `beyond_first`,
+    `beyond_first_non_aggravated`, `to_pool`,
     `from_pool`, `per_counter`, `then_bottom`, `master_phase`….
   - A vote's: `votes` (`n` cast, `favor`; `detail: prisci_ballot` the
     ballots a priscus casts with them; `on: card` the political action

@@ -56,8 +56,9 @@ CRLF: the csv module with `lineterminator="\r\n"`, or byte-wise.
 
 - Reuse first: an existing `Effect`/`Requirement`/`Modifier`, with a field
   or filter added if needed, over a card-named variant. `Effect::family()`
-  and `Requirement::slots()` are exhaustive: classify a new variant there;
-  the definition-walking tests say where it may sit.
+  and `Requirement::slots()` are exhaustive: classify a new variant there
+  (a prevention says so in `family`'s match: `Effect::prevents`); the
+  definition-walking tests say where it may sit.
 - A new variant only for a new mechanism, named for the mechanism. If the
   card's shape has no primitive, build the primitive; never bend the
   reading to the nearest existing one (that is how 71.21 and 71.25 went

@@ -126,15 +126,29 @@ pub fn part(e: &Effect, names: &Names) -> Option<String> {
         K::Damage => format!("{n} damage"),
         K::Strength if d == Some("this_round") => format!("+{n} strength this round"),
         K::Strength => format!("+{n} strength"),
-        K::Prevent => match d {
-            Some("guns") => format!("prevent {n} (guns)"),
-            Some("not_guns") => format!("prevent {n} (not guns)"),
-            Some("non_aggravated") => format!("prevent {n} non-agg."),
-            Some("strike") => format!("prevent {n} (strike)"),
-            Some("strike_all") => "prevent all (strike)".into(),
-            Some("strike_non_aggravated") => format!("prevent {n} non-agg. (strike)"),
-            _ => format!("prevent {n} damage"),
-        },
+        K::Prevent => {
+            let what = match d {
+                Some("guns") => format!("prevent {n} (guns)"),
+                Some("not_guns") => format!("prevent {n} (not guns)"),
+                Some("non_aggravated") => format!("prevent {n} non-agg."),
+                Some("strike") => format!("prevent {n} (strike)"),
+                Some("strike_all") => "prevent all (strike)".into(),
+                Some("strike_non_aggravated") => format!("prevent {n} non-agg. (strike)"),
+                Some("x_plus") => format!("prevent X+{n}"),
+                Some("this_round") => format!("prevent {n} this round"),
+                Some("each_round") => format!("prevent {n} each round"),
+                Some("beyond_first") => "prevent all but the first each round".into(),
+                Some("beyond_first_non_aggravated") => {
+                    "prevent all but the first non-agg. each round".into()
+                }
+                _ if e.x => "prevent X damage".into(),
+                _ => format!("prevent {n} damage"),
+            };
+            match on {
+                Some(On::Target) => format!("{what} to the target"),
+                _ => what,
+            }
+        }
         K::Immune if d == Some("strike") => "immune: strike".into(),
         K::Immune => "immune: effects".into(),
         K::Press if d == Some("continue") => "press to continue".into(),
@@ -207,4 +221,54 @@ pub fn part(e: &Effect, names: &Names) -> Option<String> {
         K::Cost => format!("-{a} cost"),
         _ => return None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Cards;
+    use zvtes_api::ids::KrcgId;
+
+    struct NoCards;
+
+    impl Cards for NoCards {
+        fn name(&self, _: KrcgId) -> Option<&str> {
+            None
+        }
+    }
+
+    fn told(n: Option<i32>, detail: Option<&str>, on: Option<On>) -> String {
+        let e = Effect {
+            n,
+            detail: detail.map(Into::into),
+            on,
+            x: n.is_none() && detail.is_none(),
+            ..Effect::new(K::Prevent)
+        };
+        part(&e, &Names::new(&NoCards)).unwrap()
+    }
+
+    // The preventions the host tells (protocol.md, `detail`).
+    #[test]
+    fn preventions_are_told() {
+        assert_eq!(told(Some(1), Some("x_plus"), None), "prevent X+1");
+        assert_eq!(
+            told(Some(1), Some("each_round"), None),
+            "prevent 1 each round"
+        );
+        assert_eq!(
+            told(Some(1), Some("non_aggravated"), Some(On::Target)),
+            "prevent 1 non-agg. to the target"
+        );
+        assert_eq!(told(Some(2), Some("strike"), None), "prevent 2 (strike)");
+        assert_eq!(
+            told(Some(1), Some("this_round"), None),
+            "prevent 1 this round"
+        );
+        assert_eq!(
+            told(None, Some("beyond_first"), None),
+            "prevent all but the first each round"
+        );
+        assert_eq!(told(None, None, None), "prevent X damage");
+    }
 }

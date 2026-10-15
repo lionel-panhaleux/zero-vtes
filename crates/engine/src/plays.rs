@@ -1146,18 +1146,7 @@ impl Engine {
                                 // Under a Fortitude-proof strike, no
                                 // prevention card requiring Fortitude this
                                 // round, even to cycle (LSJ 20050628).
-                                let prevention = mode.effects.iter().any(|e| {
-                                    matches!(
-                                        e,
-                                        Effect::Prevent(_)
-                                            | Effect::PreventXPlus(_)
-                                            | Effect::PreventNonAggravated(_)
-                                            | Effect::PreventNonGun(_)
-                                            | Effect::PreventStrike { .. }
-                                            | Effect::PreventStrikeDamage
-                                            | Effect::PreventOpposingStrikesThisRound
-                                    )
-                                });
+                                let prevention = mode.effects.iter().any(|e| e.prevents());
                                 if c.sides[i].no_fortitude_prevention
                                     && prevention
                                     && tags.iter().any(|t| t.eq_ignore_ascii_case("for"))
