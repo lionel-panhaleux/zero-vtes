@@ -140,6 +140,12 @@ front, about the AI involvement.
   `EngineGone` alert on the menu, as for an `over` refusal); a server out
   of reach, or a socket dropped before `joined`, keeps it, so a later
   refresh tries again.
+- A duplicated tab copies `sessionStorage`, seat included: its join
+  takes the seat (protocol 1.4.0) and the older tab gets `seat_taken`,
+  says the game plays in another tab (`EngineTaken`) and never joins
+  again; it keeps the seat, so refreshing it takes the game back. A tab
+  still reconnecting after a drop (`rejoin`) takes the seat back from a
+  newer one the same way: the newest join wins.
 - After a vite restart the owner's tab can ask for long-deleted modules
   (EnginePassButton.vue, deleted 3 days earlier): a refresh fixes it.
 
