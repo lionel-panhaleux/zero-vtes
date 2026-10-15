@@ -35,14 +35,15 @@ first commit if the work is committed at the end.
    `git diff main` in the worktree, or `HEAD~n..HEAD`). The author must not
    review its own diff in its own context: a fresh reader sees what the
    author's context hides.
-3. Act on the report: fix each "do" finding (then re-run the checks), decide
-   each "consider" (fix, or say why not in the commit message), and take
-   anything real left for later through the `intake` skill (CLAUDE.md:
-   findings are never left untracked). A reading the rules don't settle
-   goes to a new rules-qa batch.
+3. Act on the report: fix each "do" finding (then re-run the checks) and
+   each "consider" too, unless clearly outside the change's line (CLAUDE.md
+   "Findings": the scope grows to take them); only what lies outside goes
+   through the `intake` skill (findings are never left untracked). A
+   reading the rules don't settle goes to a new rules-qa batch.
 4. Record the review in the commit's trailers (the `ship` skill's format):
    `Egress: clean` or `Egress: <n> blocking fixed`, one
-   `Advisory: <class>: …` per "consider" left as is.
+   `Advisory: <class>: …` per "consider", fixed or taken through `intake`
+   (the ratchet counts classes, fixed or not).
 
 ## Reviewer prompt
 

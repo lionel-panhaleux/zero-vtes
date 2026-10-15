@@ -221,7 +221,8 @@ per option). A refactor keeps the goldens and perft green without
 
 **Enforced by scripts.** `scripts/rulings_v5.py --check
 data/rulings-v5.csv` (every ledger row on an implemented card backed:
-`test:` / `blocked:` / `n/a:`); `scripts/window_matrix.py --check`; the
+`test:` / `blocked:` / `n/a:`); `scripts/window_matrix.py --check
+data/window-matrix-reviewed.csv`; the
 generators' `--check` (`gen_crypt.py`, `gen_library.py`, `gen_twda.py`).
 
 **Still convention** (what the refactor left of the review's recurring
@@ -318,7 +319,8 @@ hazards, from the engine review of 2026-10-14):
    `{:#?}` dump of `DEFS`/`VAMPIRES` for a refactor.
 8. **Unsettled readings**: a reading no ruling settles is implemented and
    recorded as a question in a new rules-qa batch; an issue met on the way
-   is fixed when small or goes through the `intake` skill.
+   is fixed in the change, or, clearly outside its line, goes through the
+   `intake` skill (CLAUDE.md "Findings").
 9. **Elsewhere**: a player-visible effect may need a line in
    `crates/host/src/effects.rs`; a new `Choice` kind needs its obs slot
    (§6.21); the checks of CLAUDE.md "Working lessons" before calling it

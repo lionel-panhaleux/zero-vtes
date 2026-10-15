@@ -13,14 +13,17 @@ description: >
 # Intake
 
 No work reaches a board unchallenged, and nothing found is left
-untracked: an issue met on the way is fixed on the spot when small, or
-becomes a board line here (owner, 2026-10-13). A board is a shrinking
+untracked: an issue met on the way is fixed in the change at hand; only
+what is clearly outside it, or found with no change in flight, becomes a
+board line here (owner, 2026-10-13, 2026-10-15). A board is a shrinking
 list; refusing a line at the door is cheaper than evicting it later.
 
 ## For each candidate
 
-1. **Small and on the way?** Fix it now in the current unit of work (it
-   shares the abstraction), with its test. Not a line.
+1. **On the way?** What the current unit of work can take (it shares its
+   code, its pages or its review) is fixed in it, whatever its size, with
+   its test (owner, 2026-10-15). Not a line. During a ship, intake is for
+   what is clearly outside the line, and rare.
 2. **Conflict.** Does it contradict a standing decision (DESIGN.md's
    resolved questions and §10, rules-qa, CLAUDE.md's owner rules,
    `docs/protocol.md`) or duplicate a line (`grep -n` the four boards and

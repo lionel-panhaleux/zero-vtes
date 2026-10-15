@@ -24,8 +24,8 @@ Key facts:
 - `docs/rules-digest.md`: rules-qa's settled readings by mechanism, cited.
 - `data/window-matrix-reviewed.csv`: authoritative per-card window/flag matrix
   (hand-reviewed, owner-arbitrated in rules-qa Batch 2).
-  `scripts/window_matrix.py --check` verifies the generator still reproduces
-  it — keep both in sync.
+  `scripts/window_matrix.py --check data/window-matrix-reviewed.csv`
+  verifies the generator still reproduces it — keep both in sync.
 - `data/rulings-v5.csv`: the rulings-as-tests ledger (DESIGN §7.1) — every row
   on an implemented card carries `test:<fn>` / `blocked:<gap>` / `n/a:<reason>`;
   `scripts/rulings_v5.py --check data/rulings-v5.csv` verifies it against the
@@ -53,9 +53,15 @@ and order of work hold until the owner changes them. The Succubus Club
 fork plays on the server only (owner, 2026-10-14: the in-browser wasm
 engine is gone). P6 merged into `main` (2026-10-14): work on `main`.
 
-Findings (owner, 2026-10-13): an issue met on the way (an engine bug, a
-choice offered twice, a rough edge) is fixed on the spot when small, or
-becomes a board line through the `intake` skill — never left untracked.
+Findings (owner, 2026-10-13, 2026-10-15): an issue met on the way (an
+engine bug, a choice offered twice, a rough edge, a stale page) or raised
+by a review is fixed on the spot, in the change at hand, minor ones too:
+the change's scope grows to take it. The `intake` skill is for the rare
+finding clearly outside the line's work (work for another line: code
+another session works in, the Succubus Club fork or `train/`, the engine
+crates being shared by the cards and engine lines; or new work the owner
+did not ask of this line), and for what is found with no change in
+flight (a playtest, the harvest, a peer's ask) — never left untracked.
 
 Map of the docs: `docs/index.md`. The work: the boards and the roadmap
 (below); the engine guide and its reference by mechanism: `docs/engine.md`;
@@ -92,8 +98,8 @@ with its board companion), as applied here:
   into a harness amendment). `scripts/harness.py` counts (size, line age,
   `due`, orphan pages).
 - **Comments are for traps** (docs/engine.md "Comment policy"); no to-do
-  comments (`tests/lint.rs`): found work is done now or goes through
-  `intake`.
+  comments (`tests/lint.rs`): found work is done now, in the change, or,
+  clearly outside its line, goes through `intake`.
 - **Tests at the boundary**: behaviour through the engine's and the
   server's interfaces, each tracing to a declared behaviour (the ledger's
   rulings, rules-qa, the protocol, a board line); no mocks; property-style

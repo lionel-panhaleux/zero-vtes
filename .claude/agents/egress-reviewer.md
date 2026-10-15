@@ -32,7 +32,8 @@ verdict. Do not hunt defects to justify the review. Check:
    of it.
 3. **The trinity.** The named pages changed to match, or the absence is
    justified; the board line deleted; no page still says what the change
-   made false; no to-do comment (discovered work goes through `intake`).
+   made false; no to-do comment (discovered work is done in the change,
+   or, clearly outside its line, goes through `intake`).
 4. **Depth.** A new interface (module, trait, enum, function, field)
    hides much more than it exposes; no shallow wrapper, no layering for
    its own sake. Similar-looking but causally unrelated code may stay
@@ -56,5 +57,9 @@ each finding with file:line, what, why (the charter item, rule or page),
 the fix, and **blocking** (a charter violation) or **advisory**
 (recorded, not gating) with a short kebab-case class ("stale-doc",
 "shallow-module", "test-weakened", "narrating-comment", "half-done").
-Separately: work you noticed outside the change's scope, for the author's
-`intake`. Say what you did not check.
+Anything within reach of the change (its code, its pages, its tests) is
+a finding the author fixes in it, however minor. Separately, and only
+for what clearly lies outside the line (work for another line: code
+another session works in, the engine crates being shared by the cards
+and engine lines; or new work the owner did not ask of this line): work
+for the author's `intake`. Say what you did not check.

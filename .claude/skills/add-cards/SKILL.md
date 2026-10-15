@@ -137,7 +137,8 @@ hashes (a trajectory change there is a behaviour change to explain).
 All CLAUDE.md checks green (including `cargo test -p zvtes-policy`, the
 py side, generators, window matrix, ledger, DESIGN count line); the
 `engine-review` skill on the round's diff (the `ship` skill's egress);
-anything found taken through `intake`; the round's line deleted from the
+anything found fixed in the round, only what is clearly outside it taken
+through `intake`; the round's line deleted from the
 cards board (`docs/boards/cards.md`).
 Ask the red items with the commit request, before committing: a "no"
 lands in the same commit. Then rebase the round branch on `main`

@@ -29,9 +29,15 @@ commits), `training`, `sc-change`. Work in the line's worktree (CLAUDE.md
 "Harness": worktrees stay). Task notes (plan, progress, hazards) go in the
 session's job tmp; they die with the task.
 
-Scope grows in place: adjacent work that shares the abstraction is done
-now; a separable discovery goes through `intake`. Never leave the board
-longer than you found it, minus the line you completed.
+Scope grows in place (owner, 2026-10-15): what the work discovers (a
+bug, a rough edge, a stale page, a missing test) and every relevant
+review finding are done in this change, the minor ones too. `intake`
+takes only what is clearly outside the line (work for another line:
+code another session works in, the engine crates being shared by the
+cards and engine lines; or new work the owner did not ask of this
+line): a rare event, not a way to defer.
+Never leave the board longer than you found it, minus the line you
+completed.
 
 ## 3. Land the trinity
 
@@ -55,7 +61,9 @@ or run that skill's reviewer alongside.
 Then:
 
 - **Blocking** findings: fix, re-run the checks, review again.
-- **Advisory** findings: fix or not, each recorded as a commit trailer.
+- **Advisory** findings: fixed in this change too, unless clearly outside
+  its line (then `intake`, and the trailer says so); each recorded as a
+  commit trailer.
 - After two rejection rounds, stop and take the disagreement to the
   owner, compressed to the one decision it turns on.
 
@@ -66,7 +74,8 @@ trailers, which the upkeep's ratchet reads:
 
 ```
 Egress: clean | <n> blocking fixed
-Advisory: <class>: <one line>        (one per advisory finding)
+Advisory: <class>: <one line>        (one per advisory finding, fixed or not)
+Advisory: <class>: <one line> (intake: <board>)   (one taken out of scope)
 Grading: <n> readings, <r> red asked, <c> corrected    (card rounds)
 Grading-missed: <round> <rules-qa item>: <one line>  (a reading graded green/amber, found wrong later)
 ```

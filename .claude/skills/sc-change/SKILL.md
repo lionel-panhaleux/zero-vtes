@@ -50,7 +50,8 @@ branches, PRs, recipes, traps) and update it as you learn.
 ## Procedure
 
 1. A playtest finding or a request goes through `intake` onto the
-   platforms board (`docs/boards/platforms.md`). Diagnose from the server's record when a
+   platforms board (`docs/boards/platforms.md`), unless the change at
+   hand takes it (a finding on what is being shipped is fixed in it). Diagnose from the server's record when a
    game is involved (sc.md "Recipes").
 2. Fix on a worktree of `zero-vtes-engine`; checks: `npx vue-tsc --noEmit`,
    `npx eslint`, `npx prettier --check` (SC has no test suite). Agents
