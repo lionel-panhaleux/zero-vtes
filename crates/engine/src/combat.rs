@@ -586,7 +586,9 @@ pub struct CombatCtx {
     pub abilities_used_round: Vec<(cards::AbilitySource, u8)>,
     /// Gun-strike prevention left this combat, by copy (Kevlar Vest).
     pub gun_prevention_left: Vec<(CardId, u8)>,
-    /// The equipment on the blocker when it blocked (Sniper Rifle).
+    /// The equipment on the blocker when it blocked (Sniper Rifle); empty
+    /// unless this is the blocked minion's own combat (cleared after a new
+    /// combat, Coordinate Attacks, a slave's swap).
     pub held_at_block: Vec<CardId>,
     /// Begun by a successful action's resolution (entering combat as a Ⓓ
     /// action), not by a block: part of the action (spec §4.1.2), its

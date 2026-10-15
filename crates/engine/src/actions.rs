@@ -2728,6 +2728,10 @@ impl Engine {
                     let acting = a.acting;
                     self.state.minions[acting.index()].locked = false;
                     self.start_combat(slave, blocker);
+                    // Not the blocked minion's combat: "when blocking"
+                    // equipment does not carry over (ANK 20200115).
+                    let c = self.combat.as_mut().expect("the slave's combat");
+                    c.held_at_block.clear();
                 } else {
                     let acting = a.acting;
                     let riders = a.block_riders.clone();

@@ -860,7 +860,8 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   (`Stat::NoDirectedActions` with `ControlsNoReadyOfClan`); the block swap is
   the slave's ability in the blocked window (`Effect::SlaveTakesCombat`,
   `ActionCtx::slave`): the slave fights the blocker, the acting vampire
-  unlocked, the block riders dropped.
+  unlocked, the block riders dropped, no `held_at_block` (Sniper Rifle,
+  ANK 20200115).
 
 ### 6.11 Cards in play
 

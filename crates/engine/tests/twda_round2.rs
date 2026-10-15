@@ -798,6 +798,30 @@ fn tupdog_takes_the_combat_of_a_blocked_tremere_antitribu() {
     assert_eq!(blood(&e, z), 3);
 }
 
+// [ANK 20200115] Sniper Rifle: "If a Slave locks to enter combat instead of
+// a blocked minion, the opponent cannot use the Rifle to set the range": the
+// blocker's rifle sets it against Saiz, not against Tupdog.
+#[test]
+fn sniper_rifle_cannot_set_the_range_against_a_slave() {
+    for slave in [false, true] {
+        let mut e = game(2);
+        let saiz = e.add_minion(SeatId(0), find_card("Saiz"), 3, false);
+        let t = e.add_minion(SeatId(0), find_card("Tupdog"), 1, false);
+        let z = e.add_minion(SeatId(1), plain("Brujah", 1), 4, false);
+        let rifle = in_play(&mut e, 1, "Sniper Rifle", Some(z));
+        let set_range = use_at(rifle, 1, None, Target::None);
+        pick(&mut e, bleed(saiz));
+        pick(&mut e, block(z));
+        if slave {
+            pick_when(&mut e, vampire_ability(t, 1));
+            never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, set_range);
+            assert!(e.state.minions[t.index()].locked, "Tupdog fought");
+        } else {
+            pick_when(&mut e, set_range);
+        }
+    }
+}
+
 // ---- Canine Horde ------------------------------------------------------------------------
 
 // [RTR 19980928] Canine Horde "[ANI] Cannot be used if there is no
