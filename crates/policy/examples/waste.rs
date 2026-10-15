@@ -1,13 +1,15 @@
 //! Cards spent for nothing, and hands not built (owner, 2026-10-05: "it
 //! tends to throw away wakes, unlocks … because it cannot construct its
-//! hand properly"): the owner's games (`data/records`, the owner's seats
-//! apart from the bots') and self-play of an exported network.
+//! hand properly"): recorded games (`data/records`, a harvest's
+//! `data/server-records`: the humans' seats apart from the bots', by
+//! profile and weights) and self-play of an exported network.
 //! `cargo run -p zvtes-policy --profile ci --example waste -- <policy.zvp>
 //! <games> [--t T] [--rescue B] [--pass B] [--reaction B] [--bleed B]
-//! [--idle B] [--seats N] [--twda] [replay.json]...`
+//! [--idle B] [--seats N] [--twda] [record.json | records dir]...`
 //! (self-play at N seats, 4 by default, the precons or with `--twda` the
 //! TWDA decks, at temperature T, with those nudges:
-//! `zvtes_policy::Nudges`). Per group:
+//! `zvtes_policy::Nudges`; none with 0 games, the policy then unread:
+//! `waste - 0 data/server-records`). Per group:
 //! - rescues of one's own vampire offered (minion-phase decisions) and
 //!   taken; bleeds for nothing (`zvtes_policy::empty_bleed`: Aggressive
 //!   Corpse's) offered and taken;
@@ -539,33 +541,61 @@ impl Watch {
     }
 }
 
-fn owner_games(paths: &[String], counts: &mut BTreeMap<String, Counts>) {
+/// Game records read back: each seat's counts to its group — "humans",
+/// or the bots by profile and weights (a harvest mixes several). A record
+/// that does not read is skipped, said on stderr.
+fn recorded_games(paths: &[String], counts: &mut BTreeMap<String, Counts>) {
     for path in paths {
-        let record: GameRecord =
-            serde_json::from_str(&std::fs::read_to_string(path).expect("a record"))
-                .expect("a record");
-        let replay = Replay::new(&record).expect("a record");
+        let record = std::fs::read_to_string(path)
+            .map_err(|e| e.to_string())
+            .and_then(|t| serde_json::from_str::<GameRecord>(&t).map_err(|e| e.to_string()))
+            .and_then(|r| Replay::new(&r).map(|p| (r, p)));
+        let (record, replay) = match record {
+            Ok(x) => x,
+            Err(e) => {
+                eprintln!("{path}: skipped ({e})");
+                continue;
+            }
+        };
         let mut e = replay.deal();
         e.combat_notes = None;
         let human: Vec<bool> = (0..replay.seats())
             .map(|s| replay.humans.contains(&(s as u8)))
             .collect();
         let mut reader = replay.reader();
-        let groups: Vec<String> = human
-            .iter()
-            .map(|&h| {
-                if h {
-                    "owner"
-                } else {
-                    "bots in the owner's games"
+        let groups: Vec<String> = (0..human.len())
+            .map(|s| {
+                if human[s] {
+                    return "humans".to_string();
                 }
-                .to_string()
+                match record.bots.iter().find(|b| b.seat as usize == s) {
+                    // As `scripts/games_report.py`'s `bot_label`.
+                    Some(b) => {
+                        let t = b.temperature.map_or(String::new(), |t| format!("@{t}"));
+                        match &b.weights {
+                            Some(w) => format!("bots, {}{t} {}", b.profile, &w[..w.len().min(12)]),
+                            None => format!("bots, {}{t}", b.profile),
+                        }
+                    }
+                    None => "bots".to_string(),
+                }
             })
             .collect();
         let mut watch = Watch::new(groups.clone());
         while let Step::Decision(req) = e.run() {
-            let Some(Ok(i)) = reader.next(&e, &req) else {
-                break;
+            // A window the record's engine elided (before rules-qa 73.8):
+            // passed, as it was then — no decision of the record's.
+            if let Some(i) = replay.elided(&e, &req) {
+                e.choose(i);
+                continue;
+            }
+            let i = match reader.next(&e, &req) {
+                None => break,
+                Some(Ok(i)) => i,
+                Some(Err(why)) => {
+                    eprintln!("{path}: read to its decision {}: {why}", reader.position());
+                    break;
+                }
             };
             watch.see(&e, &req, i, &groups[req.seat.index()], counts);
             e.choose(i);
@@ -629,7 +659,7 @@ fn self_play(
 
 fn main() {
     let mut args = std::env::args().skip(1);
-    let usage = "usage: waste <policy.zvp> <games> [--t T] [--rescue B] [--pass B] [--reaction B] [--bleed B] [--idle B] [--draw B] [--stuck B] [--nightmare B] [--seats N] [--twda] [replay]...";
+    let usage = "usage: waste <policy.zvp> <games> [--t T] [--rescue B] [--pass B] [--reaction B] [--bleed B] [--idle B] [--draw B] [--stuck B] [--nightmare B] [--seats N] [--twda] [record.json | records dir]... (`- 0`: the records only, no network)";
     let policy = args.next().expect(usage);
     let games: u64 = args.next().and_then(|n| n.parse().ok()).expect(usage);
     let (mut temperature, mut nudges, mut replays, mut seats, mut twda) =
@@ -652,20 +682,34 @@ fn main() {
             "--nightmare" => nudges.nightmare = num(),
             "--seats" => seats = num() as u64,
             "--twda" => twda = true,
-            _ => replays.push(a),
+            // A directory: its records (a harvest).
+            _ => match std::fs::read_dir(&a) {
+                Ok(dir) => {
+                    let mut files: Vec<String> = dir
+                        .filter_map(|f| f.ok().map(|f| f.path()))
+                        .filter(|p| p.extension().is_some_and(|x| x == "json"))
+                        .map(|p| p.display().to_string())
+                        .collect();
+                    files.sort();
+                    replays.extend(files);
+                }
+                Err(_) => replays.push(a),
+            },
         }
     }
     let mut counts = BTreeMap::new();
-    owner_games(&replays, &mut counts);
-    self_play(
-        &policy,
-        games,
-        seats,
-        twda,
-        temperature,
-        nudges,
-        &mut counts,
-    );
+    recorded_games(&replays, &mut counts);
+    if games > 0 {
+        self_play(
+            &policy,
+            games,
+            seats,
+            twda,
+            temperature,
+            nudges,
+            &mut counts,
+        );
+    }
     let pct = |a: u64, b: u64| {
         if b == 0 {
             0.0

@@ -1616,8 +1616,9 @@ training runs.
   attempts in 66% of those offering only futile ones (the windows elided
   before E25), against 58% for a reachable attempt; p11@3920 63%, 66%, 62%.
   The networks do not tell futile from reachable. The owner's records
-  (before E25, replayed on it): 9 windows with a futile attempt, none
-  taken. Owner, 2026-10-15: "mask in the bot layer, train and serve" —
+  (before E25, replayed on it, read whole since `waste` passes the
+  windows their engine elided, `Replay::elided`): 92 windows with a futile
+  attempt, none taken. Owner, 2026-10-15: "mask in the bot layer, train and serve" —
   `zvtes_policy::reachable_blocks`, the outermost mask of `NetAgent`
   (the server, `waste`) and of the training pool (`crates/py`): a network
   never attempts a futile block, a window of futile attempts only passes

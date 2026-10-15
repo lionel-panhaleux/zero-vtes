@@ -6,7 +6,7 @@ report — `<dir>/reports/<date>.md` for the games first seen by this run
 every game — and a short summary on stdout.
 
 Usage: python3 scripts/games_report.py [DIR] [--catalog FILE|URL]
-    [--date YYYY-MM-DD] [--no-turns] [--min-rounds 2] [--min-decisions 30]
+    [--date YYYY-MM-DD] [--no-turns] [--no-waste] [--min-rounds 2] [--min-decisions 30]
     [--test-clients client.mjs,load.mjs]
 
 A game counts when it ended normally with a human seat; abandoned games,
@@ -20,6 +20,9 @@ record, cached in `<dir>/reports/index.json`); "≥" marks a game the
 engine stopped partway. Decks are named from the server's catalog
 (`/catalog`, cached in `<dir>/reports/catalog.json`) when a seat's list
 equals one; else "custom", with the closest catalog deck when near.
+Each report ends with the bots' waste in its counted games (`waste`:
+`cargo build -p zvtes-policy --profile ci --example waste`, by profile and
+weights; `--no-waste` skips it).
 """
 
 import argparse
@@ -92,6 +95,51 @@ def replayer():
         print(f"the replay example did not build ({e}): turns unknown", file=sys.stderr)
         return None
     return target / "ci" / "examples" / "replay"
+
+
+def waste(paths):
+    """The `waste` lines of the bots' seats in `paths` (the
+    zvtes-policy example, built once): a markdown section, empty when
+    there is no game or it does not build."""
+    if not paths:
+        return ""
+    target = pathlib.Path(os.environ.get("CARGO_TARGET_DIR") or REPO / "target")
+    try:
+        subprocess.run(
+            ["cargo", "build", "-q", "-p", "zvtes-policy", "--profile", "ci", "--example", "waste"],
+            cwd=REPO,
+            check=True,
+        )
+        run = subprocess.run(
+            [str(target / "ci" / "examples" / "waste"), "-", "0", *map(str, paths)],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=1800,
+        )
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+        print(f"waste did not run ({e}): no waste section", file=sys.stderr)
+        return ""
+    # A record skipped or read partway: said in the section, its seats
+    # counted only as far as they were read.
+    partial = [line for line in run.stderr.splitlines() if ": skipped (" in line or ": read to its decision" in line]
+    # Its groups: a line ending in ":", then their indented lines.
+    keep, lines = False, []
+    for line in run.stdout.splitlines():
+        if not line.startswith(" "):
+            keep = line.startswith("bots")
+        if keep:
+            lines.append(line)
+    if not lines:
+        return ""
+    return (
+        "\n## The bots' waste\n\n`cargo run -p zvtes-policy --profile ci --example waste -- - 0 <records>`"
+        " on the counted games: the bots' seats by profile and weights."
+        + (f" {len(partial)} records skipped or read partway: {'; '.join(partial)}." if partial else "")
+        + "\n\n```\n"
+        + "\n".join(lines)
+        + "\n```\n"
+    )
 
 
 def read_turns(binary, path):
@@ -400,6 +448,7 @@ def main():
     p.add_argument("--catalog", default=CATALOG_URL, help="the deck catalog: a file or a URL")
     p.add_argument("--date", default=datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d"))
     p.add_argument("--no-turns", action="store_true", help="do not replay the records for their turns")
+    p.add_argument("--no-waste", action="store_true", help="no section of the bots' waste")
     p.add_argument("--min-rounds", type=int, default=2)
     p.add_argument("--min-decisions", type=int, default=30)
     p.add_argument(
@@ -447,9 +496,14 @@ def main():
     run = [g for g in games if g["first"] == args.date or g["first"] is None]
     day = reports / f"{args.date}.md"
     total = reports / "total.md"
+    def section(gs):
+        return "" if args.no_waste else waste([g["path"] for g in gs if g["status"] == "counted"])
+
     if run or day.exists():
-        day.write_text(report(f"Online games — {args.date} (the games first read that day)", run, args, True))
-    total.write_text(report(f"Online games — total (to {args.date})", games, args, False))
+        day.write_text(
+            report(f"Online games — {args.date} (the games first read that day)", run, args, True) + section(run)
+        )
+    total.write_text(report(f"Online games — total (to {args.date})", games, args, False) + section(games))
 
     for name, gs in (("this run", run), ("total", games)):
         counted = [g for g in gs if g["status"] == "counted"]

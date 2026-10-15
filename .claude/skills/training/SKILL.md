@@ -32,8 +32,10 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    clippy). Measures compare like with like only from a clean build: `waste`
    and `decks.rs` compile from the working tree, so run them in the run's
    worktree (or another at a commit), never in the shared checkout. `waste`
-   takes record paths (`data/records/*.json`), needs `--twda` for Wider View
-   (in no precon) and `--seats 5` for 5-seat cross-table numbers.
+   takes record paths or directories (`data/records`, a harvest; `- 0`
+   reads records only, no network), groups seats as humans or bots by
+   profile and weights, needs `--twda` for Wider View on TWDA decks (four
+   precons have it too) and `--seats 5` for 5-seat cross-table numbers.
 2. **Launch** from a dedicated worktree at the launch commit
    (`git worktree add ../zero-vtes-pN <sha>`, `uv sync` there: a fresh
    `.venv` builds the extension at that commit; `--reinstall-package
@@ -88,7 +90,8 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
   (`data/server-records/reports/<date>.md`): games by engine and weights;
   human win rate and VP per seat by bot profile and weights (small samples
   marked); decks humans win with; notable human wins with their replay
-  command; abandoned and very short games counted apart. The admin token
+  command; abandoned and very short games counted apart; the bots' `waste`
+  lines in the counted games, by profile and weights. The admin token
   stays in `~/.config/zvtes/admin_token`: never printed, logged or
   committed.
 - **Promotion**: curated games go to `data/records/` (committed: a test
