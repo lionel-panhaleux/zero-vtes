@@ -59,8 +59,9 @@ by a review is fixed on the spot, in the change at hand, minor ones too:
 the change's scope grows to take it. The `intake` skill is for the rare
 finding clearly outside the line's work (work for another line: code
 another session works in, the Succubus Club fork or `train/`, the engine
-crates being shared by the cards and engine lines; or new work the owner
-did not ask of this line), and for what is found with no change in
+crates being shared by the cards and engine lines; or new work beyond
+the line's charter, a new objective or feature, never a defect, gap or
+stale page the change met), and for what is found with no change in
 flight (a playtest, the harvest, a peer's ask) — never left untracked.
 
 Map of the docs: `docs/index.md`. The work: the boards and the roadmap

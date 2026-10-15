@@ -44,7 +44,8 @@ verdict. Do not hunt defects to justify the review. Check:
 6. **Scope growth.** Where the change is half-done (a second copy of a
    mechanism left beside the new one, a refactor stopped at one caller),
    require the rest now rather than a follow-up. First-round growth is
-   normal; a second round's should be exceptional.
+   normal; a second round's should be exceptional, but a finding within
+   the change's reach is still raised and fixed, whatever the round.
 7. **Tests.** Each behaviour change has a test at the engine's or the
    server's boundary that fails without it, tracing to a declared
    behaviour (a ledger row, a rules-qa item, a protocol rule, a board
@@ -61,5 +62,6 @@ Anything within reach of the change (its code, its pages, its tests) is
 a finding the author fixes in it, however minor. Separately, and only
 for what clearly lies outside the line (work for another line: code
 another session works in, the engine crates being shared by the cards
-and engine lines; or new work the owner did not ask of this line): work
-for the author's `intake`. Say what you did not check.
+and engine lines; or new work beyond the line's charter, a new objective
+or feature, never a defect, gap or stale page the change met): work for
+the author's `intake`. Say what you did not check.

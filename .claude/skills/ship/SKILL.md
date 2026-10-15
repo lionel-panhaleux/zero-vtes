@@ -34,8 +34,9 @@ bug, a rough edge, a stale page, a missing test) and every relevant
 review finding are done in this change, the minor ones too. `intake`
 takes only what is clearly outside the line (work for another line:
 code another session works in, the engine crates being shared by the
-cards and engine lines; or new work the owner did not ask of this
-line): a rare event, not a way to defer.
+cards and engine lines; or new work beyond the line's charter, a new
+objective or feature, never a defect, gap or stale page the change
+met): a rare event, not a way to defer.
 Never leave the board longer than you found it, minus the line you
 completed.
 
