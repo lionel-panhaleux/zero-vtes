@@ -249,7 +249,9 @@ hazards, from the engine review of 2026-10-14):
   test can see a snapshot that nothing changes yet.
 - Third-party intercept and stealth strips must be counted by
   `block_can_reach` (§6.6), or the host's opportunities filter hides a live
-  attempt (the engine offers it). It also stands for the pruning of the
+  attempt (the engine offers it) and the network bots never make it, in
+  training and on the server alike (`zvtes_policy::reachable_blocks`): no
+  game would show the loss. It also stands for the pruning of the
   engines before rules-qa 73.8 when a record of theirs is read
   (`Engine::futile_blocks`, `Replay::elided`): a change to it moves which
   windows such a record reads past, and only `data/records` checks it.
@@ -611,7 +613,9 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   stealth too. **Reachability** is a query, `Engine::block_can_reach(seat, m)`
   (`intercept_reachable`), read by the host's opportunities filter (it hides a
   futile attempt with them off, `crates/host` `Opportunity::Futile`), by the
-  scripted bots (`bots.rs`: a futile attempt scores below the pass) and by
+  scripted bots (`bots.rs`: a futile attempt scores below the pass), by the
+  network bots' mask (`zvtes_policy::reachable_blocks`: never made, a
+  futile-only window passed, in training and on the server) and by
   the record reader (`Replay::elided`: a record from an engine before 73.8
   never had the futile-only block windows, elided then); never a mask. It
   counts the blocker's own and printed intercept, intercept abilities of cards

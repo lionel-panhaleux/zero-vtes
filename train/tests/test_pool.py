@@ -45,6 +45,25 @@ def test_games_replay_from_their_log():
         assert zvtes_py.replay(ep["seed"], ep["decks"], ep["log"], ep["time_limit"]) == ep["half_vps"]
 
 
+def test_rollouts_never_attempt_a_futile_block():
+    """Owner, 2026-10-15 ("mask in the bot layer, train and serve"): the
+    engine offers futile block attempts (`Engine::block_can_reach`); a
+    network seat is never offered one, and a window of futile attempts
+    only is passed without asking it — the games replayed from their logs
+    show none taken."""
+    pool = zvtes_py.GamePool(4, ["policy"] * 4, seed=11, keep_logs=True)
+    rng = np.random.default_rng(11)
+    done = []
+    while len(done) < 4:
+        done += pool.act(random_actions(pool.observe(), rng))
+    offered = only = 0
+    for ep in done:
+        f, taken, o, attempted = zvtes_py.futile_blocks(ep["seed"], ep["decks"], ep["log"], ep["time_limit"])
+        assert taken == 0 and attempted == 0
+        offered, only = offered + f, only + o
+    assert offered > 0 and only > 0
+
+
 def test_queued_tables_route_rows_to_their_networks():
     pool = zvtes_py.GamePool(6, ["policy"] * 4, seed=3)
     specs = [

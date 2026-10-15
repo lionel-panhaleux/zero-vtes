@@ -79,7 +79,8 @@ impl Variant {
     }
 }
 
-/// The network sampling its option, within the politics and the habits.
+/// The network sampling its option, within the futile-block mask, the
+/// politics and the habits.
 struct Player {
     net: Arc<Net>,
     rng: Rng,
@@ -100,6 +101,7 @@ impl Agent for Player {
             *l /= self.v.temperature;
         }
         let masks = [
+            zvtes_policy::reachable_blocks(e, req),
             politics::mask(e, req),
             self.v.habits.and_then(|set| habits::mask(e, req, set)),
             self.v.chores.then(|| chores::mask(e, req)).flatten(),

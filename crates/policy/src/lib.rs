@@ -591,6 +591,23 @@ pub fn idle_influence(e: &Engine, req: &DecisionRequest) -> bool {
         && req.options.contains(&Choice::DrawCrypt)
 }
 
+/// The options a network seat may take in a block window (owner,
+/// 2026-10-15: "mask in the bot layer, train and serve"): the engine
+/// offers every legal attempt (rules-qa 73.8), those that cannot reach the
+/// action's stealth (`Engine::block_can_reach`) too; a network never makes
+/// one, and a window of futile attempts only leaves its pass. `None` when
+/// no futile attempt is offered. A failed attempt costs nothing, so no
+/// reward would ever teach this. The outermost mask, in training
+/// (`crates/py`) and on the server alike.
+pub fn reachable_blocks(e: &Engine, req: &DecisionRequest) -> Option<Vec<bool>> {
+    let mask: Vec<bool> = req
+        .options
+        .iter()
+        .map(|o| !matches!(*o, Choice::DeclareBlock { minion } if !e.block_can_reach(req.seat, minion)))
+        .collect();
+    mask.contains(&false).then_some(mask)
+}
+
 /// Two masks (`None`: no opinion) as one: the options both leave, or the
 /// first's alone when they would leave none.
 pub fn combine(a: Option<Vec<bool>>, b: Option<Vec<bool>>) -> Option<Vec<bool>> {
@@ -667,8 +684,11 @@ impl Agent for NetAgent {
         // Options score independently (each against the context): the
         // masked ones change nothing of the others' logits.
         let mask = combine(
-            politics::mask(engine, req),
-            self.chores.then(|| chores::mask(engine, req)).flatten(),
+            reachable_blocks(engine, req),
+            combine(
+                politics::mask(engine, req),
+                self.chores.then(|| chores::mask(engine, req)).flatten(),
+            ),
         );
         if let Some(m) = &mask {
             if let [only] = (0..m.len()).filter(|&i| m[i]).collect::<Vec<_>>()[..] {
@@ -711,5 +731,96 @@ impl Agent for NetAgent {
             .rev()
             .find(|&i| weights[i] > 0.0)
             .unwrap_or(0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use zvtes::decks::Deck;
+    use zvtes::game::Step;
+
+    /// A network of zeros (no layer): every option scores alike, so the
+    /// agent draws uniformly among those its masks leave.
+    fn uniform_net() -> Net {
+        let d = 4;
+        let shapes: [(&str, &[usize]); 20] = [
+            ("tok_f.weight", &[d, obs::TOK_F]),
+            ("tok_f.bias", &[d]),
+            ("opt_f.weight", &[d, obs::OPT_F]),
+            ("opt_f.bias", &[d]),
+            ("norm.weight", &[d]),
+            ("norm.bias", &[d]),
+            ("score.0.weight", &[d, 2 * d]),
+            ("score.0.bias", &[d]),
+            ("score.2.weight", &[1, d]),
+            ("score.2.bias", &[1]),
+            ("value.0.weight", &[d, 2 * d]),
+            ("value.0.bias", &[d]),
+            ("value.2.weight", &[1, d]),
+            ("value.2.bias", &[1]),
+            ("opt_ptr.0.weight", &[d, d]),
+            ("opt_ptr.1.weight", &[d, d]),
+            ("opt_ptr.2.weight", &[d, d]),
+            ("tok_ptr.weight", &[d, d]),
+            ("opt_kind.weight", &[1, d]),
+            ("token_type.weight", &[1, d]),
+        ];
+        let mut header =
+            format!("zvp 1\nd {d}\nlayers 0\nheads 1\nobs 1\ntensor vocab.weight 0 {d}\n");
+        let mut n = 0;
+        for (name, shape) in shapes {
+            let dims: Vec<String> = shape.iter().map(|x| x.to_string()).collect();
+            header += &format!("tensor {name} {}\n", dims.join(" "));
+            n += shape.iter().product::<usize>();
+        }
+        let mut bytes = header.into_bytes();
+        bytes.push(b'\n');
+        bytes.resize(bytes.len() + 4 * n, 0);
+        Net::load(&bytes).expect("a zero network")
+    }
+
+    /// Owner, 2026-10-15 ("mask in the bot layer, train and serve"): on
+    /// random games of the E25 engine, which offers futile block attempts,
+    /// the network agent never makes one, and a window of futile attempts
+    /// only is passed.
+    #[test]
+    fn the_network_agent_never_attempts_a_futile_block() {
+        let net = std::sync::Arc::new(uniform_net());
+        let (mut offered, mut only) = (0, 0);
+        for seed in 0..12u64 {
+            let decks: Vec<Deck> = (0..4)
+                .map(|s| Deck::precon(((seed * 3 + s * 5) % 14) as usize))
+                .collect();
+            let mut e = Engine::with_decks(seed, &decks);
+            e.time_limit = 40;
+            let mut agents: Vec<NetAgent> = (0..4)
+                .map(|s| NetAgent::new(net.clone(), seed * 10 + s))
+                .collect();
+            while let Step::Decision(req) = e.run() {
+                let i = agents[req.seat.index()].decide(&e, &req);
+                let futile = |o: &Choice| matches!(*o, Choice::DeclareBlock { minion } if !e.block_can_reach(req.seat, minion));
+                if req.options.iter().any(futile) {
+                    offered += 1;
+                    assert!(
+                        !futile(&req.options[i]),
+                        "seed {seed}: a futile attempt taken"
+                    );
+                }
+                if e.futile_blocks(&req) {
+                    only += 1;
+                    assert_eq!(
+                        req.options[i],
+                        Choice::Pass,
+                        "seed {seed}: a futile window not passed"
+                    );
+                }
+                e.choose(i);
+                if e.decisions > 20_000 {
+                    break;
+                }
+            }
+        }
+        assert!(offered > 0 && only > 0, "the games met no futile attempt");
     }
 }

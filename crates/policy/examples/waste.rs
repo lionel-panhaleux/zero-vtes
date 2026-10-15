@@ -44,7 +44,12 @@
 //!   empty): influence decisions offering it and those taking
 //!   it, the crypt left then; the vampires removed from the uncontrolled
 //!   region (by it or another card), the blood on them, and those removed
-//!   while one with less blood stayed.
+//!   while one with less blood stayed;
+//! - block windows (owner, 2026-10-15: every legal attempt offered since
+//!   E25, the futile ones too, `Engine::block_can_reach`): those offering
+//!   an attempt that could reach the stealth and those taken, those
+//!   offering a futile one and those taken, and those offering only
+//!   futile ones (the windows elided before E25) and those attempted.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -120,6 +125,14 @@ struct Counts {
     removed: u64,
     removed_blood: u64,
     removed_dearer: u64,
+    /// Block windows: with a reachable attempt offered, one taken; with a
+    /// futile one offered, one taken; with only futile ones, one taken.
+    reach_offered: u64,
+    reach_taken: u64,
+    futile_offered: u64,
+    futile_taken: u64,
+    only_futile: u64,
+    only_futile_taken: u64,
 }
 
 fn is_wider(e: &Engine, o: &Choice) -> bool {
@@ -427,6 +440,22 @@ impl Watch {
             c.removed += 1;
             c.removed_blood += blood as u64;
             c.removed_dearer += slots.iter().any(|s| s.counters < blood) as u64;
+        }
+        if req.window == WindowLabel::ActionBlock {
+            let attempt = |o: &Choice, reach: bool| matches!(*o, Choice::DeclareBlock { minion } if e.block_can_reach(me, minion) == reach);
+            for (reach, offered, taken) in [
+                (true, &mut c.reach_offered, &mut c.reach_taken),
+                (false, &mut c.futile_offered, &mut c.futile_taken),
+            ] {
+                if req.options.iter().any(|o| attempt(o, reach)) {
+                    *offered += 1;
+                    *taken += attempt(&o, reach) as u64;
+                }
+            }
+            if e.futile_blocks(req) {
+                c.only_futile += 1;
+                c.only_futile_taken += matches!(o, Choice::DeclareBlock { .. }) as u64;
+            }
         }
         if req.options.iter().any(rescue) {
             c.rescue_offered += 1;
@@ -738,6 +767,15 @@ fn main() {
             c.removed,
             per(c.removed_blood, c.removed),
             pct(c.removed_dearer, c.removed)
+        );
+        println!(
+            "  block windows with a reachable attempt {}, attempted {:.0}%; with a futile one {}, taken {:.0}%; only futile ones {}, attempted {:.0}%",
+            c.reach_offered,
+            pct(c.reach_taken, c.reach_offered),
+            c.futile_offered,
+            pct(c.futile_taken, c.futile_offered),
+            c.only_futile,
+            pct(c.only_futile_taken, c.only_futile)
         );
     }
 }

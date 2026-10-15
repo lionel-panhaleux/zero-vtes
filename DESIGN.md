@@ -1594,10 +1594,30 @@ training runs.
   tables. No weak decks (owner: p10's per-deck order now matches the
   players' sense of relative strength). From p10@3840, opponents p9@3400
   and p10@3840 frozen, the other settings as p10's. Wider View
-  (`waste --twda`, TWDA decks only, 120 games): p10 takes its
-  draw-and-remove at 27% of the decisions offering it, 26% of uses under
-  4 crypt cards left (the owner 12%, none): no nudge (owner, 2026-10-14),
-  p11's snapshots measured.
+  (`waste --twda`, 120 games; also in four precons: Malkavian, Tremere,
+  Ventrue, Ministry; remeasured on `45debc9`): p10 takes its
+  draw-and-remove at 29% of the decisions offering it on TWDA decks, 39%
+  on the precons, 26% of uses under 4 crypt cards left (the owner 12%,
+  none): no nudge (owner, 2026-10-14), p11's snapshots measured.
+- **Futile blocks on the E25 engine** (owner, 2026-10-15: before any
+  redeploy). E25 (`97c4880`) offers every legal block attempt, those
+  that cannot reach the stealth too (`Engine::block_can_reach`); no
+  network was trained on them. `waste` (block windows), 80 four-seat
+  self-play games at the server's settings (temperature 0.5, its nudges):
+  p10@3840 takes a futile attempt in 61% of the windows offering one and
+  attempts in 66% of those offering only futile ones (the windows elided
+  before E25), against 58% for a reachable attempt; p11@3920 63%, 66%, 62%.
+  The networks do not tell futile from reachable. The owner's records
+  (before E25, replayed on it): 9 windows with a futile attempt, none
+  taken. Owner, 2026-10-15: "mask in the bot layer, train and serve" —
+  `zvtes_policy::reachable_blocks`, the outermost mask of `NetAgent`
+  (the server, `waste`) and of the training pool (`crates/py`): a network
+  never attempts a futile block, a window of futile attempts only passes
+  without asking it (no training decision). A failed attempt costs
+  nothing, so no reward would teach it. The engine still offers them
+  (rules-qa 73.8); the scripted bots score them below the pass (§5).
+  Masked, p10 at the server's settings (80 games): 0% of 2,102 windows
+  with a futile attempt, 0% of 1,370 with only futile ones.
 
 ### 11.3 Open gaps
 
