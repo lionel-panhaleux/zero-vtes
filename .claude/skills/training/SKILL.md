@@ -74,7 +74,14 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
 
 ## Learning from human games
 
-- **Harvest** (scheduled): `scripts/fetch_games.py --finished` pulls the
+- **Harvest** (daily, on Z-main's schedule): `python3 scripts/harvest.py`
+  in the shared checkout on `main`, clean (it refuses another branch or
+  engine edits: the report replays the new records on its checkout and
+  caches the turns for good; `--no-turns` skips both), then read the
+  day's report and take what it shows through `intake`. The corpus is
+  always the main checkout's `data/server-records/` (each worktree has its
+  own ignored `data/`: a pull there would split the corpus and its cursor).
+  Its two steps: `scripts/fetch_games.py --finished` pulls the
   finished games since its cursor (`data/server-records/.since`) from the
   admin API into `data/server-records/` (ignored), one `<game id>.json` each,
   then `scripts/games_report.py` writes the report
