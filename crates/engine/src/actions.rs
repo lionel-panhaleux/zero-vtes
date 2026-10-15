@@ -352,6 +352,9 @@ pub struct ActionCtx {
     /// "Unlocks at the end of the action if he or she is still ready" (Big
     /// Game, against a Red List minion).
     pub unlock_at_end: bool,
+    /// Tainted Spring: (strength or damage, starting life) for the animal
+    /// brought in.
+    pub animal_boost: Option<(u8, u8)>,
     /// Perfect Clarity on this vampire (with [THA]): reaction cards
     /// requiring Dominate or Presence do not affect it this action; with
     /// [THA], minions opposing it in combat cannot play cards requiring
@@ -515,6 +518,7 @@ impl ActionCtx {
                 0
             }
             + st.printed_mod(self.acting, Stat::Stealth, self.printed_ctx(st, None))
+            + st.lasting(self.acting).0
             - self.stealth_reduce as i32
     }
 
@@ -692,6 +696,11 @@ impl ActionCtx {
                 {
                     Some(n as i32)
                 }
+                cards::Modifier::HostInterceptVsChosen(n)
+                    if st.cards[l.source.index()].chosen.first() == Some(&self.acting) =>
+                {
+                    Some(n as i32)
+                }
                 _ => None,
             })
             .sum();
@@ -861,6 +870,13 @@ impl ActionCtx {
             reacting: false,
             round: 0,
             own_printed: self.source == Some(cards::AbilitySource::Vampire(self.acting)),
+            equip_weapon: self.kind == ActionKind::Equip
+                && self.card.is_some_and(|p| {
+                    crate::library::LIBRARY[p.card as usize]
+                        .labels
+                        .contains(&crate::library::Label::Weapon)
+                }),
+            enters_combat: self.combat_target(st).is_some(),
         }
     }
 
@@ -872,6 +888,11 @@ impl ActionCtx {
             .filter_map(|l| match l.modifier {
                 cards::Modifier::InterceptMod { younger_than, n }
                     if st.ally_or_younger(m, younger_than) =>
+                {
+                    Some(n as i32)
+                }
+                cards::Modifier::InterceptModWithout { without, n }
+                    if !without.iter().any(|d| st.has_discipline(m, d)) =>
                 {
                     Some(n as i32)
                 }
@@ -1168,6 +1189,21 @@ impl Engine {
         // locked if the card is canceled, ANK 20230620).
         if let Some(play) = card {
             self.apply_announced_discounts(&play);
+            // Gear Up [nec]: the card named with the announcement (LSJ
+            // 20010627).
+            let of = cards::lookup(play.card).and_then(|d| {
+                d.modes[play.mode as usize]
+                    .effects
+                    .iter()
+                    .find_map(|e| match e {
+                        Effect::AshCardOfToHand(of) => Some(*of),
+                        _ => None,
+                    })
+            });
+            if let Some(of) = of {
+                self.interrupts
+                    .push(crate::draws::Interrupt::NameOwnAshCard { seat, of });
+            }
         }
         // Veil the Legions [OBF]: one of the next X actions this turn gets
         // +1 stealth, counted as it is announced (a later cancel does not
@@ -1757,7 +1793,7 @@ impl Engine {
                         && st
                             .big_cannot_block(a.acting)
                             .is_some_and(|n| st.capacity_of(*m).is_some_and(|c| c >= n)))
-                    && !st.cannot_block(*m)
+                    && !st.cannot_block(*m, a.acting)
                     && !st.unblockable(a.acting, a.kind)
                     && !(no_allies && v.is_ally())
                     && !(small > 0
@@ -2704,6 +2740,15 @@ impl Engine {
                         .map(|&(_, n)| n)
                         .sum();
                     self.start_combat(acting, blocker);
+                    // Divine Sign [NEC]: blocking its chosen minion.
+                    let st = &self.state;
+                    if st.borne(blocker).any(|l| {
+                        l.modifier == cards::Modifier::OpenHandOfChosenBlocked
+                            && st.cards[l.source.index()].chosen.first() == Some(&acting)
+                    }) {
+                        let seat = st.minions[acting.index()].owner;
+                        self.state.seats[seat.index()].combat_open_hand = true;
+                    }
                     let c = self.combat.as_mut().expect("combat");
                     c.all_aggravated = dawn;
                     c.sides[0].strike_card_toll += toll;
@@ -2728,6 +2773,8 @@ impl Engine {
             };
             match rider {
                 cards::BlockRider::Maneuver => c.sides[i].combat_maneuvers += 1,
+                cards::BlockRider::ManeuverToLong => c.sides[i].long_maneuvers += 1,
+                cards::BlockRider::ContinuePress => c.sides[i].combat_continue_presses += 1,
                 cards::BlockRider::ManeuverFirstRound => c.sides[i].maneuvers += 1,
                 cards::BlockRider::OpponentNoCombatEndsThisAction => {
                     c.sides[1 - i].no_combat_ends_combat = true;
@@ -3071,6 +3118,7 @@ impl Engine {
         let mut a = self.action.take().expect("action context");
         let mut burned = None;
         match effect {
+            Effect::AnimalBoostIfSuccessful { n, life } => a.animal_boost = Some((n, life)),
             Effect::TakeOverAction => {
                 let new = play.actor.expect("the masking vampire");
                 self.state.unlock(a.acting);
@@ -3920,6 +3968,16 @@ impl Engine {
             })
     }
 
+    /// A copy of the card named with the announcement, if still in `seat`'s
+    /// ash heap, to their hand (Drozodny, Gear Up [nec]).
+    fn ash_named_to_hand(&mut self, seat: SeatId, named: Option<u16>) {
+        let s = &mut self.state.seats[seat.index()];
+        if let Some(i) = named.and_then(|n| s.ash.iter().position(|&x| x == n)) {
+            let (card, copy) = s.ash.take(i);
+            s.hand.put(card, copy);
+        }
+    }
+
     fn succeed(&mut self) {
         // Faceless Night [OBF]: the failed blockers lock before resolution.
         let failed = self
@@ -4271,7 +4329,16 @@ impl Engine {
                 self.state.minions[acting.index()].blood -= blood;
                 match a.kind {
                     ActionKind::Recruit => {
-                        self.recruit_ally(seat, play.card, *play.copy, play.mode);
+                        let ally = self.recruit_ally(seat, play.card, *play.copy, play.mode);
+                        // Tainted Spring: +1 strength, [ANI] +1 starting life.
+                        if let Some((n, life)) = a.animal_boost {
+                            let v = &mut self.state.minions[ally.index()];
+                            if let crate::state::MinionKind::Ally { body, .. } = &mut v.kind {
+                                body.strength += n;
+                                body.life += life;
+                                v.blood += life;
+                            }
+                        }
                         // "Unlock this vampire if this is their first
                         // successful recruit ally action this turn"
                         // (Spectral Servitor).
@@ -4286,7 +4353,14 @@ impl Engine {
                         }
                         self.state.minions[acting.index()].recruits_this_turn += 1;
                     }
-                    _ => self.put_retainer(seat, acting, play, false),
+                    _ => {
+                        let id = self.put_retainer(seat, acting, play, false);
+                        // Tainted Spring: +1 damage to a damage-dealing
+                        // retainer, [ANI] +1 starting life.
+                        if let Some((n, life)) = a.animal_boost {
+                            self.boost_retainer(id, n, life);
+                        }
+                    }
                 }
                 // An ally paying its last life "as a vampire": the action
                 // resolved fully, then it burns (LSJ 20080512).
@@ -4512,9 +4586,24 @@ impl Engine {
                                 | Effect::CoagulateFromPicks { .. }
                                 | Effect::UnlockAtEndIfReady
                                 | Effect::TauntCombat(_)
+                                | Effect::AshCardOfToHand(_)
                         )
                 }) {
                     self.apply_card_effect(*e, &ctx, &mut in_play);
+                }
+                if target_ok
+                    && mode
+                        .effects
+                        .iter()
+                        .any(|e| matches!(e, Effect::AshCardOfToHand(_)))
+                {
+                    self.ash_named_to_hand(a.seat, a.ash_named);
+                }
+                // In play now, before any combat the action begins
+                // (Clandestine Contract).
+                a.card_entered_play = in_play.is_some();
+                if let Some(id) = in_play {
+                    self.enter_library_contest(id);
                 }
                 if target_ok && mode.effects.contains(&Effect::UnlockAtEndIfReady) {
                     a.unlock_at_end = true;
@@ -4656,10 +4745,6 @@ impl Engine {
                 {
                     self.state.unlock(a.acting);
                 }
-                a.card_entered_play = in_play.is_some();
-                if let Some(id) = in_play {
-                    self.enter_library_contest(id);
-                }
                 // Abactor's blood hunt: after a hunt that gained blood (LSJ
                 // 20090411), inside the resolution (LSJ 20100112), no
                 // diablerie (LSJ 20090724).
@@ -4688,8 +4773,27 @@ impl Engine {
                     self.state.seats[seat.index()].pool -= cost as i32;
                     let host = self.state.cards[src.index()].host;
                     let effects = self.granted_effects(&a);
+                    // Pulled Fangs: burned by the second such action,
+                    // whoever takes them (ANK 20170202-2).
+                    let at = effects.iter().find_map(|e| match e {
+                        Effect::BurnSelfAtCounters(n) => Some(*n),
+                        _ => None,
+                    });
                     if effects.contains(&Effect::ShuffleSourceIntoLibrary) {
                         self.shuffle_into_library(src);
+                    } else if let Some(n) = at {
+                        let add: u8 = effects
+                            .iter()
+                            .map(|e| match e {
+                                Effect::AddCounter(k) => *k,
+                                _ => 0,
+                            })
+                            .sum();
+                        let c = &mut self.state.cards[src.index()];
+                        c.counters += add;
+                        if c.counters >= n {
+                            self.burn_card_in_play(src);
+                        }
                     } else {
                         self.burn_card_in_play(src);
                     }
@@ -4950,12 +5054,7 @@ impl Engine {
                         // once the action is over).
                         Effect::AshCardOfToHand(_) => {
                             let named = self.action.as_ref().and_then(|a| a.ash_named);
-                            let s = &mut self.state.seats[seat.index()];
-                            if let Some(i) = named.and_then(|n| s.ash.iter().position(|&x| x == n))
-                            {
-                                let (card, copy) = s.ash.take(i);
-                                s.hand.put(card, copy);
-                            }
+                            self.ash_named_to_hand(seat, named);
                         }
                         // Malgorzata: both vampires still where they were
                         // named.
@@ -5629,7 +5728,7 @@ impl Engine {
         acting: MinionId,
         play: PlayCtx,
         outside_action: bool,
-    ) {
+    ) -> crate::state::CardId {
         let def = cards::lookup(play.card).expect("definition");
         // Enkidu, The Noah: his successful employ action unlocks him at the
         // end of the turn.
@@ -5669,6 +5768,29 @@ impl Engine {
         };
         self.apply_entry_effects(&ctx, id, outside_action);
         self.enter_library_contest(id);
+        id
+    }
+
+    /// Tainted Spring on retainer `id`: +n to the damage it inflicts, of
+    /// its kind, and +life life.
+    fn boost_retainer(&mut self, id: crate::state::CardId, n: u8, life: u8) {
+        let extra = self.state.layers.iter().find_map(|l| match l.modifier {
+            cards::Modifier::RetainerDamage(_) if l.source == id => {
+                Some(cards::Modifier::RetainerDamage(n))
+            }
+            cards::Modifier::RetainerDamageClose(_) if l.source == id => {
+                Some(cards::Modifier::RetainerDamageClose(n))
+            }
+            _ => None,
+        });
+        if let Some(modifier) = extra {
+            self.state.layers.push(cards::Layer {
+                scope: Scope::InPlay,
+                modifier,
+                source: id,
+            });
+        }
+        self.state.cards[id.index()].counters += life;
     }
 
     /// The effects of a minion card entering play from its mode (layers),

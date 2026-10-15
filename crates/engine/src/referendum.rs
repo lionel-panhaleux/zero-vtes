@@ -259,6 +259,17 @@ impl ReferendumCtx {
         } else {
             0
         };
+        // "+1 vote after a Methuselah burns the Edge for a vote" (Tyler
+        // McGill).
+        let edge = if (0..st.seats.len()).any(|s| self.spent(Source::Edge(SeatId(s as u8)))) {
+            st.printed_mod(
+                m,
+                crate::cards::Stat::VotesAfterEdgeBurned,
+                crate::state::PrintedCtx::default(),
+            )
+        } else {
+            0
+        };
         let conclave: i32 = self
             .penalties
             .iter()
@@ -272,6 +283,7 @@ impl ReferendumCtx {
             + granted as i32
             + printed
             + calling
+            + edge
             - conclave
             - rich)
             .max(0) as u8
@@ -2151,7 +2163,7 @@ impl Engine {
                         self.state.seats[seat.index()].timed.add(
                             TimedStat::HandSize,
                             Expiry::UnlockPhase,
-                            n as i8,
+                            n,
                         );
                     }
                     other => unreachable!("not a referendum rider effect: {other:?}"),

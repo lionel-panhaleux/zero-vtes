@@ -244,6 +244,9 @@ pub struct Side {
     pub additional_with: Option<CardId>,
     /// Optional presses only usable to continue combat (Righteous Blade).
     pub continue_presses: u8,
+    /// Optional presses only usable to continue, in any round of this
+    /// combat (Harass).
+    pub combat_continue_presses: u8,
     /// Additional strikes (limited) it gets each round of the combat
     /// (Octopod).
     pub strikes_each_round: u8,
@@ -366,6 +369,12 @@ pub struct Side {
     /// Optional maneuvers this round, only usable to get to close range
     /// (Angel's Gift).
     pub close_maneuvers: u8,
+    /// Optional maneuvers this combat, only usable to get to long range
+    /// (Repulsion [pre]).
+    pub long_maneuvers: u8,
+    /// Combat ends once this side's strike has resolved (Anesthetic Touch
+    /// [obe]).
+    pub ends_combat_after: bool,
     /// Dance with the Devil [OBF]/[THA]: a maneuver to close range for
     /// this blood, once this round (0: none).
     pub close_maneuver_blood: u8,
@@ -448,6 +457,8 @@ impl Side {
             strength_mods: self.strength_mods,
             combat_maneuvers: self.combat_maneuvers,
             combat_presses: self.combat_presses,
+            long_maneuvers: self.long_maneuvers,
+            combat_continue_presses: self.combat_continue_presses,
             no_combat_ends_round: self.no_combat_ends_round,
             no_combat_ends_combat: self.no_combat_ends_combat,
             frozen_round: self.frozen_round,
@@ -534,6 +545,9 @@ pub struct CombatCtx {
     /// The round ended early (a combat ends strike, a combatant no longer
     /// ready): straight to the end-of-round window.
     pub round_over: bool,
+    /// Damage dealt in the end-of-round window awaits prevention (Pulled
+    /// Fangs): the window resumes after it.
+    pub end_of_round_damage: bool,
     /// A would-end replacement started a new round.
     pub continued: bool,
     /// Card names played per minion, for `Limit::PerRound` / `PerCombat`.
@@ -1297,6 +1311,7 @@ impl Engine {
                             || c.sides[i].combat_maneuvers > 0
                             || c.sides[i].maneuver_or_press > 0
                             || (c.sides[i].close_maneuvers > 0 && c.range == Range::Long)
+                            || (c.sides[i].long_maneuvers > 0 && c.range == Range::Close)
                             || (c.sides[i].close_maneuver_blood > 0
                                 && c.range == Range::Long
                                 && self.state.minions[c.sides[i].minion.index()].blood
@@ -1322,6 +1337,7 @@ impl Engine {
                                 || c.sides[i].combat_presses > 0
                                 || c.sides[i].maneuver_or_press > 0
                                 || ((c.sides[i].continue_presses > 0
+                                    || c.sides[i].combat_continue_presses > 0
                                     || c.sides[i].mandatory_press > 0)
                                     && !c.press_continue)) =>
                     {
@@ -1498,6 +1514,8 @@ impl Engine {
                 // maneuver, then the combat-long one.
                 if c.range == Range::Long && c.sides[i].close_maneuvers > 0 {
                     c.sides[i].close_maneuvers -= 1;
+                } else if c.range == Range::Close && c.sides[i].long_maneuvers > 0 {
+                    c.sides[i].long_maneuvers -= 1;
                 } else if c.sides[i].maneuvers == 0
                     && c.sides[i].combat_maneuvers == 0
                     && c.range == Range::Long
@@ -1533,6 +1551,8 @@ impl Engine {
                     c.sides[i].mandatory_press -= 1;
                 } else if !c.press_continue && c.sides[i].continue_presses > 0 {
                     c.sides[i].continue_presses -= 1;
+                } else if !c.press_continue && c.sides[i].combat_continue_presses > 0 {
+                    c.sides[i].combat_continue_presses -= 1;
                 } else if c.sides[i].presses > 0 {
                     c.sides[i].presses -= 1;
                 } else if c.sides[i].combat_presses > 0 {
@@ -1784,6 +1804,18 @@ impl Engine {
             return;
         }
         let c = self.combat.as_mut().expect("combat context");
+        // Damage dealt at the end of the round (Pulled Fangs): back to it.
+        if std::mem::take(&mut c.end_of_round_damage) {
+            c.fresh_window(Step::EndOfRound);
+            return;
+        }
+        // Anesthetic Touch: its strike resolved, the combat ends; a strike
+        // its first strike held back never resolves.
+        let held = c.held_strike.as_ref().map(|&(j, _)| j);
+        if (0..2).any(|i| c.sides[i].ends_combat_after && held != Some(i)) {
+            c.round_over = true;
+            c.held_strike = None;
+        }
         // The strike a first strike held back: resolved now, if its minion
         // is still ready and the round goes on.
         if let Some((j, held)) = c.held_strike.take() {
@@ -2059,7 +2091,8 @@ impl Engine {
                         // A strike's damage after combat: reduced too (LSJ
                         // 20080630).
                         let target = c.sides[1 - i].minion;
-                        let n = n.saturating_sub(self.state.damage_reduction(target));
+                        let from = c.sides[i].minion;
+                        let n = n.saturating_sub(self.state.damage_reduction(target, from));
                         c.after_combat_damage.push((target, n));
                     }
                 }
@@ -2115,15 +2148,22 @@ impl Engine {
         let first: Vec<usize> = (0..2)
             .filter(|&i| c.sides[i].first_strike && strikes[i].is_some())
             .collect();
-        if let [i] = first[..] {
-            debug_assert!(matches!(
-                strikes[i],
+        let equipment_first = |k: Option<StrikeKind>| {
+            matches!(
+                k,
                 Some(
                     StrikeKind::BurnEquipment
                         | StrikeKind::RangedBurnEquipment
                         | StrikeKind::StealWeapon
                 )
-            ));
+            )
+        };
+        if let [i] = first[..]
+            .iter()
+            .copied()
+            .filter(|&i| equipment_first(strikes[i]))
+            .collect::<Vec<_>>()[..]
+        {
             let ranged = strikes[i] == Some(StrikeKind::RangedBurnEquipment);
             let steal = strikes[i] == Some(StrikeKind::StealWeapon);
             let j = 1 - i;
@@ -2176,10 +2216,15 @@ impl Engine {
                 },
             ) > 0
         });
+        // A card's first strike on another strike (Anesthetic Touch [OBE])
+        // holds the opposing strike back alike.
+        let first: [bool; 2] = std::array::from_fn(|i| {
+            printed_first[i] || (c.sides[i].first_strike && !equipment_first(strikes[i]))
+        });
         for i in 0..2 {
             let j = 1 - i;
-            if printed_first[i]
-                && !printed_first[j]
+            if first[i]
+                && !first[j]
                 && !c.sides[j].first_strike
                 && strikes[i].is_some_and(|k| k != StrikeKind::Dodge)
                 && strikes[j].is_some_and(|k| k != StrikeKind::Dodge)
@@ -2218,6 +2263,7 @@ impl Engine {
                 + c.sides[i].frenzy_strength as i32
                 + bearer
                 + st.strength_against(c.sides[i].minion, c.sides[1 - i].minion)
+                + st.lasting(c.sides[i].minion).1
                 + st.printed_mod(c.sides[i].minion, cards::Stat::Strength, ctx))
             .max(0) as u8
                 + c.sides[i].strength_round
@@ -2387,7 +2433,7 @@ impl Engine {
             // "Each strike … made by the opposing minion against Nephandus
             // … inflicts 1 less damage": before prevention, unpreventable
             // damage included (LSJ 20100519).
-            let less = st.damage_reduction(c.sides[j].minion);
+            let less = st.damage_reduction(c.sides[j].minion, c.sides[i].minion);
             // Aimed at a retainer: a dodge does not protect it (rulebook
             // "Dodge"); gone or moved by now, the strike has no effect.
             if let Some(r) = c.sides[i].strike_at {
@@ -2492,9 +2538,7 @@ impl Engine {
                             n
                         };
                         let black_hand = c.sides[i].unpreventable_if_black_hand
-                            && st.minions[c.sides[i].minion.index()]
-                                .vampire()
-                                .is_some_and(|v| v.black_hand);
+                            && st.is_black_hand(c.sides[i].minion);
                         if black_hand
                             || source_rider(
                                 st,
@@ -3504,6 +3548,22 @@ impl Engine {
                 s.marble = Some(aggravated || s.marble == Some(true));
             }
             Effect::WeatherDamage { escalate } => c.weather.push((c.round, escalate)),
+            // Pulled Fangs: not strike damage, offered to prevention before
+            // it lands, the end of the round then resumed (rules-qa 74.1).
+            Effect::DamageOpponentNow(n) => {
+                let (from, to) = (c.sides[i].minion, c.sides[1 - i].minion);
+                if self.state.minions[to.index()].ready() {
+                    let n = n.saturating_sub(self.state.damage_reduction(to, from));
+                    if n > 0 {
+                        let o = &mut c.sides[1 - i];
+                        o.pending.normal += n;
+                        o.preventing = true;
+                        c.others_prevented = false;
+                        c.end_of_round_damage = true;
+                        c.step = Step::Prevent(1 - i);
+                    }
+                }
+            }
             // At once, where it lands: the flow may move on (an oust).
             Effect::OpponentToTorpor => {
                 let o = &mut c.sides[1 - i];
@@ -3535,6 +3595,10 @@ impl Engine {
             Effect::PutOnActorAfterCombat => c.after_combat.push(Held::from_play(play, actor, 0)),
             Effect::AimExtraDamage(n) => c.sides[i].aim = n,
             Effect::StrengthThisRound(n) => c.sides[i].strength_round += n,
+            Effect::CombatEndsAfterStrike => c.sides[i].ends_combat_after = true,
+            Effect::StrengthThisRoundVotes => {
+                c.sides[i].strength_round += self.state.votes_held(actor);
+            }
             Effect::PreventThisRound(n) => c.sides[i].round_prevents += n,
             Effect::PreventEachRound(n) => {
                 c.sides[i].prevent_each_round += n;

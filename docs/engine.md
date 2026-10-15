@@ -159,6 +159,16 @@ unlock-phase replacements, `Combat` as the combat ends. Other shapes stay
 fields (`combat_open_hand`, `no_transfers_next`, `transfers_next`,
 `mpa_next`, `veil_left`).
 
+**Timed minion bonuses.** `Minion::timed`: `(Lasting, Expiry, SeatId)`
+entries — `Lasting::{Stealth, Strength, Superior(discipline)}` — read by
+`GameState::lasting` (stealth, strength) and the Discipline level, swept
+beside `Seat::timed`: `EndOfTurn` in `next_turn`, `UnlockPhase` in
+`start_turn` for the seat recorded (the controller's, "until your unlock
+phase"). Not `Timed` (a numeric table, and a Discipline is not a number)
+nor a layer (`Scope` has no turn scope). Dive into Madness [dem], Gear Up.
+Folding `bleed_bonus_turn` and `unlock_end_of_turn` into it is engine
+board E35.
+
 **Layers.** `Layer { scope: InPlay | Action, modifier, source }` in
 `GameState::layers`, pushed by `Effect::Layer` / `Effect::ActionLayer` and
 `push_mode_layers`; `GameState::layer_active` suspends a contested card's.
@@ -695,8 +705,10 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 - Aims (Target Vitals) come after the strike choice: a side whose strike
   is chosen gets one more `ChooseStrike` decision, an aim or pass
   (`Side::aim_declined`; rules-qa 62.1). Damage reduction is not prevention:
-  `GameState::damage_reduction` (Nephandus, `Modifier::OpposingDamageLess`)
-  lowers each opposing strike's damage before it is pending — unpreventable
+  `GameState::damage_reduction(m, from)` (Nephandus,
+  `Modifier::OpposingDamageLess`; to 0 against a Baali, Saulot's
+  `Stat::NoDamageFromOpponent`) lowers each opposing strike's damage before
+  it is pending — unpreventable
   and after-combat strike damage included, environmental not.
   `Side::keep_normal` keeps a never-aggravated strike's damage (Psychic
   Assault) normal under Dawn Operation. `StrikeKind::Corrupt` (Contagion)
@@ -720,6 +732,21 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 - Flames of Insurrection's offers come as a minion opposing an Anarch leaves
   the ready region, to both controllers when both Anarchs leave
   (`Engine::flames_offers`).
+- First strike: printed (`Stat::FirstStrike`) or a card's
+  (`Side::first_strike`, Anesthetic Touch [OBE]) holds the opposing
+  non-dodge strike back (`CombatCtx::held_strike`) until its damage lands;
+  a card's first strike that burns or steals equipment (Donnybrook, Canine
+  Horde, Fast Hands) resolves apart. `Side::ends_combat_after` (Anesthetic
+  Touch [obe]): after the strike damage lands the round is over, the held
+  strike dropped. `Side::long_maneuvers` and `combat_continue_presses`
+  are combat-long allowances carried by `Side::new_round` (Repulsion
+  [pre], Harass).
+- Damage in the end-of-round window (Pulled Fangs' `DamageOpponentNow`):
+  pending, a prevention step, then the window again
+  (`CombatCtx::end_of_round_damage`).
+- The Book of Going Forth by Night: `Engine::burn_minion` first offers an
+  ally opposing a bearer of `Modifier::HostStealsOpposingAllyOnBurn` to
+  `book_takes_ally` (stolen, locked, 1 life; the round over, no press).
 
 ### 6.8 Referendums
 
@@ -815,6 +842,16 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   card is in play, `GameState::release_torture`), `nightmare`,
   `diablerie_shield`, `must_hunt`, `played_since_unlock` (wake limits),
   `unlock_at_discard`.
+- Black Hand: printed (`CryptCard::black_hand`) or gained
+  (`Minion::gained_black_hand`, Mateusz), read by `GameState::is_black_hand`.
+  Pulled Fangs' "if they must hunt, torpor instead": `Engine::run`'s
+  `settle_hunts_to_torpor`, in the controller's minion phase, read live.
+- A vampire's text may grant its controller's minions an action
+  (`Actor::ActingCandidate` on a `VampireDef` ability, Lucinde, Alastor G7):
+  `vampire_ability_options` offers it per candidate from the grants made
+  this turn (`GameState::chosen_this_turn`: the Methuselah, the vampire,
+  the chosen), its vampire present or not (rules-qa 74.2); read by
+  `Requirement::TargetChosenByHostThisTurn`.
 - Slaves (rulebook "Slave", Tupdog): the directed-action bar is printed
   (`Stat::NoDirectedActions` with `ControlsNoReadyOfClan`); the block swap is
   the slave's ability in the blocked window (`Effect::SlaveTakesCombat`,

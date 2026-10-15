@@ -118,6 +118,10 @@ pub struct PrintedCtx {
     /// The action is granted by the modified vampire's own text (Black
     /// Annis: "other … actions").
     pub own_printed: bool,
+    /// The action equips with a weapon card from hand (Adhiambo).
+    pub equip_weapon: bool,
+    /// The action enters combat with a minion (Adhiambo).
+    pub enters_combat: bool,
 }
 
 impl PrintedCtx {
@@ -290,6 +294,11 @@ pub struct Minion {
     pub unlock_at_discard: bool,
     /// Bleed added until the end of the turn (Andre LeRoux).
     pub bleed_bonus_turn: u8,
+    /// Became Black Hand in play (Mateusz Kazimirski).
+    pub gained_black_hand: bool,
+    /// Bonuses lasting until an expiry, the seat whose phase ends them
+    /// (Dive into Madness [dem], Gear Up).
+    pub timed: Vec<(crate::cards::Lasting, Expiry, SeatId)>,
     /// Unlocks at the end of the turn (Enkidu, The Noah's employ).
     pub unlock_end_of_turn: bool,
     /// The circle New Blood chose as he entered play (`Minion::circle`).
@@ -422,6 +431,8 @@ impl Minion {
             played_since_unlock: Vec::new(),
             unlock_at_discard: false,
             bleed_bonus_turn: 0,
+            gained_black_hand: false,
+            timed: Vec::new(),
             unlock_end_of_turn: false,
             chosen_circle: None,
             discard_unlock: None,
@@ -1086,6 +1097,9 @@ pub struct GameState {
     /// Red List minions marked this turn: (the marking Methuselah, the
     /// minion).
     pub red_list_marks: Vec<(SeatId, MinionId)>,
+    /// Vampires chosen this turn by a vampire's ability: (the Methuselah
+    /// using it, the chooser, the chosen) (Lucinde, Alastor G7).
+    pub chosen_this_turn: Vec<(SeatId, MinionId, MinionId)>,
     /// The minion performing the action under way (Midget: "while Midget is
     /// acting").
     pub acting: Option<MinionId>,
@@ -1291,6 +1305,11 @@ impl GameState {
             .flatten()
             .any(|g| g.eq_ignore_ascii_case(d))
         {
+            return 2;
+        }
+        if self.minions[m.index()].timed.iter().any(
+            |&(l, ..)| matches!(l, crate::cards::Lasting::Superior(g) if g.eq_ignore_ascii_case(d)),
+        ) {
             return 2;
         }
         // The Sargon Fragment: superior, on a vampire.
@@ -1609,6 +1628,18 @@ impl GameState {
         .max(0) as u8
     }
 
+    /// `m`'s lasting stealth and strength bonuses (`Minion::timed`).
+    pub fn lasting(&self, m: MinionId) -> (i32, i32) {
+        self.minions[m.index()]
+            .timed
+            .iter()
+            .fold((0, 0), |(st, sg), &(l, ..)| match l {
+                crate::cards::Lasting::Stealth(n) => (st + n as i32, sg),
+                crate::cards::Lasting::Strength(n) => (st, sg + n as i32),
+                crate::cards::Lasting::Superior(_) => (st, sg),
+            })
+    }
+
     /// Strength before modifiers (rulebook "Hand Strike": vampires have a
     /// default strength of 1; an ally has its printed strength).
     pub fn base_strength(&self, m: MinionId) -> u8 {
@@ -1819,6 +1850,8 @@ impl GameState {
             R::IsRecruitOrEmploy => {
                 matches!(ctx.kind, Some(ActionKind::Recruit | ActionKind::Employ))
             }
+            R::IsEquipWeaponFromHand => ctx.equip_weapon,
+            R::ActionEntersCombat => ctx.enters_combat,
             // "While you have the Edge" (Anxo Vilela).
             R::HasEdge => self.seats[src.owner.index()].has_edge,
             R::TargetSeatControlsClan(clans) => ctx.target.is_some_and(|s| {
@@ -2238,6 +2271,14 @@ impl GameState {
         self.cards
             .iter()
             .any(|c| c.in_play && c.host == Some(m) && holding_matches(c.card, h))
+    }
+
+    /// How many cards of kind `h` minion `m` holds.
+    pub fn holds_count(&self, m: MinionId, h: Holding) -> u8 {
+        self.cards
+            .iter()
+            .filter(|c| c.in_play && c.host == Some(m) && holding_matches(c.card, h))
+            .count() as u8
     }
 
     /// "A vampire can have only one" `card` (Wall of Filth, Pillars Fall,
@@ -2818,13 +2859,20 @@ impl GameState {
     /// `m` does not hunt as normal (Week of Nightmares: its clan).
     pub fn cannot_hunt(&self, m: MinionId) -> bool {
         let clan = self.minions[m.index()].clan();
-        self.in_play_layers().any(|l| match l.modifier {
-            Modifier::ClanCannotHunt(c) => Some(c) == clan,
-            // "Vampires cannot hunt unless they must hunt" (Restricted
-            // Vitae).
-            Modifier::OnlyMustHunt => !self.must_hunt(m) && !self.gehenna_immune(m),
-            _ => false,
-        })
+        self.bears(m, Modifier::HostHuntsToTorpor)
+            || self.in_play_layers().any(|l| match l.modifier {
+                Modifier::ClanCannotHunt(c) => Some(c) == clan,
+                // "Vampires cannot hunt unless they must hunt" (Restricted
+                // Vitae).
+                Modifier::OnlyMustHunt => !self.must_hunt(m) && !self.gehenna_immune(m),
+                _ => false,
+            })
+    }
+
+    /// Is `m` Black Hand: printed, or become so (Mateusz Kazimirski)?
+    pub fn is_black_hand(&self, m: MinionId) -> bool {
+        let v = &self.minions[m.index()];
+        v.gained_black_hand || v.vampire().is_some_and(|c| c.black_hand)
     }
 
     /// Must `m` hunt: a vampire with no blood, or made to?
@@ -2834,9 +2882,13 @@ impl GameState {
     }
 
     /// `m` cannot block (Pentex™ Subversion): a card on it.
-    pub fn cannot_block(&self, m: MinionId) -> bool {
+    pub fn cannot_block(&self, m: MinionId, acting: MinionId) -> bool {
+        let ctx = PrintedCtx {
+            opponent: Some(acting),
+            ..PrintedCtx::default()
+        };
         self.hosts(m, Modifier::HostCannotBlock)
-            || self.printed_mod(m, cards::Stat::CannotBlock, PrintedCtx::default()) > 0
+            || self.printed_mod(m, cards::Stat::CannotBlock, ctx) > 0
     }
 
     /// `m`'s non-bleed actions cannot be blocked (Toreador Grand Ball), still
@@ -3115,7 +3167,14 @@ impl GameState {
     }
 
     /// Damage each opposing strike inflicts on `m` less (Nephandus).
-    pub fn damage_reduction(&self, m: MinionId) -> u8 {
+    pub fn damage_reduction(&self, m: MinionId, from: MinionId) -> u8 {
+        let ctx = PrintedCtx {
+            opponent: Some(from),
+            ..PrintedCtx::default()
+        };
+        if self.printed_mod(m, Stat::NoDamageFromOpponent, ctx) > 0 {
+            return u8::MAX;
+        }
         self.borne(m)
             .map(|l| match l.modifier {
                 Modifier::OpposingDamageLess(n) => n,
@@ -3247,6 +3306,14 @@ impl GameState {
         } else {
             0
         }
+    }
+
+    /// Votes vampire `m` has outside a referendum: its title's, printed,
+    /// borne and its clan's (Island of Yiaros).
+    pub fn votes_held(&self, m: MinionId) -> u8 {
+        let printed = self.printed_mod(m, Stat::Votes, PrintedCtx::default());
+        (i32::from(self.title_votes_of(m)) + printed + self.host_votes(m) + self.clan_votes(m))
+            .clamp(0, 255) as u8
     }
 
     /// Other present vampires (any seat) claiming a title that contests

@@ -1451,6 +1451,12 @@ impl Engine {
                                     purpose: crate::draws::MinionPurpose::LockOldest(clan),
                                 });
                             }
+                            // Palatial Estate: its vampire gains the blood.
+                            Effect::AddHostBlood(n) => {
+                                if let Some(h) = self.state.cards[id.index()].bearer() {
+                                    self.state.gain_blood(h, n);
+                                }
+                            }
                             other => unreachable!("not a master-phase rider effect: {other:?}"),
                         }
                     }
@@ -2744,6 +2750,9 @@ impl Engine {
                                 Requirement::PlayedGrappleOrAimByOpponent => {
                                     self.played_grapple_by_opponent(source, &top.ctx)
                                 }
+                                Requirement::PlayedCombatByOpponent => {
+                                    self.played_combat_by_opponent(source, &top.ctx)
+                                }
                                 Requirement::PlayedActionCardAtYour(label) => {
                                     cards::played_action_card_at(&self.state, seat, label, &top.ctx)
                                 }
@@ -2995,6 +3004,26 @@ impl Engine {
             .as_ref()
             .zip(host)
             .is_some_and(|(cb, h)| cb.opponent_of(h).is_some_and(|o| ctx.actor == Some(o)))
+    }
+
+    /// The card played (`ctx`) is played as a combat card (its mode's
+    /// windows all combat ones, rules-digest D18) by the minion opposing
+    /// `source`'s user (Asguresh).
+    fn played_combat_by_opponent(&self, source: AbilitySource, ctx: &PlayCtx) -> bool {
+        let host = match source {
+            AbilitySource::Card(c) => self.state.cards[c.index()].bearer(),
+            AbilitySource::Vampire(m) => Some(m),
+        };
+        let combat = LIBRARY[ctx.card as usize].types.contains(&CardType::Combat)
+            && cards::lookup(ctx.card)
+                .and_then(|d| d.modes.get(ctx.mode as usize))
+                .is_some_and(|m| m.windows.iter().all(|w| w.is_combat()));
+        combat
+            && self
+                .combat
+                .as_ref()
+                .zip(host)
+                .is_some_and(|(cb, h)| cb.opponent_of(h).is_some_and(|o| ctx.actor == Some(o)))
     }
 
     /// The card played (`ctx`) is a strike card of the minion opposing
@@ -3932,6 +3961,11 @@ impl Engine {
                     self.state.cards[id.index()].chosen = vec![t];
                 }
             }
+            Effect::ChooseActor => {
+                if let (Some(id), Some(m)) = (*in_play, ctx.actor) {
+                    self.state.cards[id.index()].chosen = vec![m];
+                }
+            }
             Effect::RevealCryptTop {
                 clan,
                 blood,
@@ -4477,13 +4511,6 @@ impl Engine {
                 self.interrupts
                     .push(Interrupt::LibraryToHand { seat: s, filter });
             }
-            // Chameleon: the stolen vampire becomes Anarch.
-            Effect::TargetBecomesAnarch => {
-                let t = ctx.target.minion();
-                if self.state.minions[t.index()].present() {
-                    self.make_anarch(t);
-                }
-            }
             // Third Tradition: Progeny: up to n of the acting vampire's
             // blood to the new vampire, decided now (PIB 20150418).
             Effect::ActingBloodToNewUpTo(n) => {
@@ -4823,6 +4850,36 @@ impl Engine {
     /// is its host (or the user's combatant).
     pub(crate) fn apply_shared_effect(&mut self, effect: Effect, ctx: &PlayCtx, by: By) {
         match effect {
+            Effect::HandSizeUntilUnlock(n) => {
+                self.state.seats[ctx.seat.index()].timed.add(
+                    TimedStat::HandSize,
+                    Expiry::UnlockPhase,
+                    n,
+                );
+            }
+            Effect::ActorBecomesBlackHand => {
+                if let Some(m) = ctx.actor {
+                    self.state.minions[m.index()].gained_black_hand = true;
+                }
+            }
+            Effect::TargetBecomesSect(sect) => {
+                if let Target::Minion(t) = ctx.target {
+                    if self.state.minions[t.index()].present() {
+                        if sect == crate::crypt::Sect::Anarch {
+                            self.make_anarch(t);
+                        } else {
+                            self.state.minions[t.index()].sect_override = Some(sect);
+                        }
+                    }
+                }
+            }
+            Effect::ActorLasting(l, until) => {
+                if let Some(m) = ctx.actor {
+                    self.state.minions[m.index()]
+                        .timed
+                        .push((l, until, ctx.seat));
+                }
+            }
             // The target of a master card (Life in the City) or the
             // vampire in the uncontrolled region an action card chose
             // (Govern the Unaligned [DOM]); re-checked at resolution.
@@ -5300,30 +5357,7 @@ impl Engine {
                         }
                     }
                     Actor::ActingCandidate => {
-                        for m in self.actor_candidates(seat, ability).into_iter().flatten() {
-                            if gate(Some(m)).is_none() {
-                                continue;
-                            }
-                            // "Another Ravnos" (Week of Nightmares): never the
-                            // actor itself — no action sure to fizzle
-                            // (rules-qa 17.4).
-                            let other = ability
-                                .target
-                                .is_some_and(|sp| sp.filter.contains(&Requirement::OtherThanActor));
-                            for target in
-                                self.ability_targets_by(seat, ability.target, c.host, Some(m))
-                            {
-                                if other && target == Target::Minion(m) {
-                                    continue;
-                                }
-                                // An action at a minion it may not direct
-                                // actions at (Secure Haven, Shadow Cloak).
-                                if !self.may_direct(seat, m, target) {
-                                    continue;
-                                }
-                                out.push(use_card(id, ai, Some(m), target));
-                            }
-                        }
+                        self.candidate_uses(seat, window, source, ai, c.host, &mut out)
                     }
                     other => unreachable!("not an ability actor: {other:?}"),
                 }
@@ -5534,6 +5568,13 @@ impl Engine {
             }
             (R::NotHost, AbilitySource::Card(id)) => {
                 u.actor.is_none() || st.cards[id.index()].host != u.actor
+            }
+            // "Older vampires can burn this card" (Dive into Madness).
+            (R::ActorOlderThanHost, AbilitySource::Card(id)) => {
+                match (u.actor, st.cards[id.index()].host) {
+                    (Some(a), Some(h)) => st.younger_than(h, a),
+                    _ => false,
+                }
             }
             // "The chosen Assamite can …" (Priority Contract).
             (R::ActorIsChosen, AbilitySource::Card(id)) => {
@@ -5775,6 +5816,14 @@ impl Engine {
         st.minions[id.index()].present()
             && !(spec.filter.contains(&cards::Requirement::NotHost) && Some(id) == host)
             && !(spec.filter.contains(&cards::Requirement::TargetIsHost) && Some(id) != host)
+            && !(spec
+                .filter
+                .contains(&cards::Requirement::TargetChosenByHostThisTurn)
+                && !host.is_some_and(|h| {
+                    st.chosen_this_turn
+                        .iter()
+                        .any(|&(_, by, t)| (by, t) == (h, id))
+                }))
             && spec.filter.iter().all(|&r| {
                 cards::holds_for_minion(
                     r,
@@ -5845,12 +5894,74 @@ impl Engine {
                 .all(|&r| cards::holds_for_card_target(r, st, seat, host, id))
     }
 
+    /// The uses of an action an ability grants its user's minions
+    /// (`Actor::ActingCandidate`), per candidate and target.
+    fn candidate_uses(
+        &self,
+        seat: SeatId,
+        window: Window,
+        source: AbilitySource,
+        ai: usize,
+        host: Option<MinionId>,
+        out: &mut Vec<Choice>,
+    ) {
+        let ability = source.mode(&self.state, ai as u8);
+        for m in self.actor_candidates(seat, ability).into_iter().flatten() {
+            if self
+                .ability_gate(seat, window, source, ai as u8, Some(m))
+                .is_none()
+            {
+                continue;
+            }
+            // "Another Ravnos" (Week of Nightmares): never the actor itself —
+            // no action sure to fizzle (rules-qa 17.4).
+            let other = ability
+                .target
+                .is_some_and(|sp| sp.filter.contains(&Requirement::OtherThanActor));
+            for target in self.ability_targets_by(seat, ability.target, host, Some(m)) {
+                if other && target == Target::Minion(m) {
+                    continue;
+                }
+                // An action at a minion it may not direct actions at (Secure
+                // Haven, Shadow Cloak).
+                if !self.may_direct(seat, m, target) {
+                    continue;
+                }
+                out.push(Choice::UseAbility {
+                    source,
+                    ability: ai as u8,
+                    actor: Some(m),
+                    target,
+                });
+            }
+        }
+    }
+
     /// Abilities printed on the seat's vampires (`cards::vampires`) usable
     /// in `window`: a vampire's own in its combat (`Actor::Host`), or, in
     /// the combat or out of it, in torpor included (LSJ 20011022), for its
     /// Methuselah's minion in combat (`Actor::ForOwnCombatant`, Opikun).
     fn vampire_ability_options(&self, seat: SeatId, window: Window, out: &mut Vec<Choice>) {
         let st = &self.state;
+        // "This turn, Camarilla vampires you control can …" (Lucinde,
+        // Alastor G7): the grant outlives its vampire (rules-qa 74.2).
+        let mut granters: Vec<MinionId> = st
+            .chosen_this_turn
+            .iter()
+            .filter(|g| g.0 == seat)
+            .map(|g| g.1)
+            .collect();
+        granters.dedup();
+        for m in granters {
+            let Some(def) = cards::vampire_of(&st.minions[m.index()]) else {
+                continue;
+            };
+            for (ai, ability) in def.abilities.iter().enumerate() {
+                if ability.actor == Actor::ActingCandidate && ability.windows.contains(&window) {
+                    self.candidate_uses(seat, window, AbilitySource::Vampire(m), ai, Some(m), out);
+                }
+            }
+        }
         let cb = self.combat.as_ref();
         // Its controller's prey's abilities on a vampire (Keith Moody): the
         // vampires of the user's predator.
@@ -5868,6 +5979,10 @@ impl Engine {
                 if !ability.windows.contains(&window)
                     || (ability.actor == Actor::HostControllersPrey) != of_predator
                 {
+                    continue;
+                }
+                // Granted to its controller's minions: from the grants below.
+                if ability.actor == Actor::ActingCandidate {
                     continue;
                 }
                 // Where the vampire is: in its combat, or out of one
@@ -6968,6 +7083,21 @@ impl Engine {
                             self.start_combat_after_resolution(acting, h);
                             return true;
                         }
+                    }
+                }
+                Effect::ChooseTargetThisTurn => {
+                    let h = host.expect("host");
+                    self.state
+                        .chosen_this_turn
+                        .push((ctx.seat, h, target.minion()));
+                }
+                Effect::HostBloodToUncontrolledTarget(n) => {
+                    let h = host.expect("host");
+                    if let Target::Uncontrolled(i) = target {
+                        let give = n.min(self.state.minions[h.index()].blood);
+                        self.state.minions[h.index()].blood -= give;
+                        self.state
+                            .add_uncontrolled_blood(ctx.seat, i as usize, give);
                     }
                 }
                 Effect::HostBloodToTarget(n) => {

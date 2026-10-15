@@ -1764,7 +1764,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 297] = [
+pub static VAMPIRES: [&VampireDef; 310] = [
     &JOSEF_VON_BAUREN,
     &GABRIELLE_DI_RIGHETTI,
     &HAROLD_TANNER,
@@ -2062,6 +2062,19 @@ pub static VAMPIRES: [&VampireDef; 297] = [
     &MARTA,
     &MIDGET,
     &PERSIA,
+    &ALESSANDRO_GARCIA,
+    &LAIKA,
+    &XIPE_TOTEC,
+    &LUC,
+    &THUCIMIA,
+    &ASGURESH,
+    &ADHIAMBO,
+    &TYLER_MCGILL,
+    &SAULOT_THE_WANDERER,
+    &PAULO_DE_CASTILLE,
+    &LEILA_MONROE,
+    &MATEUSZ_KAZIMIRSKI,
+    &LUCINDE_G7,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -4066,6 +4079,7 @@ pub static LE_DINH_THO: VampireDef = VampireDef {
 /// from the blood bank."
 pub static LUCINDE: VampireDef = VampireDef {
     name: "Lucinde, Alastor",
+    group: Some(3),
     abilities: &[
         enter_combat(&[
             R::NotControlled,
@@ -5412,5 +5426,293 @@ pub static LEANDRO: VampireDef = VampireDef {
         requires: &[R::HostReady],
         effects: &[Effect::BurnPoolOrNoTransfers(1)],
     }],
+    ..VAMP
+};
+
+// ---- Round 12: the next 2025-2026 TWDA decks -------------------------------
+//
+// Readings in rules-qa Batch 74. Omer ("Independent: Blood cursed.") and
+// Ermenegildo, The Rake ("Sabbat: Black Hand.") carry generated traits
+// only (`CryptCard::blood_cursed`, `CryptCard::black_hand`).
+
+/// "Sabbat: Alessandro gets +1 strength in combat with a Lasombra."
+pub static ALESSANDRO_GARCIA: VampireDef = VampireDef {
+    name: "Alessandro Garcia",
+    printed: &[own(Stat::Strength, 1, &[R::OpponentClan("Lasombra")])],
+    ..VAMP
+};
+
+/// "Sabbat: Laika can burn 1 blood to strike: 2R damage." The blood paid
+/// as the strike is chosen.
+pub static LAIKA: VampireDef = VampireDef {
+    name: "Laika",
+    abilities: &[mode_of(
+        &[Window::CombatStrikeDeclaration],
+        Actor::Host,
+        &[R::HostBloodAtLeast(1)],
+        &[
+            Effect::HostBurnBlood(1),
+            Effect::Strike(StrikeKind::Damage {
+                n: 2,
+                ranged: true,
+                aggravated: false,
+            }),
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat Archbishop of Guatemala City: Xipe can steal an ally or
+/// retainer as a +1 stealth Ⓓ action that costs 1 blood. +1 strength."
+/// Requirements do not apply to a card taken in play (TOM 19960226-1).
+pub static XIPE_TOTEC: VampireDef = VampireDef {
+    name: "Xipe Totec",
+    printed: &[own(Stat::Strength, 1, &[])],
+    abilities: &[
+        ModeDef {
+            requires: &[R::ActorBloodAtLeast(1)],
+            ..printed_action(
+                target(TargetKind::Minion, &[R::NotControlled, R::TargetAlly]),
+                &[
+                    Effect::DeclareAction(ActionKind::Ability),
+                    Effect::PayBlood(1),
+                    Effect::AddStealth(1),
+                    Effect::StealTargetAlly,
+                ],
+            )
+        },
+        ModeDef {
+            requires: &[R::ActorBloodAtLeast(1)],
+            ..printed_action(
+                target(
+                    TargetKind::Card,
+                    &[
+                        R::TargetCard(CardFilter::Type(CardType::Retainer)),
+                        R::NotHost,
+                        R::ActorMayHoldTarget,
+                    ],
+                ),
+                &[
+                    Effect::DeclareAction(ActionKind::Ability),
+                    Effect::PayBlood(1),
+                    Effect::AddStealth(1),
+                    Effect::StealTargetCard,
+                ],
+            )
+        },
+    ],
+    ..VAMP
+};
+
+/// "Sabbat: Luc gets +1 stealth during diablerie actions. He can give you
+/// +3 hand size until your next unlock phase as a +1 stealth action."
+pub static LUC: VampireDef = VampireDef {
+    name: "Luc",
+    printed: &[own(Stat::Stealth, 1, &[R::IsDiablerie])],
+    abilities: &[printed_action(
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::AddStealth(1),
+            Effect::HandSizeUntilUnlock(3),
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Independent. 1 vote (titled): During a bleed action, Thucimia can give
+/// you -2 hand size until your next unlock phase to get +1 bleed. Blood
+/// cursed. +1 hand size." Once each bleed action (rules-digest D7), before
+/// its resolution (ANK 20231124, LSJ 19970718).
+pub static THUCIMIA: VampireDef = VampireDef {
+    name: "Thucimia",
+    printed: &[own(Stat::HandSize, 1, &[])],
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerAction),
+        ..mode_of(
+            &[Window::ActionDuring],
+            Actor::Host,
+            &[R::ActorActing, R::IsBleed],
+            &[Effect::HandSizeUntilUnlock(-2), bleed(1, false)],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Independent: During a combat, Asguresh can cancel a combat card played
+/// by the opposing minion as it is played, and its cost is not paid.
+/// Scarce." Once each combat (rules-digest D7). A canceled strike is chosen
+/// again; a canceled limited effect leaves the limit unspent (LSJ
+/// 20100206, LSJ 20030224); its "do not replace until" lapses (LSJ
+/// 20011023); a card played from the hand the normal way only (RTR
+/// 20001020).
+pub static ASGURESH: VampireDef = VampireDef {
+    name: "Asguresh",
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerCombat),
+        ..mode_of(
+            &[Window::CardAsPlayed],
+            Actor::Host,
+            &[R::PlayedCombatByOpponent],
+            &[Effect::CancelPlayed { refund: true }],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Laibon: Adhiambo gets +1 stealth during actions to equip with a weapon
+/// card from your hand and actions to enter combat with a minion."
+pub static ADHIAMBO: VampireDef = VampireDef {
+    name: "Adhiambo",
+    printed: &[
+        own(Stat::Stealth, 1, &[R::IsEquipWeaponFromHand]),
+        own(Stat::Stealth, 1, &[R::ActionEntersCombat]),
+    ],
+    ..VAMP
+};
+
+/// "Camarilla: In a referendum, Tyler gets +1 vote after a Methuselah burns
+/// the Edge for a vote. He cannot block Nosferatu."
+pub static TYLER_MCGILL: VampireDef = VampireDef {
+    name: "Tyler McGill",
+    printed: &[
+        own(Stat::VotesAfterEdgeBurned, 1, &[]),
+        own(Stat::CannotBlock, 1, &[R::OpponentClan("Nosferatu")]),
+    ],
+    ..VAMP
+};
+
+/// "Independent: Damage Baali inflict on Saulot is reduced to 0. During your
+/// unlock phase, you can move 2 blood from him to a vampire in play or in
+/// your uncontrolled region. Scarce. +1 bleed. +1 strength." Once each
+/// unlock phase (rules-digest D7), a vampire in torpor too.
+pub static SAULOT_THE_WANDERER: VampireDef = VampireDef {
+    name: "Saulot, The Wanderer",
+    printed: &[
+        own(Stat::Bleed, 1, &[]),
+        own(Stat::Strength, 1, &[]),
+        own(Stat::NoDamageFromOpponent, 1, &[R::OpponentClan("Baali")]),
+    ],
+    abilities: &[
+        ModeDef {
+            target: target(TargetKind::Minion, &[R::TargetVampire, R::OtherThanActor]),
+            ..mode_of(
+                &[Window::UnlockPhaseOwn],
+                Actor::Host,
+                &[R::HostBloodAtLeast(2)],
+                &[Effect::HostBloodToTarget(2)],
+            )
+        },
+        ModeDef {
+            target: target(TargetKind::Uncontrolled, &[]),
+            ..mode_of(
+                &[Window::UnlockPhaseOwn],
+                Actor::Host,
+                &[R::HostBloodAtLeast(2)],
+                &[Effect::HostBloodToUncontrolledTarget(2)],
+            )
+        },
+    ],
+    ..VAMP
+};
+
+/// "Sabbat: After Paulo enters play during your influence phase, you can
+/// move 1 blood from him to a Lasombra in your uncontrolled region." As
+/// Erlik's distribution, up to 1.
+pub static PAULO_DE_CASTILLE: VampireDef = VampireDef {
+    name: "Paulo de Castille",
+    riders: &[Rider {
+        hook: Hook::EntersPlay,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::DistributeToUncontrolled {
+            n: 1,
+            clan: "Lasombra",
+        }],
+    }],
+    ..VAMP
+};
+
+/// "Sabbat: Leila can change the sect of an Anarch with no blood to Sabbat
+/// as a +1 stealth Ⓓ action." The target re-checked as the action resolves
+/// (rules-digest D1).
+pub static LEILA_MONROE: VampireDef = VampireDef {
+    name: "Leila Monroe",
+    abilities: &[printed_action(
+        target(
+            TargetKind::Minion,
+            &[R::TargetVampire, R::TargetAnarch, R::BloodAtMost(0)],
+        ),
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::AddStealth(1),
+            Effect::TargetBecomesSect(Sect::Sabbat),
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat: If Mateusz is Sabbat and not Black Hand, he can become Black
+/// Hand as a +1 stealth action that costs 1 blood." A trait, not a title,
+/// kept if he changes sect (LSJ 20070322, ANK 20180807).
+pub static MATEUSZ_KAZIMIRSKI: VampireDef = VampireDef {
+    name: "Mateusz Kazimirski, Biker of Blood",
+    abilities: &[ModeDef {
+        requires: &[
+            R::ActorSectIn(&[Sect::Sabbat]),
+            R::ActorNotBlackHand,
+            R::ActorBloodAtLeast(1),
+        ],
+        ..printed_action(
+            None,
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::PayBlood(1),
+                Effect::AddStealth(1),
+                Effect::ActorBecomesBlackHand,
+            ],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Camarilla Ventrue Justicar: During your master phase, Lucinde can burn
+/// 1 blood to choose a vampire; this turn, Camarilla vampires you control
+/// can enter combat with the chosen vampire as a Ⓓ action. +1 bleed." In
+/// torpor too (LSJ 20011022); once each master phase (rules-digest D7).
+pub static LUCINDE_G7: VampireDef = VampireDef {
+    name: "Lucinde, Alastor",
+    group: Some(7),
+    printed: &[own(Stat::Bleed, 1, &[])],
+    abilities: &[
+        ModeDef {
+            target: target(TargetKind::Minion, &[R::TargetVampire]),
+            ..mode_of(
+                &[Window::MasterPhase],
+                Actor::Host,
+                &[R::HostBloodAtLeast(1)],
+                &[Effect::HostBurnBlood(1), Effect::ChooseTargetThisTurn],
+            )
+        },
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[
+                    R::TargetChosenByHostThisTurn,
+                    R::NotControlled,
+                    R::ActorReady,
+                ],
+            ),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::ActingCandidate,
+                &[R::ActorVampire, R::ActorSectIn(&[Sect::Camarilla])],
+                &[
+                    Effect::DeclareAction(ActionKind::Ability),
+                    Effect::EnterCombatWithTarget,
+                ],
+            )
+        },
+    ],
     ..VAMP
 };

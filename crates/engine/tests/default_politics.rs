@@ -319,7 +319,7 @@ fn def_burns(effect: Option<RefEffect>) -> bool {
 fn referendums_by_rule_in_random_games() {
     let mut all = Seen::default();
     for seats in [4, 5] {
-        let seen = check(seats, 60);
+        let seen = check(seats, 80);
         assert!(seen.krc > 0, "{seats} seats: no Kine Resources Contested");
         assert!(seen.parity > 0, "{seats} seats: no Parity Shift");
         assert!(seen.votes > 0, "{seats} seats: no steered vote");

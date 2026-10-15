@@ -38,6 +38,8 @@ LABELS = [
     ("Electronic", r"^electronic\b"),
     ("Archetype", r"\barchetype\."),
     ("Trifle", r"\btrifle\."),
+    # A contract (The Black Throne keys on them): the type line.
+    ("Contract", r"(^|\. )(unique )?contract\."),
     ("Gehenna", r"^gehenna\."),
     ("Title", r"(^|\. )title\."),
     ("OutOfTurn", r"^out-of-turn\."),

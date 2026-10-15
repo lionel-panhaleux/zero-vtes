@@ -65,7 +65,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
-- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27
+- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27, 74.1–74.12
 - **Ousts, Life Boon's decision point** — 45.1–45.8
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5, 66.1
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
@@ -1518,3 +1518,31 @@ Slice 16w: the cards that bring the most 2025–2026 TWDA decks into the kept co
 **73.7** Zizi: "if /Viri/ is in your ready region"; Viri: "while /Zizi/ is in your ready region" — the controller's ready region, not any Methuselah's. Owner (2026-10-14): "no, "your" means the controller's ready region (card text "you" always addresses the controller), not any methuselah's" (32.7). Rurik Rakoczy's "while /Ludmijla Rakoczy/ is ready" and Valkyrie's "unless Brunhilde is ready" name no region: any Methuselah's. (Test zizi_needs_viri_in_her_own_ready_region; findings L2.)
 
 **73.8** Every legal block attempt is offered, one that cannot reach the action's stealth included: a minion that may attempt to block is offered the attempt whatever intercept it could still gain. Owner (2026-10-14): "the engine should allow all legal plays even if they're not worth considering overall" (17.4). Supersedes the engine's pruning of 48.5 and 66.2: their reading of what may still reach the stealth stays the host's, which hides an attempt short of it with the opportunities off. A failed attempt is still not offered again while nothing changed (48.6). (Tests a_futile_block_attempt_is_offered_and_fails, a_futile_block_attempt_is_hidden_with_the_opportunities_off.)
+
+## Batch 74 — Legacy cards for TWDA decks, round 12 (the next 2025–2026 decks entering the corpus): readings graded (Claude, 2026-10-14; owner, 2026-10-15: 74.1, 74.2, 74.6 corrected, 74.3–74.5 confirmed)
+
+Slice 16x. Graded per the add-cards skill: a blind second reader per nine cards, the two reads compared. 74.1–74.6 were red (the reads disagreed, or no precedent): asked of the owner, answered below. The rest are recorded as implemented and tested.
+
+**74.1** Pulled Fangs: "this minion inflicts 1 damage on them" — read first as landing at once, unpreventable. Owner (2026-10-15): "It's preventable (but note it's not a strike)": the damage, after damage reductions (74.6), is offered to prevention as the end of the round's effect, before it lands; strike-only prevention does not reach it. (Tests pulled_fangs_damage_may_be_prevented, pulled_fangs_goes_on_the_loser_and_sends_a_starving_bearer_to_torpor.)
+
+**74.2** Lucinde, Alastor (G7): "this turn, Camarilla vampires you control can enter combat with the chosen vampire as a Ⓓ action" — read first as riding on her text, gone if she leaves play. Owner (2026-10-15): "It should be kept the whole turn. Triggered effects do not disappear with their source": the grant is the using Methuselah's for the turn (`GameState::chosen_this_turn`). Chosen any vampire (in torpor too); each Camarilla vampire of theirs (ready, unlocked) once, +0 stealth, the chosen one ready and another Methuselah's. (Tests lucinde_g7_lets_camarilla_vampires_attack_her_chosen_vampire, lucinde_g7_grant_outlives_her.)
+
+**74.3** Gear Up [nec]: the card named at declaration (LSJ 20010627) gone from the ash heap as the action resolves — the Anarch still unlocks, nothing is fetched. Owner (2026-10-15): "You resolve as much as you can, yes, unlock (I'm unsure myself)." (Test gear_up_necromancy_fetches_the_card_named_as_it_is_played.)
+
+**74.4** Pulled Fangs: "if they must hunt, they go to torpor instead" — in its controller's minion phase, a ready unlocked bearer that must hunt (no blood, or made to) goes to torpor at once, read live. Owner (2026-10-15): confirmed. (Test pulled_fangs_goes_on_the_loser_and_sends_a_starving_bearer_to_torpor.)
+
+**74.5** Paulo de Castille: "after Paulo enters play during your influence phase" — as he is moved out of the uncontrolled region in that phase, before any contest (as Erlik's distribution). Owner (2026-10-15): confirmed. (Test paulo_de_castille_moves_a_blood_to_an_uncontrolled_lasombra.)
+
+**74.6** Saulot, The Wanderer: "damage Baali inflict on Saulot is reduced to 0". Owner (2026-10-15): it covers the damage a Baali inflicts himself, a strike or not (Pulled Fangs' 1 damage), not environmental damage (Carrion Crows, a retainer's). `GameState::damage_reduction` applies to strikes, their riders and a minion's own damage (Pulled Fangs), as Nephandus's. (Test saulot_takes_no_damage_from_baali.)
+
+**74.7** The Book of Going Forth by Night: any burn of an ally opposing its vampire in combat (damage, an effect, a last life paid) is replaced; the steal ends the combat (a control change, LSJ 20020618): the round is over, no press. Both reads agree. (Test the_book_of_going_forth_by_night_steals_an_ally_about_to_burn.)
+
+**74.8** Tyler McGill: the +1 vote counts in votes he casts after a Methuselah burned the Edge for a vote in that referendum; votes already cast are not revised. "Nosferatu" is the clan only. (Tests tyler_mcgill_votes_after_the_edge_is_burned_for_a_vote, tyler_mcgill_cannot_block_nosferatu.)
+
+**74.9** Island of Yiaros: X is the votes the vampire holds — title, printed, borne and its clan's (New Carthage) — a priscus's ballots none (RTR 19970630); for the controller's own striking vampire, after both strikes are chosen; "for that strike" read as this round's strength (an additional strike that round gets it too). Adhiambo: "actions to enter combat with a minion" include the Red List hunt. (Tests island_of_yiaros_adds_a_strikers_votes_to_its_strength, island_of_yiaros_gives_a_priscus_nothing.)
+
+**74.10** Asguresh: once each combat (rules-digest D7, "during a combat … can"); a card played as a combat card (D18) by the minion opposing him. Thucimia: once each bleed action of hers (D7). (Tests asguresh_cancels_a_combat_card_once_each_combat, thucimia_trades_two_hand_size_for_a_bleed_once_each_bleed.)
+
+**74.11** Repulsion: while a vampire bears one, none of its levels is playable by him; [pre]'s maneuver, only to long range, once in the block's combat, any round. Palatial Estate: nothing on an ally host; in torpor too. Gear Up [nec]: not offered with an empty ash heap (rules-digest D14). Divine Sign: the chosen minion is the action's target (D1), any minion. Dive into Madness: a third [DEM] not offered. (Tests repulsion_superior_stays_on_the_vampire_for_stealth, repulsion_presence_gives_a_maneuver_to_long_range_if_blocked, palatial_estate_gives_its_vampire_a_blood_each_master_phase, divine_sign_superior_guards_against_the_chosen_minion, dive_into_madness_caps_at_two_and_older_vampires_burn_it.)
+
+**74.12** Tainted Spring: the animal brought in keeps the bonus while in play — an ally +1 strength, a damage-dealing retainer +1 damage of its kind (close-only stays close-only), a retainer dealing none nothing; [ANI] +1 starting life. Clandestine Contract: The Black Throne pays for it as for any contract. (Tests tainted_spring_superior_strengthens_a_recruited_animal_ally, tainted_spring_adds_to_a_retainers_damage, clandestine_contract_feeds_the_black_throne.)

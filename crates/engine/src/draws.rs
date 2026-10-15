@@ -2004,8 +2004,13 @@ impl Engine {
                     let seat = self.state.card_controller(id);
                     self.interrupts
                         .push(Interrupt::PoolForCard { seat, card: id, n });
-                    // The Black Throne of the Methuselah whose vampire the
-                    // contract chose (PIB 20150512, ANK 20180129-2).
+                }
+                // The Black Throne of the Methuselah whose vampire a contract
+                // chose (PIB 20150512, ANK 20180129-2), any contract.
+                let contract = crate::library::LIBRARY[self.state.cards[ci].card as usize]
+                    .labels
+                    .contains(&crate::library::Label::Contract);
+                if contract {
                     if let Some(&chosen) = self.state.cards[ci].chosen.first() {
                         let x = self.state.minions[chosen.index()].owner;
                         self.contract_riders(x);

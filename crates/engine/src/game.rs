@@ -623,6 +623,7 @@ impl Engine {
             self.settle_anathema();
             self.state.settle_entries();
             self.settle_servitors();
+            self.settle_hunts_to_torpor();
             self.settle_interrupts();
             if self.interrupts.is_empty() {
                 self.settle_ousting();
@@ -1179,6 +1180,9 @@ impl Engine {
     /// A minion is burned, the cards on it to their owners' ash heaps
     /// (spec §1.12.1); "after a ready minion is burned" riders if it was ready.
     pub(crate) fn burn_minion(&mut self, m: MinionId) {
+        if self.book_takes_ally(m) {
+            return;
+        }
         // Burned by a directed action, out of combat (Predator's
         // Transformation [ABO]).
         if self.combat.is_none() {
@@ -1695,6 +1699,60 @@ impl Engine {
         false
     }
 
+    /// The Book of Going Forth by Night: an ally opposing its vampire in
+    /// combat, about to burn, is stolen and locked instead, 1 life if it had
+    /// none; the control change ends the combat (LSJ 20020618).
+    fn book_takes_ally(&mut self, m: MinionId) -> bool {
+        let Some(c) = self.combat.as_ref() else {
+            return false;
+        };
+        let st = &self.state;
+        let Some(i) = c.side_of_minion(m) else {
+            return false;
+        };
+        let opp = c.sides[1 - i].minion;
+        let life = st.borne(opp).find_map(|l| match l.modifier {
+            crate::cards::Modifier::HostStealsOpposingAllyOnBurn(n) => Some(n),
+            _ => None,
+        });
+        let (Some(life), true) = (
+            life,
+            st.minions[m.index()].is_ally()
+                && st.minions[m.index()].in_play
+                && st.minions[opp.index()].is_vampire(),
+        ) else {
+            return false;
+        };
+        let to = st.minions[opp.index()].owner;
+        let v = &mut self.state.minions[m.index()];
+        v.owner = to;
+        v.locked = true;
+        v.blood = v.blood.max(life);
+        self.enter_card_contest(m);
+        let c = self.combat.as_mut().expect("combat");
+        c.round_over = true;
+        c.press_continue = false;
+        true
+    }
+
+    /// Pulled Fangs: in its controller's minion phase, a ready unlocked
+    /// bearer that must hunt goes to torpor instead, read live.
+    fn settle_hunts_to_torpor(&mut self) {
+        if !matches!(self.flow, Flow::MinionPhase) || self.action.is_some() || self.combat.is_some()
+        {
+            return;
+        }
+        let st = &self.state;
+        let due: Vec<MinionId> = st
+            .ready_unlocked(st.active)
+            .into_iter()
+            .filter(|&m| st.must_hunt(m) && st.bears(m, crate::cards::Modifier::HostHuntsToTorpor))
+            .collect();
+        if !due.is_empty() {
+            self.minions_to_torpor(&due);
+        }
+    }
+
     /// Everyone passed: the phase ends.
     pub(crate) fn close_phase(&mut self, phase: Flow) {
         match phase {
@@ -2118,8 +2176,12 @@ impl Engine {
         // The end of the turn: the Red List marks lapse, Andre LeRoux's
         // bleed too, Enkidu unlocks.
         self.state.red_list_marks.clear();
+        self.state.chosen_this_turn.clear();
         for i in 0..self.state.minions.len() {
             self.state.minions[i].bleed_bonus_turn = 0;
+            self.state.minions[i]
+                .timed
+                .retain(|&(_, until, _)| until != Expiry::EndOfTurn);
             if std::mem::take(&mut self.state.minions[i].unlock_end_of_turn)
                 && self.state.minions[i].present()
             {
@@ -2179,6 +2241,10 @@ impl Engine {
         self.state.seats[s.index()]
             .timed
             .expire(Expiry::UnlockPhase);
+        for m in &mut self.state.minions {
+            m.timed
+                .retain(|&(_, until, seat)| (until, seat) != (Expiry::UnlockPhase, s));
+        }
         self.state.seats[s.index()].training_burned = 0;
         // Donatello Giovanni's marks last until his controller's unlock.
         let st = &self.state;
@@ -2394,7 +2460,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 483);
+        assert_eq!(CRYPT.len(), 498);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

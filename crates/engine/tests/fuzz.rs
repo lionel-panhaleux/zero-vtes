@@ -3649,4 +3649,132 @@ fuzz_tests! {
         seeds: 40,
         ..BASE
     };
+    /// Legacy cards for TWDA decks, round 12 (slice 16x): the actions,
+    /// equipment, master and combat cards — Clandestine Contract, Harass,
+    /// Loss, Dive into Madness, Gear Up, Divine Sign, Arson, The Book of
+    /// Going Forth by Night, Palatial Estate, Flak Jacket, Sawed-Off
+    /// Shotgun, Island of Yiaros, Pulled Fangs, Lucky Blow, Anesthetic
+    /// Touch.
+    random_games_with_twda_round_12a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Clandestine Contract",
+            "Harass",
+            "Loss",
+            "Dive into Madness",
+            "Gear Up",
+            "Divine Sign",
+            "Arson",
+            "Book of Going Forth by Night, The",
+            "Palatial Estate",
+            "Flak Jacket",
+            "Sawed-Off Shotgun",
+            "Island of Yiaros",
+            "Pulled Fangs",
+            "Lucky Blow",
+            "Anesthetic Touch",
+        ],
+        covers: &[
+            "play:Clandestine Contract",
+            "play:Harass",
+            "play:Loss",
+            "play:Dive into Madness",
+            "play:Gear Up",
+            "play:Divine Sign",
+            "play:Arson",
+            "play:Book of Going Forth by Night, The",
+            "play:Palatial Estate",
+            "play:Flak Jacket",
+            "play:Sawed-Off Shotgun",
+            "play:Island of Yiaros",
+            "play:Lucky Blow",
+            "play:Anesthetic Touch",
+            "play:Pulled Fangs",
+            "ability:Sawed-Off Shotgun",
+            "ability:Flak Jacket",
+            "ability:Island of Yiaros",
+            "ability:Clandestine Contract",
+        ],
+        setup: |e, _| {
+            let has = |c: &CryptCard, d: &str| c.disciplines.iter().any(|x| x.eq_ignore_ascii_case(d));
+            per_seat(e, |c| c.clan == "Banu Haqim" && c.capacity >= 5, 4);
+            per_seat(e, |c| has(c, "qui"), 4);
+            per_seat(e, |c| has(c, "dem"), 4);
+            per_seat(e, |c| has(c, "nec") && c.sect == zvtes::crypt::Sect::Anarch, 4);
+            per_seat(e, |c| has(c, "nec"), 4);
+            per_seat(e, |c| has(c, "obe") || has(c, "aus"), 4);
+            per_seat(e, |c| c.clan == "Ventrue", 4);
+        },
+        seeds: 14,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, round 12 (slice 16x): the modifiers and
+    /// reactions — Deed the Heart's Desire, Guardian Vigil, Acheron Vortex,
+    /// Eluding the Arms of Morpheus, Repulsion, Tainted Spring — and the
+    /// round's vampires.
+    random_games_with_twda_round_12b_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Deed the Heart's Desire",
+            "Guardian Vigil",
+            "Acheron Vortex",
+            "Eluding the Arms of Morpheus",
+            "Repulsion",
+            "Tainted Spring",
+            // An animal for Tainted Spring.
+            "Murder of Crows",
+        ],
+        covers: &[
+            "play:Deed the Heart's Desire",
+            "play:Guardian Vigil",
+            "play:Acheron Vortex",
+            "play:Eluding the Arms of Morpheus",
+            "play:Repulsion",
+            "play:Tainted Spring",
+            "ability:Laika",
+            "ability:Xipe Totec",
+            "ability:Luc",
+            "ability:Thucimia",
+            "ability:Mateusz Kazimirski, Biker of Blood",
+            "ability:Saulot, The Wanderer",
+            "ability:Lucinde, Alastor",
+            "ability:Leila Monroe",
+            // Asguresh's cancel needs a combat card played against him: not
+            // reached by random play in 60 seeds (tested in twda_round12).
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Asguresh",
+                    "Omer",
+                    "Mateusz Kazimirski, Biker of Blood",
+                    "Luc",
+                    "Thucimia",
+                    "Alessandro Garcia",
+                    "Paulo de Castille",
+                    "Ermenegildo, The Rake",
+                    "Leila Monroe",
+                    "Saulot, The Wanderer",
+                    "Tyler McGill",
+                    "Laika",
+                    "Xipe Totec",
+                    "Adhiambo",
+                ],
+            );
+            let lucinde = CRYPT
+                .iter()
+                .position(|c| c.name == "Lucinde, Alastor" && c.group == 7)
+                .expect("Lucinde G7") as u16;
+            if absent(e, lucinde) {
+                e.add_minion(SeatId(3), lucinde, 4, false);
+            }
+            let has = |c: &CryptCard, d: &str| c.disciplines.iter().any(|x| x.eq_ignore_ascii_case(d));
+            per_seat(e, |c| c.sect == zvtes::crypt::Sect::Anarch && has(c, "for"), 4);
+            per_seat(e, |c| c.clan == "Harbinger of Skulls", 4);
+            per_seat(e, |c| has(c, "ani"), 4);
+            per_seat(e, |c| has(c, "obe") || has(c, "pre"), 4);
+            per_seat(e, |c| c.sect == zvtes::crypt::Sect::Camarilla, 4);
+        },
+        seeds: 10,
+        ..BASE
+    };
 }

@@ -56,7 +56,7 @@ Ministry for Follower of Set: 70.2, 69.14, 71.11).
 The patterns first readings got wrong repeatedly, each corrected by the
 owner (rules-qa "Default readings", extended by the later batches). Apply
 them to every new card; only a ruling or the card's own text overrides them.
-Cited as D1–D32.
+Cited as D1–D33.
 
 **D1. Choices are made at declaration.** Whatever a card or ability names or
 chooses — a target, an ally to fetch, a retainer and where it goes, an
@@ -268,6 +268,11 @@ neither bonus.
 turn, any of the turn's referendums or actions** (62.32); "once each
 combat" over every round of it (14.2); "once each round" once a round
 (38.8).
+
+**D33. An effect outlives its source.** What a card or ability started
+(a grant "this turn", a lasting bonus) stays when the source leaves play:
+"triggered effects do not disappear with their source" (owner, 74.2:
+Lucinde, Alastor G7's grant).
 
 ## 3. What counts as X
 
@@ -528,6 +533,11 @@ one), 26.8 (younger than the acting vampire), 60.11, 60.13, 71.1.
 - "Titled" reads the effective title: a contested or yielded title, or an
   off-sect one, does not count (13.2, 59.7, 59.11, 59.19).
 - "Non-Anarch titles" (Fee Stake) are every title but baron (32.9).
+- Black Hand is a trait, not a title nor a sect: printed, or gained in play
+  (Mateusz Kazimirski), kept through a sect change (LSJ 20070322, ANK
+  20180807).
+- A contract is any card whose type line says so (Priority Contract,
+  Clandestine Contract): The Black Throne pays for each (74.12).
 - A justicar requirement met by Karl Schrekt makes him a titled Camarilla
   vampire for that card (59.14).
 - A title card replaces a printed title for good (19.2).
@@ -571,6 +581,9 @@ minion. Its strength bonus is a frenzy effect like the rest (70.16).
   from its strike is not (10.3).
 - Environmental and retainer damage is not the opposing minion's strike
   damage (21.3, 62.24, 59.10).
+- "Damage X inflict(s)" is X's own damage, a strike or not (Pulled Fangs'
+  1 damage), never environmental or a retainer's (74.6, Saulot). Pulled
+  Fangs' damage is preventable, not strike damage (74.1).
 
 ### 3.21 The acting minion, the opposing minion
 
@@ -3822,6 +3835,8 @@ read, for the owner to confirm or correct:
 - 68.3–68.9, 68.11–68.17.
 - 69.1–69.11, 69.13–69.15.
 - 70.5, 70.9, 70.13, 70.18, 70.20–70.22.
+- 74.7–74.12 graded green or amber (both reads agree, or a precedent;
+  74.1–74.6 answered by the owner).
 - The "Question (implemented reading)" tails: 48.2 (a card granting several
   strikes bars further cards until all are made), 48.3 (the switch of
   blocker takes effect at once, no impulse left to others), 48.8 (a rescue

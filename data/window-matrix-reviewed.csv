@@ -738,3 +738,24 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 101089,Legal Manipulations,Action,pre,no,ACTION_DECLARE,,,ok
 101998,Touch of Clarity,Action Modifier/Reaction,dem,no,CARD_AS_PLAYED,cancel_as_played,,ok
 100098,The Art of Pain,Master,,no,MASTER_PHASE,,,ok
+100355,Clandestine Contract,Action,,no,ACTION_DECLARE,in_play_action,,ok
+100886,Harass,Action,,no,ACTION_DECLARE,,,ok
+100513,Deed the Heart's Desire,Action Modifier,qui,no,ACTION_AS_ANNOUNCED,,,ok
+101124,Loss,Action,qui,no,ACTION_DECLARE,,,ok
+100562,Dive into Madness,Action,dem,no,ACTION_DECLARE,in_play_action,,ok
+100239,The Book of Going Forth by Night,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+101345,Palatial Estate,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+100739,Flak Jacket,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+101685,Sawed-Off Shotgun,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+101013,Island of Yiaros,Master,,no,MASTER_PHASE,,,ok
+100868,Guardian Vigil,Reaction,aus/cel/for,no,ACTION_STEALTH_INTERCEPT,,,ok
+100813,Gear Up,Action,nec/pre/vic,no,ACTION_DECLARE,,,ok
+100016,Acheron Vortex,Action Modifier,,no,ACTION_DURING,,,ok
+100628,Eluding the Arms of Morpheus,Reaction,,no,REACTION_UNLOCK_ATTEMPT,,,ok
+100566,Divine Sign,Action,nec,no,ACTION_DECLARE,in_play_action,,ok
+100066,Anesthetic Touch,Combat,obe/aus,no,COMBAT_STRIKE_DECLARATION,,,ok
+101606,Repulsion,Action Modifier,obe/pre,no,ACTION_AS_ANNOUNCED;ACTION_STEALTH_INTERCEPT,,,ok
+100094,Arson,Action,,no,ACTION_DECLARE,delayed_replacement,,ok
+101925,Tainted Spring,Action Modifier,ani,no,ACTION_AS_ANNOUNCED,,,ok
+101131,Lucky Blow,Combat,,no,COMBAT_STRIKE_DECLARATION,delayed_replacement,,ok
+101515,Pulled Fangs,Combat,,no,COMBAT_END_OF_ROUND,,,ok

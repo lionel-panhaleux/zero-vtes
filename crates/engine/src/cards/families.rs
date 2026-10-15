@@ -44,6 +44,7 @@ impl Effect {
             E::ChooseSecondOfClan(..)
             | E::ChooseOwnOfClan(..)
             | E::ChooseTarget
+            | E::ChooseActor
             | E::RevealCryptTop { .. }
             | E::BecomesAlly(..)
             | E::AshurTablets
@@ -101,7 +102,6 @@ impl Effect {
             | E::CountersFromActorCapacity
             | E::GreatBeastAtEleven
             | E::KaymakliNightmares
-            | E::TargetBecomesAnarch
             | E::ActingBloodToNewUpTo(..)
             | E::RedeemAshVampire
             | E::BurnOthersLabeledOnTarget(..)
@@ -136,7 +136,11 @@ impl Effect {
             | E::BurnTargetMinion
             | E::CircleBloodMoves { .. }
             | E::BurnTargetCard
-            | E::StoreTopCards(..) => Family::Shared,
+            | E::StoreTopCards(..)
+            | E::HandSizeUntilUnlock(..)
+            | E::ActorLasting(..)
+            | E::TargetBecomesSect(..)
+            | E::ActorBecomesBlackHand => Family::Shared,
             E::CounterToTarget(..)
             | E::BloodPerHostage
             | E::BurnTargetHostages
@@ -174,6 +178,8 @@ impl Effect {
             | E::BurnOwnLife(..)
             | E::StealBloodToHostX
             | E::HostBloodToTarget(..)
+            | E::HostBloodToUncontrolledTarget(..)
+            | E::ChooseTargetThisTurn
             | E::TargetBloodToHost(..)
             | E::EnterCombatWithActing
             | E::TargetEntersCombatWithActing
@@ -255,6 +261,7 @@ impl Effect {
             | E::RemoveOwnAshCards(..)
             | E::UnlockHost => Family::Ability,
             E::TakeOverAction
+            | E::AnimalBoostIfSuccessful { .. }
             | E::ActionLayer(..)
             | E::AddStealth(..)
             | E::AddIntercept(..)
@@ -354,6 +361,8 @@ impl Effect {
             | E::PutOnOpponentOnHit { .. }
             | E::PutOnActorAfterCombat
             | E::StrengthThisRound(..)
+            | E::StrengthThisRoundVotes
+            | E::CombatEndsAfterStrike
             | E::PreventThisRound(..)
             | E::PreventEachRound(..)
             | E::PressThisRound
@@ -378,6 +387,7 @@ impl Effect {
             | E::HandSizeThisCombat(..)
             | E::AimExtraDamage(..)
             | E::OpponentToTorpor
+            | E::DamageOpponentNow(..)
             | E::AdditionalStrikeOnly { .. }
             | E::AdditionalStrikesX { .. }
             | E::ActorBurnsBloodX
@@ -519,7 +529,6 @@ impl Effect {
             | E::BurnOfCrowdedClan
             | E::SoulGemDraw
             | E::BurnPoolUnlessBurnVampire { .. }
-            | E::HandSizeUntilUnlock(..)
             | E::SkipNextUnlock
             | E::BurnSelfWithoutStored => Family::Rider,
             // Read where the action is declared or offered: its kind, its

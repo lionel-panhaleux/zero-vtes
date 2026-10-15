@@ -79,6 +79,7 @@ impl Requirement {
         use Slot as S;
         match self {
             R::ActorNotClan(..)
+            | R::ActorNotBlackHand
             | R::AttemptingCapacityAtLeast(..)
             | R::AttemptingAllyOrYounger
             | R::OwnMinionInCombat
@@ -181,6 +182,7 @@ impl Requirement {
             | R::ReferendumPassed
             | R::ActorNotVotingFor
             | R::ActorWithout(..)
+            | R::ActorHoldsFewer(..)
             | R::PreyAshHasPair
             | R::ActorInfernal
             | R::UncontrolledAtLeast(..)
@@ -270,6 +272,7 @@ impl Requirement {
             | R::HostControllerActive
             | R::OwnCombatantOtherCopy
             | R::HostReady
+            | R::HostVampire
             | R::HostUnlocked => &[S::Host],
             R::HostCombatOpposingVampireNotReady
             | R::HostUsedDisciplines(..)
@@ -395,6 +398,8 @@ impl Requirement {
             | R::RulebookHunt
             | R::IsDiablerie
             | R::IsRecruitOrEmploy
+            | R::IsEquipWeaponFromHand
+            | R::ActionEntersCombat
             | R::HasEdge
             | R::ActionUndirected
             | R::NotFirstRound
@@ -421,6 +426,7 @@ impl Requirement {
             | R::TargetSameCircle
             | R::TargetClan(..) => &[S::MinionTarget, S::UncontrolledTarget],
             R::ActorIsChosen
+            | R::ActorOlderThanHost
             | R::ActorOfByCircle
             | R::ActingIsBy
             | R::BleedAgainstHostController
@@ -432,13 +438,13 @@ impl Requirement {
             | R::WeaponBurnedOpponent
             | R::SourceHeldWhenBlocking => &[S::Engine(Site::AbilityGateCard)],
             R::TargetCapacityBelowCounters => &[S::Engine(Site::ControllerTarget)],
-            R::TargetIsHost | R::TargetInCombatWithNormalDamage => {
+            R::TargetIsHost | R::TargetChosenByHostThisTurn | R::TargetInCombatWithNormalDamage => {
                 &[S::Engine(Site::AbilityTargets)]
             }
             R::OthersMinionPhase | R::InMasterPhase => &[S::Engine(Site::AbilityWindow)],
-            R::PlayedGrappleOrAimByOpponent | R::PlayedFrenzyOnYour(..) => {
-                &[S::Engine(Site::AsPlayed)]
-            }
+            R::PlayedGrappleOrAimByOpponent
+            | R::PlayedCombatByOpponent
+            | R::PlayedFrenzyOnYour(..) => &[S::Engine(Site::AsPlayed)],
             R::OncePerTurn => &[S::Engine(Site::CardRider(Hook::HostBlocks))],
             R::OneCopyPerTurn => &[S::Engine(Site::CardRider(Hook::UnlockPhase))],
             R::TargetOnOpposingCombatant => &[S::Engine(Site::CardTargetQualifies)],

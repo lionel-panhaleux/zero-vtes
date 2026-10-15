@@ -743,6 +743,46 @@ ADDED_BATCHES = [
         200802: "Lachlan, Noddist (G2)",
         200699: "Jessica (G2)",
     },
+    # Round 12 (slice 16x): the next cards that bring 2025-2026 TWDA decks
+    # into the kept corpus (owner, 2026-10-14: "go for steps 1–7").
+    {
+        200145: "Asguresh (G5)",
+        100355: "Clandestine Contract",
+        100886: "Harass",
+        201080: "Omer (G6)",
+        200959: "Mateusz Kazimirski, Biker of Blood (G6)",
+        100513: "Deed the Heart's Desire",
+        200866: "Luc (G4)",
+        101124: "Loss",
+        100562: "Dive into Madness",
+        201370: "Thucimia (G4)",
+        200046: "Alessandro Garcia (G4)",
+        100239: "The Book of Going Forth by Night",
+        201104: "Paulo de Castille (G4)",
+        200435: "Ermenegildo, The Rake (G4)",
+        200829: "Leila Monroe (G4)",
+        101345: "Palatial Estate",
+        100739: "Flak Jacket",
+        201700: "Lucinde, Alastor (G7)",
+        101685: "Sawed-Off Shotgun",
+        101013: "Island of Yiaros",
+        100868: "Guardian Vigil",
+        100813: "Gear Up",
+        100016: "Acheron Vortex",
+        100628: "Eluding the Arms of Morpheus",
+        100566: "Divine Sign",
+        201248: "Saulot, The Wanderer (G4)",
+        100066: "Anesthetic Touch",
+        101606: "Repulsion",
+        201398: "Tyler McGill (G5)",
+        100094: "Arson",
+        101925: "Tainted Spring",
+        200807: "Laika (G4)",
+        201482: "Xipe Totec (G5)",
+        101131: "Lucky Blow",
+        101515: "Pulled Fangs",
+        200013: "Adhiambo (G4)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -980,6 +1020,9 @@ REACTION_TIMING = [
      "REACTION_UNLOCK_ATTEMPT"),
     (r"only usable[^.]*after block resolution", "ACTION_AFTER_COMBAT"),  # rules-qa 2.1
     (r"attempts? to block the current action", "ACTION_STEALTH_INTERCEPT"),  # block-loop play
+    # A ready minion made to attempt (Guardian Vigil): until the block
+    # succeeds (ANK 20180926).
+    (r"\bthis \w+ attempts to block\.", "ACTION_STEALTH_INTERCEPT"),
     (r"unlock this (vampire|minion)|burns? \d blood to unlock\.", "REACTION_UNLOCK"),
     (r"after blocks are declined", "ACTION_BLOCKS_DECLINED"),
     (r"as (an?|the|this)\b[^.]{0,60}?\bis announced|cancel (an?|the|that) action",
