@@ -12,7 +12,9 @@ could say is an engine-board line.
 A shrinking list (CLAUDE.md "Harness"): one line an ask, its done-condition
 and the docs it changes; done is deleted; order is priority; the only
 state is `[doing: <session>]`; waiting on a person is a dated follow-up.
-Order: what the community beta needs from Succubus Club first, then
+Order: held by the owner (2026-10-15) until Thomas gives his blessing
+(his review of #282–#285): no platforms line is shipped meanwhile. Then
+what the community beta needs from Succubus Club first, then
 Thomas's PRs and the proposal, then the fork's remaining interface items,
 then other platforms.
 

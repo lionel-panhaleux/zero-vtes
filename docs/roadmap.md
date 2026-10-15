@@ -28,7 +28,8 @@ What it still needs:
 
 1. **A way in for testers**: Thomas ships SC with #285 merged, or our own
    SC on krcg, or a platform made for the engine (platforms: Ask the owner
-   whether to chase Thomas).
+   whether to chase Thomas; the platforms line held until his review,
+   owner 2026-10-15).
 2. **The best bot served**: p11 finished, measured and served if it beats
    p10 (training: p11 to its end; p11's two questions measured).
 3. **Games that survive the server**: a game rebuilt after a restart
