@@ -1027,10 +1027,12 @@ impl Engine {
                         let mut blood = blood
                             + self.discipline_surcharge(m, card, mi as u8)
                             + self.combat_card_surcharge(m, card, mi as u8);
-                        st.printed_cost_off(m, card, mi as u8).apply(
-                            &mut cards::pool_cost(st, seat, card, Target::None),
-                            &mut blood,
-                        );
+                        let mut pool = cards::pool_cost(st, seat, card, Target::None);
+                        st.printed_cost_off(m, card, mi as u8)
+                            .apply(&mut pool, &mut blood);
+                        // Charisma's discount, taken as the payment takes it
+                        // (off the pool cost if any, else the blood).
+                        reduce(&mut pool, &mut blood, recruit_off(st, mode, m));
                         if blood.saturating_sub(potential) > st.minions[m.index()].blood {
                             continue;
                         }
@@ -1312,17 +1314,7 @@ impl Engine {
                                 .collect(),
                         },
                     };
-                    // Charisma's discount for a recruit ally action.
-                    let discount = match actor {
-                        Some(m)
-                            if mode
-                                .effects
-                                .contains(&Effect::DeclareAction(ActionKind::Recruit)) =>
-                        {
-                            st.recruit_discount(m) as i32
-                        }
-                        _ => 0,
-                    };
+                    let discount = actor.map_or(0, |m| recruit_off(st, mode, m)) as i32;
                     for target in targets {
                         let potential = self
                             .cost_potential(&PlayCtx::new(seat, card, mi as u8, actor, target, 0))
@@ -1925,7 +1917,11 @@ impl Engine {
         let off: u8 = ctx.discounts.iter().flatten().map(|&(_, n)| n).sum::<u8>()
             + u8::from(ctx.blood_payer.is_some())
             + u8::from(ctx.once_off)
-            + u8::from(ctx.locker.is_some());
+            + u8::from(ctx.locker.is_some())
+            + ctx
+                .actor
+                .zip(cards::lookup(ctx.card))
+                .map_or(0, |(m, d)| recruit_off(st, &d.modes[ctx.mode as usize], m));
         let blood = cards::blood_cost(st, ctx.card, ctx.x);
         let pool = cards::pool_cost(st, ctx.seat, ctx.card, ctx.target);
         // An ally has no blood to pay with, unless playing this card "as a
@@ -8905,6 +8901,20 @@ fn use_card(id: CardId, ai: usize, actor: Option<MinionId>, target: Target) -> C
         ability: ai as u8,
         actor,
         target,
+    }
+}
+
+/// Charisma's discount for `m` playing `mode`: a mode declaring a recruit
+/// ally action only, not a recruit outside an action (LSJ 20090115-1). The
+/// mode of the card played, never of a card it names (Piper's ally).
+fn recruit_off(st: &crate::state::GameState, mode: &cards::ModeDef, m: MinionId) -> u8 {
+    if mode
+        .effects
+        .contains(&Effect::DeclareAction(ActionKind::Recruit))
+    {
+        st.recruit_discount(m)
+    } else {
+        0
     }
 }
 

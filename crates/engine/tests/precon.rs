@@ -10333,6 +10333,78 @@ fn charisma_discounts_the_recruit_ally_action() {
     }
 }
 
+// Charisma's -1 counts toward what the vampire can pay: a vampire one
+// blood short is offered the ally, and pays the discounted blood (the
+// owner's game, 2026-10-15: Abderrahim with Gravebound Drone).
+#[test]
+fn charisma_lets_a_vampire_one_blood_short_recruit() {
+    for charisma in [false, true] {
+        let mut e = Engine::bare(3);
+        // Gravebound Drone's path (Abderrahim, Death's Hand, follows it).
+        let drone_path = |c: &zvtes::crypt::CryptCard| {
+            c.path == Some("Death and the Soul")
+                && c.disciplines.iter().any(|d| d.eq_ignore_ascii_case("obl"))
+        };
+        let a = e.add_minion(SeatId(0), vampire(drone_path, 0), 1, false);
+        e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+        if charisma {
+            master_on(&mut e, 0, "Charisma", a);
+        }
+        hand(&mut e, 0, &["Gravebound Drone"]);
+        let p0 = pool(&e, 0);
+        let offered = request(&mut e).options.contains(&play(0, 0, a));
+        assert_eq!(offered, charisma, "Gravebound Drone costs 2 blood");
+        if charisma {
+            pick(&mut e, play(0, 0, a));
+            // Unblocked: the action resolves, the ally recruited.
+            assert_eq!(request(&mut e).window, WindowLabel::ActionBlock);
+            pick(&mut e, Choice::Pass);
+            request(&mut e);
+            let drone = find_library("Gravebound Drone");
+            assert!(e.state.cards.iter().any(|c| c.in_play && c.card == drone));
+            assert_eq!(blood(&e, a), 0, "1 blood paid");
+            assert_eq!(pool(&e, 0), p0, "the discount is off the blood");
+        }
+    }
+}
+
+// Charisma with a cost source in play (Ravnos Carnival): the discount alone
+// pays, so the play need not announce the counters (LSJ 20090705: only an
+// unaffordable card must).
+#[test]
+fn charisma_alone_pays_beside_a_cost_source() {
+    let mut e = Engine::bare(3);
+    let r = e.add_minion(
+        SeatId(0),
+        vampire(|c| c.clan == "Ravnos" && c.title == Title::None, 0),
+        1,
+        false,
+    );
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    master_on(&mut e, 0, "Charisma", r);
+    let carnival = in_play_with(&mut e, 0, "Ravnos Carnival", 2);
+    hand(&mut e, 0, &["Procurer"]);
+    pick(&mut e, play(0, 0, r));
+    let req = expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
+    assert!(req.options.contains(&Choice::Pass), "Charisma alone pays");
+    pick(&mut e, Choice::Pass);
+    assert_eq!(request(&mut e).window, WindowLabel::ActionBlock);
+    pick(&mut e, Choice::Pass);
+    request(&mut e);
+    let procurer = find_library("Procurer");
+    assert!(e
+        .state
+        .cards
+        .iter()
+        .any(|c| c.in_play && c.card == procurer));
+    assert_eq!(blood(&e, r), 0, "1 blood paid");
+    assert_eq!(
+        e.state.cards[carnival.index()].counters,
+        2,
+        "no counter used"
+    );
+}
+
 // Giant's Blood: "Only one Giant's Blood can be played in a game. Choose a
 // vampire. The chosen vampire gains enough blood to reach full capacity."
 // [LSJ 20061109] Not an uncontrolled one.
