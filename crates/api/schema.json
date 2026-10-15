@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -1606,6 +1606,19 @@
             "error": {
               "type": "string",
               "const": "rate_limited"
+            }
+          },
+          "required": [
+            "error"
+          ]
+        },
+        {
+          "description": "The seat was joined on another connection, which plays it now;\nthis one is closed (unnumbered). Do not join again from here.",
+          "type": "object",
+          "properties": {
+            "error": {
+              "type": "string",
+              "const": "seat_taken"
             }
           },
           "required": [

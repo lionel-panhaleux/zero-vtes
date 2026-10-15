@@ -33,7 +33,7 @@ use axum::routing::{any, get, post};
 use axum::{Json, Router};
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot, watch};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use zvtes_api::message::{Error, SpecError};
 use zvtes_api::{Command, GameSpec, In, Message, Out, Player};
@@ -449,13 +449,39 @@ fn unnumbered(e: Error) -> Ws {
     )
 }
 
+/// This connection's join, while it holds the seat: its number among the
+/// seat's joins, watched for a later one.
+struct Holding {
+    mine: u64,
+    joins: watch::Receiver<u64>,
+}
+
+impl Holding {
+    fn taken(&self) -> bool {
+        *self.joins.borrow() != self.mine
+    }
+}
+
+/// Tells a connection its seat was joined elsewhere, and closes it.
+async fn taken(mut ws: WebSocket) {
+    let _ = ws.send(unnumbered(Error::SeatTaken)).await;
+    let _ = ws.send(Ws::Close(None)).await;
+}
+
 async fn serve(app: Shared, id: String, mut ws: WebSocket) {
-    let mut joined = false;
+    let mut joined: Option<Holding> = None;
     let mut window = (Instant::now(), 0usize);
     let mut ping = tokio::time::interval(Duration::from_secs(30));
     loop {
         let msg = tokio::select! {
             m = ws.recv() => m,
+            // A newer join of the seat (`changed` fails once the game is
+            // gone: then only the client's next command finds it over).
+            Some(true) = async {
+                let h = joined.as_mut()?;
+                h.joins.changed().await.ok()?;
+                Some(h.taken())
+            } => return taken(ws).await,
             _ = ping.tick() => {
                 if ws.send(Ws::Ping(Default::default())).await.is_err() { return; }
                 continue;
@@ -491,14 +517,26 @@ async fn serve(app: Shared, id: String, mut ws: WebSocket) {
                 continue;
             }
         };
-        if !joined {
-            match &input.command {
-                Command::Join { token: Some(t), .. } if *t == h.token => joined = true,
+        match &joined {
+            Some(holding) if holding.taken() => return taken(ws).await,
+            Some(_) => {}
+            None => match &input.command {
+                Command::Join { token: Some(t), .. } if *t == h.token => {
+                    let mut mine = 0;
+                    h.joins.send_modify(|n| {
+                        *n += 1;
+                        mine = *n;
+                    });
+                    joined = Some(Holding {
+                        mine,
+                        joins: h.joins.subscribe(),
+                    });
+                }
                 _ => {
                     let _ = ws.send(unnumbered(Error::NotJoined)).await;
                     continue;
                 }
-            }
+            },
         }
         let (tx, rx) = oneshot::channel();
         if h.jobs

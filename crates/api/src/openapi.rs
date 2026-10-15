@@ -69,7 +69,7 @@ fn version() -> Value {
                 },
             },
             "example": {
-                "protocol": "1.3.0", "engine": "243bf6b8c1d2",
+                "protocol": "1.4.0", "engine": "243bf6b8c1d2",
                 "profiles": ["aggro_bleed", "wall", "random", "network"],
                 "weights": "7aaa9528fbf8f036e58013060bdb5d9a27d0375d3fb066bfc585fd0d6998e442",
                 "limits": {"seats": [2, 6], "humans": 1, "time_limit": 200,

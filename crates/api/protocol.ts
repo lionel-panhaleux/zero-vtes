@@ -1,6 +1,6 @@
-/* zvtes protocol 1.3.0 (docs/protocol.md): generated from
+/* zvtes protocol 1.4.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '1.3.0'
+export const PROTOCOL_VERSION = '1.4.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -575,6 +575,8 @@ export type Error = {
     reason: string
 } | {
     error: 'rate_limited'
+} | {
+    error: 'seat_taken'
 } | {
     error: 'unknown'
 }

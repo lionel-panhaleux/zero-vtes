@@ -34,7 +34,7 @@ pub use view::TableView;
 
 /// The protocol's version (semver): a client checks the major in
 /// [`Joined::protocol`].
-pub const PROTOCOL_VERSION: &str = "1.3.0";
+pub const PROTOCOL_VERSION: &str = "1.4.0";
 
 /// The contract as one JSON Schema document: commands, messages, the
 /// game spec and the game record.

@@ -3,7 +3,9 @@
 // `seq` resumes in order at the pending decision; an older `seq` gets the
 // messages after it again, in order; a join without `after` (a page
 // refresh with the token kept) starts afresh from `joined` and the pending
-// decision; a game gone answers 404 at its socket's URL. Built-in bots: no
+// decision; a seat joined on a second socket while the first is open moves
+// to it, the first told `seat_taken` and closed; a game gone answers 404
+// at its socket's URL. Built-in bots: no
 // policy needed.
 // `node crates/server/tests/rejoin.mjs [http://127.0.0.1:8040]`
 const base = process.argv[2] ?? 'http://127.0.0.1:8040'
@@ -32,6 +34,7 @@ async function connect(join) {
     const inbox = []
     let wake
     ws.onmessage = e => { inbox.push(JSON.parse(e.data)); wake?.() }
+    const closed = new Promise(r => (ws.onclose = r))
     await new Promise(r => (ws.onopen = r))
     ws.send(JSON.stringify({ type: 'join', token, ...join }))
     const next = async (ms = 3000) => {
@@ -42,7 +45,7 @@ async function connect(join) {
         }
         return inbox.shift()
     }
-    return { ws, next }
+    return { ws, next, closed }
 }
 
 // Answer `n` decisions at random from `seq` on; returns the last seq and the decision then pending
@@ -94,3 +97,22 @@ check(joined?.type == 'joined' && joined.view, `${joined?.type} first on a fresh
 check(decision?.type == 'decision' && decision.decision == at.pending.decision, 'not the pending decision')
 console.log(`rejoined without after: joined, then decision ${decision.decision}`)
 c.ws.close()
+await pause(300)
+
+// Joined on a second socket while the first is open (a duplicated tab):
+// the newest takes the seat, the first is told and closed
+const first = await connect({})
+check((await first.next())?.type == 'joined', 'the first socket not joined')
+const pending = await first.next()
+check(pending?.type == 'decision', 'no decision pending on the first socket')
+const second = await connect({})
+const told = await first.next()
+check(told?.type == 'error' && told.error == 'seat_taken' && told.seq == 0, `the first socket told ${JSON.stringify(told)}`)
+await Promise.race([first.closed, pause(3000).then(() => check(false, 'the first socket left open'))])
+check((await second.next())?.type == 'joined', 'the second socket not joined')
+const again = await second.next()
+check(again?.type == 'decision' && again.decision == pending.decision, 'the second socket not at the pending decision')
+second.ws.send(JSON.stringify({ type: 'answer', decision: again.decision, option: again.options[0].index }))
+await play(second, 3, again.seq)
+console.log('joined twice: the first socket told seat_taken and closed, the second plays on')
+second.ws.close()

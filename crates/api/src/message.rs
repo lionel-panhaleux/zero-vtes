@@ -217,6 +217,9 @@ pub enum Error {
     },
     /// Too many commands: slow down.
     RateLimited,
+    /// The seat was joined on another connection, which plays it now;
+    /// this one is closed (unnumbered). Do not join again from here.
+    SeatTaken,
     /// An error a later host sends that this reader does not know (§14).
     /// Never sent.
     #[serde(other)]

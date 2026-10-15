@@ -8,7 +8,7 @@ use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use tokio::sync::{mpsc::UnboundedSender, oneshot};
+use tokio::sync::{mpsc::UnboundedSender, oneshot, watch};
 use zvtes_api::message::SpecError;
 use zvtes_api::record::{BotRecord, GameRecord};
 use zvtes_api::{Command, GameSpec, In, Out, Seat};
@@ -33,6 +33,9 @@ pub struct Handle {
     pub jobs: mpsc::Sender<Job>,
     /// Over: kept for a rejoin or its record, no longer counted live.
     pub over: Arc<AtomicBool>,
+    /// The seat's joins, counted: the connection holding the latest plays
+    /// the seat, an older one is closed (docs/protocol.md §2).
+    pub joins: watch::Sender<u64>,
 }
 
 #[derive(Clone, Default)]
@@ -175,6 +178,7 @@ pub async fn start(
             seat,
             jobs: jobs_tx,
             over,
+            joins: watch::channel(0).0,
         },
     );
     Ok((id, seat, token))

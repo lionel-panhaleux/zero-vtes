@@ -309,7 +309,8 @@ for history.
   `/admin/feedback`), `node crates/server/tests/load.mjs <url> <n>` n at
   once,
   `node crates/server/tests/rejoin.mjs <url>` a seat joining again (after
-  its last `seq`, after an older one, afresh).
+  its last `seq`, after an older one, afresh, on a second socket taking
+  the seat from the first).
 
 ## Running the fork
 

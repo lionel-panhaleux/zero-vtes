@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **1.3.0**. The types: the models of the
+Version **1.4.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -66,6 +66,11 @@ client                                  host
   disconnection the client sends `join` with `after`: the last `seq` it
   received. The host resends what followed (or, if it no longer holds
   it, `joined` and the pending decision: a fresh start from the view).
+- A seat plays on one connection: the newest `join` takes it. The
+  connection it was on gets `seat_taken` (unnumbered) and is closed; a
+  client receiving it must not join again from there (another tab or
+  device has the seat). A refreshed page wins over a socket the host has
+  not yet seen die.
 - A command accepted has no reply of its own: its effect comes as
   events (an `answer` as an `events` message starting with `decided`);
   but `feedback`, answered `noted`. A refused command changes nothing
@@ -178,7 +183,7 @@ A JSON object with `seq`, `reply_to`? and a `type`:
 | `decision` | `decision`, `seat`, `window`, `source`?, `purpose`?, `about`?, `options`, `undo`, `allocation`?, `votes`?, `view`; `prompt` with `text` |
 | `over` | `vp_halves` (per seat), `winner`? (the most VPs, at least 2, alone), `reason` (`{"type": …}`: `last_standing`, `time_limit`, `humans_ousted`, `abandoned` + `seat`, `engine_error`; in a record only, `server_restart`), `view` |
 | `noted` | `decision`: the seat's `feedback` recorded, at that decision (`reply_to` its `id`) |
-| `error` | `error`: `stale` (+ `expected`), `not_your_turn`, `option` (+ `index`), `no_undo`, `allocation` (+ `reason`: `none`, `length`, `total`, `cap`, `min_nonzero`), `no_votes`, `over`, `not_joined`, `malformed` (+ `reason`), `rate_limited` |
+| `error` | `error`: `stale` (+ `expected`), `not_your_turn`, `option` (+ `index`), `no_undo`, `allocation` (+ `reason`: `none`, `length`, `total`, `cap`, `min_nonzero`), `no_votes`, `over`, `not_joined`, `malformed` (+ `reason`), `rate_limited`, `seat_taken` |
 
 `window` is a stable id (`minion_phase`, `action_block`, `combat_strike`,
 … 41: the schema's `Window`). `source` is the card whose terms or effect
