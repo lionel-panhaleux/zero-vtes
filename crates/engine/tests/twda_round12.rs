@@ -1593,6 +1593,51 @@ fn pulled_fangs_damage_may_be_prevented() {
     assert_eq!(blood(&e, z), 4 - 3, "the 1 prevented");
 }
 
+// Pulled Fangs after Body Flare burned the opposing vampire: its 1 damage
+// lands on no one (rules-qa 74.13 lets in a vampire in torpor only), and the
+// burned vampire is not sent to torpor.
+#[test]
+fn pulled_fangs_damage_misses_a_burned_vampire() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), vampire_with("PRO", 1), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 0, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    hand(&mut e, 0, &["Body Flare", "Pulled Fangs"]);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, block(z));
+    pick_when(&mut e, play(0, 0, a));
+    pick_when(&mut e, play(0, 0, a));
+    request(&mut e);
+    let m = &e.state.minions[z.index()];
+    assert!(!m.in_play && !m.in_torpor, "burned, not in torpor");
+}
+
+// Pulled Fangs after an aggravated strike sent the opposing vampire to
+// torpor with blood left: owner (2026-10-15, rules-qa 74.13) "Pulled Fang's
+// damage must land on them even in torpor": he mends it with 1 blood.
+#[test]
+fn pulled_fangs_lands_on_a_vampire_sent_to_torpor() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), vampire_with("PRO", 1), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    hand(&mut e, 0, &["Body Flare", "Pulled Fangs"]);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, block(z));
+    pick_when(&mut e, play(0, 0, a));
+    pick_when(&mut e, play(0, 0, a));
+    request(&mut e);
+    assert!(e.state.cards.iter().any(|c| c.in_play && c.host == Some(z)));
+    assert!(e.state.minions[z.index()].in_torpor);
+    assert_eq!(
+        blood(&e, z),
+        4 - 1 - 1,
+        "Body Flare's second point, then the 1"
+    );
+}
+
 // Lucinde, Alastor (G7): "this turn, Camarilla vampires you control can
 // enter combat with the chosen vampire" — owner (2026-10-15, rules-qa
 // 74.2): "triggered effects do not disappear with their source": Lucinde

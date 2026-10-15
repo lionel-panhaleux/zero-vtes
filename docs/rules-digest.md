@@ -2785,6 +2785,11 @@ retainers, traits, titles, trait changes).
   torpor (3.1).
 - Fame ("after this vampire goes to torpor, burn 3 pool") resolves at once
   inside whatever sent the vampire to torpor (6.4).
+- Damage on a vampire in torpor: he is wounded (rulebook "Wounded"), so he
+  mends normal damage with blood, unmended points doing nothing more, and
+  each aggravated point burns 1 blood or him (Daring the Dawn after the
+  combat that sent him there). Pulled Fangs' damage lands on a vampire its
+  round sent to torpor (74.13).
 - Renewed Vigor: [obe] at any Methuselah's torpid vampire, [OBE] at any
   other vampire, torpid included; a target already at full life or capacity
   stays a legal no-op; [for]'s unlock-phase burn only for a bearer in torpor
@@ -3836,7 +3841,7 @@ read, for the owner to confirm or correct:
 - 69.1–69.11, 69.13–69.15.
 - 70.5, 70.9, 70.13, 70.18, 70.20–70.22.
 - 74.7–74.12 graded green or amber (both reads agree, or a precedent;
-  74.1–74.6 answered by the owner).
+  74.1–74.6 and 74.13 answered by the owner).
 - The "Question (implemented reading)" tails: 48.2 (a card granting several
   strikes bars further cards until all are made), 48.3 (the switch of
   blocker takes effect at once, no impulse left to others), 48.8 (a rescue

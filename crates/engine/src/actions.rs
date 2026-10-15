@@ -5521,12 +5521,12 @@ impl Engine {
         let r = if v.is_ally() {
             crate::combat::resolve_life_damage(v.blood, d)
         } else {
-            crate::combat::resolve_damage(v.blood, d)
+            crate::combat::resolve_damage(v.blood, d, v.in_torpor)
         };
         self.state.minions[m.index()].blood -= r.blood_burned;
         if r.burned {
             self.burn_minion(m);
-        } else if r.wounded && !self.state.minions[m.index()].in_torpor {
+        } else if r.wounded {
             self.minions_to_torpor(&[m]);
         }
     }

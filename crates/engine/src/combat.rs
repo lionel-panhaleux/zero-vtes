@@ -913,14 +913,16 @@ pub(crate) struct Resolved {
 /// Normal damage first: 1 blood per point mends it, unmended points wound.
 /// Then aggravated: no mending, the first point wounds; each further point
 /// on a wounded vampire burns 1 blood or the vampire (rulebook examples
-/// Nassir, Tamoszius, Ryan).
-pub(crate) fn resolve_damage(blood: u8, d: Damage) -> Resolved {
+/// Nassir, Tamoszius, Ryan). A vampire in torpor is already wounded
+/// (rulebook "Wounded"): `in_torpor` makes every aggravated point burn, and
+/// `Resolved::wounded` reports only a vampire newly wounded.
+pub(crate) fn resolve_damage(blood: u8, d: Damage, in_torpor: bool) -> Resolved {
     let mut blood = blood;
     let mut burned_blood = 0;
     let mend = blood.min(d.normal);
     blood -= mend;
     burned_blood += mend;
-    let mut wounded = d.normal > mend;
+    let mut wounded = in_torpor || d.normal > mend;
     let mut burned = false;
     for _ in 0..d.aggravated {
         if !wounded {
@@ -935,7 +937,7 @@ pub(crate) fn resolve_damage(blood: u8, d: Damage) -> Resolved {
     }
     Resolved {
         blood_burned: burned_blood,
-        wounded,
+        wounded: wounded && !in_torpor,
         burned,
     }
 }
@@ -2803,7 +2805,7 @@ impl Engine {
                 if m.is_ally() {
                     resolve_life_damage(m.blood, d)
                 } else {
-                    resolve_damage(m.blood, d)
+                    resolve_damage(m.blood, d, m.in_torpor)
                 }
             })
             .collect();
@@ -3549,10 +3551,12 @@ impl Engine {
             }
             Effect::WeatherDamage { escalate } => c.weather.push((c.round, escalate)),
             // Pulled Fangs: not strike damage, offered to prevention before
-            // it lands, the end of the round then resumed (rules-qa 74.1).
+            // it lands, the end of the round then resumed (rules-qa 74.1);
+            // on a vampire sent to torpor this round too (74.13), never on
+            // one burned.
             Effect::DamageOpponentNow(n) => {
                 let (from, to) = (c.sides[i].minion, c.sides[1 - i].minion);
-                if self.state.minions[to.index()].ready() {
+                if self.state.minions[to.index()].present() {
                     let n = n.saturating_sub(self.state.damage_reduction(to, from));
                     if n > 0 {
                         let o = &mut c.sides[1 - i];
@@ -3950,7 +3954,7 @@ mod tests {
         // Rulebook: "Nassir is ready and has 1 blood when he receives 1
         // point of aggravated damage. He cannot mend this damage, so he is
         // wounded and goes to torpor with 1 blood."
-        let r = resolve_damage(1, d(0, 1));
+        let r = resolve_damage(1, d(0, 1), false);
         assert_eq!(
             r,
             Resolved {
@@ -3967,7 +3971,7 @@ mod tests {
         // aggravated damage. […] wounded by 1 point, and so he must burn 2
         // blood to prevent destruction from the other 2 points, leaving him
         // empty and in torpor."
-        let r = resolve_damage(2, d(0, 3));
+        let r = resolve_damage(2, d(0, 3), false);
         assert_eq!(
             r,
             Resolved {
@@ -3983,14 +3987,32 @@ mod tests {
         // "Ryan is ready and has 1 blood when he receives 2 normal damage and
         // 1 aggravated damage. He burns 1 blood to mend the first point […]
         // becomes wounded. The aggravated damage burns him."
-        let r = resolve_damage(1, d(2, 1));
+        let r = resolve_damage(1, d(2, 1), false);
         assert!(r.burned);
         assert_eq!(r.blood_burned, 1);
     }
 
     #[test]
+    fn a_vampire_in_torpor_mends_normal_and_burns_to_aggravated() {
+        // Rulebook "Wounded": "one that is in torpor"; unmended normal damage
+        // leaves him as he is, each aggravated point burns 1 blood or him.
+        let r = resolve_damage(1, d(2, 0), true);
+        assert_eq!(
+            r,
+            Resolved {
+                blood_burned: 1,
+                wounded: false,
+                burned: false
+            }
+        );
+        let r = resolve_damage(1, d(0, 2), true);
+        assert!(r.burned && !r.wounded);
+        assert_eq!(r.blood_burned, 1);
+    }
+
+    #[test]
     fn mended_damage_leaves_the_vampire_ready() {
-        let r = resolve_damage(3, d(2, 0));
+        let r = resolve_damage(3, d(2, 0), false);
         assert_eq!(
             r,
             Resolved {

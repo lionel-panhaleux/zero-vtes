@@ -3166,7 +3166,8 @@ impl GameState {
             .filter(move |l| self.card_controller(l.source) == s)
     }
 
-    /// Damage each opposing strike inflicts on `m` less (Nephandus).
+    /// Damage `from` inflicts on `m` less: its strikes and its own non-strike
+    /// damage (Pulled Fangs), not environmental (Nephandus; Saulot to 0).
     pub fn damage_reduction(&self, m: MinionId, from: MinionId) -> u8 {
         let ctx = PrintedCtx {
             opponent: Some(from),

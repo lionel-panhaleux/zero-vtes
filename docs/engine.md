@@ -707,9 +707,12 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   (`Side::aim_declined`; rules-qa 62.1). Damage reduction is not prevention:
   `GameState::damage_reduction(m, from)` (Nephandus,
   `Modifier::OpposingDamageLess`; to 0 against a Baali, Saulot's
-  `Stat::NoDamageFromOpponent`) lowers each opposing strike's damage before
-  it is pending — unpreventable
-  and after-combat strike damage included, environmental not.
+  `Stat::NoDamageFromOpponent`) lowers each opposing strike's damage, and a
+  minion's own non-strike damage (Pulled Fangs), before it is pending — unpreventable
+  and after-combat strike damage included, environmental not. A vampire
+  in torpor is wounded (rulebook "Wounded"): `resolve_damage`'s
+  `in_torpor` has him mend normal damage, each aggravated point burning 1
+  blood or him, and reports only a vampire newly wounded.
   `Side::keep_normal` keeps a never-aggravated strike's damage (Psychic
   Assault) normal under Dawn Operation. `StrikeKind::Corrupt` (Contagion)
   adds the striker's counter as it lands and queues the corruption steal,
@@ -743,7 +746,8 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   [pre], Harass).
 - Damage in the end-of-round window (Pulled Fangs' `DamageOpponentNow`):
   pending, a prevention step, then the window again
-  (`CombatCtx::end_of_round_damage`).
+  (`CombatCtx::end_of_round_damage`); on a vampire sent to torpor that
+  round too (wounded, above), never on one burned.
 - The Book of Going Forth by Night: `Engine::burn_minion` first offers an
   ally opposing a bearer of `Modifier::HostStealsOpposingAllyOnBurn` to
   `book_takes_ally` (stolen, locked, 1 life; the round over, no press).

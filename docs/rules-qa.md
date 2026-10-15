@@ -65,7 +65,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
-- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27, 74.1–74.12
+- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27, 74.1–74.13
 - **Ousts, Life Boon's decision point** — 45.1–45.8
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5, 66.1
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
@@ -1533,7 +1533,7 @@ Slice 16x. Graded per the add-cards skill: a blind second reader per nine cards,
 
 **74.5** Paulo de Castille: "after Paulo enters play during your influence phase" — as he is moved out of the uncontrolled region in that phase, before any contest (as Erlik's distribution). Owner (2026-10-15): confirmed. (Test paulo_de_castille_moves_a_blood_to_an_uncontrolled_lasombra.)
 
-**74.6** Saulot, The Wanderer: "damage Baali inflict on Saulot is reduced to 0". Owner (2026-10-15): it covers the damage a Baali inflicts himself, a strike or not (Pulled Fangs' 1 damage), not environmental damage (Carrion Crows, a retainer's). `GameState::damage_reduction` applies to strikes, their riders and a minion's own damage (Pulled Fangs), as Nephandus's. (Test saulot_takes_no_damage_from_baali.)
+**74.6** Saulot, The Wanderer: "damage Baali inflict on Saulot is reduced to 0". Owner (2026-10-15): it covers the damage a Baali inflicts himself, a strike or not (Pulled Fangs' 1 damage), not environmental damage (Carrion Crows, a retainer's). `GameState::damage_reduction` applies to strikes, their riders and a minion's own damage (Pulled Fangs), as Nephandus's. No pool card reaches the non-strike case yet: Pulled Fangs needs more damage inflicted this round, and a Baali's damage to Saulot counts after the reduction, 0. (Test saulot_takes_no_damage_from_baali.)
 
 **74.7** The Book of Going Forth by Night: any burn of an ally opposing its vampire in combat (damage, an effect, a last life paid) is replaced; the steal ends the combat (a control change, LSJ 20020618): the round is over, no press. Both reads agree. (Test the_book_of_going_forth_by_night_steals_an_ally_about_to_burn.)
 
@@ -1546,3 +1546,5 @@ Slice 16x. Graded per the add-cards skill: a blind second reader per nine cards,
 **74.11** Repulsion: while a vampire bears one, none of its levels is playable by him; [pre]'s maneuver, only to long range, once in the block's combat, any round. Palatial Estate: nothing on an ally host; in torpor too. Gear Up [nec]: not offered with an empty ash heap (rules-digest D14). Divine Sign: the chosen minion is the action's target (D1), any minion. Dive into Madness: a third [DEM] not offered. (Tests repulsion_superior_stays_on_the_vampire_for_stealth, repulsion_presence_gives_a_maneuver_to_long_range_if_blocked, palatial_estate_gives_its_vampire_a_blood_each_master_phase, divine_sign_superior_guards_against_the_chosen_minion, dive_into_madness_caps_at_two_and_older_vampires_burn_it.)
 
 **74.12** Tainted Spring: the animal brought in keeps the bonus while in play — an ally +1 strength, a damage-dealing retainer +1 damage of its kind (close-only stays close-only), a retainer dealing none nothing; [ANI] +1 starting life. Clandestine Contract: The Black Throne pays for it as for any contract. (Tests tainted_spring_superior_strengthens_a_recruited_animal_ally, tainted_spring_adds_to_a_retainers_damage, clandestine_contract_feeds_the_black_throne.)
+
+**74.13** Pulled Fangs played after a round ended early with the opposing vampire sent to torpor (RTR 20030519 allows the play): the card goes on him and its 1 damage lands on him in torpor — owner (2026-10-15): "if it goes to torpor from aggravated damage, it could matter. In that case Pulled Fang's damage must land on them even in torpor": a vampire sent to torpor by aggravated damage keeps his blood and mends it; a vampire in torpor is wounded (rulebook "Wounded"), so unmended normal damage leaves him as he is and aggravated burns. (Tests pulled_fangs_lands_on_a_vampire_sent_to_torpor, pulled_fangs_damage_misses_a_burned_vampire.)

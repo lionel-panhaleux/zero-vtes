@@ -8,8 +8,8 @@ Docs: `docs/engine.md` (§2–5, the reference by mechanism),
 (`../zero-vtes-rN`). This board holds the card definitions, their readings
 and the ledger; a rulebook mechanism no card carries is on the engine board.
 
-Pool (KRCG `vtes.json` of 2026-06-30): crypt 483 of 1,785 in the engine
-(1,765 vampires + 20 Imbued), library 739 of 2,364; 2 crypt and 18 library
+Pool (KRCG `vtes.json` of 2026-06-30): crypt 498 of 1,785 in the engine
+(1,765 vampires + 20 Imbued), library 760 of 2,364; 2 crypt and 18 library
 cards banned and out of scope (owner, 2026-10-14). The coverage report
 line makes these numbers a script's.
 
@@ -21,7 +21,8 @@ the owner (objective B), then the owner-review backlog a batch at a time,
 then the long tail.
 
 - **Sniper Rifle in the slave's combat**: clear `CombatCtx::held_at_block` when Tupdog takes a blocked Tremere antitribu's combat (`start_combat(slave, blocker)`). Done when a test plays it, and the ledger row (ANK 20200115, `n/a: no slave rule in V5`, stale since 16n) is `test:`. Docs: the ledger.
-- **Strike-only prevention**: `Effect::PreventStrike(n)` / `R::StrikeDamagePending` for Rego Motum, a non-aggravated strike-only variant for Opikun; today both prevent non-strike damage. Done when tests show Carrion Crows' damage beside the strike unprevented (blood 3, not 4) and the card unplayable with no strike damage. Docs: engine.md (prevention), rules-digest if a reading moves.
+- **Strike-only prevention**: `Effect::PreventStrike(n)` / `R::StrikeDamagePending` for Rego Motum, a non-aggravated strike-only variant for Opikun; today both prevent non-strike damage (Pulled Fangs' too, which rules-qa 74.1 keeps out of strike-only prevention). Done when tests show Carrion Crows' damage beside the strike unprevented (blood 3, not 4) and the card unplayable with no strike damage. Docs: engine.md (prevention), rules-digest if a reading moves.
+- **End-of-round cards against a burned opponent**: Pulled Fangs is offered at the end of a round whose opposing vampire burned, an empty play (`PutOnOpponent` places nothing, its damage lands on no one); other `Window::CombatEndOfRound` cards reading `Requirement::OpponentVampire` may be alike (round 12's egress review). Mask them with a requirement that the opponent is present (an illegal target, rules-qa 17.4), the reading in a new rules-qa batch. Done when a test shows Pulled Fangs not offered against a burned opponent and each such card is checked. Docs: rules-qa, engine.md if a requirement is added.
 - **Coverage report**: a script over `vtes.json` and the generated tables printing cards defined vs the full pool by set and type, TWDA decks in the pool and kept, and the ids players asked for (the engine board's "Demand for cards counted"). Done when add-cards §1 runs it and this header quotes its output. Docs: add-cards §1, this header.
 - **Round choice as a script**: add-cards §1's greedy simulation (today a monkeypatched `g.table_ids` each round) printing the steps table (bundle → kept, recent kept, cost per deck), the ceiling check and the players' demand; the owner only picks the cut. Done when add-cards §1 calls the script instead of describing the patch. Docs: add-cards §1.
 - **New-set intake**: when KRCG publishes a set, the recipe (regenerate, list the new ids, window-matrix drafts, a round of them) as a step of add-cards §1. Done when the step is in add-cards §1 and has been tried on a release. Docs: add-cards §1.

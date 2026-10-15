@@ -3756,6 +3756,26 @@ fn daring_the_dawn_burns_after_combat_or_an_ended_action() {
         assert!(e.state.minions[a.index()].in_torpor, "ended: {ended}");
     }
 }
+
+// Daring the Dawn after the block's combat sent its vampire to torpor at 0
+// blood: rulebook "Aggravated damage": "a wounded vampire is one … in
+// torpor"; "if they do not have enough blood, they are burned".
+#[test]
+fn daring_the_dawn_burns_a_vampire_its_combat_sent_to_torpor() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["FOR"], 0), 1, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    let ally = e.add_ally(SeatId(1), find_library("Aggressive Corpse"));
+    e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
+    hand(&mut e, 0, &["Daring the Dawn"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, play(0, 1, a));
+    // The ally's 2 damage, 1 mended: torpor at 0; then the [FOR] 1
+    // aggravated.
+    pick_when(&mut e, Choice::DeclareBlock { minion: ally });
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[a.index()].in_play, "burned");
+}
 // Freak Drive [FOR]: "Only usable if the action was blocked. Unlock this
 // vampire." [PIB 20150915] [LSJ 19981028] [ANK 20190425]: after
 // resolution, after all combats — a blocked action has its after-resolution

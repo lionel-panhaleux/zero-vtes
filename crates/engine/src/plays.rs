@@ -5951,6 +5951,7 @@ impl Engine {
             .filter(|g| g.0 == seat)
             .map(|g| g.1)
             .collect();
+        granters.sort_unstable_by_key(|m| m.0);
         granters.dedup();
         for m in granters {
             let Some(def) = cards::vampire_of(&st.minions[m.index()]) else {
@@ -5981,7 +5982,8 @@ impl Engine {
                 {
                     continue;
                 }
-                // Granted to its controller's minions: from the grants below.
+                // Granted to its controller's minions: from the grants above
+                // (`chosen_this_turn`); an ungated one would never be offered.
                 if ability.actor == Actor::ActingCandidate {
                     continue;
                 }
