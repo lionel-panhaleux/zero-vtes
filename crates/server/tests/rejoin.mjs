@@ -3,7 +3,8 @@
 // `seq` resumes in order at the pending decision; an older `seq` gets the
 // messages after it again, in order; a join without `after` (a page
 // refresh with the token kept) starts afresh from `joined` and the pending
-// decision. Built-in bots: no policy needed.
+// decision; a game gone answers 404 at its socket's URL. Built-in bots: no
+// policy needed.
 // `node crates/server/tests/rejoin.mjs [http://127.0.0.1:8040]`
 const base = process.argv[2] ?? 'http://127.0.0.1:8040'
 const decks = await (await fetch(`${base}/catalog`)).json()
@@ -19,6 +20,10 @@ const spec = {
 const res = await fetch(`${base}/games`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(spec) })
 const { game, token } = await res.json()
 const check = (ok, what) => { if (!ok) throw new Error(what) }
+// A client whose socket will not reopen tells a game gone by its socket's
+// URL fetched: 404 for no such game, 400 (no upgrade) for a live one.
+check((await fetch(`${base}/games/no-such-game/ws`)).status == 404, 'a game gone not told by 404')
+check((await fetch(`${base}/games/${game}/ws`)).status == 400, 'a live game told gone')
 const pause = ms => new Promise(r => setTimeout(r, ms))
 
 // A connection joined with `join`'s extra fields; `next` waits for a message, null after `ms`

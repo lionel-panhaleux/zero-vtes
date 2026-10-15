@@ -102,7 +102,8 @@ pub struct GameResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub winner: Option<Seat>,
     pub reason: EndReason,
-    /// The engine's failure, when it failed: message, location, backtrace.
+    /// The engine's failure, when it failed: message, location, backtrace;
+    /// for a game a restart ended, why its record did not read to its end.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub failure: Option<String>,
 }

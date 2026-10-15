@@ -23,6 +23,7 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use axum::extract::ws::rejection::WebSocketUpgradeRejection;
 use axum::extract::ws::{Message as Ws, WebSocket, WebSocketUpgrade};
 use axum::extract::{ConnectInfo, Path, State};
 use axum::http::{header, HeaderMap, HeaderValue, Method, StatusCode};
@@ -95,6 +96,7 @@ async fn main() {
             .into(),
     )
     .await;
+    let lost = store.clone();
     if let Store::Postgres(pool) = &store {
         let pool = pool.clone();
         let days = env_or("ZVTES_RETENTION", 730);
@@ -156,6 +158,15 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(&listen)
         .await
         .expect("the address");
+    // After the bind: a second process on the same store dies on the
+    // address before it ends the live server's games.
+    let (ended, failed) = lost.end_lost().await;
+    if ended > 0 {
+        eprintln!("restart: {ended} games left going, ended");
+    }
+    for e in failed {
+        eprintln!("restart: {e}");
+    }
     eprintln!(
         "zvtes-server {} (protocol {}) on {listen}",
         zvtes_host::ENGINE,
@@ -371,7 +382,9 @@ async fn socket(
     State(app): State<Shared>,
     Path(id): Path<String>,
     headers: HeaderMap,
-    ws: WebSocketUpgrade,
+    // Checked after the game: a client's `fetch` (no upgrade headers) finds
+    // a game gone by its 404, as a browser's socket cannot tell it.
+    ws: Result<WebSocketUpgrade, WebSocketUpgradeRejection>,
 ) -> Response {
     // A browser says where the page is from: only the platforms' pages
     // may open a seat's socket. Other clients send no origin (and could
@@ -385,7 +398,10 @@ async fn socket(
     if app.games.get(&id).is_none() {
         return StatusCode::NOT_FOUND.into_response();
     }
-    ws.on_upgrade(move |s| serve(app, id, s))
+    match ws {
+        Ok(ws) => ws.on_upgrade(move |s| serve(app, id, s)),
+        Err(e) => e.into_response(),
+    }
 }
 
 fn frame(outs: &[Out]) -> Vec<Ws> {

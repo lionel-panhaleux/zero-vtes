@@ -299,8 +299,11 @@ for history.
   allocation shapes in `tests/politics.rs` / `tests/precon.rs`;
   `crates/host/tests/records.rs` reads the corpus whole.
 - `cargo clippy -p zvtes-server --all-targets --profile ci -- -D
-  warnings` (not a default member); `scripts/check_ts.sh` (a game typed
-  against `protocol.ts`); with a server running, `node
+  warnings` and `cargo test -p zvtes-server --profile ci` (not a default
+  member: a restart ending the games left going, on the file store, and
+  on Postgres with `ZVTES_TEST_DATABASE_URL` naming a scratch database);
+  `scripts/check_ts.sh` (a game typed against `protocol.ts`); with a
+  server running, `node
   crates/server/tests/client.mjs <url>` plays a game over HTTP and
   WebSocket, `node crates/server/tests/load.mjs <url> <n>` n at once,
   `node crates/server/tests/rejoin.mjs <url>` a seat joining again (after

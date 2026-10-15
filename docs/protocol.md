@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **1.0.0**. The types: the models of the
+Version **1.1.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -76,7 +76,9 @@ client                                  host
   answering at once, with no user in the loop, meets it.
 - The game ends when one Methuselah is left, at the time limit, when the
   human is ousted (the bots do not play on), when the human leaves, or
-  after the idle timeout (`joined.idle_timeout`).
+  after the idle timeout (`joined.idle_timeout`). A server restart ends
+  the games going (recorded `server_restart`, §11): joining one again
+  finds no game (its socket's URL answers 404, §10).
 
 ### A minimal client
 
@@ -172,7 +174,7 @@ A JSON object with `seq`, `reply_to`? and a `type`:
 | `joined` | `protocol`, `engine` (commit), `game`, `seat`, `seats` (`name`, `bot` profile), `settings`, `idle_timeout`, `view` |
 | `events` | `events`: one step — a decision taken and what it did until the next — or the engine's run before a decision or the end (§9); `view` after a step when `views` is `steps` |
 | `decision` | `decision`, `seat`, `window`, `source`?, `purpose`?, `about`?, `options`, `undo`, `allocation`?, `votes`?, `view`; `prompt` with `text` |
-| `over` | `vp_halves` (per seat), `winner`? (the most VPs, at least 2, alone), `reason` (`{"type": …}`: `last_standing`, `time_limit`, `humans_ousted`, `abandoned` + `seat`, `engine_error`), `view` |
+| `over` | `vp_halves` (per seat), `winner`? (the most VPs, at least 2, alone), `reason` (`{"type": …}`: `last_standing`, `time_limit`, `humans_ousted`, `abandoned` + `seat`, `engine_error`; in a record only, `server_restart`), `view` |
 | `error` | `error`: `stale` (+ `expected`), `not_your_turn`, `option` (+ `index`), `no_undo`, `allocation` (+ `reason`: `none`, `length`, `total`, `cap`, `min_nonzero`), `no_votes`, `over`, `not_joined`, `malformed` (+ `reason`), `rate_limited` |
 
 `window` is a stable id (`minion_phase`, `action_block`, `combat_strike`,
@@ -396,9 +398,9 @@ ended; the last `pool`, `blood` and `torpor` told are the next view's.
 | `GET /version` | protocol, engine commit, bot profiles offered, limits (seats, time limit, idle timeout) |
 | `GET /catalog` | the precon decklists the engine plays |
 | `POST /games` | body: a `GameSpec` (one human seat); `{game, seat, token}`, or a `SpecError` (400) |
-| `GET /games/{game}/ws` | WebSocket: one JSON command or message per text frame; the first command is `join` with the token |
+| `GET /games/{game}/ws` | WebSocket: one JSON command or message per text frame; the first command is `join` with the token. 404 to any request once the game has left the server (the idle timeout passed, after its end or with no command, or the server restarted), so a client whose socket will not reopen can `fetch` it to tell |
 | `GET /games/{game}/record` | the game's record (§11), `Authorization: Bearer <token>` |
-| `GET /admin/games?since=&engine=&limit=` | the games recorded, oldest first: `id`, `engine`, `client`, `started`, `ended`, `result`, `entries` (the operator's: `Authorization: Bearer <admin token>`) |
+| `GET /admin/games?since=&engine=&limit=` | the games recorded, oldest first: `id`, `engine`, `client`, `started`, `ended` (absent: going on the server now), `result`, `entries` (the operator's: `Authorization: Bearer <admin token>`) |
 | `GET /admin/games/{game}/record` | any game's record, as far as it went (the operator's) |
 
 No account: the token is the seat, never in a URL. The server checks
@@ -412,11 +414,14 @@ seed), each decision answered — seat, time, option index, its key with
 the engine's copy numbers, by whom (`human`, `bot`, `order`, `auto`),
 the options shown when settings hid some — undos (decision numbers then
 repeat from `to`: a reader drops what they take back), settings
-changes, refused commands, the result and any engine failure. A record
-replays by index on its engine commit, and reads by key on a later
-engine (a record from before every block attempt was offered reads past
-the block windows its engine skipped). Kept two years, to train and test
-the engine; anonymous.
+changes, refused commands, the result and any engine failure. A game
+going when its server restarts is ended at the restart, `server_restart`:
+its victory points where its record reads to on the restarted server's
+engine, `failure` saying why when it does not read to its end (rules
+fixes change the engine, §14). A record replays by index on its engine
+commit, and reads by key on a later engine (a record from before every
+block attempt was offered reads past the block windows its engine
+skipped). Kept two years, to train and test the engine; anonymous.
 
 ## 12. Open sets
 

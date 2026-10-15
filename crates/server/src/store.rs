@@ -7,7 +7,8 @@ use std::path::PathBuf;
 
 use sqlx::PgPool;
 use tokio::sync::mpsc::UnboundedReceiver;
-use zvtes_api::record::{Entry, GameRecord};
+use zvtes_api::message::EndReason;
+use zvtes_api::record::{Entry, GameRecord, GameResult};
 
 /// What a game sends its store.
 pub enum Put {
@@ -173,17 +174,10 @@ impl Store {
                     }
                     tx.commit().await.map_err(|e| e.to_string())
                 }
-                Put::End { game, record } => sqlx::query(
-                    "update games set ended = to_timestamp($2::double precision / 1000),
-                     result = $3 where id = $1",
-                )
-                .bind(&game)
-                .bind(record.ended.unwrap_or(record.started) as f64)
-                .bind(value(&record.result))
-                .execute(pool)
-                .await
-                .map(|_| ())
-                .map_err(|e| e.to_string()),
+                Put::End { game, record } => {
+                    let ended = record.ended.unwrap_or(record.started);
+                    end_row(pool, &game, ended, value(&record.result)).await
+                }
             },
         }
     }
@@ -335,6 +329,72 @@ impl Store {
         }
     }
 
+    /// The games still going, ended `server_restart`: run at startup,
+    /// before any game is live, so a going game is one a previous process
+    /// lost. How many it ended, and why it could not end the others.
+    pub async fn end_lost(&self) -> (usize, Vec<String>) {
+        let going: Vec<(String, i32)> = match self {
+            Store::Postgres(pool) => match sqlx::query_as(
+                "select id, case when jsonb_typeof(spec->'seats') = 'array'
+                     then jsonb_array_length(spec->'seats') else 0 end
+                 from games where ended is null",
+            )
+            .fetch_all(pool)
+            .await
+            {
+                Ok(rows) => rows,
+                Err(e) => return (0, vec![e.to_string()]),
+            },
+            // A file whose record does not read is not listed either.
+            Store::Files(_) => match self.list(None, None, i64::MAX).await {
+                Ok(games) => games
+                    .into_iter()
+                    .filter(|g| g.ended.is_none())
+                    .map(|g| (g.id, 0))
+                    .collect(),
+                Err(e) => return (0, vec![e]),
+            },
+        };
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("after 1970")
+            .as_millis() as u64;
+        let (mut ended, mut failed) = (0, Vec::new());
+        for (game, seats) in going {
+            let done = match (self.record(&game, None).await, self) {
+                (Some(record), _) => {
+                    let result = zvtes_host::replay::ended(&record, EndReason::ServerRestart);
+                    self.write(Put::End {
+                        game: game.clone(),
+                        record: GameRecord {
+                            entries: vec![],
+                            ended: Some(now),
+                            result: Some(result),
+                            ..record
+                        },
+                    })
+                    .await
+                }
+                // A row that no longer reads as a record (an older api).
+                (None, Store::Postgres(pool)) => {
+                    let result = GameResult {
+                        vp_halves: vec![0; seats.max(0) as usize],
+                        winner: None,
+                        reason: EndReason::ServerRestart,
+                        failure: Some("the record does not read".into()),
+                    };
+                    end_row(pool, &game, now, value(&result)).await
+                }
+                (None, Store::Files(_)) => Err("the record does not read".into()),
+            };
+            match done {
+                Ok(()) => ended += 1,
+                Err(e) => failed.push(format!("{game}: {e}")),
+            }
+        }
+        (ended, failed)
+    }
+
     /// Games started before `days` ago, deleted (the 2-year retention).
     pub async fn purge(pool: &PgPool, days: i32) -> Result<u64, String> {
         sqlx::query("delete from games where started < now() - make_interval(days => $1)")
@@ -344,6 +404,26 @@ impl Store {
             .map(|r| r.rows_affected())
             .map_err(|e| e.to_string())
     }
+}
+
+/// A game's row ended (Unix ms) with its result.
+async fn end_row(
+    pool: &PgPool,
+    game: &str,
+    ended: u64,
+    result: serde_json::Value,
+) -> Result<(), String> {
+    sqlx::query(
+        "update games set ended = to_timestamp($2::double precision / 1000),
+         result = $3 where id = $1",
+    )
+    .bind(game)
+    .bind(ended as f64)
+    .bind(result)
+    .execute(pool)
+    .await
+    .map(|_| ())
+    .map_err(|e| e.to_string())
 }
 
 /// A token's SHA-256: what the store keeps of it.
@@ -358,4 +438,163 @@ fn json<T: serde::Serialize>(v: &T) -> String {
 
 fn value<T: serde::Serialize>(v: &T) -> serde_json::Value {
     serde_json::to_value(v).expect("records serialize")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn corpus(name: &str) -> GameRecord {
+        let path = format!("{}/../../data/records/{name}", env!("CARGO_MANIFEST_DIR"));
+        serde_json::from_str(&std::fs::read_to_string(path).expect("the record")).expect("a record")
+    }
+
+    async fn start(store: &Store, game: &str, mut record: GameRecord) {
+        let entries = std::mem::take(&mut record.entries);
+        record.ended = None;
+        record.result = None;
+        let game = game.to_string();
+        store
+            .write(Put::Start {
+                game: game.clone(),
+                token_hash: hash("token"),
+                record,
+            })
+            .await
+            .unwrap();
+        store
+            .write(Put::Entries {
+                game,
+                from: 0,
+                entries,
+            })
+            .await
+            .unwrap();
+    }
+
+    fn result(r: Option<GameRecord>) -> GameResult {
+        r.expect("the record").result.expect("a result")
+    }
+
+    /// A store holding three games going (one whose record reads whole,
+    /// one partway, one not at all) and one finished; `n`: the games
+    /// `end_lost` ends.
+    async fn restart(store: &Store, id: impl Fn(&str) -> String, n: usize) {
+        let whole = corpus("zero-vtes-replay-2026-10-04T12-09-51-567Z.json");
+        let played = whole.result.clone().expect("a finished game");
+        start(store, &id("going"), whole.clone()).await;
+        let mut unseeded = whole.clone();
+        unseeded.spec.seed = None;
+        start(store, &id("unreadable"), unseeded).await;
+        // A vote cast at decision 100, where plays are offered: the record
+        // reads as far as a later engine reads an older one.
+        let mut changed = whole.clone();
+        let Entry::Decision { choice, .. } = changed
+            .entries
+            .iter_mut()
+            .find(|e| matches!(e, Entry::Decision { decision: 100, .. }))
+            .unwrap()
+        else {
+            unreachable!()
+        };
+        choice.kind = zvtes_api::ids::OptionKind::CastVotes;
+        start(store, &id("partway"), changed).await;
+        start(store, &id("finished"), whole.clone()).await;
+        store
+            .write(Put::End {
+                game: id("finished"),
+                record: GameRecord {
+                    entries: vec![],
+                    ..whole.clone()
+                },
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(store.end_lost().await, (n, vec![]));
+        let listed = store.list(None, None, 1000).await.unwrap();
+        assert!(listed.iter().all(|g| g.ended.is_some()));
+        let going = result(store.record(&id("going"), None).await);
+        assert_eq!(going.reason, EndReason::ServerRestart);
+        assert_eq!(
+            (going.vp_halves, going.winner),
+            (played.vp_halves, played.winner)
+        );
+        assert_eq!(going.failure, None);
+        let unreadable = result(store.record(&id("unreadable"), None).await);
+        assert_eq!(unreadable.reason, EndReason::ServerRestart);
+        assert_eq!(unreadable.vp_halves, vec![0; 4]);
+        assert!(unreadable.failure.is_some());
+        let partway = result(store.record(&id("partway"), None).await);
+        assert_eq!(partway.reason, EndReason::ServerRestart);
+        assert_eq!(partway.vp_halves.len(), 4);
+        assert_eq!(
+            partway.failure.as_deref(),
+            Some("the record reads 100 of its 369 decisions")
+        );
+        let finished = result(store.record(&id("finished"), None).await);
+        assert_eq!(finished.reason, played.reason);
+        // Nothing is left going: a second restart ends none.
+        assert_eq!(store.end_lost().await, (0, vec![]));
+    }
+
+    #[tokio::test]
+    async fn a_restart_ends_the_games_left_going() {
+        let dir = std::env::temp_dir().join(format!("zvtes-restart-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let store = Store::open(None, dir.clone()).await;
+        restart(&store, |g| g.to_string(), 3).await;
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// The same on Postgres, plus a row that no longer reads as a record:
+    /// with `ZVTES_TEST_DATABASE_URL`, a scratch database (the test ends
+    /// every game going in it).
+    #[tokio::test]
+    async fn a_restart_ends_the_games_left_going_on_postgres() {
+        let Ok(url) = std::env::var("ZVTES_TEST_DATABASE_URL") else {
+            eprintln!("skipped: no ZVTES_TEST_DATABASE_URL");
+            return;
+        };
+        let store = Store::open(Some(url), PathBuf::new()).await;
+        let Store::Postgres(pool) = &store else {
+            unreachable!()
+        };
+        let run = format!("{}-{}", std::process::id(), random());
+        let id = |g: &str| format!("{run}-{g}");
+        start(
+            &store,
+            &id("old-api"),
+            corpus("zero-vtes-replay-2026-10-04T12-09-51-567Z.json"),
+        )
+        .await;
+        sqlx::query("update games set bots = '\"not bots\"' where id = $1")
+            .bind(id("old-api"))
+            .execute(pool)
+            .await
+            .unwrap();
+        restart(&store, id, 4).await;
+        let row: (Option<serde_json::Value>,) =
+            sqlx::query_as("select result from games where id = $1")
+                .bind(id("old-api"))
+                .fetch_one(pool)
+                .await
+                .unwrap();
+        let old: GameResult = serde_json::from_value(row.0.expect("ended")).unwrap();
+        assert_eq!(old.reason, EndReason::ServerRestart);
+        assert_eq!(old.vp_halves, vec![0; 4]);
+        assert_eq!(old.failure.as_deref(), Some("the record does not read"));
+        sqlx::query("delete from games where id like $1")
+            .bind(format!("{run}-%"))
+            .execute(pool)
+            .await
+            .unwrap();
+    }
+
+    fn random() -> u64 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos() as u64
+    }
 }

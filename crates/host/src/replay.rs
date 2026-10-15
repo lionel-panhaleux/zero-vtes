@@ -8,11 +8,14 @@
 //! starts, tools); `Replayer` tells it too, as a seat seeing everything
 //! would read it (human games as data: `zvtes_py`).
 
+use std::panic::{catch_unwind, AssertUnwindSafe};
+
 use zvtes::decision::{Choice, DecisionRequest};
 use zvtes::game::{self, Engine};
 use zvtes_api::ids::Window;
+use zvtes_api::message::EndReason;
 use zvtes_api::option::{ChoiceKey, OptionView};
-use zvtes_api::record::{By, Entry, GameRecord};
+use zvtes_api::record::{By, Entry, GameRecord, GameResult};
 use zvtes_api::{Player, Seat};
 
 use crate::deck::Resolved;
@@ -148,6 +151,34 @@ impl Replay {
 
     pub fn seats(&self) -> usize {
         self.decks.len()
+    }
+}
+
+/// A game its host lost (a server restart) ended as its record stands: the
+/// victory points where the record reads to on this engine (none when it
+/// does not read at all), and why it did not read to its end.
+pub fn ended(record: &GameRecord, reason: EndReason) -> GameResult {
+    let read = catch_unwind(AssertUnwindSafe(|| {
+        let replay = Replay::new(record)?;
+        let (e, n) = replay.read(usize::MAX);
+        let all = replay.decisions.len();
+        let vp: Vec<u32> = e.state.seats.iter().map(|s| s.half_vps).collect();
+        Ok::<_, String>((
+            vp,
+            (n < all).then(|| format!("the record reads {n} of its {all} decisions")),
+        ))
+    }));
+    let none = vec![0; record.spec.seats.len()];
+    let (vp_halves, failure) = match read {
+        Ok(Ok(read)) => read,
+        Ok(Err(why)) => (none, Some(format!("the record does not read: {why}"))),
+        Err(_) => (none, Some("the record's replay panicked".into())),
+    };
+    GameResult {
+        winner: crate::game::winner(&vp_halves),
+        vp_halves,
+        reason,
+        failure,
     }
 }
 

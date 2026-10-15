@@ -855,9 +855,7 @@ impl Game {
         let view = view.unwrap_or_else(|| empty_view(self.human));
         let told = self.flush();
         let vp_halves: Vec<u32> = view.seats.iter().map(|s| s.vp_halves).collect();
-        let best = vp_halves.iter().copied().max().unwrap_or(0);
-        let winner = (best >= 4 && vp_halves.iter().filter(|&&v| v == best).count() == 1)
-            .then(|| vp_halves.iter().position(|&v| v == best).unwrap() as Seat);
+        let winner = winner(&vp_halves);
         let over = Over {
             vp_halves: vp_halves.clone(),
             winner,
@@ -879,6 +877,13 @@ impl Game {
     fn fail(&mut self, why: String) -> Vec<Message> {
         self.end(EndReason::EngineError, Some(why))
     }
+}
+
+/// The most victory points, at least 2 of them, alone.
+pub(crate) fn winner(vp_halves: &[u32]) -> Option<Seat> {
+    let best = vp_halves.iter().copied().max().unwrap_or(0);
+    (best >= 4 && vp_halves.iter().filter(|&&v| v == best).count() == 1)
+        .then(|| vp_halves.iter().position(|&v| v == best).unwrap() as Seat)
 }
 
 /// Another seat's choice as the table may know it: the card a library

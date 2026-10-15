@@ -172,6 +172,10 @@ pub enum EndReason {
     /// The engine failed (or ran out of steps); the game is recorded with
     /// the failure.
     EngineError,
+    /// The server restarted with the game going: recorded only (no client
+    /// is told), victory points as its record reads on the restarted
+    /// server's engine.
+    ServerRestart,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

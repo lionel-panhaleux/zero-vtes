@@ -10,10 +10,10 @@ Usage: python3 scripts/games_report.py [DIR] [--catalog FILE|URL]
     [--test-clients client.mjs,load.mjs]
 
 A game counts when it ended normally with a human seat; abandoned games,
-engine errors, games still going, games without a human, the server's
-test scripts' (`spec.client`) and very short ones (fewer than
---min-rounds rounds, or with turns unknown fewer than --min-decisions
-human decisions) are counted apart. The record holds no
+engine errors, games a server restart ended, games still going, games
+without a human, the server's test scripts' (`spec.client`) and very
+short ones (fewer than --min-rounds rounds, or with turns unknown fewer
+than --min-decisions human decisions) are counted apart. The record holds no
 turn count: the turns are read by replaying it on this checkout's engine
 (`cargo build -p zvtes-host --profile ci --example replay`, run once a
 record, cached in `<dir>/reports/index.json`); "≥" marks a game the
@@ -184,6 +184,8 @@ def game_of(path, record, catalog, turns, args):
         g["status"] = "test client"
     elif g["reason"] == "abandoned":
         g["status"] = "abandoned"
+    elif g["reason"] == "server_restart":
+        g["status"] = "server restart"
     elif not humans:
         g["status"] = "no human"
     elif (g["turns"] is not None and g["whole"] and g["turns"] < args.min_rounds * g["size"]) or (

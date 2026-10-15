@@ -1,6 +1,6 @@
-/* zvtes protocol 1.0.0 (docs/protocol.md): generated from
+/* zvtes protocol 1.1.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '1.0.0'
+export const PROTOCOL_VERSION = '1.1.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -494,6 +494,8 @@ export type EndReason = {
     type: 'abandoned'
 } | {
     type: 'engine_error'
+} | {
+    type: 'server_restart'
 }
 
 export type Entry = {
@@ -695,7 +697,10 @@ export type Event = {
 )
 
 export type GameResult = {
-    /** The engine's failure, when it failed: message, location, backtrace. */
+    /**
+     * The engine's failure, when it failed: message, location, backtrace;
+     * for a game a restart ended, why its record did not read to its end.
+     */
     failure?: string | null
     reason: EndReason
     vp_halves: number[]
