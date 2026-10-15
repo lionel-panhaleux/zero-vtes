@@ -156,6 +156,17 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::PreventGunStrikeAllowance(v) => push(detail(n(K::Prevent, i(v)), "guns")),
         E::PreventNonGun(v) => push(detail(n(K::Prevent, i(v)), "not_guns")),
         E::PreventNonAggravated(v) => push(detail(n(K::Prevent, i(v)), "non_aggravated")),
+        E::PreventStrikeDamage | E::PreventOpposingStrikesThisRound => {
+            push(detail(of(K::Prevent), "strike_all"))
+        }
+        E::PreventStrike { n: v, aggravated } => push(detail(
+            n(K::Prevent, i(v)),
+            if aggravated {
+                "strike"
+            } else {
+                "strike_non_aggravated"
+            },
+        )),
         E::ImmuneStrikeNonAggravated => push(detail(of(K::Immune), "strike")),
         E::ImmuneEffectNonAggravated => push(detail(of(K::Immune), "effects")),
         E::Press | E::OptionalPress => push(of(K::Press)),

@@ -585,17 +585,20 @@ fn sentry_signal_unlocks_a_blocker_or_reduces_a_bleed() {
 
 // Soulgrinder [pot] or [tha]: a hand strike at +2 damage. [LSJ 20050628]
 // [POT] or [THA]: "The opponent cannot play prevention cards of that
-// discipline (eg. for cycling)": no Indomitability.
+// discipline (eg. for cycling)": no Indomitability, nor Skin of Steel (the
+// opposing strike's damage).
 #[test]
 fn soulgrinder_hits_hard_past_fortitude() {
-    let (mut e, berenguela, _) = table(BERENGUELA);
-    let z = e.add_minion(SeatId(1), with("for", 5..=11), 5, false);
-    hand(&mut e, 0, &["Soulgrinder"]);
-    hand(&mut e, 1, &["Indomitability"]);
-    bleed_blocked(&mut e, berenguela, z);
-    pick_when(&mut e, play(0, 1, berenguela));
-    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, play(0, 0, z));
-    assert_eq!(blood(&e, z), 5 - 3);
+    for card in ["Indomitability", "Skin of Steel"] {
+        let (mut e, berenguela, _) = table(BERENGUELA);
+        let z = e.add_minion(SeatId(1), with("for", 5..=11), 5, false);
+        hand(&mut e, 0, &["Soulgrinder"]);
+        hand(&mut e, 1, &[card]);
+        bleed_blocked(&mut e, berenguela, z);
+        pick_when(&mut e, play(0, 1, berenguela));
+        never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, play(0, 0, z));
+        assert_eq!(blood(&e, z), 5 - 3, "{card}");
+    }
 }
 
 // Twisted Bloodhound: "The employer can enter combat with a minion as a Ⓓ

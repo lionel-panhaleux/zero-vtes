@@ -104,6 +104,7 @@ pub(crate) fn does(card: u16, mode: u8) -> Does {
             Effect::Prevent(_)
             | Effect::PreventXPlus(_)
             | Effect::PreventNonAggravated(_)
+            | Effect::PreventStrike { .. }
             | Effect::PreventThisRound(_)
             | Effect::PreventEachRound(_) => d.prevent = true,
             Effect::AddVotes(_) | Effect::AddVotesX => {

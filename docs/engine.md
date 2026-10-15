@@ -678,7 +678,11 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 - Damage: prevention per side, acting side first, then third parties from outside
   the combat (`Step::OthersPrevent`); the preventer picks which damage a
   prevention covers (`Step::AllocateSource`); applied at once, normal then
-  aggravated (the rulebook's examples are unit tests). Environmental damage lands
+  aggravated (the rulebook's examples are unit tests). Prevention "from the
+  opposing minion's strike" (Rego Motum, Opikun, Lodin) is
+  `Effect::PreventStrike` behind `Requirement::StrikeDamagePending` (or
+  `StrikeNormalDamagePending`): it reads `Side::strike_damage`, never the
+  environmental or effect damage beside it. Environmental damage lands
   in the normal strike resolution. Unpreventable damage (`Side::unpreventable`)
   stays out of `pending`. A damage resolution is atomic, no window opening
   midway (PIB 20121031): an untimed lock ability (The Coven) is offered in

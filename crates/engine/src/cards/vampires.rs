@@ -1265,17 +1265,22 @@ pub static OLUWAFUNMILAYO: VampireDef = VampireDef {
 
 /// "Once each combat involving a vampire you control, Opikun can burn 1
 /// blood to prevent up to 2 non-aggravated damage to that vampire from the
-/// opposing minion's strike." Damage pending at the prevention step is
-/// taken as a strike's; damage from other sources must stay out of this
-/// prevention.
+/// opposing minion's strike." Strike damage only: not Carrion Crows' nor
+/// Pulled Fangs' (rules-qa 74.1).
 pub static OPIKUN: VampireDef = VampireDef {
     name: "Opikun",
     abilities: &[ability(
         &[Window::CombatDamagePrevention],
         Actor::ForOwnCombatant,
-        &[R::HostBloodAtLeast(1), R::NonAggravatedDamagePending],
+        &[R::HostBloodAtLeast(1), R::StrikeNormalDamagePending],
         Limit::PerCombat,
-        &[Effect::HostBurnBlood(1), Effect::PreventNonAggravated(2)],
+        &[
+            Effect::HostBurnBlood(1),
+            Effect::PreventStrike {
+                n: 2,
+                aggravated: false,
+            },
+        ],
     )],
     ..VAMP
 };
@@ -3078,7 +3083,10 @@ pub static LODIN: VampireDef = VampireDef {
         Actor::Host,
         &[R::StrikeDamagePending],
         Limit::PerCombat,
-        &[Effect::PreventStrike(1)],
+        &[Effect::PreventStrike {
+            n: 1,
+            aggravated: true,
+        }],
     )],
     ..VAMP
 };

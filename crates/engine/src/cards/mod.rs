@@ -599,7 +599,7 @@ pub enum Requirement {
     /// As above, the opponent a vampire (Valerie Diaz).
     HostCombatOpposingVampireNotReady,
     /// Normal damage from the opposing strike is pending on the actor's
-    /// side (Valerie Diaz).
+    /// side (Valerie Diaz, Opikun).
     StrikeNormalDamagePending,
     /// Normal damage from other sources than the opposing strike is pending
     /// on the actor's side (Valerie Diaz).
@@ -4291,9 +4291,11 @@ pub enum Effect {
     /// Prevent all the damage pending from the opposing strike on the
     /// player's minion (Touch of Valeren [COMBAT]).
     PreventStrikeDamage,
-    /// Prevent up to N of the pending strike damage, aggravated first
-    /// (Lodin).
-    PreventStrike(u8),
+    /// Prevent up to `n` of the pending damage from the opposing strike,
+    /// aggravated too when `aggravated`, never other damage (Lodin, Rego
+    /// Motum; Opikun's non-aggravated). A strike's damage is of one kind, so
+    /// no split is asked (rules-qa 4.2).
+    PreventStrike { n: u8, aggravated: bool },
     /// This printed action is ability n's on another kind of target: one
     /// action for NRA (Aniel).
     SameActionAs(u8),

@@ -5415,16 +5415,22 @@ pub static REGO_MOTUM: CardDef = CardDef {
             limit: Some(Limit::PerRound),
             ..combat(
                 &[Window::CombatDamagePrevention],
-                &[Requirement::DamagePending],
-                &[Effect::Prevent(2)],
+                &[Requirement::StrikeDamagePending],
+                &[Effect::PreventStrike {
+                    n: 2,
+                    aggravated: true,
+                }],
             )
         },
         ModeDef {
             limit: Some(Limit::PerRound),
             ..combat(
                 &[Window::CombatDamagePrevention],
-                &[Requirement::DamagePending],
-                &[Effect::Prevent(4)],
+                &[Requirement::StrikeDamagePending],
+                &[Effect::PreventStrike {
+                    n: 4,
+                    aggravated: true,
+                }],
             )
         },
     ],

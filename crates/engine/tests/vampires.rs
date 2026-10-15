@@ -477,6 +477,53 @@ fn opikun_in_torpor_prevents_damage_to_a_vampire_in_combat() {
     );
 }
 
+// Opikun: not offered when only other damage is pending: the strike dodged
+// (Behind You! [OBF]), Carrion Crows' 1 alone lands.
+#[test]
+fn opikun_is_not_offered_without_strike_damage() {
+    let mut e = bare();
+    let a = e.add_minion(SeatId(0), vampire_with("ANI", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let x = e.add_minion(SeatId(1), vampire_with("OBF", 0), 4, false);
+    let opikun = e.add_minion(SeatId(1), find_card("Opikun"), 2, true);
+    hand(&mut e, 0, &["Carrion Crows"]);
+    hand(&mut e, 1, &["Behind You!"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick(&mut e, Choice::DeclareBlock { minion: x });
+    pick_when(&mut e, play(0, 0, a));
+    pick_when(&mut e, play(0, 1, x));
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        vampire_ability(opikun, 0),
+    );
+    assert_eq!(blood(&e, x), 4 - 1, "the Crows' 1");
+}
+
+// Opikun: "prevent up to 2 non-aggravated damage to that vampire from the
+// opposing minion's strike": the hand strike's 1, not Carrion Crows' 1
+// environmental beside it.
+#[test]
+fn opikun_prevents_strike_damage_only() {
+    let mut e = bare();
+    let a = e.add_minion(SeatId(0), vampire_with("ANI", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let x = e.add_minion(SeatId(1), plain("Nosferatu", 0), 4, false);
+    let opikun = e.add_minion(SeatId(1), find_card("Opikun"), 2, true);
+    hand(&mut e, 0, &["Carrion Crows"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick(&mut e, Choice::DeclareBlock { minion: x });
+    pick_when(&mut e, play(0, 0, a));
+    pick_when(&mut e, vampire_ability(opikun, 0));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(
+        (blood(&e, x), blood(&e, opikun)),
+        (4 - 1, 1),
+        "the Crows' 1"
+    );
+}
+
 // Printed prevention of non-aggravated damage (Rowena, Opikun) is not
 // offered against aggravated damage: an Ivory Bow's aggravated strike
 // sends Rowena to torpor.

@@ -584,6 +584,10 @@ minion. Its strength bonus is a frenzy effect like the rest (70.16).
 - "Damage X inflict(s)" is X's own damage, a strike or not (Pulled Fangs'
   1 damage), never environmental or a retainer's (74.6, Saulot). Pulled
   Fangs' damage is preventable, not strike damage (74.1).
+- Prevention "from the opposing minion's strike" (Rego Motum, Opikun,
+  Lodin) covers that strike's damage only, never environmental or effect
+  damage beside it (Carrion Crows, Pulled Fangs: 74.1), and is not offered
+  without strike damage pending (LSJ 20001114).
 
 ### 3.21 The acting minion, the opposing minion
 
@@ -2288,8 +2292,9 @@ round (rulebook "Combat").
   locked or in torpor too, once each turn, only while non-aggravated damage
   is pending on the target (59.8).
 - Printed prevention: Opikun usable in torpor (LSJ 20011022) and on
-  himself, blood burned as used, only while non-aggravated damage is
-  pending on that vampire in its prevention step (LSJ 20040812-2); Rowena 1
+  himself, blood burned as used, only while non-aggravated damage from the
+  opposing minion's strike is pending on that vampire in its prevention step
+  (LSJ 20040812-2), never on other damage (Carrion Crows'); Rowena 1
   non-aggravated once each round, in her prevention step (14.2); Lodin only
   damage from an opposing minion's strike, aggravated first (no allocation
   asked), to Lodin only, once each combat (59.10); Omaya any damage pending

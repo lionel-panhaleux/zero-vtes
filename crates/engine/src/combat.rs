@@ -415,6 +415,25 @@ impl Side {
         d.gun = d.gun.min(d.normal);
     }
 
+    /// Prevent up to `n` of the pending damage from the opposing strike,
+    /// aggravated first when `aggravated` (none otherwise).
+    fn prevent_strike(&mut self, n: u8, aggravated: bool) {
+        let (s, p) = (self.strike_damage, self.pending);
+        let before = Damage {
+            normal: s.normal.min(p.normal),
+            aggravated: s.aggravated.min(p.aggravated),
+            gun: s.gun.min(p.gun),
+        };
+        let mut d = before;
+        d.prevent(n, aggravated);
+        let (pa, pn) = (before.aggravated - d.aggravated, before.normal - d.normal);
+        let p = &mut self.pending;
+        p.aggravated -= pa;
+        p.normal -= pn;
+        p.gun = p.gun.saturating_sub(before.gun - d.gun).min(p.normal);
+        self.strike_prevented(pa, pn);
+    }
+
     /// This minion cannot use equipment this combat (Form of the Bat, a
     /// frenzy card).
     pub fn equipment_barred(&self) -> bool {
@@ -3613,28 +3632,12 @@ impl Engine {
             Effect::PressThisRound => c.sides[i].presses += 1,
             Effect::PreventOpposingStrikesThisRound | Effect::PreventStrikeDamage => {
                 let s = &mut c.sides[i];
-                let d = std::mem::take(&mut s.strike_damage);
-                s.pending.normal -= d.normal.min(s.pending.normal);
-                s.pending.aggravated -= d.aggravated.min(s.pending.aggravated);
-                s.pending.gun = s.pending.gun.saturating_sub(d.gun).min(s.pending.normal);
+                s.prevent_strike(u8::MAX, true);
                 // Rolling with the Punches: the rest of the round's strikes
                 // too; Touch of Valeren: that strike only.
                 s.strikes_prevented |= effect == Effect::PreventOpposingStrikesThisRound;
             }
-            Effect::PreventStrike(n) => {
-                let s = &mut c.sides[i];
-                let before = s.strike_damage;
-                s.strike_damage.prevent(n, true);
-                let d = s.strike_damage;
-                s.pending.aggravated -=
-                    (before.aggravated - d.aggravated).min(s.pending.aggravated);
-                s.pending.normal -= (before.normal - d.normal).min(s.pending.normal);
-                s.pending.gun = s
-                    .pending
-                    .gun
-                    .saturating_sub(before.gun - d.gun)
-                    .min(s.pending.normal);
-            }
+            Effect::PreventStrike { n, aggravated } => c.sides[i].prevent_strike(n, aggravated),
             Effect::NullifyOpposingWeapons => c.sides[i].nullifies_weapons = true,
             Effect::EnvironmentalDamage(n) => c.sides[i].environmental += n,
             Effect::RoundStrike(k) => c.sides[i].round_strike = Some(k),

@@ -3,7 +3,7 @@
 Game records (docs/protocol.md §11: the spec by KRCG ids, each decision
 by its option index and its `ChoiceKey` with the engine's copies), kept
 as the corpus for human games as data (DESIGN §11.2). The server records
-every game it hosts in Postgres; these 30 were played in the Succubus Club
+every game it hosts in Postgres; these 28 were played in the Succubus Club
 fork (its "Export replay": a spec and a decision log) and converted to
 records on 2026-10-13 (`p6-online`; the originals are in the history as
 `data/replays`, read whole by the legacy reader then: every decision
@@ -25,7 +25,6 @@ from below — check out that commit to read it as it was played.
 | File (`.json`) | Engine | Seats (in order; the human's in bold) | Bots | Result |
 |---|---|---|---|---|
 | `zero-vtes-replay-2026-10-04T12-09-51-567Z.json` | after `3cc7ae3`, before `601bf3c` | **Salubri (V5 Companion)**, Brujah (V5 Anarch), Ministry (V5 Anarch), Gangrel (V5 Anarch) | `p5-self@1250` (network) | owner 4 VP, the bots 0 |
-| `zero-vtes-replay-2026-10-04T13-51-13-838Z.json` | `601bf3c` | **Nosferatu (V5)**, Ministry (V5 Anarch), Toreador (V5), Salubri (V5 Companion) | `p5-self@1250` (network, default politics) | owner 2 VP, Ministry 2 |
 | `zero-vtes-replay-2026-10-04T15-55-52-662Z.json` | `601bf3c` or later | Tzimisce (V5 Companion), **Hecata (V5)**, Ministry (V5 Anarch), Toreador (V5) | `p5-self@1250` (network, default politics) | owner 3 VP, Ministry 1 |
 | `zero-vtes-replay-2026-10-04T19-47-18-904Z.json` | `65d1539` or later | Salubri, Nosferatu, **The Unnamed**, Lasombra | `p7-politics@1400` (network, default politics) | owner 3 VP, Salubri 1 |
 | `zero-vtes-replay-2026-10-05T06-24-53-391Z.json` | `cf4a56c` or later | Malkavian, Hecata, Gangrel, **The Unnamed** | `p7-politics@1400` (network, default politics) | owner 3 VP, Malkavian 1 |
@@ -48,7 +47,6 @@ from below — check out that commit to read it as it was played.
 | `zero-vtes-replay-2026-10-10T22-05-29-762Z.json` | the fork's build of that day | Tremere, Hecata, Ravnos, **The Unnamed** | `p8-nudges@2600` (network, default politics) | owner 3 VP, Hecata 1 |
 | `zero-vtes-replay-2026-10-10T22-26-31-637Z.json` | the fork's build of that day | Tzimisce, Brujah, Malkavian, **The Unnamed** | `p8-nudges@2600` (network, default politics) | owner 3 VP, Brujah 1 |
 | `zero-vtes-replay-2026-10-11T06-58-41-552Z.json` | the fork's build of `7fedb25` | Nosferatu, Tzimisce, **The Unnamed**, Hecata | `p8-nudges@2600` (network, default politics) | owner 3 VP, Nosferatu 1 |
-| `zero-vtes-replay-2026-10-11T09-29-38-654Z.json` | the fork's build of `6425d24` | Banu Haqim, **The Unnamed**, Gangrel, Lasombra | `p8-nudges@2600` (network, default politics) | Lasombra 3 VP, owner 1 |
 | `zero-vtes-replay-2026-10-11T12-31-56-022Z.json` | the fork's build of that day | Ministry, **The Unnamed**, Toreador, Malkavian | `p8-nudges@2600` (network, default politics) | owner 3 VP, Malkavian 1 |
 | `zero-vtes-replay-2026-10-11T15-45-47-868Z.json` | the fork's build of that day | **The Unnamed**, Nosferatu, Ventrue, Lasombra | `p8-nudges@2600` (network, default politics) | owner 3 VP, Nosferatu 1 |
 | `zero-vtes-replay-2026-10-11T21-28-54-517Z.json` | the fork's build of `1307d09` | Hecata, Tzimisce, **The Unnamed**, Brujah | `p8-nudges@2600` (network, default politics) | owner 4 VP, the bots 0 |
@@ -81,4 +79,8 @@ pass or a use in a window that no longer opens: `…T14-37-29` of
 2026-10-04, `…T06-18-50` of 2026-10-06, `…T05-33-18` of 2026-10-07,
 `…T08-03-34` and `…T08-23-07` of 2026-10-10, `…T06-38-09` and
 `…T20-56-48` of 2026-10-11, and the game of 2026-10-12 06:29, never
-added. A game a future fix stops goes the same way.
+added. Strike-only prevention (Opikun covers only the opposing strike's
+damage) stops two more, where Opikun had prevented the damage beside the
+strike: `…T13-51-13` of 2026-10-04 at decision 347 (a retainer's, in the
+Deep Song combat of turn 25) and `…T09-29-38` of 2026-10-11 at decision 225
+(Carrion Crows', turn 19). A game a future fix stops goes the same way.

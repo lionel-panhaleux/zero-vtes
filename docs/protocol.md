@@ -276,7 +276,9 @@ seat 2; burn 2 pool to keep card 9.)
     itself), `uncontrolled`, `prey`; the seat's own when absent; `copy`
     the wire copy when known.
   - `detail`: what sets it apart within its kind, snake_case —
-    `this_round`, `guns`, `not_guns`, `non_aggravated`, `to_pool`,
+    `this_round`, `guns`, `not_guns`, `non_aggravated`, `strike` (of
+    the opposing strike's damage only), `strike_non_aggravated`,
+    `strike_all`, `to_pool`,
     `from_pool`, `per_counter`, `then_bottom`, `master_phase`….
   - A vote's: `votes` (`n` cast, `favor`; `detail: prisci_ballot` the
     ballots a priscus casts with them; `on: card` the political action

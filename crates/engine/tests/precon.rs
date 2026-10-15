@@ -583,6 +583,37 @@ fn rego_motum_prevents_damage_from_the_opposing_strike() {
     assert_eq!(blood(&e, z), 5 - 1, "the card's blood only");
 }
 
+// Rego Motum [tha]: "Prevent 2 damage from the opposing minion's strike":
+// the hand strike's 1, not Carrion Crows' 1 environmental beside it (blood
+// 3, not 4); with the strike dodged (Behind You! [OBF]) only the Crows'
+// damage is pending and Rego Motum is not offered (LSJ 20001114).
+#[test]
+fn rego_motum_prevents_strike_damage_only() {
+    for dodged in [false, true] {
+        let (mut e, a, z) = fight(
+            with(&["ANI", "OBF"], 0),
+            &["Carrion Crows", "Behind You!"],
+            plain("", "THA", 0),
+            &["Rego Motum"],
+        );
+        pick_when(&mut e, play(0, 0, a));
+        if dodged {
+            pick_when(&mut e, play(0, 1, a));
+            never_offered_where(
+                &mut e,
+                SeatId(0),
+                WindowLabel::MinionPhase,
+                |o| matches!(o, Choice::Play { actor: Some(m), .. } if *m == z),
+            );
+            assert_eq!(blood(&e, z), 5 - 1, "the Crows' 1");
+        } else {
+            pick_when(&mut e, play(0, 0, z));
+            until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+            assert_eq!(blood(&e, z), 5 - 1 - 1, "the card's blood, the Crows' 1");
+        }
+    }
+}
+
 // Arms of Ahriman [OBL]: "Strike: dodge, with 1 additional strike
 // (limited)."
 #[test]

@@ -1153,6 +1153,9 @@ impl Engine {
                                             | Effect::PreventXPlus(_)
                                             | Effect::PreventNonAggravated(_)
                                             | Effect::PreventNonGun(_)
+                                            | Effect::PreventStrike { .. }
+                                            | Effect::PreventStrikeDamage
+                                            | Effect::PreventOpposingStrikesThisRound
                                     )
                                 });
                                 if c.sides[i].no_fortitude_prevention

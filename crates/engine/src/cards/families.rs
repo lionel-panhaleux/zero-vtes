@@ -422,7 +422,7 @@ impl Effect {
             | E::DrawOutBeast { .. }
             | E::OpposingControllerBurnsPool(..)
             | E::PreventStrikeDamage
-            | E::PreventStrike(..) => Family::Combat,
+            | E::PreventStrike { .. } => Family::Combat,
             E::ActingAbstains
             | E::FailIfTitleRequired
             | E::FailReferendum
