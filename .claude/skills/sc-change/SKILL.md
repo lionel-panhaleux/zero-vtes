@@ -31,7 +31,7 @@ branches, PRs, recipes, traps) and update it as you learn.
    `central/Engine*.vue`, gated by `useEngineMode()` / `useUIFeatures`;
    engine display state in the engine store, never on SC's synced `Card`.
 4. **Never edit the served checkout while the owner may be playing** (vite
-   reloads, and the fork cannot rejoin a game yet, sc.md traps): work in a
+   reloads, and a reload loses the fork's game, sc.md traps): work in a
    worktree under the job's tmp (`git worktree add`, `node_modules`
    symlinked); fast-forward `zero-vtes-engine` only when no game is live
    (check with `scripts/fetch_games.py`, which reads the admin token itself;

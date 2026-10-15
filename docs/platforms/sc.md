@@ -67,8 +67,8 @@ checkout's `zero-vtes-engine` against `engine.krcg.org` (no
   -tiTCP:5188 -sTCP:LISTEN)` (a `pkill -f` on vite's command line also
   matches the agent's own shell running it). The next session starts it
   anew.
-- **In between**: never restarted without the owner's word (the fork
-  cannot rejoin a game yet, traps below). After a restart the owner
+- **In between**: never restarted without the owner's word (a reload
+  loses the fork's game, traps below). After a restart the owner
   refreshes the tab (traps).
 
 ## Branches
@@ -125,12 +125,13 @@ front, about the AI involvement.
   with an explicit refspec (`git push fork <b>:refs/heads/<b>`) and check
   `git config branch.<b>.merge` first.
 - The owner may be mid-game on :5188: never edit the served checkout then
-  (vite reloads the page, and the fork cannot rejoin yet: it fails the game
-  on a closed socket and keeps the seat token in memory only, so a reload
-  loses the game; the server would rejoin it, protocol.md §2, checked on a
-  local server with `crates/server/tests/rejoin.mjs`, 2026-10-14). Work in
-  a worktree under the job's tmp; fast-forward the checkout only when the
-  admin API shows no live game (or the owner says so).
+  (vite reloads the page, and the fork keeps the seat token in memory
+  only, so a reload loses the game; a dropped socket alone is joined again,
+  `host.ts` `rejoin`, for a minute, or until the server answers 404: the
+  game gone, which a server older than `server-restart-ended` answers 400,
+  so a redeploy shows a minute of retries). Work in a worktree under the
+  job's tmp; fast-forward the checkout only when the admin API shows no
+  live game (or the owner says so).
 - After a vite restart the owner's tab can ask for long-deleted modules
   (EnginePassButton.vue, deleted 3 days earlier): a refresh fixes it.
 
