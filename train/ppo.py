@@ -445,6 +445,21 @@ def nudges(cfg, it):
     return {k: v * fade for k, v in full.items()}
 
 
+def made(record):
+    """A record's decision entries the game went on with: an undo takes
+    back those from its `to` on (`zvtes_host`'s reader, `Replay::new`).
+    The replay pairs them with its decisions by position — not by their
+    numbers, which a replay on a later engine shifts (a window an earlier
+    engine elided)."""
+    out = []
+    for e in record["entries"]:
+        if e.get("type") == "undo":
+            out = [d for d in out if d["decision"] < e["to"]]
+        elif e.get("type") == "decision":
+            out.append(e)
+    return out
+
+
 def load_replays(spec):
     """Game records (`--starts`, `--bc`: a directory of `.json` files or
     comma-separated paths; `data/records`): (path, text, seats) each. A
@@ -459,7 +474,7 @@ def load_replays(spec):
     games = [(p, p.read_text()) for p in paths]
     parsed = [json.loads(t) for _, t in games]
     for g in parsed:
-        g["log"] = [e["option"] for e in g["entries"] if e.get("type") == "decision"]
+        g["log"] = [e["option"] for e in made(g)]
     out = []
     for i, ((p, text), g) in enumerate(zip(games, parsed)):
         n = len(g["log"])
@@ -488,11 +503,25 @@ def deck_index(seat):
 DECK_INDEX = None
 
 
+# The ends of a game played out: its winner won at the end.
+PLAYED_OUT = {"last_standing", "time_limit"}
+
+# The bias of an option the human was not shown (their settings hid it):
+# no probability in the imitation target.
+HIDDEN = -1e9
+
+
 def imitation(replays, obs, holdout, games=()):
-    """The humans' choices with an alternative in `replays` (rows as the
-    rollout's, the bias zero, and the option chosen): (trained, held out),
-    every `holdout`-th game held out — or, with `games` (parts of file
-    names), those games (and their names)."""
+    """The choices of the human who won, in `replays` (owner, 2026-10-15:
+    "only imitate games where the human actually won at the end" — a
+    strong bot, and not every human is good; a game played out,
+    `PLAYED_OUT`: an abandoned or cut-short one gives nothing, its leader
+    recorded as winner or not), with an
+    alternative among the options they were shown (a record's `shown`: the
+    others, hidden by their settings, get the bias `HIDDEN`, else 0) — rows
+    as the rollout's, and the option chosen: (trained, held out), every
+    `holdout`-th game held out — or, with `games` (parts of file names),
+    those games (and their names)."""
     for part in games:
         if not any(part in path.name for path, _, _ in replays):
             raise ValueError(f"no replay named like {part!r} to hold out")
@@ -505,10 +534,31 @@ def imitation(replays, obs, holdout, games=()):
             out = held if holdout and g % holdout == holdout - 1 else train
         if out is held:
             names.append(path.name)
-        for d in game["decisions"]:
-            if d["seat"] in game["humans"] and d["chosen"] is not None and len(d["options"]) > 1:
-                row = tuple(d[k] for k in ROW_KEYS) + (np.zeros(len(d["options"]), np.float32),)
-                out.append((row, d["chosen"]))
+        record = json.loads(text)
+        result = record.get("result") or {}
+        winner = result.get("winner") if (result.get("reason") or {}).get("type") in PLAYED_OUT else None
+        answered = [d for d in game["decisions"] if d["chosen"] is not None]
+        for d, entry in zip(answered, made(record)):
+            if d["seat"] != winner or d["seat"] not in game["humans"]:
+                continue
+            bias = np.zeros(len(d["options"]), np.float32)
+            # `shown` indexes the recorded options, which a later engine may
+            # move (the record keeps no option count): read only when the
+            # chosen one kept its recorded index and is among those shown,
+            # and every index is still an option — never a hidden choice;
+            # an option inserted after the chosen one may still hide a
+            # wrong alternative.
+            shown = entry.get("shown") or []
+            if (
+                shown
+                and entry["option"] == d["chosen"]
+                and d["chosen"] in shown
+                and max(shown) < len(d["options"])
+            ):
+                bias[:] = HIDDEN
+                bias[shown] = 0
+            if (bias == 0).sum() > 1:
+                out.append((tuple(d[k] for k in ROW_KEYS) + (bias,), d["chosen"]))
     return train, held, names
 
 
@@ -877,8 +927,10 @@ class Trainer:
         chosen), and how often it is the policy's favourite."""
         rows = [r for r, _ in pairs]
         logits, _ = forward(model, collate(rows, self.device))
+        # The options the human was not shown out of the target (`HIDDEN`).
+        logits = logits.float() + collate_bias(rows, logits.shape[1], self.device)
         chosen = torch.tensor([c for _, c in pairs], device=self.device)
-        logp = torch.log_softmax(logits.float(), -1)
+        logp = torch.log_softmax(logits, -1)
         nll = -logp.gather(1, chosen[:, None]).squeeze(1).mean()
         return nll, (logits.argmax(-1) == chosen).float().mean().item()
 

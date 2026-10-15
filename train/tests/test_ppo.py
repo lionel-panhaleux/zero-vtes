@@ -7,10 +7,11 @@ import json
 import numpy as np
 import pytest
 import torch
+import zvtes_py
 
 from train.league import EXP, EXPLOITER, FROZEN, League
 from train.model import remap_vocab
-from train.ppo import Config, Trainer, eval_tables, imitation, load_replays
+from train.ppo import HIDDEN, Config, Trainer, eval_tables, imitation, load_replays, made
 
 
 def test_one_iteration(tmp_path):
@@ -273,6 +274,65 @@ def test_imitation_holds_out_named_games():
     assert len(train) == len(alone)
     with pytest.raises(ValueError, match="no replay"):
         imitation(replays, 3, 8, ["1999-01-01"])
+
+
+def test_imitation_keeps_the_winners_shown_choices(tmp_path):
+    """Owner, 2026-10-15: only the human who won a game played out is
+    imitated (a lost, unfinished or abandoned game gives nothing, its
+    leader recorded as winner or not), and an option the human's settings
+    hid (the record's `shown`) gets no probability in the target. The
+    replay's decisions pair with the record's entries by position: a later
+    engine shifts their numbers."""
+    path = "data/records/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
+    game = json.loads(open(path).read())
+    human = game["result"]["winner"]
+    assert human not in {b["seat"] for b in game["bots"]}
+    won, _, _ = imitation(load_replays(path), 3, 0)
+    assert won
+    for name, result in (
+        ("lost", {**game["result"], "winner": (human + 1) % 4}),
+        ("unfinished", None),
+        ("abandoned", {**game["result"], "reason": {"type": "abandoned", "seat": (human + 1) % 4}}),
+    ):
+        p = tmp_path / f"{name}.json"
+        p.write_text(json.dumps({**game, "result": result}))
+        assert imitation(load_replays(str(p)), 3, 0)[0] == [], name
+    # The human's last decision with three options or more, where the
+    # replay's numbers have moved off the record's: one option hidden.
+    told = [d for d in zvtes_py.replay_decisions(open(path).read(), 3)["decisions"] if d["chosen"] is not None]
+    entries = made(game)
+    k = max(
+        i for i, d in enumerate(told)
+        if d["seat"] == human and len(d["options"]) >= 3 and entries[i]["option"] == d["chosen"]
+    )
+    d, entry = told[k], entries[k]
+    assert d["decision"] != entry["decision"]
+    n, chosen = len(d["options"]), d["chosen"]
+    entry["shown"] = [i for i in range(n) if i != (chosen + 1) % n]
+    hid = tmp_path / "hid.json"
+    hid.write_text(json.dumps(game))
+    biased = [(r, c) for r, c in imitation(load_replays(str(hid)), 3, 0)[0] if (r[-1] < 0).any()]
+    assert len(biased) == 1 and biased[0][1] == chosen
+    row = biased[0][0]
+    assert (row[-1] == 0).sum() == n - 1 and row[-1][(chosen + 1) % n] == HIDDEN
+    # A `shown` that would hide the choice or name an option past the end
+    # (the replay's options moved), or one an undo took back: never read.
+    for stale in ([(chosen + 1) % n], [chosen, n]):
+        entry["shown"] = stale
+        hid.write_text(json.dumps(game))
+        assert not any((r[-1] < 0).any() for r, _ in imitation(load_replays(str(hid)), 3, 0)[0])
+    entry["shown"] = [i for i in range(n) if i != (chosen + 1) % n]
+    at = game["entries"].index(entry)
+    redo = {k: v for k, v in entry.items() if k != "shown"}
+    game["entries"][at + 1 : at + 1] = [{"type": "undo", "seat": human, "at": entry["at"], "to": entry["decision"]}, redo]
+    hid.write_text(json.dumps(game))
+    assert [e["option"] for e in made(game)] == [e["option"] for e in entries]
+    assert not any((r[-1] < 0).any() for r, _ in imitation(load_replays(str(hid)), 3, 0)[0])
+    # In the loss: an option alone shown has all the probability.
+    trainer = Trainer(Config(games=2, steps=4, d=16, layers=1, device="cpu", out=str(tmp_path / "t")))
+    alone = row[:-1] + (np.where(np.arange(n) == chosen, 0, HIDDEN).astype(np.float32),)
+    nll, acc = trainer.imitation_loss(trainer.learner.model, [(alone, chosen)])
+    assert nll.item() < 1e-4 and acc == 1.0
 
 
 def test_imitation_and_weak_decks(tmp_path):

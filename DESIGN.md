@@ -1429,7 +1429,14 @@ training runs.
   `--starts`), `--bc-coef`, `--bc-batch` (256), `--bc-holdout` (every
   8th game held out, its names logged at launch): each PPO minibatch
   adds `bc_coef` × the cross-entropy of the policy's own logits (no
-  nudge) on 256 of the humans' choices with an alternative; each
+  nudge) on 256 of the humans' choices with an alternative (since
+  2026-10-15, owner: only the human who won a game played out — last
+  standing or the time limit —, among the options they were shown — a
+  record's `shown`, the hidden ones out of the target, read only where the
+  replay keeps the recorded option; the replay's decisions pair with the
+  record's by position, `made`, since a later engine shifts their numbers;
+  `data/records`: 5,323 choices trained instead of 5,974, the held-out
+  five all won); each
   iteration logs `bc_nll` (the update's), `bc_val_nll/acc` (held out)
   and `bc_fit_nll/acc` (as many trained ones). A game exported twice
   (the same spec, one log the other's start: `…T19-28-48` and

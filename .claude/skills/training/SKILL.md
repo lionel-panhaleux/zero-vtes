@@ -98,8 +98,13 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
 - **Use**: train on `data/records` (curated) plus an explicit list or a
   filtered copy of harvested games, never the raw `data/server-records`
   directory (`--bc`/`--starts` read every `*.json` there: bot-only,
-  abandoned and short games as starts, every stranger's seats as imitation
-  targets). Imitation (`--bc`): held-out games named with
+  abandoned and short games as starts, every stranger who won as an
+  imitation target). Imitation (`--bc`) keeps only the human who won (owner,
+  2026-10-15: the bot is strong and not every human is good; only a game
+  played out, last standing or the time limit: a lost, unfinished or
+  abandoned one gives nothing, its leader recorded as winner or not), among the options they were shown (a
+  record's `shown`: those their settings hid get no probability, so
+  Opportunities off is fine); held-out games named with
   `--bc-held-games` (it matches parts of file names: game ids for harvested
   files, timestamps in `data/records`), never every Nth. Starts from
   recorded positions (`--starts`). Weakness mining: a recurring bad choice
