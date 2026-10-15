@@ -4,9 +4,13 @@
 
 use zvtes::agent::{play_out, Agent, RandomLegal};
 use zvtes::bots::{Scripted, Style};
+use zvtes::decision::{ActionKind, Choice, WindowLabel};
 use zvtes::decks::Deck;
 use zvtes::game::{Engine, Step};
 use zvtes::ids::SeatId;
+
+mod common;
+use common::*;
 
 const STYLES: [Style; 2] = [Style::AggroBleed, Style::Wall];
 
@@ -112,6 +116,36 @@ fn every_decklist_plays_out() {
                 .collect();
             play_out(&mut e, &mut agents);
             assert!(e.state.seats.iter().any(|s| s.half_vps > 0), "seed {seed}");
+        }
+    }
+}
+
+/// A block attempt that cannot reach the stealth is offered (rules-qa
+/// 73.8) but a bot does not make it (owner, 2026-10-15): against a hunt
+/// (+1 stealth) a wall's 0-intercept vampire passes, and blocks once its
+/// Methuselah holds Enhanced Senses [aus].
+#[test]
+fn bots_attempt_only_blocks_that_can_reach() {
+    for reach in [false, true] {
+        let mut e = Engine::bare(3);
+        let h = e.add_minion(SeatId(0), plain("Brujah", 0), 2, false);
+        e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+        let z = e.add_minion(SeatId(1), vampire_with("aus", 0), 4, false);
+        if reach {
+            hand(&mut e, 1, &["Enhanced Senses"]);
+        }
+        pick(&mut e, action(h, ActionKind::Hunt));
+        let req = request(&mut e);
+        assert_eq!(
+            (req.seat, req.window),
+            (SeatId(1), WindowLabel::ActionBlock)
+        );
+        assert!(req.options.contains(&block(z)), "reach {reach}");
+        assert_eq!(e.block_can_reach(SeatId(1), z), reach);
+        for seed in 0..8 {
+            let i = Scripted::new(Style::Wall, seed).decide(&e, &req);
+            let want = if reach { block(z) } else { Choice::Pass };
+            assert_eq!(req.options[i], want, "reach {reach}, seed {seed}");
         }
     }
 }

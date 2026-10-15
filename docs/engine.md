@@ -610,7 +610,8 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 - **Every legal attempt offered** (rules-qa 73.8): one that cannot reach the
   stealth too. **Reachability** is a query, `Engine::block_can_reach(seat, m)`
   (`intercept_reachable`), read by the host's opportunities filter (it hides a
-  futile attempt with them off, `crates/host` `Opportunity::Futile`) and by
+  futile attempt with them off, `crates/host` `Opportunity::Futile`), by the
+  scripted bots (`bots.rs`: a futile attempt scores below the pass) and by
   the record reader (`Replay::elided`: a record from an engine before 73.8
   never had the futile-only block windows, elided then); never a mask. It
   counts the blocker's own and printed intercept, intercept abilities of cards

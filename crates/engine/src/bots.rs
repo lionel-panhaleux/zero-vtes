@@ -234,9 +234,12 @@ impl Scripted {
         let threatened = a.bleed_target == Some(me) || a.directed_seats(st).contains(me);
         match *o {
             // Another attempt is legal as often as wished (rulebook "Who May
-            // Attempt to Block"): one that failed is not repeated.
+            // Attempt to Block"): one that failed is not repeated. One that
+            // cannot reach the stealth is offered (rules-qa 73.8) but not
+            // made (owner, 2026-10-15): it would pay a block toll for nothing.
             Choice::DeclareBlock { minion }
-                if self.attempts.0 == action_key(e) && self.attempts.1.contains(&minion) =>
+                if (self.attempts.0 == action_key(e) && self.attempts.1.contains(&minion))
+                    || !e.block_can_reach(me, minion) =>
             {
                 -10
             }

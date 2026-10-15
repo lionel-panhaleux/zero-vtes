@@ -622,7 +622,9 @@ training runs.
   (owner, 2026-09-27). A failed block
   attempt is not repeated with the same minion in the same action (the rulebook
   allows it as often as wished: an always-block policy loops, so the bot
-  remembers its attempts).
+  remembers its attempts). An attempt that cannot reach the action's stealth
+  (`Engine::block_can_reach`) is offered (rules-qa 73.8) but never made: it
+  scores below the pass (owner, 2026-10-15).
 - Aggro-bleed: bleeds with every minion (the biggest bleed first), plays bleed
   modifiers, blocks only actions directed at it. Wall: keeps one ready unlocked
   minion home (other actions only with two or more), blocks everything, plays
@@ -1678,7 +1680,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 739 library, 297 vampires; 1751 Rust tests, 35 Python tests
+Definitions: 739 library, 297 vampires; 1752 Rust tests, 35 Python tests
 
 ## Outlook: deck building (post-v1)
 

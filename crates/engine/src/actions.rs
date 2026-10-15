@@ -1793,7 +1793,8 @@ impl Engine {
 
     /// Could `m`'s block attempt, made by `seat`, still meet the action's
     /// stealth, as `seat` sees it (rules-qa 48.5, 66.2)? Every attempt is
-    /// offered all the same (73.8): for an interface hiding futile ones.
+    /// offered all the same (73.8): for an interface hiding futile ones and
+    /// the scripted bots declining them.
     /// True with no action under way.
     pub fn block_can_reach(&self, seat: SeatId, m: MinionId) -> bool {
         self.action
