@@ -101,9 +101,12 @@ front, about the AI involvement.
   with an explicit refspec (`git push fork <b>:refs/heads/<b>`) and check
   `git config branch.<b>.merge` first.
 - The owner may be mid-game on :5188: never edit the served checkout then
-  (vite reloads the page; an engine game has no resume). Work in a worktree
-  under the job's tmp; fast-forward the checkout only when the admin API
-  shows no live game (or the owner says so).
+  (vite reloads the page, and the fork cannot rejoin yet: it fails the game
+  on a closed socket and keeps the seat token in memory only, so a reload
+  loses the game; the server would rejoin it, protocol.md §2, checked on a
+  local server with `crates/server/tests/rejoin.mjs`, 2026-10-14). Work in
+  a worktree under the job's tmp; fast-forward the checkout only when the
+  admin API shows no live game (or the owner says so).
 - After a vite restart the owner's tab can ask for long-deleted modules
   (EnginePassButton.vue, deleted 3 days earlier): a refresh fixes it.
 

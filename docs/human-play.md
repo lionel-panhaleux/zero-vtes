@@ -302,7 +302,9 @@ for history.
   warnings` (not a default member); `scripts/check_ts.sh` (a game typed
   against `protocol.ts`); with a server running, `node
   crates/server/tests/client.mjs <url>` plays a game over HTTP and
-  WebSocket, `node crates/server/tests/load.mjs <url> <n>` n at once.
+  WebSocket, `node crates/server/tests/load.mjs <url> <n>` n at once,
+  `node crates/server/tests/rejoin.mjs <url>` a seat joining again (after
+  its last `seq`, after an older one, afresh).
 
 ## Running the fork
 
