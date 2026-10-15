@@ -46,6 +46,9 @@ struct Asked {
 /// Messages kept per seat for a rejoin (`join {after}`).
 const KEPT: usize = 4096;
 
+/// A feedback's length cap: a report, not a log.
+const FEEDBACK_CHARS: usize = 4000;
+
 /// Engine steps one command may run (bots included) before the game is
 /// ended as an engine error: a loop is a bug, not a long game.
 const BUDGET: usize = 200_000;
@@ -288,6 +291,7 @@ impl Game {
                     });
                     id
                 }
+                Message::Noted { .. } => id,
                 _ => None,
             };
             self.seq += 1;
@@ -375,7 +379,7 @@ impl Game {
                 }
             }
             Message::Over(o) => known.see(&o.view),
-            Message::Error(_) => {}
+            Message::Error(_) | Message::Noted { .. } => {}
         }
     }
 
@@ -402,6 +406,12 @@ impl Game {
         if let Command::Join { .. } = c {
             return self.join();
         }
+        if let Command::Feedback { text } = c {
+            if !self.started {
+                return vec![Message::Error(Error::NotJoined)];
+            }
+            return self.feedback(&text);
+        }
         if self.over.is_some() {
             return vec![Message::Error(Error::Over)];
         }
@@ -412,7 +422,7 @@ impl Game {
             return vec![Message::Error(Error::NotYourTurn)];
         };
         match c {
-            Command::Join { .. } => unreachable!(),
+            Command::Join { .. } | Command::Feedback { .. } => unreachable!(),
             Command::Answer { decision, option } => {
                 if let Err(e) = self.session.check(decision, option as usize) {
                     return vec![Message::Error(refused(e, option))];
@@ -487,6 +497,38 @@ impl Game {
             }
             Command::Leave => self.end(EndReason::Abandoned { seat: self.human }, None),
         }
+    }
+
+    /// The player's report, kept in the record at the decision it is about.
+    fn feedback(&mut self, text: &str) -> Vec<Message> {
+        let text = text.trim();
+        if text.is_empty() || text.chars().count() > FEEDBACK_CHARS {
+            return vec![Message::Error(Error::Malformed {
+                reason: format!("feedback: 1 to {FEEDBACK_CHARS} characters"),
+            })];
+        }
+        let decision = self
+            .pending
+            .as_ref()
+            .map(|d| d.decision)
+            .unwrap_or_else(|| {
+                self.record
+                    .entries
+                    .iter()
+                    .rev()
+                    .find_map(|e| match e {
+                        Entry::Decision { decision, .. } => Some(*decision),
+                        _ => None,
+                    })
+                    .unwrap_or(0)
+            });
+        self.record.entries.push(Entry::Feedback {
+            seat: self.human,
+            at: self.at(),
+            decision,
+            text: text.into(),
+        });
+        vec![Message::Noted { decision }]
     }
 
     fn join(&mut self) -> Vec<Message> {

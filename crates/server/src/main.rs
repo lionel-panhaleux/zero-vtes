@@ -12,8 +12,9 @@
 //!   `ZVTES_IDLE` seconds (1800), `ZVTES_TIME_LIMIT` max turns (200),
 //!   `ZVTES_RETENTION` days (730), `ZVTES_RATE` commands a second (20)
 //! - `ZVTES_ADMIN_SHA256`: the admin token's SHA-256 (hex), never the
-//!   token: `GET /admin/games` and `/admin/games/{id}/record` with
-//!   `Authorization: Bearer <token>` (absent: no admin routes)
+//!   token: `GET /admin/games`, `/admin/games/{id}/record` and
+//!   `/admin/feedback` with `Authorization: Bearer <token>` (absent: no
+//!   admin routes)
 
 mod games;
 mod store;
@@ -153,6 +154,7 @@ async fn main() {
         .route("/games/{id}/record", get(record))
         .route("/admin/games", get(admin_games))
         .route("/admin/games/{id}/record", get(admin_record))
+        .route("/admin/feedback", get(admin_feedback))
         .layer(cors(&app.config.origins))
         .with_state(app);
     let listener = tokio::net::TcpListener::bind(&listen)
@@ -359,6 +361,29 @@ async fn admin_games(
     let limit = q.limit.unwrap_or(1000).clamp(1, 10_000);
     match app.records.list(q.since, q.engine.as_deref(), limit).await {
         Ok(games) => Json(games).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct FeedbackSince {
+    /// Unix ms.
+    since: Option<u64>,
+    limit: Option<i64>,
+}
+
+/// The players' feedback, oldest first (the admin's: `intake` triages it).
+async fn admin_feedback(
+    State(app): State<Shared>,
+    headers: HeaderMap,
+    axum::extract::Query(q): axum::extract::Query<FeedbackSince>,
+) -> Response {
+    if !admin(&app, &headers) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    let limit = q.limit.unwrap_or(1000).clamp(1, 10_000);
+    match app.records.feedback(q.since, limit).await {
+        Ok(f) => Json(f).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
     }
 }

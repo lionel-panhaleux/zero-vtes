@@ -1,6 +1,6 @@
-/* zvtes protocol 1.1.0 (docs/protocol.md): generated from
+/* zvtes protocol 1.2.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '1.1.0'
+export const PROTOCOL_VERSION = '1.2.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -39,6 +39,10 @@ export type In = {
     | {
         type: 'leave'
     }
+    | {
+        text: string
+        type: 'feedback'
+    }
 )
 
 /**
@@ -67,6 +71,10 @@ export type Out = {
     | {
         type: 'error'
     } & Error
+    | {
+        decision: number
+        type: 'noted'
+    }
 )
 
 export type GameSpec = {
@@ -529,6 +537,12 @@ export type Entry = {
     error: Error
     seat: number
     type: 'refused'
+} | {
+    at: number
+    decision: number
+    seat: number
+    text: string
+    type: 'feedback'
 }
 
 export type Error = {

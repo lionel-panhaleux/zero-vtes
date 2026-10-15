@@ -1,6 +1,7 @@
 // A full game against a running zvtes-server, as a client would play it
 // (docs/protocol.md §2): POST /games, the WebSocket, `join` with the
-// token, answers by option index, the record at the end.
+// token, answers by option index, a `feedback` mid-game, the record at
+// the end; with ZVTES_ADMIN_TOKEN, the feedback read from /admin/feedback.
 // `node crates/server/tests/client.mjs [http://127.0.0.1:8040]`
 const base = process.argv[2] ?? 'http://127.0.0.1:8040'
 const version = await (await fetch(`${base}/version`)).json()
@@ -31,7 +32,7 @@ const next = async () => { while (!inbox.length) await new Promise(r => (wake = 
 ws.send(JSON.stringify({ type: 'join', token: 'wrong' }))
 if ((await next()).error != 'not_joined') throw new Error('a wrong token joined')
 ws.send(JSON.stringify({ type: 'join', token }))
-let seq = 0, decisions = 0, last, sent
+let seq = 0, decisions = 0, last, sent, noted
 for (;;) {
     const m = await next()
     if (m.error == 'rate_limited') {
@@ -44,8 +45,11 @@ for (;;) {
     seq = m.seq
     if (m.type == 'error') throw new Error(JSON.stringify(m))
     if (m.type == 'over') { last = m; break }
+    if (m.type == 'noted') { noted = m.decision; continue }
     if (m.type == 'decision') {
         decisions++
+        // A report mid-game (§4 `feedback`): noted at this decision.
+        if (decisions == 3) ws.send(JSON.stringify({ type: 'feedback', text: `client.mjs report at ${m.decision}` }))
         const o = m.options[Math.floor(Math.random() * m.options.length)]
         if (!o.text) throw new Error('text asked, none given')
         sent = JSON.stringify({ type: 'answer', decision: m.decision, option: o.index })
@@ -56,6 +60,14 @@ console.log(`over: ${last.reason.type} after ${decisions} decisions, ${seq} mess
 const rec = await (await fetch(`${base}/games/${game}/record`, { headers: { authorization: `Bearer ${token}` } })).json()
 if (!rec.result || rec.spec.seats[seat].name != 'human') throw new Error('bad record')
 console.log(`record: ${rec.entries.length} entries, bots ${rec.bots.map(b => b.profile)}`)
+const fed = rec.entries.find(e => e.type == 'feedback')
+if (noted === undefined || !fed || fed.decision != noted) throw new Error('feedback not recorded at its decision')
+// With the operator's token, the report is listed for the admin.
+if (process.env.ZVTES_ADMIN_TOKEN) {
+    const list = await (await fetch(`${base}/admin/feedback`, { headers: { authorization: `Bearer ${process.env.ZVTES_ADMIN_TOKEN}` } })).json()
+    if (!list.some(f => f.game == game && f.decision == noted)) throw new Error('feedback not listed at /admin/feedback')
+    console.log(`feedback: noted at decision ${noted}, listed for the admin`)
+}
 ws.close()
 
 // RECORD_AFTER=s: once the game's thread is gone (an idle timeout under

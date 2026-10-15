@@ -55,6 +55,17 @@ pub struct Summary {
     pub entries: u64,
 }
 
+/// A player's feedback as the admin's list shows it: the game, its engine,
+/// when (Unix ms), the decision it is about, the text.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct Feedback {
+    pub game: String,
+    pub engine: String,
+    pub at: u64,
+    pub decision: u64,
+    pub text: String,
+}
+
 #[derive(Clone)]
 pub enum Store {
     Postgres(PgPool),
@@ -329,6 +340,63 @@ impl Store {
         }
     }
 
+    /// The feedback sent since `since` (Unix ms), at most `limit`, oldest
+    /// first: what the `intake` skill triages.
+    pub async fn feedback(&self, since: Option<u64>, limit: i64) -> Result<Vec<Feedback>, String> {
+        let mut out = match self {
+            Store::Postgres(pool) => {
+                let rows: Vec<(String, String, f64, i64, String)> = sqlx::query_as(
+                    "select g.id, g.engine,
+                            extract(epoch from g.started)::double precision * 1000
+                                + (e.entry->>'at')::double precision as at,
+                            (e.entry->>'decision')::bigint, e.entry->>'text'
+                     from game_entries e join games g on g.id = e.game
+                     where e.entry->>'type' = 'feedback'
+                     order by at",
+                )
+                .fetch_all(pool)
+                .await
+                .map_err(|e| e.to_string())?;
+                rows.into_iter()
+                    .map(|r| Feedback {
+                        game: r.0,
+                        engine: r.1,
+                        at: r.2 as u64,
+                        decision: r.3 as u64,
+                        text: r.4,
+                    })
+                    .collect()
+            }
+            Store::Files(_) => {
+                let mut out = Vec::new();
+                for g in self.list(None, None, i64::MAX).await? {
+                    let Some(r) = self.record(&g.id, None).await else {
+                        continue;
+                    };
+                    for e in &r.entries {
+                        if let Entry::Feedback {
+                            at, decision, text, ..
+                        } = e
+                        {
+                            out.push(Feedback {
+                                game: g.id.clone(),
+                                engine: r.engine.clone(),
+                                at: r.started + at,
+                                decision: *decision,
+                                text: text.clone(),
+                            });
+                        }
+                    }
+                }
+                out.sort_by_key(|f| f.at);
+                out
+            }
+        };
+        out.retain(|f| since.is_none_or(|s| f.at >= s));
+        out.truncate(limit.max(0) as usize);
+        Ok(out)
+    }
+
     /// The games still going, ended `server_restart`: run at startup,
     /// before any game is live, so a going game is one a previous process
     /// lost. How many it ended, and why it could not end the others.
@@ -444,6 +512,10 @@ fn value<T: serde::Serialize>(v: &T) -> serde_json::Value {
 mod tests {
     use super::*;
 
+    /// The Postgres tests share one scratch database, and `end_lost` ends
+    /// every game going in it: one at a time.
+    static SCRATCH: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
     fn corpus(name: &str) -> GameRecord {
         let path = format!("{}/../../data/records/{name}", env!("CARGO_MANIFEST_DIR"));
         serde_json::from_str(&std::fs::read_to_string(path).expect("the record")).expect("a record")
@@ -538,6 +610,62 @@ mod tests {
         assert_eq!(store.end_lost().await, (0, vec![]));
     }
 
+    /// Feedback stored with its game's entries is listed with the game, its
+    /// engine, when and the decision, oldest first, from `since`.
+    async fn feedback_listed(store: &Store, id: impl Fn(&str) -> String) {
+        let mut record = corpus("zero-vtes-replay-2026-10-04T12-09-51-567Z.json");
+        record.started = 1_000_000;
+        for (at, decision, text) in [(5_000, 12, "a"), (9_000, 40, "b")] {
+            record.entries.push(Entry::Feedback {
+                seat: 0,
+                at,
+                decision,
+                text: text.into(),
+            });
+        }
+        start(store, &id("fed"), record.clone()).await;
+        let all = store.feedback(None, 100).await.unwrap();
+        let ours: Vec<_> = all.iter().filter(|f| f.game == id("fed")).collect();
+        assert_eq!(ours.len(), 2);
+        assert_eq!(
+            (ours[0].at, ours[0].decision, ours[0].text.as_str()),
+            (1_005_000, 12, "a")
+        );
+        assert_eq!(ours[0].engine, record.engine);
+        let later = store.feedback(Some(1_006_000), 100).await.unwrap();
+        assert!(later.iter().any(|f| f.game == id("fed") && f.text == "b"));
+        assert!(!later.iter().any(|f| f.game == id("fed") && f.text == "a"));
+    }
+
+    #[tokio::test]
+    async fn feedback_is_listed_for_the_admin() {
+        let dir = std::env::temp_dir().join(format!("zvtes-feedback-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let store = Store::open(None, dir.clone()).await;
+        feedback_listed(&store, |g| g.to_string()).await;
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn feedback_is_listed_for_the_admin_on_postgres() {
+        let Ok(url) = std::env::var("ZVTES_TEST_DATABASE_URL") else {
+            eprintln!("skipped: no ZVTES_TEST_DATABASE_URL");
+            return;
+        };
+        let _scratch = SCRATCH.lock().await;
+        let store = Store::open(Some(url), PathBuf::new()).await;
+        let Store::Postgres(pool) = &store else {
+            unreachable!()
+        };
+        let run = format!("{}-{}", std::process::id(), random());
+        feedback_listed(&store, |g| format!("{run}-{g}")).await;
+        sqlx::query("delete from games where id like $1")
+            .bind(format!("{run}-%"))
+            .execute(pool)
+            .await
+            .unwrap();
+    }
+
     #[tokio::test]
     async fn a_restart_ends_the_games_left_going() {
         let dir = std::env::temp_dir().join(format!("zvtes-restart-{}", std::process::id()));
@@ -556,6 +684,7 @@ mod tests {
             eprintln!("skipped: no ZVTES_TEST_DATABASE_URL");
             return;
         };
+        let _scratch = SCRATCH.lock().await;
         let store = Store::open(Some(url), PathBuf::new()).await;
         let Store::Postgres(pool) = &store else {
             unreachable!()

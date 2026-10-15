@@ -51,4 +51,8 @@ pub enum Command {
     Settings(SettingsPatch),
     /// Leave the game: it ends, recorded as abandoned by the seat.
     Leave,
+    /// A problem or a remark from the player (1 to 4,000 characters,
+    /// trimmed), kept in the game's record at the pending decision (else
+    /// the last one), even once over; answered `noted`.
+    Feedback { text: String },
 }

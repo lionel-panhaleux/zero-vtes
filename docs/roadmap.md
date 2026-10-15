@@ -4,7 +4,7 @@ The objectives, how to rank work across lines, the near milestone, and
 what the owner has put off. The work itself is on four boards, one per
 line of work (CLAUDE.md "Lines of work"): [cards](boards/cards.md),
 [engine](boards/engine.md), [training](boards/training.md),
-[platforms](boards/platforms.md). Below, "engine: Feedback intake" names
+[platforms](boards/platforms.md). Below, "engine: Records complete" names
 the engine board's line by its ask.
 
 ## Ranking
@@ -39,11 +39,11 @@ What it still needs:
    read, promotion to `data/records`, the human win rate as the measure
    (training: The harvest on a schedule; Promotion as a script; The human
    win rate).
-6. **Feedback intake**: a "report a problem" from inside the game, stored
-   with the record at its decision (engine: Feedback intake; platforms:
-   "Report a problem"), plus one community channel the notice names
-   (platforms: The engine mode's notice checked); the `intake` skill
-   triages it.
+6. **Feedback intake**: a "report a problem" from inside the game (the
+   protocol's `feedback`, stored with the record at its decision;
+   platforms: "Report a problem"), plus one community channel the notice
+   names (platforms: The engine mode's notice checked); the `intake`
+   skill triages it.
 7. **Known rough edges fixed**: the panel overflow (platforms: The
    referendum and action panels); Sniper Rifle and strike-only prevention
    (cards); diablerie's equipment (engine).

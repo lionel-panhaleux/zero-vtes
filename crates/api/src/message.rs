@@ -41,6 +41,10 @@ pub enum Message {
     Over(Over),
     /// A command refused; the game is unchanged.
     Error(Error),
+    /// The seat's `feedback`, recorded at this decision.
+    Noted {
+        decision: DecisionNo,
+    },
 }
 
 /// The answer to `join`.

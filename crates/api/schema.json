@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -1384,6 +1384,42 @@
             "at",
             "error"
           ]
+        },
+        {
+          "description": "The seat's `feedback`, at the decision it was sent during.",
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "decision": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "seat": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "text": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "feedback"
+            }
+          },
+          "required": [
+            "type",
+            "seat",
+            "at",
+            "decision",
+            "text"
+          ]
         }
       ]
     },
@@ -2454,6 +2490,23 @@
           "required": [
             "type"
           ]
+        },
+        {
+          "description": "A problem or a remark from the player (1 to 4,000 characters,\ntrimmed), kept in the game's record at the pending decision (else\nthe last one), even once over; answered `noted`.",
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "feedback"
+            }
+          },
+          "required": [
+            "type",
+            "text"
+          ]
         }
       ]
     },
@@ -3158,6 +3211,25 @@
           "$ref": "#/$defs/Error",
           "required": [
             "type"
+          ]
+        },
+        {
+          "description": "The seat's `feedback`, recorded at this decision.",
+          "type": "object",
+          "properties": {
+            "decision": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "type": {
+              "type": "string",
+              "const": "noted"
+            }
+          },
+          "required": [
+            "type",
+            "decision"
           ]
         }
       ],

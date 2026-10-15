@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **1.1.0**. The types: the models of the
+Version **1.2.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -67,9 +67,10 @@ client                                  host
   received. The host resends what followed (or, if it no longer holds
   it, `joined` and the pending decision: a fresh start from the view).
 - A command accepted has no reply of its own: its effect comes as
-  events (an `answer` as an `events` message starting with `decided`).
-  A refused command changes nothing and is answered by an `error`
-  carrying the command's `id` as `reply_to`.
+  events (an `answer` as an `events` message starting with `decided`);
+  but `feedback`, answered `noted`. A refused command changes nothing
+  and is answered by an `error`. Both carry the command's `id` as
+  `reply_to`.
 - Commands are limited per connection (a few dozen a second): over it,
   a command is refused with `rate_limited` (unnumbered: `seq` 0, no
   `reply_to`). It was not taken: send it again a moment later. A client
@@ -164,6 +165,7 @@ an `error`).
 | `undo` | `decision` | take back the seat's previous decision, from the pending `decision` (when `undo` is true); sent twice, undoes once |
 | `settings` | `opportunities`?, `views`?, `text`? | change some settings (§8); the pending decision is sent again |
 | `leave` | — | end the game, recorded as abandoned |
+| `feedback` | `text` (1 to 4,000 characters, trimmed) | a problem or a remark, kept in the record at the pending decision (else the last one), also once the game is over; answered `noted` |
 
 ## 5. Messages (host → client)
 
@@ -175,6 +177,7 @@ A JSON object with `seq`, `reply_to`? and a `type`:
 | `events` | `events`: one step — a decision taken and what it did until the next — or the engine's run before a decision or the end (§9); `view` after a step when `views` is `steps` |
 | `decision` | `decision`, `seat`, `window`, `source`?, `purpose`?, `about`?, `options`, `undo`, `allocation`?, `votes`?, `view`; `prompt` with `text` |
 | `over` | `vp_halves` (per seat), `winner`? (the most VPs, at least 2, alone), `reason` (`{"type": …}`: `last_standing`, `time_limit`, `humans_ousted`, `abandoned` + `seat`, `engine_error`; in a record only, `server_restart`), `view` |
+| `noted` | `decision`: the seat's `feedback` recorded, at that decision (`reply_to` its `id`) |
 | `error` | `error`: `stale` (+ `expected`), `not_your_turn`, `option` (+ `index`), `no_undo`, `allocation` (+ `reason`: `none`, `length`, `total`, `cap`, `min_nonzero`), `no_votes`, `over`, `not_joined`, `malformed` (+ `reason`), `rate_limited` |
 
 `window` is a stable id (`minion_phase`, `action_block`, `combat_strike`,
@@ -404,6 +407,7 @@ ended; the last `pool`, `blood` and `torpor` told are the next view's.
 | `GET /games/{game}/record` | the game's record (§11), `Authorization: Bearer <token>` |
 | `GET /admin/games?since=&engine=&limit=` | the games recorded, oldest first: `id`, `engine`, `client`, `started`, `ended` (absent: going on the server now), `result`, `entries` (the operator's: `Authorization: Bearer <admin token>`) |
 | `GET /admin/games/{game}/record` | any game's record, as far as it went (the operator's) |
+| `GET /admin/feedback?since=&limit=` | the players' feedback, oldest first: `game`, `engine`, `at` (Unix ms), `decision`, `text` (the operator's) |
 
 No account: the token is the seat, never in a URL. The server checks
 the WebSocket's `Origin` against the platforms it serves.
@@ -416,14 +420,15 @@ seed), each decision answered — seat, time, option index, its key with
 the engine's copy numbers, by whom (`human`, `bot`, `order`, `auto`),
 the options shown when settings hid some — undos (decision numbers then
 repeat from `to`: a reader drops what they take back), settings
-changes, refused commands, the result and any engine failure. A game
-going when its server restarts is ended at the restart, `server_restart`:
-its victory points where its record reads to on the restarted server's
-engine, `failure` saying why when it does not read to its end (rules
-fixes change the engine, §14). A record replays by index on its engine
-commit, and reads by key on a later engine (a record from before every
-block attempt was offered reads past the block windows its engine
-skipped). Kept two years, to train and test the engine; anonymous.
+changes, refused commands, the players' feedback (at its decision), the
+result and any engine failure. A game going when its server restarts is
+ended at the restart, `server_restart`: its victory points where its
+record reads to on the restarted server's engine, `failure` saying why
+when it does not read to its end (rules fixes change the engine, §14).
+A record replays by index on its engine commit, and reads by key on a
+later engine (a record from before every block attempt was offered reads
+past the block windows its engine skipped). Kept two years, to train and
+test the engine; anonymous.
 
 ## 12. Open sets
 

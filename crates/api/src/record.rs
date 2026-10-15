@@ -81,6 +81,13 @@ pub enum Entry {
     },
     /// A command refused.
     Refused { seat: Seat, at: u64, error: Error },
+    /// The seat's `feedback`, at the decision it was sent during.
+    Feedback {
+        seat: Seat,
+        at: u64,
+        decision: DecisionNo,
+        text: String,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -303,9 +303,11 @@ for history.
   member: a restart ending the games left going, on the file store, and
   on Postgres with `ZVTES_TEST_DATABASE_URL` naming a scratch database);
   `scripts/check_ts.sh` (a game typed against `protocol.ts`); with a
-  server running, `node
+  server running (Node 22 or later, for its `WebSocket`), `node
   crates/server/tests/client.mjs <url>` plays a game over HTTP and
-  WebSocket, `node crates/server/tests/load.mjs <url> <n>` n at once,
+  WebSocket (with `ZVTES_ADMIN_TOKEN`, its feedback read back from
+  `/admin/feedback`), `node crates/server/tests/load.mjs <url> <n>` n at
+  once,
   `node crates/server/tests/rejoin.mjs <url>` a seat joining again (after
   its last `seq`, after an older one, afresh).
 

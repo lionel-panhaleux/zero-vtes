@@ -68,7 +68,10 @@ line belongs in a page the line points at, or in the task's own notes
 ## Sources
 
 The owner's asks; discoveries during a task; peers' messages; playtests
-and the server's records; the harvest report (training skill); feedback
-(`/admin/feedback` once it exists); the egress reviewer's out-of-scope
+and the server's records; the harvest report (training skill); the
+players' feedback (`GET https://engine.krcg.org/admin/feedback?since=`
+with the admin token from `~/.config/zvtes/admin_token`, never printed:
+each report's game, engine and decision, its record replayed with
+`--example replay` at that decision); the egress reviewer's out-of-scope
 notes; the upkeep's lint and ratchet proposals. Each goes through the
 steps above; a source's raw notes are not kept once triaged.

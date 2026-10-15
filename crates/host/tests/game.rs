@@ -319,3 +319,43 @@ fn other_seats_and_strangers_are_refused() {
     let outs = g.handle(human, cmd(Command::Leave));
     let _ = outs;
 }
+
+/// Feedback (docs/protocol.md §4): kept in the record at the pending
+/// decision, refused before the seat joins or when empty, still taken once
+/// the game is over (at the last decision).
+#[test]
+fn feedback_is_recorded_at_its_decision() {
+    let mut g = game(7, Settings::default());
+    let human = g.human();
+    let feedback = |text: &str| cmd(Command::Feedback { text: text.into() });
+    let outs = g.handle(human, feedback("before"));
+    assert!(matches!(outs[0].message, Message::Error(Error::NotJoined)));
+    let outs = g.handle(human, join());
+    let d = pending(&outs).expect("a decision").decision;
+    let outs = g.handle(
+        human,
+        In {
+            id: Some(9),
+            command: Command::Feedback {
+                text: "  the Edge vanished  ".into(),
+            },
+        },
+    );
+    assert_eq!(outs[0].message, Message::Noted { decision: d });
+    assert_eq!(outs[0].reply_to, Some(9), "noted answers its command");
+    assert!(matches!(
+        g.record().entries.last(),
+        Some(Entry::Feedback { decision, text, .. }) if *decision == d && text == "the Edge vanished"
+    ));
+    let outs = g.handle(human, feedback(" "));
+    assert!(matches!(
+        outs[0].message,
+        Message::Error(Error::Malformed { .. })
+    ));
+    // Still the pending decision: feedback answers nothing.
+    let outs = g.handle(human, join());
+    assert_eq!(pending(&outs).unwrap().decision, d);
+    g.handle(human, cmd(Command::Leave));
+    let outs = g.handle(human, feedback("it ended"));
+    assert!(matches!(outs[0].message, Message::Noted { .. }));
+}
