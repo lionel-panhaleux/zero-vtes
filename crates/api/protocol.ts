@@ -1,6 +1,6 @@
-/* zvtes protocol 1.2.0 (docs/protocol.md): generated from
+/* zvtes protocol 1.3.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '1.2.0'
+export const PROTOCOL_VERSION = '1.3.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -261,7 +261,8 @@ export type Allocation = {
     recipients: Recipient[]
 }
 
-export type AllocationError = 'none' | 'length' | 'total' | 'cap' | 'min_nonzero'
+/** Why an allocation is refused. */
+export type AllocationError = 'none' | 'length' | 'total' | 'cap' | 'min_nonzero' | 'unknown'
 
 export type BotRecord = {
     /** "network" or a scripted style. */
@@ -278,7 +279,8 @@ export type BotRecord = {
     weights?: string | null
 }
 
-export type By = 'human' | 'bot' | 'order' | 'auto'
+/** Who answered a decision. */
+export type By = 'human' | 'bot' | 'order' | 'auto' | 'unknown'
 
 /**
  * A physical card: its copy where the viewer may follow it, its KRCG id
@@ -504,6 +506,8 @@ export type EndReason = {
     type: 'engine_error'
 } | {
     type: 'server_restart'
+} | {
+    type: 'unknown'
 }
 
 export type Entry = {
@@ -543,6 +547,8 @@ export type Entry = {
     seat: number
     text: string
     type: 'feedback'
+} | {
+    type: 'unknown'
 }
 
 export type Error = {
@@ -569,6 +575,8 @@ export type Error = {
     reason: string
 } | {
     error: 'rate_limited'
+} | {
+    error: 'unknown'
 }
 
 export type Event = {

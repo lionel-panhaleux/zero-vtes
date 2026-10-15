@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **1.2.0**. The types: the models of the
+Version **1.3.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -458,5 +458,10 @@ the protocol: the engine's internal state, card images, layout.
 
 `protocol` is semver: a new field or a new id in a set is a minor
 version (readers ignore what they do not know); a removed or renamed
-field or a changed meaning, a major one. `engine` is the commit: rules
+field or a changed meaning, a major one. The api crate's own readers,
+1.3.0 on, read past a record entry type they do not know, and read an
+end reason, an error or a value of a §12 closed set (a decision's `by`
+among them) they do not know as `unknown` (never sent); any other new
+value still fails the read, and a reader built before 1.3.0 needs
+records no newer than its engine. `engine` is the commit: rules
 fixes ship without a protocol change.

@@ -180,6 +180,10 @@ pub enum EndReason {
     /// is told), victory points as its record reads on the restarted
     /// server's engine.
     ServerRestart,
+    /// A reason a later host gives that this reader does not know (§14).
+    /// Never sent.
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -213,23 +217,27 @@ pub enum Error {
     },
     /// Too many commands: slow down.
     RateLimited,
+    /// An error a later host sends that this reader does not know (§14).
+    /// Never sent.
+    #[serde(other)]
+    Unknown,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "snake_case")]
-pub enum AllocationError {
-    /// No allocation under way.
-    None,
-    /// Not one amount per recipient.
-    Length,
-    /// The amounts do not add up to the points.
-    Total,
-    /// A recipient over its cap.
-    Cap,
-    /// Fewer recipients given points than required.
-    MinNonzero,
-}
+crate::ids::ids!(
+    /// Why an allocation is refused.
+    AllocationError {
+        /// No allocation under way.
+        None,
+        /// Not one amount per recipient.
+        Length,
+        /// The amounts do not add up to the points.
+        Total,
+        /// A recipient over its cap.
+        Cap,
+        /// Fewer recipients given points than required.
+        MinNonzero,
+    }
+);
 
 /// Why a game spec is refused (`POST /games`).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

@@ -88,19 +88,23 @@ pub enum Entry {
         decision: DecisionNo,
         text: String,
     },
+    /// An entry of a later host this reader does not know: read past
+    /// (docs/protocol.md §14). Never written.
+    #[serde(other)]
+    Unknown,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "snake_case")]
-pub enum By {
-    Human,
-    Bot,
-    /// A standing order (`vote_all`) or an allocation answered whole.
-    Order,
-    /// A lone pass, the seat's settings hiding the rest.
-    Auto,
-}
+crate::ids::ids!(
+    /// Who answered a decision.
+    By {
+        Human,
+        Bot,
+        /// A standing order (`vote_all`) or an allocation answered whole.
+        Order,
+        /// A lone pass, the seat's settings hiding the rest.
+        Auto,
+    }
+);
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]

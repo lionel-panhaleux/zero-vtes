@@ -50,3 +50,76 @@ fn every_record_reads_whole() {
         );
     }
 }
+
+/// A record written by a later host reads on this one (docs/protocol.md
+/// §14): an entry type, an end reason and a refusal it does not know read
+/// as `unknown`, and the game replays whole past them.
+#[test]
+fn a_later_hosts_record_reads() {
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../data/records/zero-vtes-replay-2026-10-04T12-09-51-567Z.json"
+    );
+    let mut v: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let entries = v["entries"].as_array_mut().unwrap();
+    entries.insert(
+        3,
+        serde_json::json!({"type": "from_the_future", "seat": 0, "note": 1}),
+    );
+    entries.insert(
+        5,
+        serde_json::json!({"type": "refused", "seat": 0, "at": 0, "error": {"error": "brand_new", "x": 2}}),
+    );
+    entries.insert(
+        6,
+        serde_json::json!({"type": "refused", "seat": 0, "at": 0, "error": {"error": "allocation", "reason": "brand_new"}}),
+    );
+    // A decision answered by a later host's kind of answerer.
+    let at = entries
+        .iter()
+        .position(|e| e["type"] == "decision")
+        .unwrap();
+    entries[at]["by"] = serde_json::json!("oracle");
+    v["result"]["reason"] = serde_json::json!({"type": "comet_strike", "seat": 2});
+    let record: GameRecord = serde_json::from_value(v).expect("a later host's record parses");
+    assert!(record.entries.contains(&zvtes_api::record::Entry::Unknown));
+    assert!(record.entries.iter().any(|e| matches!(
+        e,
+        zvtes_api::record::Entry::Refused {
+            error: zvtes_api::message::Error::Unknown,
+            ..
+        }
+    )));
+    assert_eq!(
+        record.result.as_ref().unwrap().reason,
+        zvtes_api::message::EndReason::Unknown
+    );
+    assert!(record.entries.iter().any(|e| matches!(
+        e,
+        zvtes_api::record::Entry::Decision {
+            by: zvtes_api::record::By::Unknown,
+            ..
+        }
+    )));
+    assert!(record.entries.iter().any(|e| matches!(
+        e,
+        zvtes_api::record::Entry::Refused {
+            error: zvtes_api::message::Error::Allocation {
+                reason: zvtes_api::message::AllocationError::Unknown
+            },
+            ..
+        }
+    )));
+    let replay = zvtes_host::replay::Replay::new(&record).unwrap();
+    let decisions = record
+        .entries
+        .iter()
+        .filter(|e| matches!(e, zvtes_api::record::Entry::Decision { .. }))
+        .count();
+    assert_eq!(
+        replay.read(usize::MAX).1,
+        decisions,
+        "read past the unknown"
+    );
+}

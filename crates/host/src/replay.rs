@@ -80,7 +80,10 @@ impl Replay {
                 }),
                 // The game went on from `to`: what followed is taken back.
                 Entry::Undo { to, .. } => decisions.retain(|d| d.decision < *to),
-                Entry::Settings { .. } | Entry::Refused { .. } | Entry::Feedback { .. } => {}
+                Entry::Settings { .. }
+                | Entry::Refused { .. }
+                | Entry::Feedback { .. }
+                | Entry::Unknown => {}
             }
         }
         let mut replay = Replay {

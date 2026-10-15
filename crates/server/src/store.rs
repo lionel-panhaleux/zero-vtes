@@ -230,10 +230,14 @@ impl Store {
                     bots: serde_json::from_value(row.1).ok()?,
                     started: row.4 as u64,
                     ended: row.5.map(|t| t as u64),
+                    // Whole or not at all, as the file store reads: a
+                    // dropped entry would replay another game, and leave
+                    // the record short of the listing's count.
                     entries: entries
                         .into_iter()
-                        .filter_map(|(e,)| serde_json::from_value(e).ok())
-                        .collect(),
+                        .map(|(e,)| serde_json::from_value(e))
+                        .collect::<Result<_, _>>()
+                        .ok()?,
                     result: row.6.and_then(|r| serde_json::from_value(r).ok()),
                 })
             }
@@ -343,7 +347,7 @@ impl Store {
     /// The feedback sent since `since` (Unix ms), at most `limit`, oldest
     /// first: what the `intake` skill triages.
     pub async fn feedback(&self, since: Option<u64>, limit: i64) -> Result<Vec<Feedback>, String> {
-        let mut out = match self {
+        let out = match self {
             Store::Postgres(pool) => {
                 let rows: Vec<(String, String, f64, i64, String)> = sqlx::query_as(
                     "select g.id, g.engine,
@@ -352,8 +356,13 @@ impl Store {
                             (e.entry->>'decision')::bigint, e.entry->>'text'
                      from game_entries e join games g on g.id = e.game
                      where e.entry->>'type' = 'feedback'
-                     order by at",
+                       and ($1::double precision is null
+                            or extract(epoch from g.started)::double precision * 1000
+                                + (e.entry->>'at')::double precision >= $1)
+                     order by at limit $2",
                 )
+                .bind(since.map(|s| s as f64))
+                .bind(limit)
                 .fetch_all(pool)
                 .await
                 .map_err(|e| e.to_string())?;
@@ -389,11 +398,11 @@ impl Store {
                     }
                 }
                 out.sort_by_key(|f| f.at);
+                out.retain(|f| since.is_none_or(|s| f.at >= s));
+                out.truncate(limit.max(0) as usize);
                 out
             }
         };
-        out.retain(|f| since.is_none_or(|s| f.at >= s));
-        out.truncate(limit.max(0) as usize);
         Ok(out)
     }
 
