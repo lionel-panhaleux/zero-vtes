@@ -69,9 +69,9 @@ fn version() -> Value {
                 },
             },
             "example": {
-                "protocol": "1.6.0", "engine": "cb3b4a67f42b",
+                "protocol": "1.7.0", "engine": "abf69c49d4c9",
                 "profiles": ["aggro_bleed", "wall", "random", "network"],
-                "weights": "7aaa9528fbf8f036e58013060bdb5d9a27d0375d3fb066bfc585fd0d6998e442",
+                "weights": "b9035931a5276ec68d7c8c03b516861df8502d475a670579b9615cdc6c870d65",
                 "limits": {"seats": [2, 6], "humans": 1, "time_limit": 200,
                     "idle_timeout": 1800, "games_per_hour": 30},
             },
@@ -171,8 +171,8 @@ fn record() -> Value {
         "tags": ["Games"],
         "summary": "A game's record",
         "description": "The game as recorded: the spec with its seed, the bot profiles, \
-            every decision answered, the result. A live game's record goes as far as the \
-            game went. Authorized by the seat's token.",
+            every decision answered, the result. Once the game is over only: replaying the \
+            record would show the hidden cards. Authorized by the seat's token.",
         "operationId": "gameRecord",
         "parameters": [game_id()],
         "security": [{"seat": []}],
@@ -180,6 +180,7 @@ fn record() -> Value {
             "200": ok("The record.", model("GameRecord")),
             "401": {"description": "No token, or not this game's."},
             "404": {"description": "No such game."},
+            "409": {"description": "The game is not over yet."},
         },
     })
 }

@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **1.6.0**. The types: the models of the
+Version **1.7.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -416,7 +416,7 @@ ended; the last `pool`, `blood` and `torpor` told are the next view's.
 | `GET /catalog` | the precon decklists the engine plays |
 | `POST /games` | body: a `GameSpec` (one human seat); `{game, seat, token}`, or a `SpecError` (400) |
 | `GET /games/{game}/ws` | WebSocket: one JSON command or message per text frame; the first command is `join` with the token. 404 to any request once the game has left the server (the idle timeout passed, after its end or with no command, or the server restarted), so a client whose socket will not reopen can `fetch` it to tell |
-| `GET /games/{game}/record` | the game's record (§11), `Authorization: Bearer <token>` |
+| `GET /games/{game}/record` | the game's record (§11), `Authorization: Bearer <token>`, once the game is over (409 before: the record replayed would show the hidden cards) |
 | `GET /admin/games?since=&engine=&limit=` | the games recorded, oldest first: `id`, `engine`, `client`, `started`, `ended` (absent: going on the server now), `result`, `entries` (the operator's: `Authorization: Bearer <admin token>`) |
 | `GET /admin/games/{game}/record` | any game's record, as far as it went (the operator's) |
 | `GET /admin/feedback?since=&limit=` | the players' feedback, oldest first: `game`, `engine`, `at` (Unix ms), `decision`, `text` (the operator's) |
@@ -426,7 +426,8 @@ the WebSocket's `Origin` against the platforms it serves.
 
 ## 11. Records
 
-Every game served is recorded (`GameRecord`): the spec with its seed
+Every game served is recorded (`GameRecord`), and served to its seat
+once the game is over (§10): the spec with its seed
 (human names replaced), the bot profiles (weights' hash, temperature,
 seed), each decision answered — seat, time, option index, its key with
 the engine's copy numbers, by whom (`human`, `bot`, `order`, `auto`),
@@ -468,8 +469,9 @@ the protocol: the engine's internal state, card images, layout.
 ## 14. Versioning
 
 `protocol` is semver: a new field or a new id in a set is a minor
-version (readers ignore what they do not know); a removed or renamed
-field or a changed meaning, a major one. The api crate's own readers,
+version (readers ignore what they do not know), and so is a route's
+new refusal by a status its clients already handle; a removed or
+renamed field or a changed meaning, a major one. The api crate's own readers,
 1.3.0 on, read past a record entry type they do not know, and read an
 end reason, an error or a value of a §12 closed set (a decision's `by`
 among them) they do not know as `unknown` (never sent); any other new

@@ -1,7 +1,8 @@
 // A full game against a running zvtes-server, as a client would play it
 // (docs/protocol.md §2): POST /games, the WebSocket, `join` with the
-// token, answers by option index, a `feedback` mid-game, the record at
-// the end; with ZVTES_ADMIN_TOKEN, the feedback read from /admin/feedback.
+// token, answers by option index, a `feedback` mid-game, the record
+// refused mid-game and read at the end; with ZVTES_ADMIN_TOKEN, the
+// feedback read from /admin/feedback.
 // `node crates/server/tests/client.mjs [http://127.0.0.1:8040]`
 const base = process.argv[2] ?? 'http://127.0.0.1:8040'
 const version = await (await fetch(`${base}/version`)).json()
@@ -50,6 +51,11 @@ for (;;) {
         decisions++
         // A report mid-game (§4 `feedback`): noted at this decision.
         if (decisions == 3) ws.send(JSON.stringify({ type: 'feedback', text: `client.mjs report at ${m.decision}` }))
+        // Mid-game, the record is refused: it would show the hidden cards.
+        if (decisions == 2) {
+            const live = await fetch(`${base}/games/${game}/record`, { headers: { authorization: `Bearer ${token}` } })
+            if (live.status != 409) throw new Error(`a live game's record answered ${live.status}`)
+        }
         const o = m.options[Math.floor(Math.random() * m.options.length)]
         if (!o.text) throw new Error('text asked, none given')
         sent = JSON.stringify({ type: 'answer', decision: m.decision, option: o.index })

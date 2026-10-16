@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",

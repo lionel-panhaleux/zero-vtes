@@ -211,8 +211,7 @@ offered twice, identically, in the block window (`tests/keys.rs`, seed 201
 of `HOST_SEEDS=600`): one choice listed twice, not two choices.
 
 Server polish noted on the way: `Games::len` counts ended games until
-their idle timeout (cap undercounts); `GET /record` should fall back to
-Postgres once the game's thread is gone.
+their idle timeout (cap undercounts).
 
 
 ## B. Server, logging, deploy (`crates/server`, `engine.krcg.org`)

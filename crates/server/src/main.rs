@@ -36,6 +36,7 @@ use sha2::{Digest, Sha256};
 use tokio::sync::{mpsc, oneshot, watch};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use zvtes_api::message::{Error, SpecError};
+use zvtes_api::record::GameRecord;
 use zvtes_api::{Command, GameSpec, In, Message, Out, Player};
 use zvtes_host::Bots;
 
@@ -311,7 +312,13 @@ async fn record(State(app): State<Shared>, Path(id): Path<String>, headers: Head
     else {
         return StatusCode::UNAUTHORIZED.into_response();
     };
-    // A live game answers from its thread; a finished one from the store.
+    // A game held answers from its thread; one gone from the store. Only
+    // once over: a record holds the seed and every decision, so a player
+    // replaying it mid-game would read the hidden cards.
+    let over = |r: GameRecord| match r.result {
+        Some(_) => Json(r).into_response(),
+        None => StatusCode::CONFLICT.into_response(),
+    };
     if let Some(h) = app.games.get(&id) {
         if bearer != h.token {
             return StatusCode::UNAUTHORIZED.into_response();
@@ -319,12 +326,12 @@ async fn record(State(app): State<Shared>, Path(id): Path<String>, headers: Head
         let (tx, rx) = oneshot::channel();
         if h.jobs.send(Job::Record(tx)).is_ok() {
             if let Ok(r) = rx.await {
-                return Json(r).into_response();
+                return over(r);
             }
         }
     }
     match app.records.record(&id, Some(&store::hash(bearer))).await {
-        Some(r) => Json(r).into_response(),
+        Some(r) => over(r),
         None => StatusCode::NOT_FOUND.into_response(),
     }
 }
