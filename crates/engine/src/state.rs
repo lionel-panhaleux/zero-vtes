@@ -2940,6 +2940,13 @@ impl GameState {
         v.gained_black_hand || v.vampire().is_some_and(|c| c.black_hand)
     }
 
+    /// Is `m` on the Red List (its card's trait)?
+    pub fn is_red_list(&self, m: MinionId) -> bool {
+        self.minions[m.index()]
+            .vampire()
+            .is_some_and(|c| c.red_list)
+    }
+
     /// Must `m` hunt: a vampire with no blood, or made to?
     pub fn must_hunt(&self, m: MinionId) -> bool {
         let v = &self.minions[m.index()];

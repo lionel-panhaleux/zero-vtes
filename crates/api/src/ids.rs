@@ -149,6 +149,26 @@ ids!(
     }
 );
 
+ids!(
+    /// A minion's trait (rulebook "Traits"), printed or gained; a trait
+    /// with a parameter (Slave, a circle) is not one of them.
+    Trait {
+        /// Black Hand: printed, or become so (Mateusz Kazimirski).
+        BlackHand,
+        /// Infernal: printed, a Great Beast's, a Fury's.
+        Infernal,
+        /// On the Red List.
+        RedList,
+        /// Blood Cursed.
+        BloodCursed,
+        /// Scarce: 3 pool burned as it is influenced out for each vampire
+        /// of its clan already controlled.
+        Scarce,
+        /// Sterile: it cannot act to put new vampires in play.
+        Sterile,
+    }
+);
+
 ids!(MinionKind {
     Vampire,
     Ally,
@@ -616,5 +636,8 @@ ids!(
         /// A card's lasting effect on it (`card` says which, `n` its
         /// counters).
         Effect,
+        /// A Red List minion marked this turn (`seat`: by whom), who may
+        /// enter combat with it.
+        RedListMark,
     }
 );

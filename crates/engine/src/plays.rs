@@ -1399,7 +1399,7 @@ impl Engine {
                 let v = &st.minions[m.index()];
                 v.present()
                     && v.owner != s
-                    && v.vampire().is_some_and(|c| c.red_list)
+                    && st.is_red_list(m)
                     && !st.red_list_marks.contains(&(s, m))
             })
             .collect()

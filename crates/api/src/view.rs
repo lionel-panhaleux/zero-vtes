@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ids::{
     ActionKind, ActionStep, CopyId, DecisionNo, KrcgId, MarkerKind, MinionKind, Phase, Range,
-    ReferendumStep, Seat, StrikeKind, VoteSource,
+    ReferendumStep, Seat, StrikeKind, Trait, VoteSource,
 };
 use crate::option::Mode;
 
@@ -116,6 +116,9 @@ pub struct MinionView {
     pub cards: Vec<InPlayView>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub markers: Vec<Marker>,
+    /// Its traits as they stand (Black Hand gained included).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub traits: Vec<Trait>,
 }
 
 /// A vampire's title.

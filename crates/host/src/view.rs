@@ -20,7 +20,7 @@ use zvtes::referendum::{RefStep, Source};
 use zvtes::state::{CardId, GameState, MinionKind as Mk, HIDDEN};
 use zvtes_api::ids::{
     ActionKind, ActionStep, MarkerKind, MinionKind, Phase, Range, ReferendumStep, StrikeKind,
-    VoteSource,
+    Trait, VoteSource,
 };
 use zvtes_api::option::{DisciplineLevel, Mode};
 use zvtes_api::view::{
@@ -465,6 +465,13 @@ impl Build<'_> {
                 markers.push(marker(kind, n));
             }
         }
+        for &(s, _) in st.red_list_marks.iter().filter(|&&(_, t)| t == id) {
+            markers.push(Marker {
+                seat: Some(s.0),
+                n: None,
+                ..marker(MarkerKind::RedListMark, 0)
+            });
+        }
         for (kind, on) in [
             (MarkerKind::Disease, m.disease),
             (MarkerKind::TitleContested, m.title_contested),
@@ -508,8 +515,26 @@ impl Build<'_> {
                 .map(|c| self.in_play(c))
                 .collect(),
             markers,
+            traits: traits(st, id),
         }
     }
+}
+
+/// A minion's traits, read live.
+fn traits(st: &zvtes::state::GameState, m: MinionId) -> Vec<Trait> {
+    let printed =
+        |f: fn(&zvtes::crypt::CryptCard) -> bool| st.minions[m.index()].vampire().is_some_and(f);
+    [
+        (st.is_black_hand(m), Trait::BlackHand),
+        (st.is_infernal(m), Trait::Infernal),
+        (st.is_red_list(m), Trait::RedList),
+        (st.blood_cursed(m), Trait::BloodCursed),
+        (printed(|c| c.scarce), Trait::Scarce),
+        (printed(|c| c.sterile), Trait::Sterile),
+    ]
+    .into_iter()
+    .filter_map(|(has, t)| has.then_some(t))
+    .collect()
 }
 
 pub(crate) fn minion_kind(m: &zvtes::state::Minion) -> MinionKind {
@@ -751,5 +776,74 @@ fn action_step(s: ActionState) -> ActionStep {
         ActionState::AfterCombat => ActionStep::AfterCombat,
         ActionState::AfterResolution => ActionStep::Resolved,
         ActionState::AfterDiablerie(..) => ActionStep::Diablerie,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use zvtes::crypt::CRYPT;
+    use zvtes::game::Engine;
+    use zvtes::ids::SeatId;
+    use zvtes_api::ids::Trait;
+
+    use super::Viewer;
+    use crate::numbering::Decks;
+
+    /// The first crypt card matching `f`.
+    fn crypt(f: impl Fn(&zvtes::crypt::CryptCard) -> bool) -> u16 {
+        CRYPT
+            .iter()
+            .position(f)
+            .map(|i| i as u16)
+            .expect("a vampire")
+    }
+
+    // A minion's traits in every viewer's view, read live: a printed Black
+    // Hand vampire, one become Black Hand (Mateusz Kazimirski's way), an
+    // infernal one, a Red List one (marked this turn by seat 1: the mark
+    // shown), a Sterile one, a Blood Cursed one in torpor; a plain one none.
+    #[test]
+    fn a_minions_traits_are_in_the_view() {
+        let mut e = Engine::bare(2);
+        let only = |t: fn(&zvtes::crypt::CryptCard) -> bool| {
+            crypt(move |c| {
+                let all = [
+                    c.black_hand,
+                    c.infernal,
+                    c.red_list,
+                    c.blood_cursed,
+                    c.scarce,
+                    c.sterile,
+                ];
+                t(c) && all.iter().filter(|&&b| b).count() == 1
+            })
+        };
+        e.add_minion(SeatId(0), only(|c| c.black_hand), 4, false);
+        let plain = crypt(|c| {
+            !(c.black_hand || c.infernal || c.red_list || c.blood_cursed || c.scarce || c.sterile)
+        });
+        let gained = e.add_minion(SeatId(0), plain, 4, false);
+        e.state.minions[gained.index()].gained_black_hand = true;
+        e.add_minion(SeatId(0), crypt(|c| c.infernal), 4, false);
+        let red = e.add_minion(SeatId(0), crypt(|c| c.red_list), 4, false);
+        e.state.red_list_marks.push((SeatId(1), red));
+        e.add_minion(SeatId(0), only(|c| c.sterile), 4, false);
+        e.add_minion(SeatId(0), only(|c| c.blood_cursed), 0, true);
+        e.add_minion(SeatId(1), plain, 4, false);
+        let names = vec!["a".to_string(), "b".to_string()];
+        let v = Viewer::new(Some(SeatId(1))).view(&e, &Decks::dealt(&e), &names);
+        let ready = &v.seats[0].ready;
+        assert_eq!(ready[0].traits, vec![Trait::BlackHand]);
+        assert_eq!(ready[1].traits, vec![Trait::BlackHand], "gained");
+        assert!(ready[2].traits.contains(&Trait::Infernal));
+        assert!(ready[3].traits.contains(&Trait::RedList));
+        let mark = ready[3]
+            .markers
+            .iter()
+            .find(|m| m.kind == zvtes_api::ids::MarkerKind::RedListMark);
+        assert_eq!(mark.and_then(|m| m.seat), Some(1), "marked by seat 1");
+        assert_eq!(ready[4].traits, vec![Trait::Sterile]);
+        assert_eq!(v.seats[0].torpor[0].traits, vec![Trait::BloodCursed]);
+        assert!(v.seats[1].ready[0].traits.is_empty());
     }
 }

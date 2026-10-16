@@ -224,7 +224,11 @@ the previous one, never the engine's state.
   minion).
 - Minion: `card`, `kind` (`vampire`, `ally`, `created`, `token`), `name`,
   `blood`, `capacity`, `locked`, `contested`, `title` (id), `owner`,
-  `cards[]` (in play on it), `markers[]` (`kind`, `seat`, `n`, `card`).
+  `cards[]` (in play on it), `markers[]` (`kind`, `seat`, `n`, `card`),
+  `traits[]` (`black_hand`, `infernal`, `red_list`, `blood_cursed`,
+  `scarce`, `sterile`: as they stand, Black Hand gained included; a Red
+  List minion marked this turn carries a `red_list_mark` marker, its
+  `seat` the marking Methuselah).
 - `action`: `seat`, `acting`, `kind` (`bleed`, `hunt`, …, `card`), `step`
   (`announced`, `open`, `attempt`, `declined`, `would_succeed`,
   `blocked`, `after_combat`, `resolved`), the `card` and its `mode` and
@@ -457,7 +461,7 @@ Snake_case ids from sets the protocol does not close:
   an independent title's name.
 
 Closed sets (`Window`, `OptionKind`, `EffectKind`, `Role`, `MarkerKind`,
-`Zone`…) are listed in the schema; a client should read a value a later
+`Trait`, `Zone`…) are listed in the schema; a client should read a value a later
 host adds as unknown.
 
 ## 13. In and out of scope

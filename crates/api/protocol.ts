@@ -794,6 +794,7 @@ export type MarkerKind =
     | 'expelled'
     | 'corruption'
     | 'effect'
+    | 'red_list_mark'
     | 'unknown'
 
 export type MinionKind = 'vampire' | 'ally' | 'token' | 'created' | 'unknown'
@@ -813,6 +814,8 @@ export type MinionView = {
     /** The Methuselah whose ash heap it goes to, when not its controller. */
     owner?: number | null
     title?: Title | null
+    /** Its traits as they stand (Black Hand gained included). */
+    traits?: Trait[]
 }
 
 /**
@@ -1300,6 +1303,12 @@ export type Title = {
     /** Its votes, when the title says them (`independent`, `votes`). */
     votes?: number | null
 }
+
+/**
+ * A minion's trait (rulebook "Traits"), printed or gained; a trait
+ * with a parameter (Slave, a circle) is not one of them.
+ */
+export type Trait = 'black_hand' | 'infernal' | 'red_list' | 'blood_cursed' | 'scarce' | 'sterile' | 'unknown'
 
 export type Views = 'decisions' | 'steps'
 

@@ -2754,6 +2754,11 @@
           "const": "effect"
         },
         {
+          "description": "A Red List minion marked this turn (`seat`: by whom), who may\nenter combat with it.",
+          "type": "string",
+          "const": "red_list_mark"
+        },
+        {
           "description": "A value this reader does not know.",
           "type": "string",
           "const": "unknown"
@@ -2848,6 +2853,13 @@
               "type": "null"
             }
           ]
+        },
+        "traits": {
+          "description": "Its traits as they stand (Black Hand gained included).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Trait"
+          }
         }
       },
       "required": [
@@ -4738,6 +4750,46 @@
       },
       "required": [
         "id"
+      ]
+    },
+    "Trait": {
+      "description": "A minion's trait (rulebook \"Traits\"), printed or gained; a trait\nwith a parameter (Slave, a circle) is not one of them.",
+      "oneOf": [
+        {
+          "description": "Black Hand: printed, or become so (Mateusz Kazimirski).",
+          "type": "string",
+          "const": "black_hand"
+        },
+        {
+          "description": "Infernal: printed, a Great Beast's, a Fury's.",
+          "type": "string",
+          "const": "infernal"
+        },
+        {
+          "description": "On the Red List.",
+          "type": "string",
+          "const": "red_list"
+        },
+        {
+          "description": "Blood Cursed.",
+          "type": "string",
+          "const": "blood_cursed"
+        },
+        {
+          "description": "Scarce: 3 pool burned as it is influenced out for each vampire\nof its clan already controlled.",
+          "type": "string",
+          "const": "scarce"
+        },
+        {
+          "description": "Sterile: it cannot act to put new vampires in play.",
+          "type": "string",
+          "const": "sterile"
+        },
+        {
+          "description": "A value this reader does not know.",
+          "type": "string",
+          "const": "unknown"
+        }
       ]
     },
     "Views": {
