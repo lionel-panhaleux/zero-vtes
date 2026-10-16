@@ -424,6 +424,7 @@ ended; the last `pool`, `blood` and `torpor` told are the next view's.
 | `GET /admin/games?since=&engine=&limit=` | the games recorded, oldest first: `id`, `engine`, `client`, `started`, `ended` (absent: going on the server now), `result`, `entries` (the operator's: `Authorization: Bearer <admin token>`) |
 | `GET /admin/games/{game}/record` | any game's record, as far as it went (the operator's) |
 | `GET /admin/feedback?since=&limit=` | the players' feedback, oldest first: `game`, `engine`, `at` (Unix ms), `decision`, `text` (the operator's) |
+| `GET /admin/unsupported` | the cards refused decks named (`SpecError` `unsupported`), counted: `[{id, count}]`, KRCG ids, the most asked first (ids and counts only; the operator's) |
 
 No account: the token is the seat, never in a URL. The server checks
 the WebSocket's `Origin` against the platforms it serves.

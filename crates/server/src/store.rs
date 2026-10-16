@@ -92,7 +92,15 @@ create table if not exists game_entries (
     primary key (game, n)
 );
 create index if not exists games_started on games (started);
+create table if not exists unsupported (
+    card bigint primary key,
+    count bigint not null
+);
 ";
+
+/// The file store's refused card ids, a line of them a refusal (not
+/// `.jsonl`: those are games).
+const UNSUPPORTED_FILE: &str = "unsupported.lines";
 
 impl Store {
     pub async fn open(database: Option<String>, dir: PathBuf) -> Store {
@@ -403,6 +411,62 @@ impl Store {
                 out
             }
         };
+        Ok(out)
+    }
+
+    /// Counts a refused deck's card ids (KRCG ids, each once).
+    pub async fn count_unsupported(&self, cards: &[u64]) -> Result<(), String> {
+        match self {
+            Store::Postgres(pool) => {
+                // One statement: a refusal counts whole or not at all (the
+                // ids are distinct, no row touched twice).
+                let ids: Vec<i64> = cards.iter().map(|&c| c as i64).collect();
+                sqlx::query(
+                    "insert into unsupported (card, count) select unnest($1::bigint[]), 1
+                     on conflict (card) do update set count = unsupported.count + 1",
+                )
+                .bind(ids)
+                .execute(pool)
+                .await
+                .map(|_| ())
+                .map_err(|e| e.to_string())
+            }
+            Store::Files(dir) => {
+                let line: Vec<String> = cards.iter().map(u64::to_string).collect();
+                let mut f = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(dir.join(UNSUPPORTED_FILE))
+                    .map_err(|e| e.to_string())?;
+                // One write: refusals answered at once do not interleave.
+                f.write_all(format!("{}\n", line.join(" ")).as_bytes())
+                    .map_err(|e| e.to_string())
+            }
+        }
+    }
+
+    /// The refused card ids counted, the most asked first (then by id).
+    pub async fn unsupported(&self) -> Result<Vec<(u64, u64)>, String> {
+        let mut out: Vec<(u64, u64)> = match self {
+            Store::Postgres(pool) => {
+                let rows: Vec<(i64, i64)> = sqlx::query_as("select card, count from unsupported")
+                    .fetch_all(pool)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                rows.into_iter()
+                    .map(|(c, n)| (c as u64, n as u64))
+                    .collect()
+            }
+            Store::Files(dir) => {
+                let text = std::fs::read_to_string(dir.join(UNSUPPORTED_FILE)).unwrap_or_default();
+                let mut counts = std::collections::BTreeMap::<u64, u64>::new();
+                for id in text.split_whitespace().filter_map(|t| t.parse().ok()) {
+                    *counts.entry(id).or_default() += 1;
+                }
+                counts.into_iter().collect()
+            }
+        };
+        out.sort_by_key(|&(c, n)| (std::cmp::Reverse(n), c));
         Ok(out)
     }
 
@@ -738,5 +802,53 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos() as u64
+    }
+
+    /// Two refusals: one card asked twice, another once; the most asked
+    /// first.
+    async fn unsupported_counted(store: &Store, a: u64, b: u64) {
+        store.count_unsupported(&[a, b]).await.unwrap();
+        store.count_unsupported(&[a]).await.unwrap();
+        let counted: Vec<(u64, u64)> = store
+            .unsupported()
+            .await
+            .unwrap()
+            .into_iter()
+            .filter(|&(c, _)| c == a || c == b)
+            .collect();
+        assert_eq!(counted, vec![(a, 2), (b, 1)]);
+    }
+
+    #[tokio::test]
+    async fn refused_cards_are_counted_in_files() {
+        let dir = std::env::temp_dir().join(format!("zvtes-unsupported-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let store = Store::open(None, dir.clone()).await;
+        unsupported_counted(&store, 101_234, 201_234).await;
+        // Not a game: the list ignores it.
+        assert!(store.list(None, None, 10).await.unwrap().is_empty());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn refused_cards_are_counted_on_postgres() {
+        let Ok(url) = std::env::var("ZVTES_TEST_DATABASE_URL") else {
+            eprintln!("skipped: no ZVTES_TEST_DATABASE_URL");
+            return;
+        };
+        let _scratch = SCRATCH.lock().await;
+        let store = Store::open(Some(url), PathBuf::new()).await;
+        let Store::Postgres(pool) = &store else {
+            unreachable!()
+        };
+        let clear = || async {
+            sqlx::query("delete from unsupported where card in (299998, 299999)")
+                .execute(pool)
+                .await
+                .unwrap();
+        };
+        clear().await;
+        unsupported_counted(&store, 299_998, 299_999).await;
+        clear().await;
     }
 }

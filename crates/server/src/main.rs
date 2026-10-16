@@ -12,9 +12,9 @@
 //!   `ZVTES_IDLE` seconds (1800), `ZVTES_TIME_LIMIT` max turns (200),
 //!   `ZVTES_RETENTION` days (730), `ZVTES_RATE` commands a second (20)
 //! - `ZVTES_ADMIN_SHA256`: the admin token's SHA-256 (hex), never the
-//!   token: `GET /admin/games`, `/admin/games/{id}/record` and
-//!   `/admin/feedback` with `Authorization: Bearer <token>` (absent: no
-//!   admin routes)
+//!   token: `GET /admin/games`, `/admin/games/{id}/record`,
+//!   `/admin/feedback` and `/admin/unsupported` with `Authorization:
+//!   Bearer <token>` (absent: no admin routes)
 
 mod games;
 mod store;
@@ -156,6 +156,7 @@ async fn main() {
         .route("/admin/games", get(admin_games))
         .route("/admin/games/{id}/record", get(admin_record))
         .route("/admin/feedback", get(admin_feedback))
+        .route("/admin/unsupported", get(admin_unsupported))
         .layer(cors(&app.config.origins))
         .with_state(app);
     let listener = tokio::net::TcpListener::bind(&listen)
@@ -300,8 +301,32 @@ async fn create(
         Ok((game, seat, token)) => {
             Json(json!({"game": game, "seat": seat, "token": token})).into_response()
         }
-        Err(e) => refuse(StatusCode::BAD_REQUEST, e),
+        Err(e) => {
+            // The cards players ask for (ids and counts only, no player
+            // data), for the cards line's round choice.
+            if let SpecError::Unsupported { cards, .. } = &e {
+                let ids = demanded(cards);
+                if let Err(why) = app.records.count_unsupported(&ids).await {
+                    eprintln!("unsupported: {why}");
+                }
+            }
+            refuse(StatusCode::BAD_REQUEST, e)
+        }
     }
+}
+
+/// A refusal's card ids as counted: KRCG ids only, each once, at most a
+/// deck's worth (a client sends what it likes).
+fn demanded(cards: &[String]) -> Vec<u64> {
+    let mut ids: Vec<u64> = cards
+        .iter()
+        .filter_map(|c| c.parse().ok())
+        .filter(|id| (100_000..300_000).contains(id))
+        .collect();
+    ids.sort_unstable();
+    ids.dedup();
+    ids.truncate(200);
+    ids
 }
 
 async fn record(State(app): State<Shared>, Path(id): Path<String>, headers: HeaderMap) -> Response {
@@ -391,6 +416,24 @@ async fn admin_feedback(
     let limit = q.limit.unwrap_or(1000).clamp(1, 10_000);
     match app.records.feedback(q.since, limit).await {
         Ok(f) => Json(f).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
+    }
+}
+
+/// The card ids refused decks named, counted, the most asked first (the
+/// admin's).
+async fn admin_unsupported(State(app): State<Shared>, headers: HeaderMap) -> Response {
+    if !admin(&app, &headers) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    match app.records.unsupported().await {
+        Ok(counts) => {
+            let list: Vec<_> = counts
+                .into_iter()
+                .map(|(id, count)| json!({"id": id, "count": count}))
+                .collect();
+            Json(list).into_response()
+        }
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
     }
 }

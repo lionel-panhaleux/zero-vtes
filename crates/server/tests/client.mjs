@@ -1,8 +1,9 @@
 // A full game against a running zvtes-server, as a client would play it
 // (docs/protocol.md §2): POST /games, the WebSocket, `join` with the
 // token, answers by option index, a `feedback` mid-game, the record
-// refused mid-game and read at the end; with ZVTES_ADMIN_TOKEN, the
-// feedback read from /admin/feedback.
+// refused mid-game and read at the end, a deck with a card outside the
+// pool refused; with ZVTES_ADMIN_TOKEN, the feedback read from
+// /admin/feedback and the refused card counted at /admin/unsupported.
 // `node crates/server/tests/client.mjs [http://127.0.0.1:8040]`
 const base = process.argv[2] ?? 'http://127.0.0.1:8040'
 const version = await (await fetch(`${base}/version`)).json()
@@ -21,6 +22,16 @@ const spec = {
 const two = await fetch(`${base}/games`, { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ ...spec, seats: spec.seats.map(s => ({ ...s, player: { type: 'human' } })) }) })
 if (two.status != 400) throw new Error('four humans accepted')
+// A card outside the pool: refused, its id counted for the admin.
+const outside = '299999'
+const asked = await fetch(`${base}/games`, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ...spec, seats: spec.seats.map((s, i) => i ? s : { ...s, deck: { ...s.deck, [outside]: 1 } }) }) })
+if (asked.status != 400 || !(await asked.text()).includes(outside)) throw new Error('an unsupported card accepted')
+if (process.env.ZVTES_ADMIN_TOKEN) {
+    const demand = await (await fetch(`${base}/admin/unsupported`, { headers: { authorization: `Bearer ${process.env.ZVTES_ADMIN_TOKEN}` } })).json()
+    if (!demand.some(d => d.id == Number(outside) && d.count >= 1)) throw new Error('the refused card not counted')
+    console.log(`demand: ${outside} counted (${demand.length} ids listed)`)
+}
 const res = await fetch(`${base}/games`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(spec) })
 const { game, seat, token } = await res.json()
 console.log(`game ${game}, seat ${seat}`)
