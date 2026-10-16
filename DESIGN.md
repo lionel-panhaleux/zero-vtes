@@ -1585,29 +1585,56 @@ training runs.
   day (nightmare 6 in the server's bots), the only engine since P6's
   merge (`243bf6b`: the wasm gone, bot settings in
   `crates/server/src/games.rs`).
-- **p11** (`runs/p11`; owner, 2026-10-14: launched after Z-beta's engine
-  refactor, `aa50ca0`, round 11's cards, the vocabulary remapped). Cross-table play (owner: until a seat is ousted, damage
-  between cross-table seats "only benefits the bouncing prey" — accept
-  the block, keep the combat harmless; ousting a threatening cross-table
-  seat stays right, so it should emerge, not be nudged). Measured by
-  `waste` (adjacent / cross-table, no seat ousted), p10@3840 self-play,
-  160 games at 4 / 5 seats: stealth answering a block attempt on its
-  bleed 86% / 87%, 89% / 82%; blood the opposing minion lost a combat
-  0.96 / 1.19, 0.98 / 1.18; sent to torpor or burned 11% / 19%, 12% /
-  15%; pool a bleed took from its prey / a cross-table seat 1.36 / 0.14,
-  1.39 / 0.15 — no restraint, harder on cross-table minions. The owner's
-  31 records: 2.15 / 0.09 a bleed, too few cross-table combats (11) or
-  bounced attempts (0) to read. Restraint pays only once both sides learn
-  it, which frozen opponents never do: `--partner-rate 0.5` seats a
-  second learner across the table from the first on half the league
-  tables. No weak decks (owner: p10's per-deck order now matches the
-  players' sense of relative strength). From p10@3840, opponents p9@3400
-  and p10@3840 frozen, the other settings as p10's. Wider View
-  (`waste --twda`, 120 games; also in four precons: Malkavian, Tremere,
-  Ventrue, Ministry; remeasured on `45debc9`): p10 takes its
-  draw-and-remove at 29% of the decisions offering it on TWDA decks, 39%
-  on the precons, 26% of uses under 4 crypt cards left (the owner 12%,
-  none): no nudge (owner, 2026-10-14), p11's snapshots measured.
+- **p11** (`runs/p11`, `../zero-vtes-p11` at `45debc9`, round 11's cards;
+  2026-10-14 to 10-16, 3841 → 4400). The question (owner): until a seat
+  is ousted, damage between cross-table seats "only benefits the bouncing
+  prey" — accept the block, keep the combat harmless, yet oust a
+  threatening cross-table seat — so restraint should emerge, not be
+  nudged; it pays only once both sides learn it, which frozen opponents
+  never do: `--partner-rate 0.5` (a second learner across the table on
+  half the league tables, ~22k samples an iteration instead of ~15.5k;
+  13–17 GB resident, cycling within each iteration, no leak). No weak
+  decks (owner: p10's per-deck order matches the players' sense of
+  strength); Wider View (findings E7) left to emerge (owner: no nudge).
+  From p10@3840, opponents p9@3400 and p10@3840 frozen, the rest as p10:
+  `--lr 1e-4 --entropy-coef 0.048 --gw-weight 5 --decks
+  precons,anniversary,sabbat,twda --starts data/records --start-tables
+  0.25`, nudges rescue 6 bleed 4 idle 3 draw 7 stuck 6 nightmare 6
+  (`--nudge-until 0`), `--bc data/records --bc-coef 0.02`, the five
+  held-out games named, `--bots-every 0`. Scores (re-measured bests):
+  1.93 at 3860, 2.13, 2.30, 2.38, **2.67 at 4340** (4 seats 1.34 VP a
+  seat, 0.32 game wins; 5 seats 1.11, 0.21); win shares against p9 0.50
+  → 0.55, against p10 0.47 → 0.54; held-out imitation 0.50 → 0.44 (the
+  RL pulls off the owner's style). `waste` on `45debc9`, adjacent /
+  cross-table while no seat is ousted, p10@3840 → p11@3980 → p11@4340, 160
+  games: blood the opposing minion lost a combat, 4 seats 0.95 / 1.19 →
+  1.04 / 1.22 → 0.95 / 1.21, 5 seats 0.98 / 1.18 → 0.98 / 1.37 → 0.95 /
+  1.29; sent to torpor or burned, 4 seats 11% / 19% → 9% / 13%; pool a
+  bleed took from a cross-table seat 0.14 → 0.18 (its prey 1.36 → 1.21):
+  **no restraint emerged** — pairing alone does not teach it. Wider View
+  (draw-and-remove taken, of the offers): precons 39% → 16%, TWDA 29% →
+  15%; with under 4 crypt cards 26% → 8–15% (the owner 12%, none):
+  **learned without a nudge**. With the server's nudges (24 games):
+  stuck transfers 2.9% (p10 4.9%), own nightmares 0 of 13, rescues 42%,
+  crypt draws 5% (the owner 11%), cycling 86%, a playable card cycled
+  while an unplayable stays 34%, wakes with no block 86%, unlocks with no
+  action 43%. Per deck (`decks.rs`, 600 games a measure, self-play VP a
+  seat / at one seat against three p10): Malkavian 1.54 / 1.80, Ravnos
+  1.42 / 1.23, Ministry 1.37 / 1.50, Hecata 1.20 / 1.53 …; the lowest
+  Salubri 0.56 / 0.77, Path of Cathari 0.58 / 0.23, Gangrel 0.64 / 0.62,
+  Nosferatu 0.65 / 0.57, Path of Death 0.69 / 1.13; against three p10
+  0.99 VP a seat on average. Exported `runs/p11/best.zvp` (sha256
+  `b9035931a527`); to be served on engine.krcg.org at the 1.6.0 deploy
+  (owner, 2026-10-16), the previous `runs/served-prev-2026-10-16-p10at3840.zvp`
+  (`7aaa9528fbf8`). Humans against p10 (the harvest, 14 games): 11 won
+  (79%), 2.79 VP a seat, the bots 0.33 — p11's bar.
+- **p12** (`runs/p12`, `../zero-vtes-p12` at `cb3b4a6`, round 13's cards,
+  E25 with the futile-block mask; launched 2026-10-16, 4341 → 4900). From
+  p11@4340, opponents p10@3840 and p11@4340 frozen; imitation winners
+  only (owner, 2026-10-15) over `data/records` and the 15 harvested games
+  played out (8,381 choices, 3,058 harvested; the same five held out),
+  the same games as starts; the rest as p11 (`--partner-rate 0.5`, the
+  nudges, no weak decks).
 - **Futile blocks on the E25 engine** (owner, 2026-10-15: before any
   redeploy). E25 (`97c4880`) offers every legal block attempt, those
   that cannot reach the stealth too (`Engine::block_can_reach`); no

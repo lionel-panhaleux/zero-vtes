@@ -11,7 +11,7 @@ description: >
 
 # Training the bots
 
-The bots improve in runs (p8 … p11), each from the last, measured against a
+The bots improve in runs (p8 …), each from the last, measured against a
 baseline, and fed by the games humans play online. Card additions never
 wait on training; training takes engine updates at the start of a run.
 Read first: DESIGN §5 (the agent) and §11.2 "Policy surface and training
@@ -102,7 +102,14 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
   filtered copy of harvested games, never the raw `data/server-records`
   directory (`--bc`/`--starts` read every `*.json` there: bot-only,
   abandoned and short games as starts, every stranger who won as an
-  imitation target). Imitation (`--bc`) keeps only the human who won (owner,
+  imitation target). The list: the harvested games the report
+  counts (`games_report.py`'s docstring has the rule), written by
+  `python3 scripts/games_report.py --list <file>` in the shared checkout
+  on `main`, after the harvest (its defaults: from a worktree the list is
+  empty and new records' turns would cache that worktree's engine; not
+  with `--no-turns`, which counts other games short), as absolute paths,
+  comma-separated: `--bc data/records,$(cat <file>)`, the same for
+  `--starts`. Imitation (`--bc`) keeps only the human who won (owner,
   2026-10-15: the bot is strong and not every human is good; only a game
   played out, last standing or the time limit: a lost, unfinished or
   abandoned one gives nothing, its leader recorded as winner or not), among the options they were shown (a

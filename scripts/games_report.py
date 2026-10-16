@@ -6,7 +6,7 @@ report — `<dir>/reports/<date>.md` for the games first seen by this run
 every game — and a short summary on stdout.
 
 Usage: python3 scripts/games_report.py [DIR] [--catalog FILE|URL]
-    [--date YYYY-MM-DD] [--no-turns] [--no-waste] [--min-rounds 2] [--min-decisions 30]
+    [--date YYYY-MM-DD] [--no-turns] [--no-waste] [--list FILE] [--min-rounds 2] [--min-decisions 30]
     [--test-clients client.mjs,load.mjs]
 
 A game counts when it ended normally with a human seat; abandoned games,
@@ -22,7 +22,8 @@ engine stopped partway. Decks are named from the server's catalog
 equals one; else "custom", with the closest catalog deck when near.
 Each report ends with the bots' waste in its counted games (`waste`:
 `cargo build -p zvtes-policy --profile ci --example waste`, by profile and
-weights; `--no-waste` skips it).
+weights; `--no-waste` skips it). `--list FILE` writes the counted games'
+paths, absolute and comma-separated: a run's `--bc` and `--starts` list.
 """
 
 import argparse
@@ -449,6 +450,9 @@ def main():
     p.add_argument("--date", default=datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d"))
     p.add_argument("--no-turns", action="store_true", help="do not replay the records for their turns")
     p.add_argument("--no-waste", action="store_true", help="no section of the bots' waste")
+    p.add_argument(
+        "--list", type=pathlib.Path, help="write the counted games' paths there, absolute and comma-separated (--bc, --starts)"
+    )
     p.add_argument("--min-rounds", type=int, default=2)
     p.add_argument("--min-decisions", type=int, default=30)
     p.add_argument(
@@ -496,6 +500,11 @@ def main():
     run = [g for g in games if g["first"] == args.date or g["first"] is None]
     day = reports / f"{args.date}.md"
     total = reports / "total.md"
+    if args.list:
+        args.list.write_text(
+            ",".join(str(pathlib.Path(g["path"]).resolve()) for g in games if g["status"] == "counted")
+        )
+
     def section(gs):
         return "" if args.no_waste else waste([g["path"] for g in gs if g["status"] == "counted"])
 

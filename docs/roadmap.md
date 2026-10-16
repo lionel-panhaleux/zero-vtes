@@ -30,15 +30,15 @@ What it still needs:
    SC on krcg, or a platform made for the engine (platforms: Ask the owner
    whether to chase Thomas; the platforms line held until his review,
    owner 2026-10-15).
-2. **The best bot served**: p11 finished, measured and served if it beats
-   p10 (training: p11 to its end; p11's two questions measured).
+2. **The best bot served**: p12 finished, measured and served if it beats
+   p11 (p11 served from the 1.6.0 deploy; training: p12 to its end).
 3. **Games that survive the server**: a game rebuilt after a restart
    (engine: A game survives a restart).
 4. **Complete records** (engine: Records complete).
-5. **The loop on testers' games**: the harvest scheduled and its report
-   read, promotion to `data/records`, the human win rate as the measure
-   (training: The harvest on a schedule; Promotion as a script; The human
-   win rate).
+5. **The loop on testers' games**: promotion to `data/records` and an
+   evaluation set of the positions where a human beat the bot (training:
+   Promotion as a script; An evaluation set of positions where a human
+   beat the bot).
 6. **Feedback intake**: a "report a problem" from inside the game (the
    protocol's `feedback`, stored with the record at its decision;
    platforms: "Report a problem"), plus one community channel the notice
