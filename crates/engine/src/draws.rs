@@ -45,6 +45,14 @@ pub enum Interrupt {
         from: MinionId,
         anarchs: bool,
     },
+    /// Diablerie step 2 (rulebook "Diablerie"): the diablerist may take
+    /// any equipment on the victim it can hold, a card at a time; as it
+    /// ends, step 3 (the victim burns, its blood to the diablerist).
+    DiablerieEquipment {
+        seat: SeatId,
+        diablerist: MinionId,
+        victim: MinionId,
+    },
     /// Heidelberg Castle: `to` first, then blood (excess to the bank, ANK
     /// 20170804), then equipment and retainers `to` can hold (LSJ 19980831).
     MoveBetween {
@@ -468,6 +476,7 @@ impl Interrupt {
     fn seat(self) -> SeatId {
         match self {
             Interrupt::GiveBlood { seat, .. }
+            | Interrupt::DiablerieEquipment { seat, .. }
             | Interrupt::MoveBetween { seat, .. }
             | Interrupt::PayOrBurn { seat, .. }
             | Interrupt::LockOrDiscard { seat, .. }
@@ -699,6 +708,13 @@ impl Engine {
                     if self.state.cards[card.index()].in_play {
                         self.burn_card_in_play(card);
                     }
+                }
+                // The diablerie goes on without its choice.
+                if let Interrupt::DiablerieEquipment {
+                    diablerist, victim, ..
+                } = front
+                {
+                    self.diablerie_burns(diablerist, victim);
                 }
                 continue;
             }
@@ -1153,6 +1169,16 @@ impl Engine {
                         && v.blood > 0
                         && !self.blood_recipients(seat, from, anarchs).is_empty()
                 }
+                Interrupt::DiablerieEquipment {
+                    diablerist, victim, ..
+                } => {
+                    if self.diablerie_equipment(diablerist, victim).is_empty() {
+                        self.interrupts.remove(0);
+                        self.diablerie_burns(diablerist, victim);
+                        continue;
+                    }
+                    true
+                }
                 Interrupt::MoveBetween {
                     seat,
                     from,
@@ -1260,6 +1286,17 @@ impl Engine {
                     .map(Choice::ChooseMinion)
                     .collect(),
             ),
+            Interrupt::DiablerieEquipment {
+                diablerist, victim, ..
+            } => (WindowLabel::ResolutionChoice, {
+                let mut options = vec![Choice::Pass];
+                options.extend(
+                    self.diablerie_equipment(diablerist, victim)
+                        .into_iter()
+                        .map(|c| Choice::ChooseCard(c.0)),
+                );
+                options
+            }),
             Interrupt::MoveBetween {
                 seat,
                 from,
@@ -2225,21 +2262,45 @@ impl Engine {
             .collect()
     }
 
-    /// The equipment and retainers on `from` that `to` could have (LSJ
-    /// 19980831: not on a vampire barred from them).
-    fn movable_cards(&self, from: MinionId, to: MinionId) -> Vec<CardId> {
-        if self.state.no_equipment_or_retainers(to) {
-            return Vec::new();
-        }
-        let mut out: Vec<CardId> = self
-            .state
+    /// The equipment on a diablerie's victim its diablerist could take:
+    /// one it could hold, not one barred from it (Soul Gem of Etrius).
+    pub(crate) fn diablerie_equipment(
+        &self,
+        diablerist: MinionId,
+        victim: MinionId,
+    ) -> Vec<CardId> {
+        self.holdable_equipment(victim, diablerist)
+            .into_iter()
+            .filter(|c| {
+                let c = &self.state.cards[c.index()];
+                !cards::lookup(c.card).is_some_and(|d| {
+                    d.modes[c.mode as usize]
+                        .effects
+                        .contains(&Effect::NotTakenByDiablerie)
+                })
+            })
+            .collect()
+    }
+
+    /// The equipment on `from` that `to` could hold (LSJ 19980831: not on
+    /// a vampire barred from it).
+    fn holdable_equipment(&self, from: MinionId, to: MinionId) -> Vec<CardId> {
+        self.state
             .equipment_on(from)
             .into_iter()
             .filter(|c| {
                 self.state
                     .can_hold(to, self.state.cards[c.index()].card, &[])
             })
-            .collect();
+            .collect()
+    }
+
+    /// The equipment and retainers on `from` that `to` could have.
+    fn movable_cards(&self, from: MinionId, to: MinionId) -> Vec<CardId> {
+        if self.state.no_equipment_or_retainers(to) {
+            return Vec::new();
+        }
+        let mut out = self.holdable_equipment(from, to);
         out.extend(
             self.state
                 .cards
@@ -3211,6 +3272,18 @@ impl Engine {
                     to: Some(to),
                     blood_done: true,
                 };
+            }
+            (Interrupt::DiablerieEquipment { diablerist, .. }, Choice::ChooseCard(c)) => {
+                self.state.cards[c as usize].host = Some(diablerist);
+            }
+            (
+                Interrupt::DiablerieEquipment {
+                    diablerist, victim, ..
+                },
+                Choice::Pass,
+            ) => {
+                self.interrupts.remove(0);
+                self.diablerie_burns(diablerist, victim);
             }
             (Interrupt::MoveBetween { to: Some(to), .. }, Choice::ChooseCard(c)) => {
                 self.state.cards[c as usize].host = Some(to);

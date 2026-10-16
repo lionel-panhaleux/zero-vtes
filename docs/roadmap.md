@@ -46,7 +46,7 @@ What it still needs:
    skill triages it.
 7. **Known rough edges fixed**: the panel overflow (platforms: The
    referendum and action panels); Sniper Rifle and strike-only prevention
-   (cards); diablerie's equipment (engine).
+   (cards).
 8. **What players asked for**: the cards their refused decks named,
    counted (engine: Demand for cards counted), to steer the next rounds
    (cards: Round 14).

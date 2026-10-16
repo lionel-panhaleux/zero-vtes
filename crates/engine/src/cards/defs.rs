@@ -17387,11 +17387,14 @@ pub static SARGON_FRAGMENT: CardDef = CardDef {
 /// diablerizing vampire cannot take the Soul Gem." Not when removed from
 /// the game (LSJ 20000113); the new vampire a new one (LSJ 20100213); one
 /// unable to have equipment keeps it all the same (LSJ 20100527); an empty
-/// crypt: the Gem burns. No equipment passes by diablerie in the engine.
+/// crypt: the Gem burns.
 pub static SOUL_GEM_OF_ETRIUS: CardDef = CardDef {
     name: "Soul Gem of Etrius",
     modes: &[ModeDef {
-        effects: &[Effect::DeclareAction(ActionKind::Equip)],
+        effects: &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::NotTakenByDiablerie,
+        ],
         ..EQUIP
     }],
     riders: &[Rider {

@@ -467,6 +467,8 @@ fn asked(
             -has(EffectKind::Pool)?.n?,
             n.own(has(EffectKind::Keep)?.copy?)
         ),
+        (P::DiablerieEquipment, K::ChooseCard) => role("moves")?,
+        (P::DiablerieEquipment, K::Pass) => "Take nothing more".into(),
         (P::MoveBetween, K::ChooseMinion) => role("receives")?,
         (P::MoveBetween, K::ChooseCard) => role("moves")?,
         (P::MoveBetween, K::Pass) => "Move nothing more".into(),

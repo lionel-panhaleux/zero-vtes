@@ -773,6 +773,13 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 minion: m(from),
                 ..a()
             },
+            I::DiablerieEquipment {
+                diablerist, victim, ..
+            } => About {
+                minion: m(victim),
+                to: m(diablerist),
+                ..a()
+            },
             I::MoveBetween {
                 from,
                 to,

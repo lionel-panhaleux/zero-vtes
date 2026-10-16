@@ -4142,6 +4142,9 @@ pub enum Effect {
     /// A marker the diablerie reads: a Sabbat diablerist takes this card,
     /// before the blood hunt (Regent).
     MovesToSabbatDiablerist,
+    /// A marker the diablerie reads: the diablerist cannot take this
+    /// equipment (Soul Gem of Etrius).
+    NotTakenByDiablerie,
     /// Add n blood to each uncontrolled vampire of the printed sect
     /// (Magnetic Authority [DOM]/[POT]).
     BloodToEachUncontrolledOfSect(Sect, u8),

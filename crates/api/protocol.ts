@@ -993,6 +993,7 @@ export type Purpose =
     | 'search_equip_for'
     | 'give_blood'
     | 'move_between'
+    | 'diablerie_equipment'
     | 'pay_or_burn'
     | 'lock_or_discard'
     | 'blood_or_burned'

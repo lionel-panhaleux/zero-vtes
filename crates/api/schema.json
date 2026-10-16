@@ -3442,6 +3442,11 @@
           "const": "move_between"
         },
         {
+          "description": "Diablerie: `seat`'s diablerist (`to`) takes the victim's\n(`minion`) equipment, one card at a time, each one it could\nhold, until done; the victim then burns (rulebook \"Diablerie\").",
+          "type": "string",
+          "const": "diablerie_equipment"
+        },
+        {
           "description": "\"Burned unless its controller burns n pool\" (Conquest of Humanity):\n`seat` pays or lets `card` burn.",
           "type": "string",
           "const": "pay_or_burn"

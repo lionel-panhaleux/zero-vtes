@@ -3070,10 +3070,11 @@ impl Engine {
         }
     }
 
-    /// Rulebook "Diablerie" steps 1 and 3: blood to the diablerist, victim
-    /// burned.
+    /// Rulebook "Diablerie": the steps resolve as one, nothing played
+    /// between them. Step 2 (the victim's equipment taken) is a choice:
+    /// with equipment the diablerist could hold, an interrupt asks it, and
+    /// steps 1 and 3 (`diablerie_burns`) follow as it ends.
     fn diablerise(&mut self, diablerist: MinionId, victim: MinionId) {
-        let taken = self.state.minions[victim.index()].blood;
         // Regent: to a Sabbat diablerist, before the victim burns (and the
         // blood hunt is called).
         if self.state.sect_of(diablerist) == Some(crate::crypt::Sect::Sabbat) {
@@ -3095,6 +3096,23 @@ impl Engine {
                 }
             }
         }
+        if self.diablerie_equipment(diablerist, victim).is_empty() {
+            self.diablerie_burns(diablerist, victim);
+            return;
+        }
+        let seat = self.state.minions[diablerist.index()].owner;
+        self.interrupts
+            .push(crate::draws::Interrupt::DiablerieEquipment {
+                seat,
+                diablerist,
+                victim,
+            });
+    }
+
+    /// Rulebook "Diablerie" steps 1 and 3: blood to the diablerist, victim
+    /// burned.
+    pub(crate) fn diablerie_burns(&mut self, diablerist: MinionId, victim: MinionId) {
+        let taken = self.state.minions[victim.index()].blood;
         // Marta: an older victim, read before it burns.
         let older = self.state.younger_than(diablerist, victim);
         // Burned from torpor: the cards on it go, no "ready minion" rider.

@@ -106,6 +106,7 @@ pub fn purpose(i: &Interrupt) -> Purpose {
         I::MoveCardToTitled { .. } => Purpose::MoveCardToTitled,
         I::GiveBlood { .. } => Purpose::GiveBlood,
         I::MoveBetween { .. } => Purpose::MoveBetween,
+        I::DiablerieEquipment { .. } => Purpose::DiablerieEquipment,
         I::PayOrBurn { .. } => Purpose::PayOrBurn,
         I::LockOrDiscard { .. } => Purpose::LockOrDiscard,
         I::BloodOrBurned { .. } => Purpose::BloodOrBurned,

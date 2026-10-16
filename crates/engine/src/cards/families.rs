@@ -601,6 +601,7 @@ impl Effect {
             | E::GainTransfers(..)
             | E::ShuffleSourceIntoLibrary
             | E::MovesToSabbatDiablerist
+            | E::NotTakenByDiablerie
             | E::RemovedAfterSuccessOrWithoutInfernal
             | E::StillYours => (Family::Marker, false),
             // Read as the combat begins (Abuse of Power, Pillars Fall), as the

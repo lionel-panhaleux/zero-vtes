@@ -596,6 +596,11 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   its unlock, in the controller's order (rules-qa 53.6): a gain can be
   taken by the unlock first, a loss after it; the rest applies as the
   action ends.
+- **Diablerie's steps** (`diablerise`): one unit, nothing played between
+  them (rulebook "Diablerie"); step 2, the victim's equipment the
+  diablerist could hold, is `Interrupt::DiablerieEquipment` (a card at a
+  time, `ResolutionChoice`), and steps 1 and 3 (`diablerie_burns`: the
+  blood, the burn) follow as it ends; with nothing to take, at once.
 - **Diablerie's blood hunt** (`end_action_into_blood_hunt`): part of the
   action (spec §3.7.8.1), which ends after it through its after-resolution
   window (rules-qa 5.8); the referendum's rotation starts at the

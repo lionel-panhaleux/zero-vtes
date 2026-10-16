@@ -6990,6 +6990,136 @@ fn warsaw_station_unlocks_a_successful_nosferatu_even_once_burned() {
     assert_eq!(blood(&e, n), 3);
 }
 
+// Rulebook "Diablerie", step 2: "The diablerist may take any equipment
+// on the victim." Femur of Toomler taken, then nothing more: the Ivory Bow
+// burns with the victim, its blood to the diablerist.
+#[test]
+fn a_diablerist_takes_the_victims_equipment() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let victim = e.add_minion(SeatId(1), plain("", "", 2), 2, true);
+    e.add_minion(SeatId(1), plain("", "", 3), 4, false);
+    let femur = CardId(e.state.cards.len() as u32);
+    e.state.cards.push(CardInPlay::new(
+        find_library("Femur of Toomler"),
+        SeatId(1),
+        Some(victim),
+        0,
+    ));
+    let bow = CardId(e.state.cards.len() as u32);
+    e.state.cards.push(CardInPlay::new(
+        find_library("Ivory Bow"),
+        SeatId(1),
+        Some(victim),
+        0,
+    ));
+    pick(
+        &mut e,
+        Choice::TakeAction {
+            minion: a,
+            action: ActionKind::Diablerie,
+            target: Some(victim),
+        },
+    );
+    let req = offering(&mut e, Choice::ChooseCard(femur.0));
+    assert_eq!(req.window, WindowLabel::ResolutionChoice);
+    assert_eq!(req.seat, SeatId(0));
+    assert!(req.options.contains(&Choice::ChooseCard(bow.0)));
+    e.choose(index_of(&req, Choice::ChooseCard(femur.0)));
+    // Still the diablerist's choice: the bow, or nothing more.
+    let req = request(&mut e);
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(0), WindowLabel::ResolutionChoice)
+    );
+    assert_eq!(req.options, vec![Choice::Pass, Choice::ChooseCard(bow.0)]);
+    e.choose(index_of(&req, Choice::Pass));
+    assert_eq!(e.state.cards[femur.index()].host, Some(a), "taken");
+    assert!(e.state.cards[femur.index()].in_play);
+    assert!(
+        !e.state.cards[bow.index()].in_play,
+        "burned with the victim"
+    );
+    assert!(!e.state.minions[victim.index()].in_play, "burned");
+    assert_eq!(blood(&e, a), 4 + 2);
+}
+
+// Soul Gem of Etrius: "If bearer is diablerized, the diablerizing vampire
+// cannot take the Soul Gem." Beside Femur of Toomler, only the femur is
+// offered; the Gem's draw fires as its bearer burns. And equipment the
+// diablerist could not hold (a second vehicle) is never offered: the
+// victim burns at once.
+#[test]
+fn a_diablerist_takes_only_what_it_may() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let victim = e.add_minion(SeatId(1), plain("", "", 2), 2, true);
+    e.add_minion(SeatId(1), plain("", "", 3), 4, false);
+    e.state.seats[1].crypt.push(plain("", "", 4));
+    let gem = CardId(e.state.cards.len() as u32);
+    e.state.cards.push(CardInPlay::new(
+        find_library("Soul Gem of Etrius"),
+        SeatId(1),
+        Some(victim),
+        0,
+    ));
+    let femur = CardId(e.state.cards.len() as u32);
+    e.state.cards.push(CardInPlay::new(
+        find_library("Femur of Toomler"),
+        SeatId(1),
+        Some(victim),
+        0,
+    ));
+    let diablerie = Choice::TakeAction {
+        minion: a,
+        action: ActionKind::Diablerie,
+        target: Some(victim),
+    };
+    pick(&mut e, diablerie);
+    let req = offering(&mut e, Choice::ChooseCard(femur.0));
+    assert_eq!(req.options, vec![Choice::Pass, Choice::ChooseCard(femur.0)]);
+    e.choose(index_of(&req, Choice::Pass));
+    assert_ne!(e.state.cards[gem.index()].host, Some(a));
+    assert!(e.state.seats[1].crypt.is_empty(), "the Gem's draw");
+    // A second vehicle: never offered, the victim burned at once.
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let victim = e.add_minion(SeatId(1), plain("", "", 2), 2, true);
+    e.add_minion(SeatId(1), plain("", "", 3), 4, false);
+    e.state.cards.push(CardInPlay::new(
+        find_library("Sport Bike"),
+        SeatId(0),
+        Some(a),
+        0,
+    ));
+    let taxi = CardId(e.state.cards.len() as u32);
+    e.state.cards.push(CardInPlay::new(
+        find_library("Unlicensed Taxicab"),
+        SeatId(1),
+        Some(victim),
+        0,
+    ));
+    pick(
+        &mut e,
+        Choice::TakeAction {
+            minion: a,
+            action: ActionKind::Diablerie,
+            target: Some(victim),
+        },
+    );
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        Choice::ChooseCard(taxi.0),
+    );
+    assert!(!e.state.minions[victim.index()].in_play);
+    assert!(!e.state.cards[taxi.index()].in_play);
+}
+
 // [ANK 20220218] [ANK 20181107] Warsaw Station "can be burned after the
 // announcement of a diablerie action to bring the target Nosferatu out of
 // torpor. The action will still be successful if unblocked, but will have

@@ -138,7 +138,8 @@ impl Scripted {
                 _ => 0,
             },
             // An optional effect never worse to use (Fever Pitch put on its
-            // vampire, Cursed Abattoir's counter; rules-qa 53.5, 55.6).
+            // vampire, Cursed Abattoir's counter, a diablerie victim's
+            // equipment; rules-qa 53.5, 55.6).
             W::ResolutionChoice
                 if matches!(
                     e.interrupt(),
@@ -146,6 +147,7 @@ impl Scripted {
                         Interrupt::MayPutOn { .. }
                             | Interrupt::MayAddCounter { .. }
                             | Interrupt::MayGainPool { .. }
+                            | Interrupt::DiablerieEquipment { .. }
                     )
                 ) =>
             {

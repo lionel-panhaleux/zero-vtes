@@ -317,6 +317,10 @@ ids!(
         /// retainers one at a time, each one `to` could hold (LSJ 19980831),
         /// until done.
         MoveBetween,
+        /// Diablerie: `seat`'s diablerist (`to`) takes the victim's
+        /// (`minion`) equipment, one card at a time, each one it could
+        /// hold, until done; the victim then burns (rulebook "Diablerie").
+        DiablerieEquipment,
         /// "Burned unless its controller burns n pool" (Conquest of Humanity):
         /// `seat` pays or lets `card` burn.
         PayOrBurn,

@@ -87,6 +87,11 @@ impl Prompt<'_> {
                     self.minion()?
                 ),
             },
+            P::DiablerieEquipment => format!(
+                "Choose the equipment {} takes from {}",
+                self.to()?,
+                self.minion()?
+            ),
             P::MoveBetween => match self.detail() {
                 None => format!(
                     "Choose the vampire who receives blood, equipment and retainers from {}",
