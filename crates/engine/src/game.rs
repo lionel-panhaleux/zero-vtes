@@ -205,6 +205,10 @@ pub struct Engine {
     /// Baltimore Purge's vampires chosen so far (`Interrupt::PurgePick`),
     /// sent to torpor together once every pick is made.
     pub(crate) purge_picks: Vec<MinionId>,
+    /// Game of Malkav's secret picks so far, revealed together
+    /// (`Interrupt::SecretNumber`): outside the state, so no view shows
+    /// them.
+    pub(crate) secret_numbers: Vec<(SeatId, u8)>,
     /// How the most recent action ended (tests).
     pub last_outcome: Option<crate::actions::Outcome>,
     /// What combats did, for a narrator (`CombatNote`): `None`, the
@@ -387,6 +391,7 @@ impl Engine {
             interrupts: Vec::new(),
             ousting: None,
             purge_picks: Vec::new(),
+            secret_numbers: Vec::new(),
             rng,
             last_outcome: None,
             combat_notes: None,
@@ -1082,6 +1087,18 @@ impl Engine {
                     resume,
                     ..
                 },
+                Choice::ChooseDiscipline(d),
+            ) => self.ability_discipline_apply(source, ability, target, seat, user, *resume, d),
+            (
+                Flow::AbilityTerms {
+                    source,
+                    ability,
+                    target,
+                    seat,
+                    user,
+                    resume,
+                    ..
+                },
                 Choice::FindCard(card),
             ) => self.ability_card_apply(source, ability, target, seat, user, *resume, *card),
             (
@@ -1210,7 +1227,7 @@ impl Engine {
                 for e in r.effects {
                     match *e {
                         // "You can": its controller's choice (rules-qa 55.6).
-                        crate::cards::Effect::CounterOnZombieBurned => {
+                        crate::cards::Effect::MayAddCounter => {
                             self.interrupts
                                 .push(crate::draws::Interrupt::MayAddCounter {
                                     seat: owner,
@@ -1254,25 +1271,33 @@ impl Engine {
             )
         });
         let capuchin = capuchin.filter(|&n| n > 0);
-        // Soul Gem of Etrius on a vampire: kept from the burn, then drawn
-        // for (LSJ 20010729: whatever kept it from using equipment).
-        let gem = (self.state.minions[m.index()].in_play
-            && self.state.minions[m.index()].is_vampire())
-        .then(|| {
+        // The cards on it kept from its burn: Soul Gem of Etrius on a
+        // vampire, then drawn for (LSJ 20010729: whatever kept it from using
+        // equipment); Charnas the Imp, its controller's choice next
+        // (`Interrupt::MoveOffBurnedBearer`), unless that controller is out.
+        let (mut gem, mut movers) = (None, Vec::new());
+        if self.state.minions[m.index()].in_play {
             let on = |c: &crate::state::CardInPlay| c.host == Some(m);
-            self.fired_riders(Hook::BearerBurned, &HookAt::on(&on))
-                .into_iter()
-                .find_map(|(id, r)| {
-                    r.effects
-                        .iter()
-                        .any(|e| match *e {
-                            crate::cards::Effect::SoulGemDraw => true,
-                            other => unreachable!("not a bearer-burned rider effect: {other:?}"),
-                        })
-                        .then_some(id)
-                })
-        })
-        .flatten();
+            let vampire = self.state.minions[m.index()].is_vampire();
+            let ousted = self.state.seats[self.state.minions[m.index()].owner.index()].ousted;
+            for (id, r) in self.fired_riders(Hook::BearerBurned, &HookAt::on(&on)) {
+                for e in r.effects {
+                    match *e {
+                        crate::cards::Effect::SoulGemDraw => {
+                            if vampire && gem.is_none() {
+                                gem = Some(id);
+                            }
+                        }
+                        crate::cards::Effect::MayMoveOffBurnedBearer => {
+                            if !ousted {
+                                movers.push(id);
+                            }
+                        }
+                        other => unreachable!("not a bearer-burned rider effect: {other:?}"),
+                    }
+                }
+            }
+        }
         // "Younger": the burned vampire's capacity in game (Discipline
         // cards included) against the drawn card's printed one (owner,
         // 2026-10-09: rules-qa 60.18).
@@ -1282,6 +1307,17 @@ impl Engine {
         });
         if let Some(g) = gem {
             self.state.cards[g.index()].host = None;
+        }
+        for &id in &movers {
+            // Off its employer, still its employer's controller's.
+            self.state.cards[id.index()].host = None;
+            self.state.cards[id.index()].controller = self.state.minions[m.index()].owner;
+            self.interrupts
+                .push(crate::draws::Interrupt::MoveOffBurnedBearer {
+                    seat: self.state.minions[m.index()].owner,
+                    card: id,
+                    from: m,
+                });
         }
         self.about_to_leave_ready(&[m]);
         {
@@ -2210,7 +2246,7 @@ impl Engine {
                 minions: c.sides.each_ref().map(|s| s.minion),
             });
         }
-        self.state.combatants = None;
+        self.state.leave_combat();
         self.referendum = None;
         self.state
             .layers
@@ -2460,7 +2496,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 498);
+        assert_eq!(CRYPT.len(), 549);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

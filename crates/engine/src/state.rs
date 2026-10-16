@@ -122,6 +122,8 @@ pub struct PrintedCtx {
     pub equip_weapon: bool,
     /// The action enters combat with a minion (Adhiambo).
     pub enters_combat: bool,
+    /// The action's card puts a vampire in play (João Bilé).
+    pub puts_vampire_in_play: bool,
 }
 
 impl PrintedCtx {
@@ -309,6 +311,8 @@ pub struct Minion {
     /// Corruption counters, by the Methuselah whose they are; a banished
     /// vampire keeps them (owner, 2026-09-26: rules-qa 25.1).
     pub corruption: Vec<(SeatId, u8)>,
+    /// Graft counters (Dr. Morrow): any of them count once (LSJ 20070306).
+    pub grafts: u8,
     /// Committed diablerie: ignores Blood Weakens and The Slow Withering
     /// until a Gehenna event is played.
     pub diablerie_shield: bool,
@@ -437,6 +441,7 @@ impl Minion {
             chosen_circle: None,
             discard_unlock: None,
             corruption: Vec::new(),
+            grafts: 0,
             diablerie_shield: false,
             diablerie_turn: None,
             hunted: false,
@@ -877,6 +882,8 @@ pub enum Expiry {
     DiscardPhase,
     /// Their next unlock phase.
     UnlockPhase,
+    /// As their next master phase begins.
+    MasterPhase,
     /// The end of the combat under way.
     Combat,
     /// The rest of the game.
@@ -1088,6 +1095,10 @@ pub struct GameState {
     /// The minions in the combat under way, if any (the acting side
     /// first): "while the employer is in combat" (Raptor [ANI]).
     pub combatants: Option<[MinionId; 2]>,
+    /// Combatants that cannot use equipment this combat (Drawing Out the
+    /// Beast, a block's rider): the Disciplines their equipment gives are
+    /// not theirs meanwhile (RTR 20010711).
+    pub equipment_barred: Vec<MinionId>,
     /// Hands looked at, (viewer, seat), until the current action ends
     /// (SchreckNET: "look at any Methuselah's hand").
     pub peeks: Vec<(SeatId, SeatId)>,
@@ -1218,7 +1229,14 @@ impl GameState {
     /// card on it, at least 1 (advanced rules 5.1.1); `None` for an ally.
     pub fn capacity_of(&self, m: MinionId) -> Option<u8> {
         let printed = self.minions[m.index()].printed_capacity()?;
-        let cap = (printed + self.discipline_grants(m).count() as u8).max(1)
+        let raised: u8 = self
+            .hosted(m)
+            .map(|l| match l.modifier {
+                Modifier::HostCapacity(n) => n,
+                _ => 0,
+            })
+            .sum();
+        let cap = (printed + self.discipline_grants(m).count() as u8 + raised).max(1)
             + self
                 .action_capacity
                 .filter(|&(v, _)| v == m)
@@ -1312,8 +1330,10 @@ impl GameState {
         ) {
             return 2;
         }
+        let barred = self.equipment_barred.contains(&m);
         // The Sargon Fragment: superior, on a vampire.
         if self.minions[m.index()].is_vampire()
+            && !barred
             && self.layers.iter().any(|l| {
                 matches!(l.modifier, Modifier::BearerSuperiorDiscipline(g)
                     if g.eq_ignore_ascii_case(d)
@@ -1334,7 +1354,8 @@ impl GameState {
             .iter()
             .filter(|l| match l.modifier {
                 Modifier::BearerDisciplineLevel(g) => {
-                    self.layer_active(l)
+                    !barred
+                        && self.layer_active(l)
                         && g.eq_ignore_ascii_case(d)
                         && self.cards[l.source.index()].host == Some(m)
                         && self.minions[m.index()].is_vampire()
@@ -1571,6 +1592,32 @@ impl GameState {
             + self
                 .printed_mod(m, cards::Stat::Ballots, PrintedCtx::default())
                 .max(0) as u8
+    }
+
+    /// The Disciplines `m` has at inferior (Camarilla Vitae Slave's choice).
+    pub fn inferior_disciplines(&self, m: MinionId) -> Vec<&'static str> {
+        disciplines()
+            .into_iter()
+            .filter(|d| self.discipline_level(m, d) == 1)
+            .collect()
+    }
+
+    /// No combat under way: no combatants, and no equipment bar left
+    /// (`equipment_barred` lives with its combat).
+    pub(crate) fn leave_combat(&mut self) {
+        self.combatants = None;
+        self.equipment_barred.clear();
+    }
+
+    /// `m` cannot perform political actions (Bela's printed bar).
+    pub fn cannot_act_politically(&self, m: MinionId) -> bool {
+        self.printed_mod(m, Stat::NoPoliticalActions, PrintedCtx::default()) > 0
+    }
+
+    /// `m` cannot commit diablerie: Blood Cursed, or barred by a card on
+    /// it (Alastor).
+    pub fn cannot_diablerize(&self, m: MinionId) -> bool {
+        self.blood_cursed(m) || self.bears(m, Modifier::HostCannotDiablerize)
     }
 
     /// "Blood cursed" (rulebook "Traits"): it cannot commit diablerie — nor
@@ -1817,6 +1864,7 @@ impl GameState {
         let opp = ctx.opponent.map(|o| &self.minions[o.index()]);
         match r {
             R::ThisVampireReady => src.ready(),
+            R::ActorGraftedAlly => me.is_ally() && me.grafts > 0,
             // "While Annabelle is locked" (in torpor too, LSJ 20011022).
             R::HostLocked => src.locked,
             R::SourceActing => self.acting == Some(source),
@@ -1852,6 +1900,9 @@ impl GameState {
             }
             R::IsEquipWeaponFromHand => ctx.equip_weapon,
             R::ActionEntersCombat => ctx.enters_combat,
+            R::ActionPutsVampireInPlay => ctx.puts_vampire_in_play,
+            R::OpponentAlly => opp.is_some_and(|o| o.is_ally()),
+            R::NoEdge => !self.seats[src.owner.index()].has_edge,
             // "While you have the Edge" (Anxo Vilela).
             R::HasEdge => self.seats[src.owner.index()].has_edge,
             R::TargetSeatControlsClan(clans) => ctx.target.is_some_and(|s| {
@@ -1976,6 +2027,13 @@ impl GameState {
             R::PreyPoolAtMost(n) => {
                 let prey = self.prey(src.owner);
                 prey != src.owner && self.seats[prey.index()].pool <= n as i32
+            }
+            R::PreyControlsVampireNotOfSect(sect) => {
+                let prey = self.prey(src.owner);
+                prey != src.owner
+                    && self.minions_of(prey).any(|v| {
+                        self.minions[v.index()].is_vampire() && self.sect_of(v) != Some(sect)
+                    })
             }
             R::ControlsVampireNamed(name) => self
                 .minions
@@ -2547,11 +2605,11 @@ impl GameState {
         m: MinionId,
         clan: &str,
         own: bool,
-        titled: bool,
+        titled: Option<bool>,
     ) -> bool {
         self.minions[m.index()].clan() == Some(clan)
             && (!own || self.minions[m.index()].owner == self.card_controller(source))
-            && (!titled || self.title_of(m) != crate::crypt::Title::None)
+            && titled.is_none_or(|t| t == (self.title_of(m) != crate::crypt::Title::None))
     }
 
     /// Votes the clan-wide layers give `m` (New Carthage: "titled Brujah get
@@ -2685,6 +2743,12 @@ impl GameState {
             .max(0) as u8;
         let hosted: u8 = sum_n!(self.hosted(m), Modifier::HostCombatPress);
         printed + hosted
+    }
+
+    /// The mandatory presses `m`'s cards give it each combat, only usable to
+    /// continue in the first round (Talbot's Chainsaw).
+    pub fn first_round_presses_of(&self, m: MinionId) -> u8 {
+        sum_n!(self.hosted(m), Modifier::HostFirstRoundMandatoryPress)
     }
 
     /// What `viewer` legally knows of the state (DESIGN §5): a copy, every
@@ -2860,6 +2924,7 @@ impl GameState {
     pub fn cannot_hunt(&self, m: MinionId) -> bool {
         let clan = self.minions[m.index()].clan();
         self.bears(m, Modifier::HostHuntsToTorpor)
+            || self.bears(m, Modifier::HostCannotHunt)
             || self.in_play_layers().any(|l| match l.modifier {
                 Modifier::ClanCannotHunt(c) => Some(c) == clan,
                 // "Vampires cannot hunt unless they must hunt" (Restricted
@@ -3164,6 +3229,12 @@ impl GameState {
     pub fn controlled_layers(&self, s: SeatId) -> impl Iterator<Item = &Layer> + '_ {
         self.in_play_layers()
             .filter(move |l| self.card_controller(l.source) == s)
+    }
+
+    /// The blood `m` pays to keep contesting its title: 1, more by its
+    /// printed toll (Vasily, unless his Methuselah has the Edge).
+    pub fn title_contest_cost(&self, m: MinionId) -> u8 {
+        (1 + self.printed_mod(m, Stat::TitleContestToll, PrintedCtx::default())).max(0) as u8
     }
 
     /// Damage `from` inflicts on `m` less: its strikes and its own non-strike

@@ -9,10 +9,10 @@ Docs: `docs/engine.md` (§2–5, the reference by mechanism),
 and the ledger; a rulebook mechanism no card carries is on the engine board.
 
 Pool (`scripts/coverage.py`, KRCG `vtes.json` of 2026-06-30; 2 crypt and
-18 library cards banned, out of scope, owner 2026-10-14): crypt 498 of
-1,783 (27.9%), library 760 of 2,346 (32.4%); the Imbued, Powers and
-Convictions 0; 33 of 109 sets complete. TWDA decks in the pool 457 of
-4,538, kept 120; recent (2025+) 229 of 476 in the pool, kept 77. Demand:
+18 library cards banned, out of scope, owner 2026-10-14): crypt 549 of
+1,783 (30.8%), library 780 of 2,346 (33.2%); the Imbued, Powers and
+Convictions 0; 37 of 109 sets complete. TWDA decks in the pool 486 of
+4,538, kept 126; recent (2025+) 241 of 476 in the pool, kept 78. Demand:
 none counted yet (the engine board's "Demand for cards counted").
 
 A shrinking list (CLAUDE.md "Harness"): one line an ask, its done-condition
@@ -25,8 +25,8 @@ ship skill's scope rule). Rounds go set by set when the decks' metric
 stops paying (owner, 2026-10-15: "fine with switching to a set-by-set mode
 when you feel it's best").
 
-- **Round 13** [doing: Z-add]: the owner's cut among (a) the 2019–2024 products completed, set by set (Thirtieth Anniversary 6, Twenty-Fifth Anniversary 9, First Blood 24, Sabbat Preconstructed 27: 66 cards; every V5 product is complete) and (b) the TWDA greedy steps (recent kept 77 → 78 for 7 cards, 81 for ~25, 84 for ~50); add-cards §1's greedy simulation (today a monkeypatched `g.table_ids`) becomes a script printing both, the ceiling check and the demand, the owner only picking the cut. Done when the round is on `main` with its `Grading:` trailer and add-cards §1 calls the script. Docs: rules-qa Batch 76, rules-digest, DESIGN §11 (slice row, count line), engine.md for a new mechanism, add-cards §1.
 - **Owner-review backlog 1/5, Batch 62** (26 readings: 62.2, 62.3, 62.6–62.12, 62.14–62.20, 62.22–62.29, 62.31, 62.32): graded per add-cards §4 (a blind second reader), green and amber recorded, red asked as scenarios. Done when each reading is stated settled in rules-qa or asked. Docs: rules-qa, rules-digest §24.1.
+- **Round 14**: the owner's cut from add-cards §1 (`scripts/round_choice.py`: the sets left closest to complete, and the TWDA greedy's next steps from recent kept 78), then §2–§6. Done when the round is on `main`. Docs: as a round (DESIGN slice row and count line, engine.md, rules-digest, a rules-qa batch, the ledger, the window matrix, the board header).
 - **The Imbued** (owner, 2026-10-14: in "every card"): the 20 Imbued and their library (14 Powers, 3 Convictions), a round with the mechanism (conviction, the Imbued's actions). Done when the round is on `main`. Docs: engine.md (a new mechanism), as a round.
 - **Hard cards** (owner): Outside the Hourglass and Rewind Time with Shalmath; a sterile baron to close a test loop. Done when they are in a round on `main`. Docs: as a round.
 - **Owner-review backlog 2/5, Batches 64, 65, 67** (16: 64.1–64.6, 64.9–64.11, 65.1–65.3, 67.2, 67.3, 67.5, 67.7), as 1/5. Done and docs as 1/5.
@@ -38,7 +38,7 @@ when you feel it's best").
 - **Ledger questions with no reading yet**: the Fury's block against later plays (Change of Target, Mirror Walk, Elder Impersonation, Faceless Night, Elder Intervention, KRCG News Radio, Tension in the Ranks, Crypt's Sons), The Erciyes Fragments (a political card played from them, Delaying Tactics), Nergal at a redirected bleed, I am Legion's cancels, a banished Great Beast, Ferraille's two modes each limited. Done when each has a reading, graded, in a rules-qa batch. Docs: rules-qa, rules-digest §24.2.
 - **Ledger `blocked:untested` rows to tests** (44: Unleash Hell's Fury 9, The Erciyes Fragments 7, I am Legion 4, Nergal 3, Street Cred, Mirror Walk, Elder Impersonation, Erebus Mask 2 each, 11 cards 1 each); Vivian VI's row with no status checked. Done when `grep -c 'blocked:untested' data/rulings-v5.csv` is 0. Docs: the ledger.
 - **Ledger `blocked:` gap rows** (10), each its mechanism: Lucian, the Perfect's printed text (Sniper Rifle, .44 Magnum), a Fury's block ending the action (Change of Target, Unleash Hell's Fury), Nergal's reduction at resolution (60.7), a banished or crypt-bound Great Beast, Touch of Clarity's wake before the action is declared, the card on The Erciyes Fragments hidden from others. Done when no ledger row is `blocked:`. Docs: the ledger, engine.md per mechanism.
-- **Reachable edges, verified first**: `Terms::XBlood` past a surcharge (Terror Frenzy on Lightning Reflexes, one X too many); a unique title's self-contest by terms (Toreador Justicar, Valerius stealing Prince). Done when each is a test, fixed if wrong, and gone from DESIGN §11.3. Docs: DESIGN §11.3.
+- **Reachable edges, verified first**: `Terms::XBlood` past a surcharge (Terror Frenzy on Lightning Reflexes, one X too many); a title card's terms choosing another Methuselah's vampire while that Methuselah claims the title (the incoming card burned?), and Valerius stealing Prince of a city whose baron his Methuselah controls (the caller's own choice is masked since rules-qa 76.2). Done when each is a test, fixed if wrong, and gone from DESIGN §11.3. Docs: DESIGN §11.3.
 - **Reachable edges, mid-play ousts and costs**: Disarm's torpor ousting the active Methuselah inside the play; True Love's Face's pay-to-cancel for a last pool; Life Boon's deferred oust still listed in windows; Meditative Grove's canceled cost missing Regina Blake's announced blood (`settle_canceled`). Done as the above. Docs: DESIGN §11.3.
 - **The cheap latent edges fixed now**: `ImmuneToDirectedActions` in `ability_targets`; `Effect::PoolToHostBlood` ousting a non-active seat; a cancelling ability's mark after its terms; directed actions naming several Methuselahs (`ActionCtx::directed_seats`, Shadow Cast). Done when each is fixed with a test or stays in DESIGN §11.3 as waiting for a pool card. Docs: DESIGN §11.3.
 - **Tests for cards covered by fuzz or code paths only**: Rapid Change [PRO], Wolf Claws [PRO], Rötschreck's range check, Powerbase: Savannah with Deep Song's target, Saatet-ta's stealth and intercept locks, Carlton Van Wyk's strike and dodge. Done when each has a test and DESIGN §11.3's legacy-additions list is empty. Docs: DESIGN §11.3.

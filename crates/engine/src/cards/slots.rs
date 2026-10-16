@@ -93,6 +93,7 @@ impl Requirement {
             | R::TermsChoseYourReadyClan(..)
             | R::PlainEquipFromHandOncePerTurn
             | R::OwnActionCardCosts(..)
+            | R::OwnActionCardToAsh
             | R::NoOptionalActionThisTurn
             | R::AllyInAnyAsh
             | R::AshHasAlly(..)
@@ -100,6 +101,7 @@ impl Requirement {
             | R::PlayedByOtherSeat
             | R::NotOwnTurn
             | R::DirectedAtYou
+            | R::ActingNotYourPredator
             | R::BleedAgainstPrey
             | R::BleedSuccessful
             | R::BleedAmountAtLeast(..)
@@ -154,6 +156,7 @@ impl Requirement {
             | R::ActorTitleNotIn(..)
             | R::ActorCapacityAtLeast(..)
             | R::PollingStep
+            | R::ActorNotForcedYet
             | R::AnyPollingStep
             | R::ActorCalledReferendum
             | R::ActorActing
@@ -307,6 +310,7 @@ impl Requirement {
             | R::TargetRedList
             | R::TargetNotRedList
             | R::TargetNotBlocker
+            | R::TargetNotActing
             | R::TargetHostage
             | R::ControlledByPrey
             | R::NotAbstaining
@@ -336,7 +340,8 @@ impl Requirement {
             | R::BloodAtMost(..)
             | R::TargetDiablerieSinceYourLastTurn
             | R::TargetSubtypeIn(..)
-            | R::TargetNotOfPredator => &[S::MinionTarget],
+            | R::TargetNotOfPredator
+            | R::NoSelfContest(..) => &[S::MinionTarget],
             R::TargetCirclelessBloodBrother => &[S::UncontrolledTarget],
             R::NotActingController
             | R::NotSelf
@@ -362,8 +367,10 @@ impl Requirement {
             R::ControlsReadyTitledOther(..)
             | R::PredatorMoreReadyMinions
             | R::PreyPoolAtMost(..)
+            | R::PreyControlsVampireNotOfSect(..)
             | R::TargetSeatControlsClan(..)
             | R::ThisVampireReady
+            | R::ActorGraftedAlly
             | R::OpponentClan(..)
             | R::OpponentYounger
             | R::OpponentOlder
@@ -401,6 +408,9 @@ impl Requirement {
             | R::IsRecruitOrEmploy
             | R::IsEquipWeaponFromHand
             | R::ActionEntersCombat
+            | R::ActionPutsVampireInPlay
+            | R::OpponentAlly
+            | R::NoEdge
             | R::HasEdge
             | R::ActionUndirected
             | R::NotFirstRound
@@ -424,10 +434,12 @@ impl Requirement {
             | R::SameClanAsActor
             | R::Younger
             | R::TargetTitleIn(..)
+            | R::TargetTitle(..)
             | R::TargetSameCircle
             | R::TargetClan(..) => &[S::MinionTarget, S::UncontrolledTarget],
+            // A card's host or a vampire's own (Dive into Madness, Mustafa).
+            R::ActorOlderThanHost => &[S::Engine(Site::AbilityGate)],
             R::ActorIsChosen
-            | R::ActorOlderThanHost
             | R::ActorOfByCircle
             | R::ActingIsBy
             | R::BleedAgainstHostController
@@ -437,8 +449,11 @@ impl Requirement {
             | R::YouControlThisCard
             | R::OthersControlThisCard
             | R::WeaponBurnedOpponent
+            | R::NotPlacedThisRound
             | R::SourceHeldWhenBlocking => &[S::Engine(Site::AbilityGateCard)],
-            R::TargetCapacityBelowCounters => &[S::Engine(Site::ControllerTarget)],
+            R::TargetCapacityBelowCounters | R::TargetBloodAtMostCounters => {
+                &[S::Engine(Site::ControllerTarget)]
+            }
             R::TargetIsHost | R::TargetChosenByHostThisTurn | R::TargetInCombatWithNormalDamage => {
                 &[S::Engine(Site::AbilityTargets)]
             }

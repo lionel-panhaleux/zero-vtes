@@ -151,11 +151,13 @@ over the seats).
 
 **Timed seat modifiers.** `Seat::timed` (`state::Timed`): an amount per
 `TimedStat` (`HandSize`, `HuntStealth`, `ExtraDraws`) until each `Expiry`
-(`EndOfTurn`, `DiscardPhase`, `UnlockPhase`, `Combat`, `Never`), each
+(`EndOfTurn`, `DiscardPhase`, `UnlockPhase`, `MasterPhase`, `Combat`,
+`Never`), each
 swept at one line (`Timed::expire`): `DiscardPhase` in `end_influence`
 after the held discard-phase replacements, `EndOfTurn` in `end_turn` after
 temporary control ends, `UnlockPhase` in `start_turn` before the held
-unlock-phase replacements, `Combat` as the combat ends. Other shapes stay
+unlock-phase replacements, `MasterPhase` in `start_master_phase`,
+`Combat` as the combat ends. Other shapes stay
 fields (`combat_open_hand`, `no_transfers_next`, `transfers_next`,
 `mpa_next`, `veil_left`).
 
@@ -163,11 +165,12 @@ fields (`combat_open_hand`, `no_transfers_next`, `transfers_next`,
 entries — `Lasting::{Stealth, Strength, Superior(discipline)}` — read by
 `GameState::lasting` (stealth, strength) and the Discipline level, swept
 beside `Seat::timed`: `EndOfTurn` in `next_turn`, `UnlockPhase` in
-`start_turn` for the seat recorded (the controller's, "until your unlock
-phase"). Not `Timed` (a numeric table, and a Discipline is not a number)
-nor a layer (`Scope` has no turn scope). Dive into Madness [dem], Gear Up.
-Folding `bleed_bonus_turn` and `unlock_end_of_turn` into it is engine
-board E35.
+`start_turn` and `MasterPhase` in `start_master_phase` for the seat
+recorded (the controller's, "until your unlock phase", Camarilla Vitae
+Slave's "until their next master phase"). Not `Timed` (a numeric table,
+and a Discipline is not a number) nor a layer (`Scope` has no turn
+scope). Dive into Madness [dem], Gear Up. Folding `bleed_bonus_turn` and
+`unlock_end_of_turn` into it is an engine board line.
 
 **Layers.** `Layer { scope: InPlay | Action, modifier, source }` in
 `GameState::layers`, pushed by `Effect::Layer` / `Effect::ActionLayer` and
@@ -682,7 +685,12 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   additional-strike source; a strike not said to be ranged is close range only
   (rules-qa 21.1). Strike riders fire as the strike lands (in range, not dodged,
   not aimed at a retainer). Ranged strikes at long range may be aimed at a
-  retainer (`Side::strike_at`).
+  retainer (`Side::strike_at`). A strike naming the kind it acts on carries
+  `OpponentVampire`/`OpponentAlly` (Coma, Entombment: rules-qa 76.11). A
+  strike putting its own card on its striker (`Side::held_self`, Molotov
+  Cocktail) places it only if the strike resolved (not dodged, combat not
+  ended first); `CombatCtx::placed_this_round` holds the "not this round"
+  bar, `Effect::BurnAfterStrike` the weapon's burn after a resolved strike.
 - Damage: prevention per side, acting side first, then third parties from outside
   the combat (`Step::OthersPrevent`); the preventer picks which damage a
   prevention covers (`Step::AllocateSource`); applied at once, normal then
@@ -785,6 +793,15 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 - Simultaneous ousts are one batch (`oust_batch`): a VP to every predator, 6 pool
   to survivors only; every remaining Methuselah ousted at once is a legal end
   (rules-qa 6.9).
+- Another Methuselah forcing a vampire's cast (Mustafa: `Effect::CastTargetVotes`,
+  a cast already made turned, `ReferendumCtx::forcers` for once each user).
+  Secret simultaneous picks (Game of Malkav: `Interrupt::SecretNumber`) are
+  kept in `Engine::secret_numbers`, outside the state, so no legal view holds
+  them; the host tells another viewer a `set_x` was chosen without its amount.
+- Alastor's referendum puts its card on the chosen vampire, then
+  `Interrupt::SearchEquipFor` (asked under `LibrarySearch`, so the card stays
+  hidden): the equipment put on, not equipped (`place_now` with its layers),
+  half its cost.
 
 ### 6.9 Contests and titles
 
@@ -805,6 +822,10 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   (Toreador Justicar) contests as its title (blood). `steal_title` (Valerius)
   burns the card and gains the title itself (rules-qa 19.6). Liaison is
   `Title::Independent { "Liaison", 4 }`, the younger claimant yielding.
+- No choice of a contest with oneself: a title card's terms skip the caller's
+  own vampires while the caller claims the title (`Requirement::NoSelfContest`);
+  Zane's referendum (`RefEffect::CallerContestsChosenTitle`) gains the chosen
+  prince's very title, contested with its holder.
 
 ### 6.10 Minions
 
@@ -984,6 +1005,22 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   `Hook::PoliticalReferendumPassed` (Lutz) and `Hook::MinionPhaseEnd`
   (Tupdog) are vampire riders read on every vampire in play / the active
   Methuselah's.
+- Another Methuselah's minions using a vampire's text:
+  `Actor::OtherMethuselahsMinion` (an action, Calebros) and
+  `Actor::OtherMethuselahsVampire` (any window, torpor too, Mustafa);
+  `vampire_ability_options` walks every other seat's vampires, `ability_user`
+  makes the actor's controller the user and the vampire the host.
+- Bars and tolls printed on vampires, read where the engine offers or pays:
+  `Stat::NoPoliticalActions` (Bela: the action offers and the political
+  card predicate), `NoVotesAgainstBloodHunt` (Troius,
+  `ReferendumCtx::barred_against`), `InterceptAgainst` (Rutor),
+  `NoRetainerDamage` (Carolina), `TitleContestToll` (Vasily,
+  `GameState::title_contest_cost`); a printed rider on its own torpor
+  (Thomas De Lutrius, `leave_riders`).
+- An ability's Discipline term (`Terms::InferiorDiscipline`, Camarilla
+  Vitae Slave: `ability_discipline_apply`, gated on one at inferior);
+  `Effect::ActionCardToLibraryShuffled` sends the action's own card to the
+  library as the action ends (Epikasta, `ActionCtx::card_to_library`).
 
 ### 6.13 Equipment
 
@@ -998,6 +1035,11 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 - Bearer effects are read live on the current bearer (`Modifier::Bearer`), with
   the named trait (a non-Ravnos holding Treasured Samadji gets nothing,
   rules-qa 9.1).
+- An action an equipment grants its bearer (`Actor::Host`) fizzles once the
+  equipment left the acting minion (RTR 19960221, in `succeed`). A combatant
+  barred from equipment (`GameState::equipment_barred`, set with the
+  combat's flags by `Side::bar_equipment`, cleared by
+  `GameState::leave_combat`) loses the Disciplines its equipment gives (rules-qa 76.16).
 
 ### 6.14 Replacement, hand size, draws, searches
 

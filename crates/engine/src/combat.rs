@@ -211,7 +211,8 @@ pub struct Side {
     /// This side can strike: combat ends in this round (Night Terrors
     /// [OBF][PRE]: the first).
     pub combat_ends_round: Option<u8>,
-    /// This minion cannot use equipment this combat (Form of the Bat).
+    /// This minion cannot use equipment this combat (Form of the Bat); set
+    /// through `bar_equipment`, which keeps `equipment_barred` in step.
     pub no_equipment: bool,
     /// Form of Mist [PRO] rider, armed by the play, fired by the strike.
     pub continue_rider: Option<(u8, u8)>,
@@ -280,6 +281,8 @@ pub struct Side {
     /// Manauara): its controller cannot pass the press step while it can be
     /// used (rules-qa 14.1).
     pub mandatory_press: u8,
+    /// As `mandatory_press`, only in the first round (Talbot's Chainsaw).
+    pub first_round_press: u8,
     /// "+n strength that combat" (Kasim Bayar), kept each round.
     pub strength_mods: u8,
     /// Riders of the chosen strike (Blood Rage, Soul Burn), fired as it
@@ -316,6 +319,9 @@ pub struct Side {
     /// The chosen strike is done with first strike (Donnybrook [obf]).
     pub first_strike: bool,
     pub held: Option<Held>,
+    /// The card going on this side's minion as its strike resolves, landed
+    /// or not (Molotov Cocktail).
+    pub held_self: Option<Held>,
     /// +n strength this round (Bear's Skin [ani][pro]).
     pub strength_round: u8,
     /// Damage this side can prevent each round of the combat (Bear's Skin
@@ -333,6 +339,9 @@ pub struct Side {
     /// Sent to torpor (or burned, an ally) by the opposing strike as the
     /// damage applies (Touch of Oblivion [OBL]).
     pub sent_to_torpor: bool,
+    /// Its strike, landing, burns the opposing minion if an ally
+    /// (Entombment [obt]); nothing on a vampire.
+    pub burns_ally_on_hit: bool,
     /// The round's initial strike, committed by a card played at the
     /// maneuver (Slam [POT]).
     pub committed_card: Option<StrikeKind>,
@@ -350,6 +359,7 @@ pub struct Side {
     /// cancels them and bars more (`frenzy_immune`).
     pub no_close_maneuver: bool,
     pub no_continue_press: bool,
+    /// Set through `bar_equipment`, as `no_equipment`.
     pub frenzy_no_equipment: bool,
     /// Drawing Out the Beast on this vampire: no maneuver to long range, no
     /// press to end combat, +n strength, and n unpreventable environmental
@@ -438,6 +448,21 @@ impl Side {
     /// frenzy card).
     pub fn equipment_barred(&self) -> bool {
         self.no_equipment || self.frenzy_no_equipment
+    }
+
+    /// Bar this side from equipment this combat (`frenzy`: a frenzy card's,
+    /// Tranquility Shield lifts it), its minion listed in
+    /// `GameState::equipment_barred` too: its equipment's Disciplines are
+    /// not its own meanwhile (rules-qa 76.16).
+    pub(crate) fn bar_equipment(&mut self, st: &mut GameState, frenzy: bool) {
+        if frenzy {
+            self.frenzy_no_equipment = true;
+        } else {
+            self.no_equipment = true;
+        }
+        if !st.equipment_barred.contains(&self.minion) {
+            st.equipment_barred.push(self.minion);
+        }
     }
 
     /// Damage from the opposing minion's strike, unless those are prevented
@@ -663,6 +688,9 @@ pub struct CombatCtx {
     /// Cards put on a combatant for this combat, burned as it ends (Inner
     /// Essence: "once this combat").
     pub burn_at_end: Vec<CardId>,
+    /// Cards put in play this round ("not usable the round it is put in
+    /// play", Molotov Cocktail).
+    pub placed_this_round: Vec<CardId>,
 }
 
 impl CombatCtx {
@@ -813,6 +841,16 @@ impl CombatCtx {
                 cards::Stat::NoPressToEnd,
                 crate::state::PrintedCtx::default(),
             ) > 0
+    }
+
+    /// The side's first-round mandatory presses left, none past round 1
+    /// (Talbot's Chainsaw).
+    pub(crate) fn first_round_press(&self, side: usize) -> u8 {
+        if self.round == 1 {
+            self.sides[side].first_round_press
+        } else {
+            0
+        }
     }
 
     /// A press now: none to continue under a frenzy (Terror Frenzy [ani]).
@@ -1015,6 +1053,7 @@ impl Engine {
             // "1 optional press each combat" (Serhat Gunde; Dread Mastiff
             // [ANI] on its employer).
             s.combat_presses += st.combat_presses_of(s.minion);
+            s.first_round_press = st.first_round_presses_of(s.minion);
             // Barred from combat ends for the action (Mind of the Wilds).
             s.no_combat_ends_combat = self
                 .action
@@ -1361,13 +1400,14 @@ impl Engine {
                                 || c.sides[i].maneuver_or_press > 0
                                 || ((c.sides[i].continue_presses > 0
                                     || c.sides[i].combat_continue_presses > 0
-                                    || c.sides[i].mandatory_press > 0)
+                                    || c.sides[i].mandatory_press > 0
+                                    || c.first_round_press(i) > 0)
                                     && !c.press_continue)) =>
                     {
                         options.push(Choice::UsePress);
                         // Mandatory only while it can be used: to continue,
                         // with both combatants ready (rules-qa 14.1).
-                        mandatory = c.sides[i].mandatory_press > 0
+                        mandatory = (c.sides[i].mandatory_press > 0 || c.first_round_press(i) > 0)
                             && !c.press_continue
                             && c.both_ready(&self.state);
                     }
@@ -1570,7 +1610,9 @@ impl Engine {
                     .expect("side");
                 // A press only usable to continue goes first when
                 // continuing, the mandatory one before the optional.
-                if !c.press_continue && c.sides[i].mandatory_press > 0 {
+                if !c.press_continue && c.first_round_press(i) > 0 {
+                    c.sides[i].first_round_press -= 1;
+                } else if !c.press_continue && c.sides[i].mandatory_press > 0 {
                     c.sides[i].mandatory_press -= 1;
                 } else if !c.press_continue && c.sides[i].continue_presses > 0 {
                     c.sides[i].continue_presses -= 1;
@@ -2305,6 +2347,11 @@ impl Engine {
                 if c.range == Range::Close {
                     n += st.retainer_damage_close(c.sides[i].minion);
                 }
+                // Carolina Vález: immune to retainers' damage.
+                let target = c.sides[1 - i].minion;
+                if st.printed_mod(target, cards::Stat::NoRetainerDamage, Default::default()) > 0 {
+                    n = 0;
+                }
                 c.sides[1 - i].pending.add(n, false);
                 // Environmental damage (Carrion Crows): dodge or not.
                 let n = c.sides[i].environmental;
@@ -2352,21 +2399,28 @@ impl Engine {
                 && match strikes[i] {
                     Some(StrikeKind::Hand { .. } | StrikeKind::Melee { .. }) => close,
                     Some(
-                        StrikeKind::Damage { ranged, .. } | StrikeKind::StealBlood { ranged, .. },
+                        StrikeKind::Damage { ranged, .. }
+                        | StrikeKind::StealBlood { ranged, .. }
+                        | StrikeKind::CardEffect { ranged },
                     ) => ranged || close,
                     // A strike works at close range unless it says ranged
                     // (owner, 2026-09-26: rules-qa 21.1).
                     Some(
-                        StrikeKind::TorporOrBurn
-                        | StrikeKind::Torpor { .. }
-                        | StrikeKind::CardEffect
-                        | StrikeKind::Corrupt,
+                        StrikeKind::TorporOrBurn | StrikeKind::Torpor { .. } | StrikeKind::Corrupt,
                     ) => close,
                     Some(StrikeKind::BurnWeapon | StrikeKind::RangedBurnEquipment) => true,
                     Some(StrikeKind::BurnEquipment | StrikeKind::StealWeapon) => close,
                     Some(StrikeKind::Dodge | StrikeKind::CombatEnds { .. }) | None => false,
                 }
         });
+        for (i, &landed) in lands.iter().enumerate() {
+            if std::mem::take(&mut c.sides[i].burns_ally_on_hit)
+                && landed
+                && st.minions[c.sides[1 - i].minion.index()].is_ally()
+            {
+                c.sides[1 - i].sent_to_torpor = true;
+            }
+        }
         // A card the strike puts on the opposing minion, as it lands (else
         // it stays in the ash heap).
         let mut placed: Vec<(Held, MinionId)> = Vec::new();
@@ -2375,6 +2429,11 @@ impl Engine {
                 if landed {
                     placed.push((h, c.sides[1 - i].minion));
                 }
+            }
+            // Dodged, the strike never resolved: not placed (advanced
+            // rules §4.6.2, §4.7.1).
+            if let Some(h) = c.sides[i].held_self.take().filter(|_| !dodged[i]) {
+                placed.push((h, c.sides[i].minion));
             }
         }
         // A weapon put on the opposing vampire as its strike lands, becoming
@@ -2441,6 +2500,15 @@ impl Engine {
             let Some(k) = strikes[i] else {
                 continue;
             };
+            // "Burn after use" (Molotov Cocktail): its strike resolved, not
+            // dodged (advanced rules §4.7.1); the end of combat burns it
+            // anyway.
+            if let Some(w) = c.sides[i]
+                .strike_source
+                .filter(|&w| !dodged[i] && source_rider(st, Some(w), Effect::BurnAfterStrike))
+            {
+                burn_weapons.push(w);
+            }
             // "After the bearer strikes with this gun" (AK-47): struck,
             // dodged or not; one limited additional-strike source a round.
             if let Some(w) = c.sides[i].strike_source {
@@ -2627,7 +2695,9 @@ impl Engine {
                         }
                     }
                 }
-                StrikeKind::Dodge | StrikeKind::CombatEnds { .. } | StrikeKind::CardEffect => {}
+                StrikeKind::Dodge
+                | StrikeKind::CombatEnds { .. }
+                | StrikeKind::CardEffect { .. } => {}
             }
         }
         // Contagion: the counter lands with the strike; the steal, if
@@ -2758,6 +2828,14 @@ impl Engine {
             ..crate::state::CardInPlay::entering(h.card, copy, h.seat, Some(on), h.mode)
         });
         self.push_mode_layers(id);
+        // Molotov Cocktail: for this combat, not usable this round.
+        let ends = cards::burns_at_combat_end(h.card, h.mode);
+        if let Some(c) = self.combat.as_mut() {
+            c.placed_this_round.push(id);
+            if ends {
+                c.burn_at_end.push(id);
+            }
+        }
     }
 
     /// Delayed placements that will not happen — a strike that did not
@@ -2767,6 +2845,7 @@ impl Engine {
         let c = self.combat.as_mut().expect("combat context");
         for s in &mut c.sides {
             s.held = None;
+            s.held_self = None;
         }
         if after_combat {
             c.after_combat.clear();
@@ -2903,7 +2982,7 @@ impl Engine {
     pub(crate) fn combat_ousts(&mut self) -> bool {
         if self.state.living() <= 1 {
             self.combat = None;
-            self.state.combatants = None;
+            self.state.leave_combat();
             self.action = None;
             self.flow = Flow::GameOver;
             return true;
@@ -2935,6 +3014,7 @@ impl Engine {
         let c = self.combat.as_mut().expect("combat context");
         c.round += 1;
         c.pair = 0;
+        c.placed_this_round.clear();
         // Rötschreck's torpor is lost as the combat continues (RTR
         // 20020501): the card stays, and so does its unlock ban.
         c.rotschreck = None;
@@ -3026,7 +3106,7 @@ impl Engine {
                     .filter(|&i| self.state.combat_hand_penalty(c.sides[1 - i].minion) > 0)
                     .map(|i| c.sides[i].seat)
                     .collect();
-                self.state.combatants = None;
+                self.state.leave_combat();
                 for s in lowered {
                     if !self.state.seats[s.index()].ousted {
                         self.draw_up(s);
@@ -3054,7 +3134,7 @@ impl Engine {
             let ready = |m: MinionId| self.state.minions[m.index()].ready();
             if ready(m) && ready(opposing) && !self.state.minions[m.index()].locked {
                 let at_resolution = c.at_resolution;
-                self.state.combatants = None;
+                self.state.leave_combat();
                 self.state.minions[m.index()].locked = true;
                 let (x, y) = if i == 0 { (m, opposing) } else { (opposing, m) };
                 self.begin_combat(x, y, at_resolution);
@@ -3221,7 +3301,7 @@ impl Engine {
                 })
             })
             .collect();
-        self.state.combatants = None;
+        self.state.leave_combat();
         if let Some((m, clan, n)) = ended.as_ref().and_then(|c| c.won_uncontrolled_blood) {
             let c = ended.as_ref().expect("combat");
             let other = c.sides.iter().find(|s| s.minion != m).map(|s| s.minion);
@@ -3533,7 +3613,7 @@ impl Engine {
                     o.frenzy_strength += 1;
                     o.no_long_maneuver = true;
                     o.no_end_press = true;
-                    o.frenzy_no_equipment = true;
+                    o.bar_equipment(&mut self.state, true);
                     o.press_damage += u8::from(damage);
                 }
             }
@@ -3544,7 +3624,7 @@ impl Engine {
                 if !o.frenzy_immune {
                     o.no_close_maneuver = true;
                     o.no_continue_press = true;
-                    o.frenzy_no_equipment = true;
+                    o.bar_equipment(&mut self.state, true);
                 }
             }
             Effect::OpposingCombatCardsCost(n) => {
@@ -3560,6 +3640,11 @@ impl Engine {
                 s.no_close_maneuver = false;
                 s.no_continue_press = false;
                 s.frenzy_no_equipment = false;
+                if !s.no_equipment {
+                    let m = s.minion;
+                    self.state.equipment_barred.retain(|&b| b != m);
+                }
+                let s = &mut c.sides[i];
                 s.combat_card_surcharge = 0;
                 s.no_long_maneuver = false;
                 s.no_end_press = false;
@@ -3615,6 +3700,10 @@ impl Engine {
             Effect::PutOnOpponentOnHit { counters } => {
                 c.sides[i].held = Some(Held::from_play(play, actor, counters));
             }
+            Effect::PutOnSelfAsStrikeResolves => {
+                c.sides[i].held_self = Some(Held::from_play(play, actor, 0));
+            }
+            Effect::BurnOpposingAllyOnHit => c.sides[i].burns_ally_on_hit = true,
             Effect::PutOnActorAfterCombat => c.after_combat.push(Held::from_play(play, actor, 0)),
             Effect::AimExtraDamage(n) => c.sides[i].aim = n,
             Effect::StrengthThisRound(n) => c.sides[i].strength_round += n,

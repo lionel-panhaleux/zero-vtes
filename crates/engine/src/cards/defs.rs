@@ -2624,7 +2624,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     ..CARD
 };
 
-pub static DEFS: [&CardDef; 760] = [
+pub static DEFS: [&CardDef; 780] = [
     &TAUNT_THE_CAGED_BEAST,
     &PETRA_RESONANCE,
     &WAITING_GAME,
@@ -3385,6 +3385,26 @@ pub static DEFS: [&CardDef; 760] = [
     &PULLED_FANGS,
     &CLANDESTINE_CONTRACT,
     &BOOK_OF_GOING_FORTH_BY_NIGHT,
+    &ANIMALISM,
+    &UNIVERSITY_HUNTING_GROUND,
+    &COMPUTER_HACKING,
+    &ACHING_BEAUTY,
+    &BANU_HAQIM_JUSTICAR,
+    &LASOMBRA_JUSTICAR,
+    &THADIUS_ZHO,
+    &BLACK_METAMORPHOSIS,
+    &FOUNDATION_EXHIBIT,
+    &ENTOMBMENT,
+    &HAND_OF_CONRAD,
+    &KHOBAR_TOWERS,
+    &CAMARILLA_VITAE_SLAVE,
+    &TALBOTS_CHAINSAW,
+    &MOLOTOV_COCKTAIL,
+    &CHARNAS_THE_IMP,
+    &TWO_WRONGS,
+    &FORM_OF_CORRUPTION,
+    &GAME_OF_MALKAV,
+    &ALASTOR,
 ];
 
 // ---- Cards in play with riders and granted actions -------------------------
@@ -6102,11 +6122,12 @@ static TOREADOR_JUSTICAR_REFERENDUM: ReferendumDef = ReferendumDef {
             Requirement::ActorReady,
             Requirement::TargetClan("Toreador"),
             Requirement::ActorSectIn(&[Sect::Camarilla]),
+            Requirement::NoSelfContest(crate::crypt::Title::Justicar("Toreador")),
         ],
         min: 1,
         max: 1,
     }],
-    effect: RefEffect::PutOnChosen,
+    effect: RefEffect::PutOnChosen { equipment: false },
     grants: &[VoteGrant {
         voters: Voters::Clan("Toreador"),
         n: 1,
@@ -6158,11 +6179,12 @@ static MALKAVIAN_JUSTICAR_REFERENDUM: ReferendumDef = ReferendumDef {
             Requirement::ActorReady,
             Requirement::TargetClan("Malkavian"),
             Requirement::ActorSectIn(&[Sect::Camarilla]),
+            Requirement::NoSelfContest(crate::crypt::Title::Justicar("Malkavian")),
         ],
         min: 1,
         max: 1,
     }],
-    effect: RefEffect::PutOnChosen,
+    effect: RefEffect::PutOnChosen { equipment: false },
     grants: &[VoteGrant {
         voters: Voters::Clan("Malkavian"),
         n: 1,
@@ -6200,7 +6222,7 @@ static ARCHON_REFERENDUM: ReferendumDef = ReferendumDef {
         min: 1,
         max: 1,
     }],
-    effect: RefEffect::PutOnChosen,
+    effect: RefEffect::PutOnChosen { equipment: false },
     grants: &[],
     non_anarch_titles_minus: false,
     titled_minus: false,
@@ -7015,7 +7037,7 @@ pub static TOUCH_OF_OBLIVION: CardDef = CardDef {
             &[Window::CombatStrikeDeclaration],
             &[],
             &[
-                Effect::Strike(StrikeKind::CardEffect),
+                Effect::Strike(StrikeKind::CardEffect { ranged: false }),
                 Effect::PutOnOpponentOnHit { counters: 2 },
                 Effect::Layer(Modifier::CounterInsteadOfUnlock),
             ],
@@ -9686,7 +9708,7 @@ pub static WEEK_OF_NIGHTMARES: CardDef = CardDef {
                 stat: Stat::Bleed,
                 n: 1,
                 own: false,
-                titled: false,
+                titled: None,
                 during: &[],
             }),
             Effect::Layer(Modifier::ClanStat {
@@ -9694,7 +9716,7 @@ pub static WEEK_OF_NIGHTMARES: CardDef = CardDef {
                 stat: Stat::Strength,
                 n: 1,
                 own: false,
-                titled: false,
+                titled: None,
                 during: &[],
             }),
             Effect::Layer(Modifier::ClanCannotHunt("Ravnos")),
@@ -11945,7 +11967,7 @@ pub static GOLCONDA_INNER_PEACE: CardDef = CardDef {
             &[],
             &[
                 Effect::CancelableForPoolByTargetController(2),
-                Effect::RemoveTargetForCapacityPool,
+                Effect::RemoveTargetForPool,
             ],
         )
     }],
@@ -11986,7 +12008,7 @@ pub static GANGREL_REVEL: CardDef = CardDef {
                 stat: Stat::Strength,
                 n: 1,
                 own: true,
-                titled: false,
+                titled: None,
                 during: &[],
             }),
         ],
@@ -12009,7 +12031,7 @@ pub static KHABAR_COMMUNITY: CardDef = CardDef {
                 stat: Stat::Stealth,
                 n: 1,
                 own: false,
-                titled: false,
+                titled: None,
                 during: &[ActionKind::Bleed],
             }),
         ],
@@ -12044,7 +12066,7 @@ pub static NEW_CARTHAGE: CardDef = CardDef {
                 stat: Stat::Bleed,
                 n: 1,
                 own: false,
-                titled: true,
+                titled: Some(true),
                 during: &[],
             }),
             Effect::Layer(Modifier::ClanStat {
@@ -12052,7 +12074,7 @@ pub static NEW_CARTHAGE: CardDef = CardDef {
                 stat: Stat::Votes,
                 n: 1,
                 own: false,
-                titled: true,
+                titled: Some(true),
                 during: &[],
             }),
             Effect::Layer(Modifier::ClanStat {
@@ -12060,7 +12082,7 @@ pub static NEW_CARTHAGE: CardDef = CardDef {
                 stat: Stat::Votes,
                 n: -1,
                 own: false,
-                titled: false,
+                titled: None,
                 during: &[],
             }),
         ],
@@ -12123,7 +12145,7 @@ pub static BRUJAH_DEBATE: CardDef = CardDef {
                 stat: Stat::Strength,
                 n: 1,
                 own: false,
-                titled: false,
+                titled: None,
                 during: &[],
             }),
             Effect::Layer(Modifier::ClanCombatManeuver("Brujah")),
@@ -14308,7 +14330,7 @@ pub static LOUP: CardDef = CardDef {
                     stat: Stat::Stealth,
                     n: 1,
                     own: false,
-                    titled: false,
+                    titled: None,
                     during: &[],
                 }),
             ],
@@ -14746,7 +14768,7 @@ static CARDINAL_BENEDICTION_REFERENDUM: ReferendumDef = ReferendumDef {
         min: 1,
         max: 1,
     }],
-    effect: RefEffect::PutOnChosen,
+    effect: RefEffect::PutOnChosen { equipment: false },
     grants: &[],
     non_anarch_titles_minus: false,
     titled_minus: false,
@@ -15888,7 +15910,7 @@ pub static CURSED_ABATTOIR: CardDef = CardDef {
         hook: Hook::OwnZombieBurned,
         scope: RiderScope::Controller,
         requires: &[],
-        effects: &[Effect::CounterOnZombieBurned],
+        effects: &[Effect::MayAddCounter],
     }],
     ..CARD
 };
@@ -19261,18 +19283,20 @@ pub static TROCHOMANCY: CardDef = CardDef {
 /// the opposing vampire does not unlock as normal during their next unlock
 /// phase." At close range only (RBK resolve-strike, LSJ 20000110), the
 /// vampire wounded (LSJ 20090622-2); an infernal one may still be unlocked
-/// for a pool (LSJ 20050114).
+/// for a pool (LSJ 20050114). Not chosen against an ally: a strike naming
+/// the object it acts on cannot be chosen when none exists (advanced rules
+/// §4.3.3).
 pub static COMA: CardDef = CardDef {
     name: "Coma",
     modes: &[
         combat(
             &[Window::CombatStrikeDeclaration],
-            &[],
+            &[Requirement::OpponentVampire],
             &[Effect::Strike(StrikeKind::Torpor { skip_unlock: false })],
         ),
         combat(
             &[Window::CombatStrikeDeclaration],
-            &[],
+            &[Requirement::OpponentVampire],
             &[Effect::Strike(StrikeKind::Torpor { skip_unlock: true })],
         ),
     ],
@@ -21107,7 +21131,7 @@ pub static PALLA_GRANDE: CardDef = CardDef {
                 stat: Stat::Bleed,
                 n: 1,
                 own: false,
-                titled: false,
+                titled: None,
                 during: &[],
             }),
         ],
@@ -21926,7 +21950,7 @@ static ANATHEMA_REFERENDUM: ReferendumDef = ReferendumDef {
         min: 1,
         max: 1,
     }],
-    effect: RefEffect::PutOnChosen,
+    effect: RefEffect::PutOnChosen { equipment: false },
     grants: &[],
     non_anarch_titles_minus: false,
     titled_minus: false,
@@ -23635,6 +23659,652 @@ pub static BOOK_OF_GOING_FORTH_BY_NIGHT: CardDef = CardDef {
             Effect::Layer(Modifier::HostStealsOpposingAllyOnBurn(1)),
         ],
         ..EQUIP
+    }],
+    ..CARD
+};
+
+// ---- Round 13: the 2019-2024 products, set by set --------------------------
+
+discipline_master!(ANIMALISM, "Animalism", "ani");
+hunting_ground!(UNIVERSITY_HUNTING_GROUND, "University Hunting Ground");
+
+/// "Ⓓ Bleed with +1 bleed."
+pub static COMPUTER_HACKING: CardDef = CardDef {
+    name: "Computer Hacking",
+    modes: &[bleed_action!(1)],
+    ..CARD
+};
+
+/// "Put this card on a Toreador. If this Toreador is blocked, the blocking
+/// minion's controller burns 1 pool before block resolution." Any
+/// Methuselah's Toreador, in torpor too (no "ready"); copies add up (LSJ
+/// 19980225); burned even if the action then ends (RTR 19991206).
+pub static ACHING_BEAUTY: CardDef = CardDef {
+    name: "Aching Beauty",
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::TargetVampire,
+                Requirement::TargetClan("Toreador"),
+            ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[Effect::PutOnTarget],
+        )
+    }],
+    riders: &[Rider {
+        hook: Hook::HostBlocked,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::BlockerControllerBurnsPool(1)],
+    }],
+    ..CARD
+};
+
+static BANU_HAQIM_JUSTICAR_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseMinions {
+        filter: &[
+            Requirement::ActorReady,
+            Requirement::TargetClan("Banu Haqim"),
+            Requirement::ActorSectIn(&[Sect::Camarilla]),
+            Requirement::NoSelfContest(crate::crypt::Title::Justicar("Banu Haqim")),
+        ],
+        min: 1,
+        max: 1,
+    }],
+    effect: RefEffect::PutOnChosen { equipment: false },
+    grants: &[VoteGrant {
+        voters: Voters::Clan("Banu Haqim"),
+        n: 1,
+    }],
+    non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
+    only_sect: None,
+};
+
+/// "Title. Choose a ready Camarilla Banu Haqim. Successful referendum means
+/// this card is put on the chosen Banu Haqim to represent the unique
+/// Camarilla title of Banu Haqim Justicar. During this referendum, each
+/// Banu Haqim gets +1 vote." Kasim Bayar's "Assamite Justicar" is the same
+/// title (rules-digest §1: V5 clan names).
+pub static BANU_HAQIM_JUSTICAR: CardDef = CardDef {
+    name: "Banu Haqim Justicar",
+    modes: &[political(
+        &[],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&BANU_HAQIM_JUSTICAR_REFERENDUM),
+            Effect::RepresentsTitle(crate::crypt::Title::Justicar("Banu Haqim")),
+        ],
+    )],
+    ..CARD
+};
+
+static LASOMBRA_JUSTICAR_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseMinions {
+        filter: &[
+            Requirement::ActorReady,
+            Requirement::TargetClan("Lasombra"),
+            Requirement::ActorSectIn(&[Sect::Camarilla]),
+            Requirement::NoSelfContest(crate::crypt::Title::Justicar("Lasombra")),
+        ],
+        min: 1,
+        max: 1,
+    }],
+    effect: RefEffect::PutOnChosen { equipment: false },
+    grants: &[VoteGrant {
+        voters: Voters::Clan("Lasombra"),
+        n: 1,
+    }],
+    non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
+    only_sect: None,
+};
+
+/// "Title. Choose a ready Camarilla Lasombra. Successful referendum means
+/// this card is put on the chosen Lasombra to represent the unique
+/// Camarilla title of Lasombra Justicar. During this referendum, each
+/// Lasombra gets +1 vote."
+pub static LASOMBRA_JUSTICAR: CardDef = CardDef {
+    name: "Lasombra Justicar",
+    modes: &[political(
+        &[],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&LASOMBRA_JUSTICAR_REFERENDUM),
+            Effect::RepresentsTitle(crate::crypt::Title::Justicar("Lasombra")),
+        ],
+    )],
+    ..CARD
+};
+
+/// "Unique mage with 2 life. 0 strength, 2 bleed. Thadius Zho can strike: 2R
+/// damage. He gets 1 optional maneuver each combat. He can burn 1 blood from
+/// a vampire as a +1 stealth Ⓓ action." Any vampire, in torpor too.
+pub static THADIUS_ZHO: CardDef = CardDef {
+    name: "Thadius Zho",
+    modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
+    abilities: &[
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Host,
+            &[],
+            &[Effect::Strike(StrikeKind::Damage {
+                n: 2,
+                ranged: true,
+                aggravated: false,
+            })],
+        ),
+        MANEUVER_EACH_COMBAT,
+        printed_action(
+            target(TargetKind::Minion, &[Requirement::TargetVampire]),
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::TargetBurnsBlood(1),
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "+1 stealth action. [obt] Put this card on this vampire. This vampire
+/// gets 1 optional additional strike (limited) each round. A vampire can
+/// have only one Black Metamorphosis. [OBT] As above, and this vampire gets
+/// 1 optional press each combat."
+pub static BLACK_METAMORPHOSIS: CardDef = CardDef {
+    name: "Black Metamorphosis",
+    modes: &[
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[Requirement::ActorWithout(Holding::Named(
+                "Black Metamorphosis",
+            ))],
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::PutOnActor,
+            ],
+        ),
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[Requirement::ActorWithout(Holding::Named(
+                "Black Metamorphosis",
+            ))],
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::PutOnActor,
+                Effect::Layer(Modifier::HostCombatPress(1)),
+            ],
+        ),
+    ],
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerRound),
+        ..mode_of(
+            &[Window::CombatAdditionalStrike],
+            Actor::Host,
+            &[],
+            &[Effect::AdditionalStrikes {
+                n: 1,
+                limited: true,
+            }],
+        )
+    }],
+    ..CARD
+};
+
+/// "Unique location. Each non-titled Toreador antitribu you control gets +1
+/// vote. Any vampire can burn this card as a Ⓓ action that costs 1 blood."
+pub static FOUNDATION_EXHIBIT: CardDef = CardDef {
+    name: "Foundation Exhibit",
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::ClanStat {
+                clan: "Toreador antitribu",
+                stat: Stat::Votes,
+                n: 1,
+                own: true,
+                titled: Some(false),
+                during: &[],
+            }),
+        ],
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::ActingCandidate,
+        &[Requirement::ActorVampire, Requirement::ActorBloodAtLeast(1)],
+        &[
+            Effect::DeclareAction(ActionKind::BurnCard),
+            Effect::PayBlood(1),
+            Effect::BurnSource,
+        ],
+    )],
+    ..CARD
+};
+
+/// "[obt] Strike: burn the opposing ally. [OBT] Strike: send the opposing
+/// vampire to torpor." At close range only (RBK resolve-strike, LSJ
+/// 20000110); [OBT]'s vampire wounded (LSJ 20090622-2). Each chosen only
+/// against the kind it names (advanced rules §4.3.3).
+pub static ENTOMBMENT: CardDef = CardDef {
+    name: "Entombment",
+    modes: &[
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[Requirement::OpponentAlly],
+            &[
+                Effect::Strike(StrikeKind::CardEffect { ranged: false }),
+                Effect::BurnOpposingAllyOnHit,
+            ],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[Requirement::OpponentVampire],
+            &[Effect::Strike(StrikeKind::Torpor { skip_unlock: false })],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Unique. This vampire gets superior Potence [POT]. This vampire can move a
+/// vampire from your ash heap to your uncontrolled region as an action." The
+/// vampire named as the action is declared (default readings), moved if
+/// still there; the equipment gone by resolution, the action fizzles (RTR
+/// 19960221); its Potence not usable while equipment is barred (RTR
+/// 20010711).
+pub static HAND_OF_CONRAD: CardDef = CardDef {
+    name: "Hand of Conrad",
+    modes: &[ModeDef {
+        effects: &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::Layer(Modifier::BearerSuperiorDiscipline("pot")),
+        ],
+        ..EQUIP
+    }],
+    abilities: &[ModeDef {
+        requires: &[
+            Requirement::ActorIsHost,
+            Requirement::ActorVampire,
+            Requirement::OwnAshVampire,
+        ],
+        ..printed_action(
+            None,
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AshVampireToUncontrolled,
+            ],
+        )
+    }],
+    ..CARD
+};
+
+/// "Unique location. Lock during your unlock phase to remove a ready minion
+/// you control from the game and gain X pool, where X is their capacity or
+/// cost." Ordered among the unlock-phase effects as the player wishes (ANK
+/// 20170625); an ally's cost its printed one (no X-cost ally in the pool,
+/// ANK 20170716).
+pub static KHOBAR_TOWERS: CardDef = CardDef {
+    name: "Khobar Towers, Al-Khubar",
+    modes: &[LOCATION],
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[Requirement::Controlled, Requirement::ActorReady],
+        ),
+        ..mode_of(
+            &[Window::UnlockPhaseOwn],
+            Actor::Controller,
+            &[Requirement::CardUnlocked],
+            &[Effect::LockSelf, Effect::RemoveTargetForPool],
+        )
+    }],
+    ..CARD
+};
+
+/// "Retainer with 1 life. This vampire gets +1 capacity. During their master
+/// phase, they can choose a Discipline they have at inferior and get +1 level
+/// of the chosen Discipline until their next master phase." Kept even if
+/// the retainer is burned or stolen (LSJ 19970224), until the next master
+/// phase as printed, not the ruling's unlock phase (rules-qa 76.24); no
+/// subtype (ANK 20230308).
+pub static CAMARILLA_VITAE_SLAVE: CardDef = CardDef {
+    name: "Camarilla Vitae Slave",
+    modes: &[mode_of(
+        &[Window::ActionDeclareEmploy],
+        Actor::ActingCandidate,
+        &[],
+        &[
+            Effect::DeclareAction(ActionKind::Employ),
+            Effect::EmployRetainer { life: 1 },
+            Effect::Layer(Modifier::HostCapacity(1)),
+        ],
+    )],
+    abilities: &[ModeDef {
+        terms: Some(Terms::InferiorDiscipline),
+        limit: Some(Limit::PerTurn),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Controller,
+            &[],
+            &[Effect::HostSuperiorChosenUntilMaster],
+        )
+    }],
+    ..CARD
+};
+
+/// "Unique weapon. Strike: 3 damage. If the bearer is ready during your
+/// unlock phase, this weapon inflicts 3 unpreventable damage on a ready
+/// minion you control. The bearer cannot hunt. The bearer can enter combat
+/// with a minion as a +1 stealth Ⓓ action. The bearer gets 1 press
+/// (mandatory), only usable to continue combat during the first round, and
+/// can prevent 1 damage each combat." The unlock damage is the weapon's,
+/// on a ready minion its controller picks, the bearer too (LSJ
+/// 20090304-1); entering combat or preventing with it is no strike with it
+/// (LSJ 19971215); the granted action fizzles once the Chainsaw left the
+/// actor (RTR 19960221).
+pub static TALBOTS_CHAINSAW: CardDef = CardDef {
+    name: "Talbot's Chainsaw",
+    modes: &[mode_of(
+        &[Window::ActionDeclareEquip],
+        Actor::ActingCandidate,
+        &[],
+        &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::Layer(Modifier::HostCannotHunt),
+            Effect::Layer(Modifier::HostFirstRoundMandatoryPress(1)),
+        ],
+    )],
+    abilities: &[
+        weapon_strike(
+            &[],
+            &[Effect::Strike(StrikeKind::Damage {
+                n: 3,
+                ranged: false,
+                aggravated: false,
+            })],
+        ),
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[Requirement::NotControlled, Requirement::ActorReady],
+            ),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::Host,
+                &[],
+                &[
+                    Effect::DeclareAction(ActionKind::Ability),
+                    Effect::AddStealth(1),
+                    Effect::EnterCombatWithTarget,
+                ],
+            )
+        },
+        ability(
+            &[Window::CombatDamagePrevention],
+            Actor::Host,
+            &[Requirement::DamagePending],
+            Limit::PerCombat,
+            &[Effect::Prevent(1)],
+        ),
+    ],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        requires: &[Requirement::HostReady],
+        effects: &[Effect::ControllerChoosesMinionDamaged(3)],
+    }],
+    ..CARD
+};
+
+/// "Ranged strike: put this card on this minion; it becomes a weapon
+/// equipment that can strike: 2R aggravated damage, not usable the round it
+/// is put in play. Burn after use or at the end of combat." Put on as the
+/// strike resolves; one that never resolves — combat ended by the opposing
+/// strike (ANK 20200203-1), or dodged (advanced rules §4.6.2) — leaves it
+/// in the ash heap.
+pub static MOLOTOV_COCKTAIL: CardDef = CardDef {
+    name: "Molotov Cocktail",
+    modes: &[combat(
+        &[Window::CombatStrikeDeclaration],
+        &[],
+        &[
+            Effect::Strike(StrikeKind::CardEffect { ranged: true }),
+            Effect::PutOnSelfAsStrikeResolves,
+            Effect::BecomesWeapon,
+            Effect::BurnAtCombatEnd,
+        ],
+    )],
+    abilities: &[weapon_strike(
+        &[Requirement::NotPlacedThisRound],
+        &[
+            Effect::Strike(StrikeKind::Damage {
+                n: 2,
+                ranged: true,
+                aggravated: true,
+            }),
+            Effect::BurnAfterStrike,
+        ],
+    )],
+    ..CARD
+};
+
+/// "Unique demon with 1 life. Put Charnas on a minion (this is a +1
+/// stealth Ⓓ action if the target minion is controlled by another
+/// Methuselah). Charnas inflicts 1 damage on the employer during their
+/// unlock phase. Charnas is immune to damage from the employer. If the
+/// employer is about to be burned, their controller can put Charnas on
+/// another minion." (Tremere.) An employ action whatever its target (ANK
+/// 20230408), on the target only when played (else on the playing minion,
+/// LSJ 20090824); the unlock damage out of combat. No employer's effect in
+/// the pool damages its own retainer: the immunity has nothing to stop yet
+/// (RTR 19941109). Moved on, it follows its new employer's controller; an
+/// ousted controller's is removed with their cards (ANK 20180408).
+pub static CHARNAS_THE_IMP: CardDef = CardDef {
+    name: "Charnas the Imp",
+    modes: &[ModeDef {
+        target: target(TargetKind::Minion, &[]),
+        ..employ(&[
+            Effect::DeclareAction(ActionKind::Employ),
+            Effect::EmployRetainer { life: 1 },
+        ])
+    }],
+    riders: &[
+        Rider {
+            hook: Hook::UnlockPhase,
+            scope: RiderScope::Controller,
+            requires: &[],
+            effects: &[Effect::DamageHost(1)],
+        },
+        Rider {
+            hook: Hook::BearerBurned,
+            scope: RiderScope::Every,
+            requires: &[],
+            effects: &[Effect::MayMoveOffBurnedBearer],
+        },
+    ],
+    ..CARD
+};
+
+/// "Master: out-of-turn. Trifle. Play when a minion controlled by a
+/// Methuselah other than your predator is bleeding you after blocks are
+/// declined. That minion is now bleeding his or her prey. The next card
+/// that would change the target of this bleed is canceled as it is
+/// played." Declined by stealth too (ANK 20211003); before resolution
+/// (LSJ 19980105); the new target may block (a change of target); the
+/// canceled card's cost is paid (RBK cancel-a-card).
+pub static TWO_WRONGS: CardDef = CardDef {
+    name: "Two Wrongs",
+    out_of_turn: true,
+    modes: &[mode_of(
+        &[Window::ActionBlocksDeclined],
+        Actor::Methuselah,
+        &[
+            Requirement::NotOwnTurn,
+            Requirement::DirectedAtYou,
+            Requirement::IsBleed,
+            Requirement::BlocksDeclined,
+            Requirement::ActingNotYourPredator,
+        ],
+        &[Effect::RedirectBleedToActingPrey],
+    )],
+    ..CARD
+};
+
+/// Form of Corruption's master-phase burn: a vampire of the prey's, in
+/// torpor too, with no more blood than the counters.
+const fn corruption_steal(version: &'static [Requirement], effects: &'static [Effect]) -> ModeDef {
+    ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::TargetVampire,
+                Requirement::ControlledByPrey,
+                Requirement::TargetBloodAtMostCounters,
+            ],
+        ),
+        ..mode_of(&[Window::MasterPhase], Actor::Controller, version, effects)
+    }
+}
+
+/// "[ser] Put this card in play. If your prey gets the Edge anew, you can
+/// add 1 counter to this card. If the number of counters on this card
+/// equals or exceeds the amount of blood on a vampire controlled by your
+/// prey during your master phase, you can burn this card to steal that
+/// vampire. A Methuselah can have only one Form of Corruption. [SER] As
+/// above, and your prey burns 1 pool after you burn this card." "Anew":
+/// not holding it before; the burn no master phase action, the vampire
+/// stolen for good.
+pub static FORM_OF_CORRUPTION: CardDef = CardDef {
+    name: "Form of Corruption",
+    modes: &[
+        action_at(
+            &[Requirement::OnePerMethuselah],
+            None,
+            &[Effect::DeclareAction(ActionKind::Card), Effect::PutInPlay],
+        ),
+        action_at(
+            &[Requirement::OnePerMethuselah],
+            None,
+            &[Effect::DeclareAction(ActionKind::Card), Effect::PutInPlay],
+        ),
+    ],
+    abilities: &[
+        corruption_steal(
+            &[Requirement::BasicVersion],
+            &[Effect::BurnSelf, Effect::StealTargetVampire],
+        ),
+        corruption_steal(
+            &[Requirement::SuperiorVersion],
+            &[
+                Effect::BurnSelf,
+                Effect::StealTargetVampire,
+                Effect::PreyBurnsPool(1),
+            ],
+        ),
+    ],
+    riders: &[Rider {
+        hook: Hook::GainsEdgeAnew,
+        scope: RiderScope::Prey,
+        requires: &[],
+        effects: &[Effect::MayAddCounter],
+    }],
+    ..CARD
+};
+
+/// "Each other Methuselah secretly chooses a number between 1 and 5
+/// inclusive; you choose a number between 1 and 6 inclusive. Each
+/// Methuselah holds a hand out with the chosen number of counters in it.
+/// Reveal the choices simultaneously. Each Methuselah gains the amount of
+/// pool they chose unless another Methuselah chose exactly 1 less than
+/// they did, in which case, they burn that amount of pool instead."
+/// (Malkavian.) Each pick hidden from the others until the last; the
+/// gains and burns at once.
+pub static GAME_OF_MALKAV: CardDef = CardDef {
+    name: "Game of Malkav",
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[],
+        &[Effect::GameOfMalkav],
+    )],
+    ..CARD
+};
+
+static ALASTOR_REFERENDUM: ReferendumDef = ReferendumDef {
+    // Not called with no vampire to choose (LSJ 20100129).
+    terms: &[Term::ChooseMinions {
+        filter: &[
+            Requirement::ActorReady,
+            Requirement::TargetVampire,
+            Requirement::ActorSectIn(&[Sect::Camarilla]),
+            Requirement::TargetWithout(Holding::Named("Alastor")),
+        ],
+        min: 1,
+        max: 1,
+    }],
+    effect: RefEffect::PutOnChosen { equipment: true },
+    grants: &[],
+    non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
+    only_sect: None,
+};
+
+/// "Requires a justicar or Inner Circle member. Choose a ready Camarilla
+/// vampire. Successful referendum means you search your library for an
+/// equipment card and put this card and the equipment on the chosen
+/// vampire (ignore requirements; shuffle afterward); pay half the cost
+/// rounded down of the equipment. The attached vampire can enter combat
+/// with a vampire as a +1 stealth Ⓓ action. The attached vampire cannot
+/// commit diablerie. A vampire can have only one Alastor." The search
+/// optional, Alastor attached anyway (LSJ 20050331-2); the equipment's
+/// blood the chosen vampire's (LSJ 20040518), inferior, X as 0 (LSJ
+/// 20100204).
+pub static ALASTOR: CardDef = CardDef {
+    name: "Alastor",
+    modes: &[political(
+        &[Requirement::ActorTitleIn(&[
+            TitleClass::Justicar,
+            TitleClass::InnerCircle,
+        ])],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&ALASTOR_REFERENDUM),
+            Effect::Layer(Modifier::HostCannotDiablerize),
+        ],
+    )],
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::NotControlled,
+                Requirement::ActorReady,
+                Requirement::TargetVampire,
+            ],
+        ),
+        ..mode_of(
+            &[Window::ActionDeclare],
+            Actor::Host,
+            &[],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::EnterCombatWithTarget,
+            ],
+        )
     }],
     ..CARD
 };

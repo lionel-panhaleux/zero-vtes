@@ -29,13 +29,18 @@ for most (the server's `/admin/unsupported` counts, once served). Its
 summary goes in the cards board's header at the round's end.
 
 The owner's metric (2026-10-14): recent (2025+) TWDA decks entering the
-*kept* corpus. Simulate `scripts/gen_twda.py` with candidate cards appended
-(monkeypatch `g.table_ids`); greedy over each recent deck's missing set,
-maximizing net recent-kept gain per new card; check the ceiling first (more
-cards can displace kept decks: `VERSIONS`, `SAME_CRYPT`, `SAME_LIBRARY`).
-Present steps (bundle → kept, recent kept) with the cost per recent deck at
-each step (round 11 ~2 cards a deck, round 12 ~5–6: diminishing returns are
-the owner's cut signal), and let the owner pick the cut.
+*kept* corpus. `python3 scripts/round_choice.py <vtes.json> --twda
+<twda.json> [--set NAME]… [--steps 15] [--bundle 8] [--demand
+<counts.json>]` simulates `gen_twda.py`'s rules over the tables extended in
+memory: the ceiling first (every recent deck's missing cards at once: more
+cards can displace kept decks, `VERSIONS`, `SAME_CRYPT`, `SAME_LIBRARY`),
+then the greedy steps (the bundle adding the most recent kept decks per new
+card: kept, recent kept, the cost per recent deck), each `--set`'s missing
+cards alone and together (set by set, owner 2026-10-15), and the asked ids
+among them. Present the steps (round 11 ~2 cards a deck, round 12 ~5–6:
+diminishing returns are the owner's cut signal) and let the owner pick the
+cut; `--cut N` then prints the chosen ids (the sets' and the first N
+steps').
 Count cards by id, never by splitting names on commas. Then add the round
 to `ADDED_BATCHES` in `scripts/window_matrix.py` (the owner's words in a
 comment) and regenerate `crypt.rs`, `library.rs`, `twda.rs`; check the

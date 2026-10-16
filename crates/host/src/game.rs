@@ -575,13 +575,27 @@ impl Game {
         let c = &req.options[i];
         let names = &self.viewer.numbering;
         let mut key = describe::key(e, req, c, names);
+        // Game of Malkav: another seat chose a number, not which — no
+        // amount, and the index (the number less one) told as 0.
+        let secret = req.seat.0 != self.human
+            && matches!(
+                e.interrupt(),
+                Some(zvtes::draws::Interrupt::SecretNumber { .. })
+            );
         if req.seat.0 != self.human {
             narrated(&mut key, c, req.window);
         }
+        if secret {
+            key.amount = None;
+        }
         OptionView {
-            index: i as u32,
+            index: if secret { 0 } else { i as u32 },
             key,
-            effects: describe::effects(e, req, c, names),
+            effects: if secret {
+                Vec::new()
+            } else {
+                describe::effects(e, req, c, names)
+            },
             abilities: describe::abilities(e, c),
             text: None,
         }

@@ -65,7 +65,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
-- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27, 74.1–74.13
+- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27, 74.1–74.13, 76.1–76.25
 - **Ousts, Life Boon's decision point** — 45.1–45.8
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5, 66.1
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
@@ -74,21 +74,21 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1, 55.3, 55.4, 55.5, 56.1, 58.1, 58.13, 73.3, 73.4
 - **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1, 57.10, 75.1
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
-- **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7, 53.6, 53.8, 57.1, 57.2, 61.2
-- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3, 55.7, 66.2, 72.1–72.4, 73.8
-- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8, 55.1, 55.2, 55.8, 57.3, 57.4, 58.2, 58.17, 58.18, 59.2, 59.17, 60.11, 61.1, 62.1, 63.4, 63.6, 63.8, 75.1–75.3
+- **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7, 53.6, 53.8, 57.1, 57.2, 61.2, 76.12
+- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3, 55.7, 66.2, 72.1–72.4, 73.8, 76.17
+- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8, 55.1, 55.2, 55.8, 57.3, 57.4, 58.2, 58.17, 58.18, 59.2, 59.17, 60.11, 61.1, 62.1, 63.4, 63.6, 63.8, 75.1–75.3, 76.9, 76.10, 76.11
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9
 - **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6, 54.3, 54.4, 54.7, 55.7, 56.2, 58.6
-- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8, 52.2, 52.3, 52.5, 52.7, 52.9, 52.10, 54.1, 58.8, 58.14, 58.15, 58.16, 59.7, 59.9, 59.18, 59.19, 60.2, 60.14, 60.16, 71.25, 73.4
-- **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4, 52.5, 52.6, 52.9, 58.3, 58.11, 59.13, 59.14, 60.1
-- **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1, 57.9, 58.5, 58.19, 59.13, 60.1, 60.9, 60.20
+- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8, 52.2, 52.3, 52.5, 52.7, 52.9, 52.10, 54.1, 58.8, 58.14, 58.15, 58.16, 59.7, 59.9, 59.18, 59.19, 60.2, 60.14, 60.16, 71.25, 73.4, 76.5, 76.6, 76.14, 76.15
+- **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4, 52.5, 52.6, 52.9, 58.3, 58.11, 59.13, 59.14, 60.1, 76.1–76.4
+- **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1, 57.9, 58.5, 58.19, 59.13, 60.1, 60.9, 60.20, 76.2, 76.3
 - **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7, 55.4, 55.6
 - **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6, 54.1, 58.12, 59.5, 60.5, 60.7
 - **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5, 73.1, 73.2
 - **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6, 46.4, 47.1
-- **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7
-- **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6, 73.5, 73.6
+- **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7, 76.9, 76.10, 76.15, 76.16
+- **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6, 73.5, 73.6, 76.7, 76.8
 - **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7, 54.1, 57.7, 73.3, 73.6
 - **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7, 73.5
 - **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8
@@ -1558,3 +1558,57 @@ The end-of-round window opens though the round's damage burned the opposing mini
 **75.2** Street Cred, Taste of Vitae: what they read is what the round did (damage inflicted, blood lost), and their target is not the opponent: offered when the opponent burned. Taste of Vitae green (LSJ 20031201-2); Street Cred amber, on that precedent, both reads agreeing; confirmed (owner, 2026-10-15: "yes"). (Tests taste_of_vitae_is_played_when_the_opponent_was_burned, street_cred_is_played_when_the_opposing_minion_burned.)
 
 **75.3** Hell-for-Leather [obt]: "Only usable if this Anarch is ready and the opposing minion is not. The opposing minion's controller burns 2 pool", the opposing minion burned this round: played, its controller burns 2 pool — settled by 44.1 (owner-confirmed: "sent to torpor or burned"). Green. The blind second reader read it unplayable (a burned minion not "not ready", no controller); 44.1 stands. (Test hell_for_leather_obt_burns_pool_against_a_burned_minion.)
+
+## Batch 76 — Round 13 (First Blood, Sabbat Preconstructed, the 25th and 30th Anniversary sets, the TWDA's first step): readings graded (Claude, 2026-10-16; owner, 2026-10-16: 76.24 answered)
+
+Seventy-one cards, graded per the add-cards skill: six blind second readers on the cards' text, their reads diffed against the design; where they disagreed with no ruling to settle it, red (76.24, answered by the owner).
+
+**76.1** Banu Haqim Justicar: the "Assamite Justicar" Kasim Bayar prints is the same title (rules-digest §1, V5 clan names): the two are rivals. Green. (Test banu_haqim_justicar_rivals_kasim_bayar.)
+
+**76.2** No choice of a contest with oneself: Toreador, Malkavian, Banu Haqim and Lasombra Justicar cannot choose one of the caller's own vampires while the caller claims that title already (advanced rules §1.13.1); none left, the card is not played (LSJ 20100129). `Requirement::NoSelfContest`. Green. (Another Methuselah's vampire whose controller holds the title: the cards board's "Reachable edges, verified first".) (Test banu_haqim_justicar_never_contests_its_own_kasim.)
+
+**76.3** Zane: the prince chosen as the referendum's terms, any Methuselah's but his own controller's (a contest with oneself, 76.2); passed, Zane takes that very title and contests it with its holder, his primogen title lost (one title). "If Zane is not a prince" reads the effective title (rules-digest §3.15): a contested gained title makes him no prince. Green (the second reader preferred the claimed title, against §3.15). (Test zane_takes_and_contests_a_princes_title.)
+
+**76.4** Calebros: the steal is offered to another Methuselah's older Camarilla vampire, read again at resolution against the actor (older: capacity, strictly); directed at his controller; Calebros cannot block it, his controller's other minions can; the stealer's own title is replaced (one title); a torpid Calebros may be the target. Green (both reads agree). (Test calebros_loses_his_title_to_an_older_camarilla_vampire.)
+
+**76.5** Mustafa: an older Toreador of another Methuselah, in torpor too (no "ready", rules-digest D25), once each polling step (D7), moves 1 blood to him and chooses the side as it uses the ability; a cast of his already made is cast again on that side (its side's printed votes and toll; unpayable, it stands), the votes gained since kept; the last use decides (LSJ 20090304-2); an abstaining Mustafa is not compelled (advanced rules §3.7.6.3). Amber (Kateline's referendum-ability precedent; the reads agree but on an abstaining Mustafa, where §3.7.6.3 settles it). (Tests mustafa_casts_his_votes_as_an_older_toreador_chooses, mustafa_turned_keeps_the_votes_a_card_added.)
+
+**76.6** Kateline Nadasdy: "non-acting" is not the political action's acting vampire; an abstention after the vampire cast cancels its votes and a priscus's ballots (LSJ 20100311, LSJ 19971001); usable locked or in torpor, once each referendum. Green. (Tests kateline_forces_a_non_acting_vampire_to_abstain, kateline_cancels_votes_cast_from_torpor.)
+
+**76.7** Dr. Morrow: any ally, his controller's too; more counters add nothing (LSJ 20070306); the -1 stealth is his text's, standing: in play (torpor included) it applies, gone with him; the counters stay. Amber (the reads agree; Black Hand a trait, LSJ 20070322). (Test dr_morrow_grafts_an_ally_for_minus_one_stealth.)
+
+**76.8** Charnas the Imp: put on any minion, an employ action whatever the target (ANK 20230408), directed at another Methuselah's minion's controller (+1 stealth: the employ's own), on the target only when played (else on the playing minion, LSJ 20090824); controlled by its employer's controller; 1 damage in that controller's unlock phase, out of combat; the employer about to be burned, its controller may put Charnas on any other minion in play, any Methuselah's — declined, it burns; an oust removes it (ANK 20180408). Amber ("another minion" unaddressed, rules-digest D11; both reads agree). (Tests charnas_the_imp_bites_its_employer_and_moves_on, charnas_is_removed_with_its_ousted_controller.)
+
+**76.9** Talbot's Chainsaw: the unlock damage is mandatory, the weapon's, on a ready minion its controller picks, the bearer included (LSJ 20090304-1); the first-round press is mandatory in every combat the bearer is in, used before any other to continue (ANK 20200525-1); "prevent 1 damage each combat" in combat; the granted action fizzles once the Chainsaw left the actor (RTR 19960221) — as does any action an equipment grants its bearer. Green. (Tests talbots_chainsaw_bars_hunts_presses_and_bites_its_controller, talbots_chainsaw_action_fizzles_without_the_chainsaw.)
+
+**76.10** Molotov Cocktail: a ranged strike, at either range; the card itself goes on the striker as its strike resolves; a strike that never resolves — combat ended by the opposing strike (ANK 20200203-1) or dodged (advanced rules §4.6.2, §4.7.1) — leaves it in the ash heap; its weapon strike not that round, additional strikes included; burned after its strike resolves, or at the end of combat. Green. (Tests molotov_cocktail_becomes_a_weapon_for_one_strike, molotov_cocktail_is_not_put_when_combat_ends_first, molotov_cocktail_does_not_strike_the_round_it_is_put_in_play.)
+
+**76.11** Entombment and Coma: a strike naming the object it acts on is not chosen against the other kind ([obt] against a vampire, [OBT] and Coma against an ally: advanced rules §4.3.3); close range only (LSJ 20000110). Green (revises the engine's earlier no-op reading of Coma). (Tests entombment_burns_an_ally_or_torpors_a_vampire, coma_sends_to_torpor_and_holds_the_unlock, coma_is_not_chosen_against_an_ally.)
+
+**76.12** Two Wrongs: the bleed turned to the bleeding minion's controller's prey, who may block (a change of target); the next card that would change this bleed's target is canceled as it is played, its cost paid (ANK 20260216); abilities are not cards and pass it by. Green. (Test two_wrongs_turns_a_bleed_and_shields_it.)
+
+**76.13** Form of Corruption: "anew" — the prey did not hold the Edge before; the counter optional; the steal in its controller's master phase, no master phase action, a vampire of the current prey's, in torpor too, with no more blood than the counters (0 counters, a 0-blood vampire: literal); for good. Green (both reads agree). (Tests form_of_corruption_steals_a_drained_vampire, form_of_corruption_counts_only_a_new_edge.)
+
+**76.14** Game of Malkav: each pick secret from every other seat until the last (the engine keeps them outside the state, a viewer is told a number was chosen, not which); revealed, the gains and burns at once. Green. (Tests game_of_malkav_pays_the_undercut_numbers, another_seats_secret_number_is_not_told.)
+
+**76.15** Alastor: the vampire chosen as the terms, any Methuselah's ready Camarilla one without an Alastor; the search optional, Alastor attached anyway (LSJ 20050331-2); the equipment put on, not equipped — none of its "as equipped" effects (LSJ 20090506), no lock, its requirements ignored, inferior, X as 0 (LSJ 20100204); half its cost rounded down, the pool its caller's, the blood the chosen vampire's (LSJ 20040518); the attached vampire commits no diablerie. Green. (Tests alastor_equips_its_vampire_and_bars_diablerie, alastor_finding_equipment_is_optional, alastor_blood_cost_is_the_chosen_vampires, alastor_puts_on_without_equipping, alastor_needs_a_vampire_to_choose.)
+
+**76.16** Hand of Conrad: an equipment's Disciplines are not its bearer's while an effect bars it from using equipment (RTR 20010711: Drawing Out the Beast); its action fizzles off its bearer (76.9). Green. (Tests hand_of_conrad_fizzles_off_its_bearer_and_its_potence_needs_equipment, an_equipment_bar_ends_with_a_combat_cut_short_by_the_turn.)
+
+**76.17** Aching Beauty: on any Methuselah's Toreador, in torpor too (Terrifying Visage's precedent, 53.7); the burn applied as the block lands, before any card (RTR 19991206), so an action then ended still costs the blocker; copies add up (LSJ 19980225); after it, no Mask of a Thousand Faces (RTR 19980623). Amber (precedent; both reads agree). (Tests aching_beauty_burns_the_blockers_pool_per_copy, aching_beauty_burns_even_if_the_action_then_ends, no_mask_after_aching_beauty_burns.)
+
+**76.18** João Bilé: "actions to put vampires in play" are those the Sterile trait bars (advanced rules §5.7.6): the actions whose card puts a vampire in play (The Embrace, Childe of the Revolution and their kin). Amber (the engine's sterile card set; both reads apply the Sterile test). (Test joao_bile_blocks_no_titled_vampire_and_embraces_quietly.)
+
+**76.19** Carolina Vález: immune — the damage of allies and retainers, any Methuselah's, is not inflicted (LSJ 20010627); an ally's weapon damage is the ally's. Amber (both reads agree). (Test carolina_takes_no_damage_from_allies_and_retainers.)
+
+**76.20** Thadius Zho: any vampire, a torpid one too (Apolonia's precedent); a 0-blood target a legal no-op. Amber. (Test thadius_zho_burns_a_vampires_blood_with_stealth.)
+
+**76.21** Emily Carson: offered only while she is locked (Kalinda's precedent, 48.7); once each discard phase. Amber. (Test emily_carson_burns_the_edge_to_unlock.)
+
+**76.22** Epikasta Rigatos: the card bound for the ash heap as her action ends — her action's own card, played that action (ANK 20180628), whichever of the action card types, blocked too — goes to her library, shuffled, instead. Amber (both reads agree). (Test epikasta_recycles_her_action_card.)
+
+**76.23** Murat: "Followers of Set" are the Ministry (rules-digest §1); no V5 Ministry has [ser], so inert in the pool. Green. (Test murat_makes_serpentis_combat_cards_cost_the_ministry.)
+
+**76.24** Camarilla Vitae Slave: the chosen Discipline is superior until its controller's next master phase, as printed (advanced rules §2.5.3), not until the next unlock phase (LSJ 19970224); kept if the retainer is burned or stolen (LSJ 19970224, advanced rules §5.6.4). Owner (2026-10-16): the next master phase. `Expiry::MasterPhase`, ended in `start_master_phase`. (Test camarilla_vitae_slave_raises_capacity_and_a_discipline.)
+
+**76.25** The rest read as printed, settled by the default readings and their KRCG rulings: Aidan Lyle and Charles Delmare (a press each combat), Antón de Concepción, Bela (no political actions, a card calling a referendum included), Black Metamorphosis, Computer Hacking, Duality (played at [vic]), Dónal O'Connor (G6, torpor too, LSJ 20011022), Foundation Exhibit (own untitled vampires), Frondator (the action's cost, PIB 20110918), Gem Ghastly (cards played normally only, LSJ 20050119), Grimgroth (himself included), Jeremy, Khobar Towers (an ally's printed cost; no X-cost ally in the pool), L'Épuisette, Lady Vadislava (RTR 19960112), Lasombra Justicar, Lord Leopold, Luca Italicus, Molly MacDonald (read live), Nikolaus Vermeulen G2/G6 (torpor too), Rutor, Selma, Thomas De Lutrius, Troius, Una, University Hunting Ground, Vasily, Animalism; the eighteen whose text is their sect and title. Green. (Tests in twda_round13.rs, the_text_only_vampires_carry_their_printed_traits.)

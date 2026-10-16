@@ -341,6 +341,9 @@ impl Prompt<'_> {
                 "Choose the library card of your prey's ash heap to move onto the Fragments".into()
             }
             P::NameOwnAshCard => "Name the library card in your ash heap to take back".into(),
+            P::NameAshVampire => {
+                "Name the vampire in your ash heap to move to your uncontrolled region".into()
+            }
             P::StoreOwnAsh => format!(
                 "Choose the library card of your ash heap to move onto {}",
                 self.card()?
@@ -363,6 +366,16 @@ impl Prompt<'_> {
             ),
             P::MoveCardToTitled => format!(
                 "Move {} to another justicar or Inner Circle member",
+                self.card()?
+            ),
+            P::SecretNumber => "Secretly choose a number".into(),
+            P::SearchEquipFor => format!(
+                "Search your library for an equipment card to put on {}",
+                self.minion()?
+            ),
+            P::MoveOffBurnedBearer => format!(
+                "{} is about to be burned: put {} on another minion?",
+                self.minion()?,
                 self.card()?
             ),
             _ => return None,

@@ -367,7 +367,7 @@ fn referendum_terms(x: &Ctx<impl Names>, choice: &Choice) -> Vec<Effect> {
             ..chosen(EffectKind::Role)
         }],
         // The political action card put on the chosen.
-        (Choice::ChooseMinion(_), _, R::PutOnChosen) => vec![Effect {
+        (Choice::ChooseMinion(_), _, R::PutOnChosen { .. }) => vec![Effect {
             card: x
                 .e
                 .action()
@@ -764,6 +764,11 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 card: card(c),
                 ..a()
             },
+            I::MoveOffBurnedBearer { card: c, from, .. } => About {
+                card: card(c),
+                minion: m(from),
+                ..a()
+            },
             I::GiveBlood { from, .. } => About {
                 minion: m(from),
                 ..a()
@@ -1052,7 +1057,13 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             | I::AllyFromAsh { .. }
             | I::NameUncontrolled { .. }
             | I::BeastDisciplines { .. }
-            | I::NameOwnAshCard { .. } => return None,
+            | I::NameOwnAshCard { .. }
+            | I::NameAshVampire { .. }
+            | I::SecretNumber { .. } => return None,
+            I::SearchEquipFor { minion, .. } => About {
+                minion: m(minion),
+                ..a()
+            },
         });
     }
     match req.window {
@@ -1221,7 +1232,9 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 }
                 (Term::ChooseMinions { .. }, R::Banish) => ("banish", None, None),
                 (Term::ChooseMinions { max, .. }, R::Expel) => ("expel", Some(max), None),
-                (Term::ChooseMinions { .. }, R::PutOnChosen) => ("put_on_chosen", None, None),
+                (Term::ChooseMinions { .. }, R::PutOnChosen { .. }) => {
+                    ("put_on_chosen", None, None)
+                }
                 (Term::ChooseMinions { .. }, R::LockChosenBurnAllocated) => {
                     ("lock_chosen", None, None)
                 }

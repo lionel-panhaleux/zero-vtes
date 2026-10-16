@@ -105,6 +105,13 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::PoolToTargetBlood(v) => push(detail(on(n(K::Blood, i(v)), On::Target), "from_pool")),
         E::HostBloodToTarget(v) => push(detail(on(n(K::Blood, i(v)), On::Target), "from_host")),
         E::TargetBloodToHost(v) => push(detail(on(n(K::Blood, i(v)), On::Host), "from_target")),
+        E::ActorBloodToTarget(v) => push(detail(on(n(K::Blood, i(v)), On::Target), "from_actor")),
+        E::GraftOnTarget => push(detail(on(n(K::Counters, 1), On::Target), "graft")),
+        E::StealTargetVampire => push(detail(on(of(K::Steal), On::Target), "vampire")),
+        E::CastTargetVotes(favor) => push(Effect {
+            favor: Some(favor),
+            ..on(of(K::Votes), On::Target)
+        }),
         E::StealBloodToHostX => push(detail(x(on(n(K::Blood, 1), On::Host)), "from_target")),
         E::StealBloodFromTarget(v) => push(on(n(K::Steal, i(v)), On::Target)),
         E::StealPoolFromTarget(v) => push(detail(on(n(K::Steal, i(v)), On::Target), "pool")),

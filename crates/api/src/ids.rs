@@ -297,6 +297,17 @@ ids!(
         /// Circle member, any Methuselah's, in torpor included (ANK 20210109;
         /// rules-qa 49.4: not locked by the move); burned if there is none.
         MoveCardToTitled,
+        /// Charnas the Imp: its employer about to be burned, `seat` may put
+        /// `card` on another minion in play, any Methuselah's; declined, it
+        /// burns.
+        MoveOffBurnedBearer,
+        /// Game of Malkav: `seat` secretly chooses a number (`set_x`, from
+        /// 1); another viewer is told a number was chosen, not which.
+        SecretNumber,
+        /// Alastor: `seat` may search their library for an equipment card
+        /// to put on `minion` (`find_card`, or pass), requirements ignored,
+        /// for half its cost rounded down.
+        SearchEquipFor,
         /// Blood Trade: 1 blood from `from` to a vampire of another
         /// Methuselah's, the player's choice.
         GiveBlood,
@@ -538,6 +549,9 @@ ids!(
         /// The Sargon Fragment: the library card of `seat`'s ash heap the
         /// action declared names.
         NameOwnAshCard,
+        /// Hand of Conrad: the vampire of `seat`'s ash heap the action
+        /// declared names (`Choice::AshVampire`).
+        NameAshVampire,
         /// Giovanni del Georgio: the card two copies of which in `of`'s ash
         /// heap the action declared names (`Terms::PreyAshPair`).
         NameAshPair,

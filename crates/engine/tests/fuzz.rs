@@ -227,12 +227,18 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
             s.held.total(),
         );
     }
+    // An equipment bar lives with its combat (rules-qa 76.16).
+    assert!(
+        e.combat().is_some() || st.equipment_barred.is_empty(),
+        "equipment bar outside combat (seed {seed})"
+    );
     // Every card in play is controlled by a living Methuselah.
     for ci in 0..st.cards.len() {
         if st.cards[ci].in_play {
             assert!(
                 !st.seats[st.card_controller(CardId(ci as u32)).index()].ousted,
-                "card in play controlled by an ousted seat (seed {seed})"
+                "card in play controlled by an ousted seat (seed {seed}): {:?}",
+                st.cards[ci]
             );
         }
     }
@@ -3775,6 +3781,149 @@ fuzz_tests! {
             per_seat(e, |c| c.sect == zvtes::crypt::Sect::Camarilla, 4);
         },
         seeds: 10,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, round 13 (slice 16y): the library cards.
+    /// Form of Corruption needs [ser], which no pool vampire has, and Two
+    /// Wrongs a bleed at its player from beyond its predator (a redirect or
+    /// "bleed anyone"): not played (both tested in twda_round13).
+    random_games_with_twda_round_13a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Animalism",
+            "University Hunting Ground",
+            "Computer Hacking",
+            "Aching Beauty",
+            "Banu Haqim Justicar",
+            "Lasombra Justicar",
+            "Thadius Zho",
+            "Black Metamorphosis",
+            "Foundation Exhibit",
+            "Entombment",
+            "Hand of Conrad",
+            "Khobar Towers, Al-Khubar",
+            "Camarilla Vitae Slave",
+            "Talbot's Chainsaw",
+            "Molotov Cocktail",
+            "Charnas the Imp",
+            "Two Wrongs",
+            "Game of Malkav",
+            "Alastor",
+            // Equipment for Alastor's search.
+            "Flak Jacket",
+        ],
+        covers: &[
+            "play:Animalism",
+            "play:University Hunting Ground",
+            "play:Computer Hacking",
+            "play:Aching Beauty",
+            "play:Banu Haqim Justicar",
+            "play:Lasombra Justicar",
+            "play:Thadius Zho",
+            "play:Black Metamorphosis",
+            "play:Foundation Exhibit",
+            "play:Entombment",
+            "play:Hand of Conrad",
+            "play:Khobar Towers, Al-Khubar",
+            "play:Camarilla Vitae Slave",
+            "play:Talbot's Chainsaw",
+            "play:Molotov Cocktail",
+            "play:Charnas the Imp",
+            "play:Game of Malkav",
+            "play:Alastor",
+            "ability:University Hunting Ground",
+            "ability:Hand of Conrad",
+            "ability:Talbot's Chainsaw",
+            "ability:Molotov Cocktail",
+            // Camarilla Vitae Slave's choice: not reached by random play
+            // (tested in twda_round13).
+            "ability:Khobar Towers, Al-Khubar",
+            "ability:Alastor",
+            "ability:Thadius Zho",
+        ],
+        setup: |e, _| {
+            let has = |c: &CryptCard, d: &str| c.disciplines.iter().any(|x| x.eq_ignore_ascii_case(d));
+            let camarilla = |c: &CryptCard| c.sect == zvtes::crypt::Sect::Camarilla;
+            per_seat(e, |c| c.clan == "Toreador", 4);
+            per_seat(e, |c| c.clan == "Tremere", 4);
+            per_seat(e, |c| c.clan == "Tremere antitribu", 4);
+            per_seat(e, |c| c.clan == "Toreador antitribu", 4);
+            per_seat(e, |c| c.clan == "Ministry", 4);
+            per_seat(e, |c| c.clan == "Malkavian", 4);
+            per_seat(e, |c| c.clan == "Lasombra", 4);
+            per_seat(e, |c| has(c, "obt"), 4);
+            per_seat(e, |c| c.clan == "Banu Haqim" && camarilla(c), 4);
+            per_seat(e, |c| c.clan == "Lasombra" && camarilla(c), 4);
+            per_seat(
+                e,
+                |c| matches!(c.title, zvtes::crypt::Title::Justicar(_) | zvtes::crypt::Title::InnerCircle(_)),
+                4,
+            );
+        },
+        seeds: 170,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, round 13 (slice 16y): the vampires.
+    random_games_with_twda_round_13b_hold_invariants_and_replay: Fixture {
+        // Action cards for Epikasta to recycle.
+        slice: &["Kine Resources Contested", "Aid from Bats", "Computer Hacking"],
+        covers: &[
+            "ability:Calebros, The Martyr",
+            "ability:Dr. Morrow, The Skindoctor",
+            "ability:Zane",
+            "ability:Mustafa, The Heir",
+            "ability:Kateline Nadasdy",
+            "ability:Dónal O'Connor",
+            "ability:Emily Carson",
+            "ability:Lady Vadislava",
+            "ability:Lord Leopold Valdemar",
+            "ability:Luca Italicus",
+            "ability:Epikasta Rigatos",
+            "ability:Antón de Concepción",
+            // Aidan's and Charles's presses are printed stats, not
+            // abilities; Nikolaus needs an uncontrolled Nosferatu: tested in
+            // twda_round13.
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Calebros, The Martyr",
+                    "Dr. Morrow, The Skindoctor",
+                    "Zane",
+                    "Mustafa, The Heir",
+                    "Kateline Nadasdy",
+                    "Nikolaus Vermeulen",
+                    "Dónal O'Connor",
+                    "Emily Carson",
+                    "Lady Vadislava",
+                    "Lord Leopold Valdemar",
+                    "Luca Italicus",
+                    "Epikasta Rigatos",
+                    "Antón de Concepción",
+                    "Aidan Lyle",
+                    "Charles Delmare",
+                    "Bela",
+                    "Troius",
+                    "Molly MacDonald",
+                    "Carolina Vález",
+                    "Rutor",
+                    "Vasily",
+                    "João Bilé",
+                    "Thomas De Lutrius",
+                    "Selma the Repugnant",
+                    "Una",
+                    "Grimgroth",
+                ],
+            );
+            per_seat(e, |c| c.clan == "Toreador" && c.capacity >= 7, 4);
+            per_seat(e, |c| c.sect == zvtes::crypt::Sect::Camarilla && c.capacity >= 6, 4);
+            per_seat(e, |c| c.clan == "Nosferatu", 4);
+            // Allies for Dr. Morrow's grafts.
+            for s in 0..4 {
+                e.add_ally(SeatId(s), zvtes::state::find_library("Aggressive Corpse"));
+            }
+        },
+        seeds: 120,
         ..BASE
     };
 }

@@ -616,7 +616,7 @@ pub(crate) fn strike(k: Sk, card: Option<u32>) -> Strike {
         }
         Sk::TorporOrBurn => StrikeKind::TorporOrBurn,
         Sk::Torpor { .. } => StrikeKind::Torpor,
-        Sk::CardEffect => StrikeKind::CardEffect,
+        Sk::CardEffect { .. } => StrikeKind::CardEffect,
         Sk::BurnWeapon => StrikeKind::BurnWeapon,
         Sk::StealWeapon => StrikeKind::StealWeapon,
         Sk::BurnEquipment => StrikeKind::BurnEquipment,

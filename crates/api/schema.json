@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -3417,6 +3417,21 @@
           "const": "move_card_to_titled"
         },
         {
+          "description": "Charnas the Imp: its employer about to be burned, `seat` may put\n`card` on another minion in play, any Methuselah's; declined, it\nburns.",
+          "type": "string",
+          "const": "move_off_burned_bearer"
+        },
+        {
+          "description": "Game of Malkav: `seat` secretly chooses a number (`set_x`, from\n1); another viewer is told a number was chosen, not which.",
+          "type": "string",
+          "const": "secret_number"
+        },
+        {
+          "description": "Alastor: `seat` may search their library for an equipment card\nto put on `minion` (`find_card`, or pass), requirements ignored,\nfor half its cost rounded down.",
+          "type": "string",
+          "const": "search_equip_for"
+        },
+        {
           "description": "Blood Trade: 1 blood from `from` to a vampire of another\nMethuselah's, the player's choice.",
           "type": "string",
           "const": "give_blood"
@@ -3725,6 +3740,11 @@
           "description": "The Sargon Fragment: the library card of `seat`'s ash heap the\naction declared names.",
           "type": "string",
           "const": "name_own_ash_card"
+        },
+        {
+          "description": "Hand of Conrad: the vampire of `seat`'s ash heap the action\ndeclared names (`Choice::AshVampire`).",
+          "type": "string",
+          "const": "name_ash_vampire"
         },
         {
           "description": "Giovanni del Georgio: the card two copies of which in `of`'s ash\nheap the action declared names (`Terms::PreyAshPair`).",

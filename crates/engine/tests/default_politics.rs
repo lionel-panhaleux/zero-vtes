@@ -95,7 +95,7 @@ fn check(seats: usize, games: u64) -> Seen {
                         })
                         .collect();
                     match (req.options[i], effect) {
-                        (Choice::ChooseMinion(m), Some(RefEffect::PutOnChosen)) => {
+                        (Choice::ChooseMinion(m), Some(RefEffect::PutOnChosen { .. })) => {
                             seen.title += 1;
                             if owner(m) != me {
                                 assert!(
@@ -212,7 +212,9 @@ fn check(seats: usize, games: u64) -> Seen {
                     // opponent's title.
                     let opposed = match effect {
                         Some(RefEffect::Banish | RefEffect::Expel) => named,
-                        Some(RefEffect::PutOnChosen) => !named && !r.terms.minions.is_empty(),
+                        Some(RefEffect::PutOnChosen { .. }) => {
+                            !named && !r.terms.minions.is_empty()
+                        }
                         _ => false,
                     };
                     for (o, &ok) in req.options.iter().zip(&mask) {

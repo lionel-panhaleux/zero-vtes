@@ -86,11 +86,9 @@ impl Effect {
             | E::EatAshAllyToTarget(..)
             | E::Stun
             | E::StealLocation
-            | E::StealTargetVampire
             | E::StolenToReadyForBlood(..)
             | E::EatAshAlly { .. }
             | E::BloodToTargetFull
-            | E::RemoveTargetForCapacityPool
             | E::MoveBloodXToUncontrolledTarget
             | E::EnterWithCountersPerOwnClan(..)
             | E::EnterWithCountersPerOwnAnarch
@@ -131,7 +129,8 @@ impl Effect {
             | E::PutOnActor
             | E::PutOnActorRemembering
             | E::BurnActorBlood(..)
-            | E::If { .. } => (Family::Play, false),
+            | E::If { .. }
+            | E::GameOfMalkav => (Family::Play, false),
             E::TargetLeavesTorpor
             | E::BloodToActing(..)
             | E::PreyBurnsPool(..)
@@ -152,7 +151,9 @@ impl Effect {
             | E::HandSizeUntilUnlock(..)
             | E::ActorLasting(..)
             | E::TargetBecomesSect(..)
-            | E::ActorBecomesBlackHand => (Family::Shared, false),
+            | E::ActorBecomesBlackHand
+            | E::RemoveTargetForPool
+            | E::StealTargetVampire => (Family::Shared, false),
             E::CounterToTarget(..)
             | E::BloodPerHostage
             | E::BurnTargetHostages
@@ -201,6 +202,7 @@ impl Effect {
             | E::HostBurnBlood(..)
             | E::HostBurnBloodToUnlock
             | E::HostBloodToPool(..)
+            | E::ActorBloodToTarget(..)
             | E::PoolToHostBlood(..)
             | E::HuntingGroundBlood(..)
             | E::HuntingGroundTwoOldest
@@ -270,7 +272,9 @@ impl Effect {
             | E::MethuselahVotes { .. }
             | E::TakeControlOfHost
             | E::RemoveOwnAshCards(..)
-            | E::UnlockHost => (Family::Ability, false),
+            | E::UnlockHost
+            | E::ActionCardToLibraryShuffled
+            | E::HostSuperiorChosenUntilMaster => (Family::Ability, false),
             E::TakeOverAction
             | E::AnimalBoostIfSuccessful { .. }
             | E::ActionLayer(..)
@@ -289,6 +293,7 @@ impl Effect {
             | E::EndBlockedAction
             | E::StealthForNextActions
             | E::RedirectBleed
+            | E::RedirectBleedToActingPrey
             | E::BurnActingMinion
             | E::ActionFails
             | E::DeferReactionReplacement
@@ -370,6 +375,8 @@ impl Effect {
             | E::AggravatedStrike
             | E::FirstStrike
             | E::PutOnOpponentOnHit { .. }
+            | E::PutOnSelfAsStrikeResolves
+            | E::BurnOpposingAllyOnHit
             | E::PutOnActorAfterCombat
             | E::StrengthThisRound(..)
             | E::StrengthThisRoundVotes
@@ -450,6 +457,7 @@ impl Effect {
             | E::PoisonPill
             | E::AddVotesPerReadySect(..)
             | E::Abstain { .. }
+            | E::CastTargetVotes(..)
             | E::AddVotesAgainst(..)
             | E::TallyPenaltyAgainst(..)
             | E::BarNonCamarillaVotes
@@ -468,6 +476,7 @@ impl Effect {
             | E::RemoveActorToBurnTarget
             | E::ReorderTopThenUnlock(..)
             | E::AllyFromAshLocked(..)
+            | E::AshVampireToUncontrolled
             | E::CorruptTargetMayStealAtCapacity
             | E::TauntCombat(..)
             | E::GainLiaison
@@ -487,6 +496,7 @@ impl Effect {
             | E::InResultingCombat(..)
             | E::TargetMethuselahDiscards(..)
             | E::BurnCorruptionFromTarget
+            | E::GraftOnTarget
             | E::IfBleedSuccessful(..)
             | E::LockMinionOfTarget
             | E::CorruptMinionOfTarget => (Family::Success, false),
@@ -507,6 +517,9 @@ impl Effect {
             | E::HostBloodToBy(..)
             | E::BurnSelfUnlessPool(..)
             | E::PreyChoosesMinionDamaged(..)
+            | E::ControllerChoosesMinionDamaged(..)
+            | E::DamageHost(..)
+            | E::MayMoveOffBurnedBearer
             | E::CoinFlipActionFails
             | E::GoToTorpor
             | E::PoolOrAshCardsPerCounter
@@ -518,7 +531,7 @@ impl Effect {
             | E::HandSizeUntilDiscard(..)
             | E::DamageBledAnarchs(..)
             | E::PreyBurnsPoolPerTorpor
-            | E::CounterOnZombieBurned
+            | E::MayAddCounter
             | E::MayMakeAnarchForCounter
             | E::AnarchControllerMayBloodToUncontrolled(..)
             | E::MayLockForTorture
@@ -605,6 +618,7 @@ impl Effect {
             E::AggravatedAgainstClan(..)
             | E::BurnAtCombatEnd
             | E::BearerDamageOncePerCombat
+            | E::BurnAfterStrike
             | E::CountersPerDamage
             | E::AdditionalStrikeWithSource
             | E::UnpreventableStrike

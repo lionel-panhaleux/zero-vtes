@@ -420,6 +420,13 @@ impl Engine {
             }
         }
         self.state.phase_uses.clear();
+        self.state.seats[s.index()]
+            .timed
+            .expire(Expiry::MasterPhase);
+        for m in &mut self.state.minions {
+            m.timed
+                .retain(|&(_, until, seat)| (until, seat) != (Expiry::MasterPhase, s));
+        }
         // Brujah Debate's lock: due again this phase.
         self.state.seats[s.index()].master_resolved.clear();
         self.flow = Flow::MasterPhase;
@@ -465,7 +472,13 @@ impl Engine {
                 Some(_) => self.reacting_candidates(seat, mode),
                 None => vec![],
             },
-            Actor::ActingCandidate => {
+            // Mustafa: their vampires, in torpor too (no "ready", D25).
+            Actor::OtherMethuselahsVampire => st
+                .minions_of(seat)
+                .filter(|&m| st.minions[m.index()].is_vampire())
+                .map(Some)
+                .collect(),
+            Actor::ActingCandidate | Actor::OtherMethuselahsMinion => {
                 if self.action.is_some() {
                     vec![]
                 } else if let Some(m) = self.cog_minion(seat) {
@@ -2408,6 +2421,7 @@ impl Engine {
             | Some(Terms::XPool)
             | Some(Terms::XCounters)
             | Some(Terms::DirectedHandCard)
+            | Some(Terms::InferiorDiscipline)
             | None => {
                 unreachable!("terms window without a choice")
             }
@@ -2574,16 +2588,32 @@ impl Engine {
             .into_iter()
             .filter(|&s| s != ctx.seat)
             .collect();
-        let pending = PendingPlay {
+        let mut pending = PendingPlay {
             ctx,
             window: OrderedWindow::new(order),
             canceled: false,
             cost_paid: false,
         };
+        // Two Wrongs: the next card that would change the bleed's target,
+        // canceled as it is played, its cost paid (RBK cancel-a-card).
+        let redirects = cards::lookup(ctx.card).is_some_and(|d| {
+            d.modes[ctx.mode as usize]
+                .effects
+                .iter()
+                .any(|e| matches!(e, Effect::RedirectBleed | Effect::RedirectBleedToActingPrey))
+        });
+        if let Some(a) = self
+            .action
+            .as_mut()
+            .filter(|a| a.redirect_shield && redirects)
+        {
+            a.redirect_shield = false;
+            pending.canceled = true;
+            pending.cost_paid = true;
+        }
         let flow = std::mem::replace(&mut self.flow, Flow::GameOver);
         match flow {
             Flow::AsPlayed { mut stack, resume } => {
-                let mut pending = pending;
                 // Dark Influences: a cancel of another Methuselah's minion
                 // card is canceled unpaid, the shield burned instead.
                 if let Some(shield) = self.cancel_shield(&stack, &pending.ctx) {
@@ -4150,11 +4180,7 @@ impl Engine {
                 if let Some(id) = placed {
                     *in_play = Some(id);
                     // Inner Essence: for this combat only.
-                    let ends = cards::lookup(ctx.card).is_some_and(|d| {
-                        d.modes[ctx.mode as usize]
-                            .effects
-                            .contains(&Effect::BurnAtCombatEnd)
-                    });
+                    let ends = cards::burns_at_combat_end(ctx.card, ctx.mode);
                     if let (true, Some(c)) = (ends, self.combat.as_mut()) {
                         c.burn_at_end.push(id);
                     }
@@ -4172,7 +4198,7 @@ impl Engine {
                 let owner = match effect {
                     Effect::BeastPresses { optional } => {
                         let i = c.side_of_minion(actor).expect("a combatant");
-                        c.sides[i].no_equipment = true;
+                        c.sides[i].bar_equipment(&mut self.state, false);
                         Some((i, optional))
                     }
                     _ => None,
@@ -4609,32 +4635,6 @@ impl Engine {
                     self.state.set_blood(t, b);
                 }
             }
-            // Removed from the game, not burned; its controller gains pool
-            // equal to its capacity (Golconda: Inner Peace).
-            Effect::RemoveTargetForCapacityPool => {
-                let t = ctx.target.minion();
-                if self.state.minions[t.index()].present() {
-                    let cap = self.state.capacity_of(t).unwrap_or(0);
-                    let v = &self.state.minions[t.index()];
-                    let controller = v.owner;
-                    let owner = v.origin.or(v.temp_from).unwrap_or(controller);
-                    let card = v.crypt_card();
-                    let copy = *v.copy;
-                    // The cards on it are burned as it leaves play (advanced
-                    // rules §1.12.1), its owner's too.
-                    for ci in 0..self.state.cards.len() {
-                        let c = &self.state.cards[ci];
-                        if c.in_play && c.host == Some(t) {
-                            self.burn_card_in_play(CardId(ci as u32));
-                        }
-                    }
-                    self.remove_minion(t);
-                    if let Some(c) = card {
-                        self.state.seats[owner.index()].removed_crypt.put(c, copy);
-                    }
-                    self.state.seats[controller.index()].pool += cap as i32;
-                }
-            }
             // "Move up to 3 blood from a ready vampire you control to a
             // younger vampire of the same clan in your uncontrolled region"
             // (Grooming the Protégé): X named at play, what the vampire has.
@@ -4679,24 +4679,33 @@ impl Engine {
                     self.minions_to_torpor(&small);
                 }
             }
+            // The others first, clockwise, the player last; the last pick
+            // reveals.
+            Effect::GameOfMalkav => {
+                let others: Vec<SeatId> = self
+                    .state
+                    .clockwise_from(s)
+                    .into_iter()
+                    .filter(|&o| o != s && !self.state.seats[o.index()].ousted)
+                    .collect();
+                for o in others {
+                    self.interrupts.push(Interrupt::SecretNumber {
+                        seat: o,
+                        max: 5,
+                        last: false,
+                    });
+                }
+                self.interrupts.push(Interrupt::SecretNumber {
+                    seat: s,
+                    max: 6,
+                    last: true,
+                });
+            }
             Effect::StealLocation => {
                 if let Target::Card(c) = ctx.target {
                     if self.state.cards[c.index()].present() {
                         self.give_location(c, s);
                     }
-                }
-            }
-            // For good: the cards on it go with it; its ash heap stays its
-            // owner's; a title it carries may now be contested.
-            Effect::StealTargetVampire => {
-                let t = ctx.target.minion();
-                let v = &mut self.state.minions[t.index()];
-                if v.owner != s {
-                    let origin = v.origin.or(v.temp_from).unwrap_or(v.owner);
-                    v.origin = (origin != s).then_some(origin);
-                    v.temp_from = None;
-                    v.owner = s;
-                    self.enter_title_contest(t);
                 }
             }
             Effect::StolenToReadyForBlood(n) => {
@@ -4838,6 +4847,59 @@ impl Engine {
     /// is its host (or the user's combatant).
     pub(crate) fn apply_shared_effect(&mut self, effect: Effect, ctx: &PlayCtx, by: By) {
         match effect {
+            // For good: the cards on it go with it; its ash heap stays its
+            // owner's; a title it carries may now be contested
+            // (Graverobbing, Form of Corruption).
+            Effect::StealTargetVampire => {
+                let (t, s) = (ctx.target.minion(), ctx.seat);
+                let v = &mut self.state.minions[t.index()];
+                if v.present() && v.owner != s {
+                    let origin = v.origin.or(v.temp_from).unwrap_or(v.owner);
+                    v.origin = (origin != s).then_some(origin);
+                    v.temp_from = None;
+                    v.owner = s;
+                    self.enter_title_contest(t);
+                }
+            }
+            // Removed from the game, not burned; its controller gains pool
+            // equal to its capacity, an ally its printed cost (Golconda:
+            // Inner Peace, Khobar Towers).
+            Effect::RemoveTargetForPool => {
+                let t = ctx.target.minion();
+                if let Some(card) = self.state.minions[t.index()].kind.ally_card() {
+                    if self.state.minions[t.index()].present() {
+                        let lib = &LIBRARY[card as usize];
+                        let x = match (lib.pool_cost, lib.blood_cost) {
+                            (crate::library::Cost::Fixed(n), _)
+                            | (_, crate::library::Cost::Fixed(n)) => n,
+                            _ => 0,
+                        };
+                        let controller = self.state.minions[t.index()].owner;
+                        self.remove_ally_from_game(t);
+                        self.state.seats[controller.index()].pool += x as i32;
+                    }
+                } else if self.state.minions[t.index()].present() {
+                    let cap = self.state.capacity_of(t).unwrap_or(0);
+                    let v = &self.state.minions[t.index()];
+                    let controller = v.owner;
+                    let owner = v.origin.or(v.temp_from).unwrap_or(controller);
+                    let card = v.crypt_card();
+                    let copy = *v.copy;
+                    // The cards on it are burned as it leaves play (advanced
+                    // rules §1.12.1), its owner's too.
+                    for ci in 0..self.state.cards.len() {
+                        let c = &self.state.cards[ci];
+                        if c.in_play && c.host == Some(t) {
+                            self.burn_card_in_play(CardId(ci as u32));
+                        }
+                    }
+                    self.remove_minion(t);
+                    if let Some(c) = card {
+                        self.state.seats[owner.index()].removed_crypt.put(c, copy);
+                    }
+                    self.state.seats[controller.index()].pool += cap as i32;
+                }
+            }
             Effect::HandSizeUntilUnlock(n) => {
                 self.state.seats[ctx.seat.index()].timed.add(
                     TimedStat::HandSize,
@@ -5233,6 +5295,18 @@ impl Engine {
                                     continue;
                                 }
                             }
+                            // "Counters … equals or exceeds the amount of
+                            // blood on a vampire" (Form of Corruption).
+                            if let (true, Target::Minion(t)) = (
+                                ability.target.is_some_and(|sp| {
+                                    sp.filter.contains(&Requirement::TargetBloodAtMostCounters)
+                                }),
+                                target,
+                            ) {
+                                if st.minions[t.index()].blood > c.counters {
+                                    continue;
+                                }
+                            }
                             out.push(use_card(id, ai, None, target));
                         }
                     }
@@ -5449,6 +5523,16 @@ impl Engine {
         {
             return None;
         }
+        // A Discipline to choose at inferior (Camarilla Vitae Slave): none
+        // left, nothing to choose.
+        let card_host = card.and_then(|id| st.cards[id.index()].host);
+        if matches!(ability.terms, Some(Terms::InferiorDiscipline))
+            && !card_host
+                .or(u.host)
+                .is_some_and(|h| !st.inferior_disciplines(h).is_empty())
+        {
+            return None;
+        }
         // "Burn X pool": payable, down to 0 at most (The Uncoiling).
         if let (true, Some(id)) = (
             ability.effects.contains(&Effect::PayPoolPerOtherEvent),
@@ -5563,6 +5647,15 @@ impl Engine {
                     (Some(a), Some(h)) => st.younger_than(h, a),
                     _ => false,
                 }
+            }
+            // "Not usable the round it is put in play" (Molotov Cocktail).
+            (R::NotPlacedThisRound, AbilitySource::Card(id)) => self
+                .combat
+                .as_ref()
+                .is_none_or(|c| !c.placed_this_round.contains(&id)),
+            // "Each older Toreador" (Mustafa).
+            (R::ActorOlderThanHost, AbilitySource::Vampire(h)) => {
+                u.actor.is_some_and(|a| st.younger_than(h, a))
             }
             // "The chosen Assamite can …" (Priority Contract).
             (R::ActorIsChosen, AbilitySource::Card(id)) => {
@@ -5912,7 +6005,7 @@ impl Engine {
                 }
                 // An action at a minion it may not direct actions at (Secure
                 // Haven, Shadow Cloak).
-                if !self.may_direct(seat, m, target) {
+                if declared_kind(ability).is_some() && !self.may_direct(seat, m, target) {
                     continue;
                 }
                 out.push(Choice::UseAbility {
@@ -5951,6 +6044,26 @@ impl Engine {
                 }
             }
         }
+        // Another Methuselah's minions using a vampire's text (Calebros's
+        // action, Mustafa's votes): every other seat's vampires.
+        for m in (0..st.minions.len()).map(|i| MinionId(i as u32)) {
+            let v = &st.minions[m.index()];
+            if v.owner == seat || !v.present() {
+                continue;
+            }
+            let Some(def) = cards::vampire_of(v) else {
+                continue;
+            };
+            for (ai, ability) in def.abilities.iter().enumerate() {
+                if matches!(
+                    ability.actor,
+                    Actor::OtherMethuselahsMinion | Actor::OtherMethuselahsVampire
+                ) && ability.windows.contains(&window)
+                {
+                    self.candidate_uses(seat, window, AbilitySource::Vampire(m), ai, Some(m), out);
+                }
+            }
+        }
         let cb = self.combat.as_ref();
         // Its controller's prey's abilities on a vampire (Keith Moody): the
         // vampires of the user's predator.
@@ -5972,7 +6085,12 @@ impl Engine {
                 }
                 // Granted to its controller's minions: from the grants above
                 // (`chosen_this_turn`); an ungated one would never be offered.
-                if ability.actor == Actor::ActingCandidate {
+                if matches!(
+                    ability.actor,
+                    Actor::ActingCandidate
+                        | Actor::OtherMethuselahsMinion
+                        | Actor::OtherMethuselahsVampire
+                ) {
                     continue;
                 }
                 // Where the vampire is: in its combat, or out of one
@@ -6135,13 +6253,18 @@ impl Engine {
                 _ => 0,
             })
             .sum::<u8>()
-            // Printed on the vampire (Scout Youngwood's reactions).
+            // Printed on the vampire (Scout Youngwood's reactions), or on its
+            // opposing combatant (Murat).
             + st
                 .printed_mod(
                     actor,
                     cards::Stat::BloodCostMore,
                     crate::state::PrintedCtx {
                         card: Some((card, mode)),
+                        opponent: self
+                            .combat
+                            .as_ref()
+                            .and_then(|c| c.side_of_minion(actor).map(|i| c.sides[1 - i].minion)),
                         // Not the acting minion (no action at all
                         // included): played as a reaction.
                         reacting: self.action.as_ref().is_none_or(|a| a.acting != actor),
@@ -6324,6 +6447,12 @@ impl Engine {
                 self.state.minions[m.index()].hunted = true;
             }
             a.mandatory |= mode.effects.contains(&Effect::MandatoryAction);
+            // "A … action that <the target> cannot block" (Calebros).
+            if let (true, Target::Minion(t)) =
+                (mode.effects.contains(&Effect::TargetCannotBlock), target)
+            {
+                a.barred_blockers.push(t);
+            }
             // The target decides whom the action is directed at: the
             // blocking seats and the sequencing order follow (spec §3.1.5).
             if let Some(t) = a.directed_seat(&self.state) {
@@ -6383,6 +6512,11 @@ impl Engine {
                 let of = self.state.prey(seat);
                 self.interrupts.push(Interrupt::NameAshPair { seat, of });
             }
+            // The ash heap's vampire (Hand of Conrad).
+            if mode.effects.contains(&Effect::AshVampireToUncontrolled) {
+                let seat = self.state.minions[m.index()].owner;
+                self.interrupts.push(Interrupt::NameAshVampire { seat });
+            }
             // The ash heap's ally too (Hel-Blá, rules-qa 41.6).
             if let Some(of) = mode.effects.iter().find_map(|e| match e {
                 Effect::AllyFromAshLocked(of) => Some(*of),
@@ -6420,7 +6554,8 @@ impl Engine {
             | Terms::VampireToHoldTarget
             | Terms::XPool
             | Terms::XCounters
-            | Terms::DirectedHandCard,
+            | Terms::DirectedHandCard
+            | Terms::InferiorDiscipline,
         ) = mode.terms
         {
             self.flow = Flow::AbilityTerms {
@@ -6471,6 +6606,14 @@ impl Engine {
             AbilitySource::Vampire(m) if mode.actor == Actor::HostControllersPrey => {
                 (st.prey(owner(m)), Some(m))
             }
+            AbilitySource::Vampire(m)
+                if matches!(
+                    mode.actor,
+                    Actor::OtherMethuselahsMinion | Actor::OtherMethuselahsVampire
+                ) =>
+            {
+                (owner(user.expect("the actor")), Some(m))
+            }
             AbilitySource::Vampire(m) => (owner(m), Some(m)),
             AbilitySource::Card(id) => {
                 let c = &st.cards[id.index()];
@@ -6508,7 +6651,12 @@ impl Engine {
         // for an ability used from out of the combat (Opikun).
         let actor = match (mode.actor, self.combat.as_ref()) {
             (Actor::ForOwnCombatant, Some(cb)) => cb.side_of(seat).map(|i| cb.sides[i].minion),
-            (Actor::ActingCandidate, _) => user,
+            (
+                Actor::ActingCandidate
+                | Actor::OtherMethuselahsMinion
+                | Actor::OtherMethuselahsVampire,
+                _,
+            ) => user,
             _ => host,
         };
         AbilityUser { seat, host, actor }
@@ -6623,6 +6771,14 @@ impl Engine {
                     .map_or(0, |b| b.life.saturating_sub(st.minions[host.index()].blood));
                 let max = room.min(st.minions[t.index()].blood);
                 (1..=max).map(Choice::SetX).collect()
+            }
+            Some(Terms::InferiorDiscipline) => {
+                let host = self.state.cards[source.card().index()].host.expect("host");
+                self.state
+                    .inferior_disciplines(host)
+                    .into_iter()
+                    .map(Choice::ChooseDiscipline)
+                    .collect()
             }
             // One choice per card name: copies are alike.
             Some(Terms::AshCard) => distinct(&self.state.seats[seat.index()].ash, |_| true)
@@ -6808,6 +6964,24 @@ impl Engine {
             }
             other => unreachable!("no card terms: {other:?}"),
         }
+        self.flow = resume;
+        self.resolve_ability(source, ability, target, 0, seat, user);
+    }
+
+    /// The Discipline chosen for an ability's card (Camarilla Vitae Slave),
+    /// then the ability resolved.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn ability_discipline_apply(
+        &mut self,
+        source: AbilitySource,
+        ability: u8,
+        target: Target,
+        seat: SeatId,
+        user: Option<MinionId>,
+        resume: Flow,
+        discipline: &'static str,
+    ) {
+        self.state.cards[source.card().index()].discipline = Some(discipline);
         self.flow = resume;
         self.resolve_ability(source, ability, target, 0, seat, user);
     }
@@ -7154,6 +7328,12 @@ impl Engine {
                     self.state.minions[h.index()].blood -= 1;
                     self.effect_unlock(h);
                 }
+                Effect::ActorBloodToTarget(n) => {
+                    let a = ctx.actor.expect("the actor");
+                    let moved = n.min(self.state.minions[a.index()].blood);
+                    self.state.minions[a.index()].blood -= moved;
+                    self.state.gain_blood(target.minion(), moved);
+                }
                 Effect::HostBloodToPool(n) => {
                     let h = &mut self.state.minions[host.expect("host").index()];
                     let moved = n.min(h.blood);
@@ -7232,6 +7412,21 @@ impl Engine {
                     self.state.minions[host.expect("host").index()].locked = true;
                 }
                 Effect::UnlockHost => self.effect_unlock(host.expect("host")),
+                Effect::HostSuperiorChosenUntilMaster => {
+                    let card = &self.state.cards[source.card().index()];
+                    if let (Some(d), Some(h)) = (card.discipline, card.host) {
+                        self.state.minions[h.index()].timed.push((
+                            cards::Lasting::Superior(d),
+                            Expiry::MasterPhase,
+                            ctx.seat,
+                        ));
+                    }
+                }
+                Effect::ActionCardToLibraryShuffled => {
+                    if let Some(a) = self.action.as_mut() {
+                        a.card_to_library = true;
+                    }
+                }
                 Effect::BurnEdge => self.state.seats[ctx.seat.index()].has_edge = false,
                 Effect::ToggleLockTarget => {
                     if let Target::Minion(m) = ctx.target {
@@ -8189,6 +8384,7 @@ impl Engine {
             .filter(|r| r.hook == Hook::UnlockPhase && self.rider_fires(id, r, &at))
             .collect();
         let mut lifeless = None;
+        let mut host_damage = None;
         for r in riders {
             for e in r.effects {
                 match *e {
@@ -8348,6 +8544,16 @@ impl Engine {
                         let h = self.state.cards[id.index()].bearer().expect("host");
                         self.state.gain_blood(h, n);
                     }
+                    Effect::DamageHost(n) => {
+                        host_damage = self.state.cards[id.index()].bearer().map(|h| (h, n));
+                    }
+                    Effect::ControllerChoosesMinionDamaged(n) => {
+                        self.interrupts.push(Interrupt::MinionOf {
+                            seat: controller,
+                            of: controller,
+                            purpose: crate::draws::MinionPurpose::Damage(n),
+                        });
+                    }
                     // Baltimore Purge: burned, then the picks.
                     Effect::Purge { chooser_clan } => {
                         let host = self.state.cards[id.index()].bearer().expect("host");
@@ -8389,6 +8595,12 @@ impl Engine {
             self.burn_minion(host);
             self.flow = resume;
             return;
+        }
+        // Charnas the Imp: out of combat, its employer may burn or go to
+        // torpor (the card moving on, `Interrupt::MoveOffBurnedBearer`).
+        if let Some((h, n)) = host_damage.filter(|&(h, _)| self.state.minions[h.index()].present())
+        {
+            self.damage_out_of_combat(h, n, false);
         }
         if burn_self {
             self.burn_card_in_play(id);
@@ -8824,6 +9036,20 @@ impl Engine {
                             }
                         }
                         other => self.apply_rider_effect(id, other, hook),
+                    }
+                }
+            }
+            // Printed on the subject itself (Thomas De Lutrius: "burn 1 pool
+            // after Thomas goes to torpor").
+            if hook == Hook::HostToTorpor {
+                for r in self.printed_riders(subject, Hook::HostToTorpor, None) {
+                    for e in r.effects {
+                        match *e {
+                            Effect::TheirControllerBurnsPool(n) => {
+                                loss[controller.index()] += n as i32;
+                            }
+                            other => unreachable!("not a torpor rider effect: {other:?}"),
+                        }
                     }
                 }
             }

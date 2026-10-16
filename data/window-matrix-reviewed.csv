@@ -759,3 +759,23 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 101925,Tainted Spring,Action Modifier,ani,no,ACTION_AS_ANNOUNCED,,,ok
 101131,Lucky Blow,Combat,,no,COMBAT_STRIKE_DECLARATION,delayed_replacement,,ok
 101515,Pulled Fangs,Combat,,no,COMBAT_END_OF_ROUND,,,ok
+100018,Aching Beauty,Master,,no,MASTER_PHASE,,,ok
+100038,Alastor,Political Action,,no,ACTION_DECLARE_POLITICAL,in_play_action,,ok
+100070,Animalism,Master,,no,MASTER_PHASE,,,ok
+100169,Black Metamorphosis,Action,obt,no,ACTION_DECLARE,,,ok
+100286,Camarilla Vitae Slave,Retainer,,no,ACTION_DECLARE_EMPLOY,,,ok
+100335,Charnas the Imp,Retainer,,no,ACTION_DECLARE_EMPLOY,,,ok
+100390,Computer Hacking,Action,,no,ACTION_DECLARE,,,ok
+100651,Entombment,Combat,obt,no,COMBAT_STRIKE_DECLARATION,,,ok
+100770,Form of Corruption,Action,ser,no,ACTION_DECLARE,,,ok
+100779,Foundation Exhibit,Master,,no,MASTER_PHASE,in_play_action,,ok
+100800,Game of Malkav,Master,,no,MASTER_PHASE,,,ok
+100882,Hand of Conrad,Equipment,,no,ACTION_DECLARE_EQUIP,in_play_action,,ok
+101048,"Khobar Towers, Al-Khubar",Master,,no,MASTER_PHASE,,,ok
+101235,Molotov Cocktail,Combat,,no,COMBAT_STRIKE_DECLARATION,,,ok
+101931,Talbot's Chainsaw,Equipment,,no,ACTION_DECLARE_EQUIP,in_play_action,,ok
+101963,Thadius Zho,Ally,,no,ACTION_DECLARE_RECRUIT,in_play_action,,ok
+102052,Two Wrongs,Master,,no,ACTION_BLOCKS_DECLINED,out_of_turn;trifle,,ok
+102075,University Hunting Ground,Master,,no,MASTER_PHASE,,,ok
+102268,Banu Haqim Justicar,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
+102272,Lasombra Justicar,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok

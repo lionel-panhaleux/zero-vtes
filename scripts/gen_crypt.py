@@ -30,6 +30,10 @@ MINI_PRECON_SETS = ["New Blood", "New Blood II", "New Blood III"]
 # Title is the card-text prefix (rulebook "Vampiric Sects"): sect, then an
 # optional title. Prince/Baron/Archbishop of a city contest by city;
 # Justicar and Inner Circle by clan; primogen is not unique.
+# A clan named in a title, in its V5 form (rules-digest §1: Kasim Bayar's
+# "Assamite Justicar" is the Banu Haqim Justicar's title).
+V5_CLAN = {"Assamite": "Banu Haqim"}
+
 TITLE = re.compile(
     r"^(Camarilla|Anarch|Independent|Sabbat|Laibon)"
     r"(?: (Prince|Baron|Archbishop) of ((?:[^:.]|\.(?=\w))+)| (primogen)| (\w+) Justicar"
@@ -49,9 +53,9 @@ def parse(card):
     elif m.group(4):
         title = "Title::Primogen"
     elif m.group(5):
-        title = f'Title::Justicar("{m.group(5)}")'
+        title = f'Title::Justicar("{V5_CLAN.get(m.group(5), m.group(5))}")'
     elif m.group(6):
-        title = f'Title::InnerCircle("{m.group(6)}")'
+        title = f'Title::InnerCircle("{V5_CLAN.get(m.group(6), m.group(6))}")'
     elif m.group(7):
         title = f"Title::{m.group(7).capitalize()}"
     else:

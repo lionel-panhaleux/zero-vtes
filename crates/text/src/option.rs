@@ -573,7 +573,10 @@ fn asked(
             n.minion_bare(about?.to?)
         ),
         (P::MoveForBlood, K::Pass) => "Don't move it".into(),
-        (P::MoveCardToTitled, K::ChooseMinion) => role(&format!("gets {}", named()?))?,
+        (P::MoveCardToTitled | P::MoveOffBurnedBearer, K::ChooseMinion) => {
+            role(&format!("gets {}", named()?))?
+        }
+        (P::MoveOffBurnedBearer, K::Pass) => "Let it burn".into(),
         // The rest reads as anywhere.
         _ => base?,
     })

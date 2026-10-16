@@ -97,15 +97,16 @@ pub fn terms_choice(e: &Engine, req: &DecisionRequest) -> Option<usize> {
                 (Term::ChooseSeat(_), RefEffect::MoveAllocatedFromChosen) => Some(harm(e, me, s)),
                 _ => None,
             },
-            // A title: one of the caller's own vampires, the biggest first.
-            Choice::ChooseMinion(m) if def.effect == RefEffect::PutOnChosen => {
+            // A title (Alastor's card): one of the caller's own vampires,
+            // the biggest first.
+            Choice::ChooseMinion(m) if matches!(def.effect, RefEffect::PutOnChosen { .. }) => {
                 Some(if owner(e, m) == me {
                     1000 + e.state.capacity_of(m).unwrap_or(0) as i32
                 } else {
                     -100 * harm(e, me, owner(e, m))
                 })
             }
-            Choice::Pass if def.effect == RefEffect::PutOnChosen => Some(0),
+            Choice::Pass if matches!(def.effect, RefEffect::PutOnChosen { .. }) => Some(0),
             // The clan with the most of the caller's vampires, the fewest
             // of the others'.
             Choice::ChooseClan(c) if def.effect == RefEffect::GainPerClanVampire => {
@@ -269,9 +270,11 @@ fn stake(e: &Engine, me: SeatId) -> Option<i32> {
                 .count() as i32),
         ),
         // Every Methuselah opposes an opponent's title (owner, 2026-10-04).
-        RefEffect::PutOnChosen if !r.terms.minions.is_empty() => {
+        RefEffect::PutOnChosen { .. } if !r.terms.minions.is_empty() => {
             Some(if mine > 0 { 1 } else { -1 })
         }
+        // A title for the caller (who votes for): every other one opposes.
+        RefEffect::CallerContestsChosenTitle => Some(-1),
         RefEffect::GainPerClanVampire => Some(clan_count(e, me, r.terms.clan?)),
         RefEffect::ChosenTakesChosenCard => {
             let lost = r.terms.cards.iter().any(|&c| st.card_controller(c) == me);

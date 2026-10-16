@@ -49,7 +49,7 @@ What it still needs:
    (cards); diablerie's equipment (engine).
 8. **What players asked for**: the cards their refused decks named,
    counted (engine: Demand for cards counted), to steer the next rounds
-   (cards: Round 13).
+   (cards: Round 14).
 
 Not needed for the beta but in the same order: the repository open to
 outsiders (engine), the demo video and the proposal to Thomas (platforms).

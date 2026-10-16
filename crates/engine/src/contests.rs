@@ -67,7 +67,7 @@ impl Engine {
                         crate::state::PrintedCtx::default(),
                     ) > 0
                 });
-                if v.in_torpor || v.blood == 0 || forced {
+                if v.in_torpor || v.blood < st.title_contest_cost(m) || forced {
                     vec![Choice::YieldContest(item)]
                 } else {
                     vec![Choice::PayContest(item), Choice::YieldContest(item)]
@@ -109,7 +109,10 @@ impl Engine {
             (Contest::Card(_) | Contest::Library(_), true) => {
                 self.state.seats[s.index()].pool -= 1;
             }
-            (Contest::Title(m), true) => self.state.minions[m.index()].blood -= 1,
+            (Contest::Title(m), true) => {
+                let cost = self.state.title_contest_cost(m);
+                self.state.minions[m.index()].blood -= cost;
+            }
             // Yielded: burned with everything on it (not ready: no "ready
             // minion burned" rider).
             (Contest::Card(m), false) => self.burn_minion(m),

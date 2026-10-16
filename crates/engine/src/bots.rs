@@ -383,7 +383,7 @@ fn referendum_terms(e: &Engine, req: &DecisionRequest, o: &Choice) -> i32 {
         def.effect,
         RefEffect::BurnAllocatedChosenGains(_) | RefEffect::ChosenTakesChosenCard
     );
-    let own_minions = matches!(def.effect, RefEffect::PutOnChosen);
+    let own_minions = matches!(def.effect, RefEffect::PutOnChosen { .. });
     let foe = |s: SeatId| s != me && [st.prey(me), st.predator(me)].contains(&s);
     match *o {
         Choice::AllocateTo { seat, n } => {

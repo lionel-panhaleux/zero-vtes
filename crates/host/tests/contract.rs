@@ -91,7 +91,11 @@ fn cmd(command: Command) -> In {
 
 /// A game played from its seed: every message sent, in order.
 fn play(seed: u32) -> (Vec<Out>, Game) {
-    let mut g = game(seed);
+    play_game(game(seed), seed)
+}
+
+/// `g` played by random answers (its seed's) to the end or the budget.
+fn play_game(mut g: Game, seed: u32) -> (Vec<Out>, Game) {
     let human = g.human();
     let mut rng = Rng(seed as u64 * 13 + 5);
     let mut all = Vec::new();
@@ -255,4 +259,89 @@ fn another_seats_hidden_choices_name_no_card() {
         }
     }
     eprintln!("{seeds} games: {checked} hidden choices told without their card");
+}
+
+/// Game of Malkav: another seat's secret number is told chosen, not which
+/// (`Purpose::SecretNumber`); the human's own pick is its own. Every deck a
+/// Malkavian precon with Game of Malkav added, the bots random.
+#[test]
+fn another_seats_secret_number_is_not_told() {
+    use zvtes_api::event::EventKind;
+    use zvtes_api::ids::Window;
+    let precon = zvtes_host::catalog()
+        .into_iter()
+        .find(|(name, _)| name.contains("Malkavian"))
+        .expect("a Malkavian precon")
+        .1;
+    let mut deck = precon.clone();
+    *deck.entry("100800".into()).or_default() += 8;
+    let (mut hidden, mut own) = (0, 0);
+    for seed in 1..=12u32 {
+        let spec = GameSpec {
+            seed: Some(seed),
+            time_limit: Some(12),
+            client: Some("tests".into()),
+            seats: (0..3)
+                .map(|i| SeatSpec {
+                    name: format!("Seat {i}"),
+                    deck: deck.clone(),
+                    player: if i == 0 {
+                        Player::Human {
+                            settings: Settings {
+                                opportunities: true,
+                                views: Views::Decisions,
+                                text: false,
+                            },
+                        }
+                    } else {
+                        Player::Bot {
+                            profile: "random".into(),
+                        }
+                    },
+                })
+                .collect(),
+        };
+        let g = Game::new(
+            format!("m{seed}"),
+            spec,
+            &NoBots,
+            Box::new(Ticks(Default::default())),
+        )
+        .unwrap();
+        let (all, g) = play_game(g, seed);
+        for o in &all {
+            let Message::Events { events, .. } = &o.message else {
+                continue;
+            };
+            for e in events {
+                let EventKind::Decided {
+                    seat,
+                    window: Window::ResolutionChoice,
+                    choice,
+                    ..
+                } = &e.kind
+                else {
+                    continue;
+                };
+                if choice.key.kind != OptionKind::SetX {
+                    continue;
+                }
+                if *seat == g.human() {
+                    own += 1;
+                    assert!(choice.key.amount.is_some(), "the human's own pick");
+                } else {
+                    hidden += 1;
+                    // Nothing says the number: no amount, index 0, no effects.
+                    assert!(
+                        choice.key.amount.is_none()
+                            && choice.index == 0
+                            && choice.effects.is_empty(),
+                        "seed {seed}: told {e:?}"
+                    );
+                }
+            }
+        }
+    }
+    eprintln!("{hidden} secret numbers of other seats, {own} of the human's");
+    assert!(hidden > 0, "no Game of Malkav played");
 }

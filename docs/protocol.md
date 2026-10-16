@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **1.4.0**. The types: the models of the
+Version **1.5.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -189,7 +189,7 @@ A JSON object with `seq`, `reply_to`? and a `type`:
 … 41: the schema's `Window`). `source` is the card whose terms or effect
 the decision chooses, when it is one (a play's or an action's terms, a
 referendum's): the options' `effects` say what each choice gets.
-`purpose` is what an effect asks the choice for, when one does (64 ids,
+`purpose` is what an effect asks the choice for, when one does (75 ids,
 the schema's `Purpose`: `pay_or_burn`, `store_search`…, one per kind
 of effect choice the engine asks). The purpose says the verb
 (`remove_uncontrolled`: the slot chosen is removed); where it has
@@ -197,7 +197,8 @@ parameters, each option's `effects` give them (`minion_of`: what the
 chosen minion gets — `lock`, `unlock`, `corruption`, `blood`, `damage`,
 `burn`, a card `move`d onto it; `ashur_picks`: `move` `to` the hand or
 the library; `blood_or_burned`: the blood paid, or what burns on a
-pass). `about` holds the particulars a prompt names, beyond the
+pass); a secret pick (`secret_number`, Game of Malkav) is told to the
+other seats without its amount or effects, its `index` 0. `about` holds the particulars a prompt names, beyond the
 purpose, the source and the options: `n` (how many: still to pay, at
 most, to discard), `m` (a second amount), `cap`, `seat` (whose
 minions, ash heap or hand), `minion` and `to` (the minions blood moves

@@ -541,6 +541,8 @@ one), 26.8 (younger than the acting vampire), 60.11, 60.13, 71.1.
 - A justicar requirement met by Karl Schrekt makes him a titled Camarilla
   vampire for that card (59.14).
 - A title card replaces a printed title for good (19.2).
+- No contest with oneself: a title card (and Zane's referendum) cannot
+  choose a vampire whose controller already claims that title (76.2, 76.3).
 
 ### 3.16 "The same action"
 
@@ -557,6 +559,11 @@ rulebook actions by kind and target for card texts (23.2). §8.5.
   weapons (17.4).
 - "Only one vehicle" / "only one haven": never a second, by any route
   (9.2, 17.4, 63.10, 70.20, 51.3).
+- Put on (Alastor), not equipped: its layers, inferior, requirements
+  ignored; nothing it does "as equipped", no lock (76.15).
+- A minion barred from using equipment loses the Disciplines its equipment
+  gives meanwhile (76.16); an action an equipment grants its bearer fizzles
+  once the equipment left the actor (76.9).
 
 ### 3.18 Ash heap cards, card kinds
 
@@ -935,7 +942,9 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
 - "Until your next discard phase" ends as that discard phase begins
   (53.4); "until the end of turn" bonuses end then, not in the discard
   phase (8.2, LSJ 20100812); Juliet Parr's until her controller's next unlock
-  phase begins (60.2); Rage of Apedemak's for the combat (54.8); Make the
+  phase begins (60.2); "until their next master phase" as that master
+  phase begins, through the unlock phase before it (Camarilla Vitae Slave,
+  76.24); Rage of Apedemak's for the combat (54.8); Make the
   Misere's [pot] for the whole combat (31.7); Coagulated Entity's capacity
   until the action ends (68.6).
 - "Once this combat" on a card put on the vampire: it stays the combat and
@@ -1438,7 +1447,9 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
   requirements) and of each card the acting minion played on it (clan, one
   of its Disciplines); the masked minion's inherent stealth already used
   does not bar it; [OBF] only when stealth is needed (owner 2026-10-09)
-  (58.13). No Mask take-over of a blood-cursed vampire's diablerie (63.1).
+  (58.13). No Mask take-over of a blood-cursed vampire's diablerie (63.1),
+  nor once a card on the acting minion applied its effect to the action
+  (Aching Beauty's burn, 76.17).
 - Deep Song [ANI]'s "considered the acting minion": the target takes the
   acting side in that combat (its Methuselah acts first each step); effects
   on "this acting vampire" (Invigorate [pro], Form of Mist's continuation)
@@ -2141,7 +2152,12 @@ round (rulebook "Combat").
 - A strike must be chosen, default hand strike; "no strike" is rare: a
   committed strike that cannot be performed, or a card letting the minion
   not strike (4.3). Ineffective strikes stay legal (a hand strike at long
-  range, a dodge with no opposing strike) (4.3).
+  range, a dodge with no opposing strike) (4.3). A strike naming the kind
+  it acts on (Entombment's "the opposing ally", Coma's "the opposing
+  vampire") is not chosen against the other kind (76.11).
+- A strike's own effect on its striker happens only if the strike resolves:
+  dodged or the combat ended first, Molotov Cocktail is not put on, nor
+  burned "after use" (76.10).
 - Range: close unless the strike says (D23; 21.1). Heroic Might's "strike:
   burn equipment": close range, the equipment named as the strike is
   chosen, a dodge stops it (26.6). Kaymakli Fragment's "an opposing minion
@@ -3627,6 +3643,11 @@ rules-qa batch.
   one-choice reading, its give-and-take sentence unaddressed.
 - **K4** Parijat's toll on a canceled card: 18.1 follows ANK 20260317, which
   supersedes ANK 20260216 (Eagle's Sight example); ledger rows `n/a`.
+- **K45** Camarilla Vitae Slave: 76.24 (owner, 2026-10-16) — the chosen
+  Discipline lasts until its controller's next master phase, as printed —
+  over LSJ 19970224 ("until his controller's next unlock phase"); the
+  ledger row is test-backed by the owner's reading, its "burned or stolen"
+  half tested, its timing overridden.
 
 ### 23.2 Within rules-qa
 
@@ -3852,6 +3873,8 @@ read, for the owner to confirm or correct:
 - 70.5, 70.9, 70.13, 70.18, 70.20–70.22.
 - 74.7–74.12 graded green or amber (both reads agree, or a precedent;
   74.1–74.6 and 74.13 answered by the owner).
+- 75.1 (75.2 confirmed, 75.3 settled by 44.1).
+- 76.1–76.23, 76.25 graded green or amber (76.24 answered by the owner).
 - The "Question (implemented reading)" tails: 48.2 (a card granting several
   strikes bars further cards until all are made), 48.3 (the switch of
   blocker takes effect at once, no impulse left to others), 48.8 (a rescue
