@@ -88,7 +88,7 @@ tracks `fork/engine-game`.
 
 | # | Branch | State | Asked of Thomas | Reactions |
 |---|---|---|---|---|
-| 282 | fix-textures | open (2026-10-14) | | none yet (Vercel deploy needs his authorization) |
+| 282 | fix-textures | open (2026-10-14); the owner saw it work in play (Oblivion, 47th Street Royals, 2026-10-16) | | none yet (Vercel deploy needs his authorization) |
 | 283 | fix-precon-update | open (2026-10-14) | | none yet |
 | 284 | layout-hand-bottom | open (2026-10-14) | affects every game mode: free-table screenshots | none yet |
 | 285 | engine-game | open (2026-10-14) | the counted-marker chips live inside `CardGO.vue` (~140 lines behind `isEngine`): keep, or a component of their own? | none yet |
